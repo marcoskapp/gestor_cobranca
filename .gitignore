@@ -36,3 +36,6 @@ infra/terraform/**/.terraform.lock.hcl.bak
 # Execução local
 backend/var/
 backend/config/dev/
+
+# Chaves exclusivas de teste (sem valor de segurança)
+!backend/src/test/resources/it/*.pem

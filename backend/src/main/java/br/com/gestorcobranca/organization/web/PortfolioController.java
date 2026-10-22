@@ -5,8 +5,8 @@ import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.PortfolioView;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.UpdatePortfolioCommand;
 import br.com.gestorcobranca.shared.web.ApiPaths;
-import br.com.gestorcobranca.shared.web.PageQuery;
-import br.com.gestorcobranca.shared.web.PageResponse;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

@@ -7,8 +7,8 @@ import br.com.gestorcobranca.identity.application.port.in.UserManagementUseCases
 import br.com.gestorcobranca.identity.application.port.in.UserManagementUseCases.UpdateUserCommand;
 import br.com.gestorcobranca.identity.application.port.in.UserManagementUseCases.UserView;
 import br.com.gestorcobranca.shared.web.ApiPaths;
-import br.com.gestorcobranca.shared.web.PageQuery;
-import br.com.gestorcobranca.shared.web.PageResponse;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
