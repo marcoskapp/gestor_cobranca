@@ -16,7 +16,7 @@ Documento de referência técnica. Toda decisão de código deve ser coerente co
 ```
 
 * **Backend:** Java 21, Spring Boot 4, monólito modular (Spring Modulith). Um único artefato, implantado em N instâncias EC2 atrás de um ALB. Todas as instâncias são *stateless*; estado vive no PostgreSQL e no S3.
-* **Frontend:** Angular (standalone components, signals), servido como estático pelo próprio backend em `/` ou por S3 + ALB — ver ADR-0007.
+* **Frontend:** Angular (standalone components, signals), empacotado no JAR e servido como estático pelo próprio backend em `/` — ver ADR-0007.
 * **Banco:** PostgreSQL 16 (RDS), um schema por módulo, *Row Level Security* por tenant.
 * **Arquivos:** S3 (carteiras importadas, evidências, termos de acordo, relatórios exportados), criptografia SSE e chaves por prefixo de tenant.
 * **Observabilidade:** três fluxos de log separados (técnico, negócio, acesso) + métricas Micrometer publicadas no CloudWatch.
@@ -144,7 +144,7 @@ Ver `docs/LOGGING.md`. Três fluxos independentes:
 | --- | --- | --- | --- |
 | Técnico | todos os loggers de classe | `technical.log` → CloudWatch `/gestor-cobranca/<env>/technical` | manutenção, diagnóstico, desempenho |
 | Negócio | `BUSINESS` via `BusinessEventLogger` | `business.log` → `/…/business` + tabela `shared.business_event` | inteligência operacional e tomada de decisão |
-| Acesso/segurança | `ACCESS` via `AccessLogger` | `access.log` → `/…/access` + tabela `identity.access_log` | rastreabilidade de acesso e investigação |
+| Acesso/segurança | `ACCESS` via `AccessLogger` | `access.log` → `/…/access` + tabela `shared.access_log` | rastreabilidade de acesso e investigação |
 
 Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por endpoint, taxa de erro, pool de conexões, filas de jobs, eventos pendentes, integrações (sucesso/falha/latência por provedor), além de métricas de negócio agregadas.
 
