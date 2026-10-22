@@ -1,0 +1,32 @@
+#!/bin/bash
+# Launcher do bootstrap (gerado pelo Terraform; sem segredos).
+# Grava a configuração do ambiente, baixa os scripts de bootstrap versionados no S3,
+# confere o SHA-256 de cada um contra o valor fixado neste user-data e executa o bootstrap.
+set -Eeuo pipefail
+umask 022
+
+install -d -m 0750 /etc/gestor-cobranca
+install -d -m 0755 /usr/local/libexec/gestor-cobranca /usr/local/share/gestor-cobranca
+
+cat > /etc/gestor-cobranca/instance.conf <<'GC_CONF_EOF'
+%{ for key, value in instance_conf ~}
+${key}='${value}'
+%{ endfor ~}
+GC_CONF_EOF
+chmod 0640 /etc/gestor-cobranca/instance.conf
+
+fetch() {
+  local key="$1" dest="$2" mode="$3" expected="$4" tmp
+  tmp="$(mktemp)"
+  aws s3 cp --only-show-errors --region '${region}' "s3://${bucket}/$${key}" "$${tmp}"
+  echo "$${expected}  $${tmp}" | sha256sum --check --status \
+    || { echo "hash inválido para $${key}" >&2; rm -f "$${tmp}"; exit 1; }
+  install -o root -g root -m "$${mode}" "$${tmp}" "$${dest}"
+  rm -f "$${tmp}"
+}
+
+%{ for f in files ~}
+fetch '${f.key}' '${f.dest}' '${f.mode}' '${f.sha256}'
+%{ endfor ~}
+
+exec /usr/local/libexec/gestor-cobranca/user-data.sh

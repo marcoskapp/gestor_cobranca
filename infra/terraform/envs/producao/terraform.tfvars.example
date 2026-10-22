@@ -1,0 +1,69 @@
+# =============================================================================
+# Produção. Copie para terraform.tfvars (não versionado).
+# Valores ativos = fase 1 (piloto). Os blocos "FASE 2" estão comentados: ative-os por PR
+# quando entrarem clientes pagantes (documentação/infraestrutura-aws.md §4).
+# NUNCA coloque segredos aqui.
+# =============================================================================
+
+environment = "producao"
+region      = "sa-east-1"
+domain_name = "app.gestorcobranca.com.br"
+
+vpc_cidr         = "10.10.0.0/16"
+nat_gateway_mode = "single"
+# FASE 2 — saída resiliente à perda de uma AZ:
+# nat_gateway_mode = "per_az"
+
+alb_deletion_protection = true
+flow_logs_traffic_type  = "REJECT"
+
+certificate_arn = "arn:aws:acm:sa-east-1:<ID_DA_CONTA>:certificate/<ID>"
+
+# --- Serviços que REQUEREM APROVAÇÃO (mantenha false até a aprovação) ---
+enable_acm_certificate   = false
+enable_route53           = false
+# route53_zone_id        = "Z0000000000000"
+use_ssm_parameters       = false
+enable_sns_notifications = false
+# alarm_email_endpoints  = ["operacao@gestorcobranca.com.br"]
+enable_waf = false
+# FASE 2 — WAF com regras gerenciadas e limite de taxa (requer aprovação):
+# enable_waf              = true
+# waf_rate_limit_per_5min = 2000
+
+secrets_admin_principal_arns = [
+  "arn:aws:iam::<ID_DA_CONTA>:role/aws-reserved/sso.amazonaws.com/sa-east-1/AWSReservedSSO_AdministratorAccess_*",
+]
+
+# --- Banco ---
+db_instance_class        = "db.t4g.medium"
+db_multi_az              = false
+db_allocated_storage_gib = 50
+db_backup_retention_days = 14
+db_deletion_protection   = true
+db_max_connections       = 300
+db_pool_size             = 30
+# FASE 2 — Multi-AZ e instância maior (ajustar pelas métricas reais):
+# db_multi_az              = true
+# db_instance_class        = "db.t4g.large"    # ou "db.m7g.large"
+# db_max_connections       = 500
+
+# --- Computação ---
+enable_compute           = true
+bootstrap_mode           = false
+db_admin_access          = false
+initial_artifact_version = "1.0.0"
+instance_type            = "t4g.medium"
+asg_min_size             = 1
+asg_max_size             = 3
+cpu_target_percent       = 60
+requests_per_target      = 1000
+# FASE 2 — uma instância por AZ, até 6 (pool menor por instância: o papel
+# app_runtime_login aceita até 200 conexões e o instance refresh dobra a frota):
+# asg_min_size = 2
+# asg_max_size = 6
+# db_pool_size = 15
+
+log_level = "INFO"
+smtp_host = "smtp.provedor-de-email.example"
+smtp_port = 587

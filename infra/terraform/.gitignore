@@ -1,0 +1,2 @@
+# Configuração local do backend (contém o ID da conta; não versionar).
+backend.hcl
