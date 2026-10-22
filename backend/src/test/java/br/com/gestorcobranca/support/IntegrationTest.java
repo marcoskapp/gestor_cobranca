@@ -37,6 +37,14 @@ public abstract class IntegrationTest {
     private static final String RUNTIME_PASSWORD = System.getenv().getOrDefault("IT_DB_RUNTIME_PASSWORD", "app_runtime_it");
     private static final String JDBC_URL = startDatabase();
 
+    protected static String jdbcUrl() {
+        return JDBC_URL;
+    }
+
+    protected static String ownerPassword() {
+        return OWNER_PASSWORD;
+    }
+
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", () -> JDBC_URL);
