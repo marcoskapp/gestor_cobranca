@@ -54,6 +54,20 @@ public class AccessScope {
     }
 
     /**
+     * Para leitura por id de um recurso ligado a vários credores (ex.: devedor com títulos em
+     * credores diferentes): visível se ao menos um dos credores estiver no escopo. Recurso sem
+     * credor associado só é visível a quem tem acesso a todos os credores. Nega com 404.
+     */
+    public void requireVisibleInAny(String resource, UUID resourceId, Collection<UUID> creditorIds) {
+        CreditorScope scope = currentActor.get().creditorScope();
+        boolean visible = scope.all() || creditorIds.stream().anyMatch(scope::includes);
+        if (!visible) {
+            logDenied(resource, resourceId);
+            throw new ResourceNotFoundException(resource, resourceId);
+        }
+    }
+
+    /**
      * Converte o filtro de credores solicitado no conjunto efetivamente permitido.
      * Retorno vazio com {@link #hasAllCreditors()} verdadeiro significa "sem filtro".
      */
