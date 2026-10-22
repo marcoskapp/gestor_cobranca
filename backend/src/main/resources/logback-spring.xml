@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Três fluxos de log independentes (ver docs/LOGGING.md):
+    technical.log  - todos os loggers de classe: manutenção, diagnóstico e desempenho
+    business.log   - logger BUSINESS: eventos de negócio para inteligência operacional
+    access.log     - logger ACCESS: acesso e segurança para rastreabilidade
+  Todos em JSON (uma linha por evento), enviados ao CloudWatch Logs pelo CloudWatch Agent.
+-->
+<configuration scan="false">
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty name="LOG_DIR" source="app.logging.dir" defaultValue="./var/log"/>
+    <springProperty name="TECH_LEVEL" source="app.logging.technical-level" defaultValue="INFO"/>
+    <conversionRule conversionWord="maskedMsg" class="br.com.gestorcobranca.shared.logging.MaskingMessageConverter"/>
+
+    <!-- Console legível para desenvolvimento local -->
+    <appender name="CONSOLE_PATTERN" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} [req=%X{requestId:-} tenant=%X{tenantId:-} actor=%X{actorId:-}] - %maskedMsg %kvp%n%ex</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Console em JSON (contêineres / execução sem arquivo) -->
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+            <format>br.com.gestorcobranca.shared.logging.JsonLogFormatter</format>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="TECHNICAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/technical.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/technical.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+            <format>br.com.gestorcobranca.shared.logging.JsonLogFormatter</format>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="BUSINESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/business.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/business.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+            <format>br.com.gestorcobranca.shared.logging.JsonLogFormatter</format>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="ACCESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/access.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/access.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+            <format>br.com.gestorcobranca.shared.logging.JsonLogFormatter</format>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Escrita assíncrona: o I/O de log não bloqueia requisições. neverBlock=false para
+         business/access: preferimos contrapressão a perder eventos de rastreabilidade. -->
+    <appender name="ASYNC_TECHNICAL" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>8192</queueSize>
+        <discardingThreshold>20</discardingThreshold>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="TECHNICAL_FILE"/>
+    </appender>
+    <appender name="ASYNC_BUSINESS" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>8192</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+        <appender-ref ref="BUSINESS_FILE"/>
+    </appender>
+    <appender name="ASYNC_ACCESS" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>8192</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+        <appender-ref ref="ACCESS_FILE"/>
+    </appender>
+
+    <!-- Bibliotecas ruidosas -->
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.hibernate.orm.deprecation" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="INFO"/>
+    <logger name="software.amazon.awssdk" level="WARN"/>
+
+    <springProfile name="local | test">
+        <logger name="BUSINESS" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE_PATTERN"/>
+            <appender-ref ref="ASYNC_BUSINESS"/>
+        </logger>
+        <logger name="ACCESS" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE_PATTERN"/>
+            <appender-ref ref="ASYNC_ACCESS"/>
+        </logger>
+        <root level="${TECH_LEVEL}">
+            <appender-ref ref="CONSOLE_PATTERN"/>
+            <appender-ref ref="ASYNC_TECHNICAL"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!(local | test)">
+        <logger name="BUSINESS" level="INFO" additivity="false">
+            <appender-ref ref="ASYNC_BUSINESS"/>
+        </logger>
+        <logger name="ACCESS" level="INFO" additivity="false">
+            <appender-ref ref="ASYNC_ACCESS"/>
+        </logger>
+        <root level="${TECH_LEVEL}">
+            <appender-ref ref="ASYNC_TECHNICAL"/>
+        </root>
+    </springProfile>
+
+    <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook"/>
+</configuration>

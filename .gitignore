@@ -1,0 +1,38 @@
+# Java / Maven
+backend/target/
+*.class
+*.log
+hs_err_pid*
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+
+# Terraform
+infra/terraform/**/.terraform/
+infra/terraform/**/*.tfstate
+infra/terraform/**/*.tfstate.*
+infra/terraform/**/*.tfvars
+!infra/terraform/**/*.tfvars.example
+infra/terraform/**/.terraform.lock.hcl.bak
+
+# Segredos e ambiente local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# IDEs / SO
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Execução local
+backend/var/
+backend/config/dev/

@@ -1,0 +1,38 @@
+# Desenvolvimento local: PostgreSQL local (infra/docker/docker-compose.yml), arquivos em disco.
+# As chaves abaixo são EXCLUSIVAS para desenvolvimento e não protegem dados reais.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cobranca
+    username: app_runtime_login
+    password: app_runtime_dev
+  flyway:
+    url: jdbc:postgresql://localhost:5432/cobranca
+    user: app_owner
+    password: app_owner_dev
+  mail:
+    host: localhost
+    port: 1025
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+      mail.smtp.starttls.required: false
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+app:
+  logging:
+    technical-level: DEBUG
+  crypto:
+    keys:
+      k1: ZGV2LW9ubHktYWVzLWtleS0zMi1ieXRlcy1sb2NhbCE=
+    active-key-id: k1
+    blind-index-key: ZGV2LW9ubHktYmxpbmQtaW5kZXgta2V5LTMyLWJ5dGVzIQ==
+  storage:
+    provider: filesystem
+    local-root: ./var/storage
+  security:
+    jwt:
+      private-key: file:./config/dev/jwt-private.pem
+      public-key: file:./config/dev/jwt-public.pem

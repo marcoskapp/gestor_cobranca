@@ -1,0 +1,202 @@
+# =============================================================================
+# Configuração base. Valores sensíveis SEMPRE por variável de ambiente.
+# Perfis: local (desenvolvimento), test (testes automatizados), prod (AWS).
+# =============================================================================
+spring:
+  application:
+    name: gestor-cobranca
+  profiles:
+    default: local
+
+  datasource:
+    # Aplicação conecta com o papel app_runtime (sem BYPASSRLS, não-dono das tabelas)
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/cobranca}
+    username: ${DB_USERNAME:app_runtime_login}
+    password: ${DB_PASSWORD:}
+    hikari:
+      pool-name: app-pool
+      maximum-pool-size: ${DB_POOL_SIZE:30}
+      minimum-idle: 5
+      connection-timeout: 5000
+      max-lifetime: 1500000
+      leak-detection-threshold: 60000
+      data-source-properties:
+        ApplicationName: gestor-cobranca
+        reWriteBatchedInserts: true
+
+  flyway:
+    # Migrations executadas com o papel dono do schema (separado do runtime)
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/cobranca}
+    user: ${DB_MIGRATION_USERNAME:cobranca}
+    password: ${DB_MIGRATION_PASSWORD:}
+    locations: classpath:db/migration
+    default-schema: shared
+    create-schemas: true
+    validate-on-migrate: true
+    out-of-order: false
+    clean-disabled: true
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 50
+        query:
+          fail_on_pagination_over_collection_fetch: true
+          in_clause_parameter_padding: true
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 105MB
+
+  mvc:
+    problemdetails:
+      enabled: true
+
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: false
+      completion-mode: update
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: ${SMTP_STARTTLS_REQUIRED:true}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+
+server:
+  port: ${SERVER_PORT:8080}
+  # O ALB repassa X-Forwarded-For/Proto; as instâncias só aceitam tráfego do ALB (security group)
+  forward-headers-strategy: framework
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,application/javascript
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+  servlet:
+    session:
+      tracking-modes: []
+  tomcat:
+    max-swallow-size: 105MB
+    mbeanregistry:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+        jobs.duration: 0.5,0.95,0.99
+      slo:
+        http.server.requests: 200ms,500ms,1s,2s
+  cloudwatch:
+    metrics:
+      export:
+        enabled: ${CLOUDWATCH_METRICS_ENABLED:false}
+        namespace: GestorCobranca
+        step: 1m
+  info:
+    build:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+
+# -----------------------------------------------------------------------------
+# Configurações da aplicação
+# -----------------------------------------------------------------------------
+app:
+  environment: ${APP_ENV:local}
+  base-url: ${APP_BASE_URL:http://localhost:4200}
+
+  logging:
+    dir: ${LOG_DIR:./var/log}
+    technical-level: ${LOG_LEVEL:INFO}
+
+  crypto:
+    # Chaves AES-256 (Base64, 32 bytes). Formato: APP_CRYPTO_KEYS_<ID>; ver docs/SECURITY.md
+    keys:
+      k1: ${APP_CRYPTO_KEY_K1:}
+    active-key-id: ${APP_CRYPTO_ACTIVE_KEY_ID:k1}
+    blind-index-key: ${APP_CRYPTO_BLIND_INDEX_KEY:}
+
+  storage:
+    provider: ${STORAGE_PROVIDER:s3}
+    bucket: ${S3_BUCKET:}
+    region: ${AWS_REGION:sa-east-1}
+    kms-key-id: ${S3_KMS_KEY_ID:}
+
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:https://gestorcobranca.com.br}
+      # Par RSA (PEM PKCS#8 / X.509). Em produção: variáveis de ambiente injetadas no deploy.
+      private-key: ${JWT_PRIVATE_KEY:}
+      public-key: ${JWT_PUBLIC_KEY:}
+      access-token-ttl: PT10M
+      mfa-token-ttl: PT5M
+    session:
+      refresh-token-ttl: PT12H
+      idle-timeout: PT30M
+      max-sessions-per-user: 3
+    password:
+      min-length: 12
+      history: 5
+      max-age: P90D
+    lockout:
+      max-failed-attempts: 5
+      base-lock-duration: PT5M
+      max-lock-duration: PT1H
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+    rate-limit:
+      login-per-minute-per-ip: 20
+    mfa:
+      issuer: Gestor de Cobranca
+      required-for-roles: ADMIN,GESTOR,FINANCEIRO,AUDITOR
+
+  audit:
+    seal-interval: PT1M
+
+  events:
+    republish-interval: PT1M
+    republish-min-age: PT2M
+
+  jobs:
+    concurrency: ${JOBS_CONCURRENCY:8}
+    poll-interval: PT1S
+    lease: PT15M
+
+  scheduling:
+    enabled: true
