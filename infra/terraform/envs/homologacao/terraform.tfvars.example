@@ -1,0 +1,64 @@
+# =============================================================================
+# Homologação — fase 1. Copie para terraform.tfvars (não versionado).
+# NUNCA coloque segredos aqui: senhas e chaves são provisionadas por
+# scripts/ops/provision-secrets.sh direto no cofre (SSM ou bucket de segredos).
+# =============================================================================
+
+environment = "homologacao"
+region      = "sa-east-1"
+domain_name = "homologacao.gestorcobranca.com.br"
+
+vpc_cidr         = "10.20.0.0/16"
+nat_gateway_mode = "single"
+
+# Opcional: restringir homologação à rede corporativa.
+# alb_ingress_cidrs_ipv4 = ["203.0.113.0/24"]
+alb_deletion_protection = false
+
+# TLS: sem aprovação do ACM, informe um certificado existente (importado no ACM).
+certificate_arn = "arn:aws:acm:sa-east-1:<ID_DA_CONTA>:certificate/<ID>"
+
+# --- Serviços que REQUEREM APROVAÇÃO (mantenha false até a aprovação) ---
+enable_acm_certificate   = false
+enable_route53           = false
+# route53_zone_id        = "Z0000000000000"
+enable_waf               = false
+use_ssm_parameters       = false
+enable_sns_notifications = false
+# alarm_email_endpoints  = ["operacao@gestorcobranca.com.br"]
+
+# Sem SSM: quem pode gravar segredos no bucket dedicado (papel de administração do SSO).
+secrets_admin_principal_arns = [
+  "arn:aws:iam::<ID_DA_CONTA>:role/aws-reserved/sso.amazonaws.com/sa-east-1/AWSReservedSSO_AdministratorAccess_*",
+]
+
+# --- Banco ---
+db_instance_class        = "db.t4g.medium"
+db_multi_az              = false
+db_allocated_storage_gib = 50
+db_backup_retention_days = 7
+db_deletion_protection   = true
+db_max_connections       = 200
+db_pool_size             = 20
+
+# --- Computação ---
+# Primeira aplicação: enable_compute = false (ver README, "Ordem de aplicação").
+enable_compute           = true
+bootstrap_mode           = false
+db_admin_access          = false
+initial_artifact_version = "0.1.0"
+instance_type            = "t4g.medium"
+asg_min_size             = 1
+asg_max_size             = 2
+
+# Homologação desligada fora do horário comercial (seg–sex, 08h–20h em Brasília).
+business_hours_schedule = {
+  start_cron = "0 8 * * 1-5"
+  stop_cron  = "0 20 * * 1-5"
+  time_zone  = "America/Sao_Paulo"
+}
+
+log_level = "INFO"
+# Provedor SMTP externo (Amazon SES não está entre os serviços autorizados).
+smtp_host = "smtp.provedor-de-email.example"
+smtp_port = 587
