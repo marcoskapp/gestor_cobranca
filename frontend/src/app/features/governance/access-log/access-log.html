@@ -1,0 +1,83 @@
+<app-page-header
+  title="Log de acesso"
+  subtitle="Eventos de autenticação, sessão, negação de acesso e visualização de dados sensíveis."
+/>
+
+<form class="app-filters" [formGroup]="filters" (ngSubmit)="apply()" role="search" aria-label="Filtrar log de acesso">
+  <mat-form-field class="app-compact">
+    <mat-label>De</mat-label>
+    <input matInput [matDatepicker]="from" formControlName="from" placeholder="dd/mm/aaaa" />
+    <mat-datepicker-toggle matIconSuffix [for]="from" />
+    <mat-datepicker #from />
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Até</mat-label>
+    <input matInput [matDatepicker]="to" formControlName="to" placeholder="dd/mm/aaaa" />
+    <mat-datepicker-toggle matIconSuffix [for]="to" />
+    <mat-datepicker #to />
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Evento</mat-label>
+    <mat-select formControlName="eventType">
+      <mat-option value="">Todos</mat-option>
+      @for (t of eventTypes; track t.value) {
+        <mat-option [value]="t.value">{{ t.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Resultado</mat-label>
+    <mat-select formControlName="success">
+      <mat-option value="">Todos</mat-option>
+      <mat-option value="true">Sucesso</mat-option>
+      <mat-option value="false">Falha</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>IP</mat-label>
+    <input matInput formControlName="clientIp" maxlength="45" />
+  </mat-form-field>
+  <div class="app-filters__wide">
+    <app-entity-picker [control]="filters.controls.actor" [source]="users" label="Usuário" [single]="true" />
+  </div>
+  <div class="app-filters__actions">
+    <button mat-flat-button type="submit">Filtrar</button>
+    <button mat-button type="button" (click)="clear()">Limpar</button>
+  </div>
+  @if (filters.hasError('dateRange')) {
+    <p class="app-field-error app-full-width" role="alert">A data final não pode ser anterior à inicial.</p>
+  }
+</form>
+
+<app-data-table
+  caption="Log de acesso"
+  [rows]="query.rows()"
+  [columns]="columns"
+  [loading]="query.loading()"
+  [failed]="query.failed()"
+  [page]="query.tablePage()"
+  (pageChange)="query.setPage($event)"
+  (retry)="query.reload()"
+  emptyMessage="Nenhum evento encontrado no período."
+>
+  <ng-template appCell="occurredAt" [appCellOf]="query.rows()" let-e>{{ e.occurredAt | appDate }}</ng-template>
+  <ng-template appCell="eventType" [appCellOf]="query.rows()" let-e>{{ eventLabel(e.eventType) }}</ng-template>
+  <ng-template appCell="success" [appCellOf]="query.rows()" let-e>
+    <span class="app-status" [class.app-status--success]="e.success" [class.app-status--danger]="!e.success">
+      {{ e.success ? 'Sucesso' : 'Falha' }}
+    </span>
+  </ng-template>
+  <ng-template appCell="actor" [appCellOf]="query.rows()" let-e>{{ actor(e) }}</ng-template>
+  <ng-template appCell="route" [appCellOf]="query.rows()" let-e><span class="app-mono">{{ e.route ?? '—' }}</span></ng-template>
+  <ng-template appCell="actions" [appCellOf]="query.rows()" let-e>
+    <button
+      mat-icon-button
+      type="button"
+      (click)="details(e)"
+      [attr.aria-label]="'Detalhes do evento de ' + (e.occurredAt | appDate)"
+      matTooltip="Detalhes"
+    >
+      <mat-icon aria-hidden="true">open_in_new</mat-icon>
+    </button>
+  </ng-template>
+</app-data-table>

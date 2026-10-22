@@ -1,0 +1,25 @@
+<ol class="totp-steps">
+  <li>Instale um aplicativo autenticador (Google Authenticator, Microsoft Authenticator, Authy ou similar).</li>
+  <li>Leia o QR code abaixo com o aplicativo ou digite a chave manualmente.</li>
+  <li>Informe o código de 6 dígitos exibido no aplicativo.</li>
+</ol>
+
+<div class="totp-setup">
+  <div class="totp-setup__qr">
+    @if (qrDataUrl(); as url) {
+      <img [src]="url" width="200" height="200" alt="QR code para cadastrar o autenticador" />
+    } @else if (qrFailed()) {
+      <p role="alert">Não foi possível gerar o QR code. Use a chave manual.</p>
+    } @else {
+      <p role="status">Gerando QR code…</p>
+    }
+  </div>
+  <div class="totp-setup__manual">
+    <span class="totp-setup__label" id="totp-secret-label">Chave para digitação manual</span>
+    <code class="totp-setup__secret" aria-labelledby="totp-secret-label">{{ groupedSecret() }}</code>
+    <button mat-stroked-button type="button" (click)="copy()">
+      <mat-icon aria-hidden="true">content_copy</mat-icon>
+      Copiar chave
+    </button>
+  </div>
+</div>

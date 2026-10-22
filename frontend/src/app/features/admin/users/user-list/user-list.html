@@ -1,0 +1,71 @@
+<app-page-header title="Usuários" subtitle="Contas de acesso da assessoria, perfis e escopo de credores.">
+  <button mat-flat-button type="button" *appHasPermission="permission.USER_MANAGE" (click)="create()">
+    <mat-icon aria-hidden="true">person_add</mat-icon>
+    Novo usuário
+  </button>
+</app-page-header>
+
+<form class="app-filters" [formGroup]="filters" role="search" aria-label="Filtrar usuários" (ngSubmit)="query.reload()">
+  <mat-form-field class="app-filters__wide app-compact">
+    <mat-label>Nome ou e-mail</mat-label>
+    <input matInput formControlName="q" type="search" />
+    <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Situação</mat-label>
+    <mat-select formControlName="status">
+      <mat-option value="">Todas</mat-option>
+      @for (s of statuses; track s.value) {
+        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Perfil</mat-label>
+    <mat-select formControlName="roleId">
+      <mat-option value="">Todos</mat-option>
+      @for (r of roles(); track r.id) {
+        <mat-option [value]="r.id">{{ r.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <div class="app-filters__actions">
+    <button mat-button type="button" (click)="clearFilters()">Limpar filtros</button>
+  </div>
+</form>
+
+<app-data-table
+  caption="Usuários"
+  [rows]="query.rows()"
+  [columns]="columns"
+  [loading]="query.loading()"
+  [failed]="query.failed()"
+  [page]="query.tablePage()"
+  (pageChange)="query.setPage($event)"
+  (retry)="query.reload()"
+  emptyMessage="Nenhum usuário encontrado com os filtros informados."
+>
+  <ng-template appCell="name" [appCellOf]="query.rows()" let-u>
+    <a [routerLink]="['/admin/usuarios', u.id]">{{ u.name }}</a>
+  </ng-template>
+  <ng-template appCell="roles" [appCellOf]="query.rows()" let-u>{{ rolesOf(u) }}</ng-template>
+  <ng-template appCell="status" [appCellOf]="query.rows()" let-u>
+    <app-status-chip domain="user" [status]="u.status" />
+    @if (u.locked) {
+      <span class="app-status app-status--danger">Bloqueado</span>
+    }
+  </ng-template>
+  <ng-template appCell="mfa" [appCellOf]="query.rows()" let-u>
+    @if (u.mfaEnabled) {
+      <mat-icon aria-hidden="false" aria-label="MFA ativo" matTooltip="MFA ativo">verified_user</mat-icon>
+    } @else {
+      <span class="app-muted" aria-label="MFA inativo">—</span>
+    }
+  </ng-template>
+  <ng-template appCell="lastLoginAt" [appCellOf]="query.rows()" let-u>{{ u.lastLoginAt | appDate }}</ng-template>
+  <ng-template appCell="actions" [appCellOf]="query.rows()" let-u>
+    <a mat-icon-button [routerLink]="['/admin/usuarios', u.id]" [attr.aria-label]="'Abrir ' + u.name" matTooltip="Abrir">
+      <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    </a>
+  </ng-template>
+</app-data-table>

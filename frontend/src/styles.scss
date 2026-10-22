@@ -1,0 +1,340 @@
+@use '@angular/material' as mat;
+@use 'theme-colors' as palette;
+
+// =============================================================================
+// Tema "Gestor de Cobrança": corporativo, modo claro, densidade alta para operadores.
+// Cores geradas por `ng g @angular/material:theme-color` (primária azul institucional).
+// =============================================================================
+
+html {
+  color-scheme: light;
+
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+        primary: palette.$primary-palette,
+        tertiary: palette.$tertiary-palette,
+      ),
+      typography: (
+        plain-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
+        brand-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
+      ),
+      density: -2,
+    )
+  );
+
+  // tabelas e listas mais compactas que os formulários
+  @include mat.table-density(-3);
+  @include mat.list-density(-2);
+  @include mat.paginator-density(-4);
+  @include mat.icon-button-density(-2);
+
+  @include mat.table-overrides(
+    (
+      header-headline-weight: 600,
+      header-headline-color: var(--mat-sys-on-surface-variant),
+      row-item-label-text-size: 13px,
+      header-headline-size: 12px,
+    )
+  );
+
+  @include mat.snack-bar-overrides(
+    (
+      container-color: #1f2933,
+      supporting-text-color: #ffffff,
+      button-color: #a7c8ff,
+    )
+  );
+
+  // Tokens próprios da aplicação (contraste verificado para WCAG AA sobre o fundo indicado)
+  --app-topbar-bg: #0f2f57;
+  --app-topbar-fg: #ffffff;
+  --app-auth-bg: #eef2f7;
+  --app-page-bg: #f6f8fb;
+
+  --app-success-bg: #e3f4e8;
+  --app-success-fg: #135c2b; // 7.3:1
+  --app-warning-bg: #fff4d6;
+  --app-warning-fg: #6b4700; // 7.1:1
+  --app-danger-bg: #fde7e7;
+  --app-danger-fg: #8c1d18; // 7.6:1
+  --app-info-bg: #e3edfb;
+  --app-info-fg: #123f73; // 9.1:1
+  --app-neutral-bg: #eceff3;
+  --app-neutral-fg: #3c4652; // 9.0:1
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--app-page-bg);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--mat-sys-primary);
+}
+
+// --------------------------------------------------------------------- acessibilidade
+
+:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+.app-skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 1000;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-primary);
+  font-weight: 600;
+
+  &:focus {
+    top: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// --------------------------------------------------------------------- layout de página
+
+.app-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.app-page-header__title {
+  margin: 0;
+  font: var(--mat-sys-headline-small);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.app-page-header__subtitle {
+  margin: 4px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-card {
+  padding: 16px 20px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+
+  & + & {
+    margin-top: 16px;
+  }
+}
+
+.app-card__title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.app-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+
+  mat-form-field {
+    width: 220px;
+  }
+
+  .app-filters__wide {
+    width: 320px;
+  }
+
+  .app-filters__actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 4px;
+  }
+}
+
+.app-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 16px;
+
+  .app-span-all {
+    grid-column: 1 / -1;
+  }
+}
+
+.app-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.app-full-width {
+  width: 100%;
+}
+
+.app-definition-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 24px;
+  margin: 0;
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    word-break: break-word;
+  }
+}
+
+.app-muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-mono {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.app-message-page {
+  max-width: 560px;
+  margin: 48px auto;
+  text-align: center;
+
+  h1 {
+    font-size: 22px;
+  }
+}
+
+// --------------------------------------------------------------------- estados e alertas
+
+.app-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+@each $tone in (success, warning, danger, info, neutral) {
+  .app-status--#{$tone},
+  .app-alert--#{$tone} {
+    background: var(--app-#{$tone}-bg);
+    color: var(--app-#{$tone}-fg);
+  }
+}
+
+.app-alert {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.app-alert--error {
+  background: var(--app-danger-bg);
+  color: var(--app-danger-fg);
+}
+
+.app-field-error {
+  margin: -4px 0 4px;
+  font-size: 12px;
+  color: var(--mat-sys-error);
+}
+
+// --------------------------------------------------------------------- telas de autenticação
+
+.app-auth-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.app-auth-text {
+  margin: 0 0 16px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-auth-links {
+  margin: 16px 0 0;
+  text-align: center;
+}
+
+.app-otp-input {
+  letter-spacing: 0.4em;
+  font-size: 18px;
+}
+
+.app-button-spinner {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+
+  --mat-progress-spinner-active-indicator-color: currentColor;
+}
+
+// --------------------------------------------------------------------- componentes Material
+
+.app-button-danger {
+  --mat-button-filled-container-color: var(--mat-sys-error);
+  --mat-button-filled-label-text-color: var(--mat-sys-on-error);
+}
+
+.app-dialog-message {
+  margin-top: 0;
+  white-space: pre-line;
+}
+
+.mat-mdc-snack-bar-container.app-snack-error {
+  --mat-snack-bar-container-color: #8c1d18;
+  --mat-snack-bar-button-color: #ffdad6;
+}
+
+.mat-mdc-snack-bar-container.app-snack-success {
+  --mat-snack-bar-container-color: #135c2b;
+  --mat-snack-bar-button-color: #c2f0cf;
+}
+
+mat-form-field.app-compact {
+  @include mat.form-field-density(-4);
+}

@@ -1,0 +1,71 @@
+<h2 mat-dialog-title>{{ editing ? 'Editar perfil' : 'Novo perfil' }}</h2>
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <mat-dialog-content>
+    @for (e of generalErrors(); track e) {
+      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+    }
+    @if (role?.systemRole) {
+      <p class="app-alert app-alert--info">Perfil de sistema: pode ter as permissões ajustadas, mas não pode ser desativado.</p>
+    }
+    <div class="app-form-grid">
+      <mat-form-field>
+        <mat-label>Código</mat-label>
+        <input matInput formControlName="code" autocomplete="off" maxlength="40" class="app-mono" />
+        <mat-hint>Ex.: OPERADOR_SENIOR</mat-hint>
+        @if (form.controls.code.invalid) {
+          <mat-error>{{ message('code') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Nome</mat-label>
+        <input matInput formControlName="name" autocomplete="off" [maxlength]="limits.roleName" />
+        @if (form.controls.name.invalid) {
+          <mat-error>{{ message('name') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field class="app-span-all">
+        <mat-label>Descrição</mat-label>
+        <textarea matInput formControlName="description" rows="2" [maxlength]="limits.roleDescription"></textarea>
+        @if (form.controls.description.invalid) {
+          <mat-error>{{ message('description') }}</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <h3 class="role-form__heading" id="permissoes">
+      Permissões
+      <span class="app-muted">({{ selectedSet().size }} selecionadas)</span>
+    </h3>
+    @if (form.controls.permissions.invalid && form.controls.permissions.touched) {
+      <p class="app-field-error" role="alert">Selecione ao menos uma permissão.</p>
+    }
+    @if (catalogLoading()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Carregando permissões" />
+    }
+    <div class="role-form__groups" aria-labelledby="permissoes">
+      @for (group of groups(); track group.label) {
+        <fieldset class="role-form__group">
+          <legend>
+            <mat-checkbox
+              [checked]="groupState(group) === 'all'"
+              [indeterminate]="groupState(group) === 'some'"
+              (change)="toggleGroup(group, $event.checked)"
+            >
+              <strong>{{ group.label }}</strong>
+            </mat-checkbox>
+          </legend>
+          @for (p of group.permissions; track p.code) {
+            <mat-checkbox [checked]="selectedSet().has(p.code)" (change)="toggle(p.code, $event.checked)">
+              {{ p.description }}
+              <span class="app-mono app-muted">{{ p.code }}</span>
+            </mat-checkbox>
+          }
+        </fieldset>
+      }
+    </div>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>Cancelar</button>
+    <button mat-flat-button type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Criar perfil' }}</button>
+  </mat-dialog-actions>
+</form>
