@@ -64,6 +64,10 @@ public class S3FileStorage implements FileStorage {
                     .contentType(contentType == null ? "application/octet-stream" : contentType)
                     .contentLength(copy.size())
                     .metadata(Map.of("sha256", copy.sha256(), "tenant-id", tenantId.toString(), "category", category.name()));
+            if (category == FileCategory.EVIDENCE) {
+                // regra de lifecycle do bucket move evidências antigas para o Glacier (infra/terraform, módulo storage)
+                request.tagging("retention-class=evidence");
+            }
             if (properties.kmsKeyId() != null && !properties.kmsKeyId().isBlank()) {
                 request.serverSideEncryption(ServerSideEncryption.AWS_KMS).ssekmsKeyId(properties.kmsKeyId());
             } else {
