@@ -1,0 +1,30 @@
+# Perfil de testes de integração. Banco definido por IntegrationTest (Testcontainers ou externo).
+app:
+  base-url: http://localhost
+  logging:
+    dir: ./target/test-logs
+    technical-level: INFO
+  crypto:
+    keys:
+      k1: dGVzdC1vbmx5LWFlcy1rZXktMzItYnl0ZXMtLS0tLSE=
+    active-key-id: k1
+    blind-index-key: dGVzdC1vbmx5LWJsaW5kLWluZGV4LWtleS0zMi1ieXRlcyE=
+  storage:
+    provider: filesystem
+    local-root: ./target/test-storage
+  scheduling:
+    enabled: false
+  security:
+    cookie-secure: false
+    jwt:
+      private-key: classpath:it/jwt-private.pem
+      public-key: classpath:it/jwt-public.pem
+
+spring:
+  mail:
+    host: localhost
+    port: 2525
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+      mail.smtp.starttls.required: false

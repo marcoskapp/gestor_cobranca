@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.identity.application.port.in;
 
-import br.com.gestorcobranca.shared.web.PageQuery;
-import br.com.gestorcobranca.shared.web.PageResponse;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 
 import java.time.Instant;
 import java.util.Set;

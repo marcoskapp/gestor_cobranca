@@ -1,4 +1,4 @@
-package br.com.gestorcobranca.shared.web;
+package br.com.gestorcobranca.shared.paging;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

@@ -7,8 +7,8 @@ import br.com.gestorcobranca.identity.application.port.in.GovernanceQueries.Audi
 import br.com.gestorcobranca.identity.application.port.in.GovernanceQueries.AuditLogEntry;
 import br.com.gestorcobranca.identity.application.port.in.GovernanceQueries.IntegrityReport;
 import br.com.gestorcobranca.shared.web.ApiPaths;
-import br.com.gestorcobranca.shared.web.PageQuery;
-import br.com.gestorcobranca.shared.web.PageResponse;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
