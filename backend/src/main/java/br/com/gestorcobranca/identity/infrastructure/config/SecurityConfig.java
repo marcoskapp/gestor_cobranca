@@ -158,6 +158,7 @@ class SecurityConfig {
     private static void writeProblem(HttpServletResponse response, int status, String code, String detail)
             throws java.io.IOException {
         response.setStatus(status);
+        response.setCharacterEncoding(java.nio.charset.StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         String requestId = MDC.get(MdcKeys.REQUEST_ID);
         response.getWriter().write("{\"status\":%d,\"code\":\"%s\",\"detail\":\"%s\",\"requestId\":\"%s\"}"

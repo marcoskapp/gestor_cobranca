@@ -33,6 +33,7 @@ app:
     provider: filesystem
     local-root: ./var/storage
   security:
+    cookie-secure: false
     jwt:
       private-key: file:./config/dev/jwt-private.pem
       public-key: file:./config/dev/jwt-public.pem
