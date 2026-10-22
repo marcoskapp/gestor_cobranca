@@ -1,0 +1,65 @@
+<app-page-header title="Configurações da assessoria" subtitle="Dados cadastrais e janela de contato com devedores." />
+
+@if (tenant.isLoading() && !current()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Carregando configurações" />
+}
+@if (tenant.status() === 'error') {
+  <p class="app-alert app-alert--error" role="alert">Não foi possível carregar as configurações.</p>
+}
+
+@if (current(); as t) {
+  <section class="app-card" aria-labelledby="identificacao">
+    <h2 class="app-card__title" id="identificacao">Identificação</h2>
+    <dl class="app-definition-list">
+      <dt>Identificador de acesso</dt>
+      <dd class="app-mono">{{ t.slug }}</dd>
+      <dt>CNPJ</dt>
+      <dd>{{ t.cnpj | document }}</dd>
+      <dt>Situação</dt>
+      <dd><app-status-chip domain="tenant" [status]="t.status" /></dd>
+    </dl>
+  </section>
+
+  <form class="app-card" [formGroup]="form" (ngSubmit)="save()" novalidate aria-labelledby="dados-gerais">
+    <h2 class="app-card__title" id="dados-gerais">Dados gerais e janela de contato</h2>
+    @for (e of generalErrors(); track e) {
+      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+    }
+    <div class="app-form-grid">
+      <mat-form-field>
+        <mat-label>Razão social</mat-label>
+        <input matInput formControlName="legalName" [maxlength]="limits.legalName" />
+        @if (form.controls.legalName.invalid) {
+          <mat-error>{{ message('legalName') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Nome fantasia</mat-label>
+        <input matInput formControlName="tradeName" [maxlength]="limits.legalName" />
+        @if (form.controls.tradeName.invalid) {
+          <mat-error>{{ message('tradeName') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Início da janela de contato</mat-label>
+        <input matInput type="time" formControlName="contactWindowStart" step="60" />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Fim da janela de contato</mat-label>
+        <input matInput type="time" formControlName="contactWindowEnd" step="60" />
+      </mat-form-field>
+      <div class="app-span-all">
+        <mat-checkbox formControlName="contactOnSaturday">Permitir contato aos sábados</mat-checkbox>
+        <mat-checkbox formControlName="contactOnSunday">Permitir contato aos domingos</mat-checkbox>
+      </div>
+    </div>
+    @if (form.hasError('window')) {
+      <p class="app-field-error" role="alert">O fim da janela deve ser posterior ao início.</p>
+    }
+    @if (canManage()) {
+      <div class="app-form-actions">
+        <button mat-flat-button type="submit" [disabled]="saving() || form.pristine">Salvar</button>
+      </div>
+    }
+  </form>
+}
