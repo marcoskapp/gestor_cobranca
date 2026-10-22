@@ -1,0 +1,66 @@
+<div class="app-table" [attr.aria-busy]="loading()">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Carregando" class="app-table__progress" />
+  }
+  <div class="app-table__scroll">
+    <table mat-table [dataSource]="rows()" [trackBy]="trackRow" [attr.aria-label]="caption()">
+      @for (column of columns(); track column.key) {
+        <ng-container [matColumnDef]="column.key">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            scope="col"
+            [class.app-table__cell--end]="column.align === 'end' || column.actions"
+            [class.app-table__cell--center]="column.align === 'center'"
+          >
+            @if (column.actions) {
+              <span class="cdk-visually-hidden">{{ column.header }}</span>
+            } @else {
+              {{ column.header }}
+            }
+          </th>
+          <td
+            mat-cell
+            *matCellDef="let row"
+            [class.app-table__cell--end]="column.align === 'end' || column.actions"
+            [class.app-table__cell--center]="column.align === 'center'"
+            [class.app-table__cell--actions]="column.actions"
+          >
+            @let template = templates().get(column.key);
+            @if (template) {
+              <ng-container *ngTemplateOutlet="template; context: { $implicit: row }" />
+            } @else {
+              {{ text(row, column.key) }}
+            }
+          </td>
+        </ng-container>
+      }
+      <tr mat-header-row *matHeaderRowDef="columnKeys(); sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columnKeys()"></tr>
+    </table>
+  </div>
+
+  @if (!loading() && failed()) {
+    <div class="app-table__state" role="alert">
+      <p>Não foi possível carregar os dados.</p>
+      <button mat-stroked-button type="button" (click)="retry.emit()">Tentar novamente</button>
+    </div>
+  } @else if (!loading() && rows().length === 0) {
+    <div class="app-table__state" role="status">
+      <p>{{ emptyMessage() }}</p>
+    </div>
+  }
+
+  @if (page(); as p) {
+    <mat-paginator
+      [length]="p.total"
+      [pageIndex]="p.index"
+      [pageSize]="p.size"
+      [pageSizeOptions]="pageSizeOptions"
+      [showFirstLastButtons]="true"
+      [disabled]="loading()"
+      (page)="onPage($event)"
+      aria-label="Paginação"
+    />
+  }
+</div>

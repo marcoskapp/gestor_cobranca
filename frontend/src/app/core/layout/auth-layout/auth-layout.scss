@@ -1,0 +1,36 @@
+.app-auth {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 16px;
+  background: var(--app-auth-bg);
+}
+
+.app-auth__panel {
+  width: 100%;
+  max-width: 440px;
+  padding: 28px 28px 24px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  background: var(--mat-sys-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+
+.app-auth__brand {
+  margin: 0 0 20px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--mat-sys-primary);
+}
+
+.app-auth__footer {
+  margin: 0;
+  max-width: 440px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--mat-sys-on-surface-variant);
+}
