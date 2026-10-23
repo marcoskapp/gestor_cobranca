@@ -73,6 +73,15 @@ public enum Permission {
     SETTLEMENT_VIEW("Consultar demonstrativos"),
     SETTLEMENT_CLOSE("Fechar e enviar demonstrativos"),
 
+    // Desempenho e remuneração variável dos negociadores (módulo incentive)
+    PERFORMANCE_VIEW_OWN("Consultar os próprios indicadores e extratos de comissão"),
+    PERFORMANCE_VIEW_TEAM("Consultar indicadores e extratos da equipe"),
+    PERFORMANCE_VIEW_ALL("Consultar indicadores e extratos de todos os negociadores"),
+    COMMISSION_PLAN_MANAGE("Criar, publicar e simular planos de comissão de negociadores"),
+    COMMISSION_STATEMENT_MANAGE("Fechar período, resolver contestações e ajustar extratos"),
+    COMMISSION_STATEMENT_APPROVE("Aprovar e exportar extratos de comissão (financeiro)"),
+    QUALITY_EVALUATE("Registrar monitorias de qualidade e ocorrências de conduta"),
+
     // Comunicação
     MESSAGE_SEND("Enviar mensagens"),
     INBOX_VIEW("Consultar caixa de entrada"),

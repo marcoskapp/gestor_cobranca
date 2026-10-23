@@ -76,6 +76,10 @@ public class User extends TenantScopedEntity {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    /** Instante da desativação (desligamento); null enquanto o usuário não está desativado. */
+    @Column(name = "disabled_at")
+    private Instant disabledAt;
+
     @Column(name = "business_unit_id")
     private UUID businessUnitId;
 
@@ -208,13 +212,17 @@ public class User extends TenantScopedEntity {
 
     // ---------------------------------------------------------------- status e acesso
 
-    public void disable() {
-        this.status = UserStatus.DISABLED;
+    public void disable(Instant now) {
+        if (status != UserStatus.DISABLED) {
+            this.status = UserStatus.DISABLED;
+            this.disabledAt = now;
+        }
     }
 
     public void enable() {
         Guard.requireState(status == UserStatus.DISABLED, "user.not_disabled", "Usuário não está desativado");
         this.status = passwordHash == null ? UserStatus.PENDING_ACTIVATION : UserStatus.ACTIVE;
+        this.disabledAt = null;
         unlock();
     }
 
@@ -276,6 +284,10 @@ public class User extends TenantScopedEntity {
 
     public boolean isMustChangePassword() {
         return mustChangePassword;
+    }
+
+    public Instant getDisabledAt() {
+        return disabledAt;
     }
 
     public Instant getLastLoginAt() {

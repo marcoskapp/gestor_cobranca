@@ -4,10 +4,14 @@
 
 .app-table {
   position: relative;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 8px;
-  background: var(--mat-sys-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
   overflow: hidden;
+}
+
+tr.mat-mdc-row:hover {
+  background: var(--mat-sys-surface-container-low);
 }
 
 .app-table__progress {
@@ -37,16 +41,6 @@ table {
   width: 1%;
 }
 
-.app-table__state {
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--mat-sys-on-surface-variant);
-
-  p {
-    margin: 0 0 8px;
-  }
-}
-
 mat-paginator {
-  border-top: 1px solid var(--mat-sys-outline-variant);
+  border-top: 1px solid var(--app-border);
 }

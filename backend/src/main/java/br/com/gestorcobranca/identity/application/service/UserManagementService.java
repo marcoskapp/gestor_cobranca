@@ -167,7 +167,7 @@ class UserManagementService implements UserManagementUseCases {
             requireAnotherActiveAdmin(user);
         }
         UserStatus previous = user.getStatus();
-        user.disable();
+        user.disable(Instant.now(clock));
         users.save(user);
         int revoked = sessionManager.revokeAll(userId, "user_disabled");
         auditTrail.record(AuditEntry.of("user.disabled", "user", userId).change("status", previous, user.getStatus())

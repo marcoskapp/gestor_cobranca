@@ -70,3 +70,7 @@ Atribuição: usuário → perfil (opcionalmente por credor); assistente → per
 ## 7. Copiloto para negociadores humanos
 
 Os mesmos cálculos alimentam a tela de negociação com intensidade definida pelo perfil do operador: júniores recebem a próxima oferta sugerida e bloqueio imediato de oferta inválida; seniores veem o envelope completo e o histórico. A sugestão textual vem do módulo `assistant` em modo copiloto.
+
+## Atribuição do acordo (insumo da remuneração variável)
+
+Na formalização, `negotiation` registra os participantes do acordo e publica `shared.events.negotiation.AgreementAttributionRecorded` com: `agreementId`, `caseId`, `creditorId`, `portfolioId`, `origin` (`HUMAN`, `HUMAN_COPILOT`, `ASSISTANT_HANDOFF_NEGOTIATED`, `ASSISTANT_HANDOFF_CONFIRMED`, `ASSISTANT_AUTONOMOUS`, `PORTAL_SELF_SERVICE`, `CAMPAIGN`), lista de participantes (`actorType`, `actorId`, `role` = `CLOSER`/`ORIGINATOR`/`PRE_NEGOTIATOR`/`APPROVER`/`INFLUENCER`), nível de concessão, uso do envelope (%), faixa de atraso e `replacedAgreementId`. `HANDOFF_CONFIRMED` × `HANDOFF_NEGOTIATED` é decidido no servidor comparando a proposta formalizada com a sugestão do handoff. Regras de uso em `docs/design/remuneracao-variavel.md`.

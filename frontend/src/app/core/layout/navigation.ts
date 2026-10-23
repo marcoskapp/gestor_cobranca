@@ -26,7 +26,7 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Credores', icon: 'apartment', route: '/organizacao/credores', permissions: [Permission.CREDITOR_VIEW] },
       { label: 'Carteiras', icon: 'folder_open', route: '/organizacao/carteiras', permissions: [Permission.PORTFOLIO_VIEW] },
       {
-        label: 'Configurações da assessoria',
+        label: 'Configurações',
         icon: 'tune',
         route: '/organizacao/configuracoes',
         permissions: [Permission.ORG_SETTINGS_MANAGE],
