@@ -221,17 +221,20 @@ demais casos do devedor no escopo.
 | --- | --- | --- |
 | `CaseStatusChanged` | abertura, mudança de status, mudança de elegibilidade | construtor completo: `assigneeId`, `teamId`, `eligibleBalance` (saldo elegível se elegível, senão zero) |
 | `CaseAssignmentChanged` | responsável humano ou equipe mudou | `previousAssigneeId`, `assigneeId`, `teamId`, `eligibleBalance` |
+| `CaseBalanceChanged` (**novo**, 23/10/2026) | só o saldo elegível atribuível mudou (pagamento, carga, baixa, contestação), sem mudança de status, elegibilidade ou responsável | `assigneeId`, `teamId`, `eligible`, `previousEligibleBalance`, `eligibleBalance` |
 | `InteractionRecorded` | interação registrada | construtor completo: `direction`, `portfolioId`; `occurredAt` = início da interação |
 | `CallbackStatusChanged` (**novo**) | retorno agendado/cumprido/atrasado/cumprido com atraso/cancelado | `assigneeId`, `teamId`, `dueAt`, `toleranceUntil`, `status`, `completedBy` |
 | `PromiseStatusChanged` (**novo**) | promessa registrada/cumprida/quebrada/cancelada/reaberta | `operatorId`, `amount`, `paidAmount`, `dueDate`, `breaksAfter`, `previousStatus`, `status` |
 | `DisputeStatusChanged` | contestação aberta, em análise, resolvida, retirada | `titleIds`, `status`, `blocksCollection` |
 
-**Incentive.** Os indicadores "retornos cumpridos" (`effort.callbacksKeptRate`) e "promessas cumpridas"
-(`conversion.promisesKeptRate`) estavam em `unavailableMetrics` por falta de fonte. Os eventos novos são essa fonte:
-taxa de retornos = `KEPT ÷ (KEPT + MISSED)` por dia de `dueAt` (fuso de operação) e responsável; promessas = `KEPT ÷
-(KEPT + BROKEN)` por dia de resolução e `operatorId`. O consumo **não** foi implementado neste módulo: exige colunas novas
-em `incentive.performance_fact` (migration na faixa do incentive, V18xx) e alteração de `FactIngestionService` /
-`JdbcIndicatorReader` / `PerformanceQueryService.UNAVAILABLE` — pendência registrada para o módulo incentive.
+**Incentive.** `eligibleBalance` em `CaseStatusChanged`, `CaseAssignmentChanged` e `CaseBalanceChanged` é o saldo elegível
+**atribuível** (zero quando o caso está inelegível ou encerrado) — o denominador da taxa de recuperação do negociador.
+Correção de 23/10/2026 (bug no produtor): mudanças só de saldo não publicavam evento, e o incentive ficava com o saldo do
+último status/atribuição; `CaseRecorder.commit` passou a publicar `CaseBalanceChanged` nesse caso (teste:
+`CollectionIncentiveIndicatorsIT`). Os indicadores "retornos cumpridos" (`effort.callbacksKeptRate`) e "promessas
+cumpridas" (`conversion.promisesKeptRate`) consomem `CallbackStatusChanged` e `PromiseStatusChanged` desde 23/10/2026;
+fórmulas e datas de referência em `remuneracao-variavel.md` §10.6. A reatribuição de retorno (`reassign`) não publica
+evento (pendência registrada lá).
 
 ## 10. Eventos consumidos
 

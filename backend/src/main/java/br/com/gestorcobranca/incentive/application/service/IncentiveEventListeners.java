@@ -3,9 +3,12 @@ package br.com.gestorcobranca.incentive.application.service;
 import br.com.gestorcobranca.incentive.application.port.in.IncentiveProvisioning;
 import br.com.gestorcobranca.shared.config.AsyncConfig;
 import br.com.gestorcobranca.shared.events.TenantEventListener;
+import br.com.gestorcobranca.shared.events.collection.CallbackStatusChanged;
 import br.com.gestorcobranca.shared.events.collection.CaseAssignmentChanged;
+import br.com.gestorcobranca.shared.events.collection.CaseBalanceChanged;
 import br.com.gestorcobranca.shared.events.collection.CaseStatusChanged;
 import br.com.gestorcobranca.shared.events.collection.InteractionRecorded;
+import br.com.gestorcobranca.shared.events.collection.PromiseStatusChanged;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.identity.TenantProvisioned;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementAttributionRecorded;
@@ -27,13 +30,15 @@ import org.springframework.transaction.event.TransactionalEventListener;
 class IncentiveEventListeners extends TenantEventListener {
 
     private final FactIngestionService facts;
+    private final CommitmentFactService commitments;
     private final AttributionService attribution;
     private final CommissionPostingService posting;
     private final IncentiveProvisioning provisioning;
 
-    IncentiveEventListeners(FactIngestionService facts, AttributionService attribution, CommissionPostingService posting,
-                            IncentiveProvisioning provisioning) {
+    IncentiveEventListeners(FactIngestionService facts, CommitmentFactService commitments, AttributionService attribution,
+                            CommissionPostingService posting, IncentiveProvisioning provisioning) {
         this.facts = facts;
+        this.commitments = commitments;
         this.attribution = attribution;
         this.posting = posting;
         this.provisioning = provisioning;
@@ -85,6 +90,24 @@ class IncentiveEventListeners extends TenantEventListener {
     @TransactionalEventListener
     void on(CaseAssignmentChanged event) {
         handleOnce(event, "incentive.case-assignment", () -> facts.caseAssignment(event));
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(CaseBalanceChanged event) {
+        handleOnce(event, "incentive.case-balance", () -> facts.caseBalance(event));
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(CallbackStatusChanged event) {
+        handleOnce(event, "incentive.callback-status", () -> commitments.callback(event));
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(PromiseStatusChanged event) {
+        handleOnce(event, "incentive.promise-status", () -> commitments.promise(event));
     }
 
     @Async(AsyncConfig.EVENT_EXECUTOR)

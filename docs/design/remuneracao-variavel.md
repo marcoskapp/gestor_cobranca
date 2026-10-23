@@ -32,7 +32,7 @@ Todas por negociador, equipe, credor, carteira, faixa de atraso, canal e períod
 | Taxa de contato efetivo | CPC ÷ tentativas | collection |
 | TMA (tempo médio de atendimento) | duração média das chamadas/conversas atendidas | telephony, communication |
 | Tempo de resposta em conversa | mediana entre mensagem do devedor e resposta do negociador | communication |
-| Retornos cumpridos | callbacks realizados até o horário ÷ agendados | collection |
+| Retornos cumpridos | callbacks realizados até o horário ÷ agendados (detalhe em §10.6) | collection |
 | Conversas recebidas do assistente | transferências (handoff) atendidas | communication / assistant |
 
 ### 2.2 Conversão
@@ -42,7 +42,7 @@ Todas por negociador, equipe, credor, carteira, faixa de atraso, canal e períod
 | Contato → proposta | propostas criadas ÷ CPC |
 | Proposta → acordo | acordos formalizados ÷ propostas |
 | Contato → acordo | acordos ÷ CPC |
-| Promessas cumpridas | promessas KEPT ÷ promessas vencidas |
+| Promessas cumpridas | promessas KEPT ÷ promessas vencidas (detalhe em §10.6) |
 | Acordos por hora logada | acordos ÷ horas logadas |
 | Resolução de handoff | handoffs que viraram acordo ÷ handoffs recebidos |
 
@@ -192,17 +192,17 @@ Insumos de inteligência: custo de comissão por real recuperado, por credor e p
 
 ## 9. Dependências e integração
 
-`incentive` → `organization`, `identity` (equipes, usuários, tempo logado) e `compliance` (calendário de feriados, para a carência em dias úteis). Os demais fatos chegam **somente por eventos de integração**: `AgreementAttributionRecorded`, `AgreementStatusChanged`, `InstallmentStatusChanged`, `PaymentConfirmed`, `PaymentReversed`, `InteractionRecorded`, `CaseStatusChanged`, `CallCompleted`, `MessageStatusChanged`, e os de handoff do assistente. Os indicadores do §2 são materializados em tabelas de fatos próprias (`performance_fact` diário por negociador/segmento), que o `analytics` pode ler por views.
+`incentive` → `organization`, `identity` (equipes, usuários, tempo logado) e `compliance` (calendário de feriados, para a carência em dias úteis). Os demais fatos chegam **somente por eventos de integração**: `AgreementAttributionRecorded`, `AgreementStatusChanged`, `InstallmentStatusChanged`, `PaymentConfirmed`, `PaymentReversed`, `InteractionRecorded`, `CaseStatusChanged`, `CaseAssignmentChanged`, `CaseBalanceChanged`, `CallbackStatusChanged`, `PromiseStatusChanged`, `CallCompleted`, `MessageStatusChanged`, e os de handoff do assistente. Os indicadores do §2 são materializados em tabelas de fatos próprias (`performance_fact` diário por negociador/segmento), que o `analytics` pode ler por views.
 
 ## 10. Implementação (22/10/2026)
 
-Código em `backend/src/main/java/br/com/gestorcobranca/incentive`, migrations `V1800`–`V1803` (schema `incentive`, RLS forçado em todas as tabelas) e `identity/V0202` (instante de desativação do usuário e permissões nos perfis existentes). API em `/api/v1/incentive/...` (OpenAPI gerado pelo springdoc).
+Código em `backend/src/main/java/br/com/gestorcobranca/incentive`, migrations `V1800`–`V1804` (schema `incentive`, RLS forçado em todas as tabelas) e `identity/V0202` (instante de desativação do usuário e permissões nos perfis existentes). API em `/api/v1/incentive/...` (OpenAPI gerado pelo springdoc).
 
 ### 10.1 Mapa
 
 | Conceito | Onde |
 | --- | --- |
-| Fatos de desempenho | `performance_fact` (diário por negociador × credor × carteira × faixa × canal, medidas aditivas), `worked_case_day` (casos distintos), `response_sample`/`conversation_wait` (mediana de resposta), `logged_time_daily`, `effective_contact` (janela de influência), `case_snapshot` (responsável e saldo elegível, append-only), `agreement_lifecycle` |
+| Fatos de desempenho | `performance_fact` (diário por negociador × credor × carteira × faixa × canal, medidas aditivas, inclusive retornos e promessas — §10.6), `callback_commitment` e `promise_outcome` (situação por compromisso), `worked_case_day` (casos distintos), `response_sample`/`conversation_wait` (mediana de resposta), `logged_time_daily`, `effective_contact` (janela de influência), `case_snapshot` (responsável e saldo elegível, append-only), `agreement_lifecycle` |
 | Atribuição | `AgreementAttribution` + participantes + créditos (`CreditPolicy`), resolvidos pelo plano vigente na formalização |
 | Planos | `CommissionPlan` (uma linha por versão; regras `PlanRules` tipadas em jsonb com `rules_schema_version`), `GoalTarget`, `StandardPlans.padraoMercado()` |
 | Motor | `CommissionEngine` (puro) + `StatementCalculator` (monta as entradas a partir do razão e dos fatos) |
@@ -260,12 +260,59 @@ Exemplo verificado (`CommissionEngineTest#standardMarketPlanCombination`): 60.00
 - **Novo** `shared.events.identity.TenantProvisioned` (produtor: `identity`, já publicado).
 - `InteractionRecorded` + `direction`, `portfolioId`; `CaseStatusChanged` + `assigneeId`, `teamId`, `eligibleBalance`; `MessageStatusChanged` + `senderActorType`, `senderActorId`, `portfolioId`; `CallCompleted` + `portfolioId` (e valores de `result` documentados, `ANSWERED` = atendida).
 - `PaymentConfirmed` já tinha a alocação por parcela de acordo (`Allocation.agreementInstallmentId`) e `agreementId`: base comissionável = alocações a parcelas.
+- **Novo** `shared.events.collection.CaseBalanceChanged` (produtor: `collection`, 23/10/2026): saldo elegível atribuível mudou sem mudança de status, elegibilidade ou responsável (§10.7). `CaseStatusChanged.eligibleBalance` e `CaseAssignmentChanged.eligibleBalance` documentados como saldo **atribuível** (zero quando inelegível ou encerrado).
+- `CallbackStatusChanged` e `PromiseStatusChanged` (produtor: `collection`) consumidos desde 23/10/2026 (§10.6).
 
 ### 10.5 Pendências
 
 - Produtores: `communication` informar o autor das mensagens; `telephony` a carteira. (`negotiation` já publica `AgreementAttributionRecorded`, `AgreementStatusChanged` e `InstallmentStatusChanged` — ver `negociacao-e-alcadas.md` §10.7–§10.8; a distinção `HANDOFF_CONFIRMED` × `HANDOFF_NEGOTIATED` usa a impressão digital das condições.) (`collection` já preenche os campos novos e publica `CaseAssignmentChanged` — ver `collection.md` §9.)
-- Indicadores sem fonte (retornam nulos e listados em `unavailableMetrics`): handoffs recebidos/resolvidos e propostas (contato → proposta, proposta → acordo) — o negotiation já registra `proposal.*` e `proposal.handoff_requested` no log de negócio e publica `NegotiationHandoffRequested`; falta um evento de integração de proposta criada (ou o consumo do handoff) no incentive — recuperado × esperado (`scoring`) — exigem eventos de integração próprios. Retornos cumpridos e promessas cumpridas já têm fonte (`CallbackStatusChanged` e `PromiseStatusChanged`, publicados pelo `collection`, fórmulas em `collection.md` §9); falta o consumo aqui (colunas em `performance_fact`, migration V18xx, e retirada de `UNAVAILABLE`).
+- Indicadores sem fonte (retornam nulos e listados em `unavailableMetrics`): handoffs recebidos/resolvidos, propostas (contato → proposta, proposta → acordo), recuperado × esperado (`scoring`) — exigem eventos de integração próprios (o negotiation já registra `proposal.*` e `proposal.handoff_requested` no log de negócio e publica `NegotiationHandoffRequested`; falta um evento de integração de proposta criada, ou o consumo do handoff, aqui). (Retornos cumpridos e promessas cumpridas: implementados em 23/10/2026, §10.6.)
+- Reatribuição de um retorno (`TaskUseCases.reassign`) não publica evento: o compromisso passa ao novo responsável só no próximo evento do retorno (cumprimento, atraso ou cancelamento); até lá, segue no denominador do responsável anterior. Se a operação reatribuir retornos com frequência, o `collection` deve publicar `CallbackStatusChanged` também na reatribuição.
+- Retornos e promessas não têm faixa de atraso nem canal nos eventos: as medidas ficam em `delay_bucket = UNKNOWN` e `channel = UNKNOWN` e somem quando o painel filtra por faixa ou canal.
 - Histórico de composição de equipes (pool e meta de equipe usam a composição no fechamento).
 - Views para o `analytics`; telas no frontend.
 - Validar com jurídico/RH antes de habilitar estorno de comissão (`clawbackEnabled`) ou mudar a política de desligamento.
+
+### 10.6 Retornos cumpridos e promessas cumpridas (23/10/2026)
+
+Fonte: `CallbackStatusChanged` e `PromiseStatusChanged` do `collection` (ver `collection.md` §9), consumidos por `CommitmentFactService` (consumidores `incentive.callback-status` e `incentive.promise-status`, idempotentes por evento). Migration `V1804`: sete colunas aditivas em `performance_fact` e as tabelas de situação `callback_commitment` (tarefa × horário combinado) e `promise_outcome` (promessa). A cada evento a situação do compromisso é recalculada (`CommitmentPolicy`, regra pura) e o fato diário recebe a diferença entre a contribuição nova e a anterior — o fato é sempre a soma das situações atuais, e o resultado não depende da ordem de entrega (eventos do mesmo retorno/promessa serializados por advisory lock).
+
+| Indicador (API) | Fórmula | Data e pessoa do fato |
+| --- | --- | --- |
+| `effort.callbacksKeptRate` — Retornos cumpridos | `callbacksKept ÷ callbacksScheduled` | dia do horário combinado (fuso de operação) × responsável pelo retorno |
+| `effort.callbacksScheduled` | agendados = retornos com horário no período, exceto cancelados antes de vencer e horários substituídos por reagendamento (inclui os ainda pendentes) | idem |
+| `effort.callbacksKept` | cumpridos até o fim da tolerância (`KEPT`) | idem |
+| `effort.callbacksMissed` | atrasados: `MISSED` ou `COMPLETED_LATE` (cumprido depois da tolerância, com ou sem o job ter marcado o atraso) | idem |
+| `conversion.promisesKeptRate` — Promessas cumpridas | `promisesKept ÷ promisesDue` | data prometida × quem registrou (`operatorId`) |
+| `conversion.promisesDue` | vencidas = prazo encerrado com desfecho: cumpridas + quebradas (pendentes na tolerância e canceladas ficam fora) | idem |
+| `conversion.promisesKept` / `promisesBroken` | situação atual `KEPT` / `BROKEN` (estorno devolve a cumprida a pendente e retira a contagem) | idem |
+| `conversion.promisesRegistered` | promessas registradas | dia do registro × quem registrou |
+
+Situações de um compromisso de retorno, em graus (só avança): `SCHEDULED` → `SUPERSEDED` (reagendado antes de vencer) → `CANCELLED` → `MISSED` → `COMPLETED_LATE`/`KEPT`. Assim, um cancelamento depois do atraso (ex.: caso encerrado) não apaga o atraso, e o horário original de um reagendamento depois do atraso continua contado como atrasado. Responsável, credor e carteira vêm do evento mais recente do compromisso. Retorno sem responsável humano (fila do caso) e promessa sem operador (automática) não entram nos fatos de ninguém.
+
+Para um período encerrado, `callbacksScheduled = callbacksKept + callbacksMissed`, ou seja, a taxa coincide com `KEPT ÷ (KEPT + MISSED)` sugerida em `collection.md` §9; no período em curso, retornos ainda pendentes já estão no denominador (é a fórmula do §2.1: "÷ agendados").
+
+### 10.7 Conferência dos eventos de caso (23/10/2026)
+
+| Campo esperado pelo incentive | Publicado pelo collection | Situação |
+| --- | --- | --- |
+| `CaseStatusChanged.assigneeId` / `CaseAssignmentChanged.assigneeId` | responsável humano atual; null quando na fila, com o assistente ou encerrado | confere (modelo carteira e denominador por responsável) |
+| `teamId` | equipe dona da fila/atribuição do caso (`assignee_team_id`), mantida quando o caso volta à fila | confere (o pool usa o `teamId` da atribuição do acordo) |
+| `eligibleBalance` | saldo elegível **atribuível**: zero quando o caso está inelegível ou encerrado | confere; o consumidor deixou de filtrar o flag `eligible` herdado (podia excluir, por empate de instante entre os dois eventos do mesmo commit, um caso que acabara de ficar elegível) |
+| Saldo no início do período | só era publicado em mudança de status, elegibilidade ou responsável | **bug no produtor, corrigido**: pagamentos e cargas que mudam só o saldo deixavam o retrato defasado (taxa de recuperação com denominador errado no período seguinte). `CaseRecorder` agora publica `CaseBalanceChanged` quando só o saldo atribuível muda; consumido como retrato (`incentive.case-balance`). Teste: `CollectionIncentiveIndicatorsIT` (falha sem a correção) |
+
+Denominador da taxa de recuperação: soma, nos casos cujo último retrato até o início do período (00:00 do fuso de operação) tem o negociador como responsável, do último saldo elegível atribuível informado.
+
+### 10.8 Decisões (23/10/2026)
+
+| # | Decisão | Alternativa | Motivo |
+| --- | --- | --- | --- |
+| 32 | Retornos por dia do horário combinado e responsável; denominador = agendados não cancelados nem substituídos (inclui pendentes) | `KEPT ÷ (KEPT + MISSED)` | Fórmula do §2.1 ("÷ agendados"); coincide com a alternativa em período encerrado |
+| 33 | `COMPLETED_LATE` e cancelamento após atraso contam como atrasado | Cancelamento remove do denominador | Não permitir "limpar" atraso cancelando o retorno |
+| 34 | Reagendamento antes de vencer substitui o compromisso (`SUPERSEDED`), sem contar como atraso | Contar cada horário | O produtor trata reagendamento como novo compromisso; o horário anterior não foi descumprido |
+| 35 | Promessas por data prometida (safra de vencimento) e por quem registrou; vencida = cumprida + quebrada | Dia da resolução (sugestão do collection) | "Promessas vencidas no período" é a leitura usual; cumprimento antecipado fica na safra do vencimento |
+| 36 | Situação por compromisso em tabela própria + deltas no fato diário | Recalcular o fato por consulta às tabelas de situação | Mantém `performance_fact` aditivo e legível pelo `analytics`; ordem de chegada arbitrária |
+| 37 | Compensações por `update` antes do `insert ... on conflict` | Remover o check de não-negatividade | O check vale para a linha proposta do insert; manter o check protege a coerência das medidas |
+| 38 | Novo evento `CaseBalanceChanged` em vez de publicar `CaseStatusChanged` sem mudança de status | Reusar `CaseStatusChanged` | Outros consumidores reagem a transições de status; evento novo não muda a semântica existente |
+| 39 | Teste ponta a ponta no pacote de testes do `collection` | Duplicar o cenário do collection no pacote do incentive | Reaproveita a carga de carteira, relógio deslocável e ganchos dos jobs do módulo produtor |
 

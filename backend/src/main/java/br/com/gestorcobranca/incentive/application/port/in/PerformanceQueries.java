@@ -37,15 +37,31 @@ public interface PerformanceQueries {
      * @param occupancy              tempo em atendimento (chamadas atendidas) ÷ tempo logado
      * @param averageHandlingSeconds TMA: duração média das chamadas atendidas
      * @param medianResponseSeconds  mediana entre mensagem do devedor e resposta do negociador
+     * @param callbacksKeptRate      retornos cumpridos: realizados até o horário (com tolerância) ÷ agendados,
+     *                               por dia do horário combinado e responsável pelo retorno; agendados
+     *                               excluem cancelados e substituídos por reagendamento
+     * @param callbacksScheduled     retornos agendados (denominador)
+     * @param callbacksKept          retornos cumpridos no prazo (numerador)
+     * @param callbacksMissed        retornos atrasados (inclui os cumpridos depois da tolerância)
      */
     record Effort(Long loggedSeconds, BigDecimal occupancy, long workedCases, long attempts, long effectiveContacts,
                   BigDecimal effectiveContactRate, long answeredCalls, BigDecimal averageHandlingSeconds,
-                  BigDecimal medianResponseSeconds, BigDecimal callbacksKeptRate, Long handoffsReceived) {
+                  BigDecimal medianResponseSeconds, BigDecimal callbacksKeptRate, Long handoffsReceived,
+                  long callbacksScheduled, long callbacksKept, long callbacksMissed) {
     }
 
+    /**
+     * @param promisesKeptRate   promessas cumpridas: KEPT ÷ promessas vencidas, pela data prometida e por quem
+     *                           registrou; vencida = prazo encerrado com desfecho (cumprida ou quebrada)
+     * @param promisesRegistered promessas registradas no período (dia do registro)
+     * @param promisesDue        promessas vencidas (denominador)
+     * @param promisesKept       promessas cumpridas (numerador)
+     * @param promisesBroken     promessas quebradas
+     */
     record Conversion(long agreements, BigDecimal contactToProposal, BigDecimal proposalToAgreement,
                       BigDecimal contactToAgreement, BigDecimal promisesKeptRate, BigDecimal agreementsPerLoggedHour,
-                      BigDecimal handoffResolution) {
+                      BigDecimal handoffResolution, long promisesRegistered, long promisesDue, long promisesKept,
+                      long promisesBroken) {
     }
 
     /**

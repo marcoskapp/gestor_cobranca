@@ -25,6 +25,16 @@ class IncentiveMetrics {
         Counter.builder("incentive.facts.consumed").tag("type", type).register(registry).increment();
     }
 
+    /** Evento consumido sem efeito nos fatos (ex.: situação desconhecida do produtor). */
+    void factIgnored(String type, String reason) {
+        Counter.builder("incentive.facts.ignored").tag("type", type).tag("reason", reason).register(registry).increment();
+    }
+
+    /** Evento mais antigo que o último aplicado ao mesmo compromisso (entrega fora de ordem). */
+    void factOutOfOrder(String type) {
+        Counter.builder("incentive.facts.out_of_order").tag("type", type).register(registry).increment();
+    }
+
     void ledgerEntry(String kind, String beneficiaryType) {
         Counter.builder("incentive.ledger.entries").tag("kind", kind).tag("beneficiary", beneficiaryType)
                 .register(registry).increment();

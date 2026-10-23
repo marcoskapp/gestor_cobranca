@@ -14,7 +14,9 @@ import java.util.UUID;
  * @param assigneeId      responsável humano atual do caso (null = na fila); acrescentado para o
  *                        módulo incentive (modelo de crédito por carteira e taxa de recuperação)
  * @param teamId          equipe dona da fila do caso, se houver
- * @param eligibleBalance saldo elegível do caso após a mudança (null = não informado)
+ * @param eligibleBalance saldo elegível atribuível do caso após a mudança: zero quando inelegível ou
+ *                        encerrado (null = não informado). Mudanças só de saldo seguem em
+ *                        {@link CaseBalanceChanged}
  */
 public record CaseStatusChanged(
         UUID eventId,

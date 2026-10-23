@@ -3,6 +3,7 @@ package br.com.gestorcobranca.incentive.application.service;
 import br.com.gestorcobranca.identity.application.port.in.WorkforceQueries.TeamStructure;
 import br.com.gestorcobranca.incentive.application.port.in.PerformanceQueries;
 import br.com.gestorcobranca.incentive.application.port.out.IndicatorReader;
+import br.com.gestorcobranca.incentive.application.port.out.IndicatorReader.Commitments;
 import br.com.gestorcobranca.incentive.application.port.out.IndicatorReader.Dimension;
 import br.com.gestorcobranca.incentive.application.port.out.IndicatorReader.Filter;
 import br.com.gestorcobranca.incentive.application.port.out.IndicatorReader.QualityTotals;
@@ -43,9 +44,8 @@ class PerformanceQueryService implements PerformanceQueries {
 
     /** Métricas cuja fonte ainda não publica eventos de integração (pendências documentadas no desenho). */
     static final List<String> UNAVAILABLE = List.of(
-            "effort.callbacksKeptRate", "effort.handoffsReceived", "conversion.contactToProposal",
-            "conversion.proposalToAgreement", "conversion.promisesKeptRate", "conversion.handoffResolution",
-            "financial.expectedRecoveryRatio");
+            "effort.handoffsReceived", "conversion.contactToProposal", "conversion.proposalToAgreement",
+            "conversion.handoffResolution", "financial.expectedRecoveryRatio");
 
     private final IndicatorReader reader;
     private final IncentiveAccess access;
@@ -175,14 +175,17 @@ class PerformanceQueryService implements PerformanceQueries {
         }
         BigDecimal hours = logged == null || logged == 0 ? null
                 : BigDecimal.valueOf(logged).divide(HOUR, 6, RoundingMode.HALF_EVEN);
+        Commitments c = totals.commitments() == null ? Commitments.NONE : totals.commitments();
         Effort effort = new Effort(logged, logged == null ? null : ratio(totals.talkSeconds(), logged),
                 totals.workedCases() == null ? 0 : totals.workedCases(), totals.attempts(), totals.effectiveContacts(),
                 ratio(totals.effectiveContacts(), totals.attempts()), totals.answeredCalls(),
                 average(BigDecimal.valueOf(totals.talkSeconds()), totals.answeredCalls()),
-                totals.medianResponseSeconds(), null, null);
+                totals.medianResponseSeconds(), ratio(c.callbacksKept(), c.callbacksScheduled()), null,
+                c.callbacksScheduled(), c.callbacksKept(), c.callbacksMissed());
         Conversion conversion = new Conversion(totals.agreements(), null, null,
-                ratio(totals.agreements(), totals.effectiveContacts()), null,
-                hours == null ? null : BigDecimal.valueOf(totals.agreements()).divide(hours, 4, RoundingMode.HALF_EVEN), null);
+                ratio(totals.agreements(), totals.effectiveContacts()), ratio(c.promisesKept(), c.promisesDue()),
+                hours == null ? null : BigDecimal.valueOf(totals.agreements()).divide(hours, 4, RoundingMode.HALF_EVEN), null,
+                c.promisesRegistered(), c.promisesDue(), c.promisesKept(), c.promisesBroken());
         Financial financial = new Financial(money(totals.negotiatedAmount()), money(recovered), recoveryRate,
                 hours == null ? null : recovered.divide(hours, 2, RoundingMode.HALF_EVEN),
                 totals.firstInstallments() <= 0 ? null
@@ -249,7 +252,8 @@ class PerformanceQueryService implements PerformanceQueries {
 
     private static Totals emptyTotals(String key) {
         return new Totals(key, 0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                BigDecimal.ZERO, BigDecimal.ZERO, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, 0L, null);
+                BigDecimal.ZERO, BigDecimal.ZERO, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, 0L, null,
+                Commitments.NONE);
     }
 
     private static BigDecimal ratio(long numerator, long denominator) {
