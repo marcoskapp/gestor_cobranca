@@ -1,0 +1,197 @@
+@if (campaign.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando testes A/B">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton class="xp-gap" variant="card" [rows]="5" />
+  </div>
+} @else if (campaign.status() === 'error') {
+  <app-empty-state icon="science" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+    <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/campanhas/testes">Voltar para testes A/B</a>
+  </app-empty-state>
+}
+
+@if (current(); as c) {
+  <app-page-header [title]="'Testes A/B · ' + c.name" subtitle="Compare variantes de template, canal, horário ou oferta com um grupo de controle sorteado.">
+    @if (canCreate()) {
+      <button mat-flat-button type="button" (click)="create()" [disabled]="!c.publishedCadenceId" [matTooltip]="c.publishedCadenceId ? 'Um teste aberto por campanha' : 'Publique a régua antes de testar variantes'">
+        <mat-icon aria-hidden="true">add</mat-icon>
+        Novo teste
+      </button>
+    }
+    @if (editable()) {
+      @if (creating()) {
+        <button mat-stroked-button type="button" (click)="cancelCreate()">Cancelar</button>
+      }
+      @if (dirty()) {
+        <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
+          <mat-icon aria-hidden="true">save</mat-icon>
+          Salvar rascunho
+        </button>
+      } @else if (selected()?.status === 'DRAFT') {
+        <button mat-flat-button type="button" (click)="start()" [disabled]="problems().length > 0 || !c.publishedCadenceId || c.status === 'FINISHED'">
+          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+          Iniciar teste
+        </button>
+      }
+    }
+    @if (canManage() && selected()?.status === 'RUNNING') {
+      <button mat-stroked-button type="button" (click)="stop()">
+        <mat-icon aria-hidden="true">stop_circle</mat-icon>
+        Encerrar teste
+      </button>
+    }
+  </app-page-header>
+  <app-campaign-tabs [campaignId]="c.id" />
+
+  @for (e of errors(); track e) {
+    <p class="app-alert app-alert--error" role="alert">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <span>{{ e }}</span>
+    </p>
+  }
+
+  @if (list.isLoading() && !list.hasValue()) {
+    <app-skeleton variant="card" [rows]="4" />
+  } @else if (!draft() && !selected()) {
+    <app-empty-state icon="science" title="Nenhum teste A/B nesta campanha." [message]="c.publishedCadenceId ? 'Crie um teste para comparar variantes da régua publicada com um grupo de controle.' : 'Publique a régua da campanha para poder testar variantes.'">
+      @if (canCreate() && c.publishedCadenceId) {
+        <button mat-stroked-button type="button" (click)="create()">Novo teste</button>
+      }
+    </app-empty-state>
+  } @else {
+    <div class="xp-layout">
+      <div class="xp-main">
+        @if (draft(); as d) {
+          <section class="app-card xp-summary" aria-label="Situação do teste" data-tour="experiment-status">
+            @if (creating()) {
+              <app-status-chip domain="experiment" status="DRAFT" />
+              <span>Novo teste (ainda não salvo)</span>
+            } @else if (selected(); as e) {
+              <app-status-chip domain="experiment" [status]="e.status" />
+              @if (e.startedAt) {
+                <span>Iniciado em {{ e.startedAt | appDate }}</span>
+              } @else {
+                <span>Rascunho criado em {{ e.createdAt | appDate }}</span>
+              }
+              @if (e.stoppedAt) {
+                <span class="app-muted">· encerrado em {{ e.stoppedAt | appDate }}@if (e.stopReason) { — {{ e.stopReason }}}</span>
+              }
+            }
+            @if (dirty() && !creating()) {
+              <span class="app-status app-status--warning">Alterações não salvas</span>
+            }
+          </section>
+
+          @if (selected()?.status !== 'DRAFT' && !creating() && selected(); as e) {
+            <section class="app-card" aria-labelledby="xp-results" data-tour="experiment-results">
+              <h2 class="app-card__title" id="xp-results">Resultados por braço</h2>
+              <app-experiment-results [experiment]="e" />
+            </section>
+          }
+
+          <section class="app-card" aria-labelledby="xp-config" data-tour="experiment-config">
+            <h2 class="app-card__title" id="xp-config">Configuração</h2>
+            <div class="xp-row">
+              <mat-form-field class="app-compact xp-grow">
+                <mat-label>Nome</mat-label>
+                <input matInput [(ngModel)]="d.name" (ngModelChange)="edited()" maxlength="120" [disabled]="!editable()" />
+              </mat-form-field>
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-grow">
+                <mat-label>Métrica principal</mat-label>
+                <mat-select [(ngModel)]="d.primaryMetric" (ngModelChange)="edited()" [disabled]="!editable()">
+                  @for (m of metrics; track m) {
+                    <mat-option [value]="m">{{ metricLabels[m] }}</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>{{ d.primaryMetric ? metricHints[d.primaryMetric] : '' }}</mat-hint>
+              </mat-form-field>
+            </div>
+            <mat-form-field class="app-compact app-full-width">
+              <mat-label>Hipótese (opcional)</mat-label>
+              <textarea matInput rows="2" [(ngModel)]="d.hypothesis" (ngModelChange)="edited()" maxlength="500" [disabled]="!editable()" placeholder="Ex.: lembrete às 9 h aumenta a taxa de pagamento em relação às 15 h."></textarea>
+            </mat-form-field>
+            <div class="xp-row">
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
+                <mat-label>Grupo de controle (%)</mat-label>
+                <input matInput type="number" min="0" max="50" step="1" [(ngModel)]="d.controlShare" (ngModelChange)="edited()" [disabled]="!editable()" />
+                <mat-hint>0 a 50%; não recebe nenhuma ação.</mat-hint>
+              </mat-form-field>
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
+                <mat-label>Horizonte (dias)</mat-label>
+                <input matInput type="number" min="1" max="180" step="1" [(ngModel)]="d.observationDays" (ngModelChange)="edited()" [disabled]="!editable()" />
+                <mat-hint>Resultados contados até aqui.</mat-hint>
+              </mat-form-field>
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
+                <mat-label>Amostra mínima por braço</mat-label>
+                <input matInput type="number" min="10" step="10" [(ngModel)]="d.minSamplePerArm" (ngModelChange)="edited()" [disabled]="!editable()" />
+                <mat-hint>Abaixo disso, aviso de amostra insuficiente.</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <h3 class="app-section-title">Repartição dos devedores</h3>
+            <div class="xp-alloc" aria-hidden="true">
+              @for (a of shares(); track a.arm) {
+                <span class="xp-alloc__part" [class.xp-alloc__part--control]="a.arm === control" [style.flex-grow]="a.percent">{{ a.arm === control ? 'Controle' : a.arm }}</span>
+              }
+            </div>
+            <ul class="xp-alloc-list">
+              @for (a of shares(); track a.arm) {
+                <li><strong>{{ percent(a.percent) }}</strong> {{ a.label }}</li>
+              }
+            </ul>
+
+            @if (editable() && problems().length) {
+              <section class="app-alert app-alert--error xp-problems" role="alert" aria-label="Problemas no teste">
+                <mat-icon aria-hidden="true">error_outline</mat-icon>
+                <ul>
+                  @for (p of problems(); track p) {
+                    <li>{{ p }}</li>
+                  }
+                </ul>
+              </section>
+            }
+          </section>
+
+          <section class="app-card" aria-labelledby="xp-variants" data-tour="experiment-variants">
+            <h2 class="app-card__title" id="xp-variants">Variantes ({{ d.variants.length }} de até 10)</h2>
+            @for (v of d.variants; track $index; let i = $index) {
+              <div class="xp-variant">
+                <app-variant-editor
+                  [variant]="v"
+                  [steps]="publishedSteps() ?? []"
+                  [templates]="templates()"
+                  [creditorId]="c.creditorId"
+                  [readonly]="!editable()"
+                  (edited)="edited()"
+                  (remove)="removeVariant(i)"
+                />
+              </div>
+            }
+            @if (editable()) {
+              <button mat-stroked-button type="button" (click)="addVariant()" [disabled]="d.variants.length >= 10">
+                <mat-icon aria-hidden="true">add</mat-icon>
+                Variante
+              </button>
+            }
+          </section>
+        }
+      </div>
+
+      <aside class="app-card xp-list" aria-labelledby="xp-history">
+        <h2 class="app-card__title" id="xp-history">Testes da campanha</h2>
+        <ol class="xp-history">
+          @for (e of experiments(); track e.id) {
+            <li [class.xp-history--current]="e.id === selected()?.id && !creating()">
+              <button type="button" class="xp-link" (click)="select(e.id)">{{ e.name }}</button>
+              <app-status-chip domain="experiment" [status]="e.status" />
+              <span class="app-muted xp-small">{{ (e.startedAt ?? e.createdAt) | appDate: 'date' }}</span>
+            </li>
+          } @empty {
+            <li class="app-muted xp-small">Nenhum teste salvo.</li>
+          }
+        </ol>
+        <p class="app-muted xp-small">Um teste aberto (rascunho ou em execução) por campanha. O sorteio é estável: o mesmo devedor fica sempre no mesmo braço.</p>
+      </aside>
+    </div>
+  }
+}

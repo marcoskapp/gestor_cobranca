@@ -1,0 +1,237 @@
+.cp-gap {
+  margin-top: var(--app-gap);
+}
+
+.cp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: var(--app-gap);
+  align-items: start;
+}
+
+.cp-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-gap);
+  min-width: 0;
+
+  .app-card + .app-card {
+    margin-top: 0;
+  }
+}
+
+.cp-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.cp-problems ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.cp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.cp-grow {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.cp-small {
+  font-size: var(--app-text-xs);
+}
+
+// ------------------------------------------------------------------ fluxo vertical das etapas
+
+.cp-flow {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-start,
+.cp-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px dashed var(--app-border-strong);
+  border-radius: var(--app-radius-pill);
+  width: fit-content;
+  max-width: 100%;
+  font-size: var(--app-text-sm);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
+.cp-end {
+  margin-top: 8px;
+}
+
+.cp-wait {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding-left: 32px;
+}
+
+.cp-wait__line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 20px;
+  border-left: 2px solid var(--app-border-strong);
+}
+
+.cp-wait__text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--app-text-xs);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.cp-step {
+  border: 1px solid var(--app-border);
+  border-left: 4px solid var(--mat-sys-primary);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  box-shadow: var(--app-elevation-1);
+}
+
+.cp-step--bad {
+  border-left-color: var(--app-danger-fg);
+}
+
+.cp-step__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-step__num {
+  display: inline-grid;
+  flex: 0 0 28px;
+  place-items: center;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  font-size: var(--app-text-sm);
+  font-weight: 700;
+}
+
+.cp-step__icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--mat-sys-primary);
+}
+
+.cp-step__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cp-step__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cp-step__summary {
+  font-size: var(--app-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.cp-step__meta {
+  font-size: var(--app-text-xs);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.cp-step__badge {
+  flex: 0 0 auto;
+}
+
+.cp-step__chevron {
+  flex: 0 0 auto;
+}
+
+.cp-step__body {
+  padding: 4px 12px 12px;
+  border-top: 1px solid var(--app-border);
+}
+
+// ------------------------------------------------------------------ versões
+
+.cp-version-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--app-text-sm);
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding-left: 8px;
+    border-left: 3px solid var(--app-border);
+  }
+}
+
+.cp-version--current {
+  border-left-color: var(--mat-sys-primary) !important;
+  font-weight: 600;
+}
+
+.cp-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mat-sys-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 1099.98px) {
+  .cp-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 599.98px) {
+  .cp-step__badge {
+    display: none;
+  }
+}

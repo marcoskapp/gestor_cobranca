@@ -3,6 +3,18 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 5,
+    date: '2026-10-23',
+    title: 'Campanhas, réguas e testes A/B',
+    items: [
+      { text: 'Segmentos com filtros combinados e contagem prévia do público.', route: '/campanhas/segmentos' },
+      { text: 'Campanhas por credor com prioridade, exclusividade e régua versionada em etapas.', route: '/campanhas' },
+      { text: 'Ativar, pausar e encerrar com o resumo de quantos devedores são alcançados.', route: '/campanhas' },
+      { text: 'Painel de execução com falhas por causa e reprocessamento sem duplicar mensagens.', route: '/campanhas' },
+      { text: 'Testes A/B com grupo de controle e intervalo de confiança por braço.', route: '/campanhas/testes' },
+    ],
+  },
+  {
     version: 4,
     date: '2026-10-23',
     title: 'Propostas e acordos, caixa de entrada e jurídico',
