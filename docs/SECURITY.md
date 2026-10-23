@@ -30,6 +30,8 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Alterações de perfil/escopo revogam as sessões do usuário afetado | `UserManagementService` |
 | Remuneração variável: escopo próprio/equipe/tudo (`PERFORMANCE_VIEW_*`); consulta a extrato, razão, prévia ou simulação de terceiro gera `COMPENSATION_DATA_VIEWED` | `incentive/application/service/IncentiveAccess` |
 | Segregação de funções nos extratos: quem fecha o período, ajusta ou resolve contestação não aprova; ninguém aprova ou ajusta o próprio extrato; ajuste acima do limite exige segunda pessoa | `CommissionStatement#approve`, `StatementAdjustment#decide`, `StatementService` |
+| Alçada de negociação: humanos e assistente passam pelo mesmo `NegotiationGuard` (política, envelope, perfil, escopo, elegibilidade); ninguém atribui a própria alçada; atribuição geral exige todos os credores; mudanças vão ao log de acesso (`PERMISSION_CHANGED`); o assistente não recebe o envelope da política e só relê as próprias simulações | `negotiation/application/service/NegotiationGuard`, `AuthorityService`, `SimulationService` |
+| Políticas de cobrança publicadas imutáveis no banco (vigência só encurta) e simulações append-only | `V0700__negotiation_policies_and_indexes.sql`, `V0702__negotiation_simulation.sql` |
 | Razão de comissão append-only (colunas financeiras imutáveis por privilégio de coluna e gatilho) e extrato aprovado imutável no banco | `V1802__incentive_ledger_and_statements.sql` |
 
 ## 3. Proteção de dados (LGPD)

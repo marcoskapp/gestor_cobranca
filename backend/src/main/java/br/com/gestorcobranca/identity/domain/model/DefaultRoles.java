@@ -16,6 +16,10 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * Remuneração variável: o gestor fecha períodos e ajusta extratos ({@code COMMISSION_STATEMENT_MANAGE});
  * o financeiro aprova ({@code COMMISSION_STATEMENT_APPROVE}). A segregação também é verificada em
  * tempo de execução (quem fecha ou ajusta não aprova), inclusive para o administrador, que tem ambas.
+ * <p>
+ * Negociação: perfis de alçada ({@code AUTHORITY_MANAGE}) são administrados pelo gestor e pelo
+ * administrador; políticas de cobrança ({@code POLICY_MANAGE}) idem. Operadores consultam a
+ * política ({@code POLICY_VIEW}) e simulam ({@code NEGOTIATION_SIMULATE}) dentro da própria alçada.
  */
 public final class DefaultRoles {
 
@@ -55,7 +59,7 @@ public final class DefaultRoles {
                 DEBT_TITLE_MANAGE, COLLATERAL_MANAGE, PRESCRIPTION_MANAGE, SEGMENT_MANAGE, CAMPAIGN_MANAGE, CAMPAIGN_EXECUTE, EXPERIMENT_MANAGE,
                 TEMPLATE_MANAGE, COMMISSION_VIEW, SETTLEMENT_VIEW, REPORT_EXPORT, SCORING_MANAGE,
                 PORTAL_MANAGE, ACCESS_LOG_VIEW, DEBTOR_SENSITIVE_VIEW, PERFORMANCE_VIEW_ALL, COMMISSION_PLAN_MANAGE,
-                COMMISSION_STATEMENT_MANAGE));
+                COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,

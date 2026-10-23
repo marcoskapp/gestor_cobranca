@@ -81,6 +81,15 @@ Remuneração individual **nunca** aparece em log (técnico ou de negócio): os 
 | `commission.plan_published` | versão de plano publicada (elasticidade antes/depois) | `code`, `version`, `effectiveFrom`, `tierMode`, `hasGoal`, `hasPool`, `hasFixedPerAgreement`, `graceBusinessDays`, `clawbackEnabled`, `creditModel` |
 | `quality.evaluated` | monitoria registrada | `userId`, `formId`, `score`, `criticalFailure`, `referenceType` |
 
+### 3.3 Atributos dos eventos de negociação (parte 1)
+
+Ids e códigos apenas — nunca nome, documento ou contato do devedor, nem a observação livre da justificativa.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `policy.published` (`policyKind = collection`) | versão de política de cobrança publicada | `version`, `effectiveFrom`, `overrides`, `ladderLevels`, `maxInstallments`, `interestMode`, `hasCorrection` |
+| `negotiation.simulated` | simulação registrada (humano ou assistente) | `actorType`, `profileCode`, `policyVersion`, `override`, `requestedLevel`, `grantedLevel`, `levelCapped`, `escalationReason`, `titles`, `excludedTitles`, `offers`, `validOffers`, `daysOverdue`, `bestOfferAmount`; `amount` = dívida atualizada; `channel` |
+
 Consulta a extrato, razão, prévia ou simulação de **outra pessoa** gera `COMPENSATION_DATA_VIEWED` no log de acesso; exportação gera `DATA_EXPORTED` e download `FILE_DOWNLOADED`.
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
@@ -133,6 +142,12 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `incentive.payments.awaiting_attribution` | pagamento recebido antes da atribuição do acordo (crescimento contínuo = produtor sem `AgreementAttributionRecorded`) |
 | `incentive.period.close.duration{trigger}`, `incentive.statements.calculated{trigger}`, `incentive.statements.transitions{status}` | fechamento de período e ciclo dos extratos |
 | `incentive.exports{format}`, `incentive.jobs.failures{job}` | exportações para a folha e falhas dos agendamentos (alarme) |
+| `negotiation.simulations{actorType,outcome}`, `negotiation.simulation.offers{actorType}`, `negotiation.simulation.duration{actorType}` | simulações (OFFERED × NO_VALID_OFFER), ofertas geradas e latência do motor |
+| `negotiation.guard.decisions{actorType,outcome}`, `negotiation.guard.violations{rule}` | validações de condições (WITHIN_AUTHORITY, REQUIRES_APPROVAL, REJECTED) e regras violadas |
+| `negotiation.concession.escalations{actorType,level,reason}` | pedidos de subida na escada de concessões |
+| `negotiation.policy.transitions{status}`, `negotiation.authority.changes{operation}`, `negotiation.authority.profiles_seeded` | ciclo das políticas, mudanças de alçada e semeadura dos perfis padrão |
+| `negotiation.calculation.index_pending{index}` | cálculo com competência de índice não publicada (crescimento contínuo = tabela de índices desatualizada) |
+| `negotiation.jobs.failures{job}` | falhas dos agendamentos do módulo (alarme) |
 | `debt.collateral.registered{type,source}`, `debt.collateral.transitions{type,to}`, `debt.collateral.appraisals{source}` | garantias cadastradas, mudanças de situação e avaliações |
 | `debt.obligation_parties.registered{role,source}` | coobrigados incluídos |
 | `debt.prescription.interruptions{type,origin}` | interrupções de prescrição registradas |
