@@ -259,6 +259,38 @@ app:
       enabled: false
       delivery-delay: PT0S
 
+  payment:
+    # padrões da assessoria enquanto ela não grava os seus (PUT /api/v1/payment/settings)
+    defaults:
+      # pagamento externo acima deste valor exige aprovação de outra pessoa com PAYMENT_REVIEW
+      external-review-threshold: 500.00
+      pix-expiration-seconds: 86400
+      pix-due-validity-days: 30
+      reconciliation-date-tolerance-days: 3
+    webhook:
+      # URL pública (ALB) informada ao PSP: <public-base-url>/api/v1/webhooks/pix/<routingKey>
+      public-base-url: ${PAYMENT_WEBHOOK_PUBLIC_BASE_URL:${APP_BASE_URL:http://localhost:8080}}
+      max-body-bytes: 262144
+      requests-per-minute: 600
+      # janela de replay: notificações mais antigas são descartadas; recibos guardados por este prazo
+      max-event-age: P7D
+      max-clock-skew: PT5M
+      # ALB com mutual TLS em modo verify repassa o certificado do PSP neste cabeçalho
+      client-certificate-header: X-Amzn-Mtls-Clientcert-Leaf
+    pix:
+      connect-timeout: PT3S
+      read-timeout: PT10S
+      token-refresh-margin: PT60S
+    evidence:
+      max-size-bytes: 10485760
+    statement:
+      max-size-bytes: 10485760
+      max-lines: 50000
+    expiration-check-interval: PT15M
+    # PSP simulado: somente local/teste (recusado no perfil prod)
+    sandbox:
+      enabled: false
+
   collection:
     # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)
     defaults:
