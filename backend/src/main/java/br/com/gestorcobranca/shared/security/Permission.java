@@ -107,8 +107,10 @@ public enum Permission {
     RETENTION_MANAGE("Gerenciar retenção e descarte"),
 
     // Telefonia
-    TELEPHONY_USE("Usar telefonia"),
-    TELEPHONY_MANAGE("Configurar telefonia e discador"),
+    TELEPHONY_USE("Usar telefonia: clique para ligar, presença no discador e tabulação das próprias chamadas"),
+    TELEPHONY_SUPERVISE("Acompanhar operadores e chamadas, operar campanhas de discagem e forçar saída"),
+    TELEPHONY_MANAGE("Configurar telefonia, ramais e campanhas de discagem"),
+    CALL_RECORDING_LISTEN("Ouvir e baixar gravações de chamadas (acesso registrado)"),
 
     // Portal de autonegociação
     PORTAL_MANAGE("Configurar portal de autonegociação"),

@@ -302,6 +302,36 @@ app:
     sandbox:
       enabled: false
 
+  telephony:
+    # tentativas do job de discagem (falhas transitórias do provedor) antes de FAILED
+    dial-max-attempts: 3
+    # prazo do pós-atendimento: sem tabulação do operador, a chamada é tabulada automaticamente
+    tabulation-deadline: PT15M
+    # operador sem sinal do cliente (heartbeat) além deste prazo sai automaticamente
+    presence-timeout: PT90S
+    # chamada em andamento sem evento do provedor além deste prazo é encerrada (conciliação)
+    stale-call-after: PT4H
+    # descarte diário de gravações (política CALL_RECORDINGS do compliance)
+    retention-cron: "0 50 2 * * *"
+    retention-batch: 200
+    recording-max-bytes: 209715200
+    dialer:
+      tick-interval: PT3S
+      max-per-tick: 50
+      load-page-size: 200
+      max-entries: 50000
+    webhook:
+      max-body-bytes: 65536
+      requests-per-minute: 1200
+      # janela de replay: eventos mais antigos são descartados; recibos guardados por este prazo
+      max-event-age: P2D
+      # tolerância do instante assinado e de eventos no futuro
+      max-clock-skew: PT5M
+    # provedor simulado: somente local/teste (recusado no perfil prod); provedor real na issue #12
+    sandbox:
+      enabled: false
+      auto-progress: true
+
   collection:
     # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)
     defaults:

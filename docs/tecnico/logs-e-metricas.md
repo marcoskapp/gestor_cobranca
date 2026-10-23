@@ -38,7 +38,8 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.finished`, `campaign.step_executed`, `campaign.step_skipped`, `campaign.replied`, `campaign.cadence_exhausted`, `experiment.variant_assigned` |
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
-| Outros | `call.completed`, `portal.accessed`, `portal.agreement_formalized`, `score.calculated`, `assistant.replied`, `assistant.handoff` |
+| Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
+| Outros | `portal.accessed`, `portal.agreement_formalized`, `score.calculated`, `assistant.replied`, `assistant.handoff` |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -217,6 +218,23 @@ Ids, enums e valores apenas — nunca documento, nome, observação, descrição
 | `payment.divergence` | divergência aberta ou resolvida | `type`, `source`, `status`, `paymentId`, `expectedAmount`, `resolution`, `resolvedBy`; `durationMs` até a resolução |
 | `payment.reversed` | estorno | `reason`, `reversalSource`, `previousStatus`, `allocations`, `daysSinceConfirmation`; `amount` |
 
+### 3.7 Atributos dos eventos da telefonia
+
+Referência `call` (ou `dialer_campaign`/`telephony_agent`), canal `PHONE`, `creditorId`, `portfolioId`, `debtorId` e
+`caseId` quando identificados, e `direction`, `origin` (`CLICK_TO_CALL`, `DIALER`, `INBOUND`), `operatorId`,
+`campaignId`. Nunca número (nem mascarado), nome, ramal ou credenciais. Ver `docs/tecnico/desenho/telefonia.md`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `call.dialed` | provedor aceitou a discagem (tentativa registrada no compliance) | `attemptNumber`, `recording` |
+| `call.blocked` | porteiro negou (verificação prévia do clique para ligar ou imediatamente antes de discar) | `stage` (`precheck`/`dial`), `reasons`, `deferrable` (há próximo instante permitido), `attemptNumber` |
+| `call.completed` | chamada que chegou ao provedor encerrada | `status`, `result` (`ANSWERED`, `NO_ANSWER`, `BUSY`, `VOICEMAIL`, `FAILED`, `CANCELLED`, `ABANDONED`), `attemptNumber`, `amd`, `abandoned`, `hangupSide`, `ringSeconds`, `talkSeconds`, `failureCode`, `recording`; `durationMs` = conversação |
+| `call.abandoned` | atendida por pessoa sem operador livre (discador) | `attemptNumber`, `amd` |
+| `call.tabulated` | tabulação do operador (`mode=operator`) ou automática por prazo (`mode=deadline`) | `tabulationCode`, `result`, `origin`, `effectiveContact`, `promise`, `callback`, `wrapUpSeconds`; `durationMs` = pós-atendimento |
+| `call.recording_stored` | gravação copiada para o armazenamento próprio | `recordingId`, `durationSeconds`, `announced`, `sizeBytes` |
+| `dialer.campaign_activated` / `_paused` / `_finished` | ciclo da campanha de discagem | `campaignCode`, `mode`, `maxDialRatio`, `maxAbandonRate`, `maxAttempts`, `queueId`; na ativação `resumed`; no encerramento `excludedEntries` e `durationMs` desde a ativação |
+| `agent.presence_changed` | mudança de presença do operador | `userId`, `from`, `to`, `fromReason`, `reason` (motivo da pausa), `productivePause`, `campaignId`, `trigger` (`operator`, `call`, `tabulation`, `supervisor`, `timeout`, `configuration`); `durationMs` no estado anterior |
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -235,6 +253,11 @@ filter eventType in ["proposal.created", "agreement.formalized", "payment.confir
 # valor recuperado por operador no dia (negócio)
 filter eventType = "payment.confirmed"
 | stats sum(amount) by actorId, bin(1d)
+
+# resultados das chamadas do discador por campanha e dia (negócio)
+# abandono = ABANDONED ÷ (ANSWERED + ABANDONED); ASR = (ANSWERED + VOICEMAIL + ABANDONED) ÷ total
+filter eventType = "call.completed" and `attr.origin` = "DIALER"
+| stats count(*) by `attr.campaignId`, `attr.result`, bin(1d)
 
 # etapas puladas por motivo e campanha (negócio)
 filter eventType = "campaign.step_skipped"
@@ -356,5 +379,18 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `campaign.audience.refreshes{trigger,outcome}`, `campaign.segment.evaluation{operation}` (p50/p95/p99) | atualização do read model e tempo de avaliação de segmentos |
 | `campaign.experiment.assignments{arm}` | atribuições de braço (controle × variante) |
 | `campaign.events.consumed{type}`, `campaign.jobs.failures{job}` | consumo de eventos e falhas de agendamentos/etapas (alarme) |
+| `telephony.calls{direction,origin,result}` | chamadas encerradas que chegaram ao provedor, por resultado (base do ASR: atendidas ÷ discadas) |
+| `telephony.dial.requests{origin,outcome}` | pedidos de discagem: `accepted`, `rejected`, `transient`, `blocked`, `exhausted` |
+| `telephony.calls.blocked{origin,stage,reason}` | negações do porteiro por motivo (`precheck`/`dial`) |
+| `telephony.dialer.live{mode,outcome}` | atendidas por pessoa no discador: `connected` × `abandoned` — **taxa de abandono** = abandoned ÷ total (alarme acima de 3%) |
+| `telephony.dialer.ticks{mode,reason}`, `telephony.dialer.placed{mode}` | ciclos do discador pelo motivo do ritmo (`progressive`, `warming_up`, `predictive`, `abandon_near_limit`, `abandon_limit`, `no_agents`, `lines_busy`, `outside_window`) e chamadas colocadas |
+| `telephony.dialer.entries{outcome}` | itens da lista: `loaded`, `deferred`, `retry`, `completed`, `exhausted`, `excluded_<motivo>`, `no_account` |
+| `telephony.call.ring_time{origin}`, `telephony.call.talk_time{origin}`, `telephony.call.wrap_up_time{origin}`, `telephony.call.distribution_time{origin}` (p50/p95/p99) | tempos de toque, conversação, pós-atendimento e do atendimento à conexão com o operador |
+| `telephony.calls.short{origin}` | atendidas e encerradas pelo sistema em até 3 s (chamadas curtas, acompanhamento da Anatel) |
+| `telephony.presence.transitions{to,reason}` | mudanças de presença por estado e motivo de pausa |
+| `telephony.tabulations{mode}`, `telephony.interactions{outcome}` | tabulações (`operator`, `automatic`, `deadline`) e registros no caso (`recorded`, `duplicate`, `skipped_*`) |
+| `telephony.recordings{outcome}`, `telephony.recording.access{purpose}` | gravações (`stored`, `failed`, `too_large`, `purged_retention`, `purged_anonymization`) e acessos por finalidade |
+| `telephony.webhook.requests{provider,outcome}`, `telephony.webhook.events{provider,type,outcome}` | webhooks (`ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` — alarme —, `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`) e eventos (`applied`, `duplicate`, `stale`, `unknown_call`, `ignored`) |
+| `telephony.reconciliation{kind}`, `telephony.events.consumed{type}`, `telephony.jobs.failures{job}` | conciliação (`agent_timeout`, `stale_call`), consumo de eventos e falhas de jobs/agendamentos (alarme) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |
