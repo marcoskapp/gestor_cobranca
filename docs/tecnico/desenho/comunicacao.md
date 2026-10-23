@@ -186,9 +186,9 @@ templates sem `DELETE`.
 * Consumidos: `MessageStatusChanged` (interação), `HandoffRequested`, `CaseAssignmentChanged`, `CaseStatusChanged`
   (abertura vincula conversas sem caso do devedor no credor).
 * Negócio: `message.sent|delivered|read|failed|blocked|replied|received`, `conversation.handoff`,
-  `conversation.closed`, `assistant.handoff`, `template.published` — ver `docs/LOGGING.md` §3.4. Nunca conteúdo,
+  `conversation.closed`, `assistant.handoff`, `template.published` — ver `docs/tecnico/logs-e-metricas.md` §3.4. Nunca conteúdo,
   contato ou nome.
-* Métricas `communication.*` — `docs/LOGGING.md` §5. Auditoria: contas (sem credenciais), templates, aprovação,
+* Métricas `communication.*` — `docs/tecnico/logs-e-metricas.md` §5. Auditoria: contas (sem credenciais), templates, aprovação,
   dono da conversa, identificação, encerramento e rascunhos.
 
 ## 8. Decisões

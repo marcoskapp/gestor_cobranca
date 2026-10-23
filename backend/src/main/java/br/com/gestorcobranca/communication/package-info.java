@@ -8,7 +8,7 @@
  * Outros módulos usam somente {@code application.port.in}. O dono do atendimento de conversas com
  * caso é o do caso ({@code collection}); reações no sentido contrário ao grafo chegam por eventos
  * ({@code shared.events.collection}, {@code shared.events.communication.HandoffRequested}). Ver
- * {@code docs/design/comunicacao.md}.
+ * {@code docs/tecnico/desenho/comunicacao.md}.
  */
 @ApplicationModule(displayName = "Communication",
         allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "compliance :: usecases",

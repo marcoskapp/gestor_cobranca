@@ -8,7 +8,7 @@ import java.time.Duration;
 
 /**
  * Métricas do módulo (Micrometer → CloudWatch). Nomes e tags são contrato com painéis e alarmes,
- * documentados em {@code docs/LOGGING.md} §5 — não renomear. Tags só com valores de baixa
+ * documentados em {@code docs/tecnico/logs-e-metricas.md} §5 — não renomear. Tags só com valores de baixa
  * cardinalidade (enums, códigos estáveis); nunca ids ou contatos.
  */
 @Component
