@@ -8,6 +8,7 @@ import br.com.gestorcobranca.collection.domain.model.CaseStatus;
 import br.com.gestorcobranca.collection.domain.model.CollectionCase;
 import br.com.gestorcobranca.collection.domain.model.CollectionQueue;
 import br.com.gestorcobranca.collection.domain.model.DistributionStrategy;
+import br.com.gestorcobranca.collection.domain.model.OwnerType;
 import br.com.gestorcobranca.collection.domain.repository.CaseAssignmentRepository;
 import br.com.gestorcobranca.collection.domain.repository.CaseSearchCriteria;
 import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
@@ -214,10 +215,13 @@ class CaseWorkService implements CaseWorkUseCases {
         CollectionCase c = access.forCommand(caseId);
         requireActive(c);
         Actor actor = access.actor();
-        if (!c.isAssignedTo(actor.id()) && !actor.has(Permission.CASE_ASSIGN)) {
+        // o assistente devolve aos humanos (transferência) os casos que conduz
+        boolean assistantOwned = c.getOwnerType() == OwnerType.ASSISTANT;
+        if (!c.isAssignedTo(actor.id()) && !actor.has(Permission.CASE_ASSIGN) && !(assistantOwned && actor.isAssistant())) {
             throw new ConflictException("case.not_assigned_to_user", "Somente o responsável devolve o caso à fila");
         }
-        Guard.requireState(c.getAssigneeUserId() != null, "case.not_assigned", "O caso não está com um operador");
+        Guard.requireState(c.getAssigneeUserId() != null || assistantOwned, "case.not_assigned",
+                "O caso não está com um operador nem com o assistente");
         CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
         c.release(Instant.now(clock));
         return view(recorder.commit(c, before, AssignmentMode.RELEASE, reason(reason), "release"));

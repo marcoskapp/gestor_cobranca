@@ -9,6 +9,9 @@ app:
       k1: dGVzdC1vbmx5LWFlcy1rZXktMzItYnl0ZXMtLS0tLSE=
     active-key-id: k1
     blind-index-key: dGVzdC1vbmx5LWJsaW5kLWluZGV4LWtleS0zMi1ieXRlcyE=
+  communication:
+    sandbox:
+      enabled: true
   storage:
     provider: filesystem
     local-root: ./target/test-storage

@@ -234,6 +234,27 @@ app:
     posting-sweep-interval: PT15M
     posting-sweep-min-age: PT10M
 
+  communication:
+    # tentativas do job de envio (falhas transitórias do provedor) antes de FAILED/DEAD
+    send-max-attempts: 6
+    # descarte diário do conteúdo de mensagens (política MESSAGE_CONTENT do compliance)
+    retention-cron: "0 40 2 * * *"
+    retention-batch: 500
+    webhook:
+      max-body-bytes: 262144
+      requests-per-minute: 600
+      # janela de replay: eventos mais antigos são descartados; recibos guardados por este prazo
+      max-event-age: P7D
+      max-clock-skew: PT5M
+    whatsapp:
+      api-base-url: ${WHATSAPP_API_BASE_URL:https://graph.facebook.com/v21.0}
+      connect-timeout: PT3S
+      read-timeout: PT10S
+    # provedor simulado: somente local/teste (recusado no perfil prod)
+    sandbox:
+      enabled: false
+      delivery-delay: PT0S
+
   collection:
     # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)
     defaults:
