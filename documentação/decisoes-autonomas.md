@@ -33,10 +33,13 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 27 | collection | "Próximo caso" com `SKIP LOCKED`; retorno atrasado continua com o operador e vem primeiro; histórico de atribuição com vigência; 12 tabulações padrão por assessoria; promessa vinculada a pagamento por devedor/credor/carteira. | Devolver retorno atrasado à fila. | Preserva o relacionamento; supervisor pode redistribuir. |
 | 28 | collection | Permissões novas `CASE_MANAGE` e `TABULATION_MANAGE`; eventos novos `CallbackStatusChanged` e `PromiseStatusChanged`. | Reaproveitar `CASE_ASSIGN`. | Separa distribuir de suspender/encerrar. |
 | 29 | frontend | Telas de devedores, títulos e compliance: documento/contato completo só com `DEBTOR_SENSITIVE_VIEW` (registrado no servidor); busca por CPF/CNPJ via POST, nunca na URL; garantias, coobrigados e prescrição só consulta por ora; rascunho de política de contato só na tela (API não tem rascunho). | Documento na URL; salvar rascunho no navegador. | Segurança e minimização de dados. |
+| 30 | ingestion | Layout canônico `PADRAO` v1 (documentado em `documentação/layout-importacao.md`) com colunas jurídicas; layouts próprios por credor/carteira versionados; arquivo repetido na carteira recusado salvo confirmação com motivo; limites 50 MB / 1 milhão de linhas. | Aceitar reenvio livremente. | Idempotência e proteção contra arquivos maliciosos. |
+| 31 | ingestion **[revisar]** | Título informado como pago/cancelado na carga **não** gera baixa: é suspenso para conciliação; contestado é suspenso. Dado jurídico inconsistente rejeita a linha inteira. | Baixar pela carga; gravar o título sem a garantia. | Baixa exige pagamento com evidência (RB06); carregar sem garantia é arriscado. |
+| 32 | ingestion | Processamento em fatias de 2 min com checkpoint a cada 500 linhas e transação por linha; garantia da carga cobre todos os títulos do contrato. | Job longo; cobertura por título. | Retomada exata sem transações longas. |
+| 33 | ingestion | API de registros autentica por usuário com `IMPORT_EXECUTE` até existir credencial de integração (ator `INTEGRATION`). | Bloquear a API. | Pendência de segurança registrada. |
 
 ## Situação ao fim da sessão autônoma
 
-- **Integrados na master (testes verdes):** garantias/coobrigados/prescrição e negotiation parte 1, collection e telas de devedores/títulos/compliance (23/10 manhã), compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
+- **Integrados na master (testes verdes):** garantias/coobrigados/prescrição e negotiation parte 1, collection, ingestion e telas de devedores/títulos/compliance (23/10 manhã), compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
 - **Interrompidos pelo responsável e não retomados** (trabalho não commitado preservado nos worktrees, nada foi descartado):
-  - `wt-modulo-ingestion` — 4 arquivos alterados, sem commit;
 - Próxima onda (negotiation parte 2, payment, communication, settlement…) **não foi iniciada**, aguardando orientação.
