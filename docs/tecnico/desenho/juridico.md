@@ -146,7 +146,7 @@ Para plugar um adaptador real (após aprovação — issues #13 e #14):
 | `GET/POST /matters/{id}/documents` (multipart `document` + `file`), `GET /documents/{id}/content` | `LEGAL_VIEW` / `LEGAL_MANAGE` ou `LEGAL_EXPENSE_MANAGE` |
 
 ### B.10 Pendências
-- Critério "régua extrajudicial esgotada": depende do módulo campaign (não implementado).
+- Critério "régua extrajudicial esgotada": o campaign publica `shared.events.campaign.CadenceExhausted` (contrato em `campanhas.md` §4.5 — considerar só `campaignPurpose = EXTRAJUDICIAL_COLLECTION`); falta o consumo e o critério na `LegalEligibilityRule`.
 - Captura de publicações automática e envio automático de medidas: só após adaptadores aprovados.
 - Depósito judicial como origem de pagamento (payment) e despesas/honorários no demonstrativo (settlement).
 - Representação do devedor por advogado (direcionamento do contato) depende do communication.
