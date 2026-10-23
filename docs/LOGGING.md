@@ -33,6 +33,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.approved`, `proposal.rejected`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.reconciled`, `payment.divergence`, `payment.reversed` |
 | Prestação de contas | `commission.accrued`, `settlement.closed` |
+| Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.blocked` |
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.step_executed`, `campaign.step_skipped`, `experiment.variant_assigned` |
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
@@ -47,6 +48,27 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | `contact.denied` | `ContactGate.authorizeAndRecord` negou um contato | `origin`, `reasons` (lista separada por vírgula); `channel` |
 | `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs` |
 | `retention.run_completed` | execução de retenção concluída (simulada ou efetiva) | `category`, `trigger`, `dryRun`, `candidates`, `eligible`, `processed`, `retained`, `failed` |
+
+### 3.2 Atributos dos eventos de remuneração variável
+
+Remuneração individual **nunca** aparece em log (técnico ou de negócio): os eventos levam ids e faixas (`*Band`: `0`, `0-100`, `100-500`, `500-1000`, `1000-3000`, `3000-10000`, `10000+`). Totais agregados (`amount` de `commission.period_closed` e `commission.statement_exported`) só são preenchidos com 3 ou mais extratos; abaixo disso, apenas a faixa.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `attribution.recorded` | atribuição do acordo registrada (§3) | `origin`, `delayBucket`, `renegotiation`, `incrementalAmount`, `individualCredits`, `teamPool`, `influencerSource`, `planId`, `concessionLevel`, `envelopeUsage`; `amount` = valor do acordo |
+| `commission.forecast` | comissão prevista do acordo (informativa) | `origin`, `forecastBand`, `delayBucket` |
+| `commission.entry_posted` | crédito lançado no razão por pagamento confirmado | `agreementId`, `paymentId`, `beneficiaryType`, `beneficiaryId`, `role`, `origin`, `creditWeight`, `renegotiationFactor`, `creditNote`, `delayBucket`, `clearsOn`; `amount` = parte do pagamento (base, não comissão) |
+| `commission.entry_cleared` | lançamento liberado da carência (ou dispensado) | `kind`, `status`, `beneficiaryType`, `beneficiaryId`, `origin`, `period` |
+| `commission.entry_reversed` | compensação por estorno | `agreementId`, `paymentId`, `reversalId`, `reversesEntryId`, `beneficiaryType`, `beneficiaryId`, `origin`, `effect` (`WITHIN_GRACE`, `OPEN_PERIOD`, `CLAWBACK`, `WAIVED`), `status`; `amount` = base estornada |
+| `commission.period_closed` | período fechado e extratos gerados | `period`, `trigger` (`SCHEDULED`/`MANUAL`), `statements`, `creditedRecovery`, `totalBand`, `costPerRecovered` (≥ 3 extratos) |
+| `commission.statement_disputed` | contestação aberta pelo negociador | `disputeId`, `period`, `target` (`LINE`/`ENTRY`/`AGREEMENT`), `component` |
+| `commission.statement_adjusted` | ajuste aplicado (direto ou após segunda aprovação) | `adjustmentId`, `fromDispute`, `direction` (`CREDIT`/`DEBIT`), `amountBand`, `dualApproval`, `period` |
+| `commission.statement_approved` | aprovação financeira | `period`, `outcome`, `planCode`, `planVersion`, `payableBand`, `adjusted` |
+| `commission.statement_exported` | exportação para a folha | `period`, `format`, `statements`, `totalBand` |
+| `commission.plan_published` | versão de plano publicada (elasticidade antes/depois) | `code`, `version`, `effectiveFrom`, `tierMode`, `hasGoal`, `hasPool`, `hasFixedPerAgreement`, `graceBusinessDays`, `clawbackEnabled`, `creditModel` |
+| `quality.evaluated` | monitoria registrada | `userId`, `formId`, `score`, `criticalFailure`, `referenceType` |
+
+Consulta a extrato, razão, prévia ou simulação de **outra pessoa** gera `COMPENSATION_DATA_VIEWED` no log de acesso; exportação gera `DATA_EXPORTED` e download `FILE_DOWNLOADED`.
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
@@ -93,5 +115,10 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `compliance.contact_gate.decisions{operation,outcome}`, `compliance.contact_gate.denials{operation,reason}` | porteiro de contato (consultas e autorizações, motivos de negação) |
 | `compliance.dsr.overdue{type}` | solicitações de titulares que passaram do prazo (alarme) |
 | `compliance.restrictions.expired`, `compliance.retention.runs{category,dryRun,outcome}`, `compliance.retention.debtors{outcome}` | fim de vigência de restrições e execuções de retenção |
+| `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento |
+| `incentive.ledger.entries{kind,beneficiary}`, `incentive.ledger.transitions{status}` | lançamentos do razão e liberações/dispensas |
+| `incentive.payments.awaiting_attribution` | pagamento recebido antes da atribuição do acordo (crescimento contínuo = produtor sem `AgreementAttributionRecorded`) |
+| `incentive.period.close.duration{trigger}`, `incentive.statements.calculated{trigger}`, `incentive.statements.transitions{status}` | fechamento de período e ciclo dos extratos |
+| `incentive.exports{format}`, `incentive.jobs.failures{job}` | exportações para a folha e falhas dos agendamentos (alarme) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

@@ -70,7 +70,7 @@ shared ◄── organization ◄── identity
               ├── scoring            (→ collection, debt, payment, organization)
               ├── assistant          (→ negotiation, communication, collection, compliance, debt, organization)
               ├── legal              (→ collection, negotiation, debt, compliance, identity, organization)
-              ├── incentive          (→ identity, organization; fatos por eventos de integração)
+              ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               └── analytics          (→ organization; lê o banco por views próprias)
 ```
 

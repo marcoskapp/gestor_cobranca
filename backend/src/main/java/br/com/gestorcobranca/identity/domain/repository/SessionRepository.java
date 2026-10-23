@@ -27,6 +27,9 @@ public interface SessionRepository {
     /** Registra atividade da sessão sem incrementar a versão (não conflita com requisições paralelas). */
     void touch(UUID sessionId, Instant now);
 
+    /** Sessões dos usuários com uso entre os instantes (início antes de {@code to}, atividade após {@code from}). */
+    List<AuthSession> findOverlapping(java.util.Collection<UUID> userIds, Instant from, Instant to);
+
     /** Expira sessões inativas ou vencidas (job de limpeza). */
     int expireStale(Instant idleBefore, Instant now);
 }

@@ -213,3 +213,14 @@ app:
       expiry-check-interval: PT5M
     evidence:
       max-size-bytes: 20971520
+
+  incentive:
+    # ajuste manual de extrato acima deste valor (absoluto) exige segunda aprovação
+    dual-approval-threshold: 500.00
+    # fecha automaticamente o período quando termina a carência do último dia
+    auto-close: true
+    default-grace-business-days: 5
+    daily-cron: "0 20 3 * * *"
+    logged-time-sync-interval: PT1H
+    posting-sweep-interval: PT15M
+    posting-sweep-min-age: PT10M

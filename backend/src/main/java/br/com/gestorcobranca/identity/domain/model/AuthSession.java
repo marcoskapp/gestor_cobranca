@@ -94,6 +94,14 @@ public class AuthSession extends TenantScopedEntity {
         }
     }
 
+    /**
+     * Fim do período de uso efetivo: a última atividade registrada, limitada pelo encerramento
+     * (logout/revogação). Sessão expirada por inatividade não conta o tempo ocioso até a expiração.
+     */
+    public Instant activityEnd() {
+        return endedAt != null && endedAt.isBefore(lastSeenAt) ? endedAt : lastSeenAt;
+    }
+
     public UUID getUserId() {
         return userId;
     }
