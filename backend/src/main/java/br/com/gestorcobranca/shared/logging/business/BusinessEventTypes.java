@@ -106,6 +106,9 @@ public final class BusinessEventTypes {
     public static final String CAMPAIGN_PAUSED = "campaign.paused";
     public static final String CAMPAIGN_STEP_EXECUTED = "campaign.step_executed";
     public static final String CAMPAIGN_STEP_SKIPPED = "campaign.step_skipped";
+    public static final String CAMPAIGN_FINISHED = "campaign.finished";
+    public static final String CAMPAIGN_REPLIED = "campaign.replied";
+    public static final String CAMPAIGN_CADENCE_EXHAUSTED = "campaign.cadence_exhausted";
     public static final String EXPERIMENT_VARIANT_ASSIGNED = "experiment.variant_assigned";
 
     // Compliance

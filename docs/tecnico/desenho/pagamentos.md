@@ -159,5 +159,6 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 - KMS/Secrets Manager para certificado e segredos (issues #6, #8); WAF com regra de taxa no webhook.
 - Provedor de boleto e link (issue #12): adaptadores das portas e leitores CNAB 240/400.
 - Devolução Pix iniciada pelo sistema (`PUT /pix/{e2eid}/devolucao/{id}`) para as devoluções de sobra (hoje registro manual da transferência).
+- campaign: adaptador do `CampaignOfferPort` (oferta + instrução/link de pagamento numa etapa de régua) depende de o negotiation ter sujeito de alçada para campanhas; quando existir, ele usará `PaymentInstructionUseCases#create` (o campaign não depende do payment pelo grafo — a ligação fica num adaptador que o grafo permita). O campaign já consome `PaymentConfirmed`/`PaymentReversed` pelo `paymentId` (= alocação), coerente com §6.
 - Frontend: telas de instruções, pagamentos, revisão, conciliação e contas Pix.
 - debt: estorno de reconhecimento de encargo (já listado no negotiation) afeta estornos de acordo.

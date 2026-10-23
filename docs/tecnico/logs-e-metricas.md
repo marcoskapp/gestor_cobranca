@@ -35,7 +35,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Prestação de contas | `commission.accrued`, `settlement.closed` |
 | Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.received`, `message.blocked`, `conversation.handoff`, `conversation.closed`, `template.published` |
-| Campanhas | `campaign.activated`, `campaign.paused`, `campaign.step_executed`, `campaign.step_skipped`, `experiment.variant_assigned` |
+| Campanhas | `campaign.activated`, `campaign.paused`, `campaign.finished`, `campaign.step_executed`, `campaign.step_skipped`, `campaign.replied`, `campaign.cadence_exhausted`, `experiment.variant_assigned` |
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Outros | `call.completed`, `portal.accessed`, `portal.agreement_formalized`, `score.calculated`, `assistant.replied`, `assistant.handoff` |
@@ -185,7 +185,23 @@ Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança
 | `legal.titles_settled` | todos os títulos do caso jurídico saíram de cobrança | `stage`, `titleStatuses`, `removalDeadlines` |
 | `legal.prescription_alert` | alerta de prescrição do debt para título de caso jurídico aberto | `titleId`, `claim`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `stage` |
 | `legal.matter_closed` | `CLOSED` ou `RETURNED_TO_CREDITOR` | `stage`, `from`, `closureReason`, `route`, `durationDays`, `debtAmount`, `expensesTotal`, `recoveredAmount`, `responsibleType`, `lawFirmId`, `deadlinesCancelled`, `removalDeadlines`; `amount` = valor recuperado; `durationMs` |
-### 3.6 Atributos dos eventos de pagamentos (payment)
+### 3.6 Atributos dos eventos de campanhas
+
+Referência `campaign` (eventos da campanha) ou `campaign_enrollment` (eventos de inscrição, com `creditorId`,
+`portfolioId`, `debtorId`, `caseId` e os atributos `campaignId`, `campaignCode`, `variant`, `control`). Nunca nome,
+documento, contato, valores de variáveis ou conteúdo de mensagem.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `campaign.activated` | campanha ativada ou reativada | `scope=campaign`, `campaignCode`, `purpose`, `cadenceVersion`, `priority`, `exclusivityGroup`, `segmentId`, `resumed` |
+| `campaign.paused` | campanha pausada (`scope=campaign`, `reason=MANUAL`) ou inscrição pausada (`scope=enrollment`) | `reason` (`PAYMENT_CONFIRMED`, `AGREEMENT_FORMALIZED`, `DISPUTE_OPENED`, `CONTACT_RESTRICTED`, `CASE_SUSPENDED`, `CASE_LEGAL`, `MANUAL`), `trigger`, `stepsExecuted`, `lastStepCode` |
+| `campaign.finished` | campanha encerrada | `campaignCode`, `endedEnrollments`; `durationMs` desde a ativação |
+| `campaign.step_executed` | etapa executada | `cadenceVersion`, `stepCode`, `iteration`, `actionType`, `messageId`, `taskId`; `channel`; `durationMs` da execução |
+| `campaign.step_skipped` | etapa pulada | `cadenceVersion`, `stepCode`, `iteration`, `actionType`, `reason` (`CASE_INELIGIBLE`, `CONDITION_NOT_MET`, `CONTACT_DENIED`, `NO_CONTACT`, `OFFER_UNAVAILABLE`, `NOT_APPLICABLE`), `reasonDetail` (códigos: motivos do porteiro, critérios não atendidos); `channel` |
+| `campaign.replied` | primeira resposta do devedor numa inscrição ativa | `transition` (RB07: `STOP`, `GOTO_STEP`, `HAND_TO_ASSISTANT`, `MOVE_TO_QUEUE`, `CONTINUE`), `lastStepCode`, `stepsExecuted`; `channel`; `durationMs` desde a última etapa |
+| `campaign.cadence_exhausted` | régua percorrida sem resultado (insumo do jurídico) | `purpose`, `cadenceVersion`, `stepsExecuted`, `stepsSkipped`, `messagesSent`; `durationMs` desde a inscrição |
+| `experiment.variant_assigned` | braço do teste A/B atribuído ao devedor (uma vez) | `experimentId`, `arm`, `control`, `bucket` |
+### 3.7 Atributos dos eventos de pagamentos (payment)
 
 Ids, enums e valores apenas — nunca documento, nome, observação, descrição de extrato ou chave Pix. Referência `payment` (ou `payment_instruction`/`payment_divergence`), `creditorId`, `debtorId` e, quando alocado, `portfolioId`/`caseId`. Atributos comuns `source` (`PROVIDER`/`EXTERNAL`) e `method`.
 
@@ -218,6 +234,10 @@ filter eventType in ["proposal.created", "agreement.formalized", "payment.confir
 # valor recuperado por operador no dia (negócio)
 filter eventType = "payment.confirmed"
 | stats sum(amount) by actorId, bin(1d)
+
+# etapas puladas por motivo e campanha (negócio)
+filter eventType = "campaign.step_skipped"
+| stats count(*) by `attr.campaignCode`, `attr.reason`
 
 # tours mais dispensados (técnico — adoção da interface)
 filter event = "ui.onboarding.tour_recorded"
@@ -322,5 +342,14 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `communication.interactions{direction,outcome}` | interações registradas no caso (`recorded`, `duplicate`, `skipped_*`) |
 | `communication.drafts{mode,outcome}` | rascunhos do assistente: `proposed`, `sent`, `edited`, `discarded` |
 | `communication.retention.purged`, `communication.events.consumed{type}`, `communication.jobs.failures{job}` | descarte de conteúdo, consumo de eventos e falhas (alarme; inclui `communication.send` com tentativas esgotadas) |
+| `campaign.enrollments{outcome}` | inscrições: `enrolled`, `holdout`, `suppressed_concurrency`, `preempted`, `skipped_blocked`, `already_enrolled` |
+| `campaign.enrollments.ended{reason}` | encerramentos por motivo (`cadence_exhausted`, `replied`, `left_segment`, `preempted`…) |
+| `campaign.steps{action,channel,outcome}`, `campaign.step.duration{action}` (p50/p95/p99) | etapas executadas, puladas, com falha e adiadas; latência da execução |
+| `campaign.steps.skipped{reason}`, `campaign.steps.failed{code}` | motivos de etapa pulada e códigos de falha (crescimento de `failed` = régua mal configurada) |
+| `campaign.pauses{scope,reason}`, `campaign.resumes{trigger}` | pausas automáticas/manuais e retomadas |
+| `campaign.replies{transition}`, `campaign.attributions{kind}`, `campaign.cadence.exhausted{purpose}` | respostas (RB07), resultados atribuídos e réguas esgotadas |
+| `campaign.audience.refreshes{trigger,outcome}`, `campaign.segment.evaluation{operation}` (p50/p95/p99) | atualização do read model e tempo de avaliação de segmentos |
+| `campaign.experiment.assignments{arm}` | atribuições de braço (controle × variante) |
+| `campaign.events.consumed{type}`, `campaign.jobs.failures{job}` | consumo de eventos e falhas de agendamentos/etapas (alarme) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |
