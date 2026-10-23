@@ -3,6 +3,7 @@ package br.com.gestorcobranca.collection.application.service;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases.AssignmentView;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputedTitle;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.EvidenceView;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.InteractionView;
 import br.com.gestorcobranca.collection.application.port.in.PromiseUseCases.PromiseView;
@@ -27,6 +28,8 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 /** Conversão das entidades do módulo nas views públicas (nunca expõem entidades). */
 final class CollectionViews {
@@ -80,11 +83,16 @@ final class CollectionViews {
                 i.getCreatedAt());
     }
 
-    static TaskView task(CollectionTask t) {
+    static TaskView task(CollectionTask t, UUID debtorId) {
+        return task(t, debtorId, null);
+    }
+
+    static TaskView task(CollectionTask t, UUID debtorId, String debtorName) {
         Boolean onTime = t.getStatus() == TaskStatus.DONE
                 ? !t.wasMissed() && !t.getCompletedAt().isAfter(t.getToleranceUntil()) : null;
         LocalDateTime local = LocalDateTime.ofInstant(t.getDueAt(), TimeConfig.BUSINESS_ZONE);
-        return new TaskView(t.getId(), t.getCaseId(), t.getCreditorId(), t.getType().name(), t.getStatus().name(),
+        return new TaskView(t.getId(), t.getCaseId(), t.getCreditorId(), debtorId, debtorName, t.getType().name(),
+                t.getStatus().name(),
                 t.getDueAt(), local, t.getToleranceUntil(), t.getAssigneeUserId(), t.getNote(),
                 t.getOriginInteractionId(), t.getCompletedAt(), t.getCompletedBy(), t.getCompletionInteractionId(), onTime,
                 t.getMissedAt(), t.getCancelReason(), version(t.getVersion()));
@@ -97,17 +105,17 @@ final class CollectionViews {
                 p.getResolutionReason(), version(p.getVersion()));
     }
 
-    static DisputeView dispute(Dispute d, int evidenceCount) {
+    static DisputeView dispute(Dispute d, int evidenceCount, List<DisputedTitle> titles) {
         return new DisputeView(d.getId(), d.getCaseId(), d.getDebtorId(), d.getCreditorId(), d.getPortfolioId(),
-                d.getTitleIds(), d.getType().name(), d.getOrigin().name(), d.getStatus().name(), d.getDescription(),
+                d.getTitleIds(), titles, d.getType().name(), d.getOrigin().name(), d.getStatus().name(), d.getDescription(),
                 d.isBlocksCollection(), amount(d.getDisputedAmount()), d.getOpenedAt(), d.getResponseDueDate(),
                 d.isOverdue(), CollectionEnums.name(d.getOutcome()), d.getResolutionNote(), d.getResolvedAt(),
                 d.getResolvedBy(), evidenceCount, version(d.getVersion()));
     }
 
-    static EvidenceView evidence(DisputeEvidence e) {
+    static EvidenceView evidence(DisputeEvidence e, String createdByName) {
         return new EvidenceView(e.getId(), e.getDisputeId(), e.getFileName(), e.getContentType(), e.getSize(),
-                e.getSha256(), e.getCreatedAt(), e.getCreatedBy());
+                e.getSha256(), e.getCreatedAt(), e.getCreatedBy(), createdByName);
     }
 
     static BigDecimal amount(Money money) {

@@ -33,7 +33,9 @@ public interface TaskUseCases {
     List<TaskView> listByCase(UUID caseId);
 
     /**
-     * Agenda do operador entre as datas (inclusive, fuso de operação).
+     * Agenda do operador entre as datas (inclusive, fuso de operação). Traz o devedor de cada
+     * tarefa; o nome dele só vem para quem pode ver devedores ({@code CASE_VIEW} ou
+     * {@code DEBTOR_VIEW}). Tarefas de credores fora do escopo do ator não aparecem.
      *
      * @param userId nulo = o próprio usuário; de outro usuário exige {@code CASE_ASSIGN}
      * @param statuses PENDING, MISSED, DONE, CANCELLED (vazio = em aberto)
@@ -49,11 +51,14 @@ public interface TaskUseCases {
     }
 
     /**
+     * @param debtorId         devedor do caso da tarefa
+     * @param debtorName       nome do devedor — preenchido só na agenda e para quem pode ver
+     *                         devedores; nulo nas demais consultas (a ficha já traz o devedor)
      * @param dueAtLocal       horário combinado no fuso de operação
      * @param toleranceUntil   limite para contar como cumprido
      * @param completedOnTime  nulo enquanto não concluída
      */
-    record TaskView(UUID id, UUID caseId, UUID creditorId, String type, String status, Instant dueAt,
+    record TaskView(UUID id, UUID caseId, UUID creditorId, UUID debtorId, String debtorName, String type, String status, Instant dueAt,
                     LocalDateTime dueAtLocal, Instant toleranceUntil, UUID assigneeUserId, String note,
                     UUID originInteractionId, Instant completedAt, UUID completedBy, UUID completionInteractionId,
                     Boolean completedOnTime, Instant missedAt, String cancelReason, long version) {

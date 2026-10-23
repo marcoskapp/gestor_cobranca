@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.collection.application.service;
 
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputedTitle;
 import br.com.gestorcobranca.collection.domain.model.AssignmentMode;
 import br.com.gestorcobranca.collection.domain.model.CaseStatus;
 import br.com.gestorcobranca.collection.domain.model.CloseReason;
@@ -11,7 +12,6 @@ import br.com.gestorcobranca.collection.domain.model.TaskStatus;
 import br.com.gestorcobranca.collection.domain.repository.CaseSearchCriteria;
 import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
 import br.com.gestorcobranca.collection.domain.repository.CollectionTaskRepository;
-import br.com.gestorcobranca.collection.domain.repository.DisputeEvidenceRepository;
 import br.com.gestorcobranca.collection.domain.repository.DisputeRepository;
 import br.com.gestorcobranca.collection.domain.repository.InteractionRepository;
 import br.com.gestorcobranca.collection.domain.repository.PaymentPromiseRepository;
@@ -50,7 +50,7 @@ class CaseService implements CaseUseCases {
     private final CaseSynchronizer synchronizer;
     private final CaseRecorder recorder;
     private final DisputeRepository disputes;
-    private final DisputeEvidenceRepository evidences;
+    private final DisputeViews disputeViews;
     private final PaymentPromiseRepository promises;
     private final CollectionTaskRepository tasks;
     private final InteractionRepository interactions;
@@ -60,7 +60,7 @@ class CaseService implements CaseUseCases {
     private final Clock clock;
 
     CaseService(CollectionCaseRepository cases, CaseAccess access, CaseSynchronizer synchronizer, CaseRecorder recorder,
-                DisputeRepository disputes, DisputeEvidenceRepository evidences, PaymentPromiseRepository promises,
+                DisputeRepository disputes, DisputeViews disputeViews, PaymentPromiseRepository promises,
                 CollectionTaskRepository tasks, InteractionRepository interactions, DebtorSheetQueries debtorSheet,
                 ContactRestrictionUseCases restrictions, AccessScope accessScope, Clock clock) {
         this.cases = cases;
@@ -68,7 +68,7 @@ class CaseService implements CaseUseCases {
         this.synchronizer = synchronizer;
         this.recorder = recorder;
         this.disputes = disputes;
-        this.evidences = evidences;
+        this.disputeViews = disputeViews;
         this.promises = promises;
         this.tasks = tasks;
         this.interactions = interactions;
@@ -144,15 +144,17 @@ class CaseService implements CaseUseCases {
                 .map(r -> new RestrictionInfo(r.id(), r.type(), r.channel(), r.creditorId(), r.contactMasked(),
                         r.startsAt(), r.endsAt()))
                 .toList();
+        var sheetTitles = DisputeViews.index(titles.stream().map(t -> new DisputedTitle(t.titleId(), t.externalId(),
+                t.installmentNumber(), t.dueDate(), t.principalAmount(), t.openBalance())).toList());
         List<br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView> openDisputes =
                 disputes.findByCaseIdOrderByOpenedAtDesc(c.getId()).stream()
                         .filter(d -> d.getStatus().isOpen())
-                        .map(d -> CollectionViews.dispute(d, (int) evidences.countByDisputeId(d.getId())))
+                        .map(d -> disputeViews.view(d, sheetTitles))
                         .toList();
         var pendingPromise = promises.findByCaseIdAndStatus(c.getId(), PromiseStatus.PENDING).stream().findFirst()
                 .map(CollectionViews::promise).orElse(null);
         var openTasks = tasks.findByCaseIdAndStatusIn(c.getId(), EnumSet.of(TaskStatus.PENDING, TaskStatus.MISSED))
-                .stream().map(CollectionViews::task).toList();
+                .stream().map(t -> CollectionViews.task(t, c.getDebtorId())).toList();
         var recent = interactions.findByCaseIdOrderByStartedAtDesc(c.getId(), PageRequest.of(0, SHEET_INTERACTIONS))
                 .map(CollectionViews::interaction).getContent();
         List<CaseView> others = cases.findByDebtorIdOrderByOpenedAtDesc(c.getDebtorId()).stream()

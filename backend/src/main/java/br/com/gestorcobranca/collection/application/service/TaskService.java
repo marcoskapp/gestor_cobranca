@@ -6,8 +6,11 @@ import br.com.gestorcobranca.collection.domain.model.CollectionCase;
 import br.com.gestorcobranca.collection.domain.model.CollectionTask;
 import br.com.gestorcobranca.collection.domain.model.TaskStatus;
 import br.com.gestorcobranca.collection.domain.model.TaskType;
+import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
 import br.com.gestorcobranca.collection.domain.repository.CollectionTaskRepository;
 import br.com.gestorcobranca.collection.domain.repository.InteractionRepository;
+import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorName;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory.UserSummary;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
@@ -21,6 +24,7 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.Permission;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +35,10 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -42,6 +48,7 @@ class TaskService implements TaskUseCases {
     private static final int MAX_HORIZON_DAYS = 365;
 
     private final CollectionTaskRepository tasks;
+    private final CollectionCaseRepository cases;
     private final InteractionRepository interactions;
     private final CaseAccess access;
     private final CaseAgenda agenda;
@@ -49,14 +56,17 @@ class TaskService implements TaskUseCases {
     private final CallbackRecorder callbacks;
     private final SettingsProvider settings;
     private final UserDirectory users;
+    private final DebtorUseCases debtors;
     private final AccessScope accessScope;
     private final AuditTrail auditTrail;
     private final Clock clock;
 
-    TaskService(CollectionTaskRepository tasks, InteractionRepository interactions, CaseAccess access, CaseAgenda agenda,
-                CaseRecorder recorder, CallbackRecorder callbacks, SettingsProvider settings, UserDirectory users,
-                AccessScope accessScope, AuditTrail auditTrail, Clock clock) {
+    TaskService(CollectionTaskRepository tasks, CollectionCaseRepository cases, InteractionRepository interactions,
+                CaseAccess access, CaseAgenda agenda, CaseRecorder recorder, CallbackRecorder callbacks,
+                SettingsProvider settings, UserDirectory users, DebtorUseCases debtors, AccessScope accessScope,
+                AuditTrail auditTrail, Clock clock) {
         this.tasks = tasks;
+        this.cases = cases;
         this.interactions = interactions;
         this.access = access;
         this.agenda = agenda;
@@ -64,6 +74,7 @@ class TaskService implements TaskUseCases {
         this.callbacks = callbacks;
         this.settings = settings;
         this.users = users;
+        this.debtors = debtors;
         this.accessScope = accessScope;
         this.auditTrail = auditTrail;
         this.clock = clock;
@@ -80,7 +91,7 @@ class TaskService implements TaskUseCases {
         CollectionTask task = create(c, type, command.dueAt(), command.assigneeUserId(), command.note(), null);
         agenda.refresh(c);
         recorder.commit(c, before, AssignmentMode.ROUTING, null, "task");
-        return CollectionViews.task(task);
+        return CollectionViews.task(task, c.getDebtorId());
     }
 
     /**
@@ -122,7 +133,7 @@ class TaskService implements TaskUseCases {
         completeTask(task, c, interactionId);
         agenda.refresh(c);
         recorder.commit(c, before, AssignmentMode.ROUTING, null, "task");
-        return CollectionViews.task(task);
+        return CollectionViews.task(task, c.getDebtorId());
     }
 
     /** Conclui a tarefa com os efeitos (auditoria, evento de retorno). Não grava o caso. */
@@ -151,7 +162,7 @@ class TaskService implements TaskUseCases {
         callbacks.cancelled(task, c);
         agenda.refresh(c);
         recorder.commit(c, before, AssignmentMode.ROUTING, null, "task");
-        return CollectionViews.task(task);
+        return CollectionViews.task(task, c.getDebtorId());
     }
 
     @Override
@@ -173,7 +184,7 @@ class TaskService implements TaskUseCases {
         callbacks.scheduled(task, c);
         agenda.refresh(c);
         recorder.commit(c, before, AssignmentMode.ROUTING, null, "task");
-        return CollectionViews.task(task);
+        return CollectionViews.task(task, c.getDebtorId());
     }
 
     @Override
@@ -186,14 +197,14 @@ class TaskService implements TaskUseCases {
         tasks.save(task);
         auditTrail.record(AuditEntry.of("task.reassigned", "task", task.getId())
                 .creditor(task.getCreditorId()).change("assigneeUserId", previous, task.getAssigneeUserId()));
-        return CollectionViews.task(task);
+        return CollectionViews.task(task, c.getDebtorId());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TaskView> listByCase(UUID caseId) {
         CollectionCase c = access.visible(caseId);
-        return tasks.findByCaseIdOrderByDueAtAsc(c.getId()).stream().map(CollectionViews::task).toList();
+        return tasks.findByCaseIdOrderByDueAtAsc(c.getId()).stream().map(t -> CollectionViews.task(t, c.getDebtorId())).toList();
     }
 
     @Override
@@ -213,12 +224,24 @@ class TaskService implements TaskUseCases {
                 : CollectionEnums.parseSet(TaskStatus.class, statuses, "task.status_invalid", "Status da tarefa");
         Instant fromInstant = start.atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
         Instant toInstant = end.plusDays(1).atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
-        var result = tasks.findAgenda(target, fromInstant, toInstant, wanted, page.toPageable());
-        // tarefas de credores fora do escopo do ator não são exibidas (agenda de outro operador)
-        return new PageResponse<>(result.getContent().stream()
-                .filter(t -> accessScope.canAccessCreditor(t.getCreditorId()))
-                .map(CollectionViews::task).toList(), result.getNumber(), result.getSize(), result.getTotalElements(),
-                result.getTotalPages());
+        // o escopo de credores entra na consulta (e não depois dela), para a paginação ficar correta
+        Page<CollectionTask> result = tasks.findAgenda(target, access.creditorFilter(), fromInstant, toInstant, wanted,
+                page.toPageable());
+        Map<UUID, UUID> debtorByCase = cases.findAllByIdIn(result.getContent().stream().map(CollectionTask::getCaseId)
+                        .collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(CollectionCase::getId, CollectionCase::getDebtorId));
+        Map<UUID, String> names = canSeeDebtors(actor)
+                ? debtors.names(Set.copyOf(debtorByCase.values())).stream()
+                        .collect(Collectors.toMap(DebtorName::id, DebtorName::name))
+                : Map.of();
+        return PageResponse.of(result, t -> {
+            UUID debtorId = debtorByCase.get(t.getCaseId());
+            return CollectionViews.task(t, debtorId, debtorId == null ? null : names.get(debtorId));
+        });
+    }
+
+    private static boolean canSeeDebtors(Actor actor) {
+        return actor.has(Permission.CASE_VIEW) || actor.has(Permission.DEBTOR_VIEW);
     }
 
     private CollectionTask loadOpen(UUID taskId) {

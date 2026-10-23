@@ -17,13 +17,31 @@ import java.util.UUID;
 interface CollectionTaskJpaRepository extends JpaRepository<CollectionTask, UUID>, CollectionTaskRepository {
 
     @Override
+    default Page<CollectionTask> findAgenda(UUID userId, Collection<UUID> creditorIds, Instant from, Instant to,
+                                            Collection<TaskStatus> statuses, Pageable pageable) {
+        if (creditorIds == null) {
+            return agenda(userId, from, to, statuses, pageable);
+        }
+        return creditorIds.isEmpty() ? Page.empty(pageable)
+                : agendaInCreditors(userId, creditorIds, from, to, statuses, pageable);
+    }
+
     @Query("""
             select t from CollectionTask t
              where t.assigneeUserId = :userId and t.dueAt >= :from and t.dueAt < :to and t.status in :statuses
-             order by t.dueAt
+             order by t.dueAt, t.id
             """)
-    Page<CollectionTask> findAgenda(UUID userId, Instant from, Instant to, Collection<TaskStatus> statuses,
-                                    Pageable pageable);
+    Page<CollectionTask> agenda(UUID userId, Instant from, Instant to, Collection<TaskStatus> statuses,
+                                Pageable pageable);
+
+    @Query("""
+            select t from CollectionTask t
+             where t.assigneeUserId = :userId and t.creditorId in :creditorIds and t.dueAt >= :from and t.dueAt < :to
+               and t.status in :statuses
+             order by t.dueAt, t.id
+            """)
+    Page<CollectionTask> agendaInCreditors(UUID userId, Collection<UUID> creditorIds, Instant from, Instant to,
+                                           Collection<TaskStatus> statuses, Pageable pageable);
 
     @Override
     default List<CollectionTask> findDueForUser(UUID userId, Instant now, int limit) {

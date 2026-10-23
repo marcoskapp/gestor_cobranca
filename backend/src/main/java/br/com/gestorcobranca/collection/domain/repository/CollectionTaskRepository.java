@@ -21,9 +21,13 @@ public interface CollectionTaskRepository {
 
     List<CollectionTask> findByCaseIdAndStatusIn(UUID caseId, Collection<TaskStatus> statuses);
 
-    /** Agenda do operador no intervalo {@code [from, to)}. */
-    Page<CollectionTask> findAgenda(UUID userId, Instant from, Instant to, Collection<TaskStatus> statuses,
-                                    Pageable pageable);
+    /**
+     * Agenda do operador no intervalo {@code [from, to)}.
+     *
+     * @param creditorIds credores do escopo do ator; {@code null} = sem restrição
+     */
+    Page<CollectionTask> findAgenda(UUID userId, Collection<UUID> creditorIds, Instant from, Instant to,
+                                    Collection<TaskStatus> statuses, Pageable pageable);
 
     /** Retornos pendentes do operador já vencidos, do mais antigo ao mais recente. */
     List<CollectionTask> findDueForUser(UUID userId, Instant now, int limit);
