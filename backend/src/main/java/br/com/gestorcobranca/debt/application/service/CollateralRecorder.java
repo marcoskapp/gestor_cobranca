@@ -19,6 +19,7 @@ import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,15 +43,18 @@ class CollateralRecorder {
     private final DebtTitleRepository titles;
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
+    private final DebtMetrics metrics;
     private final Clock clock;
 
     CollateralRecorder(CollateralRepository collaterals, CollateralAppraisalRepository appraisals,
-                       DebtTitleRepository titles, AuditTrail auditTrail, BusinessEventLogger businessEvents, Clock clock) {
+                       DebtTitleRepository titles, AuditTrail auditTrail, BusinessEventLogger businessEvents,
+                       DebtMetrics metrics, Clock clock) {
         this.collaterals = collaterals;
         this.appraisals = appraisals;
         this.titles = titles;
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
+        this.metrics = metrics;
         this.clock = clock;
     }
 
@@ -82,6 +86,7 @@ class CollateralRecorder {
                 .reference(ENTITY, collateral.getId())
                 .attr("type", collateral.getType()).attr("assetKind", collateral.getAsset().getKind())
                 .attr("originContractId", contract.getId()).attr("source", source));
+        metrics.collateralRegistered(collateral.getType(), source);
         return collateral;
     }
 
@@ -125,13 +130,14 @@ class CollateralRecorder {
                 .creditor(contract.getCreditorId()).portfolio(contract.getPortfolioId()).debtor(contract.getDebtorId())
                 .reference(ENTITY, collateral.getId()).amount(collateral.getEstimatedValue())
                 .attr("type", collateral.getType()).attr("from", previous).attr("to", collateral.getStatus()));
+        metrics.collateralTransition(collateral.getType(), collateral.getStatus());
         return previous;
     }
 
     CollateralAppraisal appraise(OriginContract contract, Collateral collateral, CollateralAppraisal appraisal,
                                  String source) {
         appraisals.save(appraisal);
-        java.math.BigDecimal previousEstimate = collateral.getEstimatedValue() == null ? null
+        BigDecimal previousEstimate = collateral.getEstimatedValue() == null ? null
                 : collateral.getEstimatedValue().amount();
         if (collateral.recordAppraisal(appraisal)) {
             collaterals.save(collateral);
@@ -141,7 +147,7 @@ class CollateralRecorder {
                 .change("estimatedValue", previousEstimate == null ? null : previousEstimate.toPlainString(),
                         collateral.getEstimatedValue() == null ? null : collateral.getEstimatedValue().amount().toPlainString())
                 .meta("appraisalId", appraisal.getId())
-                .meta("amount", appraisal.getAmount())
+                .meta("amount", appraisal.getAmount().amount())
                 .meta("appraisalDate", appraisal.getAppraisalDate())
                 .meta("appraisalSource", appraisal.getSource())
                 .meta("importBatchId", appraisal.getImportBatchId())
@@ -152,6 +158,7 @@ class CollateralRecorder {
                 .attr("type", collateral.getType()).attr("appraisalSource", appraisal.getSource())
                 .attr("appraisalDate", appraisal.getAppraisalDate().toString())
                 .attr("estimatedValue", collateral.getEstimatedValue() == null ? null : collateral.getEstimatedValue().amount()));
+        metrics.collateralAppraised(appraisal.getSource());
         return appraisal;
     }
 

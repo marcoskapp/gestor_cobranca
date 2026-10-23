@@ -30,9 +30,11 @@ public interface PrescriptionInterruptionPort {
     }
 
     /**
-     * @param registered    falso quando a interrupção já existia (repetição idempotente)
-     * @param estimatedDate data estimada da prescrição após o registro (nula sem regra)
+     * @param registered              falso quando a interrupção já existia (repetição idempotente)
+     * @param executionEstimatedDate  data estimada da pretensão executiva após o registro (nula sem regra aplicável)
+     * @param collectionEstimatedDate data estimada da pretensão de cobrança após o registro (nula sem regra)
      */
-    record InterruptionResult(UUID interruptionId, UUID titleId, boolean registered, LocalDate estimatedDate) {
+    record InterruptionResult(UUID interruptionId, UUID titleId, boolean registered, LocalDate executionEstimatedDate,
+                              LocalDate collectionEstimatedDate) {
     }
 }

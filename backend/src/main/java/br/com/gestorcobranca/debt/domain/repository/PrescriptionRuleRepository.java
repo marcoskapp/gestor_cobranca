@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.debt.domain.repository;
 
 import br.com.gestorcobranca.debt.domain.model.InstrumentType;
+import br.com.gestorcobranca.debt.domain.model.PrescriptionClaim;
 import br.com.gestorcobranca.debt.domain.model.PrescriptionRule;
 
 import java.util.List;
@@ -13,9 +14,13 @@ public interface PrescriptionRuleRepository {
 
     Optional<PrescriptionRule> findById(UUID id);
 
-    Optional<PrescriptionRule> findByInstrumentType(InstrumentType instrumentType);
+    List<PrescriptionRule> findAllByIdIn(java.util.Collection<UUID> ids);
 
-    List<PrescriptionRule> findAllByOrderByInstrumentTypeAsc();
+    Optional<PrescriptionRule> findByInstrumentTypeAndClaim(InstrumentType instrumentType, PrescriptionClaim claim);
+
+    List<PrescriptionRule> findByInstrumentType(InstrumentType instrumentType);
+
+    List<PrescriptionRule> findAllByOrderByInstrumentTypeAscClaimAsc();
 
     void delete(PrescriptionRule rule);
 }

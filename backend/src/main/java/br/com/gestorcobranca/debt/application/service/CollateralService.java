@@ -27,8 +27,6 @@ import java.util.UUID;
 @Transactional
 class CollateralService implements CollateralUseCases {
 
-    private static final String SOURCE_MANUAL = "MANUAL";
-
     private final CollateralRepository collaterals;
     private final CollateralAppraisalRepository appraisals;
     private final OriginContractRepository contracts;
@@ -68,7 +66,7 @@ class CollateralService implements CollateralUseCases {
         CollateralType type = DebtViews.parseEnum(CollateralType.class, command.type(), "collateral.type_invalid",
                 "Tipo de garantia");
         return DebtViews.collateral(recorder.register(contract, type, command.externalId(), command.description(),
-                asset(command), lien(command), command.titleIds(), SOURCE_MANUAL));
+                asset(command), lien(command), command.titleIds(), ChangeSource.MANUAL));
     }
 
     @Override
@@ -76,7 +74,7 @@ class CollateralService implements CollateralUseCases {
         Collateral collateral = lockForCommand(collateralId);
         OriginContract contract = contractOf(collateral);
         recorder.update(contract, collateral, command.description(), asset(command), lien(command), command.titleIds(),
-                SOURCE_MANUAL);
+                ChangeSource.MANUAL);
         return DebtViews.collateral(collateral);
     }
 
@@ -99,7 +97,7 @@ class CollateralService implements CollateralUseCases {
                 "collateral.appraisal_source_invalid", "Fonte da avaliação");
         CollateralAppraisal appraisal = new CollateralAppraisal(collateral.getId(), Money.of(command.amount()),
                 command.appraisalDate(), source, command.notes(), null);
-        return DebtViews.appraisal(recorder.appraise(contractOf(collateral), collateral, appraisal, SOURCE_MANUAL));
+        return DebtViews.appraisal(recorder.appraise(contractOf(collateral), collateral, appraisal, ChangeSource.MANUAL));
     }
 
     @Override

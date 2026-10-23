@@ -6,25 +6,24 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Resultado do cálculo da prescrição de um título.
+ * Resultado do cálculo da prescrição de uma pretensão de um título.
  *
- * @param baseDate               data-base conforme a regra (vencimento do título sem regra)
- * @param countingStart          início da contagem vigente: data-base ou última interrupção eficaz
- * @param ruleId                 regra aplicada; nulo sem regra para a natureza do título
- * @param termYears              prazo aplicado; nulo sem regra
- * @param estimatedDate          data estimada da prescrição; nula sem regra
+ * @param baseDate               data-base conforme a regra (vencimento do título ou do contrato)
+ * @param countingStart          início da contagem vigente: data-base deslocada ou última interrupção eficaz
+ * @param ruleId                 regra aplicada
+ * @param termMonths             prazo aplicado
+ * @param estimatedDate          data estimada da prescrição
  * @param effectiveInterruptions interrupções que reiniciaram a contagem
  */
-public record PrescriptionCalculation(LocalDate baseDate, LocalDate countingStart, UUID ruleId, Integer termYears,
-                                      LocalDate estimatedDate, Set<UUID> effectiveInterruptions) {
+public record PrescriptionCalculation(PrescriptionClaim claim, LocalDate baseDate, LocalDate countingStart, UUID ruleId,
+                                      int termMonths, LocalDate estimatedDate, Set<UUID> effectiveInterruptions) {
 
     public PrescriptionCalculation {
+        Objects.requireNonNull(claim, "claim");
         Objects.requireNonNull(baseDate, "baseDate");
         Objects.requireNonNull(countingStart, "countingStart");
+        Objects.requireNonNull(ruleId, "ruleId");
+        Objects.requireNonNull(estimatedDate, "estimatedDate");
         effectiveInterruptions = Set.copyOf(effectiveInterruptions);
-    }
-
-    public boolean hasRule() {
-        return ruleId != null;
     }
 }

@@ -168,6 +168,9 @@ public class Collateral extends TenantScopedEntity {
         Guard.require(target != null, "collateral.status_required", "Situação obrigatória");
         Guard.require(reason != null && !reason.isBlank(), "collateral.reason_required", "Informe o motivo");
         Guard.require(reason.length() <= REASON_MAX, "collateral.reason_too_long", "Motivo muito longo");
+        // consolidação da propriedade é procedimento da alienação fiduciária de imóvel (Lei 9.514/1997)
+        Guard.require(target != CollateralStatus.CONSOLIDATED || type == CollateralType.REAL_ESTATE_FIDUCIARY_ALIENATION,
+                "collateral.status_not_applicable", "Consolidação só se aplica a alienação fiduciária de imóvel");
         if (!status.canTransitionTo(target)) {
             throw new ConflictException("collateral.invalid_transition",
                     "Garantia não pode passar de %s para %s".formatted(status, target),

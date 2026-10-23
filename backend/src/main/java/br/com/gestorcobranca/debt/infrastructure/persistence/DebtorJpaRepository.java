@@ -26,6 +26,9 @@ interface DebtorJpaRepository extends JpaRepository<Debtor, UUID>, JpaSpecificat
     @Override
     Optional<Debtor> findByDocumentHash(String documentHash);
 
+    @Override
+    List<Debtor> findAllByIdIn(Collection<UUID> ids);
+
     /** Id zero: menor UUID possível, início da paginação por chave. */
     UUID FIRST_ID = new UUID(0L, 0L);
 
