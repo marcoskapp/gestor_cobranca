@@ -89,6 +89,7 @@ export const NAVIGATION: readonly NavSection[] = [
     items: [
       { label: 'Credores', icon: 'apartment', route: '/organizacao/credores', permissions: [Permission.CREDITOR_VIEW] },
       { label: 'Carteiras', icon: 'folder_open', route: '/organizacao/carteiras', permissions: [Permission.PORTFOLIO_VIEW] },
+      { label: 'Importação de carteiras', icon: 'upload_file', route: '/importacao', permissions: [Permission.IMPORT_VIEW] },
       {
         label: 'Configurações',
         icon: 'tune',

@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { DEBTOR_ROUTES, TITLE_ROUTES } from '../../../features/debt/debt.routes';
 import { COLLECTION_ROUTES } from '../../../features/collection/collection.routes';
 import { COMPLIANCE_ROUTES } from '../../../features/compliance/compliance.routes';
+import { INGESTION_ROUTES } from '../../../features/ingestion/ingestion.routes';
 import { NEGOTIATION_ROUTES } from '../../../features/negotiation/negotiation.routes';
 import { NAVIGATION } from '../../layout/navigation';
 import { CHECKLISTS } from './checklists';
@@ -55,9 +56,10 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/compliance', COMPLIANCE_ROUTES),
       ...guarded('/cobranca', COLLECTION_ROUTES),
       ...guarded('/negociacao', NEGOTIATION_ROUTES),
+      ...guarded('/importacao', INGESTION_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(19);
+    expect(items.length).toBe(20);
     for (const item of items) {
       expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -70,6 +72,8 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/cobranca/contestacoes')?.tourId).toBe('collection.disputes');
     expect(findScreen('/negociacao/simulador?credor=c-1')?.tourId).toBe('negotiation.simulator');
     expect(findScreen('/negociacao/politicas/pol-1')?.key).toBe('negotiation.policy-detail');
+    expect(findScreen('/importacao/layouts')?.key).toBe('ingestion.layouts');
+    expect(findScreen('/importacao/b-1')?.tourId).toBe('ingestion.batch-detail');
     // o checklist do negociador aponta para a estação, agora publicada no menu
     const routes = new Set(NAVIGATION.flatMap((s) => s.items.map((i) => i.route)));
     expect(routes.has('/cobranca/fila')).toBe(true);

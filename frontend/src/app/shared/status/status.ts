@@ -29,7 +29,9 @@ export type StatusDomain =
   | 'promise'
   | 'dispute'
   | 'collectionPolicy'
-  | 'negotiationOutcome';
+  | 'negotiationOutcome'
+  | 'importBatch'
+  | 'importIssue';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -155,6 +157,21 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     WITHIN_AUTHORITY: { label: 'Dentro da alçada', tone: 'success' },
     REQUIRES_APPROVAL: { label: 'Requer aprovação', tone: 'warning' },
     REJECTED: { label: 'Rejeitado', tone: 'danger' },
+  },
+  /** Lotes de importação (`ImportBatchStatus`). */
+  importBatch: {
+    RECEIVED: { label: 'Na fila', tone: 'info' },
+    VALIDATING: { label: 'Validando', tone: 'info' },
+    VALIDATED: { label: 'Prévia concluída', tone: 'success' },
+    PROCESSING: { label: 'Importando', tone: 'info' },
+    COMPLETED: { label: 'Concluído', tone: 'success' },
+    COMPLETED_WITH_ERRORS: { label: 'Concluído com erros', tone: 'warning' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+  },
+  importIssue: {
+    ERROR: { label: 'Erro', tone: 'danger' },
+    WARNING: { label: 'Aviso', tone: 'warning' },
   },
   legalBasis: {
     CURRENT: { label: 'Vigente', tone: 'success' },

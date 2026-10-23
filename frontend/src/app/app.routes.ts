@@ -40,6 +40,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/collection/collection.routes').then((m) => m.COLLECTION_ROUTES),
       },
       {
+        path: 'importacao',
+        loadChildren: () => import('./features/ingestion/ingestion.routes').then((m) => m.INGESTION_ROUTES),
+      },
+      {
         path: 'negociacao',
         loadChildren: () => import('./features/negotiation/negotiation.routes').then((m) => m.NEGOTIATION_ROUTES),
       },

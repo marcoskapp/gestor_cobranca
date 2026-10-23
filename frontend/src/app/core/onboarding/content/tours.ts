@@ -682,6 +682,48 @@ export const TOURS: readonly TourDefinition[] = [
       },
     ],
   },
+  {
+    id: 'ingestion.batches',
+    version: 1,
+    title: 'Importação de carteiras',
+    summary: 'Envio de arquivos do credor com prévia, progresso e ocorrências.',
+    steps: [
+      {
+        anchor: 'page-actions',
+        title: 'Modelo e envio',
+        body: 'Baixe o modelo do layout padrão e envie primeiro em prévia: nada é gravado até você importar.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Lotes',
+        body: 'Lotes em andamento mostram o progresso e se atualizam sozinhos. Abra um lote para ver as ocorrências por linha.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'ingestion.batch-detail',
+    version: 1,
+    title: 'Lote de importação',
+    summary: 'Contadores, ocorrências por linha e reprocessamento.',
+    steps: [
+      {
+        anchor: 'batch-counters',
+        title: 'Contadores',
+        body: 'Linhas lidas, válidas e com erro, devedores e títulos criados ou atualizados.',
+      },
+      {
+        anchor: 'batch-issues',
+        title: 'Ocorrências',
+        body: 'Erros e avisos por linha, com o valor mascarado. Baixe o relatório para devolver ao credor.',
+      },
+      {
+        anchor: 'page-actions',
+        title: 'Importar ou reprocessar',
+        body: 'Depois da prévia, importe o mesmo arquivo. Reenviar não duplica títulos; arquivo já importado exige justificativa.',
+      },
+    ],
+  },
 ];
 
 export function findTour(id: string): TourDefinition | undefined {
