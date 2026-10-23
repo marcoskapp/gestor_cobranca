@@ -63,18 +63,18 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
           <div class="ve-row">
             <mat-form-field class="app-compact ve-channel">
               <mat-label>Canal</mat-label>
-              <mat-select [(ngModel)]="o.channel" (ngModelChange)="changed()" [disabled]="ro">
-                <mat-option [value]="null">Igual à régua ({{ channelLabel(step.action.channel) }})</mat-option>
+              <mat-select [ngModel]="o.channel ?? ''" (ngModelChange)="o.channel = $event || null; changed()" [disabled]="ro">
+                <mat-option value="">Igual à régua ({{ channelLabel(step.action.channel) }})</mat-option>
                 @for (c of channels; track c) {
                   <mat-option [value]="c">{{ channelLabels[c] }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
             @if (templates(); as list) {
-              <mat-form-field class="app-compact ve-grow">
+              <mat-form-field subscriptSizing="dynamic" class="app-compact ve-grow">
                 <mat-label>Template</mat-label>
-                <mat-select [(ngModel)]="o.templateCode" (ngModelChange)="changed()" [disabled]="ro">
-                  <mat-option [value]="null">Igual à régua ({{ step.action.templateCode }})</mat-option>
+                <mat-select [ngModel]="o.templateCode ?? ''" (ngModelChange)="o.templateCode = $event || null; changed()" [disabled]="ro">
+                  <mat-option value="">Igual à régua ({{ step.action.templateCode }})</mat-option>
                   @for (t of templatesFor(o.channel ?? step.action.channel); track t.code) {
                     <mat-option [value]="t.code">{{ t.code }} — {{ t.name }}</mat-option>
                   }
@@ -82,7 +82,7 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
                 <mat-hint>As variáveis da etapa precisam servir também a este template.</mat-hint>
               </mat-form-field>
             } @else {
-              <mat-form-field class="app-compact ve-grow">
+              <mat-form-field subscriptSizing="dynamic" class="app-compact ve-grow">
                 <mat-label>Template (código)</mat-label>
                 <input matInput [ngModel]="o.templateCode" (ngModelChange)="o.templateCode = $event ? upper($event) : null; changed()" maxlength="60" [disabled]="ro" />
                 <mat-hint>Vazio = igual à régua. Conferido ao iniciar o teste.</mat-hint>
@@ -140,7 +140,7 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
       display: flex;
       flex-wrap: wrap;
       align-items: flex-start;
-      gap: 0 8px;
+      gap: 8px;
     }
     .ve-top {
       margin-top: 8px;

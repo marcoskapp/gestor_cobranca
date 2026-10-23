@@ -39,8 +39,8 @@ export class CampaignTabs {
   protected readonly tabs = computed(() =>
     [
       { path: [], label: 'Visão geral', icon: 'campaign', show: true },
-      { path: ['regua'], label: 'Régua', icon: 'linear_scale', show: true },
-      { path: ['execucao'], label: 'Execução', icon: 'monitoring', show: true },
+      { path: ['regua'], label: 'Régua', icon: 'format_list_numbered', show: true },
+      { path: ['execucao'], label: 'Execução', icon: 'insights', show: true },
       { path: ['testes'], label: 'Testes A/B', icon: 'science', show: this.auth.hasAnyPermission([Permission.EXPERIMENT_MANAGE, Permission.CAMPAIGN_VIEW]) },
     ].filter((t) => t.show),
   );

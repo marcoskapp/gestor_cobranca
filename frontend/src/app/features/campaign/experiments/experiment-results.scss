@@ -93,7 +93,9 @@
 }
 
 .xr-warn {
+  max-width: 100%;
   font-size: var(--app-text-xs);
+  white-space: normal;
 }
 
 .xr-arm__plot {

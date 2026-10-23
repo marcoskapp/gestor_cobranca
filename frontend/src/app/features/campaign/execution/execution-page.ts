@@ -30,7 +30,7 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { sameValue } from '../../../shared/data/same-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
-import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
+import { DEBTOR_NAMES_BATCH, DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
 import { CampaignTabs } from '../campaigns/campaign-tabs';
 import { CampaignExecutionApi, CampaignsApi } from '../data/campaign.api';
 import { ACTION_LABELS, CHANNEL_LABELS, END_REASON_LABELS, PAUSE_REASON_LABELS, SKIP_REASON_LABELS } from '../data/campaign.labels';
@@ -98,7 +98,7 @@ export class ExecutionPage {
   protected readonly query = pagedQuery(computed(() => ({ id: this.id(), ...this.filter() }), { equal: sameValue }), (f, page) =>
     this.api.enrollments(f.id, { status: f.status, debtorId: f.debtorId, caseId: f.caseId }, page),
   );
-  protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((e) => e.debtorId));
+  protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((e) => e.debtorId), { batch: DEBTOR_NAMES_BATCH });
 
   protected readonly columns: TableColumn[] = [
     { key: 'debtor', header: 'Devedor e caso' },

@@ -1,5 +1,5 @@
 @if (campaign.status() === 'error') {
-  <app-empty-state icon="monitoring" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+  <app-empty-state icon="insights" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
     <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
     <a mat-button routerLink="/campanhas">Voltar para campanhas</a>
   </app-empty-state>

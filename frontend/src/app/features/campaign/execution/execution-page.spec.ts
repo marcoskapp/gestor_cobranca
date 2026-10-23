@@ -79,7 +79,7 @@ describe('ExecutionPage', () => {
     '/api/v1/campaign/campaigns/cp-1/dashboard': panel(),
     '/api/v1/campaign/campaigns/cp-1/enrollments': page([enrollment(), enrollment({ id: 'e-2', debtorId: 'd-1', status: 'FAILED', lastErrorCode: 'message.template_not_found' })]),
     '/api/v1/debtors': page([]),
-    '/api/v1/debtors/d-1': { id: 'd-1', name: 'Ana Paula Ribeiro', maskedDocument: '***.100.200-**' },
+    '/api/v1/debtors/names': [{ id: 'd-1', name: 'Ana Paula Ribeiro' }],
   };
 
   async function render(): Promise<ComponentFixture<ExecutionPage>> {

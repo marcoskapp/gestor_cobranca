@@ -19,11 +19,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 0 8px;
+  gap: 8px;
 }
 
-.se-top {
-  margin-top: 8px;
+.se-top,
+.se-row + .se-row {
+  margin-top: 12px;
 }
 
 .se-grow {
@@ -129,5 +130,6 @@
   .se-var__name {
     flex-basis: 100%;
     padding-top: 4px;
+    margin-bottom: 8px;
   }
 }

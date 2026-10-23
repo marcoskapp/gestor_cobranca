@@ -183,7 +183,7 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
     .ce-fields {
       display: flex;
       flex-wrap: wrap;
-      gap: 0 8px;
+      gap: 8px;
       mat-form-field {
         flex: 0 1 160px;
         min-width: 120px;

@@ -27,10 +27,10 @@
 <fieldset class="se-group">
   <legend>Etapa</legend>
   <div class="se-row">
-    <mat-form-field class="app-compact se-code">
+    <mat-form-field subscriptSizing="dynamic" class="app-compact se-code">
       <mat-label>Código</mat-label>
       <input matInput [ngModel]="s.code" (ngModelChange)="setCode($event)" maxlength="40" spellcheck="false" autocomplete="off" [disabled]="ro" />
-      <mat-hint>Estável entre versões (relatórios e testes A/B).</mat-hint>
+      <mat-hint>Fixo entre versões.</mat-hint>
     </mat-form-field>
     <mat-form-field class="app-compact se-grow">
       <mat-label>Nome (opcional)</mat-label>
@@ -97,7 +97,7 @@
 <fieldset class="se-group">
   <legend>Ação</legend>
   <div class="se-row">
-    <mat-form-field class="app-compact se-grow">
+    <mat-form-field subscriptSizing="dynamic" class="app-compact se-grow">
       <mat-label>O que fazer</mat-label>
       <mat-select [ngModel]="a.type" (ngModelChange)="setAction($event)" [disabled]="ro">
         @for (t of actions; track t) {
@@ -119,7 +119,7 @@
         </mat-select>
       </mat-form-field>
       @if (templates()) {
-        <mat-form-field class="app-compact se-grow">
+        <mat-form-field subscriptSizing="dynamic" class="app-compact se-grow">
           <mat-label>Template publicado</mat-label>
           <mat-select [ngModel]="a.templateCode" (ngModelChange)="setTemplate($event)" [disabled]="ro">
             @for (t of channelTemplates(); track t.code) {
@@ -134,7 +134,7 @@
           <mat-hint>O do credor prevalece sobre o da assessoria.</mat-hint>
         </mat-form-field>
       } @else {
-        <mat-form-field class="app-compact se-grow">
+        <mat-form-field subscriptSizing="dynamic" class="app-compact se-grow">
           <mat-label>Código do template</mat-label>
           <input matInput [ngModel]="a.templateCode" (ngModelChange)="setTemplate($event)" maxlength="60" spellcheck="false" autocomplete="off" [disabled]="ro" />
           <mat-hint>Sem acesso aos templates: o servidor confere template e variáveis ao publicar.</mat-hint>
@@ -168,7 +168,7 @@
             </mat-select>
           </mat-form-field>
           @if (source === 'LITERAL') {
-            <mat-form-field class="app-compact se-grow">
+            <mat-form-field subscriptSizing="dynamic" class="app-compact se-grow">
               <mat-label>Texto fixo</mat-label>
               <input matInput [ngModel]="literalOf(a.variables?.[v.name])" (ngModelChange)="setLiteral(v.name, $event)" maxlength="200" [disabled]="ro" />
               <mat-hint>Sem dados pessoais.</mat-hint>
@@ -240,7 +240,7 @@
         </mat-select>
       </mat-form-field>
     </div>
-    <mat-form-field class="app-compact app-full-width">
+    <mat-form-field subscriptSizing="dynamic" class="app-compact app-full-width">
       <mat-label>Observação (opcional)</mat-label>
       <input matInput [(ngModel)]="a.taskNote" (ngModelChange)="changed()" maxlength="500" [disabled]="ro" />
       <mat-hint>Sem dados pessoais.</mat-hint>
@@ -250,8 +250,8 @@
   @if (a.type === 'MOVE_TO_QUEUE') {
     <mat-form-field class="app-compact app-full-width se-top">
       <mat-label>Equipe</mat-label>
-      <mat-select [(ngModel)]="a.teamId" (ngModelChange)="changed()" [disabled]="ro">
-        <mat-option [value]="null">Fila do roteamento (sem equipe fixa)</mat-option>
+      <mat-select [ngModel]="a.teamId ?? ''" (ngModelChange)="a.teamId = $event || null; changed()" [disabled]="ro">
+        <mat-option value="">Fila do roteamento (sem equipe fixa)</mat-option>
         @for (t of teams(); track t.value) {
           <mat-option [value]="t.value">{{ t.label }}</mat-option>
         }
@@ -265,15 +265,15 @@
   <div class="se-row">
     <mat-form-field class="app-compact se-grow">
       <mat-label>Transição</mat-label>
-      <mat-select [ngModel]="s.onReply" (ngModelChange)="setReply($event)" [disabled]="ro">
-        <mat-option [value]="null">Usar a regra padrão da régua</mat-option>
+      <mat-select [ngModel]="s.onReply ?? ''" (ngModelChange)="setReply($event || null)" [disabled]="ro">
+        <mat-option value="">Usar a regra padrão da régua</mat-option>
         @for (r of replies; track r) {
           <mat-option [value]="r">{{ replyLabels[r] }}</mat-option>
         }
       </mat-select>
     </mat-form-field>
     @if (s.onReply === 'GOTO_STEP') {
-      <mat-form-field class="app-compact se-grow">
+      <mat-form-field subscriptSizing="dynamic" class="app-compact se-grow">
         <mat-label>Ir para a etapa</mat-label>
         <mat-select [(ngModel)]="s.onReplyStepCode" (ngModelChange)="changed()" [disabled]="ro">
           @for (o of otherSteps(); track o.code) {

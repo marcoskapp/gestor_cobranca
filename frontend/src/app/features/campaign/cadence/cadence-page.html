@@ -4,7 +4,7 @@
     <app-skeleton class="cp-gap" variant="card" [rows]="6" />
   </div>
 } @else if (campaign.status() === 'error') {
-  <app-empty-state icon="linear_scale" tone="error" title="Não foi possível abrir a régua." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+  <app-empty-state icon="format_list_numbered" tone="error" title="Não foi possível abrir a régua." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
     <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
     <a mat-button routerLink="/campanhas">Voltar para campanhas</a>
   </app-empty-state>
@@ -92,7 +92,7 @@
       <section class="app-card" aria-labelledby="cp-reply" data-tour="cadence-reply">
         <h2 class="app-card__title" id="cp-reply">Resposta do devedor (regra padrão)</h2>
         <div class="cp-row">
-          <mat-form-field class="app-compact cp-grow">
+          <mat-form-field subscriptSizing="dynamic" class="app-compact cp-grow">
             <mat-label>Quando o devedor responde</mat-label>
             <mat-select [ngModel]="draft().defaultOnReply" (ngModelChange)="setDefaultReply($event)" [disabled]="!editable()">
               @for (r of replies; track r) {
@@ -114,8 +114,8 @@
           @if (draft().defaultOnReply === 'MOVE_TO_QUEUE') {
             <mat-form-field class="app-compact cp-grow">
               <mat-label>Equipe</mat-label>
-              <mat-select [(ngModel)]="draft().replyTeamId" (ngModelChange)="edited()" [disabled]="!editable()">
-                <mat-option [value]="null">Fila do roteamento</mat-option>
+              <mat-select [ngModel]="draft().replyTeamId ?? ''" (ngModelChange)="draft().replyTeamId = $event || null; edited()" [disabled]="!editable()">
+                <mat-option value="">Fila do roteamento</mat-option>
                 @for (t of teams(); track t.value) {
                   <mat-option [value]="t.value">{{ t.label }}</mat-option>
                 }

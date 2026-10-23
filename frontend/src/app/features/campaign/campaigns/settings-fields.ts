@@ -87,7 +87,7 @@ export function toSettings(form: SettingsForm): CampaignSettings {
           <mat-label>Nome</mat-label>
           <input matInput formControlName="name" maxlength="120" required />
         </mat-form-field>
-        <mat-form-field class="sf-grow">
+        <mat-form-field subscriptSizing="dynamic" class="sf-grow">
           <mat-label>Segmento</mat-label>
           <mat-select formControlName="segmentId" required>
             @for (s of segments(); track s.id) {
@@ -110,7 +110,7 @@ export function toSettings(form: SettingsForm): CampaignSettings {
 
       <p class="app-section-title">Finalidade e concorrência</p>
       <div class="sf-row">
-        <mat-form-field class="sf-grow">
+        <mat-form-field subscriptSizing="dynamic" class="sf-grow">
           <mat-label>Finalidade</mat-label>
           <mat-select formControlName="purpose">
             @for (p of purposes; track p) {
@@ -119,12 +119,12 @@ export function toSettings(form: SettingsForm): CampaignSettings {
           </mat-select>
           <mat-hint>{{ purposeHints[f.controls.purpose.value] }}</mat-hint>
         </mat-form-field>
-        <mat-form-field class="sf-num">
+        <mat-form-field subscriptSizing="dynamic" class="sf-num">
           <mat-label>Prioridade</mat-label>
           <input matInput type="number" formControlName="priority" min="0" max="1000" step="1" required />
           <mat-hint>0 a 1000; maior vence no grupo.</mat-hint>
         </mat-form-field>
-        <mat-form-field class="sf-grow">
+        <mat-form-field subscriptSizing="dynamic" class="sf-grow">
           <mat-label>Grupo de exclusividade</mat-label>
           <input matInput formControlName="exclusivityGroup" maxlength="60" spellcheck="false" autocomplete="off" placeholder="Ex.: COBRANCA_ATIVA" />
           <mat-hint>Campanhas do mesmo grupo não alcançam o mesmo devedor ao mesmo tempo. Vazio = convive com todas.</mat-hint>
@@ -142,25 +142,25 @@ export function toSettings(form: SettingsForm): CampaignSettings {
       </div>
       <div class="sf-row">
         @if (f.controls.reenroll.value) {
-          <mat-form-field class="sf-num">
+          <mat-form-field subscriptSizing="dynamic" class="sf-num">
             <mat-label>Reinscrever após (dias)</mat-label>
             <input matInput type="number" formControlName="reenrollAfterDays" min="1" max="3650" step="1" />
             <mat-hint>Desde o fim da inscrição anterior.</mat-hint>
           </mat-form-field>
         }
         @if (f.controls.paymentResume.value) {
-          <mat-form-field class="sf-num">
+          <mat-form-field subscriptSizing="dynamic" class="sf-num">
             <mat-label>Retomar após (dias)</mat-label>
             <input matInput type="number" formControlName="paymentPauseDays" min="1" max="180" step="1" />
             <mat-hint>Sem retomada automática, só manual.</mat-hint>
           </mat-form-field>
         }
-        <mat-form-field class="sf-num">
+        <mat-form-field subscriptSizing="dynamic" class="sf-num">
           <mat-label>Janela de atribuição (dias)</mat-label>
           <input matInput type="number" formControlName="attributionWindowDays" min="0" max="90" step="1" required />
           <mat-hint>Resultados após o fim da inscrição que ainda contam.</mat-hint>
         </mat-form-field>
-        <mat-form-field class="sf-num">
+        <mat-form-field subscriptSizing="dynamic" class="sf-num">
           <mat-label>Adiamento máximo (horas)</mat-label>
           <input matInput type="number" formControlName="maxDeferralHours" min="0" max="168" step="1" required />
           <mat-hint>Fora do horário ou acima do limite, a etapa espera até aqui; depois é pulada.</mat-hint>

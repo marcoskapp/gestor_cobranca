@@ -75,7 +75,7 @@
             <input matInput [ngModel]="name()" (ngModelChange)="setName($event)" maxlength="120" required [disabled]="!editable()" />
           </mat-form-field>
           @if (isNew()) {
-            <mat-form-field class="se-code">
+            <mat-form-field subscriptSizing="dynamic" class="se-code">
               <mat-label>Código</mat-label>
               <input matInput [ngModel]="code()" (ngModelChange)="setCode($event)" maxlength="60" required spellcheck="false" autocomplete="off" />
               <mat-hint>Maiúsculas, dígitos e _; não muda depois.</mat-hint>

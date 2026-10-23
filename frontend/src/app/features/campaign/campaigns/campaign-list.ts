@@ -55,7 +55,7 @@ import { CampaignSettingsFields, settingsForm, toSettings } from './settings-fie
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira (opcional)" [single]="true" hint="Vazio = todas as carteiras do credor." />
           </div>
         </div>
-        <mat-form-field class="app-full-width">
+        <mat-form-field subscriptSizing="dynamic" class="app-full-width">
           <mat-label>Código</mat-label>
           <input matInput formControlName="code" maxlength="60" required spellcheck="false" autocomplete="off" (input)="codeTouched = true" />
           <mat-hint>Maiúsculas, dígitos e _ (ex.: REGUA_ATRASO_30). Não muda depois.</mat-hint>
@@ -204,10 +204,10 @@ export class CampaignCreate {
       <ng-template appCell="status" [appCellOf]="query.rows()" let-c><app-status-chip domain="campaign" [status]="c.status" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-c>
         <a mat-icon-button [routerLink]="['/campanhas', c.id, 'regua']" [attr.aria-label]="'Régua de ' + c.name" matTooltip="Régua">
-          <mat-icon aria-hidden="true">linear_scale</mat-icon>
+          <mat-icon aria-hidden="true">format_list_numbered</mat-icon>
         </a>
         <a mat-icon-button [routerLink]="['/campanhas', c.id, 'execucao']" [attr.aria-label]="'Execução de ' + c.name" matTooltip="Execução">
-          <mat-icon aria-hidden="true">monitoring</mat-icon>
+          <mat-icon aria-hidden="true">insights</mat-icon>
         </a>
         <a mat-icon-button [routerLink]="['/campanhas', c.id]" [attr.aria-label]="'Abrir ' + c.name" matTooltip="Abrir">
           <mat-icon aria-hidden="true">chevron_right</mat-icon>

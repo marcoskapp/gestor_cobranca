@@ -96,7 +96,7 @@
                 <mat-label>Nome</mat-label>
                 <input matInput [(ngModel)]="d.name" (ngModelChange)="edited()" maxlength="120" [disabled]="!editable()" />
               </mat-form-field>
-              <mat-form-field class="app-compact xp-grow">
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-grow">
                 <mat-label>Métrica principal</mat-label>
                 <mat-select [(ngModel)]="d.primaryMetric" (ngModelChange)="edited()" [disabled]="!editable()">
                   @for (m of metrics; track m) {
@@ -111,17 +111,17 @@
               <textarea matInput rows="2" [(ngModel)]="d.hypothesis" (ngModelChange)="edited()" maxlength="500" [disabled]="!editable()" placeholder="Ex.: lembrete às 9 h aumenta a taxa de pagamento em relação às 15 h."></textarea>
             </mat-form-field>
             <div class="xp-row">
-              <mat-form-field class="app-compact xp-num">
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
                 <mat-label>Grupo de controle (%)</mat-label>
                 <input matInput type="number" min="0" max="50" step="1" [(ngModel)]="d.controlShare" (ngModelChange)="edited()" [disabled]="!editable()" />
                 <mat-hint>0 a 50%; não recebe nenhuma ação.</mat-hint>
               </mat-form-field>
-              <mat-form-field class="app-compact xp-num">
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
                 <mat-label>Horizonte (dias)</mat-label>
                 <input matInput type="number" min="1" max="180" step="1" [(ngModel)]="d.observationDays" (ngModelChange)="edited()" [disabled]="!editable()" />
                 <mat-hint>Resultados contados até aqui.</mat-hint>
               </mat-form-field>
-              <mat-form-field class="app-compact xp-num">
+              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
                 <mat-label>Amostra mínima por braço</mat-label>
                 <input matInput type="number" min="10" step="10" [(ngModel)]="d.minSamplePerArm" (ngModelChange)="edited()" [disabled]="!editable()" />
                 <mat-hint>Abaixo disso, aviso de amostra insuficiente.</mat-hint>
