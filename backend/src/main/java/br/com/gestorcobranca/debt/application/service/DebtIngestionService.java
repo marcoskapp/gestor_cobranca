@@ -113,60 +113,7 @@ class DebtIngestionService implements DebtIngestionPort {
 
     @Override
     public UpsertResult upsertDebtor(DebtorRecord record) {
-        Document document = Document.parse(record.document());
-        String hash = index.document(document);
-        Optional<Debtor> existing = debtors.findByDocumentHash(hash);
-        Outcome outcome;
-        Debtor debtor;
-        if (existing.isEmpty()) {
-            debtor = debtors.save(new Debtor(document, hash, record.name(), record.birthDate(), null));
-            auditTrail.record(AuditEntry.of("debtor.created", "debtor", debtor.getId())
-                    .created("personType", debtor.getPersonType())
-                    .created("document", document.masked())
-                    .created("name", DebtViews.maskName(debtor.getName()))
-                    .created("birthDate", DebtViews.maskDate(debtor.getBirthDate()))
-                    .meta("source", ContactSource.IMPORT));
-            outcome = Outcome.CREATED;
-        } else {
-            debtor = existing.get();
-            String previousName = debtor.getName();
-            if (debtor.updateFromImport(record.name(), record.birthDate())) {
-                debtors.save(debtor);
-                AuditEntry audit = AuditEntry.of("debtor.updated", "debtor", debtor.getId()).meta("source", ContactSource.IMPORT);
-                if (!previousName.equals(debtor.getName())) {
-                    audit.change("name", DebtViews.maskName(previousName), DebtViews.maskName(debtor.getName()));
-                } else {
-                    audit.meta("birthDateChanged", true);
-                }
-                auditTrail.record(audit);
-                outcome = Outcome.UPDATED;
-            } else {
-                outcome = Outcome.UNCHANGED;
-            }
-        }
-
-        List<String> warnings = new ArrayList<>();
-        boolean contactsAdded = false;
-        for (ContactRecord contact : record.contacts()) {
-            try {
-                ContactType type = DebtViews.parseEnum(ContactType.class, contact.type(), "contact.type_invalid", "Tipo de contato");
-                ContactValue value = ContactValue.parse(type, contact.value());
-                // sem classificação na carga, celular é identificado pelo formato do número
-                ContactLabel label = contact.label() == null || contact.label().isBlank()
-                        ? (value.isMobilePhone() ? ContactLabel.MOBILE : ContactLabel.OTHER)
-                        : DebtViews.parseEnum(ContactLabel.class, contact.label(), "contact.label_invalid", "Classificação do contato");
-                boolean whatsapp = contact.whatsapp() && type == ContactType.PHONE;
-                contactsAdded |= contactRegistry.addIfAbsent(debtor, value, label, whatsapp, ContactSource.IMPORT, null)
-                        .isPresent();
-            } catch (BusinessRuleException e) {
-                // contato inválido não impede a carga do devedor: volta como aviso para o relatório de erros
-                warnings.add(e.code());
-            }
-        }
-        if (outcome == Outcome.UNCHANGED && contactsAdded) {
-            outcome = Outcome.UPDATED;
-        }
-        return new UpsertResult(debtor.getId(), outcome, warnings);
+        return debtorRegistry.upsertFromImport(record);
     }
 
     // ---------------------------------------------------------------- título

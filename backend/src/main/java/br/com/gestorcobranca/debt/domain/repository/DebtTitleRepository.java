@@ -37,4 +37,13 @@ public interface DebtTitleRepository {
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
 
     Page<DebtTitle> search(TitleSearchCriteria criteria, Pageable pageable);
+
+    List<DebtTitle> findAllByIdIn(Collection<UUID> ids);
+
+    /** Títulos (parcelas) de um contrato de origem, por vencimento. */
+    List<DebtTitle> findByOriginContractIdOrderByDueDateAsc(UUID originContractId);
+
+    List<DebtTitle> findByOriginContractIdInOrderByDueDateAsc(Collection<UUID> originContractIds);
+
+    List<DebtTitle> findByCreditorIdAndExternalIdIn(UUID creditorId, Collection<String> externalIds);
 }
