@@ -11,8 +11,10 @@ import br.com.gestorcobranca.collection.domain.repository.CollectionCaseReposito
 import br.com.gestorcobranca.collection.domain.service.OperationBands;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.events.collection.CaseAssignmentChanged;
+import br.com.gestorcobranca.shared.events.collection.CaseBalanceChanged;
 import br.com.gestorcobranca.shared.events.collection.CaseStatusChanged;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
@@ -38,7 +40,9 @@ import java.util.stream.Collectors;
  *       {@code case.eligibility_changed});</li>
  *   <li>dono do atendimento mudou → encerra o período vigente do histórico e abre outro; se o
  *       responsável humano ou a equipe mudou, {@link CaseAssignmentChanged}, auditoria e
- *       {@code case.assigned}.</li>
+ *       {@code case.assigned};</li>
+ *   <li>só o saldo elegível atribuível mudou (pagamento, carga, baixa) → {@link CaseBalanceChanged}
+ *       (nos demais casos o saldo já segue nos eventos acima).</li>
  * </ul>
  * Uso: capture {@link #snapshot(CollectionCase)} antes de alterar o caso e chame
  * {@link #commit} depois.
@@ -70,12 +74,12 @@ class CaseRecorder {
 
     /** Estado relevante do caso antes de uma alteração. */
     record Snapshot(CaseStatus status, boolean eligible, Set<EligibilityReason> reasons, OwnerType ownerType,
-                    UUID userId, UUID teamId, UUID queueId) {
+                    UUID userId, UUID teamId, UUID queueId, Money assignableBalance) {
     }
 
     static Snapshot snapshot(CollectionCase c) {
         return new Snapshot(c.getStatus(), c.isEligible(), c.eligibility().reasons(), c.getOwnerType(),
-                c.getAssigneeUserId(), c.getAssigneeTeamId(), c.getQueueId());
+                c.getAssigneeUserId(), c.getAssigneeTeamId(), c.getQueueId(), c.assignableBalance());
     }
 
     /** Caso recém-criado (já com posição, elegibilidade e fila definidas). */
@@ -130,11 +134,17 @@ class CaseRecorder {
                 || !Objects.equals(before.userId(), saved.getAssigneeUserId())
                 || !Objects.equals(before.teamId(), saved.getAssigneeTeamId())
                 || !Objects.equals(before.queueId(), saved.getQueueId());
-        if (ownerChanged) {
-            ownerEffects(saved, before, ownerMode == null ? AssignmentMode.ROUTING : ownerMode, reason, now, today);
-        }
+        boolean assignmentPublished = ownerChanged
+                && ownerEffects(saved, before, ownerMode == null ? AssignmentMode.ROUTING : ownerMode, reason, now, today);
         if (statusChanged || eligibilityChanged) {
             publishStatus(saved, before.status(), now);
+        } else if (!assignmentPublished && !before.assignableBalance().equals(saved.assignableBalance())) {
+            // o saldo elegível atribuído é o denominador da taxa de recuperação do incentive: sem este
+            // evento, pagamentos e cargas que não mudam status nem dono deixariam o saldo defasado
+            events.publishEvent(new CaseBalanceChanged(Ids.newId(), currentActor.tenantId(), now, saved.getId(),
+                    saved.getDebtorId(), saved.getCreditorId(), saved.getPortfolioId(), saved.getAssigneeUserId(),
+                    saved.getAssigneeTeamId(), saved.isEligible(), before.assignableBalance().amount(),
+                    saved.assignableBalance().amount()));
         }
         return saved;
     }
@@ -190,8 +200,9 @@ class CaseRecorder {
         metrics.eligibilityEvaluated(c.isEligible(), flagChanged);
     }
 
-    private void ownerEffects(CollectionCase c, Snapshot before, AssignmentMode mode, String reason, Instant now,
-                              LocalDate today) {
+    /** @return true se publicou {@link CaseAssignmentChanged} (responsável humano ou equipe mudou) */
+    private boolean ownerEffects(CollectionCase c, Snapshot before, AssignmentMode mode, String reason, Instant now,
+                                 LocalDate today) {
         CaseAssignment previous = assignments.findCurrentByCaseId(c.getId()).orElse(null);
         if (previous != null) {
             previous.close(now);
@@ -208,7 +219,7 @@ class CaseRecorder {
         boolean humanChanged = !Objects.equals(before.userId(), c.getAssigneeUserId())
                 || !Objects.equals(before.teamId(), c.getAssigneeTeamId());
         if (!humanChanged) {
-            return;
+            return false;
         }
         auditTrail.record(AuditEntry.of("collection_case.assigned", "collection_case", c.getId())
                 .creditor(c.getCreditorId())
@@ -229,6 +240,7 @@ class CaseRecorder {
         events.publishEvent(new CaseAssignmentChanged(Ids.newId(), currentActor.tenantId(), now, c.getId(),
                 c.getDebtorId(), c.getCreditorId(), c.getPortfolioId(), before.userId(), c.getAssigneeUserId(),
                 c.getAssigneeTeamId(), c.assignableBalance().amount()));
+        return true;
     }
 
     private void publishStatus(CollectionCase c, CaseStatus previous, Instant now) {
