@@ -28,6 +28,9 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Escopo por credor em todos os casos de uso (404 para leitura fora do escopo, 403 para comandos) | `shared/security/AccessScope` |
 | Row Level Security forçado em toda tabela de tenant; aplicação conecta com papel sem BYPASSRLS e sem DDL | migrations, `TenantAwareJpaTransactionManager`, `scripts/db/bootstrap-roles.sql` |
 | Alterações de perfil/escopo revogam as sessões do usuário afetado | `UserManagementService` |
+| Remuneração variável: escopo próprio/equipe/tudo (`PERFORMANCE_VIEW_*`); consulta a extrato, razão, prévia ou simulação de terceiro gera `COMPENSATION_DATA_VIEWED` | `incentive/application/service/IncentiveAccess` |
+| Segregação de funções nos extratos: quem fecha o período, ajusta ou resolve contestação não aprova; ninguém aprova ou ajusta o próprio extrato; ajuste acima do limite exige segunda pessoa | `CommissionStatement#approve`, `StatementAdjustment#decide`, `StatementService` |
+| Razão de comissão append-only (colunas financeiras imutáveis por privilégio de coluna e gatilho) e extrato aprovado imutável no banco | `V1802__incentive_ledger_and_statements.sql` |
 
 ## 3. Proteção de dados (LGPD)
 

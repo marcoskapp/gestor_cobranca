@@ -110,7 +110,8 @@ class StatementExportService implements StatementExportUseCases {
                 Map.of("resource", "commission_statement", "period", period.toString(), "format", exportFormat.name(),
                         "rows", String.valueOf(approved.size()))));
         businessEvents.log(BusinessEvent.of(BusinessEventTypes.COMMISSION_STATEMENT_EXPORTED)
-                .reference("statement_export", export.getId()).amount(total)
+                .reference("statement_export", export.getId()).amount(CommissionBands.aggregate(total, approved.size()))
+                .attr("totalBand", CommissionBands.of(total))
                 .attr("period", period.toString()).attr("format", exportFormat).attr("statements", approved.size()));
         metrics.exported(exportFormat.name());
         return new ExportFile(fileName, exportFormat.contentType(), content.length, new ByteArrayInputStream(content));

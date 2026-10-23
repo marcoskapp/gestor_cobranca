@@ -11,6 +11,14 @@ final class CommissionBands {
     private CommissionBands() {
     }
 
+    /** Agregados só levam o valor quando somam ao menos este número de extratos (não identificam a pessoa). */
+    static final int MIN_AGGREGATE = 3;
+
+    /** Valor agregado para o evento: o próprio valor com amostra suficiente; senão null (use a faixa). */
+    static Money aggregate(Money total, int statements) {
+        return statements >= MIN_AGGREGATE ? total : null;
+    }
+
     static String of(Money amount) {
         if (amount == null || !amount.isPositive()) {
             return "0";

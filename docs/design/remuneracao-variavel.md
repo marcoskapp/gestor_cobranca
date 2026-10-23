@@ -192,4 +192,80 @@ Insumos de inteligência: custo de comissão por real recuperado, por credor e p
 
 ## 9. Dependências e integração
 
-`incentive` → `organization`, `identity` (equipes, usuários). Os demais fatos chegam **somente por eventos de integração**: `AgreementAttributionRecorded`, `AgreementStatusChanged`, `InstallmentStatusChanged`, `PaymentConfirmed`, `PaymentReversed`, `InteractionRecorded`, `CaseStatusChanged`, `CallCompleted`, `MessageStatusChanged`, e os de handoff do assistente. Os indicadores do §2 são materializados em tabelas de fatos próprias (`performance_fact` diário por negociador/segmento), que o `analytics` pode ler por views.
+`incentive` → `organization`, `identity` (equipes, usuários, tempo logado) e `compliance` (calendário de feriados, para a carência em dias úteis). Os demais fatos chegam **somente por eventos de integração**: `AgreementAttributionRecorded`, `AgreementStatusChanged`, `InstallmentStatusChanged`, `PaymentConfirmed`, `PaymentReversed`, `InteractionRecorded`, `CaseStatusChanged`, `CallCompleted`, `MessageStatusChanged`, e os de handoff do assistente. Os indicadores do §2 são materializados em tabelas de fatos próprias (`performance_fact` diário por negociador/segmento), que o `analytics` pode ler por views.
+
+## 10. Implementação (22/10/2026)
+
+Código em `backend/src/main/java/br/com/gestorcobranca/incentive`, migrations `V1800`–`V1803` (schema `incentive`, RLS forçado em todas as tabelas) e `identity/V0201` (instante de desativação do usuário e permissões nos perfis existentes). API em `/api/v1/incentive/...` (OpenAPI gerado pelo springdoc).
+
+### 10.1 Mapa
+
+| Conceito | Onde |
+| --- | --- |
+| Fatos de desempenho | `performance_fact` (diário por negociador × credor × carteira × faixa × canal, medidas aditivas), `worked_case_day` (casos distintos), `response_sample`/`conversation_wait` (mediana de resposta), `logged_time_daily`, `effective_contact` (janela de influência), `case_snapshot` (responsável e saldo elegível, append-only), `agreement_lifecycle` |
+| Atribuição | `AgreementAttribution` + participantes + créditos (`CreditPolicy`), resolvidos pelo plano vigente na formalização |
+| Planos | `CommissionPlan` (uma linha por versão; regras `PlanRules` tipadas em jsonb com `rules_schema_version`), `GoalTarget`, `StandardPlans.padraoMercado()` |
+| Motor | `CommissionEngine` (puro) + `StatementCalculator` (monta as entradas a partir do razão e dos fatos) |
+| Razão | `CommissionLedgerEntry` (`ACCRUAL`/`REVERSAL`, `PENDING → CLEARED/WAIVED`), `PaymentFact`, `PaymentReversalFact`, `CommissionPeriod` |
+| Extrato | `CommissionStatement` (+ linhas = memória contestável, + JSON da memória completa), `StatementDispute`, `StatementAdjustment`, `StatementExport` |
+| Qualidade | `QualityForm` (critérios com peso e criticidade), `QualityEvaluation` (0–10), `ConductOccurrence` (violação de compliance, reclamação, contestação procedente) |
+| Indicadores | `PerformanceQueries` (`GET /api/v1/incentive/performance`), fórmulas em `PerformanceQueryService` |
+
+### 10.2 Ordem do motor (memória de cálculo linha a linha; soma das linhas = valor calculado)
+
+1. Elegibilidade (dias trabalhados) → 2. cobertura de credor/carteira → 3. teto da meta (volume × teto ÷ atingimento) → 4. percentual sobre recuperado por tabela de segmento (`PROGRESSIVE` ou `REACHED_TIER`; a comissão da tabela é distribuída aos segmentos pelo volume e multiplicada pela dificuldade) → 5. fixo por acordo com 1ª parcela paga × fração de crédito → 6. meta (gatilho, acelerador `TOTAL` ou `EXCESS`) → 7. deflatores somados (máx. 100%) → 8. pool de equipe → 9. zerador de compliance, depois portão de monitoria (sobre tudo, inclusive pool) → 10. piso zero → 11. teto do período. Centavos HALF_EVEN por linha.
+
+Exemplo verificado (`CommissionEngineTest#standardMarketPlanCombination`): 60.000 (31–90 dias) + 40.000 (> 360 dias) → 1.750 de comissão de tabela (taxa efetiva 1,75%) → 1.050,00 + 1.260,00 (× 1,8) = 2.310,00; meta 80.000 (125%) → × 1,2 = 2.772,00; envelope 88% > 85% → −10% = **2.494,80**.
+
+### 10.3 Decisões de implementação
+
+| # | Decisão | Alternativa | Motivo |
+| --- | --- | --- | --- |
+| 1 | Regras do plano como records Java tipados (`PlanRules`) em jsonb com versão de esquema, validados em toda escrita e leitura | Tabelas normalizadas por componente; JSON livre | Componentes aninhados e opcionais; tipagem + validação sem 10+ tabelas; versão de esquema permite conversão futura |
+| 2 | Vigência de versão em meses inteiros (dia 1 ao último dia) | Datas arbitrárias com rateio no mês | Cada período usa exatamente a versão vigente na data dos fatos, sem partir faixas no meio do mês |
+| 3 | Sem publicação retroativa: início ≥ mês corrente e após o último período fechado | Permitir retroativo | Extratos fechados e pesos já lançados não mudam por trás |
+| 4 | Pesos de crédito fixados na formalização; taxas, metas e deflatores da versão do período de competência; simulação recalcula pesos a partir da base | Tudo pela versão do fechamento | "Registrada no momento do acordo e não reconstruída depois" (§1.2) |
+| 5 | Razão guarda o recuperado creditado (base × peso × fator); a comissão em R$ é apurada no fechamento | Comissão por lançamento à taxa marginal | Faixas progressivas, meta e deflatores dependem do total do período |
+| 6 | Competência = mês do pagamento; se fechado, o próximo período aberto. Fechamento só após o último dia + maior carência (dias úteis); períodos fechados em ordem; job diário 03:20 e comando manual com a mesma regra | Competência pela liberação | Fecha quando todos os pagamentos do mês já passaram pela carência |
+| 7 | Carência D+N dias úteis contada da confirmação; feriados do `compliance` (`HolidayUseCases`) — nova dependência `incentive → compliance :: usecases` | Interface `shared` implementada pelo compliance; seg–sex sem feriados | Porta pública já existente, sem ciclo; feriados por assessoria |
+| 8 | Estorno proporcional ao valor do pagamento: na carência anula no mesmo período; liberado e período aberto → mesmo período; período fechado → estorno de comissão só se o plano habilitar (no próximo período), senão `WAIVED` | Sempre estornar | §5.2: padrão sem estorno após fechamento (cautela trabalhista) |
+| 9 | Multiplicador de dificuldade aplicado sobre a parcela proporcional da comissão da tabela | Volume ponderado antes das faixas | Não antecipa a progressão das faixas; cálculo verificável à mão |
+| 10 | Teto da meta escala o volume remunerado por teto ÷ atingimento; acelerador `TOTAL` por padrão (`EXCESS` opcional) | Teto sobre o valor | Coerente com "teto de 3× a meta" e aplicável a faixas progressivas |
+| 11 | Deflatores somados (máx. 100%), com amostra mínima e limite estrito (>); safra da quebra = acordos formalizados no período deslocado pela janela | Multiplicativos | Mais simples de explicar ("−20% e −10% = −30%"); safra já maturada |
+| 12 | Portão de monitoria suspende tudo (inclusive pool) com valor retido; libera por recálculo após nova monitoria; sem avaliação o portão passa (configurável) | Zerar | "Suspenso até reavaliação" (§4.3) |
+| 13 | Violação grave registrada como `ConductOccurrence` por quem tem `QUALITY_EVALUATE`, dispensável (contestação) por `COMMISSION_STATEMENT_MANAGE` | Evento do compliance | Não há evento de violação comprovada; a comprovação é decisão humana |
+| 14 | Influenciador apurado pelo módulo (último contato efetivo humano no caso dentro da janela do plano); o do evento é contingência | Só o do evento | A janela é parâmetro do plano (§3.2) |
+| 15 | Pool: equipe dona da fila informada na atribuição (`teamId`); supervisor (ou divisão igual com membros ativos); membros da equipe atuais no fechamento | Histórico de equipes | O identity não guarda histórico de composição |
+| 16 | Modelo carteira: beneficiário = responsável pelo caso na data do pagamento (`case_snapshot`) | Responsável no fechamento | Data do fato |
+| 17 | Desligamento: `identity.app_user.disabled_at`; lançamento criado com peso 0 e nota `TERMINATED` | Não lançar | Transparência e simulação |
+| 18 | Renegociação: valor negociado incremental = máx(0, novo − (substituído − pago)); pagamentos são fatos únicos; renegociação do próprio negociador com fator 50% | Creditar o integral | §3.4 |
+| 19 | Catálogo fixo de faixas de atraso (`D0_30`…`D361_PLUS`, `UNKNOWN`) derivado de `daysPastDue` no evento | Faixa textual do produtor | Fatos, metas e multiplicadores comparáveis entre versões |
+| 20 | Segregação: quem aprova ≠ beneficiário, ≠ quem fechou o período, ≠ quem requereu/decidiu ajuste ou resolveu contestação; ajuste acima de R$ 500 (configurável) exige segunda pessoa | Duas aprovações sequenciais (gestor + financeiro) | Gestor revisa/fecha/ajusta (`MANAGE`), financeiro aprova (`APPROVE`): uma aprovação segregada |
+| 21 | Escopo: `VIEW_ALL`, `MANAGE` ou `APPROVE` = todos; `VIEW_TEAM` = si + membros das equipes que supervisiona; extrato fora do escopo → 404; filtro por pessoa fora do escopo → 403 + `SCOPE_DENIED`; escopo de credor restringe fatos e lançamentos de terceiros | — | §7 e F02 |
+| 22 | Eventos de negócio só com faixas; agregados com valor apenas com ≥ 3 extratos | Valor sempre | Agregado de um extrato identifica a pessoa |
+| 23 | Plano `PADRAO_MERCADO` semeado pelo evento `TenantProvisioned` (novo, publicado pelo provisionamento) + job diário idempotente para assessorias existentes | Provisionamento chamar o incentive; seed em SQL | Sem dependência do identity para o incentive; regras tipadas só existem em Java |
+| 24 | Tempo logado = união das sessões de `startedAt` até a última atividade (limitada pelo encerramento), por dia de operação; sincronização horária (ontem e hoje) para quem tem `CASE_WORK` | Presença/pausa do operador | Não há módulo de presença; aproximação documentada |
+| 25 | Ocupação = tempo de conversação de chamadas atendidas ÷ tempo logado; tentativas = interações `OUTBOUND` (chamadas não contam em dobro); TMA = chamadas `ANSWERED` | Somar conversas | `MessageStatusChanged` não tem duração de atendimento |
+| 26 | Recuperado = créditos ponderados líquidos de estornos (estorno na data do estorno); taxa de recuperação sobre o saldo elegível dos casos atribuídos no início do período | Estorno na data do pagamento | Histórico de indicadores estável |
+| 27 | Ordem de chegada arbitrária: lock consultivo por acordo + chaves naturais; pagamento antes da atribuição fica pendente e é lançado quando ela chega (varredura de contingência a cada 15 min) | Exigir ordem | Eventos são entregues em paralelo |
+| 28 | Mais de um plano cobrindo o negociador: vence a maior prioridade; nenhum → extrato `NO_PLAN` com valor zero; membro sem participação no pool não recebe extrato | Erro | Transparência sem ruído |
+| 29 | Exportação CSV (`;`, UTF-8, neutraliza fórmulas) e XLSX (streaming), guardada no S3 com SHA-256; inclui aprovados e já exportados (reexportação) | Só gerar em memória | Evidência do que foi à folha |
+| 30 | Consumidores em `application/service` (como `CONVENTIONS.md` §1) | `application/listener` | Mantém os serviços package-private |
+| 31 | Campos novos em eventos existentes com construtor da assinatura original | Novos eventos | Retrocompatível para produtores em desenvolvimento |
+
+### 10.4 Contratos de eventos alterados ou criados
+
+- **Novo** `shared.events.negotiation.AgreementAttributionRecorded` (linguagem publicada; produtor: `negotiation`, parte 2): ids, `teamId`, `origin`, `channel`, participantes (`actorType`, `actorId`, `role`), `concessionLevel`, `envelopeUsagePercent`, `daysPastDue`, `agreementAmount`, `updatedBalance`, `discountAmount`, `downPaymentAmount`, `replacedAgreementId`, `formalizedAt`.
+- **Novo** `shared.events.collection.CaseAssignmentChanged` (produtor: `collection`): distribuição/redistribuição com responsável, equipe e saldo elegível.
+- **Novo** `shared.events.identity.TenantProvisioned` (produtor: `identity`, já publicado).
+- `InteractionRecorded` + `direction`, `portfolioId`; `CaseStatusChanged` + `assigneeId`, `teamId`, `eligibleBalance`; `MessageStatusChanged` + `senderActorType`, `senderActorId`, `portfolioId`; `CallCompleted` + `portfolioId` (e valores de `result` documentados, `ANSWERED` = atendida).
+- `PaymentConfirmed` já tinha a alocação por parcela de acordo (`Allocation.agreementInstallmentId`) e `agreementId`: base comissionável = alocações a parcelas.
+
+### 10.5 Pendências
+
+- Produtores: `negotiation` (parte 2) publicar `AgreementAttributionRecorded`; `collection` preencher os campos novos e publicar `CaseAssignmentChanged`; `communication` informar o autor das mensagens; `telephony` a carteira.
+- Indicadores sem fonte (retornam nulos e listados em `unavailableMetrics`): retornos cumpridos, handoffs recebidos/resolvidos, propostas (contato → proposta, proposta → acordo), promessas cumpridas, recuperado × esperado (`scoring`) — exigem eventos de integração próprios.
+- Histórico de composição de equipes (pool e meta de equipe usam a composição no fechamento).
+- Views para o `analytics`; telas no frontend.
+- Validar com jurídico/RH antes de habilitar estorno de comissão (`clawbackEnabled`) ou mudar a política de desligamento.
+

@@ -179,10 +179,11 @@ class PeriodClosingService implements PeriodUseCases {
                 .change("status", "OPEN", "CLOSED")
                 .meta("period", month.toString()).meta("trigger", trigger).meta("statements", count));
         businessEvents.log(BusinessEvent.of(BusinessEventTypes.COMMISSION_PERIOD_CLOSED)
-                .reference("commission_period", period.getId()).amount(total)
+                .reference("commission_period", period.getId()).amount(CommissionBands.aggregate(total, count))
+                .attr("totalBand", CommissionBands.of(total))
                 .attr("period", month.toString()).attr("trigger", trigger).attr("statements", count)
                 .attr("creditedRecovery", credited.amount())
-                .attr("costPerRecovered", credited.isPositive()
+                .attr("costPerRecovered", credited.isPositive() && count >= CommissionBands.MIN_AGGREGATE
                         ? total.amount().divide(credited.amount(), 6, java.math.RoundingMode.HALF_EVEN) : null));
         metrics.periodClosed(trigger.name(), count, Duration.between(started, Instant.now(clock)));
         LOG.atInfo().addKeyValue("period", month.toString()).addKeyValue("statements", count)
