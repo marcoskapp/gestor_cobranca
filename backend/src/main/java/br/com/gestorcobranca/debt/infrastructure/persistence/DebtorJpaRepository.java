@@ -2,6 +2,7 @@ package br.com.gestorcobranca.debt.infrastructure.persistence;
 
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
+import br.com.gestorcobranca.debt.domain.model.ObligationParty;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
 import br.com.gestorcobranca.debt.domain.repository.InactiveDebtorCandidate;
 import jakarta.persistence.criteria.Root;
@@ -24,6 +25,9 @@ interface DebtorJpaRepository extends JpaRepository<Debtor, UUID>, JpaSpecificat
 
     @Override
     Optional<Debtor> findByDocumentHash(String documentHash);
+
+    @Override
+    List<Debtor> findAllByIdIn(Collection<UUID> ids);
 
     /** Id zero: menor UUID possível, início da paginação por chave. */
     UUID FIRST_ID = new UUID(0L, 0L);
@@ -53,8 +57,10 @@ interface DebtorJpaRepository extends JpaRepository<Debtor, UUID>, JpaSpecificat
     List<InactiveDebtorCandidate> findInactiveCandidates(Instant closedBefore, UUID afterId, Limit limit);
 
     /**
-     * O escopo por credor é aplicado por subconsulta nos títulos ({@code exists}), sem duplicar
-     * devedores com vários títulos e sem expor devedores só de credores fora do escopo.
+     * O escopo por credor é aplicado por subconsultas ({@code exists}), sem duplicar devedores com
+     * vários títulos e sem expor devedores só de credores fora do escopo. O devedor entra por
+     * título próprio ou por participação vigente como coobrigado de contrato do credor (com
+     * filtro de carteira, um título do contrato deve estar na carteira).
      */
     @Override
     default Page<Debtor> search(Collection<UUID> allowedCreditorIds, UUID creditorId, UUID portfolioId, String text,
@@ -79,7 +85,27 @@ interface DebtorJpaRepository extends JpaRepository<Debtor, UUID>, JpaSpecificat
                     predicate = cb.and(predicate, cb.equal(title.get("portfolioId"), portfolioId));
                 }
                 titles.where(predicate);
-                return cb.exists(titles);
+
+                Subquery<UUID> parties = query.subquery(UUID.class);
+                Root<ObligationParty> party = parties.from(ObligationParty.class);
+                parties.select(party.get("id"));
+                var partyPredicate = cb.and(cb.equal(party.get("debtorId"), root.get("id")), cb.isNull(party.get("endedOn")));
+                if (allowedCreditorIds != null) {
+                    partyPredicate = cb.and(partyPredicate, party.get("creditorId").in(allowedCreditorIds));
+                }
+                if (creditorId != null) {
+                    partyPredicate = cb.and(partyPredicate, cb.equal(party.get("creditorId"), creditorId));
+                }
+                if (portfolioId != null) {
+                    Subquery<UUID> contractTitles = query.subquery(UUID.class);
+                    Root<DebtTitle> contractTitle = contractTitles.from(DebtTitle.class);
+                    contractTitles.select(contractTitle.get("id")).where(
+                            cb.equal(contractTitle.get("originContractId"), party.get("originContractId")),
+                            cb.equal(contractTitle.get("portfolioId"), portfolioId));
+                    partyPredicate = cb.and(partyPredicate, cb.exists(contractTitles));
+                }
+                parties.where(partyPredicate);
+                return cb.or(cb.exists(titles), cb.exists(parties));
             });
         }
         if (documentHash != null) {

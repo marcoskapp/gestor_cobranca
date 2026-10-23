@@ -110,4 +110,16 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
         }
         return findAll(spec, pageable);
     }
+
+    @Override
+    List<DebtTitle> findAllByIdIn(Collection<UUID> ids);
+
+    @Override
+    List<DebtTitle> findByOriginContractIdOrderByDueDateAsc(UUID originContractId);
+
+    @Override
+    List<DebtTitle> findByOriginContractIdInOrderByDueDateAsc(Collection<UUID> originContractIds);
+
+    @Override
+    List<DebtTitle> findByCreditorIdAndExternalIdIn(UUID creditorId, Collection<String> externalIds);
 }

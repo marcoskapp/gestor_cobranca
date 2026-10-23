@@ -5,6 +5,8 @@ import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
@@ -14,6 +16,11 @@ import java.util.UUID;
 /**
  * Contrato de origem no credor (financiamento, cartão, crediário...), que agrupa as parcelas
  * (títulos) de uma mesma operação. Identificado pelo número do contrato no credor.
+ * <p>
+ * A natureza do instrumento ({@link InstrumentType}) e a indicação de título executivo
+ * extrajudicial definem a via de cobrança judicial e a regra de prescrição aplicável. Contratos
+ * anteriores a essa classificação assumem {@code CONTRACT}, não executivo, até serem
+ * reclassificados.
  */
 @Entity
 @Table(name = "origin_contract", schema = "debt")
@@ -41,6 +48,13 @@ public class OriginContract extends TenantScopedEntity {
     @Column(name = "original_amount", precision = 19, scale = 2)
     private Money originalAmount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "instrument_type", nullable = false, length = 30)
+    private InstrumentType instrumentType;
+
+    @Column(name = "executive_title", nullable = false)
+    private boolean executiveTitle;
+
     protected OriginContract() {
     }
 
@@ -52,7 +66,18 @@ public class OriginContract extends TenantScopedEntity {
         this.debtorId = debtorId;
         this.externalId = DebtTitle.validExternalId(externalId, "origin_contract");
         this.portfolioId = Objects.requireNonNull(portfolioId, "portfolioId");
+        this.instrumentType = InstrumentType.CONTRACT;
+        this.executiveTitle = false;
         update(product, signedAt, originalAmount);
+    }
+
+    /** Natureza do instrumento. @return true se algo mudou */
+    public boolean classify(InstrumentType instrumentType, boolean executiveTitle) {
+        Guard.require(instrumentType != null, "origin_contract.instrument_type_required", "Natureza do título obrigatória");
+        boolean changed = this.instrumentType != instrumentType || this.executiveTitle != executiveTitle;
+        this.instrumentType = instrumentType;
+        this.executiveTitle = executiveTitle;
+        return changed;
     }
 
     /** @return true se algum dado mudou */
@@ -96,5 +121,13 @@ public class OriginContract extends TenantScopedEntity {
 
     public Money getOriginalAmount() {
         return originalAmount;
+    }
+
+    public InstrumentType getInstrumentType() {
+        return instrumentType;
+    }
+
+    public boolean isExecutiveTitle() {
+        return executiveTitle;
     }
 }
