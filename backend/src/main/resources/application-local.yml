@@ -32,6 +32,9 @@ app:
   communication:
     sandbox:
       enabled: true
+  telephony:
+    sandbox:
+      enabled: true
   storage:
     provider: filesystem
     local-root: ./var/storage

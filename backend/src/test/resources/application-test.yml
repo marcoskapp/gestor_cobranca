@@ -17,6 +17,11 @@ app:
       api-base-url: http://127.0.0.1:9
       connect-timeout: PT1S
       read-timeout: PT1S
+  telephony:
+    # testes conduzem os eventos de chamada explicitamente (sem andamento automático nem rede)
+    sandbox:
+      enabled: true
+      auto-progress: false
   storage:
     provider: filesystem
     local-root: ./target/test-storage
