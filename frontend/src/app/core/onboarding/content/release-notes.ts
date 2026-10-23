@@ -3,6 +3,20 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 4,
+    date: '2026-10-23',
+    title: 'Propostas e acordos, caixa de entrada e jurídico',
+    items: [
+      { text: 'Do simulador, proponha dentro da alçada ou peça aprovação; aprovadores têm fila própria.', route: '/negociacao/aprovacoes' },
+      { text: 'Proposta com memória de cálculo, aceite do devedor com evidência e termo em PDF.', route: '/negociacao/propostas' },
+      { text: 'Acordos com cronograma de parcelas, cancelamento com motivo e renegociação.', route: '/negociacao/acordos' },
+      { text: 'Aba Negociação na ficha do caso, na estação de cobrança (Alt + 6).', route: '/cobranca/fila' },
+      { text: 'Caixa de entrada: conversas por dono, tempo de espera e linha do tempo única do devedor.', route: '/conversas' },
+      { text: 'Sugestões do assistente para revisar, editar e enviar; templates e canais de envio.', route: '/conversas/templates' },
+      { text: 'Jurídico: painel, casos por fase, viabilidade, autorização do credor, processos e prazos.', route: '/juridico' },
+    ],
+  },
+  {
     version: 3,
     date: '2026-10-23',
     title: 'Estação de cobrança, negociação e importação',

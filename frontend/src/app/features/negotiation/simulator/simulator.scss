@@ -221,3 +221,11 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.sim-propose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}

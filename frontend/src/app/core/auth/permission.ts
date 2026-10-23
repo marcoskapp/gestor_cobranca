@@ -89,6 +89,11 @@ export const Permission = {
   ASSISTANT_USE: 'ASSISTANT_USE',
   ASSISTANT_MANAGE: 'ASSISTANT_MANAGE',
 
+  LEGAL_VIEW: 'LEGAL_VIEW',
+  LEGAL_MANAGE: 'LEGAL_MANAGE',
+  LEGAL_AUTHORIZE: 'LEGAL_AUTHORIZE',
+  LEGAL_EXPENSE_MANAGE: 'LEGAL_EXPENSE_MANAGE',
+
   DASHBOARD_VIEW: 'DASHBOARD_VIEW',
   REPORT_VIEW: 'REPORT_VIEW',
   REPORT_EXPORT: 'REPORT_EXPORT',
@@ -123,6 +128,7 @@ export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly str
   { label: 'Portal de autonegociação', prefixes: ['PORTAL_'] },
   { label: 'Score', prefixes: ['SCORING_'] },
   { label: 'Assistente de IA', prefixes: ['ASSISTANT_'] },
+  { label: 'Jurídico', prefixes: ['LEGAL_'] },
   { label: 'Gestão e relatórios', prefixes: ['DASHBOARD_', 'REPORT_'] },
 ];
 

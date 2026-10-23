@@ -47,7 +47,7 @@ const GROUP = 'Estação de cobrança';
  * Estação de cobrança em três zonas com rolagem própria: fila e "próximo caso" (esquerda,
  * recolhível), ficha do caso (centro) e painel de ação (direita) com o "posso contatar agora?" sempre
  * visível. Atalhos do grupo "Estação de cobrança" (`Alt + N`, `Alt + R`, `Alt + A`, `Alt + S`,
- * `Alt + 1…5`) ficam ativos só nesta tela.
+ * `Alt + 1…6`) ficam ativos só nesta tela.
  *
  * Rotas: `/cobranca/fila[?caso=id]` (operador) e `/cobranca/casos/:id` (abrir um caso específico).
  */

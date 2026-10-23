@@ -1,0 +1,145 @@
+// Layout comum das fichas de proposta e de acordo (duas colunas; uma no celular).
+.pd-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: var(--app-gap);
+}
+
+.pd-late {
+  font-weight: 600;
+  color: var(--app-danger-fg);
+}
+
+.pd-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: var(--app-gap);
+  align-items: start;
+}
+
+.pd-main,
+.pd-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-gap);
+  min-width: 0;
+}
+
+.pd-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pd-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pd-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-raised);
+}
+
+.pd-kpi__label {
+  font-size: var(--app-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.pd-kpi__value {
+  font-size: var(--app-text-lg);
+  font-weight: 600;
+}
+
+.pd-kpi__text {
+  font-size: var(--app-text-md);
+}
+
+.pd-scroll {
+  overflow-x: auto;
+}
+
+.pd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--app-text-sm);
+
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--app-border);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.pd-end {
+  text-align: right !important;
+}
+
+.pd-lines,
+.pd-violations {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: var(--app-text-sm);
+}
+
+.pd-debtor {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.pd-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--app-border);
+    font-size: var(--app-text-sm);
+  }
+
+  li:last-child {
+    border-bottom: 0;
+  }
+
+  mat-icon {
+    flex: none;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+@media (max-width: 959px) {
+  .pd-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ad-next td {
+  background: var(--app-info-bg);
+}
+
+.ad-danger {
+  color: var(--app-danger-fg);
+}
