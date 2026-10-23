@@ -39,3 +39,5 @@ backend/config/dev/
 
 # Chaves exclusivas de teste (sem valor de segurança)
 !backend/src/test/resources/it/*.pem
+!backend/src/test/resources/payment/*.p12
+!backend/src/test/resources/payment/*.pem
