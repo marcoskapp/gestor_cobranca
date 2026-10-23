@@ -94,9 +94,10 @@ export class ConversationPanel {
       const c = this.conversation();
       return c ? { id: c.id, debtorId: c.debtorId, creditorId: c.creditorId } : undefined;
     },
-    stream: ({ params }) => this.loadMessages(params.id, params.debtorId, params.creditorId),
+    stream: ({ params }) => this.loadMessages(params.id, params.debtorId, params.creditorId).pipe(map((list) => ({ conversationId: params.id, list }))),
   });
-  protected readonly messages = valueOr(this.messageList, []);
+  private readonly loaded = valueOr(this.messageList, undefined);
+  protected readonly messages = computed(() => this.loaded()?.list ?? []);
   protected readonly timeline = computed(() => mergeTimeline(this.messages(), this.handoffs()));
   protected readonly loading = computed(() => this.detail.isLoading() && !this.conversation());
 
@@ -173,24 +174,29 @@ export class ConversationPanel {
     return c.ownerType === 'QUEUE' ? `Na fila${c.requiredProfile ? ` (exige ${c.requiredProfile})` : ''}` : c.ownerType === 'ASSISTANT' ? 'Com o assistente' : 'Sem atendimento';
   });
 
-  private previousMessages: MessageView[] | null = null;
+  /** Última lista carregada (por conversa), para anunciar só o que chegou depois. */
+  private previous: { conversationId: string; list: MessageView[] } | null = null;
 
   constructor() {
     // conversa trocada: limpa estado local
     effect(() => {
       this.conversationId();
       untracked(() => {
-        this.previousMessages = null;
+        this.previous = null;
         this.draftEdits.set(new Map());
         this.lastBlock.set(null);
       });
     });
     // anúncio discreto de nova mensagem do devedor (sem som)
     effect(() => {
-      const current = this.messages();
+      const current = this.loaded();
+      if (!current) {
+        return;
+      }
       untracked(() => {
-        const fresh = newInbound(this.previousMessages, current);
-        this.previousMessages = [...current];
+        const before = this.previous?.conversationId === current.conversationId ? this.previous.list : null;
+        const fresh = newInbound(before, current.list);
+        this.previous = { conversationId: current.conversationId, list: [...current.list] };
         if (fresh.length) {
           const m = fresh[fresh.length - 1];
           void this.announcer.announce(

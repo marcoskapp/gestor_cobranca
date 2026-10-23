@@ -2,7 +2,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { offer, simulationResult } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -187,5 +189,50 @@ describe('Simulator', () => {
     expect(outcome).toContain('Requer aprovação');
     expect(outcome).toContain('acima da sua alçada');
     expect(el(fixture).textContent).toContain('Acima da sua alçada: Desconto em multa acima da sua alçada');
+  });
+
+  it('condições acima da alçada: o botão vira "Pedir aprovação" e cria a proposta da simulação', async () => {
+    const fixture = await render();
+    vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockReturnValue(of(''));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    await simulate(fixture, { id: 'sim-1', createdAt: '', result: simulationResult({ channel: 'PHONE' }) });
+    fixture.componentInstance['custom'].patchValue({ fine: 100, installments: 1 });
+    button(fixture, 'Validar condições').click();
+    http.expectOne('/api/v1/negotiation/validations').flush({
+      outcome: 'REQUIRES_APPROVAL',
+      policy: null,
+      actor: null,
+      limits: null,
+      offer: offer({ total: 1157 }),
+      violations: [],
+      excludedTitles: [],
+    });
+    fixture.detectChanges();
+    expect(button(fixture, 'Propor')).toBeUndefined();
+    button(fixture, 'Pedir aprovação').click();
+    const req = http.expectOne('/api/v1/negotiation/proposals');
+    expect(req.request.body).toMatchObject({
+      simulationId: 'sim-1',
+      level: 0,
+      discounts: { fine: 100 },
+      plan: { installments: 1, downPayment: null },
+      replacedAgreementId: null,
+      handoffProposalId: null,
+      channel: 'PHONE',
+    });
+    req.flush({ id: 'p-9', status: 'PENDING_APPROVAL' });
+    expect(navigate).toHaveBeenCalledWith(['/negociacao/propostas', 'p-9']);
+  });
+
+  it('dentro da alçada mostra "Propor"; alterar as condições exige validar de novo', async () => {
+    const fixture = await render();
+    await simulate(fixture, { id: 'sim-1', createdAt: '', result: simulationResult() });
+    button(fixture, 'Validar condições').click();
+    http.expectOne('/api/v1/negotiation/validations').flush({ outcome: 'WITHIN_AUTHORITY', policy: null, actor: null, limits: null, offer: offer(), violations: [], excludedTitles: [] });
+    fixture.detectChanges();
+    expect(button(fixture, 'Propor')).toBeDefined();
+    fixture.componentInstance['custom'].patchValue({ fine: 50 });
+    fixture.detectChanges();
+    expect(button(fixture, 'Propor')).toBeUndefined();
   });
 });
