@@ -76,6 +76,16 @@ public final class BusinessEventTypes {
     // Comissão e prestação de contas
     public static final String COMMISSION_ACCRUED = "commission.accrued";
     public static final String SETTLEMENT_CLOSED = "settlement.closed";
+    public static final String COMMISSION_REVERSED = "commission.reversed";
+    public static final String COMMISSION_RULES_PUBLISHED = "commission.rules_published";
+    public static final String SETTLEMENT_RECEIPT_PENDING_RULES = "settlement.receipt_pending_rules";
+    public static final String SETTLEMENT_CALCULATED = "settlement.calculated";
+    public static final String SETTLEMENT_ADJUSTED = "settlement.adjusted";
+    public static final String SETTLEMENT_SENT = "settlement.sent";
+    public static final String SETTLEMENT_ACKNOWLEDGED = "settlement.acknowledged";
+    public static final String SETTLEMENT_CONTESTED = "settlement.contested";
+    public static final String SETTLEMENT_EXPORTED = "settlement.exported";
+    public static final String SETTLEMENT_TRANSFER_RECORDED = "settlement.transfer_recorded";
 
     // Remuneração variável dos negociadores (incentive)
     public static final String ATTRIBUTION_RECORDED = "attribution.recorded";

@@ -1,12 +1,18 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
+import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
+import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.TermContent;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
+import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementInstallment;
+import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementPayment;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementStatus;
 import br.com.gestorcobranca.negotiation.domain.repository.AgreementRepository;
 import br.com.gestorcobranca.shared.config.TimeConfig;
+import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
@@ -25,10 +31,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -43,11 +55,13 @@ class AgreementService implements AgreementUseCases {
     private final CurrentActor currentActor;
     private final AccessLogger accessLogger;
     private final FileStorage fileStorage;
+    private final DebtTitleUseCases titles;
+    private final JsonCodec json;
     private final Clock clock;
 
     AgreementService(AgreementRepository agreements, AgreementRecorder recorder, NegotiationViews views,
                      AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, FileStorage fileStorage,
-                     Clock clock) {
+                     DebtTitleUseCases titles, JsonCodec json, Clock clock) {
         this.agreements = agreements;
         this.recorder = recorder;
         this.views = views;
@@ -55,6 +69,8 @@ class AgreementService implements AgreementUseCases {
         this.currentActor = currentActor;
         this.accessLogger = accessLogger;
         this.fileStorage = fileStorage;
+        this.titles = titles;
+        this.json = json;
         this.clock = clock;
     }
 
@@ -85,6 +101,49 @@ class AgreementService implements AgreementUseCases {
         accessScope.requirePermission(Permission.AGREEMENT_VIEW);
         Agreement a = loadVisible(agreementId);
         return agreements.findPayments(a.getId()).stream().map(NegotiationViews::payment).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<PaymentDistributionView> paymentDistribution(UUID agreementId, UUID paymentId) {
+        accessScope.requirePermission(Permission.AGREEMENT_VIEW);
+        Agreement a = loadVisible(agreementId);
+        Optional<AgreementPayment> found = agreements.findPayment(a.getId(), paymentId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        AgreementPayment p = found.get();
+        Map<UUID, Integer> numbers = a.getInstallments().stream()
+                .collect(Collectors.toMap(AgreementInstallment::getId, AgreementInstallment::getNumber));
+        List<InstallmentShareView> installments = new ArrayList<>();
+        LedgerLines.allocations(json, p.getInstallmentAllocations()).forEach((id, value) ->
+                installments.add(new InstallmentShareView(id, numbers.getOrDefault(id, 0), value.amount())));
+        Map<String, Money> byComponent = new LinkedHashMap<>();
+        Map<String, UUID> titleOf = new HashMap<>();
+        for (Agreement.BucketPosting posting : LedgerLines.postings(json, p.getLedgerPostings())) {
+            if (posting.payment().isPositive()) {
+                String key = posting.titleId() + "|" + posting.part().name();
+                byComponent.merge(key, posting.payment(), Money::plus);
+                titleOf.put(key, posting.titleId());
+            }
+        }
+        Map<UUID, String> references = titleOf.values().stream().distinct()
+                .collect(Collectors.toMap(Function.identity(), id -> reference(titles.get(id))));
+        List<ComponentShareView> components = byComponent.entrySet().stream()
+                .map(e -> new ComponentShareView(titleOf.get(e.getKey()), references.get(titleOf.get(e.getKey())),
+                        e.getKey().substring(e.getKey().indexOf('|') + 1), e.getValue().amount()))
+                .toList();
+        return Optional.of(new PaymentDistributionView(a.getId(), p.getPaymentId(), a.getCreditorId(), a.getDebtorId(),
+                a.getPortfolioId(), p.getStatus().name(), p.getAmount().amount(), p.getAppliedAmount().amount(),
+                p.getPaidAt(), p.getSource(), p.getMethod(), a.getInstallmentCount(), a.getMaxDaysOverdue(),
+                a.getRenegotiationNumber(), a.getReplacedAgreementId(), installments, components));
+    }
+
+    private static String reference(TitleView t) {
+        if (t.externalId() == null) {
+            return null;
+        }
+        return t.installmentNumber() == null ? t.externalId() : t.externalId() + "/" + t.installmentNumber();
     }
 
     @Override

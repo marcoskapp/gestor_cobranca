@@ -346,6 +346,11 @@ app:
     batch-size: 200
     evidence:
       max-size-bytes: 20971520
+  settlement:
+    # ajuste de demonstrativo acima deste valor (absoluto) exige segunda aprovação (SETTLEMENT_APPROVE)
+    adjustment-dual-approval-threshold: 1000.00
+    # comprovante de repasse (PDF, PNG ou JPEG)
+    evidence-max-size-bytes: 10485760
   legal:
     # varredura diária: vencimentos, alertas e prazos perdidos, indicação pelas regras, captura automática
     daily-cron: "0 40 5 * * *"

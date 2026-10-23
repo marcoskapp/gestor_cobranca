@@ -77,6 +77,8 @@ public enum Permission {
     COMMISSION_MANAGE("Gerenciar regras de comissão"),
     SETTLEMENT_VIEW("Consultar demonstrativos"),
     SETTLEMENT_CLOSE("Fechar e enviar demonstrativos"),
+    SETTLEMENT_APPROVE("Aprovar demonstrativos e ajustes da prestação de contas (segregado de quem calcula)"),
+    SETTLEMENT_TRANSFER("Registrar repasses ao credor e recebimentos do credor"),
 
     // Desempenho e remuneração variável dos negociadores (módulo incentive)
     PERFORMANCE_VIEW_OWN("Consultar os próprios indicadores e extratos de comissão"),

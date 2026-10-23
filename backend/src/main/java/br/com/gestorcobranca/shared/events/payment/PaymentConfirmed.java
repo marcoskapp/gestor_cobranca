@@ -46,7 +46,19 @@ public record PaymentConfirmed(
      *                               título é do negotiation)
      * @param agreementInstallmentId parcela de acordo, quando aplicável
      * @param amount                 valor alocado
+     * @param titleReference         identificação do título no credor ({@code externalId}, com
+     *                               {@code /parcela} quando houver), para a prestação de contas
+     *                               ({@code settlement}); preenchida só em alocação a título avulso
+     * @param daysPastDue            dias de atraso do título na data do pagamento (título avulso)
+     * @param honorariumAmount       parte do valor distribuída ao componente de honorários do razão do
+     *                               título (título avulso); nulo quando não se aplica
      */
-    public record Allocation(UUID titleId, UUID agreementInstallmentId, BigDecimal amount) {
+    public record Allocation(UUID titleId, UUID agreementInstallmentId, BigDecimal amount, String titleReference,
+                             Integer daysPastDue, BigDecimal honorariumAmount) {
+
+        /** Assinatura original (alocação sem o detalhe do título). */
+        public Allocation(UUID titleId, UUID agreementInstallmentId, BigDecimal amount) {
+            this(titleId, agreementInstallmentId, amount, null, null, null);
+        }
     }
 }
