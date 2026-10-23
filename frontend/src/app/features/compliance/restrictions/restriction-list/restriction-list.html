@@ -1,0 +1,94 @@
+<app-page-header
+  title="Restrições de contato"
+  subtitle="Descadastros, pedidos do devedor e do credor, bloqueios jurídicos e operacionais. Restrições ativas bloqueiam contatos na hora."
+>
+  <button mat-flat-button type="button" (click)="create()">
+    <mat-icon aria-hidden="true">block</mat-icon>
+    Registrar restrição
+  </button>
+</app-page-header>
+
+<form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar restrições">
+  <div class="app-filters__wide">
+    <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor" placeholder="Nome ou CPF/CNPJ completo" [single]="true" />
+  </div>
+  <div class="app-filters__wide">
+    <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+  </div>
+  <mat-form-field class="app-compact">
+    <mat-label>Tipo</mat-label>
+    <mat-select formControlName="type">
+      <mat-option value="">Todos</mat-option>
+      @for (t of types; track t.value) {
+        <mat-option [value]="t.value">{{ t.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Canal</mat-label>
+    <mat-select formControlName="channel">
+      <mat-option value="">Todos</mat-option>
+      @for (c of channels; track c.value) {
+        <mat-option [value]="c.value">{{ c.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Situação</mat-label>
+    <mat-select formControlName="status">
+      <mat-option value="">Todas</mat-option>
+      @for (s of statuses; track s.value) {
+        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</form>
+
+<app-data-table
+  caption="Restrições de contato"
+  [rows]="query.rows()"
+  [columns]="columns"
+  [loading]="query.loading()"
+  [failed]="query.failed()"
+  [page]="blocked() ? null : query.tablePage()"
+  (pageChange)="query.setPage($event)"
+  (retry)="query.reload()"
+  [emptyIcon]="blocked() ? 'person_search' : 'verified_user'"
+  [emptyMessage]="blocked() ? 'Escolha um devedor para ver as restrições.' : 'Nenhuma restrição encontrada.'"
+  [emptyHint]="blocked() ? 'A visão de todos os devedores é restrita a quem atende todos os credores.' : 'Ajuste os filtros ou registre uma restrição.'"
+>
+  <ng-template appCell="debtor" [appCellOf]="query.rows()" let-r>
+    @if (r.debtorId && canOpenDebtor()) {
+      <a [routerLink]="['/devedores', r.debtorId]">{{ debtors.name(r.debtorId) }}</a>
+    } @else if (r.debtorId) {
+      {{ debtors.name(r.debtorId) }}
+    } @else {
+      <span class="app-muted">Qualquer devedor com este contato</span>
+    }
+  </ng-template>
+  <ng-template appCell="type" [appCellOf]="query.rows()" let-r>
+    {{ typeLabels[r.type] }}
+    <div class="app-muted">{{ sourceLabels[r.source] }}</div>
+  </ng-template>
+  <ng-template appCell="scope" [appCellOf]="query.rows()" let-r>{{ scope(r) }}</ng-template>
+  <ng-template appCell="period" [appCellOf]="query.rows()" let-r>
+    {{ r.startsAt | appDate: 'date' }} – {{ r.endsAt ? (r.endsAt | appDate: 'date') : 'sem prazo' }}
+  </ng-template>
+  <ng-template appCell="status" [appCellOf]="query.rows()" let-r>
+    <app-status-chip domain="restriction" [status]="r.status" />
+    @if (r.status === 'ACTIVE' && !r.effective) {
+      <div class="app-muted">Fora da vigência</div>
+    }
+    @if (r.status === 'REVOKED' && r.revokedReason) {
+      <div class="app-muted" [matTooltip]="r.revokedReason">{{ r.revokedAt | appDate: 'date' }}</div>
+    }
+  </ng-template>
+  <ng-template appCell="actions" [appCellOf]="query.rows()" let-r>
+    <app-evidence-buttons [restriction]="r" [canManage]="true" (updated)="query.reload()" />
+    @if (r.status === 'ACTIVE') {
+      <button mat-icon-button type="button" (click)="revoke(r)" aria-label="Revogar restrição" matTooltip="Revogar">
+        <mat-icon aria-hidden="true">undo</mat-icon>
+      </button>
+    }
+  </ng-template>
+</app-data-table>

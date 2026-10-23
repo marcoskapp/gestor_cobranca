@@ -1,0 +1,280 @@
+@if (debtor.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando ficha do devedor">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton class="debt-gap" variant="card" [rows]="4" />
+    <app-skeleton class="debt-gap" variant="table" [rows]="4" />
+  </div>
+} @else if (debtor.status() === 'error') {
+  <app-empty-state
+    icon="person_off"
+    tone="error"
+    title="Não foi possível abrir a ficha do devedor."
+    message="O devedor pode não existir ou não ter títulos nos credores do seu escopo."
+  >
+    <button mat-stroked-button type="button" (click)="debtor.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/devedores">Voltar para devedores</a>
+  </app-empty-state>
+}
+
+@if (current(); as d) {
+  <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
+    <a mat-button routerLink="/devedores">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Devedores
+    </a>
+    <a mat-stroked-button routerLink="/titulos" [queryParams]="{ devedor: d.id }">
+      <mat-icon aria-hidden="true">request_quote</mat-icon>
+      Títulos
+    </a>
+    @if (canExportEvidence()) {
+      <button mat-stroked-button type="button" (click)="exportEvidence(d)" matTooltip="Restrições e tentativas de contato (acesso registrado)">
+        <mat-icon aria-hidden="true">download</mat-icon>
+        Dossiê de contato
+      </button>
+    }
+    @if (canManage() && active()) {
+      <button mat-flat-button type="button" (click)="edit(d)">
+        <mat-icon aria-hidden="true">edit</mat-icon>
+        Editar dados
+      </button>
+    }
+  </app-page-header>
+
+  @if (!active()) {
+    <p class="app-alert app-alert--neutral" role="note">
+      <mat-icon aria-hidden="true">shield</mat-icon>
+      <span>Dados pessoais eliminados em {{ d.anonymizedAt | appDate }} (LGPD). Títulos e razão foram preservados.</span>
+    </p>
+  }
+
+  <section class="debt-kpis" aria-label="Posição do devedor" data-tour="debtor-summary">
+    @if (position(); as p) {
+      <div class="debt-kpi">
+        <span class="debt-kpi__label">Saldo em cobrança</span>
+        <span class="debt-kpi__value"><app-amount [value]="p.totalOpenBalance" /></span>
+      </div>
+      <div class="debt-kpi">
+        <span class="debt-kpi__label">Maior atraso</span>
+        <span class="debt-kpi__value"><app-overdue-badge [days]="p.maxDaysOverdue" /></span>
+      </div>
+      <div class="debt-kpi">
+        <span class="debt-kpi__label">Títulos</span>
+        <span class="debt-kpi__value app-numeric">{{ p.titleCount }}</span>
+      </div>
+      <div class="debt-kpi">
+        <span class="debt-kpi__label">Credores</span>
+        <span class="debt-kpi__value app-numeric">{{ p.creditors.length }}</span>
+      </div>
+    } @else if (summary.isLoading()) {
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="debt-kpi" aria-hidden="true"><app-skeleton variant="lines" [rows]="2" /></div>
+      }
+    }
+  </section>
+
+  <section class="app-card" aria-labelledby="dados-devedor" data-tour="debtor-data">
+    <h2 class="app-card__title" id="dados-devedor">Dados cadastrais</h2>
+    <dl class="app-definition-list">
+      <dt>{{ d.personType === 'COMPANY' ? 'CNPJ' : 'CPF' }}</dt>
+      <dd data-tour="document-reveal">
+        @if (revealedDocument(); as full) {
+          <app-document [value]="full" [masked]="false" [showKind]="false" />
+          <button mat-button type="button" (click)="revealedDocument.set(null)">Ocultar</button>
+        } @else {
+          <app-document [value]="d.maskedDocument" [showKind]="false" [revealable]="canReveal() && active()" (reveal)="revealDocument(d)" />
+        }
+      </dd>
+      <dt>Nascimento</dt>
+      <dd>{{ d.birthDate | appDate: 'date' }}</dd>
+      <dt>Situação</dt>
+      <dd><app-status-chip domain="debtor" [status]="d.status" /></dd>
+      <dt>Observações</dt>
+      <dd>{{ d.notes || '—' }}</dd>
+    </dl>
+  </section>
+
+  <section class="app-card" aria-label="Títulos, contatos e histórico">
+    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" data-tour="debtor-tabs">
+      <mat-tab label="Títulos ({{ titleRows().length }})">
+        <div class="debt-tab">
+          @if (position()?.creditors?.length) {
+            <div class="debt-positions" aria-label="Posição por credor">
+              @for (c of position()!.creditors; track c.creditorId) {
+                <div class="debt-position">
+                  <strong>{{ creditors.name(c.creditorId) }}</strong>
+                  <span><app-amount [value]="c.openBalance" /> · {{ c.titles.length }} título(s)</span>
+                  <app-overdue-badge [days]="c.maxDaysOverdue" />
+                </div>
+              }
+            </div>
+          }
+          <app-data-table
+            caption="Títulos do devedor"
+            [rows]="titleRows()"
+            [columns]="titleColumns"
+            [loading]="titles.isLoading()"
+            [failed]="titles.status() === 'error'"
+            (retry)="titles.reload()"
+            emptyIcon="request_quote"
+            emptyMessage="Nenhum título nos credores do seu escopo."
+          >
+            <ng-template appCell="title" [appCellOf]="titleRows()" let-t>
+              <a class="app-numeric" [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
+              @if (t.disputeBlocked) {
+                <span class="debt-flag" matTooltip="Em contestação: cobrança bloqueada"><mat-icon aria-hidden="true">gavel</mat-icon>Contestação</span>
+              }
+            </ng-template>
+            <ng-template appCell="creditor" [appCellOf]="titleRows()" let-t>{{ creditors.name(t.creditorId) }}</ng-template>
+            <ng-template appCell="portfolio" [appCellOf]="titleRows()" let-t>{{ portfolios.name(t.portfolioId) }}</ng-template>
+            <ng-template appCell="dueDate" [appCellOf]="titleRows()" let-t>{{ t.dueDate | appDate: 'date' }}</ng-template>
+            <ng-template appCell="overdue" [appCellOf]="titleRows()" let-t><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></ng-template>
+            <ng-template appCell="principalAmount" [appCellOf]="titleRows()" let-t><app-amount [value]="t.principalAmount" /></ng-template>
+            <ng-template appCell="openBalance" [appCellOf]="titleRows()" let-t><app-amount [value]="t.openBalance" /></ng-template>
+            <ng-template appCell="status" [appCellOf]="titleRows()" let-t><app-status-chip domain="title" [status]="t.status" /></ng-template>
+          </app-data-table>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Contatos ({{ contactRows().length }})">
+        <div class="debt-tab">
+          <div class="debt-toolbar">
+            <p class="app-muted">
+              Valores exibidos mascarados.
+              @if (canReveal()) {
+                Exibir o valor completo fica registrado no log de acesso.
+              }
+            </p>
+            @if (canManage() && active()) {
+              <button mat-stroked-button type="button" (click)="addContact()">
+                <mat-icon aria-hidden="true">add</mat-icon>
+                Novo contato
+              </button>
+            }
+          </div>
+          <app-data-table
+            caption="Contatos do devedor"
+            [rows]="contactRows()"
+            [columns]="contactColumns"
+            [loading]="contacts.isLoading()"
+            [failed]="contacts.status() === 'error'"
+            (retry)="contacts.reload()"
+            emptyIcon="contact_phone"
+            emptyMessage="Nenhum contato cadastrado."
+          >
+            <ng-template appCell="type" [appCellOf]="contactRows()" let-c>
+              <span class="app-numeric"><mat-icon class="debt-inline-icon" aria-hidden="true">{{ contactIcons[c.type] }}</mat-icon> {{ contactTypes[c.type] }}</span>
+            </ng-template>
+            <ng-template appCell="value" [appCellOf]="contactRows()" let-c>
+              @let full = revealedContacts().get(c.id);
+              <span class="debt-contact">
+                <span class="app-numeric">{{ full ?? c.maskedValue }}</span>
+                @if (c.whatsapp) {
+                  <span class="app-status app-status--info">WhatsApp</span>
+                }
+                @if (full) {
+                  <button mat-icon-button type="button" class="debt-icon-button" (click)="hideContact(c)" aria-label="Ocultar valor completo" matTooltip="Ocultar">
+                    <mat-icon aria-hidden="true">visibility_off</mat-icon>
+                  </button>
+                } @else if (canReveal() && active()) {
+                  <button mat-icon-button type="button" class="debt-icon-button" (click)="revealContact(c)" aria-label="Exibir valor completo (acesso registrado)" matTooltip="Exibir completo (acesso registrado)">
+                    <mat-icon aria-hidden="true">visibility</mat-icon>
+                  </button>
+                }
+              </span>
+            </ng-template>
+            <ng-template appCell="label" [appCellOf]="contactRows()" let-c>{{ contactLabels[c.label] }}</ng-template>
+            <ng-template appCell="source" [appCellOf]="contactRows()" let-c>{{ contactSources[c.source] ?? c.source }}</ng-template>
+            <ng-template appCell="status" [appCellOf]="contactRows()" let-c>
+              <app-status-chip domain="contact" [status]="c.status" />
+              @if (c.invalidReason) {
+                <span class="app-muted" [matTooltip]="c.invalidReason"> {{ c.invalidReason }}</span>
+              }
+            </ng-template>
+            <ng-template appCell="actions" [appCellOf]="contactRows()" let-c>
+              @if (canManage() && active()) {
+                <button mat-icon-button type="button" (click)="editContact(c)" [attr.aria-label]="'Editar contato ' + c.maskedValue" matTooltip="Editar">
+                  <mat-icon aria-hidden="true">edit</mat-icon>
+                </button>
+                @if (c.status !== 'VALID') {
+                  <button mat-icon-button type="button" (click)="validate(c)" [attr.aria-label]="'Confirmar contato ' + c.maskedValue" matTooltip="Confirmar como válido">
+                    <mat-icon aria-hidden="true">verified</mat-icon>
+                  </button>
+                }
+                @if (c.status !== 'INVALID') {
+                  <button mat-icon-button type="button" (click)="invalidate(c)" [attr.aria-label]="'Marcar contato ' + c.maskedValue + ' como inválido'" matTooltip="Marcar como inválido">
+                    <mat-icon aria-hidden="true">phone_disabled</mat-icon>
+                  </button>
+                }
+              }
+            </ng-template>
+          </app-data-table>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Contratos de origem">
+        <ng-template matTabContent>
+          <div class="debt-tab"><app-origin-contracts [titles]="titleRows()" [loading]="titles.isLoading()" /></div>
+        </ng-template>
+      </mat-tab>
+
+      <mat-tab label="Garantias e coobrigações">
+        <ng-template matTabContent>
+          <div class="debt-tab"><app-debtor-guarantees [summary]="position()" [loading]="summary.isLoading()" /></div>
+        </ng-template>
+      </mat-tab>
+
+      <mat-tab label="Razão">
+        <ng-template matTabContent>
+          <div class="debt-tab">
+            @if (selectedTitleId(); as tid) {
+              <div class="debt-toolbar">
+                <mat-form-field class="app-compact">
+                  <mat-label>Título</mat-label>
+                  <mat-select [ngModel]="tid" (ngModelChange)="selectTitle($event)">
+                    @for (t of titleRows(); track t.id) {
+                      <mat-option [value]="t.id">{{ titleLabel(t) }} — {{ creditors.name(t.creditorId) }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <a mat-button [routerLink]="['/titulos', tid]">Abrir título</a>
+              </div>
+              <app-title-ledger [titleId]="tid" />
+            } @else {
+              <app-empty-state icon="receipt_long" title="Sem títulos para exibir o razão." [compact]="true" />
+            }
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <mat-tab label="Titularidade">
+        <ng-template matTabContent>
+          <div class="debt-tab">
+            @if (selectedTitleId(); as tid) {
+              <div class="debt-toolbar">
+                <mat-form-field class="app-compact">
+                  <mat-label>Título</mat-label>
+                  <mat-select [ngModel]="tid" (ngModelChange)="selectTitle($event)">
+                    @for (t of titleRows(); track t.id) {
+                      <mat-option [value]="t.id">{{ titleLabel(t) }} — {{ creditors.name(t.creditorId) }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              <app-title-ownership [titleId]="tid" />
+            } @else {
+              <app-empty-state icon="history" title="Sem títulos para exibir a titularidade." [compact]="true" />
+            }
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <mat-tab label="Restrições de contato">
+        <ng-template matTabContent>
+          <div class="debt-tab">
+            <app-debtor-compliance [debtorId]="d.id" [debtorName]="d.name" />
+          </div>
+        </ng-template>
+      </mat-tab>
+    </mat-tab-group>
+  </section>
+}

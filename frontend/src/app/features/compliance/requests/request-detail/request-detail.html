@@ -1,0 +1,183 @@
+@if (request.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando solicitação">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton variant="card" [rows]="6" />
+  </div>
+} @else if (request.status() === 'error') {
+  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar a solicitação.">
+    <button mat-stroked-button type="button" (click)="request.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/compliance/solicitacoes-titulares">Voltar para a fila</a>
+  </app-empty-state>
+}
+
+@if (current(); as r) {
+  @let a = actions()!;
+  <app-page-header [title]="typeLabels[r.type]" [subtitle]="'Solicitação de ' + r.requesterName + ' · recebida em ' + (r.receivedAt | appDate)">
+    <a mat-button routerLink="/compliance/solicitacoes-titulares">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Fila
+    </a>
+    @if (a.assign && canViewUsers()) {
+      <button mat-stroked-button type="button" (click)="assign(r)">
+        <mat-icon aria-hidden="true">person_add</mat-icon>
+        Atribuir
+      </button>
+    }
+    @if (a.reject) {
+      <button mat-stroked-button type="button" (click)="reject(r)">
+        <mat-icon aria-hidden="true">do_not_disturb_on</mat-icon>
+        Recusar
+      </button>
+    }
+    <span class="cmp-actions" data-tour="dsr-next-action">
+      @if (a.verify) {
+        <button mat-flat-button type="button" (click)="verify(r)">
+          <mat-icon aria-hidden="true">verified_user</mat-icon>
+          Confirmar identidade
+        </button>
+      }
+      @if (a.start) {
+        <button mat-flat-button type="button" (click)="start(r)">
+          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+          Iniciar atendimento
+        </button>
+      }
+      @if (a.execute) {
+        <button mat-flat-button type="button" [class.app-button-danger]="r.type === 'ANONYMIZATION'" (click)="execute(r)">
+          <mat-icon aria-hidden="true">bolt</mat-icon>
+          Executar ação
+        </button>
+      }
+      @if (a.complete && !a.execute) {
+        <button mat-flat-button type="button" (click)="complete(r)" [disabled]="!!a.completeBlocker" [matTooltip]="a.completeBlocker ?? ''">
+          <mat-icon aria-hidden="true">task_alt</mat-icon>
+          Concluir
+        </button>
+      }
+    </span>
+  </app-page-header>
+
+  <ol class="cmp-steps" aria-label="Etapas do atendimento" data-tour="dsr-steps">
+    @for (s of steps; track s.status; let i = $index) {
+      @let state = stepState(r, i);
+      <li class="cmp-step" [class.cmp-step--done]="state === 'done'" [class.cmp-step--current]="state === 'current'" [attr.aria-current]="state === 'current' ? 'step' : null">
+        <mat-icon aria-hidden="true">{{ state === 'done' ? 'check_circle' : state === 'current' ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
+        {{ s.label }}
+      </li>
+    }
+    @if (r.status === 'REJECTED') {
+      <li class="cmp-step cmp-step--current" aria-current="step"><mat-icon aria-hidden="true">block</mat-icon>Recusada</li>
+    }
+  </ol>
+
+  @if (r.overdue && r.status !== 'COMPLETED' && r.status !== 'REJECTED') {
+    <p class="app-alert app-alert--danger" role="alert">
+      <mat-icon aria-hidden="true">alarm</mat-icon>
+      <span>Prazo legal vencido em {{ r.dueAt | appDate: 'date' }}. Priorize o atendimento e registre a resposta ao titular.</span>
+    </p>
+  }
+  @if (a.execute && effects[r.type]) {
+    <p class="app-alert app-alert--info" role="note">
+      <mat-icon aria-hidden="true">info</mat-icon>
+      <span>Próximo passo: executar a ação do pedido. {{ effects[r.type] }}</span>
+    </p>
+  } @else if (a.completeBlocker) {
+    <p class="app-alert app-alert--warning" role="note">
+      <mat-icon aria-hidden="true">info</mat-icon>
+      <span>{{ a.completeBlocker }}</span>
+    </p>
+  }
+
+  <section class="app-card" aria-labelledby="dados-solicitacao">
+    <h2 class="app-card__title" id="dados-solicitacao">Solicitação</h2>
+    <dl class="app-definition-list">
+      <dt>Situação</dt>
+      <dd><app-status-chip domain="dataSubjectRequest" [status]="r.status" /></dd>
+      <dt>Prazo</dt>
+      <dd>
+        {{ r.dueAt | appDate: 'date' }}
+        @if (r.status !== 'COMPLETED' && r.status !== 'REJECTED') {
+          <span [class.cmp-due--late]="r.overdue || days(r) < 0" [class.cmp-due--soon]="!r.overdue && days(r) >= 0 && days(r) <= 3"> · {{ due(r) }}</span>
+        }
+      </dd>
+      <dt>Canal</dt>
+      <dd>{{ channelLabels[r.channel] }}</dd>
+      <dt>Requerente</dt>
+      <dd>{{ r.requesterName }}</dd>
+      <dt>Documento</dt>
+      <dd><app-document [value]="r.maskedDocument" /></dd>
+      <dt>Contato para resposta</dt>
+      <dd class="app-numeric">{{ r.maskedContact || '—' }}</dd>
+      <dt>Titular</dt>
+      <dd>
+        @if (r.debtorId && canOpenDebtor()) {
+          <a [routerLink]="['/devedores', r.debtorId]">{{ debtors.name(r.debtorId) }}</a>
+        } @else if (r.debtorId) {
+          Vinculado
+        } @else {
+          <span class="app-muted">Ainda não identificado</span>
+        }
+      </dd>
+      <dt>Responsável</dt>
+      <dd>{{ r.assignedTo ? (canViewUsers() ? users.name(r.assignedTo) : 'Atribuído') : '—' }}</dd>
+      <dt>Descrição</dt>
+      <dd class="cmp-pre">{{ r.details || '—' }}</dd>
+    </dl>
+  </section>
+
+  <section class="app-card" aria-labelledby="historico-solicitacao">
+    <h2 class="app-card__title" id="historico-solicitacao">Atendimento</h2>
+    <dl class="app-definition-list">
+      <dt>Identidade confirmada</dt>
+      <dd>
+        {{ r.identityVerifiedAt | appDate }}
+        @if (r.identityVerifiedBy && canViewUsers()) {
+          <span class="app-muted"> por {{ users.name(r.identityVerifiedBy) }}</span>
+        }
+      </dd>
+      <dt>Ação executada</dt>
+      <dd>{{ r.executedAt | appDate }}</dd>
+      <dt>Encerrada</dt>
+      <dd>{{ r.completedAt | appDate }}</dd>
+      <dt>Resposta ao titular</dt>
+      <dd class="cmp-pre">{{ r.responseSummary || '—' }}</dd>
+      @if (r.hasResultFile) {
+        <dt>Arquivo do titular</dt>
+        <dd>
+          <button mat-stroked-button type="button" (click)="downloadResult(r)">
+            <mat-icon aria-hidden="true">download</mat-icon>
+            Baixar dados do titular
+          </button>
+          @if (r.resultSha256) {
+            <div class="app-mono app-muted" title="Resumo SHA-256 para comprovar a integridade do arquivo entregue">SHA-256 {{ r.resultSha256 }}</div>
+          }
+        </dd>
+      }
+    </dl>
+  </section>
+
+  @if (r.debtorId && (canManageRestrictions() || canOpenDebtor())) {
+    <section class="app-card" aria-labelledby="evidencias" data-tour="dsr-evidence">
+      <h2 class="app-card__title" id="evidencias">Restrições e evidências</h2>
+      @if (restrictions().length === 0) {
+        <p class="app-muted">
+          Nenhuma restrição criada por esta solicitação.
+          @if (r.type === 'OPPOSITION') {
+            A execução do pedido de oposição cria a restrição; anexe nela o comprovante do pedido.
+          }
+        </p>
+      } @else {
+        <dl class="app-definition-list">
+          @for (x of restrictions(); track x.id) {
+            <dt>{{ restrictionTypes[x.type] }}</dt>
+            <dd>
+              <app-status-chip domain="restriction" [status]="x.status" />
+              {{ x.hasEvidence ? x.evidenceFileName : 'sem evidência' }}
+              <app-evidence-buttons [restriction]="x" [canManage]="canManageRestrictions()" (updated)="linkedRestrictions.reload()" />
+            </dd>
+          }
+        </dl>
+      }
+    </section>
+  }
+}

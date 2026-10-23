@@ -7,7 +7,23 @@ export interface StatusDescriptor {
   tone: StatusTone;
 }
 
-export type StatusDomain = 'user' | 'creditor' | 'tenant' | 'contract' | 'portfolio' | 'session' | 'active';
+export type StatusDomain =
+  | 'user'
+  | 'creditor'
+  | 'tenant'
+  | 'contract'
+  | 'portfolio'
+  | 'session'
+  | 'active'
+  | 'debtor'
+  | 'title'
+  | 'contact'
+  | 'restriction'
+  | 'dataSubjectRequest'
+  | 'retentionRun'
+  | 'retentionItem'
+  | 'legalBasis'
+  | 'collateral';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -43,6 +59,60 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     true: { label: 'Ativo', tone: 'success' },
     false: { label: 'Inativo', tone: 'neutral' },
   },
+  debtor: {
+    ACTIVE: { label: 'Ativo', tone: 'success' },
+    ANONYMIZED: { label: 'Anonimizado', tone: 'neutral' },
+  },
+  title: {
+    OPEN: { label: 'Em cobrança', tone: 'info' },
+    SUSPENDED: { label: 'Suspenso', tone: 'warning' },
+    SETTLED: { label: 'Quitado', tone: 'success' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+    RETURNED: { label: 'Devolvido', tone: 'neutral' },
+  },
+  contact: {
+    VALID: { label: 'Válido', tone: 'success' },
+    UNVERIFIED: { label: 'Não verificado', tone: 'info' },
+    INVALID: { label: 'Inválido', tone: 'danger' },
+  },
+  restriction: {
+    ACTIVE: { label: 'Ativa', tone: 'danger' },
+    REVOKED: { label: 'Revogada', tone: 'neutral' },
+  },
+  dataSubjectRequest: {
+    RECEIVED: { label: 'Recebida', tone: 'info' },
+    IDENTITY_VERIFIED: { label: 'Identidade confirmada', tone: 'info' },
+    IN_PROGRESS: { label: 'Em atendimento', tone: 'warning' },
+    COMPLETED: { label: 'Concluída', tone: 'success' },
+    REJECTED: { label: 'Recusada', tone: 'neutral' },
+  },
+  retentionRun: {
+    RUNNING: { label: 'Em execução', tone: 'info' },
+    COMPLETED: { label: 'Concluída', tone: 'success' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
+  },
+  retentionItem: {
+    ELIGIBLE: { label: 'Elegível', tone: 'info' },
+    ANONYMIZED: { label: 'Anonimizado', tone: 'success' },
+    RETAINED: { label: 'Mantido (base legal)', tone: 'warning' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
+  },
+  /** Vigência calculada na tela a partir de `validFrom`/`validUntil` (`legalBasisPeriod`). */
+  /** `CollateralStatus` do módulo debt. */
+  collateral: {
+    ACTIVE: { label: 'Vigente', tone: 'success' },
+    UNDER_ENFORCEMENT: { label: 'Em execução', tone: 'warning' },
+    SEIZED: { label: 'Apreendida', tone: 'warning' },
+    CONSOLIDATED: { label: 'Propriedade consolidada', tone: 'info' },
+    AUCTIONED: { label: 'Leiloada', tone: 'info' },
+    RELEASED: { label: 'Liberada', tone: 'neutral' },
+    WRITTEN_OFF: { label: 'Baixada', tone: 'neutral' },
+  },
+  legalBasis: {
+    CURRENT: { label: 'Vigente', tone: 'success' },
+    FUTURE: { label: 'Futura', tone: 'info' },
+    ENDED: { label: 'Encerrada', tone: 'neutral' },
+  },
 };
 
 export function describeStatus(domain: StatusDomain, status: string | boolean | null | undefined): StatusDescriptor {
@@ -65,3 +135,15 @@ export const PORTFOLIO_TRANSITIONS: Record<string, readonly string[]> = {
 
 /** Transições que exigem motivo (`Portfolio.transitionTo`). */
 export const PORTFOLIO_REASON_REQUIRED: readonly string[] = ['SUSPENDED', 'RETURNED'];
+
+/** Transições manuais de título (espelho de `TitleStatus.allowedTransitions`, sem as automáticas). */
+export const TITLE_MANUAL_ACTIONS: Record<string, readonly ('suspend' | 'reactivate' | 'cancel' | 'return')[]> = {
+  OPEN: ['suspend', 'cancel', 'return'],
+  SUSPENDED: ['reactivate', 'cancel', 'return'],
+  SETTLED: [],
+  CANCELLED: [],
+  RETURNED: [],
+};
+
+/** Situações finais de solicitação de titular (`RequestStatus.isFinal`). */
+export const DSR_FINAL_STATUSES: readonly string[] = ['COMPLETED', 'REJECTED'];

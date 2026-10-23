@@ -1,9 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { forkJoin, map, of } from 'rxjs';
 import { EntitySource } from '../../../shared/components/entity-picker/entity-picker';
+import { NameSource } from '../../../shared/data/name-map';
 import { Option } from '../../../shared/models/lookup';
-import { CreditorsApi } from './organization.api';
-import { CreditorView } from './organization.models';
+import { CreditorsApi, PortfoliosApi } from './organization.api';
+import { CreditorView, PortfolioView } from './organization.models';
 
 /** Fonte de credores para seletores (usada também pelo módulo de administração). */
 @Injectable({ providedIn: 'root' })
@@ -21,4 +22,48 @@ export class CreditorLookup implements EntitySource {
 
 export function creditorOption(c: CreditorView): Option {
   return { value: c.id, label: c.tradeName ? `${c.tradeName} — ${c.legalName}` : c.legalName };
+}
+
+/** Fonte de carteiras para seletores, opcionalmente restrita ao credor escolhido. */
+@Injectable({ providedIn: 'root' })
+export class PortfolioLookup {
+  private readonly api = inject(PortfoliosApi);
+
+  /** Fonte para `app-entity-picker`; `creditorId` é lido a cada busca. */
+  source(creditorId: () => string | null = () => null): EntitySource {
+    return {
+      search: (q: string) =>
+        this.api
+          .search({ q, creditorId: creditorId() }, { page: 0, size: 20 })
+          .pipe(map((page) => page.content.map(portfolioOption))),
+      resolve: (ids: string[]) =>
+        ids.length ? forkJoin(ids.map((id) => this.api.get(id).pipe(map(portfolioOption)))) : of<Option[]>([]),
+    };
+  }
+}
+
+export function portfolioOption(p: PortfolioView): Option {
+  return { value: p.id, label: `${p.code} — ${p.name}` };
+}
+
+/** Nomes curtos de credores para tabelas (nome fantasia ou razão social). */
+@Injectable({ providedIn: 'root' })
+export class CreditorNames implements NameSource {
+  private readonly api = inject(CreditorsApi);
+
+  resolve(ids: string[]) {
+    return ids.length
+      ? forkJoin(ids.map((id) => this.api.get(id).pipe(map((c): Option => ({ value: c.id, label: c.tradeName || c.legalName })))))
+      : of<Option[]>([]);
+  }
+}
+
+/** Nomes curtos de carteiras para tabelas. */
+@Injectable({ providedIn: 'root' })
+export class PortfolioNames implements NameSource {
+  private readonly api = inject(PortfoliosApi);
+
+  resolve(ids: string[]) {
+    return ids.length ? forkJoin(ids.map((id) => this.api.get(id).pipe(map((p): Option => ({ value: p.id, label: p.name }))))) : of<Option[]>([]);
+  }
 }

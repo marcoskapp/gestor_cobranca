@@ -112,6 +112,256 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'debt.debtors',
+    version: 1,
+    title: 'Devedores',
+    summary: 'Busca por nome ou documento e acesso à ficha do devedor.',
+    steps: [
+      {
+        anchor: 'page-header',
+        title: 'Devedores do seu escopo',
+        body: 'Aparecem pessoas e empresas com títulos nos credores que você atende.',
+      },
+      {
+        anchor: 'filters',
+        title: 'Busque por nome ou documento',
+        body: 'Digite parte do nome ou o CPF/CNPJ completo. O documento é enviado de forma protegida, fora do endereço da página.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Abra a ficha',
+        body: 'Documentos aparecem mascarados. Na ficha ficam títulos, contatos, razão, titularidade e restrições.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'debt.debtor-detail',
+    version: 1,
+    title: 'Ficha do devedor',
+    summary: 'Posição, dados, títulos, contatos e histórico em um só lugar.',
+    steps: [
+      {
+        anchor: 'debtor-summary',
+        title: 'Posição do devedor',
+        body: 'Saldo em cobrança, maior atraso e quantidade de títulos e credores.',
+      },
+      {
+        anchor: 'document-reveal',
+        title: 'Documento mascarado',
+        body: 'Exibir o documento completo exige permissão e fica registrado no log de acesso. Use só quando necessário.',
+      },
+      {
+        anchor: 'debtor-tabs',
+        title: 'Títulos, contatos e histórico',
+        body: 'Contatos podem ser confirmados ou marcados como inválidos. Razão e titularidade mostram cada lançamento e cada carteira.',
+        placement: 'above',
+      },
+      {
+        anchor: 'page-actions',
+        title: 'Ações da ficha',
+        body: 'Edite os dados cadastrais, veja os títulos na consulta completa ou baixe o dossiê de contato.',
+      },
+    ],
+  },
+  {
+    id: 'debt.titles',
+    version: 1,
+    title: 'Títulos',
+    summary: 'Consulta por credor, carteira, situação, atraso e vencimento.',
+    steps: [
+      {
+        anchor: 'filters',
+        title: 'Combine os filtros',
+        body: 'Credor, carteira, situação e vencimento. A lista é atualizada enquanto você escolhe.',
+      },
+      {
+        anchor: 'overdue-filter',
+        title: 'Faixas de atraso',
+        body: 'Faixas usuais da cobrança (1 a 30, 31 a 60 dias…). Consideram apenas títulos em cobrança.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Detalhe do título',
+        body: 'Abra o título para ver saldo por componente, razão, titularidade e as ações permitidas.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'debt.title-detail',
+    version: 1,
+    title: 'Detalhe do título',
+    summary: 'Saldo, razão, titularidade e ciclo de vida do título.',
+    steps: [
+      {
+        anchor: 'title-summary',
+        title: 'Resumo financeiro',
+        body: 'Saldo em aberto, valor original, total pago e atraso atual.',
+      },
+      {
+        anchor: 'title-tabs',
+        title: 'Saldo, razão e titularidade',
+        body: 'O saldo é calculado do razão. Divergência com o saldo informado pelo credor aparece em destaque.',
+        placement: 'above',
+      },
+      {
+        anchor: 'title-actions',
+        title: 'Ciclo de vida',
+        body: 'Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.',
+      },
+    ],
+  },
+  {
+    id: 'compliance.restrictions',
+    version: 1,
+    title: 'Restrições de contato',
+    summary: 'Descadastros, pedidos e bloqueios que impedem o contato.',
+    steps: [
+      {
+        anchor: 'page-header',
+        title: 'Restrições bloqueiam na hora',
+        body: 'Uma restrição ativa impede ligações, mensagens e campanhas no alcance definido (credor, canal ou contato).',
+      },
+      {
+        anchor: 'page-actions',
+        title: 'Registrar restrição',
+        body: 'Escolha devedor, tipo, origem e alcance. Depois anexe o comprovante do pedido.',
+      },
+      {
+        anchor: 'filters',
+        title: 'Encontre restrições',
+        body: 'Filtre por devedor, credor, tipo, canal e situação.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Evidência e revogação',
+        body: 'Anexe ou baixe o comprovante. Revogar exige motivo e fica registrado.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'compliance.contact-policy',
+    version: 1,
+    title: 'Política de contato',
+    summary: 'Janela, dias e limites de tentativas por canal, com versões.',
+    steps: [
+      {
+        anchor: 'policy-scope',
+        title: 'Assessoria ou credor',
+        body: 'A política do credor prevalece canal a canal; canais sem regra seguem a assessoria.',
+      },
+      {
+        anchor: 'policy-effective',
+        title: 'Regras vigentes agora',
+        body: 'Mostra a regra aplicada em cada canal e de onde ela vem.',
+        placement: 'above',
+      },
+      {
+        anchor: 'policy-draft',
+        title: 'Rascunho da próxima versão',
+        body: 'Ajuste janela, dias, limites e feriados. Nada muda até publicar.',
+        placement: 'above',
+      },
+      {
+        anchor: 'page-actions',
+        title: 'Publicar',
+        body: 'Cada publicação cria uma versão imutável, com vigência imediata ou agendada.',
+      },
+    ],
+  },
+  {
+    id: 'compliance.legal-bases',
+    version: 1,
+    title: 'Bases legais',
+    summary: 'Fundamento do tratamento e prazo de retenção por credor.',
+    steps: [
+      {
+        anchor: 'filters',
+        title: 'Escolha o credor',
+        body: 'As bases legais são registradas por credor e, se necessário, por carteira.',
+      },
+      {
+        anchor: 'page-actions',
+        title: 'Registrar base legal',
+        body: 'Informe a base do art. 7º, o contrato, o responsável jurídico e o prazo de retenção.',
+      },
+    ],
+  },
+  {
+    id: 'compliance.requests',
+    version: 1,
+    title: 'Solicitações de titulares',
+    summary: 'Fila de pedidos LGPD com prazo legal em destaque.',
+    steps: [
+      {
+        anchor: 'page-actions',
+        title: 'Registre no dia do recebimento',
+        body: 'O prazo legal começa a contar no recebimento, por qualquer canal.',
+      },
+      {
+        anchor: 'dsr-kpis',
+        title: 'Situação da fila',
+        body: 'Pedidos em atraso e em cada etapa. Clique em um indicador para filtrar.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Prazo em destaque',
+        body: 'Pedidos vencidos aparecem em vermelho com ícone; os que vencem em até 3 dias, em amarelo.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'compliance.request-detail',
+    version: 1,
+    title: 'Atendimento ao titular',
+    summary: 'Etapas, ação automática, resposta e evidências.',
+    steps: [
+      {
+        anchor: 'dsr-steps',
+        title: 'Etapas do atendimento',
+        body: 'Identidade confirmada, atendimento iniciado e conclusão com resposta ao titular.',
+      },
+      {
+        anchor: 'dsr-next-action',
+        title: 'Próxima ação',
+        body: 'Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.',
+      },
+      {
+        anchor: 'dsr-evidence',
+        title: 'Evidências',
+        body: 'Restrições criadas pelo pedido recebem o comprovante anexado.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'compliance.retention',
+    version: 1,
+    title: 'Retenção de dados',
+    summary: 'Prazos de guarda, simulação e anonimização.',
+    steps: [
+      {
+        anchor: 'retention-policies',
+        title: 'Políticas por categoria',
+        body: 'Nascem desabilitadas. Defina o prazo e habilite quando a política estiver aprovada.',
+      },
+      {
+        anchor: 'retention-dry-run',
+        title: 'Simule antes',
+        body: 'A simulação lista os devedores elegíveis sem alterar nenhum dado.',
+      },
+      {
+        anchor: 'retention-runs',
+        title: 'Histórico e evidência',
+        body: 'Cada execução guarda o corte, os contadores e os itens processados.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
     id: 'organization.creditors',
     version: 1,
     title: 'Credores',
