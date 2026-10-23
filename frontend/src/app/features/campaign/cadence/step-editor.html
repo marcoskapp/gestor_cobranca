@@ -1,0 +1,296 @@
+@let s = step();
+@let a = s.action;
+@let ro = readonly();
+@let i = index();
+
+@if (problems().length) {
+  <div class="app-alert app-alert--error se-alert" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <ul>
+      @for (p of problems(); track p) {
+        <li>{{ p }}</li>
+      }
+    </ul>
+  </div>
+}
+@if (warnings().length) {
+  <div class="app-alert app-alert--warning se-alert" role="note">
+    <mat-icon aria-hidden="true">warning_amber</mat-icon>
+    <ul>
+      @for (w of warnings(); track w) {
+        <li>{{ w }}</li>
+      }
+    </ul>
+  </div>
+}
+
+<fieldset class="se-group">
+  <legend>Etapa</legend>
+  <div class="se-row">
+    <mat-form-field class="app-compact se-code">
+      <mat-label>Código</mat-label>
+      <input matInput [ngModel]="s.code" (ngModelChange)="setCode($event)" maxlength="40" spellcheck="false" autocomplete="off" [disabled]="ro" />
+      <mat-hint>Estável entre versões (relatórios e testes A/B).</mat-hint>
+    </mat-form-field>
+    <mat-form-field class="app-compact se-grow">
+      <mat-label>Nome (opcional)</mat-label>
+      <input matInput [(ngModel)]="s.name" (ngModelChange)="changed()" maxlength="120" [disabled]="ro" />
+    </mat-form-field>
+  </div>
+  <div class="se-row">
+    @let w = wait();
+    <mat-form-field class="app-compact se-num">
+      <mat-label>{{ i === 0 ? 'Espera após a inscrição' : 'Espera após a etapa anterior' }}</mat-label>
+      <input matInput type="number" min="0" step="1" [ngModel]="w.value" (ngModelChange)="setWait($event, w.unit)" [disabled]="ro" />
+    </mat-form-field>
+    <mat-form-field class="app-compact se-unit">
+      <mat-label>Unidade</mat-label>
+      <mat-select [ngModel]="w.unit" (ngModelChange)="setWait(w.value, $event)" [disabled]="ro">
+        @for (u of units; track u.value) {
+          <mat-option [value]="u.value">{{ u.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+</fieldset>
+
+<fieldset class="se-group">
+  <legend>Janela de horário</legend>
+  <mat-slide-toggle [ngModel]="restricted()" (ngModelChange)="setRestricted($event)" [disabled]="ro">Executar só em dias e horários escolhidos</mat-slide-toggle>
+  @if (s.window && restricted()) {
+    <div class="se-row se-top">
+      <mat-form-field class="app-compact se-time">
+        <mat-label>Das</mat-label>
+        <input matInput type="time" [(ngModel)]="s.window.start" (ngModelChange)="changed()" [disabled]="ro" />
+      </mat-form-field>
+      <mat-form-field class="app-compact se-time">
+        <mat-label>Até</mat-label>
+        <input matInput type="time" [(ngModel)]="s.window.end" (ngModelChange)="changed()" [disabled]="ro" />
+      </mat-form-field>
+      <mat-button-toggle-group multiple [ngModel]="s.window.days ?? []" (ngModelChange)="setDays($event)" aria-label="Dias da semana" [disabled]="ro" class="se-days">
+        @for (d of days; track d) {
+          <mat-button-toggle [value]="d">{{ dayLabels[d] }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    </div>
+    <p class="app-muted se-small">Fora da janela a etapa é adiada para a próxima abertura. Início igual ao fim = dia todo; nenhum dia marcado = todos.</p>
+  }
+  <p class="app-muted se-small">O porteiro de contato (horário legal, feriados e limites) vale sempre, com ou sem janela.</p>
+</fieldset>
+
+<fieldset class="se-group">
+  <legend>Condição para executar</legend>
+  <div class="se-checks">
+    <mat-checkbox [ngModel]="!!s.condition?.requireNoReply" (ngModelChange)="setCondition('requireNoReply', $event)" [disabled]="ro">Só se o devedor ainda não respondeu</mat-checkbox>
+    <mat-checkbox [ngModel]="!!s.condition?.requireNoEffectiveContact" (ngModelChange)="setCondition('requireNoEffectiveContact', $event)" [disabled]="ro">Só se não houve contato efetivo desde a inscrição</mat-checkbox>
+    <mat-checkbox [ngModel]="!!s.condition?.requirePreviousMessageUnread" (ngModelChange)="setCondition('requirePreviousMessageUnread', $event)" [disabled]="ro">Só se a última mensagem da régua não foi lida</mat-checkbox>
+    <mat-checkbox [ngModel]="!!s.condition?.criteria" (ngModelChange)="setCriteria($event)" [disabled]="ro">Só se o caso atender a filtros (posição no momento da etapa)</mat-checkbox>
+  </div>
+  @if (s.condition?.criteria; as criteria) {
+    <div class="se-criteria">
+      <app-criteria-editor [criteria]="criteria" [readonly]="ro" [creditorId]="creditorId()" label="Filtros da condição" (edited)="changed()" />
+    </div>
+  }
+  <p class="app-muted se-small">Condição não atendida: a etapa é pulada e a régua segue para a próxima.</p>
+</fieldset>
+
+<fieldset class="se-group">
+  <legend>Ação</legend>
+  <div class="se-row">
+    <mat-form-field class="app-compact se-grow">
+      <mat-label>O que fazer</mat-label>
+      <mat-select [ngModel]="a.type" (ngModelChange)="setAction($event)" [disabled]="ro">
+        @for (t of actions; track t) {
+          <mat-option [value]="t">{{ actionLabels[t] }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>{{ actionHints[a.type] }}</mat-hint>
+    </mat-form-field>
+  </div>
+
+  @if (sendsMessage(a)) {
+    <div class="se-row se-top">
+      <mat-form-field class="app-compact se-num">
+        <mat-label>Canal</mat-label>
+        <mat-select [ngModel]="a.channel" (ngModelChange)="setChannel($event)" [disabled]="ro">
+          @for (c of channels; track c) {
+            <mat-option [value]="c">{{ channelLabels[c] }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (templates()) {
+        <mat-form-field class="app-compact se-grow">
+          <mat-label>Template publicado</mat-label>
+          <mat-select [ngModel]="a.templateCode" (ngModelChange)="setTemplate($event)" [disabled]="ro">
+            @for (t of channelTemplates(); track t.code) {
+              <mat-option [value]="t.code">{{ t.code }} — {{ t.name }} (v{{ t.templateVersion }}{{ t.creditorId ? '' : ', assessoria' }})</mat-option>
+            } @empty {
+              <mat-option disabled>Nenhum template publicado neste canal</mat-option>
+            }
+            @if (a.templateCode && !template()) {
+              <mat-option [value]="a.templateCode">{{ a.templateCode }} (não publicado)</mat-option>
+            }
+          </mat-select>
+          <mat-hint>O do credor prevalece sobre o da assessoria.</mat-hint>
+        </mat-form-field>
+      } @else {
+        <mat-form-field class="app-compact se-grow">
+          <mat-label>Código do template</mat-label>
+          <input matInput [ngModel]="a.templateCode" (ngModelChange)="setTemplate($event)" maxlength="60" spellcheck="false" autocomplete="off" [disabled]="ro" />
+          <mat-hint>Sem acesso aos templates: o servidor confere template e variáveis ao publicar.</mat-hint>
+        </mat-form-field>
+      }
+    </div>
+
+    <div class="se-vars" role="group" aria-label="Variáveis do template">
+      <p class="se-sub">Variáveis</p>
+      @for (v of variableRows(); track v.name) {
+        @let source = variableSource(v.name);
+        <div class="se-var" [class.se-var--unknown]="!v.known">
+          <span class="se-var__name">
+            <code>{{ token(v.name) }}</code>
+            @if (v.required) {
+              <span class="app-muted se-small">obrigatória</span>
+            }
+            @if (!v.known) {
+              <span class="app-status app-status--danger se-small"><mat-icon aria-hidden="true">error_outline</mat-icon>fora do template</span>
+            }
+          </span>
+          <mat-form-field class="app-compact se-grow">
+            <mat-label>Origem do valor</mat-label>
+            <mat-select [ngModel]="source ?? ''" (ngModelChange)="setSource(v.name, $event)" [disabled]="ro">
+              @if (!v.required) {
+                <mat-option value="">Não preencher</mat-option>
+              }
+              @for (o of sourceOptions(); track o) {
+                <mat-option [value]="o">{{ sourceLabels[o] }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          @if (source === 'LITERAL') {
+            <mat-form-field class="app-compact se-grow">
+              <mat-label>Texto fixo</mat-label>
+              <input matInput [ngModel]="literalOf(a.variables?.[v.name])" (ngModelChange)="setLiteral(v.name, $event)" maxlength="200" [disabled]="ro" />
+              <mat-hint>Sem dados pessoais.</mat-hint>
+            </mat-form-field>
+          }
+          @if (!ro && (!v.known || !template())) {
+            <button mat-icon-button type="button" (click)="removeVariable(v.name)" [attr.aria-label]="'Remover variável ' + v.name">
+              <mat-icon aria-hidden="true">delete</mat-icon>
+            </button>
+          }
+        </div>
+      } @empty {
+        <p class="app-muted se-small">{{ a.templateCode ? 'O template não declara variáveis.' : 'Escolha o template para preencher as variáveis.' }}</p>
+      }
+      @if (!ro && templates() === null) {
+        <div class="se-row">
+          <mat-form-field class="app-compact se-num">
+            <mat-label>Nova variável</mat-label>
+            <input matInput #newVar maxlength="40" spellcheck="false" autocomplete="off" (keydown.enter)="$event.preventDefault(); addVariable(newVar.value); newVar.value = ''" />
+          </mat-form-field>
+          <button mat-button type="button" (click)="addVariable(newVar.value); newVar.value = ''"><mat-icon aria-hidden="true">add</mat-icon>Variável</button>
+        </div>
+      }
+      <p class="app-muted se-small">Os valores são calculados no envio e guardados só no módulo de comunicação, criptografados.</p>
+    </div>
+
+    @if (a.type === 'OFFER' && a.offer) {
+      <div class="app-alert app-alert--warning se-alert" role="note">
+        <mat-icon aria-hidden="true">info</mat-icon>
+        <span>A oferta pela alçada da campanha ainda não está disponível: régua com esta etapa não pode ser publicada.</span>
+      </div>
+      <div class="se-row">
+        <mat-form-field class="app-compact se-num">
+          <mat-label>Pagamentos (com a entrada)</mat-label>
+          <input matInput type="number" min="1" max="120" step="1" [(ngModel)]="a.offer.installments" (ngModelChange)="changed()" [disabled]="ro" />
+        </mat-form-field>
+        <mat-form-field class="app-compact se-num">
+          <mat-label>Nível da escada</mat-label>
+          <input matInput type="number" min="0" max="99" step="1" [(ngModel)]="a.offer.concessionLevel" (ngModelChange)="changed()" [disabled]="ro" />
+        </mat-form-field>
+        <mat-form-field class="app-compact se-num">
+          <mat-label>Validade do link (dias)</mat-label>
+          <input matInput type="number" min="1" max="30" step="1" [(ngModel)]="a.offer.validityDays" (ngModelChange)="changed()" [disabled]="ro" />
+        </mat-form-field>
+      </div>
+    }
+  }
+
+  @if (a.type === 'CREATE_TASK') {
+    @let d = due();
+    <div class="se-row se-top">
+      <mat-form-field class="app-compact se-grow">
+        <mat-label>Tipo de tarefa</mat-label>
+        <mat-select [(ngModel)]="a.taskType" (ngModelChange)="changed()" [disabled]="ro">
+          <mat-option value="CALLBACK">{{ taskLabels.CALLBACK }}</mat-option>
+          <mat-option value="FOLLOW_UP">{{ taskLabels.FOLLOW_UP }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="app-compact se-num">
+        <mat-label>Prazo</mat-label>
+        <input matInput type="number" min="0" step="1" [ngModel]="d.value" (ngModelChange)="setDue($event, d.unit)" [disabled]="ro" />
+      </mat-form-field>
+      <mat-form-field class="app-compact se-unit">
+        <mat-label>Unidade</mat-label>
+        <mat-select [ngModel]="d.unit" (ngModelChange)="setDue(d.value, $event)" [disabled]="ro">
+          @for (u of units; track u.value) {
+            <mat-option [value]="u.value">{{ u.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <mat-form-field class="app-compact app-full-width">
+      <mat-label>Observação (opcional)</mat-label>
+      <input matInput [(ngModel)]="a.taskNote" (ngModelChange)="changed()" maxlength="500" [disabled]="ro" />
+      <mat-hint>Sem dados pessoais.</mat-hint>
+    </mat-form-field>
+  }
+
+  @if (a.type === 'MOVE_TO_QUEUE') {
+    <mat-form-field class="app-compact app-full-width se-top">
+      <mat-label>Equipe</mat-label>
+      <mat-select [(ngModel)]="a.teamId" (ngModelChange)="changed()" [disabled]="ro">
+        <mat-option [value]="null">Fila do roteamento (sem equipe fixa)</mat-option>
+        @for (t of teams(); track t.value) {
+          <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+</fieldset>
+
+<fieldset class="se-group">
+  <legend>Se o devedor responder a esta etapa</legend>
+  <div class="se-row">
+    <mat-form-field class="app-compact se-grow">
+      <mat-label>Transição</mat-label>
+      <mat-select [ngModel]="s.onReply" (ngModelChange)="setReply($event)" [disabled]="ro">
+        <mat-option [value]="null">Usar a regra padrão da régua</mat-option>
+        @for (r of replies; track r) {
+          <mat-option [value]="r">{{ replyLabels[r] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    @if (s.onReply === 'GOTO_STEP') {
+      <mat-form-field class="app-compact se-grow">
+        <mat-label>Ir para a etapa</mat-label>
+        <mat-select [(ngModel)]="s.onReplyStepCode" (ngModelChange)="changed()" [disabled]="ro">
+          @for (o of otherSteps(); track o.code) {
+            <mat-option [value]="o.code">{{ o.code }}{{ o.name ? ' — ' + o.name : '' }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>O agendado é cancelado; a espera da etapa de destino vale.</mat-hint>
+      </mat-form-field>
+    }
+  </div>
+</fieldset>
+
+@if (!ro) {
+  <div class="se-actions">
+    <button mat-button type="button" (click)="move.emit({ index: i, delta: -1 })" [disabled]="i === 0" aria-label="Mover etapa para cima"><mat-icon aria-hidden="true">arrow_upward</mat-icon>Subir</button>
+    <button mat-button type="button" (click)="move.emit({ index: i, delta: 1 })" [disabled]="i === steps().length - 1" aria-label="Mover etapa para baixo"><mat-icon aria-hidden="true">arrow_downward</mat-icon>Descer</button>
+    <button mat-button type="button" (click)="duplicate.emit(i)"><mat-icon aria-hidden="true">content_copy</mat-icon>Duplicar</button>
+    <button mat-button type="button" class="se-danger" (click)="remove.emit(i)"><mat-icon aria-hidden="true">delete</mat-icon>Remover</button>
+  </div>
+}

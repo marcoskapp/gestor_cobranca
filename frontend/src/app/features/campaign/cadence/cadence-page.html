@@ -1,0 +1,218 @@
+@if (campaign.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando régua">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton class="cp-gap" variant="card" [rows]="6" />
+  </div>
+} @else if (campaign.status() === 'error') {
+  <app-empty-state icon="linear_scale" tone="error" title="Não foi possível abrir a régua." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+    <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/campanhas">Voltar para campanhas</a>
+  </app-empty-state>
+}
+
+@if (current(); as c) {
+  <app-page-header [title]="'Régua · ' + c.name" subtitle="Etapas em sequência: espera, janela de horário, condição, ação e o que a resposta do devedor faz.">
+    @if (canManage() && c.status !== 'FINISHED') {
+      @if (editable()) {
+        @if (dirty()) {
+          <button mat-stroked-button type="button" (click)="discard()">Descartar alterações</button>
+          <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
+            <mat-icon aria-hidden="true">save</mat-icon>
+            Salvar rascunho
+          </button>
+        } @else if (draftVersion()) {
+          <button
+            mat-flat-button
+            type="button"
+            (click)="publish()"
+            [disabled]="allProblems().length > 0 || hasOffer()"
+            [matTooltip]="hasOffer() ? 'Etapas de oferta ainda não podem ser publicadas' : allProblems().length ? 'Corrija os problemas indicados' : 'Publica a nova versão da régua'"
+          >
+            <mat-icon aria-hidden="true">publish</mat-icon>
+            Publicar versão
+          </button>
+        }
+      } @else if (publishedVersion() && !draftVersion()) {
+        <button mat-flat-button type="button" (click)="newVersion()" matTooltip="Copia a versão publicada para um novo rascunho">
+          <mat-icon aria-hidden="true">content_copy</mat-icon>
+          Nova versão
+        </button>
+      }
+    }
+  </app-page-header>
+  <app-campaign-tabs [campaignId]="c.id" />
+
+  @for (e of errors(); track e) {
+    <p class="app-alert app-alert--error" role="alert">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <span>{{ e }}</span>
+    </p>
+  }
+
+  <div class="cp-layout">
+    <div class="cp-main">
+      <section class="app-card cp-summary" aria-label="Versão exibida" data-tour="cadence-status">
+        @if (startingNew()) {
+          <app-status-chip domain="cadence" status="DRAFT" />
+          <span>Nova versão a partir da {{ publishedVersion()?.versionNumber }} (ainda não salva)</span>
+        } @else if (selected(); as v) {
+          <app-status-chip domain="cadence" [status]="v.status" />
+          <span>Versão {{ v.versionNumber }}</span>
+          @if (v.publishedAt) {
+            <span class="app-muted">· publicada em {{ v.publishedAt | appDate }}@if (v.publishedBy) { por {{ publishers.name(v.publishedBy) }}}</span>
+          } @else {
+            <span class="app-muted">· criada em {{ v.createdAt | appDate }}</span>
+          }
+        } @else {
+          <app-status-chip domain="cadence" status="DRAFT" />
+          <span>Primeira versão (ainda não salva)</span>
+        }
+        @if (dirty()) {
+          <span class="app-status app-status--warning">Alterações não salvas</span>
+        }
+        @if (templates() === null && editable()) {
+          <span class="app-muted cp-small">Templates conferidos pelo servidor ao publicar.</span>
+        }
+      </section>
+
+      @if (editable() && allProblems().length) {
+        <section class="app-alert app-alert--error cp-problems" role="alert" aria-label="Problemas na régua">
+          <mat-icon aria-hidden="true">error_outline</mat-icon>
+          <div>
+            <strong>{{ allProblems().length }} problema(s) a corrigir antes de publicar:</strong>
+            <ul>
+              @for (p of allProblems().slice(0, 8); track p) {
+                <li>{{ p }}</li>
+              }
+            </ul>
+          </div>
+        </section>
+      }
+
+      <section class="app-card" aria-labelledby="cp-reply" data-tour="cadence-reply">
+        <h2 class="app-card__title" id="cp-reply">Resposta do devedor (regra padrão)</h2>
+        <div class="cp-row">
+          <mat-form-field class="app-compact cp-grow">
+            <mat-label>Quando o devedor responde</mat-label>
+            <mat-select [ngModel]="draft().defaultOnReply" (ngModelChange)="setDefaultReply($event)" [disabled]="!editable()">
+              @for (r of replies; track r) {
+                <mat-option [value]="r">{{ replyLabels[r] }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint>Vale para as etapas sem regra própria (a da última etapa executada prevalece).</mat-hint>
+          </mat-form-field>
+          @if (draft().defaultOnReply === 'GOTO_STEP') {
+            <mat-form-field class="app-compact cp-grow">
+              <mat-label>Ir para a etapa</mat-label>
+              <mat-select [(ngModel)]="draft().defaultOnReplyStepCode" (ngModelChange)="edited()" [disabled]="!editable()">
+                @for (s of draft().steps; track s.code) {
+                  <mat-option [value]="s.code">{{ s.code }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+          @if (draft().defaultOnReply === 'MOVE_TO_QUEUE') {
+            <mat-form-field class="app-compact cp-grow">
+              <mat-label>Equipe</mat-label>
+              <mat-select [(ngModel)]="draft().replyTeamId" (ngModelChange)="edited()" [disabled]="!editable()">
+                <mat-option [value]="null">Fila do roteamento</mat-option>
+                @for (t of teams(); track t.value) {
+                  <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+        </div>
+      </section>
+
+      <section aria-labelledby="cp-steps" data-tour="cadence-steps">
+        <h2 class="app-section-title" id="cp-steps">Etapas ({{ draft().steps.length }} de até {{ maxSteps }})</h2>
+        <ol class="cp-flow">
+          <li class="cp-start" aria-hidden="true">
+            <mat-icon>login</mat-icon>
+            Caso inscrito
+          </li>
+          @for (s of draft().steps; track $index; let i = $index; let last = $last) {
+            @let bad = stepProblems(i).length > 0;
+            <li class="cp-wait">
+              <span class="cp-wait__line" aria-hidden="true"></span>
+              <span class="cp-wait__text"><mat-icon aria-hidden="true">schedule</mat-icon>{{ wait(s, i) }} · {{ window(s) }}</span>
+            </li>
+            <li class="cp-step" [class.cp-step--open]="openStep() === i" [class.cp-step--bad]="bad">
+              <button type="button" class="cp-step__head" (click)="toggle(i)" [attr.aria-expanded]="openStep() === i" [attr.aria-controls]="'cp-step-' + i">
+                <span class="cp-step__num" aria-hidden="true">{{ i + 1 }}</span>
+                <mat-icon class="cp-step__icon" aria-hidden="true">{{ actionIcons[s.action.type] }}</mat-icon>
+                <span class="cp-step__text">
+                  <span class="cp-step__title">
+                    <span class="cdk-visually-hidden">Etapa {{ i + 1 }}:</span>
+                    {{ s.code }}{{ s.name ? ' — ' + s.name : '' }}
+                  </span>
+                  <span class="cp-step__summary">{{ summary(s) }}</span>
+                  @if (conditions(s); as cond) {
+                    <span class="cp-step__meta">{{ cond }}</span>
+                  }
+                  <span class="cp-step__meta">Resposta: {{ reply(s) }}</span>
+                </span>
+                @if (bad) {
+                  <span class="app-status app-status--danger cp-step__badge"><mat-icon aria-hidden="true">error_outline</mat-icon>{{ stepProblems(i).length }} problema(s)</span>
+                } @else if (stepWarnings(i).length) {
+                  <span class="app-status app-status--warning cp-step__badge"><mat-icon aria-hidden="true">warning_amber</mat-icon>aviso</span>
+                }
+                <mat-icon class="cp-step__chevron" aria-hidden="true">{{ openStep() === i ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+              @if (openStep() === i) {
+                <div class="cp-step__body" [id]="'cp-step-' + i">
+                  <app-step-editor
+                    [step]="s"
+                    [index]="i"
+                    [steps]="draft().steps"
+                    [templates]="templates()"
+                    [creditorId]="c.creditorId"
+                    [teams]="teams()"
+                    [readonly]="!editable()"
+                    [problems]="stepProblems(i)"
+                    [warnings]="stepWarnings(i)"
+                    (edited)="edited()"
+                    (move)="moveStep($event)"
+                    (duplicate)="duplicateStep($event)"
+                    (remove)="removeStep($event)"
+                  />
+                </div>
+              }
+            </li>
+            @if (last) {
+              <li class="cp-end" aria-hidden="true">
+                <mat-icon>flag</mat-icon>
+                Fim da régua: sem resposta, contato, acordo ou pagamento = régua esgotada{{ c.purpose === 'EXTRAJUDICIAL_COLLECTION' ? ' (indica ao jurídico)' : '' }}
+              </li>
+            }
+          } @empty {
+            <li class="app-muted">Nenhuma etapa.</li>
+          }
+        </ol>
+        @if (editable()) {
+          <button mat-stroked-button type="button" (click)="addStep()" [disabled]="draft().steps.length >= maxSteps" data-tour="cadence-add-step">
+            <mat-icon aria-hidden="true">add</mat-icon>
+            Adicionar etapa
+          </button>
+        }
+      </section>
+    </div>
+
+    <aside class="app-card cp-versions" aria-labelledby="cp-versions" data-tour="cadence-versions">
+      <h2 class="app-card__title" id="cp-versions">Versões da régua</h2>
+      <ol class="cp-version-list">
+        @for (v of versions(); track v.id) {
+          <li [class.cp-version--current]="v.id === selected()?.id && !startingNew()">
+            <button type="button" class="cp-link" (click)="select(v.id)">Versão {{ v.versionNumber }}</button>
+            <app-status-chip domain="cadence" [status]="v.status" />
+            <span class="app-muted cp-small">{{ v.publishedAt ? 'publicada ' + (v.publishedAt | appDate: 'date') : 'criada ' + (v.createdAt | appDate: 'date') }}</span>
+          </li>
+        } @empty {
+          <li class="app-muted cp-small">Nenhuma versão salva ainda.</li>
+        }
+      </ol>
+      <p class="app-muted cp-small">A versão publicada é imutável. Inscrições em andamento seguem a versão com que começaram; a nova vale para as próximas.</p>
+    </aside>
+  </div>
+}

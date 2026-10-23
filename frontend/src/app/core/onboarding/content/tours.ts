@@ -821,6 +821,76 @@ export const TOURS: readonly TourDefinition[] = [
       },
     ],
   },
+  {
+    id: 'campaign.list',
+    version: 1,
+    title: 'Campanhas',
+    summary: 'Réguas automáticas por credor, com finalidade e prioridade.',
+    steps: [
+      { anchor: 'page-actions', title: 'Nova campanha', body: 'Escolha credor, carteira e segmento. A campanha começa em preparação até a régua ser publicada.' },
+      { anchor: 'data-table', title: 'Situação e régua', body: 'Veja a versão publicada da régua e abra a execução de cada campanha.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'campaign.segment',
+    version: 1,
+    title: 'Construtor de segmento',
+    summary: 'Filtros combinados com contagem prévia do público.',
+    steps: [
+      { anchor: 'segment-filters', title: 'Filtros combinados', body: 'Todos os filtros precisam ser atendidos. Casos inelegíveis ficam fora por padrão.' },
+      { anchor: 'segment-add-filter', title: 'Adicionar filtro', body: 'Atraso, saldo, contato, promessa, acordo, score e dono do atendimento.' },
+      { anchor: 'segment-preview', title: 'Prévia', body: 'Devedores, casos e saldo atualizam a cada alteração válida, antes de salvar.', placement: 'start' },
+      { anchor: 'page-actions', title: 'Salvar e duplicar', body: 'Duplique para criar variações sem mexer no segmento usado por campanhas ativas.' },
+    ],
+  },
+  {
+    id: 'campaign.detail',
+    version: 1,
+    title: 'Campanha',
+    summary: 'Situação, público, parâmetros e o ciclo ativar, pausar e encerrar.',
+    steps: [
+      { anchor: 'campaign-tabs', title: 'Telas da campanha', body: 'Régua, execução e testes A/B ficam nas abas.' },
+      { anchor: 'campaign-settings', title: 'Prioridade e exclusividade', body: 'No mesmo grupo, o devedor fica na campanha de maior prioridade.' },
+      { anchor: 'campaign-pause-rules', title: 'Pausas automáticas', body: 'Pagamento, acordo, contestação e restrição pausam a inscrição e retomam quando a causa termina.', placement: 'start' },
+      { anchor: 'page-actions', title: 'Ativar com segurança', body: 'Antes de confirmar, você vê quantos devedores serão alcançados.' },
+    ],
+  },
+  {
+    id: 'campaign.cadence',
+    version: 1,
+    title: 'Régua',
+    summary: 'Etapas em sequência com espera, janela, condição, ação e resposta.',
+    steps: [
+      { anchor: 'cadence-steps', title: 'Etapas', body: 'Abra uma etapa para editar espera, horário, condição, ação e o que a resposta faz.' },
+      { anchor: 'cadence-add-step', title: 'Nova etapa', body: 'Até 30 etapas. Mensagens usam templates publicados com as variáveis conferidas.' },
+      { anchor: 'cadence-reply', title: 'Resposta padrão', body: 'Vale para etapas sem regra própria: encerrar, ir para etapa, assistente ou fila.' },
+      { anchor: 'cadence-versions', title: 'Versões', body: 'Publicada é imutável. Inscrições em andamento seguem a versão com que começaram.', placement: 'start' },
+    ],
+  },
+  {
+    id: 'campaign.execution',
+    version: 1,
+    title: 'Execução',
+    summary: 'Painel com denominadores explícitos e as inscrições.',
+    steps: [
+      { anchor: 'execution-kpis', title: 'Indicadores', body: 'Inscritos, etapas, falhas, respostas, acordos e valor recuperado atribuídos à campanha.' },
+      { anchor: 'execution-skips', title: 'Puladas e falhas', body: 'Motivo de cada etapa pulada ou com falha, para corrigir a causa.' },
+      { anchor: 'page-actions', title: 'Reprocessar', body: 'Falhas voltam para a mesma etapa sem duplicar mensagens.' },
+      { anchor: 'execution-enrollments', title: 'Inscrições', body: 'Estado e motivo por caso. Abra uma inscrição para ver as etapas e pausar ou encerrar.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'campaign.experiment',
+    version: 1,
+    title: 'Teste A/B',
+    summary: 'Variantes, grupo de controle e resultado com intervalo de confiança.',
+    steps: [
+      { anchor: 'experiment-config', title: 'Controle e amostra', body: 'O grupo de controle não recebe ações. Defina horizonte e amostra mínima antes de iniciar.' },
+      { anchor: 'experiment-variants', title: 'Variantes', body: 'Altere template, canal, horário ou oferta de etapas da régua publicada.' },
+      { anchor: 'experiment-results', title: 'Resultados', body: 'Barra e texto mostram estimativa e intervalo de 95%. Significativa quando a diferença não cruza o zero.' },
+      { anchor: 'page-actions', title: 'Iniciar e encerrar', body: 'Ao iniciar, o teste fica congelado. Encerre registrando a decisão.' },
+    ],
+  },
 ];
 
 export function findTour(id: string): TourDefinition | undefined {
