@@ -98,12 +98,27 @@ abstract class IngestionTestSupport extends IntegrationTest {
         return tenantExecution.callInTenant(tenant, "test", action);
     }
 
-    /** Usuário importador com escopo restrito ao credor. */
+    /**
+     * Usuário importador com escopo restrito ao credor. Jobs enfileirados pela ação são adiados na
+     * mesma transação: o {@code JobWorker} de contextos de teste em cache não os executa, e o teste
+     * controla cada fatia com {@link #runJobs(int)}.
+     */
     <T> T asImporterOf(UUID creditorId, Supplier<T> action) {
         Actor user = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "importador",
                 EnumSet.of(Permission.IMPORT_VIEW, Permission.IMPORT_EXECUTE, Permission.DEBTOR_VIEW),
                 CreditorScope.of(List.of(creditorId)));
-        return tenantExecution.callAs(user, action);
+        return tenantExecution.callAs(user, () -> {
+            T result = action.get();
+            deferPendingJobs();
+            return result;
+        });
+    }
+
+    private void deferPendingJobs() {
+        jdbcTemplate.update("""
+                update shared.processing_job set run_at = now() + interval '1 day'
+                where tenant_id = ? and type = ? and status = 'PENDING'
+                """, tenant, JOB_TYPE);
     }
 
     ImportBatchView uploadCsv(String fileName, String content, String mode) {
@@ -131,20 +146,23 @@ abstract class IngestionTestSupport extends IntegrationTest {
         JobHandler handler = jobHandlers.stream().filter(h -> h.type().equals(JOB_TYPE)).findFirst().orElseThrow();
         int executed = 0;
         while (executed < maxJobs) {
-            List<Map<String, Object>> pending = jdbcTemplate.queryForList("""
-                    select id, payload::text as payload, attempts from shared.processing_job
-                    where tenant_id = ? and type = ? and status = 'PENDING' order by created_at limit 1
+            List<Map<String, Object>> claimed = jdbcTemplate.queryForList("""
+                    update shared.processing_job set status = 'RUNNING', attempts = attempts + 1, started_at = now()
+                    where id = (select id from shared.processing_job
+                                where tenant_id = ? and type = ? and status = 'PENDING'
+                                order by created_at limit 1 for update skip locked)
+                    returning id, payload::text as payload, attempts
                     """, tenant, JOB_TYPE);
-            if (pending.isEmpty()) {
+            if (claimed.isEmpty()) {
                 break;
             }
-            UUID id = (UUID) pending.getFirst().get("id");
-            int attempt = ((Number) pending.getFirst().get("attempts")).intValue() + 1;
-            jdbcTemplate.update("update shared.processing_job set status = 'RUNNING', attempts = ?, started_at = now() where id = ?",
-                    attempt, id);
-            Object payload = json.fromJson((String) pending.getFirst().get("payload"), handler.payloadType());
+            UUID id = (UUID) claimed.getFirst().get("id");
+            int attempt = ((Number) claimed.getFirst().get("attempts")).intValue();
+            Object payload = json.fromJson((String) claimed.getFirst().get("payload"), handler.payloadType());
             tenantExecution.inTenant(tenant, "job:" + JOB_TYPE, () -> {
                 handler.handle(new JobContext(id, tenant, JOB_TYPE, attempt), payload);
+                // a próxima fatia, enfileirada nesta transação, também fica sob controle do teste
+                deferPendingJobs();
                 jdbcTemplate.update("update shared.processing_job set status = 'DONE', finished_at = now() where id = ?", id);
             });
             executed++;
