@@ -24,13 +24,16 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 18 | debt **[revisar — jurídico]** | Prescrição calculada por pretensão (execução × cobrança), prazos em meses, regras por tenant em banco semeadas com tabela de mercado marcada `PENDING_LEGAL_REVIEW` (contrato/confissão 60/60 meses; CCB, nota promissória e duplicata 60/36; cheque 60/6 após 30 dias de apresentação). Interrupção padrão "só a primeira" (CC art. 202). | Data única por título; prazos em código. | Cheque e títulos de crédito têm prazos distintos para executar e cobrar; nenhum prazo fixo em código. |
 | 19 | debt | Permissões próprias `COLLATERAL_MANAGE` e `PRESCRIPTION_MANAGE`; situação `CONSOLIDATED` só para alienação fiduciária de imóvel (Lei 9.514/97); dados de pessoa física fora da identificação do bem. | Reaproveitar `DEBT_TITLE_MANAGE`. | Segregação para o jurídico; minimização de dados. |
 | 20 | debt | Coobrigados visíveis na ficha para quem tem escopo sobre o credor, mas **não** abrem casos de cobrança automaticamente (depende de política do credor no collection). | Cobrar coobrigados automaticamente. | Cobrança de avalista/fiador é decisão contratual do credor. |
+| 21 | negotiation **[revisar]** | Cálculo: mora só sobre o principal; juros pro rata die em mês comercial de 30 dias; correção composta pro rata mensal; índice ainda não publicado = 0% (com aviso); deflação não reduz principal; honorários recalculados sobre a base já descontada; arredondamento HALF_EVEN. | Dias úteis/365; bloquear sem índice; honorários fixos. | Convenções usuais no Brasil; evita juros sobre juros. |
+| 22 | negotiation | Nº de parcelas inclui a entrada (à vista = 1); sobreposição de política substitui grupos inteiros (carteira + faixa > carteira > faixa); faixa de atraso da negociação = maior atraso dos títulos. | Entrada + N; mescla campo a campo. | Padrão de mercado; previsível. |
+| 23 | negotiation | Sem atribuição: usuário = JUNIOR, assistente = ASSISTENTE_INICIAL (que não formaliza); ninguém atribui a própria alçada; o assistente nunca vê o envelope completo da política. | Negar quem não tem perfil; formalização autônoma desde o início. | Operável sem abrir limite; adoção conservadora da IA; minimização de dados ao modelo. |
+| 24 | negotiation | Simulações persistidas com versão do motor; justificativa de concessão registrada por motivo codificado (texto livre só no banco). | Simulação efêmera. | Reprodutibilidade (RB03) e base para a parte 2; sem PII em log. |
 
 ## Situação ao fim da sessão autônoma
 
-- **Integrados na master (testes verdes):** garantias/coobrigados/prescrição (23/10 manhã), compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
+- **Integrados na master (testes verdes):** garantias/coobrigados/prescrição e negotiation parte 1 (23/10 manhã), compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
 - **Interrompidos pelo responsável e não retomados** (trabalho não commitado preservado nos worktrees, nada foi descartado):
   - `wt-modulo-ingestion` — 4 arquivos alterados, sem commit;
   - `wt-modulo-collection` — 2 arquivos alterados, sem commit;
   - `wt-frontend-debt-compliance` — 6 arquivos alterados, sem commit;
-  - `wt-negotiation-motor` — sem alterações.
 - Próxima onda (negotiation parte 2, payment, communication, settlement…) **não foi iniciada**, aguardando orientação.
