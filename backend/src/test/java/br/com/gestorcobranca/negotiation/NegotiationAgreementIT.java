@@ -301,8 +301,7 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         // transferência pelo contrato do communication (consumido como communication.handoff-requested)
         awaitTrue("handoff consumido pelo communication", () -> {
             Long consumed = jdbcTemplate.queryForObject("select count(*) from shared.consumed_event "
-                    + "where consumer = 'communication.handoff-requested' and consumed_at > now() - interval '5 minutes'",
-                    Long.class);
+                    + "where consumer = 'communication.handoff-requested' and tenant_id = ?", Long.class, tenant);
             return consumed != null && consumed >= 1;
         });
         // o assistente não vê propostas de humanos; o humano assume a sugestão
