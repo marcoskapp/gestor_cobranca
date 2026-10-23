@@ -37,4 +37,7 @@ public interface DebtTitleRepository {
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
 
     Page<DebtTitle> search(TitleSearchCriteria criteria, Pageable pageable);
+
+    /** Devedores distintos com títulos do credor marcados pelo lote, em ordem de id, após {@code afterDebtorId}. */
+    List<UUID> findDebtorIdsByImportBatch(UUID creditorId, UUID importBatchId, UUID afterDebtorId, int limit);
 }

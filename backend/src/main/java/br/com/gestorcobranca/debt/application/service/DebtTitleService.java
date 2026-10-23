@@ -194,6 +194,16 @@ class DebtTitleService implements DebtTitleUseCases {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<UUID> debtorIdsByImportBatch(UUID creditorId, UUID importBatchId, UUID afterDebtorId, int limit) {
+        Guard.require(creditorId != null && importBatchId != null, "title.import_batch_required",
+                "Credor e lote de importação obrigatórios");
+        Guard.require(limit >= 1 && limit <= 1000, "title.batch_limit_invalid", "Tamanho do lote entre 1 e 1000");
+        accessScope.requireCreditor(creditorId);
+        return titles.findDebtorIdsByImportBatch(creditorId, importBatchId, afterDebtorId, limit);
+    }
+
+    @Override
     public List<TitleView> transferPortfolio(Collection<UUID> titleIds, UUID targetPortfolioId, String reason) {
         Guard.require(targetPortfolioId != null, "title.portfolio_required", "Carteira de destino obrigatória");
         Guard.require(reason != null && !reason.isBlank(), "title.reason_required", "Informe o motivo da transferência");
