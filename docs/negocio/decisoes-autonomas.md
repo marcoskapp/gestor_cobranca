@@ -63,6 +63,7 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 57 | collection | "Posso contatar agora?" por caso no collection (`GET /collection/cases/{id}/contact-availability`, `CASE_WORK`): decisão do porteiro por canal + elegibilidade do caso, próximo horário permitido, sem registrar tentativa nem expor a política. A tela não calcula mais janelas. | Endpoint no compliance por devedor + credor. | Escopo derivado do caso; inclui contestação/suspensão; grafo collection → compliance. |
 | 58 | identity | Lookup leve de nomes de usuários (`GET /users/display-names`): só id e nome, até 100 ids, mesma assessoria, para `CASE_VIEW`, `POLICY_VIEW` ou `USER_VIEW`; usado no histórico de interações e em "publicada por". | Abrir `/users` para operadores. | `/users` traz e-mail, perfis e escopo. |
 | 59 | collection | Agenda traz `debtorId`; nome do devedor só com `CASE_VIEW`/`DEBTOR_VIEW`. Contestações trazem número/parcela/vencimento/valor dos títulos e o nome de quem anexou cada evidência. | Nome sempre; tela buscar caso + devedor por tarefa. | Mesma regra da ficha; elimina N+1 requisições. |
+| 60 | plataforma | `spring-modulith-moments` desativado (`spring.modulith.moments.enabled=false`): a autoconfiguração ativava `@EnableScheduling` sozinha e anulava `app.scheduling.enabled`; teste `SchedulingDisabledIT` protege a regra. | Remover a dependência transitiva. | O módulo não é usado; agendamento fica só sob `SchedulingConfig`. |
 
 ## Situação ao fim da sessão autônoma
 

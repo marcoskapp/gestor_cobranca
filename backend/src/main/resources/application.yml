@@ -62,6 +62,10 @@ spring:
       enabled: true
 
   modulith:
+    # Moments não é usado; a autoconfiguração dele ativa @EnableScheduling por conta própria e
+    # anularia app.scheduling.enabled (agendamento é controlado só por SchedulingConfig)
+    moments:
+      enabled: false
     events:
       republish-outstanding-events-on-restart: false
       completion-mode: update
