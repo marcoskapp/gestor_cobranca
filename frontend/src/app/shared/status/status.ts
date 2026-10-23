@@ -47,7 +47,12 @@ export type StatusDomain =
   | 'lawsuit'
   | 'legalDeadline'
   | 'hearing'
-  | 'legalExpense';
+  | 'legalExpense'
+  | 'campaign'
+  | 'cadence'
+  | 'enrollment'
+  | 'experiment'
+  | 'stepOutcome';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -309,6 +314,39 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     RECORDED: { label: 'Registrada', tone: 'info' },
     REIMBURSED: { label: 'Reembolsada', tone: 'success' },
     CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+  },
+  /** `CampaignStatus` (campaign). */
+  campaign: {
+    DRAFT: { label: 'Em preparação', tone: 'info' },
+    ACTIVE: { label: 'Ativa', tone: 'success' },
+    PAUSED: { label: 'Pausada', tone: 'warning' },
+    FINISHED: { label: 'Encerrada', tone: 'neutral' },
+  },
+  /** Versões da régua (`CadenceStatus`). */
+  cadence: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    PUBLISHED: { label: 'Publicada', tone: 'success' },
+    RETIRED: { label: 'Retirada', tone: 'neutral' },
+  },
+  /** Inscrição de um caso na campanha (`EnrollmentStatus`). */
+  enrollment: {
+    ACTIVE: { label: 'Em andamento', tone: 'info' },
+    PAUSED: { label: 'Pausada', tone: 'warning' },
+    FAILED: { label: 'Com falha', tone: 'danger' },
+    HOLDOUT: { label: 'Grupo de controle', tone: 'neutral' },
+    ENDED: { label: 'Encerrada', tone: 'neutral' },
+  },
+  /** Teste A/B (`ExperimentStatus`). */
+  experiment: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    RUNNING: { label: 'Em execução', tone: 'success' },
+    STOPPED: { label: 'Encerrado', tone: 'neutral' },
+  },
+  /** Execução de etapa (`StepOutcome`). */
+  stepOutcome: {
+    EXECUTED: { label: 'Executada', tone: 'success' },
+    SKIPPED: { label: 'Pulada', tone: 'warning' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
   },
 };
 
