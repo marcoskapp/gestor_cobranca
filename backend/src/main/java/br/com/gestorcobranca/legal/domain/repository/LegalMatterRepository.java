@@ -1,7 +1,6 @@
 package br.com.gestorcobranca.legal.domain.repository;
 
 import br.com.gestorcobranca.legal.domain.model.LegalMatter;
-import br.com.gestorcobranca.legal.domain.model.LegalStage;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -30,16 +29,6 @@ public interface LegalMatterRepository {
     List<LegalMatter> findOpenByTitleId(UUID titleId);
 
     Page<LegalMatter> search(MatterSearchCriteria criteria, Pageable pageable);
-
-    /** Contagem e somatórios por fase, no escopo informado (painel jurídico). */
-    List<StageSummary> summarize(MatterSearchCriteria criteria);
-
-    /**
-     * @param matters quantidade de casos jurídicos na fase
-     */
-    record StageSummary(LegalStage stage, long matters, java.math.BigDecimal debtAmount,
-                        java.math.BigDecimal expensesTotal, java.math.BigDecimal recoveredAmount) {
-    }
 
     List<LegalMatter> findAllByIdIn(Collection<UUID> ids);
 }

@@ -142,7 +142,7 @@ class LegalEligibilityService implements LegalEligibilityUseCases {
     }
 
     private static LegalEligibilityRule.Criteria criteria(RuleCommand c) {
-        return new LegalEligibilityRule.Criteria(c.name(), c.minDaysOverdue(), Money.ofNullable(c.minOpenBalance()),
+        return new LegalEligibilityRule.Criteria(c.name(), c.minDaysOverdue(), LegalViews.money(c.minOpenBalance()),
                 c.requireCollateral(), c.requireExecutiveTitle(), c.minBrokenAgreements(), c.prescriptionWithinDays());
     }
 

@@ -145,6 +145,7 @@ public class ExtrajudicialMeasure extends TenantScopedEntity {
     }
 
     public MeasureStatus markEffective(LocalDate on, LocalDate today, String reason) {
+        requireCanMove(MeasureStatus.EFFECTIVE);
         Guard.require(on != null && !on.isAfter(today) && !on.isBefore(submittedOn), "legal_measure.date_invalid",
                 "Data de efetivação obrigatória, não futura e posterior ao envio");
         MeasureStatus previous = move(MeasureStatus.EFFECTIVE, reason);
@@ -163,11 +164,15 @@ public class ExtrajudicialMeasure extends TenantScopedEntity {
         return previous;
     }
 
-    private MeasureStatus move(MeasureStatus target, String reason) {
+    private void requireCanMove(MeasureStatus target) {
         if (!status.canMoveTo(target)) {
             throw new ConflictException("legal_measure.transition_invalid",
                     "Medida em %s não pode passar a %s".formatted(status, target));
         }
+    }
+
+    private MeasureStatus move(MeasureStatus target, String reason) {
+        requireCanMove(target);
         MeasureStatus previous = status;
         this.status = target;
         this.statusReason = text(reason, 500, "legal_measure.reason_too_long");

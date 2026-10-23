@@ -87,6 +87,11 @@ final class LegalViews {
         return values.stream().map(Enum::name).map(String::valueOf).toList();
     }
 
+    /** Valor opcional: nulo continua nulo (diferente de {@code Money.ofNullable}, que devolve zero). */
+    static Money money(BigDecimal amount) {
+        return amount == null ? null : Money.of(amount);
+    }
+
     static BigDecimal amount(Money money) {
         return money == null ? null : money.amount();
     }

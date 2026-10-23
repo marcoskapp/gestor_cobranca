@@ -64,7 +64,10 @@ class DeadlineRecorder {
     }
 
     LegalDeadline create(LegalMatter matter, Spec s, String source) {
-        matter.requireOpen();
+        if (s.kind() != DeadlineKind.RESTRICTION_REMOVAL) {
+            // a baixa de protesto/negativação é acompanhada mesmo depois do encerramento
+            matter.requireOpen();
+        }
         LocalDate today = LegalViews.today(clock);
         if (s.mode() == CountingMode.FIXED_DATE) {
             Guard.require(s.fixedDate() != null && !s.fixedDate().isBefore(today)

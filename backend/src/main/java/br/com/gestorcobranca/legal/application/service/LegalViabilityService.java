@@ -174,7 +174,7 @@ class LegalViabilityService implements LegalViabilityUseCases {
         List<CollateralView> collaterals = facts.collateralsOf(snapshots);
         ViabilityCalculator.Input input = new ViabilityCalculator.Input(facts.viabilityTitles(snapshots),
                 collaterals.stream().map(k -> new ViabilityCalculator.CollateralFact(k.id(), k.type(), k.status(),
-                        Money.ofNullable(k.estimatedValue()))).toList(),
+                        LegalViews.money(k.estimatedValue()))).toList(),
                 Money.ofNullable(in == null ? null : in.otherAssetsValue()),
                 percentage(in == null ? null : in.realizationRate(), DEFAULT_REALIZATION),
                 percentage(in == null ? null : in.successProbability(), DEFAULT_PROBABILITY),

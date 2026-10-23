@@ -26,7 +26,8 @@ import br.com.gestorcobranca.legal.domain.repository.LegalDeadlineRepository;
 import br.com.gestorcobranca.legal.domain.repository.LegalDocumentRepository;
 import br.com.gestorcobranca.legal.domain.repository.LegalExpenseRepository;
 import br.com.gestorcobranca.legal.domain.repository.LegalMatterRepository;
-import br.com.gestorcobranca.legal.domain.repository.LegalMatterRepository.StageSummary;
+import br.com.gestorcobranca.legal.application.port.out.LegalDashboardReader;
+import br.com.gestorcobranca.legal.application.port.out.LegalDashboardReader.StageRow;
 import br.com.gestorcobranca.legal.domain.repository.MatterSearchCriteria;
 import br.com.gestorcobranca.legal.domain.repository.StageHistoryRepository;
 import br.com.gestorcobranca.legal.domain.repository.ViabilityAssessmentRepository;
@@ -70,6 +71,7 @@ class LegalMatterService implements LegalMatterUseCases {
     private final LegalExpenseRepository expenses;
     private final LegalDocumentRepository documents;
     private final AgreementRecordRepository agreements;
+    private final LegalDashboardReader dashboardReader;
     private final LawFirmRepository firms;
     private final LawFirmMemberRepository members;
     private final CaseUseCases cases;
@@ -93,7 +95,8 @@ class LegalMatterService implements LegalMatterUseCases {
                        ViabilityAssessmentRepository assessments, CreditorAuthorizationRepository authorizations,
                        ExtrajudicialMeasureRepository measures, LawsuitRepository lawsuits,
                        LegalDeadlineRepository deadlines, LegalExpenseRepository expenses,
-                       LegalDocumentRepository documents, AgreementRecordRepository agreements, LawFirmRepository firms,
+                       LegalDocumentRepository documents, AgreementRecordRepository agreements,
+                       LegalDashboardReader dashboardReader, LawFirmRepository firms,
                        LawFirmMemberRepository members, CaseUseCases cases, DebtorUseCases debtors,
                        DebtTitleUseCases titles, UserDirectory users, Referrals referrals, MatterRecorder recorder,
                        MatterRequirements requirements, AuthorizationRecorder authorizationRecorder,
@@ -110,6 +113,7 @@ class LegalMatterService implements LegalMatterUseCases {
         this.expenses = expenses;
         this.documents = documents;
         this.agreements = agreements;
+        this.dashboardReader = dashboardReader;
         this.firms = firms;
         this.members = members;
         this.cases = cases;
@@ -300,15 +304,13 @@ class LegalMatterService implements LegalMatterUseCases {
             accessScope.requireVisible("creditor", creditorId, creditorId);
         }
         UUID firm = access.firmFilter().orElse(null);
-        MatterSearchCriteria criteria = new MatterSearchCriteria(access.creditorFilter(), firm, creditorId, null, null,
-                null, null, null, null, null, null);
-        List<StageSummary> summary = matters.summarize(criteria);
+        List<StageRow> summary = dashboardReader.stages(access.creditorFilter(), firm, creditorId);
         long open = 0;
         BigDecimal openDebt = BigDecimal.ZERO;
         BigDecimal expensesTotal = BigDecimal.ZERO;
         BigDecimal recovered = BigDecimal.ZERO;
-        for (StageSummary s : summary) {
-            if (!s.stage().isTerminal()) {
+        for (StageRow s : summary) {
+            if (!LegalStage.valueOf(s.stage()).isTerminal()) {
                 open += s.matters();
                 openDebt = openDebt.add(s.debtAmount());
             }
@@ -321,7 +323,7 @@ class LegalMatterService implements LegalMatterUseCases {
                 null, today.plusDays(5), null), PageRequest.of(0, 1)).getTotalElements();
         long missed = deadlines.search(new DeadlineSearchCriteria(scope, firm, null, EnumSet.of(DeadlineStatus.MISSED),
                 null, null, null), PageRequest.of(0, 1)).getTotalElements();
-        return new Dashboard(summary.stream().map(s -> new StageCount(s.stage().name(), s.matters(), s.debtAmount(),
+        return new Dashboard(summary.stream().map(s -> new StageCount(s.stage(), s.matters(), s.debtAmount(),
                 s.expensesTotal(), s.recoveredAmount())).toList(), open, Money.of(openDebt).amount(),
                 Money.of(expensesTotal).amount(), Money.of(recovered).amount(), dueSoon, missed);
     }

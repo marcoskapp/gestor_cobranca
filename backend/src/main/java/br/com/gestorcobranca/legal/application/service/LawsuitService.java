@@ -185,7 +185,7 @@ class LawsuitService implements LawsuitUseCases {
         String cls = lawsuit.getActionClass();
         Money claim = lawsuit.getClaimAmount();
         if (lawsuit.describe(command.courtName(), command.courtUnit(), command.actionClass(),
-                Money.ofNullable(command.claimAmount()))) {
+                LegalViews.money(command.claimAmount()))) {
             lawsuits.save(lawsuit);
             auditTrail.record(AuditEntry.of("lawsuit.updated", ENTITY, lawsuit.getId()).creditor(m.getCreditorId())
                     .change("courtName", name, lawsuit.getCourtName())
@@ -233,7 +233,7 @@ class LawsuitService implements LawsuitUseCases {
                 "legal_movement.collateral_required", "Informe a garantia cuja situação muda");
         CaseMovement movement = movements.save(new CaseMovement(lawsuit.getId(), m.getId(), m.getCreditorId(),
                 command.occurredOn(), type, command.description(), MovementSource.MANUAL, null, null,
-                Money.ofNullable(command.amount()), command.collateralId(), LegalViews.today(clock), lawsuit.getFiledOn()));
+                LegalViews.money(command.amount()), command.collateralId(), LegalViews.today(clock), lawsuit.getFiledOn()));
         int interrupted = applyEffects(m, lawsuit, movement, "movement");
         if (command.collateralStatus() != null) {
             collaterals.change(command.collateralId(), command.collateralStatus().trim().toUpperCase(),
