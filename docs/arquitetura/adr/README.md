@@ -11,3 +11,4 @@ Cada decisão estrutural fica registrada com contexto, decisão e consequências
 | [0005](0005-autenticacao-propria-jwt.md) | Autenticação própria com JWT, refresh rotativo e MFA | Aceita |
 | [0006](0006-spring-boot-4.md) | Spring Boot 4 / Java 21 | Aceita |
 | [0007](0007-frontend-servido-pelo-backend.md) | Frontend Angular servido pelo backend | Aceita |
+| [0008](0008-tempo-real-sse-listen-notify.md) | Tempo real da caixa de entrada: SSE por instância e LISTEN/NOTIFY do PostgreSQL | Aceita |

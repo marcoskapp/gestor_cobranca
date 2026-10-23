@@ -376,3 +376,45 @@ resource "aws_cloudwatch_metric_alarm" "host_disk" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
 }
+
+# --- Caixa de entrada (communication) -------------------------------------------------------
+
+# Conversas que estouraram a meta de primeira resposta (varredura de 1 min, contagem única por espera).
+# A métrica tem dimensões channel/owner: o alarme soma todas por Metrics Insights.
+resource "aws_cloudwatch_metric_alarm" "inbox_sla_breaches" {
+  alarm_name          = "${local.alarm_prefix}-inbox-sla-breaches"
+  alarm_description   = "Conversas aguardando resposta alem da meta de primeira resposta (SLA da caixa de entrada)."
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = var.inbox_sla_breaches_threshold
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+
+  metric_query {
+    id          = "breaches"
+    label       = "communication.inbox.sla.breaches (soma)"
+    period      = 900
+    return_data = true
+    expression  = <<-EOT
+      SELECT SUM("communication.inbox.sla.breaches.count") FROM SCHEMA("${var.metrics_namespace}", application, env, channel, owner) WHERE application = '${var.application_name}' AND env = '${var.environment}'
+    EOT
+  }
+}
+
+# Escuta LISTEN/NOTIFY do tempo real falhando (ADR-0008): a caixa de entrada cai para a atualização periódica.
+resource "aws_cloudwatch_metric_alarm" "inbox_realtime_listener" {
+  alarm_name          = "${local.alarm_prefix}-inbox-realtime-listener"
+  alarm_description   = "Falhas repetidas na escuta de avisos da caixa de entrada (LISTEN/NOTIFY do PostgreSQL)."
+  namespace           = var.metrics_namespace
+  metric_name         = "communication.realtime.listener.failures.count"
+  dimensions          = local.app_dimensions
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 3
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
