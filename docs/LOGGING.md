@@ -29,7 +29,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
 | Ingestão | `import.started`, `import.completed`, `import.failed` |
 | Dívida | `debtor.consolidated`, `title.status_changed` |
-| Operação | `case.opened`, `case.assigned`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `promise.registered`, `dispute.opened`, `dispute.resolved` |
+| Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.approved`, `proposal.rejected`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.reconciled`, `payment.divergence`, `payment.reversed` |
 | Prestação de contas | `commission.accrued`, `settlement.closed` |
@@ -69,6 +69,29 @@ Remuneração individual **nunca** aparece em log (técnico ou de negócio): os 
 | `quality.evaluated` | monitoria registrada | `userId`, `formId`, `score`, `criticalFailure`, `referenceType` |
 
 Consulta a extrato, razão, prévia ou simulação de **outra pessoa** gera `COMPENSATION_DATA_VIEWED` no log de acesso; exportação gera `DATA_EXPORTED` e download `FILE_DOWNLOADED`.
+
+### 3.3 Atributos dos eventos da operação (collection)
+
+Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` e os atributos `daysOverdue`, `overdueBand` (`0-30`, `31-90`,
+`91-180`, `181-360`, `361+`) e `valueBand` do saldo em aberto (`0-500`, `500-1k`, `1k-5k`, `5k-20k`, `20k+`). Observações,
+descrições e pareceres nunca entram no log (ficam criptografados no banco).
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `case.opened` | caso aberto por carga ou mudança de título | `trigger`, `openTitles`, `eligible`, `ineligibleReasons`, `queueId`; `amount` = saldo em aberto |
+| `case.assigned` | responsável humano ou equipe mudou | `mode` (NEXT_CASE, DISTRIBUTION, MANUAL, REDISTRIBUTION, RELEASE, INTERACTION, TAKE_OVER, ASSISTANT_HANDOFF…), `ownerType`, `assigneeId`, `previousAssigneeId`, `teamId`, `queueId`, `eligible`; `amount` = saldo elegível atribuído |
+| `case.status_changed` | mudança de status (exceto encerramento) | `from`, `to`, `trigger`, `assigneeId` |
+| `case.eligibility_changed` | caso passou a elegível ou inelegível | `eligible`, `reasons`, `previousReasons`, `trigger`; `amount` = saldo elegível |
+| `case.closed` | encerramento | `reason`, `from`, `trigger`, `durationDays`, `interactions`, `effectiveContacts`, `assigneeId`; `durationMs` desde a abertura |
+| `interaction.recorded` | interação registrada | `direction`, `outcomeCode` (tabulação), `effectiveContact`, `promise`, `callback`, `source`, `actorType`, `operatorId`, `caseStatus`, `interactionNumber`; `channel`; `durationMs` quando informada |
+| `contact.effective` | interação com contato efetivo (CPC) | `direction`, `outcomeCode`, `operatorId`, `attemptsUntilContact`, `firstEffectiveContact`; `channel`; `amount` = saldo elegível; `durationMs` |
+| `callback.scheduled` | retorno agendado | `assigneeId`, `leadHours`, `dueHour` (hora local), `originInteractionId` |
+| `callback.kept` | retorno cumprido até a tolerância | `assigneeId`, `completedBy`, `minutesFromDue`; `durationMs` após o horário |
+| `callback.missed` | retorno atrasado (tolerância vencida) | `assigneeId`, `minutesLate` |
+| `promise.registered` | promessa registrada | `promiseValueBand`, `daysToDue`, `coverage` (prometido ÷ saldo), `operatorId`; `channel`; `amount` = prometido |
+| `promise.kept` / `promise.broken` | promessa cumprida / quebrada | `paidAmount`, `promiseValueBand`, `daysFromDue`, `partial`, `operatorId`; `amount` = prometido; `durationMs` desde o registro |
+| `dispute.opened` | contestação aberta | `type`, `origin`, `blocksCollection`, `titles`, `responseDays`; `amount` = valor contestado |
+| `dispute.resolved` | contestação resolvida ou retirada | `type`, `origin`, `status`, `outcome`, `durationDays`, `withinDeadline`, `evidences`; `amount`; `durationMs` |
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
@@ -115,6 +138,15 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `compliance.contact_gate.decisions{operation,outcome}`, `compliance.contact_gate.denials{operation,reason}` | porteiro de contato (consultas e autorizações, motivos de negação) |
 | `compliance.dsr.overdue{type}` | solicitações de titulares que passaram do prazo (alarme) |
 | `compliance.restrictions.expired`, `compliance.retention.runs{category,dryRun,outcome}`, `compliance.retention.debtors{outcome}` | fim de vigência de restrições e execuções de retenção |
+| `collection.cases.opened{trigger}`, `collection.cases.closed{reason}`, `collection.cases.transitions{from,to}` | ciclo de vida dos casos |
+| `collection.eligibility.evaluations{outcome,changed}`, `collection.eligibility.reasons{reason}` | elegibilidade (RB02) e motivos de inelegibilidade |
+| `collection.assignments{mode,owner}`, `collection.distribution.cases{strategy,outcome}` | mudanças de dono e distribuição em lote (casos sem destino = `unassigned`) |
+| `collection.next_case{outcome}`, `collection.next_case.duration{outcome}` (p50/p95/p99) | "próximo caso": `own_callback`, `queue`, `empty`, `capacity` |
+| `collection.interactions{channel,direction,effective,source}` | volume de interações e contatos efetivos |
+| `collection.callbacks{status}`, `collection.promises{status}`, `collection.disputes{status}` | retornos, promessas e contestações por situação |
+| `collection.disputes.overdue{type}` | contestações com prazo de resposta vencido (alarme) |
+| `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
+| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos e falhas dos agendamentos (alarme) |
 | `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento |
 | `incentive.ledger.entries{kind,beneficiary}`, `incentive.ledger.transitions{status}` | lançamentos do razão e liberações/dispensas |
 | `incentive.payments.awaiting_attribution` | pagamento recebido antes da atribuição do acordo (crescimento contínuo = produtor sem `AgreementAttributionRecorded`) |
