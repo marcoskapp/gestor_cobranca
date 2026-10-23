@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.ingestion.infrastructure.parsing;
 
+import br.com.gestorcobranca.ingestion.application.port.out.ImportRecordReader.RecordSink;
 import br.com.gestorcobranca.ingestion.domain.model.FileLayout;
 import br.com.gestorcobranca.ingestion.domain.model.ImportFileException;
 import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
@@ -29,8 +30,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
 
 /**
  * XLSX em streaming com a API de eventos (SAX) do Apache POI: a aba é lida linha a linha, sem
@@ -40,20 +44,44 @@ import java.util.function.Consumer;
  * <p>
  * O número da linha é o da planilha (primeira linha = 1); linhas em branco são ignoradas. Se o
  * layout tem cabeçalho, ele é a primeira linha não vazia.
+ * <p>
+ * Proteção contra zip bomb em duas camadas: antes de abrir, o índice do ZIP é inspecionado
+ * (quantidade de partes, tamanhos declarados, tabela de textos, razão de compressão); durante a
+ * leitura, o {@code ZipSecureFile} do POI (configurado em {@code infrastructure.config.IngestionParsingConfig}) confere a
+ * descompactação real, que não depende do que o arquivo declara. Fórmulas não são avaliadas: o
+ * leitor entrega o último valor calculado gravado na planilha.
  */
 final class XlsxRecordReader {
 
-    void read(InputStream content, FileLayout layout, Consumer<SourceRow> consumer) {
+    private static final String SHARED_STRINGS = "xl/sharedStrings.xml";
+
+    private final XlsxLimits limits;
+
+    XlsxRecordReader(XlsxLimits limits) {
+        this.limits = limits;
+    }
+
+    /** Limites do pacote XLSX. */
+    record XlsxLimits(long maxUncompressedTotal, long maxSharedStrings, int maxEntries, int maxCompressionRatio) {
+    }
+
+    void read(InputStream content, FileLayout layout, RecordSink sink) {
         Path temp = null;
         OPCPackage pkg = null;
         try {
-            temp = Files.createTempFile("ingestion-", ".xlsx");
-            Files.copy(content, temp, StandardCopyOption.REPLACE_EXISTING);
+            try {
+                temp = Files.createTempFile("ingestion-", ".xlsx");
+                Files.copy(content, temp, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                // armazenamento ou disco local: transitória
+                throw new UncheckedIOException("Falha de leitura do arquivo de importação", e);
+            }
+            inspect(temp);
             pkg = OPCPackage.open(temp.toFile(), PackageAccess.READ);
             XSSFReader reader = new XSSFReader(pkg);
             ReadOnlySharedStringsTable strings = new ReadOnlySharedStringsTable(pkg, false);
             StylesTable styles = reader.getStylesTable();
-            RowCollector collector = new RowCollector(layout, consumer);
+            RowCollector collector = new RowCollector(layout, sink);
             XMLReader xml = XMLHelper.newXMLReader();
             xml.setContentHandler(new XSSFSheetXMLHandler(styles, strings, collector, new RawValueFormatter(), false));
             try (InputStream sheet = selectSheet(reader, layout.sheetName())) {
@@ -72,7 +100,10 @@ final class XlsxRecordReader {
                  | EmptyFileException e) {
             throw unreadable();
         } catch (IOException e) {
-            throw new UncheckedIOException("Falha de leitura do arquivo de importação", e);
+            // o arquivo já está em disco local: falha de leitura aqui é do conteúdo (ZIP corrompido ou
+            // descompactação recusada pelo ZipSecureFile), permanente
+            throw new ImportFileException("import.file_unreadable",
+                    "Arquivo não é uma planilha XLSX válida ou foi recusado por segurança");
         } finally {
             if (pkg != null) {
                 // pacote aberto somente para leitura: revert() descarta sem tentar gravar
@@ -80,6 +111,42 @@ final class XlsxRecordReader {
             }
             deleteTemp(temp);
         }
+    }
+
+    /** Recusa pacotes cujo índice já denuncia descompactação desproporcional. */
+    private void inspect(Path file) throws IOException {
+        long total = 0;
+        int entries = 0;
+        try (ZipFile zip = new ZipFile(file.toFile())) {
+            Enumeration<? extends ZipEntry> all = zip.entries();
+            while (all.hasMoreElements()) {
+                ZipEntry entry = all.nextElement();
+                if (++entries > limits.maxEntries()) {
+                    throw suspicious("partes demais no pacote");
+                }
+                long size = entry.getSize();
+                long compressed = entry.getCompressedSize();
+                if (size < 0) {
+                    continue;
+                }
+                total += size;
+                if (total > limits.maxUncompressedTotal()) {
+                    throw suspicious("conteúdo descompactado excede o limite");
+                }
+                if (SHARED_STRINGS.equals(entry.getName()) && size > limits.maxSharedStrings()) {
+                    throw suspicious("tabela de textos excede o limite");
+                }
+                if (compressed > 0 && size > 1024 * 1024 && size / compressed > limits.maxCompressionRatio()) {
+                    throw suspicious("razão de compressão suspeita");
+                }
+            }
+        } catch (ZipException e) {
+            throw unreadable();
+        }
+    }
+
+    private static ImportFileException suspicious(String detail) {
+        return new ImportFileException("import.file_rejected", "Planilha recusada por segurança: " + detail);
     }
 
     private static InputStream selectSheet(XSSFReader reader, String sheetName) throws IOException, OpenXML4JException {
@@ -115,13 +182,13 @@ final class XlsxRecordReader {
     private static final class RowCollector implements XSSFSheetXMLHandler.SheetContentsHandler {
 
         private final FileLayout layout;
-        private final Consumer<SourceRow> consumer;
+        private final RecordSink sink;
         private ColumnMapping mapping;
         private List<String> cells = new ArrayList<>();
 
-        RowCollector(FileLayout layout, Consumer<SourceRow> consumer) {
+        RowCollector(FileLayout layout, RecordSink sink) {
             this.layout = layout;
-            this.consumer = consumer;
+            this.sink = sink;
             this.mapping = layout.hasHeader() ? null : ColumnMapping.resolve(layout, null);
         }
 
@@ -147,11 +214,12 @@ final class XlsxRecordReader {
                         return;
                     }
                     mapping = ColumnMapping.resolve(layout, cells);
+                    sink.ignoredColumns(mapping.ignoredColumns());
                     return;
                 }
                 SourceRow row = mapping.map(rowNum + 1L, cells);
                 if (!row.isBlank()) {
-                    consumer.accept(row);
+                    sink.row(row);
                 }
             } catch (RuntimeException e) {
                 throw new ConsumerFailure(e);

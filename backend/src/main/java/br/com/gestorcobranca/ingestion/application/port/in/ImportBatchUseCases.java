@@ -20,6 +20,10 @@ import java.util.UUID;
  * Reenvio do mesmo conteúdo (SHA-256) já importado com sucesso na carteira é recusado
  * ({@code import.duplicate_file}) a menos que o usuário confirme o reprocessamento com
  * {@code force} e justificativa (auditado). Todas as operações respeitam o escopo por credor.
+ * <p>
+ * Reimportação idempotente: cada linha é casada pelo identificador externo do título (e o
+ * devedor pelo documento); reprocessar um arquivo — inteiro ou após uma queda — não duplica
+ * devedores, contatos, títulos, lançamentos ou saldos.
  */
 public interface ImportBatchUseCases {
 
@@ -35,7 +39,10 @@ public interface ImportBatchUseCases {
     /** Novo lote com o arquivo de um lote encerrado (ex.: importar o que foi pré-visualizado). */
     ImportBatchView reprocess(UUID batchId, ReprocessCommand command);
 
-    /** Cancela um lote ainda não processado, retirando o processamento da fila. */
+    /**
+     * Cancela o lote: ainda na fila, de imediato; em processamento, ao fim do bloco corrente (o que
+     * já foi gravado permanece e pode ser completado por nova carga do mesmo arquivo).
+     */
     ImportBatchView cancel(UUID batchId, String reason);
 
     ImportBatchView get(UUID batchId);
@@ -50,6 +57,16 @@ public interface ImportBatchUseCases {
      * log de acesso. Valida o acesso antes de escrever qualquer byte.
      */
     void exportIssues(UUID batchId, OutputStream output);
+
+    /**
+     * Arquivo original do lote (contém dados pessoais em claro): exige {@code DEBTOR_SENSITIVE_VIEW}
+     * e registra {@code FILE_DOWNLOADED}. O chamador fecha o stream.
+     */
+    DownloadableFile originalFile(UUID batchId);
+
+    /** @param size tamanho em bytes */
+    record DownloadableFile(String fileName, String contentType, long size, InputStream content) {
+    }
 
     /** Conteúdo do arquivo enviado, que pode ser aberto mais de uma vez (hash e gravação). */
     @FunctionalInterface
@@ -90,17 +107,21 @@ public interface ImportBatchUseCases {
                            int layoutVersion, String source, String mode, String status, String statusReason,
                            String fileName, long fileSize, String fileSha256, boolean forced, String forceReason,
                            UUID duplicateOfBatchId, UUID reprocessOfBatchId, Counters counters, int issuesRecorded,
-                           boolean issuesTruncated, long lastProcessedRow, UUID requestedBy, Instant createdAt,
-                           Instant startedAt, Instant finishedAt) {
+                           boolean issuesTruncated, Long totalRows, Integer progressPercent, long lastProcessedRow,
+                           Instant cancelRequestedAt, UUID requestedBy, Instant createdAt, Instant startedAt,
+                           Instant finishedAt) {
     }
 
     /**
-     * @param errors   ocorrências de erro (uma linha pode ter vários)
-     * @param warnings ocorrências de aviso
+     * @param errors          ocorrências de erro (uma linha pode ter vários)
+     * @param warnings        ocorrências de aviso
+     * @param titlesSkipped   linhas válidas não gravadas (título informado como pago/cancelado pelo credor)
+     * @param titlesSuspended títulos suspensos pela carga a pedido do credor (suspenso, contestado, pago, cancelado)
+     * @param principalTotal  principal das linhas válidas gravadas (ou validadas, na pré-visualização)
      */
     record Counters(int rowsRead, int rowsValid, int rowsWithError, int errors, int warnings, int debtorsCreated,
-                    int debtorsUpdated, int titlesCreated, int titlesUpdated, int titlesUnchanged,
-                    BigDecimal principalTotal) {
+                    int debtorsUpdated, int titlesCreated, int titlesUpdated, int titlesUnchanged, int titlesSkipped,
+                    int titlesSuspended, BigDecimal principalTotal) {
     }
 
     /** @param valueExcerpt trecho mascarado do valor recebido */

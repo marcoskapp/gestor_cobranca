@@ -12,9 +12,9 @@ import java.util.UUID;
 
 /**
  * Registro de uma linha do lote pelo identificador externo do título (append-only). Detecta
- * título repetido no arquivo e, quando a linha foi gravada, guarda o resultado — gravado na
- * mesma transação da linha no módulo debt, o que torna a retomada exata: a linha reconhecida não
- * é gravada nem contada de novo.
+ * título repetido no arquivo e, quando a linha foi tratada (gravada, ou deliberadamente não
+ * gravada — {@link RowOutcome#SKIPPED}), guarda o resultado na mesma transação da linha no módulo
+ * debt, o que torna a retomada exata: a linha reconhecida não é gravada nem contada de novo.
  */
 @Entity
 @Table(name = "import_batch_row", schema = "ingestion")
@@ -46,6 +46,9 @@ public class ImportBatchRow extends TenantScopedEntity {
     @Column(name = "warning_count", nullable = false, updatable = false)
     private int warningCount;
 
+    @Column(name = "title_suspended", nullable = false, updatable = false)
+    private boolean titleSuspended;
+
     protected ImportBatchRow() {
     }
 
@@ -62,23 +65,52 @@ public class ImportBatchRow extends TenantScopedEntity {
         return new ImportBatchRow(batchId, externalId, rowNumber);
     }
 
-    /** Linha gravada no módulo debt, com o resultado e o total de avisos gerados por ela. */
+    /**
+     * Linha gravada no módulo debt, com o resultado e o total de avisos gerados por ela.
+     *
+     * @param titleSuspended a carga suspendeu o título a pedido do credor
+     */
     public static ImportBatchRow written(UUID batchId, String externalId, long rowNumber, UUID titleId,
                                          RowOutcome titleOutcome, UUID debtorId, RowOutcome debtorOutcome,
-                                         int warningCount) {
+                                         int warningCount, boolean titleSuspended) {
         ImportBatchRow row = new ImportBatchRow(batchId, externalId, rowNumber);
-        Guard.require(titleId != null && debtorId != null && titleOutcome != null && debtorOutcome != null
-                && warningCount >= 0, "import_batch_row.outcome_required", "Resultado da gravação obrigatório");
+        Guard.require(titleId != null && debtorId != null && titleOutcome != null && titleOutcome != RowOutcome.SKIPPED
+                && debtorOutcome != null && debtorOutcome != RowOutcome.SKIPPED && warningCount >= 0,
+                "import_batch_row.outcome_required", "Resultado da gravação obrigatório");
         row.titleId = titleId;
         row.debtorId = debtorId;
         row.titleOutcome = titleOutcome;
         row.debtorOutcome = debtorOutcome;
         row.warningCount = warningCount;
+        row.titleSuspended = titleSuspended;
         return row;
     }
 
-    public boolean isWritten() {
+    /**
+     * Linha válida que a carga decidiu não gravar (título informado como pago/cancelado).
+     *
+     * @param titleId        título existente afetado (nulo se não existe)
+     * @param titleSuspended o título existente foi suspenso para conciliação
+     */
+    public static ImportBatchRow skipped(UUID batchId, String externalId, long rowNumber, UUID titleId,
+                                         int warningCount, boolean titleSuspended) {
+        ImportBatchRow row = new ImportBatchRow(batchId, externalId, rowNumber);
+        Guard.require(warningCount >= 0 && (!titleSuspended || titleId != null), "import_batch_row.outcome_required",
+                "Resultado da linha inválido");
+        row.titleId = titleId;
+        row.titleOutcome = RowOutcome.SKIPPED;
+        row.warningCount = warningCount;
+        row.titleSuspended = titleSuspended;
+        return row;
+    }
+
+    /** A linha já foi tratada (gravada ou deliberadamente não gravada) e não deve ser repetida. */
+    public boolean isHandled() {
         return titleOutcome != null;
+    }
+
+    public boolean isTitleSuspended() {
+        return titleSuspended;
     }
 
     public UUID getBatchId() {

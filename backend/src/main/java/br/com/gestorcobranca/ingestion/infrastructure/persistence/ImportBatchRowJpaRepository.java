@@ -5,6 +5,9 @@ import br.com.gestorcobranca.ingestion.domain.repository.ImportBatchRowRepositor
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 import java.util.UUID;
 
 interface ImportBatchRowJpaRepository extends JpaRepository<ImportBatchRow, UUID>, ImportBatchRowRepository {
@@ -32,4 +35,12 @@ interface ImportBatchRowJpaRepository extends JpaRepository<ImportBatchRow, UUID
                                                              br.com.gestorcobranca.ingestion.domain.model.RowOutcome.UPDATED)
             """)
     long countDebtorsWithChangedTitles(UUID batchId);
+
+    @Override
+    @Query("""
+            select r.titleId from ImportBatchRow r, ImportBatch b
+            where b.id = r.batchId and b.creditorId = :creditorId and r.externalId = :externalId and r.titleId is not null
+            order by r.createdAt desc
+            """)
+    List<UUID> findTitleIds(UUID creditorId, String externalId, Pageable pageable);
 }

@@ -5,8 +5,11 @@ import br.com.gestorcobranca.ingestion.domain.model.CanonicalField;
 import br.com.gestorcobranca.ingestion.domain.model.FileLayout;
 import br.com.gestorcobranca.ingestion.domain.model.ImportFormat;
 import br.com.gestorcobranca.ingestion.domain.model.ImportLayout;
+import br.com.gestorcobranca.ingestion.application.port.out.LayoutTemplateWriter;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportLayoutRepository;
+import br.com.gestorcobranca.ingestion.domain.service.IgnoredColumns;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
+import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -16,6 +19,7 @@ import br.com.gestorcobranca.shared.security.AccessScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -28,13 +32,17 @@ class ImportLayoutService implements ImportLayoutUseCases {
 
     private final ImportLayoutRepository layouts;
     private final CreditorUseCases creditors;
+    private final PortfolioUseCases portfolios;
+    private final LayoutTemplateWriter templateWriter;
     private final AccessScope accessScope;
     private final AuditTrail auditTrail;
 
-    ImportLayoutService(ImportLayoutRepository layouts, CreditorUseCases creditors, AccessScope accessScope,
-                        AuditTrail auditTrail) {
+    ImportLayoutService(ImportLayoutRepository layouts, CreditorUseCases creditors, PortfolioUseCases portfolios,
+                        LayoutTemplateWriter templateWriter, AccessScope accessScope, AuditTrail auditTrail) {
         this.layouts = layouts;
         this.creditors = creditors;
+        this.portfolios = portfolios;
+        this.templateWriter = templateWriter;
         this.accessScope = accessScope;
         this.auditTrail = auditTrail;
     }
@@ -44,6 +52,10 @@ class ImportLayoutService implements ImportLayoutUseCases {
         Guard.require(command.creditorId() != null, "import_layout.creditor_required", "Credor obrigatório");
         accessScope.requireCreditor(command.creditorId());
         creditors.requireActive(command.creditorId());
+        if (command.portfolioId() != null) {
+            Guard.require(portfolios.get(command.portfolioId()).creditorId().equals(command.creditorId()),
+                    "import_layout.portfolio_creditor_mismatch", "Carteira não pertence ao credor do layout");
+        }
         ImportFormat format = parseFormat(command.format());
         List<FileLayout.Column> columns = command.columns() == null ? List.of() : command.columns().stream()
                 .map(c -> new FileLayout.Column(CanonicalField.byColumn(c.field()).orElseThrow(() ->
@@ -52,7 +64,7 @@ class ImportLayoutService implements ImportLayoutUseCases {
                 .toList();
         String code = command.code() == null ? null : command.code().strip().toUpperCase(Locale.ROOT);
         int version = code == null ? 1 : layouts.maxVersion(command.creditorId(), code) + 1;
-        ImportLayout layout = new ImportLayout(command.creditorId(), code, version, command.name(), format,
+        ImportLayout layout = new ImportLayout(command.creditorId(), command.portfolioId(), code, version, command.name(), format,
                 delimiter(command.delimiter()), command.encoding(), command.hasHeader(), command.sheetName(), columns);
         Optional<ImportLayout> previous = layouts.findByCreditorIdAndCodeAndActiveTrue(command.creditorId(), layout.getCode());
         previous.ifPresent(p -> {
@@ -64,6 +76,7 @@ class ImportLayoutService implements ImportLayoutUseCases {
                 .creditor(layout.getCreditorId())
                 .created("code", layout.getCode())
                 .created("version", layout.getLayoutVersion())
+                .created("portfolioId", layout.getPortfolioId())
                 .created("format", layout.getFormat())
                 .created("hasHeader", layout.isHasHeader())
                 .created("columns", layout.getColumns().size())
@@ -102,10 +115,21 @@ class ImportLayoutService implements ImportLayoutUseCases {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CanonicalFieldView> canonicalFields() {
-        return Arrays.stream(CanonicalField.values())
+    public CanonicalLayoutView canonicalLayout() {
+        List<CanonicalFieldView> fields = Arrays.stream(CanonicalField.values())
                 .map(f -> new CanonicalFieldView(f.column(), f.required(), f.personal()))
                 .toList();
+        return new CanonicalLayoutView(FileLayout.STANDARD_CODE, FileLayout.STANDARD_VERSION,
+                String.valueOf(FileLayout.STANDARD_DELIMITER), FileLayout.STANDARD_ENCODING, fields,
+                IgnoredColumns.reservedPrefixes());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void writeTemplate(String format, OutputStream output) {
+        ImportFormat target = parseFormat(format);
+        List<String> headers = Arrays.stream(CanonicalField.values()).map(CanonicalField::column).toList();
+        templateWriter.write(target, FileLayout.STANDARD_DELIMITER, headers, output);
     }
 
     private ImportLayout loadVisible(UUID layoutId) {

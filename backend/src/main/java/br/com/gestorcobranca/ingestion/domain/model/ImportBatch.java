@@ -19,6 +19,12 @@ import java.util.UUID;
  * <p>
  * {@code lastProcessedRow} é o checkpoint do processamento retomável: linhas até ele já foram
  * contabilizadas (e, na importação, gravadas) e não são relidas numa retomada.
+ * {@code totalRows} é apurado na leitura prévia do arquivo (antes de qualquer gravação) e permite
+ * acompanhar o progresso.
+ * <p>
+ * Cancelamento: um lote ainda na fila é cancelado de imediato; em processamento, o pedido é
+ * registrado e o processamento para ao fim do bloco corrente — o que já foi gravado permanece
+ * (cada linha é idempotente e pode ser completada por uma nova carga).
  */
 @Entity
 @Table(name = "import_batch", schema = "ingestion")
@@ -113,6 +119,21 @@ public class ImportBatch extends TenantScopedEntity {
     @Column(name = "titles_unchanged", nullable = false)
     private int titlesUnchanged;
 
+    @Column(name = "titles_skipped", nullable = false)
+    private int titlesSkipped;
+
+    @Column(name = "titles_suspended", nullable = false)
+    private int titlesSuspended;
+
+    @Column(name = "total_rows")
+    private Long totalRows;
+
+    @Column(name = "cancel_requested_at")
+    private Instant cancelRequestedAt;
+
+    @Column(name = "cancel_requested_by")
+    private UUID cancelRequestedBy;
+
     @Column(name = "principal_total", nullable = false, precision = 19, scale = 2)
     private Money principalTotal;
 
@@ -165,25 +186,40 @@ public class ImportBatch extends TenantScopedEntity {
         this.principalTotal = Money.ZERO;
     }
 
-    /**
-     * Inicia (ou retoma) o processamento.
-     *
-     * @return verdadeiro na primeira execução; falso numa retomada
-     */
-    public boolean begin(Instant now) {
-        if (status == ImportBatchStatus.RECEIVED) {
-            status = mode.workingStatus();
-            startedAt = now;
-            return true;
-        }
-        Guard.requireState(status == mode.workingStatus(), "import_batch.not_processable",
-                "Lote com status %s não pode ser processado".formatted(status));
-        return false;
+    /** Lote aguardando o início do processamento (a leitura prévia ainda não ocorreu). */
+    public boolean isAwaitingStart() {
+        return status == ImportBatchStatus.RECEIVED;
     }
 
-    /** Contabiliza um bloco confirmado e avança o checkpoint. */
-    public void recordBlock(BlockTally tally, long lastRow, int newIssuesRecorded) {
+    /** Em validação ou importação. */
+    public boolean isInProgress() {
+        return status == mode.workingStatus();
+    }
+
+    /**
+     * Inicia o processamento após a leitura prévia do arquivo.
+     *
+     * @param totalRows linhas de dados encontradas na leitura prévia
+     */
+    public void begin(Instant now, long totalRows) {
+        Guard.requireState(status == ImportBatchStatus.RECEIVED, "import_batch.not_processable",
+                "Lote com status %s não pode ser iniciado".formatted(status));
+        Guard.require(totalRows >= 0, "import_batch.total_rows_invalid", "Total de linhas inválido");
+        this.status = mode.workingStatus();
+        this.startedAt = now;
+        this.totalRows = totalRows;
+    }
+
+    /**
+     * Contabiliza um bloco confirmado e avança o checkpoint.
+     *
+     * @param expectedCheckpoint checkpoint de onde o bloco partiu: se outro processamento já o
+     *                           avançou (execução duplicada após perda de lease), o bloco é recusado
+     */
+    public void recordBlock(BlockTally tally, long expectedCheckpoint, long lastRow, int newIssuesRecorded) {
         requireWorking();
+        Guard.requireState(expectedCheckpoint == lastProcessedRow, "import_batch.checkpoint_conflict",
+                "Lote avançado por outro processamento");
         Guard.requireState(lastRow >= lastProcessedRow, "import_batch.checkpoint_regression",
                 "Checkpoint não pode retroceder");
         rowsRead += tally.rowsRead();
@@ -194,6 +230,8 @@ public class ImportBatch extends TenantScopedEntity {
         titlesCreated += tally.titlesCreated();
         titlesUpdated += tally.titlesUpdated();
         titlesUnchanged += tally.titlesUnchanged();
+        titlesSkipped += tally.titlesSkipped();
+        titlesSuspended += tally.titlesSuspended();
         principalTotal = principalTotal.plus(tally.principalTotal());
         issuesRecorded += newIssuesRecorded;
         lastProcessedRow = lastRow;
@@ -228,6 +266,14 @@ public class ImportBatch extends TenantScopedEntity {
         return status;
     }
 
+    /** Ocorrência de erro do arquivo como um todo (linha 0) gravada antes de falhar o lote. */
+    public void recordFileError() {
+        Guard.requireState(status == ImportBatchStatus.RECEIVED || status == mode.workingStatus(),
+                "import_batch.not_failable", "Lote com status %s já foi encerrado".formatted(status));
+        errors++;
+        issuesRecorded++;
+    }
+
     /** Falha do lote (arquivo ilegível, carteira sem aceitar cargas, erro persistente). */
     public void fail(Instant now, String reason, int debtorsCreated, int debtorsUpdated) {
         Guard.requireState(status == ImportBatchStatus.RECEIVED || status == mode.workingStatus(),
@@ -240,11 +286,53 @@ public class ImportBatch extends TenantScopedEntity {
         finish(ImportBatchStatus.FAILED, reason, now);
     }
 
-    /** Cancela um lote ainda não processado. */
-    public void cancel(Instant now, String reason) {
-        Guard.requireState(status == ImportBatchStatus.RECEIVED, "import_batch.not_cancellable",
-                "Somente lotes ainda não processados podem ser cancelados (status atual: %s)".formatted(status));
-        finish(ImportBatchStatus.CANCELLED, reason, now);
+    /**
+     * Pedido de cancelamento.
+     *
+     * @return verdadeiro se o lote foi cancelado de imediato (ainda na fila); falso se o pedido foi
+     *         registrado e o processamento em andamento vai parar ao fim do bloco corrente
+     */
+    public boolean requestCancel(Instant now, UUID requestedBy, String reason) {
+        Guard.require(reason != null && !reason.isBlank(), "import_batch.cancel_reason_required",
+                "Informe o motivo do cancelamento");
+        if (status == ImportBatchStatus.RECEIVED) {
+            cancelRequestedAt = now;
+            cancelRequestedBy = requestedBy;
+            finish(ImportBatchStatus.CANCELLED, reason.strip(), now);
+            return true;
+        }
+        Guard.requireState(status == mode.workingStatus(), "import_batch.not_cancellable",
+                "Lote com status %s já foi encerrado".formatted(status));
+        Guard.requireState(cancelRequestedAt == null, "import_batch.cancel_already_requested",
+                "Cancelamento já solicitado; o processamento será interrompido ao fim do bloco corrente");
+        cancelRequestedAt = now;
+        cancelRequestedBy = requestedBy;
+        statusReason = truncate(reason.strip());
+        return false;
+    }
+
+    public boolean isCancelRequested() {
+        return cancelRequestedAt != null;
+    }
+
+    /** Interrompe o processamento a pedido do usuário; contadores e checkpoint ficam como estão. */
+    public void stopCancelled(Instant now, int debtorsCreated, int debtorsUpdated) {
+        requireWorking();
+        Guard.requireState(cancelRequestedAt != null, "import_batch.cancel_not_requested", "Cancelamento não solicitado");
+        this.debtorsCreated = debtorsCreated;
+        this.debtorsUpdated = debtorsUpdated;
+        finish(ImportBatchStatus.CANCELLED, statusReason, now);
+    }
+
+    /** Percentual de linhas processadas (nulo antes da leitura prévia). */
+    public Integer progressPercent() {
+        if (totalRows == null) {
+            return null;
+        }
+        if (status.isTerminal() && status != ImportBatchStatus.CANCELLED && status != ImportBatchStatus.FAILED) {
+            return 100;
+        }
+        return totalRows == 0 ? 0 : (int) Math.min(100, rowsRead * 100L / totalRows);
     }
 
     private void finish(ImportBatchStatus target, String reason, Instant now) {
@@ -381,6 +469,26 @@ public class ImportBatch extends TenantScopedEntity {
 
     public int getTitlesUnchanged() {
         return titlesUnchanged;
+    }
+
+    public int getTitlesSkipped() {
+        return titlesSkipped;
+    }
+
+    public int getTitlesSuspended() {
+        return titlesSuspended;
+    }
+
+    public Long getTotalRows() {
+        return totalRows;
+    }
+
+    public Instant getCancelRequestedAt() {
+        return cancelRequestedAt;
+    }
+
+    public UUID getCancelRequestedBy() {
+        return cancelRequestedBy;
     }
 
     public Money getPrincipalTotal() {

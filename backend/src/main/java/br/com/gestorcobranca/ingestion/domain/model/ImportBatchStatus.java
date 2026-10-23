@@ -8,7 +8,8 @@ import java.util.Set;
  * <pre>
  * IMPORT:        RECEIVED → PROCESSING → COMPLETED | COMPLETED_WITH_ERRORS | FAILED
  * VALIDATE_ONLY: RECEIVED → VALIDATING → VALIDATED | FAILED
- * ambos:         RECEIVED → CANCELLED | FAILED
+ * ambos:         RECEIVED → CANCELLED | FAILED;  PROCESSING/VALIDATING → CANCELLED (pedido do usuário,
+ *                ao fim do bloco corrente)
  * </pre>
  */
 public enum ImportBatchStatus {

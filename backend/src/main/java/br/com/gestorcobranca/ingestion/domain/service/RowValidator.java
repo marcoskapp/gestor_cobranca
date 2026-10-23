@@ -7,6 +7,7 @@ import br.com.gestorcobranca.ingestion.domain.model.ParsedRow.ParsedContact;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow.ParsedContract;
 import br.com.gestorcobranca.ingestion.domain.model.RowIssue;
 import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
+import br.com.gestorcobranca.ingestion.domain.model.TitleSituation;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Document;
 
@@ -38,6 +39,8 @@ public final class RowValidator {
     private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
     private static final Set<String> STATES = Set.of("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT",
             "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO");
+    private static final List<CanonicalField> FORMULA_GUARDED = List.of(DEBTOR_NAME, TITLE_EXTERNAL_ID, CONTRACT_NUMBER,
+            PRODUCT, ADDRESS_STREET, ADDRESS_NUMBER, ADDRESS_COMPLEMENT, ADDRESS_DISTRICT, ADDRESS_CITY);
     private static final CanonicalField[][] PHONES = {{PHONE_1, WHATSAPP_1}, {PHONE_2, WHATSAPP_2}, {PHONE_3, WHATSAPP_3}};
 
     private final LocalDate today;
@@ -88,14 +91,42 @@ public final class RowValidator {
         LocalDate dueDate = ctx.requiredDate(DUE_DATE, "row.due_date_invalid", "Vencimento inválido: use dd/mm/aaaa ou aaaa-mm-dd");
         BigDecimal principal = principal(ctx);
         ReportedBalance balance = reportedBalance(ctx);
+        TitleSituation situation = situation(ctx);
+        rejectFormulas(ctx);
 
         if (ctx.hasErrors()) {
             return new RowValidation(source.rowNumber(), null, ctx.issues);
         }
         ParsedRow row = new ParsedRow(source.rowNumber(), document, name, birthDate, contacts, contract, externalId,
                 installment, dueDate, principal, balance == null ? null : balance.amount(),
-                balance == null ? null : balance.referenceDate());
+                balance == null ? null : balance.referenceDate(), situation);
         return new RowValidation(source.rowNumber(), row, ctx.issues);
+    }
+
+    /** Situação informada pelo credor: valor desconhecido é erro, pois mudaria o tratamento do título. */
+    private static TitleSituation situation(Context ctx) {
+        return ctx.source.get(TITLE_SITUATION).map(raw -> TitleSituation.parse(raw).orElseGet(() -> {
+            ctx.error(TITLE_SITUATION, "row.situation_invalid",
+                    "Situação deve ser ATIVO, PAGO, SUSPENSO, CONTESTADO ou CANCELADO");
+            return null;
+        })).orElse(TitleSituation.ACTIVE);
+    }
+
+    /**
+     * Conteúdo com aparência de fórmula de planilha ({@code =}, {@code @}) em campos de texto livre
+     * gravados na base: recusado nos identificadores e no nome (erro), para que o valor nunca seja
+     * reexportado como fórmula (CSV/XLSX injection). Valores numéricos, datas e telefones
+     * ({@code +55…}) não são afetados.
+     */
+    private static void rejectFormulas(Context ctx) {
+        for (CanonicalField field : FORMULA_GUARDED) {
+            ctx.source.get(field).filter(RowValidator::looksLikeFormula).ifPresent(v ->
+                    ctx.error(field, "row.formula_not_allowed", "Conteúdo com formato de fórmula não é aceito"));
+        }
+    }
+
+    static boolean looksLikeFormula(String value) {
+        return !value.isEmpty() && (value.charAt(0) == '=' || value.charAt(0) == '@');
     }
 
     private static Boolean personType(Context ctx) {

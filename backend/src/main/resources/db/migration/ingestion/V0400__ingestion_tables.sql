@@ -8,7 +8,8 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- Layout de importação: formato do arquivo e mapeamento coluna → campo canônico.
+-- Layout de importação: formato do arquivo e mapeamento coluna → campo canônico,
+-- por credor e, opcionalmente, restrito a uma carteira (portfolio_id).
 -- Cada versão é imutável; publicar uma versão nova desativa a anterior (único campo
 -- alterável). "version" é o lock otimista (BaseEntity); a versão do layout é
 -- layout_version.
@@ -22,6 +23,7 @@ create table ingestion.import_layout (
     updated_at      timestamptz    not null,
     updated_by      uuid,
     creditor_id     uuid           not null references organization.creditor (id),
+    portfolio_id    uuid           references organization.portfolio (id),
     code            varchar(40)    not null,
     layout_version  integer        not null,
     name            varchar(150)   not null,
@@ -103,9 +105,14 @@ create table ingestion.import_batch (
     titles_created         integer         not null,
     titles_updated         integer         not null,
     titles_unchanged       integer         not null,
+    titles_skipped         integer         not null,
+    titles_suspended       integer         not null,
     principal_total        numeric(19, 2)  not null,
     issues_recorded        integer         not null,
     last_processed_row     bigint          not null,
+    total_rows             bigint,
+    cancel_requested_at    timestamptz,
+    cancel_requested_by    uuid,
     started_at             timestamptz,
     finished_at            timestamptz,
     constraint ck_import_batch_source check (source in ('CSV', 'XLSX', 'API')),
@@ -124,14 +131,19 @@ create table ingestion.import_batch (
     constraint ck_import_batch_counters check (
         rows_read >= 0 and rows_valid >= 0 and rows_with_error >= 0 and errors >= rows_with_error and warnings >= 0
         and debtors_created >= 0 and debtors_updated >= 0 and titles_created >= 0 and titles_updated >= 0
-        and titles_unchanged >= 0 and principal_total >= 0 and issues_recorded >= 0 and last_processed_row >= 0),
+        and titles_unchanged >= 0 and titles_skipped >= 0 and titles_suspended >= 0 and principal_total >= 0
+        and issues_recorded >= 0 and last_processed_row >= 0 and (total_rows is null or total_rows >= 0)),
     constraint ck_import_batch_rows check (rows_read = rows_valid + rows_with_error),
     constraint ck_import_batch_validate_only check (
         mode = 'IMPORT' or (debtors_created = 0 and debtors_updated = 0 and titles_created = 0
-                            and titles_updated = 0 and titles_unchanged = 0)),
+                            and titles_updated = 0 and titles_unchanged = 0 and titles_skipped = 0
+                            and titles_suspended = 0)),
     constraint ck_import_batch_finished check (
         (status in ('VALIDATED', 'COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED')) = (finished_at is not null)),
-    constraint ck_import_batch_dates check (finished_at is null or started_at is null or finished_at >= started_at)
+    constraint ck_import_batch_dates check (finished_at is null or started_at is null or finished_at >= started_at),
+    -- leitura prévia concluída antes de processar
+    constraint ck_import_batch_started check (status in ('RECEIVED', 'CANCELLED', 'FAILED') or total_rows is not null),
+    constraint ck_import_batch_cancel check ((cancel_requested_at is null) = (cancel_requested_by is null))
 );
 create index ix_import_batch_portfolio on ingestion.import_batch (tenant_id, portfolio_id, status, created_at desc);
 create index ix_import_batch_creditor on ingestion.import_batch (tenant_id, creditor_id, created_at desc);
@@ -172,6 +184,8 @@ create trigger trg_import_row_issue_append_only before update or delete on inges
 
 -- -----------------------------------------------------------------------------
 -- Linhas do lote por identificador externo do título (append-only):
+--   * title_id/debtor_id referenciam o módulo debt apenas por id (sem chave estrangeira:
+--     o ingestion conversa com o debt só pela porta DebtIngestionPort);
 --   * duplicidade de título no mesmo arquivo, inclusive entre blocos e após retomada;
 --   * na importação, a linha gravada no módulo debt é registrada na MESMA transação,
 --     com o resultado: no reprocessamento após uma queda a linha é reconhecida e o
@@ -190,22 +204,32 @@ create table ingestion.import_batch_row (
     batch_id        uuid           not null references ingestion.import_batch (id),
     external_id     varchar(80)    not null,
     row_number      bigint         not null,
-    title_id        uuid           references debt.debt_title (id),
-    debtor_id       uuid           references debt.debtor (id),
+    title_id        uuid,
+    debtor_id       uuid,
     title_outcome   varchar(10),
     debtor_outcome  varchar(10),
     warning_count   integer        not null,
+    title_suspended boolean        not null,
     constraint uk_import_batch_row_external unique (tenant_id, batch_id, external_id),
     constraint uk_import_batch_row_number unique (tenant_id, batch_id, row_number),
     constraint ck_import_batch_row_number check (row_number > 0),
     constraint ck_import_batch_row_warnings check (warning_count >= 0),
     constraint ck_import_batch_row_outcome check (
-        (title_id is null and debtor_id is null and title_outcome is null and debtor_outcome is null)
+        -- registrada sem gravação (erro ou pré-visualização)
+        (title_id is null and debtor_id is null and title_outcome is null and debtor_outcome is null
+         and not title_suspended)
+        -- gravada
         or (title_id is not null and debtor_id is not null
             and title_outcome in ('CREATED', 'UPDATED', 'UNCHANGED')
-            and debtor_outcome in ('CREATED', 'UPDATED', 'UNCHANGED')))
+            and debtor_outcome in ('CREATED', 'UPDATED', 'UNCHANGED'))
+        -- não gravada por decisão da carga (título informado como pago/cancelado pelo credor)
+        or (title_outcome = 'SKIPPED' and debtor_id is null and debtor_outcome is null
+            and (not title_suspended or title_id is not null)))
 );
 create index ix_import_batch_row_title on ingestion.import_batch_row (tenant_id, title_id) where title_id is not null;
+-- título já carregado pelo identificador externo (tratamento de títulos informados como pagos/cancelados)
+create index ix_import_batch_row_external_title on ingestion.import_batch_row (tenant_id, external_id, created_at desc)
+    where title_id is not null;
 create index ix_import_batch_row_debtor on ingestion.import_batch_row (tenant_id, batch_id, debtor_id) where debtor_id is not null;
 select shared.enable_tenant_rls('ingestion.import_batch_row');
 create trigger trg_import_batch_row_append_only before update or delete on ingestion.import_batch_row

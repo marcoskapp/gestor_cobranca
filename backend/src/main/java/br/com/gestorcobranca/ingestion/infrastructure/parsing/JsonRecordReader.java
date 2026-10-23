@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.ingestion.infrastructure.parsing;
 
+import br.com.gestorcobranca.ingestion.application.port.out.ImportRecordReader.RecordSink;
 import br.com.gestorcobranca.ingestion.domain.model.FileLayout;
 import br.com.gestorcobranca.ingestion.domain.model.ImportFileException;
 import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
@@ -13,7 +14,9 @@ import tools.jackson.databind.json.JsonMapper;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Registros recebidos pela API, guardados como array JSON de objetos com as chaves canônicas.
@@ -30,21 +33,23 @@ final class JsonRecordReader {
         this.mapper = mapper;
     }
 
-    void read(InputStream content, FileLayout layout, Consumer<SourceRow> consumer) {
+    void read(InputStream content, FileLayout layout, RecordSink sink) {
         long rowNumber = 0;
+        Set<String> unknownKeys = new LinkedHashSet<>();
         try (MappingIterator<Map<String, String>> records = mapper.readerFor(RECORD).readValues(content)) {
             while (records.hasNextValue()) {
                 Map<String, String> record = records.nextValue();
                 rowNumber++;
-                SourceRow row = ColumnMapping.fromRecord(layout, rowNumber, record);
+                SourceRow row = ColumnMapping.fromRecord(layout, rowNumber, record, unknownKeys);
                 if (!row.isBlank()) {
                     try {
-                        consumer.accept(row);
+                        sink.row(row);
                     } catch (RuntimeException e) {
                         throw new ConsumerFailure(e);
                     }
                 }
             }
+            sink.ignoredColumns(List.copyOf(unknownKeys));
         } catch (ConsumerFailure e) {
             throw e.original();
         } catch (JacksonIOException e) {

@@ -24,7 +24,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Layout de importação de um credor, versionado: cada publicação cria uma nova versão imutável
+ * Layout de importação de um credor — opcionalmente restrito a uma carteira —, versionado: cada publicação cria uma nova versão imutável
  * e desativa a anterior. Lotes registram o layout e a versão usados, o que permite reprocessar
  * um arquivo antigo com o layout com que foi recebido.
  * <p>
@@ -44,6 +44,10 @@ public class ImportLayout extends TenantScopedEntity {
 
     @Column(name = "creditor_id", nullable = false, updatable = false)
     private UUID creditorId;
+
+    /** Carteira à qual o layout se restringe; nulo = qualquer carteira do credor. */
+    @Column(name = "portfolio_id", updatable = false)
+    private UUID portfolioId;
 
     @Column(name = "code", nullable = false, length = CODE_MAX, updatable = false)
     private String code;
@@ -84,7 +88,7 @@ public class ImportLayout extends TenantScopedEntity {
      * @param delimiter delimitador do CSV (; , | ou tabulação); ignorado para XLSX
      * @param encoding  codificação do CSV (UTF-8, ISO-8859-1, WINDOWS-1252); ignorada para XLSX
      */
-    public ImportLayout(UUID creditorId, String code, int layoutVersion, String name, ImportFormat format,
+    public ImportLayout(UUID creditorId, UUID portfolioId, String code, int layoutVersion, String name, ImportFormat format,
                         Character delimiter, String encoding, boolean hasHeader, String sheetName,
                         List<FileLayout.Column> columns) {
         Guard.require(creditorId != null, "import_layout.creditor_required", "Credor obrigatório");
@@ -98,6 +102,7 @@ public class ImportLayout extends TenantScopedEntity {
         Guard.require(format == ImportFormat.CSV || format == ImportFormat.XLSX, "import_layout.format_invalid",
                 "Formato do layout deve ser CSV ou XLSX");
         this.creditorId = creditorId;
+        this.portfolioId = portfolioId;
         this.code = code.strip().toUpperCase(Locale.ROOT);
         this.layoutVersion = layoutVersion;
         this.name = name.strip();
@@ -167,6 +172,11 @@ public class ImportLayout extends TenantScopedEntity {
         return result;
     }
 
+    /** O layout pode ser usado em cargas da carteira informada. */
+    public boolean appliesTo(UUID creditorId, UUID portfolioId) {
+        return this.creditorId.equals(creditorId) && (this.portfolioId == null || this.portfolioId.equals(portfolioId));
+    }
+
     /** Retira a versão de uso (substituída por uma nova ou desativada pelo usuário). */
     public void deactivate() {
         this.active = false;
@@ -183,6 +193,10 @@ public class ImportLayout extends TenantScopedEntity {
 
     public UUID getCreditorId() {
         return creditorId;
+    }
+
+    public UUID getPortfolioId() {
+        return portfolioId;
     }
 
     public String getCode() {

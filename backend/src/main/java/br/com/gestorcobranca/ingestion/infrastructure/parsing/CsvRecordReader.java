@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.ingestion.infrastructure.parsing;
 
+import br.com.gestorcobranca.ingestion.application.port.out.ImportRecordReader.RecordSink;
 import br.com.gestorcobranca.ingestion.domain.model.FileLayout;
 import br.com.gestorcobranca.ingestion.domain.model.ImportFileException;
 import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
@@ -20,7 +21,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
-import java.util.function.Consumer;
 
 /**
  * CSV em streaming (Commons CSV): um registro por vez. O número da linha é o número do registro
@@ -32,7 +32,7 @@ final class CsvRecordReader {
 
     private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 
-    void read(InputStream content, FileLayout layout, Consumer<SourceRow> consumer) {
+    void read(InputStream content, FileLayout layout, RecordSink sink) {
         Charset charset = Charset.forName(layout.encoding());
         CSVFormat format = CSVFormat.DEFAULT.builder()
                 .setDelimiter(layout.delimiter())
@@ -58,11 +58,12 @@ final class CsvRecordReader {
                         continue;
                     }
                     mapping = ColumnMapping.resolve(layout, record.toList());
+                    sink.ignoredColumns(mapping.ignoredColumns());
                     continue;
                 }
                 SourceRow row = mapping.map(record.getRecordNumber(), record.toList());
                 if (!row.isBlank()) {
-                    consumer.accept(row);
+                    sink.row(row);
                 }
             }
             if (mapping == null) {

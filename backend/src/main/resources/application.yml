@@ -224,3 +224,16 @@ app:
     logged-time-sync-interval: PT1H
     posting-sweep-interval: PT15M
     posting-sweep-min-age: PT10M
+
+  # Ingestão de carteiras (limites contra arquivos maliciosos; ver IngestionProperties)
+  ingestion:
+    max-file-size: 50MB
+    max-rows: 1000000
+    max-api-records: 1000
+    block-size: 500
+    slice-duration: PT2M
+    max-issues-per-batch: 50000
+    xlsx-max-uncompressed-size: 1GB
+    xlsx-max-shared-strings-size: 100MB
+    xlsx-max-entries: 1000
+    xlsx-max-compression-ratio: 100

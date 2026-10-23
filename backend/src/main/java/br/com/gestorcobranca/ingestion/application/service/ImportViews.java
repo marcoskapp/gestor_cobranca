@@ -21,13 +21,13 @@ final class ImportViews {
     static ImportBatchView batch(ImportBatch b) {
         Counters counters = new Counters(b.getRowsRead(), b.getRowsValid(), b.getRowsWithError(), b.getErrors(),
                 b.getWarnings(), b.getDebtorsCreated(), b.getDebtorsUpdated(), b.getTitlesCreated(), b.getTitlesUpdated(),
-                b.getTitlesUnchanged(), b.getPrincipalTotal().amount());
+                b.getTitlesUnchanged(), b.getTitlesSkipped(), b.getTitlesSuspended(), b.getPrincipalTotal().amount());
         return new ImportBatchView(b.getId(), b.getCreditorId(), b.getPortfolioId(), b.getLayoutId(), b.getLayoutCode(),
                 b.getLayoutVersion(), b.getSource().name(), b.getMode().name(), b.getStatus().name(), b.getStatusReason(),
                 b.getFileName(), b.getFileSize(), b.getFileSha256(), b.isForced(), b.getForceReason(),
                 b.getDuplicateOfBatchId(), b.getReprocessOfBatchId(), counters, b.getIssuesRecorded(),
-                b.isIssuesTruncated(), b.getLastProcessedRow(), b.getCreatedBy(), b.getCreatedAt(), b.getStartedAt(),
-                b.getFinishedAt());
+                b.isIssuesTruncated(), b.getTotalRows(), b.progressPercent(), b.getLastProcessedRow(),
+                b.getCancelRequestedAt(), b.getCreatedBy(), b.getCreatedAt(), b.getStartedAt(), b.getFinishedAt());
     }
 
     static ImportIssueView issue(ImportRowIssue i) {
@@ -40,7 +40,7 @@ final class ImportViews {
                 .sorted(Comparator.comparing(LayoutColumn::getField))
                 .map(c -> new ColumnCommand(c.getField().column(), c.getHeader(), c.getPosition()))
                 .toList();
-        return new ImportLayoutView(l.getId(), l.getCreditorId(), l.getCode(), l.getLayoutVersion(), l.getName(),
+        return new ImportLayoutView(l.getId(), l.getCreditorId(), l.getPortfolioId(), l.getCode(), l.getLayoutVersion(), l.getName(),
                 l.getFormat().name(), l.getCsvDelimiter(), l.getCsvEncoding(), l.isHasHeader(), l.getSheetName(),
                 columns, l.isActive(), l.getCreatedAt());
     }
