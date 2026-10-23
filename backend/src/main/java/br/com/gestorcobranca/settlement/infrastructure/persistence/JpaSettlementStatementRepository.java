@@ -5,7 +5,7 @@ import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
 import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
-import br.com.gestorcobranca.settlement.domain.repository.StatementRepository;
+import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -17,7 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-class JpaSettlementStatementRepository implements StatementRepository {
+class JpaSettlementStatementRepository implements SettlementStatementRepository {
 
     private final SettlementStatementJpa statements;
     private final SettlementAdjustmentJpa adjustments;

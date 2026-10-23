@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** Demonstrativos e o que pertence a eles: ajustes, exportações e repasses. */
-public interface StatementRepository {
+public interface SettlementStatementRepository {
 
     SettlementStatement save(SettlementStatement statement);
 

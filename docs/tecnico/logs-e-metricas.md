@@ -32,7 +32,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue`, `installment.paid` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.rejected`, `payment.reconciled`, `payment.reallocated`, `payment.divergence`, `payment.reversed` |
-| Prestação de contas | `commission.accrued`, `settlement.closed` |
+| Prestação de contas (settlement) | `commission.accrued`, `commission.reversed`, `commission.rules_published`, `settlement.receipt_pending_rules`, `settlement.calculated`, `settlement.adjusted`, `settlement.closed`, `settlement.exported`, `settlement.sent`, `settlement.acknowledged`, `settlement.contested`, `settlement.transfer_recorded` |
 | Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.received`, `message.blocked`, `conversation.handoff`, `conversation.closed`, `template.published` |
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.finished`, `campaign.step_executed`, `campaign.step_skipped`, `campaign.replied`, `campaign.cadence_exhausted`, `experiment.variant_assigned` |
@@ -235,6 +235,24 @@ Referência `call` (ou `dialer_campaign`/`telephony_agent`), canal `PHONE`, `cre
 | `dialer.campaign_activated` / `_paused` / `_finished` | ciclo da campanha de discagem | `campaignCode`, `mode`, `maxDialRatio`, `maxAbandonRate`, `maxAttempts`, `queueId`; na ativação `resumed`; no encerramento `excludedEntries` e `durationMs` desde a ativação |
 | `agent.presence_changed` | mudança de presença do operador | `userId`, `from`, `to`, `fromReason`, `reason` (motivo da pausa), `productivePause`, `campaignId`, `trigger` (`operator`, `call`, `tabulation`, `supervisor`, `timeout`, `configuration`); `durationMs` no estado anterior |
 
+### 3.8 Atributos dos eventos da prestação de contas (settlement)
+
+Comissão da assessoria junto ao credor (não é remuneração de pessoa): os eventos levam valores. Referência `settlement_receipt` (recebimento) ou `settlement_statement` (demonstrativo); `creditorId`, `portfolioId` e `debtorId` (id) quando houver. Nunca nome, documento ou contato do devedor. Ver `docs/tecnico/desenho/prestacao-de-contas.md`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `commission.accrued` | recebimento apurado no razão de comissão | `entryId`, `allocationId`, `agreementId`, `contractId`, `commission`, `fixedFee`, `agencyHonorarium`, `creditorHonorarium`, `rate`, `ruleCode`, `ruleVersion`, `paymentType`, `daysPastDue`, `receivedBy`, `renegotiation`, `method`, `paidOn`; `amount` = valor recuperado |
+| `commission.reversed` | estorno/realocação compensado no razão | `entryId`, `allocationId`, `agreementId`, `contractId`, `commission`, `fixedFee`, `agencyHonorarium`, `reason`, `reversesEntryId`, `ruleVersion`, `finalReversal`; `amount` = valor estornado (negativo) |
+| `commission.rules_published` | versão de regras publicada (elasticidade antes/depois) | `contractId`, `ruleVersion`, `effectiveFrom`, `defaultRate`, `specificRules`, `fixedFeePerAgreement`, `honorariumOwnership`, `honorariumAgencyShare`, `reconciliationRequired` |
+| `settlement.receipt_pending_rules` | recebimento sem contrato ou regra vigente (aguarda publicação) | `reason` (`NO_CONTRACT`/`NO_RULES`), `paidOn`, `contractId`; `amount` |
+| `settlement.calculated` | demonstrativo calculado (ou recalculado) | `sequenceNumber`, `periodStart`, `periodEnd`, `recovered`, `commission`, `pendingReconciliation`, `pendingRules`, `openDivergences`, `receipts`; `amount` = líquido a repassar |
+| `settlement.adjusted` | ajuste aplicado (direto ou após segunda aprovação) | `adjustmentId`, `category`, `dualApproval`, `relatedStatementId` + identificação do demonstrativo; `amount` = efeito do ajuste |
+| `settlement.closed` | demonstrativo aprovado (fechado e imutável) | `recovered`, `reversed`, `commission`, `fixedFees`, `agencyHonorarium`, `expenses`, `adjustments`, `receipts`, `effectiveRate` (comissão + fixos ÷ recuperado, %), `negotiated`, `forecastCommission`, `pendingReconciliation`, `openDivergences`, `daysAfterPeriod`; `amount` = líquido a repassar |
+| `settlement.exported` | arquivo do demonstrativo gerado | `format`, `rows`, `sequenceNumber` |
+| `settlement.sent` | demonstrativo enviado ao credor | `channel`, `exports`, `hoursAfterApproval` |
+| `settlement.acknowledged` / `settlement.contested` | resposta do credor registrada | `daysAfterSent`; aceite: `afterContestation`; contestação: `amount` = líquido |
+| `settlement.transfer_recorded` | repasse (ou recebimento do credor) registrado com comprovante | `statementId`, `direction`, `outstandingAfter`, `daysAfterApproval`; `amount` |
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -354,6 +372,11 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `legal.providers.manual_requests{port,operation}`, `legal.providers.captured{provider}` | pedidos de operação automática com adaptador manual; andamentos capturados |
 | `legal.access.law_firm_denied{resource}` | acessos negados a membros de escritório fora dos casos atribuídos |
 | `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos (inclui `cadence_exhausted` e `cadence_exhausted_ignored` — régua de outra finalidade), duração da varredura diária e falhas (alarme) |
+| `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome}` | recebimentos registrados (`recorded`, `duplicate`) e apuração (`rated`, `pending_no_rules`, `pending_no_contract`, `pending_original_pending`); `pending_*` contínuo = contrato sem regras publicadas |
+| `settlement.events.ignored{type,reason}` | eventos sem efeito (ex.: `agreement_payment_recorded`/`unapplied`, `legal_expense`/`reimbursed_after_statement` — possível reembolso em duplicidade, investigar) |
+| `settlement.expenses{kind,effect}` | custas do jurídico materializadas (`CHARGE`/`CANCELLATION` × `DEDUCT`/`INFORMATIVE`) |
+| `settlement.statements.transitions{status}`, `settlement.statement.calculate.duration`, `settlement.statement.receipts` | ciclo dos demonstrativos, duração e volume do cálculo |
+| `settlement.adjustments{status}`, `settlement.exports{format}`, `settlement.transfers{direction,outcome}`, `settlement.rules.published` | ajustes (aplicados, pendentes de segunda aprovação, recusados), exportações, repasses (`registered`/`cancelled`) e publicações de regras |
 | `communication.messages{channel,direction,sender,status}` | mudanças de status de mensagens (inclui `QUEUED` e `RECEIVED`) |
 | `communication.messages.blocked{channel,sender,stage,reason}` | envios negados pelo porteiro, por motivo (`precheck`/`send`) |
 | `communication.send.attempts{channel,provider,outcome}` | tentativas do job: `accepted`, `rejected`, `transient`, `blocked`, `account_unavailable`, `whatsapp_window_closed` |

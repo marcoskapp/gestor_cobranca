@@ -3,7 +3,7 @@ package br.com.gestorcobranca.settlement.application.service;
 import br.com.gestorcobranca.settlement.application.port.in.TransferUseCases;
 import br.com.gestorcobranca.settlement.domain.model.CreditorTransfer;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
-import br.com.gestorcobranca.settlement.domain.repository.StatementRepository;
+import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -49,7 +49,7 @@ class TransferService implements TransferUseCases {
 
     static final String RESOURCE = "settlement_transfer";
 
-    private final StatementRepository statements;
+    private final SettlementStatementRepository statements;
     private final TransferEvidenceStore evidenceStore;
     private final FileStorage storage;
     private final IdempotencyService idempotency;
@@ -62,7 +62,7 @@ class TransferService implements TransferUseCases {
     private final SettlementMetrics metrics;
     private final Clock clock;
 
-    TransferService(StatementRepository statements, TransferEvidenceStore evidenceStore, FileStorage storage,
+    TransferService(SettlementStatementRepository statements, TransferEvidenceStore evidenceStore, FileStorage storage,
                     IdempotencyService idempotency, SettlementAccess access, AccessScope accessScope,
                     CurrentActor currentActor, AccessLogger accessLogger, AuditTrail auditTrail,
                     BusinessEventLogger businessEvents, SettlementMetrics metrics, Clock clock) {

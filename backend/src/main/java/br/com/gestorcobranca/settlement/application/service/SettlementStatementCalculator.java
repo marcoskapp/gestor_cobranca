@@ -20,7 +20,7 @@ import br.com.gestorcobranca.settlement.domain.repository.CommissionEntryReposit
 import br.com.gestorcobranca.settlement.domain.repository.CommissionRuleSetRepository;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementFactRepository;
-import br.com.gestorcobranca.settlement.domain.repository.StatementRepository;
+import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import br.com.gestorcobranca.settlement.domain.service.CommissionCalculator;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.Money;
@@ -62,14 +62,14 @@ class SettlementStatementCalculator {
     private final CommissionEntryRepository entries;
     private final CommissionRuleSetRepository ruleSets;
     private final SettlementFactRepository facts;
-    private final StatementRepository statements;
+    private final SettlementStatementRepository statements;
     private final SettlementSources sources;
     private final RulesCodec codec;
     private final JsonCodec json;
 
     SettlementStatementCalculator(ReceiptRepository receipts, CommissionEntryRepository entries,
                         CommissionRuleSetRepository ruleSets, SettlementFactRepository facts,
-                        StatementRepository statements, SettlementSources sources, RulesCodec codec, JsonCodec json) {
+                        SettlementStatementRepository statements, SettlementSources sources, RulesCodec codec, JsonCodec json) {
         this.receipts = receipts;
         this.entries = entries;
         this.ruleSets = ruleSets;

@@ -13,7 +13,7 @@ import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementFactRepository;
-import br.com.gestorcobranca.settlement.domain.repository.StatementRepository;
+import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import br.com.gestorcobranca.settlement.domain.service.SettlementCycle;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
@@ -57,7 +57,7 @@ class SettlementStatementService implements SettlementStatementUseCases {
 
     static final String RESOURCE = "settlement_statement";
 
-    private final StatementRepository statements;
+    private final SettlementStatementRepository statements;
     private final ReceiptRepository receipts;
     private final SettlementFactRepository facts;
     private final SettlementStatementCalculator calculator;
@@ -75,7 +75,7 @@ class SettlementStatementService implements SettlementStatementUseCases {
     private final SettlementProperties properties;
     private final Clock clock;
 
-    SettlementStatementService(StatementRepository statements, ReceiptRepository receipts, SettlementFactRepository facts,
+    SettlementStatementService(SettlementStatementRepository statements, ReceiptRepository receipts, SettlementFactRepository facts,
                      SettlementStatementCalculator calculator, ReceiptPages pages, SettlementSources sources,
                      SettlementLocks locks, SettlementViews views, SettlementAccess access, AccessScope accessScope,
                      CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,

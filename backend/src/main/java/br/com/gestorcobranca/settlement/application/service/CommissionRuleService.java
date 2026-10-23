@@ -12,7 +12,7 @@ import br.com.gestorcobranca.settlement.domain.model.rules.PaymentType;
 import br.com.gestorcobranca.settlement.domain.model.rules.ReceivedBy;
 import br.com.gestorcobranca.settlement.domain.repository.CommissionRuleSetRepository;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
-import br.com.gestorcobranca.settlement.domain.repository.StatementRepository;
+import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import br.com.gestorcobranca.settlement.domain.service.CommissionCalculator;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
@@ -45,7 +45,7 @@ class CommissionRuleService implements CommissionRuleUseCases {
 
     private final CommissionRuleSetRepository ruleSets;
     private final ReceiptRepository receipts;
-    private final StatementRepository statements;
+    private final SettlementStatementRepository statements;
     private final ServiceContractUseCases contracts;
     private final RatingService rating;
     private final RulesCodec codec;
@@ -59,7 +59,7 @@ class CommissionRuleService implements CommissionRuleUseCases {
     private final Clock clock;
 
     CommissionRuleService(CommissionRuleSetRepository ruleSets, ReceiptRepository receipts,
-                          StatementRepository statements, ServiceContractUseCases contracts, RatingService rating,
+                          SettlementStatementRepository statements, ServiceContractUseCases contracts, RatingService rating,
                           RulesCodec codec, SettlementViews views, SettlementAccess access, AccessScope accessScope,
                           CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                           SettlementMetrics metrics, Clock clock) {

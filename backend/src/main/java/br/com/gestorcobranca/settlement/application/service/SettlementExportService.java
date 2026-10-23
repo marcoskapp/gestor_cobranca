@@ -16,7 +16,7 @@ import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.repository.CommissionEntryRepository;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementFactRepository;
-import br.com.gestorcobranca.settlement.domain.repository.StatementRepository;
+import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.Guard;
@@ -83,7 +83,7 @@ class SettlementExportService implements SettlementExportUseCases {
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
     };
 
-    private final StatementRepository statements;
+    private final SettlementStatementRepository statements;
     private final ReceiptRepository receipts;
     private final CommissionEntryRepository entries;
     private final SettlementFactRepository facts;
@@ -101,7 +101,7 @@ class SettlementExportService implements SettlementExportUseCases {
     private final JsonCodec json;
     private final Clock clock;
 
-    SettlementExportService(StatementRepository statements, ReceiptRepository receipts, CommissionEntryRepository entries,
+    SettlementExportService(SettlementStatementRepository statements, ReceiptRepository receipts, CommissionEntryRepository entries,
                            SettlementFactRepository facts, SettlementSources sources, StatementDocumentRenderer renderer,
                            FileStorage storage, SettlementFileCleanup cleanup,
                            SettlementAccess access, AccessScope accessScope, CurrentActor currentActor,
