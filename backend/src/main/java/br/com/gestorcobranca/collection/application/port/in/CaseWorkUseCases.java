@@ -39,7 +39,10 @@ public interface CaseWorkUseCases {
      */
     CaseView assign(UUID caseId, AssignCommand command);
 
-    /** Devolve o caso à fila (o próprio operador, ou quem tem {@code CASE_ASSIGN}). */
+    /**
+     * Devolve o caso à fila: o próprio operador, quem tem {@code CASE_ASSIGN}, ou — para casos
+     * conduzidos pelo assistente — o próprio assistente (transferência para humano).
+     */
     CaseView release(UUID caseId, String reason);
 
     /** O operador corrente assume o caso (que estava na fila, sem dono ou com o assistente). */

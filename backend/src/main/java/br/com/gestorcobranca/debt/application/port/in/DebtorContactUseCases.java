@@ -51,6 +51,14 @@ public interface DebtorContactUseCases {
     ContactFingerprint fingerprint(String type, String value);
 
     /**
+     * <strong>Uso interno de outros módulos (communication); não exposto via web.</strong> Como
+     * {@link #fingerprint}, mas devolve vazio para valor inválido em vez de lançar exceção — para
+     * endereços recebidos de provedores (webhooks), em que um valor fora do padrão é ignorado sem
+     * desfazer a transação do chamador.
+     */
+    java.util.Optional<ContactFingerprint> tryFingerprint(String type, String value);
+
+    /**
      * @param type   PHONE, EMAIL ou ADDRESS
      * @param label  MOBILE, HOME, WORK ou OTHER (padrão OTHER)
      * @param source MANUAL ou DEBTOR (cargas usam {@code DebtIngestionPort}); padrão MANUAL

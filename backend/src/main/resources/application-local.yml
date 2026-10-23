@@ -29,6 +29,9 @@ app:
       k1: ZGV2LW9ubHktYWVzLWtleS0zMi1ieXRlcy1sb2NhbCE=
     active-key-id: k1
     blind-index-key: ZGV2LW9ubHktYmxpbmQtaW5kZXgta2V5LTMyLWJ5dGVzIQ==
+  communication:
+    sandbox:
+      enabled: true
   storage:
     provider: filesystem
     local-root: ./var/storage
