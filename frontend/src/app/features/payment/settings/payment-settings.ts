@@ -1,0 +1,163 @@
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { finalize } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
+import { toApiError, userMessage } from '../../../core/http/problem';
+import { NotificationService } from '../../../core/notification/notification.service';
+import { formatAmount } from '../../../shared/components/amount/amount';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { Skeleton } from '../../../shared/components/skeleton/skeleton';
+import { valueOr } from '../../../shared/data/resource-value';
+import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
+import { PaymentSettingsApi } from '../data/payment.api';
+import { PaymentSettingsView } from '../data/payment.models';
+import { parseMoney } from '../data/payment.rules';
+
+/**
+ * Parâmetros de pagamentos da assessoria: limite para segunda aprovação de pagamentos
+ * informados, validade do Pix e tolerância de datas na conciliação. Alteração exige
+ * `ORG_SETTINGS_MANAGE` e acesso a todos os credores; os demais perfis só consultam.
+ */
+@Component({
+  selector: 'app-payment-settings',
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, AppDatePipe, EmptyState, PageHeader, Skeleton],
+  template: `
+    <app-page-header title="Parâmetros de pagamentos" subtitle="Regras de risco e de validade aplicadas a toda a assessoria." />
+    @if (resource.isLoading() && !settings()) {
+      <app-skeleton variant="card" [rows]="4" />
+    } @else if (resource.status() === 'error') {
+      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar os parâmetros." message="Verifique a conexão e tente novamente.">
+        <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+      </app-empty-state>
+    } @else if (settings(); as s) {
+      <form class="app-card ps-card" [formGroup]="form" (ngSubmit)="save()" novalidate data-tour="payment-settings">
+        <p class="app-muted ps-small">{{ s.customized ? 'Personalizados' + (s.updatedAt ? ' em ' + (s.updatedAt | appDate) : '') : 'Valem os padrões da plataforma.' }}{{ canEdit() ? '' : ' Somente leitura para o seu perfil.' }}</p>
+        @if (error()) {
+          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+        }
+        <div class="app-form-grid">
+          <mat-form-field>
+            <mat-label>Limite para segunda aprovação</mat-label>
+            <span matTextPrefix>R$&nbsp;</span>
+            <input matInput formControlName="threshold" inputmode="decimal" />
+            <mat-hint>Pagamentos informados acima deste valor esperam outra pessoa.</mat-hint>
+            <mat-error>Valor inválido.</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Validade do Pix imediato (horas)</mat-label>
+            <input matInput type="number" formControlName="pixHours" min="1" max="720" step="1" />
+            <mat-hint>De 1 hora a 30 dias (720 h).</mat-hint>
+            <mat-error>Entre 1 e 720 horas.</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Validade após o vencimento (dias)</mat-label>
+            <input matInput type="number" formControlName="dueDays" min="0" max="60" step="1" />
+            <mat-hint>Pix com vencimento: até quando aceita pagamento atrasado.</mat-hint>
+            <mat-error>Entre 0 e 60 dias.</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Tolerância de datas na conciliação (dias)</mat-label>
+            <input matInput type="number" formControlName="toleranceDays" min="0" max="15" step="1" />
+            <mat-hint>Diferença aceita entre o extrato e o pagamento.</mat-hint>
+            <mat-error>Entre 0 e 15 dias.</mat-error>
+          </mat-form-field>
+        </div>
+        @if (canEdit()) {
+          <div class="app-form-actions">
+            <button mat-flat-button type="submit" [disabled]="saving() || form.pristine">Salvar parâmetros</button>
+          </div>
+        }
+      </form>
+    }
+  `,
+  styles: `
+    .ps-card {
+      max-width: 880px;
+    }
+    .ps-small {
+      margin: 0 0 12px;
+      font-size: var(--app-text-sm);
+    }
+  `,
+})
+export class PaymentSettings {
+  private readonly api = inject(PaymentSettingsApi);
+  private readonly auth = inject(AuthService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly notifications = inject(NotificationService);
+  protected readonly canEdit = computed(() => this.auth.hasPermission(Permission.ORG_SETTINGS_MANAGE) && (this.auth.user()?.allCreditors ?? false));
+  protected readonly resource = rxResource({ stream: () => this.api.get() });
+  protected readonly settings = valueOr<PaymentSettingsView | undefined>(this.resource, undefined);
+  protected readonly saving = signal(false);
+  protected readonly error = signal<string | null>(null);
+
+  private readonly fb = inject(FormBuilder).nonNullable;
+  protected readonly form = this.fb.group({
+    threshold: ['', [(c: AbstractControl) => (parseMoney(c.value as string) === null ? { money: true } : null)]],
+    pixHours: [24, [Validators.required, Validators.min(1), Validators.max(720)]],
+    dueDays: [30, [Validators.required, Validators.min(0), Validators.max(60)]],
+    toleranceDays: [3, [Validators.required, Validators.min(0), Validators.max(15)]],
+  });
+
+  constructor() {
+    effect(() => {
+      const s = this.settings();
+      if (s) {
+        this.form.reset({
+          threshold: Number(s.externalReviewThreshold).toFixed(2).replace('.', ','),
+          pixHours: Math.round(s.pixExpirationSeconds / 3600),
+          dueDays: s.pixDueValidityDays,
+          toleranceDays: s.reconciliationDateToleranceDays,
+        });
+      }
+      if (this.canEdit()) {
+        this.form.enable({ emitEvent: false });
+      } else {
+        this.form.disable({ emitEvent: false });
+      }
+    });
+  }
+
+  protected save(): void {
+    if (this.form.invalid || this.saving()) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    const v = this.form.getRawValue();
+    const threshold = parseMoney(v.threshold)!;
+    this.confirm
+      .confirm({
+        title: 'Salvar parâmetros de pagamentos',
+        message: 'Valem para toda a assessoria. O novo limite vale para pagamentos informados a partir de agora.',
+        confirmLabel: 'Salvar',
+        details: [
+          { label: 'Segunda aprovação acima de', value: formatAmount(threshold) },
+          { label: 'Validade do Pix imediato', value: `${v.pixHours} h` },
+          { label: 'Validade após o vencimento', value: `${v.dueDays} dia(s)` },
+          { label: 'Tolerância na conciliação', value: `${v.toleranceDays} dia(s)` },
+        ],
+      })
+      .subscribe(() => {
+        this.saving.set(true);
+        this.error.set(null);
+        this.api
+          .update({ externalReviewThreshold: threshold, pixExpirationSeconds: v.pixHours * 3600, pixDueValidityDays: v.dueDays, reconciliationDateToleranceDays: v.toleranceDays })
+          .pipe(finalize(() => this.saving.set(false)))
+          .subscribe({
+            next: (saved) => {
+              this.notifications.success('Parâmetros salvos.');
+              this.resource.set(saved);
+            },
+            error: (err: unknown) => this.error.set(userMessage(toApiError(err))),
+          });
+      });
+  }
+}

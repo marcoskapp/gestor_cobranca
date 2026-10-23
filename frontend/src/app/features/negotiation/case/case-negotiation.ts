@@ -10,9 +10,10 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
+import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementsApi, ProposalsApi } from '../data/agreement.api';
-import { AgreementView, ProposalView } from '../data/agreement.models';
-import { OPEN_PROPOSAL_STATUSES, scheduleSummary } from '../data/agreement.rules';
+import { AgreementView, InstallmentView, ProposalView } from '../data/agreement.models';
+import { OPEN_PROPOSAL_STATUSES, installmentBalance, scheduleSummary } from '../data/agreement.rules';
 import { planText } from '../data/negotiation.labels';
 
 /**
@@ -74,6 +75,12 @@ import { planText } from '../data/negotiation.labels';
             @if (s.overdue) {
               <span class="cn-late">{{ s.overdue }} vencida(s)</span>
             }
+            @if (canPix() && s.next && active(a)) {
+              <button mat-stroked-button type="button" class="cn-pix" (click)="pix(a, s.next)" data-tour="case-pix">
+                <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+                Gerar Pix da {{ s.next.number }}ª parcela
+              </button>
+            }
           </li>
         } @empty {
           <li class="app-muted">Nenhum acordo neste caso.</li>
@@ -105,6 +112,9 @@ import { planText } from '../data/negotiation.labels';
       padding: 8px 0;
       border-bottom: 1px solid var(--app-border);
     }
+    .cn-pix {
+      margin-left: auto;
+    }
     .cn-late {
       font-weight: 600;
       color: var(--app-danger-fg);
@@ -119,12 +129,14 @@ export class CaseNegotiation {
   private readonly auth = inject(AuthService);
   private readonly proposalsApi = inject(ProposalsApi);
   private readonly agreementsApi = inject(AgreementsApi);
+  private readonly paymentLauncher = inject(PaymentLauncher);
 
   protected readonly canSimulate = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_SIMULATE));
   protected readonly canReadProposals = computed(() =>
     this.auth.hasAnyPermission([Permission.AGREEMENT_VIEW, Permission.NEGOTIATION_PROPOSE, Permission.NEGOTIATION_APPROVE]),
   );
   protected readonly canReadAgreements = computed(() => this.auth.hasPermission(Permission.AGREEMENT_VIEW));
+  protected readonly canPix = computed(() => this.auth.hasPermission(Permission.PAYMENT_INSTRUCTION_CREATE));
 
   /** Propostas do caso (filtro `caseId` da API); a tela mostra as ainda abertas. */
   protected readonly proposals = rxResource({
@@ -156,5 +168,24 @@ export class CaseNegotiation {
 
   protected summary(a: AgreementView) {
     return scheduleSummary(a);
+  }
+
+  protected active(a: AgreementView): boolean {
+    return a.status === 'FORMALIZED' || a.status === 'IN_PAYMENT';
+  }
+
+  /** Pix da próxima parcela em aberto, com QR Code e copia e cola para enviar durante o atendimento. */
+  protected pix(a: AgreementView, next: InstallmentView): void {
+    this.paymentLauncher
+      .instruction({
+        target: { kind: 'INSTALLMENT', creditorId: a.creditorId, agreementId: a.id, installmentId: next.id, installmentNumber: next.number, dueDate: next.dueDate, balance: installmentBalance(next) },
+        debtorId: this.debtorId(),
+        channel: a.channel,
+      })
+      .subscribe((created) => {
+        if (created?.status === 'PAID') {
+          this.agreements.reload();
+        }
+      });
   }
 }

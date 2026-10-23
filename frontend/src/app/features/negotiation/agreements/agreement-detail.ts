@@ -22,6 +22,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { DebtorsApi } from '../../debt/data/debt.api';
 import { CreditorNames } from '../../organization/data/organization.lookups';
+import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementsApi } from '../data/agreement.api';
 import {
   ACCEPTANCE_CHANNEL_LABELS,
@@ -30,7 +31,7 @@ import {
   PARTICIPANT_ROLE_LABELS,
   PAYMENT_STATUS_LABELS,
 } from '../data/agreement.labels';
-import { AcceptanceChannel } from '../data/agreement.models';
+import { AcceptanceChannel, InstallmentView } from '../data/agreement.models';
 import { actorText, agreementActions, installmentBalance, scheduleSummary, shortHash } from '../data/agreement.rules';
 import { percent } from '../data/negotiation.labels';
 
@@ -57,6 +58,7 @@ export class AgreementDetail {
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly breadcrumbs = inject(BreadcrumbService);
+  private readonly paymentLauncher = inject(PaymentLauncher);
 
   protected readonly origins = AGREEMENT_ORIGIN_LABELS;
   protected readonly roles = PARTICIPANT_ROLE_LABELS;
@@ -96,6 +98,10 @@ export class AgreementDetail {
     this.auth.hasAnyPermission([Permission.AGREEMENT_VIEW, Permission.NEGOTIATION_PROPOSE, Permission.NEGOTIATION_APPROVE]),
   );
   protected readonly debtorName = computed(() => this.debtorView()?.name ?? null);
+  /** Acordo em vigor recebe instruções de pagamento e pagamentos informados. */
+  protected readonly active = computed(() => ['FORMALIZED', 'IN_PAYMENT'].includes(this.agreement()?.status ?? ''));
+  protected readonly canPix = computed(() => this.active() && this.auth.hasPermission(Permission.PAYMENT_INSTRUCTION_CREATE));
+  protected readonly canRegisterPayment = computed(() => this.auth.hasPermission(Permission.PAYMENT_REGISTER_EXTERNAL));
 
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.debtorName()));
@@ -151,6 +157,42 @@ export class AgreementDetail {
     if (a) {
       void this.router.navigate(['/negociacao/simulador'], {
         queryParams: { credor: a.creditorId, devedor: a.debtorId, caso: a.caseId ?? undefined, renegociar: a.id },
+      });
+    }
+  }
+
+  protected pixable(i: InstallmentView): boolean {
+    return i.status !== 'PAID' && i.status !== 'CANCELLED' && installmentBalance(i) > 0;
+  }
+
+  /** Pix da parcela: QR Code e copia e cola no próprio diálogo (carregado sob demanda). */
+  protected generatePix(i: InstallmentView): void {
+    const a = this.agreement();
+    if (!a) {
+      return;
+    }
+    this.paymentLauncher
+      .instruction({
+        target: { kind: 'INSTALLMENT', creditorId: a.creditorId, agreementId: a.id, installmentId: i.id, installmentNumber: i.number, dueDate: i.dueDate, balance: installmentBalance(i) },
+        debtorId: a.debtorId,
+        debtorName: this.debtorName(),
+        channel: a.channel,
+      })
+      .subscribe((created) => {
+        if (created?.status === 'PAID') {
+          this.resource.reload();
+        }
+      });
+  }
+
+  protected registerPayment(): void {
+    const a = this.agreement();
+    if (a) {
+      this.paymentLauncher.external({ debtorId: a.debtorId, debtorName: this.debtorName(), initialKind: 'AGREEMENT' }).subscribe((p) => {
+        if (p) {
+          this.resource.reload();
+          this.paymentList.reload();
+        }
       });
     }
   }

@@ -23,9 +23,10 @@ import { OverdueBadge } from '../../debt/components/overdue-badge';
 import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_ICONS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
+import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { InteractionsApi, PromisesApi, TasksApi } from '../data/collection.api';
 import { CHANNEL_ICONS, CHANNEL_LABELS, DISPUTE_TYPE_LABELS, TASK_TYPE_LABELS, eligibilityText } from '../data/collection.labels';
-import { CaseSheet, PromiseView, SheetContact, TabulationView, TaskView } from '../data/collection.models';
+import { CaseSheet, PromiseView, SheetContact, SheetTitle, TabulationView, TaskView } from '../data/collection.models';
 import { formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
 
@@ -62,6 +63,7 @@ export class CaseSheetPanel {
   private readonly confirm = inject(ConfirmService);
   private readonly dialog = inject(MatDialog);
   private readonly notifications = inject(NotificationService);
+  private readonly paymentLauncher = inject(PaymentLauncher);
 
   protected readonly tabs = SHEET_TABS;
   protected readonly channelLabels = CHANNEL_LABELS;
@@ -78,6 +80,8 @@ export class CaseSheetPanel {
   protected readonly canReveal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
   protected readonly canManageTasks = computed(() => this.auth.hasPermission(Permission.TASK_MANAGE));
   protected readonly canCancelPromise = computed(() => this.auth.hasPermission(Permission.INTERACTION_REGISTER));
+  /** Pix de título avulso; com acordo em vigor, o Pix é da parcela (aba Negociação). */
+  protected readonly canPix = computed(() => this.auth.hasPermission(Permission.PAYMENT_INSTRUCTION_CREATE) && this.sheet().collectionCase.status !== 'AGREEMENT');
   protected readonly userId = computed(() => this.auth.user()?.id ?? null);
 
   protected readonly c = computed(() => this.sheet().collectionCase);
@@ -225,5 +229,31 @@ export class CaseSheetPanel {
           this.changed.emit();
         }),
       );
+  }
+
+  protected pixableTitle(t: SheetTitle): boolean {
+    return t.status === 'OPEN' && t.openBalance > 0 && !t.disputeBlocked;
+  }
+
+  protected titlePix(t: SheetTitle): void {
+    const cs = this.sheet().collectionCase;
+    this.paymentLauncher
+      .instruction({
+        target: {
+          kind: 'TITLE',
+          creditorId: cs.creditorId,
+          titleId: t.titleId,
+          label: `Título ${t.externalId}${t.installmentNumber ? '/' + t.installmentNumber : ''}`,
+          dueDate: t.dueDate,
+          balance: t.openBalance,
+        },
+        debtorId: this.sheet().debtor.id,
+        debtorName: this.sheet().debtor.name,
+      })
+      .subscribe((created) => {
+        if (created?.status === 'PAID') {
+          this.changed.emit();
+        }
+      });
   }
 }

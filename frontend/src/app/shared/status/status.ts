@@ -52,7 +52,12 @@ export type StatusDomain =
   | 'cadence'
   | 'enrollment'
   | 'experiment'
-  | 'stepOutcome';
+  | 'stepOutcome'
+  | 'paymentInstruction'
+  | 'payment'
+  | 'statementImport'
+  | 'statementLine'
+  | 'divergence';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -347,6 +352,45 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     EXECUTED: { label: 'Executada', tone: 'success' },
     SKIPPED: { label: 'Pulada', tone: 'warning' },
     FAILED: { label: 'Falhou', tone: 'danger' },
+  },
+  /** Instrução de pagamento (`InstructionStatus`). */
+  paymentInstruction: {
+    PENDING: { label: 'Registrando', tone: 'info' },
+    ACTIVE: { label: 'Aguardando pagamento', tone: 'info' },
+    PAID: { label: 'Paga', tone: 'success' },
+    EXPIRED: { label: 'Expirada', tone: 'neutral' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+    FAILED: { label: 'Recusada pelo PSP', tone: 'danger' },
+  },
+  /** Pagamento (`PaymentStatus`). */
+  payment: {
+    INFORMED: { label: 'Aguardando aprovação', tone: 'warning' },
+    CONFIRMED: { label: 'Confirmado', tone: 'success' },
+    RECONCILED: { label: 'Conciliado', tone: 'success' },
+    REJECTED: { label: 'Recusado', tone: 'neutral' },
+    REVERSED: { label: 'Estornado', tone: 'danger' },
+  },
+  /** Importação de extrato (`StatementImportStatus`). */
+  statementImport: {
+    RECEIVED: { label: 'Na fila', tone: 'info' },
+    PROCESSING: { label: 'Processando', tone: 'info' },
+    PROCESSED: { label: 'Processado', tone: 'success' },
+    FAILED: { label: 'Com falha', tone: 'danger' },
+  },
+  /** Linha do extrato (`StatementLineStatus`). */
+  statementLine: {
+    RECONCILED: { label: 'Conciliada', tone: 'success' },
+    CREATED_PAYMENT: { label: 'Confirmou pagamento', tone: 'success' },
+    DIVERGENT: { label: 'Divergente', tone: 'warning' },
+    ALREADY_RECONCILED: { label: 'Já conciliada', tone: 'neutral' },
+    IGNORED_DUPLICATE: { label: 'Repetida (ignorada)', tone: 'neutral' },
+    IGNORED_DEBIT: { label: 'Débito (ignorado)', tone: 'neutral' },
+  },
+  /** Divergência de conciliação (`DivergenceStatus`). */
+  divergence: {
+    OPEN: { label: 'Em aberto', tone: 'warning' },
+    RESOLVED: { label: 'Resolvida', tone: 'success' },
+    DISMISSED: { label: 'Descartada', tone: 'neutral' },
   },
 };
 

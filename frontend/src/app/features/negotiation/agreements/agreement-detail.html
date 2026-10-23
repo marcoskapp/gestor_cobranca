@@ -14,6 +14,12 @@
         Baixar termo
       </button>
     }
+    @if (canRegisterPayment() && active()) {
+      <button mat-button type="button" (click)="registerPayment()">
+        <mat-icon aria-hidden="true">add_card</mat-icon>
+        Informar pagamento
+      </button>
+    }
     @if (act.cancel) {
       <button mat-stroked-button type="button" class="ad-danger" (click)="cancel()" [disabled]="busy()">Cancelar acordo</button>
     }
@@ -93,6 +99,9 @@
                 <th scope="col" class="pd-end">Pago</th>
                 <th scope="col" class="pd-end">Saldo</th>
                 <th scope="col">Situação</th>
+                @if (canPix()) {
+                  <th scope="col" data-tour="agreement-pix"><span class="cdk-visually-hidden">Pix</span></th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -109,6 +118,15 @@
                       <span class="app-muted"> {{ i.paidAt | appDate: 'date' }}</span>
                     }
                   </td>
+                  @if (canPix()) {
+                    <td class="pd-end">
+                      @if (pixable(i)) {
+                        <button mat-icon-button type="button" (click)="generatePix(i)" [attr.aria-label]="'Gerar Pix da parcela ' + i.number" matTooltip="Gerar Pix">
+                          <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+                        </button>
+                      }
+                    </td>
+                  }
                 </tr>
               }
             </tbody>
