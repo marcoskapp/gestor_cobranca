@@ -1,0 +1,88 @@
+.re-group {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 8px 12px 4px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+
+  legend {
+    padding: 0 4px;
+    font-weight: 600;
+  }
+}
+
+.re-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0 8px;
+
+  mat-form-field {
+    flex: 1 1 170px;
+    min-width: 0;
+  }
+
+  .re-wide {
+    flex-basis: 260px;
+  }
+}
+
+.re-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 12px;
+}
+
+.re-sub {
+  margin: 4px 0;
+  font-size: var(--app-text-sm);
+  font-weight: 600;
+}
+
+.re-small {
+  margin: 4px 0;
+  font-size: var(--app-text-xs);
+}
+
+.re-scroll {
+  overflow-x: auto;
+}
+
+.re-table {
+  border-collapse: collapse;
+  font-size: var(--app-text-sm);
+
+  th,
+  td {
+    padding: 2px 4px;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    font-size: var(--app-text-xs);
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.re-cell {
+  box-sizing: border-box;
+  width: 76px;
+  padding: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+
+  &:disabled {
+    border-color: transparent;
+    background: transparent;
+  }
+}
+
+.re-cell--wide {
+  width: 220px;
+}

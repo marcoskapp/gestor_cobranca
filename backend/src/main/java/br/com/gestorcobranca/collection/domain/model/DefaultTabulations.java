@@ -27,7 +27,10 @@ public final class DefaultTabulations {
                 entry("BUSY", "Ocupado", false, false, false, false, 90),
                 entry("VOICEMAIL", "Caixa postal", false, false, false, false, 100),
                 entry("WRONG_CONTACT", "Contato errado / não conhece", false, false, false, true, 110),
-                entry("DECEASED", "Informado falecimento", false, false, false, true, 120));
+                entry("DECEASED", "Informado falecimento", false, false, false, true, 120),
+                // registradas automaticamente pelo módulo communication (V1001 nas assessorias existentes)
+                entry("MESSAGE_SENT", "Mensagem enviada", false, false, false, false, 130),
+                entry("MESSAGE_RECEIVED", "Mensagem recebida", false, false, false, false, 140));
     }
 
     private static Entry entry(String code, String name, boolean effectiveContact, boolean promise, boolean callback,

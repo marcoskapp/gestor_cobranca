@@ -34,7 +34,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.reconciled`, `payment.divergence`, `payment.reversed` |
 | Prestação de contas | `commission.accrued`, `settlement.closed` |
 | Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
-| Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.blocked` |
+| Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.received`, `message.blocked`, `conversation.handoff`, `conversation.closed`, `template.published` |
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.step_executed`, `campaign.step_skipped`, `experiment.variant_assigned` |
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
@@ -127,7 +127,26 @@ descrições e pareceres nunca entram no log (ficam criptografados no banco).
 | `dispute.opened` | contestação aberta | `type`, `origin`, `blocksCollection`, `titles`, `responseDays`; `amount` = valor contestado |
 | `dispute.resolved` | contestação resolvida ou retirada | `type`, `origin`, `status`, `outcome`, `durationDays`, `withinDeadline`, `evidences`; `amount`; `durationMs` |
 
-### 3.6 Atributos dos eventos do jurídico (legal)
+### 3.4 Atributos dos eventos de comunicação
+
+Nunca conteúdo de mensagem, contato, nome ou resumo de transferência (ficam criptografados no banco). Todos levam
+`creditorId`, `portfolioId`, `debtorId`, `caseId` (quando identificados), `channel` e, nos de mensagem,
+`referenceType=message` com `conversationId`, `direction`, `actorType` (autor: USER, ASSISTANT, CAMPAIGN, SYSTEM,
+DEBTOR), `ownerType` (dono da conversa) e, com template, `templateCode`, `templateVersion`, `purpose`;
+`campaignExecutionId` quando houver.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `message.blocked` | porteiro negou (verificação prévia ou no envio) | `stage` (`precheck`/`send`), `reasons` |
+| `message.sent` | provedor aceitou | `provider`, `attempts`; `durationMs` do enfileiramento ao aceite |
+| `message.delivered` / `message.read` | status do provedor | `durationMs` desde o envio |
+| `message.failed` | recusa do provedor, conta indisponível, janela encerrada ou tentativas esgotadas | `failureCode`, `attempts` |
+| `message.replied` / `message.received` | mensagem do devedor (com / sem envio anterior na conversa) | `contentType`, `identified`, `optOut` |
+| `conversation.handoff` / `assistant.handoff` | mudança de dono (o segundo quando o assistente transfere para humanos) | `kind`, `reason`, `from`, `to`, `fromUserId`, `toUserId`, `requiredProfile`, `referenceType`, `awaitingReply`; `durationMs` com o dono anterior |
+| `conversation.closed` | conversa encerrada | `from`, `messages`, `identified`; `durationMs` desde a abertura |
+| `template.published` | versão de template publicada | `code`, `templateVersion`, `purpose`, `variables`, `replacedVersion` |
+
+### 3.5 Atributos dos eventos do jurídico (legal)
 
 Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança) e referência `legal_matter` (ou o registro indicado). Nunca levam número de documento, nome, parecer, teor de andamento ou participantes; o número CNJ fica só na auditoria. `matterId` aparece como atributo quando a referência é outro registro.
 
@@ -149,7 +168,6 @@ Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança
 | `legal.titles_settled` | todos os títulos do caso jurídico saíram de cobrança | `stage`, `titleStatuses`, `removalDeadlines` |
 | `legal.prescription_alert` | alerta de prescrição do debt para título de caso jurídico aberto | `titleId`, `claim`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `stage` |
 | `legal.matter_closed` | `CLOSED` ou `RETURNED_TO_CREDITOR` | `stage`, `from`, `closureReason`, `route`, `durationDays`, `debtAmount`, `expensesTotal`, `recoveredAmount`, `responsibleType`, `lawFirmId`, `deadlinesCancelled`, `removalDeadlines`; `amount` = valor recuperado; `durationMs` |
-
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -240,5 +258,17 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `legal.providers.manual_requests{port,operation}`, `legal.providers.captured{provider}` | pedidos de operação automática com adaptador manual; andamentos capturados |
 | `legal.access.law_firm_denied{resource}` | acessos negados a membros de escritório fora dos casos atribuídos |
 | `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos, duração da varredura diária e falhas (alarme) |
+| `communication.messages{channel,direction,sender,status}` | mudanças de status de mensagens (inclui `QUEUED` e `RECEIVED`) |
+| `communication.messages.blocked{channel,sender,stage,reason}` | envios negados pelo porteiro, por motivo (`precheck`/`send`) |
+| `communication.send.attempts{channel,provider,outcome}` | tentativas do job: `accepted`, `rejected`, `transient`, `blocked`, `account_unavailable`, `whatsapp_window_closed` |
+| `communication.send.latency{channel}`, `communication.delivery.latency{channel}` (p50/p95/p99) | enfileiramento → aceite; aceite → entrega |
+| `communication.inbox.first_response{channel,responder}` (p50/p95/p99) | SLA de primeira resposta (operador ou assistente) |
+| `communication.webhook.requests{provider,outcome}` | `ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` (alarme), `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`, `VERIFIED`, `VERIFY_REJECTED` |
+| `communication.webhook.events{provider,type,outcome}` | mensagens/status do webhook: `applied`, `duplicate`, `stale` (replay), `unknown_message`, `ignored` |
+| `communication.opt_out{channel}` | descadastros por palavra-chave |
+| `communication.handoffs{kind,from,to}` | mudanças de dono das conversas |
+| `communication.interactions{direction,outcome}` | interações registradas no caso (`recorded`, `duplicate`, `skipped_*`) |
+| `communication.drafts{mode,outcome}` | rascunhos do assistente: `proposed`, `sent`, `edited`, `discarded` |
+| `communication.retention.purged`, `communication.events.consumed{type}`, `communication.jobs.failures{job}` | descarte de conteúdo, consumo de eventos e falhas (alarme; inclui `communication.send` com tentativas esgotadas) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

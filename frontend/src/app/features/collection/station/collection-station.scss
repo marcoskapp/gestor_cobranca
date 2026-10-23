@@ -1,0 +1,224 @@
+// Estação em três zonas com rolagem própria; a página não rola no desktop.
+:host {
+  --st-offset: 84px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--app-topbar-height) - var(--st-offset));
+  min-height: 520px;
+}
+
+:host-context(html[data-density='compact']) {
+  --st-offset: 68px;
+}
+
+.st-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.st-bar__title {
+  margin: 0;
+  font-size: var(--app-text-xl);
+  font-weight: 600;
+}
+
+.st-bar__queue {
+  width: 240px;
+}
+
+.st-bar__spacer {
+  flex: 1;
+}
+
+.st-kbd {
+  margin-left: 6px;
+  border-color: currentColor;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.st-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
+.st-zones {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 240px minmax(0, 1fr) 340px;
+  gap: 12px;
+  min-height: 0;
+}
+
+.st-zones--collapsed {
+  grid-template-columns: 48px minmax(0, 1fr) 340px;
+}
+
+.st-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  overflow: hidden;
+}
+
+.st-zone__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 4px 12px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.st-zone__title {
+  margin: 0;
+  font-size: var(--app-text-sm);
+  font-weight: 600;
+}
+
+.st-zone__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.st-pad {
+  padding: 12px;
+}
+
+.st-gap {
+  margin-top: 12px;
+}
+
+.st-progress {
+  position: absolute;
+  inset: 0 0 auto;
+}
+
+.st-icon {
+  --mat-icon-button-state-layer-size: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+}
+
+.st-cases {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.st-case {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--app-surface-raised);
+  }
+
+  &:focus-visible {
+    outline-offset: -2px;
+  }
+}
+
+.st-case--selected {
+  border-left-color: var(--mat-sys-primary);
+  background: var(--app-surface-raised);
+}
+
+.st-case__name {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.st-case__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: var(--app-text-xs);
+}
+
+.st-case__action {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.st-late {
+  font-weight: 600;
+  color: var(--app-danger-fg);
+}
+
+.st-actions .st-zone__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.st-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+// atalhos de teclado não se aplicam a telas de toque
+@media (pointer: coarse) {
+  .st-kbd {
+    display: none;
+  }
+}
+
+// Telas menores: zonas empilhadas, a página volta a rolar.
+@media (max-width: 1199.98px) {
+  :host {
+    height: auto;
+  }
+
+  .st-zones,
+  .st-zones--collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .st-queue .st-zone__body {
+    max-height: 260px;
+  }
+
+  .st-zone {
+    overflow: visible;
+  }
+
+  .st-zone__body {
+    overflow: visible;
+  }
+
+  .st-queue .st-zone__body {
+    overflow-y: auto;
+  }
+
+  .st-bar__queue {
+    width: 100%;
+  }
+}

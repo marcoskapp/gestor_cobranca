@@ -462,6 +462,268 @@ export const TOURS: readonly TourDefinition[] = [
       },
     ],
   },
+  {
+    id: 'collection.station',
+    version: 1,
+    title: 'Estação de cobrança',
+    summary: 'Fila, ficha do caso e registro do atendimento em uma só tela, pelo teclado.',
+    steps: [
+      {
+        anchor: 'next-case',
+        title: 'Próximo caso (Alt + N)',
+        body: 'Entrega o caso mais prioritário das suas filas. Retornos vencidos com você vêm primeiro.',
+      },
+      {
+        anchor: 'my-cases',
+        title: 'Seus casos',
+        body: 'Casos atribuídos a você, com saldo, atraso e próxima ação. Alt + Q recolhe a fila para ganhar espaço.',
+        placement: 'end',
+      },
+      {
+        anchor: 'case-tabs',
+        title: 'Ficha do caso',
+        body: 'Títulos, contatos mascarados, histórico, agenda e contestações. Alterne as abas com Alt + 1 a Alt + 5.',
+      },
+      {
+        anchor: 'contact-window',
+        title: 'Janela de contato',
+        body: 'Mostra por canal se o contato é permitido agora ou se há restrição. O sistema confere feriados e limites a cada contato.',
+        placement: 'start',
+      },
+      {
+        anchor: 'interaction-form',
+        title: 'Registrar interação (Alt + R)',
+        body: 'A tabulação define o que é exigido: observação, promessa com valor e data ou retorno combinado. Ctrl + Enter registra.',
+        placement: 'start',
+      },
+      {
+        anchor: 'case-actions',
+        title: 'Retorno, simulação e contestação',
+        body: 'Alt + A agenda retorno e Alt + S abre a simulação. Contestação com evidência suspende a cobrança até a resolução.',
+        placement: 'start',
+      },
+    ],
+  },
+  {
+    id: 'collection.agenda',
+    version: 1,
+    title: 'Agenda de retornos',
+    summary: 'Retornos combinados por dia, com atrasados em destaque.',
+    steps: [
+      {
+        anchor: 'filters',
+        title: 'Período',
+        body: 'Hoje, próximos 7 dias, atrasados ou um período livre. Supervisores consultam a agenda de outro operador.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Retornos',
+        body: 'Horário de Brasília. Conclua, reagende ou cancele e abra o caso direto na estação.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'collection.cases',
+    version: 1,
+    title: 'Casos de cobrança',
+    summary: 'Consulta de casos por credor, fila, responsável e elegibilidade.',
+    steps: [
+      {
+        anchor: 'filters',
+        title: 'Filtros',
+        body: 'Combine credor, situação, fila, responsável e elegibilidade para encontrar exceções.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Casos',
+        body: 'Inelegíveis mostram o motivo ao passar o mouse. Atribua a um operador ou equipe pelo ícone da linha.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'collection.queues',
+    version: 1,
+    title: 'Filas e distribuição',
+    summary: 'Critérios das filas, prioridade e distribuição entre operadores.',
+    steps: [
+      {
+        anchor: 'page-actions',
+        title: 'Filas',
+        body: 'O caso entra na primeira fila ativa, por prioridade, cujos critérios satisfaz. Salvar uma fila reprocessa o roteamento.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Distribuir e redistribuir',
+        body: 'Veja disponíveis e carga por operador e distribua em lote. Redistribua os casos de quem se ausentou.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'collection.disputes',
+    version: 1,
+    title: 'Contestações',
+    summary: 'Fila de contestações com prazo de resposta e resolução com parecer.',
+    steps: [
+      {
+        anchor: 'dispute-kpis',
+        title: 'Prazos',
+        body: 'Prazo vencido, abertas e em análise. Clique num indicador para filtrar a lista.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Analisar e resolver',
+        body: 'Abra a contestação para ver evidências, enviar para análise, resolver com parecer ou registrar desistência.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'negotiation.simulator',
+    version: 1,
+    title: 'Simulador de negociação',
+    summary: 'Dívida atualizada, ofertas lado a lado e validação das condições pela sua alçada.',
+    steps: [
+      {
+        anchor: 'sim-context',
+        title: 'Dívida a negociar',
+        body: 'Escolha credor e devedor. Sem títulos marcados, entram todos os títulos em aberto no credor.',
+        placement: 'end',
+      },
+      {
+        anchor: 'sim-authority',
+        title: 'Sua alçada',
+        body: 'Seu limite aparece antes de simular: nível da escada, fatia do desconto, pagamentos e valor do acordo.',
+        placement: 'end',
+      },
+      {
+        anchor: 'sim-offers',
+        title: 'À vista e parcelado',
+        body: 'Compare as ofertas lado a lado. A situação indica se estão dentro da alçada ou exigem aprovação.',
+      },
+      {
+        anchor: 'sim-escalate',
+        title: 'Subir de nível',
+        body: 'Concessões acima do nível 0 exigem o motivo, que fica registrado na auditoria.',
+      },
+      {
+        anchor: 'sim-validate',
+        title: 'Validar condições',
+        body: 'Ajuste descontos e parcelas combinados e valide: dentro da alçada, requer aprovação ou rejeitado.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'negotiation.policies',
+    version: 1,
+    title: 'Políticas de cobrança',
+    summary: 'Versões das condições de negociação de cada credor.',
+    steps: [
+      {
+        anchor: 'page-actions',
+        title: 'Nova política',
+        body: 'Comece pelo modelo de mercado e ajuste às condições do credor. A primeira versão nasce como rascunho.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Versões',
+        body: 'Cada publicação cria uma versão imutável com vigência; a anterior é encerrada no dia anterior.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'negotiation.policy-detail',
+    version: 1,
+    title: 'Versão da política',
+    summary: 'Encargos, descontos, parcelamento, escada de concessões e sobreposições.',
+    steps: [
+      {
+        anchor: 'policy-status',
+        title: 'Situação e vigência',
+        body: 'Rascunhos podem ser editados e publicados. Versões publicadas só podem ser aposentadas ou copiadas para uma nova versão.',
+      },
+      {
+        anchor: 'policy-overrides',
+        title: 'Regras e sobreposições',
+        body: 'Sobreposições por carteira ou faixa de atraso substituem grupos inteiros das regras base. A mais específica vence.',
+      },
+      {
+        anchor: 'policy-ladder',
+        title: 'Escada de concessões',
+        body: 'Cada nível libera uma fatia do desconto máximo. Negociadores começam no nível 0 e sobem com justificativa.',
+      },
+      {
+        anchor: 'policy-versions',
+        title: 'Linha do tempo',
+        body: 'Todas as versões do credor, com vigência. Propostas guardam a versão usada.',
+        placement: 'start',
+      },
+    ],
+  },
+  {
+    id: 'negotiation.authority',
+    version: 1,
+    title: 'Alçadas',
+    summary: 'Perfis de alçada e quem usa cada um.',
+    steps: [
+      {
+        anchor: 'authority-tabs',
+        title: 'Perfis e atribuições',
+        body: 'O perfil define quanto do envelope da política o ator usa sem aprovação. Atribua por usuário, geral ou por credor.',
+      },
+      {
+        anchor: 'page-actions',
+        title: 'Atribuir alçada',
+        body: 'Ninguém atribui a própria alçada. Toda mudança fica registrada no log de acesso.',
+      },
+    ],
+  },
+  {
+    id: 'ingestion.batches',
+    version: 1,
+    title: 'Importação de carteiras',
+    summary: 'Envio de arquivos do credor com prévia, progresso e ocorrências.',
+    steps: [
+      {
+        anchor: 'page-actions',
+        title: 'Modelo e envio',
+        body: 'Baixe o modelo do layout padrão e envie primeiro em prévia: nada é gravado até você importar.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Lotes',
+        body: 'Lotes em andamento mostram o progresso e se atualizam sozinhos. Abra um lote para ver as ocorrências por linha.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'ingestion.batch-detail',
+    version: 1,
+    title: 'Lote de importação',
+    summary: 'Contadores, ocorrências por linha e reprocessamento.',
+    steps: [
+      {
+        anchor: 'batch-counters',
+        title: 'Contadores',
+        body: 'Linhas lidas, válidas e com erro, devedores e títulos criados ou atualizados.',
+      },
+      {
+        anchor: 'batch-issues',
+        title: 'Ocorrências',
+        body: 'Erros e avisos por linha, com o valor mascarado. Baixe o relatório para devolver ao credor.',
+      },
+      {
+        anchor: 'page-actions',
+        title: 'Importar ou reprocessar',
+        body: 'Depois da prévia, importe o mesmo arquivo. Reenviar não duplica títulos; arquivo já importado exige justificativa.',
+      },
+    ],
+  },
 ];
 
 export function findTour(id: string): TourDefinition | undefined {

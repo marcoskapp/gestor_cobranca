@@ -156,6 +156,27 @@ class DebtorContactService implements DebtorContactUseCases {
         return new ContactFingerprint(contactType.name(), index.contact(contactValue), contactValue.masked());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<ContactFingerprint> tryFingerprint(String type, String value) {
+        ContactType contactType;
+        try {
+            contactType = ContactType.valueOf(type);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return java.util.Optional.empty();
+        }
+        if (contactType == ContactType.ADDRESS || value == null || value.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        try {
+            ContactValue contactValue = ContactValue.parse(contactType, value);
+            return java.util.Optional.of(new ContactFingerprint(contactType.name(), index.contact(contactValue),
+                    contactValue.masked()));
+        } catch (BusinessRuleException e) {
+            return java.util.Optional.empty();
+        }
+    }
+
     private DebtorContact loadVisible(UUID debtorId, UUID contactId) {
         visibility.requireVisible(debtorId);
         return contacts.findById(contactId)
