@@ -21,3 +21,14 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 15 | incentive | Ajuste manual de extrato acima de R$ 500 exige dupla aprovação; quem aprova não pode ser o beneficiário nem quem fechou/ajustou. Agregados em logs só com ≥ 3 extratos. | Duas aprovações sempre. | Segregação de funções e privacidade da remuneração. |
 | 16 | incentive | Dependência `incentive → compliance` (calendário de feriados) acrescentada ao grafo. Ocupação = tempo de chamadas atendidas ÷ tempo logado (conversas não têm duração). | Interface no shared. | Porta pública já existente, sem ciclo. |
 | 17 | processo | Migration do incentive no identity renumerada para V0202 (V0201 já usada pelo estado de interface). | — | Conflito de versão entre frentes paralelas. |
+
+## Situação ao fim da sessão autônoma
+
+- **Integrados na master (testes verdes):** compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
+- **Interrompidos pelo responsável e não retomados** (trabalho não commitado preservado nos worktrees, nada foi descartado):
+  - `wt-debt-garantias` (garantias, coobrigados, prescrição) — 60 arquivos alterados, sem commit;
+  - `wt-modulo-ingestion` — 4 arquivos alterados, sem commit;
+  - `wt-modulo-collection` — 2 arquivos alterados, sem commit;
+  - `wt-frontend-debt-compliance` — 6 arquivos alterados, sem commit;
+  - `wt-negotiation-motor` — sem alterações.
+- Próxima onda (negotiation parte 2, payment, communication, settlement…) **não foi iniciada**, aguardando orientação.
