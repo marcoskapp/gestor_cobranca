@@ -41,14 +41,26 @@ interface CollectionTaskJpaRepository extends JpaRepository<CollectionTask, UUID
     List<CollectionTask> dueForUser(UUID userId, Instant now, Limit limit);
 
     @Override
-    default List<CollectionTask> findPendingDueBefore(Instant before, int limit) {
-        return pendingDueBefore(before, Limit.of(limit));
+    default List<CollectionTask> findPendingLateBefore(Instant before, int limit) {
+        return pendingLateBefore(before, Limit.of(limit));
     }
 
     @Query("""
             select t from CollectionTask t
-             where t.status = br.com.gestorcobranca.collection.domain.model.TaskStatus.PENDING and t.dueAt < :before
+             where t.status = br.com.gestorcobranca.collection.domain.model.TaskStatus.PENDING
+               and t.toleranceUntil < :before
+             order by t.toleranceUntil, t.id
+            """)
+    List<CollectionTask> pendingLateBefore(Instant before, Limit limit);
+
+    @Override
+    @Query("""
+            select t from CollectionTask t
+             where t.caseId = :caseId and t.dueAt <= :at
+               and t.type = br.com.gestorcobranca.collection.domain.model.TaskType.CALLBACK
+               and t.status in (br.com.gestorcobranca.collection.domain.model.TaskStatus.PENDING,
+                                br.com.gestorcobranca.collection.domain.model.TaskStatus.MISSED)
              order by t.dueAt
             """)
-    List<CollectionTask> pendingDueBefore(Instant before, Limit limit);
+    List<CollectionTask> findOpenCallbacksDueBy(UUID caseId, Instant at);
 }

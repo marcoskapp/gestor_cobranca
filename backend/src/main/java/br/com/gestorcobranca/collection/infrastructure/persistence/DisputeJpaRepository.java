@@ -21,7 +21,7 @@ interface DisputeJpaRepository extends JpaRepository<Dispute, UUID>, JpaSpecific
 
     @Override
     @Query("""
-            select count(d) > 0 from Dispute d
+            select case when count(d) > 0 then true else false end from Dispute d
              where d.caseId = :caseId and d.blocksCollection
                and d.status in (br.com.gestorcobranca.collection.domain.model.DisputeStatus.OPEN,
                                 br.com.gestorcobranca.collection.domain.model.DisputeStatus.UNDER_REVIEW)
