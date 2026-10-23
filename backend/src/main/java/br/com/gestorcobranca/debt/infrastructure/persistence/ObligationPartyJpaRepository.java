@@ -6,6 +6,7 @@ import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,13 @@ interface ObligationPartyJpaRepository extends JpaRepository<ObligationParty, UU
     @Override
     @Query("select distinct p.creditorId from ObligationParty p where p.debtorId = :debtorId and p.endedOn is null")
     List<UUID> findActiveCreditorIdsByDebtorId(UUID debtorId);
+
+    @Override
+    @Query("""
+            select distinct p.debtorId from ObligationParty p
+            where p.debtorId in :debtorIds and p.creditorId in :creditorIds and p.endedOn is null
+            """)
+    List<UUID> findActiveDebtorIdsInCreditors(Collection<UUID> debtorIds, Collection<UUID> creditorIds);
 
     @Override
     @Query("""

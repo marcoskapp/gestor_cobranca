@@ -69,6 +69,12 @@ function sheet(m: MatterView): MatterSheet {
     history: [
       { id: 'h-1', fromStage: null, toStage: 'ELIGIBLE', reason: 'Regra Atraso > 180 dias', closureReason: null, cause: 'RULE', occurredAt: '2026-10-20T12:00:00Z', actorId: null },
     ],
+    collaterals: [
+      { collateralId: 'k-1', contractId: 'ct-1', type: 'VEHICLE_FIDUCIARY_ALIENATION', description: 'Onix 2019', assetSummary: 'veículo ABC-1D23', status: 'ACTIVE', estimatedValue: 32000, lastAppraisalDate: '2026-09-01', titleIds: ['t-1'] },
+    ],
+    hearings: [
+      { id: 'hr-1', lawsuitId: 'l-1', matterId: 'm-1', type: 'CONCILIATION', scheduledAt: '2026-11-05T13:00:00Z', mode: 'VIDEO', location: null, link: null, participantUserIds: [], externalParticipants: null, status: 'SCHEDULED', outcome: null, resultNotes: null, rescheduleCount: 0, version: 0 },
+    ],
   };
 }
 
@@ -76,11 +82,13 @@ describe('MatterDetail', () => {
   let http: HttpTestingController;
   let permissions: string[];
   let roles: string[];
+  let external: boolean;
   let data: MatterSheet;
 
   beforeEach(() => {
     permissions = ['LEGAL_VIEW', 'LEGAL_MANAGE', 'LEGAL_AUTHORIZE', 'LEGAL_EXPENSE_MANAGE', 'CASE_VIEW'];
     roles = ['JURIDICO'];
+    external = false;
     data = sheet(matter());
     TestBed.configureTestingModule({
       imports: [MatterDetail],
@@ -107,6 +115,7 @@ describe('MatterDetail', () => {
   function answer(req: TestRequest): void {
     const url = req.request.url;
     if (url === '/api/v1/legal/matters/m-1/sheet') req.flush(data);
+    else if (url === '/api/v1/legal/me') req.flush({ external, lawFirmId: external ? 'f-1' : null, lawFirmName: external ? 'Silva Advogados' : null, firmActive: true });
     else if (url === '/api/v1/creditors/c-1') req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
     else req.flush([]);
   }
@@ -176,8 +185,27 @@ describe('MatterDetail', () => {
     expect(card?.textContent).toContain('Prazo perdido');
   });
 
+  it('garantias dos títulos e audiências de todos os processos no resumo', async () => {
+    const fixture = await render();
+    const text = el(fixture).textContent ?? '';
+    expect(text).toContain('Garantias (1)');
+    expect(text).toContain('veículo ABC-1D23');
+    expect(text).toContain('1 de 1');
+    expect(text).toContain('Audiências (1)');
+    expect(text).toContain('Videoconferência');
+  });
+
+  it('visão restrita vem do vínculo com escritório (GET /legal/me), não do código do perfil', async () => {
+    roles = ['PERFIL_PERSONALIZADO'];
+    external = true;
+    permissions = ['LEGAL_VIEW', 'LEGAL_MANAGE', 'LEGAL_EXPENSE_MANAGE'];
+    const fixture = await render();
+    expect(el(fixture).textContent).toContain('Caso atribuído ao seu escritório');
+  });
+
   it('advogado parceiro: aviso de visão restrita e sem link para o caso de cobrança', async () => {
     roles = ['ADVOGADO_PARCEIRO'];
+    external = true;
     permissions = ['LEGAL_VIEW', 'LEGAL_MANAGE', 'LEGAL_EXPENSE_MANAGE'];
     const fixture = await render();
     expect(el(fixture).textContent).toContain('Caso atribuído ao seu escritório');

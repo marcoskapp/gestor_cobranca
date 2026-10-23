@@ -9,6 +9,7 @@ import {
   AddContactRequest,
   ContactView,
   DebtorFilter,
+  DebtorName,
   DebtorSummary,
   DebtorView,
   LedgerPage,
@@ -45,6 +46,14 @@ export class DebtorsApi {
   /** Busca exata por documento no corpo da requisição. 404 = não encontrado (tratado pela tela). */
   lookup(document: string): Observable<DebtorView> {
     return this.http.post<DebtorView>(`${this.base}/lookup`, { document }, { context: silentErrorContext() });
+  }
+
+  /**
+   * Nomes de exibição em lote (`GET /debtors/names`, até 200 ids): só id, nome e situação, para
+   * telas operacionais com `CASE_VIEW`, `INBOX_VIEW` ou `DEBTOR_VIEW`; fora do escopo são omitidos.
+   */
+  names(ids: string[]): Observable<DebtorName[]> {
+    return this.http.get<DebtorName[]>(`${this.base}/names`, { params: { ids: ids.join(',') }, context: silentErrorContext() });
   }
 
   get(id: string): Observable<DebtorView> {

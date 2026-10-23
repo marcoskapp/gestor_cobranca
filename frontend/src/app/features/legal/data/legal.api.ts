@@ -26,6 +26,7 @@ import {
   LegalDashboard,
   LegalSettings,
   MatterFilter,
+  LegalProfileView,
   MatterSheet,
   MatterView,
   MeasureView,
@@ -58,6 +59,11 @@ export class LegalMattersApi {
 
   refer(request: ReferRequest): Observable<MatterView> {
     return this.http.post<MatterView>(`${BASE}/matters`, request);
+  }
+
+  /** Vínculo do usuário autenticado com escritório parceiro (o vínculo é do jurídico). */
+  me(): Observable<LegalProfileView> {
+    return this.http.get<LegalProfileView>(`${BASE}/me`);
   }
 
   sheet(id: string): Observable<MatterSheet> {

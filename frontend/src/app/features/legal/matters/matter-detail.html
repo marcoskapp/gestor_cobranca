@@ -98,6 +98,57 @@
             @if (m.referralNote) {
               <p class="app-muted">Indicação: {{ m.referralNote }}</p>
             }
+
+            <h2 class="app-section-title" id="md-collaterals">Garantias ({{ s.collaterals.length }})</h2>
+            @if (s.collaterals.length) {
+              <div class="md-scroll">
+                <table class="md-table" aria-labelledby="md-collaterals">
+                  <thead>
+                    <tr>
+                      <th scope="col">Garantia</th>
+                      <th scope="col">Bem</th>
+                      <th scope="col">Títulos</th>
+                      <th scope="col" class="md-end">Valor estimado</th>
+                      <th scope="col">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (k of s.collaterals; track k.collateralId) {
+                      <tr>
+                        <td>{{ collateralTypes[k.type] ?? k.type }}</td>
+                        <td>{{ k.assetSummary ?? k.description ?? '—' }}</td>
+                        <td class="app-numeric">{{ k.titleIds.length }} de {{ s.titles.length }}</td>
+                        <td class="md-end">
+                          <app-amount [value]="k.estimatedValue" />
+                          @if (k.lastAppraisalDate) {
+                            <span class="app-muted"> ({{ k.lastAppraisalDate | appDate: 'date' }})</span>
+                          }
+                        </td>
+                        <td><app-status-chip domain="collateral" [status]="k.status" /></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="app-muted">Nenhuma garantia cobre os títulos deste caso.</p>
+            }
+
+            <h2 class="app-section-title" id="md-hearings">Audiências ({{ s.hearings.length }})</h2>
+            @if (s.hearings.length) {
+              <ul class="md-hearings" aria-labelledby="md-hearings">
+                @for (h of s.hearings; track h.id) {
+                  <li>
+                    <span class="md-date">{{ h.scheduledAt | appDate }}</span>
+                    <strong>{{ hearingTypes[h.type] ?? h.type }}</strong>
+                    <span class="app-muted">· {{ hearingModes[h.mode] ?? h.mode }}{{ lawsuitNumber(h.lawsuitId) ? ' · ' + lawsuitNumber(h.lawsuitId) : '' }}</span>
+                    <app-status-chip domain="hearing" [status]="h.status" />
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="app-muted">Nenhuma audiência agendada.</p>
+            }
           </section>
           <section aria-labelledby="md-history" data-tour="matter-history">
             <h2 class="app-section-title" id="md-history">Linha do tempo</h2>

@@ -73,11 +73,11 @@ final class LegalRequests {
                        @DecimalMin("0.00") @Digits(integer = 15, fraction = 2) BigDecimal minOpenBalance,
                        boolean requireCollateral, boolean requireExecutiveTitle,
                        @Min(1) @Max(100) Integer minBrokenAgreements,
-                       @Min(1) @Max(3650) Integer prescriptionWithinDays) {
+                       @Min(1) @Max(3650) Integer prescriptionWithinDays, boolean requireCadenceExhausted) {
 
         RuleCommand toCommand() {
             return new RuleCommand(creditorId, portfolioId, name, minDaysOverdue, minOpenBalance, requireCollateral,
-                    requireExecutiveTitle, minBrokenAgreements, prescriptionWithinDays);
+                    requireExecutiveTitle, minBrokenAgreements, prescriptionWithinDays, requireCadenceExhausted);
         }
     }
 

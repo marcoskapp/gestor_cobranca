@@ -24,6 +24,7 @@ flowchart LR
     subgraph Plataforma["Gestor de Cobrança"]
         SPA["Frontend Angular (SPA)"]
         API["API REST /api/v1<br/>Webhooks /api/v1/webhooks<br/>Portal /api/portal/v1"]
+        SSE["Tempo real da caixa de entrada<br/>SSE /api/v1/communication/inbox/stream"]
         CORE["Núcleo de aplicação<br/>(módulos de negócio)"]
         JOBS["Processamento assíncrono<br/>eventos · fila de jobs · agendamentos"]
     end
@@ -46,7 +47,11 @@ flowchart LR
     JOBS --> WA & MAIL & SMS & PSP & CTI & IA
     CORE -. logs/métricas .-> CW
     JOBS -. logs/métricas .-> CW
+    PG -. "LISTEN/NOTIFY communication_inbox<br/>(só ids, após o commit, a todas as instâncias)" .-> SSE
+    SSE -. "avisos (ADR-0008)" .-> SPA
 ```
+
+O tempo real da caixa de entrada não usa serviço adicional: gatilhos nas tabelas de conversa e mensagem emitem `NOTIFY` (somente ids), cada instância escuta o canal numa conexão própria e repassa às conexões SSE abertas nela, filtrando assessoria e credores do escopo; o navegador então busca os dados pelos endpoints normais ([ADR-0008](adr/0008-tempo-real-sse-listen-notify.md)).
 
 ## 2. Camadas de cada módulo
 
@@ -122,6 +127,7 @@ flowchart BT
 | `PaymentConfirmed`, `PaymentReversed` | payment | collection, campaign, settlement, scoring |
 | `MessageStatusChanged` | communication | collection, campaign, assistant |
 | `CallCompleted` | telephony | collection, scoring |
+| `CadenceExhausted` | campaign | legal (critério "régua extrajudicial esgotada") |
 
 Eventos são gravados na mesma transação da operação (Spring Modulith) e entregues após o commit; consumidores são idempotentes e falhas são reprocessadas automaticamente.
 

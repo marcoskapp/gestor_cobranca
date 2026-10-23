@@ -103,6 +103,32 @@ export interface MatterSheet {
   expenses: ExpenseView[];
   documents: DocumentView[];
   history: StageEntryView[];
+  /** Garantias que cobrem os títulos do caso (lidas do cadastro da dívida). */
+  collaterals: MatterCollateralView[];
+  /** Audiências de todos os processos do caso, em ordem cronológica. */
+  hearings: HearingView[];
+}
+
+/** `LegalMatterUseCases.MatterCollateralView`: bem resumido, sem identificação completa. */
+export interface MatterCollateralView {
+  collateralId: string;
+  contractId: string;
+  type: string;
+  description: string | null;
+  assetSummary: string | null;
+  status: string;
+  estimatedValue: number | null;
+  lastAppraisalDate: string | null;
+  titleIds: string[];
+}
+
+/** `LawFirmUseCases.LegalProfileView` (`GET /legal/me`). */
+export interface LegalProfileView {
+  /** Membro ativo de escritório parceiro: visão restrita aos casos do escritório. */
+  external: boolean;
+  lawFirmId: string | null;
+  lawFirmName: string | null;
+  firmActive: boolean;
 }
 
 export interface StageCount {

@@ -1,9 +1,11 @@
 package br.com.gestorcobranca.communication.domain.repository;
 
+import br.com.gestorcobranca.communication.domain.model.ChannelType;
 import br.com.gestorcobranca.communication.domain.model.Conversation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,4 +36,10 @@ public interface ConversationRepository {
     List<Conversation> findOpenWithoutCase(UUID debtorId, UUID creditorId);
 
     Page<Conversation> search(ConversationSearchCriteria criteria, Pageable pageable);
+
+    /**
+     * Conversas abertas do canal aguardando resposta desde um instante em ({@code after}, {@code until}],
+     * da espera mais antiga para a mais recente (varredura de SLA).
+     */
+    List<Conversation> findAwaitingBetween(ChannelType channel, Instant after, Instant until, int limit);
 }

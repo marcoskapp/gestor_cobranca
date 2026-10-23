@@ -231,7 +231,7 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 
 | Recurso | Métodos | Permissão |
 | --- | --- | --- |
-| `/proposals` | `POST` (criar), `GET` (filtros: credor, devedor, status, tipo de ator) | `NEGOTIATION_PROPOSE` / leitura: `AGREEMENT_VIEW`, `NEGOTIATION_PROPOSE` ou `NEGOTIATION_APPROVE` |
+| `/proposals` | `POST` (criar), `GET` (filtros: credor, devedor, caso, status, tipo de ator) | `NEGOTIATION_PROPOSE` / leitura: `AGREEMENT_VIEW`, `NEGOTIATION_PROPOSE` ou `NEGOTIATION_APPROVE` |
 | `/proposals/approval-queue` | `GET` | `NEGOTIATION_APPROVE` |
 | `/proposals/{id}` · `/proposals/{id}/term` | `GET` | leitura |
 | `/proposals/{id}/approve` · `/reject` | `POST` | `NEGOTIATION_APPROVE` |

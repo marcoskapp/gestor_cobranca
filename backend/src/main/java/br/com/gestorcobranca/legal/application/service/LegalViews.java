@@ -127,7 +127,8 @@ final class LegalViews {
     static RuleView rule(LegalEligibilityRule r) {
         return new RuleView(r.getId(), r.getCreditorId(), r.getPortfolioId(), r.getName(), r.isActive(),
                 r.getMinDaysOverdue(), amount(r.getMinOpenBalance()), r.isRequireCollateral(), r.isRequireExecutiveTitle(),
-                r.getMinBrokenAgreements(), r.getPrescriptionWithinDays(), version(r.getVersion()));
+                r.getMinBrokenAgreements(), r.getPrescriptionWithinDays(), r.isRequireCadenceExhausted(),
+                version(r.getVersion()));
     }
 
     static AssessmentView assessment(ViabilityAssessment a) {

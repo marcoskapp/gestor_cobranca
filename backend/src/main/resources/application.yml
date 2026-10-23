@@ -258,6 +258,17 @@ app:
     sandbox:
       enabled: false
       delivery-delay: PT0S
+    # varredura de estouros do SLA de primeira resposta (metas por canal: /api/v1/communication/response-targets)
+    sla-scan-interval: PT1M
+    # tempo real da caixa de entrada: SSE por instância + LISTEN/NOTIFY do PostgreSQL entre instâncias
+    realtime:
+      enabled: true
+      heartbeat: PT20S
+      max-stream-duration: PT5M
+      max-streams-per-user: 5
+      max-streams: 2000
+      reconnect-delay: PT5S
+      revalidation: PT1M
 
   payment:
     # padrões da assessoria enquanto ela não grava os seus (PUT /api/v1/payment/settings)

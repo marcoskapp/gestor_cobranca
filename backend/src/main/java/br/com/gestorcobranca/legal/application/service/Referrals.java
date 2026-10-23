@@ -106,7 +106,7 @@ class Referrals {
             record(outcome);
             if (outcome.eligible()) {
                 return Optional.of(create(c, snapshots, outcome, outcome.titleIds(), rule, origin, null,
-                        origin == MatterOrigin.RULE ? "rule" : "prescription_alert"));
+                        origin.name().toLowerCase(java.util.Locale.ROOT)));
             }
         }
         return Optional.empty();

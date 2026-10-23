@@ -29,6 +29,14 @@ public interface MessageUseCases {
     PageResponse<MessageView> listByConversation(UUID conversationId, PageQuery page);
 
     /**
+     * Linha do tempo do devedor: mensagens de todas as suas conversas (todos os canais), das mais
+     * recentes para as mais antigas, somente das conversas nos credores do escopo do ator.
+     *
+     * @param creditorId restringe a um credor (opcional; fora do escopo → página vazia)
+     */
+    PageResponse<MessageView> listByDebtor(UUID debtorId, UUID creditorId, PageQuery page);
+
+    /**
      * Destino: {@code conversationId} (resposta numa conversa) <em>ou</em> devedor + credor + canal
      * (abre ou reutiliza a conversa do contato). Conteúdo: {@code templateCode} + {@code variables}
      * <em>ou</em> {@code text} livre.

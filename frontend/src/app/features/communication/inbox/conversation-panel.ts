@@ -1,6 +1,6 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DOCUMENT, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -10,7 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { Observable, catchError, finalize, forkJoin, map, of, switchMap } from 'rxjs';
+import { Observable, catchError, debounceTime, filter, finalize, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -27,12 +27,17 @@ import { CreditorNames } from '../../organization/data/organization.lookups';
 import { ConversationsApi } from '../data/communication.api';
 import { CHANNEL_ICONS, CHANNEL_LABELS, HANDOFF_KIND_LABELS, HANDOFF_REASON_LABELS } from '../data/communication.labels';
 import { ConversationView, DraftView, HandoffView, MessageView } from '../data/communication.models';
-import { blockText, mergeTimeline, newInbound, senderText, slaTone, waitingText } from '../data/communication.rules';
+import { blockText, mergeTimeline, newInbound, senderText, slaHint, slaTone, waitingText } from '../data/communication.rules';
+import { InboxStream } from '../data/inbox-stream';
 import { AssignConversationDialog, ConversationDialogData, IdentifyDialog } from './conversation-dialogs';
 import { Composer } from './composer';
 
-/** Intervalo de atualização da conversa aberta (sem som; anúncio discreto para leitores de tela). */
+/** Intervalo de atualização da conversa aberta sem tempo real (sem som; anúncio discreto para leitores de tela). */
 export const CONVERSATION_REFRESH_MS = 15_000;
+/** Com o tempo real ativo, a atualização periódica vira rede de segurança (a cada 4 ciclos). */
+export const CONVERSATION_LIVE_REFRESH_EVERY = 4;
+/** Mensagens mais recentes carregadas na linha do tempo. */
+export const TIMELINE_PAGE_SIZE = 100;
 
 /**
  * Conversa em linha do tempo única por devedor (todas as conversas e canais do devedor, canal por
@@ -65,6 +70,7 @@ export class ConversationPanel {
   readonly changed = output<void>();
 
   private readonly api = inject(ConversationsApi);
+  private readonly stream = inject(InboxStream);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
   private readonly dialog = inject(MatDialog);
@@ -79,6 +85,9 @@ export class ConversationPanel {
   protected readonly blockText = blockText;
   protected readonly waitingText = waitingText;
   protected readonly slaTone = slaTone;
+  protected readonly slaHint = slaHint;
+  private readonly datePipe = new AppDatePipe();
+  protected readonly time = (iso: string) => this.datePipe.transform(iso, 'time');
 
   protected readonly detail = rxResource({ params: () => this.conversationId(), stream: ({ params }) => this.api.get(params) });
   protected readonly conversation = computed(() => (this.detail.hasValue() ? this.detail.value()!.conversation : null));
@@ -235,32 +244,42 @@ export class ConversationPanel {
         untracked(() => this.api.markRead(c.id).subscribe(() => this.changed.emit()));
       }
     });
+    let ticks = 0;
     const timer = setInterval(() => {
-      if (this.document.visibilityState !== 'hidden' && !this.busy()) {
+      ticks++;
+      const due = !this.stream.live() || ticks % CONVERSATION_LIVE_REFRESH_EVERY === 0;
+      if (due && this.document.visibilityState !== 'hidden' && !this.busy()) {
         this.refresh();
       }
     }, CONVERSATION_REFRESH_MS);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => clearInterval(timer));
+    // aviso em tempo real desta conversa (ou ressincronização): recarrega
+    this.stream
+      .events()
+      .pipe(
+        filter((e) => e.kind === 'resync' || e.conversationId === this.conversationId()),
+        debounceTime(300),
+        takeUntilDestroyed(destroyRef),
+      )
+      .subscribe(() => {
+        if (!this.busy()) {
+          this.refresh();
+        }
+      });
   }
 
+  /**
+   * Linha do tempo do devedor numa única chamada (`GET /communication/debtors/{id}/messages`: todas
+   * as conversas e canais no credor da conversa, no escopo do operador); contato não identificado,
+   * só as mensagens desta conversa.
+   */
   private loadMessages(id: string, debtorId: string | null, creditorId: string | null): Observable<MessageView[]> {
-    const of50 = { page: 0, size: 50 };
-    const own = (conversationId: string) => this.api.messages(conversationId, of50).pipe(
+    const page = { page: 0, size: TIMELINE_PAGE_SIZE };
+    const request = debtorId ? this.api.debtorMessages(debtorId, creditorId, page) : this.api.messages(id, page);
+    return request.pipe(
       map((p) => p.content),
       catchError(() => of<MessageView[]>([])),
-    );
-    if (!debtorId) {
-      return own(id);
-    }
-    const byStatus = (status: string) =>
-      this.api.inbox({ debtorId, creditorId, status }, { page: 0, size: 10 }).pipe(
-        map((p) => p.content.map((c) => c.id)),
-        catchError(() => of<string[]>([])),
-      );
-    return forkJoin([byStatus('OPEN'), byStatus('CLOSED')]).pipe(
-      map(([open, closed]) => [...new Set([id, ...open, ...closed])]),
-      switchMap((ids) => forkJoin(ids.map(own))),
-      map((lists) => lists.flat()),
     );
   }
 

@@ -97,6 +97,10 @@ Retenção curta no CloudWatch e arquivamento no S3 reduzem o custo de armazenam
 | Falha ao gravar log de acesso (`access.log.write_failures`) | > 0 |
 | Falhas de selagem da auditoria (`audit.seal.failures`) | > 0 |
 | Picos de login negado (`access.events{type=LOGIN_FAILURE}`) | acima do padrão histórico |
+| SLA da caixa de entrada (`communication.inbox.sla.breaches`) | soma > `inbox_sla_breaches_threshold` (padrão 10) em 15 min |
+| Tempo real da caixa de entrada (`communication.realtime.listener.failures`) | > 3 em 5 min (ADR-0008) |
+
+Tempo real da caixa de entrada (ADR-0008): conexões SSE atravessam o ALB sem configuração especial — o *heartbeat* de 20 s fica abaixo do `idle_timeout` (120 s); cada instância mantém uma conexão a mais com o RDS (fora do pool) para o `LISTEN`; nenhum serviço adicional.
 
 ## 4. Fases de crescimento
 

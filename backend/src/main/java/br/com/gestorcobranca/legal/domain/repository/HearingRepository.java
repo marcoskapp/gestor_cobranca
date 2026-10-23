@@ -13,4 +13,7 @@ public interface HearingRepository {
     Optional<Hearing> findById(UUID id);
 
     List<Hearing> findByLawsuitIdOrderByScheduledAtAsc(UUID lawsuitId);
+
+    /** Audiências de todos os processos do caso jurídico, em ordem cronológica. */
+    List<Hearing> findByMatterIdOrderByScheduledAtAscIdAsc(UUID matterId);
 }

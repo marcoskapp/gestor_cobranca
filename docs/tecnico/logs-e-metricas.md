@@ -161,6 +161,7 @@ DEBTOR), `ownerType` (dono da conversa) e, com template, `templateCode`, `templa
 | `message.replied` / `message.received` | mensagem do devedor (com / sem envio anterior na conversa) | `contentType`, `identified`, `optOut` |
 | `conversation.handoff` / `assistant.handoff` | mudança de dono (o segundo quando o assistente transfere para humanos) | `kind`, `reason`, `from`, `to`, `fromUserId`, `toUserId`, `requiredProfile`, `referenceType`, `awaitingReply`; `durationMs` com o dono anterior |
 | `conversation.closed` | conversa encerrada | `from`, `messages`, `identified`; `durationMs` desde a abertura |
+| `conversation.sla_breached` | conversa aberta cruzou o limite de primeira resposta sem resposta (varredura; uma vez por espera) | `referenceType=conversation`, `owner` (ASSISTANT/QUEUE/USER/NONE), `ownerUserId`, `requiredProfile`, `breachMinutes`; `durationMs` = limite vigente |
 | `template.published` | versão de template publicada | `code`, `templateVersion`, `purpose`, `variables`, `replacedVersion` |
 
 ### 3.5 Atributos dos eventos do jurídico (legal)
@@ -169,7 +170,7 @@ Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |
-| `legal.matter_referred` | indicação (regra, alerta de prescrição ou manual) | `origin`, `ruleId`, `titles`, `excludedTitles`, `flags`, `prescribedExcluded`; `amount` = dívida |
+| `legal.matter_referred` | indicação (regra, alerta de prescrição, régua extrajudicial esgotada ou manual — `origin` `RULE`, `PRESCRIPTION_ALERT`, `CADENCE_EXHAUSTED`, `MANUAL`) | `origin`, `ruleId`, `titles`, `excludedTitles`, `flags`, `prescribedExcluded`; `amount` = dívida |
 | `legal.stage_changed` | toda transição de fase | `from`, `to`, `route`, `responsibleType`, `lawFirmId`, `cause` (`manual`, `measure`, `lawsuit`, `movement`, `capture`, `agreement`), `collectionHold`; `amount` = dívida |
 | `legal.matter_assigned` | responsável alterado | `responsibleType`, `previousType`, `responsibleUserId`, `lawFirmId`, `stage` |
 | `legal.viability_assessed` | análise registrada | `viable`, `economicallyViable`, `route`, `routes`, `debtAmount`, `collectibleDebt`, `collateralValue`, `expectedCosts`, `netBenefit`, `costBenefitRatio`, `successProbability`, `flags`, `checklistMissing`; `amount` = valor recuperável estimado |
@@ -329,12 +330,16 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `legal.prescription.interruptions{type,outcome}` | interrupções enviadas ao debt (`registered`/`duplicate`) |
 | `legal.providers.manual_requests{port,operation}`, `legal.providers.captured{provider}` | pedidos de operação automática com adaptador manual; andamentos capturados |
 | `legal.access.law_firm_denied{resource}` | acessos negados a membros de escritório fora dos casos atribuídos |
-| `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos, duração da varredura diária e falhas (alarme) |
+| `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos (inclui `cadence_exhausted` e `cadence_exhausted_ignored` — régua de outra finalidade), duração da varredura diária e falhas (alarme) |
 | `communication.messages{channel,direction,sender,status}` | mudanças de status de mensagens (inclui `QUEUED` e `RECEIVED`) |
 | `communication.messages.blocked{channel,sender,stage,reason}` | envios negados pelo porteiro, por motivo (`precheck`/`send`) |
 | `communication.send.attempts{channel,provider,outcome}` | tentativas do job: `accepted`, `rejected`, `transient`, `blocked`, `account_unavailable`, `whatsapp_window_closed` |
 | `communication.send.latency{channel}`, `communication.delivery.latency{channel}` (p50/p95/p99) | enfileiramento → aceite; aceite → entrega |
 | `communication.inbox.first_response{channel,responder}` (p50/p95/p99) | SLA de primeira resposta (operador ou assistente) |
+| `communication.inbox.first_response.sla{channel,responder,outcome}` | primeiras respostas pela meta da assessoria: `OK`, `WARNING`, `BREACHED` (taxa de cumprimento do SLA) |
+| `communication.inbox.sla.breaches{channel,owner}` | conversas que estouraram o limite sem resposta (varredura de 1 min, contagem única por espera; alarme `inbox-sla-breaches`) |
+| `communication.realtime.subscribers` (gauge por instância), `communication.realtime.streams{outcome}` | conexões SSE abertas e ciclo (`opened`, `rejected_limit`, `expired`, `revoked`, `timeout`, `client_gone`, `completed`, `shutdown`) |
+| `communication.realtime.signals{kind,outcome}`, `communication.realtime.listener.failures`, `communication.realtime.listener.malformed` | avisos repassados (`conversation`/`resync`; `delivered`/`no_subscriber`), falhas da escuta LISTEN/NOTIFY (alarme `inbox-realtime-listener`) e avisos inválidos |
 | `communication.webhook.requests{provider,outcome}` | `ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` (alarme), `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`, `VERIFIED`, `VERIFY_REJECTED` |
 | `communication.webhook.events{provider,type,outcome}` | mensagens/status do webhook: `applied`, `duplicate`, `stale` (replay), `unknown_message`, `ignored` |
 | `communication.opt_out{channel}` | descadastros por palavra-chave |

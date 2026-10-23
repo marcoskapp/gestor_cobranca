@@ -28,15 +28,17 @@ class CommunicationJobs {
     private final CommunicationMaintenance maintenance;
     private final CommunicationMetrics metrics;
     private final CommunicationProperties properties;
+    private final InboxSlaScanner slaScanner;
 
     CommunicationJobs(TenantDirectory tenantDirectory, TenantExecution tenantExecution,
                       CommunicationMaintenance maintenance, CommunicationMetrics metrics,
-                      CommunicationProperties properties) {
+                      CommunicationProperties properties, InboxSlaScanner slaScanner) {
         this.tenantDirectory = tenantDirectory;
         this.tenantExecution = tenantExecution;
         this.maintenance = maintenance;
         this.metrics = metrics;
         this.properties = properties;
+        this.slaScanner = slaScanner;
     }
 
     @Scheduled(cron = "${app.communication.retention-cron:0 40 2 * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
@@ -56,6 +58,21 @@ class CommunicationJobs {
                 metrics.jobFailure("retention");
                 LOG.atError().addKeyValue("tenantId", tenantId).setCause(e)
                         .log("Falha no descarte de conteúdo de mensagens");
+            }
+        }
+    }
+
+    /** Estouros de SLA de primeira resposta (a cada minuto; o cursor no banco garante contagem única). */
+    @Scheduled(fixedDelayString = "${app.communication.sla-scan-interval:PT1M}")
+    @SchedulerLock(name = "communication.sla_scan", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
+    void slaScan() {
+        for (UUID tenantId : tenantDirectory.activeTenantIds()) {
+            try {
+                tenantExecution.callInTenant(tenantId, "communication.sla_scan", slaScanner::scan);
+            } catch (RuntimeException e) {
+                metrics.jobFailure("sla_scan");
+                LOG.atError().addKeyValue("tenantId", tenantId).setCause(e)
+                        .log("Falha na varredura de SLA de primeira resposta");
             }
         }
     }

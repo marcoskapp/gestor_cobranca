@@ -38,6 +38,12 @@ public interface LegalMatterUseCases {
     List<StageEntryView> history(UUID matterId);
 
     /**
+     * Garantias que cobrem os títulos do caso jurídico (lidas do debt pelo contrato de origem de
+     * cada título), sem duplicidade; a identificação do bem vem resumida.
+     */
+    List<MatterCollateralView> collaterals(UUID matterId);
+
+    /**
      * Transição de fase. ELIGIBLE → UNDER_REVIEW (aceite da indicação) exige {@code LEGAL_AUTHORIZE};
      * UNDER_REVIEW → AWAITING_AUTHORIZATION abre a solicitação de autorização ao credor com as vias
      * e as custas da viabilidade vigente.
@@ -98,7 +104,21 @@ public interface LegalMatterUseCases {
                        List<LegalDeadlineUseCases.DeadlineView> deadlines,
                        List<LegalExpenseUseCases.ExpenseView> expenses,
                        List<LegalDocumentUseCases.DocumentView> documents,
-                       List<StageEntryView> history) {
+                       List<StageEntryView> history,
+                       List<MatterCollateralView> collaterals,
+                       List<HearingUseCases.HearingView> hearings) {
+    }
+
+    /**
+     * @param type           tipo da garantia (ex.: VEHICLE_FIDUCIARY_ALIENATION)
+     * @param assetSummary   identificação resumida do bem (ex.: "veículo ABC-1234")
+     * @param status         situação da garantia no debt (ACTIVE, UNDER_ENFORCEMENT, SEIZED…)
+     * @param estimatedValue valor recuperável estimado (última avaliação); nulo sem avaliação
+     * @param titleIds       títulos do caso jurídico cobertos pela garantia
+     */
+    record MatterCollateralView(UUID collateralId, UUID contractId, String type, String description,
+                                String assetSummary, String status, BigDecimal estimatedValue,
+                                LocalDate lastAppraisalDate, Set<UUID> titleIds) {
     }
 
     record DebtorInfo(UUID id, String name, String maskedDocument, String personType) {
