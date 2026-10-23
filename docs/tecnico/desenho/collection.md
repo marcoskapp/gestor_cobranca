@@ -180,6 +180,11 @@ tolerância da assessoria (`callbackToleranceMinutes`, padrão 30) é fixada no 
 | cumprido com atraso | concluído depois de atrasado | `COMPLETED_LATE` |
 | cancelado | manual ou encerramento do caso | `CANCELLED` |
 
+**Agenda** (`GET /agenda`): cada tarefa traz `debtorId` (do caso) e `debtorName` — este só para quem pode ver devedores
+(`CASE_VIEW` ou `DEBTOR_VIEW`; nome em uma consulta em lote `DebtorUseCases#names`, que omite devedores fora do escopo). O
+escopo de credores entra na própria consulta (não é filtrado depois da página), então totais e paginação ficam corretos
+para quem consulta a agenda de outro operador. Nas demais respostas `debtorName` é nulo (a ficha já traz o devedor).
+
 A próxima ação do caso (`next_action_at`) é a tarefa em aberto mais próxima; atrasada, fica no passado e o caso vem
 primeiro no "próximo caso" do responsável. Sem tarefa e com promessa pendente, é o dia seguinte ao fim da tolerância da
 promessa (até lá o caso aguarda o pagamento fora da fila).
@@ -214,12 +219,38 @@ valor contestado, prazo de resposta (informado ou `disputeResponseDays`, padrão
 
 Publica `DisputeStatusChanged` em cada mudança.
 
+**Views.** `DisputeView.titles` traz os dados mínimos de cada título contestado (número, parcela, vencimento, valor original
+e saldo), lidos no debt uma vez por devedor (`DebtTitleUseCases#listByDebtor`, com o escopo do ator; na ficha, dos títulos
+já carregados). `EvidenceView.createdByName` é o nome de quem anexou (diretório do identity, só a própria assessoria).
+
 ## 8. Ficha do caso
 
 `GET /cases/{id}/sheet`: caso (posição, elegibilidade e motivos, dono, próxima ação), devedor e contatos **mascarados**
 (`DebtorSheetQueries`), títulos da carteira, restrições de contato vigentes que alcançam o credor
 (`ContactRestrictionUseCases#search`), contestações abertas, promessa pendente, tarefas em aberto, últimas 10 interações e
 demais casos do devedor no escopo.
+
+### 8.1 "Posso contatar agora?" (operador)
+
+`GET /cases/{id}/contact-availability[?channel=&contactId=]` (`CASE_WORK`), `ContactAvailabilityQueries`. Fica no
+collection (e não no compliance) porque parte do caso: devedor e credor vêm do caso visível ao ator (404 fora do escopo),
+sem que o operador possa combinar devedor e credor arbitrários, e a resposta combina a decisão do porteiro com a
+elegibilidade do caso (respeita o grafo collection → compliance).
+
+* Para cada canal (PHONE, WHATSAPP, SMS, EMAIL, ou o pedido) chama `ContactGate#evaluate` **sem registrar tentativa**, no
+  instante atual, com origem `OPERATOR`: restrições, política vigente (credor ou assessoria), janela, feriados, limites
+  diário/semanal e intervalo mínimo.
+* `contactId` (opcional) é um contato utilizável do devedor; o valor é descriptografado só para o porteiro calcular o
+  blind index (restrição daquele número/e-mail) e nunca volta na resposta. Contato de outro devedor ou inválido →
+  `422 case.contact_invalid`.
+* Resposta: `caseEligible` e `caseReasons` (elegibilidade persistida sem `CONTACT_RESTRICTED`, que é detalhado por canal) e,
+  por canal, `allowed` (porteiro permite **e** caso elegível), `reasons` (motivos do porteiro), `nextAllowedAt` (próximo
+  instante permitido pelo porteiro; nulo se permitido ou sem fim previsto) e `contactId`. Não expõe a política (janelas,
+  limites, intervalos).
+* A estação consulta ao abrir o caso e a cada minuto; a tela não calcula janelas. Métrica: a do porteiro,
+  `compliance.contact_gate.decisions{operation=evaluate}`.
+* `POST /compliance/contact-gate/evaluate` (devedor + credor informados) continua existindo para outros usos; a estação
+  não o usa.
 
 ## 9. Eventos de integração publicados
 
@@ -274,6 +305,7 @@ descrições só no banco, criptografadas).
 | --- | --- |
 | `/cases` | `GET` (filtros: credor, carteira, devedor, status, fila, `assignee=me|id`, dono, elegível) |
 | `/cases/{id}` · `/cases/{id}/sheet` · `/cases/{id}/assignments` | `GET` |
+| `/cases/{id}/contact-availability` | `GET` (`CASE_WORK`; §8.1) |
 | `/cases/{id}/suspend` · `/resume` · `/legal` · `/legal-return` · `/close` · `/refresh` | `POST` |
 | `/cases/{id}/assign` · `/release` · `/take-over` · `/assistant` | `POST` |
 | `/next-case` (200 caso / 204 vazio) · `/my-cases` | `POST` · `GET` |
@@ -304,3 +336,6 @@ descrições só no banco, criptografadas).
 | 12 | Permissões novas `CASE_MANAGE` e `TABULATION_MANAGE`; parâmetros sob `QUEUE_MANAGE` | reutilizar `CASE_ASSIGN` | separação entre distribuir e encerrar/suspender casos |
 | 13 | Eventos novos `CallbackStatusChanged` e `PromiseStatusChanged` com status | um evento por situação | contrato menor, mesmo padrão de `DisputeStatusChanged` |
 | 14 | Incentive não passa a consumir neste módulo | alterar o incentive | exige migration fora da faixa do collection; contrato e fórmulas documentados (§9) |
+| 15 | "Posso contatar agora?" no collection, por caso | endpoint no compliance por devedor + credor | o caso define devedor/credor no escopo do ator e traz a elegibilidade (contestação, suspensão); grafo collection → compliance |
+| 16 | Nome do devedor na agenda só com `CASE_VIEW`/`DEBTOR_VIEW`, sem documento | sempre; nunca | mesma regra da ficha; minimização |
+| 17 | Títulos da contestação lidos do debt na consulta | cópia dos dados na contestação | sem duplicar dados nem migration; escopo do ator aplicado pelo debt |

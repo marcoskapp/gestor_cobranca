@@ -21,6 +21,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
+import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { zonedNow, addDays } from '../../collection/data/collection.rules';
 import { IndexesApi, PoliciesApi } from '../data/negotiation.api';
@@ -70,6 +71,8 @@ export class PolicyDetail {
 
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.current()?.creditorId]);
   protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.draft()?.overrides.map((o) => o.portfolioId) ?? []);
+  /** Quem publicou cada versão (lookup leve de nomes; sem e-mail). */
+  protected readonly publishers = nameMap(inject(UserNames), () => [this.current()?.publishedBy], { batch: USER_NAMES_BATCH });
 
   /** Termos em edição (cópia; a versão do servidor só muda ao salvar). */
   protected readonly draft = signal<PolicyTerms | null>(null);

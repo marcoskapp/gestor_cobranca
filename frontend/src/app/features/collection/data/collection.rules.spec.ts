@@ -9,7 +9,7 @@ import { contactsForChannel } from '../station/interaction-panel';
 import { tabulationEffects } from '../tabulations/tabulation-list';
 import { FormControl, FormGroup } from '@angular/forms';
 import { caseActions, eligibilityText } from './collection.labels';
-import { QueueView, SheetContact, TabulationView, TaskView } from './collection.models';
+import { ChannelAvailability, QueueView, SheetContact, TabulationView, TaskView } from './collection.models';
 import {
   addDays,
   canWorkCase,
@@ -19,11 +19,9 @@ import {
   interactionProblems,
   isPastLocal,
   nextActionText,
+  availabilityState,
   taskLate,
-  tenantDays,
   toLocalDateTime,
-  weekDayIndex,
-  windowState,
   zonedNow,
 } from './collection.rules';
 
@@ -69,22 +67,35 @@ describe('regras de tela do módulo collection', () => {
     });
   });
 
-  describe('janela de contato', () => {
-    it('dias da assessoria e da política', () => {
-      expect(tenantDays(false, false)).toEqual([1, 2, 3, 4, 5]);
-      expect(tenantDays(true, true)).toEqual([0, 1, 2, 3, 4, 5, 6]);
-      expect(weekDayIndex('SUNDAY')).toBe(0);
-      expect(weekDayIndex('SATURDAY')).toBe(6);
+  describe('posso contatar agora?', () => {
+    const at = new Date('2026-10-23T13:00:00Z'); // 10:00 em Brasília
+    const ch = (overrides: Partial<ChannelAvailability> = {}): ChannelAvailability => ({
+      channel: 'PHONE',
+      allowed: false,
+      reasons: [],
+      nextAllowedAt: null,
+      contactId: null,
+      ...overrides,
     });
 
-    it('aberta, antes da abertura, encerrada e fora dos dias', () => {
-      const w = { start: '08:00:00', end: '20:00:00', days: [1, 2, 3, 4, 5], source: 'TENANT' as const };
-      expect(windowState(w, now)).toEqual({ open: true, text: 'Permitido agora · 08:00 às 20:00', range: '08:00–20:00' });
-      expect(windowState(w, { ...now, time: '07:30' }).text).toBe('Abre às 08:00 · 08:00 às 20:00');
-      expect(windowState(w, { ...now, time: '20:00' })).toEqual({ open: false, text: 'Encerrado hoje · 08:00 às 20:00', range: '08:00–20:00' });
-      expect(windowState(w, { ...now, weekDay: 0 }).range).toBe('hoje não');
-      expect(windowState(w, { ...now, weekDay: 0 }).open).toBe(false);
-      expect(windowState({ ...w, start: null, end: null }, now).open).toBe(true);
+    it('permitido, aguardar com o próximo horário (hoje ou outro dia), restrito e suspenso', () => {
+      expect(availabilityState(ch({ allowed: true }), true, at).kind).toBe('allowed');
+      const today = availabilityState(ch({ reasons: ['MIN_INTERVAL'], nextAllowedAt: '2026-10-23T17:30:00Z' }), true, at);
+      expect(today).toEqual({
+        kind: 'wait',
+        label: 'Aguardar',
+        detail: 'a partir de 14:30',
+        text: 'Intervalo mínimo entre tentativas — permitido a partir de 14:30',
+      });
+      const tomorrow = availabilityState(ch({ reasons: ['OUTSIDE_WINDOW', 'HOLIDAY'], nextAllowedAt: '2026-10-26T11:00:00Z' }), true, at);
+      expect(tomorrow.detail).toBe('a partir de 26/10 08:00');
+      expect(tomorrow.text).toContain('Fora do horário permitido · Feriado');
+      const blocked = availabilityState(ch({ reasons: ['RESTRICTED_CHANNEL'] }), true, at);
+      expect(blocked.kind).toBe('blocked');
+      expect(blocked.text).toBe('Restrição no canal');
+      expect(availabilityState(ch(), false, at).kind).toBe('suspended');
+      // motivo desconhecido aparece como veio
+      expect(availabilityState(ch({ reasons: ['NOVO'] }), true, at).text).toBe('NOVO');
     });
   });
 

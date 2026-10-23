@@ -59,7 +59,20 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
         <dt>Prazo de resposta</dt>
         <dd [class.dd-late]="d().overdue">{{ d().responseDueDate | appDate: 'date' }}{{ d().overdue ? ' (vencido)' : '' }}</dd>
         <dt>Títulos</dt>
-        <dd>{{ d().titleIds.length }} · {{ d().blocksCollection ? 'cobrança e contato suspensos' : 'sem suspensão' }}</dd>
+        <dd>
+          {{ d().titleIds.length }} · {{ d().blocksCollection ? 'cobrança e contato suspensos' : 'sem suspensão' }}
+          @if (d().titles.length) {
+            <ul class="dd-titles" aria-label="Títulos contestados">
+              @for (t of d().titles; track t.titleId) {
+                <li>
+                  <span class="app-mono">{{ t.externalId }}{{ t.installmentNumber ? ' / ' + t.installmentNumber : '' }}</span>
+                  <span class="app-muted">venc. {{ t.dueDate | appDate: 'date' }}</span>
+                  <app-amount [value]="t.principalAmount" />
+                </li>
+              }
+            </ul>
+          }
+        </dd>
         @if (d().disputedAmount !== null) {
           <dt>Valor contestado</dt>
           <dd><app-amount [value]="d().disputedAmount" /></dd>
@@ -80,7 +93,7 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
           <li>
             <mat-icon aria-hidden="true">description</mat-icon>
             <span>{{ e.fileName }}</span>
-            <span class="app-muted">{{ size(e) }} · {{ e.createdAt | appDate }}</span>
+            <span class="app-muted">{{ size(e) }} · {{ e.createdAt | appDate }}{{ e.createdByName ? ' · ' + e.createdByName : '' }}</span>
             <span class="app-muted app-mono" [attr.title]="'SHA-256 ' + e.sha256">{{ e.sha256.slice(0, 12) }}…</span>
             @if (canDownload()) {
               <button mat-icon-button type="button" (click)="download(e)" [attr.aria-label]="'Baixar ' + e.fileName + ' (acesso registrado)'">
@@ -145,6 +158,19 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
     }
     .dd-pre {
       white-space: pre-line;
+    }
+    .dd-titles {
+      display: grid;
+      gap: 2px;
+      margin: 4px 0 0;
+      padding: 0;
+      list-style: none;
+      li {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        align-items: baseline;
+      }
     }
     .dd-evidence {
       display: grid;

@@ -486,8 +486,8 @@ export const TOURS: readonly TourDefinition[] = [
       },
       {
         anchor: 'contact-window',
-        title: 'Janela de contato',
-        body: 'Mostra por canal se o contato é permitido agora ou se há restrição. O sistema confere feriados e limites a cada contato.',
+        title: 'Posso contatar agora?',
+        body: 'Por canal, a decisão do sistema: permitido, aguardar (com o horário em que libera) ou restrito. Considera restrições, política, feriados e limites.',
         placement: 'start',
       },
       {
