@@ -44,37 +44,109 @@ O layout canônico do `ingestion` ganha campos opcionais de garantia, avaliaçã
 
 `COLLATERAL_MANAGE` e `PRESCRIPTION_MANAGE` são concedidas a ADMIN e GESTOR (V0303 para assessorias existentes; `DefaultRoles` para novas). Para o módulo `legal`: `CollateralUseCases.changeStatus` (situação da garantia na execução) e `PrescriptionInterruptionPort.register` (protesto/citação; idempotente; evidência já gravada no `FileStorage` do tenant). Coobrigados vigentes tornam o devedor visível a quem tem escopo sobre o credor do contrato e aparecem na ficha (`DebtorSummary.coObligations` e `collateral`); coobrigado de contrato em cobrança não pode ser anonimizado.
 
-## Parte B — módulo `legal`
+## Parte B — módulo `legal` (implementado)
 
-Schema `legal`, migrations V1700–V1799 (nova faixa). Dependências: `shared`, `organization`, `identity`, `debt`, `collection`, `negotiation`, `compliance`.
+Schema `legal`, migrations `V1700__legal_schema_and_tables.sql` (tabelas, RLS, privilégios) e `V1701__legal_permissions_and_roles.sql` (permissões e perfis para assessorias existentes). Dependências declaradas: `shared`, `organization`, `identity`, `debt`, `collection`, `compliance` (calendário de feriados). O `negotiation` **não** é dependência de código: acordos são referenciados por id e acompanhados pelo evento `AgreementStatusChanged` (a parte 2 do negotiation é desenvolvida em paralelo).
 
 ### B.1 Agregados
-| Agregado | Responsabilidade |
-| --- | --- |
-| `LegalEligibilityRule` | regras por credor/carteira para indicar casos ao jurídico |
-| `LegalMatter` | o caso jurídico: devedor, títulos, garantias, credor, fase (§B.2), via escolhida, responsável (usuário ou escritório), valores (dívida, custas previstas, valor recuperável estimado) |
-| `ViabilityAssessment` | checklist documental, prescrição, patrimônio, garantia, custo × benefício, recomendação e parecer |
-| `CreditorAuthorization` | autorização formal do credor, orçamento aprovado, evidência |
-| `ExtrajudicialMeasure` | notificação, protesto, negativação, execução extrajudicial de garantia — tipo, datas, protocolo, situação, prazo, evidências |
-| `LawsuitCase` | processo judicial: número CNJ (validado), tribunal, órgão, classe, polos, valor da causa, data de distribuição, situação |
-| `CaseMovement` | andamentos (manuais ou capturados), append-only |
-| `LegalDeadline` | prazo com contagem em dias úteis (calendário de feriados do `compliance` + suspensões forenses cadastráveis), responsável, alertas escalonados, cumprimento |
-| `Hearing` | audiências: tipo, data, local/link, participantes, resultado |
-| `LegalExpense` | custas e despesas: tipo, valor, quem adiantou, reembolsável, comprovante |
-| `LawFirm` | escritório parceiro; usuários do escritório com perfil próprio e escopo restrito aos casos atribuídos |
+| Agregado | Responsabilidade | Tabela |
+| --- | --- | --- |
+| `LegalEligibilityRule` | regras por credor (e carteira opcional): atraso mínimo, saldo mínimo, garantia, título executivo com pretensão executiva vigente, acordos quebrados, prescrição próxima (dias). Critérios combinados por **E**; regras somam-se por **OU** | `eligibility_rule` |
+| `LegalMatter` | caso jurídico de um caso de cobrança (devedor × carteira): títulos, sinalizações, fase, fase guardada (acordo judicial), via principal, responsável (`NONE`/`INTERNAL`/`LAW_FIRM`), dívida, custas previstas, valor recuperável estimado, orçamento autorizado, despesas, valor recuperado, acordo vinculado, retenção no collection. Um único caso jurídico não final por caso de cobrança (índice único parcial) | `legal_matter` (+ `_title`, `_flag`, `matter_stage_history`) |
+| `ViabilityAssessment` | análise append-only: fotografia da dívida, garantias e prescrição (jsonb), premissas, resultado do cálculo (§B.6), checklist documental, conclusão, vias recomendadas, pesquisa patrimonial e parecer (criptografados) | `viability_assessment`, `viability_checklist_item` |
+| `CreditorAuthorization` | solicitação (vias, orçamento) → decisão do credor (concedida/negada, data, meio, representante, evidência obrigatória na concessão); concessão nova substitui a anterior (`SUPERSEDED`); uma solicitação pendente e uma concessão vigente por vez (índices parciais) | `creditor_authorization` |
+| `ExtrajudicialMeasure` | `NOTICE`, `PROTEST`, `CREDIT_BUREAU_LISTING`, `COLLATERAL_ENFORCEMENT`: títulos, garantia, valor, cartório/birô, protocolo, datas, prazo, situação `PLANNED → SUBMITTED → EFFECTIVE → REMOVED` (ou `FAILED`/`CANCELLED`), provedor | `extrajudicial_measure` (+ `_title`) |
+| `Lawsuit` | número CNJ validado (dígito verificador mod 97, segmento, ano = ano da distribuição; único na assessoria), tribunal `J.TR` derivado, órgão, via judicial, classe, polo do credor, polo contrário (devedor ou coobrigados vigentes), valor da causa, distribuição, situação, provedor, última captura | `lawsuit` (+ `lawsuit_party`) |
+| `CaseMovement` | andamento append-only: data, natureza (`MovementType`), descrição criptografada, origem `MANUAL`/`PROVIDER` (idempotente por `provider` + `external_id`), valor, garantia | `case_movement` |
+| `LegalDeadline` | prazo (natureza, início, fato inicial, dias, contagem, data fixa, tribunal, vencimento, responsável, situação `PENDING`/`MET`/`MISSED`/`CANCELLED`, último nível de alerta) | `legal_deadline` |
+| `CourtSuspension` | suspensão forense cadastrável (período, tribunal `J.TR` ou todos, motivo) | `court_suspension` |
+| `Hearing` | audiência: tipo, data/hora, forma, local ou link HTTPS, participantes internos (usuários) e externos (criptografado), resultado e observações (criptografadas) | `hearing` (+ `hearing_participant`) |
+| `LegalExpense` | custa/despesa: tipo, valor, data, quem adiantou, reembolsável, comprovante, acima do orçamento, situação `RECORDED`/`REIMBURSED`/`CANCELLED` (colunas financeiras imutáveis por privilégio de coluna) | `legal_expense` |
+| `LawFirm` / `LawFirmMember` | escritório parceiro (CNPJ único) e vínculo usuário × escritório (no máximo um ativo por usuário) | `law_firm`, `law_firm_member` |
+| `LegalDocument` | documento/evidência no `FileStorage` (categoria `EVIDENCE`, tipo conferido pela assinatura do conteúdo — PDF/PNG/JPEG —, SHA-256), vínculo opcional a autorização, medida, processo, andamento, audiência ou despesa; append-only | `legal_document` |
+| `AgreementRecord` | acordo do negotiation conhecido por evento: situação, se já foi quebrado, caso jurídico vinculado, judicial ou não | `agreement_record` |
+| `LegalSettings` | parâmetros da assessoria (§B.7) | `legal_settings` |
 
 ### B.2 Fases e transições
-`ELIGIBLE → UNDER_REVIEW → AWAITING_AUTHORIZATION → EXTRAJUDICIAL → FILED → IN_PROGRESS → ENFORCEMENT → SETTLED_IN_COURT → CLOSED`, além de `NOT_VIABLE` e `RETURNED_TO_CREDITOR`. Transições validadas no domínio, com motivo, auditoria e evento `LegalMatterStageChanged` (novo, em `shared.events.legal`).
+`ELIGIBLE → UNDER_REVIEW → AWAITING_AUTHORIZATION → EXTRAJUDICIAL → FILED → IN_PROGRESS → ENFORCEMENT → SETTLED_IN_COURT → CLOSED`, além de `NOT_VIABLE` e `RETURNED_TO_CREDITOR`. Tabela validada em `LegalStage`; pré-condições em `LegalMatter#moveTo`:
 
-### B.3 Reações em outros módulos
-- `collection`: ao entrar em fase jurídica, caso marcado como jurídico; réguas incompatíveis pausadas; representação por advogado direciona o contato.
-- `negotiation`: política para casos judicializados (custas e honorários na composição), acordo judicial vinculado ao `LegalMatter`, quebra retoma a fase processual.
-- `payment`: origem `JUDICIAL_DEPOSIT`.
-- `settlement`: despesas reembolsáveis e honorários no demonstrativo.
-- `debt`: interrupções de prescrição (protesto, citação) e mudança de situação da garantia.
+| De | Para | Pré-condição / efeito |
+| --- | --- | --- |
+| `ELIGIBLE` | `UNDER_REVIEW` | aceite da indicação: `LEGAL_AUTHORIZE` |
+| `UNDER_REVIEW` | `AWAITING_AUTHORIZATION` | análise de viabilidade registrada e favorável; abre a solicitação ao credor com as vias recomendadas e as custas previstas |
+| `UNDER_REVIEW`, `AWAITING_AUTHORIZATION` | `NOT_VIABLE` | análise registrada; `NOT_VIABLE → UNDER_REVIEW` reabre |
+| `AWAITING_AUTHORIZATION` | `EXTRAJUDICIAL` | via extrajudicial autorizada; automática ao registrar a primeira medida |
+| `AWAITING_AUTHORIZATION`, `EXTRAJUDICIAL` | `FILED` | via judicial autorizada e processo cadastrado; automática ao cadastrar o processo |
+| `FILED` | `IN_PROGRESS` | automática na citação (manual ou capturada) |
+| `IN_PROGRESS` | `ENFORCEMENT` | manual (penhora, busca e apreensão…) |
+| `FILED`, `IN_PROGRESS`, `ENFORCEMENT` | `SETTLED_IN_COURT` | acordo informado (manual ou `AgreementStatusChanged FORMALIZED`); guarda a fase; cria prazo para protocolar a homologação |
+| `SETTLED_IN_COURT` | fase guardada | quebra ou cancelamento do acordo (evento) |
+| não final | `CLOSED` | motivo (`PAID`, `AGREEMENT_FULFILLED`, `ASSET_RECOVERED`, `UNCOLLECTIBLE`, `PRESCRIBED`, `WITHDRAWN`, `CREDITOR_REQUEST`, `OTHER`); acordo quitado encerra com `AGREEMENT_FULFILLED` |
+| antes do ajuizamento | `RETURNED_TO_CREDITOR` | motivo |
 
-### B.4 Integrações (portas)
-`CourtDataProvider` (adaptador DataJud), `ProtestProvider`, `CreditBureauProvider`, `RealEstateRegistryProvider`, `VehicleLienProvider`, `PublicationsProvider` — adaptadores após escolha/convênio.
+Toda transição grava a linha do tempo (`matter_stage_history`, append-only), auditoria `legal_matter.stage_changed`, evento de negócio `legal.stage_changed` e o evento de integração `LegalMatterStageChanged` (`shared.events.legal`). Encerramento: prazos pendentes cancelados (exceto baixa de restrição), `legal.matter_closed` e, com motivo de pagamento, prazo de baixa de cada protesto/negativação efetivo.
+
+### B.3 Reações e integrações com outros módulos
+- **collection** (porta pública já existente, sem operação nova): `CaseUseCases.sendToLegal/returnFromLegal` colocam/retiram a retenção LEGAL do caso de cobrança na mesma transação do caso jurídico (`CollectionHold`). Momento configurável (`collectionHoldStage`: `AUTHORIZATION` — padrão, a partir de EXTRAJUDICIAL/ajuizado — ou `REVIEW`); retirada em `CLOSED`, `RETURNED_TO_CREDITOR` e `NOT_VIABLE`. Caso de cobrança já encerrado não é alterado. A pausa de réguas e o desvio do assistente seguem o status LEGAL do collection e o evento `LegalMatterStageChanged`.
+- **debt**: `PrescriptionInterruptionPort.register` (idempotente) no protesto lavrado (`PROTEST`, com o instrumento anexado à medida como evidência) e na citação (`CITATION`), para todos os títulos do caso jurídico; `CollateralUseCases.changeStatus` na execução extrajudicial (`UNDER_ENFORCEMENT` no envio; `CONSOLIDATED` para alienação fiduciária de imóvel ou `SEIZED` para veículo na efetivação; volta a `ACTIVE` se falhar/cancelar) e por andamento com `collateralStatus`. Consumo de `TitleStatusChanged` (todos os títulos fora de cobrança → sinalização `TITLES_SETTLED` e prazos de baixa) e de `TitlePrescriptionApproaching` (sinaliza o caso aberto ou avalia indicação pelas regras com critério de prescrição).
+- **negotiation** (por evento, sem dependência): `AgreementStatusChanged` — `FORMALIZED` sobre caso ajuizado → `SETTLED_IN_COURT`; antes do ajuizamento, o acordo fica acompanhado; `SETTLED` → `CLOSED/AGREEMENT_FULFILLED`; `BROKEN`/`CANCELLED` → retomada; renegociação (`replacedAgreementId`) transfere o vínculo. Quebras alimentam o critério "acordos quebrados". A política de negociação para judicializados (custas e honorários na composição) é responsabilidade da parte 2 do negotiation, que pode consumir `LegalMatterStageChanged`.
+- **compliance**: `HolidayUseCases.list` compõe o calendário forense.
+- **payment** (`JUDICIAL_DEPOSIT`) e **settlement** (despesas reembolsáveis no demonstrativo): pendentes, módulos ainda não implementados; os dados já existem (`legal_expense`, andamento `FUNDS_RELEASED`).
+
+### B.4 Integrações (portas) e como plugar um adaptador real
+Portas em `legal.application.port.out` (base `LegalProvider`: `code()`, `automatic()`): `CourtDataProvider` (DataJud), `PublicationsProvider`, `ProtestProvider`, `CreditBureauProvider`, `RealEstateRegistryProvider`, `VehicleLienProvider`. Adaptadores ativos: **manual** (`infrastructure/provider/manual`), escolhidos por `app.legal.providers.<porta>` (padrão `manual`). O adaptador manual não simula provedor: `automatic() = false`, e os casos de uso recusam a operação automática com `409 legal.provider_manual` (métrica `legal.providers.manual_requests`) — protocolo, situação e andamentos são lançados pela API.
+
+Para plugar um adaptador real (após aprovação — issues #13 e #14):
+1. Criar `infrastructure/provider/<provedor>/<Provedor><Porta>.java` implementando a porta, com `@ConditionalOnProperty(prefix = "app.legal.providers", name = "<porta>", havingValue = "<codigo>")`, `RestClient` com timeouts (3 s/10 s), `@Retryable` só para erros transitórios, métrica `integration.calls{provider,operation,outcome}` e credenciais por tenant criptografadas (convenções §8). Dados do devedor enviados ao provedor não vão para log.
+2. Configurar `app.legal.providers.<porta>: <codigo>` no ambiente.
+3. Nada muda nos casos de uso: `POST /lawsuits/{id}/sync` e a varredura diária passam a capturar andamentos (idempotentes por `external_id`, mesmos efeitos do lançamento manual); `POST /measures/{id}/dispatch` passa a enviar a medida (exige `DEBTOR_SENSITIVE_VIEW`; o documento revelado gera `SENSITIVE_DATA_VIEWED`). O teste `LegalProviderPluggingIT` mostra o encaixe com um provedor de dados processuais automático.
 
 ### B.5 Segurança
-Permissões novas: `LEGAL_VIEW`, `LEGAL_MANAGE`, `LEGAL_AUTHORIZE` (aprovar indicação), `LEGAL_EXPENSE_MANAGE`. Usuários de escritório parceiro: escopo por caso atribuído, além do escopo por credor.
+- Permissões: `LEGAL_VIEW`, `LEGAL_MANAGE`, `LEGAL_AUTHORIZE` (aceitar indicação e registrar a decisão do credor), `LEGAL_EXPENSE_MANAGE`. Perfis padrão: ADMIN (todas), GESTOR (todas), SUPERVISOR/AUDITOR (`LEGAL_VIEW`), FINANCEIRO (`LEGAL_VIEW`, `LEGAL_EXPENSE_MANAGE`), **JURIDICO** (novo: jurídico interno — legal completo, consulta da dívida, garantias e prescrição) e **ADVOGADO_PARCEIRO** (novo: somente `LEGAL_VIEW`, `LEGAL_MANAGE`, `LEGAL_EXPENSE_MANAGE`). Ambos exigem MFA.
+- Escopo: credor do caso jurídico (404 na leitura, 403 nos comandos) **e**, para membro de escritório parceiro, somente casos atribuídos ao escritório ativo (404 + `SCOPE_DENIED` com `scope=law_firm`; listagens filtradas). Parâmetros, regras, escritórios e suspensões: só usuários internos; parâmetros, escritórios e suspensões exigem também todos os credores.
+- Dados: parecer, pesquisa patrimonial, teor de andamentos, participantes externos e resultado de audiência criptografados; logs de negócio só com ids, enums, datas e valores; download de documento registra `FILE_DOWNLOADED`; vínculos e desativação de escritório registram `SCOPE_CHANGED`.
+- Banco: RLS forçado em todas as tabelas (filhas pela linha pai); históricos, andamentos, análises e documentos append-only (privilégio + gatilho); despesas sem `DELETE` e só colunas de situação atualizáveis; demais registros sem `DELETE`.
+
+### B.6 Viabilidade (cálculo)
+`ViabilityCalculator` (puro): dívida cobrável = saldo dos títulos cuja pretensão de cobrança não prescreveu; garantia recuperável = Σ avaliações das garantias exequíveis (ativa, em execução, apreendida, consolidada) × taxa de realização (padrão 70%); outros bens = valor localizado na pesquisa patrimonial × taxa de realização; base = garantia + outros bens (ou a dívida cobrável sem patrimônio identificado); **valor recuperável estimado = mín(dívida cobrável, base) × probabilidade de êxito** (padrão 50%); benefício líquido = recuperável − custas previstas. Vias disponíveis: protesto, negativação, monitória e cobrança exigem dívida cobrável; execução exige título executivo com pretensão executiva vigente; busca e apreensão exige alienação fiduciária de veículo ativa; execução extrajudicial da garantia exige alienação fiduciária (imóvel ou veículo) ou hipoteca ativa. A conclusão favorável exige vias disponíveis, checklist sem item obrigatório faltante e, com custo × benefício negativo, parecer; a inviabilidade exige parecer.
+
+### B.7 Parâmetros (`LegalSettings`, `PUT /api/v1/legal/settings`) e padrões
+| Parâmetro | Padrão | Observação |
+| --- | --- | --- |
+| `conductModel` | `INTERNAL_ONLY` | **issue #14** — quem conduz (`INTERNAL_ONLY`, `LAW_FIRMS_ONLY`, `BOTH`) |
+| `allowedExpenseAdvancers` | `CREDITOR` | **issue #14** — quem adianta custas (`CREDITOR`, `AGENCY`, `LAW_FIRM`) |
+| `prescribedTitlePolicy` | `EXCLUDE` | **issue #14** — título com pretensão de cobrança prescrita não entra no jurídico e é sinalizado (`FLAG` o mantém, sem via disponível) |
+| `budgetEnforcement` | `BLOCK` | despesa exige autorização vigente e respeita o orçamento aprovado (`WARN` aceita e sinaliza) |
+| `collectionHoldStage` | `AUTHORIZATION` | ver §B.3 |
+| `deadlineAlertLevels` | 5, 2, 0 | dias úteis restantes que disparam alerta |
+| `yearEndRecess` | ligado | CPC art. 220 (20/12 a 20/01) nos prazos em dias úteis |
+| `removalDeadlineBusinessDays` | 5 | baixa de protesto/negativação após pagamento (Súmula 548/STJ) |
+| `homologationDeadlineBusinessDays` | 5 | protocolar acordo para homologação |
+| `creditBureauNoticeDays` | 10 | antecedência mínima da comunicação prévia à negativação (CDC art. 43 §2º) |
+| `prescriptionWarningDays` | 180 | sinalização de prescrição próxima |
+| `referralCooldownDays` | 180 | sem nova indicação automática do mesmo caso após encerramento |
+
+### B.8 Prazos
+`DeadlineCalculator` (puro): dias úteis (exclui o início, inclui o vencimento; sem fins de semana, feriados do compliance, suspensões cadastradas do tribunal ou gerais e, se ligado, o recesso de fim de ano); dias corridos (prorroga o vencimento para o primeiro dia com expediente; recesso não suspende); data fixa (prorrogada da mesma forma). Fato inicial: intimação (conta do dia útil seguinte) ou disponibilização no DJe (publicação no dia útil seguinte; conta a partir do próximo — CPC art. 224 §§ 2º e 3º). Suspensão cadastrada/removida e a varredura diária recalculam os vencimentos pendentes (auditoria `legal_deadline.rescheduled`). A varredura diária marca prazos vencidos como `MISSED` e alerta uma vez por nível (`legal.deadline_approaching`/`legal.deadline_missed` e evento `LegalDeadlineApproaching` para notificação); cumprimento ocorrido até o vencimento pode ser registrado depois (corrige `MISSED`).
+
+### B.9 API (`/api/v1/legal`)
+| Recurso | Permissão |
+| --- | --- |
+| `GET/PUT /settings` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
+| `GET/POST /eligibility-rules`, `GET/PUT /eligibility-rules/{id}`, `POST …/activate`, `…/deactivate`, `GET /eligibility/cases/{caseId}` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
+| `POST/GET /matters`, `GET /matters/{id}`, `…/sheet`, `…/history`, `…/agreements`, `GET /dashboard` | `LEGAL_MANAGE` (indicação) / `LEGAL_VIEW` |
+| `POST /matters/{id}/transitions`, `PUT /matters/{id}/responsible` | `LEGAL_MANAGE` (aceite da indicação também `LEGAL_AUTHORIZE`) |
+| `POST /matters/{id}/viability/preview`, `POST/GET /matters/{id}/viability` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
+| `GET/POST /matters/{id}/authorizations`, `POST /authorizations/{id}/decision` | `LEGAL_VIEW` / `LEGAL_MANAGE` / `LEGAL_AUTHORIZE` |
+| `GET/POST /matters/{id}/measures`, `GET /measures/{id}`, `POST …/submission`, `…/status`, `…/dispatch` | `LEGAL_VIEW` / `LEGAL_MANAGE` (dispatch + `DEBTOR_SENSITIVE_VIEW`) |
+| `GET/POST /matters/{id}/lawsuits`, `GET/PUT /lawsuits/{id}`, `POST …/status`, `GET/POST …/movements`, `POST …/sync`, `GET/POST …/hearings`, `PUT /hearings/{id}`, `POST …/result`, `…/cancel` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
+| `GET/POST /matters/{id}/deadlines`, `GET /deadlines` (agenda, `mine=true`), `GET /deadlines/due-date`, `POST /deadlines/{id}/complete`, `…/cancel`, `GET/POST /court-suspensions`, `DELETE /court-suspensions/{id}` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
+| `GET/POST /matters/{id}/expenses`, `POST /expenses/{id}/cancel`, `…/reimburse` | `LEGAL_VIEW` / `LEGAL_EXPENSE_MANAGE` |
+| `GET/POST /law-firms`, `GET/PUT /law-firms/{id}`, `…/activate`, `…/deactivate`, `GET/POST …/members`, `POST …/members/{userId}/remove` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
+| `GET/POST /matters/{id}/documents` (multipart `document` + `file`), `GET /documents/{id}/content` | `LEGAL_VIEW` / `LEGAL_MANAGE` ou `LEGAL_EXPENSE_MANAGE` |
+
+### B.10 Pendências
+- Critério "régua extrajudicial esgotada": depende do módulo campaign (não implementado).
+- Captura de publicações automática e envio automático de medidas: só após adaptadores aprovados.
+- Depósito judicial como origem de pagamento (payment) e despesas/honorários no demonstrativo (settlement).
+- Representação do devedor por advogado (direcionamento do contato) depende do communication.

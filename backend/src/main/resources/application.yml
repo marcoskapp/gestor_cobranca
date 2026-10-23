@@ -184,7 +184,7 @@ app:
       login-per-minute-per-ip: 20
     mfa:
       issuer: Gestor de Cobranca
-      required-for-roles: ADMIN,GESTOR,FINANCEIRO,AUDITOR
+      required-for-roles: ADMIN,GESTOR,FINANCEIRO,AUDITOR,JURIDICO,ADVOGADO_PARCEIRO
 
   audit:
     seal-interval: PT1M
@@ -268,6 +268,36 @@ app:
     # casos processados por job de sincronização/roteamento/recálculo
     batch-size: 200
     evidence:
+      max-size-bytes: 20971520
+  legal:
+    # varredura diária: vencimentos, alertas e prazos perdidos, indicação pelas regras, captura automática
+    daily-cron: "0 40 5 * * *"
+    batch-size: 200
+    max-referrals-per-run: 500
+    # padrões conservadores enquanto a assessoria não grava os seus (PUT /api/v1/legal/settings);
+    # decisões pendentes da issue #14: quem conduz, quem adianta custas, dívidas prescritas
+    defaults:
+      conduct-model: INTERNAL_ONLY
+      allowed-expense-advancers: CREDITOR
+      budget-enforcement: BLOCK
+      prescribed-title-policy: EXCLUDE
+      collection-hold-stage: AUTHORIZATION
+      deadline-alert-levels: 5,2,0
+      year-end-recess: true
+      removal-deadline-business-days: 5
+      homologation-deadline-business-days: 5
+      credit-bureau-notice-days: 10
+      prescription-warning-days: 180
+      referral-cooldown-days: 180
+    # adaptador de cada integração: "manual" até a aprovação (issues #13 e #14); ver docs/tecnico/desenho/juridico.md §B.4
+    providers:
+      court-data: manual
+      publications: manual
+      protest: manual
+      credit-bureau: manual
+      real-estate-registry: manual
+      vehicle-lien: manual
+    documents:
       max-size-bytes: 20971520
   # Ingestão de carteiras (limites contra arquivos maliciosos; ver IngestionProperties)
   ingestion:

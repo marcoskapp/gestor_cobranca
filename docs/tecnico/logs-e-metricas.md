@@ -37,6 +37,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.received`, `message.blocked`, `conversation.handoff`, `conversation.closed`, `template.published` |
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.step_executed`, `campaign.step_skipped`, `experiment.variant_assigned` |
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
+| Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Outros | `call.completed`, `portal.accessed`, `portal.agreement_formalized`, `score.calculated`, `assistant.replied`, `assistant.handoff` |
 
 ### 3.1 Atributos dos eventos de compliance
@@ -162,6 +163,28 @@ DEBTOR), `ownerType` (dono da conversa) e, com template, `templateCode`, `templa
 | `conversation.closed` | conversa encerrada | `from`, `messages`, `identified`; `durationMs` desde a abertura |
 | `template.published` | versão de template publicada | `code`, `templateVersion`, `purpose`, `variables`, `replacedVersion` |
 
+### 3.5 Atributos dos eventos do jurídico (legal)
+
+Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança) e referência `legal_matter` (ou o registro indicado). Nunca levam número de documento, nome, parecer, teor de andamento ou participantes; o número CNJ fica só na auditoria. `matterId` aparece como atributo quando a referência é outro registro.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `legal.matter_referred` | indicação (regra, alerta de prescrição ou manual) | `origin`, `ruleId`, `titles`, `excludedTitles`, `flags`, `prescribedExcluded`; `amount` = dívida |
+| `legal.stage_changed` | toda transição de fase | `from`, `to`, `route`, `responsibleType`, `lawFirmId`, `cause` (`manual`, `measure`, `lawsuit`, `movement`, `capture`, `agreement`), `collectionHold`; `amount` = dívida |
+| `legal.matter_assigned` | responsável alterado | `responsibleType`, `previousType`, `responsibleUserId`, `lawFirmId`, `stage` |
+| `legal.viability_assessed` | análise registrada | `viable`, `economicallyViable`, `route`, `routes`, `debtAmount`, `collectibleDebt`, `collateralValue`, `expectedCosts`, `netBenefit`, `costBenefitRatio`, `successProbability`, `flags`, `checklistMissing`; `amount` = valor recuperável estimado |
+| `legal.authorization_requested` / `legal.authorization_decided` | solicitação / decisão do credor | `routes`, `stage`, `cause`; na decisão `decision`, `channel`, `requestedBudget`, `hasEvidence`, `supplementary`, `daysToDecision`; `amount` = orçamento |
+| `legal.measure_registered` / `legal.measure_status_changed` | medida extrajudicial registrada / mudou de situação | `type`, `titles`, `collateralType`, `provider`, `stage`; na mudança `from`, `to`, `prescriptionInterruptions`, `daysSinceSubmission`; `amount` = valor da medida |
+| `legal.lawsuit_filed` | processo cadastrado | `route`, `courtCode`, `segment`, `defendants`, `creditorPole`, `responsibleType`, `lawFirmId`, `daysSinceReferral`; `amount` = valor da causa |
+| `legal.movement_recorded` | andamento manual ou capturado | `lawsuitId`, `type`, `source`, `provider`, `route`, `courtCode`, `prescriptionInterruptions`, `stage`; `amount` |
+| `legal.recovery_recorded` | levantamento de valores | `route`, `recoveredTotal`, `stage`; `amount` = valor levantado |
+| `legal.deadline_created` / `_approaching` / `_met` / `_missed` | ciclo do prazo | `kind`, `countingMode`, `termDays`, `calendarDays`, `source`, `level`, `businessDaysRemaining`, `dueDate`, `onTime`, `correctedFromMissed`, `daysBeforeDue`, `responsibleUserId`, `lawFirmId` |
+| `legal.hearing_scheduled` / `legal.hearing_held` | audiência agendada / realizada | `type`, `mode`, `daysAhead`, `outcome`, `rescheduleCount` |
+| `legal.expense_recorded` / `_cancelled` / `_reimbursed` | custas e despesas | `type`, `advancedBy`, `reimbursable`, `overBudget`, `hasReceipt`, `expensesTotal`, `authorizedBudget`, `daysToReimburse`; `amount` |
+| `legal.agreement_linked` / `legal.agreement_broken` | acordo do negotiation vinculado / acordo judicial quebrado ou cancelado | `agreementId`, `judicial`, `status`, `resumedStage`, `cause`; `amount` = valor do acordo |
+| `legal.titles_settled` | todos os títulos do caso jurídico saíram de cobrança | `stage`, `titleStatuses`, `removalDeadlines` |
+| `legal.prescription_alert` | alerta de prescrição do debt para título de caso jurídico aberto | `titleId`, `claim`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `stage` |
+| `legal.matter_closed` | `CLOSED` ou `RETURNED_TO_CREDITOR` | `stage`, `from`, `closureReason`, `route`, `durationDays`, `debtAmount`, `expensesTotal`, `recoveredAmount`, `responsibleType`, `lawFirmId`, `deadlinesCancelled`, `removalDeadlines`; `amount` = valor recuperado; `durationMs` |
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -248,6 +271,18 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `debt.prescription.alerts{claim,instrumentType}` | alertas de prescrição próxima emitidos |
 | `debt.prescription.scan.duration{phase}` | duração da varredura diária por fase (`reconcile`, `alert`) |
 | `debt.jobs.failures{job}` | falhas dos agendamentos do módulo debt (alarme) |
+| `legal.matters.referred{origin}`, `legal.matters.transitions{from,to}` | indicações e ciclo dos casos jurídicos |
+| `legal.eligibility.evaluations{outcome}`, `legal.eligibility.reasons{reason}` | avaliações de elegibilidade (`eligible`, `ineligible`, `already_open`, `cooldown`, `case_status`, `no_rule`) e motivos |
+| `legal.viability.assessments{viable,economicallyViable}`, `legal.authorizations{decision}` | triagem e decisões do credor |
+| `legal.measures.transitions{type,to}`, `legal.lawsuits.filed{route}`, `legal.movements{type,source}` | medidas, ajuizamentos e andamentos |
+| `legal.deadlines.created{kind,mode}`, `legal.deadlines.alerts{level}`, `legal.deadlines.met{onTime}`, `legal.deadlines.rescheduled{trigger}` | prazos |
+| `legal.deadlines.missed{kind}` | prazos perdidos (alarme) |
+| `legal.hearings{status}`, `legal.expenses.recorded{type,advancedBy,overBudget}`, `legal.expenses.blocked{reason}` | audiências e custas (bloqueios: `advancer_not_allowed`, `no_authorization`, `budget_exceeded`) |
+| `legal.collection.holds{operation,outcome}` | retenção LEGAL no collection (`placed`, `already_legal`, `released`, `case_closed`, `not_legal`) |
+| `legal.prescription.interruptions{type,outcome}` | interrupções enviadas ao debt (`registered`/`duplicate`) |
+| `legal.providers.manual_requests{port,operation}`, `legal.providers.captured{provider}` | pedidos de operação automática com adaptador manual; andamentos capturados |
+| `legal.access.law_firm_denied{resource}` | acessos negados a membros de escritório fora dos casos atribuídos |
+| `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos, duração da varredura diária e falhas (alarme) |
 | `communication.messages{channel,direction,sender,status}` | mudanças de status de mensagens (inclui `QUEUED` e `RECEIVED`) |
 | `communication.messages.blocked{channel,sender,stage,reason}` | envios negados pelo porteiro, por motivo (`precheck`/`send`) |
 | `communication.send.attempts{channel,provider,outcome}` | tentativas do job: `accepted`, `rejected`, `transient`, `blocked`, `account_unavailable`, `whatsapp_window_closed` |

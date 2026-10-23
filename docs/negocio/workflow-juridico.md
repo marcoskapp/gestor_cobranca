@@ -65,10 +65,14 @@ flowchart LR
 | Gravames de veículos | Consulta e baixa de gravame | Requer provedor |
 | Captura de publicações e intimações | Diários oficiais | Fornecedor especializado |
 
-## 5. Decisões pendentes
+## 5. Decisões pendentes (issue #14) — parâmetros com padrão conservador
 
-1. Jurídico interno, escritórios parceiros ou ambos; acesso de escritórios externos à plataforma com escopo restrito aos seus casos.
-2. Quem adianta custas (credor, assessoria, conforme contrato).
-3. Garantias predominantes nas carteiras-alvo, para ordenar as vias extrajudiciais.
-4. Captura de andamentos: DataJud e registro manual primeiro, fornecedores depois.
-5. Tratamento de dívidas prescritas, considerando entendimento recente do STJ que restringe sua cobrança inclusive fora do Judiciário (requer confirmação jurídica).
+Enquanto não forem decididas, as decisões abaixo são **parâmetros da assessoria** (tela/API de parâmetros do jurídico), com padrão conservador. Detalhes em [`docs/tecnico/desenho/juridico.md`](../tecnico/desenho/juridico.md) §B.7.
+
+| # | Decisão | Parâmetro | Padrão |
+| --- | --- | --- | --- |
+| 1 | Jurídico interno, escritórios parceiros ou ambos | `conductModel` | somente jurídico interno; escritórios só acessam a plataforma quando habilitado, e então apenas os casos atribuídos |
+| 2 | Quem adianta custas | `allowedExpenseAdvancers` | somente o credor; despesa só com autorização do credor e dentro do orçamento aprovado (`budgetEnforcement`) |
+| 3 | Garantias predominantes (ordem das vias) | — | a viabilidade sugere a via pela garantia existente (imóvel → execução extrajudicial; veículo → busca e apreensão) |
+| 4 | Captura de andamentos | `app.legal.providers.*` | lançamento manual; DataJud e fornecedores se encaixam como adaptadores após aprovação (issue #13) |
+| 5 | Dívidas prescritas | `prescribedTitlePolicy` | título com a pretensão de cobrança prescrita **não** é indicado ao jurídico e o caso é sinalizado |
