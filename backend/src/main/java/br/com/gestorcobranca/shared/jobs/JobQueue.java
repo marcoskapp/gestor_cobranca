@@ -28,4 +28,15 @@ public interface JobQueue {
 
     /** Cancela jobs pendentes do tipo com a chave de deduplicação informada. */
     int cancelPending(String type, String deduplicationKey);
+
+    /**
+     * Renova o lease de um job em execução por mais um período ({@code app.jobs.lease}), em
+     * transação própria. Handlers de longa duração (ex.: importação de arquivos grandes) devem
+     * chamá-lo periodicamente; sem isso, a recuperação de leases expirados devolveria o job à fila
+     * enquanto ele ainda executa.
+     *
+     * @param attempt tentativa corrente ({@link JobContext#attempt()})
+     * @return falso se o job não está mais sob esta execução (lease perdido e job reivindicado de novo)
+     */
+    boolean renewLease(UUID jobId, int attempt);
 }
