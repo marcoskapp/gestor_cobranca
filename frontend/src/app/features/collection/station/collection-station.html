@@ -1,0 +1,219 @@
+<div class="st-bar" data-tour="page-header">
+  <h1 class="st-bar__title">Estação de cobrança</h1>
+  @if (canWork()) {
+    <mat-form-field class="app-compact st-bar__queue" subscriptSizing="dynamic">
+      <mat-label>Fila</mat-label>
+      <mat-select [ngModel]="queueId()" (ngModelChange)="queueId.set($event)">
+        <mat-option value="">Minhas filas (por prioridade)</mat-option>
+        @for (q of queueOptions(); track q.value) {
+          <mat-option [value]="q.value">{{ q.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-flat-button type="button" (click)="nextCase()" [disabled]="nextLoading()" data-tour="next-case" matTooltip="Próximo caso (Alt + N)">
+      <mat-icon aria-hidden="true">skip_next</mat-icon>
+      Próximo caso
+      <kbd class="st-kbd" aria-hidden="true">Alt N</kbd>
+    </button>
+  }
+  <span class="st-bar__spacer"></span>
+  @if (selectedCase()) {
+    <span class="st-timer app-numeric" role="timer" aria-label="Tempo de atendimento" matTooltip="Tempo de atendimento deste caso">
+      <mat-icon aria-hidden="true">timer</mat-icon>{{ elapsed() }}
+    </span>
+  }
+  <a mat-button routerLink="/cobranca/agenda">
+    <mat-icon aria-hidden="true">event_note</mat-icon>
+    Agenda
+  </a>
+</div>
+
+<app-density-invite />
+
+<div class="st-zones" [class.st-zones--collapsed]="queueCollapsed()">
+  <!-- zona 1: fila -->
+  <aside class="st-zone st-queue" aria-label="Meus casos" data-tour="my-cases">
+    <div class="st-zone__head">
+      @if (!queueCollapsed()) {
+        <h2 class="st-zone__title">Meus casos ({{ myCaseRows().length }})</h2>
+      }
+      <button
+        mat-icon-button
+        type="button"
+        class="st-icon"
+        (click)="queueCollapsed.set(!queueCollapsed())"
+        [attr.aria-expanded]="!queueCollapsed()"
+        [attr.aria-label]="queueCollapsed() ? 'Expandir fila' : 'Recolher fila'"
+        [matTooltip]="(queueCollapsed() ? 'Expandir' : 'Recolher') + ' (Alt + Q)'"
+      >
+        <mat-icon aria-hidden="true">{{ queueCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+      </button>
+    </div>
+    @if (!queueCollapsed()) {
+      <div class="st-zone__body">
+        @if (myCases.isLoading() && !myCaseRows().length) {
+          <app-skeleton variant="lines" [rows]="6" />
+        } @else if (!canWork()) {
+          <p class="app-muted st-pad">A fila de trabalho é dos operadores. Abra casos pela consulta de casos.</p>
+        } @else {
+          <ul class="st-cases" role="listbox" aria-label="Casos atribuídos a você">
+            @for (c of myCaseRows(); track c.id) {
+              @let action = nextActionText(c.nextActionAt);
+              <li
+                role="option"
+                class="st-case"
+                tabindex="0"
+                [class.st-case--selected]="c.id === selectedId()"
+                [attr.aria-selected]="c.id === selectedId()"
+                (click)="select(c)"
+                (keydown.enter)="select(c)"
+                (keydown.space)="$event.preventDefault(); select(c)"
+              >
+                <span class="st-case__name">{{ debtors.name(c.debtorId) }}</span>
+                <span class="st-case__line">
+                  <app-amount [value]="c.openBalance" />
+                  <app-overdue-badge [days]="c.daysOverdue" />
+                </span>
+                <span class="st-case__line">
+                  <app-status-chip domain="case" [status]="c.status" />
+                  @if (action) {
+                    <span class="st-case__action" [class.st-late]="action === 'Próxima ação vencida'">{{ action }}</span>
+                  }
+                </span>
+              </li>
+            } @empty {
+              <li class="st-pad">
+                <app-empty-state icon="inbox" title="Nenhum caso com você." message="Use Próximo caso para receber o caso mais prioritário." [compact]="true" />
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </aside>
+
+  <!-- zona 2: ficha -->
+  <section class="st-zone st-sheet" aria-label="Ficha do caso" [attr.aria-busy]="sheet.isLoading()">
+    @if (sheet.isLoading() && current()) {
+      <mat-progress-bar mode="indeterminate" class="st-progress" aria-label="Atualizando" />
+    }
+    <div class="st-zone__body st-pad">
+      @if (!selectedId()) {
+        <app-empty-state
+          icon="support_agent"
+          title="Nenhum caso aberto."
+          message="Peça o próximo caso ou escolha um dos seus casos na fila. Atalhos: Alt + N próximo caso, ? lista todos."
+        >
+          @if (canWork()) {
+            <button mat-flat-button type="button" (click)="nextCase()">Próximo caso</button>
+          }
+        </app-empty-state>
+      } @else if (sheet.isLoading() && !current()) {
+        <div aria-label="Carregando ficha do caso">
+          <app-skeleton variant="lines" [rows]="2" />
+          <app-skeleton class="st-gap" variant="card" [rows]="3" />
+          <app-skeleton class="st-gap" variant="table" [rows]="4" />
+        </div>
+      } @else if (sheet.status() === 'error') {
+        <app-empty-state icon="cloud_off" tone="error" title="Não foi possível abrir o caso." message="O caso pode não existir ou estar fora do seu escopo de credores.">
+          <button mat-stroked-button type="button" (click)="sheet.reload()">Tentar novamente</button>
+        </app-empty-state>
+      } @else if (current(); as s) {
+        <app-case-sheet-panel
+          [sheet]="s"
+          [tabulations]="allTabulations()"
+          [creditors]="creditors"
+          [portfolios]="portfolios"
+          [(tab)]="tab"
+          (changed)="refreshAll()"
+        />
+      }
+    </div>
+  </section>
+
+  <!-- zona 3: ações -->
+  <aside class="st-zone st-actions" aria-label="Ações do atendimento">
+    <div class="st-zone__body st-pad">
+      <app-contact-window [creditorId]="selectedCase()?.creditorId ?? null" [contactableChannels]="selectedCase()?.contactableChannels ?? null" />
+
+      @if (current(); as s) {
+        @let c = s.collectionCase;
+        <div class="st-quick" data-tour="case-actions">
+          @if (canSchedule() && workable()) {
+            <button mat-stroked-button type="button" (click)="schedule()" matTooltip="Agendar retorno (Alt + A)">
+              <mat-icon aria-hidden="true">event</mat-icon>
+              Agendar retorno
+            </button>
+          }
+          @if (canSimulate()) {
+            <button mat-stroked-button type="button" (click)="simulate()" matTooltip="Simular negociação (Alt + S)">
+              <mat-icon aria-hidden="true">calculate</mat-icon>
+              Simular
+            </button>
+          }
+          @if (canDispute() && workable() && c.status !== 'CLOSED') {
+            <button mat-stroked-button type="button" (click)="openDispute()">
+              <mat-icon aria-hidden="true">gavel</mat-icon>
+              Contestação
+            </button>
+          }
+          <button mat-icon-button type="button" [matMenuTriggerFor]="more" aria-label="Mais ações do caso" matTooltip="Mais ações">
+            <mat-icon aria-hidden="true">more_vert</mat-icon>
+          </button>
+          <mat-menu #more="matMenu" xPosition="before">
+            @if (canWork() && !mine() && c.status !== 'CLOSED') {
+              <button mat-menu-item type="button" (click)="takeOver()">
+                <mat-icon aria-hidden="true">pan_tool</mat-icon>
+                <span>Assumir atendimento</span>
+              </button>
+            }
+            @if (canWork() && mine()) {
+              <button mat-menu-item type="button" (click)="release()">
+                <mat-icon aria-hidden="true">move_to_inbox</mat-icon>
+                <span>Devolver à fila</span>
+              </button>
+            }
+            @if (canAssign()) {
+              <button mat-menu-item type="button" (click)="assign()">
+                <mat-icon aria-hidden="true">assignment_ind</mat-icon>
+                <span>Atribuir a operador ou equipe</span>
+              </button>
+            }
+            <button mat-menu-item type="button" (click)="refreshCase()">
+              <mat-icon aria-hidden="true">sync</mat-icon>
+              <span>Atualizar posição dos títulos</span>
+            </button>
+            @if (canManage()) {
+              @for (a of lifecycle(); track a) {
+                <button mat-menu-item type="button" (click)="runLifecycle(a)">
+                  <mat-icon aria-hidden="true">{{ caseActions[a].icon }}</mat-icon>
+                  <span>{{ caseActions[a].label }}</span>
+                </button>
+              }
+            }
+          </mat-menu>
+        </div>
+
+        @if (!workable() && c.status !== 'CLOSED') {
+          <p class="app-alert app-alert--neutral" role="note">
+            <mat-icon aria-hidden="true">lock</mat-icon>
+            <span>Caso de outro operador. Para registrar, peça a atribuição ao supervisor.</span>
+          </p>
+        } @else if (c.status === 'CLOSED') {
+          <p class="app-alert app-alert--neutral" role="note">
+            <mat-icon aria-hidden="true">lock</mat-icon>
+            <span>Caso encerrado{{ c.closeReason ? ': ' + c.closeReason : '' }}.</span>
+          </p>
+        } @else if (canRegister()) {
+          @if (retained()) {
+            <p class="app-alert app-alert--warning" role="note">
+              <mat-icon aria-hidden="true">info</mat-icon>
+              <span>Caso retido: registre apenas contatos recebidos ou necessários (o porteiro de contato bloqueia contatos ativos).</span>
+            </p>
+          }
+          <app-interaction-panel [sheet]="s" [tabulations]="activeTabulations()" [promiseMaxDays]="promiseMaxDays()" [startedAt]="startedAt()" (recorded)="onRecorded($event)" />
+        }
+      }
+    </div>
+  </aside>
+</div>

@@ -1,0 +1,320 @@
+import { LowerCasePipe } from '@angular/common';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
+import { catchError, finalize, of, startWith } from 'rxjs';
+import { Amount } from '../../../shared/components/amount/amount';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { StatusChip } from '../../../shared/components/status-chip/status-chip';
+import { valueOr } from '../../../shared/data/resource-value';
+import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
+import { DebtorLookup } from '../../debt/data/debt.lookups';
+import { TitlesApi } from '../../debt/data/debt.api';
+import { titleLabel } from '../../debt/data/debt.labels';
+import { CreditorLookup } from '../../organization/data/organization.lookups';
+import { AuthorityApi, SimulationApi } from '../data/negotiation.api';
+import {
+  AUTHORITY_SOURCE_LABELS,
+  COMPONENT_LABELS,
+  CONCESSION_REASON_LABELS,
+  ENGINE_COMPONENT_LABELS,
+  EXCLUDED_REASON_LABELS,
+  RULE_LABELS,
+  VIOLATION_KIND_LABELS,
+  percent,
+  planText,
+  ratesText,
+} from '../data/negotiation.labels';
+import { ConcessionReason, DEBT_COMPONENTS, OfferView, PlanRequest, SimulationView, ValidationView } from '../data/negotiation.models';
+import { justificationProblem, offeredLevels, savingShare, sideBySide } from '../data/negotiation.rules';
+
+/**
+ * Simulador de negociação: composição da dívida atualizada, ofertas à vista × parcelado lado a
+ * lado até o nível da escada permitido pela alçada, memória de cálculo sob demanda e validação de
+ * condições pelo `NegotiationGuard` (dentro da alçada, requer aprovação ou rejeitado). Subir de
+ * nível exige justificativa registrada. Propostas e acordos chegam na parte 2 do módulo.
+ *
+ * Query params: `credor`, `devedor`, `caso` (aberto a partir da estação de cobrança).
+ */
+@Component({
+  selector: 'app-simulator',
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    MatButtonModule,
+    MatCheckboxModule,
+    MatDatepickerModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatSelectModule,
+    MatTooltipModule,
+    Amount,
+    EmptyState,
+    EntityPicker,
+    PageHeader,
+    StatusChip,
+    AppDatePipe,
+    LowerCasePipe,
+  ],
+  templateUrl: './simulator.html',
+  styleUrl: './simulator.scss',
+})
+export class Simulator {
+  readonly credor = input<string>();
+  readonly devedor = input<string>();
+  readonly caso = input<string>();
+
+  private readonly api = inject(SimulationApi);
+  private readonly authorityApi = inject(AuthorityApi);
+  private readonly titlesApi = inject(TitlesApi);
+  protected readonly creditorSource = inject(CreditorLookup);
+  protected readonly debtorSource = inject(DebtorLookup);
+
+  protected readonly components = DEBT_COMPONENTS;
+  protected readonly componentLabels = COMPONENT_LABELS;
+  protected readonly engineLabels = ENGINE_COMPONENT_LABELS;
+  protected readonly ruleLabels = RULE_LABELS;
+  protected readonly violationKinds = VIOLATION_KIND_LABELS;
+  protected readonly sourceLabels = AUTHORITY_SOURCE_LABELS;
+  protected readonly excludedLabels = EXCLUDED_REASON_LABELS;
+  protected readonly reasons = Object.entries(CONCESSION_REASON_LABELS).map(([value, label]) => ({ value: value as ConcessionReason, label }));
+  protected readonly percent = percent;
+  protected readonly planText = planText;
+  protected readonly ratesText = ratesText;
+  protected readonly titleLabel = titleLabel;
+
+  private readonly fb = inject(FormBuilder).nonNullable;
+  protected readonly context = this.fb.group({
+    creditor: this.fb.control<string[]>([]),
+    debtor: this.fb.control<string[]>([]),
+    referenceDate: this.fb.control<Date | null>(null),
+    channel: [''],
+    installments: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(360)]),
+    downPayment: this.fb.control<number | null>(null, [Validators.min(0.01)]),
+    firstDueDate: this.fb.control<Date | null>(null),
+  });
+  protected readonly escalation = this.fb.group({
+    level: this.fb.control<number>(0),
+    reason: this.fb.control<ConcessionReason | ''>(''),
+    note: ['', [Validators.maxLength(500)]],
+  });
+  /** Condições ajustadas para validação (`/validations`). */
+  protected readonly custom = this.fb.group({
+    principal: this.fb.control(0),
+    correction: this.fb.control(0),
+    interest: this.fb.control(0),
+    fine: this.fb.control(0),
+    fees: this.fb.control(0),
+    honorarium: this.fb.control(0),
+    installments: this.fb.control(1, [Validators.required, Validators.min(1), Validators.max(360)]),
+    downPayment: this.fb.control<number | null>(null),
+    firstDueDate: this.fb.control<Date | null>(null),
+  });
+
+  private readonly contextValue = toSignal(this.context.valueChanges.pipe(startWith(null)), { initialValue: null });
+  protected readonly creditorId = computed(() => {
+    this.contextValue();
+    return this.context.controls.creditor.value[0] ?? null;
+  });
+  protected readonly debtorId = computed(() => {
+    this.contextValue();
+    return this.context.controls.debtor.value[0] ?? null;
+  });
+
+  /** Alçada do usuário para o credor, visível antes de simular. */
+  private readonly authority = rxResource({
+    params: () => this.creditorId() ?? undefined,
+    stream: ({ params }) => this.authorityApi.mine(params).pipe(catchError(() => of(undefined))),
+  });
+  protected readonly mine = valueOr(this.authority, undefined);
+
+  private readonly titleList = rxResource({
+    params: () => this.debtorId() ?? undefined,
+    stream: ({ params }) => this.titlesApi.listByDebtor(params),
+  });
+  private readonly titleRows = valueOr(this.titleList, []);
+  protected readonly titles = computed(() =>
+    this.titleRows().filter((t) => t.creditorId === this.creditorId() && t.status === 'OPEN' && t.openBalance > 0),
+  );
+  protected readonly selectedTitles = signal<ReadonlySet<string>>(new Set());
+
+  protected readonly simulation = signal<SimulationView | null>(null);
+  protected readonly running = signal(false);
+  protected readonly viewLevel = signal(0);
+  protected readonly showMemory = signal(false);
+  protected readonly validation = signal<ValidationView | null>(null);
+  protected readonly validating = signal(false);
+  protected readonly escalationError = signal<string | null>(null);
+
+  protected readonly result = computed(() => this.simulation()?.result ?? null);
+  protected readonly levels = computed(() => (this.result() ? offeredLevels(this.result()!) : []));
+  protected readonly pair = computed(() => (this.result() ? sideBySide(this.result()!, this.viewLevel()) : null));
+  /** Níveis acima do concedido, até o limite da alçada (subir exige justificativa). */
+  protected readonly higherLevels = computed(() => {
+    const r = this.result();
+    if (!r) {
+      return [];
+    }
+    return Array.from({ length: Math.max(0, r.limits.maxLevel - r.grantedLevel) }, (_, i) => r.grantedLevel + i + 1);
+  });
+
+  constructor() {
+    // contexto vindo da estação de cobrança
+    effect(() => {
+      const credor = this.credor();
+      const devedor = this.devedor();
+      untracked(() => {
+        if (credor) {
+          this.context.controls.creditor.setValue([credor]);
+        }
+        if (devedor) {
+          this.context.controls.debtor.setValue([devedor]);
+        }
+      });
+    });
+    // mudou credor/devedor: resultado anterior não vale mais
+    effect(() => {
+      this.creditorId();
+      this.debtorId();
+      untracked(() => {
+        this.simulation.set(null);
+        this.validation.set(null);
+        this.selectedTitles.set(new Set());
+        this.escalation.reset({ level: 0, reason: '', note: '' });
+      });
+    });
+  }
+
+  protected toggleTitle(id: string, on: boolean): void {
+    this.selectedTitles.update((s) => {
+      const next = new Set(s);
+      if (on) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  protected simulate(level = 0): void {
+    const creditorId = this.creditorId();
+    const debtorId = this.debtorId();
+    if (!creditorId || !debtorId || this.running() || this.context.invalid) {
+      this.context.markAllAsTouched();
+      return;
+    }
+    const e = this.escalation.getRawValue();
+    const problem = justificationProblem(level, e.reason || null, e.note);
+    this.escalationError.set(problem);
+    if (problem) {
+      return;
+    }
+    const v = this.context.getRawValue();
+    const plans: PlanRequest[] = v.installments
+      ? [
+          { installments: 1, downPayment: null, firstDueDate: toLocalDate(v.firstDueDate) },
+          { installments: Number(v.installments), downPayment: v.downPayment ? Number(v.downPayment) : null, firstDueDate: toLocalDate(v.firstDueDate) },
+        ]
+      : [];
+    this.running.set(true);
+    this.validation.set(null);
+    this.api
+      .simulate({
+        creditorId,
+        debtorId,
+        titleIds: this.selectedTitles().size ? [...this.selectedTitles()] : null,
+        referenceDate: toLocalDate(v.referenceDate),
+        requestedLevel: level,
+        justification: level > 0 ? { reason: e.reason as ConcessionReason, note: e.note.trim() || null } : null,
+        plans: plans.length ? plans : null,
+        channel: v.channel || null,
+      })
+      .pipe(finalize(() => this.running.set(false)))
+      .subscribe((sim) => {
+        this.simulation.set(sim);
+        this.viewLevel.set(sim.result.grantedLevel);
+        this.escalation.controls.level.setValue(Math.min(sim.result.grantedLevel + 1, sim.result.limits.maxLevel));
+        const best = sideBySide(sim.result, sim.result.grantedLevel);
+        const offer = best.cash ?? best.installment;
+        if (offer) {
+          this.useOffer(offer);
+        }
+      });
+  }
+
+  protected escalate(): void {
+    this.simulate(Number(this.escalation.controls.level.value));
+  }
+
+  /** Copia a oferta para o ajuste de condições. */
+  protected useOffer(offer: OfferView): void {
+    this.custom.reset({
+      ...offer.discountRates,
+      installments: offer.installments,
+      downPayment: offer.downPayment,
+      firstDueDate: offer.schedule[0] ? fromLocalDate(offer.schedule[0].dueDate) : null,
+    });
+    this.validation.set(null);
+  }
+
+  protected validate(): void {
+    const r = this.result();
+    if (!r || this.custom.invalid || this.validating()) {
+      this.custom.markAllAsTouched();
+      return;
+    }
+    const c = this.custom.getRawValue();
+    const e = this.escalation.getRawValue();
+    const level = this.viewLevel();
+    this.validating.set(true);
+    this.api
+      .validate({
+        creditorId: r.creditorId,
+        debtorId: r.debtorId,
+        titleIds: this.selectedTitles().size ? [...this.selectedTitles()] : null,
+        referenceDate: r.referenceDate,
+        policyId: r.policy.policyId,
+        level,
+        justification: level > 0 && r.justification ? r.justification : level > 0 && e.reason ? { reason: e.reason, note: e.note.trim() || null } : null,
+        discounts: {
+          principal: Number(c.principal) || 0,
+          correction: Number(c.correction) || 0,
+          interest: Number(c.interest) || 0,
+          fine: Number(c.fine) || 0,
+          fees: Number(c.fees) || 0,
+          honorarium: Number(c.honorarium) || 0,
+        },
+        plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: toLocalDate(c.firstDueDate) },
+        channel: r.channel,
+      })
+      .pipe(finalize(() => this.validating.set(false)))
+      .subscribe((v) => this.validation.set(v));
+  }
+
+  protected reasonText(code: string): string {
+    return EXCLUDED_REASON_LABELS[code] ?? code;
+  }
+
+  protected saving(offer: OfferView): number {
+    return savingShare(offer, this.result()?.composition.totalAmount ?? 0);
+  }
+
+  protected installmentValue(offer: OfferView): number | null {
+    const regular = offer.schedule.filter((p) => !offer.downPayment || p.number > 1);
+    return regular[0]?.amount ?? null;
+  }
+}

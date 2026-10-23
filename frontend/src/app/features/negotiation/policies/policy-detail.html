@@ -1,0 +1,154 @@
+@if (policy.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando política">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton class="pd-gap" variant="card" [rows]="6" />
+  </div>
+} @else if (policy.status() === 'error') {
+  <app-empty-state icon="policy" tone="error" title="Não foi possível abrir a política." message="A versão pode não existir ou o credor estar fora do seu escopo.">
+    <button mat-stroked-button type="button" (click)="policy.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/negociacao/politicas">Voltar para políticas</a>
+  </app-empty-state>
+}
+
+@if (current(); as p) {
+  <app-page-header [title]="'v' + p.version + ' · ' + p.name" [subtitle]="creditors.name(p.creditorId) + ' · esquema v' + p.termsSchemaVersion">
+    <a mat-button routerLink="/negociacao/politicas">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Políticas
+    </a>
+    @if (canManage()) {
+      @if (p.status === 'DRAFT') {
+        <button mat-stroked-button type="button" (click)="applyTemplate()" matTooltip="Substitui os termos pelos parâmetros usuais de mercado">
+          <mat-icon aria-hidden="true">auto_fix_high</mat-icon>
+          Modelo de mercado
+        </button>
+        @if (dirty()) {
+          <button mat-stroked-button type="button" (click)="discard()">Descartar alterações</button>
+          <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">
+            <mat-icon aria-hidden="true">save</mat-icon>
+            Salvar rascunho
+          </button>
+        } @else {
+          <button mat-flat-button type="button" (click)="publish()" [disabled]="problems().length > 0">
+            <mat-icon aria-hidden="true">publish</mat-icon>
+            Publicar
+          </button>
+        }
+      } @else {
+        @if (p.status === 'PUBLISHED' && !p.retiredAt) {
+          <button mat-stroked-button type="button" (click)="retire()">
+            <mat-icon aria-hidden="true">event_busy</mat-icon>
+            Aposentar
+          </button>
+        }
+        <button mat-flat-button type="button" (click)="newVersion()" [disabled]="hasDraft()" [matTooltip]="hasDraft() ? 'Já existe um rascunho para este credor' : 'Copia os termos desta versão para um novo rascunho'">
+          <mat-icon aria-hidden="true">content_copy</mat-icon>
+          Nova versão
+        </button>
+      }
+    }
+  </app-page-header>
+
+  <div class="pd-layout">
+    <div class="pd-main">
+      <section class="app-card pd-summary" aria-label="Situação da versão" data-tour="policy-status">
+        <app-status-chip domain="collectionPolicy" [status]="p.status" />
+        <span>
+          @if (p.effectiveFrom) {
+            Vigência {{ p.effectiveFrom | appDate: 'date' }} a {{ p.effectiveTo ? (p.effectiveTo | appDate: 'date') : 'em aberto' }}
+          } @else {
+            Rascunho criado em {{ p.createdAt | appDate }}
+          }
+        </span>
+        @if (p.publishedAt) {
+          <span class="app-muted">· publicada em {{ p.publishedAt | appDate }}</span>
+        }
+        @if (dirty()) {
+          <span class="app-status app-status--warning">Alterações não salvas</span>
+        }
+      </section>
+
+      @if (editable()) {
+        <section class="app-card">
+          <div class="pd-row">
+            <mat-form-field class="app-compact pd-grow">
+              <mat-label>Nome</mat-label>
+              <input matInput [ngModel]="name()" (ngModelChange)="name.set($event); edited()" maxlength="120" required />
+            </mat-form-field>
+            <mat-form-field class="app-compact pd-grow">
+              <mat-label>Descrição</mat-label>
+              <input matInput [ngModel]="description()" (ngModelChange)="description.set($event); edited()" maxlength="1000" />
+            </mat-form-field>
+          </div>
+        </section>
+      } @else if (p.description) {
+        <p class="app-muted">{{ p.description }}</p>
+      }
+
+      @if (problems().length && editable()) {
+        <section class="app-alert app-alert--error pd-problems" role="alert" aria-label="Problemas nos termos">
+          <mat-icon aria-hidden="true">error_outline</mat-icon>
+          <div>
+            <strong>{{ problems().length }} problema(s) a corrigir antes de publicar:</strong>
+            <ul>
+              @for (pr of problems().slice(0, 8); track pr) {
+                <li>{{ pr }}</li>
+              }
+            </ul>
+          </div>
+        </section>
+      }
+
+      <section class="app-card" aria-labelledby="pd-overrides" data-tour="policy-overrides">
+        <div class="pd-head">
+          <h2 class="app-card__title" id="pd-overrides">Regras e sobreposições</h2>
+          @if (editable()) {
+            <button mat-stroked-button type="button" (click)="editOverride(null)">
+              <mat-icon aria-hidden="true">add</mat-icon>
+              Sobreposição
+            </button>
+          }
+        </div>
+        <div class="pd-tabs" role="tablist" aria-label="Conjunto de regras">
+          <button type="button" role="tab" class="pd-tab" [class.pd-tab--on]="selectedOverride() === -1" [attr.aria-selected]="selectedOverride() === -1" (click)="selectedOverride.set(-1)">
+            Regras base
+          </button>
+          @for (o of draft()?.overrides ?? []; track $index; let i = $index) {
+            <button type="button" role="tab" class="pd-tab" [class.pd-tab--on]="selectedOverride() === i" [attr.aria-selected]="selectedOverride() === i" (click)="selectedOverride.set(i)">
+              {{ o.code }}
+              <span class="app-muted">{{ scope(o) }}</span>
+            </button>
+          }
+        </div>
+        @if (draft()?.overrides?.[selectedOverride()]; as o) {
+          <p class="pd-override">
+            <span><strong>{{ o.code }}</strong> · {{ scope(o) }} · especificidade {{ specificityText(o) }} · substitui {{ groupsText(o) }}</span>
+            @if (editable()) {
+              <span>
+                <button mat-button type="button" (click)="editOverride(selectedOverride())">Editar seletor e grupos</button>
+                <button mat-button type="button" (click)="removeOverride(selectedOverride())">Remover</button>
+              </span>
+            }
+          </p>
+        }
+        @if (editorRules(); as rules) {
+          <app-rules-editor [rules]="rules" [readonly]="!editable()" [groups]="editorGroups()" [indexes]="indexes()" (edited)="edited()" />
+        }
+      </section>
+    </div>
+
+    <aside class="app-card pd-timeline" aria-labelledby="pd-versions" data-tour="policy-versions">
+      <h2 class="app-card__title" id="pd-versions">Versões do credor</h2>
+      <ol class="pd-versions">
+        @for (v of versions(); track v.id) {
+          <li [class.pd-version--current]="v.id === p.id">
+            <a [routerLink]="['/negociacao/politicas', v.id]">v{{ v.version }}</a>
+            <app-status-chip domain="collectionPolicy" [status]="v.status" />
+            <span class="app-muted">{{ versionView(v) }}</span>
+          </li>
+        }
+      </ol>
+      <p class="app-muted pd-small">Versões publicadas são imutáveis: propostas antigas guardam a versão usada e podem ser reproduzidas.</p>
+    </aside>
+  </div>
+}
