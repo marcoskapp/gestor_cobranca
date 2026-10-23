@@ -43,6 +43,7 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Criptografia de campos pessoais AES-256-GCM com rotação de chave | `shared/crypto/FieldEncryptor`, `EncryptedStringConverter` |
 | Busca sem dado em claro (blind index HMAC por tenant) | `shared/crypto/BlindIndex` |
 | Exibição mascarada por padrão; revelação exige `DEBTOR_SENSITIVE_VIEW` e gera evento de acesso | casos de uso de devedor |
+| Importação de carteiras: limite de tamanho e de linhas, tipo conferido pelo conteúdo (não pela extensão), XLSX com limites de descompactação (zip bomb) e sem XXE, fórmulas nunca avaliadas e recusadas em campos de texto, relatório de erros com valores mascarados e células neutralizadas contra fórmulas (CSV injection), download do arquivo original só com `DEBTOR_SENSITIVE_VIEW` | `ingestion/infrastructure/parsing`, `FileSignature`, `RowValidator`, `CsvIssueReportWriter`, `ImportBatchService` |
 | Mascaramento automático de CPF, CNPJ, e-mail e telefone em todos os logs | `SensitiveDataMasker`, `JsonLogFormatter` |
 | Observações de interação e tarefa, descrição e parecer de contestação criptografados; evidências com SHA-256, download registrado (`FILE_DOWNLOADED`) | `collection/domain/model/Interaction`, `Dispute`, `DisputeService` (limpeza de arquivo de transação desfeita: `DisputeFileCleanup`) |
 | Arquivos isolados por tenant no S3 com criptografia no servidor e URLs temporárias | `shared/storage` |

@@ -7,6 +7,7 @@ Documentação de produto e infraestrutura da plataforma. Os diagramas usam [Mer
 | [topologia-logica.md](topologia-logica.md) | Diagrama da topologia lógica: camadas, módulos, dados, integrações e fluxos de log |
 | [stack-tecnologica.md](stack-tecnologica.md) | Todas as tecnologias adotadas, versão e finalidade |
 | [infraestrutura-aws.md](infraestrutura-aws.md) | Estrutura recomendada na AWS, com fases de crescimento e estimativa de custo |
+| [layout-importacao.md](layout-importacao.md) | Layout canônico de importação de carteiras (CSV, XLSX e API): colunas, formatos, validações, reimportação e limites |
 | [workflow-juridico.md](workflow-juridico.md) | Garantias da dívida e etapas do workflow jurídico (extrajudicial e judicial) |
 | [ux-identidade-visual.md](ux-identidade-visual.md) | Identidade visual (temas, densidade, acessibilidade), navegação e onboarding por perfil |
 | [assistente-ia.md](assistente-ia.md) | Assistente de negociação com IA: limites, canais, alçadas, modos de operação e implantação |

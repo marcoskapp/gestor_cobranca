@@ -27,7 +27,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Domínio | Eventos |
 | --- | --- |
 | Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
-| Ingestão | `import.started`, `import.completed`, `import.failed` |
+| Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled` |
 | Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.approved`, `proposal.rejected`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue` |
@@ -61,6 +61,17 @@ Nenhum evento leva placa, RENAVAM, chassi, matrícula, documento ou nome: apenas
 | `obligation_party.registered` | coobrigado incluído no contrato | `role`, `originContractId`, `principalDebtorId`, `personType`, `source`; `debtorId` = coobrigado |
 | `title.prescription_interrupted` | interrupção registrada (manual ou módulo legal) | `type`, `origin` (`MANUAL`/`LEGAL`), `hasEvidence`, `executionEstimatedDate`, `collectionEstimatedDate`, `extended` (alguma data estimada foi adiada); `amount` = saldo em aberto |
 | `title.prescription_approaching` | varredura diária: data estimada entrou na janela da regra (uma vez por data) | `claim` (`EXECUTION`/`COLLECTION`), `instrumentType`, `executiveTitle`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `titleStatus`; `amount` = saldo em aberto |
+
+### 3.2a Atributos dos eventos de ingestão
+
+Referência `import_batch`/id do lote, `creditorId`, `portfolioId`; nenhum dado de devedor. Ator: sistema (o processamento é assíncrono); quem enviou o lote vai em `requestedBy`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `import.started` | leitura prévia concluída, antes da primeira gravação | `source` (`CSV`/`XLSX`/`API`), `mode` (`IMPORT`/`VALIDATE_ONLY`), `layoutCode`, `layoutVersion`, `totalRows`, `fileSize`, `forced`, `reprocess`, `ignoredColumns`, `requestedBy` |
+| `import.completed` | lote concluído (`COMPLETED`, `COMPLETED_WITH_ERRORS` ou `VALIDATED`) | `source`, `mode`, `status`, `layoutCode`, `totalRows`, `rowsRead`, `rowsValid`, `rowsWithError`, `errors`, `warnings`, `debtorsCreated`, `debtorsUpdated`, `titlesCreated`, `titlesUpdated`, `titlesUnchanged`, `titlesSkipped`, `titlesSuspended`, `errorRate` (%), `requestedBy`; `amount` = principal das linhas válidas; `durationMs` |
+| `import.failed` | arquivo inválido, carteira sem aceitar cargas, falha técnica persistente ou arquivo sem linhas | os de `import.completed` + `failureCode` |
+| `import.cancelled` | cancelado na fila (`phase=queued`) ou em processamento | os de `import.completed` |
 
 ### 3.3 Atributos dos eventos de remuneração variável
 
@@ -169,6 +180,10 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `collection.disputes.overdue{type}` | contestações com prazo de resposta vencido (alarme) |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
 | `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos e falhas dos agendamentos (alarme) |
+| `ingestion.batches.received{source,mode}`, `ingestion.batches.finished{source,mode,status}`, `ingestion.batch.duration{source,mode,status}` | volume e duração dos lotes de importação |
+| `ingestion.files.rejected{reason}` | envios recusados no recebimento (tamanho, tipo pelo conteúdo, duplicidade, chave de idempotência…) |
+| `ingestion.rows{mode,outcome}`, `ingestion.titles{outcome}`, `ingestion.issues{severity}`, `ingestion.issues.stored` | linhas válidas/rejeitadas, títulos criados/atualizados/inalterados/não gravados/suspensos, ocorrências |
+| `ingestion.slice.duration{mode,outcome}`, `ingestion.row.write.duration{outcome}`, `ingestion.rows.retried` | desempenho do processamento (fatia, gravação por linha) e conflitos entre cargas simultâneas |
 | `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento |
 | `incentive.ledger.entries{kind,beneficiary}`, `incentive.ledger.transitions{status}` | lançamentos do razão e liberações/dispensas |
 | `incentive.payments.awaiting_attribution` | pagamento recebido antes da atribuição do acordo (crescimento contínuo = produtor sem `AgreementAttributionRecorded`) |

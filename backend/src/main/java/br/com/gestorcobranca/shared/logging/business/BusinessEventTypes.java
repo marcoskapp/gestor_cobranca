@@ -17,6 +17,7 @@ public final class BusinessEventTypes {
     public static final String IMPORT_STARTED = "import.started";
     public static final String IMPORT_COMPLETED = "import.completed";
     public static final String IMPORT_FAILED = "import.failed";
+    public static final String IMPORT_CANCELLED = "import.cancelled";
 
     // Dívida
     public static final String DEBTOR_CONSOLIDATED = "debtor.consolidated";
