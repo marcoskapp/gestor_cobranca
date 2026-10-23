@@ -21,6 +21,7 @@ import { provideMaterialDefaults } from './core/config/material.config';
 import { PageTitleStrategy } from './core/config/page-title.strategy';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { GlobalErrorHandler } from './core/http/global-error-handler';
+import { ThemeService } from './core/preferences/theme.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -39,5 +40,9 @@ export const appConfig: ApplicationConfig = {
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     // restaura a sessão (cookie de refresh) antes da primeira navegação
     provideAppInitializer(() => inject(AuthService).restoreSession()),
+    // tema e densidade aplicados desde a primeira tela (o onboarding é carregado com o shell)
+    provideAppInitializer(() => {
+      inject(ThemeService);
+    }),
   ],
 };

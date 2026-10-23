@@ -1,0 +1,107 @@
+// =============================================================================
+// Tokens de design da aplicação (CSS custom properties `--app-*`).
+//
+// Complementam os tokens de sistema do Material 3 (`--mat-sys-*`). Cores usam `light-dark()`
+// e acompanham o `color-scheme` do documento (tema claro, escuro ou do sistema), definido em
+// `ThemeService`. Contraste verificado para WCAG 2.2 AA (texto ≥ 4.5:1) sobre o fundo indicado.
+// Documentação: docs/design/ux.md.
+// =============================================================================
+
+@mixin tokens {
+  // ------------------------------------------------------------------ superfícies
+  --app-page-bg: light-dark(#f6f8fb, #0f1217);
+  --app-auth-bg: light-dark(#eef2f7, #0b0e12);
+  --app-surface: var(--mat-sys-surface-container-lowest);
+  --app-surface-raised: var(--mat-sys-surface-container-low);
+  --app-border: var(--mat-sys-outline-variant);
+  --app-border-strong: var(--mat-sys-outline);
+
+  // barra superior: azul institucional no claro, superfície neutra no escuro (menos brilho)
+  --app-topbar-bg: light-dark(#0f2f57, #161b22); // texto 13.4:1 / 14.6:1
+  --app-topbar-fg: light-dark(#ffffff, #e6edf3);
+  --app-topbar-subtle: light-dark(rgb(255 255 255 / 14%), rgb(255 255 255 / 8%));
+
+  // ------------------------------------------------------------------ cores semânticas (tom)
+  // Sempre acompanhadas de texto e ícone: nunca a cor sozinha comunica o estado.
+  --app-success-bg: light-dark(#e3f4e8, #12301e);
+  --app-success-fg: light-dark(#135c2b, #a6e3b8); // 7.3:1 / 9.8:1
+  --app-warning-bg: light-dark(#fff4d6, #33280a);
+  --app-warning-fg: light-dark(#6b4700, #ffd970); // 7.1:1 / 10.6:1
+  --app-danger-bg: light-dark(#fde7e7, #3d1714);
+  --app-danger-fg: light-dark(#8c1d18, #ffb4ab); // 7.6:1 / 9.3:1
+  --app-info-bg: light-dark(#e3edfb, #132a47);
+  --app-info-fg: light-dark(#123f73, #a7c8ff); // 9.1:1 / 8.5:1
+  --app-neutral-bg: light-dark(#eceff3, #262b32);
+  --app-neutral-fg: light-dark(#3c4652, #c9d1db); // 9.0:1 / 9.2:1
+
+  // valores monetários negativos/positivos (texto sobre superfície)
+  --app-amount-negative: light-dark(#8c1d18, #ffb4ab);
+  --app-amount-positive: light-dark(#135c2b, #a6e3b8);
+
+  // notificações (snack-bar)
+  --app-snack-bg: light-dark(#1f2933, #e2e2e9);
+  --app-snack-fg: light-dark(#ffffff, #1b1f26);
+  --app-snack-action: light-dark(#a7c8ff, #325f9b);
+  --app-snack-error-bg: light-dark(#8c1d18, #ffb4ab);
+  --app-snack-error-fg: light-dark(#ffffff, #3d1714);
+  --app-snack-success-bg: light-dark(#135c2b, #a6e3b8);
+  --app-snack-success-fg: light-dark(#ffffff, #12301e);
+
+  // ------------------------------------------------------------------ tipografia
+  --app-font-sans: 'Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --app-font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --app-text-xs: 0.75rem; // 12px — rótulos auxiliares, cabeçalho de tabela
+  --app-text-sm: 0.8125rem; // 13px — tabelas, listas densas
+  --app-text-md: 0.875rem; // 14px — texto padrão
+  --app-text-lg: 1rem; // 16px — títulos de cartão
+  --app-text-xl: 1.375rem; // 22px — título de página
+  --app-text-2xl: 1.75rem; // 28px — números de destaque
+  --app-line-tight: 1.25;
+  --app-line-normal: 1.5;
+
+  // ------------------------------------------------------------------ espaçamento (base 4px)
+  --app-space-1: 4px;
+  --app-space-2: 8px;
+  --app-space-3: 12px;
+  --app-space-4: 16px;
+  --app-space-5: 20px;
+  --app-space-6: 24px;
+  --app-space-8: 32px;
+  --app-space-12: 48px;
+
+  // ------------------------------------------------------------------ forma e elevação
+  --app-radius-sm: 4px;
+  --app-radius-md: 8px;
+  --app-radius-lg: 12px;
+  --app-radius-pill: 999px;
+  --app-elevation-1: 0 1px 2px rgb(0 0 0 / 6%), 0 1px 3px rgb(0 0 0 / 8%);
+  --app-elevation-2: 0 2px 6px rgb(0 0 0 / 10%), 0 1px 2px rgb(0 0 0 / 8%);
+  --app-elevation-3: 0 8px 24px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 10%);
+
+  // ------------------------------------------------------------------ foco e movimento
+  --app-focus-ring: 2px solid var(--mat-sys-primary);
+  --app-focus-offset: 2px;
+  --app-motion-fast: 120ms;
+  --app-motion-standard: 200ms;
+  --app-easing: cubic-bezier(0.2, 0, 0, 1);
+
+  // ------------------------------------------------------------------ densidade (ver [data-density])
+  --app-content-padding: 20px 24px 32px;
+  --app-card-padding: 16px 20px;
+  --app-gap: 16px;
+  --app-table-cell-y: 10px;
+
+  // ------------------------------------------------------------------ layout
+  --app-topbar-height: 56px;
+  --app-sidenav-width: 256px;
+  --app-sidenav-rail-width: 72px;
+  --app-content-max-width: 1600px;
+}
+
+@mixin compact-tokens {
+  --app-content-padding: 12px 16px 24px;
+  --app-card-padding: 12px 16px;
+  --app-gap: 12px;
+  --app-table-cell-y: 6px;
+  --app-topbar-height: 48px;
+}
