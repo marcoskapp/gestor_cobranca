@@ -69,13 +69,23 @@ public abstract class TenantEventListener {
                 return;
             } catch (ConcurrencyFailureException e) {
                 if (attempt >= MAX_ATTEMPTS) {
+                    logFailure(event, consumer, attempt, e);
                     throw e;
                 }
                 LOG.info("Conflito de concorrência ao consumir {} ({}), tentativa {} de {}: {}",
                         event.getClass().getSimpleName(), consumer, attempt, MAX_ATTEMPTS, e.getClass().getSimpleName());
                 backoff(attempt);
+            } catch (RuntimeException e) {
+                logFailure(event, consumer, attempt, e);
+                throw e;
             }
         }
+    }
+
+    /** A publicação fica incompleta e será republicada; o log técnico registra a causa. */
+    private static void logFailure(IntegrationEvent event, String consumer, int attempts, RuntimeException e) {
+        LOG.error("Falha ao consumir {} (evento {}) por {} após {} tentativa(s); publicação mantida para reprocessamento",
+                event.getClass().getSimpleName(), event.eventId(), consumer, attempts, e);
     }
 
     private static void backoff(int attempt) {

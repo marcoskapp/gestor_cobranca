@@ -347,7 +347,11 @@ abstract class CollectionTestSupport extends IntegrationTest {
                      where completion_date is null and listener_id like ? and serialized_event like ?
                     """, Long.class, "%" + consumerPrefix + "%", "%" + tenant + "%");
             return pending != null && pending == 0;
-        });
+        }, () -> jdbcTemplate.queryForList("""
+                select listener_id, event_type, publication_date, status, completion_attempts
+                  from event_publication
+                 where completion_date is null and listener_id like ? and serialized_event like ?
+                """, "%" + consumerPrefix + "%", "%" + tenant + "%").toString());
     }
 
     long count(String sql, Object... args) {
@@ -358,6 +362,10 @@ abstract class CollectionTestSupport extends IntegrationTest {
     }
 
     static void awaitTrue(String what, BooleanSupplier condition) {
+        awaitTrue(what, condition, () -> "");
+    }
+
+    static void awaitTrue(String what, BooleanSupplier condition, java.util.function.Supplier<String> diagnostics) {
         long deadline = System.currentTimeMillis() + 60_000;
         while (System.currentTimeMillis() < deadline) {
             if (condition.getAsBoolean()) {
@@ -370,6 +378,15 @@ abstract class CollectionTestSupport extends IntegrationTest {
                 fail("interrompido aguardando " + what);
             }
         }
-        fail("tempo esgotado aguardando " + what);
+        StringBuilder threads = new StringBuilder();
+        Thread.getAllStackTraces().forEach((thread, stack) -> {
+            if (thread.getName().startsWith("event-") || thread.getName().startsWith("job-")) {
+                threads.append("\n").append(thread.getName()).append(' ').append(thread.getState());
+                for (int i = 0; i < Math.min(stack.length, 12); i++) {
+                    threads.append("\n    at ").append(stack[i]);
+                }
+            }
+        });
+        fail("tempo esgotado aguardando " + what + " " + diagnostics.get() + threads);
     }
 }
