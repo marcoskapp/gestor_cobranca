@@ -1,19 +1,28 @@
 package br.com.gestorcobranca.debt.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
+import br.com.gestorcobranca.debt.application.service.CollateralRecorder.Lien;
 import br.com.gestorcobranca.debt.application.service.TitleChangeNotifier.Trigger;
-import br.com.gestorcobranca.debt.domain.model.ContactLabel;
-import br.com.gestorcobranca.debt.domain.model.ContactSource;
-import br.com.gestorcobranca.debt.domain.model.ContactType;
-import br.com.gestorcobranca.debt.domain.model.ContactValue;
+import br.com.gestorcobranca.debt.domain.model.AppraisalSource;
+import br.com.gestorcobranca.debt.domain.model.AssetIdentification;
+import br.com.gestorcobranca.debt.domain.model.AssetKind;
+import br.com.gestorcobranca.debt.domain.model.Collateral;
+import br.com.gestorcobranca.debt.domain.model.CollateralAppraisal;
+import br.com.gestorcobranca.debt.domain.model.CollateralType;
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
+import br.com.gestorcobranca.debt.domain.model.InstrumentType;
+import br.com.gestorcobranca.debt.domain.model.ObligationParty;
+import br.com.gestorcobranca.debt.domain.model.ObligationRole;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
 import br.com.gestorcobranca.debt.domain.model.OriginContract;
 import br.com.gestorcobranca.debt.domain.model.TitleBalanceSnapshot;
 import br.com.gestorcobranca.debt.domain.model.TitleLedgerEntry;
 import br.com.gestorcobranca.debt.domain.model.TitleOwnership;
+import br.com.gestorcobranca.debt.domain.repository.CollateralAppraisalRepository;
+import br.com.gestorcobranca.debt.domain.repository.CollateralRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
+import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import br.com.gestorcobranca.debt.domain.repository.OriginContractRepository;
 import br.com.gestorcobranca.debt.domain.repository.TitleBalanceSnapshotRepository;
 import br.com.gestorcobranca.debt.domain.repository.TitleLedgerEntryRepository;
@@ -27,7 +36,6 @@ import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Ids;
-import br.com.gestorcobranca.shared.domain.Document;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
@@ -44,9 +52,15 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Gravação de cargas linha a linha (F04). Cada método roda na própria transação e é idempotente:
@@ -54,8 +68,12 @@ import java.util.UUID;
  *   <li>devedor casado pelo blind index do documento; contatos deduplicados pelo blind index do valor;</li>
  *   <li>título casado por (credor, identificador externo) sob lock pessimista; a abertura e os
  *       ajustes de principal são lançamentos referenciados ao lote, únicos no razão;</li>
- *   <li>saldo informado gravado uma vez por lote, e só quando a posição muda.</li>
+ *   <li>saldo informado gravado uma vez por lote, e só quando a posição muda;</li>
+ *   <li>coobrigado casado por (contrato, pessoa, papel); garantia pelo identificador externo ou
+ *       pelo bem; avaliação uma vez por lote e só quando difere da última.</li>
  * </ul>
+ * A prescrição dos títulos do contrato é recalculada quando a carga cria o título, muda seu
+ * vencimento/contrato ou reclassifica a natureza do contrato.
  * Duas linhas concorrentes que criem o mesmo devedor/título em transações paralelas resultam em
  * violação de unicidade numa delas; o reprocessamento da linha encontra o registro e o atualiza.
  * A permissão de importar ({@code IMPORT_EXECUTE}) é verificada pelo módulo ingestion.
@@ -66,6 +84,8 @@ class DebtIngestionService implements DebtIngestionPort {
 
     static final String LOCKED_STATUS = "title.locked_status";
     static final String PORTFOLIO_MISMATCH = "title.portfolio_mismatch";
+    static final String PARTY_ENDED = "obligation_party.ended";
+    static final String COLLATERAL_TYPE_MISMATCH = "collateral.type_mismatch";
     private static final String ADJUSTMENT_REASON = "Principal corrigido pelo credor na carga";
 
     private final DebtorRepository debtors;
@@ -74,9 +94,16 @@ class DebtIngestionService implements DebtIngestionPort {
     private final TitleLedgerEntryRepository ledger;
     private final TitleBalanceSnapshotRepository snapshots;
     private final TitleOwnershipRepository ownerships;
-    private final ContactRegistry contactRegistry;
+    private final CollateralRepository collaterals;
+    private final CollateralAppraisalRepository appraisals;
+    private final ObligationPartyRepository parties;
+    private final DebtorRegistry debtorRegistry;
     private final LedgerRecorder ledgerRecorder;
-    private final PersonalDataIndex index;
+    private final OriginContractAccess contractAccess;
+    private final ContractClassifier classifier;
+    private final ObligationPartyRecorder partyRecorder;
+    private final CollateralRecorder collateralRecorder;
+    private final PrescriptionRecalculator prescriptions;
     private final PortfolioUseCases portfolios;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
@@ -87,8 +114,12 @@ class DebtIngestionService implements DebtIngestionPort {
 
     DebtIngestionService(DebtorRepository debtors, DebtTitleRepository titles, OriginContractRepository contracts,
                          TitleLedgerEntryRepository ledger, TitleBalanceSnapshotRepository snapshots,
-                         TitleOwnershipRepository ownerships, ContactRegistry contactRegistry,
-                         LedgerRecorder ledgerRecorder, PersonalDataIndex index, PortfolioUseCases portfolios,
+                         TitleOwnershipRepository ownerships, CollateralRepository collaterals,
+                         CollateralAppraisalRepository appraisals, ObligationPartyRepository parties,
+                         DebtorRegistry debtorRegistry, LedgerRecorder ledgerRecorder,
+                         OriginContractAccess contractAccess, ContractClassifier classifier,
+                         ObligationPartyRecorder partyRecorder, CollateralRecorder collateralRecorder,
+                         PrescriptionRecalculator prescriptions, PortfolioUseCases portfolios,
                          AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
                          BusinessEventLogger businessEvents, ApplicationEventPublisher events, Clock clock) {
         this.debtors = debtors;
@@ -97,9 +128,16 @@ class DebtIngestionService implements DebtIngestionPort {
         this.ledger = ledger;
         this.snapshots = snapshots;
         this.ownerships = ownerships;
-        this.contactRegistry = contactRegistry;
+        this.collaterals = collaterals;
+        this.appraisals = appraisals;
+        this.parties = parties;
+        this.debtorRegistry = debtorRegistry;
         this.ledgerRecorder = ledgerRecorder;
-        this.index = index;
+        this.contractAccess = contractAccess;
+        this.classifier = classifier;
+        this.partyRecorder = partyRecorder;
+        this.collateralRecorder = collateralRecorder;
+        this.prescriptions = prescriptions;
         this.portfolios = portfolios;
         this.accessScope = accessScope;
         this.currentActor = currentActor;
@@ -113,60 +151,7 @@ class DebtIngestionService implements DebtIngestionPort {
 
     @Override
     public UpsertResult upsertDebtor(DebtorRecord record) {
-        Document document = Document.parse(record.document());
-        String hash = index.document(document);
-        Optional<Debtor> existing = debtors.findByDocumentHash(hash);
-        Outcome outcome;
-        Debtor debtor;
-        if (existing.isEmpty()) {
-            debtor = debtors.save(new Debtor(document, hash, record.name(), record.birthDate(), null));
-            auditTrail.record(AuditEntry.of("debtor.created", "debtor", debtor.getId())
-                    .created("personType", debtor.getPersonType())
-                    .created("document", document.masked())
-                    .created("name", DebtViews.maskName(debtor.getName()))
-                    .created("birthDate", DebtViews.maskDate(debtor.getBirthDate()))
-                    .meta("source", ContactSource.IMPORT));
-            outcome = Outcome.CREATED;
-        } else {
-            debtor = existing.get();
-            String previousName = debtor.getName();
-            if (debtor.updateFromImport(record.name(), record.birthDate())) {
-                debtors.save(debtor);
-                AuditEntry audit = AuditEntry.of("debtor.updated", "debtor", debtor.getId()).meta("source", ContactSource.IMPORT);
-                if (!previousName.equals(debtor.getName())) {
-                    audit.change("name", DebtViews.maskName(previousName), DebtViews.maskName(debtor.getName()));
-                } else {
-                    audit.meta("birthDateChanged", true);
-                }
-                auditTrail.record(audit);
-                outcome = Outcome.UPDATED;
-            } else {
-                outcome = Outcome.UNCHANGED;
-            }
-        }
-
-        List<String> warnings = new ArrayList<>();
-        boolean contactsAdded = false;
-        for (ContactRecord contact : record.contacts()) {
-            try {
-                ContactType type = DebtViews.parseEnum(ContactType.class, contact.type(), "contact.type_invalid", "Tipo de contato");
-                ContactValue value = ContactValue.parse(type, contact.value());
-                // sem classificação na carga, celular é identificado pelo formato do número
-                ContactLabel label = contact.label() == null || contact.label().isBlank()
-                        ? (value.isMobilePhone() ? ContactLabel.MOBILE : ContactLabel.OTHER)
-                        : DebtViews.parseEnum(ContactLabel.class, contact.label(), "contact.label_invalid", "Classificação do contato");
-                boolean whatsapp = contact.whatsapp() && type == ContactType.PHONE;
-                contactsAdded |= contactRegistry.addIfAbsent(debtor, value, label, whatsapp, ContactSource.IMPORT, null)
-                        .isPresent();
-            } catch (BusinessRuleException e) {
-                // contato inválido não impede a carga do devedor: volta como aviso para o relatório de erros
-                warnings.add(e.code());
-            }
-        }
-        if (outcome == Outcome.UNCHANGED && contactsAdded) {
-            outcome = Outcome.UPDATED;
-        }
-        return new UpsertResult(debtor.getId(), outcome, warnings);
+        return debtorRegistry.upsertFromImport(record);
     }
 
     // ---------------------------------------------------------------- título
@@ -196,12 +181,24 @@ class DebtIngestionService implements DebtIngestionPort {
         List<String> warnings = new ArrayList<>();
         Outcome outcome;
         DebtTitle title;
+        UUID previousContractId = null;
+        LocalDate previousDueDate = null;
         if (existing.isEmpty()) {
             title = createTitle(record, debtor, contractId, principal, importBatchId, now);
             outcome = Outcome.CREATED;
         } else {
             title = existing.get();
+            previousContractId = title.getOriginContractId();
+            previousDueDate = title.getDueDate();
             outcome = updateTitle(title, record, contractId, principal, importBatchId, now, warnings);
+        }
+        if (outcome == Outcome.CREATED || !title.getDueDate().equals(previousDueDate)
+                || !Objects.equals(previousContractId, title.getOriginContractId())) {
+            // vencimento e contrato definem data-base e regras; o contrato anterior perde um título
+            prescriptions.refreshFor(title, PrescriptionRecalculator.TRIGGER_IMPORT);
+            if (previousContractId != null && !previousContractId.equals(title.getOriginContractId())) {
+                prescriptions.refreshContract(previousContractId, PrescriptionRecalculator.TRIGGER_IMPORT);
+            }
         }
         recordReportedBalance(title, record, importBatchId);
         return new UpsertResult(title.getId(), outcome, warnings);
@@ -289,11 +286,12 @@ class DebtIngestionService implements DebtIngestionPort {
         if (existing.isEmpty()) {
             OriginContract created = contracts.save(new OriginContract(record.creditorId(), record.portfolioId(),
                     debtor.getId(), c.externalId(), c.product(), c.signedAt(), original));
-            auditTrail.record(AuditEntry.of("origin_contract.created", "origin_contract", created.getId())
+            auditTrail.record(AuditEntry.of("origin_contract.created", OriginContractAccess.RESOURCE, created.getId())
                     .creditor(created.getCreditorId())
                     .created("externalId", created.getExternalId())
                     .created("debtorId", created.getDebtorId())
-                    .created("originalAmount", created.getOriginalAmount()));
+                    .created("originalAmount", created.getOriginalAmount())
+                    .created("instrumentType", created.getInstrumentType()));
             return Optional.of(created);
         }
         OriginContract contract = existing.get();
@@ -303,7 +301,7 @@ class DebtIngestionService implements DebtIngestionPort {
         Money previousAmount = contract.getOriginalAmount();
         if (contract.update(c.product(), c.signedAt(), original)) {
             contracts.save(contract);
-            auditTrail.record(AuditEntry.of("origin_contract.updated", "origin_contract", contract.getId())
+            auditTrail.record(AuditEntry.of("origin_contract.updated", OriginContractAccess.RESOURCE, contract.getId())
                     .creditor(contract.getCreditorId())
                     .change("product", previousProduct, contract.getProduct())
                     .change("originalAmount", previousAmount, contract.getOriginalAmount()));
@@ -322,6 +320,134 @@ class DebtIngestionService implements DebtIngestionPort {
         if (!samePosition) {
             snapshots.save(new TitleBalanceSnapshot(title.getId(), record.balanceReferenceDate(), reported, importBatchId));
         }
+    }
+
+    // ---------------------------------------------------------------- natureza do título
+
+    @Override
+    public UpsertResult classifyContract(ContractNatureRecord record) {
+        OriginContract contract = lockedContract(record.creditorId(), record.contractExternalId());
+        InstrumentType type = DebtViews.parseEnum(InstrumentType.class, record.instrumentType(),
+                "origin_contract.instrument_type_invalid", "Natureza do título");
+        boolean changed = classifier.classify(contract, type, record.executiveTitle(), ChangeSource.IMPORT);
+        return new UpsertResult(contract.getId(), changed ? Outcome.UPDATED : Outcome.UNCHANGED, List.of());
+    }
+
+    // ---------------------------------------------------------------- coobrigados
+
+    @Override
+    public UpsertResult upsertObligationParty(ObligationPartyRecord record) {
+        Guard.require(record.person() != null, "obligation_party.person_required", "Pessoa obrigatória");
+        OriginContract contract = contractAccess.requireForImport(record.creditorId(), record.contractExternalId());
+        ObligationRole role = DebtViews.parseEnum(ObligationRole.class, record.role(), "obligation_party.role_invalid",
+                "Papel na obrigação");
+        UpsertResult person = debtorRegistry.upsertFromImport(record.person());
+        Debtor debtor = debtors.findById(person.id()).orElseThrow();
+        List<String> warnings = new ArrayList<>(person.warnings());
+        Optional<ObligationParty> existing = parties.findByOriginContractIdAndDebtorIdAndRole(contract.getId(),
+                debtor.getId(), role);
+        if (existing.isEmpty()) {
+            ObligationParty party = partyRecorder.register(contract, debtor, role, record.sinceDate(), ChangeSource.IMPORT);
+            return new UpsertResult(party.getId(), Outcome.CREATED, warnings);
+        }
+        ObligationParty party = existing.get();
+        if (!party.isActive()) {
+            // participação encerrada (ex.: exoneração) não é reaberta pela carga
+            warnings.add(PARTY_ENDED);
+            return new UpsertResult(party.getId(), Outcome.UNCHANGED, warnings);
+        }
+        boolean changed = record.sinceDate() != null
+                && partyRecorder.updateSince(party, record.sinceDate(), ChangeSource.IMPORT);
+        return new UpsertResult(party.getId(), changed ? Outcome.UPDATED : Outcome.UNCHANGED, warnings);
+    }
+
+    // ---------------------------------------------------------------- garantias
+
+    @Override
+    public UpsertResult upsertCollateral(CollateralRecord record) {
+        OriginContract contract = lockedContract(record.creditorId(), record.contractExternalId());
+        CollateralType type = DebtViews.parseEnum(CollateralType.class, record.type(), "collateral.type_invalid",
+                "Tipo de garantia");
+        AssetIdentification asset = DebtViews.asset(record.assetKind(), record.plate(), record.renavam(),
+                record.chassis(), record.manufactureYear(), record.modelYear(), record.registryNumber(),
+                record.registryOffice(), record.municipality(), record.state());
+        String externalId = record.externalId() == null || record.externalId().isBlank() ? null : record.externalId().trim();
+        Guard.require(asset.getKind() != AssetKind.OTHER || externalId != null, "collateral.external_id_required",
+                "Garantia sem identificação estruturada do bem exige identificador externo na carga");
+        Lien lien = new Lien(record.registrationAuthority(), record.registrationNumber(), record.registrationDate());
+        Set<UUID> titleIds = titleIds(contract, record.titleExternalIds());
+
+        Optional<Collateral> existing = externalId == null ? Optional.empty()
+                : collaterals.findByOriginContractIdAndExternalId(contract.getId(), externalId);
+        if (existing.isEmpty()) {
+            existing = collaterals.findSameAsset(contract.getId(), asset)
+                    .filter(c -> c.getExternalId() == null || c.getExternalId().equals(externalId));
+        }
+        if (existing.isEmpty()) {
+            Collateral created = collateralRecorder.register(contract, type, externalId, record.description(), asset,
+                    lien, titleIds, ChangeSource.IMPORT);
+            return new UpsertResult(created.getId(), Outcome.CREATED, List.of());
+        }
+        Collateral collateral = collaterals.findByIdForUpdate(existing.get().getId()).orElseThrow();
+        List<String> warnings = new ArrayList<>();
+        if (collateral.getType() != type) {
+            // a modalidade não muda pela carga: a garantia é a mesma, a divergência vai ao relatório
+            warnings.add(COLLATERAL_TYPE_MISMATCH);
+        }
+        boolean changed = collateralRecorder.update(contract, collateral, record.description(), asset, lien, titleIds,
+                ChangeSource.IMPORT);
+        return new UpsertResult(collateral.getId(), changed ? Outcome.UPDATED : Outcome.UNCHANGED, warnings);
+    }
+
+    @Override
+    public UpsertResult recordCollateralAppraisal(CollateralAppraisalRecord record, UUID importBatchId) {
+        Guard.require(importBatchId != null, "collateral.import_batch_required", "Lote de importação obrigatório");
+        Guard.require(record.collateralId() != null, "collateral.collateral_required", "Garantia obrigatória");
+        Collateral collateral = collaterals.findByIdForUpdate(record.collateralId())
+                .orElseThrow(() -> ResourceNotFoundException.of(CollateralRecorder.ENTITY, record.collateralId()));
+        accessScope.requireCreditor(collateral.getCreditorId());
+        Guard.require(record.amount() != null, "collateral.appraisal_amount_invalid", "Valor da avaliação obrigatório");
+        Guard.require(record.appraisalDate() == null || !record.appraisalDate().isAfter(DebtViews.today(clock)),
+                "collateral.appraisal_date_future", "Data da avaliação não pode ser futura");
+        AppraisalSource source = record.source() == null || record.source().isBlank() ? AppraisalSource.CREDITOR
+                : DebtViews.parseEnum(AppraisalSource.class, record.source(), "collateral.appraisal_source_invalid",
+                "Fonte da avaliação");
+        Money amount = Money.of(record.amount());
+        if (appraisals.existsByCollateralIdAndImportBatchId(collateral.getId(), importBatchId)) {
+            return new UpsertResult(collateral.getId(), Outcome.UNCHANGED, List.of());
+        }
+        boolean samePosition = appraisals.findFirstByCollateralIdOrderByAppraisalDateDescCreatedAtDesc(collateral.getId())
+                .map(a -> a.samePositionAs(amount, record.appraisalDate(), source)).orElse(false);
+        if (samePosition) {
+            return new UpsertResult(collateral.getId(), Outcome.UNCHANGED, List.of());
+        }
+        OriginContract contract = contracts.findById(collateral.getOriginContractId()).orElseThrow();
+        collateralRecorder.appraise(contract, collateral, new CollateralAppraisal(collateral.getId(), amount,
+                record.appraisalDate(), source, record.notes(), importBatchId), ChangeSource.IMPORT);
+        return new UpsertResult(collateral.getId(), Outcome.UPDATED, List.of());
+    }
+
+    private OriginContract lockedContract(UUID creditorId, String contractExternalId) {
+        OriginContract contract = contractAccess.requireForImport(creditorId, contractExternalId);
+        return contracts.findByIdForUpdate(contract.getId()).orElseThrow();
+    }
+
+    /** Títulos cobertos, pelos identificadores externos, que devem ser parcelas do contrato. */
+    private Set<UUID> titleIds(OriginContract contract, List<String> titleExternalIds) {
+        if (titleExternalIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> requested = titleExternalIds.stream().filter(id -> id != null && !id.isBlank()).map(String::trim)
+                .collect(Collectors.toSet());
+        Map<String, DebtTitle> found = titles.findByCreditorIdAndExternalIdIn(contract.getCreditorId(), requested).stream()
+                .collect(Collectors.toMap(DebtTitle::getExternalId, Function.identity()));
+        if (!found.keySet().containsAll(requested)) {
+            throw new BusinessRuleException("collateral.title_not_found",
+                    "Título coberto pela garantia não encontrado no credor");
+        }
+        Set<UUID> ids = new HashSet<>();
+        found.values().forEach(t -> ids.add(t.getId()));
+        return ids;
     }
 
     // ---------------------------------------------------------------- fim do lote

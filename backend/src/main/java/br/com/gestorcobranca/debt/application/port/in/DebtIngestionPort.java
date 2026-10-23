@@ -32,6 +32,45 @@ public interface DebtIngestionPort {
     /** Publica {@code PortfolioLoaded} ao fim do lote, para a abertura/atualização de casos. */
     void completeImport(ImportSummary summary);
 
+    // ------------------------------------------------------------------------------------------
+    // Campos opcionais do layout (garantias, coobrigados, natureza do título). Todos exigem que o
+    // contrato de origem já exista — gravado por upsertTitle na mesma linha/lote — e são
+    // idempotentes: reprocessar a linha devolve UNCHANGED. Ordem sugerida por linha:
+    // upsertDebtor → upsertTitle → classifyContract → upsertObligationParty → upsertCollateral →
+    // recordCollateralAppraisal (com o id devolvido por upsertCollateral).
+    // Contrato inexistente → ResourceNotFoundException ("origin_contract.not_found").
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Natureza do instrumento do contrato. Reclassificar recalcula a prescrição dos títulos do
+     * contrato. Devolve o id do contrato.
+     */
+    UpsertResult classifyContract(ContractNatureRecord record);
+
+    /**
+     * Coobrigado do contrato. A pessoa passa pelo mesmo fluxo de {@link #upsertDebtor}
+     * (consolidação pelo documento, nome atualizado, contatos acrescentados com avisos); a
+     * participação é casada por (contrato, pessoa, papel). Devolve o id da participação; os
+     * avisos dos contatos voltam em {@code warnings}.
+     */
+    UpsertResult upsertObligationParty(ObligationPartyRecord record);
+
+    /**
+     * Garantia do contrato, casada pelo identificador externo (se informado) ou pelo bem
+     * (veículo: chassi, RENAVAM ou placa; imóvel: matrícula, cartório, município e UF). Outros
+     * bens exigem identificador externo ({@code collateral.external_id_required}). Na
+     * atualização altera descrição, identificação, gravame e títulos cobertos; tipo e situação
+     * não mudam pela carga (aviso {@code collateral.type_mismatch} se o tipo diferir). Devolve o
+     * id da garantia.
+     */
+    UpsertResult upsertCollateral(CollateralRecord record);
+
+    /**
+     * Avaliação da garantia: gravada uma vez por lote e só quando difere da última avaliação da
+     * mesma fonte (valor e data). Devolve o id da garantia.
+     */
+    UpsertResult recordCollateralAppraisal(CollateralAppraisalRecord record, UUID importBatchId);
+
     enum Outcome { CREATED, UPDATED, UNCHANGED }
 
     /** @param warnings códigos de aviso (ex.: {@code contact.phone_invalid}, {@code title.locked_status}) */
@@ -67,6 +106,41 @@ public interface DebtIngestionPort {
     }
 
     record ContractRecord(String externalId, String product, LocalDate signedAt, BigDecimal originalAmount) {
+    }
+
+    /**
+     * @param contractExternalId identificador do contrato no credor
+     * @param instrumentType     CONTRACT, CCB, PROMISSORY_NOTE, DUPLICATE, CHECK, DEBT_CONFESSION ou OTHER
+     */
+    record ContractNatureRecord(UUID creditorId, String contractExternalId, String instrumentType,
+                                boolean executiveTitle) {
+    }
+
+    /** @param role GUARANTOR_AVAL, GUARANTOR_SURETY, CO_DEBTOR ou THIRD_PARTY_COLLATERAL_PROVIDER */
+    record ObligationPartyRecord(UUID creditorId, String contractExternalId, DebtorRecord person, String role,
+                                 LocalDate sinceDate) {
+    }
+
+    /**
+     * @param type             VEHICLE_FIDUCIARY_ALIENATION, REAL_ESTATE_FIDUCIARY_ALIENATION, MORTGAGE, PLEDGE,
+     *                         RECEIVABLES_FIDUCIARY_ASSIGNMENT, SURETY_INSURANCE ou OTHER
+     * @param assetKind        VEHICLE, REAL_ESTATE ou OTHER
+     * @param titleExternalIds identificadores externos dos títulos cobertos (vazio = todos do contrato)
+     */
+    record CollateralRecord(UUID creditorId, String contractExternalId, String externalId, String type,
+                            String description, String assetKind, String plate, String renavam, String chassis,
+                            Integer manufactureYear, Integer modelYear, String registryNumber, String registryOffice,
+                            String municipality, String state, String registrationAuthority,
+                            String registrationNumber, LocalDate registrationDate, List<String> titleExternalIds) {
+
+        public CollateralRecord {
+            titleExternalIds = titleExternalIds == null ? List.of() : List.copyOf(titleExternalIds);
+        }
+    }
+
+    /** @param source CREDITOR, APPRAISER, FIPE, MARKET ou AUCTION (padrão CREDITOR) */
+    record CollateralAppraisalRecord(UUID collateralId, BigDecimal amount, LocalDate appraisalDate, String source,
+                                     String notes) {
     }
 
     record ImportSummary(UUID importBatchId, UUID creditorId, UUID portfolioId, int titlesCreated, int titlesUpdated,

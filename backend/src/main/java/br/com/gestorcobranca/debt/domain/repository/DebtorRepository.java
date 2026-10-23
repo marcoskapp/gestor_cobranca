@@ -18,6 +18,8 @@ public interface DebtorRepository {
 
     Optional<Debtor> findByDocumentHash(String documentHash);
 
+    List<Debtor> findAllByIdIn(Collection<UUID> ids);
+
     /**
      * Devedores que têm ao menos um título nos credores informados (e, se informados, no
      * credor/carteira do filtro).
