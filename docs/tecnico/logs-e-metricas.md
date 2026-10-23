@@ -222,7 +222,8 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `business.events{type}` | volume de fatos de negócio |
 | `access.events{type,success}`, `access.log.write_failures` | segurança e integridade do log de acesso |
 | `jobs.pending`, `jobs.dead`, `jobs.duration{type,outcome}`, `jobs.executed`, `jobs.recovered` | fila de trabalho |
-| `events.publications.incomplete`, `executor.*{name=events}` | eventos de integração |
+| `events.publications.incomplete`, `executor.*{name=events}` | eventos de integração (consumidores repetem conflitos de concorrência transitórios até 4 vezes) |
+| `executor.*{name=mail}` | envio de e-mail (executor próprio, não ocupa as threads de eventos) |
 | `audit.sealed`, `audit.seal.failures` | selagem da auditoria |
 | `storage.operation{operation,category,outcome}` | S3 |
 | `mail.sent{type,outcome}` | e-mail |

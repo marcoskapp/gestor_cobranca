@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.identity.infrastructure.mail;
 
+import br.com.gestorcobranca.shared.config.AsyncConfig;
+
 import br.com.gestorcobranca.identity.application.port.out.IdentityMailer;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.mail.MessagingException;
@@ -39,7 +41,7 @@ class SmtpIdentityMailer implements IdentityMailer {
     private final MeterRegistry meterRegistry;
     private final String from;
 
-    SmtpIdentityMailer(JavaMailSender mailSender, @Qualifier("eventExecutor") TaskExecutor executor,
+    SmtpIdentityMailer(JavaMailSender mailSender, @Qualifier(AsyncConfig.MAIL_EXECUTOR) TaskExecutor executor,
                        MeterRegistry meterRegistry, @Value("${app.mail.from:no-reply@gestorcobranca.com.br}") String from) {
         this.mailSender = mailSender;
         this.executor = executor;
