@@ -36,6 +36,8 @@ import java.util.UUID;
 @Transactional
 class DebtorService implements DebtorUseCases {
 
+    private static final int MAX_INACTIVE_BATCH = 1_000;
+
     private final DebtorRepository debtors;
     private final DebtorContactRepository contacts;
     private final DebtTitleRepository titles;
@@ -169,5 +171,19 @@ class DebtorService implements DebtorUseCases {
                 .change("document", maskedDocument, null)
                 .meta("contactsRemoved", removed.size()));
         return DebtViews.debtor(debtor);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InactiveDebtor> findInactiveDebtors(Instant closedBefore, UUID afterId, int limit) {
+        accessScope.requirePermission(Permission.RETENTION_MANAGE);
+        accessScope.requireAllCreditors("debtor");
+        if (closedBefore == null || limit < 1 || limit > MAX_INACTIVE_BATCH) {
+            throw new BusinessRuleException("debtor.inactive_query_invalid",
+                    "Informe a data de corte e um lote entre 1 e %d".formatted(MAX_INACTIVE_BATCH));
+        }
+        return debtors.findInactive(closedBefore, afterId, limit).stream()
+                .map(c -> new InactiveDebtor(c.debtorId(), c.lastActivityAt(), titles.findCreditorIdsByDebtorId(c.debtorId())))
+                .toList();
     }
 }
