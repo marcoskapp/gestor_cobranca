@@ -262,15 +262,23 @@ public abstract class CommunicationTestSupport extends IntegrationTest {
         });
     }
 
-    /** Espera o consumo dos eventos já publicados do tenant pelos consumidores com o prefixo. */
+    /**
+     * Espera o consumo dos eventos já publicados do tenant pelos consumidores com o prefixo. Em caso
+     * de tempo esgotado, a falha lista as publicações pendentes (consumidor e tipo de evento).
+     */
     protected void awaitIdle(String listenerFragment) {
-        awaitTrue("eventos pendentes de " + listenerFragment, () -> {
-            Long pending = jdbcTemplate.queryForObject("""
-                    select count(*) from event_publication
-                     where completion_date is null and listener_id like ? and serialized_event like ?
-                    """, Long.class, "%" + listenerFragment + "%", "%" + tenant + "%");
-            return pending != null && pending == 0;
-        });
+        try {
+            awaitTrue("eventos pendentes de " + listenerFragment, () -> pendingPublications(listenerFragment).isEmpty());
+        } catch (AssertionError e) {
+            throw new AssertionError(e.getMessage() + ": " + pendingPublications(listenerFragment), e);
+        }
+    }
+
+    private List<String> pendingPublications(String listenerFragment) {
+        return jdbcTemplate.queryForList("""
+                select listener_id || ' <- ' || event_type || ' @ ' || publication_date from event_publication
+                 where completion_date is null and listener_id like ? and serialized_event like ?
+                """, String.class, "%" + listenerFragment + "%", "%" + tenant + "%");
     }
 
     protected long count(String sql, Object... args) {
