@@ -97,7 +97,7 @@ class LegalScopeIT extends LegalTestSupport {
         // configurações da assessoria são exclusivas de usuários internos
         assertThatThrownBy(() -> asPartner(() -> firms.list())).isInstanceOf(ScopeAccessDeniedException.class);
         assertThatThrownBy(() -> asPartner(() -> eligibility.createRule(new RuleCommand(creditorA, null, "x", 1, null,
-                false, false, null, null)))).isInstanceOf(ScopeAccessDeniedException.class);
+                false, false, null, null, false)))).isInstanceOf(ScopeAccessDeniedException.class);
         assertThatThrownBy(() -> asPartner(() -> matters.assign(first.id(), new AssignCommand("INTERNAL", lawyer, null))))
                 .isInstanceOf(ScopeAccessDeniedException.class);
 
@@ -164,7 +164,7 @@ class LegalScopeIT extends LegalTestSupport {
         List<UUID> titles = load(creditorA, portfolioA, debtor, new LoadedTitle("N-1", "C-N-1", due, "700.00"));
         CaseView c = activeCase(debtor, portfolioA);
         asManager(() -> eligibility.createRule(new RuleCommand(creditorA, portfolioA, "Prescrição em 90 dias", null, null,
-                false, false, null, 90)));
+                false, false, null, 90, false)));
         publishAndAwait(new TitlePrescriptionApproaching(Ids.newId(), tenant, Instant.now(), titles.getFirst(), debtor,
                 creditorA, portfolioA, null, "CONTRACT", false, "COLLECTION", due.plusYears(5), 40, false,
                 new BigDecimal("700.00")), "legal.prescription-approaching");

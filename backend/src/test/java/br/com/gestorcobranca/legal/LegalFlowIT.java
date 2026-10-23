@@ -78,7 +78,7 @@ class LegalFlowIT extends LegalTestSupport {
 
         // 1. indicação automática pela regra (atraso ≥ 90 dias); o título prescrito fica de fora
         asManager(() -> eligibility.createRule(new RuleCommand(creditorA, null, "Atraso 90+", 90, null, false, false,
-                null, null)));
+                null, null, false)));
         assertThat(LegalTestHooks.sweepEligibility(applicationContext, tenant)).isEqualTo(1);
         assertThat(LegalTestHooks.sweepEligibility(applicationContext, tenant)).as("um caso jurídico por caso").isZero();
         MatterView matter = asLawyer(() -> matters.search(new MatterFilter(null, null, debtor, null, null, null, null,

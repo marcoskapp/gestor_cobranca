@@ -37,6 +37,7 @@ public final class EligibilityEvaluator {
     public static final String EXECUTIVE_TITLE_REQUIRED = "EXECUTIVE_TITLE_REQUIRED";
     public static final String MIN_BROKEN_AGREEMENTS = "MIN_BROKEN_AGREEMENTS";
     public static final String PRESCRIPTION_NOT_NEAR = "PRESCRIPTION_NOT_NEAR";
+    public static final String CADENCE_NOT_EXHAUSTED = "CADENCE_NOT_EXHAUSTED";
 
     private EligibilityEvaluator() {
     }
@@ -51,7 +52,9 @@ public final class EligibilityEvaluator {
                              boolean ruleValidated) {
     }
 
-    public record CaseFacts(UUID caseId, String caseStatus, List<TitleFacts> titles, int brokenAgreements) {
+    /** @param cadenceExhausted o caso teve régua de campanha extrajudicial esgotada */
+    public record CaseFacts(UUID caseId, String caseStatus, List<TitleFacts> titles, int brokenAgreements,
+                            boolean cadenceExhausted) {
 
         public CaseFacts {
             titles = List.copyOf(titles);
@@ -144,6 +147,9 @@ public final class EligibilityEvaluator {
             if (rule.getPrescriptionWithinDays() != null
                     && (nearest == null || daysUntil(today, nearest) > rule.getPrescriptionWithinDays())) {
                 unmet.add(PRESCRIPTION_NOT_NEAR);
+            }
+            if (rule.isRequireCadenceExhausted() && !facts.cadenceExhausted()) {
+                unmet.add(CADENCE_NOT_EXHAUSTED);
             }
         }
         return new Outcome(unmet.isEmpty(), List.copyOf(unmet), Set.copyOf(included), Set.copyOf(prescribed),

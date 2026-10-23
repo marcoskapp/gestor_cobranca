@@ -20,6 +20,8 @@ import br.com.gestorcobranca.communication.domain.repository.ConversationDraftRe
 import br.com.gestorcobranca.communication.domain.repository.ConversationHandoffRepository;
 import br.com.gestorcobranca.communication.domain.repository.ConversationRepository;
 import br.com.gestorcobranca.communication.domain.repository.ConversationSearchCriteria;
+import br.com.gestorcobranca.communication.domain.service.ResponseTargets;
+import br.com.gestorcobranca.communication.application.port.out.InboxCounter;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.ConflictException;
@@ -61,6 +63,8 @@ class ConversationService implements ConversationUseCases {
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final CommunicationMetrics metrics;
+    private final ResponseTargetProvider responseTargets;
+    private final InboxCounter counter;
     private final Clock clock;
 
     ConversationService(ConversationRepository conversations, ConversationHandoffRepository handoffs,
@@ -68,7 +72,8 @@ class ConversationService implements ConversationUseCases {
                         MessageService messageService, br.com.gestorcobranca.shared.security.AccessScope accessScope,
                         br.com.gestorcobranca.debt.application.port.in.DebtorUseCases debtors,
                         DebtorContactUseCases debtorContacts, CaseReader cases, AuditTrail auditTrail,
-                        BusinessEventLogger businessEvents, CommunicationMetrics metrics, Clock clock) {
+                        BusinessEventLogger businessEvents, CommunicationMetrics metrics,
+                        ResponseTargetProvider responseTargets, InboxCounter counter, Clock clock) {
         this.conversations = conversations;
         this.handoffs = handoffs;
         this.drafts = drafts;
@@ -82,6 +87,8 @@ class ConversationService implements ConversationUseCases {
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
+        this.responseTargets = responseTargets;
+        this.counter = counter;
         this.clock = clock;
     }
 
@@ -108,15 +115,34 @@ class ConversationService implements ConversationUseCases {
                 ? Sort.by(Sort.Order.asc("awaitingSince"))
                 : Sort.by(Sort.Order.desc("lastMessageAt").nullsLast(), Sort.Order.desc("createdAt"));
         Instant now = Instant.now(clock);
+        ResponseTargets targets = responseTargets.current();
         return PageResponse.of(conversations.search(criteria, page.toPageable(sort)),
-                c -> CommunicationViews.conversation(c, now));
+                c -> CommunicationViews.conversation(c, now, targets));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InboxCounts counts(String channel, Boolean awaitingReply) {
+        ChannelType type = CommunicationEnums.parseOptional(ChannelType.class, channel, "conversation.channel_invalid",
+                "Canal");
+        Instant now = Instant.now(clock);
+        ResponseTargets targets = responseTargets.current();
+        java.util.Map<String, Instant> breachedBefore = new java.util.LinkedHashMap<>();
+        for (ChannelType ch : ChannelType.values()) {
+            breachedBefore.put(ch.name(), now.minus(targets.target(ch).breach()));
+        }
+        Actor actor = access.actor();
+        InboxCounter.Counts c = counter.count(access.creditorFilter(), actor.id(), type == null ? null : type.name(),
+                Boolean.TRUE.equals(awaitingReply), breachedBefore);
+        return new InboxCounts(c.mine(), c.queue(), c.assistant(), c.all(), c.breached());
     }
 
     @Override
     @Transactional(readOnly = true)
     public ConversationDetail get(UUID conversationId) {
         Conversation c = access.visible(conversationId);
-        return new ConversationDetail(CommunicationViews.conversation(c, Instant.now(clock)), handoffViews(c),
+        return new ConversationDetail(CommunicationViews.conversation(c, Instant.now(clock), responseTargets.current()),
+                handoffViews(c),
                 drafts.findByConversationIdAndStatusOrderByCreatedAtDesc(c.getId(), DraftStatus.PENDING).stream()
                         .map(CommunicationViews::draft).toList());
     }
@@ -340,7 +366,7 @@ class ConversationService implements ConversationUseCases {
     }
 
     private ConversationView view(Conversation c) {
-        return CommunicationViews.conversation(c, Instant.now(clock));
+        return CommunicationViews.conversation(c, Instant.now(clock), responseTargets.current());
     }
 
     private static String reason(String code) {

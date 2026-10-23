@@ -99,6 +99,7 @@ public final class BusinessEventTypes {
     public static final String MESSAGE_RECEIVED = "message.received";
     public static final String CONVERSATION_HANDOFF = "conversation.handoff";
     public static final String CONVERSATION_CLOSED = "conversation.closed";
+    public static final String CONVERSATION_SLA_BREACHED = "conversation.sla_breached";
     public static final String TEMPLATE_PUBLISHED = "template.published";
     public static final String CAMPAIGN_ACTIVATED = "campaign.activated";
     public static final String CAMPAIGN_PAUSED = "campaign.paused";

@@ -13,10 +13,11 @@ import java.time.Duration;
  * @param webhook         proteção dos webhooks
  * @param whatsapp        WhatsApp Cloud API
  * @param sandbox         provedor simulado (local/teste)
+ * @param realtime        avisos em tempo real da caixa de entrada (SSE + LISTEN/NOTIFY)
  */
 @ConfigurationProperties(prefix = "app.communication")
 public record CommunicationProperties(Integer sendMaxAttempts, String retentionCron, Integer retentionBatch,
-                                      Webhook webhook, WhatsApp whatsapp, Sandbox sandbox) {
+                                      Webhook webhook, WhatsApp whatsapp, Sandbox sandbox, Realtime realtime) {
 
     public CommunicationProperties {
         sendMaxAttempts = sendMaxAttempts == null ? 6 : sendMaxAttempts;
@@ -25,6 +26,7 @@ public record CommunicationProperties(Integer sendMaxAttempts, String retentionC
         webhook = webhook == null ? new Webhook(null, null, null, null) : webhook;
         whatsapp = whatsapp == null ? new WhatsApp(null, null, null) : whatsapp;
         sandbox = sandbox == null ? new Sandbox(false, null) : sandbox;
+        realtime = realtime == null ? new Realtime(null, null, null, null, null, null, null) : realtime;
     }
 
     /**
@@ -58,6 +60,33 @@ public record CommunicationProperties(Integer sendMaxAttempts, String retentionC
 
         public Sandbox {
             deliveryDelay = deliveryDelay == null ? Duration.ZERO : deliveryDelay;
+        }
+    }
+
+    /**
+     * Tempo real da caixa de entrada: cada instância escuta o canal {@code communication_inbox} do
+     * PostgreSQL (LISTEN/NOTIFY, sem serviço novo da AWS) e repassa avisos às conexões SSE locais.
+     *
+     * @param enabled            liga o ouvinte e o endpoint de stream (desligado: só polling)
+     * @param heartbeat          comentário periódico na conexão (abaixo do idle timeout do ALB, 60 s) e
+     *                           revalidação da sessão
+     * @param maxStreamDuration  duração máxima de uma conexão (o cliente reconecta com o token vigente)
+     * @param maxStreamsPerUser  conexões simultâneas por usuário (abas) por instância
+     * @param maxStreams         conexões simultâneas por instância (acima: 503 e o cliente usa polling)
+     * @param reconnectDelay     espera inicial para reabrir a conexão de escuta após falha (dobra até 1 min)
+     * @param revalidation       intervalo de revalidação do token e da sessão de cada conexão aberta
+     */
+    public record Realtime(Boolean enabled, Duration heartbeat, Duration maxStreamDuration, Integer maxStreamsPerUser,
+                           Integer maxStreams, Duration reconnectDelay, Duration revalidation) {
+
+        public Realtime {
+            enabled = enabled == null || enabled;
+            heartbeat = heartbeat == null ? Duration.ofSeconds(20) : heartbeat;
+            maxStreamDuration = maxStreamDuration == null ? Duration.ofMinutes(5) : maxStreamDuration;
+            maxStreamsPerUser = maxStreamsPerUser == null ? 5 : maxStreamsPerUser;
+            maxStreams = maxStreams == null ? 2000 : maxStreams;
+            reconnectDelay = reconnectDelay == null ? Duration.ofSeconds(5) : reconnectDelay;
+            revalidation = revalidation == null ? Duration.ofMinutes(1) : revalidation;
         }
     }
 }

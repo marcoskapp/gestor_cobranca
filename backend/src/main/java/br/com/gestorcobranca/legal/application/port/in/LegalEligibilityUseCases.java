@@ -29,12 +29,13 @@ public interface LegalEligibilityUseCases {
 
     record RuleCommand(UUID creditorId, UUID portfolioId, String name, Integer minDaysOverdue, BigDecimal minOpenBalance,
                        boolean requireCollateral, boolean requireExecutiveTitle, Integer minBrokenAgreements,
-                       Integer prescriptionWithinDays) {
+                       Integer prescriptionWithinDays, boolean requireCadenceExhausted) {
     }
 
     record RuleView(UUID id, UUID creditorId, UUID portfolioId, String name, boolean active, Integer minDaysOverdue,
                     BigDecimal minOpenBalance, boolean requireCollateral, boolean requireExecutiveTitle,
-                    Integer minBrokenAgreements, Integer prescriptionWithinDays, long version) {
+                    Integer minBrokenAgreements, Integer prescriptionWithinDays, boolean requireCadenceExhausted,
+                    long version) {
     }
 
     /**

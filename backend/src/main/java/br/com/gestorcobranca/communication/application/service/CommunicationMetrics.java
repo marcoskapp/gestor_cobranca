@@ -75,6 +75,17 @@ class CommunicationMetrics {
                 .publishPercentiles(0.5, 0.95, 0.99).register(registry).record(waited);
     }
 
+    /** Primeiras respostas pela meta do canal. @param outcome OK, WARNING ou BREACHED */
+    void firstResponseSla(String channel, String responder, String outcome) {
+        registry.counter("communication.inbox.first_response.sla", "channel", channel, "responder", responder,
+                "outcome", outcome).increment();
+    }
+
+    /** Conversa que cruzou o limite de primeira resposta sem ser respondida (varredura; alarme). */
+    void slaBreached(String channel, String owner) {
+        registry.counter("communication.inbox.sla.breaches", "channel", channel, "owner", owner).increment();
+    }
+
     /** @param outcome recorded, duplicate, skipped_no_case, skipped_case_closed, skipped_tabulation */
     void interaction(String direction, String outcome) {
         registry.counter("communication.interactions", "direction", direction, "outcome", outcome).increment();
