@@ -42,7 +42,7 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Busca sem dado em claro (blind index HMAC por tenant) | `shared/crypto/BlindIndex` |
 | Exibição mascarada por padrão; revelação exige `DEBTOR_SENSITIVE_VIEW` e gera evento de acesso | casos de uso de devedor |
 | Mascaramento automático de CPF, CNPJ, e-mail e telefone em todos os logs | `SensitiveDataMasker`, `JsonLogFormatter` |
-| Observações de interação e tarefa, descrição e parecer de contestação criptografados; evidências com SHA-256, download registrado (`FILE_DOWNLOADED`) | `collection/domain/model/Interaction`, `Dispute`, `DisputeService` |
+| Observações de interação e tarefa, descrição e parecer de contestação criptografados; evidências com SHA-256, download registrado (`FILE_DOWNLOADED`) | `collection/domain/model/Interaction`, `Dispute`, `DisputeService` (limpeza de arquivo de transação desfeita: `DisputeFileCleanup`) |
 | Arquivos isolados por tenant no S3 com criptografia no servidor e URLs temporárias | `shared/storage` |
 | Criptografia em trânsito: TLS no ALB; TLS obrigatório no RDS (`rds.force_ssl`) | Terraform |
 

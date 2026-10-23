@@ -76,7 +76,7 @@ class DisputeService implements DisputeUseCases {
     private final DebtLedgerPort ledger;
     private final SettingsProvider settings;
     private final FileStorage fileStorage;
-    private final EvidenceFileCleanup fileCleanup;
+    private final DisputeFileCleanup fileCleanup;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
     private final AccessLogger accessLogger;
@@ -89,7 +89,7 @@ class DisputeService implements DisputeUseCases {
 
     DisputeService(DisputeRepository disputes, DisputeEvidenceRepository evidences, CollectionCaseRepository cases,
                    CaseAccess access, CaseSynchronizer synchronizer, CaseRecorder caseRecorder, DebtLedgerPort ledger,
-                   SettingsProvider settings, FileStorage fileStorage, EvidenceFileCleanup fileCleanup,
+                   SettingsProvider settings, FileStorage fileStorage, DisputeFileCleanup fileCleanup,
                    AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, AuditTrail auditTrail,
                    BusinessEventLogger businessEvents, ApplicationEventPublisher events, CollectionMetrics metrics,
                    CollectionProperties properties, Clock clock) {

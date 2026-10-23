@@ -13,13 +13,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * referencie). Este componente remove o arquivo se a transação corrente for desfeita.
  */
 @Component
-class EvidenceFileCleanup {
+class DisputeFileCleanup {
 
-    private static final Logger LOG = LoggerFactory.getLogger(EvidenceFileCleanup.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DisputeFileCleanup.class);
 
     private final FileStorage fileStorage;
 
-    EvidenceFileCleanup(FileStorage fileStorage) {
+    DisputeFileCleanup(FileStorage fileStorage) {
         this.fileStorage = fileStorage;
     }
 
