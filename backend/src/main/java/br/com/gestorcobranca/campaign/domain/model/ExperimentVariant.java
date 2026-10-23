@@ -12,12 +12,13 @@ import java.util.regex.Pattern;
  * Variante do teste A/B: peso relativo na alocação (entre os não-controle) e alterações de etapas.
  * Uma variante sem alterações é a régua publicada ("campeã" atual).
  */
-public record ExperimentVariant(String code, String name, int weight, List<StepOverride> overrides) {
+public record ExperimentVariant(String code, String name, Integer weight, List<StepOverride> overrides) {
 
     public static final String CONTROL = "CONTROL";
     private static final Pattern CODE = Pattern.compile("[A-Z][A-Z0-9_]{0,39}");
 
     public ExperimentVariant {
+        weight = weight == null ? 1 : weight;
         overrides = overrides == null ? List.of() : List.copyOf(overrides);
     }
 

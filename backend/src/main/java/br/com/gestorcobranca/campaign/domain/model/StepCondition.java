@@ -9,8 +9,14 @@ package br.com.gestorcobranca.campaign.domain.model;
  * @param requireNoEffectiveContact        só se não houve contato efetivo desde a inscrição
  * @param requirePreviousMessageUnread     só se a última mensagem enviada pela régua não foi lida
  */
-public record StepCondition(SegmentCriteria criteria, boolean requireNoReply, boolean requireNoEffectiveContact,
-                            boolean requirePreviousMessageUnread) {
+public record StepCondition(SegmentCriteria criteria, Boolean requireNoReply, Boolean requireNoEffectiveContact,
+                            Boolean requirePreviousMessageUnread) {
+
+    public StepCondition {
+        requireNoReply = Boolean.TRUE.equals(requireNoReply);
+        requireNoEffectiveContact = Boolean.TRUE.equals(requireNoEffectiveContact);
+        requirePreviousMessageUnread = Boolean.TRUE.equals(requirePreviousMessageUnread);
+    }
 
     public static StepCondition none() {
         return new StepCondition(null, false, false, false);

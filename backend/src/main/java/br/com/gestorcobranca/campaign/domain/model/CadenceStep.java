@@ -14,13 +14,14 @@ import java.util.regex.Pattern;
  * @param onReply         o que a resposta do devedor a esta etapa faz (nulo = padrão da régua)
  * @param onReplyStepCode etapa de destino quando {@code onReply = GOTO_STEP}
  */
-public record CadenceStep(String code, String name, int waitMinutes, SendWindow window, StepCondition condition,
+public record CadenceStep(String code, String name, Integer waitMinutes, SendWindow window, StepCondition condition,
                           StepAction action, ReplyTransition onReply, String onReplyStepCode) {
 
     public static final Pattern CODE = Pattern.compile("[A-Z][A-Z0-9_]{0,39}");
     public static final int MAX_WAIT_MINUTES = 60 * 24 * 60;
 
     public CadenceStep {
+        waitMinutes = waitMinutes == null ? 0 : waitMinutes;
         window = window == null ? SendWindow.always() : window;
         condition = condition == null ? StepCondition.none() : condition;
     }
