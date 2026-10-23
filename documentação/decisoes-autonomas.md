@@ -21,12 +21,14 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 15 | incentive | Ajuste manual de extrato acima de R$ 500 exige dupla aprovação; quem aprova não pode ser o beneficiário nem quem fechou/ajustou. Agregados em logs só com ≥ 3 extratos. | Duas aprovações sempre. | Segregação de funções e privacidade da remuneração. |
 | 16 | incentive | Dependência `incentive → compliance` (calendário de feriados) acrescentada ao grafo. Ocupação = tempo de chamadas atendidas ÷ tempo logado (conversas não têm duração). | Interface no shared. | Porta pública já existente, sem ciclo. |
 | 17 | processo | Migration do incentive no identity renumerada para V0202 (V0201 já usada pelo estado de interface). | — | Conflito de versão entre frentes paralelas. |
+| 18 | debt **[revisar — jurídico]** | Prescrição calculada por pretensão (execução × cobrança), prazos em meses, regras por tenant em banco semeadas com tabela de mercado marcada `PENDING_LEGAL_REVIEW` (contrato/confissão 60/60 meses; CCB, nota promissória e duplicata 60/36; cheque 60/6 após 30 dias de apresentação). Interrupção padrão "só a primeira" (CC art. 202). | Data única por título; prazos em código. | Cheque e títulos de crédito têm prazos distintos para executar e cobrar; nenhum prazo fixo em código. |
+| 19 | debt | Permissões próprias `COLLATERAL_MANAGE` e `PRESCRIPTION_MANAGE`; situação `CONSOLIDATED` só para alienação fiduciária de imóvel (Lei 9.514/97); dados de pessoa física fora da identificação do bem. | Reaproveitar `DEBT_TITLE_MANAGE`. | Segregação para o jurídico; minimização de dados. |
+| 20 | debt | Coobrigados visíveis na ficha para quem tem escopo sobre o credor, mas **não** abrem casos de cobrança automaticamente (depende de política do credor no collection). | Cobrar coobrigados automaticamente. | Cobrança de avalista/fiador é decisão contratual do credor. |
 
 ## Situação ao fim da sessão autônoma
 
-- **Integrados na master (testes verdes):** compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
+- **Integrados na master (testes verdes):** garantias/coobrigados/prescrição (23/10 manhã), compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
 - **Interrompidos pelo responsável e não retomados** (trabalho não commitado preservado nos worktrees, nada foi descartado):
-  - `wt-debt-garantias` (garantias, coobrigados, prescrição) — 60 arquivos alterados, sem commit;
   - `wt-modulo-ingestion` — 4 arquivos alterados, sem commit;
   - `wt-modulo-collection` — 2 arquivos alterados, sem commit;
   - `wt-frontend-debt-compliance` — 6 arquivos alterados, sem commit;

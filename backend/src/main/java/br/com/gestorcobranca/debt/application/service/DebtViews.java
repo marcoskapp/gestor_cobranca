@@ -1,9 +1,20 @@
 package br.com.gestorcobranca.debt.application.service;
 
+import br.com.gestorcobranca.debt.application.port.in.CollateralUseCases.AppraisalView;
+import br.com.gestorcobranca.debt.application.port.in.CollateralUseCases.AssetView;
+import br.com.gestorcobranca.debt.application.port.in.CollateralUseCases.CollateralView;
+import br.com.gestorcobranca.debt.application.port.in.CollateralUseCases.RegistrationView;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
+import br.com.gestorcobranca.debt.application.port.in.OriginContractUseCases.ContractView;
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases.ContactView;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorView;
+import br.com.gestorcobranca.debt.domain.model.AssetIdentification;
+import br.com.gestorcobranca.debt.domain.model.AssetKind;
+import br.com.gestorcobranca.debt.domain.model.Collateral;
+import br.com.gestorcobranca.debt.domain.model.CollateralAppraisal;
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
+import br.com.gestorcobranca.debt.domain.model.OriginContract;
+import br.com.gestorcobranca.debt.domain.model.VehiclePlate;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
 import br.com.gestorcobranca.debt.domain.model.DebtorContact;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -37,6 +48,42 @@ final class DebtViews {
                 t.getExternalId(), t.getInstallmentNumber(), t.getDueDate(), t.getPrincipalAmount().amount(),
                 t.getOpenBalance().amount(), t.getPaidTotal().amount(), t.getStatus().name(), t.getStatusReason(),
                 t.isDisputeBlocked(), t.getDisputeId(), t.getLastPaymentAt(), t.daysOverdue(today), t.getImportBatchId());
+    }
+
+    static ContractView contract(OriginContract c) {
+        return new ContractView(c.getId(), c.getCreditorId(), c.getPortfolioId(), c.getDebtorId(), c.getExternalId(),
+                c.getProduct(), c.getSignedAt(), c.getOriginalAmount() == null ? null : c.getOriginalAmount().amount(),
+                c.getInstrumentType().name(), c.isExecutiveTitle());
+    }
+
+    static CollateralView collateral(Collateral c) {
+        AssetIdentification a = c.getAsset();
+        AssetView asset = new AssetView(a.getKind().name(), a.summary(), a.plate().map(VehiclePlate::formatted).orElse(null),
+                a.getVehicleRenavam(), a.getVehicleChassis(), a.getVehicleManufactureYear(), a.getVehicleModelYear(),
+                a.getRealEstateRegistryNumber(), a.getRealEstateRegistryOffice(), a.getRealEstateMunicipality(),
+                a.getRealEstateState());
+        RegistrationView registration = new RegistrationView(c.getRegistrationAuthority(), c.getRegistrationNumber(),
+                c.getRegistrationDate());
+        return new CollateralView(c.getId(), c.getOriginContractId(), c.getCreditorId(), c.getExternalId(), c.getType().name(),
+                c.getDescription(), asset, registration, c.getStatus().name(), c.getStatusReason(), c.getStatusChangedAt(),
+                c.getEstimatedValue() == null ? null : c.getEstimatedValue().amount(), c.getLastAppraisalDate(),
+                c.getTitleIds());
+    }
+
+    static AppraisalView appraisal(CollateralAppraisal a) {
+        return new AppraisalView(a.getId(), a.getCollateralId(), a.getAmount().amount(), a.getAppraisalDate(),
+                a.getSource().name(), a.getNotes(), a.getImportBatchId(), a.getCreatedAt(), a.getCreatedBy());
+    }
+
+    /** Identificação do bem a partir dos campos informados, conforme a natureza. */
+    static AssetIdentification asset(String kind, String plate, String renavam, String chassis, Integer manufactureYear,
+                                     Integer modelYear, String registryNumber, String registryOffice, String municipality,
+                                     String state) {
+        return switch (parseEnum(AssetKind.class, kind, "collateral.asset_kind_invalid", "Natureza do bem")) {
+            case VEHICLE -> AssetIdentification.vehicle(plate, renavam, chassis, manufactureYear, modelYear);
+            case REAL_ESTATE -> AssetIdentification.realEstate(registryNumber, registryOffice, municipality, state);
+            case OTHER -> AssetIdentification.other();
+        };
     }
 
     /**
