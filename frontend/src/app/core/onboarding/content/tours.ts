@@ -482,7 +482,7 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'case-tabs',
         title: 'Ficha do caso',
-        body: 'Títulos, contatos mascarados, histórico, agenda e contestações. Alterne as abas com Alt + 1 a Alt + 5.',
+        body: 'Títulos, contatos mascarados, histórico, agenda, contestações e negociação. Alterne as abas com Alt + 1 a Alt + 6.',
       },
       {
         anchor: 'contact-window',

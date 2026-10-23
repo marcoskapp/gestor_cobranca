@@ -20,7 +20,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { UserNames } from '../../collection/data/collection.lookups';
+import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { DebtorsApi } from '../../debt/data/debt.api';
 import { CreditorNames } from '../../organization/data/organization.lookups';
@@ -81,7 +81,7 @@ export class ProposalDetail {
   private readonly users = nameMap(inject(UserNames), () => {
     const p = this.proposal();
     return p ? [p.actor.type === 'USER' ? p.actor.id : null, p.decision?.decidedBy, p.acceptance?.actorType === 'USER' ? p.acceptance.actorId : null] : [];
-  });
+  }, { batch: USER_NAMES_BATCH });
 
   /** Memória completa da simulação de origem (sob demanda, exige `NEGOTIATION_SIMULATE`). */
   protected readonly canSeeSimulation = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_SIMULATE));

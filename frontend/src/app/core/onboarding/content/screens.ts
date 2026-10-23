@@ -18,17 +18,23 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.title-detail', version: 1, path: '/titulos/:id', tourId: 'debt.title-detail' },
   {
     key: 'collection.queue',
-    version: 2,
+    version: 3,
     path: '/cobranca/fila',
     tourId: 'collection.station',
-    changes: [{ version: 2, items: ['"Posso contatar agora?": decisão do sistema por canal, com o próximo horário permitido.', 'Histórico mostra o nome de quem registrou cada interação.'] }],
+    changes: [
+      { version: 2, items: ['"Posso contatar agora?": decisão do sistema por canal, com o próximo horário permitido.', 'Histórico mostra o nome de quem registrou cada interação.'] },
+      { version: 3, items: ['Aba Negociação (Alt + 6): propostas em andamento e acordos do caso, com o cronograma.'] },
+    ],
   },
   {
     key: 'collection.case',
-    version: 2,
+    version: 3,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
-    changes: [{ version: 2, items: ['"Posso contatar agora?": decisão do sistema por canal, com o próximo horário permitido.', 'Histórico mostra o nome de quem registrou cada interação.'] }],
+    changes: [
+      { version: 2, items: ['"Posso contatar agora?": decisão do sistema por canal, com o próximo horário permitido.', 'Histórico mostra o nome de quem registrou cada interação.'] },
+      { version: 3, items: ['Aba Negociação (Alt + 6): propostas em andamento e acordos do caso, com o cronograma.'] },
+    ],
   },
   { key: 'collection.cases', version: 1, path: '/cobranca/casos', tourId: 'collection.cases' },
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },

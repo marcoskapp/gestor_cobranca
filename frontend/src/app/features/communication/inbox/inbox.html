@@ -1,0 +1,101 @@
+<div class="ib-bar" data-tour="page-header">
+  <h1 class="ib-bar__title">Caixa de entrada</h1>
+  <span class="ib-bar__spacer"></span>
+  @if (canManageTemplates()) {
+    <a mat-button routerLink="/conversas/templates"><mat-icon aria-hidden="true">article</mat-icon>Templates</a>
+  }
+  @if (canManageChannels()) {
+    <a mat-button routerLink="/conversas/canais"><mat-icon aria-hidden="true">settings_input_antenna</mat-icon>Canais</a>
+  }
+</div>
+
+<div class="ib-zones" [class.ib-zones--detail]="!!selectedId()">
+  <aside class="ib-list" aria-label="Conversas">
+    <div class="ib-tabs" role="tablist" aria-label="Dono do atendimento" data-tour="inbox-tabs">
+      @for (t of tabs; track t.id; let i = $index) {
+        <button
+          type="button"
+          role="tab"
+          class="ib-tab"
+          [id]="'inbox-tab-' + t.id"
+          [class.ib-tab--on]="tab() === t.id"
+          [attr.aria-selected]="tab() === t.id"
+          [attr.tabindex]="tab() === t.id ? 0 : -1"
+          aria-controls="inbox-list"
+          (click)="selectTab(t.id)"
+          (keydown)="tabKey($event, i)"
+        >
+          <mat-icon aria-hidden="true">{{ t.icon }}</mat-icon>
+          {{ t.label }}
+          @if (count(t.id); as n) {
+            <span class="ib-count" [attr.aria-label]="n + ' aguardando resposta'">{{ n }}</span>
+          }
+        </button>
+      }
+    </div>
+    <div class="ib-filters" data-tour="filters">
+      <mat-form-field class="app-compact ib-channel" subscriptSizing="dynamic">
+        <mat-label>Canal</mat-label>
+        <mat-select [ngModel]="channel()" (ngModelChange)="channel.set($event)">
+          <mat-option value="">Todos</mat-option>
+          <mat-option value="WHATSAPP">WhatsApp</mat-option>
+          <mat-option value="EMAIL">E-mail</mat-option>
+          <mat-option value="SMS">SMS</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-slide-toggle [ngModel]="awaiting()" (ngModelChange)="awaiting.set($event)">Aguardando resposta</mat-slide-toggle>
+    </div>
+    <div id="inbox-list" class="ib-scroll" role="tabpanel" [attr.aria-busy]="query.loading()" data-tour="inbox-list">
+      @if (query.loading() && !query.rows().length) {
+        <app-skeleton variant="lines" [rows]="6" />
+      } @else if (query.failed()) {
+        <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar as conversas." [compact]="true">
+          <button mat-stroked-button type="button" (click)="refresh()">Tentar novamente</button>
+        </app-empty-state>
+      } @else {
+        <ul class="ib-items">
+          @for (c of query.rows(); track c.id) {
+            <li>
+              <button type="button" class="ib-item" [class.ib-item--on]="c.id === selectedId()" [attr.aria-current]="c.id === selectedId() ? 'true' : null" (click)="open(c)">
+                <span class="ib-item__top">
+                  <span class="ib-item__name">{{ title(c) }}</span>
+                  @if (c.unreadCount) {
+                    <span class="ib-count" [attr.aria-label]="c.unreadCount + ' não lidas'">{{ c.unreadCount }}</span>
+                  }
+                </span>
+                <span class="ib-item__line">
+                  <span class="ib-chan"><mat-icon aria-hidden="true">{{ channelIcons[c.channel] }}</mat-icon>{{ channelLabels[c.channel] }}</span>
+                  <span class="app-muted">{{ c.creditorId ? creditors.name(c.creditorId) : c.contactMasked }}</span>
+                </span>
+                <span class="ib-item__line">
+                  <app-status-chip domain="conversationOwner" [status]="c.ownerType" />
+                  @if (waitingText(c); as w) {
+                    <span class="ib-sla" [class]="'ib-sla--' + slaTone(c.channel, c.waitingSeconds)">{{ w }}</span>
+                  } @else if (c.lastMessageAt) {
+                    <span class="app-muted">{{ c.lastMessageAt | appDate }}</span>
+                  }
+                </span>
+              </button>
+            </li>
+          } @empty {
+            <li>
+              <app-empty-state icon="mark_chat_read" title="Nenhuma conversa aqui." message="Quando o devedor escrever ou a conversa for transferida, ela aparece nesta lista." [compact]="true" />
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </aside>
+
+  <section class="ib-detail" aria-label="Conversa selecionada">
+    @if (selectedId(); as id) {
+      <button mat-button type="button" class="ib-back" (click)="back()">
+        <mat-icon aria-hidden="true">arrow_back</mat-icon>
+        Voltar às conversas
+      </button>
+      <app-conversation-panel [conversationId]="id" (changed)="refresh()" />
+    } @else {
+      <app-empty-state icon="forum" title="Escolha uma conversa." message="A linha do tempo reúne todas as mensagens do devedor, em todos os canais." />
+    }
+  </section>
+</div>

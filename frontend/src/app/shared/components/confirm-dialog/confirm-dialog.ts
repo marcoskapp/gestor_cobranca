@@ -18,6 +18,8 @@ export interface ConfirmDialogData {
   /** Solicita motivo (registrado na auditoria). */
   reason?: 'required' | 'optional';
   reasonLabel?: string;
+  /** Limite do motivo quando o endpoint aceita menos que o padrão (`Limits.reason`). */
+  reasonMaxLength?: number;
   /**
    * Resumo do impacto exibido antes da confirmação (ex.: devedor, valor, parcelas). Em ações
    * financeiras ou irreversíveis, mostre exatamente o que será feito.
@@ -114,12 +116,12 @@ export type ConfirmDialogResult = string | false;
 export class ConfirmDialog {
   protected readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA);
   private readonly ref = inject<MatDialogRef<ConfirmDialog, ConfirmDialogResult>>(MatDialogRef);
-  protected readonly maxReason = Limits.reason;
+  protected readonly maxReason = Math.min(this.data.reasonMaxLength ?? Limits.reason, Limits.reason);
   protected readonly reason = new FormControl('', {
     nonNullable: true,
     validators: [
       ...(this.data.reason === 'required' ? [AppValidators.notBlank] : []),
-      Validators.maxLength(Limits.reason),
+      Validators.maxLength(this.maxReason),
     ],
   });
 

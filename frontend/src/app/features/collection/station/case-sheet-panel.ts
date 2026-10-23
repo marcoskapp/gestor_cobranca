@@ -20,6 +20,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
+import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_ICONS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { InteractionsApi, PromisesApi, TasksApi } from '../data/collection.api';
@@ -28,8 +29,8 @@ import { CaseSheet, PromiseView, SheetContact, TabulationView, TaskView } from '
 import { formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
 
-/** Abas da ficha na ordem dos atalhos `Alt + 1…5`. */
-export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações'] as const;
+/** Abas da ficha na ordem dos atalhos `Alt + 1…6`. */
+export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação'] as const;
 
 /**
  * Ficha do caso no centro da estação: devedor (documento e contatos mascarados, revelação
@@ -39,7 +40,7 @@ export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e prome
  */
 @Component({
   selector: 'app-case-sheet-panel',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTabsModule, MatTooltipModule, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatTabsModule, MatTooltipModule, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
 })

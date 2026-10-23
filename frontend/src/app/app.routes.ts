@@ -48,6 +48,14 @@ export const routes: Routes = [
         loadChildren: () => import('./features/negotiation/negotiation.routes').then((m) => m.NEGOTIATION_ROUTES),
       },
       {
+        path: 'conversas',
+        loadChildren: () => import('./features/communication/communication.routes').then((m) => m.COMMUNICATION_ROUTES),
+      },
+      {
+        path: 'juridico',
+        loadChildren: () => import('./features/legal/legal.routes').then((m) => m.LEGAL_ROUTES),
+      },
+      {
         path: 'compliance',
         loadChildren: () => import('./features/compliance/compliance.routes').then((m) => m.COMPLIANCE_ROUTES),
       },

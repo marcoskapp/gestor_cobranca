@@ -298,4 +298,13 @@
       }
     </div>
   </mat-tab>
+
+  <mat-tab>
+    <ng-template mat-tab-label>Negociação<kbd class="sp-kbd" aria-hidden="true">Alt 6</kbd></ng-template>
+    <ng-template matTabContent>
+      <div class="sp-tab" data-tour="case-negotiation">
+        <app-case-negotiation [caseId]="cs.id" [creditorId]="cs.creditorId" [debtorId]="cs.debtorId" />
+      </div>
+    </ng-template>
+  </mat-tab>
 </mat-tab-group>

@@ -19,7 +19,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { UserNames } from '../../collection/data/collection.lookups';
+import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { DebtorsApi } from '../../debt/data/debt.api';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { AgreementsApi } from '../data/agreement.api';
@@ -79,7 +79,7 @@ export class AgreementDetail {
   });
   protected readonly debtorView = valueOr(this.debtor, undefined);
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.agreement()?.creditorId]);
-  private readonly users = nameMap(inject(UserNames), () => (this.agreement()?.participants ?? []).filter((p) => p.actorType === 'USER').map((p) => p.actorId));
+  private readonly users = nameMap(inject(UserNames), () => (this.agreement()?.participants ?? []).filter((p) => p.actorType === 'USER').map((p) => p.actorId), { batch: USER_NAMES_BATCH });
 
   protected readonly summary = computed(() => (this.agreement() ? scheduleSummary(this.agreement()!) : null));
   protected readonly actions = computed(() =>

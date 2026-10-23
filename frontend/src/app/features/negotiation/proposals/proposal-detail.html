@@ -85,7 +85,7 @@
     @case ('REJECTED') {
       <p class="app-alert app-alert--error" role="note">
         <mat-icon aria-hidden="true">block</mat-icon>
-        <span>Reprovada{{ p.decision?.note ? ': ' + p.decision?.note : '.' }} Simule outras condições para o devedor.</span>
+        <span>Reprovada{{ p.decision?.note ? ': ' + p.decision.note : '.' }} Simule outras condições para o devedor.</span>
       </p>
     }
     @case ('EXPIRED') {

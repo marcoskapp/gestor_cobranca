@@ -21,7 +21,7 @@ import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
-import { UserNames } from '../../collection/data/collection.lookups';
+import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
@@ -199,7 +199,7 @@ export class ProposalList {
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
-  private readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => p.actor.type === 'USER').map((p) => p.actor.id));
+  private readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => p.actor.type === 'USER').map((p) => p.actor.id), { batch: USER_NAMES_BATCH });
 
   protected readonly columns: TableColumn[] = [
     { key: 'createdAt', header: 'Criada em' },
