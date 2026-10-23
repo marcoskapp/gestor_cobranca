@@ -22,7 +22,7 @@ public interface ProposalRepository {
      * @param creditorIds credores permitidos (nulo = todos)
      * @param actorId     somente propostas deste ator (nulo = todas)
      */
-    Page<Proposal> search(Collection<UUID> creditorIds, UUID creditorId, UUID debtorId, ProposalStatus status,
+    Page<Proposal> search(Collection<UUID> creditorIds, UUID creditorId, UUID debtorId, UUID caseId, ProposalStatus status,
                           String actorType, UUID actorId, Pageable page);
 
     /** Propostas aguardando aprovação nos credores permitidos (nulo = todos), das mais antigas para as mais novas. */

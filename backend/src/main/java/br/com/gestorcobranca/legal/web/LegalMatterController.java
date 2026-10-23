@@ -167,6 +167,12 @@ class LegalMatterController {
         return matters.sheet(id);
     }
 
+    @GetMapping("/matters/{id}/collaterals")
+    @PreAuthorize("hasAuthority('LEGAL_VIEW')")
+    List<LegalMatterUseCases.MatterCollateralView> collaterals(@PathVariable UUID id) {
+        return matters.collaterals(id);
+    }
+
     @GetMapping("/matters/{id}/history")
     @PreAuthorize("hasAuthority('LEGAL_VIEW')")
     List<StageEntryView> history(@PathVariable UUID id) {

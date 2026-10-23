@@ -376,7 +376,7 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         assertThatThrownBy(() -> as(operator, DefaultRoles.OPERADOR, CreditorScope.of(Set.of(creditorB)),
                 () -> proposals.get(p.id()))).isInstanceOf(ResourceNotFoundException.class);
         assertThat(as(operator, DefaultRoles.OPERADOR, CreditorScope.of(Set.of(creditorB)),
-                () -> proposals.search(new ProposalFilter(null, null, null, null), PageQuery.of(0, 20))).content()).isEmpty();
+                () -> proposals.search(new ProposalFilter(null, null, null, null, null), PageQuery.of(0, 20))).content()).isEmpty();
         assertThatThrownBy(() -> as(operator, DefaultRoles.OPERADOR, CreditorScope.of(Set.of(creditorB)),
                 () -> proposals.create(new CreateProposalCommand(sim, 0, null, new PlanInput(1, null, null), null, null,
                         false, null)))).isInstanceOf(ResourceNotFoundException.class);
