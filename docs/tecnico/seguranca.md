@@ -34,6 +34,8 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Políticas de cobrança publicadas imutáveis no banco (vigência só encurta) e simulações append-only | `V0700__negotiation_policies_and_indexes.sql`, `V0702__negotiation_simulation.sql` |
 | Operação de cobrança: escopo por credor em casos, filas, tarefas, promessas e contestações; caso de outro operador só com `CASE_ASSIGN`; filas/tabulações/parâmetros sem credor exigem acesso a todos os credores | `collection/application/service/CaseAccess`, serviços do módulo |
 | Interações e evidências de contestação append-only; histórico de atribuição só aceita o fim de vigência, uma vez (privilégio de coluna + gatilho) | `V0600__collection_tables.sql` |
+| Comunicação: escopo por credor em contas, templates, conversas e mensagens (contas/templates da assessoria e conversas sem credor exigem todos os credores); conversa de outro operador só com `CASE_ASSIGN`; o assistente só envia em conversa que conduz; todo envio passa por `ContactGate#authorizeAndRecord` | `communication/application/service/ConversationAccess`, `MessageService`, `SendMessageJob` |
+| Transferências de conversa append-only (gatilho e privilégio) | `V1000__communication_tables.sql` |
 | Razão de comissão append-only (colunas financeiras imutáveis por privilégio de coluna e gatilho) e extrato aprovado imutável no banco | `V1802__incentive_ledger_and_statements.sql` |
 
 ## 3. Proteção de dados (LGPD)
@@ -46,6 +48,8 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Importação de carteiras: limite de tamanho e de linhas, tipo conferido pelo conteúdo (não pela extensão), XLSX com limites de descompactação (zip bomb) e sem XXE, fórmulas nunca avaliadas e recusadas em campos de texto, relatório de erros com valores mascarados e células neutralizadas contra fórmulas (CSV injection), download do arquivo original só com `DEBTOR_SENSITIVE_VIEW` | `ingestion/infrastructure/parsing`, `FileSignature`, `RowValidator`, `CsvIssueReportWriter`, `ImportBatchService` |
 | Mascaramento automático de CPF, CNPJ, e-mail e telefone em todos os logs | `SensitiveDataMasker`, `JsonLogFormatter` |
 | Observações de interação e tarefa, descrição e parecer de contestação criptografados; evidências com SHA-256, download registrado (`FILE_DOWNLOADED`) | `collection/domain/model/Interaction`, `Dispute`, `DisputeService` (limpeza de arquivo de transação desfeita: `DisputeFileCleanup`) |
+| Conteúdo, assunto e variáveis de mensagens, rascunhos do assistente, resumos de transferência, contato da conversa e credenciais de provedor criptografados; credenciais nunca devolvidas pela API nem gravadas na auditoria; conteúdo descartado pela política `MESSAGE_CONTENT` | `communication/domain/model/*`, `CommunicationMaintenance` |
+| Variáveis de template tipadas, sem tipo para documento/contato e com recusa de CPF/CNPJ, e-mail e telefone em textos livres | `communication/domain/service/TemplateRenderer` |
 | Arquivos isolados por tenant no S3 com criptografia no servidor e URLs temporárias | `shared/storage` |
 | Criptografia em trânsito: TLS no ALB; TLS obrigatório no RDS (`rds.force_ssl`) | Terraform |
 
@@ -59,6 +63,7 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 - Cabeçalhos: HSTS, CSP restritiva, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
 - CORS restrito às origens configuradas.
 - Erros sem detalhes internos (RFC 9457 com `requestId` para suporte); stack traces apenas no log técnico.
+- Webhooks de provedores (`/api/v1/webhooks/<provedor>/{routingKey}`): limite de taxa por rota e IP (429), tamanho máximo do corpo (413), rota aleatória de 256 bits, assinatura HMAC (`X-Hub-Signature-256`) validada sobre o corpo bruto antes de qualquer processamento (401 + `WEBHOOK_REJECTED`), recibo do corpo contra reentrega, janela de replay por evento e idempotência por id do provedor (`communication/web/WhatsAppWebhookController`, `WebhookService`). O provedor simulado (sandbox) é recusado no perfil `prod` (`SandboxGuard`).
 - Endpoints públicos declarados explicamente (`PublicEndpoint`) e listados no log de inicialização.
 - Actuator exposto apenas para health/info; demais endpoints negados.
 
