@@ -4,7 +4,7 @@
 // Complementam os tokens de sistema do Material 3 (`--mat-sys-*`). Cores usam `light-dark()`
 // e acompanham o `color-scheme` do documento (tema claro, escuro ou do sistema), definido em
 // `ThemeService`. Contraste verificado para WCAG 2.2 AA (texto ≥ 4.5:1) sobre o fundo indicado.
-// Documentação: docs/design/ux.md.
+// Documentação: docs/tecnico/desenho/ux.md.
 // =============================================================================
 
 @mixin tokens {

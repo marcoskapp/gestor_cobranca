@@ -2,9 +2,11 @@
 
 Plataforma SaaS multi-tenant para assessorias de cobrança e recuperação de crédito: carteiras multi-credor, operação de cobrança, negociação com alçadas, acordos, pagamentos, conciliação, comissão e prestação de contas, com rastreabilidade de ponta a ponta.
 
-- Produto e infraestrutura: [`documentação/`](documentação/)
-- Arquitetura técnica: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- Convenções de código: [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)
+Toda a documentação está em [`docs/`](docs/README.md), organizada em três visões:
+
+- **Negócio** ([`docs/negocio/`](docs/negocio)): regras de produto, workflows e decisões para o responsável pelo produto.
+- **Arquitetura** ([`docs/arquitetura/`](docs/arquitetura)): visão geral, topologia, stack, infraestrutura AWS e ADRs.
+- **Técnico** ([`docs/tecnico/`](docs/tecnico)): convenções, segurança, logs e métricas e o desenho de cada módulo.
 
 ## Estrutura
 

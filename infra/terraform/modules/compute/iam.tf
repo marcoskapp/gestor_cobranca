@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Perfil IAM das instâncias (menor privilégio; documentação/infraestrutura-aws.md §2).
+# Perfil IAM das instâncias (menor privilégio; docs/arquitetura/infraestrutura-aws.md §2).
 # Nenhuma chave de acesso fica na instância: o SDK usa as credenciais temporárias do perfil.
 # -----------------------------------------------------------------------------
 

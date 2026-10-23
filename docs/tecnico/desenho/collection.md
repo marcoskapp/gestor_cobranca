@@ -258,8 +258,8 @@ comando.
 
 ## 12. Logs e métricas
 
-Eventos de negócio da linha "Operação" de `docs/LOGGING.md` §3.3, sempre com credor, carteira, devedor, caso,
-`daysOverdue`, `overdueBand` e `valueBand`; métricas `collection.*` em `docs/LOGGING.md` §5. Sem dado pessoal (observações e
+Eventos de negócio da linha "Operação" de `docs/tecnico/logs-e-metricas.md` §3.3, sempre com credor, carteira, devedor, caso,
+`daysOverdue`, `overdueBand` e `valueBand`; métricas `collection.*` em `docs/tecnico/logs-e-metricas.md` §5. Sem dado pessoal (observações e
 descrições só no banco, criptografadas).
 
 ## 13. API REST (`/api/v1/collection`)

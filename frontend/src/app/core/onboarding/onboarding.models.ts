@@ -1,6 +1,6 @@
 /**
  * Definições declarativas do onboarding. Conteúdo em `content/`; contrato descrito em
- * docs/design/ux.md §8. Identificadores seguem `UI_KEY_PATTERN` (minúsculas, `.` e `-`).
+ * docs/tecnico/desenho/ux.md §8. Identificadores seguem `UI_KEY_PATTERN` (minúsculas, `.` e `-`).
  */
 
 /** Posição preferida do balão em relação à âncora (o motor ajusta se não couber). */

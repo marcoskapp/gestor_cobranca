@@ -1,6 +1,6 @@
 # Infraestrutura AWS — Terraform
 
-Implementa [`documentação/infraestrutura-aws.md`](../../documentação/infraestrutura-aws.md): VPC em 2 AZs, ALB, Auto Scaling Group de EC2 Graviton (Amazon Linux 2023), RDS PostgreSQL 16, S3 e CloudWatch, com segredos fora do código e do state.
+Implementa [`docs/arquitetura/infraestrutura-aws.md`](../../docs/arquitetura/infraestrutura-aws.md): VPC em 2 AZs, ALB, Auto Scaling Group de EC2 Graviton (Amazon Linux 2023), RDS PostgreSQL 16, S3 e CloudWatch, com segredos fora do código e do state.
 
 ```
 infra/terraform/

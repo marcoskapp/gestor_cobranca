@@ -1,6 +1,6 @@
 # Workflow jurídico e garantias
 
-Como a solução acompanha os títulos que saem da cobrança amigável e entram na etapa jurídica, extrajudicial ou judicial. Desenho técnico: [`docs/design/juridico.md`](../docs/design/juridico.md).
+Como a solução acompanha os títulos que saem da cobrança amigável e entram na etapa jurídica, extrajudicial ou judicial. Desenho técnico: [`docs/tecnico/desenho/juridico.md`](../tecnico/desenho/juridico.md).
 
 ## 1. Base: o que a dívida precisa registrar
 

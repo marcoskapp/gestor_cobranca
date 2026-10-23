@@ -2,7 +2,7 @@
 
 Especificação de produto do assistente de cobrança e negociação (F24). Objetivo: automatizar o maior volume possível da operação com segurança, deixando os negociadores humanos nos casos complexos e de maior valor.
 
-Desenho técnico: [`docs/design/assistente.md`](../docs/design/assistente.md), [`docs/design/negociacao-e-alcadas.md`](../docs/design/negociacao-e-alcadas.md) e [`docs/design/comunicacao.md`](../docs/design/comunicacao.md).
+Desenho técnico: [`docs/tecnico/desenho/assistente.md`](../tecnico/desenho/assistente.md), [`docs/tecnico/desenho/negociacao-e-alcadas.md`](../tecnico/desenho/negociacao-e-alcadas.md) e [`docs/tecnico/desenho/comunicacao.md`](../tecnico/desenho/comunicacao.md).
 
 ## 1. Princípio: a IA conversa, o motor decide
 

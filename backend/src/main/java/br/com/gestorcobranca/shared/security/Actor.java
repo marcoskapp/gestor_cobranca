@@ -33,7 +33,7 @@ public record Actor(
     /**
      * {@code ASSISTANT}: assistente de IA (módulo assistant). Age somente por casos de uso, com
      * permissões mínimas e o perfil de alçada configurado na política do assistente — nunca com
-     * as permissões de um usuário (ver docs/design/assistente.md).
+     * as permissões de um usuário (ver docs/tecnico/desenho/assistente.md).
      */
     public enum ActorType { USER, SYSTEM, DEBTOR, INTEGRATION, ASSISTANT }
 
