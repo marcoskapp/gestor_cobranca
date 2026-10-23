@@ -8,13 +8,16 @@ import br.com.gestorcobranca.negotiation.domain.repository.AgreementRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.config.TimeConfig;
+import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.Money;
+import br.com.gestorcobranca.shared.events.negotiation.AgreementPaymentRecorded;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -29,7 +32,8 @@ import java.util.UUID;
 /**
  * Baixa de parcelas por pagamentos confirmados e estornos ({@code shared.events.payment}). Executa
  * no consumidor (ator de sistema), com a linha do acordo bloqueada; os lançamentos no razão do
- * título são feitos pelo job {@link LedgerPostingJob}.
+ * título são feitos pelo job {@link LedgerPostingJob}. O resultado de cada baixa (aplicado e não
+ * aplicado) volta ao payment por {@code AgreementPaymentRecorded}, para a realocação do não aplicado.
  */
 @Component
 class AgreementPaymentService {
@@ -42,16 +46,19 @@ class AgreementPaymentService {
     private final AuditTrail auditTrail;
     private final NegotiationMetrics metrics;
     private final JsonCodec json;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     AgreementPaymentService(AgreementRepository agreements, AgreementRecorder recorder, JobQueue jobs,
-                            AuditTrail auditTrail, NegotiationMetrics metrics, JsonCodec json, Clock clock) {
+                            AuditTrail auditTrail, NegotiationMetrics metrics, JsonCodec json,
+                            ApplicationEventPublisher events, Clock clock) {
         this.agreements = agreements;
         this.recorder = recorder;
         this.jobs = jobs;
         this.auditTrail = auditTrail;
         this.metrics = metrics;
         this.json = json;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -64,6 +71,8 @@ class AgreementPaymentService {
             metrics.paymentConsumed("IGNORED");
             LOG.atWarn().addKeyValue("agreementId", e.agreementId()).addKeyValue("paymentId", e.paymentId())
                     .log("Pagamento confirmado para acordo inexistente no tenant; ignorado");
+            Money ignored = Money.ofNullable(e.amount());
+            recorded(e, Money.ZERO, ignored, "IGNORED", null);
             return;
         }
         Agreement a = found.get();
@@ -91,6 +100,7 @@ class AgreementPaymentService {
             LOG.atWarn().addKeyValue("agreementId", a.getId()).addKeyValue("paymentId", e.paymentId())
                     .addKeyValue("status", a.getStatus())
                     .log("Pagamento para acordo encerrado não aplicado; exige realocação no módulo payment");
+            recorded(e, Money.ZERO, amount, "UNAPPLIED", a.getStatus().name());
             return;
         }
         Receipt receipt = a.receive(byInstallment, unassigned, today(), paidAt);
@@ -113,6 +123,13 @@ class AgreementPaymentService {
                     .log("Pagamento acima do saldo do acordo; excedente não aplicado");
         }
         metrics.paymentConsumed(receipt.unapplied().isPositive() ? "PARTIAL" : "APPLIED");
+        recorded(e, receipt.appliedTotal(), receipt.unapplied(), "APPLIED", a.getStatus().name());
+    }
+
+    private void recorded(PaymentConfirmed e, Money applied, Money unapplied, String status, String agreementStatus) {
+        events.publishEvent(new AgreementPaymentRecorded(Ids.newId(), e.tenantId(), Instant.now(clock), e.agreementId(),
+                e.paymentId(), e.creditorId(), e.debtorId(), e.amount(), applied.amount(), unapplied.amount(), status,
+                agreementStatus));
     }
 
     void paymentReversed(PaymentReversed e) {
