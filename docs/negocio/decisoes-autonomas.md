@@ -64,6 +64,9 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 58 | identity | Lookup leve de nomes de usuários (`GET /users/display-names`): só id e nome, até 100 ids, mesma assessoria, para `CASE_VIEW`, `POLICY_VIEW` ou `USER_VIEW`; usado no histórico de interações e em "publicada por". | Abrir `/users` para operadores. | `/users` traz e-mail, perfis e escopo. |
 | 59 | collection | Agenda traz `debtorId`; nome do devedor só com `CASE_VIEW`/`DEBTOR_VIEW`. Contestações trazem número/parcela/vencimento/valor dos títulos e o nome de quem anexou cada evidência. | Nome sempre; tela buscar caso + devedor por tarefa. | Mesma regra da ficha; elimina N+1 requisições. |
 | 60 | plataforma | `spring-modulith-moments` desativado (`spring.modulith.moments.enabled=false`): a autoconfiguração ativava `@EnableScheduling` sozinha e anulava `app.scheduling.enabled`; teste `SchedulingDisabledIT` protege a regra. | Remover a dependência transitiva. | O módulo não é usado; agendamento fica só sob `SchedulingConfig`. |
+| 61 | frontend | Formalizar acordo, cancelar acordo, encerrar/devolver caso jurídico e cancelar despesa exigem digitar a palavra de confirmação (FORMALIZAR, CANCELAR, ENCERRAR, DEVOLVER) com resumo do impacto. | Confirmação simples. | Ações irreversíveis ou financeiras. |
+| 62 | frontend **[revisar]** | Metas de primeira resposta na caixa de entrada fixas por ora: WhatsApp/SMS 15 e 60 min; e-mail 4 e 24 h; atualização periódica (15 s conversa, 30 s lista) em vez de tempo real. | Parâmetro da assessoria; WebSocket. | A API ainda não oferece SLA configurável nem canal em tempo real (lacunas registradas). |
+| 63 | frontend | Telas de configuração do jurídico liberadas por `LEGAL_AUTHORIZE`; visão restrita do advogado parceiro detectada pelo perfil `ADVOGADO_PARCEIRO`. | Permissão nova de usuário interno. | O servidor continua recusando o acesso; sem mudança no backend. |
 
 ## Situação ao fim da sessão autônoma
 
