@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 import { DEBTOR_ROUTES, TITLE_ROUTES } from '../../../features/debt/debt.routes';
+import { COLLECTION_ROUTES } from '../../../features/collection/collection.routes';
 import { COMPLIANCE_ROUTES } from '../../../features/compliance/compliance.routes';
+import { NEGOTIATION_ROUTES } from '../../../features/negotiation/negotiation.routes';
 import { NAVIGATION } from '../../layout/navigation';
 import { CHECKLISTS } from './checklists';
 import { SCREENS, findScreen } from './screens';
@@ -51,11 +53,27 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/devedores', DEBTOR_ROUTES),
       ...guarded('/titulos', TITLE_ROUTES),
       ...guarded('/compliance', COMPLIANCE_ROUTES),
+      ...guarded('/cobranca', COLLECTION_ROUTES),
+      ...guarded('/negociacao', NEGOTIATION_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(8);
+    expect(items.length).toBe(19);
     for (const item of items) {
       expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
+  });
+
+  it('estação de cobrança, gestão e negociação registradas com tour', () => {
+    expect(findScreen('/cobranca/fila?caso=k-1')?.key).toBe('collection.queue');
+    expect(findScreen('/cobranca/casos/k-1')?.tourId).toBe('collection.station');
+    expect(findScreen('/cobranca/casos')?.key).toBe('collection.cases');
+    expect(findScreen('/cobranca/contestacoes')?.tourId).toBe('collection.disputes');
+    expect(findScreen('/negociacao/simulador?credor=c-1')?.tourId).toBe('negotiation.simulator');
+    expect(findScreen('/negociacao/politicas/pol-1')?.key).toBe('negotiation.policy-detail');
+    // o checklist do negociador aponta para a estação, agora publicada no menu
+    const routes = new Set(NAVIGATION.flatMap((s) => s.items.map((i) => i.route)));
+    expect(routes.has('/cobranca/fila')).toBe(true);
+    const negotiator = CHECKLISTS.find((c) => c.id === 'negotiator')!;
+    expect(negotiator.items.filter((i) => i.route === '/cobranca/fila').map((i) => i.id)).toEqual(['negotiator.queue', 'negotiator.interaction']);
   });
 });

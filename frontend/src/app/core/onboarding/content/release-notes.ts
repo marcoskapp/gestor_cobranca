@@ -3,6 +3,19 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 3,
+    date: '2026-10-23',
+    title: 'Estação de cobrança e simulador de negociação',
+    items: [
+      { text: 'Estação de cobrança: próximo caso, ficha do caso e registro do atendimento em uma tela, com atalhos de teclado.', route: '/cobranca/fila' },
+      { text: 'Janela de contato permitida por canal sempre visível durante o atendimento.', route: '/cobranca/fila' },
+      { text: 'Agenda de retornos com atrasados em destaque.', route: '/cobranca/agenda' },
+      { text: 'Gestão de filas, distribuição, tabulações e contestações com prazo.', route: '/cobranca/filas' },
+      { text: 'Simulador com à vista e parcelado lado a lado, memória de cálculo e validação pela sua alçada.', route: '/negociacao/simulador' },
+      { text: 'Políticas de cobrança versionadas, índices de correção e perfis de alçada.', route: '/negociacao/politicas' },
+    ],
+  },
+  {
     version: 2,
     date: '2026-10-23',
     title: 'Devedores, títulos e compliance',

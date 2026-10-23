@@ -23,8 +23,34 @@ export const NAVIGATION: readonly NavSection[] = [
   {
     label: 'Cobrança',
     items: [
+      { label: 'Estação de cobrança', icon: 'support_agent', route: '/cobranca/fila', permissions: [Permission.CASE_WORK] },
+      {
+        label: 'Agenda de retornos',
+        icon: 'event_note',
+        route: '/cobranca/agenda',
+        permissions: [Permission.CASE_WORK, Permission.TASK_MANAGE],
+      },
+      { label: 'Casos', icon: 'cases', route: '/cobranca/casos', permissions: [Permission.CASE_VIEW] },
       { label: 'Devedores', icon: 'person_search', route: '/devedores', permissions: [Permission.DEBTOR_VIEW] },
       { label: 'Títulos', icon: 'request_quote', route: '/titulos', permissions: [Permission.DEBTOR_VIEW, Permission.CASE_VIEW] },
+    ],
+  },
+  {
+    label: 'Gestão da cobrança',
+    items: [
+      { label: 'Filas e distribuição', icon: 'view_list', route: '/cobranca/filas', permissions: [Permission.QUEUE_MANAGE, Permission.CASE_ASSIGN] },
+      { label: 'Contestações', icon: 'gavel', route: '/cobranca/contestacoes', permissions: [Permission.DISPUTE_MANAGE] },
+      { label: 'Tabulações', icon: 'label', route: '/cobranca/tabulacoes', permissions: [Permission.TABULATION_MANAGE] },
+      { label: 'Parâmetros da operação', icon: 'tune', route: '/cobranca/parametros', permissions: [Permission.QUEUE_MANAGE] },
+    ],
+  },
+  {
+    label: 'Negociação',
+    items: [
+      { label: 'Simulador', icon: 'calculate', route: '/negociacao/simulador', permissions: [Permission.NEGOTIATION_SIMULATE] },
+      { label: 'Políticas de cobrança', icon: 'policy', route: '/negociacao/politicas', permissions: [Permission.POLICY_VIEW] },
+      { label: 'Índices de correção', icon: 'trending_up', route: '/negociacao/indices', permissions: [Permission.POLICY_VIEW] },
+      { label: 'Alçadas', icon: 'verified_user', route: '/negociacao/alcadas', permissions: [Permission.AUTHORITY_MANAGE] },
     ],
   },
   {

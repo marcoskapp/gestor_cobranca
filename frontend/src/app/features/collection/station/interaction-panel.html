@@ -1,0 +1,129 @@
+<form class="ip" [formGroup]="form" (ngSubmit)="submit()" (keydown)="onKeydown($event)" novalidate aria-labelledby="ip-title" data-tour="interaction-form">
+  <h2 class="ip__title" id="ip-title">Registrar interação <kbd aria-hidden="true">Alt + R</kbd></h2>
+
+  <div class="ip__row">
+    <mat-form-field class="app-compact">
+      <mat-label>Canal</mat-label>
+      <mat-select formControlName="channel">
+        @for (c of channels; track c.value) {
+          <mat-option [value]="c.value">{{ c.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-button-toggle-group formControlName="direction" aria-label="Sentido do contato" class="ip__direction" hideSingleSelectionIndicator>
+      <mat-button-toggle value="OUTBOUND">Ativo</mat-button-toggle>
+      <mat-button-toggle value="INBOUND">Receptivo</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  @if (contacts().length) {
+    <mat-form-field class="app-compact app-full-width">
+      <mat-label>Contato usado</mat-label>
+      <mat-select formControlName="contactId">
+        <mat-option value="">Não informado</mat-option>
+        @for (c of contacts(); track c.contactId) {
+          <mat-option [value]="c.contactId">{{ c.maskedValue }} · {{ contactLabels[c.label] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+
+  <mat-form-field class="app-compact app-full-width">
+    <mat-label>Tabulação (resultado)</mat-label>
+    <mat-select #tabulationSelect formControlName="tabulationId" required>
+      <mat-select-trigger>{{ tabulation()?.name }}</mat-select-trigger>
+      @for (t of tabulations(); track t.id) {
+        <mat-option [value]="t.id">
+          {{ t.name }}
+          @if (t.effectiveContact) {
+            <span class="ip__flag">CPC</span>
+          }
+          @if (t.promise) {
+            <span class="ip__flag">promessa</span>
+          }
+          @if (t.callback) {
+            <span class="ip__flag">retorno</span>
+          }
+        </mat-option>
+      }
+    </mat-select>
+    @if (tabulation(); as t) {
+      <mat-hint>
+        {{ t.effectiveContact ? 'Contato efetivo.' : 'Sem contato efetivo.' }}
+        {{ t.requiresNote ? 'Observação obrigatória.' : '' }}
+      </mat-hint>
+    }
+  </mat-form-field>
+
+  @if (tabulation()?.promise) {
+    <fieldset class="ip__group">
+      <legend>Promessa de pagamento</legend>
+      <div class="ip__row">
+        <mat-form-field class="app-compact">
+          <mat-label>Valor (R$)</mat-label>
+          <input matInput type="number" min="0.01" step="0.01" formControlName="promiseAmount" required />
+          <mat-hint>Saldo: {{ balanceText() }}</mat-hint>
+        </mat-form-field>
+        <mat-form-field class="app-compact">
+          <mat-label>Data</mat-label>
+          <input matInput [matDatepicker]="promisePicker" formControlName="promiseDate" [min]="minDate()" [max]="maxPromiseDate()" required />
+          <mat-datepicker-toggle matIconSuffix [for]="promisePicker" />
+          <mat-datepicker #promisePicker />
+          <mat-hint>Até {{ promiseMaxDays() }} dias</mat-hint>
+        </mat-form-field>
+      </div>
+    </fieldset>
+  }
+
+  @if (tabulation()?.callback) {
+    <fieldset class="ip__group">
+      <legend>Retorno combinado</legend>
+      <div class="ip__row">
+        <mat-form-field class="app-compact">
+          <mat-label>Data</mat-label>
+          <input matInput [matDatepicker]="callbackPicker" formControlName="callbackDate" [min]="minDate()" required />
+          <mat-datepicker-toggle matIconSuffix [for]="callbackPicker" />
+          <mat-datepicker #callbackPicker />
+        </mat-form-field>
+        <mat-form-field class="app-compact">
+          <mat-label>Hora</mat-label>
+          <input matInput type="time" formControlName="callbackTime" required />
+          <mat-hint>Horário de Brasília</mat-hint>
+        </mat-form-field>
+      </div>
+    </fieldset>
+  }
+
+  <mat-form-field class="app-compact app-full-width">
+    <mat-label>Observação{{ tabulation()?.requiresNote ? '' : ' (opcional)' }}</mat-label>
+    <textarea matInput formControlName="note" rows="3" [maxlength]="noteMax" [required]="!!tabulation()?.requiresNote"></textarea>
+    <mat-hint>Guardada criptografada.</mat-hint>
+    <mat-hint align="end">{{ value().note.length }} / {{ noteMax }}</mat-hint>
+  </mat-form-field>
+
+  @if (openTasks().length) {
+    <mat-form-field class="app-compact app-full-width">
+      <mat-label>Conclui o agendamento</mat-label>
+      <mat-select formControlName="completesTaskId">
+        <mat-option value="">Automático (retornos já vencidos)</mat-option>
+        @for (task of openTasks(); track task.id) {
+          <mat-option [value]="task.id">{{ formatLocal(task.dueAtLocal) }}{{ task.note ? ' · ' + task.note : '' }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+
+  @if (submitted() && problems().length) {
+    <ul class="app-alert app-alert--error ip__problems" role="alert">
+      @for (p of problems(); track p) {
+        <li>{{ p }}</li>
+      }
+    </ul>
+  }
+
+  <button mat-flat-button type="submit" class="app-full-width" [disabled]="saving()">
+    <mat-icon aria-hidden="true">task_alt</mat-icon>
+    Registrar interação
+  </button>
+  <p class="ip__tip app-muted"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> registra sem sair do teclado.</p>
+</form>

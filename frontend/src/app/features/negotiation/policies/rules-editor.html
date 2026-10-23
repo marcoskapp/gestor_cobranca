@@ -1,0 +1,248 @@
+@let r = rules();
+@let ro = readonly();
+
+@if (has('charges')) {
+  <fieldset class="re-group" data-tour="policy-charges">
+    <legend>{{ groupLabels.charges }}</legend>
+    <div class="re-row">
+      <mat-form-field class="app-compact">
+        <mat-label>Juros de mora (% a.m.)</mat-label>
+        <input matInput type="number" min="0" max="20" step="0.01" [(ngModel)]="r.charges.interestMonthlyRate" (ngModelChange)="changed()" [disabled]="ro" />
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Regime de juros</mat-label>
+        <mat-select [(ngModel)]="r.charges.interestMode" (ngModelChange)="changed()" [disabled]="ro">
+          @for (o of interestModes; track o.value) {
+            <mat-option [value]="o.value">{{ o.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Multa (%)</mat-label>
+        <input matInput type="number" min="0" max="20" step="0.01" [(ngModel)]="r.charges.finePercent" (ngModelChange)="changed()" [disabled]="ro" />
+        <mat-hint>CDC: até 2%</mat-hint>
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Índice de correção</mat-label>
+        <mat-select [(ngModel)]="r.charges.correctionIndexCode" (ngModelChange)="changed()" [disabled]="ro">
+          <mat-option [value]="null">Sem correção</mat-option>
+          @for (i of indexes(); track i.code) {
+            <mat-option [value]="i.code">{{ i.code }} — {{ i.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Honorários (%)</mat-label>
+        <input matInput type="number" min="0" max="30" step="0.01" [(ngModel)]="r.charges.honorariumPercent" (ngModelChange)="changed()" [disabled]="ro" />
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Base dos honorários</mat-label>
+        <mat-select [(ngModel)]="r.charges.honorariumBase" (ngModelChange)="changed()" [disabled]="ro">
+          @for (o of honorariumBases; track o.value) {
+            <mat-option [value]="o.value">{{ o.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <p class="re-sub">Encargos autorizados pelo credor</p>
+    @for (f of r.charges.fees; track $index; let i = $index) {
+      <div class="re-row">
+        <mat-form-field class="app-compact">
+          <mat-label>Código</mat-label>
+          <input matInput [ngModel]="f.code" (ngModelChange)="f.code = upper($event); changed()" maxlength="30" [disabled]="ro" />
+        </mat-form-field>
+        <mat-form-field class="app-compact re-wide">
+          <mat-label>Descrição</mat-label>
+          <input matInput [(ngModel)]="f.description" (ngModelChange)="changed()" maxlength="120" [disabled]="ro" />
+        </mat-form-field>
+        <mat-form-field class="app-compact">
+          <mat-label>Tipo</mat-label>
+          <mat-select [(ngModel)]="f.type" (ngModelChange)="changed()" [disabled]="ro">
+            @for (o of feeTypes; track o.value) {
+              <mat-option [value]="o.value">{{ o.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field class="app-compact">
+          <mat-label>{{ f.type === 'FIXED' ? 'Valor (R$)' : 'Percentual' }}</mat-label>
+          <input matInput type="number" min="0" step="0.01" [(ngModel)]="f.value" (ngModelChange)="changed()" [disabled]="ro" />
+        </mat-form-field>
+        @if (!ro) {
+          <button mat-icon-button type="button" (click)="removeFee(i)" [attr.aria-label]="'Remover encargo ' + (f.code || i + 1)">
+            <mat-icon aria-hidden="true">delete</mat-icon>
+          </button>
+        }
+      </div>
+    } @empty {
+      <p class="app-muted re-small">Nenhum encargo além de juros, multa e honorários.</p>
+    }
+    @if (!ro) {
+      <button mat-button type="button" (click)="addFee()"><mat-icon aria-hidden="true">add</mat-icon>Encargo</button>
+    }
+  </fieldset>
+}
+
+@if (has('discountTiers')) {
+  <fieldset class="re-group" data-tour="policy-discounts">
+    <legend>{{ groupLabels.discountTiers }} <span class="app-muted">(% por componente, conforme o número de pagamentos)</span></legend>
+    <div class="re-scroll">
+      <table class="re-table">
+        <thead>
+          <tr>
+            <th scope="col">Até (pagamentos)</th>
+            @for (c of components; track c) {
+              <th scope="col">{{ componentLabels[c] }}</th>
+            }
+            <th scope="col"><span class="cdk-visually-hidden">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (t of r.discountTiers; track $index; let i = $index) {
+            <tr>
+              <td>
+                <input class="re-cell" type="number" min="1" max="360" [(ngModel)]="t.upToInstallments" (ngModelChange)="changed()" [disabled]="ro" [attr.aria-label]="'Faixa ' + (i + 1) + ': pagamentos'" />
+              </td>
+              @for (c of components; track c) {
+                <td>
+                  <input class="re-cell" type="number" min="0" max="100" step="0.01" [(ngModel)]="t.maxDiscount[c]" (ngModelChange)="changed()" [disabled]="ro" [attr.aria-label]="'Faixa até ' + t.upToInstallments + ': desconto em ' + componentLabels[c]" />
+                </td>
+              }
+              <td>
+                @if (!ro) {
+                  <button mat-icon-button type="button" (click)="removeTier(i)" [attr.aria-label]="'Remover faixa até ' + t.upToInstallments">
+                    <mat-icon aria-hidden="true">delete</mat-icon>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="app-muted re-small">1 = à vista. Acima da maior faixa não há desconto.</p>
+    @if (!ro) {
+      <button mat-button type="button" (click)="addTier()"><mat-icon aria-hidden="true">add</mat-icon>Faixa</button>
+    }
+  </fieldset>
+}
+
+@if (has('installments')) {
+  <fieldset class="re-group">
+    <legend>{{ groupLabels.installments }}</legend>
+    <div class="re-row">
+      <mat-form-field class="app-compact">
+        <mat-label>Pagamentos máximos</mat-label>
+        <input matInput type="number" min="1" max="360" [(ngModel)]="r.installments.maxInstallments" (ngModelChange)="changed()" [disabled]="ro" />
+        <mat-hint>Inclui a entrada</mat-hint>
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Parcela mínima (R$)</mat-label>
+        <input matInput type="number" min="0" step="0.01" [(ngModel)]="r.installments.minInstallmentAmount" (ngModelChange)="changed()" [disabled]="ro" />
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Entrada mínima (%)</mat-label>
+        <input matInput type="number" min="0" max="99.99" step="0.01" [(ngModel)]="r.installments.minDownPaymentPercent" (ngModelChange)="changed()" [disabled]="ro" />
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Entrada mínima (R$)</mat-label>
+        <input matInput type="number" min="0" step="0.01" [(ngModel)]="r.installments.minDownPaymentAmount" (ngModelChange)="changed()" [disabled]="ro" />
+        <mat-hint>Vale o maior entre % e R$</mat-hint>
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Juros do parcelamento (% a.m.)</mat-label>
+        <input matInput type="number" min="0" max="20" step="0.01" [(ngModel)]="r.installments.monthlyInterestRate" (ngModelChange)="changed()" [disabled]="ro" />
+        <mat-hint>Tabela Price; 0 = sem juros</mat-hint>
+      </mat-form-field>
+      <mat-form-field class="app-compact">
+        <mat-label>Periodicidade</mat-label>
+        <mat-select [ngModel]="r.installments.frequency" (ngModelChange)="setFrequency($event)" [disabled]="ro">
+          @for (o of frequencies; track o.value) {
+            <mat-option [value]="o.value">{{ o.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (r.installments.frequency === 'EVERY_N_DAYS') {
+        <mat-form-field class="app-compact">
+          <mat-label>Intervalo (dias)</mat-label>
+          <input matInput type="number" min="7" max="90" [(ngModel)]="r.installments.intervalDays" (ngModelChange)="changed()" [disabled]="ro" />
+        </mat-form-field>
+      }
+    </div>
+  </fieldset>
+}
+
+@if (has('validity') || has('breakRule')) {
+  <div class="re-pair">
+    @if (has('validity')) {
+      <fieldset class="re-group">
+        <legend>{{ groupLabels.validity }}</legend>
+        <div class="re-row">
+          <mat-form-field class="app-compact">
+            <mat-label>Validade da proposta (dias)</mat-label>
+            <input matInput type="number" min="1" max="90" [(ngModel)]="r.validity.proposalValidityDays" (ngModelChange)="changed()" [disabled]="ro" />
+          </mat-form-field>
+          <mat-form-field class="app-compact">
+            <mat-label>Prazo do 1º pagamento (dias)</mat-label>
+            <input matInput type="number" min="0" max="90" [(ngModel)]="r.validity.maxDaysToFirstPayment" (ngModelChange)="changed()" [disabled]="ro" />
+          </mat-form-field>
+        </div>
+      </fieldset>
+    }
+    @if (has('breakRule')) {
+      <fieldset class="re-group">
+        <legend>{{ groupLabels.breakRule }}</legend>
+        <div class="re-row">
+          <mat-form-field class="app-compact">
+            <mat-label>Parcelas em atraso</mat-label>
+            <input matInput type="number" min="1" max="12" [(ngModel)]="r.breakRule.overdueInstallments" (ngModelChange)="changed()" [disabled]="ro" />
+          </mat-form-field>
+          <mat-form-field class="app-compact">
+            <mat-label>Tolerância (dias)</mat-label>
+            <input matInput type="number" min="0" max="180" [(ngModel)]="r.breakRule.toleranceDays" (ngModelChange)="changed()" [disabled]="ro" />
+          </mat-form-field>
+        </div>
+      </fieldset>
+    }
+  </div>
+}
+
+@if (has('ladder')) {
+  <fieldset class="re-group" data-tour="policy-ladder">
+    <legend>{{ groupLabels.ladder }} <span class="app-muted">(fatia % do desconto máximo liberada em cada nível)</span></legend>
+    <div class="re-scroll">
+      <table class="re-table">
+        <thead>
+          <tr>
+            <th scope="col">Nível</th>
+            <th scope="col">Nome</th>
+            @for (c of components; track c) {
+              <th scope="col">{{ componentLabels[c] }}</th>
+            }
+            <th scope="col">Pagamentos máx.</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (l of r.ladder; track l.level) {
+            <tr>
+              <td class="app-numeric">{{ l.level }}</td>
+              <td><input class="re-cell re-cell--wide" [(ngModel)]="l.name" (ngModelChange)="changed()" maxlength="80" [disabled]="ro" [attr.aria-label]="'Nome do nível ' + l.level" /></td>
+              @for (c of components; track c) {
+                <td>
+                  <input class="re-cell" type="number" min="0" max="100" step="0.01" [(ngModel)]="l.envelopeShare[c]" (ngModelChange)="changed()" [disabled]="ro" [attr.aria-label]="'Nível ' + l.level + ': fatia em ' + componentLabels[c]" />
+                </td>
+              }
+              <td>
+                <input class="re-cell" type="number" min="1" [(ngModel)]="l.maxInstallments" (ngModelChange)="changed()" [disabled]="ro" placeholder="política" [attr.aria-label]="'Nível ' + l.level + ': pagamentos máximos (vazio = da política)'" />
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="app-muted re-small">Níveis contíguos a partir de 0, cada um concedendo ao menos o mesmo que o anterior. 1 pagamento = só à vista.</p>
+    @if (!ro) {
+      <button mat-button type="button" (click)="addLevel()"><mat-icon aria-hidden="true">add</mat-icon>Nível</button>
+      <button mat-button type="button" (click)="removeLevel()" [disabled]="r.ladder.length <= 1"><mat-icon aria-hidden="true">remove</mat-icon>Último nível</button>
+    }
+  </fieldset>
+}

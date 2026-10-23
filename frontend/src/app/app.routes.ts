@@ -36,6 +36,14 @@ export const routes: Routes = [
       { path: 'devedores', loadChildren: () => import('./features/debt/debt.routes').then((m) => m.DEBTOR_ROUTES) },
       { path: 'titulos', loadChildren: () => import('./features/debt/debt.routes').then((m) => m.TITLE_ROUTES) },
       {
+        path: 'cobranca',
+        loadChildren: () => import('./features/collection/collection.routes').then((m) => m.COLLECTION_ROUTES),
+      },
+      {
+        path: 'negociacao',
+        loadChildren: () => import('./features/negotiation/negotiation.routes').then((m) => m.NEGOTIATION_ROUTES),
+      },
+      {
         path: 'compliance',
         loadChildren: () => import('./features/compliance/compliance.routes').then((m) => m.COMPLIANCE_ROUTES),
       },

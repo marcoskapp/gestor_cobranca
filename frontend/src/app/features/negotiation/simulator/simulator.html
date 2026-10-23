@@ -1,0 +1,396 @@
+<app-page-header title="Simulador de negociação" subtitle="Dívida atualizada pela política vigente do credor e ofertas até o limite da sua alçada. Toda simulação fica registrada.">
+  @if (caso()) {
+    <a mat-button [routerLink]="['/cobranca/casos', caso()]">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Voltar ao caso
+    </a>
+  }
+</app-page-header>
+
+<div class="sim-grid">
+  <div class="sim-side">
+    <form class="app-card" [formGroup]="context" (ngSubmit)="simulate(0)" novalidate aria-labelledby="sim-context" data-tour="sim-context">
+      <h2 class="app-card__title" id="sim-context">Dívida a negociar</h2>
+      <app-entity-picker [control]="context.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+      <app-entity-picker [control]="context.controls.debtor" [source]="debtorSource" label="Devedor" [single]="true" hint="Nome ou CPF/CNPJ completo." />
+      @if (titles().length > 1) {
+        <fieldset class="sim-titles">
+          <legend>Títulos <span class="app-muted">(nenhum marcado = todos em aberto)</span></legend>
+          @for (t of titles(); track t.id) {
+            <mat-checkbox [checked]="selectedTitles().has(t.id)" (change)="toggleTitle(t.id, $event.checked)">
+              <span class="app-numeric">{{ titleLabel(t) }}</span> · <app-amount [value]="t.openBalance" />
+            </mat-checkbox>
+          }
+        </fieldset>
+      }
+      <div class="sim-row">
+        <mat-form-field class="app-compact">
+          <mat-label>Data-base</mat-label>
+          <input matInput [matDatepicker]="refPicker" formControlName="referenceDate" placeholder="Hoje" />
+          <mat-datepicker-toggle matIconSuffix [for]="refPicker" />
+          <mat-datepicker #refPicker />
+        </mat-form-field>
+        <mat-form-field class="app-compact">
+          <mat-label>Canal</mat-label>
+          <mat-select formControlName="channel">
+            <mat-option value="">Não informado</mat-option>
+            <mat-option value="PHONE">Telefone</mat-option>
+            <mat-option value="WHATSAPP">WhatsApp</mat-option>
+            <mat-option value="EMAIL">E-mail</mat-option>
+            <mat-option value="SMS">SMS</mat-option>
+            <mat-option value="IN_PERSON">Presencial</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <details class="sim-plan">
+        <summary>Parcelamento pedido pelo devedor (opcional)</summary>
+        <div class="sim-row">
+          <mat-form-field class="app-compact">
+            <mat-label>Pagamentos</mat-label>
+            <input matInput type="number" min="1" max="360" formControlName="installments" />
+            <mat-hint>Inclui a entrada</mat-hint>
+          </mat-form-field>
+          <mat-form-field class="app-compact">
+            <mat-label>Entrada (R$)</mat-label>
+            <input matInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
+          </mat-form-field>
+          <mat-form-field class="app-compact">
+            <mat-label>1º vencimento</mat-label>
+            <input matInput [matDatepicker]="firstPicker" formControlName="firstDueDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="firstPicker" />
+            <mat-datepicker #firstPicker />
+          </mat-form-field>
+        </div>
+        <p class="app-muted sim-small">Sem parcelamento pedido, o simulador mostra à vista e o maior parcelamento permitido.</p>
+      </details>
+      <button mat-flat-button type="submit" class="app-full-width" [disabled]="running() || !creditorId() || !debtorId()">
+        <mat-icon aria-hidden="true">calculate</mat-icon>
+        Simular
+      </button>
+    </form>
+
+    <section class="app-card" aria-labelledby="sim-authority" data-tour="sim-authority">
+      <h2 class="app-card__title" id="sim-authority">Sua alçada</h2>
+      @if (mine(); as a) {
+        <p class="sim-profile"><strong>{{ a.profile.name }}</strong>&ngsp;<span class="app-muted">· {{ sourceLabels[a.source] }}</span></p>
+        <dl class="app-definition-list sim-small">
+          <dt>Nível máximo da escada</dt>
+          <dd>{{ a.profile.maxConcessionLevel >= 99 ? 'Topo da escada' : a.profile.maxConcessionLevel }}</dd>
+          <dt>Fatia do desconto máximo</dt>
+          <dd>{{ percent(a.profile.maxDiscountShare) }}</dd>
+          <dt>Pagamentos</dt>
+          <dd>até {{ a.profile.maxInstallments }}</dd>
+          <dt>Valor do acordo</dt>
+          <dd>
+            @if (a.profile.maxAgreementAmount) {
+              até <app-amount [value]="a.profile.maxAgreementAmount" />
+            } @else {
+              sem limite próprio
+            }
+          </dd>
+          <dt>Entrada mínima</dt>
+          <dd>{{ percent(a.profile.minDownPaymentShare) }}</dd>
+          <dt>Formaliza sem aprovação</dt>
+          <dd>{{ a.profile.canFormalize ? 'Sim' : 'Não' }}</dd>
+        </dl>
+      } @else if (creditorId()) {
+        <p class="app-muted">Escolha o credor para ver o seu limite.</p>
+      } @else {
+        <p class="app-muted">O limite efetivo é sempre o menor entre a política do credor e o seu perfil de alçada.</p>
+      }
+    </section>
+  </div>
+
+  <div class="sim-main" [attr.aria-busy]="running()">
+    @if (!result()) {
+      <app-empty-state
+        icon="calculate"
+        title="Nenhuma simulação ainda."
+        message="Escolha o credor e o devedor e clique em Simular. As ofertas começam no nível 0 da escada de concessões."
+      />
+    } @else {
+      @let r = result()!;
+      <section class="app-card" aria-labelledby="sim-composition">
+        <div class="sim-head">
+          <h2 class="app-card__title" id="sim-composition">Dívida atualizada em {{ r.referenceDate | appDate: 'date' }}</h2>
+          <span class="app-muted sim-small">
+            Política v{{ r.policy.version }}{{ r.policy.overrideCode ? ' · sobreposição ' + r.policy.overrideCode : '' }} · motor v{{ r.engineVersion }}
+          </span>
+        </div>
+        <div class="sim-components">
+          @for (c of components; track c) {
+            <div class="sim-component">
+              <span class="sim-component__label">{{ componentLabels[c] }}</span>
+              <app-amount [value]="r.composition.total[c]" />
+            </div>
+          }
+          <div class="sim-component sim-component--total">
+            <span class="sim-component__label">Total</span>
+            <app-amount [value]="r.composition.totalAmount" />
+          </div>
+        </div>
+        @if (r.composition.paidTotal > 0) {
+          <p class="app-muted sim-small">Já pago nos títulos: <app-amount [value]="r.composition.paidTotal" /></p>
+        }
+        @for (n of r.notes; track n) {
+          <p class="app-alert app-alert--warning sim-small" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>{{ n }}</span></p>
+        }
+        @if (r.excludedTitles.length) {
+          <p class="app-alert app-alert--neutral sim-small" role="note">
+            <mat-icon aria-hidden="true">block</mat-icon>
+            <span>
+              {{ r.excludedTitles.length }} título(s) fora da negociação:
+              @for (x of r.excludedTitles; track x.titleId; let last = $last) {
+                {{ x.reasons.map(reasonText).join(', ') }}{{ last ? '' : '; ' }}
+              }
+            </span>
+          </p>
+        }
+        <button mat-button type="button" (click)="showMemory.set(!showMemory())" [attr.aria-expanded]="showMemory()" data-tour="sim-memory">
+          <mat-icon aria-hidden="true">{{ showMemory() ? 'expand_less' : 'receipt_long' }}</mat-icon>
+          {{ showMemory() ? 'Ocultar memória de cálculo' : 'Ver memória de cálculo' }}
+        </button>
+        @if (showMemory()) {
+          <div class="sim-scroll">
+            <table class="sim-table" aria-label="Memória de cálculo por título">
+              <thead>
+                <tr>
+                  <th scope="col">Título (venc.)</th>
+                  <th scope="col">Componente</th>
+                  <th scope="col">Regra</th>
+                  <th scope="col" class="sim-end">Base</th>
+                  <th scope="col" class="sim-end">Taxa</th>
+                  <th scope="col" class="sim-end">Dias</th>
+                  <th scope="col" class="sim-end">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (t of r.composition.titles; track t.titleId) {
+                  @for (l of t.lines; track $index) {
+                    <tr>
+                      <td>{{ t.dueDate | appDate: 'date' }} · {{ t.daysOverdue }} d</td>
+                      <td>{{ engineLabels[l.component] ?? l.component }}</td>
+                      <td class="sim-wrap">{{ ruleLabels[l.rule] ?? l.rule }}{{ l.note ? ' — ' + l.note : '' }}</td>
+                      <td class="sim-end">@if (l.base !== null) {<app-amount [value]="l.base" />}</td>
+                      <td class="sim-end app-numeric">{{ l.rate !== null ? percent(l.rate, 4) : '' }}</td>
+                      <td class="sim-end app-numeric">{{ l.days ?? '' }}</td>
+                      <td class="sim-end"><app-amount [value]="l.amount" /></td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (r.envelope?.length) {
+            <h3 class="app-section-title">Envelope da política (desconto máximo)</h3>
+            <div class="sim-scroll">
+              <table class="sim-table" aria-label="Envelope da política">
+                <thead>
+                  <tr>
+                    <th scope="col">Pagamentos</th>
+                    <th scope="col">Desconto máximo</th>
+                    <th scope="col" class="sim-end">Desconto em R$</th>
+                    <th scope="col" class="sim-end">Valor mínimo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (e of r.envelope; track e.upToInstallments) {
+                    <tr>
+                      <td>até {{ e.upToInstallments }}</td>
+                      <td>{{ ratesText(e.maxDiscountRates) }}</td>
+                      <td class="sim-end"><app-amount [value]="e.maxDiscountAmount" /></td>
+                      <td class="sim-end"><app-amount [value]="e.minimumNegotiated" /></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </section>
+
+      <section class="app-card" aria-labelledby="sim-offers" data-tour="sim-offers">
+        <div class="sim-head">
+          <h2 class="app-card__title" id="sim-offers">Ofertas</h2>
+          <span class="sim-ladder" data-tour="sim-ladder">
+            <mat-icon aria-hidden="true">stairs</mat-icon>
+            Nível {{ viewLevel() }} de {{ r.limits.maxLevel }} permitido pela sua alçada
+          </span>
+        </div>
+        @if (levels().length > 1) {
+          <div class="sim-levels" role="tablist" aria-label="Nível da escada">
+            @for (l of levels(); track l) {
+              <button mat-stroked-button type="button" role="tab" [attr.aria-selected]="l === viewLevel()" [class.sim-level--on]="l === viewLevel()" (click)="viewLevel.set(l)">
+                Nível {{ l }}
+              </button>
+            }
+          </div>
+        }
+        @if (r.levelCapped) {
+          <p class="app-alert app-alert--warning sim-small" role="note">
+            <mat-icon aria-hidden="true">lock</mat-icon>
+            <span>O nível pedido ({{ r.requestedLevel }}) passa da sua alçada; as ofertas vão até o nível {{ r.grantedLevel }}.</span>
+          </p>
+        }
+        @if (pair(); as p) {
+          <p class="sim-levelname">{{ p.levelName }}</p>
+          <div class="sim-pair">
+            @for (o of [p.cash, p.installment]; track $index) {
+              @if (o) {
+                <article class="sim-offer" [class.sim-offer--invalid]="!o.valid" [attr.aria-label]="planText(o)">
+                  <header class="sim-offer__head">
+                    <h3>{{ planText(o) }}</h3>
+                    @if (!o.valid) {
+                      <app-status-chip domain="negotiationOutcome" status="REJECTED" />
+                    } @else if (o.withinAuthority) {
+                      <app-status-chip domain="negotiationOutcome" status="WITHIN_AUTHORITY" />
+                    } @else {
+                      <app-status-chip domain="negotiationOutcome" status="REQUIRES_APPROVAL" />
+                    }
+                  </header>
+                  <p class="sim-offer__total"><app-amount [value]="o.total" /></p>
+                  <dl class="app-definition-list sim-small">
+                    <dt>Valor negociado</dt>
+                    <dd><app-amount [value]="o.negotiated" /></dd>
+                    <dt>Desconto</dt>
+                    <dd><app-amount [value]="o.discountTotal" /> ({{ percent(saving(o)) }})</dd>
+                    @if (o.installments > 1) {
+                      @if (o.downPayment) {
+                        <dt>Entrada</dt>
+                        <dd><app-amount [value]="o.downPayment" /></dd>
+                      }
+                      <dt>Parcelas</dt>
+                      <dd>{{ o.downPayment ? o.installments - 1 : o.installments }} × <app-amount [value]="installmentValue(o)" /></dd>
+                      <dt>Juros do parcelamento</dt>
+                      <dd><app-amount [value]="o.financingInterest" />{{ o.periodRate ? ' (' + percent(o.periodRate, 4) + ' por período)' : '' }}</dd>
+                    }
+                    <dt>Descontos aplicados</dt>
+                    <dd>{{ ratesText(o.discountRates) }}</dd>
+                  </dl>
+                  @if (o.violations.length) {
+                    <ul class="sim-violations">
+                      @for (v of o.violations; track $index) {
+                        <li><strong>{{ violationKinds[v.kind] }}:</strong> {{ v.message }}</li>
+                      }
+                    </ul>
+                  }
+                  @if (showMemory() && o.discountLines.length) {
+                    <ul class="sim-lines sim-small">
+                      @for (l of o.discountLines; track $index) {
+                        <li>{{ engineLabels[l.component] ?? l.component }}: {{ percent(l.rate) }} de <app-amount [value]="l.base" /> = <app-amount [value]="l.amount" /></li>
+                      }
+                    </ul>
+                  }
+                  <button mat-stroked-button type="button" (click)="useOffer(o)">Ajustar estas condições</button>
+                </article>
+              }
+            }
+          </div>
+        }
+
+        @if (higherLevels().length) {
+          <form class="sim-escalate" [formGroup]="escalation" (ngSubmit)="escalate()" novalidate data-tour="sim-escalate">
+            <h3 class="app-section-title">Subir na escada de concessões</h3>
+            <div class="sim-row">
+              <mat-form-field class="app-compact">
+                <mat-label>Nível</mat-label>
+                <mat-select formControlName="level">
+                  @for (l of higherLevels(); track l) {
+                    <mat-option [value]="l">Nível {{ l }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field class="app-compact sim-grow">
+                <mat-label>Motivo da concessão</mat-label>
+                <mat-select formControlName="reason" required>
+                  @for (o of reasons; track o.value) {
+                    <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <mat-form-field class="app-compact app-full-width">
+              <mat-label>Observação{{ escalation.controls.reason.value === 'OTHER' ? '' : ' (opcional)' }}</mat-label>
+              <input matInput formControlName="note" maxlength="500" />
+              <mat-hint>O motivo fica registrado na auditoria; a observação, só na simulação.</mat-hint>
+            </mat-form-field>
+            @if (escalationError()) {
+              <p class="app-field-error" role="alert">{{ escalationError() }}</p>
+            }
+            <button mat-stroked-button type="submit" [disabled]="running()">
+              <mat-icon aria-hidden="true">trending_up</mat-icon>
+              Simular nível {{ escalation.controls.level.value }}
+            </button>
+          </form>
+        }
+      </section>
+
+      <section class="app-card" aria-labelledby="sim-validate" data-tour="sim-validate">
+        <h2 class="app-card__title" id="sim-validate">Validar condições</h2>
+        <p class="app-muted sim-small">Confira as condições combinadas com o devedor antes de enviar: o resultado é o mesmo que a proposta terá.</p>
+        <form [formGroup]="custom" (ngSubmit)="validate()" novalidate>
+          <div class="sim-discounts">
+            @for (c of components; track c) {
+              <mat-form-field class="app-compact">
+                <mat-label>Desc. {{ componentLabels[c] }} (%)</mat-label>
+                <input matInput type="number" min="0" max="100" step="0.01" [formControlName]="c" />
+              </mat-form-field>
+            }
+          </div>
+          <div class="sim-row">
+            <mat-form-field class="app-compact">
+              <mat-label>Pagamentos</mat-label>
+              <input matInput type="number" min="1" max="360" formControlName="installments" required />
+            </mat-form-field>
+            <mat-form-field class="app-compact">
+              <mat-label>Entrada (R$)</mat-label>
+              <input matInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
+            </mat-form-field>
+            <mat-form-field class="app-compact">
+              <mat-label>1º vencimento</mat-label>
+              <input matInput [matDatepicker]="validatePicker" formControlName="firstDueDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="validatePicker" />
+              <mat-datepicker #validatePicker />
+            </mat-form-field>
+          </div>
+          <p class="sim-small">
+            Nível {{ viewLevel() }} · limite da alçada: {{ percent(r.limits.maxDiscountShare) }} do desconto máximo, até {{ r.limits.maxInstallments }} pagamentos@if (r.limits.maxAgreementAmount) {<span>, acordo até <app-amount [value]="r.limits.maxAgreementAmount" /></span>}
+          </p>
+          <button mat-flat-button type="submit" [disabled]="validating()">
+            <mat-icon aria-hidden="true">fact_check</mat-icon>
+            Validar condições
+          </button>
+        </form>
+
+        @if (validation(); as v) {
+          <div class="sim-outcome" role="status" aria-live="polite">
+            <app-status-chip domain="negotiationOutcome" [status]="v.outcome" />
+            <span>
+              @switch (v.outcome) {
+                @case ('WITHIN_AUTHORITY') {
+                  Dentro da sua alçada: você pode propor estas condições.
+                }
+                @case ('REQUIRES_APPROVAL') {
+                  Dentro da política, acima da sua alçada: será preciso pedir aprovação a quem tem alçada suficiente.
+                }
+                @default {
+                  Fora da política ou com títulos inelegíveis: ninguém pode conceder estas condições.
+                }
+              }
+            </span>
+            @if (v.offer; as o) {
+              <span class="app-muted">Total <app-amount [value]="o.total" /> em {{ planText(o) | lowercase }}</span>
+            }
+          </div>
+          @if (v.violations.length) {
+            <ul class="sim-violations">
+              @for (x of v.violations; track $index) {
+                <li><strong>{{ violationKinds[x.kind] }}:</strong> {{ x.message }}</li>
+              }
+            </ul>
+          }
+        }
+      </section>
+    }
+  </div>
+</div>

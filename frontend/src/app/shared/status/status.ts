@@ -23,7 +23,13 @@ export type StatusDomain =
   | 'retentionRun'
   | 'retentionItem'
   | 'legalBasis'
-  | 'collateral';
+  | 'collateral'
+  | 'case'
+  | 'task'
+  | 'promise'
+  | 'dispute'
+  | 'collectionPolicy'
+  | 'negotiationOutcome';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -107,6 +113,48 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     AUCTIONED: { label: 'Leiloada', tone: 'info' },
     RELEASED: { label: 'Liberada', tone: 'neutral' },
     WRITTEN_OFF: { label: 'Baixada', tone: 'neutral' },
+  },
+  /** `CaseStatus` do módulo collection. */
+  case: {
+    OPEN: { label: 'Em aberto', tone: 'info' },
+    IN_NEGOTIATION: { label: 'Em negociação', tone: 'info' },
+    PROMISE: { label: 'Promessa', tone: 'warning' },
+    AGREEMENT: { label: 'Acordo', tone: 'success' },
+    DISPUTED: { label: 'Contestado', tone: 'danger' },
+    SUSPENDED: { label: 'Suspenso', tone: 'warning' },
+    LEGAL: { label: 'Jurídico', tone: 'neutral' },
+    CLOSED: { label: 'Encerrado', tone: 'neutral' },
+  },
+  /** Tarefas e retornos (`TaskStatus`). */
+  task: {
+    PENDING: { label: 'Agendado', tone: 'info' },
+    MISSED: { label: 'Atrasado', tone: 'danger' },
+    DONE: { label: 'Concluído', tone: 'success' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+  },
+  promise: {
+    PENDING: { label: 'Aguardando pagamento', tone: 'warning' },
+    KEPT: { label: 'Cumprida', tone: 'success' },
+    BROKEN: { label: 'Quebrada', tone: 'danger' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+  },
+  dispute: {
+    OPEN: { label: 'Aberta', tone: 'warning' },
+    UNDER_REVIEW: { label: 'Em análise', tone: 'info' },
+    RESOLVED: { label: 'Resolvida', tone: 'success' },
+    WITHDRAWN: { label: 'Retirada', tone: 'neutral' },
+  },
+  /** Versões da política de cobrança e negociação (`PolicyStatus`). */
+  collectionPolicy: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    PUBLISHED: { label: 'Publicada', tone: 'success' },
+    RETIRED: { label: 'Aposentada', tone: 'neutral' },
+  },
+  /** Resultado do `NegotiationGuard` (`/validations`). */
+  negotiationOutcome: {
+    WITHIN_AUTHORITY: { label: 'Dentro da alçada', tone: 'success' },
+    REQUIRES_APPROVAL: { label: 'Requer aprovação', tone: 'warning' },
+    REJECTED: { label: 'Rejeitado', tone: 'danger' },
   },
   legalBasis: {
     CURRENT: { label: 'Vigente', tone: 'success' },
