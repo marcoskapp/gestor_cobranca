@@ -26,9 +26,12 @@ funcionar com a CSP `script-src 'self'` do backend.
 ```
 src/app/
   core/        auth (sessão, interceptor, guards, permissões), http (Problem Details, erros),
-               layout (shell, menu, moldura de autenticação), config (locale pt-BR, Material, títulos)
-  shared/      tabela paginada, diálogos, seletor de entidades, máscara e validação de CPF/CNPJ,
-               pipes, status, utilitários de consulta paginada
+               layout (shell, menu, trilha, busca rápida, ajuda, moldura de autenticação),
+               preferences (tema, densidade, estado de interface no servidor),
+               onboarding (tours, convites, novidades, primeiros passos), keyboard (atalhos),
+               config (locale pt-BR, Material, títulos)
+  shared/      tabela paginada, estado vazio, esqueleto, valor monetário, CPF/CNPJ mascarado,
+               diálogos, seletor de entidades, máscara e validação de CPF/CNPJ, pipes, status
   features/
     auth/          login, MFA, cadastro de MFA, senha expirada, esqueci a senha, redefinir/ativar
     account/       perfil, trocar senha, MFA voluntário, sessões
@@ -57,8 +60,16 @@ sempre do servidor.
   sessão é limpa e o usuário vai ao login com `returnUrl`.
 - Etapas intermediárias (MFA, cadastro de MFA, senha expirada) guardam o `stepToken` apenas em
   memória; nada vai para a URL ou para o armazenamento do navegador.
-- Único dado persistido no navegador: o identificador (slug) da assessoria usado no login.
+- Dados persistidos no navegador: o identificador (slug) da assessoria usado no login e a
+  aparência (tema e densidade, sem dado pessoal) para a tela de login e o carregamento inicial.
 - Logout (`POST /api/v1/me/logout`) é propagado às outras abas por `BroadcastChannel`.
+
+## Identidade visual e onboarding
+
+Tokens de design em `src/styles/_tokens.scss`, tema Material 3 em `src/styles.scss` (claro, escuro
+ou do sistema via `html[data-theme]`; densidade via `html[data-density]`). Tours declarativos em
+`core/onboarding/content/` com âncoras `data-tour`. Guia completo e contrato para telas novas:
+[`docs/design/ux.md`](../docs/design/ux.md).
 
 ## Erros
 
