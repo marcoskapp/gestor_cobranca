@@ -233,3 +233,18 @@ app:
     logged-time-sync-interval: PT1H
     posting-sweep-interval: PT15M
     posting-sweep-min-age: PT10M
+
+  collection:
+    # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)
+    defaults:
+      promise-tolerance-days: 2
+      promise-max-days: 30
+      callback-tolerance-minutes: 30
+      dispute-response-days: 10
+    # vencimento de retornos (tolerância) e quebra de promessas / prazo de contestações
+    callback-check-interval: PT5M
+    daily-cron: "0 10 0 * * *"
+    # casos processados por job de sincronização/roteamento/recálculo
+    batch-size: 200
+    evidence:
+      max-size-bytes: 20971520

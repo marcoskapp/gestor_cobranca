@@ -4,6 +4,7 @@ import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.TitleSearchCriteria;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -67,6 +68,19 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
     @Override
     @Query("select distinct t.creditorId from DebtTitle t where t.debtorId = :debtorId")
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
+
+    @Override
+    default List<UUID> findDebtorIdsByImportBatch(UUID creditorId, UUID importBatchId, UUID afterDebtorId, int limit) {
+        return debtorIdsByImportBatch(creditorId, importBatchId, afterDebtorId == null ? new UUID(0L, 0L) : afterDebtorId,
+                Limit.of(limit));
+    }
+
+    @Query("""
+            select distinct t.debtorId from DebtTitle t
+             where t.creditorId = :creditorId and t.importBatchId = :importBatchId and t.debtorId > :afterDebtorId
+             order by t.debtorId
+            """)
+    List<UUID> debtorIdsByImportBatch(UUID creditorId, UUID importBatchId, UUID afterDebtorId, Limit limit);
 
     @Override
     default Page<DebtTitle> search(TitleSearchCriteria c, Pageable pageable) {

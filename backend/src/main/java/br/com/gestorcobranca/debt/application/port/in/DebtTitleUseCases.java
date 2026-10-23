@@ -46,6 +46,17 @@ public interface DebtTitleUseCases {
     List<TitleView> transferPortfolio(Collection<UUID> titleIds, UUID targetPortfolioId, String reason);
 
     /**
+     * <strong>Uso interno do módulo collection; não exposto via web.</strong> Devedores com títulos
+     * gravados ou atualizados pelo lote de importação (abertura e atualização de casos após
+     * {@code PortfolioLoaded}). Paginação por chave ({@code debtorId > afterDebtorId}, em ordem de
+     * id). Exige o credor no escopo do ator.
+     *
+     * @param afterDebtorId último devedor do lote anterior; nulo para começar do início
+     * @param limit         tamanho do lote (1 a 1000)
+     */
+    List<UUID> debtorIdsByImportBatch(UUID creditorId, UUID importBatchId, UUID afterDebtorId, int limit);
+
+    /**
      * Filtros (todos opcionais). Os filtros de atraso consideram apenas títulos em cobrança
      * (OPEN ou SUSPENDED) e a data de hoje no fuso de operação.
      *

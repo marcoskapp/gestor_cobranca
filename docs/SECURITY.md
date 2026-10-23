@@ -32,6 +32,8 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Segregação de funções nos extratos: quem fecha o período, ajusta ou resolve contestação não aprova; ninguém aprova ou ajusta o próprio extrato; ajuste acima do limite exige segunda pessoa | `CommissionStatement#approve`, `StatementAdjustment#decide`, `StatementService` |
 | Alçada de negociação: humanos e assistente passam pelo mesmo `NegotiationGuard` (política, envelope, perfil, escopo, elegibilidade); ninguém atribui a própria alçada; atribuição geral exige todos os credores; mudanças vão ao log de acesso (`PERMISSION_CHANGED`); o assistente não recebe o envelope da política e só relê as próprias simulações | `negotiation/application/service/NegotiationGuard`, `AuthorityService`, `SimulationService` |
 | Políticas de cobrança publicadas imutáveis no banco (vigência só encurta) e simulações append-only | `V0700__negotiation_policies_and_indexes.sql`, `V0702__negotiation_simulation.sql` |
+| Operação de cobrança: escopo por credor em casos, filas, tarefas, promessas e contestações; caso de outro operador só com `CASE_ASSIGN`; filas/tabulações/parâmetros sem credor exigem acesso a todos os credores | `collection/application/service/CaseAccess`, serviços do módulo |
+| Interações e evidências de contestação append-only; histórico de atribuição só aceita o fim de vigência, uma vez (privilégio de coluna + gatilho) | `V0600__collection_tables.sql` |
 | Razão de comissão append-only (colunas financeiras imutáveis por privilégio de coluna e gatilho) e extrato aprovado imutável no banco | `V1802__incentive_ledger_and_statements.sql` |
 
 ## 3. Proteção de dados (LGPD)
@@ -42,6 +44,7 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | Busca sem dado em claro (blind index HMAC por tenant) | `shared/crypto/BlindIndex` |
 | Exibição mascarada por padrão; revelação exige `DEBTOR_SENSITIVE_VIEW` e gera evento de acesso | casos de uso de devedor |
 | Mascaramento automático de CPF, CNPJ, e-mail e telefone em todos os logs | `SensitiveDataMasker`, `JsonLogFormatter` |
+| Observações de interação e tarefa, descrição e parecer de contestação criptografados; evidências com SHA-256, download registrado (`FILE_DOWNLOADED`) | `collection/domain/model/Interaction`, `Dispute`, `DisputeService` (limpeza de arquivo de transação desfeita: `DisputeFileCleanup`) |
 | Arquivos isolados por tenant no S3 com criptografia no servidor e URLs temporárias | `shared/storage` |
 | Criptografia em trânsito: TLS no ALB; TLS obrigatório no RDS (`rds.force_ssl`) | Terraform |
 

@@ -38,6 +38,12 @@ public final class BusinessEventTypes {
     public static final String PROMISE_REGISTERED = "promise.registered";
     public static final String DISPUTE_OPENED = "dispute.opened";
     public static final String DISPUTE_RESOLVED = "dispute.resolved";
+    public static final String CASE_STATUS_CHANGED = "case.status_changed";
+    public static final String CASE_ELIGIBILITY_CHANGED = "case.eligibility_changed";
+    public static final String CALLBACK_KEPT = "callback.kept";
+    public static final String CALLBACK_MISSED = "callback.missed";
+    public static final String PROMISE_KEPT = "promise.kept";
+    public static final String PROMISE_BROKEN = "promise.broken";
 
     // Negociação
     public static final String NEGOTIATION_SIMULATED = "negotiation.simulated";

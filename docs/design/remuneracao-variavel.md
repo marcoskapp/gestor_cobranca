@@ -263,8 +263,8 @@ Exemplo verificado (`CommissionEngineTest#standardMarketPlanCombination`): 60.00
 
 ### 10.5 Pendências
 
-- Produtores: `negotiation` (parte 2) publicar `AgreementAttributionRecorded`; `collection` preencher os campos novos e publicar `CaseAssignmentChanged`; `communication` informar o autor das mensagens; `telephony` a carteira.
-- Indicadores sem fonte (retornam nulos e listados em `unavailableMetrics`): retornos cumpridos, handoffs recebidos/resolvidos, propostas (contato → proposta, proposta → acordo), promessas cumpridas, recuperado × esperado (`scoring`) — exigem eventos de integração próprios.
+- Produtores: `negotiation` (parte 2) publicar `AgreementAttributionRecorded`; `communication` informar o autor das mensagens; `telephony` a carteira. (`collection` já preenche os campos novos e publica `CaseAssignmentChanged` — ver `collection.md` §9.)
+- Indicadores sem fonte (retornam nulos e listados em `unavailableMetrics`): handoffs recebidos/resolvidos, propostas (contato → proposta, proposta → acordo), recuperado × esperado (`scoring`) — exigem eventos de integração próprios. Retornos cumpridos e promessas cumpridas já têm fonte (`CallbackStatusChanged` e `PromiseStatusChanged`, publicados pelo `collection`, fórmulas em `collection.md` §9); falta o consumo aqui (colunas em `performance_fact`, migration V18xx, e retirada de `UNAVAILABLE`).
 - Histórico de composição de equipes (pool e meta de equipe usam a composição no fechamento).
 - Views para o `analytics`; telas no frontend.
 - Validar com jurídico/RH antes de habilitar estorno de comissão (`clawbackEnabled`) ou mudar a política de desligamento.

@@ -33,7 +33,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `debt` | Devedor, contatos, contratos de origem, títulos, parcelas, saldos, histórico de titularidade, garantias, partes da obrigação e prescrição | F05 |
 | `ingestion` | Lotes de importação (CSV/XLSX/API), validação, erros por linha, reimportação idempotente | F04 |
 | `compliance` | Restrições de contato, opt-out, bases legais, solicitações de titulares (LGPD), retenção e descarte | M09 |
-| `collection` | Caso de cobrança, elegibilidade, filas, atribuição, interações/tabulação, tarefas e retornos, contestações | F06, F07, F21 |
+| `collection` | Caso de cobrança, elegibilidade, filas, atribuição, interações/tabulação, tarefas e retornos, promessas simples, contestações — ver `docs/design/collection.md` | F06, F07, F21 |
 | `negotiation` | Políticas de cobrança versionadas, motor de cálculo, escada de concessões, perfis de alçada (humanos e assistente), propostas e aprovação, acordos, parcelas, quebra, renegociação, termo — ver `docs/design/negociacao-e-alcadas.md` | F08, F09, F16 |
 | `payment` | Instruções de pagamento (Pix/boleto/link), pagamentos externos e integrados, webhooks, alocação, conciliação, estornos | F10, F14, F15 |
 | `settlement` | Comissão da assessoria e demonstrativo/prestação de contas por credor | F17, F22 |
