@@ -12,6 +12,11 @@ app:
   communication:
     sandbox:
       enabled: true
+    # testes nunca acessam a rede: endereço local sem serviço falha de imediato (conexão recusada)
+    whatsapp:
+      api-base-url: http://127.0.0.1:9
+      connect-timeout: PT1S
+      read-timeout: PT1S
   storage:
     provider: filesystem
     local-root: ./target/test-storage
