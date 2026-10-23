@@ -26,6 +26,11 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * consulta a dívida; o advogado de escritório parceiro ({@code ADVOGADO_PARCEIRO}) recebe somente
  * permissões do módulo legal, sem aprovar indicações, e o módulo restringe o acesso aos casos
  * atribuídos ao seu escritório além do escopo por credor.
+ * <p>
+ * Prestação de contas (docs/tecnico/desenho/prestacao-de-contas.md §8): o financeiro mantém as regras de
+ * comissão ({@code COMMISSION_MANAGE}), calcula, ajusta e envia demonstrativos ({@code SETTLEMENT_CLOSE}) e
+ * registra repasses ({@code SETTLEMENT_TRANSFER}); o gestor aprova ({@code SETTLEMENT_APPROVE}). Quem calcula
+ * ou pede ajuste não aprova, inclusive o administrador.
  */
 public final class DefaultRoles {
 
@@ -69,14 +74,14 @@ public final class DefaultRoles {
                 PORTAL_MANAGE, ACCESS_LOG_VIEW, DEBTOR_SENSITIVE_VIEW, PERFORMANCE_VIEW_ALL, COMMISSION_PLAN_MANAGE,
                 TABULATION_MANAGE,
                 COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE,
-                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE));
+                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, SETTLEMENT_APPROVE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
                 PAYMENT_VIEW, PAYMENT_REGISTER_EXTERNAL, PAYMENT_REVIEW, PAYMENT_INSTRUCTION_CREATE, PAYMENT_REVERSE,
                 RECONCILIATION_MANAGE, COMMISSION_VIEW, COMMISSION_MANAGE, SETTLEMENT_VIEW, SETTLEMENT_CLOSE,
                 DASHBOARD_VIEW, REPORT_VIEW, REPORT_EXPORT, PERFORMANCE_VIEW_ALL, COMMISSION_STATEMENT_APPROVE,
-                LEGAL_VIEW, LEGAL_EXPENSE_MANAGE);
+                LEGAL_VIEW, LEGAL_EXPENSE_MANAGE, SETTLEMENT_TRANSFER);
 
         Set<Permission> auditor = EnumSet.of(
                 USER_VIEW, ACCESS_LOG_VIEW, AUDIT_VIEW, CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, IMPORT_VIEW,
