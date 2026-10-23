@@ -10,7 +10,6 @@ import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.Contract
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ImportSummary;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord;
-import br.com.gestorcobranca.debt.application.port.in.PrescriptionRuleUseCases;
 import br.com.gestorcobranca.identity.application.port.in.RoleManagementUseCases;
 import br.com.gestorcobranca.identity.application.port.in.TenantProvisioning;
 import br.com.gestorcobranca.identity.application.port.in.TenantProvisioning.ProvisionTenantCommand;
@@ -96,8 +95,6 @@ abstract class LegalTestSupport extends IntegrationTest {
     @Autowired
     DebtIngestionPort ingestion;
     @Autowired
-    PrescriptionRuleUseCases prescriptionRules;
-    @Autowired
     CaseUseCases cases;
     @Autowired
     LegalSettingsUseCases settings;
@@ -153,7 +150,9 @@ abstract class LegalTestSupport extends IntegrationTest {
         lawyer = user("Jurídico J", "j", roleIds.get(DefaultRoles.JURIDICO), true, Set.of());
         partner = user("Advogado P", "p", roleIds.get(DefaultRoles.ADVOGADO_PARCEIRO), false, Set.of(creditorA));
         manager = user("Gestor G", "g", roleIds.get(DefaultRoles.GESTOR), true, Set.of());
-        system(() -> prescriptionRules.applyMarketDefaults());
+        // regras de prescrição de mercado: semeadas pelo consumo de TenantProvisioned no debt
+        awaitTrue("regras de prescrição", () -> count("select count(*) from shared.consumed_event "
+                + "where consumer = 'debt.prescription-defaults' and tenant_id = ?", tenant) == 1);
     }
 
     private UUID portfolio(UUID creditorId, String code) {
