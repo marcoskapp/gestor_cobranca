@@ -41,6 +41,16 @@ public interface DebtorContactUseCases {
     List<ChannelContact> contactsForChannel(UUID debtorId, String type);
 
     /**
+     * <strong>Uso interno de outros módulos (compliance); não exposto via web.</strong>
+     * Normaliza um telefone ou e-mail como no cadastro de contatos e devolve o blind index do
+     * tenant corrente e a forma mascarada — permite restringir ou localizar um contato sem
+     * guardar o valor em claro. Valor inválido → exceção de negócio ({@code contact.*_invalid}).
+     *
+     * @param type PHONE ou EMAIL
+     */
+    ContactFingerprint fingerprint(String type, String value);
+
+    /**
      * @param type   PHONE, EMAIL ou ADDRESS
      * @param label  MOBILE, HOME, WORK ou OTHER (padrão OTHER)
      * @param source MANUAL ou DEBTOR (cargas usam {@code DebtIngestionPort}); padrão MANUAL
@@ -58,6 +68,10 @@ public interface DebtorContactUseCases {
     }
 
     record RevealedContact(UUID contactId, UUID debtorId, String type, String value) {
+    }
+
+    /** @param hash blind index (finalidade {@code contact.phone} ou {@code contact.email}) */
+    record ContactFingerprint(String type, String hash, String maskedValue) {
     }
 
     record ChannelContact(UUID contactId, String type, String value, String label, boolean whatsapp, int priority,

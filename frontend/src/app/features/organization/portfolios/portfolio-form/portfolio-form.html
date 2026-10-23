@@ -1,0 +1,77 @@
+<h2 mat-dialog-title>{{ editing ? 'Editar carteira' : 'Nova carteira' }}</h2>
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <mat-dialog-content>
+    @for (e of generalErrors(); track e) {
+      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+    }
+    <div class="app-form-grid">
+      <div class="app-span-all">
+        <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" />
+        @if (form.controls.creditor.invalid && form.controls.creditor.touched) {
+          <p class="app-field-error" role="alert">Selecione o credor.</p>
+        }
+      </div>
+      <mat-form-field class="app-span-all">
+        <mat-label>Contrato</mat-label>
+        <mat-select formControlName="contractId">
+          @for (k of activeContracts(); track k.id) {
+            <mat-option [value]="k.id">{{ k.number }}</mat-option>
+          }
+        </mat-select>
+        @if (!editing && !contractsLoading() && form.controls.creditor.value.length > 0 && activeContracts().length === 0) {
+          <mat-hint>Este credor não tem contrato vigente. Cadastre um contrato antes da carteira.</mat-hint>
+        }
+        @if (form.controls.contractId.invalid) {
+          <mat-error>{{ message('contractId') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Código</mat-label>
+        <input matInput formControlName="code" class="app-mono" [maxlength]="limits.portfolioCode" />
+        @if (form.controls.code.invalid) {
+          <mat-error>{{ message('code') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Nome</mat-label>
+        <input matInput formControlName="name" [maxlength]="limits.portfolioName" />
+        @if (form.controls.name.invalid) {
+          <mat-error>{{ message('name') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Recebida em</mat-label>
+        <input matInput [matDatepicker]="received" formControlName="receivedOn" placeholder="dd/mm/aaaa" />
+        <mat-datepicker-toggle matIconSuffix [for]="received" />
+        <mat-datepicker #received />
+        @if (form.controls.receivedOn.invalid) {
+          <mat-error>{{ message('receivedOn') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Válida até</mat-label>
+        <input matInput [matDatepicker]="valid" formControlName="validUntil" placeholder="dd/mm/aaaa" />
+        <mat-datepicker-toggle matIconSuffix [for]="valid" />
+        <mat-datepicker #valid />
+        <mat-hint>Opcional</mat-hint>
+        @if (form.controls.validUntil.invalid) {
+          <mat-error>{{ message('validUntil') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field class="app-span-all">
+        <mat-label>Descrição</mat-label>
+        <textarea matInput formControlName="description" rows="3" [maxlength]="limits.portfolioDescription"></textarea>
+        @if (form.controls.description.invalid) {
+          <mat-error>{{ message('description') }}</mat-error>
+        }
+      </mat-form-field>
+    </div>
+    @if (form.hasError('dateRange')) {
+      <p class="app-field-error" role="alert">A validade não pode ser anterior ao recebimento.</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>Cancelar</button>
+    <button mat-flat-button type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Cadastrar carteira' }}</button>
+  </mat-dialog-actions>
+</form>

@@ -59,15 +59,16 @@ flowchart TB
 | Grupo | Entrada permitida | Saída |
 | --- | --- | --- |
 | `sg-alb` | 443 e 80 da internet (ou do WAF) | 8080 para `sg-app` |
-| `sg-app` | 8080 somente de `sg-alb` | 5432 para `sg-db`; 443 para internet via NAT; S3 via endpoint |
+| `sg-app` | 8080 somente de `sg-alb` | 5432 para `sg-db`; 443 para internet via NAT; S3 via endpoint; 587 (SMTP com STARTTLS) para o provedor de e-mail |
 | `sg-db` | 5432 somente de `sg-app` | nenhuma |
 
 ### Perfil IAM das instâncias (menor privilégio)
 
-- `s3:GetObject/PutObject/DeleteObject` apenas no bucket da aplicação (prefixo `tenants/*`) e leitura do prefixo de artefatos de deploy.
-- `logs:CreateLogStream/PutLogEvents` nos três grupos de log; `cloudwatch:PutMetricData` restrito ao namespace `GestorCobranca`.
-- `ssm:GetParameters` e `kms:Decrypt` somente nos parâmetros `/gestor-cobranca/<ambiente>/*`.
-- `AmazonSSMManagedInstanceCore` para o Session Manager.
+- `s3:GetObject/PutObject/DeleteObject` apenas no bucket da aplicação (prefixo `tenants/*`) e leitura do prefixo de artefatos de deploy (e dos scripts de bootstrap).
+- `logs:CreateLogStream/PutLogEvents` nos três grupos de log e no grupo da saída do Run Command; `cloudwatch:PutMetricData` restrito aos namespaces `GestorCobranca` (aplicação) e `GestorCobranca/Host` (memória e disco, CloudWatch Agent).
+- `ssm:GetParameter(s)` e `kms:Decrypt` somente nos parâmetros `/gestor-cobranca/<ambiente>/*` — ou, enquanto o SSM não for aprovado, `s3:GetObject` no bucket de segredos dedicado do ambiente.
+- `secretsmanager:GetSecretValue` no segredo da senha mestre do RDS **somente** enquanto `db_admin_access = true` (criação de papéis e rotação de senhas; desligado no restante do tempo).
+- `AmazonSSMManagedInstanceCore` para o Session Manager e o Run Command (execução das migrations).
 
 Nenhuma chave de acesso AWS fica em arquivo ou variável de ambiente: o SDK usa as credenciais temporárias do perfil da instância.
 
@@ -78,6 +79,7 @@ Nenhuma chave de acesso AWS fica em arquivo ou variável de ambiente: o SDK usa 
 | `/gestor-cobranca/<env>/technical` | `technical.log` | 30 dias | Diagnóstico e desempenho (Logs Insights por rota, tenant, requestId) |
 | `/gestor-cobranca/<env>/business` | `business.log` | 13 meses | Análises operacionais; cópia permanente também na tabela `shared.business_event` |
 | `/gestor-cobranca/<env>/access` | `access.log` | 13 meses + exportação mensal para S3/Glacier por 5 anos | Rastreabilidade de acesso; cópia também em `shared.access_log` |
+| `/gestor-cobranca/<env>/run-command` | saída do SSM Run Command | 13 meses | Quem executou migrations e operações de banco, quando e com que resultado |
 
 Retenção curta no CloudWatch e arquivamento no S3 reduzem o custo de armazenamento de log, que cresce rapidamente com o volume.
 
@@ -158,7 +160,7 @@ Maiores alavancas de economia, em ordem: Savings Plans/instâncias reservadas na
 1. O pipeline gera o JAR e o pacote do frontend, executa testes e publica no S3 (`artifacts/<versão>/`).
 2. Uma nova versão do *launch template* aponta para o artefato.
 3. *Instance refresh* do ASG substitui as instâncias gradualmente (mínimo 90% saudáveis), com o ALB drenando conexões.
-4. Migrations Flyway são executadas uma única vez, antes do refresh, por um passo dedicado com o papel `app_owner`; as instâncias de aplicação conectam com `app_runtime_login`, que não altera schema.
+4. Migrations Flyway são executadas uma única vez, antes do refresh, por um passo dedicado com o papel `app_owner` (o mesmo JAR em modo `migrate`, executado numa instância do ASG via SSM Run Command, sem abrir portas); as instâncias de aplicação conectam com `app_runtime_login`, que não altera schema.
 5. Reversão: voltar o *launch template* à versão anterior (migrations são sempre compatíveis com a versão anterior).
 
 ## 7. Backup e recuperação
@@ -169,3 +171,5 @@ Maiores alavancas de economia, em ordem: Savings Plans/instâncias reservadas na
 | S3 | Versionamento; replicação para outra região na fase 2 se exigida contratualmente |
 | Infraestrutura | Recriável por Terraform |
 | Objetivo inicial | RPO ≤ 5 min (logs de transação do RDS); RTO ≤ 1 h (fase 1) e ≤ 15 min (fase 2, Multi-AZ) |
+
+Implementação em Terraform, scripts de implantação e procedimentos (primeira implantação, rotação de segredos, rollback): [`infra/terraform/README.md`](../infra/terraform/README.md).

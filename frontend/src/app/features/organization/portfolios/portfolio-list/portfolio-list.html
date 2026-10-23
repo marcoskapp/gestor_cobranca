@@ -1,0 +1,77 @@
+<app-page-header title="Carteiras" subtitle="Lotes de títulos recebidos dos credores, com vigência e ciclo de vida.">
+  @if (canManage()) {
+    <button mat-flat-button type="button" (click)="create()">
+      <mat-icon aria-hidden="true">create_new_folder</mat-icon>
+      Nova carteira
+    </button>
+  }
+</app-page-header>
+
+<form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar carteiras" (ngSubmit)="query.reload()">
+  <div class="app-filters__wide">
+    <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+  </div>
+  <mat-form-field class="app-compact">
+    <mat-label>Situação</mat-label>
+    <mat-select formControlName="status">
+      <mat-option value="">Todas</mat-option>
+      @for (s of statuses; track s.value) {
+        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field class="app-compact">
+    <mat-label>Código ou nome</mat-label>
+    <input matInput formControlName="q" type="search" />
+    <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+  </mat-form-field>
+</form>
+
+<app-data-table
+  caption="Carteiras"
+  [rows]="query.rows()"
+  [columns]="columns"
+  [loading]="query.loading()"
+  [failed]="query.failed()"
+  [page]="query.tablePage()"
+  (pageChange)="query.setPage($event)"
+  (retry)="query.reload()"
+  emptyMessage="Nenhuma carteira encontrada."
+>
+  <ng-template appCell="code" [appCellOf]="query.rows()" let-p><span class="app-mono">{{ p.code }}</span></ng-template>
+  <ng-template appCell="name" [appCellOf]="query.rows()" let-p>
+    {{ p.name }}
+    @if (p.description) {
+      <div class="app-muted">{{ p.description }}</div>
+    }
+  </ng-template>
+  <ng-template appCell="creditor" [appCellOf]="query.rows()" let-p>{{ creditorName(p.creditorId) }}</ng-template>
+  <ng-template appCell="receivedOn" [appCellOf]="query.rows()" let-p>{{ p.receivedOn | appDate: 'date' }}</ng-template>
+  <ng-template appCell="validUntil" [appCellOf]="query.rows()" let-p>{{ p.validUntil | appDate: 'date' }}</ng-template>
+  <ng-template appCell="status" [appCellOf]="query.rows()" let-p>
+    <app-status-chip domain="portfolio" [status]="p.status" />
+    @if (p.status === 'ACTIVE' && !p.operable) {
+      <span class="app-status app-status--warning" matTooltip="Fora da vigência">Fora da vigência</span>
+    }
+    @if (p.statusReason) {
+      <div class="app-muted">{{ p.statusReason }}</div>
+    }
+  </ng-template>
+  <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
+    @if (canManage()) {
+      <button mat-icon-button type="button" (click)="edit(p)" [attr.aria-label]="'Editar carteira ' + p.code" matTooltip="Editar">
+        <mat-icon aria-hidden="true">edit</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        (click)="changeStatus(p)"
+        [disabled]="!canChangeStatus(p)"
+        [attr.aria-label]="'Alterar situação da carteira ' + p.code"
+        matTooltip="Alterar situação"
+      >
+        <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+      </button>
+    }
+  </ng-template>
+</app-data-table>

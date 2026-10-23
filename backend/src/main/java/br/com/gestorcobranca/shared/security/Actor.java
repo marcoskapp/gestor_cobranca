@@ -30,7 +30,12 @@ public record Actor(
     /** Identificador fixo usado como autor de operações automáticas. */
     public static final UUID SYSTEM_ID = new UUID(0L, 0L);
 
-    public enum ActorType { USER, SYSTEM, DEBTOR, INTEGRATION }
+    /**
+     * {@code ASSISTANT}: assistente de IA (módulo assistant). Age somente por casos de uso, com
+     * permissões mínimas e o perfil de alçada configurado na política do assistente — nunca com
+     * as permissões de um usuário (ver docs/design/assistente.md).
+     */
+    public enum ActorType { USER, SYSTEM, DEBTOR, INTEGRATION, ASSISTANT }
 
     public Actor {
         Objects.requireNonNull(type, "type");
@@ -43,6 +48,27 @@ public record Actor(
     public static Actor system(UUID tenantId, String processName) {
         return new Actor(ActorType.SYSTEM, SYSTEM_ID, tenantId, null, "system:" + processName,
                 EnumSet.allOf(Permission.class), CreditorScope.ALL);
+    }
+
+    /**
+     * Assistente de IA operando sob uma política específica.
+     *
+     * @param policyId    política do assistente vigente (identifica o ator em auditoria e métricas)
+     * @param policyCode  código legível da política, usado no nome do ator
+     * @param permissions permissões estritamente necessárias às ferramentas habilitadas
+     * @param creditors   credores da conversa em atendimento
+     */
+    public static Actor assistant(UUID tenantId, UUID policyId, String policyCode, Set<Permission> permissions,
+                                  Set<UUID> creditors) {
+        if (permissions.contains(Permission.TENANT_MANAGE)) {
+            throw new IllegalArgumentException("Assistente não pode receber permissão de plataforma");
+        }
+        return new Actor(ActorType.ASSISTANT, policyId, tenantId, null, "assistant:" + policyCode, permissions,
+                CreditorScope.of(creditors));
+    }
+
+    public boolean isAssistant() {
+        return type == ActorType.ASSISTANT;
     }
 
     public boolean has(Permission permission) {

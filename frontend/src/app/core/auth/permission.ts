@@ -1,0 +1,126 @@
+/**
+ * Espelho do enum `shared/security/Permission.java` do backend. A interface usa as permissões
+ * apenas para exibir menus e bloquear rotas; a autorização efetiva é sempre do servidor.
+ */
+export const Permission = {
+  TENANT_MANAGE: 'TENANT_MANAGE',
+
+  ORG_SETTINGS_MANAGE: 'ORG_SETTINGS_MANAGE',
+  USER_VIEW: 'USER_VIEW',
+  USER_MANAGE: 'USER_MANAGE',
+  ROLE_MANAGE: 'ROLE_MANAGE',
+  TEAM_MANAGE: 'TEAM_MANAGE',
+  ACCESS_LOG_VIEW: 'ACCESS_LOG_VIEW',
+  AUDIT_VIEW: 'AUDIT_VIEW',
+  INTEGRATION_MANAGE: 'INTEGRATION_MANAGE',
+
+  CREDITOR_VIEW: 'CREDITOR_VIEW',
+  CREDITOR_MANAGE: 'CREDITOR_MANAGE',
+  CONTRACT_MANAGE: 'CONTRACT_MANAGE',
+  PORTFOLIO_VIEW: 'PORTFOLIO_VIEW',
+  PORTFOLIO_MANAGE: 'PORTFOLIO_MANAGE',
+  POLICY_VIEW: 'POLICY_VIEW',
+  POLICY_MANAGE: 'POLICY_MANAGE',
+
+  IMPORT_VIEW: 'IMPORT_VIEW',
+  IMPORT_EXECUTE: 'IMPORT_EXECUTE',
+
+  DEBTOR_VIEW: 'DEBTOR_VIEW',
+  DEBTOR_MANAGE: 'DEBTOR_MANAGE',
+  DEBTOR_SENSITIVE_VIEW: 'DEBTOR_SENSITIVE_VIEW',
+  DEBT_TITLE_MANAGE: 'DEBT_TITLE_MANAGE',
+
+  CASE_VIEW: 'CASE_VIEW',
+  CASE_WORK: 'CASE_WORK',
+  CASE_ASSIGN: 'CASE_ASSIGN',
+  QUEUE_MANAGE: 'QUEUE_MANAGE',
+  INTERACTION_REGISTER: 'INTERACTION_REGISTER',
+  TASK_MANAGE: 'TASK_MANAGE',
+  DISPUTE_MANAGE: 'DISPUTE_MANAGE',
+
+  NEGOTIATION_SIMULATE: 'NEGOTIATION_SIMULATE',
+  NEGOTIATION_PROPOSE: 'NEGOTIATION_PROPOSE',
+  NEGOTIATION_APPROVE: 'NEGOTIATION_APPROVE',
+  AGREEMENT_VIEW: 'AGREEMENT_VIEW',
+  AGREEMENT_FORMALIZE: 'AGREEMENT_FORMALIZE',
+  AGREEMENT_CANCEL: 'AGREEMENT_CANCEL',
+
+  PAYMENT_VIEW: 'PAYMENT_VIEW',
+  PAYMENT_REGISTER_EXTERNAL: 'PAYMENT_REGISTER_EXTERNAL',
+  PAYMENT_REVIEW: 'PAYMENT_REVIEW',
+  PAYMENT_INSTRUCTION_CREATE: 'PAYMENT_INSTRUCTION_CREATE',
+  PAYMENT_REVERSE: 'PAYMENT_REVERSE',
+  RECONCILIATION_MANAGE: 'RECONCILIATION_MANAGE',
+
+  COMMISSION_VIEW: 'COMMISSION_VIEW',
+  COMMISSION_MANAGE: 'COMMISSION_MANAGE',
+  SETTLEMENT_VIEW: 'SETTLEMENT_VIEW',
+  SETTLEMENT_CLOSE: 'SETTLEMENT_CLOSE',
+
+  MESSAGE_SEND: 'MESSAGE_SEND',
+  INBOX_VIEW: 'INBOX_VIEW',
+  INBOX_MANAGE: 'INBOX_MANAGE',
+  TEMPLATE_MANAGE: 'TEMPLATE_MANAGE',
+  CHANNEL_MANAGE: 'CHANNEL_MANAGE',
+
+  SEGMENT_MANAGE: 'SEGMENT_MANAGE',
+  CAMPAIGN_VIEW: 'CAMPAIGN_VIEW',
+  CAMPAIGN_MANAGE: 'CAMPAIGN_MANAGE',
+  CAMPAIGN_EXECUTE: 'CAMPAIGN_EXECUTE',
+  EXPERIMENT_MANAGE: 'EXPERIMENT_MANAGE',
+
+  CONTACT_RESTRICTION_MANAGE: 'CONTACT_RESTRICTION_MANAGE',
+  DATA_SUBJECT_REQUEST_MANAGE: 'DATA_SUBJECT_REQUEST_MANAGE',
+  RETENTION_MANAGE: 'RETENTION_MANAGE',
+
+  TELEPHONY_USE: 'TELEPHONY_USE',
+  TELEPHONY_MANAGE: 'TELEPHONY_MANAGE',
+
+  PORTAL_MANAGE: 'PORTAL_MANAGE',
+
+  SCORING_VIEW: 'SCORING_VIEW',
+  SCORING_MANAGE: 'SCORING_MANAGE',
+
+  ASSISTANT_USE: 'ASSISTANT_USE',
+  ASSISTANT_MANAGE: 'ASSISTANT_MANAGE',
+
+  DASHBOARD_VIEW: 'DASHBOARD_VIEW',
+  REPORT_VIEW: 'REPORT_VIEW',
+  REPORT_EXPORT: 'REPORT_EXPORT',
+} as const;
+
+export type Permission = (typeof Permission)[keyof typeof Permission];
+
+/** Agrupamento das permissões para exibição (mesma ordem/seções do enum do backend). */
+export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly string[] }[] = [
+  { label: 'Plataforma', prefixes: ['TENANT_'] },
+  {
+    label: 'Administração da assessoria',
+    prefixes: ['ORG_', 'USER_', 'ROLE_', 'TEAM_', 'ACCESS_LOG_', 'AUDIT_', 'INTEGRATION_'],
+  },
+  { label: 'Credores e carteiras', prefixes: ['CREDITOR_', 'CONTRACT_', 'PORTFOLIO_', 'POLICY_'] },
+  { label: 'Importação', prefixes: ['IMPORT_'] },
+  { label: 'Devedores e dívidas', prefixes: ['DEBTOR_', 'DEBT_'] },
+  {
+    label: 'Operação de cobrança',
+    prefixes: ['CASE_', 'QUEUE_', 'INTERACTION_', 'TASK_', 'DISPUTE_'],
+  },
+  { label: 'Negociação e acordos', prefixes: ['NEGOTIATION_', 'AGREEMENT_'] },
+  { label: 'Pagamentos', prefixes: ['PAYMENT_', 'RECONCILIATION_'] },
+  { label: 'Comissão e prestação de contas', prefixes: ['COMMISSION_', 'SETTLEMENT_'] },
+  { label: 'Comunicação', prefixes: ['MESSAGE_', 'INBOX_', 'TEMPLATE_', 'CHANNEL_'] },
+  { label: 'Campanhas', prefixes: ['SEGMENT_', 'CAMPAIGN_', 'EXPERIMENT_'] },
+  {
+    label: 'Compliance',
+    prefixes: ['CONTACT_RESTRICTION_', 'DATA_SUBJECT_', 'RETENTION_'],
+  },
+  { label: 'Telefonia', prefixes: ['TELEPHONY_'] },
+  { label: 'Portal de autonegociação', prefixes: ['PORTAL_'] },
+  { label: 'Score', prefixes: ['SCORING_'] },
+  { label: 'Assistente de IA', prefixes: ['ASSISTANT_'] },
+  { label: 'Gestão e relatórios', prefixes: ['DASHBOARD_', 'REPORT_'] },
+];
+
+export function permissionGroupOf(code: string): string {
+  return PERMISSION_GROUPS.find((g) => g.prefixes.some((p) => code.startsWith(p)))?.label ?? 'Outras';
+}

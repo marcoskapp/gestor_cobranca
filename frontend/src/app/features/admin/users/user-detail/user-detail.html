@@ -1,0 +1,114 @@
+@if (user.isLoading() && !user.hasValue()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Carregando usuário" />
+}
+@if (user.status() === 'error') {
+  <p class="app-alert app-alert--error" role="alert">Não foi possível carregar o usuário.</p>
+  <a mat-button routerLink="/admin/usuarios">Voltar para usuários</a>
+}
+
+@if (current(); as u) {
+  <app-page-header [title]="u.name" [subtitle]="u.email">
+    <a mat-button routerLink="/admin/usuarios">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Usuários
+    </a>
+    @if (canManage()) {
+      <button mat-stroked-button type="button" (click)="edit(u)">
+        <mat-icon aria-hidden="true">edit</mat-icon>
+        Editar
+      </button>
+      <button mat-flat-button type="button" [matMenuTriggerFor]="actions">
+        Ações
+        <mat-icon iconPositionEnd aria-hidden="true">expand_more</mat-icon>
+      </button>
+      <mat-menu #actions="matMenu" xPosition="before">
+        <button mat-menu-item type="button" (click)="editRoles(u)">
+          <mat-icon aria-hidden="true">badge</mat-icon>
+          <span>Alterar perfis</span>
+        </button>
+        <button mat-menu-item type="button" (click)="editScope(u)">
+          <mat-icon aria-hidden="true">apartment</mat-icon>
+          <span>Alterar escopo de credores</span>
+        </button>
+        <button mat-menu-item type="button" (click)="sendLink(u)" [disabled]="u.status === 'DISABLED'">
+          <mat-icon aria-hidden="true">forward_to_inbox</mat-icon>
+          <span>{{ u.status === 'PENDING_ACTIVATION' ? 'Reenviar link de ativação' : 'Enviar link de redefinição' }}</span>
+        </button>
+        @if (u.locked) {
+          <button mat-menu-item type="button" (click)="unlock(u)">
+            <mat-icon aria-hidden="true">lock_open</mat-icon>
+            <span>Desbloquear</span>
+          </button>
+        }
+        @if (u.mfaEnabled) {
+          <button mat-menu-item type="button" (click)="resetMfa(u)">
+            <mat-icon aria-hidden="true">phonelink_erase</mat-icon>
+            <span>Redefinir MFA</span>
+          </button>
+        }
+        <button mat-menu-item type="button" (click)="revokeSessions(u)">
+          <mat-icon aria-hidden="true">logout</mat-icon>
+          <span>Encerrar todas as sessões</span>
+        </button>
+        <mat-divider />
+        @if (u.status === 'DISABLED') {
+          <button mat-menu-item type="button" (click)="enable(u)">
+            <mat-icon aria-hidden="true">person_check</mat-icon>
+            <span>Reativar</span>
+          </button>
+        } @else {
+          <button mat-menu-item type="button" (click)="disable(u)" [disabled]="isSelf()">
+            <mat-icon aria-hidden="true">person_off</mat-icon>
+            <span>Desativar</span>
+          </button>
+        }
+      </mat-menu>
+    }
+  </app-page-header>
+
+  <section class="app-card" aria-labelledby="dados-usuario">
+    <h2 class="app-card__title" id="dados-usuario">Dados da conta</h2>
+    <dl class="app-definition-list">
+      <dt>Situação</dt>
+      <dd>
+        <app-status-chip domain="user" [status]="u.status" />
+        @if (u.locked) {
+          <span class="app-status app-status--danger">Bloqueado até {{ u.lockedUntil | appDate }}</span>
+        }
+      </dd>
+      <dt>Unidade</dt>
+      <dd>{{ unitName() }}</dd>
+      <dt>Perfis</dt>
+      <dd>{{ roleNames().join(', ') || '—' }}</dd>
+      <dt>Escopo de credores</dt>
+      <dd>
+        @if (u.allCreditors) {
+          Todos os credores
+        } @else if (u.creditorIds.length === 0) {
+          <span class="app-muted">Nenhum credor</span>
+        } @else {
+          {{ creditorNames().join('; ') }}
+        }
+      </dd>
+      <dt>MFA</dt>
+      <dd>{{ u.mfaEnabled ? 'Ativo' : 'Não configurado' }}</dd>
+      <dt>Último acesso</dt>
+      <dd>{{ u.lastLoginAt | appDate }}</dd>
+      <dt>Senha alterada em</dt>
+      <dd>{{ u.passwordChangedAt | appDate }}</dd>
+      <dt>Criado em</dt>
+      <dd>{{ u.createdAt | appDate }}</dd>
+    </dl>
+  </section>
+
+  <section class="app-card" aria-labelledby="sessoes-usuario" *appHasPermission="permission.USER_MANAGE">
+    <h2 class="app-card__title" id="sessoes-usuario">Sessões</h2>
+    <app-session-table
+      caption="Sessões do usuário"
+      [sessions]="sessionRows()"
+      [loading]="sessions.isLoading()"
+      [failed]="sessions.status() === 'error'"
+      (retry)="sessions.reload()"
+    />
+  </section>
+}

@@ -1,0 +1,70 @@
+<h2 mat-dialog-title>{{ editing ? 'Editar usuário' : 'Novo usuário' }}</h2>
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <mat-dialog-content>
+    @for (e of generalErrors(); track e) {
+      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+    }
+    <div class="app-form-grid">
+      <mat-form-field class="app-span-all">
+        <mat-label>Nome</mat-label>
+        <input matInput formControlName="name" autocomplete="off" [maxlength]="limits.personName" />
+        @if (form.controls.name.invalid) {
+          <mat-error>{{ message('name') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field class="app-span-all">
+        <mat-label>E-mail</mat-label>
+        <input matInput type="email" formControlName="email" autocomplete="off" [maxlength]="limits.email" />
+        @if (editing) {
+          <mat-hint>O e-mail é o identificador de acesso e não pode ser alterado.</mat-hint>
+        } @else {
+          <mat-hint>O link de ativação será enviado para este e-mail.</mat-hint>
+        }
+        @if (form.controls.email.invalid) {
+          <mat-error>{{ message('email') }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field class="app-span-all">
+        <mat-label>Unidade</mat-label>
+        <mat-select formControlName="businessUnitId">
+          <mat-option value="">Nenhuma</mat-option>
+          @for (u of units(); track u.id) {
+            <mat-option [value]="u.id" [disabled]="!u.active">{{ u.code }} — {{ u.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      @if (!editing) {
+        <mat-form-field class="app-span-all">
+          <mat-label>Perfis</mat-label>
+          <mat-select formControlName="roleIds" multiple>
+            @for (r of roles(); track r.id) {
+              <mat-option [value]="r.id">{{ r.name }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.roleIds.invalid) {
+            <mat-error>Selecione ao menos um perfil.</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="app-span-all">
+          <mat-checkbox formControlName="allCreditors">Acesso a todos os credores</mat-checkbox>
+        </div>
+        @if (!form.controls.allCreditors.value) {
+          <div class="app-span-all">
+            <app-entity-picker
+              [control]="form.controls.creditorIds"
+              [source]="creditorSource"
+              label="Credores permitidos"
+              hint="Sem credores selecionados, o usuário não verá carteiras nem devedores."
+            />
+          </div>
+        }
+      }
+    </div>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>Cancelar</button>
+    <button mat-flat-button type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Criar usuário' }}</button>
+  </mat-dialog-actions>
+</form>

@@ -6,11 +6,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Restrição de contato criada ou removida (opt-out, bloqueio jurídico, solicitação do titular).
+ * Restrição de contato criada, revogada ou com vigência encerrada (opt-out, bloqueio jurídico,
+ * solicitação do titular). Dispara o recálculo de elegibilidade (RB02) e a pausa de réguas.
  *
- * @param channel    canal afetado (WHATSAPP, EMAIL, SMS, PHONE) ou null para todos
+ * @param debtorId   devedor afetado; null quando a restrição é de um contato sem devedor identificado
+ * @param channel    canal afetado (WHATSAPP, EMAIL, SMS, PHONE, PORTAL) ou null para todos
  * @param creditorId credor afetado ou null para todos
- * @param restricted true = restrição ativa
+ * @param restrictionType tipo da restrição (nome do enum {@code RestrictionType})
+ * @param restricted true = restrição criada; false = revogada ou vigência encerrada
  */
 public record ContactRestrictionChanged(
         UUID eventId,

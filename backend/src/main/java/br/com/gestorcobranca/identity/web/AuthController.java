@@ -165,11 +165,22 @@ class AuthController {
     /** Defesa adicional ao SameSite: rejeita refresh disparado por origem não autorizada. */
     private void requireAllowedOrigin(HttpServletRequest http) {
         String origin = http.getHeader(HttpHeaders.ORIGIN);
-        if (origin != null && !properties.cors().allowedOrigins().contains(origin)) {
+        if (origin != null && !origin.equals(ownOrigin(http)) && !properties.cors().allowedOrigins().contains(origin)) {
             accessLogger.log(AccessEvent.anonymous(AccessEventType.ACCESS_DENIED, null, null,
                     Map.of("reason", "refresh_from_untrusted_origin")));
             throw AuthenticationFailedException.invalidToken();
         }
+    }
+
+    /**
+     * Origem da própria aplicação (o frontend é servido pelo backend — ADR-0007). Atrás do ALB,
+     * esquema e host refletem os cabeçalhos X-Forwarded-* (server.forward-headers-strategy).
+     */
+    static String ownOrigin(HttpServletRequest http) {
+        String scheme = http.getScheme();
+        int port = http.getServerPort();
+        boolean defaultPort = ("https".equals(scheme) && port == 443) || ("http".equals(scheme) && port == 80);
+        return scheme + "://" + http.getServerName() + (defaultPort ? "" : ":" + port);
     }
 
     private static ClientInfo client(HttpServletRequest http) {

@@ -1,0 +1,533 @@
+@use '@angular/material' as mat;
+@use 'theme-colors' as palette;
+@use 'tokens';
+
+// =============================================================================
+// Identidade visual "Gestor de Cobrança" (docs/design/ux.md)
+//
+// - Material 3 com `theme-type: color-scheme`: claro, escuro ou do sistema operacional,
+//   conforme `color-scheme` do <html> (atributo `data-theme`, aplicado por ThemeService).
+// - Densidade ajustável (`data-density`): confortável (padrão) e compacta (estação de trabalho
+//   com alto volume). Em telas de toque a densidade compacta é ignorada (alvos ≥ 24px, WCAG 2.5.8).
+// - Primária azul institucional (#1D4E89), neutros frios para conforto em uso prolongado.
+// =============================================================================
+
+html {
+  color-scheme: light dark;
+
+  @include mat.theme(
+    (
+      color: (
+        theme-type: color-scheme,
+        primary: palette.$primary-palette,
+        tertiary: palette.$tertiary-palette,
+      ),
+      typography: (
+        plain-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
+        brand-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
+      ),
+      density: -1,
+    )
+  );
+
+  // tabelas e listas um pouco mais densas que os formulários
+  @include mat.table-density(-2);
+  @include mat.list-density(-1);
+  @include mat.paginator-density(-3);
+  @include mat.icon-button-density(-1);
+
+  @include mat.table-overrides(
+    (
+      header-headline-weight: 600,
+      header-headline-color: var(--mat-sys-on-surface-variant),
+      row-item-label-text-size: 13px,
+      header-headline-size: 12px,
+      background-color: var(--app-surface),
+    )
+  );
+
+  @include mat.snack-bar-overrides(
+    (
+      container-color: var(--app-snack-bg),
+      supporting-text-color: var(--app-snack-fg),
+      button-color: var(--app-snack-action),
+    )
+  );
+
+  @include mat.tooltip-overrides(
+    (
+      supporting-text-size: 12px,
+    )
+  );
+
+  @include tokens.tokens;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+// densidade compacta somente com ponteiro fino (mouse/trackpad)
+@media (pointer: fine) {
+  html[data-density='compact'] {
+    @include mat.theme((density: -3));
+    @include mat.table-density(-4);
+    @include mat.list-density(-3);
+    @include mat.paginator-density(-4);
+    @include mat.icon-button-density(-2);
+    @include tokens.compact-tokens;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--app-page-bg);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  -webkit-font-smoothing: antialiased;
+  // cifras alinhadas em colunas (valores, datas, documentos)
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--mat-sys-primary);
+  text-underline-offset: 2px;
+}
+
+// --------------------------------------------------------------------- acessibilidade
+
+:focus-visible {
+  outline: var(--app-focus-ring);
+  outline-offset: var(--app-focus-offset);
+}
+
+.app-skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 1000;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-primary);
+  font-weight: 600;
+
+  &:focus {
+    top: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// atalhos de teclado exibidos na interface
+kbd,
+.app-kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 1px 6px;
+  border: 1px solid var(--app-border);
+  border-bottom-width: 2px;
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-raised);
+  color: var(--mat-sys-on-surface-variant);
+  font: 500 11px/18px var(--app-font-sans);
+  text-align: center;
+}
+
+// --------------------------------------------------------------------- layout de página
+
+.app-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.app-page-header__title {
+  margin: 0;
+  font: var(--mat-sys-headline-small);
+  font-size: var(--app-text-xl);
+  font-weight: 600;
+  line-height: var(--app-line-tight);
+  letter-spacing: -0.01em;
+}
+
+.app-page-header__subtitle {
+  margin: 4px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-card {
+  padding: var(--app-card-padding);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+
+  & + & {
+    margin-top: var(--app-gap);
+  }
+}
+
+.app-card__title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.app-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+
+  mat-form-field {
+    width: 220px;
+  }
+
+  .app-filters__wide {
+    width: 320px;
+  }
+
+  .app-filters__actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 4px;
+  }
+}
+
+@media (max-width: 599.98px) {
+  .app-filters {
+    mat-form-field,
+    .app-filters__wide {
+      width: 100%;
+    }
+  }
+
+  .app-page-header__actions {
+    width: 100%;
+
+    > * {
+      flex: 1 1 auto;
+    }
+  }
+}
+
+.app-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 16px;
+
+  .app-span-all {
+    grid-column: 1 / -1;
+  }
+}
+
+.app-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.app-full-width {
+  width: 100%;
+}
+
+.app-definition-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 24px;
+  margin: 0;
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    word-break: break-word;
+  }
+}
+
+.app-muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-mono {
+  font-family: var(--app-font-mono);
+  font-size: 12px;
+}
+
+.app-message-page {
+  max-width: 560px;
+  margin: 48px auto;
+  text-align: center;
+
+  h1 {
+    font-size: 22px;
+  }
+}
+
+// --------------------------------------------------------------------- estados e alertas
+
+.app-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--app-radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+
+  .mat-icon,
+  .app-status__icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 14px;
+  }
+}
+
+@each $tone in (success, warning, danger, info, neutral) {
+  .app-status--#{$tone},
+  .app-alert--#{$tone} {
+    background: var(--app-#{$tone}-bg);
+    color: var(--app-#{$tone}-fg);
+  }
+}
+
+.app-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: var(--app-radius-md);
+  font-size: 13px;
+  line-height: 20px;
+
+  > .mat-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+  }
+}
+
+.app-alert--error {
+  background: var(--app-danger-bg);
+  color: var(--app-danger-fg);
+}
+
+.app-field-error {
+  margin: -4px 0 4px;
+  font-size: 12px;
+  color: var(--mat-sys-error);
+}
+
+// --------------------------------------------------------------------- telas de autenticação
+
+.app-auth-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.app-auth-text {
+  margin: 0 0 16px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-auth-links {
+  margin: 16px 0 0;
+  text-align: center;
+}
+
+.app-otp-input {
+  letter-spacing: 0.4em;
+  font-size: 18px;
+}
+
+.app-button-spinner {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+
+  --mat-progress-spinner-active-indicator-color: currentColor;
+}
+
+// --------------------------------------------------------------------- componentes Material
+
+.app-button-danger {
+  --mat-button-filled-container-color: var(--mat-sys-error);
+  --mat-button-filled-label-text-color: var(--mat-sys-on-error);
+}
+
+.app-dialog-message {
+  margin-top: 0;
+  white-space: pre-line;
+}
+
+.mat-mdc-snack-bar-container.app-snack-error {
+  --mat-snack-bar-container-color: var(--app-snack-error-bg);
+  --mat-snack-bar-supporting-text-color: var(--app-snack-error-fg);
+  --mat-snack-bar-button-color: var(--app-snack-error-fg);
+}
+
+.mat-mdc-snack-bar-container.app-snack-success {
+  --mat-snack-bar-container-color: var(--app-snack-success-bg);
+  --mat-snack-bar-supporting-text-color: var(--app-snack-success-fg);
+  --mat-snack-bar-button-color: var(--app-snack-success-fg);
+}
+
+mat-form-field.app-compact {
+  @include mat.form-field-density(-4);
+}
+
+// --------------------------------------------------------------------- utilitários de leitura
+
+.app-numeric {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app-amount--negative {
+  color: var(--app-amount-negative);
+}
+
+.app-amount--positive {
+  color: var(--app-amount-positive);
+}
+
+.app-section-title {
+  margin: 8px 0 12px;
+  font-size: var(--app-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// --------------------------------------------------------------------- cabeçalho: avatar e menus (overlay)
+
+.app-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 20%);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+.app-user-menu__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px 12px;
+  font-size: 13px;
+
+  span {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.app-user-menu__label {
+  margin: 8px 16px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-menu-check {
+  margin-left: 16px;
+  font-size: 18px;
+  vertical-align: middle;
+  color: var(--mat-sys-primary);
+}
+
+.app-menu-badge {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-menu-kbd {
+  margin-left: 12px;
+}
+
+// --------------------------------------------------------------------- onboarding (overlays)
+
+.app-tour-pane {
+  max-width: calc(100vw - 32px);
+}
+
+.cdk-overlay-pane.app-tour-highlight {
+  border-radius: var(--app-radius-md);
+  box-shadow:
+    0 0 0 3px var(--mat-sys-primary),
+    0 0 0 9999px rgb(0 0 0 / 28%);
+  // apenas visual: cliques atravessam o destaque (o tour nunca bloqueia a tela)
+  pointer-events: none;
+  transition:
+    margin var(--app-motion-standard) var(--app-easing),
+    width var(--app-motion-standard) var(--app-easing),
+    height var(--app-motion-standard) var(--app-easing);
+}
+
+@media (forced-colors: active) {
+  .cdk-overlay-pane.app-tour-highlight {
+    outline: 3px solid Highlight;
+  }
+}
+
+.app-palette-pane {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.app-palette-backdrop {
+  background: rgb(0 0 0 / 32%);
+}

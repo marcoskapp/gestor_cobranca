@@ -88,8 +88,9 @@ class SecurityConfig {
                         .contentTypeOptions(c -> { })
                         .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                                        + "font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; "
+                                // fontes e ícones são servidos pelo próprio backend (pacotes npm), sem CDN
+                                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                                        + "font-src 'self'; img-src 'self' data:; "
                                         + "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"))
                         .permissionsPolicyHeader(p -> p.policy("camera=(), microphone=(), geolocation=(), payment=()")))
                 .authorizeHttpRequests(auth -> {

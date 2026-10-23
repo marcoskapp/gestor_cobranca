@@ -1,0 +1,5 @@
+# Copie para backend.hcl (não versionado) e ajuste o ID da conta.
+# Bucket criado por scripts/ops/bootstrap-state.sh.
+bucket = "gestor-cobranca-tfstate-<ID_DA_CONTA>"
+key    = "homologacao/terraform.tfstate"
+region = "sa-east-1"

@@ -1,0 +1,84 @@
+@if (creditor.isLoading() && !current()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Carregando credor" />
+}
+@if (creditor.status() === 'error') {
+  <p class="app-alert app-alert--error" role="alert">Não foi possível carregar o credor.</p>
+  <a mat-button routerLink="/organizacao/credores">Voltar para credores</a>
+}
+
+@if (current(); as c) {
+  <app-page-header [title]="c.tradeName || c.legalName" [subtitle]="c.tradeName ? c.legalName : ''">
+    <a mat-button routerLink="/organizacao/credores">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Credores
+    </a>
+    @if (canViewPortfolios()) {
+      <a mat-stroked-button routerLink="/organizacao/carteiras" [queryParams]="{ credor: c.id }">
+        <mat-icon aria-hidden="true">folder_open</mat-icon>
+        Carteiras
+      </a>
+    }
+    @if (canManage()) {
+      <button mat-stroked-button type="button" (click)="edit(c)">
+        <mat-icon aria-hidden="true">edit</mat-icon>
+        Editar
+      </button>
+      @if (c.status === 'ACTIVE') {
+        <button mat-stroked-button type="button" (click)="setActive(c, false)">Inativar</button>
+      } @else {
+        <button mat-flat-button type="button" (click)="setActive(c, true)">Ativar</button>
+      }
+    }
+  </app-page-header>
+
+  <section class="app-card" aria-labelledby="dados-credor">
+    <h2 class="app-card__title" id="dados-credor">Dados cadastrais</h2>
+    <dl class="app-definition-list">
+      <dt>Documento</dt>
+      <dd>{{ c.document | document }}</dd>
+      <dt>Código externo</dt>
+      <dd>{{ c.externalCode || '—' }}</dd>
+      <dt>E-mail de contato</dt>
+      <dd>{{ c.contactEmail || '—' }}</dd>
+      <dt>Situação</dt>
+      <dd><app-status-chip domain="creditor" [status]="c.status" /></dd>
+    </dl>
+  </section>
+
+  <section class="app-card" aria-labelledby="contratos-credor">
+    <div class="app-page-header">
+      <h2 class="app-card__title" id="contratos-credor">Contratos de prestação de serviço</h2>
+      @if (canManageContracts()) {
+        <button mat-stroked-button type="button" (click)="newContract()">
+          <mat-icon aria-hidden="true">add</mat-icon>
+          Novo contrato
+        </button>
+      }
+    </div>
+    <app-data-table
+      caption="Contratos do credor"
+      [rows]="contractRows()"
+      [columns]="contractColumns"
+      [loading]="contracts.isLoading()"
+      [failed]="contracts.status() === 'error'"
+      (retry)="contracts.reload()"
+      emptyMessage="Nenhum contrato cadastrado."
+    >
+      <ng-template appCell="startDate" [appCellOf]="contractRows()" let-k>{{ k.startDate | appDate: 'date' }}</ng-template>
+      <ng-template appCell="endDate" [appCellOf]="contractRows()" let-k>{{ k.endDate | appDate: 'date' }}</ng-template>
+      <ng-template appCell="status" [appCellOf]="contractRows()" let-k>
+        <app-status-chip domain="contract" [status]="k.status" />
+      </ng-template>
+      <ng-template appCell="actions" [appCellOf]="contractRows()" let-k>
+        @if (canManageContracts() && k.status === 'ACTIVE') {
+          <button mat-icon-button type="button" (click)="editTerms(k)" [attr.aria-label]="'Alterar termos do contrato ' + k.number" matTooltip="Alterar termos">
+            <mat-icon aria-hidden="true">edit_note</mat-icon>
+          </button>
+          <button mat-icon-button type="button" (click)="terminate(k)" [attr.aria-label]="'Encerrar contrato ' + k.number" matTooltip="Encerrar">
+            <mat-icon aria-hidden="true">event_busy</mat-icon>
+          </button>
+        }
+      </ng-template>
+    </app-data-table>
+  </section>
+}

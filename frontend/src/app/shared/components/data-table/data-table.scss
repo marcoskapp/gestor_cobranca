@@ -1,0 +1,46 @@
+:host {
+  display: block;
+}
+
+.app-table {
+  position: relative;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  overflow: hidden;
+}
+
+tr.mat-mdc-row:hover {
+  background: var(--mat-sys-surface-container-low);
+}
+
+.app-table__progress {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+}
+
+.app-table__scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+}
+
+.app-table__cell--end {
+  text-align: end;
+}
+
+.app-table__cell--center {
+  text-align: center;
+}
+
+.app-table__cell--actions {
+  white-space: nowrap;
+  width: 1%;
+}
+
+mat-paginator {
+  border-top: 1px solid var(--app-border);
+}

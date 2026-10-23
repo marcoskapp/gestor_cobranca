@@ -1,0 +1,136 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { finalize, startWith } from 'rxjs';
+import { Permission, permissionGroupOf, PERMISSION_GROUPS } from '../../../../core/auth/permission';
+import { toApiError } from '../../../../core/http/problem';
+import { NotificationService } from '../../../../core/notification/notification.service';
+import { valueOr } from '../../../../shared/data/resource-value';
+import { errorMessage } from '../../../../shared/validation/error-messages';
+import { applyServerErrors } from '../../../../shared/validation/server-errors';
+import { AppValidators, Limits, Patterns } from '../../../../shared/validation/validators';
+import { PermissionView, RoleView } from '../../data/admin.models';
+import { RolesApi } from '../../data/roles.api';
+
+interface PermissionGroup {
+  label: string;
+  permissions: PermissionView[];
+}
+
+@Component({
+  selector: 'app-role-form',
+  imports: [
+    ReactiveFormsModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatCheckboxModule,
+    MatProgressBarModule,
+  ],
+  templateUrl: './role-form.html',
+  styleUrl: './role-form.scss',
+})
+export class RoleForm {
+  protected readonly role = inject<RoleView | null>(MAT_DIALOG_DATA);
+  private readonly ref = inject<MatDialogRef<RoleForm, RoleView>>(MatDialogRef);
+  private readonly api = inject(RolesApi);
+  private readonly notifications = inject(NotificationService);
+
+  protected readonly limits = Limits;
+  protected readonly editing = this.role !== null;
+  protected readonly saving = signal(false);
+  protected readonly generalErrors = signal<string[]>([]);
+
+  private readonly catalogResource = rxResource({ stream: () => this.api.permissions() });
+  protected readonly catalogLoading = this.catalogResource.isLoading;
+  private readonly catalog = valueOr(this.catalogResource, []);
+
+  protected readonly form = inject(FormBuilder).nonNullable.group({
+    code: [
+      { value: this.role?.code ?? '', disabled: this.editing },
+      [AppValidators.notBlank, Validators.pattern(Patterns.roleCode)],
+    ],
+    name: [this.role?.name ?? '', [AppValidators.notBlank, Validators.maxLength(Limits.roleName)]],
+    description: [this.role?.description ?? '', [Validators.maxLength(Limits.roleDescription)]],
+    permissions: [[...(this.role?.permissions ?? [])], [AppValidators.notBlank]],
+  });
+
+  private readonly selected = toSignal(
+    this.form.controls.permissions.valueChanges.pipe(startWith(this.form.controls.permissions.value)),
+    { requireSync: true },
+  );
+  protected readonly selectedSet = computed(() => new Set(this.selected()));
+
+  /** Catálogo agrupado; TENANT_MANAGE só aparece no perfil de plataforma (regra do domínio). */
+  protected readonly groups = computed<PermissionGroup[]>(() => {
+    const allowPlatform = this.role?.code === 'PLATFORM_ADMIN';
+    const byGroup = new Map<string, PermissionView[]>();
+    for (const permission of this.catalog()) {
+      if (permission.code === Permission.TENANT_MANAGE && !allowPlatform) {
+        continue;
+      }
+      const group = permissionGroupOf(permission.code);
+      byGroup.set(group, [...(byGroup.get(group) ?? []), permission]);
+    }
+    const order = [...PERMISSION_GROUPS.map((g) => g.label), 'Outras'];
+    return order.filter((label) => byGroup.has(label)).map((label) => ({ label, permissions: byGroup.get(label) ?? [] }));
+  });
+
+  protected message(control: 'code' | 'name' | 'description'): string {
+    const errors = this.form.controls[control].errors;
+    if (control === 'code' && errors?.['pattern']) {
+      return 'Use letras maiúsculas, números e "_", começando por letra (2 a 40 caracteres).';
+    }
+    return errorMessage(errors);
+  }
+
+  protected toggle(code: string, checked: boolean): void {
+    const current = this.form.controls.permissions.value.filter((value) => value !== code);
+    this.form.controls.permissions.setValue(checked ? [...current, code] : current);
+    this.form.controls.permissions.markAsTouched();
+  }
+
+  protected groupState(group: PermissionGroup): 'all' | 'some' | 'none' {
+    const count = group.permissions.filter((p) => this.selectedSet().has(p.code)).length;
+    return count === 0 ? 'none' : count === group.permissions.length ? 'all' : 'some';
+  }
+
+  protected toggleGroup(group: PermissionGroup, checked: boolean): void {
+    const codes = new Set(group.permissions.map((p) => p.code));
+    const others = this.form.controls.permissions.value.filter((value) => !codes.has(value));
+    this.form.controls.permissions.setValue(checked ? [...others, ...codes] : others);
+    this.form.controls.permissions.markAsTouched();
+  }
+
+  protected save(): void {
+    if (this.form.invalid || this.saving()) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    const v = this.form.getRawValue();
+    const request = {
+      code: this.editing ? null : v.code.trim(),
+      name: v.name.trim(),
+      description: v.description.trim() || null,
+      permissions: v.permissions,
+    };
+    this.saving.set(true);
+    this.generalErrors.set([]);
+    (this.role ? this.api.update(this.role.id, request) : this.api.create(request))
+      .pipe(finalize(() => this.saving.set(false)))
+      .subscribe({
+        next: (saved) => {
+          this.notifications.success(this.editing ? 'Perfil atualizado.' : 'Perfil criado.');
+          this.ref.close(saved);
+        },
+        error: (err: unknown) => this.generalErrors.set(applyServerErrors(this.form, toApiError(err))),
+      });
+  }
+}

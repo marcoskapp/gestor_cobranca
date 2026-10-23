@@ -37,6 +37,8 @@ mvn spring-boot:run
 
 O link de ativação do administrador chega no Mailpit (http://localhost:8025). Depois de ativar, entre com o tenant `plataforma`.
 
+Frontend (Node 22.22.3+): `cd frontend && npm ci && npm start` — abre em http://localhost:4200 com `/api` encaminhado ao backend (detalhes em [`frontend/README.md`](frontend/README.md)).
+
 ## Testes
 
 ```bash
