@@ -30,7 +30,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `shared` | Kernel compartilhado (aberto): tipos de valor, tenancy, segurança base, auditoria, logs, eventos de integração, criptografia, armazenamento de arquivos, jobs | transversal |
 | `organization` | Tenant (assessoria), unidades, credores, contratos de serviço, carteiras, regras contratuais versionadas | F03 |
 | `identity` | Usuários, perfis, permissões, equipes, escopo por credor/carteira, autenticação, MFA, sessões, log de acesso | F01, F02 |
-| `debt` | Devedor, contatos, contratos de origem, títulos, parcelas, saldos, histórico de titularidade | F05 |
+| `debt` | Devedor, contatos, contratos de origem, títulos, parcelas, saldos, histórico de titularidade, garantias, partes da obrigação e prescrição | F05 |
 | `ingestion` | Lotes de importação (CSV/XLSX/API), validação, erros por linha, reimportação idempotente | F04 |
 | `compliance` | Restrições de contato, opt-out, bases legais, solicitações de titulares (LGPD), retenção e descarte | M09 |
 | `collection` | Caso de cobrança, elegibilidade, filas, atribuição, interações/tabulação, tarefas e retornos, contestações | F06, F07, F21 |
@@ -44,6 +44,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `scoring` | Score de propensão à recuperação e priorização | F23 |
 | `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/design/assistente.md` | F24 |
 | `analytics` | Read models e relatórios (painel operacional, recuperação, produtividade, exportação) | F11, F18 |
+| `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/design/juridico.md` | jurídico |
 
 ### 2.1 Grafo de dependências permitido (acíclico)
 
@@ -67,6 +68,7 @@ shared ◄── organization ◄── identity
               ├── portal             (→ negotiation, payment, communication, debt, organization)
               ├── scoring            (→ collection, debt, payment, organization)
               ├── assistant          (→ negotiation, communication, collection, compliance, debt, organization)
+              ├── legal              (→ collection, negotiation, debt, compliance, identity, organization)
               └── analytics          (→ organization; lê o banco por views próprias)
 ```
 
@@ -171,6 +173,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V1400–V1499 | scoring |
 | V1500–V1599 | assistant |
 | V1600–V1699 | analytics |
+| V1700–V1799 | legal |
 
 * Nome: `V0301__debt_create_debtor.sql`. Arquivos em `backend/src/main/resources/db/migration/<modulo>/`.
 * Toda tabela de tenant: `tenant_id`, RLS habilitado e forçado, política `tenant_isolation`, `GRANT` para `app_runtime`. Use a função auxiliar `shared.enable_tenant_rls('<schema>.<tabela>')` criada em `V0002`.
