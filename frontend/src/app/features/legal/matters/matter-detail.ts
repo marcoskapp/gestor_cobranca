@@ -28,6 +28,7 @@ import { UserLookup } from '../../admin/data/user.lookup';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { COLLATERAL_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { CreditorNames } from '../../organization/data/organization.lookups';
+import { percent } from '../../negotiation/data/negotiation.labels';
 import { FieldOption, FormDialogService, options } from '../components/form-dialog';
 import { LegalMattersApi, LegalOperationsApi, LegalProceedingsApi } from '../data/legal.api';
 import {
@@ -150,6 +151,7 @@ export class MatterDetail {
   protected readonly pendingAuthorization = computed(() => this.sheet()?.authorizations.find((a) => a.status === 'REQUESTED') ?? null);
   protected readonly grantedAuthorization = computed(() => this.sheet()?.authorizations.find((a) => a.status === 'GRANTED') ?? null);
   protected readonly budget = computed(() => (this.matter() ? budgetUsage(this.matter()!) : null));
+  protected readonly budgetText = computed(() => percent(this.budget(), 1));
   protected readonly final = computed(() => !!this.matter() && isFinalStage(this.matter()!.stage));
   protected readonly history = computed(() => [...(this.sheet()?.history ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)));
   protected readonly deadlines = computed(() => [...(this.sheet()?.deadlines ?? [])].sort((a, b) => a.dueDate.localeCompare(b.dueDate)));
@@ -219,10 +221,16 @@ export class MatterDetail {
         message: `O caso passa para "${this.stageLabel(stage)}". A mudança fica na linha do tempo e na auditoria.`,
         submitLabel: 'Confirmar',
         details: this.impact(),
-        warning: stage === 'CLOSED' ? 'Prazos pendentes são cancelados (exceto baixa de restrição) e a retenção na cobrança é retirada.' : undefined,
+        warning:
+          stage === 'CLOSED'
+            ? 'O encerramento não pode ser desfeito. Prazos pendentes são cancelados (exceto baixa de restrição) e a retenção na cobrança é retirada.'
+            : stage === 'RETURNED_TO_CREDITOR'
+              ? 'A devolução ao credor não pode ser desfeita.'
+              : undefined,
+        confirmationText: stage === 'CLOSED' ? 'ENCERRAR' : stage === 'RETURNED_TO_CREDITOR' ? 'DEVOLVER' : undefined,
         fields: [
+          { key: 'closureReason', label: 'Motivo do encerramento', type: 'select', required: stage === 'CLOSED', options: options(CLOSURE_LABELS), showIf: () => stage === 'CLOSED', wide: true },
           { key: 'reason', label: 'Motivo', type: 'textarea', required: true, maxLength: 500 },
-          { key: 'closureReason', label: 'Motivo do encerramento', type: 'select', required: stage === 'CLOSED', options: options(CLOSURE_LABELS), showIf: () => stage === 'CLOSED' },
           {
             key: 'agreementId',
             label: 'Identificador do acordo (opcional)',

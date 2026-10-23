@@ -46,7 +46,8 @@ export interface TemplateDialogData {
   template: `
     <h2 mat-dialog-title>{{ title }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content class="app-form-stack">
+      <mat-dialog-content>
+        <div class="app-form-stack">
         @if (creating) {
           <div class="td-row">
             <mat-form-field>
@@ -116,7 +117,7 @@ export interface TemplateDialogData {
             </div>
           }
         </div>
-        <button mat-button type="button" (click)="addVariable()"><mat-icon aria-hidden="true">add</mat-icon>Adicionar variável</button>
+        <button mat-button type="button" class="td-add" (click)="addVariable()"><mat-icon aria-hidden="true">add</mat-icon>Adicionar variável</button>
         @if (channel() === 'WHATSAPP') {
           <mat-form-field>
             <mat-label>Nome do template no WhatsApp (opcional)</mat-label>
@@ -133,6 +134,7 @@ export interface TemplateDialogData {
             <span>Rascunho de WhatsApp fica aguardando a aprovação do provedor; editar volta a aguardar. Só o aprovado pode ser publicado.</span>
           </p>
         }
+        </div>
       </mat-dialog-content>
       <mat-dialog-actions align="end">
         <button mat-button type="button" mat-dialog-close>Cancelar</button>
@@ -146,6 +148,9 @@ export interface TemplateDialogData {
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 0 12px;
     }
+    .td-add {
+      align-self: flex-start;
+    }
     .td-var {
       display: grid;
       grid-template-columns: minmax(120px, 1fr) minmax(160px, 1fr) auto auto;
@@ -153,7 +158,10 @@ export interface TemplateDialogData {
       gap: 0 8px;
     }
     @media (max-width: 599.98px) {
-      .td-var {
+      .td-add {
+      align-self: flex-start;
+    }
+    .td-var {
         grid-template-columns: 1fr 1fr;
       }
     }
@@ -242,7 +250,8 @@ export class TemplateDialog {
   template: `
     <h2 mat-dialog-title>Aprovação do WhatsApp</h2>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content class="app-form-stack">
+      <mat-dialog-content>
+        <div class="app-form-stack">
         <p class="app-dialog-message">{{ data.template!.name }} (v{{ data.template!.templateVersion }}). Registre o que o provedor respondeu no gerenciador do WhatsApp.</p>
         <mat-form-field>
           <mat-label>Decisão</mat-label>
@@ -272,6 +281,7 @@ export class TemplateDialog {
           <mat-label>{{ form.controls.decision.value === 'REJECTED' ? 'Motivo da recusa' : 'Observação (opcional)' }}</mat-label>
           <textarea matInput rows="2" formControlName="note" maxlength="500" [required]="form.controls.decision.value === 'REJECTED'"></textarea>
         </mat-form-field>
+        </div>
       </mat-dialog-content>
       <mat-dialog-actions align="end">
         <button mat-button type="button" mat-dialog-close>Cancelar</button>

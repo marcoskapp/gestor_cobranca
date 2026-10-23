@@ -21,7 +21,9 @@
       </div>
       <div class="cv-head__meta">
         <app-status-chip domain="conversationOwner" [status]="c.ownerType" />
-        <span>{{ ownerText() }}</span>
+        @if (ownerDetail(); as o) {
+          <span>{{ o }}</span>
+        }
         @if (c.status === 'CLOSED') {
           <app-status-chip domain="conversation" status="CLOSED" />
         }
@@ -37,7 +39,12 @@
           Identificar devedor
         </button>
       }
-      @if (act.takeOver) {
+      @if (act.takeOver && act.identify) {
+        <button mat-stroked-button type="button" (click)="takeOver()" [disabled]="busy()">
+          <mat-icon aria-hidden="true">front_hand</mat-icon>
+          Assumir
+        </button>
+      } @else if (act.takeOver) {
         <button mat-flat-button type="button" (click)="takeOver()" [disabled]="busy()">
           <mat-icon aria-hidden="true">front_hand</mat-icon>
           Assumir
@@ -66,7 +73,7 @@
     </div>
   </header>
 
-  <ol class="cv-timeline" aria-label="Linha do tempo do devedor, da mais antiga para a mais recente" data-tour="conversation-timeline">
+  <ol #timelineList class="cv-timeline" aria-label="Linha do tempo do devedor, da mais antiga para a mais recente" data-tour="conversation-timeline">
     @for (item of timeline(); track $index) {
       @if (item.kind === 'event') {
         <li class="cv-event">

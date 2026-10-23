@@ -70,4 +70,15 @@ describe('FormDialog', () => {
     expect(submitted).toBeNull();
     expect(el(fixture).textContent).toContain('Número CNJ inválido.');
   });
+
+  it('ação irreversível só envia com a palavra de confirmação', () => {
+    const fixture = render({ title: 'Encerrar', confirmationText: 'ENCERRAR', fields: [{ key: 'reason', label: 'Motivo', type: 'text', required: true }] });
+    fixture.componentInstance['form'].patchValue({ reason: 'Pago' });
+    fixture.detectChanges();
+    expect(el(fixture).querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+    fixture.componentInstance['typed'].setValue('encerrar');
+    fixture.detectChanges();
+    submit(fixture);
+    expect(submitted).toEqual({ reason: 'Pago' });
+  });
 });

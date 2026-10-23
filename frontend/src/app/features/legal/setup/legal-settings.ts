@@ -108,13 +108,14 @@ export function parseAlertLevels(text: string): number[] | null {
             }
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Baixa de protesto/negativação após pagamento (dias úteis)</mat-label>
+            <mat-label>Baixa de restrição após pagamento (dias úteis)</mat-label>
             <input matInput type="number" min="1" max="30" formControlName="removalDeadlineBusinessDays" />
-            <mat-hint>Súmula 548/STJ: 5 dias úteis.</mat-hint>
+            <mat-hint>Protesto e negativação; Súmula 548/STJ: 5 dias úteis.</mat-hint>
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Protocolar acordo para homologação (dias úteis)</mat-label>
+            <mat-label>Homologação do acordo (dias úteis)</mat-label>
             <input matInput type="number" min="1" max="60" formControlName="homologationDeadlineBusinessDays" />
+            <mat-hint>Prazo para protocolar o acordo judicial.</mat-hint>
           </mat-form-field>
           <mat-form-field>
             <mat-label>Comunicação prévia à negativação (dias)</mat-label>
@@ -122,12 +123,13 @@ export function parseAlertLevels(text: string): number[] | null {
             <mat-hint>CDC art. 43 §2º; padrão 10.</mat-hint>
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Sinalizar prescrição com antecedência de (dias)</mat-label>
+            <mat-label>Aviso de prescrição (dias antes)</mat-label>
             <input matInput type="number" min="1" max="1825" formControlName="prescriptionWarningDays" />
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Sem nova indicação após encerramento (dias)</mat-label>
+            <mat-label>Carência para nova indicação (dias)</mat-label>
             <input matInput type="number" min="0" max="1825" formControlName="referralCooldownDays" />
+            <mat-hint>Após o encerramento, o caso não é indicado de novo automaticamente.</mat-hint>
           </mat-form-field>
         </div>
         <mat-slide-toggle formControlName="yearEndRecess">Recesso forense de 20/12 a 20/01 nos prazos em dias úteis (CPC art. 220)</mat-slide-toggle>
@@ -170,7 +172,7 @@ export function parseAlertLevels(text: string): number[] | null {
     .ls-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-      gap: 0 16px;
+      gap: 12px 16px;
       margin-bottom: 8px;
     }
     .ls-head {

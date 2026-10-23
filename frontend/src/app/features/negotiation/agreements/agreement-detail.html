@@ -27,7 +27,7 @@
 
   <div class="pd-status" data-tour="agreement-status">
     <app-status-chip domain="agreement" [status]="a.status" />
-    <span class="app-numeric">{{ s.paid }} de {{ s.total }} parcelas pagas ({{ s.paidShare }}%)</span>
+    <span class="app-numeric">{{ s.paid }} de {{ s.total }} parcelas pagas ({{ percent(s.paidShare, 1) }})</span>
     @if (a.renegotiationNumber > 0) {
       <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">autorenew</mat-icon>Renegociação {{ a.renegotiationNumber }}</span>
     }

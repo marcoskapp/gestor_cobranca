@@ -25,7 +25,6 @@
           (click)="selectTab(t.id)"
           (keydown)="tabKey($event, i)"
         >
-          <mat-icon aria-hidden="true">{{ t.icon }}</mat-icon>
           {{ t.label }}
           @if (count(t.id); as n) {
             <span class="ib-count" [attr.aria-label]="n + ' aguardando resposta'">{{ n }}</span>

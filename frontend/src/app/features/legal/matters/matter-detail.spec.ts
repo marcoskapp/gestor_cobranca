@@ -156,6 +156,7 @@ describe('MatterDetail', () => {
     fixture.componentInstance['transition']('CLOSED');
     const dialog = open.mock.calls[0][0] as FormDialogData;
     expect(dialog.warning).toContain('Prazos pendentes são cancelados');
+    expect(dialog.confirmationText).toBe('ENCERRAR');
     const closure = dialog.fields.find((f) => f.key === 'closureReason')!;
     expect(closure.required).toBe(true);
     expect(closure.showIf!({})).toBe(true);

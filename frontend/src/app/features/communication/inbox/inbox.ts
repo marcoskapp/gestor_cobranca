@@ -28,11 +28,11 @@ import { ConversationPanel } from './conversation-panel';
 /** Atualização da lista (aguardando resposta e novas conversas). */
 export const INBOX_REFRESH_MS = 30_000;
 
-const TABS: readonly { id: InboxTab; label: string; icon: string }[] = [
-  { id: 'mine', label: 'Minhas', icon: 'person' },
-  { id: 'queue', label: 'Fila', icon: 'move_to_inbox' },
-  { id: 'assistant', label: 'Assistente', icon: 'smart_toy' },
-  { id: 'all', label: 'Todas', icon: 'forum' },
+const TABS: readonly { id: InboxTab; label: string }[] = [
+  { id: 'mine', label: 'Minhas' },
+  { id: 'queue', label: 'Fila' },
+  { id: 'assistant', label: 'Assistente' },
+  { id: 'all', label: 'Todas' },
 ];
 
 export function inboxFilter(tab: InboxTab, channel: string, awaiting: boolean): InboxFilter {

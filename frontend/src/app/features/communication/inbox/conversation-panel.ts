@@ -1,5 +1,5 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
-import { DOCUMENT, Component, DestroyRef, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { DOCUMENT, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -71,6 +71,7 @@ export class ConversationPanel {
   private readonly notifications = inject(NotificationService);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly document = inject(DOCUMENT);
+  private readonly timelineList = viewChild<ElementRef<HTMLElement>>('timelineList');
 
   protected readonly channelLabels = CHANNEL_LABELS;
   protected readonly channelIcons = CHANNEL_ICONS;
@@ -175,6 +176,18 @@ export class ConversationPanel {
   });
 
   /** Última lista carregada (por conversa), para anunciar só o que chegou depois. */
+  /** Complemento do chip de dono (quem atende ou o perfil exigido na fila). */
+  protected readonly ownerDetail = computed(() => {
+    const c = this.conversation();
+    if (!c) {
+      return null;
+    }
+    if (c.ownerType === 'USER') {
+      return this.ownerText();
+    }
+    return c.ownerType === 'QUEUE' && c.requiredProfile ? `exige ${c.requiredProfile}` : null;
+  });
+
   private previous: { conversationId: string; list: MessageView[] } | null = null;
 
   constructor() {
@@ -205,6 +218,15 @@ export class ConversationPanel {
           );
         }
       });
+    });
+    // a linha do tempo abre na mensagem mais recente (e acompanha as novas)
+    const injector = inject(Injector);
+    effect(() => {
+      this.timeline();
+      const list = this.timelineList();
+      if (list) {
+        afterNextRender(() => (list.nativeElement.scrollTop = list.nativeElement.scrollHeight), { injector });
+      }
     });
     // marca como lida ao abrir
     effect(() => {
@@ -254,7 +276,7 @@ export class ConversationPanel {
   protected eventText(h: HandoffView): string {
     const target = h.toOwnerType === 'USER' ? (h.toUserId === this.userId() ? 'você' : this.users.name(h.toUserId)) : null;
     const parts = [HANDOFF_KIND_LABELS[h.kind] ?? h.kind];
-    if (target && (h.kind === 'ASSIGNMENT' || h.kind === 'TAKE_OVER')) {
+    if (target && h.kind === 'ASSIGNMENT') {
       parts[0] += ` (${target})`;
     }
     if (h.reasonCode) {

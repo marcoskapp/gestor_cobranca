@@ -39,7 +39,7 @@ export const NAVIGATION: readonly NavSection[] = [
     label: 'Comunicação',
     items: [
       { label: 'Caixa de entrada', icon: 'forum', route: '/conversas', permissions: [Permission.INBOX_VIEW] },
-      { label: 'Templates de mensagem', icon: 'article', route: '/conversas/templates', permissions: [Permission.TEMPLATE_MANAGE] },
+      { label: 'Templates', icon: 'article', route: '/conversas/templates', permissions: [Permission.TEMPLATE_MANAGE] },
       { label: 'Canais', icon: 'settings_input_antenna', route: '/conversas/canais', permissions: [Permission.CHANNEL_MANAGE] },
     ],
   },

@@ -48,6 +48,8 @@ export interface FormDialogData<R = unknown> {
   submitLabel?: string;
   details?: readonly { label: string; value: string }[];
   warning?: string;
+  /** Ação irreversível: exige digitar este texto para habilitar o envio (ex.: "ENCERRAR"). */
+  confirmationText?: string;
   fields: readonly FormField[];
   submit: (values: Record<string, unknown>) => Observable<R>;
 }
@@ -259,13 +261,19 @@ export function apiValue(field: FormField, raw: unknown): unknown {
         @if (data.warning) {
           <p class="app-alert app-alert--warning" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>{{ data.warning }}</span></p>
         }
+        @if (data.confirmationText) {
+          <mat-form-field class="app-full-width">
+            <mat-label>Digite {{ data.confirmationText }} para confirmar</mat-label>
+            <input matInput [formControl]="typed" autocomplete="off" spellcheck="false" />
+          </mat-form-field>
+        }
         @if (missing()) {
           <p class="app-field-error" role="alert">Revise os campos destacados: há obrigatórios em branco ou valores inválidos.</p>
         }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
         <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ data.submitLabel ?? 'Salvar' }}</button>
+        <button mat-flat-button type="submit" [disabled]="saving() || !typedMatches()">{{ data.submitLabel ?? 'Salvar' }}</button>
       </mat-dialog-actions>
     </form>
   `,
@@ -273,7 +281,7 @@ export function apiValue(field: FormField, raw: unknown): unknown {
     .fd-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 0 12px;
+      gap: 8px 12px;
     }
     .fd-wide {
       grid-column: 1 / -1;
@@ -304,6 +312,11 @@ export class FormDialog {
   private readonly ref = inject<MatDialogRef<FormDialog, unknown>>(MatDialogRef);
   protected readonly saving = signal(false);
   protected readonly missing = signal(false);
+  protected readonly typed = new FormControl('', { nonNullable: true });
+  private readonly typedValue = toSignal(this.typed.valueChanges, { initialValue: '' });
+  protected readonly typedMatches = computed(
+    () => !this.data.confirmationText || this.typedValue().trim().toUpperCase() === this.data.confirmationText.toUpperCase(),
+  );
 
   protected readonly form = new FormGroup<Record<string, FormControl>>(
     Object.fromEntries(
@@ -385,7 +398,7 @@ export class FormDialog {
       const empty = f.type === 'entity' ? !(c.value as string[]).length : f.type === 'file' ? !c.value : false;
       return c.invalid || (f.required && empty);
     });
-    if (invalid || this.saving()) {
+    if (invalid || this.saving() || !this.typedMatches()) {
       shown.forEach((f) => this.control(f.key).markAsTouched());
       this.missing.set(invalid);
       return;

@@ -32,6 +32,7 @@ import {
 } from '../data/agreement.labels';
 import { AcceptanceChannel } from '../data/agreement.models';
 import { actorText, agreementActions, installmentBalance, scheduleSummary, shortHash } from '../data/agreement.rules';
+import { percent } from '../data/negotiation.labels';
 
 const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse().join('/') : '—');
 
@@ -63,6 +64,7 @@ export class AgreementDetail {
   protected readonly ledgerStatus = LEDGER_STATUS_LABELS;
   protected readonly balance = installmentBalance;
   protected readonly shortHash = shortHash;
+  protected readonly percent = percent;
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly agreement = valueOr(this.resource, undefined);

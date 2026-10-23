@@ -25,7 +25,8 @@ export interface AccountDialogData {
   template: `
     <h2 mat-dialog-title>{{ editing ? 'Editar conta de canal' : 'Nova conta de canal' }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content class="app-form-stack">
+      <mat-dialog-content>
+        <div class="app-form-stack">
         @if (!editing) {
           <div class="ch-row">
             <mat-form-field>
@@ -77,6 +78,7 @@ export interface AccountDialogData {
             </mat-form-field>
           }
         }
+        </div>
       </mat-dialog-content>
       <mat-dialog-actions align="end">
         <button mat-button type="button" mat-dialog-close>Cancelar</button>
@@ -166,7 +168,8 @@ export class AccountDialog {
   template: `
     <h2 mat-dialog-title>Trocar credenciais</h2>
     <form (ngSubmit)="save()" novalidate>
-      <mat-dialog-content class="app-form-stack">
+      <mat-dialog-content>
+        <div class="app-form-stack">
         <p class="app-dialog-message">Conta {{ data.account!.name }}. Informe os novos valores; os atuais deixam de valer ao salvar.</p>
         @for (k of keys; track k) {
           <mat-form-field>
@@ -174,6 +177,7 @@ export class AccountDialog {
             <input matInput type="password" autocomplete="off" [formControl]="controls[k]" required />
           </mat-form-field>
         }
+        </div>
       </mat-dialog-content>
       <mat-dialog-actions align="end">
         <button mat-button type="button" mat-dialog-close>Cancelar</button>

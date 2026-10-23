@@ -63,7 +63,7 @@
             <span class="md-kpi__label">Custas e despesas</span>
             <span class="md-kpi__value"><app-amount [value]="m.expensesTotal" /></span>
             @if (budget() !== null) {
-              <span class="app-muted">{{ budget() }}% do orçamento</span>
+              <span class="app-muted">{{ budgetText() }} do orçamento</span>
             }
           </div>
           <div class="md-kpi"><span class="md-kpi__label">Recuperado</span><span class="md-kpi__value"><app-amount [value]="m.recoveredAmount" /></span></div>
