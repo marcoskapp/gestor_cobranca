@@ -1,6 +1,6 @@
 # Desenho — módulo `assistant` (IA de atendimento e negociação)
 
-Escopo: F24. Especificação de produto: [`documentação/assistente-ia.md`](../../documentação/assistente-ia.md). Schema `assistant`, migrations V1500–V1599.
+Escopo: F24. Especificação de produto: [`docs/negocio/assistente-ia.md`](../../negocio/assistente-ia.md). Schema `assistant`, migrations V1500–V1599.
 Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication`.
 
 ## 1. Componentes

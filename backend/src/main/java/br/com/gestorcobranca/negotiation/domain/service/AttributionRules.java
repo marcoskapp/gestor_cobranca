@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /**
  * Origem e participantes do acordo na formalização (insumo da remuneração variável, ver
- * {@code docs/design/remuneracao-variavel.md} §3). Puro.
+ * {@code docs/tecnico/desenho/remuneracao-variavel.md} §3). Puro.
  * <table>
  *   <tr><th>Quem formaliza</th><th>Situação</th><th>Origem</th></tr>
  *   <tr><td>assistente</td><td>—</td><td>ASSISTANT_AUTONOMOUS</td></tr>

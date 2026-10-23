@@ -6,7 +6,7 @@
  * Outros módulos usam somente {@code application.port.in}. Reações a outros módulos acontecem
  * por eventos de integração ({@code shared.events.debt}, {@code .compliance},
  * {@code .organization}, {@code .negotiation}, {@code .payment}). Ver
- * {@code docs/design/collection.md}.
+ * {@code docs/tecnico/desenho/collection.md}.
  */
 @ApplicationModule(displayName = "Collection",
         allowedDependencies = {"shared", "organization :: usecases", "identity :: usecases", "debt :: usecases",

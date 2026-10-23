@@ -1,6 +1,6 @@
 package br.com.gestorcobranca.negotiation.domain.model.agreement;
 
-/** Origem do acordo para a atribuição de crédito (ver {@code docs/design/remuneracao-variavel.md} §3.2). */
+/** Origem do acordo para a atribuição de crédito (ver {@code docs/tecnico/desenho/remuneracao-variavel.md} §3.2). */
 public enum AgreementOrigin {
     HUMAN,
     HUMAN_COPILOT,

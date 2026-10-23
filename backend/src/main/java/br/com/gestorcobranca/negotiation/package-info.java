@@ -1,5 +1,5 @@
 /**
- * Negociação (M06, F08, F09, F16, RB03–RB05) — ver docs/design/negociacao-e-alcadas.md.
+ * Negociação (M06, F08, F09, F16, RB03–RB05) — ver docs/tecnico/desenho/negociacao-e-alcadas.md.
  * <p>
  * Parte 1 (este estado): políticas de cobrança versionadas por credor com sobreposições por
  * carteira e faixa de atraso, tabela manual de índices de correção, motor de cálculo puro com

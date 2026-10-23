@@ -69,7 +69,7 @@ sempre do servidor.
 Tokens de design em `src/styles/_tokens.scss`, tema Material 3 em `src/styles.scss` (claro, escuro
 ou do sistema via `html[data-theme]`; densidade via `html[data-density]`). Tours declarativos em
 `core/onboarding/content/` com âncoras `data-tour`. Guia completo e contrato para telas novas:
-[`docs/design/ux.md`](../docs/design/ux.md).
+[`docs/tecnico/desenho/ux.md`](../docs/tecnico/desenho/ux.md).
 
 ## Erros
 

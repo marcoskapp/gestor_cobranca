@@ -1,5 +1,5 @@
 /**
- * Métricas operacionais dos negociadores e remuneração variável (docs/design/remuneracao-variavel.md):
+ * Métricas operacionais dos negociadores e remuneração variável (docs/tecnico/desenho/remuneracao-variavel.md):
  * fatos de desempenho materializados a partir de eventos, atribuição de crédito entre humano,
  * assistente, portal e campanha, planos de comissão versionados, razão de comissão com carência,
  * fechamento de período, extrato, contestação, ajuste, aprovação segregada, exportação para a

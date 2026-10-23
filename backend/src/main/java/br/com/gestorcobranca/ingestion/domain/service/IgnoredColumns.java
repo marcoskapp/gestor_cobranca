@@ -14,7 +14,7 @@ import java.util.List;
  * o layout é extensível, e arquivos com colunas a mais continuam válidos.
  * <ul>
  *   <li>{@code import.columns_not_supported}: colunas com prefixo jurídico (garantias, avaliações,
- *       coobrigados, natureza do título — {@code docs/design/juridico.md}, A.4) que o layout não
+ *       coobrigados, natureza do título — {@code docs/tecnico/desenho/juridico.md}, A.4) que o layout não
  *       reconhece, como um terceiro coobrigado ou uma segunda garantia na mesma linha.</li>
  *   <li>{@code import.columns_ignored}: demais colunas não mapeadas.</li>
  * </ul>

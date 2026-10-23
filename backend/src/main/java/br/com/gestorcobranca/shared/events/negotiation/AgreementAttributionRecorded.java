@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /**
  * Participantes de um acordo registrados na formalização (insumo da remuneração variável, ver
- * {@code docs/design/remuneracao-variavel.md} §3). Publicado pelo módulo {@code negotiation} na
+ * {@code docs/tecnico/desenho/remuneracao-variavel.md} §3). Publicado pelo módulo {@code negotiation} na
  * mesma transação da formalização; o módulo {@code incentive} nunca reconstrói a atribuição a
  * partir de logs.
  *

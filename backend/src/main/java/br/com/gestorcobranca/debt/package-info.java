@@ -4,7 +4,7 @@
  * vida, razão do título por componente (principal, juros, multa, encargos, honorários), saldos
  * informados pelo credor, histórico de titularidade, garantias com avaliações, partes da
  * obrigação (coobrigados) e prescrição por pretensão com regras configuráveis por assessoria
- * ({@code docs/design/juridico.md}, Parte A).
+ * ({@code docs/tecnico/desenho/juridico.md}, Parte A).
  * <p>
  * Outros módulos usam somente {@code application.port.in}: casos de uso web
  * ({@code DebtorUseCases}, {@code DebtorContactUseCases}, {@code DebtTitleUseCases},

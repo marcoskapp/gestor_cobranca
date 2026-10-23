@@ -39,7 +39,7 @@ public record PaymentConfirmed(
      * Pagamento de parcela de acordo: o módulo {@code negotiation} é quem distribui o valor entre
      * os títulos e componentes do acordo e o lança no razão do título ({@code DebtLedgerPort});
      * o módulo {@code payment} não lança no razão as alocações com {@code agreementInstallmentId}
-     * (ver {@code docs/design/negociacao-e-alcadas.md} §10).
+     * (ver {@code docs/tecnico/desenho/negociacao-e-alcadas.md} §10).
      *
      * @param titleId                título afetado; obrigatório em pagamento sem acordo. Em alocação a
      *                               parcela de acordo é opcional (informativo — a distribuição por

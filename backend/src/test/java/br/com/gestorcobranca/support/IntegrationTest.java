@@ -69,7 +69,13 @@ public abstract class IntegrationTest {
     }
 
     private static String createIsolatedDatabase(String adminUrl, String user, String password) {
-        String database = "cobranca_it_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        // IT_DB_NAME_PREFIX identifica os bancos de uma execução, para que a limpeza de uma execução
+        // não remova bancos de outra rodando em paralelo no mesmo servidor
+        String prefix = System.getenv().getOrDefault("IT_DB_NAME_PREFIX", "cobranca_it_");
+        if (!prefix.matches("[a-z][a-z0-9_]{0,40}")) {
+            throw new IllegalStateException("IT_DB_NAME_PREFIX inválido: use letras minúsculas, dígitos e _");
+        }
+        String database = prefix + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         try (Connection connection = DriverManager.getConnection(adminUrl, user, password);
              Statement statement = connection.createStatement()) {
             statement.execute("create database " + database + " owner app_owner");

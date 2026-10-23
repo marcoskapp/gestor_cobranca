@@ -10,7 +10,7 @@ import java.util.UUID;
 /**
  * O assistente de IA propôs condições dentro da política, mas acima da própria alçada: a proposta
  * <strong>não</strong> vai para a fila de aprovação; o atendimento deve ser transferido para um
- * humano com a proposta como sugestão ({@code docs/design/negociacao-e-alcadas.md} §5).
+ * humano com a proposta como sugestão ({@code docs/tecnico/desenho/negociacao-e-alcadas.md} §5).
  * <p>
  * Publicado pelo módulo {@code negotiation} na transação que registra a proposta
  * ({@code HANDED_OFF}). Consumidores previstos: {@code communication} (transferir a conversa para

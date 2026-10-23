@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Observabilidade (documentação/infraestrutura-aws.md §3).
+# Observabilidade (docs/arquitetura/infraestrutura-aws.md §3).
 #   - 3 grupos de log com retenções distintas (technical 30 d; business e access 13 meses)
 #   - metric filters sobre os logs JSON
 #   - alarmes iniciais do documento + saúde do host
