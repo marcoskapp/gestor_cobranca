@@ -98,7 +98,7 @@ Contrato novo `shared.events.legal.LegalExpenseChanged` (publicado pelo `LegalEx
 
 Administrador tem todas, mas a segregação vale para ele. Escopo por credor em tudo (404 em leitura, 403 em comando; listagens filtradas). Auditoria: `commission_rule_set.*`, `settlement_statement.*` (criado, calculado, revisado, aprovado, enviado, aceito, contestado, cancelado, exportado), `settlement_adjustment.*`, `settlement_transfer.*`. Log de acesso: `DATA_EXPORTED` na geração, `FILE_DOWNLOADED` no download de exportação e comprovante, `SCOPE_DENIED`/`ACCESS_DENIED`.
 
-As leituras de pagamento e acordo são feitas como processo do sistema (`SystemSettlementSources`), em transação de leitura própria, depois de o settlement aplicar o escopo por credor: o cálculo do demonstrativo não depende de quem calcula ter `PAYMENT_VIEW`.
+As leituras de pagamento e acordo são feitas como processo do sistema (`SystemSettlementSources`), depois de o settlement aplicar o escopo por credor: o cálculo do demonstrativo não depende de quem calcula ter `PAYMENT_VIEW`. Nos casos de uso, cada leitura vai numa transação própria (a exceção de "não encontrado" de outro módulo não desfaz a do settlement); nos consumidores de evento, os fatos são lidos **antes** da transação do consumidor (`SourceSnapshot`), para que cada consumidor use uma conexão por vez (16 consumidores simultâneos × 2 conexões esgotariam o pool de 30).
 
 ## 9. Eventos, logs e métricas
 
@@ -148,6 +148,7 @@ Métricas: `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome
 | 16 | Custas pelo contrato `LegalExpenseChanged` (publicado agora pelo legal); despesas manuais fora do jurídico via ajuste `EXPENSE_REIMBURSEMENT` | Tela de despesas no settlement | Uma fonte de verdade para custas; ajuste tem motivo, auditoria e segunda aprovação |
 | 17 | Repasse ligado a demonstrativo aprovado, parcial permitido, comprovante obrigatório, idempotente | Repasse avulso por credor | Saldo conciliável por demonstrativo |
 | 18 | Limite de ajuste e tamanho do comprovante por propriedade da aplicação | Parâmetro por assessoria | Sem tela de parâmetros; pode virar `settlement_settings` se a operação pedir |
+| 19 | Consumidores leem os fatos de outros módulos antes de abrir a própria transação | Transação de leitura aninhada | Uma conexão por consumidor; sem risco de esgotar o pool com o executor de eventos cheio |
 
 ## 13. Pendências
 

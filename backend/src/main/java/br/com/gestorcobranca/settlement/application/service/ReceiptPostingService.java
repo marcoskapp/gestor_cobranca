@@ -69,13 +69,14 @@ class ReceiptPostingService {
         this.json = json;
     }
 
-    void paymentConfirmed(PaymentConfirmed e) {
+    /** @param lookups fatos pré-carregados ({@link SourceSnapshot#forTitlePayment}) */
+    void paymentConfirmed(PaymentConfirmed e, SettlementSources lookups) {
         if (e.agreementId() != null) {
             // recuperação de acordo = valor aplicado pelo negotiation (AgreementPaymentRecorded)
             return;
         }
         locks.lockAllocation(e.paymentId());
-        Optional<PaymentFacts> payment = sources.paymentOfAllocation(e.paymentId());
+        Optional<PaymentFacts> payment = lookups.paymentOfAllocation(e.paymentId());
         ReceivedBy receivedBy = payment.map(p -> p.receivedByCreditor() ? ReceivedBy.CREDITOR : ReceivedBy.AGENCY)
                 .orElse(ReceivedBy.AGENCY);
         LocalDate paidOn = date(e.paidAt() == null ? e.occurredAt() : e.paidAt());
@@ -109,10 +110,11 @@ class ReceiptPostingService {
             return;
         }
         created.addAll(applyPendingNotices(e.paymentId()));
-        rating.rate(e.creditorId(), created);
+        rating.rate(e.creditorId(), created, lookups);
     }
 
-    void agreementPaymentRecorded(AgreementPaymentRecorded e) {
+    /** @param lookups fatos pré-carregados ({@link SourceSnapshot#forAgreementPayment}) */
+    void agreementPaymentRecorded(AgreementPaymentRecorded e, SettlementSources lookups) {
         if (!"APPLIED".equals(e.status()) || e.appliedAmount() == null || e.appliedAmount().signum() <= 0) {
             metrics.eventIgnored("agreement_payment_recorded", e.status() == null ? "unknown" : e.status().toLowerCase());
             return;
@@ -122,10 +124,10 @@ class ReceiptPostingService {
             metrics.receipt(ReceiptKind.PAYMENT.name(), "duplicate");
             return;
         }
-        AgreementPaymentFacts d = sources.agreementPayment(e.agreementId(), e.paymentId())
+        AgreementPaymentFacts d = lookups.agreementPayment(e.agreementId(), e.paymentId())
                 .orElseThrow(() -> new IllegalStateException("Distribuição do pagamento " + e.paymentId()
                         + " não encontrada no acordo " + e.agreementId()));
-        Optional<PaymentFacts> payment = sources.paymentOfAllocation(e.paymentId());
+        Optional<PaymentFacts> payment = lookups.paymentOfAllocation(e.paymentId());
         ReceivedBy receivedBy = payment.map(p -> p.receivedByCreditor() ? ReceivedBy.CREDITOR : ReceivedBy.AGENCY)
                 .orElse(ReceivedBy.AGENCY);
         Money applied = Money.of(e.appliedAmount());
@@ -150,7 +152,7 @@ class ReceiptPostingService {
         metrics.receipt(ReceiptKind.PAYMENT.name(), "recorded");
         List<Receipt> created = new ArrayList<>(List.of(receipt));
         created.addAll(applyPendingNotices(e.paymentId()));
-        rating.rate(e.creditorId(), created);
+        rating.rate(e.creditorId(), created, lookups);
     }
 
     void paymentReversed(PaymentReversed e) {
@@ -172,7 +174,8 @@ class ReceiptPostingService {
                     .log("Estorno sem recebimento registrado para a alocação; guardado até o recebimento chegar");
             return;
         }
-        rating.rate(e.creditorId(), created);
+        // compensações usam a versão do lançamento original: nenhuma leitura de outro módulo
+        rating.rate(e.creditorId(), created, sources);
     }
 
     private List<Receipt> applyPendingNotices(UUID allocationId) {

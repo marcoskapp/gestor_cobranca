@@ -66,15 +66,19 @@ class RatingService {
         this.clock = clock;
     }
 
-    /** Apura os recebimentos informados (do mesmo credor), na ordem: confirmados antes das compensações. */
-    void rate(UUID creditorId, List<Receipt> pending) {
+    /**
+     * Apura os recebimentos informados (do mesmo credor), na ordem: confirmados antes das compensações.
+     *
+     * @param lookups fatos de outros módulos (pré-carregados pelo consumidor de evento)
+     */
+    void rate(UUID creditorId, List<Receipt> pending, SettlementSources lookups) {
         if (pending.isEmpty()) {
             return;
         }
         locks.lockCreditor(creditorId);
         pending.stream().sorted(Comparator.comparing((Receipt r) -> r.isPayment() ? 0 : 1)
                         .thenComparing(Receipt::getCompetenceDate))
-                .forEach(this::rateOne);
+                .forEach(r -> rateOne(r, lookups));
     }
 
     /** Tenta apurar todos os pendentes do credor; devolve quantos foram apurados. */
@@ -86,22 +90,22 @@ class RatingService {
                 .toList();
         int rated = 0;
         for (Receipt r : pending) {
-            if (r.getRatingStatus() == RatingStatus.PENDING_RULES && rateOne(r)) {
+            if (r.getRatingStatus() == RatingStatus.PENDING_RULES && rateOne(r, sources)) {
                 rated++;
             }
         }
         return rated;
     }
 
-    private boolean rateOne(Receipt r) {
+    private boolean rateOne(Receipt r, SettlementSources lookups) {
         if (r.getRatingStatus() == RatingStatus.RATED) {
             return true;
         }
-        return r.isPayment() ? ratePayment(r) : rateReversal(r);
+        return r.isPayment() ? ratePayment(r, lookups) : rateReversal(r);
     }
 
-    private boolean ratePayment(Receipt r) {
-        UUID contract = resolveContract(r);
+    private boolean ratePayment(Receipt r, SettlementSources lookups) {
+        UUID contract = resolveContract(r, lookups);
         if (contract == null) {
             return pending(r, "NO_CONTRACT");
         }
@@ -197,17 +201,17 @@ class RatingService {
     }
 
     /** Contrato da carteira do recebimento ou, sem carteira, o único contrato do credor vigente na data. */
-    private UUID resolveContract(Receipt r) {
+    private UUID resolveContract(Receipt r, SettlementSources lookups) {
         if (r.getContractId() != null) {
             return r.getContractId();
         }
         if (r.getPortfolioId() != null) {
-            Optional<UUID> fromPortfolio = sources.contractOfPortfolio(r.getPortfolioId());
+            Optional<UUID> fromPortfolio = lookups.contractOfPortfolio(r.getPortfolioId());
             if (fromPortfolio.isPresent()) {
                 return fromPortfolio.get();
             }
         }
-        List<ContractFacts> effective = sources.contracts(r.getCreditorId()).stream()
+        List<ContractFacts> effective = lookups.contracts(r.getCreditorId()).stream()
                 .filter(c -> c.effectiveOn(r.getPaidOn())).toList();
         return effective.size() == 1 ? effective.getFirst().id() : null;
     }

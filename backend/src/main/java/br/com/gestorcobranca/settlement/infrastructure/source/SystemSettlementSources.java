@@ -19,11 +19,13 @@ import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
@@ -142,7 +144,17 @@ class SystemSettlementSources implements SettlementSources {
         }
     }
 
+    /**
+     * Dentro de uma transação (caso de uso do settlement), a leitura vai numa transação própria — a exceção de
+     * outro módulo não marca a transação do settlement para desfazer. Sem transação (pré-carga dos consumidores
+     * de evento), cada caso de uso lido abre e fecha a sua, sem segurar duas conexões.
+     */
     private <T> T system(Supplier<T> action) {
-        return tenantExecution.callInTenant(currentActor.tenantId(), PROCESS, action);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            return tenantExecution.callInTenant(currentActor.tenantId(), PROCESS, action);
+        }
+        AtomicReference<T> result = new AtomicReference<>();
+        tenantExecution.withTenantContext(currentActor.tenantId(), PROCESS, () -> result.set(action.get()));
+        return result.get();
     }
 }

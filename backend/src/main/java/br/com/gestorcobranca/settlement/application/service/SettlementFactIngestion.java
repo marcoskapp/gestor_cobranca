@@ -1,7 +1,6 @@
 package br.com.gestorcobranca.settlement.application.service;
 
 import br.com.gestorcobranca.settlement.application.port.out.SettlementLocks;
-import br.com.gestorcobranca.settlement.application.port.out.SettlementSources;
 import br.com.gestorcobranca.settlement.domain.model.AgreementFact;
 import br.com.gestorcobranca.settlement.domain.model.ReimbursableExpense;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementFactRepository;
@@ -31,24 +30,21 @@ class SettlementFactIngestion {
             "CANCELLED", "RENEGOTIATED");
 
     private final SettlementFactRepository facts;
-    private final SettlementSources sources;
     private final SettlementLocks locks;
     private final SettlementMetrics metrics;
 
-    SettlementFactIngestion(SettlementFactRepository facts, SettlementSources sources, SettlementLocks locks,
-                         SettlementMetrics metrics) {
+    SettlementFactIngestion(SettlementFactRepository facts, SettlementLocks locks, SettlementMetrics metrics) {
         this.facts = facts;
-        this.sources = sources;
         this.locks = locks;
         this.metrics = metrics;
     }
 
-    void agreementAttributed(AgreementAttributionRecorded e) {
+    /** @param installments número de parcelas do acordo, lido antes da transação do consumidor */
+    void agreementAttributed(AgreementAttributionRecorded e, Optional<Integer> installments) {
         locks.lockAgreement(e.agreementId());
         AgreementFact fact = facts.findAgreement(e.agreementId()).orElseGet(() -> new AgreementFact(e.agreementId(),
                 e.creditorId(), e.portfolioId(), "FORMALIZED", Money.ofNullable(e.agreementAmount()), e.formalizedAt()));
-        Integer installments = sources.agreementInstallmentCount(e.agreementId()).orElse(null);
-        fact.formalized(e.portfolioId(), Money.ofNullable(e.agreementAmount()), e.daysPastDue(), installments,
+        fact.formalized(e.portfolioId(), Money.ofNullable(e.agreementAmount()), e.daysPastDue(), installments.orElse(null),
                 e.replacedAgreementId() != null, e.formalizedAt());
         facts.save(fact);
     }
