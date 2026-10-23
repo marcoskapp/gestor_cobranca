@@ -20,8 +20,8 @@ import java.util.UUID;
  * toda condição passa pelo {@code NegotiationGuard} com o perfil de alçada do ator.
  * <ul>
  *   <li>{@link #create}: {@code NEGOTIATION_PROPOSE}; dentro da alçada → {@code DRAFT}; acima da alçada
- *       → {@code PENDING_APPROVAL} (humano) ou {@code HANDED_OFF} + {@code NegotiationHandoffRequested}
- *       (assistente); fora da política ou inelegível → 422 {@code proposal.conditions_rejected}.</li>
+ *       → {@code PENDING_APPROVAL} (humano) ou {@code HANDED_OFF} + {@code HandoffRequested} (contrato do
+ *       communication, motivo {@code REQUIRES_APPROVAL}) (assistente); fora da política ou inelegível → 422 {@code proposal.conditions_rejected}.</li>
  *   <li>{@link #approve}/{@link #reject}: {@code NEGOTIATION_APPROVE}, perfil com {@code canApprove} e
  *       alçada suficiente para as condições, nunca o próprio proponente.</li>
  *   <li>{@link #accept}: {@code AGREEMENT_FORMALIZE}; registra a evidência do aceite do devedor e gera

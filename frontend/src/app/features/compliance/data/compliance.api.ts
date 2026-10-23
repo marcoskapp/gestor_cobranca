@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_V1 } from '../../../core/config/api';
@@ -81,9 +81,11 @@ export class ContactPolicyApi {
     return this.http.post<PolicyView>(`${BASE}/contact-policies`, request);
   }
 
-  effective(creditorId: string | null): Observable<EffectivePolicyView> {
+  /** `context` permite à estação de cobrança tratar a falha sem notificação genérica. */
+  effective(creditorId: string | null, context?: HttpContext): Observable<EffectivePolicyView> {
     return this.http.get<EffectivePolicyView>(`${BASE}/contact-policies/effective`, {
       params: toHttpParams({ creditorId }),
+      context,
     });
   }
 

@@ -179,7 +179,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 - Resultado do `ProposalEvaluator`: `REJECTED` → 422 `proposal.conditions_rejected` (com os códigos), nada gravado; `WITHIN_AUTHORITY` → `DRAFT`; `REQUIRES_APPROVAL` → `PENDING_APPROVAL` (humano) ou `HANDED_OFF` (assistente).
 - Validade: `hoje + proposalValidityDays`, limitada ao 1º vencimento (`validUntil`); job diário expira as abertas (`DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `ACCEPTED`).
 - **Fila de aprovação (F16)**: `GET /proposals/approval-queue` lista as pendentes nos credores do escopo cujas condições cabem na alçada do aprovador (`ProposalTerms.AuthorityRequirement` × perfil com `canApprove`), exceto as próprias. A aprovação revalida pelo guard **com o aprovador como ator** (mesma versão de política, data-base original): fora da alçada do aprovador → 422 `proposal.approver_authority_insufficient`; inválida → 409 `proposal.no_longer_valid`; posição dos títulos mudou → 409 `proposal.conditions_changed`. Ninguém decide a própria proposta; o assistente nunca aprova.
-- **Handoff do assistente**: proposta do assistente acima da alçada fica `HANDED_OFF`, **não** entra na fila, e publica `shared.events.negotiation.NegotiationHandoffRequested` (proposta, caso, devedor, credor, carteira, política do assistente, simulação, códigos das violações, nível, parcelas, valor, canal) para os futuros `communication`/`assistant` transferirem a conversa. O humano assume com `POST /proposals/{id}/adopt` (mesmas condições, revalidadas com a alçada dele; aprovação se exceder) ou negocia outra proposta com `handoffProposalId`.
+- **Handoff do assistente**: proposta do assistente acima da alçada fica `HANDED_OFF`, **não** entra na fila, e publica o contrato do communication `shared.events.communication.HandoffRequested` (`comunicacao.md` §3.1) com `reasonCode = REQUIRES_APPROVAL`, `referenceType = proposal`/`referenceId` = proposta, caso, devedor, credor, `requestedByType = ASSISTANT`/política, `conversationId` nulo (todas as conversas abertas do caso) e um resumo sem dados pessoais (nível, pagamentos, valores, 1º vencimento, códigos das violações e o caminho de adoção). O communication (`communication.handoff-requested`) transfere a conversa para a fila e o caso volta aos humanos. O humano assume com `POST /proposals/{id}/adopt` (mesmas condições, revalidadas com a alçada dele; aprovação se exceder) ou negocia outra proposta com `handoffProposalId`.
 - **Aceite** (`POST /proposals/{id}/accept`, `AGREEMENT_FORMALIZE`): revalida, gera o termo (PDF), guarda no `FileStorage` e registra `AcceptanceEvidence`: canal, instante, autor (tipo/id), referência externa (mensagem/sessão/chamada), IP e agente de usuário (da requisição HTTP; integrações informam os do devedor) e o arquivo com SHA-256.
 - **Formalização** (`POST /proposals/{id}/formalize`): lock consultivo por devedor; perfil de quem formaliza com `canFormalize` (o `ASSISTENTE_INICIAL` não formaliza → humano); revalidação; acima da alçada de quem formaliza só se a proposta foi aprovada.
 
@@ -219,7 +219,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 | `AgreementStatusChanged` | formalização (`previousStatus` nulo), `IN_PAYMENT`, `SETTLED`, `BROKEN`, `CANCELLED`, `RENEGOTIATED`, reabertura por estorno |
 | `InstallmentStatusChanged` | toda mudança de situação de parcela |
 | `AgreementAttributionRecorded` | formalização |
-| `NegotiationHandoffRequested` (**novo**) | proposta do assistente acima da alçada |
+| `HandoffRequested` (contrato do `communication`, `shared.events.communication`) | proposta do assistente acima da alçada |
 | consumidos: `PaymentConfirmed`, `PaymentReversed`, `DebtorAnonymized` (**novo**, publicado pelo debt na anonimização), `TenantProvisioned` | — |
 
 ### 10.9 LGPD
@@ -247,7 +247,7 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 | 2 | Proposta cobre uma única carteira (um caso) | Várias carteiras | Caso de cobrança, filas, atribuição e `AgreementStatusChanged` são por carteira |
 | 3 | Revalidação usa a data-base original (valor congelado) dentro da validade; mudança de valor → 409 `proposal.conditions_changed` | Recalcular na data da aprovação | O devedor aceita um valor; a validade (≤ 1º vencimento) limita o congelamento |
 | 4 | Fila de aprovação filtrada em memória pela exigência de alçada (até 1.000 pendentes por consulta), aprovação revalidando com o aprovador | Tabela de roteamento | Perfil é resolvido por credor; volume de pendentes é baixo; a revalidação é a garantia |
-| 5 | Assistente acima da alçada → `HANDED_OFF` + evento, sem fila; humano adota (`/adopt`) | Proposta pendente de aprovação | §5 do desenho; a conversa precisa de humano, não só de aprovação |
+| 5 | Assistente acima da alçada → `HANDED_OFF` + `HandoffRequested` (contrato já definido pelo communication, sem campos novos), sem fila; humano adota (`/adopt`) | Evento próprio do negotiation; proposta pendente de aprovação | §5 do desenho; um único contrato de transferência; a conversa precisa de humano, não só de aprovação |
 | 6 | HANDOFF_CONFIRMED × NEGOTIATED por impressão digital de títulos, descontos, parcelas e entrada pedida (sem datas e valores acumulados) | Comparar valor total | Juros até a data-base mudam com o tempo sem negociação |
 | 7 | Termo gerado no aceite (o hash do termo aceito vai à evidência), modelo padrão em PDFBox com nome e documento mascarado | Gerar na formalização; modelo por credor | O devedor aceita um documento concreto; modelo versionado por credor fica pendente (jurídico) |
 | 8 | IP/agente do aceite = os da requisição HTTP; integrações (portal/comunicação) informam os do devedor no comando | Sempre do cliente | O cliente HTTP não pode forjar a evidência; a API web não aceita IP informado |
@@ -267,7 +267,7 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 ### 10.12 Pendências
 
 - **payment**: produzir `PaymentConfirmed` com `agreementId` e `agreementInstallmentId` sem lançar essas alocações no razão; realocar pagamentos `UNAPPLIED`.
-- **communication / assistant**: consumir `NegotiationHandoffRequested` (transferir a conversa, `case.owner` para fila/humano).
+- **assistant**: encerrar o turno com a mensagem de transferência quando a ferramenta de proposta devolver `HANDED_OFF` (o communication já consome `HandoffRequested`).
 - **collection**: consumir `DebtorAnonymized` para observações próprias; opcionalmente reagir ao handoff.
 - **debt**: operação compensatória de reconhecimento de encargo (estorno após lançamento, §10.5).
 - **jurídico/produto**: modelo de termo versionado por credor (cláusulas, foro, identificação completa).

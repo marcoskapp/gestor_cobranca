@@ -34,7 +34,7 @@ import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
-import br.com.gestorcobranca.shared.events.negotiation.NegotiationHandoffRequested;
+import br.com.gestorcobranca.shared.events.communication.HandoffRequested;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.MdcKeys;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
@@ -77,6 +77,9 @@ import java.util.UUID;
 class ProposalService implements ProposalUseCases {
 
     static final String RESOURCE = "negotiation_proposal";
+    /** Motivo e referência do pedido de transferência ({@code HandoffRequested}, contrato do communication). */
+    static final String HANDOFF_REASON = "REQUIRES_APPROVAL";
+    static final String RESOURCE_REFERENCE = "proposal";
     /** Propostas pendentes examinadas por consulta da fila de aprovação (filtradas pela alçada do aprovador). */
     private static final int QUEUE_SCAN_LIMIT = 1000;
 
@@ -249,14 +252,25 @@ class ProposalService implements ProposalUseCases {
             businessEvents.log(base(BusinessEventTypes.PROPOSAL_HANDOFF_REQUESTED, proposal)
                     .attr("actorType", actor.type()).attr("concessionLevel", s.level())
                     .attr("reasons", String.join(",", r.authorityCodes())));
-            events.publishEvent(new NegotiationHandoffRequested(Ids.newId(), actor.tenantId(), Instant.now(clock),
-                    proposal.getId(), proposal.getCaseId(), proposal.getDebtorId(), proposal.getCreditorId(),
-                    proposal.getPortfolioId(), actor.id(), s.simulationId(), r.authorityCodes(), s.level(), n,
-                    proposal.getTotalAmount().amount(), proposal.getChannel()));
+            // transferência para humano pelo contrato do communication (a conversa vai à fila; o caso volta aos humanos)
+            events.publishEvent(new HandoffRequested(Ids.newId(), actor.tenantId(), Instant.now(clock),
+                    proposal.getCaseId(), proposal.getDebtorId(), proposal.getCreditorId(), null, HANDOFF_REASON, null,
+                    handoffSummary(proposal, r.authorityCodes()), RESOURCE_REFERENCE, proposal.getId(),
+                    actor.type().name(), actor.id()));
             metrics.handoffRequested();
         }
         metrics.proposalCreated(actor.type().name(), status.name());
         return views.proposal(proposal, actor.isAssistant());
+    }
+
+    /** Resumo para o operador, sem dados pessoais: condições, valores e violações de alçada. */
+    static String handoffSummary(Proposal p, List<String> reasons) {
+        String summary = "Proposta " + p.getId() + " do assistente acima da alçada (" + String.join(", ", reasons)
+                + "): nível " + p.getLevel() + ", " + p.getInstallments() + " pagamento(s), total R$ "
+                + p.getTotalAmount().amount().toPlainString() + ", desconto R$ " + p.getDiscountAmount().amount().toPlainString()
+                + ", 1º vencimento " + p.getFirstDueDate() + ". Assuma a sugestão em /negotiation/proposals/" + p.getId()
+                + "/adopt.";
+        return summary.length() <= 2000 ? summary : summary.substring(0, 2000);
     }
 
     private Proposal handoff(UUID id, Actor actor, UUID creditorId, UUID debtorId) {

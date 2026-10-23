@@ -27,7 +27,16 @@ Integração com `negotiation` (parte 1 implementada — ver `negociacao-e-alcad
 - a política do assistente é vinculada a um perfil por `AuthorityUseCases.assign(ASSISTANT_POLICY, policyId, credor opcional, perfil)`; sem vínculo vale o perfil semeado `ASSISTENTE_INICIAL` (nível 1, 50% do envelope, até 6 pagamentos, até R$ 3.000, entrada mínima 10%, **sem formalização**);
 - ferramentas de negociação: `NegotiationSimulationUseCases.simulate` (ofertas até a alçada; o envelope completo nunca é devolvido ao assistente) e `validate` (`REQUIRES_APPROVAL` → transferência para humano com a proposta como sugestão);
 - permissões mínimas do ator para essas ferramentas: `NEGOTIATION_SIMULATE` (e `POLICY_VIEW` se a ferramenta consultar regras); o assistente só relê as próprias simulações.
-- propostas (parte 2, `negociacao-e-alcadas.md` §10.2): `ProposalUseCases.create` a partir da própria simulação (`NEGOTIATION_PROPOSE`); dentro da alçada → `DRAFT`, aceite do devedor registrado pela ferramenta `accept` (`AGREEMENT_FORMALIZE`, canal e id da mensagem; IP/agente se houver) e formalização somente se o perfil tiver `canFormalize` (o `ASSISTENTE_INICIAL` não tem: um humano formaliza, origem `ASSISTANT_HANDOFF_CONFIRMED`); acima da alçada → `HANDED_OFF` e evento `NegotiationHandoffRequested` — o módulo assistant encerra o turno com a mensagem de transferência e o communication passa a conversa para fila/humano; o humano adota a sugestão (`/proposals/{id}/adopt`). O assistente só vê as próprias propostas e acordos e nunca aprova.
+- propostas (parte 2, `negociacao-e-alcadas.md` §10.2): `ProposalUseCases.create` a partir da própria simulação (`NEGOTIATION_PROPOSE`); dentro da alçada → `DRAFT`, aceite do devedor registrado pela ferramenta `accept` (`AGREEMENT_FORMALIZE`, canal e id da mensagem; IP/agente se houver) e formalização somente se o perfil tiver `canFormalize` (o `ASSISTENTE_INICIAL` não tem: um humano formaliza, origem `ASSISTANT_HANDOFF_CONFIRMED`); acima da alçada → `HANDED_OFF` e evento `HandoffRequested` (`comunicacao.md` §3.1, motivo `REQUIRES_APPROVAL`, referência `proposal`) — o communication passa a conversa para fila/humano e o assistant encerra o turno com a mensagem de transferência; o humano adota a sugestão (`/proposals/{id}/adopt`). O assistente só vê as próprias propostas e acordos e nunca aprova.
+
+Integração com `communication` (implementado — ver `comunicacao.md` §3.1–3.2):
+- conversa conduzida pelo assistente tem dono `ASSISTANT` (o do caso no collection); o assistente lê
+  `ConversationUseCases#get` e `MessageUseCases#listByConversation` e responde por `MessageUseCases#send` somente nessas
+  conversas, sempre pelo porteiro de contato (permissões mínimas: `MESSAGE_SEND`, `INBOX_VIEW`);
+- mensagens recebidas chegam por `MessageStatusChanged` (`INBOUND`/`RECEIVED`) com o id da conversa;
+- transferência para humano: `ConversationUseCases#handoffToHumans` (motivo, resumo sem dados pessoais, perfil exigido);
+  módulos sem dependência de `communication` (negotiation) publicam `HandoffRequested`;
+- modos sombra/copiloto: `ConversationUseCases#proposeDraft` (o operador envia ou descarta).
 
 ## 3. Guardrails
 

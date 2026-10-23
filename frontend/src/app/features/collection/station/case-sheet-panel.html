@@ -1,0 +1,301 @@
+@let cs = c();
+@let d = debtor();
+
+<header class="sp-head" data-tour="case-header">
+  <div class="sp-head__main">
+    <h2 class="sp-head__name">{{ d.name }}</h2>
+    <div class="sp-head__meta">
+      @if (revealedDocument(); as full) {
+        <app-document [value]="full" [masked]="false" />
+        <button mat-button type="button" (click)="revealedDocument.set(null)">Ocultar</button>
+      } @else {
+        <app-document [value]="d.maskedDocument" [revealable]="canReveal() && active()" (reveal)="revealDocument()" />
+      }
+      <span class="app-muted">{{ creditors().name(cs.creditorId) }} · {{ portfolios().name(cs.portfolioId) }}</span>
+    </div>
+  </div>
+  <div class="sp-head__chips">
+    <app-status-chip domain="case" [status]="cs.status" />
+    @if (cs.eligible) {
+      <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>Elegível</span>
+    } @else {
+      <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">block</mat-icon>Inelegível</span>
+    }
+    <a mat-button [routerLink]="['/devedores', d.id]" matTooltip="Abrir a ficha completa do devedor">
+      <mat-icon aria-hidden="true">open_in_new</mat-icon>
+      Ficha do devedor
+    </a>
+  </div>
+</header>
+
+@if (!cs.eligible && cs.eligibilityReasons.length) {
+  <p class="app-alert app-alert--warning sp-alert" role="note">
+    <mat-icon aria-hidden="true">info</mat-icon>
+    <span>{{ cs.eligibilityReasons.map(eligibilityText).join(' · ') }}</span>
+  </p>
+}
+@if (cs.statusReason && (cs.status === 'SUSPENDED' || cs.status === 'LEGAL')) {
+  <p class="app-alert app-alert--neutral sp-alert" role="note">
+    <mat-icon aria-hidden="true">pause_circle</mat-icon>
+    <span>Motivo: {{ cs.statusReason }}</span>
+  </p>
+}
+
+<section class="sp-kpis" aria-label="Posição do caso">
+  <div class="sp-kpi">
+    <span class="sp-kpi__label">Saldo em aberto</span>
+    <span class="sp-kpi__value"><app-amount [value]="cs.openBalance" /></span>
+  </div>
+  <div class="sp-kpi">
+    <span class="sp-kpi__label">Saldo elegível</span>
+    <span class="sp-kpi__value"><app-amount [value]="cs.eligibleBalance" /></span>
+  </div>
+  <div class="sp-kpi">
+    <span class="sp-kpi__label">Maior atraso</span>
+    <span class="sp-kpi__value"><app-overdue-badge [days]="cs.daysOverdue" /></span>
+  </div>
+  <div class="sp-kpi">
+    <span class="sp-kpi__label">Contatos efetivos</span>
+    <span class="sp-kpi__value app-numeric">{{ cs.effectiveContactCount }} / {{ cs.interactionCount }}</span>
+  </div>
+</section>
+
+@if (sheet().pendingPromise; as p) {
+  <p class="app-alert app-alert--warning sp-alert" role="note">
+    <mat-icon aria-hidden="true">handshake</mat-icon>
+    <span>
+      Promessa de <app-amount [value]="p.amount" /> para {{ p.dueDate | appDate: 'date' }}
+      (cumpre até {{ p.breaksAfter | appDate: 'date' }}) · pago <app-amount [value]="p.paidAmount" />
+    </span>
+  </p>
+}
+
+<mat-tab-group
+  class="sp-tabs"
+  mat-stretch-tabs="false"
+  animationDuration="0ms"
+  [selectedIndex]="tab()"
+  (selectedIndexChange)="tab.set($event)"
+  data-tour="case-tabs"
+>
+  <mat-tab>
+    <ng-template mat-tab-label>Títulos ({{ sheet().titles.length }})<kbd class="sp-kbd" aria-hidden="true">Alt 1</kbd></ng-template>
+    <div class="sp-tab">
+      <div class="sp-scroll">
+        <table class="sp-table" aria-label="Títulos da carteira">
+          <thead>
+            <tr>
+              <th scope="col">Título</th>
+              <th scope="col">Vencimento</th>
+              <th scope="col">Atraso</th>
+              <th scope="col" class="sp-end">Valor original</th>
+              <th scope="col" class="sp-end">Saldo</th>
+              <th scope="col">Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of sheet().titles; track t.titleId) {
+              <tr>
+                <td>
+                  <a class="app-numeric" [routerLink]="['/titulos', t.titleId]">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</a>
+                  @if (t.disputeBlocked) {
+                    <span class="sp-flag"><mat-icon aria-hidden="true">gavel</mat-icon>Contestação</span>
+                  }
+                </td>
+                <td>{{ t.dueDate | appDate: 'date' }}</td>
+                <td><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></td>
+                <td class="sp-end"><app-amount [value]="t.principalAmount" /></td>
+                <td class="sp-end"><app-amount [value]="t.openBalance" /></td>
+                <td><app-status-chip domain="title" [status]="t.status" /></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="app-muted">Nenhum título nesta carteira.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </mat-tab>
+
+  <mat-tab>
+    <ng-template mat-tab-label>Contatos ({{ d.contacts.length }})<kbd class="sp-kbd" aria-hidden="true">Alt 2</kbd></ng-template>
+    <div class="sp-tab">
+      <ul class="sp-list">
+        @for (ct of d.contacts; track ct.contactId) {
+          @let full = revealedContacts().get(ct.contactId);
+          <li class="sp-item">
+            <mat-icon class="sp-item__icon" aria-hidden="true">{{ contactIcons[ct.type] }}</mat-icon>
+            <span class="app-numeric">{{ full ?? ct.maskedValue }}</span>
+            <span class="app-muted">{{ contactTypes[ct.type] }} · {{ contactLabels[ct.label] }} · prioridade {{ ct.priority }}</span>
+            @if (ct.whatsapp) {
+              <span class="app-status app-status--info">WhatsApp</span>
+            }
+            <app-status-chip domain="contact" [status]="ct.status" />
+            @if (full) {
+              <button mat-icon-button type="button" class="sp-icon" (click)="hideContact(ct)" aria-label="Ocultar valor completo" matTooltip="Ocultar">
+                <mat-icon aria-hidden="true">visibility_off</mat-icon>
+              </button>
+            } @else if (canReveal() && active()) {
+              <button mat-icon-button type="button" class="sp-icon" (click)="revealContact(ct)" aria-label="Exibir valor completo (acesso registrado)" matTooltip="Exibir completo (acesso registrado)">
+                <mat-icon aria-hidden="true">visibility</mat-icon>
+              </button>
+            }
+          </li>
+        } @empty {
+          <li><app-empty-state icon="contact_phone" title="Nenhum contato cadastrado." [compact]="true" /></li>
+        }
+      </ul>
+    </div>
+  </mat-tab>
+
+  <mat-tab>
+    <ng-template mat-tab-label>Histórico ({{ cs.interactionCount }})<kbd class="sp-kbd" aria-hidden="true">Alt 3</kbd></ng-template>
+    <div class="sp-tab" [attr.aria-busy]="historyLoading()">
+      <ol class="sp-timeline" aria-label="Interações, da mais recente para a mais antiga">
+        @for (i of interactions(); track i.id) {
+          <li class="sp-event" [class.sp-event--effective]="i.effectiveContact">
+            <mat-icon class="sp-item__icon" aria-hidden="true">{{ channelIcons[i.channel] }}</mat-icon>
+            <div>
+              <div>
+                <strong>{{ tabulationNames().get(i.outcomeCode ?? '') ?? i.outcomeCode ?? 'Sem tabulação' }}</strong>
+                <span class="app-muted"> · {{ channelLabels[i.channel] }} · {{ i.direction === 'INBOUND' ? 'receptivo' : 'ativo' }}</span>
+                @if (i.effectiveContact) {
+                  <span class="app-status app-status--success">Contato efetivo</span>
+                }
+              </div>
+              <div class="app-muted">
+                {{ i.startedAt | appDate }} · {{ operatorText(i.operatorId, i.actorType) }}
+                @if (i.durationSeconds) {
+                  · {{ i.durationSeconds }} s
+                }
+              </div>
+              @if (i.note) {
+                <p class="sp-note">{{ i.note }}</p>
+              }
+            </div>
+          </li>
+        } @empty {
+          <li><app-empty-state icon="forum" title="Nenhuma interação registrada." message="Registre o resultado de cada contato no painel ao lado." [compact]="true" /></li>
+        }
+      </ol>
+      @if (!showAllHistory() && cs.interactionCount > sheet().recentInteractions.length) {
+        <button mat-button type="button" (click)="showAllHistory.set(true)">Ver todas as {{ cs.interactionCount }} interações</button>
+      }
+    </div>
+  </mat-tab>
+
+  <mat-tab>
+    <ng-template mat-tab-label>Agenda e promessas ({{ sheet().openTasks.length }})<kbd class="sp-kbd" aria-hidden="true">Alt 4</kbd></ng-template>
+    <div class="sp-tab">
+      <h3 class="app-section-title">Agendamentos em aberto</h3>
+      <ul class="sp-list">
+        @for (task of sheet().openTasks; track task.id) {
+          <li class="sp-item">
+            <mat-icon class="sp-item__icon" aria-hidden="true">event</mat-icon>
+            <span class="app-numeric" [class.sp-late]="late(task)">{{ formatLocal(task.dueAtLocal) }}</span>
+            <span>{{ taskTypes[task.type] }}{{ task.note ? ' · ' + task.note : '' }}</span>
+            <app-status-chip domain="task" [status]="late(task) ? 'MISSED' : task.status" />
+            @if (canManageTasks()) {
+              <span class="sp-actions">
+                <button mat-icon-button type="button" class="sp-icon" (click)="complete(task)" aria-label="Concluir agendamento" matTooltip="Concluir">
+                  <mat-icon aria-hidden="true">check</mat-icon>
+                </button>
+                <button mat-icon-button type="button" class="sp-icon" (click)="reschedule(task)" aria-label="Reagendar" matTooltip="Reagendar">
+                  <mat-icon aria-hidden="true">update</mat-icon>
+                </button>
+                <button mat-icon-button type="button" class="sp-icon" (click)="cancelTask(task)" aria-label="Cancelar agendamento" matTooltip="Cancelar">
+                  <mat-icon aria-hidden="true">event_busy</mat-icon>
+                </button>
+              </span>
+            }
+          </li>
+        } @empty {
+          <li class="app-muted">Nenhum retorno agendado.</li>
+        }
+      </ul>
+
+      <h3 class="app-section-title">Promessa pendente</h3>
+      @if (sheet().pendingPromise; as p) {
+        <div class="sp-item">
+          <mat-icon class="sp-item__icon" aria-hidden="true">handshake</mat-icon>
+          <app-amount [value]="p.amount" />
+          <span>para {{ p.dueDate | appDate: 'date' }} · pago <app-amount [value]="p.paidAmount" /></span>
+          <app-status-chip domain="promise" [status]="p.status" />
+          @if (canCancelPromise()) {
+            <button mat-button type="button" (click)="cancelPromise(p)">Cancelar promessa</button>
+          }
+        </div>
+      } @else {
+        <p class="app-muted">Nenhuma promessa pendente. Para registrar, use uma tabulação de promessa.</p>
+      }
+      @if (!showPromises()) {
+        <button mat-button type="button" (click)="showPromises.set(true)">Ver histórico de promessas</button>
+      } @else {
+        <ul class="sp-list">
+          @for (p of promiseHistory(); track p.id) {
+            <li class="sp-item">
+              <app-amount [value]="p.amount" />
+              <span class="app-muted">prometida em {{ p.promisedAt | appDate: 'date' }} para {{ p.dueDate | appDate: 'date' }}</span>
+              <app-status-chip domain="promise" [status]="p.status" />
+            </li>
+          } @empty {
+            <li class="app-muted">Nenhuma promessa registrada.</li>
+          }
+        </ul>
+      }
+    </div>
+  </mat-tab>
+
+  <mat-tab>
+    <ng-template mat-tab-label>Contestações e restrições<kbd class="sp-kbd" aria-hidden="true">Alt 5</kbd></ng-template>
+    <div class="sp-tab">
+      <h3 class="app-section-title">Contestações em aberto</h3>
+      <ul class="sp-list">
+        @for (dp of sheet().openDisputes; track dp.id) {
+          <li class="sp-item">
+            <mat-icon class="sp-item__icon" aria-hidden="true">gavel</mat-icon>
+            <strong>{{ disputeTypes[dp.type] }}</strong>
+            <span [class.sp-late]="dp.overdue">resposta até {{ dp.responseDueDate | appDate: 'date' }}</span>
+            <app-status-chip domain="dispute" [status]="dp.status" />
+            @if (dp.blocksCollection) {
+              <span class="app-status app-status--danger">Cobrança suspensa</span>
+            }
+            <span class="app-muted">{{ dp.evidenceCount }} evidência(s)</span>
+          </li>
+        } @empty {
+          <li class="app-muted">Nenhuma contestação em aberto.</li>
+        }
+      </ul>
+
+      <h3 class="app-section-title">Restrições de contato vigentes</h3>
+      <ul class="sp-list">
+        @for (r of sheet().activeRestrictions; track r.id) {
+          <li class="sp-item">
+            <mat-icon class="sp-item__icon" aria-hidden="true">phone_disabled</mat-icon>
+            <span>{{ restrictionTypes[r.type] ?? r.type }}</span>
+            <span class="app-muted">
+              {{ r.channel ? channelText(r.channel) : 'Todos os canais' }}
+              {{ r.contactMasked ? ' · ' + r.contactMasked : '' }}
+              · {{ r.endsAt ? 'até ' + (r.endsAt | appDate: 'date') : 'sem prazo' }}
+            </span>
+          </li>
+        } @empty {
+          <li class="app-muted">Nenhuma restrição vigente para este credor.</li>
+        }
+      </ul>
+
+      @if (sheet().otherCases.length) {
+        <h3 class="app-section-title">Outros casos do devedor</h3>
+        <ul class="sp-list">
+          @for (o of sheet().otherCases; track o.id) {
+            <li class="sp-item">
+              <a [routerLink]="['/cobranca/casos', o.id]">{{ creditors().name(o.creditorId) }} · {{ portfolios().name(o.portfolioId) }}</a>
+              <app-amount [value]="o.openBalance" />
+              <app-status-chip domain="case" [status]="o.status" />
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </mat-tab>
+</mat-tab-group>

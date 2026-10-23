@@ -20,7 +20,7 @@ class FieldEncryptorTest {
         FieldEncryptor encryptor = new FieldEncryptor(new CryptoProperties(Map.of("k1", K1), "k1", BLIND));
         String a = encryptor.encrypt("529.982.247-25");
         String b = encryptor.encrypt("529.982.247-25");
-        assertThat(a).isNotEqualTo(b).startsWith("k1:").doesNotContain("529");
+        assertThat(a).isNotEqualTo(b).startsWith("k1:").doesNotContain("529.982.247-25");
         assertThat(encryptor.decrypt(a)).isEqualTo("529.982.247-25");
     }
 

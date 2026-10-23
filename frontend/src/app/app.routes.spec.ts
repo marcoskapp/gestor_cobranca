@@ -83,4 +83,24 @@ describe('rotas da aplicação', () => {
     await harness.navigateByUrl('/titulos');
     expect(TestBed.inject(Router).url).toBe('/titulos');
   }, 20_000);
+
+  it('estação, gestão da cobrança e negociação exigem as permissões dos controllers', async () => {
+    user.set(fakeUser({ permissions: ['CASE_VIEW'] }));
+    const harness = await RouterTestingHarness.create('/cobranca/fila');
+    expect(TestBed.inject(Router).url).toBe('/acesso-negado');
+    await harness.navigateByUrl('/cobranca/tabulacoes');
+    expect(TestBed.inject(Router).url).toBe('/acesso-negado');
+    await harness.navigateByUrl('/negociacao/alcadas');
+    expect(TestBed.inject(Router).url).toBe('/acesso-negado');
+    user.set(fakeUser({ permissions: ['POLICY_VIEW'] }));
+    await harness.navigateByUrl('/negociacao/simulador');
+    expect(TestBed.inject(Router).url).toBe('/acesso-negado');
+  }, 20_000);
+
+  it('"/cobranca" leva à estação de cobrança para quem trabalha casos', async () => {
+    user.set(fakeUser({ permissions: ['CASE_WORK', 'CASE_VIEW'] }));
+    const harness = await RouterTestingHarness.create('/cobranca');
+    expect(TestBed.inject(Router).url).toBe('/cobranca/fila');
+    expect(harness.routeNativeElement?.textContent).toContain('Estação de cobrança');
+  }, 20_000);
 });

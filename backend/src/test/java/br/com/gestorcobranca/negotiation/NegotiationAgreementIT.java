@@ -298,6 +298,13 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         assertThat(asManager(() -> proposals.approvalQueue(PageQuery.of(0, 20))).content()).isEmpty();
         assertThat(count("select count(*) from shared.business_event where event_type = 'proposal.handoff_requested'"))
                 .isEqualTo(1);
+        // transferência pelo contrato do communication (consumido como communication.handoff-requested)
+        awaitTrue("handoff consumido pelo communication", () -> {
+            Long consumed = jdbcTemplate.queryForObject("select count(*) from shared.consumed_event "
+                    + "where consumer = 'communication.handoff-requested' and consumed_at > now() - interval '5 minutes'",
+                    Long.class);
+            return consumed != null && consumed >= 1;
+        });
         // o assistente não vê propostas de humanos; o humano assume a sugestão
         ProposalView adopted = asManager(() -> proposals.adopt(handoff.id(), "PHONE"));
         assertThat(adopted.status()).isEqualTo("DRAFT");

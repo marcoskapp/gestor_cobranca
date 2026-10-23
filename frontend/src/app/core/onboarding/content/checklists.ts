@@ -56,6 +56,14 @@ export const CHECKLISTS: readonly ChecklistProfile[] = [
         completion: { kind: 'manual' },
       },
       {
+        id: 'admin.import',
+        label: 'Importar a primeira carteira',
+        description: 'Envie o arquivo do credor em prévia, confira as ocorrências e importe.',
+        route: '/importacao',
+        permissions: [Permission.IMPORT_EXECUTE],
+        completion: { kind: 'manual' },
+      },
+      {
         id: 'admin.users',
         label: 'Cadastrar os usuários',
         description: 'Uma conta por pessoa, com o perfil adequado à função.',

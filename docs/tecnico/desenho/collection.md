@@ -131,7 +131,11 @@ operador). O caso pertence à **primeira fila ativa por prioridade** (empate pel
 | `NONE` | sem fila e sem atendimento | abertura sem fila correspondente; encerramento |
 | `QUEUE` | aguardando um humano na fila/equipe | roteamento; devolução; atribuição à equipe |
 | `USER` | operador responsável | próximo caso; distribuição; atribuição; operador que registra interação num caso sem operador; `take-over` |
-| `ASSISTANT` | o assistente conduz | `POST /cases/{id}/assistant` (o responsável ou `CASE_ASSIGN`) |
+| `ASSISTANT` | o assistente conduz | `POST /cases/{id}/assistant` (o responsável ou `CASE_ASSIGN`); conversas devolvidas ao assistente (communication) |
+
+Transferência do assistente para humanos: `CaseWorkUseCases#release` aceita caso com dono `ASSISTANT` (o próprio
+assistente, sistema ou `CASE_ASSIGN`), devolvendo-o à fila (`RELEASE`). As conversas do módulo communication seguem o
+dono do caso (ver `comunicacao.md` §3).
 
 Quem pode trabalhar o caso: o responsável; qualquer operador quando o caso está sem operador (passa a ser o
 responsável — modo `INTERACTION` ou `TAKE_OVER` se estava com o assistente); quem tem `CASE_ASSIGN`; atores de
@@ -156,7 +160,9 @@ informam `externalRef`: reenvio devolve a interação já registrada (`uk_intera
 
 Tabulações por assessoria, com flags: `effectiveContact` (CPC), `promise` (exige valor e data), `callback` (exige data e
 hora do retorno), `requiresNote`. Promessa e retorno são exclusivos entre si; promessa pressupõe contato efetivo. Catálogo
-padrão (12 tabulações) semeado no provisionamento (`TenantProvisioned`) e pela `V0601` nas assessorias existentes.
+padrão (14 tabulações) semeado no provisionamento (`TenantProvisioned`) e pela `V0601` nas assessorias existentes;
+`MESSAGE_SENT` e `MESSAGE_RECEIVED` (não efetivas, registradas automaticamente pelo communication com origem
+`COMMUNICATION`) chegam às existentes pela `V1001`.
 
 Registrar uma interação conclui, na mesma transação, os retornos em aberto do caso cujo horário já chegou (com a
 tolerância antes do horário) ou a tarefa indicada em `completesTaskId`.
