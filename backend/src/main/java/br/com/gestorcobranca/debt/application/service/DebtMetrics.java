@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Métricas Micrometer das garantias, partes da obrigação e prescrição (documentadas em
- * {@code docs/LOGGING.md} §5). Tags com cardinalidade fixa (enums); nunca ids.
+ * {@code docs/tecnico/logs-e-metricas.md} §5). Tags com cardinalidade fixa (enums); nunca ids.
  */
 @Component
 class DebtMetrics {

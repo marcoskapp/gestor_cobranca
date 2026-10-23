@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Alarmes iniciais (documentação/infraestrutura-aws.md §3, "Alarmes iniciais").
+# Alarmes iniciais (docs/arquitetura/infraestrutura-aws.md §3, "Alarmes iniciais").
 # -----------------------------------------------------------------------------
 
 # --- ALB -------------------------------------------------------------------------------

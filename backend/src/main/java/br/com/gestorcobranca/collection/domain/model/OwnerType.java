@@ -2,7 +2,7 @@ package br.com.gestorcobranca.collection.domain.model;
 
 /**
  * Dono do atendimento do caso, com a mesma semântica das conversas do módulo communication
- * (docs/design/comunicacao.md §2).
+ * (docs/tecnico/desenho/comunicacao.md §2).
  */
 public enum OwnerType {
     /** O assistente de IA conduz o atendimento. */

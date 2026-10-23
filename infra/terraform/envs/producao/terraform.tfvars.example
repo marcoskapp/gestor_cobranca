@@ -1,7 +1,7 @@
 # =============================================================================
 # Produção. Copie para terraform.tfvars (não versionado).
 # Valores ativos = fase 1 (piloto). Os blocos "FASE 2" estão comentados: ative-os por PR
-# quando entrarem clientes pagantes (documentação/infraestrutura-aws.md §4).
+# quando entrarem clientes pagantes (docs/arquitetura/infraestrutura-aws.md §4).
 # NUNCA coloque segredos aqui.
 # =============================================================================
 

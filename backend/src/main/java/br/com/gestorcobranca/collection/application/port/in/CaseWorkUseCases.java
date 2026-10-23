@@ -13,7 +13,7 @@ import java.util.UUID;
 /**
  * Trabalho dos casos (F07): "próximo caso", atribuição manual, distribuição em lote, devolução à
  * fila, redistribuição e dono do atendimento compartilhado com o assistente de IA e a caixa de
- * entrada (mesma semântica de {@code docs/design/comunicacao.md} §2: {@code ASSISTANT},
+ * entrada (mesma semântica de {@code docs/tecnico/desenho/comunicacao.md} §2: {@code ASSISTANT},
  * {@code QUEUE}, {@code USER}, {@code NONE}). Toda mudança de dono encerra o período vigente do
  * histórico de atribuição e abre outro, registra {@code case.assigned} e publica
  * {@code CaseAssignmentChanged} quando muda o responsável humano ou a equipe.

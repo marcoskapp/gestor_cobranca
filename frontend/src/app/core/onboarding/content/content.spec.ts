@@ -6,7 +6,7 @@ import { CHECKLISTS } from './checklists';
 import { SCREENS, findScreen } from './screens';
 import { TOURS, findTour } from './tours';
 
-/** Consistência do conteúdo de onboarding com o contrato de docs/design/ux.md §8.4. */
+/** Consistência do conteúdo de onboarding com o contrato de docs/tecnico/desenho/ux.md §8.4. */
 describe('conteúdo do onboarding', () => {
   it('toda tela com tour aponta para um tour existente e curto (≤ 6 passos, ≤ 25 palavras por passo)', () => {
     for (const screen of SCREENS.filter((s) => s.tourId)) {

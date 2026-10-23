@@ -172,4 +172,4 @@ Maiores alavancas de economia, em ordem: Savings Plans/instâncias reservadas na
 | Infraestrutura | Recriável por Terraform |
 | Objetivo inicial | RPO ≤ 5 min (logs de transação do RDS); RTO ≤ 1 h (fase 1) e ≤ 15 min (fase 2, Multi-AZ) |
 
-Implementação em Terraform, scripts de implantação e procedimentos (primeira implantação, rotação de segredos, rollback): [`infra/terraform/README.md`](../infra/terraform/README.md).
+Implementação em Terraform, scripts de implantação e procedimentos (primeira implantação, rotação de segredos, rollback): [`infra/terraform/README.md`](../../infra/terraform/README.md).

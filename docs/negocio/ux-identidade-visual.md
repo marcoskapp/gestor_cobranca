@@ -1,6 +1,6 @@
 # Identidade visual e onboarding
 
-Como o Gestor de Cobrança se apresenta e como ensina o próprio uso. Detalhes técnicos em [`docs/design/ux.md`](../docs/design/ux.md).
+Como o Gestor de Cobrança se apresenta e como ensina o próprio uso. Detalhes técnicos em [`docs/tecnico/desenho/ux.md`](../tecnico/desenho/ux.md).
 
 ## Objetivo
 

@@ -11,7 +11,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * Regras de camadas da arquitetura hexagonal (docs/ARCHITECTURE.md §3), válidas para todos os
+ * Regras de camadas da arquitetura hexagonal (docs/arquitetura/visao-geral.md §3), válidas para todos os
  * módulos.
  */
 class ArchitectureTest {

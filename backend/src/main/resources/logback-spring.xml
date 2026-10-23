@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Três fluxos de log independentes (ver docs/LOGGING.md):
+  Três fluxos de log independentes (ver docs/tecnico/logs-e-metricas.md):
     technical.log  - todos os loggers de classe: manutenção, diagnóstico e desempenho
     business.log   - logger BUSINESS: eventos de negócio para inteligência operacional
     access.log     - logger ACCESS: acesso e segurança para rastreabilidade

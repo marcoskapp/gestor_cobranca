@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 
 /**
- * Métricas {@code ingestion.*} (catálogo em {@code docs/LOGGING.md}). Tags apenas com valores de
+ * Métricas {@code ingestion.*} (catálogo em {@code docs/tecnico/logs-e-metricas.md}). Tags apenas com valores de
  * baixa cardinalidade (origem, modo, status, resultado) — nunca ids.
  */
 @Component

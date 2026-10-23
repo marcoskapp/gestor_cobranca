@@ -9,7 +9,7 @@ import java.util.UUID;
  * Layouts de importação por credor (opcionalmente restritos a uma carteira), versionados.
  * Publicar um código existente cria a próxima versão e desativa a anterior; lotes guardam a
  * versão usada. O layout canônico (código {@code PADRAO}) é fixo e documentado em
- * {@code documentação/layout-importacao.md}.
+ * {@code docs/negocio/layout-importacao.md}.
  */
 public interface ImportLayoutUseCases {
 

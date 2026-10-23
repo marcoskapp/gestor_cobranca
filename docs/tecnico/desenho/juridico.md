@@ -1,6 +1,6 @@
 # Desenho — garantias e workflow jurídico
 
-Especificação de produto: [`documentação/workflow-juridico.md`](../../documentação/workflow-juridico.md).
+Especificação de produto: [`docs/negocio/workflow-juridico.md`](../../negocio/workflow-juridico.md).
 
 ## Parte A — evolução do módulo `debt` (garantias, partes, natureza do título, prescrição)
 

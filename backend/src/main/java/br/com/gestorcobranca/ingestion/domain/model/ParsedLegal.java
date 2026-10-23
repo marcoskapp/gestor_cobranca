@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Dados jurídicos do contrato de origem informados na linha (A.4 de {@code docs/design/juridico.md}):
+ * Dados jurídicos do contrato de origem informados na linha (A.4 de {@code docs/tecnico/desenho/juridico.md}):
  * natureza do título, coobrigados e garantia com avaliação. Os códigos já estão no vocabulário do
  * {@code DebtIngestionPort} ({@link LegalTerms}). Só existe quando a linha informa o contrato.
  *
