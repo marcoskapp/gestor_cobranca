@@ -31,6 +31,8 @@ class PortalAccessIT extends PortalTestSupport {
     JwtEncoder jwtEncoder;
     @Autowired
     JwtProperties jwtProperties;
+    @Autowired
+    org.springframework.context.ApplicationEventPublisher publisher;
 
     @BeforeEach
     void setUp() {
@@ -209,6 +211,25 @@ class PortalAccessIT extends PortalTestSupport {
         assertThat(get("/api/portal/v1/sites/" + slug, null).status()).isEqualTo(404);
         assertThat(post("/api/portal/v1/sites/" + slug + "/access/code", Map.of("document", CPF_MARIA, "channel", "WHATSAPP"),
                 null).status()).isEqualTo(404);
+    }
+
+    @Test
+    void debtorAnonymizationRevokesSessionsAndErasesPortalPersonalData() {
+        String token = login(CPF_MARIA);
+        AccessLinkView link = sendLink(maria);
+        br.com.gestorcobranca.shared.events.debt.DebtorAnonymized event = new br.com.gestorcobranca.shared.events.debt
+                .DebtorAnonymized(br.com.gestorcobranca.shared.domain.Ids.newId(), tenant, Instant.now(), maria);
+        tenantExecution.inTenant(tenant, "test.publish", () -> publisher.publishEvent(event));
+        awaitTrue("anonimização consumida", () -> count("select count(*) from shared.consumed_event "
+                + "where consumer = 'portal.debtor-anonymized' and event_id = ?", event.eventId()) == 1);
+        assertThat(count("select count(*) from portal.portal_session where debtor_id = ? and status = 'ACTIVE'", maria)).isZero();
+        assertThat(count("select count(*) from portal.portal_session where debtor_id = ? and client_ip is not null", maria))
+                .isZero();
+        assertThat(count("select count(*) from portal.access_challenge where debtor_id = ? and document_hash is not null",
+                maria)).isZero();
+        assertThat(post("/api/portal/v1/sites/" + slug + "/access/link", Map.of("token", linkToken(link)), null).status())
+                .isEqualTo(401);
+        awaitTrue("sessão revogada", () -> get("/api/portal/v1/me/session", token).status() == 401);
     }
 
     private String forged(String type, String audience) {

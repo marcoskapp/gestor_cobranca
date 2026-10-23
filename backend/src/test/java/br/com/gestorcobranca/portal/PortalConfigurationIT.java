@@ -111,6 +111,6 @@ class PortalConfigurationIT extends PortalTestSupport {
                 "select count(*) from portal.portal_route where slug = ?", Long.class, slug))).isEqualTo(1);
         // sessões e configuração não são removidas pela aplicação (rastreabilidade)
         assertThatThrownBy(() -> system(() -> jdbcTemplate.update("delete from portal.portal_session")))
-                .hasMessageContaining("permission denied");
+                .rootCause().hasMessageContaining("permission denied");
     }
 }
