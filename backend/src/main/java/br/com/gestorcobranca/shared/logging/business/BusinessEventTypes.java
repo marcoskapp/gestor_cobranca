@@ -22,6 +22,12 @@ public final class BusinessEventTypes {
     // Dívida
     public static final String DEBTOR_CONSOLIDATED = "debtor.consolidated";
     public static final String TITLE_STATUS_CHANGED = "title.status_changed";
+    public static final String COLLATERAL_REGISTERED = "collateral.registered";
+    public static final String COLLATERAL_STATUS_CHANGED = "collateral.status_changed";
+    public static final String COLLATERAL_APPRAISED = "collateral.appraised";
+    public static final String OBLIGATION_PARTY_REGISTERED = "obligation_party.registered";
+    public static final String TITLE_PRESCRIPTION_INTERRUPTED = "title.prescription_interrupted";
+    public static final String TITLE_PRESCRIPTION_APPROACHING = "title.prescription_approaching";
 
     // Operação
     public static final String CASE_OPENED = "case.opened";

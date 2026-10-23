@@ -201,6 +201,15 @@ app:
   scheduling:
     enabled: true
 
+  debt:
+    prescription:
+      # reconciliação e alerta de prescrição próxima (janela por regra, em debt.prescription_rule)
+      daily-cron: "0 10 6 * * *"
+      batch-size: 500
+      recalculation-batch: 200
+    evidence:
+      max-size-bytes: 20971520
+
   compliance:
     data-subject-request:
       # dias corridos para atender (LGPD art. 19, II); prazos específicos por tipo em due-days

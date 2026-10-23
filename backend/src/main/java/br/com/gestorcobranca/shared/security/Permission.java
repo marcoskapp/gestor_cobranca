@@ -41,6 +41,8 @@ public enum Permission {
     DEBTOR_MANAGE("Editar devedores e contatos"),
     DEBTOR_SENSITIVE_VIEW("Visualizar dados pessoais sem máscara"),
     DEBT_TITLE_MANAGE("Suspender, cancelar e ajustar títulos"),
+    COLLATERAL_MANAGE("Gerenciar garantias, avaliações e partes da obrigação (coobrigados)"),
+    PRESCRIPTION_MANAGE("Classificar a natureza do título e registrar interrupções de prescrição"),
 
     // Operação de cobrança
     CASE_VIEW("Consultar casos de cobrança"),

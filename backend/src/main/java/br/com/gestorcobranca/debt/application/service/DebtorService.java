@@ -1,11 +1,13 @@
 package br.com.gestorcobranca.debt.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.domain.model.ContactSource;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
 import br.com.gestorcobranca.debt.domain.model.DebtorContact;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorContactRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
+import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -41,6 +43,8 @@ class DebtorService implements DebtorUseCases {
     private final DebtorRepository debtors;
     private final DebtorContactRepository contacts;
     private final DebtTitleRepository titles;
+    private final ObligationPartyRepository parties;
+    private final DebtorRegistry registry;
     private final DebtorVisibility visibility;
     private final PersonalDataIndex index;
     private final AccessScope accessScope;
@@ -50,11 +54,13 @@ class DebtorService implements DebtorUseCases {
     private final Clock clock;
 
     DebtorService(DebtorRepository debtors, DebtorContactRepository contacts, DebtTitleRepository titles,
-                  DebtorVisibility visibility, PersonalDataIndex index, AccessScope accessScope, CurrentActor currentActor,
+                  ObligationPartyRepository parties, DebtorRegistry registry, DebtorVisibility visibility, PersonalDataIndex index, AccessScope accessScope, CurrentActor currentActor,
                   AuditTrail auditTrail, AccessLogger accessLogger, Clock clock) {
         this.debtors = debtors;
         this.contacts = contacts;
         this.titles = titles;
+        this.parties = parties;
+        this.registry = registry;
         this.visibility = visibility;
         this.index = index;
         this.accessScope = accessScope;
@@ -67,18 +73,11 @@ class DebtorService implements DebtorUseCases {
     @Override
     public DebtorView register(RegisterDebtorCommand command) {
         Document document = Document.parse(command.document());
-        String hash = index.document(document);
-        if (debtors.findByDocumentHash(hash).isPresent()) {
+        if (registry.findByDocument(document).isPresent()) {
             throw new ConflictException("debtor.document_taken", "Já existe devedor com este documento");
         }
-        Debtor debtor = debtors.save(new Debtor(document, hash, command.name(), command.birthDate(), command.notes()));
-        auditTrail.record(AuditEntry.of("debtor.created", "debtor", debtor.getId())
-                .created("personType", debtor.getPersonType())
-                .created("document", document.masked())
-                .created("name", DebtViews.maskName(debtor.getName()))
-                .created("birthDate", DebtViews.maskDate(debtor.getBirthDate()))
-                .meta("source", "MANUAL"));
-        return DebtViews.debtor(debtor);
+        return DebtViews.debtor(registry.create(document, command.name(), command.birthDate(), command.notes(),
+                ContactSource.MANUAL));
     }
 
     @Override
@@ -156,9 +155,10 @@ class DebtorService implements DebtorUseCases {
             throw new BusinessRuleException("debtor.anonymize_reason_required", "Informe o motivo da anonimização");
         }
         Debtor debtor = visibility.requireFullScope(debtorId);
-        if (titles.existsOpenByDebtorId(debtorId)) {
+        // coobrigado de contrato em cobrança também responde pela dívida: não pode ser anonimizado
+        if (titles.existsOpenByDebtorId(debtorId) || parties.existsActiveWithOpenTitles(debtorId)) {
             throw new ConflictException("debtor.has_open_titles",
-                    "Devedor possui títulos em cobrança; encerre-os antes de anonimizar");
+                    "Devedor possui títulos em cobrança (próprios ou como coobrigado); encerre-os antes de anonimizar");
         }
         String maskedDocument = debtor.maskedDocument();
         List<DebtorContact> removed = contacts.findByDebtorIdOrderByTypeAscPriorityAscCreatedAtAsc(debtorId);
