@@ -8,9 +8,12 @@ export const NEGOTIATION_PERMISSIONS = {
   policies: [Permission.POLICY_VIEW],
   indexes: [Permission.POLICY_VIEW],
   authority: [Permission.AUTHORITY_MANAGE],
+  proposals: [Permission.AGREEMENT_VIEW, Permission.NEGOTIATION_PROPOSE, Permission.NEGOTIATION_APPROVE],
+  approvals: [Permission.NEGOTIATION_APPROVE],
+  agreements: [Permission.AGREEMENT_VIEW],
 } as const;
 
-/** `/negociacao`: simulador, políticas versionadas, índices de correção e alçadas (parte 1). */
+/** `/negociacao`: simulador, propostas, aprovações, acordos, políticas versionadas, índices e alçadas. */
 export const NEGOTIATION_ROUTES: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'simulador' },
   {
@@ -19,6 +22,41 @@ export const NEGOTIATION_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: NEGOTIATION_PERMISSIONS.simulator },
     loadComponent: () => import('./simulator/simulator').then((m) => m.Simulator),
+  },
+  {
+    path: 'propostas',
+    title: 'Propostas',
+    canActivate: [permissionGuard],
+    data: { permissions: NEGOTIATION_PERMISSIONS.proposals },
+    loadComponent: () => import('./proposals/proposal-list').then((m) => m.ProposalList),
+  },
+  {
+    path: 'propostas/:id',
+    title: 'Proposta',
+    canActivate: [permissionGuard],
+    data: { permissions: NEGOTIATION_PERMISSIONS.proposals },
+    loadComponent: () => import('./proposals/proposal-detail').then((m) => m.ProposalDetail),
+  },
+  {
+    path: 'aprovacoes',
+    title: 'Aprovações de propostas',
+    canActivate: [permissionGuard],
+    data: { permissions: NEGOTIATION_PERMISSIONS.approvals, queue: true },
+    loadComponent: () => import('./proposals/proposal-list').then((m) => m.ProposalList),
+  },
+  {
+    path: 'acordos',
+    title: 'Acordos',
+    canActivate: [permissionGuard],
+    data: { permissions: NEGOTIATION_PERMISSIONS.agreements },
+    loadComponent: () => import('./agreements/agreement-list').then((m) => m.AgreementList),
+  },
+  {
+    path: 'acordos/:id',
+    title: 'Acordo',
+    canActivate: [permissionGuard],
+    data: { permissions: NEGOTIATION_PERMISSIONS.agreements },
+    loadComponent: () => import('./agreements/agreement-detail').then((m) => m.AgreementDetail),
   },
   {
     path: 'politicas',

@@ -13,6 +13,7 @@ import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Document;
+import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.events.debt.DebtorAnonymized;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
@@ -31,10 +32,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -112,6 +115,20 @@ class DebtorService implements DebtorUseCases {
     @Transactional(readOnly = true)
     public DebtorView get(UUID debtorId) {
         return DebtViews.debtor(visibility.requireVisible(debtorId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DebtorName> names(Collection<UUID> debtorIds) {
+        if (debtorIds == null || debtorIds.isEmpty()) {
+            return List.of();
+        }
+        Guard.require(debtorIds.size() <= MAX_NAMES, "debtor.names_limit",
+                "Informe no máximo %d devedores por consulta".formatted(MAX_NAMES));
+        return debtors.findAllByIdIn(Set.copyOf(debtorIds)).stream()
+                .flatMap(d -> visibility.findVisible(d).stream())
+                .map(d -> new DebtorName(d.getId(), d.getName(), d.getStatus().name()))
+                .toList();
     }
 
     @Override

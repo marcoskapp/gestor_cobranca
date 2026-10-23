@@ -40,6 +40,7 @@ import br.com.gestorcobranca.shared.storage.FileStorage.StoredFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -77,6 +78,7 @@ class DisputeService implements DisputeUseCases {
     private final SettingsProvider settings;
     private final FileStorage fileStorage;
     private final DisputeFileCleanup fileCleanup;
+    private final DisputeViews views;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
     private final AccessLogger accessLogger;
@@ -90,7 +92,7 @@ class DisputeService implements DisputeUseCases {
     DisputeService(DisputeRepository disputes, DisputeEvidenceRepository evidences, CollectionCaseRepository cases,
                    CaseAccess access, CaseSynchronizer synchronizer, CaseRecorder caseRecorder, DebtLedgerPort ledger,
                    SettingsProvider settings, FileStorage fileStorage, DisputeFileCleanup fileCleanup,
-                   AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, AuditTrail auditTrail,
+                   DisputeViews views, AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, AuditTrail auditTrail,
                    BusinessEventLogger businessEvents, ApplicationEventPublisher events, CollectionMetrics metrics,
                    CollectionProperties properties, Clock clock) {
         this.disputes = disputes;
@@ -103,6 +105,7 @@ class DisputeService implements DisputeUseCases {
         this.settings = settings;
         this.fileStorage = fileStorage;
         this.fileCleanup = fileCleanup;
+        this.views = views;
         this.accessScope = accessScope;
         this.currentActor = currentActor;
         this.accessLogger = accessLogger;
@@ -264,14 +267,14 @@ class DisputeService implements DisputeUseCases {
                 .created("fileName", evidence.getFileName())
                 .created("sha256", evidence.getSha256())
                 .meta("size", evidence.getSize()));
-        return CollectionViews.evidence(evidence);
+        return views.evidences(List.of(evidence)).getFirst();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<EvidenceView> listEvidence(UUID disputeId) {
         Dispute dispute = loadVisible(disputeId);
-        return evidences.findByDisputeIdOrderByCreatedAtAsc(dispute.getId()).stream().map(CollectionViews::evidence).toList();
+        return views.evidences(evidences.findByDisputeIdOrderByCreatedAtAsc(dispute.getId()));
     }
 
     @Override
@@ -298,7 +301,7 @@ class DisputeService implements DisputeUseCases {
     @Transactional(readOnly = true)
     public List<DisputeView> listByCase(UUID caseId) {
         CollectionCase c = access.visible(caseId);
-        return disputes.findByCaseIdOrderByOpenedAtDesc(c.getId()).stream().map(this::view).toList();
+        return views.views(disputes.findByCaseIdOrderByOpenedAtDesc(c.getId()));
     }
 
     @Override
@@ -307,10 +310,11 @@ class DisputeService implements DisputeUseCases {
         if (creditorId != null) {
             accessScope.requireVisible("creditor", creditorId, creditorId);
         }
-        return PageResponse.of(disputes.search(access.creditorFilter(), creditorId,
-                        CollectionEnums.parseSet(DisputeStatus.class, statuses, "dispute.status_invalid", "Status"), overdue,
-                        page.toPageable(Sort.by("responseDueDate").ascending().and(Sort.by("id")))),
-                this::view);
+        Page<Dispute> result = disputes.search(access.creditorFilter(), creditorId,
+                CollectionEnums.parseSet(DisputeStatus.class, statuses, "dispute.status_invalid", "Status"), overdue,
+                page.toPageable(Sort.by("responseDueDate").ascending().and(Sort.by("id"))));
+        return new PageResponse<>(views.views(result.getContent()), result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages());
     }
 
     /**
@@ -360,6 +364,6 @@ class DisputeService implements DisputeUseCases {
     }
 
     private DisputeView view(Dispute d) {
-        return CollectionViews.dispute(d, (int) evidences.countByDisputeId(d.getId()));
+        return views.view(d);
     }
 }

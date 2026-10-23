@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 import { DEBTOR_ROUTES, TITLE_ROUTES } from '../../../features/debt/debt.routes';
 import { COLLECTION_ROUTES } from '../../../features/collection/collection.routes';
+import { COMMUNICATION_ROUTES } from '../../../features/communication/communication.routes';
+import { LEGAL_ROUTES } from '../../../features/legal/legal.routes';
 import { COMPLIANCE_ROUTES } from '../../../features/compliance/compliance.routes';
 import { INGESTION_ROUTES } from '../../../features/ingestion/ingestion.routes';
 import { NEGOTIATION_ROUTES } from '../../../features/negotiation/negotiation.routes';
@@ -57,9 +59,11 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/cobranca', COLLECTION_ROUTES),
       ...guarded('/negociacao', NEGOTIATION_ROUTES),
       ...guarded('/importacao', INGESTION_ROUTES),
+      ...guarded('/conversas', COMMUNICATION_ROUTES),
+      ...guarded('/juridico', LEGAL_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(20);
+    expect(items.length).toBe(31);
     for (const item of items) {
       expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -79,5 +83,25 @@ describe('conteúdo do onboarding', () => {
     expect(routes.has('/cobranca/fila')).toBe(true);
     const negotiator = CHECKLISTS.find((c) => c.id === 'negotiator')!;
     expect(negotiator.items.filter((i) => i.route === '/cobranca/fila').map((i) => i.id)).toEqual(['negotiator.queue', 'negotiator.interaction']);
+  });
+
+  it('propostas, acordos, caixa de entrada e jurídico registrados com tour', () => {
+    expect(findScreen('/negociacao/propostas/p-1')?.tourId).toBe('negotiation.proposal-detail');
+    expect(findScreen('/negociacao/aprovacoes')?.tourId).toBe('negotiation.approvals');
+    expect(findScreen('/negociacao/acordos/a-1')?.tourId).toBe('negotiation.agreement-detail');
+    expect(findScreen('/conversas')?.key).toBe('communication.inbox');
+    // rotas fixas antes da conversa por id
+    expect(findScreen('/conversas/templates')?.key).toBe('communication.templates');
+    expect(findScreen('/conversas/canais')?.key).toBe('communication.channels');
+    expect(findScreen('/conversas/c-1')?.key).toBe('communication.conversation');
+    expect(findScreen('/juridico')?.tourId).toBe('legal.dashboard');
+    expect(findScreen('/juridico/casos/m-1?aba=prazos')?.tourId).toBe('legal.matter-detail');
+    const legal = CHECKLISTS.find((c) => c.id === 'legal')!;
+    const keys = new Set(SCREENS.map((s) => s.key));
+    for (const item of legal.items) {
+      if (item.completion.kind === 'visit') {
+        expect(keys.has(item.completion.screenKey), item.id).toBe(true);
+      }
+    }
   });
 });

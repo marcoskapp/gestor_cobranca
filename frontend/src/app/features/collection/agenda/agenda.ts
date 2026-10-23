@@ -11,7 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { Observable, debounceTime, forkJoin, map, of, startWith, switchMap } from 'rxjs';
+import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -21,15 +21,13 @@ import { DataTable, TableColumn } from '../../../shared/components/data-table/da
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
-import { NameSource, nameMap } from '../../../shared/data/name-map';
+import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
 import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
-import { Option } from '../../../shared/models/lookup';
 import { UserLookup } from '../../admin/data/user.lookup';
-import { DebtorsApi } from '../../debt/data/debt.api';
 import { CreditorNames } from '../../organization/data/organization.lookups';
-import { CasesApi, TasksApi } from '../data/collection.api';
+import { TasksApi } from '../data/collection.api';
 import { TASK_TYPE_LABELS } from '../data/collection.labels';
 import { AgendaFilter, TaskView } from '../data/collection.models';
 import { addDays, formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
@@ -52,20 +50,6 @@ export function agendaFilter(
       return { userId, from: addDays(today, -30), to: today, status: 'MISSED' };
     default:
       return { userId, from: toLocalDate(v.from) ?? today, to: toLocalDate(v.to) ?? toLocalDate(v.from) ?? today, status: v.status || null };
-  }
-}
-
-/** Devedor de cada caso da agenda (a tarefa só traz o caso). */
-class CaseDebtorNames implements NameSource {
-  constructor(
-    private readonly cases: CasesApi,
-    private readonly debtors: DebtorsApi,
-  ) {}
-
-  resolve(ids: string[]): Observable<Option[]> {
-    return ids.length
-      ? forkJoin(ids.map((id) => this.cases.get(id).pipe(switchMap((c) => this.debtors.get(c.debtorId)), map((d): Option => ({ value: id, label: d.name })))))
-      : of([]);
   }
 }
 
@@ -160,7 +144,7 @@ class CaseDebtorNames implements NameSource {
         }
       </ng-template>
       <ng-template appCell="debtor" [appCellOf]="query.rows()" let-t>
-        <a [routerLink]="['/cobranca/casos', t.caseId]">{{ debtors.name(t.caseId) }}</a>
+        <a [routerLink]="['/cobranca/casos', t.caseId]">{{ debtorText(t) }}</a>
         <div class="app-muted">{{ creditors.name(t.creditorId) }}</div>
       </ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-t>
@@ -231,7 +215,6 @@ export class AgendaPage {
   );
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.agenda(f, page));
 
-  protected readonly debtors = nameMap(new CaseDebtorNames(inject(CasesApi), inject(DebtorsApi)), () => this.query.rows().map((t) => t.caseId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((t) => t.creditorId));
 
   protected readonly columns: TableColumn[] = [
@@ -241,6 +224,11 @@ export class AgendaPage {
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
+
+  /** O nome vem na própria tarefa (só para quem pode ver devedores). */
+  protected debtorText(task: TaskView): string {
+    return task.debtorName ?? 'Abrir caso';
+  }
 
   protected late(task: TaskView): boolean {
     return taskLate(task, zonedNow());
@@ -270,7 +258,7 @@ export class AgendaPage {
         reason: 'required',
         details: [
           { label: 'Horário', value: formatLocalDateTime(task.dueAtLocal) },
-          { label: 'Devedor', value: this.debtors.name(task.caseId) },
+          { label: 'Devedor', value: this.debtorText(task) },
         ],
       })
       .subscribe((reason) =>

@@ -482,12 +482,12 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'case-tabs',
         title: 'Ficha do caso',
-        body: 'Títulos, contatos mascarados, histórico, agenda e contestações. Alterne as abas com Alt + 1 a Alt + 5.',
+        body: 'Títulos, contatos mascarados, histórico, agenda, contestações e negociação. Alterne as abas com Alt + 1 a Alt + 6.',
       },
       {
         anchor: 'contact-window',
-        title: 'Janela de contato',
-        body: 'Mostra por canal se o contato é permitido agora ou se há restrição. O sistema confere feriados e limites a cada contato.',
+        title: 'Posso contatar agora?',
+        body: 'Por canal, a decisão do sistema: permitido, aguardar (com o horário em que libera) ou restrito. Considera restrições, política, feriados e limites.',
         placement: 'start',
       },
       {
@@ -582,7 +582,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'negotiation.simulator',
-    version: 1,
+    version: 2,
     title: 'Simulador de negociação',
     summary: 'Dívida atualizada, ofertas lado a lado e validação das condições pela sua alçada.',
     steps: [
@@ -614,6 +614,103 @@ export const TOURS: readonly TourDefinition[] = [
         body: 'Ajuste descontos e parcelas combinados e valide: dentro da alçada, requer aprovação ou rejeitado.',
         placement: 'above',
       },
+      {
+        anchor: 'sim-propose',
+        title: 'Propor ou pedir aprovação',
+        body: 'Validadas as condições, proponha. Acima da sua alçada, o botão vira "Pedir aprovação" e a proposta vai para a fila.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'negotiation.proposals',
+    version: 1,
+    title: 'Propostas',
+    summary: 'Situação de cada proposta, do aceite à formalização.',
+    steps: [
+      { anchor: 'filters', title: 'Filtros', body: 'Filtre por credor, situação ou autor. Propostas do assistente aparecem identificadas.' },
+      { anchor: 'data-table', title: 'Propostas', body: 'Abra a proposta para registrar o aceite do devedor, formalizar o acordo ou acompanhar a aprovação.' },
+    ],
+  },
+  {
+    id: 'negotiation.approvals',
+    version: 1,
+    title: 'Fila de aprovação',
+    summary: 'Propostas acima da alçada de quem negociou e dentro da sua.',
+    steps: [
+      { anchor: 'data-table', title: 'Aguardando você', body: 'Só aparecem propostas que cabem na sua alçada, nunca as suas. Abra para ver condições, justificativa e motivo.' },
+    ],
+  },
+  {
+    id: 'negotiation.proposal-detail',
+    version: 1,
+    title: 'Proposta',
+    summary: 'Condições, memória de cálculo, alçada, aceite e formalização.',
+    steps: [
+      { anchor: 'proposal-status', title: 'Situação e validade', body: 'A proposta vale até a data indicada. Depois disso, simule de novo.' },
+      { anchor: 'proposal-conditions', title: 'Condições', body: 'Total, desconto e forma de pagamento que o devedor vai aceitar.' },
+      { anchor: 'proposal-memory', title: 'Memória de cálculo', body: 'Descontos concedidos e a composição da dívida por título, sob demanda.' },
+      { anchor: 'proposal-authority', title: 'Nível e alçada', body: 'Nível da escada, justificativa e o motivo de precisar de aprovação.', placement: 'start' },
+      { anchor: 'page-actions', title: 'Próximo passo', body: 'Aprovar, registrar o aceite com evidência ou formalizar: o botão muda conforme a situação.' },
+    ],
+  },
+  {
+    id: 'negotiation.agreement-detail',
+    version: 1,
+    title: 'Acordo',
+    summary: 'Cronograma de parcelas, pagamentos, termo e renegociação.',
+    steps: [
+      { anchor: 'agreement-status', title: 'Situação do acordo', body: 'Pagas, vencidas e a regra de quebra fixada na formalização.' },
+      { anchor: 'agreement-schedule', title: 'Cronograma', body: 'Cada parcela com valor, pago, saldo e situação. A próxima a pagar fica destacada.' },
+      { anchor: 'agreement-term', title: 'Termo do acordo', body: 'PDF aceito pelo devedor, com o código de integridade registrado.' },
+      { anchor: 'agreement-renegotiate', title: 'Renegociar', body: 'Volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização.' },
+    ],
+  },
+  {
+    id: 'communication.inbox',
+    version: 1,
+    title: 'Caixa de entrada',
+    summary: 'Conversas por dono, tempo de espera e resposta ao devedor.',
+    steps: [
+      { anchor: 'inbox-tabs', title: 'De quem é a conversa', body: 'Minhas, na fila, com o assistente ou todas. O número indica quantas aguardam resposta.' },
+      { anchor: 'inbox-list', title: 'Tempo de espera', body: 'As conversas mostram há quanto tempo o devedor espera; em vermelho, passou da meta.', placement: 'end' },
+      { anchor: 'conversation-timeline', title: 'Linha do tempo', body: 'Todas as mensagens do devedor, em todos os canais. O assistente aparece identificado.' },
+      { anchor: 'conversation-actions', title: 'Assumir e transferir', body: 'Assuma a conversa, devolva à fila ou ao assistente, atribua ou encerre.' },
+      { anchor: 'conversation-drafts', title: 'Sugestões do assistente', body: 'Revise, edite e envie, ou descarte. Nada sai sem você.' },
+      { anchor: 'conversation-reply', title: 'Responder', body: 'Texto livre só no WhatsApp dentro de 24 horas; nos demais casos, use um template.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'communication.templates',
+    version: 1,
+    title: 'Templates de mensagem',
+    summary: 'Versões, variáveis, aprovação do WhatsApp e publicação.',
+    steps: [
+      { anchor: 'page-actions', title: 'Novo template', body: 'Texto com variáveis tipadas. Dados pessoais como CPF, telefone e e-mail não são aceitos.' },
+      { anchor: 'data-table', title: 'Versões', body: 'Publicar retira a versão anterior do mesmo código. WhatsApp exige aprovação do provedor antes.' },
+    ],
+  },
+  {
+    id: 'legal.dashboard',
+    version: 1,
+    title: 'Painel jurídico',
+    summary: 'Casos por fase, valores e prazos que exigem atenção.',
+    steps: [
+      { anchor: 'legal-kpis', title: 'Números do jurídico', body: 'Casos em aberto, dívida, custas, valor recuperado e prazos próximos ou perdidos.' },
+      { anchor: 'legal-stages', title: 'Casos por fase', body: 'Clique na fase para ver a lista de casos nela.' },
+      { anchor: 'legal-deadlines', title: 'Prazos', body: 'Perdidos e os dos próximos 10 dias, mais urgentes primeiro. Filtre pelos seus.', placement: 'start' },
+    ],
+  },
+  {
+    id: 'legal.matter-detail',
+    version: 1,
+    title: 'Caso jurídico',
+    summary: 'Fases, viabilidade, autorização do credor, medidas, processos e prazos.',
+    steps: [
+      { anchor: 'matter-stage', title: 'Mudar fase', body: 'Só aparecem as fases possíveis agora. Toda mudança pede motivo e vai para a linha do tempo.' },
+      { anchor: 'matter-responsible', title: 'Responsável', body: 'Jurídico interno ou escritório parceiro, que passa a ver só os casos dele.' },
+      { anchor: 'matter-tabs', title: 'Etapas do caso', body: 'Viabilidade, autorização do credor com evidência, medidas, processos, prazos, custas e documentos.' },
+      { anchor: 'matter-history', title: 'Linha do tempo', body: 'Cada fase com data, autor e motivo.' },
     ],
   },
   {

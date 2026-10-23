@@ -144,7 +144,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 - Atalhos dedicados (grupo "Estação de cobrança"): próximo caso, registrar interação, agendar retorno, abrir simulação, alternar abas (`Alt + 1…5`). Mostrar o atalho no rótulo/tooltip do botão.
 - Densidade compacta como sugestão no primeiro acesso da estação (convite, nunca imposta).
 - Status do caso, do título e do acordo sempre com `app-status-chip` (novos domínios em `status.ts`).
-- Cronômetro de atendimento e indicador de janela de contato permitida (compliance) visíveis, sem animação chamativa.
+- Cronômetro de atendimento e "posso contatar agora?" (decisão do porteiro do compliance por canal, com o próximo horário permitido — a tela não calcula janelas; `collection.md` §8.1) visíveis, sem animação chamativa.
 
 **Negociação**
 - Simulação lado a lado (à vista × parcelado) com `app-amount` e memória de cálculo sob demanda.

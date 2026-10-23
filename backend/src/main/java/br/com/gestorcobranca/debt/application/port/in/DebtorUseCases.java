@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,18 @@ public interface DebtorUseCases {
     DebtorView update(UUID debtorId, UpdateDebtorCommand command);
 
     DebtorView get(UUID debtorId);
+
+    /**
+     * Nomes de exibição de vários devedores de uma vez (agenda, listagens de outros módulos), sem
+     * documento nem contatos. Devedores inexistentes ou fora do escopo do ator são omitidos (sem
+     * erro, para não revelar existência). Devedor anonimizado aparece com o nome substituto.
+     *
+     * @param debtorIds até {@value #MAX_NAMES} ids
+     */
+    List<DebtorName> names(Collection<UUID> debtorIds);
+
+    /** Limite de ids por chamada de {@link #names(Collection)}. */
+    int MAX_NAMES = 200;
 
     /** Documento completo. Exige {@code DEBTOR_SENSITIVE_VIEW}; registra {@code SENSITIVE_DATA_VIEWED}. */
     RevealedDocument revealDocument(UUID debtorId);
@@ -80,6 +93,10 @@ public interface DebtorUseCases {
      */
     record DebtorView(UUID id, String personType, String name, String maskedDocument, LocalDate birthDate,
                       String status, String notes, Instant createdAt, Instant anonymizedAt) {
+    }
+
+    /** @param status ACTIVE ou ANONYMIZED */
+    record DebtorName(UUID id, String name, String status) {
     }
 
     /** @param document documento formatado (000.000.000-00 / 00.000.000/0000-00) */

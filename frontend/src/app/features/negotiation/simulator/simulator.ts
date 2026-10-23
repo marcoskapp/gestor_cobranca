@@ -1,6 +1,6 @@
 import { LowerCasePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -10,9 +10,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, of, startWith } from 'rxjs';
-import { Amount } from '../../../shared/components/amount/amount';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
+import { NotificationService } from '../../../core/notification/notification.service';
+import { Amount, formatAmount } from '../../../shared/components/amount/amount';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
@@ -24,6 +28,8 @@ import { DebtorLookup } from '../../debt/data/debt.lookups';
 import { TitlesApi } from '../../debt/data/debt.api';
 import { titleLabel } from '../../debt/data/debt.labels';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
+import { AgreementsApi, ProposalsApi } from '../data/agreement.api';
+import { SubmitMode, submitMode } from '../data/agreement.rules';
 import { AuthorityApi, SimulationApi } from '../data/negotiation.api';
 import {
   AUTHORITY_SOURCE_LABELS,
@@ -44,9 +50,11 @@ import { justificationProblem, offeredLevels, savingShare, sideBySide } from '..
  * Simulador de negociação: composição da dívida atualizada, ofertas à vista × parcelado lado a
  * lado até o nível da escada permitido pela alçada, memória de cálculo sob demanda e validação de
  * condições pelo `NegotiationGuard` (dentro da alçada, requer aprovação ou rejeitado). Subir de
- * nível exige justificativa registrada. Propostas e acordos chegam na parte 2 do módulo.
+ * nível exige justificativa registrada. As condições validadas viram proposta: "Propor" dentro da
+ * alçada ou "Pedir aprovação" acima dela (o botão muda, nunca some).
  *
- * Query params: `credor`, `devedor`, `caso` (aberto a partir da estação de cobrança).
+ * Query params: `credor`, `devedor`, `caso` (aberto a partir da estação de cobrança), `renegociar`
+ * (id do acordo substituído) e `transferencia` (proposta do assistente transferida para humano).
  */
 @Component({
   selector: 'app-simulator',
@@ -76,8 +84,18 @@ export class Simulator {
   readonly credor = input<string>();
   readonly devedor = input<string>();
   readonly caso = input<string>();
+  /** Acordo a renegociar (`replacedAgreementId`). */
+  readonly renegociar = input<string>();
+  /** Sugestão do assistente que o humano está renegociando (`handoffProposalId`). */
+  readonly transferencia = input<string>();
 
   private readonly api = inject(SimulationApi);
+  private readonly proposalsApi = inject(ProposalsApi);
+  private readonly agreementsApi = inject(AgreementsApi);
+  private readonly auth = inject(AuthService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly notifications = inject(NotificationService);
+  private readonly router = inject(Router);
   private readonly authorityApi = inject(AuthorityApi);
   private readonly titlesApi = inject(TitlesApi);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -158,6 +176,17 @@ export class Simulator {
   protected readonly validation = signal<ValidationView | null>(null);
   protected readonly validating = signal(false);
   protected readonly escalationError = signal<string | null>(null);
+  protected readonly proposing = signal(false);
+  protected readonly canPropose = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_PROPOSE));
+  /** "Propor" (dentro da alçada) ou "Pedir aprovação" (acima); nada quando rejeitado. */
+  protected readonly mode = computed<SubmitMode | null>(() => submitMode(this.validation()?.outcome));
+
+  /** Acordo substituído, exibido como contexto da renegociação. */
+  private readonly replaced = rxResource({
+    params: () => this.renegociar() || undefined,
+    stream: ({ params }) => this.agreementsApi.get(params).pipe(catchError(() => of(undefined))),
+  });
+  protected readonly replacedAgreement = valueOr(this.replaced, undefined);
 
   protected readonly result = computed(() => this.simulation()?.result ?? null);
   protected readonly levels = computed(() => (this.result() ? offeredLevels(this.result()!) : []));
@@ -196,6 +225,8 @@ export class Simulator {
         this.escalation.reset({ level: 0, reason: '', note: '' });
       });
     });
+    // condições alteradas depois da validação: é preciso validar de novo antes de propor
+    this.custom.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.validation.set(null));
   }
 
   protected toggleTitle(id: string, on: boolean): void {
@@ -303,6 +334,63 @@ export class Simulator {
       })
       .pipe(finalize(() => this.validating.set(false)))
       .subscribe((v) => this.validation.set(v));
+  }
+
+  /**
+   * Cria a proposta com as condições validadas. Dentro da alçada ela fica pronta para o aceite do
+   * devedor; acima, entra na fila de aprovação de quem tem alçada suficiente.
+   */
+  protected propose(): void {
+    const sim = this.simulation();
+    const v = this.validation();
+    const mode = this.mode();
+    if (!sim || !v?.offer || !mode || this.proposing() || this.custom.invalid) {
+      return;
+    }
+    const c = this.custom.getRawValue();
+    const o = v.offer;
+    const approval = mode === 'request-approval';
+    this.confirm
+      .confirm({
+        title: approval ? 'Pedir aprovação da proposta' : 'Propor condições ao devedor',
+        message: approval
+          ? 'As condições passam da sua alçada: a proposta vai para a fila de aprovação de quem pode concedê-las. Avise o devedor de que a resposta depende de aprovação.'
+          : 'A proposta fica registrada e pronta para o aceite do devedor, que gera o termo do acordo.',
+        confirmLabel: approval ? 'Pedir aprovação' : 'Propor',
+        details: [
+          { label: 'Total', value: formatAmount(o.total) },
+          { label: 'Forma de pagamento', value: planText(o) },
+          { label: '1º vencimento', value: o.schedule[0] ? o.schedule[0].dueDate.split('-').reverse().join('/') : '—' },
+          { label: 'Nível da escada', value: `${this.viewLevel()} · ${o.levelName}` },
+          ...(this.renegociar() ? [{ label: 'Renegocia', value: 'Acordo em vigor ou quebrado (será substituído na formalização)' }] : []),
+        ],
+      })
+      .subscribe(() => {
+        this.proposing.set(true);
+        this.proposalsApi
+          .create({
+            simulationId: sim.id,
+            level: this.viewLevel(),
+            discounts: {
+              principal: Number(c.principal) || 0,
+              correction: Number(c.correction) || 0,
+              interest: Number(c.interest) || 0,
+              fine: Number(c.fine) || 0,
+              fees: Number(c.fees) || 0,
+              honorarium: Number(c.honorarium) || 0,
+            },
+            plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: toLocalDate(c.firstDueDate) },
+            replacedAgreementId: this.renegociar() || null,
+            handoffProposalId: this.transferencia() || null,
+            copilot: null,
+            channel: sim.result.channel,
+          })
+          .pipe(finalize(() => this.proposing.set(false)))
+          .subscribe((p) => {
+            this.notifications.success(p.status === 'PENDING_APPROVAL' ? 'Proposta enviada para aprovação.' : 'Proposta registrada.');
+            void this.router.navigate(['/negociacao/propostas', p.id]);
+          });
+      });
   }
 
   protected reasonText(code: string): string {

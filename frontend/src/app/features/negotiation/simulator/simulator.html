@@ -1,4 +1,10 @@
 <app-page-header title="Simulador de negociação" subtitle="Dívida atualizada pela política vigente do credor e ofertas até o limite da sua alçada. Toda simulação fica registrada.">
+  @if (canPropose()) {
+    <a mat-button routerLink="/negociacao/propostas">
+      <mat-icon aria-hidden="true">assignment</mat-icon>
+      Propostas
+    </a>
+  }
   @if (caso()) {
     <a mat-button [routerLink]="['/cobranca/casos', caso()]">
       <mat-icon aria-hidden="true">arrow_back</mat-icon>
@@ -6,6 +12,25 @@
     </a>
   }
 </app-page-header>
+
+@if (renegociar()) {
+  <p class="app-alert app-alert--info" role="note">
+    <mat-icon aria-hidden="true">autorenew</mat-icon>
+    <span>
+      Renegociação do acordo
+      @if (replacedAgreement(); as a) {
+        de <app-amount [value]="a.totalAmount" /> (pago <app-amount [value]="a.paidAmount" />)
+      }
+      : a dívida é recalculada com os pagamentos já abatidos e o acordo atual é substituído na formalização.
+    </span>
+  </p>
+}
+@if (transferencia()) {
+  <p class="app-alert app-alert--info" role="note">
+    <mat-icon aria-hidden="true">smart_toy</mat-icon>
+    <span>Você está renegociando uma sugestão transferida pelo assistente. Para aceitar as mesmas condições, use "Assumir sugestão" na proposta.</span>
+  </p>
+}
 
 <div class="sim-grid">
   <div class="sim-side">
@@ -388,6 +413,21 @@
                 <li><strong>{{ violationKinds[x.kind] }}:</strong> {{ x.message }}</li>
               }
             </ul>
+          }
+          @if (mode(); as m) {
+            <div class="sim-propose" data-tour="sim-propose">
+              @if (canPropose()) {
+                <button mat-flat-button type="button" (click)="propose()" [disabled]="proposing()">
+                  <mat-icon aria-hidden="true">{{ m === 'propose' ? 'send' : 'how_to_reg' }}</mat-icon>
+                  {{ m === 'propose' ? 'Propor' : 'Pedir aprovação' }}
+                </button>
+                <span class="app-muted sim-small">
+                  {{ m === 'propose' ? 'Fica pronta para o aceite do devedor.' : 'Vai para a fila de quem tem alçada suficiente.' }}
+                </span>
+              } @else {
+                <span class="app-muted sim-small">Seu perfil simula, mas não cria propostas.</span>
+              }
+            </div>
           }
         }
       </section>

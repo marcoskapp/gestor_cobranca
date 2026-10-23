@@ -12,7 +12,7 @@ import { OnboardingService } from '../../../core/onboarding/onboarding.service';
 import { ThemeService } from '../../../core/preferences/theme.service';
 import { DEFAULT_UI_STATE, UiState } from '../../../core/preferences/ui-state.models';
 import { UiStateStore } from '../../../core/preferences/ui-state.store';
-import { CaseSheet, CaseView, TabulationView } from '../data/collection.models';
+import { CaseSheet, CaseView, ContactAvailability, TabulationView } from '../data/collection.models';
 import { CollectionStation } from './collection-station';
 import { DENSITY_INVITE_ID } from './density-invite';
 
@@ -85,6 +85,19 @@ const tabulations: TabulationView[] = [
   { id: 'tb-3', code: 'ANTIGA', name: 'Desativada', effectiveContact: false, promise: false, callback: false, requiresNote: false, displayOrder: 3, active: false, version: 0 },
 ];
 
+const availability: ContactAvailability = {
+  caseId: 'k-1',
+  evaluatedAt: '2026-10-23T13:00:00Z',
+  caseEligible: true,
+  caseReasons: [],
+  channels: [
+    { channel: 'PHONE', allowed: true, reasons: [], nextAllowedAt: null, contactId: null },
+    { channel: 'WHATSAPP', allowed: false, reasons: ['OUTSIDE_WINDOW'], nextAllowedAt: '2026-10-24T11:00:00Z', contactId: null },
+    { channel: 'SMS', allowed: false, reasons: ['RESTRICTED_CHANNEL'], nextAllowedAt: null, contactId: null },
+    { channel: 'EMAIL', allowed: true, reasons: [], nextAllowedAt: null, contactId: null },
+  ],
+};
+
 const page = <T>(content: T[]) => ({ content, page: 0, size: 100, totalElements: content.length, totalPages: 1 });
 
 describe('CollectionStation', () => {
@@ -145,6 +158,7 @@ describe('CollectionStation', () => {
     if (url === '/api/v1/collection/settings') return req.flush({ promiseToleranceDays: 2, promiseMaxDays: 30, callbackToleranceMinutes: 30, disputeResponseDays: 10, customized: false, updatedAt: null });
     if (url === '/api/v1/organization/tenant') return req.flush({ contactWindowStart: '08:00:00', contactWindowEnd: '20:00:00', contactOnSaturday: false, contactOnSunday: false });
     if (url.endsWith('/sheet')) return req.flush(current);
+    if (url.endsWith('/contact-availability')) return req.flush(availability);
     if (url.startsWith('/api/v1/debtors/')) return req.flush({ id: 'd-1', name: 'Ana Paula Ribeiro', maskedDocument: null });
     if (url.startsWith('/api/v1/creditors/')) return req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
     if (url.startsWith('/api/v1/portfolios/')) return req.flush({ id: 'p-1', name: 'Cartões setembro' });
@@ -173,9 +187,13 @@ describe('CollectionStation', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[aria-label="Meus casos"]')?.textContent).toContain('Ana Paula Ribeiro');
     expect(el.querySelector('[aria-label="Ficha do caso"]')?.textContent).toContain('***.982.247-**');
-    expect(el.querySelector('app-contact-window')?.textContent).toContain('Janela de contato');
-    // SMS não está entre os canais contatáveis do caso: aparece como restrito
-    expect(el.querySelector('app-contact-window')?.textContent).toContain('Restrito');
+    const panel = el.querySelector('app-contact-window')?.textContent ?? '';
+    // decisão do servidor por canal: permitido, aguardar (com o próximo horário) e restrito
+    expect(panel).toContain('Posso contatar agora?');
+    expect(panel).toContain('Permitido');
+    expect(panel).toContain('Aguardar');
+    expect(panel).toContain('a partir de');
+    expect(panel).toContain('Restrito');
     // tabulação desativada não aparece no formulário
     expect(text(fixture)).toContain('Registrar interação');
   });
@@ -184,7 +202,7 @@ describe('CollectionStation', () => {
     const fixture = await render('k-1');
     const keys = TestBed.inject(KeyboardShortcuts);
     const ids = keys.shortcuts().filter((s) => s.group === 'Estação de cobrança').map((s) => s.keys);
-    expect(ids).toEqual(expect.arrayContaining(['alt+n', 'alt+r', 'alt+a', 'alt+s', 'alt+1', 'alt+5']));
+    expect(ids).toEqual(expect.arrayContaining(['alt+n', 'alt+r', 'alt+a', 'alt+s', 'alt+1', 'alt+5', 'alt+6']));
     press('3');
     fixture.detectChanges();
     expect(fixture.componentInstance['tab']()).toBe(2);

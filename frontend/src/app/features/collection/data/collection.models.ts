@@ -314,6 +314,9 @@ export interface TaskView {
   id: string;
   caseId: string;
   creditorId: string;
+  debtorId: string | null;
+  /** Só na agenda e para quem pode ver devedores (`CASE_VIEW`/`DEBTOR_VIEW`). */
+  debtorName: string | null;
   type: TaskType;
   status: TaskStatus;
   dueAt: string;
@@ -383,6 +386,8 @@ export interface DisputeView {
   creditorId: string;
   portfolioId: string;
   titleIds: string[];
+  /** Dados mínimos dos títulos contestados visíveis ao usuário, por vencimento. */
+  titles: DisputedTitle[];
   type: DisputeType;
   origin: DisputeOrigin;
   status: DisputeStatus;
@@ -425,6 +430,49 @@ export interface EvidenceView {
   sha256: string;
   createdAt: string;
   createdBy: string | null;
+  /** Nome de quem anexou; nulo para sistema/integração. */
+  createdByName: string | null;
+}
+
+/** `DisputeUseCases.DisputedTitle` */
+export interface DisputedTitle {
+  titleId: string;
+  externalId: string;
+  installmentNumber: number | null;
+  dueDate: string;
+  principalAmount: Amount;
+  openBalance: Amount | null;
+}
+
+// --------------------------------------------------------------------- posso contatar agora?
+
+export type ContactDenialReason =
+  | 'RESTRICTED_DEBTOR'
+  | 'RESTRICTED_CHANNEL'
+  | 'RESTRICTED_CONTACT_VALUE'
+  | 'OUTSIDE_WINDOW'
+  | 'HOLIDAY'
+  | 'DAILY_LIMIT'
+  | 'WEEKLY_LIMIT'
+  | 'MIN_INTERVAL'
+  | 'DEBTOR_ANONYMIZED';
+
+/** `ContactAvailabilityQueries.ChannelAvailability` */
+export interface ChannelAvailability {
+  channel: InteractionChannel;
+  allowed: boolean;
+  reasons: string[];
+  nextAllowedAt: string | null;
+  contactId: string | null;
+}
+
+/** `ContactAvailabilityQueries.ContactAvailability` */
+export interface ContactAvailability {
+  caseId: string;
+  evaluatedAt: string;
+  caseEligible: boolean;
+  caseReasons: string[];
+  channels: ChannelAvailability[];
 }
 
 // --------------------------------------------------------------------- parâmetros

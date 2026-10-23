@@ -31,7 +31,23 @@ export type StatusDomain =
   | 'collectionPolicy'
   | 'negotiationOutcome'
   | 'importBatch'
-  | 'importIssue';
+  | 'importIssue'
+  | 'proposal'
+  | 'agreement'
+  | 'installment'
+  | 'conversation'
+  | 'conversationOwner'
+  | 'message'
+  | 'draft'
+  | 'template'
+  | 'templateApproval'
+  | 'legalStage'
+  | 'legalAuthorization'
+  | 'legalMeasure'
+  | 'lawsuit'
+  | 'legalDeadline'
+  | 'hearing'
+  | 'legalExpense';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -177,6 +193,122 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     CURRENT: { label: 'Vigente', tone: 'success' },
     FUTURE: { label: 'Futura', tone: 'info' },
     ENDED: { label: 'Encerrada', tone: 'neutral' },
+  },
+  /** `ProposalStatus` (negotiation). */
+  proposal: {
+    DRAFT: { label: 'Pronta para aceite', tone: 'info' },
+    PENDING_APPROVAL: { label: 'Aguardando aprovação', tone: 'warning' },
+    APPROVED: { label: 'Aprovada', tone: 'success' },
+    REJECTED: { label: 'Reprovada', tone: 'danger' },
+    ACCEPTED: { label: 'Aceita pelo devedor', tone: 'success' },
+    FORMALIZED: { label: 'Formalizada', tone: 'success' },
+    EXPIRED: { label: 'Expirada', tone: 'neutral' },
+    HANDED_OFF: { label: 'Transferida pelo assistente', tone: 'warning' },
+  },
+  /** `AgreementStatus` (negotiation). */
+  agreement: {
+    FORMALIZED: { label: 'Formalizado', tone: 'info' },
+    IN_PAYMENT: { label: 'Em pagamento', tone: 'info' },
+    SETTLED: { label: 'Quitado', tone: 'success' },
+    BROKEN: { label: 'Quebrado', tone: 'danger' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+    RENEGOTIATED: { label: 'Renegociado', tone: 'neutral' },
+  },
+  installment: {
+    OPEN: { label: 'A vencer', tone: 'info' },
+    PAID: { label: 'Paga', tone: 'success' },
+    PARTIALLY_PAID: { label: 'Paga em parte', tone: 'warning' },
+    OVERDUE: { label: 'Vencida', tone: 'danger' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+  },
+  /** `ConversationStatus` (communication). */
+  conversation: {
+    OPEN: { label: 'Aberta', tone: 'info' },
+    CLOSED: { label: 'Encerrada', tone: 'neutral' },
+  },
+  /** Dono do atendimento (`OwnerType`). */
+  conversationOwner: {
+    USER: { label: 'Com operador', tone: 'success' },
+    QUEUE: { label: 'Na fila', tone: 'warning' },
+    ASSISTANT: { label: 'Com o assistente', tone: 'info' },
+    NONE: { label: 'Sem atendimento', tone: 'neutral' },
+  },
+  /** `MessageStatus` (communication). */
+  message: {
+    QUEUED: { label: 'Na fila de envio', tone: 'info' },
+    SENT: { label: 'Enviada', tone: 'info' },
+    DELIVERED: { label: 'Entregue', tone: 'success' },
+    READ: { label: 'Lida', tone: 'success' },
+    FAILED: { label: 'Não enviada', tone: 'danger' },
+    RECEIVED: { label: 'Recebida', tone: 'neutral' },
+  },
+  draft: {
+    PENDING: { label: 'Aguardando revisão', tone: 'warning' },
+    SENT: { label: 'Enviado', tone: 'success' },
+    DISCARDED: { label: 'Descartado', tone: 'neutral' },
+    EXPIRED: { label: 'Expirado', tone: 'neutral' },
+  },
+  template: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    PUBLISHED: { label: 'Publicado', tone: 'success' },
+    RETIRED: { label: 'Retirado', tone: 'neutral' },
+  },
+  /** Aprovação do template pelo WhatsApp (`ApprovalStatus`). */
+  templateApproval: {
+    NOT_REQUIRED: { label: 'Sem aprovação', tone: 'neutral' },
+    PENDING: { label: 'Aguardando o WhatsApp', tone: 'warning' },
+    APPROVED: { label: 'Aprovado pelo WhatsApp', tone: 'success' },
+    REJECTED: { label: 'Recusado pelo WhatsApp', tone: 'danger' },
+  },
+  /** Fases do caso jurídico (`LegalStage`). */
+  legalStage: {
+    ELIGIBLE: { label: 'Indicado', tone: 'info' },
+    UNDER_REVIEW: { label: 'Em triagem', tone: 'info' },
+    AWAITING_AUTHORIZATION: { label: 'Aguardando o credor', tone: 'warning' },
+    EXTRAJUDICIAL: { label: 'Extrajudicial', tone: 'info' },
+    FILED: { label: 'Ajuizado', tone: 'info' },
+    IN_PROGRESS: { label: 'Em andamento', tone: 'info' },
+    ENFORCEMENT: { label: 'Constrição', tone: 'warning' },
+    SETTLED_IN_COURT: { label: 'Acordo judicial', tone: 'success' },
+    CLOSED: { label: 'Encerrado', tone: 'neutral' },
+    NOT_VIABLE: { label: 'Inviável', tone: 'neutral' },
+    RETURNED_TO_CREDITOR: { label: 'Devolvido ao credor', tone: 'neutral' },
+  },
+  legalAuthorization: {
+    REQUESTED: { label: 'Solicitada', tone: 'warning' },
+    GRANTED: { label: 'Concedida', tone: 'success' },
+    DENIED: { label: 'Negada', tone: 'danger' },
+    SUPERSEDED: { label: 'Substituída', tone: 'neutral' },
+  },
+  legalMeasure: {
+    PLANNED: { label: 'Planejada', tone: 'info' },
+    SUBMITTED: { label: 'Enviada', tone: 'info' },
+    EFFECTIVE: { label: 'Efetivada', tone: 'success' },
+    FAILED: { label: 'Sem sucesso', tone: 'danger' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+    REMOVED: { label: 'Baixada', tone: 'neutral' },
+  },
+  lawsuit: {
+    ACTIVE: { label: 'Ativo', tone: 'info' },
+    SUSPENDED: { label: 'Suspenso', tone: 'warning' },
+    ARCHIVED: { label: 'Arquivado', tone: 'neutral' },
+    TERMINATED: { label: 'Extinto', tone: 'neutral' },
+  },
+  legalDeadline: {
+    PENDING: { label: 'Em aberto', tone: 'info' },
+    MET: { label: 'Cumprido', tone: 'success' },
+    MISSED: { label: 'Perdido', tone: 'danger' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+  },
+  hearing: {
+    SCHEDULED: { label: 'Agendada', tone: 'info' },
+    HELD: { label: 'Realizada', tone: 'success' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+  },
+  legalExpense: {
+    RECORDED: { label: 'Registrada', tone: 'info' },
+    REIMBURSED: { label: 'Reembolsada', tone: 'success' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
   },
 };
 

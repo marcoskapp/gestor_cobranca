@@ -14,11 +14,13 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { DocumentDisplay } from '../../../shared/components/document-display/document-display';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
-import { NameMap } from '../../../shared/data/name-map';
+import { NameMap, nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
+import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
+import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_ICONS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { InteractionsApi, PromisesApi, TasksApi } from '../data/collection.api';
@@ -27,8 +29,8 @@ import { CaseSheet, PromiseView, SheetContact, TabulationView, TaskView } from '
 import { formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
 
-/** Abas da ficha na ordem dos atalhos `Alt + 1…5`. */
-export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações'] as const;
+/** Abas da ficha na ordem dos atalhos `Alt + 1…6`. */
+export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação'] as const;
 
 /**
  * Ficha do caso no centro da estação: devedor (documento e contatos mascarados, revelação
@@ -38,7 +40,7 @@ export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e prome
  */
 @Component({
   selector: 'app-case-sheet-panel',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTabsModule, MatTooltipModule, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatTabsModule, MatTooltipModule, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
 })
@@ -93,6 +95,12 @@ export class CaseSheetPanel {
     this.showAllHistory() && this.history.hasValue() ? this.history.value()!.content : this.sheet().recentInteractions,
   );
   protected readonly historyLoading = this.history.isLoading;
+  /** Autores das interações (só id → nome, pelo lookup leve de usuários). */
+  private readonly authors = nameMap(
+    inject(UserNames),
+    () => this.interactions().filter((i) => i.actorType === 'USER' && i.operatorId !== this.userId()).map((i) => i.operatorId),
+    { batch: USER_NAMES_BATCH },
+  );
 
   /** Histórico de promessas sob demanda. */
   protected readonly showPromises = signal(false);
@@ -138,7 +146,10 @@ export class CaseSheetPanel {
     if (actorType !== 'USER') {
       return 'Sistema';
     }
-    return operatorId === this.userId() ? 'Você' : 'Outro operador';
+    if (!operatorId) {
+      return 'Operador';
+    }
+    return operatorId === this.userId() ? 'Você' : this.authors.name(operatorId);
   }
 
   protected revealDocument(): void {
