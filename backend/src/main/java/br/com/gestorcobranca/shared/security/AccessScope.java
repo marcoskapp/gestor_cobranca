@@ -79,6 +79,18 @@ public class AccessScope {
         return currentActor.get().creditorScope().all();
     }
 
+    /**
+     * Para operações que alcançam todos os credores do tenant (ex.: política padrão, atendimento
+     * a titular, retenção): nega com 403 se o ator tiver escopo restrito.
+     */
+    public void requireAllCreditors(String resource) {
+        if (!hasAllCreditors()) {
+            accessLogger.log(AccessEvent.of(AccessEventType.SCOPE_DENIED, currentActor.get(),
+                    Map.of("resource", resource, "scope", "all_creditors")));
+            throw new ScopeAccessDeniedException();
+        }
+    }
+
     public void requirePermission(Permission permission) {
         Actor actor = currentActor.get();
         if (!actor.has(permission)) {

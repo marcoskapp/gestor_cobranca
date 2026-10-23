@@ -14,7 +14,10 @@ import java.time.ZoneId;
 @Configuration
 public class TimeConfig {
 
-    public static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Sao_Paulo");
+    /** Identificador do fuso de operação, para anotações que exigem constante (ex.: {@code @Scheduled(zone)}). */
+    public static final String BUSINESS_ZONE_ID = "America/Sao_Paulo";
+
+    public static final ZoneId BUSINESS_ZONE = ZoneId.of(BUSINESS_ZONE_ID);
 
     @Bean
     Clock clock() {
