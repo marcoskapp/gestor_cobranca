@@ -69,14 +69,29 @@ public interface DisputeUseCases {
     record EvidenceContent(String fileName, String contentType, long size, InputStream content) {
     }
 
+    /**
+     * @param titles dados mínimos dos títulos contestados (número, parcela, vencimento, valores),
+     *               na ordem de vencimento; títulos que deixaram o escopo do ator não aparecem
+     *               (continuam em {@code titleIds})
+     */
     record DisputeView(UUID id, UUID caseId, UUID debtorId, UUID creditorId, UUID portfolioId, Set<UUID> titleIds,
-                       String type, String origin, String status, String description, boolean blocksCollection,
+                       List<DisputedTitle> titles, String type, String origin, String status, String description, boolean blocksCollection,
                        BigDecimal disputedAmount, Instant openedAt, LocalDate responseDueDate, boolean overdue,
                        String outcome, String resolutionNote, Instant resolvedAt, UUID resolvedBy, int evidenceCount,
                        long version) {
     }
 
+    /**
+     * @param externalId      número do título no credor
+     * @param principalAmount valor original
+     * @param openBalance     saldo em aberto atual
+     */
+    record DisputedTitle(UUID titleId, String externalId, Integer installmentNumber, LocalDate dueDate,
+                         BigDecimal principalAmount, BigDecimal openBalance) {
+    }
+
+    /** @param createdByName nome de exibição de quem anexou (nulo para atores de sistema/integração) */
     record EvidenceView(UUID id, UUID disputeId, String fileName, String contentType, long size, String sha256,
-                        Instant createdAt, UUID createdBy) {
+                        Instant createdAt, UUID createdBy, String createdByName) {
     }
 }

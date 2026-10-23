@@ -40,4 +40,27 @@ describe('nameMap', () => {
     expect(names.name('b')).toBe('Credor B');
     expect(calls).toEqual([['a'], ['x'], ['b']]);
   });
+
+  it('em lote: uma chamada por grupo e ids ausentes da resposta como indisponíveis', async () => {
+    const calls: string[][] = [];
+    const src: NameSource = {
+      resolve: (ids: string[]) => {
+        calls.push(ids);
+        return of(ids.filter((id) => id !== 'x').map((id) => ({ value: id, label: `Nome ${id}` })));
+      },
+    };
+    const ids = signal<string[]>(['c', 'a', 'x', 'b']);
+    const names = runInInjectionContext(TestBed.inject(Injector), () => nameMap(src, ids, { batch: 2 }));
+    TestBed.tick();
+    await Promise.resolve();
+    TestBed.tick();
+
+    expect(calls).toEqual([
+      ['a', 'b'],
+      ['c', 'x'],
+    ]);
+    expect(names.name('a')).toBe('Nome a');
+    expect(names.name('c')).toBe('Nome c');
+    expect(names.name('x')).toBe(UNRESOLVED_NAME);
+  });
 });

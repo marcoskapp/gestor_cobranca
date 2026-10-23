@@ -14,9 +14,10 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { DocumentDisplay } from '../../../shared/components/document-display/document-display';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
-import { NameMap } from '../../../shared/data/name-map';
+import { NameMap, nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
+import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
@@ -93,6 +94,12 @@ export class CaseSheetPanel {
     this.showAllHistory() && this.history.hasValue() ? this.history.value()!.content : this.sheet().recentInteractions,
   );
   protected readonly historyLoading = this.history.isLoading;
+  /** Autores das interações (só id → nome, pelo lookup leve de usuários). */
+  private readonly authors = nameMap(
+    inject(UserNames),
+    () => this.interactions().filter((i) => i.actorType === 'USER' && i.operatorId !== this.userId()).map((i) => i.operatorId),
+    { batch: USER_NAMES_BATCH },
+  );
 
   /** Histórico de promessas sob demanda. */
   protected readonly showPromises = signal(false);
@@ -138,7 +145,10 @@ export class CaseSheetPanel {
     if (actorType !== 'USER') {
       return 'Sistema';
     }
-    return operatorId === this.userId() ? 'Você' : 'Outro operador';
+    if (!operatorId) {
+      return 'Operador';
+    }
+    return operatorId === this.userId() ? 'Você' : this.authors.name(operatorId);
   }
 
   protected revealDocument(): void {

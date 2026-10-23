@@ -61,7 +61,7 @@
           }
         </span>
         @if (p.publishedAt) {
-          <span class="app-muted">· publicada em {{ p.publishedAt | appDate }}</span>
+          <span class="app-muted">· publicada em {{ p.publishedAt | appDate }}@if (p.publishedBy) { por {{ publishers.name(p.publishedBy) }}}</span>
         }
         @if (dirty()) {
           <span class="app-status app-status--warning">Alterações não salvas</span>
