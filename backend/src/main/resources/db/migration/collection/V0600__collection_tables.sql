@@ -11,6 +11,29 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
+-- Parâmetros da operação por assessoria (ausente = padrões de app.collection.*)
+-- -----------------------------------------------------------------------------
+create table collection.settings (
+    id                        uuid         not null primary key,
+    tenant_id                 uuid         not null references organization.tenant (id),
+    version                   bigint       not null,
+    created_at                timestamptz  not null,
+    created_by                uuid,
+    updated_at                timestamptz  not null,
+    updated_by                uuid,
+    promise_tolerance_days    integer      not null,
+    promise_max_days          integer      not null,
+    callback_tolerance_minutes integer     not null,
+    dispute_response_days     integer      not null,
+    constraint uk_settings_tenant unique (tenant_id),
+    constraint ck_settings_values check (promise_tolerance_days between 0 and 30
+                                         and promise_max_days between 1 and 180
+                                         and callback_tolerance_minutes between 0 and 1440
+                                         and dispute_response_days between 1 and 90)
+);
+select shared.enable_tenant_rls('collection.settings');
+
+-- -----------------------------------------------------------------------------
 -- Catálogo de tabulações por assessoria
 -- -----------------------------------------------------------------------------
 create table collection.tabulation (
@@ -114,6 +137,7 @@ create table collection.collection_case (
     closed_at                  timestamptz,
     close_reason               varchar(20),
     open_balance               numeric(19, 2)  not null,
+    eligible_balance           numeric(19, 2)  not null,
     open_titles                integer         not null,
     suspended_titles           integer         not null,
     disputed_titles            integer         not null,
@@ -144,7 +168,8 @@ create table collection.collection_case (
                                      and (status = 'CLOSED') = (close_reason is not null)),
     constraint ck_case_owner_type check (owner_type in ('ASSISTANT', 'QUEUE', 'USER', 'NONE')),
     constraint ck_case_owner_user check ((owner_type = 'USER') = (assignee_user_id is not null)),
-    constraint ck_case_balance check (open_balance >= 0 and open_titles >= 0 and suspended_titles >= 0
+    constraint ck_case_balance check (open_balance >= 0 and eligible_balance >= 0 and eligible_balance <= open_balance
+                                      and open_titles >= 0 and suspended_titles >= 0
                                       and disputed_titles >= 0 and disputed_titles <= open_titles),
     constraint ck_case_counts check (interaction_count >= 0 and effective_contact_count >= 0
                                      and effective_contact_count <= interaction_count),
@@ -165,7 +190,9 @@ create index ix_case_creditor_status on collection.collection_case (tenant_id, c
 select shared.enable_tenant_rls('collection.collection_case');
 
 -- -----------------------------------------------------------------------------
--- Histórico de dono do atendimento (append-only)
+-- Histórico de dono do atendimento com vigência [valid_from, valid_to): cada
+-- mudança de dono encerra o período vigente e abre outro. Somente o fim de
+-- vigência pode ser gravado, uma única vez (privilégio de coluna + gatilho).
 -- -----------------------------------------------------------------------------
 create table collection.case_assignment (
     id                   uuid          not null primary key,
@@ -185,19 +212,43 @@ create table collection.case_assignment (
     team_id              uuid,
     queue_id             uuid          references collection.queue (id),
     reason               varchar(500),
-    occurred_at          timestamptz   not null,
+    valid_from           timestamptz   not null,
+    valid_to             timestamptz,
+    constraint ck_case_assignment_period check (valid_to is null or valid_to >= valid_from),
+    constraint ck_case_assignment_user check ((owner_type = 'USER') = (user_id is not null)),
     constraint ck_case_assignment_mode check (mode in ('MANUAL', 'NEXT_CASE', 'DISTRIBUTION', 'REDISTRIBUTION',
-                                                       'RELEASE', 'INTERACTION', 'CALLBACK_RETURN',
-                                                       'ASSISTANT_HANDOFF')),
+                                                       'RELEASE', 'INTERACTION',
+                                                       'ASSISTANT_HANDOFF', 'TAKE_OVER', 'OPENED', 'ROUTING',
+                                                       'CLOSED')),
     constraint ck_case_assignment_owner check (owner_type in ('ASSISTANT', 'QUEUE', 'USER', 'NONE')
                                                and previous_owner_type in ('ASSISTANT', 'QUEUE', 'USER', 'NONE'))
 );
-create index ix_case_assignment_case on collection.case_assignment (tenant_id, case_id, occurred_at desc);
-create index ix_case_assignment_user on collection.case_assignment (tenant_id, user_id, occurred_at)
+create index ix_case_assignment_case on collection.case_assignment (tenant_id, case_id, valid_from desc);
+create unique index uk_case_assignment_current on collection.case_assignment (tenant_id, case_id)
+    where valid_to is null;
+create index ix_case_assignment_user on collection.case_assignment (tenant_id, user_id, valid_from)
     where user_id is not null;
 select shared.enable_tenant_rls('collection.case_assignment');
-create trigger trg_case_assignment_append_only before update or delete on collection.case_assignment
-    for each row execute function shared.forbid_mutation();
+
+create or replace function collection.case_assignment_close_only() returns trigger
+    language plpgsql
+as $$
+begin
+    if tg_op = 'DELETE' then
+        raise exception 'Histórico de atribuição é imutável: DELETE não permitido'
+            using errcode = 'insufficient_privilege';
+    end if;
+    if old.valid_to is not null or new.valid_to is null
+       or (to_jsonb(new) - array['valid_to', 'version', 'updated_at', 'updated_by'])
+          <> (to_jsonb(old) - array['valid_to', 'version', 'updated_at', 'updated_by']) then
+        raise exception 'Histórico de atribuição é imutável: somente o fim de vigência pode ser gravado, uma vez'
+            using errcode = 'insufficient_privilege';
+    end if;
+    return new;
+end
+$$;
+create trigger trg_case_assignment_close_only before update or delete on collection.case_assignment
+    for each row execute function collection.case_assignment_close_only();
 
 -- -----------------------------------------------------------------------------
 -- Interações (append-only); external_ref garante idempotência das integrações
@@ -261,6 +312,7 @@ create table collection.task (
     type                       varchar(20)    not null,
     status                     varchar(20)    not null,
     due_at                     timestamptz    not null,
+    tolerance_until            timestamptz    not null,
     assignee_user_id           uuid,
     note_encrypted             varchar(6000),
     origin_interaction_id      uuid           references collection.interaction (id),
@@ -273,12 +325,13 @@ create table collection.task (
     constraint ck_task_status check (status in ('PENDING', 'DONE', 'CANCELLED', 'MISSED')),
     constraint ck_task_done check ((status = 'DONE') = (completed_at is not null)),
     constraint ck_task_cancelled check ((status = 'CANCELLED') = (cancel_reason is not null)),
-    constraint ck_task_missed check (status <> 'MISSED' or missed_at is not null)
+    constraint ck_task_missed check (status <> 'MISSED' or missed_at is not null),
+    constraint ck_task_tolerance check (tolerance_until >= due_at)
 );
 create index ix_task_case on collection.task (tenant_id, case_id, due_at);
 create index ix_task_agenda on collection.task (tenant_id, assignee_user_id, due_at)
     where status in ('PENDING', 'MISSED');
-create index ix_task_pending_due on collection.task (tenant_id, due_at) where status = 'PENDING';
+create index ix_task_pending_due on collection.task (tenant_id, tolerance_until) where status = 'PENDING';
 select shared.enable_tenant_rls('collection.task');
 
 -- -----------------------------------------------------------------------------
@@ -410,9 +463,10 @@ create trigger trg_dispute_evidence_append_only before update or delete on colle
     for each row execute function shared.forbid_mutation();
 
 grant select, insert, update, delete on all tables in schema collection to app_runtime;
--- histórico imutável: atribuições, interações e evidências
+-- histórico imutável: interações e evidências; atribuições só recebem o fim de vigência
 revoke update, delete on collection.case_assignment, collection.interaction, collection.dispute_evidence
     from app_runtime;
+grant update (valid_to, version, updated_at, updated_by) on collection.case_assignment to app_runtime;
 -- casos, tarefas, promessas, contestações e configurações são encerrados/desativados, nunca removidos
 revoke delete on collection.collection_case, collection.task, collection.promise, collection.dispute,
     collection.dispute_title, collection.tabulation, collection.queue from app_runtime;

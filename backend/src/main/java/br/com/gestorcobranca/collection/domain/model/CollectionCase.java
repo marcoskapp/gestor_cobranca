@@ -66,6 +66,9 @@ public class CollectionCase extends TenantScopedEntity {
     @Column(name = "open_balance", nullable = false, precision = 19, scale = 2)
     private Money openBalance;
 
+    @Column(name = "eligible_balance", nullable = false, precision = 19, scale = 2)
+    private Money eligibleBalance;
+
     @Column(name = "open_titles", nullable = false)
     private int openTitles;
 
@@ -152,7 +155,8 @@ public class CollectionCase extends TenantScopedEntity {
     /** @return true se algum valor mudou */
     public boolean updateBalance(CaseBalance balance, Instant now) {
         requireActive();
-        boolean changed = !openBalance.equals(balance.openBalance()) || openTitles != balance.openTitles()
+        boolean changed = !openBalance.equals(balance.openBalance())
+                || !eligibleBalance.equals(balance.eligibleBalance()) || openTitles != balance.openTitles()
                 || suspendedTitles != balance.suspendedTitles() || disputedTitles != balance.disputedTitles()
                 || !Objects.equals(oldestDueDate, balance.oldestDueDate());
         applyBalance(balance, now);
@@ -161,6 +165,7 @@ public class CollectionCase extends TenantScopedEntity {
 
     private void applyBalance(CaseBalance balance, Instant now) {
         this.openBalance = balance.openBalance();
+        this.eligibleBalance = balance.eligibleBalance();
         this.openTitles = balance.openTitles();
         this.suspendedTitles = balance.suspendedTitles();
         this.disputedTitles = balance.disputedTitles();
@@ -344,7 +349,7 @@ public class CollectionCase extends TenantScopedEntity {
     }
 
     public CaseBalance balance() {
-        return new CaseBalance(openBalance, openTitles, suspendedTitles, disputedTitles, oldestDueDate);
+        return new CaseBalance(openBalance, eligibleBalance, openTitles, suspendedTitles, disputedTitles, oldestDueDate);
     }
 
     public Eligibility eligibility() {
@@ -417,6 +422,23 @@ public class CollectionCase extends TenantScopedEntity {
 
     public Money getOpenBalance() {
         return openBalance;
+    }
+
+    public Money getEligibleBalance() {
+        return eligibleBalance;
+    }
+
+    /** Saldo elegível atribuível (zero quando o caso não é elegível para contato). */
+    public Money assignableBalance() {
+        return eligible ? eligibleBalance : Money.ZERO;
+    }
+
+    public int getDisputedTitles() {
+        return disputedTitles;
+    }
+
+    public String getContactableChannels() {
+        return contactableChannels;
     }
 
     public int getOpenTitles() {

@@ -28,6 +28,9 @@ public interface CollectionTaskRepository {
     /** Retornos pendentes do operador já vencidos, do mais antigo ao mais recente. */
     List<CollectionTask> findDueForUser(UUID userId, Instant now, int limit);
 
-    /** Tarefas pendentes vencidas antes do instante (job de vencimento). */
-    List<CollectionTask> findPendingDueBefore(Instant before, int limit);
+    /** Tarefas pendentes cuja tolerância terminou antes do instante (job de vencimento). */
+    List<CollectionTask> findPendingLateBefore(Instant before, int limit);
+
+    /** Retornos em aberto do caso já vencidos (horário combinado alcançado) no instante. */
+    List<CollectionTask> findOpenCallbacksDueBy(UUID caseId, Instant at);
 }

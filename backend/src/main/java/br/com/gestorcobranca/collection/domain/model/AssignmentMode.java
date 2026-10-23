@@ -14,8 +14,14 @@ public enum AssignmentMode {
     RELEASE,
     /** Operador registrou interação num caso sem dono e o assumiu. */
     INTERACTION,
-    /** Retorno vencido sem atendimento recolocou o caso na fila. */
-    CALLBACK_RETURN,
     /** Atendimento entregue ao assistente de IA. */
-    ASSISTANT_HANDOFF
+    ASSISTANT_HANDOFF,
+    /** Operador assumiu um caso que estava com o assistente ou com a fila. */
+    TAKE_OVER,
+    /** Abertura do caso (primeiro período, sem dono ou na fila). */
+    OPENED,
+    /** Mudança de fila pelo roteamento (critérios da fila ou do caso mudaram). */
+    ROUTING,
+    /** Encerramento do caso (último período, sem dono). */
+    CLOSED
 }

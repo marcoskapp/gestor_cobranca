@@ -8,16 +8,23 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Histórico (append-only) das mudanças de dono do atendimento do caso: base para medir tempo
- * em fila, produtividade por operador e rastrear redistribuições.
+ * Período de dono do atendimento do caso, com vigência {@code [validFrom, validTo)}. Cada
+ * mudança de dono encerra o período vigente e abre um novo, de modo que "quem era o responsável
+ * no instante T" é uma consulta direta (modelo de crédito por carteira, tempo em fila,
+ * produtividade, rastreio de redistribuições). Somente o fim de vigência pode ser gravado, uma
+ * única vez — o banco recusa qualquer outra alteração.
  */
 @Entity
 @Table(name = "case_assignment", schema = "collection")
 public class CaseAssignment extends TenantScopedEntity {
+
+    private static final int REASON_MAX = 500;
 
     @Column(name = "case_id", nullable = false, updatable = false)
     private UUID caseId;
@@ -49,30 +56,67 @@ public class CaseAssignment extends TenantScopedEntity {
     @Column(name = "queue_id", updatable = false)
     private UUID queueId;
 
-    @Column(name = "reason", length = 500, updatable = false)
+    @Column(name = "reason", length = REASON_MAX, updatable = false)
     private String reason;
 
-    @Column(name = "occurred_at", nullable = false, updatable = false)
-    private Instant occurredAt;
+    @Column(name = "valid_from", nullable = false, updatable = false)
+    private Instant validFrom;
+
+    @Column(name = "valid_to")
+    private Instant validTo;
 
     protected CaseAssignment() {
     }
 
-    public CaseAssignment(CollectionCase c, AssignmentMode mode, OwnerType previousOwnerType, UUID previousUserId,
-                          String reason, Instant occurredAt) {
+    /**
+     * Abre o período com o dono atual do caso.
+     *
+     * @param previous período que está sendo encerrado (nulo na abertura do caso)
+     */
+    public CaseAssignment(CollectionCase c, AssignmentMode mode, CaseAssignment previous, String reason,
+                          Instant validFrom) {
         Guard.require(mode != null, "assignment.mode_required", "Origem da atribuição obrigatória");
+        Guard.require(validFrom != null, "assignment.start_required", "Início da vigência obrigatório");
         this.caseId = c.getId();
         this.creditorId = c.getCreditorId();
         this.mode = mode;
-        this.previousOwnerType = previousOwnerType;
-        this.previousUserId = previousUserId;
+        this.previousOwnerType = previous == null ? OwnerType.NONE : previous.getOwnerType();
+        this.previousUserId = previous == null ? null : previous.getUserId();
         this.ownerType = c.getOwnerType();
         this.userId = c.getAssigneeUserId();
         this.teamId = c.getAssigneeTeamId();
         this.queueId = c.getQueueId();
-        this.reason = reason == null || reason.isBlank() ? null
-                : reason.trim().length() > 500 ? reason.trim().substring(0, 500) : reason.trim();
-        this.occurredAt = occurredAt;
+        String clean = reason == null || reason.isBlank() ? null : reason.trim();
+        this.reason = clean != null && clean.length() > REASON_MAX ? clean.substring(0, REASON_MAX) : clean;
+        this.validFrom = validFrom;
+    }
+
+    /** Encerra a vigência (idempotente: um período já encerrado não muda). */
+    public void close(Instant at) {
+        if (validTo != null) {
+            return;
+        }
+        this.validTo = at.isBefore(validFrom) ? validFrom : at;
+    }
+
+    public boolean isCurrent() {
+        return validTo == null;
+    }
+
+    /** Duração do período (vigente: até {@code now}). */
+    public Duration duration(Instant now) {
+        return Duration.between(validFrom, validTo == null ? now : validTo);
+    }
+
+    /** O mesmo dono (tipo, operador, equipe e fila) do caso, isto é, nada mudou. */
+    public boolean sameOwnerAs(CollectionCase c) {
+        return ownerType == c.getOwnerType() && java.util.Objects.equals(userId, c.getAssigneeUserId())
+                && java.util.Objects.equals(teamId, c.getAssigneeTeamId())
+                && java.util.Objects.equals(queueId, c.getQueueId());
+    }
+
+    public Optional<Instant> validTo() {
+        return Optional.ofNullable(validTo);
     }
 
     public UUID getCaseId() {
@@ -115,7 +159,11 @@ public class CaseAssignment extends TenantScopedEntity {
         return reason;
     }
 
-    public Instant getOccurredAt() {
-        return occurredAt;
+    public Instant getValidFrom() {
+        return validFrom;
+    }
+
+    public Instant getValidTo() {
+        return validTo;
     }
 }

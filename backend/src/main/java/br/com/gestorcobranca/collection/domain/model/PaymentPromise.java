@@ -82,14 +82,16 @@ public class PaymentPromise extends TenantScopedEntity {
     protected PaymentPromise() {
     }
 
-    public PaymentPromise(CollectionCase c, Money amount, LocalDate dueDate, int toleranceDays, LocalDate today,
-                          UUID originInteractionId, UUID operatorId, Instant now) {
+    public PaymentPromise(CollectionCase c, Money amount, LocalDate dueDate, int toleranceDays, int maxDays,
+                          LocalDate today, UUID originInteractionId, UUID operatorId, Instant now) {
         Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
         Guard.require(amount != null && amount.isPositive(), "promise.amount_invalid", "Valor prometido deve ser positivo");
         Guard.require(!amount.isGreaterThan(c.getOpenBalance()), "promise.amount_above_balance",
                 "Valor prometido maior que o saldo em aberto do caso");
         Guard.require(dueDate != null && !dueDate.isBefore(today), "promise.due_in_past",
                 "Data prometida não pode estar no passado");
+        Guard.require(!dueDate.isAfter(today.plusDays(maxDays)), "promise.due_too_far",
+                "Data prometida além do prazo máximo de %d dias".formatted(maxDays));
         Guard.require(toleranceDays >= 0, "promise.tolerance_invalid", "Tolerância não pode ser negativa");
         this.caseId = c.getId();
         this.debtorId = c.getDebtorId();
@@ -224,6 +226,10 @@ public class PaymentPromise extends TenantScopedEntity {
 
     public String getResolutionReason() {
         return resolutionReason;
+    }
+
+    public boolean isPending() {
+        return status == PromiseStatus.PENDING;
     }
 
     public List<Payment> getPayments() {

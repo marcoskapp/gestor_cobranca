@@ -94,7 +94,7 @@ public class Dispute extends TenantScopedEntity {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "dispute_title", schema = "collection", joinColumns = @JoinColumn(name = "dispute_id"))
-    @Column(name = "title_id", nullable = false, updatable = false)
+    @Column(name = "title_id", nullable = false)
     private Set<UUID> titleIds = new HashSet<>();
 
     protected Dispute() {

@@ -10,12 +10,18 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Tarefa do caso (retorno ao devedor ou acompanhamento) com data/hora (instante UTC, informado
- * pelo usuário no fuso de operação). Sem responsável, a tarefa é da fila do caso.
+ * pelo usuário no fuso de operação {@code TimeConfig.BUSINESS_ZONE}). Sem responsável, a tarefa
+ * é da fila do caso.
+ * <p>
+ * Cumprimento: concluída até {@code toleranceUntil} (horário combinado + tolerância, fixada no
+ * agendamento) conta como <b>cumprida</b>; passada a tolerância sem conclusão, o job de vencimento
+ * a marca {@code MISSED} (atrasada) e ela ainda pode ser concluída depois (cumprimento tardio).
  */
 @Entity
 @Table(name = "task", schema = "collection")
@@ -39,6 +45,9 @@ public class CollectionTask extends TenantScopedEntity {
 
     @Column(name = "due_at", nullable = false)
     private Instant dueAt;
+
+    @Column(name = "tolerance_until", nullable = false)
+    private Instant toleranceUntil;
 
     @Column(name = "assignee_user_id")
     private UUID assigneeUserId;
@@ -68,11 +77,12 @@ public class CollectionTask extends TenantScopedEntity {
     protected CollectionTask() {
     }
 
-    public CollectionTask(CollectionCase c, TaskType type, Instant dueAt, UUID assigneeUserId, String note,
-                          UUID originInteractionId, Instant now) {
+    public CollectionTask(CollectionCase c, TaskType type, Instant dueAt, Duration tolerance, UUID assigneeUserId,
+                          String note, UUID originInteractionId, Instant now) {
         Guard.require(type != null, "task.type_required", "Tipo da tarefa obrigatório");
         Guard.require(dueAt != null, "task.due_required", "Data e hora da tarefa obrigatórias");
         Guard.require(dueAt.isAfter(now), "task.due_in_past", "Data e hora da tarefa devem estar no futuro");
+        Guard.require(tolerance != null && !tolerance.isNegative(), "task.tolerance_invalid", "Tolerância inválida");
         Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
         String clean = note == null || note.isBlank() ? null : note.trim();
         Guard.require(clean == null || clean.length() <= NOTE_MAX, "task.note_too_long",
@@ -82,17 +92,21 @@ public class CollectionTask extends TenantScopedEntity {
         this.type = type;
         this.status = TaskStatus.PENDING;
         this.dueAt = dueAt;
+        this.toleranceUntil = dueAt.plus(tolerance);
         this.assigneeUserId = assigneeUserId;
         this.note = clean;
         this.originInteractionId = originInteractionId;
     }
 
-    public void complete(UUID by, UUID interactionId, Instant now) {
+    /** @return true se cumprida no prazo (até o fim da tolerância e sem ter sido marcada atrasada) */
+    public boolean complete(UUID by, UUID interactionId, Instant now) {
         Guard.requireState(status.isOpen(), "task.not_open", "Tarefa já concluída ou cancelada");
+        boolean onTime = status == TaskStatus.PENDING && !now.isAfter(toleranceUntil);
         this.status = TaskStatus.DONE;
         this.completedAt = now;
         this.completedBy = by;
         this.completionInteractionId = interactionId;
+        return onTime;
     }
 
     public void cancel(String reason) {
@@ -103,20 +117,37 @@ public class CollectionTask extends TenantScopedEntity {
         this.cancelReason = reason.trim();
     }
 
-    public void reschedule(Instant newDueAt, Instant now) {
+    /**
+     * Novo horário combinado: é um novo compromisso (volta a pendente, com nova tolerância). Um
+     * atraso anterior já foi comunicado e permanece nos indicadores.
+     */
+    public void reschedule(Instant newDueAt, Duration tolerance, Instant now) {
         Guard.requireState(status.isOpen(), "task.not_open", "Tarefa já concluída ou cancelada");
         Guard.require(newDueAt != null && newDueAt.isAfter(now), "task.due_in_past",
                 "Data e hora da tarefa devem estar no futuro");
         this.dueAt = newDueAt;
+        this.toleranceUntil = newDueAt.plus(tolerance);
         this.status = TaskStatus.PENDING;
         this.missedAt = null;
     }
 
-    /** Vencida além da tolerância sem conclusão. */
-    public void markMissed(Instant now) {
-        Guard.requireState(status == TaskStatus.PENDING, "task.not_pending", "Tarefa não está pendente");
+    /**
+     * Vencida além da tolerância sem conclusão.
+     *
+     * @return true se passou a atrasada agora
+     */
+    public boolean markMissedIfLate(Instant now) {
+        if (status != TaskStatus.PENDING || !now.isAfter(toleranceUntil)) {
+            return false;
+        }
         this.status = TaskStatus.MISSED;
         this.missedAt = now;
+        return true;
+    }
+
+    /** Concluída depois de marcada atrasada. */
+    public boolean wasMissed() {
+        return missedAt != null;
     }
 
     public void reassign(UUID userId) {
@@ -142,6 +173,10 @@ public class CollectionTask extends TenantScopedEntity {
 
     public Instant getDueAt() {
         return dueAt;
+    }
+
+    public Instant getToleranceUntil() {
+        return toleranceUntil;
     }
 
     public UUID getAssigneeUserId() {
