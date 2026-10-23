@@ -28,12 +28,15 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 22 | negotiation | Nº de parcelas inclui a entrada (à vista = 1); sobreposição de política substitui grupos inteiros (carteira + faixa > carteira > faixa); faixa de atraso da negociação = maior atraso dos títulos. | Entrada + N; mescla campo a campo. | Padrão de mercado; previsível. |
 | 23 | negotiation | Sem atribuição: usuário = JUNIOR, assistente = ASSISTENTE_INICIAL (que não formaliza); ninguém atribui a própria alçada; o assistente nunca vê o envelope completo da política. | Negar quem não tem perfil; formalização autônoma desde o início. | Operável sem abrir limite; adoção conservadora da IA; minimização de dados ao modelo. |
 | 24 | negotiation | Simulações persistidas com versão do motor; justificativa de concessão registrada por motivo codificado (texto livre só no banco). | Simulação efêmera. | Reprodutibilidade (RB03) e base para a parte 2; sem PII em log. |
+| 25 | collection | Caso por devedor × carteira; retenções (jurídico > suspensão > contestação) guardam um único estágio anterior; carga processada por job em lotes. | Caso por credor; pilha de retenções. | A carteira define vigência e filas; simplicidade. |
+| 26 | collection | Elegibilidade consulta restrições por canal no porteiro do compliance; janela de horário e limites de frequência valem no momento do contato, não na elegibilidade. Registrar interação documenta fato ocorrido (não autoriza contato). | Autorizar no registro da interação. | Separa elegibilidade de execução do contato. |
+| 27 | collection | "Próximo caso" com `SKIP LOCKED`; retorno atrasado continua com o operador e vem primeiro; histórico de atribuição com vigência; 12 tabulações padrão por assessoria; promessa vinculada a pagamento por devedor/credor/carteira. | Devolver retorno atrasado à fila. | Preserva o relacionamento; supervisor pode redistribuir. |
+| 28 | collection | Permissões novas `CASE_MANAGE` e `TABULATION_MANAGE`; eventos novos `CallbackStatusChanged` e `PromiseStatusChanged`. | Reaproveitar `CASE_ASSIGN`. | Separa distribuir de suspender/encerrar. |
+| 29 | frontend | Telas de devedores, títulos e compliance: documento/contato completo só com `DEBTOR_SENSITIVE_VIEW` (registrado no servidor); busca por CPF/CNPJ via POST, nunca na URL; garantias, coobrigados e prescrição só consulta por ora; rascunho de política de contato só na tela (API não tem rascunho). | Documento na URL; salvar rascunho no navegador. | Segurança e minimização de dados. |
 
 ## Situação ao fim da sessão autônoma
 
-- **Integrados na master (testes verdes):** garantias/coobrigados/prescrição e negotiation parte 1 (23/10 manhã), compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
+- **Integrados na master (testes verdes):** garantias/coobrigados/prescrição e negotiation parte 1, collection e telas de devedores/títulos/compliance (23/10 manhã), compliance, UX (identidade visual + onboarding + `/api/v1/me/ui-state`), incentive (métricas e remuneração variável dos negociadores).
 - **Interrompidos pelo responsável e não retomados** (trabalho não commitado preservado nos worktrees, nada foi descartado):
   - `wt-modulo-ingestion` — 4 arquivos alterados, sem commit;
-  - `wt-modulo-collection` — 2 arquivos alterados, sem commit;
-  - `wt-frontend-debt-compliance` — 6 arquivos alterados, sem commit;
 - Próxima onda (negotiation parte 2, payment, communication, settlement…) **não foi iniciada**, aguardando orientação.
