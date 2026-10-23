@@ -100,12 +100,6 @@ interface AgreementJpaRepository extends JpaRepository<Agreement, UUID>, Agreeme
 - Unitários (`*Test`): domínio e serviços com dublês; rápidos, sem Spring quando possível.
 - Integração (`*IT`, tag `integration`): Spring + PostgreSQL real, cobrindo RLS, migrations e fluxos críticos.
 - Todo caso de uso financeiro: teste de concorrência/idempotência.
-- Agendamento desligado nos testes (`app.scheduling.enabled=false`, verificado por `SchedulingDisabledIT`): jobs só rodam
-  quando o teste chama `JobDrain`/o handler. Vários contextos Spring ficam em cache na mesma JVM e compartilham o banco;
-  um `@Scheduled` ativo em qualquer um deles executaria jobs de outros testes com os próprios beans. Não acrescente
-  dependência que declare `@EnableScheduling` por conta própria (o Spring Modulith Moments foi excluído por isso).
-- Esperas por eventos assíncronos (`awaitIdle`) consultam `event_publication` do tenant e, ao esgotar o tempo, listam as
-  publicações pendentes; não aumente o tempo de espera para contornar evento que não é consumido.
 
 ## 10. Git
 

@@ -105,15 +105,6 @@
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-core</artifactId>
-            <exclusions>
-                <!-- Moments (eventos de passagem do tempo) não é usado; sua autoconfiguração declara
-                     @EnableScheduling incondicionalmente e ligava todos os @Scheduled mesmo com
-                     app.scheduling.enabled=false (ver SchedulingConfig e docs/tecnico/convencoes.md §9). -->
-                <exclusion>
-                    <groupId>org.springframework.modulith</groupId>
-                    <artifactId>spring-modulith-moments</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.modulith</groupId>
