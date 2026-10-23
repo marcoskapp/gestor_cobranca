@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 /**
  * Campos canônicos de uma linha de carga. Todo layout de credor mapeia suas colunas para estes
  * campos; o layout padrão usa o próprio {@link #column()} como cabeçalho. A especificação completa
- * (formatos aceitos, obrigatoriedade, exemplo) está em {@code documentação/layout-importacao.md}; a versão
+ * (formatos aceitos, obrigatoriedade, exemplo) está em {@code docs/negocio/layout-importacao.md}; a versão
  * do layout canônico é {@link FileLayout#STANDARD_VERSION}. Campos novos são sempre opcionais e
  * acrescentados ao fim, para que arquivos de versões anteriores continuem válidos.
  * <p>

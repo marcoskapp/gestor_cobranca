@@ -1,6 +1,6 @@
 # Convenções de desenvolvimento
 
-Guia obrigatório para qualquer código novo. A implementação de referência são os módulos `organization` (CRUD com escopo por credor, eventos e auditoria) e `identity` (fluxos de segurança). Em caso de dúvida, copie o padrão deles. Regras de arquitetura estão em [ARCHITECTURE.md](ARCHITECTURE.md) e são verificadas por `ArchitectureTest` e `ModularityTest`.
+Guia obrigatório para qualquer código novo. A implementação de referência são os módulos `organization` (CRUD com escopo por credor, eventos e auditoria) e `identity` (fluxos de segurança). Em caso de dúvida, copie o padrão deles. Regras de arquitetura estão em [ARCHITECTURE.md](../arquitetura/visao-geral.md) e são verificadas por `ArchitectureTest` e `ModularityTest`.
 
 ## 1. Estrutura de um módulo
 

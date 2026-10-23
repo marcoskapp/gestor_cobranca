@@ -43,7 +43,7 @@ Obrigatórias em **negrito**. "Pessoal" indica dado do devedor: no relatório de
 
 ### 2.1 Dados jurídicos do contrato (garantias, coobrigados, natureza do título)
 
-Opcionais, por contrato (`docs/design/juridico.md`, A.4). Exigem a coluna `contrato` — sem ela os dados são ignorados com aviso (`row.legal_fields_without_contract`). Quando o contrato tem vários títulos, repita os dados em cada linha ou informe-os em uma só: a gravação é idempotente. Dado jurídico inconsistente é **erro** (a linha não é gravada): carregar o título sem a garantia ou o coobrigado informado levaria a decisões de cobrança e jurídicas erradas; corrija e reenvie.
+Opcionais, por contrato (`docs/tecnico/desenho/juridico.md`, A.4). Exigem a coluna `contrato` — sem ela os dados são ignorados com aviso (`row.legal_fields_without_contract`). Quando o contrato tem vários títulos, repita os dados em cada linha ou informe-os em uma só: a gravação é idempotente. Dado jurídico inconsistente é **erro** (a linha não é gravada): carregar o título sem a garantia ou o coobrigado informado levaria a decisões de cobrança e jurídicas erradas; corrija e reenvie.
 
 | Coluna | Conteúdo / formato | Problema → efeito |
 | --- | --- | --- |

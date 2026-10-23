@@ -10,6 +10,7 @@ import br.com.gestorcobranca.incentive.domain.model.attribution.AgreementAttribu
 import br.com.gestorcobranca.incentive.domain.repository.AgreementAttributionRepository;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.events.collection.CaseAssignmentChanged;
+import br.com.gestorcobranca.shared.events.collection.CaseBalanceChanged;
 import br.com.gestorcobranca.shared.events.collection.CaseStatusChanged;
 import br.com.gestorcobranca.shared.events.collection.InteractionRecorded;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
@@ -107,6 +108,13 @@ class FactIngestionService {
         metrics.factConsumed("case_assignment");
         facts.recordCaseSnapshot(new CaseSnapshot(e.eventId(), e.caseId(), e.occurredAt(), e.creditorId(), e.portfolioId(),
                 e.assigneeId(), e.teamId(), null, null, e.eligibleBalance()));
+    }
+
+    /** Saldo elegível mudou sem mudança de status nem de responsável (pagamento, carga, baixa). */
+    void caseBalance(CaseBalanceChanged e) {
+        metrics.factConsumed("case_balance");
+        facts.recordCaseSnapshot(new CaseSnapshot(e.eventId(), e.caseId(), e.occurredAt(), e.creditorId(), e.portfolioId(),
+                e.assigneeId(), e.teamId(), null, e.eligible(), e.eligibleBalance()));
     }
 
     void agreementStatus(AgreementStatusChanged e) {

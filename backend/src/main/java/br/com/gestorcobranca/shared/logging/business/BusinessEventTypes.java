@@ -3,7 +3,7 @@ package br.com.gestorcobranca.shared.logging.business;
 /**
  * Catálogo de tipos de evento de negócio ({@code <dominio>.<fato_no_passado>}). Manter este
  * catálogo estável: dashboards e consultas do CloudWatch dependem dos nomes. Ao criar um tipo
- * novo, documente-o em {@code docs/LOGGING.md}.
+ * novo, documente-o em {@code docs/tecnico/logs-e-metricas.md}.
  */
 public final class BusinessEventTypes {
 

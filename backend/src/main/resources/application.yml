@@ -146,7 +146,7 @@ app:
     technical-level: ${LOG_LEVEL:INFO}
 
   crypto:
-    # Chaves AES-256 (Base64, 32 bytes). Formato: APP_CRYPTO_KEYS_<ID>; ver docs/SECURITY.md
+    # Chaves AES-256 (Base64, 32 bytes). Formato: APP_CRYPTO_KEYS_<ID>; ver docs/tecnico/seguranca.md
     keys:
       k1: ${APP_CRYPTO_KEY_K1:}
     active-key-id: ${APP_CRYPTO_ACTIVE_KEY_ID:k1}
