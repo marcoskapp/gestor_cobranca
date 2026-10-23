@@ -128,7 +128,7 @@ export const CASE_ACTIONS = {
 
 export type CaseAction = keyof typeof CASE_ACTIONS;
 
-/** Ações permitidas pela situação (espelho de `docs/design/collection.md` §1.2). */
+/** Ações permitidas pela situação (espelho de `docs/tecnico/desenho/collection.md` §1.2). */
 export function caseActions(status: string): CaseAction[] {
   switch (status) {
     case 'CLOSED':
