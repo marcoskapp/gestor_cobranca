@@ -35,6 +35,7 @@ class DebtorContactService implements DebtorContactUseCases {
 
     private final DebtorContactRepository contacts;
     private final ContactRegistry registry;
+    private final PersonalDataIndex index;
     private final DebtorVisibility visibility;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
@@ -42,11 +43,12 @@ class DebtorContactService implements DebtorContactUseCases {
     private final AccessLogger accessLogger;
     private final Clock clock;
 
-    DebtorContactService(DebtorContactRepository contacts, ContactRegistry registry, DebtorVisibility visibility,
-                         AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
-                         AccessLogger accessLogger, Clock clock) {
+    DebtorContactService(DebtorContactRepository contacts, ContactRegistry registry, PersonalDataIndex index,
+                         DebtorVisibility visibility, AccessScope accessScope, CurrentActor currentActor,
+                         AuditTrail auditTrail, AccessLogger accessLogger, Clock clock) {
         this.contacts = contacts;
         this.registry = registry;
+        this.index = index;
         this.visibility = visibility;
         this.accessScope = accessScope;
         this.currentActor = currentActor;
@@ -141,6 +143,17 @@ class DebtorContactService implements DebtorContactUseCases {
                 .map(c -> new ChannelContact(c.getId(), c.getType().name(), c.getValue(), c.getLabel().name(),
                         c.isWhatsapp(), c.getPriority(), c.getStatus().name()))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ContactFingerprint fingerprint(String type, String value) {
+        ContactType contactType = DebtViews.parseEnum(ContactType.class, type, "contact.type_invalid", "Tipo de contato");
+        if (contactType == ContactType.ADDRESS) {
+            throw new BusinessRuleException("contact.type_invalid", "Somente telefone ou e-mail");
+        }
+        ContactValue contactValue = ContactValue.parse(contactType, value);
+        return new ContactFingerprint(contactType.name(), index.contact(contactValue), contactValue.masked());
     }
 
     private DebtorContact loadVisible(UUID debtorId, UUID contactId) {

@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +42,30 @@ public interface DebtorUseCases {
      * devedor; recusado enquanto houver título em cobrança ({@code debtor.has_open_titles}).
      */
     DebtorView anonymize(UUID debtorId, String reason);
+
+    /**
+     * <strong>Uso interno do módulo compliance (retenção); não exposto via web.</strong>
+     * Devedores ativos (não anonimizados) sem títulos em cobrança (OPEN/SUSPENDED) cuja última
+     * movimentação — alteração do título mais recente, ou o cadastro para devedores sem títulos —
+     * é anterior a {@code closedBefore}. Paginação por chave ({@code id > afterId}, em ordem de id)
+     * para que execuções simuladas ou itens mantidos não sejam revisitados no mesmo processamento.
+     * Exige {@code RETENTION_MANAGE} e acesso a todos os credores.
+     *
+     * @param afterId último id do lote anterior; nulo para começar do início
+     * @param limit   tamanho do lote (1 a 1000)
+     */
+    List<InactiveDebtor> findInactiveDebtors(Instant closedBefore, UUID afterId, int limit);
+
+    /**
+     * @param lastActivityAt última movimentação considerada
+     * @param creditorIds    credores em que o devedor tem títulos (para a base legal de cada um)
+     */
+    record InactiveDebtor(UUID debtorId, Instant lastActivityAt, List<UUID> creditorIds) {
+
+        public InactiveDebtor {
+            creditorIds = List.copyOf(creditorIds);
+        }
+    }
 
     record RegisterDebtorCommand(String document, String name, LocalDate birthDate, String notes) {
     }

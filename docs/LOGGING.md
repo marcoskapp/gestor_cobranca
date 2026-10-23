@@ -35,8 +35,18 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Prestação de contas | `commission.accrued`, `settlement.closed` |
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.blocked` |
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.step_executed`, `campaign.step_skipped`, `experiment.variant_assigned` |
-| Compliance | `contact.opt_out`, `contact.restricted`, `data_subject_request.opened`, `data_subject_request.completed` |
+| Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
 | Outros | `call.completed`, `portal.accessed`, `portal.agreement_formalized`, `score.calculated`, `assistant.replied`, `assistant.handoff` |
+
+### 3.1 Atributos dos eventos de compliance
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `contact.opt_out` / `contact.restricted` | restrição de contato criada (opt-out ou demais tipos) | `type`, `source`, `temporary`, `contactSpecific`; `channel` |
+| `contact.restriction_revoked` | restrição revogada | `type`, `activeDays` |
+| `contact.denied` | `ContactGate.authorizeAndRecord` negou um contato | `origin`, `reasons` (lista separada por vírgula); `channel` |
+| `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs` |
+| `retention.run_completed` | execução de retenção concluída (simulada ou efetiva) | `category`, `trigger`, `dryRun`, `candidates`, `eligible`, `processed`, `retained`, `failed` |
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
@@ -76,4 +86,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `storage.operation{operation,category,outcome}` | S3 |
 | `mail.sent{type,outcome}` | e-mail |
 | `integration.calls{provider,operation,outcome}` | provedores externos (convenção para os adaptadores) |
+| `compliance.contact_gate.decisions{operation,outcome}`, `compliance.contact_gate.denials{operation,reason}` | porteiro de contato (consultas e autorizações, motivos de negação) |
+| `compliance.dsr.overdue{type}` | solicitações de titulares que passaram do prazo (alarme) |
+| `compliance.restrictions.expired`, `compliance.retention.runs{category,dryRun,outcome}`, `compliance.retention.debtors{outcome}` | fim de vigência de restrições e execuções de retenção |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

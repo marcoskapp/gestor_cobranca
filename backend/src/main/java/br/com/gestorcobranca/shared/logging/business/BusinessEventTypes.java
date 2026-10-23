@@ -74,8 +74,11 @@ public final class BusinessEventTypes {
     // Compliance
     public static final String CONTACT_OPT_OUT = "contact.opt_out";
     public static final String CONTACT_RESTRICTED = "contact.restricted";
+    public static final String CONTACT_RESTRICTION_REVOKED = "contact.restriction_revoked";
+    public static final String CONTACT_DENIED = "contact.denied";
     public static final String DATA_SUBJECT_REQUEST_OPENED = "data_subject_request.opened";
     public static final String DATA_SUBJECT_REQUEST_COMPLETED = "data_subject_request.completed";
+    public static final String RETENTION_RUN_COMPLETED = "retention.run_completed";
 
     // Telefonia, portal, score, IA
     public static final String CALL_COMPLETED = "call.completed";

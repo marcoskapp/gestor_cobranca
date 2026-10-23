@@ -414,6 +414,49 @@ class DebtModuleIT extends IntegrationTest {
     }
 
     @Test
+    void inactiveDebtorQueryReturnsOnlyDebtorsWithoutTitlesInCollection() {
+        UUID open = system(() -> ingestion.upsertDebtor(debtorRecord("Maria Silva")).id());
+        system(() -> ingestion.upsertTitle(titleRecord(creditorA, portfolioA, open, "A-1", "100.00", null), Ids.newId()));
+        UUID settled = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of())).id());
+        UUID settledTitle = system(() -> ingestion.upsertTitle(titleRecord(creditorB, portfolioB, settled, "B-1", "50.00",
+                null), Ids.newId()).id());
+        system(() -> ledgerPort.applyPayment(new PaymentApplication(settledTitle, Ids.newId(),
+                ComponentAmounts.principalOnly(new BigDecimal("50.00")), Instant.now())));
+        UUID withoutTitles = system(() -> ingestion.upsertDebtor(new DebtorRecord("39053344705", "Ana", null, List.of())).id());
+        system(() -> jdbcTemplate.update("update debt.debtor set created_at = now() - interval '2 years'"));
+        system(() -> jdbcTemplate.update("update debt.debt_title set updated_at = now() - interval '2 years'"));
+        Instant cutoff = Instant.now().minusSeconds(365L * 86400);
+
+        List<DebtorUseCases.InactiveDebtor> found = system(() -> debtors.findInactiveDebtors(cutoff, null, 10));
+        assertThat(found).extracting(DebtorUseCases.InactiveDebtor::debtorId).containsExactlyInAnyOrder(settled, withoutTitles);
+        assertThat(found).filteredOn(d -> d.debtorId().equals(settled)).singleElement()
+                .satisfies(d -> assertThat(d.creditorIds()).containsExactly(creditorB));
+        // paginação por chave: o lote seguinte começa após o último id
+        List<DebtorUseCases.InactiveDebtor> first = system(() -> debtors.findInactiveDebtors(cutoff, null, 1));
+        List<DebtorUseCases.InactiveDebtor> next = system(() -> debtors.findInactiveDebtors(cutoff, first.getFirst().debtorId(), 10));
+        assertThat(next).hasSize(1).extracting(DebtorUseCases.InactiveDebtor::debtorId)
+                .doesNotContain(first.getFirst().debtorId());
+        // movimentação recente tira o devedor da lista
+        assertThat(system(() -> debtors.findInactiveDebtors(Instant.now().minusSeconds(3L * 365 * 86400), null, 10))).isEmpty();
+        // exige escopo sobre todos os credores
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> debtors.findInactiveDebtors(cutoff, null, 10)))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+    }
+
+    @Test
+    void contactFingerprintMatchesTheStoredContactIndex() {
+        UUID debtorId = system(() -> ingestion.upsertDebtor(debtorRecord("Maria Silva",
+                new ContactRecord("PHONE", "(11) 98765-4321", "MOBILE", true))).id());
+        DebtorContactUseCases.ContactFingerprint fingerprint = system(() -> contacts.fingerprint("PHONE", "+55 11 98765 4321"));
+        String stored = system(() -> jdbcTemplate.queryForObject(
+                "select value_hash from debt.debtor_contact where debtor_id = ?", String.class, debtorId));
+        assertThat(fingerprint.hash()).isEqualTo(stored);
+        assertThat(fingerprint.maskedValue()).isEqualTo("(11) *****-4321");
+        assertThatThrownBy(() -> system(() -> contacts.fingerprint("ADDRESS", "Rua A, 1")))
+                .hasFieldOrPropertyWithValue("code", "contact.type_invalid");
+    }
+
+    @Test
     void anonymizationRemovesPersonalDataButKeepsTitles() {
         UUID debtorId = system(() -> ingestion.upsertDebtor(debtorRecord("Maria Silva",
                 new ContactRecord("EMAIL", "maria@exemplo.com", null, false))).id());
