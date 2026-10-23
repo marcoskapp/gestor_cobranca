@@ -19,6 +19,7 @@ import { EntityPicker } from '../../../../shared/components/entity-picker/entity
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { DocumentDisplay } from '../../../../shared/components/document-display/document-display';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
+import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
 import { HasPermission } from '../../../../shared/directives/has-permission';
 import { PageRequest, PageResponse, emptyPage } from '../../../../shared/models/page';
@@ -154,7 +155,7 @@ export class DebtorList {
         return parseDebtorQuery(v.q, v.creditor[0] ?? null, v.portfolio[0] ?? null);
       }),
     ),
-    { initialValue: { mode: 'name', q: null, creditorId: null, portfolioId: null } as DebtorQuery },
+    { initialValue: { mode: 'name', q: null, creditorId: null, portfolioId: null } as DebtorQuery, equal: sameValue },
   );
   protected readonly searchMode = computed(() => this.filter().mode);
   protected readonly query = pagedQuery(this.filter, (filter, page) => this.load(filter, page));

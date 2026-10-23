@@ -5,7 +5,7 @@ import { DataTable, TableColumn } from '../../../../shared/components/data-table
 import { nameMap } from '../../../../shared/data/name-map';
 import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
-import { CreditorLookup, PortfolioLookup } from '../../../organization/data/organization.lookups';
+import { CreditorNames, PortfolioNames } from '../../../organization/data/organization.lookups';
 import { TitlesApi } from '../../data/debt.api';
 import { OWNERSHIP_RELEASE_LABELS } from '../../data/debt.labels';
 import { OwnershipView } from '../../data/debt.models';
@@ -52,8 +52,8 @@ export class TitleOwnership {
   /** O backend devolve do mais antigo ao atual; a tela mostra o atual primeiro. */
   private readonly periods = valueOr(this.ownership, []);
   protected readonly rows = computed(() => [...this.periods()].reverse());
-  protected readonly creditors = nameMap(inject(CreditorLookup), () => this.rows().map((o) => o.creditorId));
-  protected readonly portfolios = nameMap(inject(PortfolioLookup).source(), () => this.rows().map((o) => o.portfolioId));
+  protected readonly creditors = nameMap(inject(CreditorNames), () => this.rows().map((o) => o.creditorId));
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.rows().map((o) => o.portfolioId));
   protected readonly rowKey = (o: OwnershipView) => `${o.portfolioId}-${o.assignedAt}`;
 
   protected readonly columns: TableColumn[] = [

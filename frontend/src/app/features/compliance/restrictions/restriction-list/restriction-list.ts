@@ -16,12 +16,13 @@ import { EntityPicker } from '../../../../shared/components/entity-picker/entity
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../../shared/data/name-map';
+import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
 import { PageRequest, PageResponse, emptyPage } from '../../../../shared/models/page';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../../shared/status/status';
-import { DebtorLookup } from '../../../debt/data/debt.lookups';
-import { CreditorLookup } from '../../../organization/data/organization.lookups';
+import { DebtorLookup, DebtorNames } from '../../../debt/data/debt.lookups';
+import { CreditorLookup, CreditorNames } from '../../../organization/data/organization.lookups';
 import { RestrictionsApi } from '../../data/compliance.api';
 import { CHANNEL_LABELS, RESTRICTION_SOURCE_LABELS, RESTRICTION_TYPE_LABELS, restrictionScope } from '../../data/compliance.labels';
 import { RestrictionFilter, RestrictionView } from '../../data/compliance.models';
@@ -79,26 +80,15 @@ export class RestrictionList {
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(300),
-      map((): ListFilter => {
-        const v = this.filters.getRawValue();
-        const debtorId = v.debtor[0] ?? null;
-        return {
-          debtorId,
-          creditorId: v.creditor[0] ?? null,
-          type: v.type || null,
-          status: v.status || null,
-          channel: v.channel || null,
-          blocked: !debtorId && !this.allCreditors(),
-        };
-      }),
+      map(() => this.currentFilter()),
     ),
-    { initialValue: { blocked: true } as ListFilter },
+    { initialValue: this.currentFilter(), equal: sameValue },
   );
   protected readonly blocked = computed(() => this.filter().blocked);
   protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page));
 
-  protected readonly debtors = nameMap(this.debtorSource, () => this.query.rows().map((r) => r.debtorId));
-  protected readonly creditors = nameMap(this.creditorSource, () => this.query.rows().map((r) => r.creditorId));
+  protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((r) => r.debtorId));
+  protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((r) => r.creditorId));
 
   protected readonly columns: TableColumn[] = [
     { key: 'debtor', header: 'Devedor' },
@@ -123,6 +113,19 @@ export class RestrictionList {
 
   protected revoke(r: RestrictionView): void {
     this.actions.revoke(r, this.scope(r)).subscribe(() => this.query.reload());
+  }
+
+  private currentFilter(): ListFilter {
+    const v = this.filters.getRawValue();
+    const debtorId = v.debtor[0] ?? null;
+    return {
+      debtorId,
+      creditorId: v.creditor[0] ?? null,
+      type: v.type || null,
+      status: v.status || null,
+      channel: v.channel || null,
+      blocked: !debtorId && !this.allCreditors(),
+    };
   }
 
   private load(f: ListFilter, page: PageRequest): Observable<PageResponse<RestrictionView>> {

@@ -10,7 +10,7 @@ import { StatusChip } from '../../../../shared/components/status-chip/status-chi
 import { nameMap } from '../../../../shared/data/name-map';
 import { pagedQuery } from '../../../../shared/data/paged-query';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
-import { CreditorLookup } from '../../../organization/data/organization.lookups';
+import { CreditorNames } from '../../../organization/data/organization.lookups';
 import { RestrictionsApi } from '../../data/compliance.api';
 import {
   ATTEMPT_ORIGIN_ICONS,
@@ -133,7 +133,7 @@ export class DebtorCompliance {
   private readonly filter = computed(() => this.debtorId());
   protected readonly restrictions = pagedQuery(this.filter, (debtorId, page) => this.api.search({ debtorId }, page));
   protected readonly attempts = pagedQuery(this.filter, (debtorId, page) => this.api.attempts(debtorId, page));
-  protected readonly creditors = nameMap(inject(CreditorLookup), () => [
+  protected readonly creditors = nameMap(inject(CreditorNames), () => [
     ...this.restrictions.rows().map((r) => r.creditorId),
     ...this.attempts.rows().map((a) => a.creditorId),
   ]);

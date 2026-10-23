@@ -1,10 +1,15 @@
 import { Signal, computed, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { catchError, forkJoin, map, of, tap } from 'rxjs';
-import { EntitySource } from '../components/entity-picker/entity-picker';
+import { Observable, catchError, forkJoin, map, of, tap } from 'rxjs';
+import { Option } from '../models/lookup';
 
 /** Rótulo exibido quando o registro não pode ser resolvido (fora do escopo, removido ou sem permissão). */
 export const UNRESOLVED_NAME = 'Indisponível';
+
+/** Resolução de rótulos por id (as fontes de `app-entity-picker` também servem). */
+export interface NameSource {
+  resolve(ids: string[]): Observable<Option[]>;
+}
 
 export interface NameMap {
   /** Nome conhecido do id; `…` enquanto carrega; vazio para id nulo. */
@@ -18,7 +23,7 @@ export interface NameMap {
  * separadamente: um registro inacessível não impede a exibição dos demais. Deve ser criado em
  * contexto de injeção (campo de componente).
  */
-export function nameMap(source: EntitySource, ids: () => readonly (string | null | undefined)[]): NameMap {
+export function nameMap(source: NameSource, ids: () => readonly (string | null | undefined)[]): NameMap {
   const known = signal<ReadonlyMap<string, string>>(new Map());
 
   const missing = computed(

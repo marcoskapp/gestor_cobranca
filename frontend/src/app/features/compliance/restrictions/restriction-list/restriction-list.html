@@ -10,7 +10,7 @@
 
 <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar restrições">
   <div class="app-filters__wide">
-    <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor" hint="Nome ou CPF/CNPJ completo." [single]="true" />
+    <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor" placeholder="Nome ou CPF/CNPJ completo" [single]="true" />
   </div>
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />

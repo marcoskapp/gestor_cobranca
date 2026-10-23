@@ -16,7 +16,7 @@ import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { toLocalDate } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { CreditorLookup, PortfolioLookup } from '../../organization/data/organization.lookups';
+import { CreditorLookup, PortfolioNames } from '../../organization/data/organization.lookups';
 import { LegalBasesApi } from '../data/compliance.api';
 import { LEGAL_BASIS_LABELS, PROCESSING_ROLE_LABELS } from '../data/compliance.labels';
 import { LegalBasisView } from '../data/compliance.models';
@@ -127,7 +127,7 @@ export class LegalBasisList implements OnInit {
   private readonly list = valueOr(this.records, []);
   protected readonly rows = computed(() => [...this.list()].sort((a, b) => b.validFrom.localeCompare(a.validFrom)));
   protected readonly creditors = nameMap(this.creditorSource, () => [this.creditorId()]);
-  protected readonly portfolios = nameMap(inject(PortfolioLookup).source(), () => this.rows().map((r) => r.portfolioId));
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.rows().map((r) => r.portfolioId));
 
   protected readonly columns: TableColumn[] = [
     { key: 'legalBasis', header: 'Base legal' },

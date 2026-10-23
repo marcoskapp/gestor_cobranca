@@ -64,7 +64,7 @@
   emptyHint="Ajuste os filtros. Títulos chegam pelas cargas das carteiras dos credores."
 >
   <ng-template appCell="title" [appCellOf]="query.rows()" let-t>
-    <a [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
+    <a class="app-numeric" [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
     @if (t.disputeBlocked) {
       <span class="app-status app-status--warning title-list__flag" matTooltip="Em contestação: cobrança bloqueada">
         <mat-icon class="app-status__icon" aria-hidden="true">gavel</mat-icon>Contestação

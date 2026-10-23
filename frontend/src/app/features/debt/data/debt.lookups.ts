@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 import { EntitySource } from '../../../shared/components/entity-picker/entity-picker';
+import { NameSource } from '../../../shared/data/name-map';
 import { Option } from '../../../shared/models/lookup';
 import { isValidDocument } from '../../../shared/validation/document';
 import { DebtorsApi } from './debt.api';
@@ -40,4 +41,14 @@ export class DebtorLookup implements EntitySource {
 
 export function debtorOption(d: DebtorView): Option {
   return { value: d.id, label: d.maskedDocument ? `${d.name} (${d.maskedDocument})` : d.name };
+}
+
+/** Nomes de devedores para tabelas (sem documento: a coluna de documento, quando existe, é separada). */
+@Injectable({ providedIn: 'root' })
+export class DebtorNames implements NameSource {
+  private readonly api = inject(DebtorsApi);
+
+  resolve(ids: string[]): Observable<Option[]> {
+    return ids.length ? forkJoin(ids.map((id) => this.api.get(id).pipe(map((d): Option => ({ value: d.id, label: d.name }))))) : of<Option[]>([]);
+  }
 }

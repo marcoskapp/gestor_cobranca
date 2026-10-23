@@ -17,6 +17,7 @@ import { DataTable, TableColumn } from '../../../../shared/components/data-table
 import { DocumentDisplay } from '../../../../shared/components/document-display/document-display';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
+import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
 import { DocumentMask } from '../../../../shared/directives/document-mask';
 import { PageRequest, PageResponse, emptyPage } from '../../../../shared/models/page';
@@ -95,7 +96,7 @@ export class RequestList {
       debounceTime(300),
       map(() => toQueueFilter(this.filters.getRawValue())),
     ),
-    { initialValue: toQueueFilter({ status: '', type: '', overdue: false, document: '' }) },
+    { initialValue: toQueueFilter({ status: '', type: '', overdue: false, document: '' }), equal: sameValue },
   );
   protected readonly incomplete = computed(() => this.filter().incomplete);
   protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page));

@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
+import { provideLocale } from './core/config/locale.config';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -17,6 +18,7 @@ describe('rotas da aplicação', () => {
     user.set(null);
     TestBed.configureTestingModule({
       providers: [
+        provideLocale(),
         provideRouter(routes, withComponentInputBinding()),
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -43,7 +45,7 @@ describe('rotas da aplicação', () => {
     expect(TestBed.inject(Router).url).toBe('/');
     expect(harness.routeNativeElement?.textContent).toContain('Acesso rápido');
     expect(document.querySelector('app-shell')).not.toBeNull();
-  });
+  }, 20_000); // primeiro teste do arquivo: inclui o carregamento sob demanda do shell
 
   it('"/" sem sessão vai ao login', async () => {
     await RouterTestingHarness.create('/');
@@ -63,4 +65,22 @@ describe('rotas da aplicação', () => {
     const harness = await RouterTestingHarness.create('/nao-existe');
     expect(harness.routeNativeElement?.textContent).toContain('Página não encontrada');
   });
+  it('devedores e compliance exigem permissão: sem ela, acesso negado', async () => {
+    user.set(fakeUser({ permissions: ['USER_VIEW'] }));
+    const harness = await RouterTestingHarness.create('/devedores');
+    expect(TestBed.inject(Router).url).toBe('/acesso-negado');
+    await harness.navigateByUrl('/compliance/retencao');
+    expect(TestBed.inject(Router).url).toBe('/acesso-negado');
+    expect(harness.routeNativeElement?.textContent).toContain('Acesso negado');
+  }, 20_000);
+
+  it('com DEBTOR_VIEW abre a busca de devedores; títulos aceitam também CASE_VIEW', async () => {
+    user.set(fakeUser({ permissions: ['DEBTOR_VIEW'] }));
+    const harness = await RouterTestingHarness.create('/devedores');
+    expect(TestBed.inject(Router).url).toBe('/devedores');
+    expect(harness.routeNativeElement?.textContent).toContain('Devedores');
+    user.set(fakeUser({ permissions: ['CASE_VIEW'] }));
+    await harness.navigateByUrl('/titulos');
+    expect(TestBed.inject(Router).url).toBe('/titulos');
+  }, 20_000);
 });

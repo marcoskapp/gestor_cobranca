@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
@@ -19,15 +19,16 @@ import { EntityPicker } from '../../../../shared/components/entity-picker/entity
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../../shared/data/name-map';
+import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
 import { toLocalDate } from '../../../../shared/models/dates';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../../shared/status/status';
-import { CreditorLookup, PortfolioLookup } from '../../../organization/data/organization.lookups';
+import { CreditorLookup, CreditorNames, PortfolioLookup, PortfolioNames } from '../../../organization/data/organization.lookups';
 import { OverdueBadge } from '../../components/overdue-badge';
 import { TitlesApi } from '../../data/debt.api';
 import { OVERDUE_BUCKETS, titleLabel } from '../../data/debt.labels';
-import { DebtorLookup } from '../../data/debt.lookups';
+import { DebtorNames } from '../../data/debt.lookups';
 import { TitleFilter } from '../../data/debt.models';
 
 /** Converte o formulário de filtros no `TitleSearch` do backend. */
@@ -92,14 +93,7 @@ export function toTitleFilter(v: {
     }
   `,
 })
-export class TitleList implements OnInit {
-  /** Filtros vindos de outras telas (`?credor=&carteira=&devedor=&situacao=&atraso=`). */
-  readonly credor = input<string>();
-  readonly carteira = input<string>();
-  readonly devedor = input<string>();
-  readonly situacao = input<string>();
-  readonly atraso = input<string>();
-
+export class TitleList {
   private readonly api = inject(TitlesApi);
   private readonly auth = inject(AuthService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -110,13 +104,15 @@ export class TitleList implements OnInit {
   protected readonly titleLabel = titleLabel;
   protected readonly canViewDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 
+  /** Filtros vindos de outras telas (`?credor=&carteira=&devedor=&situacao=&atraso=`), lidos antes da primeira consulta. */
+  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>([]),
-    portfolio: this.fb.control<string[]>([]),
-    debtorId: [''],
-    status: [''],
-    bucket: [''],
+    creditor: this.fb.control<string[]>(this.param('credor') ? [this.param('credor')] : []),
+    portfolio: this.fb.control<string[]>(this.param('carteira') ? [this.param('carteira')] : []),
+    debtorId: [this.param('devedor')],
+    status: [statusOptions('title').some((s) => s.value === this.param('situacao')) ? this.param('situacao') : ''],
+    bucket: [OVERDUE_BUCKETS.some((b) => b.value === this.param('atraso')) ? this.param('atraso') : ''],
     dueFrom: this.fb.control<Date | null>(null),
     dueTo: this.fb.control<Date | null>(null),
   });
@@ -128,15 +124,15 @@ export class TitleList implements OnInit {
       debounceTime(300),
       map(() => toTitleFilter(this.filters.getRawValue())),
     ),
-    { initialValue: {} as TitleFilter },
+    { initialValue: toTitleFilter(this.filters.getRawValue()), equal: sameValue },
   );
   protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page));
 
-  protected readonly debtors = nameMap(inject(DebtorLookup), () =>
+  protected readonly debtors = nameMap(inject(DebtorNames), () =>
     this.canViewDebtors() ? [...this.query.rows().map((t) => t.debtorId), this.filters.controls.debtorId.value] : [],
   );
-  protected readonly creditors = nameMap(this.creditorSource, () => this.query.rows().map((t) => t.creditorId));
-  protected readonly portfolios = nameMap(this.portfolioLookup.source(), () => this.query.rows().map((t) => t.portfolioId));
+  protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((t) => t.creditorId));
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.query.rows().map((t) => t.portfolioId));
 
   protected readonly columns: TableColumn[] = [
     { key: 'title', header: 'Título' },
@@ -149,18 +145,12 @@ export class TitleList implements OnInit {
     { key: 'status', header: 'Situação' },
   ];
 
-  ngOnInit(): void {
-    this.filters.patchValue({
-      creditor: this.credor() ? [this.credor()!] : [],
-      portfolio: this.carteira() ? [this.carteira()!] : [],
-      debtorId: this.devedor() ?? '',
-      status: this.statuses.some((s) => s.value === this.situacao()) ? this.situacao()! : '',
-      bucket: this.buckets.some((b) => b.value === this.atraso()) ? this.atraso()! : '',
-    });
-  }
-
   protected clearDebtor(): void {
     this.filters.controls.debtorId.setValue('');
+  }
+
+  private param(name: string): string {
+    return this.params.get(name) ?? '';
   }
 
   protected clear(): void {

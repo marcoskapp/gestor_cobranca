@@ -21,11 +21,11 @@ import { nameMap } from '../../../../shared/data/name-map';
 import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { TITLE_MANUAL_ACTIONS, describeStatus } from '../../../../shared/status/status';
-import { CreditorLookup, PortfolioLookup } from '../../../organization/data/organization.lookups';
+import { CreditorNames, PortfolioNames } from '../../../organization/data/organization.lookups';
 import { TitlesApi } from '../../data/debt.api';
 import { OverdueBadge } from '../../components/overdue-badge';
 import { titleLabel } from '../../data/debt.labels';
-import { DebtorLookup } from '../../data/debt.lookups';
+import { DebtorNames } from '../../data/debt.lookups';
 import { TitleView } from '../../data/debt.models';
 import { TitleBalance } from '../title-ledger/title-balance';
 import { TitleLedger } from '../title-ledger/title-ledger';
@@ -78,9 +78,9 @@ export class TitleDetail {
   });
   protected readonly canTransfer = computed(() => this.actions().includes('return'));
 
-  protected readonly debtors = nameMap(inject(DebtorLookup), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
-  protected readonly creditors = nameMap(inject(CreditorLookup), () => [this.current()?.creditorId]);
-  protected readonly portfolios = nameMap(inject(PortfolioLookup).source(), () => [this.current()?.portfolioId]);
+  protected readonly debtors = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
+  protected readonly creditors = nameMap(inject(CreditorNames), () => [this.current()?.creditorId]);
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => [this.current()?.portfolioId]);
 
   protected readonly titleLabel = titleLabel;
 

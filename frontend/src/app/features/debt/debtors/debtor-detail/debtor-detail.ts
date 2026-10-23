@@ -27,7 +27,7 @@ import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { DebtorCompliance } from '../../../compliance/restrictions/debtor-compliance/debtor-compliance';
 import { RestrictionsApi } from '../../../compliance/data/compliance.api';
-import { CreditorLookup, PortfolioLookup } from '../../../organization/data/organization.lookups';
+import { CreditorNames, PortfolioNames } from '../../../organization/data/organization.lookups';
 import { OverdueBadge } from '../../components/overdue-badge';
 import { DebtorContactsApi, DebtorsApi, TitlesApi } from '../../data/debt.api';
 import {
@@ -155,11 +155,11 @@ export class DebtorDetail {
         : (rows.find((t) => t.status === 'OPEN' || t.status === 'SUSPENDED') ?? rows[0])?.id ?? null,
   });
 
-  protected readonly creditors = nameMap(inject(CreditorLookup), () => [
+  protected readonly creditors = nameMap(inject(CreditorNames), () => [
     ...this.titleRows().map((t) => t.creditorId),
     ...(this.position()?.creditors.map((c) => c.creditorId) ?? []),
   ]);
-  protected readonly portfolios = nameMap(inject(PortfolioLookup).source(), () => this.titleRows().map((t) => t.portfolioId));
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.titleRows().map((t) => t.portfolioId));
 
   /** Documento completo revelado (somente em memória, nesta tela). */
   protected readonly revealedDocument = signal<string | null>(null);

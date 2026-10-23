@@ -111,6 +111,16 @@
   color: var(--mat-sys-on-surface-variant);
 }
 
-.debt-whatsapp {
-  margin-left: 6px;
+.debt-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.debt-icon-button {
+  --mat-icon-button-state-layer-size: 28px;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
 }

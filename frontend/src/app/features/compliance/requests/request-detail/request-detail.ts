@@ -21,7 +21,7 @@ import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { DSR_FINAL_STATUSES } from '../../../../shared/status/status';
 import { UserLookup } from '../../../admin/data/user.lookup';
-import { DebtorLookup } from '../../../debt/data/debt.lookups';
+import { DebtorLookup, DebtorNames } from '../../../debt/data/debt.lookups';
 import { DataSubjectRequestsApi, RestrictionsApi } from '../../data/compliance.api';
 import {
   EXECUTABLE_REQUEST_TYPES,
@@ -118,7 +118,7 @@ export class RequestDetail {
   protected readonly canViewUsers = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
   protected readonly canManageRestrictions = computed(() => this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE));
 
-  protected readonly debtors = nameMap(this.debtorLookup, () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
+  protected readonly debtors = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
   protected readonly users = nameMap(this.userLookup, () =>
     this.canViewUsers() ? [this.current()?.assignedTo, this.current()?.identityVerifiedBy] : [],
   );
