@@ -55,6 +55,7 @@ public enum Permission {
     NEGOTIATION_SIMULATE("Simular negociações"),
     NEGOTIATION_PROPOSE("Registrar propostas"),
     NEGOTIATION_APPROVE("Aprovar propostas fora da alçada"),
+    AUTHORITY_MANAGE("Gerenciar perfis de alçada de negociação e sua atribuição"),
     AGREEMENT_VIEW("Consultar acordos"),
     AGREEMENT_FORMALIZE("Formalizar acordos"),
     AGREEMENT_CANCEL("Cancelar acordos"),

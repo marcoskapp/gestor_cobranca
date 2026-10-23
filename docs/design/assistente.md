@@ -23,6 +23,11 @@ Cada turno executa como `Actor` do tipo `ASSISTANT` (`Actor.assistant(...)` no k
 
 Auditoria, eventos de negócio e log de acesso registram `actorType=ASSISTANT`. As ferramentas chamam os mesmos casos de uso dos humanos; `NegotiationGuard` aplica o perfil de alçada do assistente.
 
+Integração com `negotiation` (parte 1 implementada — ver `negociacao-e-alcadas.md` §9.5):
+- a política do assistente é vinculada a um perfil por `AuthorityUseCases.assign(ASSISTANT_POLICY, policyId, credor opcional, perfil)`; sem vínculo vale o perfil semeado `ASSISTENTE_INICIAL` (nível 1, 50% do envelope, até 6 pagamentos, até R$ 3.000, entrada mínima 10%, **sem formalização**);
+- ferramentas de negociação: `NegotiationSimulationUseCases.simulate` (ofertas até a alçada; o envelope completo nunca é devolvido ao assistente) e `validate` (`REQUIRES_APPROVAL` → transferência para humano com a proposta como sugestão);
+- permissões mínimas do ator para essas ferramentas: `NEGOTIATION_SIMULATE` (e `POLICY_VIEW` se a ferramenta consultar regras); o assistente só relê as próprias simulações.
+
 ## 3. Guardrails
 
 1. **Minimização de dados ao provedor de IA**: o modelo recebe apenas o necessário (nome, valores, datas, ofertas calculadas); nunca CPF completo, contatos ou dados de terceiros. Identificação por ids opacos.
