@@ -1,6 +1,5 @@
 package br.com.gestorcobranca.communication.application.service;
 
-import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
 import br.com.gestorcobranca.communication.domain.model.ChannelAccount;
@@ -56,7 +55,7 @@ class MessageService implements MessageUseCases {
     private final ContactGate gate;
     private final DebtorUseCases debtors;
     private final DebtorContactUseCases debtorContacts;
-    private final CaseUseCases cases;
+    private final CaseReader cases;
     private final AccessScope accessScope;
     private final JobQueue jobQueue;
     private final CommunicationMetrics metrics;
@@ -65,7 +64,7 @@ class MessageService implements MessageUseCases {
     MessageService(MessageRepository messages, ConversationRepository conversations, MessageTemplateRepository templates,
                    TemplateVariables templateVariables, ChannelResolver channels, ConversationAccess access,
                    ConversationOwnership ownership, MessageRecorder recorder, ContactGate gate, DebtorUseCases debtors,
-                   DebtorContactUseCases debtorContacts, CaseUseCases cases, AccessScope accessScope, JobQueue jobQueue,
+                   DebtorContactUseCases debtorContacts, CaseReader cases, AccessScope accessScope, JobQueue jobQueue,
                    CommunicationMetrics metrics, Clock clock) {
         this.messages = messages;
         this.conversations = conversations;
@@ -273,9 +272,6 @@ class MessageService implements MessageUseCases {
             Guard.requireState(!"CLOSED".equals(kase.status()), "case.closed", "Caso encerrado");
             return Optional.of(kase);
         }
-        List<CaseView> active = cases.listByDebtor(debtorId).stream()
-                .filter(k -> k.creditorId().equals(creditorId) && !"CLOSED".equals(k.status()))
-                .toList();
-        return active.size() == 1 ? Optional.of(active.getFirst()) : Optional.empty();
+        return cases.singleActive(debtorId, creditorId);
     }
 }

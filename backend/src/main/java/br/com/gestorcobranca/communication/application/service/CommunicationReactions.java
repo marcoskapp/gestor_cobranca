@@ -1,6 +1,5 @@
 package br.com.gestorcobranca.communication.application.service;
 
-import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
@@ -46,14 +45,14 @@ class CommunicationReactions {
 
     private final ConversationRepository conversations;
     private final ConversationOwnership ownership;
-    private final CaseUseCases cases;
+    private final CaseReader cases;
     private final CaseWorkUseCases work;
     private final InteractionUseCases interactions;
     private final TabulationUseCases tabulations;
     private final CommunicationMetrics metrics;
     private final Clock clock;
 
-    CommunicationReactions(ConversationRepository conversations, ConversationOwnership ownership, CaseUseCases cases,
+    CommunicationReactions(ConversationRepository conversations, ConversationOwnership ownership, CaseReader cases,
                            CaseWorkUseCases work, InteractionUseCases interactions, TabulationUseCases tabulations,
                            CommunicationMetrics metrics, Clock clock) {
         this.conversations = conversations;

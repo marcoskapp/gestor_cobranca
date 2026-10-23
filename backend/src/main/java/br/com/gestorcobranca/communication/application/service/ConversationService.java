@@ -57,7 +57,7 @@ class ConversationService implements ConversationUseCases {
     private final br.com.gestorcobranca.shared.security.AccessScope accessScope;
     private final br.com.gestorcobranca.debt.application.port.in.DebtorUseCases debtors;
     private final DebtorContactUseCases debtorContacts;
-    private final CaseUseCases cases;
+    private final CaseReader cases;
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final CommunicationMetrics metrics;
@@ -67,7 +67,7 @@ class ConversationService implements ConversationUseCases {
                         ConversationDraftRepository drafts, ConversationAccess access, ConversationOwnership ownership,
                         MessageService messageService, br.com.gestorcobranca.shared.security.AccessScope accessScope,
                         br.com.gestorcobranca.debt.application.port.in.DebtorUseCases debtors,
-                        DebtorContactUseCases debtorContacts, CaseUseCases cases, AuditTrail auditTrail,
+                        DebtorContactUseCases debtorContacts, CaseReader cases, AuditTrail auditTrail,
                         BusinessEventLogger businessEvents, CommunicationMetrics metrics, Clock clock) {
         this.conversations = conversations;
         this.handoffs = handoffs;
@@ -150,15 +150,14 @@ class ConversationService implements ConversationUseCases {
                     "Já existe conversa aberta deste contato para o credor; encerre esta e use a existente");
         }
         c.identify(debtorId, creditor, contact.contactId());
-        List<CaseUseCases.CaseView> active = cases.listByDebtor(debtorId).stream()
-                .filter(k -> k.creditorId().equals(creditor) && !"CLOSED".equals(k.status())).toList();
+        java.util.Optional<CaseUseCases.CaseView> active = cases.singleActive(debtorId, creditor);
         Conversation saved = conversations.save(c);
         auditTrail.record(AuditEntry.of("conversation.identified", "conversation", saved.getId())
                 .creditor(creditor)
                 .change("debtorId", null, debtorId)
                 .meta("contactId", contact.contactId()));
-        if (active.size() == 1) {
-            CaseUseCases.CaseView kase = active.getFirst();
+        if (active.isPresent()) {
+            CaseUseCases.CaseView kase = active.get();
             saved.linkCase(debtorId, kase.portfolioId(), kase.id());
             saved = ownership.syncFromCase(conversations.save(saved), kase, true);
         }

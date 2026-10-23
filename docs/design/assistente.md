@@ -28,6 +28,15 @@ Integração com `negotiation` (parte 1 implementada — ver `negociacao-e-alcad
 - ferramentas de negociação: `NegotiationSimulationUseCases.simulate` (ofertas até a alçada; o envelope completo nunca é devolvido ao assistente) e `validate` (`REQUIRES_APPROVAL` → transferência para humano com a proposta como sugestão);
 - permissões mínimas do ator para essas ferramentas: `NEGOTIATION_SIMULATE` (e `POLICY_VIEW` se a ferramenta consultar regras); o assistente só relê as próprias simulações.
 
+Integração com `communication` (implementado — ver `comunicacao.md` §3.1–3.2):
+- conversa conduzida pelo assistente tem dono `ASSISTANT` (o do caso no collection); o assistente lê
+  `ConversationUseCases#get` e `MessageUseCases#listByConversation` e responde por `MessageUseCases#send` somente nessas
+  conversas, sempre pelo porteiro de contato (permissões mínimas: `MESSAGE_SEND`, `INBOX_VIEW`);
+- mensagens recebidas chegam por `MessageStatusChanged` (`INBOUND`/`RECEIVED`) com o id da conversa;
+- transferência para humano: `ConversationUseCases#handoffToHumans` (motivo, resumo sem dados pessoais, perfil exigido);
+  módulos sem dependência de `communication` (negotiation) publicam `HandoffRequested`;
+- modos sombra/copiloto: `ConversationUseCases#proposeDraft` (o operador envia ou descarta).
+
 ## 3. Guardrails
 
 1. **Minimização de dados ao provedor de IA**: o modelo recebe apenas o necessário (nome, valores, datas, ofertas calculadas); nunca CPF completo, contatos ou dados de terceiros. Identificação por ids opacos.

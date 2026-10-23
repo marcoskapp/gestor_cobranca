@@ -1,6 +1,5 @@
 package br.com.gestorcobranca.communication.application.service;
 
-import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases.AssignCommand;
@@ -50,7 +49,7 @@ class ConversationOwnership {
     private final ConversationRepository conversations;
     private final ConversationHandoffRepository handoffs;
     private final ConversationDraftRepository drafts;
-    private final CaseUseCases cases;
+    private final CaseReader cases;
     private final CaseWorkUseCases work;
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
@@ -59,7 +58,7 @@ class ConversationOwnership {
     private final Clock clock;
 
     ConversationOwnership(ConversationRepository conversations, ConversationHandoffRepository handoffs,
-                          ConversationDraftRepository drafts, CaseUseCases cases, CaseWorkUseCases work,
+                          ConversationDraftRepository drafts, CaseReader cases, CaseWorkUseCases work,
                           CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                           CommunicationMetrics metrics, Clock clock) {
         this.conversations = conversations;
@@ -176,11 +175,7 @@ class ConversationOwnership {
 
     /** Caso vinculado e ativo; encerrado ou inexistente → a conversa segue sem caso. */
     Optional<CaseView> activeCase(Conversation c) {
-        if (c.getCaseId() == null) {
-            return Optional.empty();
-        }
-        CaseView kase = cases.get(c.getCaseId());
-        return "CLOSED".equals(kase.status()) ? Optional.empty() : Optional.of(kase);
+        return cases.active(c.getCaseId());
     }
 
     /** Dono da conversa correspondente ao do caso. */

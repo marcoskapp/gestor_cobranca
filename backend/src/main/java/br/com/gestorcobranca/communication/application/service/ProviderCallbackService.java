@@ -1,6 +1,5 @@
 package br.com.gestorcobranca.communication.application.service;
 
-import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.communication.application.port.in.ProviderCallbackUseCases;
 import br.com.gestorcobranca.communication.application.port.out.ProviderWebhookAdapter.InboundMessage;
@@ -53,7 +52,7 @@ class ProviderCallbackService implements ProviderCallbackUseCases {
     private final MessageRepository messages;
     private final DebtorContactUseCases debtorContacts;
     private final ContactRestrictionUseCases restrictions;
-    private final CaseUseCases cases;
+    private final CaseReader cases;
     private final ConversationOwnership ownership;
     private final MessageRecorder recorder;
     private final CommunicationMetrics metrics;
@@ -61,7 +60,7 @@ class ProviderCallbackService implements ProviderCallbackUseCases {
 
     ProviderCallbackService(ChannelAccountRepository accounts, ConversationRepository conversations,
                             MessageRepository messages, DebtorContactUseCases debtorContacts,
-                            ContactRestrictionUseCases restrictions, CaseUseCases cases, ConversationOwnership ownership,
+                            ContactRestrictionUseCases restrictions, CaseReader cases, ConversationOwnership ownership,
                             MessageRecorder recorder, CommunicationMetrics metrics, Clock clock) {
         this.accounts = accounts;
         this.conversations = conversations;
@@ -178,10 +177,7 @@ class ProviderCallbackService implements ProviderCallbackUseCases {
                 .findFirst();
         if (previous.isPresent()) {
             Conversation p = previous.get();
-            List<CaseView> active = cases.listByDebtor(p.getDebtorId()).stream()
-                    .filter(k -> k.creditorId().equals(p.getCreditorId()) && !"CLOSED".equals(k.status()))
-                    .toList();
-            Optional<CaseView> kase = active.size() == 1 ? Optional.of(active.getFirst()) : Optional.empty();
+            Optional<CaseView> kase = cases.singleActive(p.getDebtorId(), p.getCreditorId());
             Conversation.Owner owner = kase.map(k -> ConversationOwnership.fromCase(k, (String) null, true))
                     .orElse(Conversation.Owner.queue(null, null));
             return conversations.saveAndFlush(new Conversation(p.getDebtorId(), p.getCreditorId(),
