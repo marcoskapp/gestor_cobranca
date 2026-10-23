@@ -214,6 +214,27 @@ class CampaignFlowIT extends CampaignTestSupport {
     }
 
     @Test
+    void suspendedOrLegalCasePausesAndResumingTheCaseResumesTheCadence() {
+        CampaignView campaign = activeCampaign("PAUSA_CASO", creditorA, settings(segmentId, "COBRANCA", 100),
+                cadence(null, whatsapp("D0", 0, null, null), whatsapp("D5", 5 * 1440, null, null)));
+        runEngine();
+        asSupervisor(() -> cases.suspend(kase.id(), "Pedido do credor"));
+        awaitIdle("campaign.application");
+        assertThat(enrollmentOf(campaign.id(), kase.id()).pauseReason()).isEqualTo("CASE_SUSPENDED");
+        asSupervisor(() -> cases.resume(kase.id(), "Liberado"));
+        awaitIdle("campaign.application");
+        assertThat(enrollmentOf(campaign.id(), kase.id()).status()).isEqualTo("ACTIVE");
+
+        asSupervisor(() -> cases.sendToLegal(kase.id(), "Ajuizamento"));
+        awaitIdle("campaign.application");
+        EnrollmentView legal = enrollmentOf(campaign.id(), kase.id());
+        assertThat(legal.pauseReason()).isEqualTo("CASE_LEGAL");
+        // manual não retoma enquanto o caso está no jurídico
+        assertThatThrownBy(() -> asManager(() -> execution.resumeEnrollment(legal.id())))
+                .hasMessageContaining("CASE_LEGAL");
+    }
+
+    @Test
     void debtorReplyRedirectsTheSequence() {
         CampaignView campaign = activeCampaign("RESPOSTA", creditorA, settings(segmentId, "COBRANCA", 100),
                 cadence(ReplyTransition.STOP, whatsapp("D0", 0, ReplyTransition.GOTO_STEP, "ATENDER"),
