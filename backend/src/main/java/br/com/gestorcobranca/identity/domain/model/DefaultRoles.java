@@ -20,6 +20,12 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * Negociação: perfis de alçada ({@code AUTHORITY_MANAGE}) são administrados pelo gestor e pelo
  * administrador; políticas de cobrança ({@code POLICY_MANAGE}) idem. Operadores consultam a
  * política ({@code POLICY_VIEW}) e simulam ({@code NEGOTIATION_SIMULATE}) dentro da própria alçada.
+ * <p>
+ * Jurídico (docs/design/juridico.md §B.5): o gestor conduz e aprova indicações; o jurídico interno
+ * ({@code JURIDICO}) conduz os casos, aprova indicações, registra a autorização do credor e
+ * consulta a dívida; o advogado de escritório parceiro ({@code ADVOGADO_PARCEIRO}) recebe somente
+ * permissões do módulo legal, sem aprovar indicações, e o módulo restringe o acesso aos casos
+ * atribuídos ao seu escritório além do escopo por credor.
  */
 public final class DefaultRoles {
 
@@ -29,6 +35,8 @@ public final class DefaultRoles {
     public static final String OPERADOR = "OPERADOR";
     public static final String FINANCEIRO = "FINANCEIRO";
     public static final String AUDITOR = "AUDITOR";
+    public static final String JURIDICO = "JURIDICO";
+    public static final String ADVOGADO_PARCEIRO = "ADVOGADO_PARCEIRO";
     public static final String PLATFORM_ADMIN = "PLATFORM_ADMIN";
 
     public record Definition(String code, String name, String description, Set<Permission> permissions) {
@@ -52,7 +60,7 @@ public final class DefaultRoles {
         supervisor.addAll(EnumSet.of(USER_VIEW, TEAM_MANAGE, CASE_ASSIGN, CASE_MANAGE, QUEUE_MANAGE, DISPUTE_MANAGE,
                 NEGOTIATION_APPROVE, AGREEMENT_CANCEL, INBOX_MANAGE, CONTACT_RESTRICTION_MANAGE,
                 CAMPAIGN_VIEW, DASHBOARD_VIEW, REPORT_VIEW, DEBTOR_MANAGE, IMPORT_VIEW, PERFORMANCE_VIEW_TEAM,
-                QUALITY_EVALUATE));
+                QUALITY_EVALUATE, LEGAL_VIEW));
 
         Set<Permission> gestor = EnumSet.copyOf(supervisor);
         gestor.addAll(EnumSet.of(CREDITOR_MANAGE, CONTRACT_MANAGE, PORTFOLIO_MANAGE, POLICY_MANAGE, IMPORT_EXECUTE,
@@ -60,18 +68,27 @@ public final class DefaultRoles {
                 TEMPLATE_MANAGE, COMMISSION_VIEW, SETTLEMENT_VIEW, REPORT_EXPORT, SCORING_MANAGE,
                 PORTAL_MANAGE, ACCESS_LOG_VIEW, DEBTOR_SENSITIVE_VIEW, PERFORMANCE_VIEW_ALL, COMMISSION_PLAN_MANAGE,
                 TABULATION_MANAGE,
-                COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE));
+                COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE,
+                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
                 PAYMENT_VIEW, PAYMENT_REGISTER_EXTERNAL, PAYMENT_REVIEW, PAYMENT_INSTRUCTION_CREATE, PAYMENT_REVERSE,
                 RECONCILIATION_MANAGE, COMMISSION_VIEW, COMMISSION_MANAGE, SETTLEMENT_VIEW, SETTLEMENT_CLOSE,
-                DASHBOARD_VIEW, REPORT_VIEW, REPORT_EXPORT, PERFORMANCE_VIEW_ALL, COMMISSION_STATEMENT_APPROVE);
+                DASHBOARD_VIEW, REPORT_VIEW, REPORT_EXPORT, PERFORMANCE_VIEW_ALL, COMMISSION_STATEMENT_APPROVE,
+                LEGAL_VIEW, LEGAL_EXPENSE_MANAGE);
 
         Set<Permission> auditor = EnumSet.of(
                 USER_VIEW, ACCESS_LOG_VIEW, AUDIT_VIEW, CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, IMPORT_VIEW,
                 DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW, PAYMENT_VIEW, COMMISSION_VIEW, SETTLEMENT_VIEW,
-                CAMPAIGN_VIEW, INBOX_VIEW, SCORING_VIEW, DASHBOARD_VIEW, REPORT_VIEW, PERFORMANCE_VIEW_ALL);
+                CAMPAIGN_VIEW, INBOX_VIEW, SCORING_VIEW, DASHBOARD_VIEW, REPORT_VIEW, PERFORMANCE_VIEW_ALL, LEGAL_VIEW);
+
+        Set<Permission> juridico = EnumSet.of(
+                CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
+                COLLATERAL_MANAGE, PRESCRIPTION_MANAGE, DASHBOARD_VIEW,
+                LEGAL_VIEW, LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE);
+
+        Set<Permission> advogadoParceiro = EnumSet.of(LEGAL_VIEW, LEGAL_MANAGE, LEGAL_EXPENSE_MANAGE);
 
         return List.of(
                 new Definition(ADMIN, "Administrador", "Acesso total à assessoria", admin),
@@ -79,7 +96,12 @@ public final class DefaultRoles {
                 new Definition(SUPERVISOR, "Supervisor", "Coordenação de equipes, distribuição e aprovações", supervisor),
                 new Definition(OPERADOR, "Operador", "Atendimento e negociação com devedores", operador),
                 new Definition(FINANCEIRO, "Financeiro", "Pagamentos, conciliação, comissão e prestação de contas", financeiro),
-                new Definition(AUDITOR, "Auditor", "Consulta e auditoria, somente leitura", auditor));
+                new Definition(AUDITOR, "Auditor", "Consulta e auditoria, somente leitura", auditor),
+                new Definition(JURIDICO, "Jurídico", "Condução dos casos jurídicos, autorização do credor e custas",
+                        juridico),
+                new Definition(ADVOGADO_PARCEIRO, "Advogado parceiro",
+                        "Advogado de escritório parceiro: somente os casos jurídicos atribuídos ao escritório",
+                        advogadoParceiro));
     }
 
     public static Definition platformAdmin() {

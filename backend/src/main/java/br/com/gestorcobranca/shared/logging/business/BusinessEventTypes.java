@@ -117,4 +117,31 @@ public final class BusinessEventTypes {
 
     private BusinessEventTypes() {
     }
+
+    // Jurídico (módulo legal) — atributos em docs/LOGGING.md §3.6
+    public static final String LEGAL_MATTER_REFERRED = "legal.matter_referred";
+    public static final String LEGAL_STAGE_CHANGED = "legal.stage_changed";
+    public static final String LEGAL_MATTER_ASSIGNED = "legal.matter_assigned";
+    public static final String LEGAL_VIABILITY_ASSESSED = "legal.viability_assessed";
+    public static final String LEGAL_AUTHORIZATION_REQUESTED = "legal.authorization_requested";
+    public static final String LEGAL_AUTHORIZATION_DECIDED = "legal.authorization_decided";
+    public static final String LEGAL_MEASURE_REGISTERED = "legal.measure_registered";
+    public static final String LEGAL_MEASURE_STATUS_CHANGED = "legal.measure_status_changed";
+    public static final String LEGAL_LAWSUIT_FILED = "legal.lawsuit_filed";
+    public static final String LEGAL_MOVEMENT_RECORDED = "legal.movement_recorded";
+    public static final String LEGAL_RECOVERY_RECORDED = "legal.recovery_recorded";
+    public static final String LEGAL_DEADLINE_CREATED = "legal.deadline_created";
+    public static final String LEGAL_DEADLINE_APPROACHING = "legal.deadline_approaching";
+    public static final String LEGAL_DEADLINE_MET = "legal.deadline_met";
+    public static final String LEGAL_DEADLINE_MISSED = "legal.deadline_missed";
+    public static final String LEGAL_HEARING_SCHEDULED = "legal.hearing_scheduled";
+    public static final String LEGAL_HEARING_HELD = "legal.hearing_held";
+    public static final String LEGAL_EXPENSE_RECORDED = "legal.expense_recorded";
+    public static final String LEGAL_EXPENSE_CANCELLED = "legal.expense_cancelled";
+    public static final String LEGAL_EXPENSE_REIMBURSED = "legal.expense_reimbursed";
+    public static final String LEGAL_AGREEMENT_LINKED = "legal.agreement_linked";
+    public static final String LEGAL_AGREEMENT_BROKEN = "legal.agreement_broken";
+    public static final String LEGAL_TITLES_SETTLED = "legal.titles_settled";
+    public static final String LEGAL_PRESCRIPTION_ALERT = "legal.prescription_alert";
+    public static final String LEGAL_MATTER_CLOSED = "legal.matter_closed";
 }
