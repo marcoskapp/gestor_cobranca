@@ -3,6 +3,9 @@ package br.com.gestorcobranca.shared.events;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.ConcurrencyFailureException;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Base para consumidores de {@link IntegrationEvent}. Garante, numa única transação:
@@ -13,6 +16,13 @@ import org.slf4j.LoggerFactory;
  * </ol>
  * Se a ação falhar, a transação é desfeita (inclusive a marcação de consumo), a exceção sobe
  * e o Spring Modulith mantém a publicação como incompleta para reprocessamento.
+ * <p>
+ * Conflitos de concorrência transitórios ({@link ConcurrencyFailureException}: lock otimista,
+ * deadlock, falha de serialização, lock não obtido) são comuns quando vários consumidores reagem
+ * ao mesmo fato. Nesses casos a transação inteira é repetida em seguida, até
+ * {@value #MAX_ATTEMPTS} tentativas com espera crescente e aleatória, em vez de deixar o evento
+ * pendente até a próxima republicação. Cada tentativa é uma transação nova, então a ação vê o
+ * estado já confirmado pelo concorrente.
  * <p>
  * Uso:
  * <pre>{@code
@@ -30,6 +40,9 @@ public abstract class TenantEventListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(TenantEventListener.class);
 
+    static final int MAX_ATTEMPTS = 4;
+    private static final long BASE_BACKOFF_MILLIS = 25;
+
     private TenantExecution tenantExecution;
     private ConsumedEventRegistry consumedEventRegistry;
 
@@ -44,12 +57,34 @@ public abstract class TenantEventListener {
      *                 deduplicação — renomear faz eventos já consumidos serem reprocessados.
      */
     protected final void handleOnce(IntegrationEvent event, String consumer, Runnable action) {
-        tenantExecution.inTenant(event.tenantId(), consumer, () -> {
-            if (!consumedEventRegistry.markConsumed(consumer, event)) {
-                LOG.debug("Evento {} já consumido por {}; ignorando reentrega", event.eventId(), consumer);
+        for (int attempt = 1; ; attempt++) {
+            try {
+                tenantExecution.inTenant(event.tenantId(), consumer, () -> {
+                    if (!consumedEventRegistry.markConsumed(consumer, event)) {
+                        LOG.debug("Evento {} já consumido por {}; ignorando reentrega", event.eventId(), consumer);
+                        return;
+                    }
+                    action.run();
+                });
                 return;
+            } catch (ConcurrencyFailureException e) {
+                if (attempt >= MAX_ATTEMPTS) {
+                    throw e;
+                }
+                LOG.info("Conflito de concorrência ao consumir {} ({}), tentativa {} de {}: {}",
+                        event.getClass().getSimpleName(), consumer, attempt, MAX_ATTEMPTS, e.getClass().getSimpleName());
+                backoff(attempt);
             }
-            action.run();
-        });
+        }
+    }
+
+    private static void backoff(int attempt) {
+        long max = BASE_BACKOFF_MILLIS << attempt;
+        try {
+            Thread.sleep(ThreadLocalRandom.current().nextLong(max / 2, max + 1));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrompido aguardando nova tentativa de consumo", e);
+        }
     }
 }

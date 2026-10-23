@@ -1,9 +1,9 @@
 # Desenho — módulo `negotiation` (políticas, cálculo, alçadas, propostas e acordos)
 
 Escopo: M06, F08, F09, F16, RB03, RB04, RB05. Schema `negotiation`, migrations V0700–V0799 (parte 1: V0700–V0749; parte 2: V0750–V0799).
-Dependências: `shared`, `organization`, `identity`, `debt`, `collection` (interfaces `usecases`). A parte 1 ainda não depende de `collection` (ver §9).
+Dependências: `shared`, `organization`, `identity`, `debt`, `collection` (interfaces `usecases`).
 
-> **Estado (23/10/2026).** Parte 1 implementada: §1–§4, simulação, `NegotiationGuard` e alçadas (humanos e assistente). Parte 2 pendente: propostas e aprovação (§5), acordos, parcelas, quebra, termo (§6) e `AgreementAttributionRecorded`. Decisões da parte 1 em §9.
+> **Estado (23/10/2026).** Parte 1 (§1–§4, simulação, `NegotiationGuard`, alçadas — decisões em §9) e parte 2 (propostas e aprovação §5, acordos, parcelas, quebra, renegociação, termo §6, atribuição, elegibilidade sobre o `collection`, LGPD — contratos e decisões em §10) implementadas.
 
 Requisito transversal: **humanos e o assistente de IA passam exatamente pela mesma validação**. Nenhum caminho (tela, API, automação, assistente) aplica condição sem passar por `NegotiationGuard` no servidor.
 
@@ -51,7 +51,7 @@ Atribuição: usuário → perfil (opcionalmente por credor); assistente → per
 
 ## 5. Propostas e aprovação
 
-`Proposal`: `DRAFT → PENDING_APPROVAL → APPROVED | REJECTED`; `APPROVED/DRAFT dentro da alçada → ACCEPTED (pelo devedor) → FORMALIZED`; `EXPIRED` pela validade.
+`Proposal`: `DRAFT → PENDING_APPROVAL → APPROVED | REJECTED`; `APPROVED/DRAFT dentro da alçada → ACCEPTED (pelo devedor) → FORMALIZED`; `EXPIRED` pela validade; `HANDED_OFF` (sugestão do assistente transferida a humano). Detalhes em §10.2.
 
 - Proposta dentro da alçada do proponente: segue direto para aceite.
 - Acima da alçada: `PENDING_APPROVAL`, roteada para a fila de aprovadores com alçada suficiente (F16). Proposta do assistente acima da alçada **não** vai para aprovação: gera transferência do atendimento para humano com a proposta como sugestão.
@@ -61,12 +61,12 @@ Atribuição: usuário → perfil (opcionalmente por credor); assistente → per
 
 ## 6. Acordos (RB05)
 
-`Agreement`: `FORMALIZED → IN_PAYMENT → SETTLED | BROKEN | CANCELLED`; `RENEGOTIATED` quando substituído (o histórico é preservado e as obrigações antigas não contam como nova recuperação).
+`Agreement`: `FORMALIZED → IN_PAYMENT → SETTLED | BROKEN | CANCELLED`; `RENEGOTIATED` quando substituído (o histórico é preservado e as obrigações antigas não contam como nova recuperação). Detalhes em §10.3–§10.6.
 
 - Formalização exige **evidência de aceite**: canal, instante, identificador da mensagem ou sessão do portal, IP quando houver, e hash do termo (PDF gerado e armazenado como `AGREEMENT_TERM`).
 - `AgreementInstallment` com vencimento, valor, status (`OPEN, PAID, PARTIALLY_PAID, OVERDUE, CANCELLED`).
 - Quebra conforme a regra da política; atraso isolado dentro da tolerância não quebra.
-- Na quitação: lança no razão do `debt` os encargos reconhecidos (`applyCharges`) e o desconto concedido (`applyDiscount`).
+- Lançamentos no razão do `debt`: encargos reconhecidos (`applyCharges`) na medida em que são pagos, pagamentos por componente (`applyPayment`) e, quando o título fica integralmente pago, os encargos brutos restantes e o desconto concedido (`applyDiscount`) — §10.5.
 - Eventos `AgreementStatusChanged` / `InstallmentStatusChanged`; eventos de negócio com atributo `actorType` (USER ou ASSISTANT) e `concessionLevel`, para comparar desempenho de humanos e assistente.
 
 ## 7. Copiloto para negociadores humanos
@@ -144,10 +144,131 @@ REST (`/api/v1/negotiation`): `policies` (CRUD de rascunho, `/{id}/versions`, `/
 - Registro em `negotiation.simulation` (append-only por privilégio e gatilho), com a memória completa em jsonb e `engine_version`.
 - Evento de negócio `negotiation.simulated` (ids, sem dados pessoais): `actorType`, `profileCode`, `policyVersion`, `override`, `requestedLevel`, `grantedLevel`, `levelCapped`, `escalationReason`, `titles`, `excludedTitles`, `offers`, `validOffers`, `daysOverdue`, `bestOfferAmount`; `amount` = dívida atualizada. Escalada de nível também gera `negotiation.concession_escalated` na auditoria.
 
-### 9.7 Elegibilidade provisória (substituir na parte 2)
+### 9.7 Elegibilidade (substituída na parte 2)
 
-`CaseEligibilityPort` com `DebtBasedCaseEligibilityAdapter`: `title.not_found`, `title.not_open`, `title.no_balance`, `title.dispute_blocked`, `portfolio.not_operable`. Na parte 2, um adaptador do `collection` (caso elegível, contestações do caso, `case.not_eligible`) substitui o bean e este arquivo é removido, mantendo contrato e códigos. A dependência `collection :: usecases` entra no `package-info` nesse momento.
+O adaptador provisório `DebtBasedCaseEligibilityAdapter` foi removido; ver §10.1 (`CollectionCaseEligibilityAdapter`). Contrato e códigos mantidos, com `case.not_eligible` acrescentado.
 
-### 9.8 Pendências para a parte 2
+### 9.8 Pendências da parte 1
 
-Propostas (referenciando `simulationId` e versão de política), aprovação por fila de aprovadores com `canApprove` e alçada suficiente, transferência do assistente acima da alçada, acordos, parcelas, quebra pela `BreakRule`, termo (PDF + hash), lançamentos no razão (`applyCharges` com correção como `FEES`, `applyDiscount`), `AgreementAttributionRecorded` e uso de `maxRenegotiations`. Anonimização LGPD deve alcançar `simulation.justification_note`.
+Todas atendidas na parte 2 (§10).
+
+## 10. Implementação — parte 2 (propostas, acordos, parcelas, quebra, termo)
+
+Código em `negotiation/{domain/model/proposal,domain/model/agreement,application/service,infrastructure/{eligibility,term,persistence},web}`; migrations `V0750` (propostas, acordos, parcelas, títulos, componentes, pagamentos) e `V0751` (anonimização da simulação). Nenhuma permissão nova: o catálogo já tinha `NEGOTIATION_PROPOSE`, `NEGOTIATION_APPROVE`, `AGREEMENT_VIEW`, `AGREEMENT_FORMALIZE` e `AGREEMENT_CANCEL` nos perfis padrão (operador propõe/aceita/formaliza; supervisor e gestor aprovam e cancelam; auditor e financeiro consultam).
+
+### 10.1 Componentes
+
+| Componente | Onde | Papel |
+| --- | --- | --- |
+| `Proposal` (+ `proposal_title`) | `domain.model.proposal` | condições, resultado do guard, memória (jsonb), aprovação, evidência de aceite, vínculo com o acordo |
+| `Agreement`, `AgreementInstallment`, `AgreementTitle`, `AgreementBucket`, `AgreementPayment`, `AcceptanceEvidence` | `domain.model.agreement` | agregado do acordo: cronograma, títulos ativos, distribuição por título × componente do razão, pagamentos aplicados |
+| `ProportionalSplit`, `AttributionRules`, `ProposalTerms` | `domain.service` | rateio por maiores restos; origem/participantes; impressão digital das condições, uso do envelope, exigência de alçada, ganho incremental |
+| `ProposalEvaluator` | `application.service` | revalidação de proposta sobre o `NegotiationGuard` (+ `proposal.multiple_portfolios`, `title.under_agreement`, `authority.renegotiations_exceeded`) |
+| `ProposalService`, `AgreementService` | `application.service` | casos de uso `ProposalUseCases`, `AgreementUseCases` |
+| `AgreementRecorder` | `application.service` | formalização, renegociação e publicação de eventos/auditoria/negócio/métricas |
+| `AgreementPaymentService`, `LedgerPostingJob` | `application.service` | baixa por `PaymentConfirmed`/`PaymentReversed`; lançamentos no razão (job `negotiation.ledger_posting`) |
+| `NegotiationMaintenance` + `NegotiationJobs.daily` | `application.service` | expiração de propostas; parcelas vencidas; quebra (00:20, fuso de operação, ShedLock `negotiation.daily`) |
+| `NegotiationAnonymizer`, `NegotiationReactions` | `application.service` | consumidores `negotiation.payment-confirmed`, `negotiation.payment-reversed`, `negotiation.debtor-anonymized` |
+| `TermIssuer` + `AgreementTermRenderer` / `PdfAgreementTermRenderer` | `application.service`, `port.out`, `infrastructure.term` | termo em PDF (PDFBox), `FileStorage` (`AGREEMENT_TERM`) com SHA-256 |
+| `CollectionCaseEligibilityAdapter` | `infrastructure.eligibility` | elegibilidade sobre `CaseUseCases`/`DisputeUseCases` (collection), `DebtTitleUseCases`, `PortfolioUseCases` |
+| `NegotiationLocks` / `PostgresNegotiationLocks` | `port.out`, `infrastructure.persistence` | `pg_advisory_xact_lock` por devedor na formalização |
+
+### 10.2 Proposta
+
+- Criada a partir de uma **simulação do próprio ator** (credor, devedor, títulos, data-base, justificativa, canal); o nível vai até o pedido (e justificado) na simulação; descontos explícitos ou, se omitidos, o limite do ator no nível e forma de pagamento. Uma proposta cobre os títulos de **uma carteira** (um caso de cobrança).
+- Resultado do `ProposalEvaluator`: `REJECTED` → 422 `proposal.conditions_rejected` (com os códigos), nada gravado; `WITHIN_AUTHORITY` → `DRAFT`; `REQUIRES_APPROVAL` → `PENDING_APPROVAL` (humano) ou `HANDED_OFF` (assistente).
+- Validade: `hoje + proposalValidityDays`, limitada ao 1º vencimento (`validUntil`); job diário expira as abertas (`DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `ACCEPTED`).
+- **Fila de aprovação (F16)**: `GET /proposals/approval-queue` lista as pendentes nos credores do escopo cujas condições cabem na alçada do aprovador (`ProposalTerms.AuthorityRequirement` × perfil com `canApprove`), exceto as próprias. A aprovação revalida pelo guard **com o aprovador como ator** (mesma versão de política, data-base original): fora da alçada do aprovador → 422 `proposal.approver_authority_insufficient`; inválida → 409 `proposal.no_longer_valid`; posição dos títulos mudou → 409 `proposal.conditions_changed`. Ninguém decide a própria proposta; o assistente nunca aprova.
+- **Handoff do assistente**: proposta do assistente acima da alçada fica `HANDED_OFF`, **não** entra na fila, e publica o contrato do communication `shared.events.communication.HandoffRequested` (`comunicacao.md` §3.1) com `reasonCode = REQUIRES_APPROVAL`, `referenceType = proposal`/`referenceId` = proposta, caso, devedor, credor, `requestedByType = ASSISTANT`/política, `conversationId` nulo (todas as conversas abertas do caso) e um resumo sem dados pessoais (nível, pagamentos, valores, 1º vencimento, códigos das violações e o caminho de adoção). O communication (`communication.handoff-requested`) transfere a conversa para a fila e o caso volta aos humanos. O humano assume com `POST /proposals/{id}/adopt` (mesmas condições, revalidadas com a alçada dele; aprovação se exceder) ou negocia outra proposta com `handoffProposalId`.
+- **Aceite** (`POST /proposals/{id}/accept`, `AGREEMENT_FORMALIZE`): revalida, gera o termo (PDF), guarda no `FileStorage` e registra `AcceptanceEvidence`: canal, instante, autor (tipo/id), referência externa (mensagem/sessão/chamada), IP e agente de usuário (da requisição HTTP; integrações informam os do devedor) e o arquivo com SHA-256.
+- **Formalização** (`POST /proposals/{id}/formalize`): lock consultivo por devedor; perfil de quem formaliza com `canFormalize` (o `ASSISTENTE_INICIAL` não formaliza → humano); revalidação; acima da alçada de quem formaliza só se a proposta foi aprovada.
+
+### 10.3 Acordo e parcelas
+
+- Cronograma = o da oferta revalidada; regra de quebra (`BreakRule`) **fixada na formalização**. Parcela: `OPEN`, `PAID`, `PARTIALLY_PAID`, `OVERDUE` (vencida e não paga integralmente, inclusive parcial), `CANCELLED` (acordo encerrado).
+- `AgreementTitle` ativo por título; índice único parcial `uk_agreement_title_active` garante um único acordo em vigor por título. Proposta com título coberto por outro acordo em vigor (não o substituído) → `title.under_agreement`.
+- Transições: 1º pagamento → `IN_PAYMENT`; todas pagas → `SETTLED`; estorno de acordo quitado → `IN_PAYMENT`; `AGREEMENT_CANCEL` com motivo → `CANCELLED`; job diário → `BROKEN`; formalização de renegociação → `RENEGOTIATED` (o anterior aponta `replacedByAgreementId`).
+
+### 10.4 Baixa de parcelas (`PaymentConfirmed` / `PaymentReversed`)
+
+- Contrato com o módulo payment (futuro): o evento já tinha `agreementId` e `Allocation.agreementInstallmentId`; `Allocation.titleId` passou a ser **opcional** nas alocações a parcelas (javadoc). **O payment não lança no razão as alocações de parcelas de acordo**: quem distribui entre títulos e componentes e lança é o negotiation (§10.5).
+- Aplicação (consumidor, acordo bloqueado `FOR UPDATE`): valor indicado por parcela e, o excedente, às parcelas seguintes em ordem; acima do saldo do acordo → não aplicado. Acordo encerrado (quebrado, cancelado, renegociado, quitado) → registro `UNAPPLIED` (WARN + métrica): cabe ao payment realocar ou devolver.
+- Idempotência: `shared.consumed_event` + único (acordo, pagamento). Estorno sem acordo informado procura o pagamento em todos os acordos.
+
+### 10.5 Lançamentos no razão do título (`DebtLedgerPort`)
+
+- Cada pagamento aplicado é distribuído entre os componentes (`AgreementBucket`: título × PRINCIPAL/INTEREST/FINE/FEES/HONORARIUM) proporcionalmente ao saldo de cada um (`ProportionalSplit`, maiores restos — a soma é exata). Correção monetária → `FEES`; juros do parcelamento → `INTEREST` (rateados pelos títulos pelo líquido de cada um).
+- **Encargos reconhecidos na medida do pagamento**: antes de lançar o pagamento de juros/multa/encargos/honorários, reconhece-se (`applyCharges`, referência `agreement_payment`/pagamento) apenas o necessário para cobri-lo. Assim um acordo quebrado não deixa encargo reconhecido e não pago no título: a nova negociação recalcula a mora sobre o principal restante sem dupla contagem.
+- **Quitação do título**: o pagamento que zera os componentes de um título leva também, na ordem, os encargos brutos ainda não reconhecidos (`applyCharges`, referência `agreement`) e o desconto concedido (`applyDiscount`, `DISCOUNT`) — o razão termina com cobrado = bruto, descontado = desconto, pago = líquido, e o título passa a `SETTLED` pelo próprio debt.
+- Execução pelo job `negotiation.ledger_posting` (deduplicado por acordo, acordo bloqueado), em transação própria: a recusa do razão não desfaz a baixa da parcela; erro de negócio é permanente (job `DEAD` + `negotiation.ledger.postings{outcome=FAILED}` + ERROR). Estorno de pagamento já lançado → `reversePayment` por título (espelho); estorno antes do lançamento → nada é lançado e o reconhecimento planejado é desfeito.
+- Limite conhecido: o razão não tem estorno de reconhecimento de encargo. Estornado um pagamento já lançado, o encargo reconhecido permanece em aberto no título (é reaproveitado se o acordo voltar a ser pago); se o acordo quebrar sem novo pagamento, esse encargo entra "como está" numa nova negociação. Pendência no debt: operação compensatória de reconhecimento.
+
+### 10.6 Quebra e renegociação
+
+- Job diário: parcelas vencidas → `OVERDUE` (`installment.overdue`); acordo com `overdueInstallments` parcelas não pagas vencidas há mais de `toleranceDays` dias → `BROKEN` (parcelas em aberto `CANCELLED`, títulos liberados). Atraso isolado dentro da tolerância não quebra.
+- Renegociação = proposta com `replacedAgreementId` (acordo em vigor ou quebrado, mesmo devedor e credor), composição recalculada do razão atual (pagamentos já abatidos). `renegotiationNumber` = posição na cadeia; acima de `maxRenegotiations` do perfil → violação de alçada `authority.renegotiations_exceeded` (aprovação de quem tem mais). Ganho incremental `máx(0, novo − (substituído − pago))` em `agreement.incremental_amount` e no `agreement.formalized`; o já recebido nunca é recontado (o `incentive` aplica a mesma regra a partir do `replacedAgreementId`).
+
+### 10.7 Atribuição do acordo
+
+`AgreementAttributionRecorded` na transação da formalização (`AttributionRules`): `CLOSER` (quem formalizou), `ORIGINATOR` (quem criou), `APPROVER` (se aprovada), `PRE_NEGOTIATOR` (assistente do handoff ou autor da proposta confirmada). Origem: assistente formalizou → `ASSISTANT_AUTONOMOUS`; humano com handoff → `ASSISTANT_HANDOFF_CONFIRMED` se a **impressão digital** das condições (títulos, desconto por componente, número de pagamentos, entrada pedida) é a da sugestão, senão `ASSISTANT_HANDOFF_NEGOTIATED`; humano formalizando proposta criada pelo assistente → `ASSISTANT_HANDOFF_CONFIRMED`; proposta marcada `copilot` → `HUMAN_COPILOT`; demais → `HUMAN`; devedor/sistema → `PORTAL_SELF_SERVICE`/`CAMPAIGN` (para os módulos futuros). `teamId` = equipe do caso; `daysPastDue` = maior atraso; `envelopeUsagePercent` = desconto ÷ desconto máximo da política para a forma de pagamento.
+
+### 10.8 Eventos de integração
+
+| Evento | Quando |
+| --- | --- |
+| `AgreementStatusChanged` | formalização (`previousStatus` nulo), `IN_PAYMENT`, `SETTLED`, `BROKEN`, `CANCELLED`, `RENEGOTIATED`, reabertura por estorno |
+| `InstallmentStatusChanged` | toda mudança de situação de parcela |
+| `AgreementAttributionRecorded` | formalização |
+| `HandoffRequested` (contrato do `communication`, `shared.events.communication`) | proposta do assistente acima da alçada |
+| consumidos: `PaymentConfirmed`, `PaymentReversed`, `DebtorAnonymized` (**novo**, publicado pelo debt na anonimização), `TenantProvisioned` | — |
+
+### 10.9 LGPD
+
+O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt); o debt passou a publicar `shared.events.debt.DebtorAnonymized` na mesma transação, e o negotiation (que não pode ser chamado pelo compliance, pelo grafo) consome: apaga `simulation.justification_note` e a observação na memória JSON (o gatilho `simulation_anonymize_only` só permite isso numa tabela append-only), a observação livre da proposta e da decisão, IP/agente dos aceites, o motivo livre de cancelamento e remove o PDF do termo após o commit (fica o hash). Outros módulos com texto livre do devedor (collection) podem consumir o mesmo evento.
+
+### 10.10 REST (`/api/v1/negotiation`)
+
+| Recurso | Métodos | Permissão |
+| --- | --- | --- |
+| `/proposals` | `POST` (criar), `GET` (filtros: credor, devedor, status, tipo de ator) | `NEGOTIATION_PROPOSE` / leitura: `AGREEMENT_VIEW`, `NEGOTIATION_PROPOSE` ou `NEGOTIATION_APPROVE` |
+| `/proposals/approval-queue` | `GET` | `NEGOTIATION_APPROVE` |
+| `/proposals/{id}` · `/proposals/{id}/term` | `GET` | leitura |
+| `/proposals/{id}/approve` · `/reject` | `POST` | `NEGOTIATION_APPROVE` |
+| `/proposals/{id}/adopt` | `POST` | `NEGOTIATION_PROPOSE` |
+| `/proposals/{id}/accept` · `/formalize` | `POST` | `AGREEMENT_FORMALIZE` |
+| `/agreements` · `/agreements/{id}` · `/installments` · `/payments` · `/term` | `GET` | `AGREEMENT_VIEW` |
+| `/agreements/{id}/cancel` | `POST` | `AGREEMENT_CANCEL` |
+
+### 10.11 Decisões da parte 2
+
+| # | Decisão | Alternativa | Motivo |
+| --- | --- | --- | --- |
+| 1 | Proposta nasce de uma simulação do próprio ator e é revalidada inteira (guard) na criação, aprovação, aceite e formalização | Confiar na simulação | Nenhum caminho aplica condição sem o guard; a posição do título pode mudar |
+| 2 | Proposta cobre uma única carteira (um caso) | Várias carteiras | Caso de cobrança, filas, atribuição e `AgreementStatusChanged` são por carteira |
+| 3 | Revalidação usa a data-base original (valor congelado) dentro da validade; mudança de valor → 409 `proposal.conditions_changed` | Recalcular na data da aprovação | O devedor aceita um valor; a validade (≤ 1º vencimento) limita o congelamento |
+| 4 | Fila de aprovação filtrada em memória pela exigência de alçada (até 1.000 pendentes por consulta), aprovação revalidando com o aprovador | Tabela de roteamento | Perfil é resolvido por credor; volume de pendentes é baixo; a revalidação é a garantia |
+| 5 | Assistente acima da alçada → `HANDED_OFF` + `HandoffRequested` (contrato já definido pelo communication, sem campos novos), sem fila; humano adota (`/adopt`) | Evento próprio do negotiation; proposta pendente de aprovação | §5 do desenho; um único contrato de transferência; a conversa precisa de humano, não só de aprovação |
+| 6 | HANDOFF_CONFIRMED × NEGOTIATED por impressão digital de títulos, descontos, parcelas e entrada pedida (sem datas e valores acumulados) | Comparar valor total | Juros até a data-base mudam com o tempo sem negociação |
+| 7 | Termo gerado no aceite (o hash do termo aceito vai à evidência), modelo padrão em PDFBox com nome e documento mascarado | Gerar na formalização; modelo por credor | O devedor aceita um documento concreto; modelo versionado por credor fica pendente (jurídico) |
+| 8 | IP/agente do aceite = os da requisição HTTP; integrações (portal/comunicação) informam os do devedor no comando | Sempre do cliente | O cliente HTTP não pode forjar a evidência; a API web não aceita IP informado |
+| 9 | Regra de quebra fixada na formalização; quebra por N parcelas vencidas há mais de D dias; parcela parcial vencida conta | Regra vigente na data da quebra | O acordo é um contrato: a regra aceita não muda depois |
+| 10 | Pagamento distribuído proporcionalmente ao saldo de cada componente, encargos reconhecidos só quando pagos; quitação do título com encargo bruto + desconto | Reconhecer tudo na formalização; principal primeiro | Sem dupla contagem de mora após quebra; neutro entre componentes; razão final completo |
+| 11 | Lançamentos no razão por job (transação própria) | No consumidor | Recusa do razão não desfaz a baixa; o job é idempotente e alarmável |
+| 12 | O payment não lança no razão alocações a parcelas de acordo; `Allocation.titleId` opcional nesse caso | Payment distribuir por título | Só o acordo conhece a composição por título e componente |
+| 13 | Pagamento para acordo encerrado ou excedente → não aplicado (registro + WARN + métrica) | Aplicar ao novo acordo/ao título | Realocação é decisão do payment/operação; evita baixa no acordo errado |
+| 14 | Renegociação permitida de acordo em vigor ou quebrado; limite `maxRenegotiations` do perfil como violação de alçada | Só quebrado; limite como violação de política | Mercado renegocia acordos em risco; acima do limite o gestor decide |
+| 15 | Elegibilidade sobre o collection: caso ativo fora de suspensão/jurídico/encerramento, contestação impeditiva aberta ou em análise; caso `DISPUTED` não bloqueia títulos não contestados; restrição de contato não impede negociar | Exigir caso elegível (inclui restrição de contato) | Parte incontroversa pode ser paga; o porteiro de contato vale para contatos ativos |
+| 16 | Permissões existentes (`NEGOTIATION_PROPOSE`, `NEGOTIATION_APPROVE`, `AGREEMENT_*`) | `PROPOSAL_CREATE`/`PROPOSAL_APPROVE`/`AGREEMENT_MANAGE` novas | Já estavam no catálogo e nos perfis padrão; sem migration de identity |
+| 17 | Anonimização via `DebtorAnonymized` publicado pelo debt | Compliance chamar o negotiation | O grafo não permite compliance → negotiation; o evento serve aos demais módulos |
+| 18 | Remoção do PDF do termo na anonimização (hash mantido) | Manter o termo | O termo contém o nome; a anonimização só é aceita sem títulos em cobrança |
+| 19 | Lock consultivo por devedor na formalização + índice único parcial de títulos ativos + `@Version` na proposta | Só lock otimista | Formalizações concorrentes de propostas diferentes sobre os mesmos títulos |
+| 20 | Estorno de acordo quitado reabre `IN_PAYMENT`; pagamento total estornado mantém `IN_PAYMENT` | Voltar a `FORMALIZED` | Estados não regridem além do necessário; a parcela volta a aberta/vencida |
+
+### 10.12 Pendências
+
+- **payment**: produzir `PaymentConfirmed` com `agreementId` e `agreementInstallmentId` sem lançar essas alocações no razão; realocar pagamentos `UNAPPLIED`.
+- **assistant**: encerrar o turno com a mensagem de transferência quando a ferramenta de proposta devolver `HANDED_OFF` (o communication já consome `HandoffRequested`).
+- **collection**: consumir `DebtorAnonymized` para observações próprias; opcionalmente reagir ao handoff.
+- **debt**: operação compensatória de reconhecimento de encargo (estorno após lançamento, §10.5).
+- **jurídico/produto**: modelo de termo versionado por credor (cláusulas, foro, identificação completa).
+- **frontend**: telas de proposta, fila de aprovação e acordo.

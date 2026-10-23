@@ -121,6 +121,12 @@ public enum Permission {
     ASSISTANT_USE("Usar assistente de IA"),
     ASSISTANT_MANAGE("Configurar assistente de IA"),
 
+    // Jurídico (módulo legal)
+    LEGAL_VIEW("Consultar casos jurídicos, processos, prazos e audiências"),
+    LEGAL_MANAGE("Conduzir casos jurídicos: triagem, viabilidade, medidas, processos, prazos e audiências"),
+    LEGAL_AUTHORIZE("Aprovar indicações ao jurídico e registrar a autorização do credor"),
+    LEGAL_EXPENSE_MANAGE("Registrar e gerir custas e despesas jurídicas"),
+
     // Gestão e relatórios
     DASHBOARD_VIEW("Consultar painéis"),
     REPORT_VIEW("Consultar relatórios"),
