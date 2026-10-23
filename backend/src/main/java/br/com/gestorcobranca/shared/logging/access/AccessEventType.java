@@ -34,6 +34,8 @@ public enum AccessEventType {
     UNAUTHENTICATED,
     /** Visualização de dado pessoal sem máscara (documento, contato). */
     SENSITIVE_DATA_VIEWED,
+    /** Consulta a remuneração (extrato, razão ou simulação de comissão) de outro usuário. */
+    COMPENSATION_DATA_VIEWED,
     /** Exportação de dados (relatórios, evidências). */
     DATA_EXPORTED,
     /** Download de arquivo armazenado (termos, evidências, importações). */

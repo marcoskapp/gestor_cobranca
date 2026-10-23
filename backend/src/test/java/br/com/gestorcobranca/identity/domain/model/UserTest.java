@@ -67,9 +67,11 @@ class UserTest {
     @Test
     void disabledUserCannotAuthenticate() {
         User user = activeUser();
-        user.disable();
+        user.disable(java.time.Instant.parse("2026-01-01T00:00:00Z"));
         assertThat(user.canAuthenticate(now)).isFalse();
+        assertThat(user.getDisabledAt()).isEqualTo(java.time.Instant.parse("2026-01-01T00:00:00Z"));
         user.enable();
         assertThat(user.canAuthenticate(now)).isTrue();
+        assertThat(user.getDisabledAt()).isNull();
     }
 }
