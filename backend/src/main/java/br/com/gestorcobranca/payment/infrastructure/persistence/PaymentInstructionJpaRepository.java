@@ -30,6 +30,15 @@ interface PaymentInstructionJpaRepository extends JpaRepository<PaymentInstructi
         return lockById(id);
     }
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from PaymentInstruction i where i.txid = :txid")
+    Optional<PaymentInstruction> lockByTxid(@Param("txid") String txid);
+
+    @Override
+    default Optional<PaymentInstruction> findByTxidForUpdate(String txid) {
+        return lockByTxid(txid);
+    }
+
     @Query("""
             select i from PaymentInstruction i
              where i.status in (br.com.gestorcobranca.payment.domain.model.InstructionStatus.PENDING,

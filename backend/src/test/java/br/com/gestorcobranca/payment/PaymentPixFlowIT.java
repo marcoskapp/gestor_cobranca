@@ -183,6 +183,40 @@ class PaymentPixFlowIT extends PaymentTestSupport {
         assertThat(count("select count(*) from payment.payment where status = 'RECONCILED'")).isEqualTo(1);
     }
 
+    @Test
+    void secondPixForTheSameInstructionIsKeptAllocatedAndFlaggedAsDuplicate() throws Exception {
+        provision("duplicate");
+        AgreementView agreement = formalizeAgreement(3);
+        InstallmentView first = agreement.installments().getFirst();
+        InstructionView pix = pixFor(agreement.id(), first.id(), "PIX_IMMEDIATE");
+        // o devedor paga o mesmo QR Code duas vezes; as notificações chegam juntas e são processadas em paralelo
+        SimulatedNotification one = simulatePay(pix.id(), null);
+        SimulatedNotification two = simulatePay(pix.id(), null);
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var a = pool.submit(() -> postWebhook(one.routingKey(), one.body(), one.signature()));
+            var b = pool.submit(() -> postWebhook(two.routingKey(), two.body(), two.signature()));
+            assertThat(a.get()).isEqualTo(200);
+            assertThat(b.get()).isEqualTo(200);
+        } finally {
+            pool.shutdown();
+        }
+        settle();
+        awaitConsumed("negotiation.payment-confirmed", 2);
+        settle();
+        assertThat(count("select count(*) from payment.payment where instruction_id = ?", pix.id())).isEqualTo(2);
+        assertThat(asFinance1(() -> reconciliation.divergences(new DivergenceFilter("OPEN", "DUPLICATE_PAYMENT"),
+                PageQuery.of(0, 10))).content()).hasSize(1);
+        // o segundo pagamento não fica na parcela já paga: vai para a seguinte (entrada ≠ demais parcelas → parcial)
+        awaitTrue("segunda parcela parcialmente paga", () -> {
+            List<InstallmentView> list = agreement(agreement.id()).installments();
+            return "PAID".equals(list.get(0).status()) && "PARTIALLY_PAID".equals(list.get(1).status())
+                    && list.get(1).paidAmount().compareTo(first.amount()) == 0;
+        });
+        assertThat(count("select count(*) from payment.payment_allocation_line where installment_id = ?", first.id()))
+                .isEqualTo(1);
+    }
+
     private static String sign(String body) {
         return WebhookAuthentication.hmacHeader(WEBHOOK_SECRET, body.getBytes(StandardCharsets.UTF_8));
     }

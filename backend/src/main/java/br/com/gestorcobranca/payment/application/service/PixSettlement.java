@@ -74,20 +74,20 @@ class PixSettlement {
 
     void apply(PixAccount account, PixTransaction tx) {
         Money amount = Money.of(tx.amount());
-        Optional<Payment> existing = payments.findByProviderTransactionId(tx.endToEndId());
+        Optional<Payment> existing = payments.findByProviderTransactionIdForUpdate(tx.endToEndId());
         if (existing.isPresent()) {
-            Payment p = payments.findByIdForUpdate(existing.get().getId()).orElseThrow();
-            metrics.pixSync(applyRefunds(p, tx) ? "refund" : "unchanged");
+            metrics.pixSync(applyRefunds(existing.get(), tx) ? "refund" : "unchanged");
             return;
         }
-        Optional<PaymentInstruction> found = tx.txid() == null ? Optional.empty() : instructions.findByTxid(tx.txid());
+        Optional<PaymentInstruction> found = tx.txid() == null ? Optional.empty()
+                : instructions.findByTxidForUpdate(tx.txid());
         if (found.isEmpty()) {
             metrics.pixSync("unidentified");
             divergences.open(DivergenceType.UNMATCHED, DivergenceSource.WEBHOOK, account.getCreditorId(), null, null, null,
                     tx.endToEndId(), amount, null, day(tx.paidAt()));
             return;
         }
-        PaymentInstruction instruction = instructions.findByIdForUpdate(found.get().getId()).orElseThrow();
+        PaymentInstruction instruction = found.get();
         List<Payment> previous = payments.findByInstructionIdOrderByCreatedAtAsc(instruction.getId());
         Optional<Payment> fromStatement = previous.stream().filter(p -> p.getProviderTransactionId() == null
                 && p.isEffective() && p.getAmount().equals(amount)).findFirst();

@@ -325,10 +325,12 @@ class PaymentService implements PaymentUseCases {
         return p;
     }
 
+    /** Bloqueia antes de carregar (sem versão desatualizada no contexto de persistência) e aplica o escopo. */
     private Payment lockForCommand(UUID paymentId) {
-        Payment visible = loadVisible(paymentId);
-        accessScope.requireCreditor(visible.getCreditorId());
-        return payments.findByIdForUpdate(paymentId).orElseThrow();
+        Payment p = payments.findByIdForUpdate(paymentId).orElseThrow(() -> new ResourceNotFoundException(RESOURCE, paymentId));
+        accessScope.requireVisible(RESOURCE, paymentId, p.getCreditorId());
+        accessScope.requireCreditor(p.getCreditorId());
+        return p;
     }
 
     private Set<UUID> allowedCreditors() {

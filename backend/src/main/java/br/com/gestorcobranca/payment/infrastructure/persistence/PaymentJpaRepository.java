@@ -30,6 +30,15 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
         return lockById(id);
     }
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Payment p where p.providerTransactionId = :transactionId")
+    Optional<Payment> lockByProviderTransactionId(@Param("transactionId") String transactionId);
+
+    @Override
+    default Optional<Payment> findByProviderTransactionIdForUpdate(String providerTransactionId) {
+        return lockByProviderTransactionId(providerTransactionId);
+    }
+
     @Override
     default Page<Payment> search(Criteria c, Pageable pageable) {
         Specification<Payment> spec = Specification.unrestricted();

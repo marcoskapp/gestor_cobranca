@@ -22,6 +22,9 @@ public interface PaymentInstructionRepository {
 
     Optional<PaymentInstruction> findByTxid(String txid);
 
+    /** Bloqueia a instrução do {@code txid} (pagamentos da mesma instrução são serializados). */
+    Optional<PaymentInstruction> findByTxidForUpdate(String txid);
+
     List<PaymentInstruction> findByAgreementIdAndStatusIn(UUID agreementId, Collection<InstructionStatus> statuses);
 
     List<PaymentInstruction> findByInstallmentIdAndStatusIn(UUID installmentId, Collection<InstructionStatus> statuses);

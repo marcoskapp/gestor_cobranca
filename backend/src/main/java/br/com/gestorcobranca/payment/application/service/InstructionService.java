@@ -191,9 +191,10 @@ class InstructionService implements PaymentInstructionUseCases {
     @Override
     public InstructionView cancel(UUID instructionId, String reason) {
         accessScope.requirePermission(Permission.PAYMENT_INSTRUCTION_CREATE);
-        PaymentInstruction visible = loadVisible(instructionId);
-        accessScope.requireCreditor(visible.getCreditorId());
-        PaymentInstruction instruction = instructions.findByIdForUpdate(instructionId).orElseThrow();
+        PaymentInstruction instruction = instructions.findByIdForUpdate(instructionId)
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, instructionId));
+        accessScope.requireVisible(RESOURCE, instructionId, instruction.getCreditorId());
+        accessScope.requireCreditor(instruction.getCreditorId());
         cancel(instruction, reason, "manual");
         return PaymentViews.instruction(instruction);
     }

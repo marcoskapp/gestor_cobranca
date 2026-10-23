@@ -167,24 +167,24 @@ class ReconciliationService implements ReconciliationUseCases {
     public DivergenceView resolve(UUID divergenceId, ResolveCommand command) {
         accessScope.requirePermission(Permission.RECONCILIATION_MANAGE);
         Guard.require(command != null, "divergence.resolution_required", "Resolução obrigatória");
-        Divergence visible = loadDivergence(divergenceId);
-        requireScope(visible.getCreditorId());
-        Divergence d = divergences.findByIdForUpdate(divergenceId).orElseThrow();
+        Divergence d = divergences.findByIdForUpdate(divergenceId)
+                .orElseThrow(() -> new ResourceNotFoundException(DIVERGENCE, divergenceId));
+        requireVisible(d);
+        requireScope(d.getCreditorId());
         DivergenceResolution resolution = PaymentEnums.parse(DivergenceResolution.class, command.resolution(),
                 "divergence.resolution_invalid", "Resolução");
         Instant now = Instant.now(clock);
         UUID matched = null;
         if (resolution == DivergenceResolution.MATCHED_PAYMENT) {
             Guard.require(command.paymentId() != null, "divergence.payment_required", "Informe o pagamento correspondente");
-            Payment visiblePayment = payments.findById(command.paymentId())
+            Payment p = payments.findByIdForUpdate(command.paymentId())
                     .orElseThrow(() -> new ResourceNotFoundException("payment", command.paymentId()));
-            accessScope.requireVisible("payment", command.paymentId(), visiblePayment.getCreditorId());
-            accessScope.requireCreditor(visiblePayment.getCreditorId());
-            if (d.getCreditorId() != null && !d.getCreditorId().equals(visiblePayment.getCreditorId())) {
+            accessScope.requireVisible("payment", command.paymentId(), p.getCreditorId());
+            accessScope.requireCreditor(p.getCreditorId());
+            if (d.getCreditorId() != null && !d.getCreditorId().equals(p.getCreditorId())) {
                 throw new BusinessRuleException("divergence.creditor_mismatch",
                         "Pagamento de outro credor que o da divergência");
             }
-            Payment p = payments.findByIdForUpdate(command.paymentId()).orElseThrow();
             if (p.reconcile(ReconciliationMode.MANUAL, currentActor.actorId(), d.getStatementLineId(), now)) {
                 payments.save(p);
                 recorder.reconciled(p, ReconciliationMode.MANUAL, null);
@@ -218,14 +218,18 @@ class ReconciliationService implements ReconciliationUseCases {
 
     private Divergence loadDivergence(UUID id) {
         Divergence d = divergences.findById(id).orElseThrow(() -> new ResourceNotFoundException(DIVERGENCE, id));
+        requireVisible(d);
+        return d;
+    }
+
+    private void requireVisible(Divergence d) {
         if (d.getCreditorId() == null) {
             if (!accessScope.hasAllCreditors()) {
-                throw new ResourceNotFoundException(DIVERGENCE, id);
+                throw new ResourceNotFoundException(DIVERGENCE, d.getId());
             }
         } else {
-            accessScope.requireVisible(DIVERGENCE, id, d.getCreditorId());
+            accessScope.requireVisible(DIVERGENCE, d.getId(), d.getCreditorId());
         }
-        return d;
     }
 
     private void requireScope(UUID creditorId) {

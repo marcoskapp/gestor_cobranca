@@ -25,6 +25,9 @@ public interface PaymentRepository {
 
     Optional<Payment> findByProviderTransactionId(String providerTransactionId);
 
+    /** Bloqueia o pagamento da transação do provedor (antes de carregá-lo, evitando versão desatualizada). */
+    Optional<Payment> findByProviderTransactionIdForUpdate(String providerTransactionId);
+
     List<Payment> findByInstructionIdOrderByCreatedAtAsc(UUID instructionId);
 
     List<Payment> findByExternalReferenceAndStatus(String externalReference, PaymentStatus status);

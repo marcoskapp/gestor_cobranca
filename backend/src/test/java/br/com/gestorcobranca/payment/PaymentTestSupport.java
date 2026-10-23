@@ -188,7 +188,7 @@ abstract class PaymentTestSupport extends IntegrationTest {
             return null;
         });
         awaitTrue("sincronização das carteiras agendada", () -> count("select count(*) from shared.processing_job "
-                + "where type = 'collection.portfolio_sync'") == 2);
+                + "where type = 'collection.portfolio_sync' and tenant_id = ?", tenant) == 2);
         drainJobs("collection.");
         awaitTrue("casos de cobrança abertos", () -> count("select count(*) from collection.collection_case "
                 + "where debtor_id = ?", debtor) == 2);
@@ -277,8 +277,8 @@ abstract class PaymentTestSupport extends IntegrationTest {
     }
 
     void awaitConsumed(String consumer, long expected) {
-        awaitTrue("consumo por " + consumer, () -> count("select count(*) from shared.consumed_event where consumer = ?",
-                consumer) >= expected);
+        awaitTrue("consumo por " + consumer, () -> count("select count(*) from shared.consumed_event where consumer = ? "
+                + "and tenant_id = ?", consumer, tenant) >= expected);
     }
 
     UUID portfolio(UUID creditorId, String code) {

@@ -105,7 +105,8 @@ class StatementMatcher {
 
     private Outcome match(StatementImport source, BankStatementLine line, String txId, String reference) {
         if (txId != null) {
-            Optional<Payment> byTransaction = payments.findByProviderTransactionId(txId).filter(p -> inScope(source, p));
+            Optional<Payment> byTransaction = payments.findByProviderTransactionIdForUpdate(txId)
+                    .filter(p -> inScope(source, p));
             if (byTransaction.isEmpty()) {
                 List<Payment> external = payments.findByExternalReferenceAndStatus(txId, PaymentStatus.CONFIRMED).stream()
                         .filter(p -> inScope(source, p)).toList();
@@ -117,17 +118,17 @@ class StatementMatcher {
         }
         if (reference != null) {
             Optional<PaymentInstruction> instruction = PixIdentifiers.validTxid(reference)
-                    ? instructions.findByTxid(reference) : Optional.empty();
+                    ? instructions.findByTxidForUpdate(reference) : Optional.empty();
             UUID id = uuid(reference);
             if (instruction.isEmpty() && id != null) {
-                instruction = instructions.findById(id);
+                instruction = instructions.findByIdForUpdate(id);
             }
             instruction = instruction.filter(i -> source.getCreditorId() == null || source.getCreditorId().equals(i.getCreditorId()));
             if (instruction.isPresent()) {
                 return againstInstruction(source, line, instruction.get(), txId);
             }
             if (id != null) {
-                Optional<Payment> payment = payments.findById(id).filter(p -> inScope(source, p));
+                Optional<Payment> payment = payments.findByIdForUpdate(id).filter(p -> inScope(source, p));
                 if (payment.isPresent()) {
                     return againstPayment(source, line, payment.get(), txId);
                 }
@@ -142,8 +143,9 @@ class StatementMatcher {
         return new Outcome(StatementLineStatus.DIVERGENT, null);
     }
 
+    /** @param found pagamento já bloqueado pela consulta de origem, ou carregado sem alteração na transação */
     private Outcome againstPayment(StatementImport source, BankStatementLine line, Payment found, String txId) {
-        Payment p = payments.findByIdForUpdate(found.getId()).orElseThrow();
+        Payment p = found;
         if (!p.isEffective()) {
             divergence(DivergenceType.NOT_CONFIRMED, source, line, p, null);
             return new Outcome(StatementLineStatus.DIVERGENT, p.getId());
@@ -162,8 +164,8 @@ class StatementMatcher {
         return new Outcome(StatementLineStatus.RECONCILED, p.getId());
     }
 
-    private Outcome againstInstruction(StatementImport source, BankStatementLine line, PaymentInstruction found, String txId) {
-        PaymentInstruction instruction = instructions.findByIdForUpdate(found.getId()).orElseThrow();
+    private Outcome againstInstruction(StatementImport source, BankStatementLine line, PaymentInstruction instruction,
+                                       String txId) {
         List<Payment> existing = payments.findByInstructionIdOrderByCreatedAtAsc(instruction.getId()).stream()
                 .filter(Payment::isEffective).toList();
         if (!existing.isEmpty()) {
