@@ -11,7 +11,7 @@ import br.com.gestorcobranca.settlement.domain.model.Receipt;
 import br.com.gestorcobranca.settlement.domain.model.ReimbursableExpense;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement.Totals;
-import br.com.gestorcobranca.settlement.domain.model.StatementAdjustment;
+import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
 import br.com.gestorcobranca.settlement.domain.model.rules.CommissionRules;
 import br.com.gestorcobranca.settlement.domain.model.rules.CommissionRules.ReceiptProfile;
 import br.com.gestorcobranca.settlement.domain.model.rules.PaymentType;
@@ -56,7 +56,7 @@ import java.util.stream.Collectors;
  * </ol>
  */
 @Component
-class StatementCalculator {
+class SettlementStatementCalculator {
 
     private final ReceiptRepository receipts;
     private final CommissionEntryRepository entries;
@@ -67,7 +67,7 @@ class StatementCalculator {
     private final RulesCodec codec;
     private final JsonCodec json;
 
-    StatementCalculator(ReceiptRepository receipts, CommissionEntryRepository entries,
+    SettlementStatementCalculator(ReceiptRepository receipts, CommissionEntryRepository entries,
                         CommissionRuleSetRepository ruleSets, SettlementFactRepository facts,
                         StatementRepository statements, SettlementSources sources, RulesCodec codec, JsonCodec json) {
         this.receipts = receipts;
@@ -175,8 +175,8 @@ class StatementCalculator {
             totals.expenses = totals.expenses.plus(e.deduction());
         }
         Money adjustments = statements.findAdjustments(s.getId()).stream()
-                .filter(a -> a.getStatus() == StatementAdjustment.Status.APPLIED)
-                .map(StatementAdjustment::getAmount).reduce(Money.ZERO, Money::plus);
+                .filter(a -> a.getStatus() == SettlementAdjustment.Status.APPLIED)
+                .map(SettlementAdjustment::getAmount).reduce(Money.ZERO, Money::plus);
         Money negotiated = negotiated(s);
         Forecast forecast = forecast(s.getCreditorId(), today);
         List<OpenDivergence> divergences = sources.openDivergences(s.getCreditorId());

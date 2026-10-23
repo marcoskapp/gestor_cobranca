@@ -2,8 +2,8 @@ package br.com.gestorcobranca.settlement.domain.repository;
 
 import br.com.gestorcobranca.settlement.domain.model.CreditorTransfer;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
-import br.com.gestorcobranca.settlement.domain.model.StatementAdjustment;
-import br.com.gestorcobranca.settlement.domain.model.StatementExport;
+import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
+import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,17 +31,17 @@ public interface StatementRepository {
 
     List<SettlementStatement> findClosed(Collection<UUID> creditorIds);
 
-    StatementAdjustment save(StatementAdjustment adjustment);
+    SettlementAdjustment save(SettlementAdjustment adjustment);
 
-    Optional<StatementAdjustment> findAdjustment(UUID id);
+    Optional<SettlementAdjustment> findAdjustment(UUID id);
 
-    List<StatementAdjustment> findAdjustments(UUID statementId);
+    List<SettlementAdjustment> findAdjustments(UUID statementId);
 
-    StatementExport save(StatementExport export);
+    SettlementExport save(SettlementExport export);
 
-    Optional<StatementExport> findExport(UUID id);
+    Optional<SettlementExport> findExport(UUID id);
 
-    List<StatementExport> findExports(UUID statementId);
+    List<SettlementExport> findExports(UUID statementId);
 
     CreditorTransfer save(CreditorTransfer transfer);
 

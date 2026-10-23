@@ -2,14 +2,14 @@ package br.com.gestorcobranca.settlement.application.service;
 
 import br.com.gestorcobranca.settlement.application.SettlementProperties;
 import br.com.gestorcobranca.settlement.application.port.in.CommissionLedgerQueries.ReceiptView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementLocks;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementSources;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementSources.ContractFacts;
 import br.com.gestorcobranca.settlement.domain.model.ReimbursableExpense;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
-import br.com.gestorcobranca.settlement.domain.model.StatementAdjustment;
-import br.com.gestorcobranca.settlement.domain.model.StatementExport;
+import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
+import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementFactRepository;
@@ -53,14 +53,14 @@ import java.util.UUID;
 
 @Service
 @Transactional
-class StatementService implements StatementUseCases {
+class SettlementStatementService implements SettlementStatementUseCases {
 
     static final String RESOURCE = "settlement_statement";
 
     private final StatementRepository statements;
     private final ReceiptRepository receipts;
     private final SettlementFactRepository facts;
-    private final StatementCalculator calculator;
+    private final SettlementStatementCalculator calculator;
     private final ReceiptPages pages;
     private final SettlementSources sources;
     private final SettlementLocks locks;
@@ -75,8 +75,8 @@ class StatementService implements StatementUseCases {
     private final SettlementProperties properties;
     private final Clock clock;
 
-    StatementService(StatementRepository statements, ReceiptRepository receipts, SettlementFactRepository facts,
-                     StatementCalculator calculator, ReceiptPages pages, SettlementSources sources,
+    SettlementStatementService(StatementRepository statements, ReceiptRepository receipts, SettlementFactRepository facts,
+                     SettlementStatementCalculator calculator, ReceiptPages pages, SettlementSources sources,
                      SettlementLocks locks, SettlementViews views, SettlementAccess access, AccessScope accessScope,
                      CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                      ApplicationEventPublisher events, SettlementMetrics metrics, SettlementProperties properties,
@@ -202,7 +202,7 @@ class StatementService implements StatementUseCases {
         LocalDate today = today();
         Guard.require(s.getPeriodEnd().isBefore(today), "statement.period_not_ended",
                 "O período só pode ser calculado depois de encerrado");
-        StatementCalculator.Result result = calculator.calculate(s, started, today);
+        SettlementStatementCalculator.Result result = calculator.calculate(s, started, today);
         String previous = s.getStatus().name();
         s.calculated(result.totals(), result.calculationJson(), currentActor.actorId(), started, today);
         statements.save(s);
@@ -237,13 +237,13 @@ class StatementService implements StatementUseCases {
     public StatementView approve(UUID statementId) {
         accessScope.requirePermission(Permission.SETTLEMENT_APPROVE);
         SettlementStatement s = loadForCommand(statementId);
-        List<StatementAdjustment> adjustments = statements.findAdjustments(s.getId());
-        if (adjustments.stream().anyMatch(a -> a.getStatus() == StatementAdjustment.Status.PENDING_SECOND_APPROVAL)) {
+        List<SettlementAdjustment> adjustments = statements.findAdjustments(s.getId());
+        if (adjustments.stream().anyMatch(a -> a.getStatus() == SettlementAdjustment.Status.PENDING_SECOND_APPROVAL)) {
             throw new ConflictException("statement.adjustment_pending",
                     "Há ajuste aguardando segunda aprovação: decida-o antes de aprovar o demonstrativo");
         }
         Set<UUID> requesters = new HashSet<>();
-        adjustments.stream().filter(a -> a.getStatus() == StatementAdjustment.Status.APPLIED)
+        adjustments.stream().filter(a -> a.getStatus() == SettlementAdjustment.Status.APPLIED)
                 .forEach(a -> requesters.add(a.getRequestedBy()));
         Instant now = Instant.now(clock);
         s.approve(currentActor.actorId(), now, requesters);
@@ -285,7 +285,7 @@ class StatementService implements StatementUseCases {
         Guard.require(c.exportIds() != null && !c.exportIds().isEmpty(), "statement.exports_required",
                 "Informe os arquivos enviados ao credor");
         for (UUID exportId : c.exportIds()) {
-            StatementExport export = statements.findExport(exportId)
+            SettlementExport export = statements.findExport(exportId)
                     .orElseThrow(() -> new ResourceNotFoundException("statement_export", exportId));
             Guard.require(export.getStatementId().equals(s.getId()), "statement.export_mismatch",
                     "Arquivo de outro demonstrativo");
@@ -354,7 +354,7 @@ class StatementService implements StatementUseCases {
         SettlementStatement s = loadForCommand(statementId);
         Guard.requireState(s.getStatus() == StatementStatus.CALCULATED || s.getStatus() == StatementStatus.REVIEWED,
                 "statement.not_calculated", "Ajustes só em demonstrativo calculado (antes da aprovação)");
-        StatementAdjustment.Category category = SettlementAccess.parse(StatementAdjustment.Category.class, c.category(),
+        SettlementAdjustment.Category category = SettlementAccess.parse(SettlementAdjustment.Category.class, c.category(),
                 "adjustment.category_invalid");
         Guard.require(c.amount() != null && c.amount().scale() <= 2, "adjustment.amount_invalid",
                 "Valor do ajuste com até 2 casas decimais");
@@ -366,14 +366,14 @@ class StatementService implements StatementUseCases {
         }
         Money amount = Money.of(c.amount());
         boolean dual = amount.abs().isGreaterThan(Money.of(properties.adjustmentDualApprovalThreshold()));
-        StatementAdjustment adjustment = statements.save(new StatementAdjustment(s.getId(), category, amount, c.reason(),
+        SettlementAdjustment adjustment = statements.save(new SettlementAdjustment(s.getId(), category, amount, c.reason(),
                 c.relatedStatementId(), dual, currentActor.actorId(), Instant.now(clock)));
         auditTrail.record(AuditEntry.of("settlement_adjustment.requested", "settlement_adjustment", adjustment.getId())
                 .creditor(s.getCreditorId()).created("statementId", s.getId()).created("category", category)
                 .created("amount", amount.amount()).created("status", adjustment.getStatus())
                 .reason(adjustment.getReason()));
         metrics.adjustment(adjustment.getStatus().name());
-        if (adjustment.getStatus() == StatementAdjustment.Status.APPLIED) {
+        if (adjustment.getStatus() == SettlementAdjustment.Status.APPLIED) {
             applied(s, adjustment);
         }
         return SettlementViews.adjustment(adjustment);
@@ -382,15 +382,15 @@ class StatementService implements StatementUseCases {
     @Override
     public AdjustmentView approveAdjustment(UUID adjustmentId, String note) {
         accessScope.requirePermission(Permission.SETTLEMENT_APPROVE);
-        StatementAdjustment adjustment = loadAdjustment(adjustmentId);
+        SettlementAdjustment adjustment = loadAdjustment(adjustmentId);
         SettlementStatement s = loadForCommand(adjustment.getStatementId());
         Guard.requireState(s.getStatus() == StatementStatus.CALCULATED || s.getStatus() == StatementStatus.REVIEWED,
                 "statement.not_calculated", "O demonstrativo não aceita mais ajustes");
         adjustment.approve(currentActor.actorId(), note, Instant.now(clock));
         statements.save(adjustment);
         auditTrail.record(AuditEntry.of("settlement_adjustment.approved", "settlement_adjustment", adjustment.getId())
-                .creditor(s.getCreditorId()).change("status", StatementAdjustment.Status.PENDING_SECOND_APPROVAL,
-                        StatementAdjustment.Status.APPLIED).meta("requestedBy", adjustment.getRequestedBy()));
+                .creditor(s.getCreditorId()).change("status", SettlementAdjustment.Status.PENDING_SECOND_APPROVAL,
+                        SettlementAdjustment.Status.APPLIED).meta("requestedBy", adjustment.getRequestedBy()));
         metrics.adjustment(adjustment.getStatus().name());
         applied(s, adjustment);
         return SettlementViews.adjustment(adjustment);
@@ -399,13 +399,13 @@ class StatementService implements StatementUseCases {
     @Override
     public AdjustmentView rejectAdjustment(UUID adjustmentId, String note) {
         accessScope.requirePermission(Permission.SETTLEMENT_APPROVE);
-        StatementAdjustment adjustment = loadAdjustment(adjustmentId);
+        SettlementAdjustment adjustment = loadAdjustment(adjustmentId);
         SettlementStatement s = loadForCommand(adjustment.getStatementId());
         adjustment.reject(currentActor.actorId(), note, Instant.now(clock));
         statements.save(adjustment);
         auditTrail.record(AuditEntry.of("settlement_adjustment.rejected", "settlement_adjustment", adjustment.getId())
-                .creditor(s.getCreditorId()).change("status", StatementAdjustment.Status.PENDING_SECOND_APPROVAL,
-                        StatementAdjustment.Status.REJECTED).reason(adjustment.getDecisionNote()));
+                .creditor(s.getCreditorId()).change("status", SettlementAdjustment.Status.PENDING_SECOND_APPROVAL,
+                        SettlementAdjustment.Status.REJECTED).reason(adjustment.getDecisionNote()));
         metrics.adjustment(adjustment.getStatus().name());
         return SettlementViews.adjustment(adjustment);
     }
@@ -418,10 +418,10 @@ class StatementService implements StatementUseCases {
         return statements.findAdjustments(s.getId()).stream().map(SettlementViews::adjustment).toList();
     }
 
-    private void applied(SettlementStatement s, StatementAdjustment adjustment) {
+    private void applied(SettlementStatement s, SettlementAdjustment adjustment) {
         Money total = statements.findAdjustments(s.getId()).stream()
-                .filter(a -> a.getStatus() == StatementAdjustment.Status.APPLIED)
-                .map(StatementAdjustment::getAmount).reduce(Money.ZERO, Money::plus);
+                .filter(a -> a.getStatus() == SettlementAdjustment.Status.APPLIED)
+                .map(SettlementAdjustment::getAmount).reduce(Money.ZERO, Money::plus);
         s.adjustmentsChanged(total);
         statements.save(s);
         businessEvents.log(statementEvent(BusinessEventTypes.SETTLEMENT_ADJUSTED, s).amount(adjustment.getAmount())
@@ -436,7 +436,7 @@ class StatementService implements StatementUseCases {
                 .attr("periodEnd", s.getPeriodEnd().toString());
     }
 
-    private StatementAdjustment loadAdjustment(UUID id) {
+    private SettlementAdjustment loadAdjustment(UUID id) {
         return statements.findAdjustment(id).orElseThrow(() -> new ResourceNotFoundException("settlement_adjustment", id));
     }
 

@@ -1,6 +1,6 @@
 package br.com.gestorcobranca.settlement.application.service;
 
-import br.com.gestorcobranca.settlement.application.port.in.StatementExportUseCases;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementExportUseCases;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementSources;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementSources.CreditorFacts;
 import br.com.gestorcobranca.settlement.application.port.out.StatementDocumentRenderer;
@@ -11,8 +11,8 @@ import br.com.gestorcobranca.settlement.domain.model.Receipt;
 import br.com.gestorcobranca.settlement.domain.model.ReimbursableExpense;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement.Totals;
-import br.com.gestorcobranca.settlement.domain.model.StatementAdjustment;
-import br.com.gestorcobranca.settlement.domain.model.StatementExport;
+import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
+import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.repository.CommissionEntryRepository;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementFactRepository;
@@ -72,7 +72,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
-class StatementExportService implements StatementExportUseCases {
+class SettlementExportService implements SettlementExportUseCases {
 
     static final String[] HEADER = {"tipo_registro", "demonstrativo_id", "credor_id", "periodo_inicio", "periodo_fim",
             "chave", "alocacao_id", "pagamento_id", "acordo_id", "parcela", "titulo_credor", "componente",
@@ -90,7 +90,7 @@ class StatementExportService implements StatementExportUseCases {
     private final SettlementSources sources;
     private final StatementDocumentRenderer renderer;
     private final FileStorage storage;
-    private final FileCleanup cleanup;
+    private final SettlementFileCleanup cleanup;
     private final SettlementAccess access;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
@@ -101,9 +101,9 @@ class StatementExportService implements StatementExportUseCases {
     private final JsonCodec json;
     private final Clock clock;
 
-    StatementExportService(StatementRepository statements, ReceiptRepository receipts, CommissionEntryRepository entries,
+    SettlementExportService(StatementRepository statements, ReceiptRepository receipts, CommissionEntryRepository entries,
                            SettlementFactRepository facts, SettlementSources sources, StatementDocumentRenderer renderer,
-                           FileStorage storage, FileCleanup cleanup,
+                           FileStorage storage, SettlementFileCleanup cleanup,
                            SettlementAccess access, AccessScope accessScope, CurrentActor currentActor,
                            AccessLogger accessLogger, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                            SettlementMetrics metrics, JsonCodec json, Clock clock) {
@@ -133,7 +133,7 @@ class StatementExportService implements StatementExportUseCases {
         accessScope.requireCreditor(s.getCreditorId());
         Guard.requireState(s.getStatus().isClosed(), "statement.not_approved",
                 "Somente demonstrativo aprovado é exportado para o credor");
-        StatementExport.Format f = SettlementAccess.parse(StatementExport.Format.class, format, "export.format_invalid");
+        SettlementExport.Format f = SettlementAccess.parse(SettlementExport.Format.class, format, "export.format_invalid");
         List<List<String>> rows = rows(s);
         byte[] content = switch (f) {
             case CSV -> csv(rows);
@@ -145,16 +145,16 @@ class StatementExportService implements StatementExportUseCases {
         FileStorage.StoredFile stored = storage.store(FileCategory.SETTLEMENT_STATEMENT, fileName, f.contentType(),
                 new ByteArrayInputStream(content), content.length);
         cleanup.deleteOnRollback(stored.key());
-        StatementExport export = statements.save(new StatementExport(s.getId(), f, stored.key(), fileName, stored.size(),
-                stored.sha256(), f == StatementExport.Format.PDF ? 0 : rows.size(), currentActor.actorId()));
+        SettlementExport export = statements.save(new SettlementExport(s.getId(), f, stored.key(), fileName, stored.size(),
+                stored.sha256(), f == SettlementExport.Format.PDF ? 0 : rows.size(), currentActor.actorId()));
         auditTrail.record(AuditEntry.of("settlement_statement.exported", "statement_export", export.getId())
                 .creditor(s.getCreditorId()).created("statementId", s.getId()).created("format", f)
                 .created("sha256", stored.sha256()).created("rows", export.getRowsCount()));
         accessLogger.log(AccessEvent.of(AccessEventType.DATA_EXPORTED, currentActor.get(),
-                Map.of("resource", StatementService.RESOURCE, "resourceId", s.getId().toString(), "format", f.name(),
+                Map.of("resource", SettlementStatementService.RESOURCE, "resourceId", s.getId().toString(), "format", f.name(),
                         "rows", String.valueOf(export.getRowsCount()))));
         businessEvents.log(BusinessEvent.of(BusinessEventTypes.SETTLEMENT_EXPORTED).creditor(s.getCreditorId())
-                .reference(StatementService.RESOURCE, s.getId()).attr("format", f).attr("rows", export.getRowsCount())
+                .reference(SettlementStatementService.RESOURCE, s.getId()).attr("format", f).attr("rows", export.getRowsCount())
                 .attr("sequenceNumber", s.getSequenceNumber()));
         metrics.exported(f.name());
         return SettlementViews.export(export);
@@ -172,7 +172,7 @@ class StatementExportService implements StatementExportUseCases {
     @Transactional(readOnly = true)
     public ExportFile download(UUID exportId) {
         access.requireAny(Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_CLOSE, Permission.SETTLEMENT_APPROVE);
-        StatementExport export = statements.findExport(exportId)
+        SettlementExport export = statements.findExport(exportId)
                 .orElseThrow(() -> new ResourceNotFoundException("statement_export", exportId));
         loadVisible(export.getStatementId());
         accessLogger.log(AccessEvent.of(AccessEventType.FILE_DOWNLOADED, currentActor.get(),
@@ -184,8 +184,8 @@ class StatementExportService implements StatementExportUseCases {
 
     private SettlementStatement loadVisible(UUID id) {
         SettlementStatement s = statements.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(StatementService.RESOURCE, id));
-        accessScope.requireVisible(StatementService.RESOURCE, id, s.getCreditorId());
+                .orElseThrow(() -> new ResourceNotFoundException(SettlementStatementService.RESOURCE, id));
+        accessScope.requireVisible(SettlementStatementService.RESOURCE, id, s.getCreditorId());
         return s;
     }
 
@@ -247,8 +247,8 @@ class StatementExportService implements StatementExportUseCases {
             row[29] = e.getKind().name() + " " + e.getEffect().name() + (e.isReimbursable() ? " REEMBOLSAVEL" : "");
             rows.add(Arrays.asList(row));
         }
-        for (StatementAdjustment a : statements.findAdjustments(s.getId())) {
-            if (a.getStatus() != StatementAdjustment.Status.APPLIED) {
+        for (SettlementAdjustment a : statements.findAdjustments(s.getId())) {
+            if (a.getStatus() != SettlementAdjustment.Status.APPLIED) {
                 continue;
             }
             String[] row = base(s, "AJUSTE", a.getId().toString());
@@ -346,8 +346,8 @@ class StatementExportService implements StatementExportUseCases {
         }
         notes.add("Estornos e correções de períodos já prestados entram no demonstrativo seguinte.");
         String sha = statements.findExports(s.getId()).stream()
-                .filter(e -> e.getFormat() != StatementExport.Format.PDF).findFirst()
-                .map(StatementExport::getSha256).orElse(null);
+                .filter(e -> e.getFormat() != SettlementExport.Format.PDF).findFirst()
+                .map(SettlementExport::getSha256).orElse(null);
         return renderer.render(new StatementDocumentRenderer.Summary(creditor.legalName(), creditor.document(),
                 s.getSequenceNumber(), s.getPeriodStart(), s.getPeriodEnd(), s.getStatus().name(), sections, notes, sha,
                 Instant.now(clock)));
@@ -358,7 +358,7 @@ class StatementExportService implements StatementExportUseCases {
         try (CSVPrinter printer = new CSVPrinter(new OutputStreamWriter(out, StandardCharsets.UTF_8),
                 CSVFormat.DEFAULT.builder().setDelimiter(';').setRecordSeparator("\r\n").setHeader(HEADER).get())) {
             for (List<String> row : rows) {
-                printer.printRecord(row.stream().map(StatementExportService::neutralizeFormula).toList());
+                printer.printRecord(row.stream().map(SettlementExportService::neutralizeFormula).toList());
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);

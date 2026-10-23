@@ -1,18 +1,18 @@
 package br.com.gestorcobranca.settlement.web;
 
 import br.com.gestorcobranca.settlement.application.port.in.CommissionLedgerQueries.ReceiptView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementExportUseCases;
-import br.com.gestorcobranca.settlement.application.port.in.StatementExportUseCases.ExportFile;
-import br.com.gestorcobranca.settlement.application.port.in.StatementExportUseCases.ExportView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.AdjustmentCommand;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.AdjustmentView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.CreateStatementCommand;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.ExpenseView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.PeriodSuggestion;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.SendCommand;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.StatementFilter;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.StatementView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementExportUseCases;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementExportUseCases.ExportFile;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementExportUseCases.ExportView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.AdjustmentCommand;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.AdjustmentView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.CreateStatementCommand;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.ExpenseView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.PeriodSuggestion;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.SendCommand;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.StatementFilter;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.StatementView;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.web.ApiPaths;
@@ -51,10 +51,10 @@ class StatementController {
 
     private static final String READ = "hasAnyAuthority('SETTLEMENT_VIEW', 'SETTLEMENT_CLOSE', 'SETTLEMENT_APPROVE')";
 
-    private final StatementUseCases statements;
-    private final StatementExportUseCases exports;
+    private final SettlementStatementUseCases statements;
+    private final SettlementExportUseCases exports;
 
-    StatementController(StatementUseCases statements, StatementExportUseCases exports) {
+    StatementController(SettlementStatementUseCases statements, SettlementExportUseCases exports) {
         this.statements = statements;
         this.exports = exports;
     }

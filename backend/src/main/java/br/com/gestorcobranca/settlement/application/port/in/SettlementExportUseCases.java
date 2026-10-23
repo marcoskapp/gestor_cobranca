@@ -11,7 +11,7 @@ import java.util.UUID;
  * {@code SETTLEMENT_CLOSE}; consultar e baixar: {@code SETTLEMENT_VIEW} (download registra
  * {@code FILE_DOWNLOADED}).
  */
-public interface StatementExportUseCases {
+public interface SettlementExportUseCases {
 
     /** @param format CSV, XLSX ou PDF */
     ExportView export(UUID statementId, String format);

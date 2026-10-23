@@ -2,8 +2,8 @@ package br.com.gestorcobranca.settlement.infrastructure.persistence;
 
 import br.com.gestorcobranca.settlement.domain.model.CreditorTransfer;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
-import br.com.gestorcobranca.settlement.domain.model.StatementAdjustment;
-import br.com.gestorcobranca.settlement.domain.model.StatementExport;
+import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
+import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
 import br.com.gestorcobranca.settlement.domain.repository.StatementRepository;
 import org.springframework.data.domain.Page;
@@ -17,15 +17,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-class JpaStatementRepository implements StatementRepository {
+class JpaSettlementStatementRepository implements StatementRepository {
 
-    private final StatementJpa statements;
-    private final StatementAdjustmentJpa adjustments;
-    private final StatementExportJpa exports;
+    private final SettlementStatementJpa statements;
+    private final SettlementAdjustmentJpa adjustments;
+    private final SettlementExportJpa exports;
     private final CreditorTransferJpa transfers;
 
-    JpaStatementRepository(StatementJpa statements, StatementAdjustmentJpa adjustments,
-                           StatementExportJpa exports, CreditorTransferJpa transfers) {
+    JpaSettlementStatementRepository(SettlementStatementJpa statements, SettlementAdjustmentJpa adjustments,
+                           SettlementExportJpa exports, CreditorTransferJpa transfers) {
         this.statements = statements;
         this.adjustments = adjustments;
         this.exports = exports;
@@ -79,32 +79,32 @@ class JpaStatementRepository implements StatementRepository {
     }
 
     @Override
-    public StatementAdjustment save(StatementAdjustment adjustment) {
+    public SettlementAdjustment save(SettlementAdjustment adjustment) {
         return adjustments.save(adjustment);
     }
 
     @Override
-    public Optional<StatementAdjustment> findAdjustment(UUID id) {
+    public Optional<SettlementAdjustment> findAdjustment(UUID id) {
         return adjustments.findById(id);
     }
 
     @Override
-    public List<StatementAdjustment> findAdjustments(UUID statementId) {
+    public List<SettlementAdjustment> findAdjustments(UUID statementId) {
         return adjustments.findByStatementIdOrderByRequestedAtAsc(statementId);
     }
 
     @Override
-    public StatementExport save(StatementExport export) {
+    public SettlementExport save(SettlementExport export) {
         return exports.save(export);
     }
 
     @Override
-    public Optional<StatementExport> findExport(UUID id) {
+    public Optional<SettlementExport> findExport(UUID id) {
         return exports.findById(id);
     }
 
     @Override
-    public List<StatementExport> findExports(UUID statementId) {
+    public List<SettlementExport> findExports(UUID statementId) {
         return exports.findByStatementIdOrderByCreatedAtDesc(statementId);
     }
 

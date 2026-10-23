@@ -9,13 +9,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /** Remove do armazenamento o arquivo gravado por uma transação que foi desfeita (exportação, comprovante). */
 @Component
-class FileCleanup {
+class SettlementFileCleanup {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FileCleanup.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SettlementFileCleanup.class);
 
     private final FileStorage fileStorage;
 
-    FileCleanup(FileStorage fileStorage) {
+    SettlementFileCleanup(FileStorage fileStorage) {
         this.fileStorage = fileStorage;
     }
 

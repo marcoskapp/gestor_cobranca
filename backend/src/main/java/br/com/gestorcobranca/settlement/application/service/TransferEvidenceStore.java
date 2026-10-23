@@ -23,7 +23,7 @@ import java.util.Map;
  * {@code FileStorage} ({@code EVIDENCE}) com SHA-256 e removido se a transação for desfeita.
  */
 @Component
-class EvidenceStore {
+class TransferEvidenceStore {
 
     private static final Map<String, byte[]> SIGNATURES = Map.of(
             "application/pdf", new byte[]{'%', 'P', 'D', 'F', '-'},
@@ -31,10 +31,10 @@ class EvidenceStore {
             "image/jpeg", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
 
     private final FileStorage fileStorage;
-    private final FileCleanup cleanup;
+    private final SettlementFileCleanup cleanup;
     private final SettlementProperties properties;
 
-    EvidenceStore(FileStorage fileStorage, FileCleanup cleanup, SettlementProperties properties) {
+    TransferEvidenceStore(FileStorage fileStorage, SettlementFileCleanup cleanup, SettlementProperties properties) {
         this.fileStorage = fileStorage;
         this.cleanup = cleanup;
         this.properties = properties;

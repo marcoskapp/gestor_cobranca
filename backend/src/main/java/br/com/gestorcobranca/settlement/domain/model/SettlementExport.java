@@ -12,7 +12,7 @@ import java.util.UUID;
 /** Arquivo do demonstrativo enviado ao credor (CSV/XLSX conciliáveis, PDF resumo), guardado com SHA-256. Append-only. */
 @Entity
 @Table(name = "statement_export", schema = "settlement")
-public class StatementExport extends TenantScopedEntity {
+public class SettlementExport extends TenantScopedEntity {
 
     public enum Format {
         CSV("text/csv", "csv"),
@@ -56,10 +56,10 @@ public class StatementExport extends TenantScopedEntity {
     @Column(name = "generated_by", nullable = false, updatable = false)
     private UUID generatedBy;
 
-    protected StatementExport() {
+    protected SettlementExport() {
     }
 
-    public StatementExport(UUID statementId, Format format, String fileKey, String fileName, long fileSize, String sha256,
+    public SettlementExport(UUID statementId, Format format, String fileKey, String fileName, long fileSize, String sha256,
                            int rowsCount, UUID generatedBy) {
         this.statementId = statementId;
         this.format = format;

@@ -21,9 +21,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
 class SettlementEventListeners extends TenantEventListener {
 
     private final ReceiptPostingService posting;
-    private final FactIngestionService facts;
+    private final SettlementFactIngestion facts;
 
-    SettlementEventListeners(ReceiptPostingService posting, FactIngestionService facts) {
+    SettlementEventListeners(ReceiptPostingService posting, SettlementFactIngestion facts) {
         this.posting = posting;
         this.facts = facts;
     }

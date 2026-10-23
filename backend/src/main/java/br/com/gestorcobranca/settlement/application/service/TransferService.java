@@ -50,7 +50,7 @@ class TransferService implements TransferUseCases {
     static final String RESOURCE = "settlement_transfer";
 
     private final StatementRepository statements;
-    private final EvidenceStore evidenceStore;
+    private final TransferEvidenceStore evidenceStore;
     private final FileStorage storage;
     private final IdempotencyService idempotency;
     private final SettlementAccess access;
@@ -62,7 +62,7 @@ class TransferService implements TransferUseCases {
     private final SettlementMetrics metrics;
     private final Clock clock;
 
-    TransferService(StatementRepository statements, EvidenceStore evidenceStore, FileStorage storage,
+    TransferService(StatementRepository statements, TransferEvidenceStore evidenceStore, FileStorage storage,
                     IdempotencyService idempotency, SettlementAccess access, AccessScope accessScope,
                     CurrentActor currentActor, AccessLogger accessLogger, AuditTrail auditTrail,
                     BusinessEventLogger businessEvents, SettlementMetrics metrics, Clock clock) {
@@ -89,8 +89,8 @@ class TransferService implements TransferUseCases {
         byte[] content = evidenceStore.read(evidence);
         UUID id = idempotency.execute("settlement.transfer", idempotencyKey, hash(c, content), () -> {
             SettlementStatement s = statements.findByIdForUpdate(c.statementId())
-                    .orElseThrow(() -> new ResourceNotFoundException(StatementService.RESOURCE, c.statementId()));
-            accessScope.requireVisible(StatementService.RESOURCE, s.getId(), s.getCreditorId());
+                    .orElseThrow(() -> new ResourceNotFoundException(SettlementStatementService.RESOURCE, c.statementId()));
+            accessScope.requireVisible(SettlementStatementService.RESOURCE, s.getId(), s.getCreditorId());
             accessScope.requireCreditor(s.getCreditorId());
             CreditorTransfer.Evidence stored = evidenceStore.store(evidence.fileName(), evidence.contentType(), content);
             CreditorTransfer transfer = statements.save(new CreditorTransfer(s, Money.of(c.amount()), c.transferredOn(),

@@ -20,7 +20,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "statement_adjustment", schema = "settlement")
-public class StatementAdjustment extends TenantScopedEntity {
+public class SettlementAdjustment extends TenantScopedEntity {
 
     public enum Category { COMMISSION_CORRECTION, PRIOR_PERIOD_CORRECTION, EXPENSE_REIMBURSEMENT, CONTESTATION_SETTLEMENT, OTHER }
 
@@ -51,10 +51,10 @@ public class StatementAdjustment extends TenantScopedEntity {
     @Column(name = "decision_note", length = 2000)
     private String decisionNote;
 
-    protected StatementAdjustment() {
+    protected SettlementAdjustment() {
     }
 
-    public StatementAdjustment(UUID statementId, Category category, Money amount, String reason, UUID relatedStatementId,
+    public SettlementAdjustment(UUID statementId, Category category, Money amount, String reason, UUID relatedStatementId,
                                boolean requiresSecondApproval, UUID requestedBy, Instant at) {
         Guard.require(category != null, "adjustment.category_required", "Categoria do ajuste obrigatória");
         Guard.require(amount != null && !amount.isZero(), "adjustment.amount_invalid", "Ajuste não pode ser zero");

@@ -17,7 +17,7 @@ import java.util.UUID;
  * {@code SETTLEMENT_CLOSE}; aprovar (inclusive a segunda aprovação de ajustes): {@code SETTLEMENT_APPROVE},
  * nunca por quem calculou ou pediu ajuste; consulta: {@code SETTLEMENT_VIEW}. Escopo por credor.
  */
-public interface StatementUseCases {
+public interface SettlementStatementUseCases {
 
     /**
      * Novo demonstrativo em aberto (um por credor). Sem datas: o ciclo seguinte ao último demonstrativo

@@ -5,11 +5,11 @@ import br.com.gestorcobranca.settlement.application.port.in.CommissionLedgerQuer
 import br.com.gestorcobranca.settlement.application.port.in.CommissionRuleUseCases.CalculationView;
 import br.com.gestorcobranca.settlement.application.port.in.CommissionRuleUseCases.MemoryLineView;
 import br.com.gestorcobranca.settlement.application.port.in.CommissionRuleUseCases.RuleSetView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementExportUseCases.ExportView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.AdjustmentView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.ExpenseView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.StatementView;
-import br.com.gestorcobranca.settlement.application.port.in.StatementUseCases.TotalsView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementExportUseCases.ExportView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.AdjustmentView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.ExpenseView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.StatementView;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.TotalsView;
 import br.com.gestorcobranca.settlement.application.port.in.TransferUseCases.TransferView;
 import br.com.gestorcobranca.settlement.domain.model.CommissionEntry;
 import br.com.gestorcobranca.settlement.domain.model.CommissionRuleSet;
@@ -18,8 +18,8 @@ import br.com.gestorcobranca.settlement.domain.model.Receipt;
 import br.com.gestorcobranca.settlement.domain.model.ReimbursableExpense;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement.Totals;
-import br.com.gestorcobranca.settlement.domain.model.StatementAdjustment;
-import br.com.gestorcobranca.settlement.domain.model.StatementExport;
+import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
+import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
 import br.com.gestorcobranca.settlement.domain.service.CommissionCalculator.MemoryLine;
 import br.com.gestorcobranca.settlement.domain.service.CommissionCalculator.Rating;
 import br.com.gestorcobranca.shared.json.JsonCodec;
@@ -102,7 +102,7 @@ class SettlementViews {
                 s.getVersion() == null ? 0 : s.getVersion());
     }
 
-    static AdjustmentView adjustment(StatementAdjustment a) {
+    static AdjustmentView adjustment(SettlementAdjustment a) {
         return new AdjustmentView(a.getId(), a.getStatementId(), a.getCategory().name(), a.getAmount().amount(),
                 a.getReason(), a.getRelatedStatementId(), a.getStatus().name(), a.getRequestedBy(), a.getRequestedAt(),
                 a.getDecidedBy(), a.getDecidedAt(), a.getDecisionNote());
@@ -114,7 +114,7 @@ class SettlementViews {
                 e.getEffect().name(), e.getCompetenceDate(), e.getStatus().name(), e.getStatementId());
     }
 
-    static ExportView export(StatementExport e) {
+    static ExportView export(SettlementExport e) {
         return new ExportView(e.getId(), e.getStatementId(), e.getFormat().name(), e.getFileName(), e.getFileSize(),
                 e.getSha256(), e.getRowsCount(), e.getGeneratedBy(), e.getCreatedAt());
     }

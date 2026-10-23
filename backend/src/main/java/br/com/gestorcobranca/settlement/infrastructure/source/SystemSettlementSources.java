@@ -62,37 +62,22 @@ class SystemSettlementSources implements SettlementSources {
 
     @Override
     public Optional<PaymentFacts> paymentOfAllocation(UUID allocationId) {
-        return system(() -> {
-            try {
-                PaymentView p = payments.findByAllocation(allocationId);
-                return Optional.of(new PaymentFacts(p.id(), p.status(), p.source(), p.method(), p.externalOrigin(),
-                        p.paidAt(), p.reconciledAt()));
-            } catch (ResourceNotFoundException e) {
-                return Optional.empty();
-            }
+        return find(() -> {
+            PaymentView p = payments.findByAllocation(allocationId);
+            return new PaymentFacts(p.id(), p.status(), p.source(), p.method(), p.externalOrigin(), p.paidAt(),
+                    p.reconciledAt());
         });
     }
 
     @Override
     public Optional<AgreementPaymentFacts> agreementPayment(UUID agreementId, UUID allocationId) {
-        return system(() -> {
-            try {
-                return agreements.paymentDistribution(agreementId, allocationId).map(SystemSettlementSources::facts);
-            } catch (ResourceNotFoundException e) {
-                return Optional.empty();
-            }
-        });
+        return find(() -> agreements.paymentDistribution(agreementId, allocationId).map(SystemSettlementSources::facts)
+                .orElse(null));
     }
 
     @Override
     public Optional<Integer> agreementInstallmentCount(UUID agreementId) {
-        return system(() -> {
-            try {
-                return Optional.of(agreements.get(agreementId).installments().size());
-            } catch (ResourceNotFoundException e) {
-                return Optional.empty();
-            }
-        });
+        return find(() -> agreements.get(agreementId).installments().size());
     }
 
     @Override
@@ -117,13 +102,7 @@ class SystemSettlementSources implements SettlementSources {
 
     @Override
     public Optional<UUID> contractOfPortfolio(UUID portfolioId) {
-        return system(() -> {
-            try {
-                return Optional.ofNullable(portfolios.get(portfolioId).contractId());
-            } catch (ResourceNotFoundException e) {
-                return Optional.empty();
-            }
-        });
+        return find(() -> portfolios.get(portfolioId).contractId());
     }
 
     @Override
@@ -136,13 +115,9 @@ class SystemSettlementSources implements SettlementSources {
 
     @Override
     public Optional<CreditorFacts> creditor(UUID creditorId) {
-        return system(() -> {
-            try {
-                CreditorUseCases.CreditorView c = creditors.get(creditorId);
-                return Optional.of(new CreditorFacts(c.id(), c.legalName(), c.document()));
-            } catch (ResourceNotFoundException e) {
-                return Optional.empty();
-            }
+        return find(() -> {
+            CreditorUseCases.CreditorView c = creditors.get(creditorId);
+            return new CreditorFacts(c.id(), c.legalName(), c.document());
         });
     }
 
@@ -153,6 +128,18 @@ class SystemSettlementSources implements SettlementSources {
                 d.installments().stream().map(i -> new InstallmentShare(i.installmentId(), i.number(), i.amount())).toList(),
                 d.components().stream().map(c -> new ComponentShare(c.titleId(), c.titleReference(), c.component(),
                         c.amount())).toList());
+    }
+
+    /**
+     * Leitura que pode não encontrar o recurso: a exceção de "não encontrado" marca a transação de leitura
+     * para desfazer, então é tratada fora dela.
+     */
+    private <T> Optional<T> find(Supplier<T> action) {
+        try {
+            return Optional.ofNullable(system(action));
+        } catch (ResourceNotFoundException e) {
+            return Optional.empty();
+        }
     }
 
     private <T> T system(Supplier<T> action) {

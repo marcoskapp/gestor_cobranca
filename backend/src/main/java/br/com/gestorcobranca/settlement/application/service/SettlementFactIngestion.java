@@ -24,9 +24,9 @@ import java.util.Set;
  * regridem a situação.
  */
 @Component
-class FactIngestionService {
+class SettlementFactIngestion {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FactIngestionService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SettlementFactIngestion.class);
     private static final Set<String> AGREEMENT_STATUSES = Set.of("FORMALIZED", "IN_PAYMENT", "SETTLED", "BROKEN",
             "CANCELLED", "RENEGOTIATED");
 
@@ -35,7 +35,7 @@ class FactIngestionService {
     private final SettlementLocks locks;
     private final SettlementMetrics metrics;
 
-    FactIngestionService(SettlementFactRepository facts, SettlementSources sources, SettlementLocks locks,
+    SettlementFactIngestion(SettlementFactRepository facts, SettlementSources sources, SettlementLocks locks,
                          SettlementMetrics metrics) {
         this.facts = facts;
         this.sources = sources;
