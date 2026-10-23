@@ -33,6 +33,12 @@ export const routes: Routes = [
         path: 'organizacao',
         loadChildren: () => import('./features/organization/organization.routes').then((m) => m.ORGANIZATION_ROUTES),
       },
+      { path: 'devedores', loadChildren: () => import('./features/debt/debt.routes').then((m) => m.DEBTOR_ROUTES) },
+      { path: 'titulos', loadChildren: () => import('./features/debt/debt.routes').then((m) => m.TITLE_ROUTES) },
+      {
+        path: 'compliance',
+        loadChildren: () => import('./features/compliance/compliance.routes').then((m) => m.COMPLIANCE_ROUTES),
+      },
       {
         path: 'governanca',
         loadChildren: () => import('./features/governance/governance.routes').then((m) => m.GOVERNANCE_ROUTES),

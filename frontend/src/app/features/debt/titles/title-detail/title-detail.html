@@ -1,0 +1,145 @@
+@if (title.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando título">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton class="debt-gap" variant="card" [rows]="5" />
+  </div>
+} @else if (title.status() === 'error') {
+  <app-empty-state
+    icon="cloud_off"
+    tone="error"
+    title="Não foi possível carregar o título."
+    message="Ele pode não existir ou estar fora dos credores do seu escopo."
+  >
+    <button mat-stroked-button type="button" (click)="title.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/titulos">Voltar para títulos</a>
+  </app-empty-state>
+}
+
+@if (current(); as t) {
+  <app-page-header [title]="'Título ' + titleLabel(t)" [subtitle]="creditors.name(t.creditorId) + ' · ' + portfolios.name(t.portfolioId)">
+    <a mat-button routerLink="/titulos">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Títulos
+    </a>
+    @if (canOpenDebtor()) {
+      <a mat-stroked-button [routerLink]="['/devedores', t.debtorId]" data-tour="title-debtor">
+        <mat-icon aria-hidden="true">person</mat-icon>
+        Ficha do devedor
+      </a>
+    }
+    @if (actions().length) {
+      <span class="debt-actions" data-tour="title-actions">
+        @if (actions().includes('suspend')) {
+          <button mat-stroked-button type="button" (click)="run('suspend', t)">
+            <mat-icon aria-hidden="true">pause_circle</mat-icon>
+            Suspender
+          </button>
+        }
+        @if (actions().includes('reactivate')) {
+          <button mat-flat-button type="button" (click)="run('reactivate', t)">
+            <mat-icon aria-hidden="true">play_circle</mat-icon>
+            Reativar
+          </button>
+        }
+        @if (canTransfer()) {
+          <button mat-stroked-button type="button" (click)="transfer(t)">
+            <mat-icon aria-hidden="true">drive_file_move</mat-icon>
+            Transferir
+          </button>
+        }
+        @if (actions().includes('return')) {
+          <button mat-stroked-button type="button" (click)="run('return', t)">
+            <mat-icon aria-hidden="true">assignment_return</mat-icon>
+            Devolver ao credor
+          </button>
+        }
+        @if (actions().includes('cancel')) {
+          <button mat-stroked-button type="button" class="debt-danger" (click)="run('cancel', t)">
+            <mat-icon aria-hidden="true">block</mat-icon>
+            Cancelar
+          </button>
+        }
+      </span>
+    }
+  </app-page-header>
+
+  <section class="debt-kpis" aria-label="Resumo do título" data-tour="title-summary">
+    <div class="debt-kpi">
+      <span class="debt-kpi__label">Saldo em aberto</span>
+      <span class="debt-kpi__value"><app-amount [value]="t.openBalance" /></span>
+    </div>
+    <div class="debt-kpi">
+      <span class="debt-kpi__label">Valor original</span>
+      <span class="debt-kpi__value"><app-amount [value]="t.principalAmount" /></span>
+    </div>
+    <div class="debt-kpi">
+      <span class="debt-kpi__label">Total pago</span>
+      <span class="debt-kpi__value"><app-amount [value]="t.paidTotal" /></span>
+    </div>
+    <div class="debt-kpi">
+      <span class="debt-kpi__label">Atraso</span>
+      <span class="debt-kpi__value"><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></span>
+    </div>
+  </section>
+
+  <section class="app-card" aria-labelledby="dados-titulo">
+    <h2 class="app-card__title" id="dados-titulo">Dados do título</h2>
+    @if (t.disputeBlocked) {
+      <p class="app-alert app-alert--warning" role="note">
+        <mat-icon aria-hidden="true">gavel</mat-icon>
+        <span>Título em contestação: a cobrança fica bloqueada até a análise ser concluída.</span>
+      </p>
+    }
+    <dl class="app-definition-list">
+      <dt>Situação</dt>
+      <dd>
+        <app-status-chip domain="title" [status]="t.status" />
+        @if (t.statusReason) {
+          <span class="app-muted"> — {{ t.statusReason }}</span>
+        }
+      </dd>
+      <dt>Código no credor</dt>
+      <dd class="app-numeric">{{ t.externalId }}</dd>
+      <dt>Parcela</dt>
+      <dd>{{ t.installmentNumber ?? '—' }}</dd>
+      <dt>Vencimento</dt>
+      <dd>{{ t.dueDate | appDate: 'date' }}</dd>
+      <dt>Último pagamento</dt>
+      <dd>{{ t.lastPaymentAt | appDate }}</dd>
+      <dt>Contrato de origem</dt>
+      <dd>
+        @if (t.originContractId) {
+          <span class="app-mono" [title]="t.originContractId">{{ t.originContractId.slice(0, 8) }}</span>
+        } @else {
+          —
+        }
+      </dd>
+      <dt>Lote de carga</dt>
+      <dd>
+        @if (t.importBatchId) {
+          <span class="app-mono" [title]="t.importBatchId">{{ t.importBatchId.slice(0, 8) }}</span>
+        } @else {
+          Cadastro manual
+        }
+      </dd>
+    </dl>
+  </section>
+
+  <section class="app-card" aria-label="Saldo, razão e titularidade">
+    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" data-tour="title-tabs">
+      <mat-tab label="Saldo por componente">
+        <div class="debt-tab"><app-title-balance [titleId]="t.id" /></div>
+      </mat-tab>
+      <mat-tab label="Razão">
+        <ng-template matTabContent>
+          <div class="debt-tab"><app-title-ledger [titleId]="t.id" /></div>
+        </ng-template>
+      </mat-tab>
+      <mat-tab label="Titularidade">
+        <ng-template matTabContent>
+          <div class="debt-tab"><app-title-ownership [titleId]="t.id" /></div>
+        </ng-template>
+      </mat-tab>
+    </mat-tab-group>
+  </section>
+}

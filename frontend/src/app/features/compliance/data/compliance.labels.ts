@@ -139,3 +139,82 @@ export const ATTEMPT_ORIGIN_LABELS: Record<string, string> = {
   CAMPAIGN: 'Campanha/régua',
   SYSTEM: 'Sistema',
 };
+
+/** Tipos aceitos como evidência (`ContactRestrictionService.EVIDENCE_TYPES`) e limite de tamanho. */
+export const EVIDENCE_CONTENT_TYPES: readonly string[] = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+  'text/plain',
+  'message/rfc822',
+];
+export const EVIDENCE_ACCEPT = '.pdf,.png,.jpg,.jpeg,.mp3,.wav,.ogg,.txt,.eml,' + EVIDENCE_CONTENT_TYPES.join(',');
+export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
+
+/** Valida o arquivo antes do envio; o servidor repete a validação. Devolve a mensagem de erro ou nulo. */
+export function evidenceProblem(file: Pick<File, 'type' | 'size'>): string | null {
+  if (file.size <= 0) {
+    return 'O arquivo está vazio.';
+  }
+  if (file.size > EVIDENCE_MAX_BYTES) {
+    return 'O arquivo excede 20 MB.';
+  }
+  if (!EVIDENCE_CONTENT_TYPES.includes(file.type)) {
+    return 'Tipo de arquivo não aceito. Envie PDF, imagem (PNG/JPEG), áudio (MP3/WAV/OGG), texto ou e-mail (.eml).';
+  }
+  return null;
+}
+
+/** Alcance da restrição em texto ("Todos os credores · WhatsApp · (11) 9****-1234"). */
+export function restrictionScope(
+  r: { creditorId: string | null; channel: ContactChannel | null; contactMasked: string | null },
+  creditorName: (id: string) => string,
+): string {
+  const parts = [
+    r.creditorId ? creditorName(r.creditorId) : 'Todos os credores',
+    r.channel ? CHANNEL_LABELS[r.channel] : 'Todos os canais',
+  ];
+  if (r.contactMasked) {
+    parts.push(r.contactMasked);
+  }
+  return parts.join(' · ');
+}
+
+/** Prazo da solicitação do titular: dias restantes (negativo = em atraso), no fuso do navegador. */
+export function daysUntil(dueAt: string, now: Date = new Date()): number {
+  const due = new Date(dueAt);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((startOfDay(due) - startOfDay(now)) / 86_400_000);
+}
+
+export const ATTEMPT_ORIGIN_ICONS: Record<string, string> = {
+  OPERATOR: 'support_agent',
+  CAMPAIGN: 'campaign',
+  SYSTEM: 'settings',
+};
+
+/** Tipos que exigem o arquivo de dados antes da conclusão (`RequestType.producesFile`). */
+export const FILE_REQUEST_TYPES: readonly RequestType[] = ['ACCESS', 'PORTABILITY'];
+
+/** Etapas do atendimento (`RequestStatus`), na ordem do fluxo. */
+export const REQUEST_STEPS: readonly { status: string; label: string }[] = [
+  { status: 'RECEIVED', label: 'Recebida' },
+  { status: 'IDENTITY_VERIFIED', label: 'Identidade confirmada' },
+  { status: 'IN_PROGRESS', label: 'Em atendimento' },
+  { status: 'COMPLETED', label: 'Concluída' },
+];
+
+/** Texto do prazo ("vence hoje", "faltam 3 dias", "em atraso há 2 dias"). */
+export function dueText(days: number, overdue: boolean): string {
+  if (overdue || days < 0) {
+    const late = Math.max(-days, 0);
+    return late === 0 ? 'Em atraso' : late === 1 ? 'Em atraso há 1 dia' : `Em atraso há ${late} dias`;
+  }
+  if (days === 0) {
+    return 'Vence hoje';
+  }
+  return days === 1 ? 'Falta 1 dia' : `Faltam ${days} dias`;
+}

@@ -17,6 +17,7 @@ import { CellDef } from '../../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../../shared/components/entity-picker/entity-picker';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
+import { DocumentDisplay } from '../../../../shared/components/document-display/document-display';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { pagedQuery } from '../../../../shared/data/paged-query';
 import { HasPermission } from '../../../../shared/directives/has-permission';
@@ -65,6 +66,7 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
     EntityPicker,
     PageHeader,
     StatusChip,
+    DocumentDisplay,
     HasPermission,
     AppDatePipe,
   ],
@@ -72,11 +74,11 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
     <app-page-header title="Devedores" subtitle="Pessoas e empresas com títulos em cobrança nas carteiras do seu escopo.">
       <button mat-flat-button type="button" *appHasPermission="permission.DEBTOR_MANAGE" (click)="create()">
         <mat-icon aria-hidden="true">person_add</mat-icon>
-        Novo devedor
+        Cadastrar devedor
       </button>
     </app-page-header>
 
-    <form class="app-filters" [formGroup]="filters" role="search" aria-label="Buscar devedores" (ngSubmit)="query.reload()">
+    <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Buscar devedores" (ngSubmit)="query.reload()">
       <mat-form-field class="app-filters__wide app-compact">
         <mat-label>Nome, CPF ou CNPJ</mat-label>
         <input matInput formControlName="q" type="search" autocomplete="off" />
@@ -105,12 +107,14 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
       [emptyMessage]="emptyMessage()"
+      emptyIcon="person_search"
+      [emptyHint]="emptyHint()"
     >
       <ng-template appCell="name" [appCellOf]="query.rows()" let-d>
         <a [routerLink]="['/devedores', d.id]">{{ d.name }}</a>
       </ng-template>
       <ng-template appCell="maskedDocument" [appCellOf]="query.rows()" let-d>
-        <span class="app-mono">{{ d.maskedDocument ?? '—' }}</span>
+        <app-document [value]="d.maskedDocument" />
       </ng-template>
       <ng-template appCell="personType" [appCellOf]="query.rows()" let-d>{{ personTypes[d.personType] }}</ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-d><app-status-chip domain="debtor" [status]="d.status" /></ng-template>
@@ -161,6 +165,10 @@ export class DebtorList {
       : this.searchMode() === 'document'
         ? 'Nenhum devedor com este documento no seu escopo.'
         : 'Nenhum devedor encontrado no seu escopo.',
+  );
+
+  protected readonly emptyHint = computed(() =>
+    this.searchMode() === 'name' ? 'Confira a grafia ou busque pelo CPF/CNPJ completo.' : undefined,
   );
 
   protected readonly columns: TableColumn[] = [

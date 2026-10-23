@@ -50,6 +50,13 @@ export const LEDGER_ENTRY_LABELS: Record<LedgerEntryType, string> = {
   REVERSAL: 'Estorno',
 };
 
+/** Origem do lançamento (`referenceType` livre; valores conhecidos dos módulos que lançam no razão). */
+export const REFERENCE_TYPE_LABELS: Record<string, string> = {
+  import_batch: 'Carga do credor',
+  agreement: 'Acordo',
+  payment: 'Pagamento',
+};
+
 export const OWNERSHIP_RELEASE_LABELS: Record<string, string> = {
   TRANSFER: 'Transferido de carteira',
   RETURN: 'Devolvido ao credor',
@@ -92,4 +99,17 @@ export function overdueTone(days: number): 'neutral' | 'info' | 'warning' | 'dan
     return 'warning';
   }
   return 'danger';
+}
+
+/** Atraso em texto curto ("Em dia", "1 dia", "37 dias"). */
+export function overdueText(days: number): string {
+  if (days <= 0) {
+    return 'Em dia';
+  }
+  return days === 1 ? '1 dia' : `${days} dias`;
+}
+
+/** Identificação do título para o operador: código do credor e parcela. */
+export function titleLabel(t: { externalId: string; installmentNumber: number | null }): string {
+  return t.installmentNumber ? `${t.externalId} · parcela ${t.installmentNumber}` : t.externalId;
 }

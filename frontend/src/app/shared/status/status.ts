@@ -21,7 +21,8 @@ export type StatusDomain =
   | 'restriction'
   | 'dataSubjectRequest'
   | 'retentionRun'
-  | 'retentionItem';
+  | 'retentionItem'
+  | 'legalBasis';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -94,6 +95,12 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     ANONYMIZED: { label: 'Anonimizado', tone: 'success' },
     RETAINED: { label: 'Mantido (base legal)', tone: 'warning' },
     FAILED: { label: 'Falhou', tone: 'danger' },
+  },
+  /** Vigência calculada na tela a partir de `validFrom`/`validUntil` (`legalBasisPeriod`). */
+  legalBasis: {
+    CURRENT: { label: 'Vigente', tone: 'success' },
+    FUTURE: { label: 'Futura', tone: 'info' },
+    ENDED: { label: 'Encerrada', tone: 'neutral' },
   },
 };
 

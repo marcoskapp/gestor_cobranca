@@ -21,6 +21,44 @@ export const NAVIGATION: readonly NavSection[] = [
     items: [{ label: 'Início', icon: 'home', route: '/', permissions: [], exact: true }],
   },
   {
+    label: 'Cobrança',
+    items: [
+      { label: 'Devedores', icon: 'person_search', route: '/devedores', permissions: [Permission.DEBTOR_VIEW] },
+      { label: 'Títulos', icon: 'request_quote', route: '/titulos', permissions: [Permission.DEBTOR_VIEW, Permission.CASE_VIEW] },
+    ],
+  },
+  {
+    label: 'Compliance',
+    items: [
+      {
+        label: 'Restrições de contato',
+        icon: 'phone_disabled',
+        route: '/compliance/restricoes',
+        permissions: [Permission.CONTACT_RESTRICTION_MANAGE],
+      },
+      {
+        label: 'Política de contato',
+        icon: 'schedule',
+        route: '/compliance/politica-de-contato',
+        permissions: [Permission.CONTACT_RESTRICTION_MANAGE],
+      },
+      { label: 'Feriados', icon: 'event', route: '/compliance/feriados', permissions: [Permission.CONTACT_RESTRICTION_MANAGE] },
+      {
+        label: 'Solicitações de titulares',
+        icon: 'privacy_tip',
+        route: '/compliance/solicitacoes-titulares',
+        permissions: [Permission.DATA_SUBJECT_REQUEST_MANAGE],
+      },
+      {
+        label: 'Bases legais',
+        icon: 'gavel',
+        route: '/compliance/bases-legais',
+        permissions: [Permission.DATA_SUBJECT_REQUEST_MANAGE],
+      },
+      { label: 'Retenção de dados', icon: 'auto_delete', route: '/compliance/retencao', permissions: [Permission.RETENTION_MANAGE] },
+    ],
+  },
+  {
     label: 'Organização',
     items: [
       { label: 'Credores', icon: 'apartment', route: '/organizacao/credores', permissions: [Permission.CREDITOR_VIEW] },
