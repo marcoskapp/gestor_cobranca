@@ -1,0 +1,222 @@
+@if (resource.isLoading() && !agreement()) {
+  <app-skeleton variant="card" [rows]="6" />
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o acordo." message="Verifique a conexão e tente novamente.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+  </app-empty-state>
+} @else if (agreement(); as a) {
+  @let act = actions()!;
+  @let s = summary()!;
+  <app-page-header [title]="'Acordo · ' + (debtorName() ?? creditors.name(a.creditorId))" [subtitle]="'Formalizado em ' + (a.formalizedAt | appDate) + ' · ' + origins[a.origin]">
+    @if (a.termAvailable) {
+      <button mat-button type="button" (click)="downloadTerm()" data-tour="agreement-term">
+        <mat-icon aria-hidden="true">picture_as_pdf</mat-icon>
+        Baixar termo
+      </button>
+    }
+    @if (act.cancel) {
+      <button mat-stroked-button type="button" class="ad-danger" (click)="cancel()" [disabled]="busy()">Cancelar acordo</button>
+    }
+    @if (act.renegotiate) {
+      <button mat-flat-button type="button" (click)="renegotiate()" data-tour="agreement-renegotiate">
+        <mat-icon aria-hidden="true">autorenew</mat-icon>
+        Renegociar
+      </button>
+    }
+  </app-page-header>
+
+  <div class="pd-status" data-tour="agreement-status">
+    <app-status-chip domain="agreement" [status]="a.status" />
+    <span class="app-numeric">{{ s.paid }} de {{ s.total }} parcelas pagas ({{ s.paidShare }}%)</span>
+    @if (a.renegotiationNumber > 0) {
+      <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">autorenew</mat-icon>Renegociação {{ a.renegotiationNumber }}</span>
+    }
+  </div>
+
+  @if (a.status === 'BROKEN') {
+    <p class="app-alert app-alert--error" role="note">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <span>Acordo quebrado{{ a.statusReason ? ': ' + a.statusReason : '' }}. Os títulos voltaram à cobrança; renegocie para oferecer novas condições.</span>
+    </p>
+  } @else if (a.status === 'CANCELLED' && a.statusReason) {
+    <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">block</mat-icon><span>Cancelado: {{ a.statusReason }}</span></p>
+  } @else if (s.overdue) {
+    <p class="app-alert app-alert--warning" role="note">
+      <mat-icon aria-hidden="true">warning_amber</mat-icon>
+      <span>{{ s.overdue }} parcela(s) vencida(s). O acordo quebra com {{ a.breakRule.overdueInstallments }} parcela(s) vencida(s) há mais de {{ a.breakRule.toleranceDays }} dia(s).</span>
+    </p>
+  }
+  @if (a.replacedByAgreementId) {
+    <p class="app-alert app-alert--neutral" role="note">
+      <mat-icon aria-hidden="true">autorenew</mat-icon>
+      <span>Substituído por renegociação. <a [routerLink]="['/negociacao/acordos', a.replacedByAgreementId]">Abrir o acordo atual</a></span>
+    </p>
+  }
+
+  <div class="pd-grid">
+    <div class="pd-main">
+      <section class="app-card" aria-labelledby="ad-values">
+        <h2 class="app-card__title" id="ad-values">Valores</h2>
+        <div class="pd-kpis">
+          <div class="pd-kpi"><span class="pd-kpi__label">Total do acordo</span><span class="pd-kpi__value"><app-amount [value]="a.totalAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Pago</span><span class="pd-kpi__value"><app-amount [value]="a.paidAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Saldo</span><span class="pd-kpi__value"><app-amount [value]="a.remainingAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Desconto</span><span class="pd-kpi__value"><app-amount [value]="a.discountAmount" /></span></div>
+        </div>
+        <dl class="app-definition-list">
+          <dt>Dívida atualizada</dt>
+          <dd><app-amount [value]="a.updatedAmount" /></dd>
+          <dt>Valor negociado</dt>
+          <dd><app-amount [value]="a.negotiatedAmount" /></dd>
+          @if (a.downPayment) {
+            <dt>Entrada</dt>
+            <dd><app-amount [value]="a.downPayment" /></dd>
+          }
+          <dt>Juros do parcelamento</dt>
+          <dd><app-amount [value]="a.financingInterest" /></dd>
+          @if (a.incrementalAmount !== null && a.renegotiationNumber > 0) {
+            <dt>Ganho da renegociação</dt>
+            <dd><app-amount [value]="a.incrementalAmount" /></dd>
+          }
+        </dl>
+      </section>
+
+      <section class="app-card" aria-labelledby="ad-schedule" data-tour="agreement-schedule">
+        <h2 class="app-card__title" id="ad-schedule">Cronograma de parcelas</h2>
+        <div class="pd-scroll">
+          <table class="pd-table" aria-label="Parcelas do acordo">
+            <thead>
+              <tr>
+                <th scope="col">Parcela</th>
+                <th scope="col">Vencimento</th>
+                <th scope="col" class="pd-end">Valor</th>
+                <th scope="col" class="pd-end">Pago</th>
+                <th scope="col" class="pd-end">Saldo</th>
+                <th scope="col">Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (i of a.installments; track i.id) {
+                <tr [class.ad-next]="s.next?.id === i.id">
+                  <td>{{ i.number === 1 && a.downPayment ? 'Entrada' : i.number + 'ª' }}</td>
+                  <td>{{ i.dueDate | appDate: 'date' }}</td>
+                  <td class="pd-end"><app-amount [value]="i.amount" /></td>
+                  <td class="pd-end"><app-amount [value]="i.paidAmount" /></td>
+                  <td class="pd-end"><app-amount [value]="balance(i)" /></td>
+                  <td>
+                    <app-status-chip domain="installment" [status]="i.status" />
+                    @if (i.paidAt) {
+                      <span class="app-muted"> {{ i.paidAt | appDate: 'date' }}</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="app-card" aria-labelledby="ad-payments">
+        <h2 class="app-card__title" id="ad-payments">Pagamentos aplicados</h2>
+        @if (payments().length) {
+          <div class="pd-scroll">
+            <table class="pd-table" aria-label="Pagamentos aplicados ao acordo">
+              <thead>
+                <tr>
+                  <th scope="col">Pago em</th>
+                  <th scope="col" class="pd-end">Valor</th>
+                  <th scope="col" class="pd-end">Aplicado</th>
+                  <th scope="col">Situação</th>
+                  <th scope="col">Razão do título</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of payments(); track p.paymentId) {
+                  <tr>
+                    <td>{{ p.paidAt | appDate }}</td>
+                    <td class="pd-end"><app-amount [value]="p.amount" /></td>
+                    <td class="pd-end"><app-amount [value]="p.appliedAmount" /></td>
+                    <td>{{ paymentStatus[p.status] ?? p.status }}{{ p.reversedAt ? ' em ' + (p.reversedAt | appDate: 'date') : '' }}</td>
+                    <td>{{ ledgerStatus[p.ledgerStatus] ?? p.ledgerStatus }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="app-muted">Nenhum pagamento recebido ainda.</p>
+        }
+      </section>
+    </div>
+
+    <aside class="pd-side">
+      @if (debtorView(); as d) {
+        <section class="app-card" aria-labelledby="ad-debtor">
+          <h2 class="app-card__title" id="ad-debtor">Devedor</h2>
+          <p class="pd-debtor">{{ d.name }}</p>
+          <app-document [value]="d.maskedDocument" />
+          <p class="app-muted">{{ creditors.name(a.creditorId) }}</p>
+          @if (a.caseId) {
+            <a mat-button [routerLink]="['/cobranca/casos', a.caseId]">
+              <mat-icon aria-hidden="true">open_in_new</mat-icon>
+              Abrir caso
+            </a>
+          }
+        </section>
+      }
+
+      <section class="app-card" aria-labelledby="ad-terms">
+        <h2 class="app-card__title" id="ad-terms">Regras do acordo</h2>
+        <dl class="app-definition-list">
+          <dt>Quebra</dt>
+          <dd>{{ a.breakRule.overdueInstallments }} parcela(s) vencida(s) há mais de {{ a.breakRule.toleranceDays }} dia(s)</dd>
+          <dt>Política</dt>
+          <dd>v{{ a.policyVersion }} · nível {{ a.concessionLevel }}</dd>
+          <dt>Títulos</dt>
+          <dd>{{ a.titleIds.length }}</dd>
+          <dt>Canal</dt>
+          <dd>{{ channelText(a.channel) }}</dd>
+          @if (canViewProposal()) {
+            <dt>Proposta</dt>
+            <dd><a [routerLink]="['/negociacao/propostas', a.proposalId]">Abrir proposta</a></dd>
+          }
+          @if (a.replacedAgreementId) {
+            <dt>Substituiu</dt>
+            <dd><a [routerLink]="['/negociacao/acordos', a.replacedAgreementId]">Acordo anterior</a></dd>
+          }
+        </dl>
+      </section>
+
+      @if (a.acceptance; as ac) {
+        <section class="app-card" aria-labelledby="ad-evidence">
+          <h2 class="app-card__title" id="ad-evidence">Evidência do aceite</h2>
+          <dl class="app-definition-list">
+            <dt>Canal</dt>
+            <dd>{{ channelText(ac.channel) }}</dd>
+            <dt>Data e hora</dt>
+            <dd>{{ ac.acceptedAt | appDate }}</dd>
+            <dt>Referência</dt>
+            <dd>{{ ac.reference ?? '—' }}</dd>
+            <dt>Termo (SHA-256)</dt>
+            <dd class="app-mono" [attr.title]="ac.termSha256">{{ shortHash(ac.termSha256) }}</dd>
+          </dl>
+        </section>
+      }
+
+      <section class="app-card" aria-labelledby="ad-people">
+        <h2 class="app-card__title" id="ad-people">Participantes</h2>
+        <ul class="pd-timeline">
+          @for (p of a.participants; track $index) {
+            <li>
+              <mat-icon aria-hidden="true">{{ p.actorType === 'ASSISTANT' ? 'smart_toy' : 'person' }}</mat-icon>
+              <div>
+                <strong>{{ participantName(p.actorType, p.actorId) }}</strong>
+                <div class="app-muted">{{ roles[p.role] ?? p.role }}</div>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+    </aside>
+  </div>
+}
