@@ -18,7 +18,7 @@
   }
 }
 
-<form class="app-filters" [formGroup]="filters" (ngSubmit)="apply()" role="search" aria-label="Filtrar trilha de auditoria">
+<form class="app-filters" data-tour="filters" [formGroup]="filters" (ngSubmit)="apply()" role="search" aria-label="Filtrar trilha de auditoria">
   <mat-form-field class="app-compact">
     <mat-label>De</mat-label>
     <input matInput [matDatepicker]="from" formControlName="from" placeholder="dd/mm/aaaa" />

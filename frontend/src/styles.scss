@@ -1,18 +1,24 @@
 @use '@angular/material' as mat;
 @use 'theme-colors' as palette;
+@use 'tokens';
 
 // =============================================================================
-// Tema "Gestor de Cobrança": corporativo, modo claro, densidade alta para operadores.
-// Cores geradas por `ng g @angular/material:theme-color` (primária azul institucional).
+// Identidade visual "Gestor de Cobrança" (docs/design/ux.md)
+//
+// - Material 3 com `theme-type: color-scheme`: claro, escuro ou do sistema operacional,
+//   conforme `color-scheme` do <html> (atributo `data-theme`, aplicado por ThemeService).
+// - Densidade ajustável (`data-density`): confortável (padrão) e compacta (estação de trabalho
+//   com alto volume). Em telas de toque a densidade compacta é ignorada (alvos ≥ 24px, WCAG 2.5.8).
+// - Primária azul institucional (#1D4E89), neutros frios para conforto em uso prolongado.
 // =============================================================================
 
 html {
-  color-scheme: light;
+  color-scheme: light dark;
 
   @include mat.theme(
     (
       color: (
-        theme-type: light,
+        theme-type: color-scheme,
         primary: palette.$primary-palette,
         tertiary: palette.$tertiary-palette,
       ),
@@ -20,15 +26,15 @@ html {
         plain-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
         brand-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
       ),
-      density: -2,
+      density: -1,
     )
   );
 
-  // tabelas e listas mais compactas que os formulários
-  @include mat.table-density(-3);
-  @include mat.list-density(-2);
-  @include mat.paginator-density(-4);
-  @include mat.icon-button-density(-2);
+  // tabelas e listas um pouco mais densas que os formulários
+  @include mat.table-density(-2);
+  @include mat.list-density(-1);
+  @include mat.paginator-density(-3);
+  @include mat.icon-button-density(-1);
 
   @include mat.table-overrides(
     (
@@ -36,33 +42,45 @@ html {
       header-headline-color: var(--mat-sys-on-surface-variant),
       row-item-label-text-size: 13px,
       header-headline-size: 12px,
+      background-color: var(--app-surface),
     )
   );
 
   @include mat.snack-bar-overrides(
     (
-      container-color: #1f2933,
-      supporting-text-color: #ffffff,
-      button-color: #a7c8ff,
+      container-color: var(--app-snack-bg),
+      supporting-text-color: var(--app-snack-fg),
+      button-color: var(--app-snack-action),
     )
   );
 
-  // Tokens próprios da aplicação (contraste verificado para WCAG AA sobre o fundo indicado)
-  --app-topbar-bg: #0f2f57;
-  --app-topbar-fg: #ffffff;
-  --app-auth-bg: #eef2f7;
-  --app-page-bg: #f6f8fb;
+  @include mat.tooltip-overrides(
+    (
+      supporting-text-size: 12px,
+    )
+  );
 
-  --app-success-bg: #e3f4e8;
-  --app-success-fg: #135c2b; // 7.3:1
-  --app-warning-bg: #fff4d6;
-  --app-warning-fg: #6b4700; // 7.1:1
-  --app-danger-bg: #fde7e7;
-  --app-danger-fg: #8c1d18; // 7.6:1
-  --app-info-bg: #e3edfb;
-  --app-info-fg: #123f73; // 9.1:1
-  --app-neutral-bg: #eceff3;
-  --app-neutral-fg: #3c4652; // 9.0:1
+  @include tokens.tokens;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+// densidade compacta somente com ponteiro fino (mouse/trackpad)
+@media (pointer: fine) {
+  html[data-density='compact'] {
+    @include mat.theme((density: -3));
+    @include mat.table-density(-4);
+    @include mat.list-density(-3);
+    @include mat.paginator-density(-4);
+    @include mat.icon-button-density(-2);
+    @include tokens.compact-tokens;
+  }
 }
 
 html,
@@ -76,17 +94,20 @@ body {
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
   -webkit-font-smoothing: antialiased;
+  // cifras alinhadas em colunas (valores, datas, documentos)
+  font-variant-numeric: tabular-nums;
 }
 
 a {
   color: var(--mat-sys-primary);
+  text-underline-offset: 2px;
 }
 
 // --------------------------------------------------------------------- acessibilidade
 
 :focus-visible {
-  outline: 2px solid var(--mat-sys-primary);
-  outline-offset: 2px;
+  outline: var(--app-focus-ring);
+  outline-offset: var(--app-focus-offset);
 }
 
 .app-skip-link {
@@ -110,8 +131,25 @@ a {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+// atalhos de teclado exibidos na interface
+kbd,
+.app-kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 1px 6px;
+  border: 1px solid var(--app-border);
+  border-bottom-width: 2px;
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-raised);
+  color: var(--mat-sys-on-surface-variant);
+  font: 500 11px/18px var(--app-font-sans);
+  text-align: center;
 }
 
 // --------------------------------------------------------------------- layout de página
@@ -128,8 +166,10 @@ a {
 .app-page-header__title {
   margin: 0;
   font: var(--mat-sys-headline-small);
-  font-size: 22px;
+  font-size: var(--app-text-xl);
   font-weight: 600;
+  line-height: var(--app-line-tight);
+  letter-spacing: -0.01em;
 }
 
 .app-page-header__subtitle {
@@ -144,13 +184,13 @@ a {
 }
 
 .app-card {
-  padding: 16px 20px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 8px;
-  background: var(--mat-sys-surface);
+  padding: var(--app-card-padding);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
 
   & + & {
-    margin-top: 16px;
+    margin-top: var(--app-gap);
   }
 }
 
@@ -179,6 +219,23 @@ a {
     display: flex;
     gap: 8px;
     padding-top: 4px;
+  }
+}
+
+@media (max-width: 599.98px) {
+  .app-filters {
+    mat-form-field,
+    .app-filters__wide {
+      width: 100%;
+    }
+  }
+
+  .app-page-header__actions {
+    width: 100%;
+
+    > * {
+      flex: 1 1 auto;
+    }
   }
 }
 
@@ -230,7 +287,7 @@ a {
 }
 
 .app-mono {
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-family: var(--app-font-mono);
   font-size: 12px;
 }
 
@@ -247,13 +304,23 @@ a {
 // --------------------------------------------------------------------- estados e alertas
 
 .app-status {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--app-radius-pill);
   font-size: 12px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 20px;
   white-space: nowrap;
+
+  .mat-icon,
+  .app-status__icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 14px;
+  }
 }
 
 @each $tone in (success, warning, danger, info, neutral) {
@@ -265,10 +332,21 @@ a {
 }
 
 .app-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin: 0 0 16px;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--app-radius-md);
   font-size: 13px;
+  line-height: 20px;
+
+  > .mat-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+  }
 }
 
 .app-alert--error {
@@ -326,15 +404,130 @@ a {
 }
 
 .mat-mdc-snack-bar-container.app-snack-error {
-  --mat-snack-bar-container-color: #8c1d18;
-  --mat-snack-bar-button-color: #ffdad6;
+  --mat-snack-bar-container-color: var(--app-snack-error-bg);
+  --mat-snack-bar-supporting-text-color: var(--app-snack-error-fg);
+  --mat-snack-bar-button-color: var(--app-snack-error-fg);
 }
 
 .mat-mdc-snack-bar-container.app-snack-success {
-  --mat-snack-bar-container-color: #135c2b;
-  --mat-snack-bar-button-color: #c2f0cf;
+  --mat-snack-bar-container-color: var(--app-snack-success-bg);
+  --mat-snack-bar-supporting-text-color: var(--app-snack-success-fg);
+  --mat-snack-bar-button-color: var(--app-snack-success-fg);
 }
 
 mat-form-field.app-compact {
   @include mat.form-field-density(-4);
+}
+
+// --------------------------------------------------------------------- utilitários de leitura
+
+.app-numeric {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app-amount--negative {
+  color: var(--app-amount-negative);
+}
+
+.app-amount--positive {
+  color: var(--app-amount-positive);
+}
+
+.app-section-title {
+  margin: 8px 0 12px;
+  font-size: var(--app-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// --------------------------------------------------------------------- cabeçalho: avatar e menus (overlay)
+
+.app-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 20%);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+.app-user-menu__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px 12px;
+  font-size: 13px;
+
+  span {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.app-user-menu__label {
+  margin: 8px 16px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-menu-check {
+  margin-left: 16px;
+  font-size: 18px;
+  vertical-align: middle;
+  color: var(--mat-sys-primary);
+}
+
+.app-menu-badge {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-menu-kbd {
+  margin-left: 12px;
+}
+
+// --------------------------------------------------------------------- onboarding (overlays)
+
+.app-tour-pane {
+  max-width: calc(100vw - 32px);
+}
+
+.cdk-overlay-pane.app-tour-highlight {
+  border-radius: var(--app-radius-md);
+  box-shadow:
+    0 0 0 3px var(--mat-sys-primary),
+    0 0 0 9999px rgb(0 0 0 / 28%);
+  // apenas visual: cliques atravessam o destaque (o tour nunca bloqueia a tela)
+  pointer-events: none;
+  transition:
+    margin var(--app-motion-standard) var(--app-easing),
+    width var(--app-motion-standard) var(--app-easing),
+    height var(--app-motion-standard) var(--app-easing);
+}
+
+@media (forced-colors: active) {
+  .cdk-overlay-pane.app-tour-highlight {
+    outline: 3px solid Highlight;
+  }
+}
+
+.app-palette-pane {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.app-palette-backdrop {
+  background: rgb(0 0 0 / 32%);
 }

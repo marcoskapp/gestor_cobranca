@@ -13,6 +13,12 @@ interface AuthSessionJpaRepository extends JpaRepository<AuthSession, UUID> {
 
     List<AuthSession> findByUserIdAndStatus(UUID userId, AuthSession.Status status);
 
+    @Query("""
+            select s from AuthSession s
+            where s.userId in :userIds and s.startedAt < :to and s.lastSeenAt > :from
+            """)
+    List<AuthSession> findOverlapping(java.util.Collection<UUID> userIds, Instant from, Instant to);
+
     @Modifying
     @Query("""
             update AuthSession s set s.lastSeenAt = :now

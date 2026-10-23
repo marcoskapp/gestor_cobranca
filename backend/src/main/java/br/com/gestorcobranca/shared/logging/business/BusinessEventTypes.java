@@ -64,6 +64,20 @@ public final class BusinessEventTypes {
     public static final String COMMISSION_ACCRUED = "commission.accrued";
     public static final String SETTLEMENT_CLOSED = "settlement.closed";
 
+    // Remuneração variável dos negociadores (incentive)
+    public static final String ATTRIBUTION_RECORDED = "attribution.recorded";
+    public static final String COMMISSION_FORECAST = "commission.forecast";
+    public static final String COMMISSION_ENTRY_POSTED = "commission.entry_posted";
+    public static final String COMMISSION_ENTRY_CLEARED = "commission.entry_cleared";
+    public static final String COMMISSION_ENTRY_REVERSED = "commission.entry_reversed";
+    public static final String COMMISSION_PERIOD_CLOSED = "commission.period_closed";
+    public static final String COMMISSION_STATEMENT_DISPUTED = "commission.statement_disputed";
+    public static final String COMMISSION_STATEMENT_ADJUSTED = "commission.statement_adjusted";
+    public static final String COMMISSION_STATEMENT_APPROVED = "commission.statement_approved";
+    public static final String COMMISSION_STATEMENT_EXPORTED = "commission.statement_exported";
+    public static final String COMMISSION_PLAN_PUBLISHED = "commission.plan_published";
+    public static final String QUALITY_EVALUATED = "quality.evaluated";
+
     // Comunicação e campanhas
     public static final String MESSAGE_SENT = "message.sent";
     public static final String MESSAGE_DELIVERED = "message.delivered";
@@ -80,8 +94,11 @@ public final class BusinessEventTypes {
     // Compliance
     public static final String CONTACT_OPT_OUT = "contact.opt_out";
     public static final String CONTACT_RESTRICTED = "contact.restricted";
+    public static final String CONTACT_RESTRICTION_REVOKED = "contact.restriction_revoked";
+    public static final String CONTACT_DENIED = "contact.denied";
     public static final String DATA_SUBJECT_REQUEST_OPENED = "data_subject_request.opened";
     public static final String DATA_SUBJECT_REQUEST_COMPLETED = "data_subject_request.completed";
+    public static final String RETENTION_RUN_COMPLETED = "retention.run_completed";
 
     // Telefonia, portal, score, IA
     public static final String CALL_COMPLETED = "call.completed";
