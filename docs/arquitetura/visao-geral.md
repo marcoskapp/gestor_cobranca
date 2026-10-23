@@ -39,7 +39,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `settlement` | Comissão da assessoria e demonstrativo/prestação de contas por credor | F17, F22 |
 | `communication` | Canais (WhatsApp, e-mail, SMS), templates, conversas com dono do atendimento (assistente, fila ou operador), transferências, mensagens, caixa de entrada — ver `docs/tecnico/desenho/comunicacao.md` | F12 |
 | `campaign` | Segmentos, campanhas, réguas, execução, controle de concorrência, testes A/B | F13, F25 |
-| `telephony` | Integração CTI/discador: chamadas, gravações, resultado vinculado ao caso | F20 |
+| `telephony` | Integração CTI/discador: chamadas, clique para ligar, campanhas de discagem (progressiva/preditiva), presença do operador, gravações, resultado vinculado ao caso — ver `docs/tecnico/desenho/telefonia.md` | F20 |
 | `portal` | Autonegociação do devedor (acesso seguro, consulta, proposta, formalização) | F19 |
 | `scoring` | Score de propensão à recuperação e priorização | F23 |
 | `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/tecnico/desenho/assistente.md` | F24 |
@@ -69,7 +69,7 @@ shared ◄── organization ◄── identity
               ├── portal             (→ negotiation, payment, communication, debt, organization)
               ├── scoring            (→ collection, debt, payment, organization)
               ├── assistant          (→ negotiation, communication, collection, compliance, debt, organization)
-              ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation por evento)
+              ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               └── analytics          (→ organization; lê o banco por views próprias)
 ```

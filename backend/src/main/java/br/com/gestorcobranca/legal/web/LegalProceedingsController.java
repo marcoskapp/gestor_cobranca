@@ -149,6 +149,12 @@ class LegalProceedingsController {
 
     // ---------------------------------------------------------------- audiências
 
+    @GetMapping("/matters/{id}/hearings")
+    @PreAuthorize("hasAuthority('LEGAL_VIEW')")
+    List<HearingView> matterHearings(@PathVariable UUID id) {
+        return hearings.listByMatter(id);
+    }
+
     @GetMapping("/lawsuits/{lawsuitId}/hearings")
     @PreAuthorize("hasAuthority('LEGAL_VIEW')")
     List<HearingView> hearings(@PathVariable UUID lawsuitId) {

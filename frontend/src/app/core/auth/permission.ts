@@ -79,7 +79,9 @@ export const Permission = {
   RETENTION_MANAGE: 'RETENTION_MANAGE',
 
   TELEPHONY_USE: 'TELEPHONY_USE',
+  TELEPHONY_SUPERVISE: 'TELEPHONY_SUPERVISE',
   TELEPHONY_MANAGE: 'TELEPHONY_MANAGE',
+  CALL_RECORDING_LISTEN: 'CALL_RECORDING_LISTEN',
 
   PORTAL_MANAGE: 'PORTAL_MANAGE',
 
@@ -124,7 +126,7 @@ export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly str
     label: 'Compliance',
     prefixes: ['CONTACT_RESTRICTION_', 'DATA_SUBJECT_', 'RETENTION_'],
   },
-  { label: 'Telefonia', prefixes: ['TELEPHONY_'] },
+  { label: 'Telefonia', prefixes: ['TELEPHONY_', 'CALL_RECORDING_'] },
   { label: 'Portal de autonegociação', prefixes: ['PORTAL_'] },
   { label: 'Score', prefixes: ['SCORING_'] },
   { label: 'Assistente de IA', prefixes: ['ASSISTANT_'] },

@@ -258,6 +258,17 @@ app:
     sandbox:
       enabled: false
       delivery-delay: PT0S
+    # varredura de estouros do SLA de primeira resposta (metas por canal: /api/v1/communication/response-targets)
+    sla-scan-interval: PT1M
+    # tempo real da caixa de entrada: SSE por instância + LISTEN/NOTIFY do PostgreSQL entre instâncias
+    realtime:
+      enabled: true
+      heartbeat: PT20S
+      max-stream-duration: PT5M
+      max-streams-per-user: 5
+      max-streams: 2000
+      reconnect-delay: PT5S
+      revalidation: PT1M
 
   payment:
     # padrões da assessoria enquanto ela não grava os seus (PUT /api/v1/payment/settings)
@@ -290,6 +301,36 @@ app:
     # PSP simulado: somente local/teste (recusado no perfil prod)
     sandbox:
       enabled: false
+
+  telephony:
+    # tentativas do job de discagem (falhas transitórias do provedor) antes de FAILED
+    dial-max-attempts: 3
+    # prazo do pós-atendimento: sem tabulação do operador, a chamada é tabulada automaticamente
+    tabulation-deadline: PT15M
+    # operador sem sinal do cliente (heartbeat) além deste prazo sai automaticamente
+    presence-timeout: PT90S
+    # chamada em andamento sem evento do provedor além deste prazo é encerrada (conciliação)
+    stale-call-after: PT4H
+    # descarte diário de gravações (política CALL_RECORDINGS do compliance)
+    retention-cron: "0 50 2 * * *"
+    retention-batch: 200
+    recording-max-bytes: 209715200
+    dialer:
+      tick-interval: PT3S
+      max-per-tick: 50
+      load-page-size: 200
+      max-entries: 50000
+    webhook:
+      max-body-bytes: 65536
+      requests-per-minute: 1200
+      # janela de replay: eventos mais antigos são descartados; recibos guardados por este prazo
+      max-event-age: P2D
+      # tolerância do instante assinado e de eventos no futuro
+      max-clock-skew: PT5M
+    # provedor simulado: somente local/teste (recusado no perfil prod); provedor real na issue #12
+    sandbox:
+      enabled: false
+      auto-progress: true
 
   collection:
     # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)

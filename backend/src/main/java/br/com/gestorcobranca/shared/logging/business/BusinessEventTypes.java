@@ -111,6 +111,7 @@ public final class BusinessEventTypes {
     public static final String MESSAGE_RECEIVED = "message.received";
     public static final String CONVERSATION_HANDOFF = "conversation.handoff";
     public static final String CONVERSATION_CLOSED = "conversation.closed";
+    public static final String CONVERSATION_SLA_BREACHED = "conversation.sla_breached";
     public static final String TEMPLATE_PUBLISHED = "template.published";
     public static final String CAMPAIGN_ACTIVATED = "campaign.activated";
     public static final String CAMPAIGN_PAUSED = "campaign.paused";
@@ -130,8 +131,19 @@ public final class BusinessEventTypes {
     public static final String DATA_SUBJECT_REQUEST_COMPLETED = "data_subject_request.completed";
     public static final String RETENTION_RUN_COMPLETED = "retention.run_completed";
 
-    // Telefonia, portal, score, IA
+    // Telefonia (telephony) — atributos em docs/tecnico/logs-e-metricas.md §3.7
+    public static final String CALL_DIALED = "call.dialed";
+    public static final String CALL_BLOCKED = "call.blocked";
     public static final String CALL_COMPLETED = "call.completed";
+    public static final String CALL_ABANDONED = "call.abandoned";
+    public static final String CALL_TABULATED = "call.tabulated";
+    public static final String CALL_RECORDING_STORED = "call.recording_stored";
+    public static final String DIALER_CAMPAIGN_ACTIVATED = "dialer.campaign_activated";
+    public static final String DIALER_CAMPAIGN_PAUSED = "dialer.campaign_paused";
+    public static final String DIALER_CAMPAIGN_FINISHED = "dialer.campaign_finished";
+    public static final String AGENT_PRESENCE_CHANGED = "agent.presence_changed";
+
+    // Portal, score, IA
     public static final String PORTAL_ACCESSED = "portal.accessed";
     public static final String PORTAL_AGREEMENT_FORMALIZED = "portal.agreement_formalized";
     public static final String SCORE_CALCULATED = "score.calculated";

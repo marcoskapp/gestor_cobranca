@@ -70,6 +70,10 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
 
     @Override
+    @Query("select distinct t.debtorId from DebtTitle t where t.debtorId in :debtorIds and t.creditorId in :creditorIds")
+    List<UUID> findDebtorIdsWithTitlesInCreditors(Collection<UUID> debtorIds, Collection<UUID> creditorIds);
+
+    @Override
     default List<UUID> findDebtorIdsByImportBatch(UUID creditorId, UUID importBatchId, UUID afterDebtorId, int limit) {
         return debtorIdsByImportBatch(creditorId, importBatchId, afterDebtorId == null ? new UUID(0L, 0L) : afterDebtorId,
                 Limit.of(limit));

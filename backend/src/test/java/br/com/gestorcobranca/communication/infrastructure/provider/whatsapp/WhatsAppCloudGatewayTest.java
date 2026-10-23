@@ -60,7 +60,7 @@ class WhatsAppCloudGatewayTest {
         registry = new SimpleMeterRegistry();
         CommunicationProperties properties = new CommunicationProperties(null, null, null, null,
                 new CommunicationProperties.WhatsApp("http://127.0.0.1:" + server.getAddress().getPort() + "/v21.0",
-                        Duration.ofSeconds(1), Duration.ofMillis(500)), null);
+                        Duration.ofSeconds(1), Duration.ofMillis(500)), null, null);
         gateway = new WhatsAppCloudGateway(properties, new JsonCodec(JsonMapper.builder().build()), registry);
     }
 

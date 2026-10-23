@@ -161,3 +161,18 @@
 .md-pre {
   white-space: pre-wrap;
 }
+
+.md-hearings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+}

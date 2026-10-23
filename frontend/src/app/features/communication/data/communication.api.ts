@@ -13,8 +13,10 @@ import {
   CreateTemplateRequest,
   DraftView,
   HandoffView,
+  InboxCounts,
   InboxFilter,
   MessageView,
+  ResponseTargetView,
   SendMessageRequest,
   TemplateContent,
   TemplateFilter,
@@ -33,6 +35,23 @@ export class ConversationsApi {
 
   inbox(filter: InboxFilter, page: PageRequest): Observable<PageResponse<ConversationView>> {
     return this.http.get<PageResponse<ConversationView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size }) });
+  }
+
+  /** Contagem por aba (e estouros de SLA) numa única chamada. */
+  counts(channel: string | null, awaitingReply: boolean | null): Observable<InboxCounts> {
+    return this.http.get<InboxCounts>(`${this.base}/counts`, { params: toHttpParams({ channel, awaitingReply }) });
+  }
+
+  /** Linha do tempo do devedor: mensagens de todas as conversas e canais, mais recentes primeiro. */
+  debtorMessages(debtorId: string, creditorId: string | null, page: PageRequest): Observable<PageResponse<MessageView>> {
+    return this.http.get<PageResponse<MessageView>>(`${BASE}/debtors/${debtorId}/messages`, {
+      params: toHttpParams({ creditorId, page: page.page, size: page.size }),
+    });
+  }
+
+  /** Metas de primeira resposta vigentes por canal. */
+  responseTargets(): Observable<ResponseTargetView[]> {
+    return this.http.get<ResponseTargetView[]>(`${BASE}/response-targets`);
   }
 
   get(id: string): Observable<ConversationDetail> {

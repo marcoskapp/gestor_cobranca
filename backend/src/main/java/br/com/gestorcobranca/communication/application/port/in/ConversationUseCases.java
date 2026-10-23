@@ -24,6 +24,16 @@ public interface ConversationUseCases {
 
     PageResponse<ConversationView> inbox(InboxFilter filter, PageQuery page);
 
+    /**
+     * Contagem das conversas abertas por aba (minhas, fila — inclui sem dono —, assistente e todas)
+     * no escopo do ator, numa única consulta; {@code breached} conta as que estouraram a meta de
+     * primeira resposta do canal.
+     *
+     * @param channel       canal (opcional)
+     * @param awaitingReply somente aguardando resposta
+     */
+    InboxCounts counts(String channel, Boolean awaitingReply);
+
     ConversationDetail get(UUID conversationId);
 
     ConversationView markRead(UUID conversationId);
@@ -92,6 +102,10 @@ public interface ConversationUseCases {
     /**
      * @param sessionWindowEndsAt fim da janela de 24 h do WhatsApp (nulo = fechada ou outro canal)
      * @param waitingSeconds      espera da primeira mensagem sem resposta (SLA), se houver
+     * @param slaStatus           OK, WARNING ou BREACHED pelas metas de primeira resposta da assessoria
+     *                            para o canal (nulo sem espera)
+     * @param slaWarningAt        instante do aviso da espera atual (nulo sem espera)
+     * @param slaBreachAt         instante do limite da espera atual (nulo sem espera)
      */
     record ConversationView(UUID id, UUID debtorId, UUID creditorId, UUID portfolioId, UUID caseId, String channel,
                             UUID channelAccountId, String contactMasked, String status, String ownerType,
@@ -99,7 +113,10 @@ public interface ConversationUseCases {
                             Instant lastInboundAt, Instant lastOutboundAt, Instant lastMessageAt, Instant awaitingSince,
                             Long waitingSeconds, int unreadCount, int messageCount, boolean sessionWindowOpen,
                             Instant sessionWindowEndsAt, Instant closedAt, String closeReason, Instant createdAt,
-                            long version) {
+                            long version, String slaStatus, Instant slaWarningAt, Instant slaBreachAt) {
+    }
+
+    record InboxCounts(long mine, long queue, long assistant, long all, long breached) {
     }
 
     record ConversationDetail(ConversationView conversation, List<HandoffView> handoffs, List<DraftView> pendingDrafts) {

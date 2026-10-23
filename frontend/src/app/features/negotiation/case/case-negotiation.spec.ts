@@ -37,8 +37,10 @@ describe('CaseNegotiation (aba da estação)', () => {
     fixture.detectChanges();
     await tick();
     const proposals = http.expectOne((r) => r.url === '/api/v1/negotiation/proposals');
-    expect(proposals.request.params.get('debtorId')).toBe('d-1');
-    proposals.flush(page([proposal({ id: 'p-1', status: 'PENDING_APPROVAL' }), proposal({ id: 'p-2', caseId: 'k-9' }), proposal({ id: 'p-3', status: 'EXPIRED' })]));
+    // filtro por caso no servidor (sem trazer as propostas do devedor em outros casos)
+    expect(proposals.request.params.get('caseId')).toBe('k-1');
+    expect(proposals.request.params.has('debtorId')).toBe(false);
+    proposals.flush(page([proposal({ id: 'p-1', status: 'PENDING_APPROVAL' }), proposal({ id: 'p-3', status: 'EXPIRED' })]));
     const agreements = http.expectOne((r) => r.url === '/api/v1/negotiation/agreements');
     expect(agreements.request.params.get('caseId')).toBe('k-1');
     agreements.flush(page([agreement({ installments: [...agreement().installments.slice(0, 2), { ...agreement().installments[2], status: 'OVERDUE' }] })]));

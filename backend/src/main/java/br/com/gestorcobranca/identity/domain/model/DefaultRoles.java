@@ -31,6 +31,12 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * comissão ({@code COMMISSION_MANAGE}), calcula, ajusta e envia demonstrativos ({@code SETTLEMENT_CLOSE}) e
  * registra repasses ({@code SETTLEMENT_TRANSFER}); o gestor aprova ({@code SETTLEMENT_APPROVE}). Quem calcula
  * ou pede ajuste não aprova, inclusive o administrador.
+ * <p>
+ * Telefonia (docs/tecnico/desenho/telefonia.md §7): o operador liga, entra no discador e tabula
+ * as próprias chamadas ({@code TELEPHONY_USE}); o supervisor acompanha operadores e chamadas,
+ * opera campanhas de discagem e ouve gravações ({@code TELEPHONY_SUPERVISE},
+ * {@code CALL_RECORDING_LISTEN}); o gestor configura contas, ramais e campanhas
+ * ({@code TELEPHONY_MANAGE}).
  */
 public final class DefaultRoles {
 
@@ -65,7 +71,7 @@ public final class DefaultRoles {
         supervisor.addAll(EnumSet.of(USER_VIEW, TEAM_MANAGE, CASE_ASSIGN, CASE_MANAGE, QUEUE_MANAGE, DISPUTE_MANAGE,
                 NEGOTIATION_APPROVE, AGREEMENT_CANCEL, INBOX_MANAGE, CONTACT_RESTRICTION_MANAGE,
                 CAMPAIGN_VIEW, DASHBOARD_VIEW, REPORT_VIEW, DEBTOR_MANAGE, IMPORT_VIEW, PERFORMANCE_VIEW_TEAM,
-                QUALITY_EVALUATE, LEGAL_VIEW));
+                QUALITY_EVALUATE, LEGAL_VIEW, TELEPHONY_SUPERVISE, CALL_RECORDING_LISTEN));
 
         Set<Permission> gestor = EnumSet.copyOf(supervisor);
         gestor.addAll(EnumSet.of(CREDITOR_MANAGE, CONTRACT_MANAGE, PORTFOLIO_MANAGE, POLICY_MANAGE, IMPORT_EXECUTE,
@@ -74,7 +80,7 @@ public final class DefaultRoles {
                 PORTAL_MANAGE, ACCESS_LOG_VIEW, DEBTOR_SENSITIVE_VIEW, PERFORMANCE_VIEW_ALL, COMMISSION_PLAN_MANAGE,
                 TABULATION_MANAGE,
                 COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE,
-                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, SETTLEMENT_APPROVE));
+                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, SETTLEMENT_APPROVE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,

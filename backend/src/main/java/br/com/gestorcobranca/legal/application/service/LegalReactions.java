@@ -3,6 +3,7 @@ package br.com.gestorcobranca.legal.application.service;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.legal.domain.model.AgreementRecord;
+import br.com.gestorcobranca.legal.domain.model.CadenceExhaustion;
 import br.com.gestorcobranca.legal.domain.model.ClosureReason;
 import br.com.gestorcobranca.legal.domain.model.LegalEligibilityRule;
 import br.com.gestorcobranca.legal.domain.model.LegalMatter;
@@ -10,10 +11,12 @@ import br.com.gestorcobranca.legal.domain.model.LegalStage;
 import br.com.gestorcobranca.legal.domain.model.MatterFlag;
 import br.com.gestorcobranca.legal.domain.model.MatterOrigin;
 import br.com.gestorcobranca.legal.domain.repository.AgreementRecordRepository;
+import br.com.gestorcobranca.legal.domain.repository.CadenceExhaustionRepository;
 import br.com.gestorcobranca.legal.domain.repository.LegalEligibilityRuleRepository;
 import br.com.gestorcobranca.legal.domain.repository.LegalMatterRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.events.campaign.CadenceExhausted;
 import br.com.gestorcobranca.shared.events.debt.TitlePrescriptionApproaching;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
@@ -43,6 +46,9 @@ import java.util.UUID;
  *       sinalização e prazos de baixa de protesto/negativação efetivos.</li>
  *   <li>{@code TitlePrescriptionApproaching} (debt): sinaliza o caso jurídico aberto ou avalia a
  *       indicação pelas regras com critério de prescrição próxima.</li>
+ *   <li>{@code CadenceExhausted} (campaign, somente finalidade {@code EXTRAJUDICIAL_COLLECTION}):
+ *       registra a régua esgotada do caso de cobrança e avalia a indicação pelas regras com o
+ *       critério "régua extrajudicial esgotada".</li>
  * </ul>
  */
 @Component
@@ -53,7 +59,11 @@ class LegalReactions {
     private static final Set<String> OUT_OF_COLLECTION = Set.of("SETTLED", "CANCELLED", "RETURNED");
     private static final Set<String> IN_COLLECTION = Set.of("OPEN", "SUSPENDED");
 
+    /** Finalidade de campanha que conta como régua extrajudicial (contrato em campanhas.md §4.5). */
+    static final String EXTRAJUDICIAL_PURPOSE = "EXTRAJUDICIAL_COLLECTION";
+
     private final AgreementRecordRepository agreements;
+    private final CadenceExhaustionRepository exhaustions;
     private final LegalMatterRepository matters;
     private final LegalEligibilityRuleRepository rules;
     private final CaseUseCases cases;
@@ -68,11 +78,13 @@ class LegalReactions {
     private final BusinessEventLogger businessEvents;
     private final LegalMetrics metrics;
 
-    LegalReactions(AgreementRecordRepository agreements, LegalMatterRepository matters, LegalEligibilityRuleRepository rules,
+    LegalReactions(AgreementRecordRepository agreements, CadenceExhaustionRepository exhaustions,
+                   LegalMatterRepository matters, LegalEligibilityRuleRepository rules,
                    CaseUseCases cases, DebtTitleUseCases titles, MatterRecorder recorder, MatterRequirements requirements,
                    AgreementLinks links, DeadlineRecorder deadlines, Referrals referrals, LegalSettingsProvider settings,
                    AuditTrail auditTrail, BusinessEventLogger businessEvents, LegalMetrics metrics) {
         this.agreements = agreements;
+        this.exhaustions = exhaustions;
         this.matters = matters;
         this.rules = rules;
         this.cases = cases;
@@ -219,5 +231,34 @@ class LegalReactions {
         }
         cases.findActive(e.debtorId(), e.portfolioId())
                 .ifPresent(c -> referrals.referAutomatically(c, applicable, MatterOrigin.PRESCRIPTION_ALERT));
+    }
+
+    // ---------------------------------------------------------------- réguas de campanha (campaign)
+
+    void cadenceExhausted(CadenceExhausted e) {
+        if (!EXTRAJUDICIAL_PURPOSE.equals(e.campaignPurpose())) {
+            metrics.eventConsumed("cadence_exhausted_ignored");
+            return;
+        }
+        metrics.eventConsumed("cadence_exhausted");
+        if (e.caseId() == null || exhaustions.existsByEnrollmentId(e.enrollmentId())) {
+            return;
+        }
+        CadenceExhaustion saved = exhaustions.save(new CadenceExhaustion(new CadenceExhaustion.Fact(e.enrollmentId(),
+                e.campaignId(), e.cadenceVersion(), e.caseId(), e.creditorId(), e.portfolioId(), e.debtorId(),
+                e.stepsExecuted(), e.messagesSent(), e.occurredAt())));
+        auditTrail.record(AuditEntry.of("legal.cadence_exhausted", "cadence_exhaustion", saved.getId())
+                .creditor(e.creditorId()).meta("collectionCaseId", e.caseId()).meta("campaignId", e.campaignId())
+                .meta("enrollmentId", e.enrollmentId()).meta("cadenceVersion", e.cadenceVersion()));
+        if (matters.findOpenByCollectionCaseId(e.caseId()).isPresent()) {
+            return;
+        }
+        List<LegalEligibilityRule> applicable = rules.findByCreditorIdAndActiveTrueOrderByCreatedAtAsc(e.creditorId()).stream()
+                .filter(r -> r.isRequireCadenceExhausted() && r.appliesTo(e.creditorId(), e.portfolioId()))
+                .toList();
+        if (applicable.isEmpty()) {
+            return;
+        }
+        referrals.referAutomatically(cases.get(e.caseId()), applicable, MatterOrigin.CADENCE_EXHAUSTED);
     }
 }

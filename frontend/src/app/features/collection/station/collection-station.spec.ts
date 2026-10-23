@@ -159,6 +159,10 @@ describe('CollectionStation', () => {
     if (url === '/api/v1/organization/tenant') return req.flush({ contactWindowStart: '08:00:00', contactWindowEnd: '20:00:00', contactOnSaturday: false, contactOnSunday: false });
     if (url.endsWith('/sheet')) return req.flush(current);
     if (url.endsWith('/contact-availability')) return req.flush(availability);
+    if (url === '/api/v1/debtors/names') {
+      // nomes em lote: uma chamada para todos os devedores da lista
+      return req.flush((req.request.params.get('ids') ?? '').split(',').map((id) => ({ id, name: 'Ana Paula Ribeiro', status: 'ACTIVE' })));
+    }
     if (url.startsWith('/api/v1/debtors/')) return req.flush({ id: 'd-1', name: 'Ana Paula Ribeiro', maskedDocument: null });
     if (url.startsWith('/api/v1/creditors/')) return req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
     if (url.startsWith('/api/v1/portfolios/')) return req.flush({ id: 'p-1', name: 'Cartões setembro' });
