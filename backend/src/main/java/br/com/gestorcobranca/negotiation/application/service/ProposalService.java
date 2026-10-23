@@ -317,7 +317,7 @@ class ProposalService implements ProposalUseCases {
         Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
         ProposalStatus status = filter.status() == null ? null : enumValue(ProposalStatus.class, filter.status(),
                 "proposal.status_invalid");
-        return PageResponse.of(proposals.search(allowed, filter.creditorId(), filter.debtorId(), status,
+        return PageResponse.of(proposals.search(allowed, filter.creditorId(), filter.debtorId(), filter.caseId(), status,
                 actor.isAssistant() ? actor.type().name() : filter.actorType(), actor.isAssistant() ? actor.id() : null,
                 page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
                 p -> views.proposal(p, actor.isAssistant()));

@@ -10,8 +10,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -68,6 +70,24 @@ class DebtorVisibility {
         }
         List<UUID> creditorIds = creditorsOf(debtor.getId());
         return creditorIds.stream().anyMatch(accessScope::canAccessCreditor) ? Optional.of(debtor) : Optional.empty();
+    }
+
+    /**
+     * Versão em lote de {@link #findVisible(Debtor)} (duas consultas no total, não duas por
+     * devedor), mantendo a ordem recebida.
+     */
+    List<Debtor> filterVisible(List<Debtor> candidates) {
+        if (accessScope.hasAllCreditors() || candidates.isEmpty()) {
+            return candidates;
+        }
+        Collection<UUID> creditors = accessScope.restrictCreditors(null);
+        if (creditors.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = candidates.stream().map(Debtor::getId).toList();
+        Set<UUID> visible = new HashSet<>(titles.findDebtorIdsWithTitlesInCreditors(ids, creditors));
+        visible.addAll(parties.findActiveDebtorIdsInCreditors(ids, creditors));
+        return candidates.stream().filter(d -> visible.contains(d.getId())).toList();
     }
 
     /** Credores visíveis para filtros de listagem; {@code null} = sem restrição. */

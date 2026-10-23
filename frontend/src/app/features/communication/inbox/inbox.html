@@ -1,6 +1,12 @@
 <div class="ib-bar" data-tour="page-header">
   <h1 class="ib-bar__title">Caixa de entrada</h1>
+  @if (breached(); as n) {
+    <span class="ib-breached" role="status"><mat-icon aria-hidden="true">alarm</mat-icon>{{ n }} além da meta de resposta</span>
+  }
   <span class="ib-bar__spacer"></span>
+  <span class="ib-live" [class.ib-live--on]="live()" role="status">
+    <span class="ib-live__dot" aria-hidden="true"></span>{{ live() ? 'Ao vivo' : 'Atualização periódica' }}
+  </span>
   @if (canManageTemplates()) {
     <a mat-button routerLink="/conversas/templates"><mat-icon aria-hidden="true">article</mat-icon>Templates</a>
   }
@@ -69,7 +75,7 @@
                 <span class="ib-item__line">
                   <app-status-chip domain="conversationOwner" [status]="c.ownerType" />
                   @if (waitingText(c); as w) {
-                    <span class="ib-sla" [class]="'ib-sla--' + slaTone(c.channel, c.waitingSeconds)">{{ w }}</span>
+                    <span class="ib-sla" [class]="'ib-sla--' + slaTone(c)" [attr.title]="slaHint(c, time)">{{ w }}</span>
                   } @else if (c.lastMessageAt) {
                     <span class="app-muted">{{ c.lastMessageAt | appDate }}</span>
                   }

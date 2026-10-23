@@ -28,7 +28,7 @@
           <app-status-chip domain="conversation" status="CLOSED" />
         }
         @if (waitingText(c); as w) {
-          <span class="cv-sla" [class]="'cv-sla--' + slaTone(c.channel, c.waitingSeconds)"><mat-icon aria-hidden="true">schedule</mat-icon>{{ w }}</span>
+          <span class="cv-sla" [class]="'cv-sla--' + slaTone(c)" [attr.title]="slaHint(c, time)"><mat-icon aria-hidden="true">schedule</mat-icon>{{ w }}</span>
         }
       </div>
     </div>

@@ -12,6 +12,12 @@ app:
   communication:
     sandbox:
       enabled: true
+  payment:
+    sandbox:
+      enabled: true
+    # testes nunca acessam a rede: URL pública local (a conta sandbox não faz chamadas HTTP)
+    webhook:
+      public-base-url: http://127.0.0.1:9
     # testes nunca acessam a rede: endereço local sem serviço falha de imediato (conexão recusada)
     whatsapp:
       api-base-url: http://127.0.0.1:9

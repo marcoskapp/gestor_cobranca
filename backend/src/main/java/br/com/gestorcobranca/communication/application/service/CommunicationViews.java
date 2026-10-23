@@ -6,6 +6,7 @@ import br.com.gestorcobranca.communication.application.port.in.ConversationUseCa
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.MessageView;
 import br.com.gestorcobranca.communication.domain.model.ChannelType;
 import br.com.gestorcobranca.communication.domain.model.Conversation;
+import br.com.gestorcobranca.communication.domain.service.ResponseTargets;
 import br.com.gestorcobranca.communication.domain.model.ConversationDraft;
 import br.com.gestorcobranca.communication.domain.model.ConversationHandoff;
 import br.com.gestorcobranca.communication.domain.model.Message;
@@ -19,7 +20,7 @@ final class CommunicationViews {
     private CommunicationViews() {
     }
 
-    static ConversationView conversation(Conversation c, Instant now) {
+    static ConversationView conversation(Conversation c, Instant now, ResponseTargets targets) {
         boolean window = c.getChannel() == ChannelType.WHATSAPP ? c.sessionWindowOpen(now) : true;
         Instant windowEnds = c.getChannel() == ChannelType.WHATSAPP && window
                 ? c.getLastInboundAt().plus(Conversation.WHATSAPP_SESSION_WINDOW) : null;
@@ -29,7 +30,10 @@ final class CommunicationViews {
                 c.getOwnerType().name(), c.getOwnerUserId(), c.getOwnerTeamId(), c.getRequiredProfile(), c.getOwnerSince(),
                 c.getLastInboundAt(), c.getLastOutboundAt(), c.getLastMessageAt(), c.getAwaitingSince(), waiting,
                 c.getUnreadCount(), c.getMessageCount(), window, windowEnds, c.getClosedAt(), c.getCloseReason(),
-                c.getCreatedAt(), c.getVersion() == null ? 0 : c.getVersion());
+                c.getCreatedAt(), c.getVersion() == null ? 0 : c.getVersion(),
+                targets.status(c.getChannel(), c.getAwaitingSince(), now).map(Enum::name).orElse(null),
+                c.getAwaitingSince() == null ? null : c.getAwaitingSince().plus(targets.target(c.getChannel()).warning()),
+                c.getAwaitingSince() == null ? null : c.getAwaitingSince().plus(targets.target(c.getChannel()).breach()));
     }
 
     static HandoffView handoff(ConversationHandoff h) {

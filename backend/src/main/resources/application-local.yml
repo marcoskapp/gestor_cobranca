@@ -35,6 +35,9 @@ app:
   telephony:
     sandbox:
       enabled: true
+  payment:
+    sandbox:
+      enabled: true
   storage:
     provider: filesystem
     local-root: ./var/storage

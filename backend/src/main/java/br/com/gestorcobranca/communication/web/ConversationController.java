@@ -68,6 +68,14 @@ class ConversationController {
                 ownerUserId, teamId, requiredProfile, awaitingReply), PageQuery.of(page, size));
     }
 
+    /** Contagem por aba (minhas, fila, assistente, todas) e estouros de SLA, num só acesso. */
+    @GetMapping("/counts")
+    @PreAuthorize("hasAuthority('INBOX_VIEW')")
+    ConversationUseCases.InboxCounts counts(@RequestParam(required = false) String channel,
+                                            @RequestParam(required = false) Boolean awaitingReply) {
+        return conversations.counts(channel, awaitingReply);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('INBOX_VIEW')")
     ConversationDetail get(@PathVariable UUID id) {

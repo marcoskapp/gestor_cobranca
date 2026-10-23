@@ -130,6 +130,13 @@ class HearingService implements HearingUseCases {
         return hearings.findByLawsuitIdOrderByScheduledAtAsc(lawsuit.getId()).stream().map(LegalViews::hearing).toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<HearingView> listByMatter(UUID matterId) {
+        LegalMatter matter = access.visible(matterId);
+        return hearings.findByMatterIdOrderByScheduledAtAscIdAsc(matter.getId()).stream().map(LegalViews::hearing).toList();
+    }
+
     private void requireParticipants(Set<UUID> ids, LegalMatter m) {
         if (ids == null || ids.isEmpty()) {
             return;

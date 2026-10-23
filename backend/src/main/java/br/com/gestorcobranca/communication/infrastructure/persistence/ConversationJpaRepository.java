@@ -1,9 +1,11 @@
 package br.com.gestorcobranca.communication.infrastructure.persistence;
 
+import br.com.gestorcobranca.communication.domain.model.ChannelType;
 import br.com.gestorcobranca.communication.domain.model.Conversation;
 import br.com.gestorcobranca.communication.domain.repository.ConversationRepository;
 import br.com.gestorcobranca.communication.domain.repository.ConversationSearchCriteria;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -12,6 +14,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -99,6 +102,19 @@ interface ConversationJpaRepository extends JpaRepository<Conversation, UUID>, J
         }
         return findAll(spec, pageable);
     }
+
+    @Override
+    default List<Conversation> findAwaitingBetween(ChannelType channel, Instant after, Instant until, int limit) {
+        return findAwaitingBetween(channel, after, until, Limit.of(limit));
+    }
+
+    @Query("""
+            select c from Conversation c where c.channel = :channel
+               and c.status = br.com.gestorcobranca.communication.domain.model.ConversationStatus.OPEN
+               and c.awaitingSince > :after and c.awaitingSince <= :until
+             order by c.awaitingSince, c.id
+            """)
+    List<Conversation> findAwaitingBetween(ChannelType channel, Instant after, Instant until, Limit limit);
 
     private static Specification<Conversation> eq(Specification<Conversation> spec, String field, Object value) {
         return value == null ? spec : spec.and((root, query, cb) -> cb.equal(root.get(field), value));

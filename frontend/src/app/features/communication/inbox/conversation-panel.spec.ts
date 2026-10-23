@@ -4,12 +4,13 @@ import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@a
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideLocale } from '../../../core/config/locale.config';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { ConversationDetail, ConversationView, MessageView } from '../data/communication.models';
+import { InboxEvent, InboxStream } from '../data/inbox-stream';
 import { ConversationPanel } from './conversation-panel';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -44,6 +45,9 @@ function conversation(overrides: Partial<ConversationView> = {}): ConversationVi
     closeReason: null,
     createdAt: '2026-10-23T11:00:00Z',
     version: 1,
+    slaStatus: 'WARNING',
+    slaWarningAt: '2026-10-23T12:15:00Z',
+    slaBreachAt: '2026-10-23T13:00:00Z',
     ...overrides,
   };
 }
@@ -81,10 +85,14 @@ describe('ConversationPanel', () => {
   let http: HttpTestingController;
   let detail: ConversationDetail;
   let messages: MessageView[];
+  let timelineRequests: (string | null)[];
+  let events: Subject<InboxEvent>;
   const announce = vi.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     announce.mockClear();
+    timelineRequests = [];
+    events = new Subject<InboxEvent>();
     detail = { conversation: conversation(), handoffs: [], pendingDrafts: [] };
     messages = [
       msg('m-2', { direction: 'OUTBOUND', senderType: 'ASSISTANT', senderId: 'ap-1', content: 'Posso ajudar?', status: 'DELIVERED', createdAt: '2026-10-23T11:30:00Z' }),
@@ -98,6 +106,7 @@ describe('ConversationPanel', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: LiveAnnouncer, useValue: { announce } },
+        { provide: InboxStream, useValue: { live: signal(true), events: () => events.asObservable() } },
         {
           provide: AuthService,
           useValue: { user: signal(fakeUser({ id: 'u-1' })), hasPermission: (p: string) => ['MESSAGE_SEND', 'INBOX_VIEW', 'CASE_VIEW'].includes(p), hasAnyPermission: () => true },
@@ -112,10 +121,12 @@ describe('ConversationPanel', () => {
   function answer(req: TestRequest): void {
     const url = req.request.url;
     if (url === '/api/v1/communication/conversations/cv-1') req.flush(detail);
-    else if (url === '/api/v1/communication/conversations/cv-1/messages') req.flush(page(messages));
-    else if (url === '/api/v1/communication/conversations') req.flush(page(req.request.params.get('status') === 'OPEN' ? [detail.conversation] : []));
+    else if (url === '/api/v1/communication/debtors/d-1/messages') {
+      timelineRequests.push(req.request.params.get('creditorId'));
+      req.flush(page(messages));
+    } else if (url === '/api/v1/communication/conversations/cv-1/messages') req.flush(page(messages));
     else if (url === '/api/v1/communication/templates') req.flush(page([]));
-    else if (url === '/api/v1/debtors/d-1') req.flush({ id: 'd-1', name: 'Ana Paula Ribeiro' });
+    else if (url === '/api/v1/debtors/names') req.flush([{ id: 'd-1', name: 'Ana Paula Ribeiro', status: 'ACTIVE' }]);
     else if (url === '/api/v1/creditors/c-1') req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
     else req.flush([]);
   }
@@ -197,5 +208,23 @@ describe('ConversationPanel', () => {
     fixture.componentInstance['refresh']();
     await settle(fixture);
     expect(announce).toHaveBeenCalledWith('Nova mensagem do devedor pelo WhatsApp.', 'polite');
+  });
+
+  it('linha do tempo do devedor numa única chamada (todos os canais, no credor da conversa)', async () => {
+    await render();
+    expect(timelineRequests).toEqual(['c-1']);
+  });
+
+  it('aviso em tempo real desta conversa recarrega; de outra conversa, não', async () => {
+    const fixture = await render();
+    const before = timelineRequests.length;
+    events.next({ kind: 'conversation', conversationId: 'cv-outra' });
+    await new Promise((r) => setTimeout(r, 350));
+    await settle(fixture);
+    expect(timelineRequests.length).toBe(before);
+    events.next({ kind: 'conversation', conversationId: 'cv-1' });
+    await new Promise((r) => setTimeout(r, 350));
+    await settle(fixture);
+    expect(timelineRequests.length).toBe(before + 1);
   });
 });

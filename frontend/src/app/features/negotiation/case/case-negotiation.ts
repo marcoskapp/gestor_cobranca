@@ -126,12 +126,12 @@ export class CaseNegotiation {
   );
   protected readonly canReadAgreements = computed(() => this.auth.hasPermission(Permission.AGREEMENT_VIEW));
 
-  /** Propostas do devedor no credor (o filtro da API não tem caso): as do caso, ainda abertas. */
+  /** Propostas do caso (filtro `caseId` da API); a tela mostra as ainda abertas. */
   protected readonly proposals = rxResource({
-    params: () => (this.canReadProposals() ? { creditorId: this.creditorId(), debtorId: this.debtorId(), caseId: this.caseId() } : undefined),
+    params: () => (this.canReadProposals() ? { creditorId: this.creditorId(), caseId: this.caseId() } : undefined),
     stream: ({ params }) =>
-      this.proposalsApi.search({ creditorId: params.creditorId, debtorId: params.debtorId, status: null, actorType: null }, { page: 0, size: 50 }).pipe(
-        map((page) => page.content.filter((p) => p.caseId === params.caseId || p.caseId === null)),
+      this.proposalsApi.search({ creditorId: params.creditorId, debtorId: null, caseId: params.caseId, status: null, actorType: null }, { page: 0, size: 50 }).pipe(
+        map((page) => page.content),
         catchError(() => of<ProposalView[]>([])),
       ),
   });

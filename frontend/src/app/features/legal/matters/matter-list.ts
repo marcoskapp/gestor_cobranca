@@ -23,10 +23,10 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
+import { LegalProfile } from '../data/legal-profile';
 import { LegalMattersApi } from '../data/legal.api';
 import { FLAG_LABELS, RESPONSIBLE_LABELS, ROUTE_LABELS, WARNING_FLAGS } from '../data/legal.labels';
 import { MatterFilter } from '../data/legal.models';
-import { isPartnerUser } from '../data/legal.rules';
 
 export function toMatterFilter(v: { creditor: string[]; stage: string; responsible: string }): MatterFilter {
   return {
@@ -165,7 +165,7 @@ export class MatterList {
   protected readonly routes = ROUTE_LABELS;
   protected readonly responsibleLabels = RESPONSIBLE_LABELS;
   protected readonly flags = FLAG_LABELS;
-  protected readonly partner = computed(() => isPartnerUser(this.auth.user()?.roles));
+  protected readonly partner = inject(LegalProfile).external;
   /** O nome do devedor exige `DEBTOR_VIEW` (o advogado parceiro vê o nome na ficha do caso). */
   protected readonly canSeeDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 

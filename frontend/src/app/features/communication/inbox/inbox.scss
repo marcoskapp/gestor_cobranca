@@ -197,3 +197,41 @@
     min-height: 60dvh;
   }
 }
+
+.ib-breached {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+  font-size: var(--app-text-sm);
+  font-weight: 600;
+  color: var(--app-danger-fg);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.ib-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+  font-size: var(--app-text-xs);
+  color: var(--app-neutral-fg);
+}
+
+.ib-live__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.ib-live--on .ib-live__dot {
+  background: var(--app-success-fg);
+  opacity: 1;
+}

@@ -3,6 +3,7 @@ package br.com.gestorcobranca.debt.web;
 import br.com.gestorcobranca.debt.application.port.in.DebtorSheetQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtorSheetQueries.DebtorSummary;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorName;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorView;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.RegisterDebtorCommand;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.RevealedDocument;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -62,6 +64,19 @@ class DebtorController {
     DebtorView findByDocument(@Valid @RequestBody DocumentLookupRequest request) {
         return debtors.findByDocument(request.document())
                 .orElseThrow(() -> new ResourceNotFoundException("debtor", "document"));
+    }
+
+    /**
+     * Nomes de exibição para telas operacionais (caixa de entrada, estação, listagens), sem
+     * documento nem contatos: até {@value DebtorUseCases#MAX_NAMES} ids; os fora do escopo de
+     * credores do ator são omitidos.
+     *
+     * @param ids ids separados por vírgula ou repetidos ({@code ?ids=a&ids=b})
+     */
+    @GetMapping("/names")
+    @PreAuthorize("hasAuthority('DEBTOR_VIEW') or hasAuthority('CASE_VIEW') or hasAuthority('INBOX_VIEW')")
+    List<DebtorName> names(@RequestParam List<UUID> ids) {
+        return debtors.names(ids);
     }
 
     @GetMapping("/{id}")

@@ -36,6 +36,9 @@ public interface DebtTitleRepository {
     /** Credores em que o devedor tem títulos (define a visibilidade do devedor por escopo). */
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
 
+    /** Dentre os devedores informados, os que têm títulos em algum dos credores (visibilidade em lote). */
+    List<UUID> findDebtorIdsWithTitlesInCreditors(Collection<UUID> debtorIds, Collection<UUID> creditorIds);
+
     Page<DebtTitle> search(TitleSearchCriteria criteria, Pageable pageable);
 
     /** Devedores distintos com títulos do credor marcados pelo lote, em ordem de id, após {@code afterDebtorId}. */

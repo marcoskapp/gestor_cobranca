@@ -3,7 +3,7 @@ import { viabilityProblems } from '../matters/viability-dialog';
 import { ruleCriteria } from '../setup/eligibility-rules';
 import { parseAlertLevels } from '../setup/legal-settings';
 import { ViabilityResultView } from './legal.models';
-import { addDays, budgetUsage, cnjValid, deadlineText, deadlineTone, formatCnj, isFinalStage, isPartnerUser } from './legal.rules';
+import { addDays, budgetUsage, cnjValid, deadlineText, deadlineTone, formatCnj, isFinalStage } from './legal.rules';
 
 describe('regras do jurídico', () => {
   it('número CNJ com dígito verificador mod 97', () => {
@@ -35,13 +35,11 @@ describe('regras do jurídico', () => {
     expect(deadlineText({ status: 'MISSED', dueDate: '2026-10-20', businessDaysRemaining: null }, today)).toBe('Prazo perdido');
   });
 
-  it('uso do orçamento, fases finais, perfil do advogado parceiro e datas', () => {
+  it('uso do orçamento, fases finais e datas', () => {
     expect(budgetUsage({ authorizedBudget: 1000, expensesTotal: 250 })).toBe(25);
     expect(budgetUsage({ authorizedBudget: null, expensesTotal: 250 })).toBeNull();
     expect(isFinalStage('CLOSED')).toBe(true);
     expect(isFinalStage('FILED')).toBe(false);
-    expect(isPartnerUser(['ADVOGADO_PARCEIRO'])).toBe(true);
-    expect(isPartnerUser(['JURIDICO'])).toBe(false);
     expect(addDays('2026-12-28', 10)).toBe('2027-01-07');
   });
 

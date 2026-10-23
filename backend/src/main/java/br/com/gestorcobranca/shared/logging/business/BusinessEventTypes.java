@@ -70,6 +70,8 @@ public final class BusinessEventTypes {
     public static final String PAYMENT_RECONCILED = "payment.reconciled";
     public static final String PAYMENT_DIVERGENCE = "payment.divergence";
     public static final String PAYMENT_REVERSED = "payment.reversed";
+    public static final String PAYMENT_REJECTED = "payment.rejected";
+    public static final String PAYMENT_REALLOCATED = "payment.reallocated";
 
     // Comissão e prestação de contas
     public static final String COMMISSION_ACCRUED = "commission.accrued";
@@ -99,6 +101,7 @@ public final class BusinessEventTypes {
     public static final String MESSAGE_RECEIVED = "message.received";
     public static final String CONVERSATION_HANDOFF = "conversation.handoff";
     public static final String CONVERSATION_CLOSED = "conversation.closed";
+    public static final String CONVERSATION_SLA_BREACHED = "conversation.sla_breached";
     public static final String TEMPLATE_PUBLISHED = "template.published";
     public static final String CAMPAIGN_ACTIVATED = "campaign.activated";
     public static final String CAMPAIGN_PAUSED = "campaign.paused";

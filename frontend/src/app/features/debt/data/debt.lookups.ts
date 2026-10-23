@@ -43,12 +43,20 @@ export function debtorOption(d: DebtorView): Option {
   return { value: d.id, label: d.maskedDocument ? `${d.name} (${d.maskedDocument})` : d.name };
 }
 
-/** Nomes de devedores para tabelas (sem documento: a coluna de documento, quando existe, é separada). */
+/** Ids por chamada de `GET /debtors/names` (o servidor aceita até 200). */
+export const DEBTOR_NAMES_BATCH = 100;
+
+/**
+ * Nomes de devedores para tabelas e telas operacionais (sem documento: a coluna de documento,
+ * quando existe, é separada). Uma chamada em lote por página (`GET /debtors/names`), aceita também
+ * para quem trabalha casos ou a caixa de entrada sem consultar o cadastro de devedores.
+ */
 @Injectable({ providedIn: 'root' })
 export class DebtorNames implements NameSource {
   private readonly api = inject(DebtorsApi);
+  readonly batchSize = DEBTOR_NAMES_BATCH;
 
   resolve(ids: string[]): Observable<Option[]> {
-    return ids.length ? forkJoin(ids.map((id) => this.api.get(id).pipe(map((d): Option => ({ value: d.id, label: d.name }))))) : of<Option[]>([]);
+    return ids.length ? this.api.names(ids).pipe(map((list) => list.map((d): Option => ({ value: d.id, label: d.name })))) : of<Option[]>([]);
   }
 }
