@@ -7,7 +7,7 @@
   }
 </app-page-header>
 
-<form class="app-filters" [formGroup]="filters" role="search" aria-label="Filtrar carteiras" (ngSubmit)="query.reload()">
+<form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar carteiras" (ngSubmit)="query.reload()">
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
   </div>

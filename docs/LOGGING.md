@@ -67,6 +67,10 @@ filter eventType in ["proposal.created", "agreement.formalized", "payment.confir
 filter eventType = "payment.confirmed"
 | stats sum(amount) by actorId, bin(1d)
 
+# tours mais dispensados (técnico — adoção da interface)
+filter event = "ui.onboarding.tour_recorded"
+| stats count(*) by tourId, outcome | sort count(*) desc
+
 # tentativas de login negadas por IP (acesso)
 filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | stats count(*) as falhas by clientIp | sort falhas desc
@@ -89,4 +93,5 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `compliance.contact_gate.decisions{operation,outcome}`, `compliance.contact_gate.denials{operation,reason}` | porteiro de contato (consultas e autorizações, motivos de negação) |
 | `compliance.dsr.overdue{type}` | solicitações de titulares que passaram do prazo (alarme) |
 | `compliance.restrictions.expired`, `compliance.retention.runs{category,dryRun,outcome}`, `compliance.retention.debtors{outcome}` | fim de vigência de restrições e execuções de retenção |
+| `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

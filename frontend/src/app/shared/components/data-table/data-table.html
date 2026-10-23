@@ -1,4 +1,4 @@
-<div class="app-table" [attr.aria-busy]="loading()">
+<div class="app-table" [attr.aria-busy]="loading()" data-tour="data-table">
   @if (loading()) {
     <mat-progress-bar mode="indeterminate" aria-label="Carregando" class="app-table__progress" />
   }
@@ -40,15 +40,22 @@
     </table>
   </div>
 
-  @if (!loading() && failed()) {
-    <div class="app-table__state" role="alert">
-      <p>Não foi possível carregar os dados.</p>
+  @if (loading() && rows().length === 0) {
+    <app-skeleton variant="table" [rows]="5" [columns]="skeletonColumns()" />
+  } @else if (!loading() && failed()) {
+    <app-empty-state
+      icon="cloud_off"
+      tone="error"
+      title="Não foi possível carregar os dados."
+      message="Verifique a conexão e tente novamente. Se persistir, avise o suporte."
+      [compact]="true"
+    >
       <button mat-stroked-button type="button" (click)="retry.emit()">Tentar novamente</button>
-    </div>
+    </app-empty-state>
   } @else if (!loading() && rows().length === 0) {
-    <div class="app-table__state" role="status">
-      <p>{{ emptyMessage() }}</p>
-    </div>
+    <app-empty-state [icon]="emptyIcon()" [title]="emptyMessage()" [message]="emptyHint()" [compact]="true">
+      <ng-content select="[appEmptyAction]" />
+    </app-empty-state>
   }
 
   @if (page(); as p) {

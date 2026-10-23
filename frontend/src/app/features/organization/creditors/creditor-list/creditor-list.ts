@@ -54,7 +54,7 @@ interface CreditorFilter {
       </button>
     </app-page-header>
 
-    <form class="app-filters" [formGroup]="filters" role="search" aria-label="Filtrar credores" (ngSubmit)="query.reload()">
+    <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar credores" (ngSubmit)="query.reload()">
       <mat-form-field class="app-filters__wide app-compact">
         <mat-label>Nome, documento ou código</mat-label>
         <input matInput formControlName="q" type="search" />
