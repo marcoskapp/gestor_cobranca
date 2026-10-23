@@ -28,7 +28,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | --- | --- |
 | Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
 | Ingestão | `import.started`, `import.completed`, `import.failed` |
-| Dívida | `debtor.consolidated`, `title.status_changed` |
+| Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
 | Operação | `case.opened`, `case.assigned`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `promise.registered`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.approved`, `proposal.rejected`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.reconciled`, `payment.divergence`, `payment.reversed` |
@@ -49,7 +49,20 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs` |
 | `retention.run_completed` | execução de retenção concluída (simulada ou efetiva) | `category`, `trigger`, `dryRun`, `candidates`, `eligible`, `processed`, `retained`, `failed` |
 
-### 3.2 Atributos dos eventos de remuneração variável
+### 3.2 Atributos dos eventos de garantias, partes e prescrição (debt)
+
+Nenhum evento leva placa, RENAVAM, chassi, matrícula, documento ou nome: apenas ids, enums e datas.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `collateral.registered` | garantia cadastrada (manual ou carga) | `type`, `assetKind`, `originContractId`, `source` (`MANUAL`/`IMPORT`) |
+| `collateral.status_changed` | mudança de situação validada | `type`, `from`, `to`; `amount` = valor recuperável estimado |
+| `collateral.appraised` | avaliação registrada | `type`, `appraisalSource`, `appraisalDate`, `estimatedValue`; `amount` = valor da avaliação |
+| `obligation_party.registered` | coobrigado incluído no contrato | `role`, `originContractId`, `principalDebtorId`, `personType`, `source`; `debtorId` = coobrigado |
+| `title.prescription_interrupted` | interrupção registrada (manual ou módulo legal) | `type`, `origin` (`MANUAL`/`LEGAL`), `hasEvidence`, `executionEstimatedDate`, `collectionEstimatedDate`, `extended` (alguma data estimada foi adiada); `amount` = saldo em aberto |
+| `title.prescription_approaching` | varredura diária: data estimada entrou na janela da regra (uma vez por data) | `claim` (`EXECUTION`/`COLLECTION`), `instrumentType`, `executiveTitle`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `titleStatus`; `amount` = saldo em aberto |
+
+### 3.3 Atributos dos eventos de remuneração variável
 
 Remuneração individual **nunca** aparece em log (técnico ou de negócio): os eventos levam ids e faixas (`*Band`: `0`, `0-100`, `100-500`, `500-1000`, `1000-3000`, `3000-10000`, `10000+`). Totais agregados (`amount` de `commission.period_closed` e `commission.statement_exported`) só são preenchidos com 3 ou mais extratos; abaixo disso, apenas a faixa.
 
@@ -120,5 +133,12 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `incentive.payments.awaiting_attribution` | pagamento recebido antes da atribuição do acordo (crescimento contínuo = produtor sem `AgreementAttributionRecorded`) |
 | `incentive.period.close.duration{trigger}`, `incentive.statements.calculated{trigger}`, `incentive.statements.transitions{status}` | fechamento de período e ciclo dos extratos |
 | `incentive.exports{format}`, `incentive.jobs.failures{job}` | exportações para a folha e falhas dos agendamentos (alarme) |
+| `debt.collateral.registered{type,source}`, `debt.collateral.transitions{type,to}`, `debt.collateral.appraisals{source}` | garantias cadastradas, mudanças de situação e avaliações |
+| `debt.obligation_parties.registered{role,source}` | coobrigados incluídos |
+| `debt.prescription.interruptions{type,origin}` | interrupções de prescrição registradas |
+| `debt.prescription.recalculated{trigger}` | linhas de prescrição criadas/alteradas/removidas por recálculo (`IMPORT`, `CLASSIFICATION`, `INTERRUPTION`, `RULE_CHANGE`, `RECONCILIATION`); `RECONCILIATION` contínuo indica recálculo que não está acontecendo na origem |
+| `debt.prescription.alerts{claim,instrumentType}` | alertas de prescrição próxima emitidos |
+| `debt.prescription.scan.duration{phase}` | duração da varredura diária por fase (`reconcile`, `alert`) |
+| `debt.jobs.failures{job}` | falhas dos agendamentos do módulo debt (alarme) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |
