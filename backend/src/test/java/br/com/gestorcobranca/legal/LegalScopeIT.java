@@ -21,17 +21,20 @@ import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.events.campaign.CadenceExhausted;
 import br.com.gestorcobranca.shared.events.debt.TitlePrescriptionApproaching;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -78,7 +81,16 @@ class LegalScopeIT extends LegalTestSupport {
         assertThat(firm.maskedCnpj()).isEqualTo("**.444.777/0001-**");
         assertThatThrownBy(() -> asManager(() -> firms.create(new LawFirmCommand("Outro", "11.444.777/0001-61", null,
                 null)))).isInstanceOf(ConflictException.class).extracting("code").isEqualTo("law_firm.duplicate");
+        // vínculo com escritório (GET /legal/me): ainda sem escritório, o advogado parceiro é interno
+        assertThat(asPartner(() -> firms.me()).external()).isFalse();
         asManager(() -> firms.addMember(firm.id(), partner));
+        assertThat(asPartner(() -> firms.me())).satisfies(me -> {
+            assertThat(me.external()).isTrue();
+            assertThat(me.lawFirmId()).isEqualTo(firm.id());
+            assertThat(me.lawFirmName()).isEqualTo("Silva & Souza Advogados");
+            assertThat(me.firmActive()).isTrue();
+        });
+        assertThat(asLawyer(() -> firms.me()).external()).isFalse();
         assertThatThrownBy(() -> asManager(() -> firms.addMember(firm.id(), partner)))
                 .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("law_firm.member_duplicate");
         assertThatThrownBy(() -> asManager(() -> matters.assign(second.id(), new AssignCommand("INTERNAL", partner, null))))
@@ -90,6 +102,11 @@ class LegalScopeIT extends LegalTestSupport {
                 new PageQuery(0, 20))).content()).extracting(MatterView::id).containsExactly(first.id());
         assertThat(asPartner(() -> matters.get(first.id())).lawFirmId()).isEqualTo(firm.id());
         assertThatThrownBy(() -> asPartner(() -> matters.get(second.id()))).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> asPartner(() -> matters.collaterals(second.id())))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> asPartner(() -> hearings.listByMatter(second.id())))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(asPartner(() -> hearings.listByMatter(first.id()))).isEmpty();
         assertThatThrownBy(() -> asPartner(() -> deadlines.create(second.id(), deadline(LocalDate.now(ZONE), 5))))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThat(count("select count(*) from shared.access_log where event_type = 'SCOPE_DENIED' and actor_id = ? "
@@ -119,6 +136,50 @@ class LegalScopeIT extends LegalTestSupport {
         assertThatThrownBy(() -> asPartner(() -> matters.get(first.id()))).isInstanceOf(ResourceNotFoundException.class);
         assertThat(asPartner(() -> matters.search(new MatterFilter(null, null, null, null, null, null, null, null, null),
                 new PageQuery(0, 20))).content()).isEmpty();
+        assertThat(asPartner(() -> firms.me())).satisfies(me -> {
+            assertThat(me.external()).isTrue();
+            assertThat(me.firmActive()).isFalse();
+        });
+    }
+
+    @Test
+    void exhaustedExtrajudicialCadenceRefersByRule() {
+        UUID debtor = debtor("186.091.390-34");
+        load(creditorA, portfolioA, debtor, new LoadedTitle("RG-1", "C-RG-1", LocalDate.of(2026, 3, 10), "900.00"));
+        CaseView c = activeCase(debtor, portfolioA);
+        asManager(() -> eligibility.createRule(new RuleCommand(creditorA, null, "Régua extrajudicial esgotada", null,
+                null, false, false, null, null, true)));
+        // a varredura diária não indica sem régua esgotada
+        assertThat(LegalTestHooks.sweepEligibility(applicationContext, tenant)).isZero();
+
+        // régua de lembrete (outra finalidade) é ignorada
+        publishAndAwait(cadence(c, "REMINDER"), "legal.cadence-exhausted");
+        assertThat(count("select count(*) from legal.cadence_exhaustion")).isZero();
+        assertThat(count("select count(*) from legal.legal_matter where collection_case_id = ?", c.id())).isZero();
+
+        CadenceExhausted exhausted = cadence(c, "EXTRAJUDICIAL_COLLECTION");
+        publishAndAwait(exhausted, "legal.cadence-exhausted");
+        MatterView matter = asLawyer(() -> matters.search(new MatterFilter(null, null, null, c.id(), null, null, null,
+                null, true), new PageQuery(0, 5))).content().getFirst();
+        assertThat(matter.origin()).isEqualTo("CADENCE_EXHAUSTED");
+        assertThat(count("select count(*) from legal.cadence_exhaustion where collection_case_id = ? "
+                + "and enrollment_id = ?", c.id(), exhausted.enrollmentId())).isEqualTo(1);
+        assertThat(count("select count(*) from shared.audit_event where action = 'legal.cadence_exhausted'")).isEqualTo(1);
+
+        // reentrega do mesmo evento (idempotente) e nova inscrição esgotada: nenhum caso jurídico a mais
+        tenantExecution.inTenant(tenant, "test.publish", () -> publisher.publishEvent(exhausted));
+        publishAndAwait(cadence(c, "EXTRAJUDICIAL_COLLECTION"), "legal.cadence-exhausted");
+        assertThat(count("select count(*) from legal.legal_matter where collection_case_id = ?", c.id())).isEqualTo(1);
+        assertThat(count("select count(*) from legal.cadence_exhaustion where collection_case_id = ?", c.id()))
+                .isEqualTo(2);
+        // registro imutável
+        assertThatThrownBy(() -> system(() -> jdbcTemplate.update(
+                "update legal.cadence_exhaustion set messages_sent = 0"))).isInstanceOf(DataAccessException.class);
+    }
+
+    private CadenceExhausted cadence(CaseView c, String purpose) {
+        return new CadenceExhausted(Ids.newId(), tenant, Instant.now(), Ids.newId(), Ids.newId(), purpose, 1, c.id(),
+                c.debtorId(), c.creditorId(), c.portfolioId(), 4, 1, 3, Instant.now().minus(30, ChronoUnit.DAYS));
     }
 
     @Test

@@ -1,5 +1,5 @@
 import { DOCUMENT, Component, DestroyRef, computed, inject, input, linkedSignal, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
-import { catchError, forkJoin, map, of } from 'rxjs';
+import { catchError, debounceTime, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
@@ -21,12 +21,17 @@ import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { ConversationsApi } from '../data/communication.api';
 import { CHANNEL_ICONS, CHANNEL_LABELS } from '../data/communication.labels';
-import { ConversationView, InboxFilter } from '../data/communication.models';
-import { InboxTab, slaTone, tabFilter, waitingText } from '../data/communication.rules';
+import { ConversationView, InboxCounts, InboxFilter } from '../data/communication.models';
+import { InboxStream } from '../data/inbox-stream';
+import { InboxTab, slaHint, slaTone, tabFilter, waitingText } from '../data/communication.rules';
 import { ConversationPanel } from './conversation-panel';
 
-/** Atualização da lista (aguardando resposta e novas conversas). */
+/** Atualização periódica da lista sem tempo real (aguardando resposta e novas conversas). */
 export const INBOX_REFRESH_MS = 30_000;
+/** Com o tempo real ativo, a atualização periódica vira rede de segurança (a cada 4 ciclos). */
+export const INBOX_LIVE_REFRESH_EVERY = 4;
+/** Avisos próximos viram uma única recarga. */
+export const INBOX_EVENT_DEBOUNCE_MS = 500;
 
 const TABS: readonly { id: InboxTab; label: string }[] = [
   { id: 'mine', label: 'Minhas' },
@@ -54,6 +59,7 @@ export class Inbox {
   readonly id = input<string>();
 
   private readonly api = inject(ConversationsApi);
+  private readonly stream = inject(InboxStream);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
@@ -63,6 +69,9 @@ export class Inbox {
   protected readonly channelIcons = CHANNEL_ICONS;
   protected readonly waitingText = waitingText;
   protected readonly slaTone = slaTone;
+  protected readonly slaHint = slaHint;
+  private readonly datePipe = new AppDatePipe();
+  protected readonly time = (iso: string) => this.datePipe.transform(iso, 'time');
   protected readonly canManageChannels = computed(() => this.auth.hasPermission(Permission.CHANNEL_MANAGE));
   protected readonly canManageTemplates = computed(() => this.auth.hasPermission(Permission.TEMPLATE_MANAGE));
 
@@ -76,31 +85,35 @@ export class Inbox {
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((c) => c.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((c) => c.creditorId));
 
-  /** Contagem por aba (só abertas aguardando resposta, para o operador ver o que está esperando). */
+  /** Contagem por aba (só abertas aguardando resposta) e estouros de SLA, numa única chamada. */
   protected readonly counters = rxResource({
     params: () => ({ channel: this.channel() }),
-    stream: ({ params }) =>
-      forkJoin(
-        TABS.map((t) =>
-          this.api.inbox({ ...inboxFilter(t.id, params.channel, true) }, { page: 0, size: 1 }).pipe(
-            map((p) => p.totalElements),
-            catchError(() => of(null)),
-          ),
-        ),
-      ).pipe(map((values) => Object.fromEntries(TABS.map((t, i) => [t.id, values[i]])) as Record<InboxTab, number | null>)),
+    stream: ({ params }) => this.api.counts(params.channel || null, true).pipe(catchError(() => of<InboxCounts | null>(null))),
   });
+  /** Conversas aguardando além da meta de primeira resposta (todas as abas do escopo). */
+  protected readonly breached = computed(() => (this.counters.hasValue() ? (this.counters.value()?.breached ?? 0) : 0));
+  /** Tempo real ativo (SSE); sem ele, só a atualização periódica. */
+  protected readonly live = this.stream.live;
 
   constructor() {
+    let ticks = 0;
     const timer = setInterval(() => {
-      if (this.document.visibilityState !== 'hidden') {
+      ticks++;
+      if (this.document.visibilityState !== 'hidden' && (!this.live() || ticks % INBOX_LIVE_REFRESH_EVERY === 0)) {
         this.refresh();
       }
     }, INBOX_REFRESH_MS);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => clearInterval(timer));
+    this.stream
+      .events()
+      .pipe(debounceTime(INBOX_EVENT_DEBOUNCE_MS), takeUntilDestroyed(destroyRef))
+      .subscribe(() => this.refresh());
   }
 
   protected count(tab: InboxTab): number | null {
-    return this.counters.hasValue() ? (this.counters.value()?.[tab] ?? null) : null;
+    const c = this.counters.hasValue() ? this.counters.value() : null;
+    return c ? c[tab] : null;
   }
 
   protected selectTab(tab: InboxTab): void {

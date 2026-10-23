@@ -372,6 +372,15 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         assertThat(p.status()).isEqualTo("DRAFT");
         assertThat(p.justificationReason()).isEqualTo("PAYMENT_CAPACITY");
 
+        // filtro por caso de cobrança (aba Negociação da estação)
+        assertThat(p.caseId()).isNotNull();
+        assertThat(as(operator, DefaultRoles.OPERADOR, CreditorScope.ALL, () -> proposals.search(
+                new ProposalFilter(null, null, p.caseId(), null, null), PageQuery.of(0, 20))).content())
+                .extracting(ProposalView::id).contains(p.id());
+        assertThat(as(operator, DefaultRoles.OPERADOR, CreditorScope.ALL, () -> proposals.search(
+                new ProposalFilter(null, null, br.com.gestorcobranca.shared.domain.Ids.newId(), null, null),
+                PageQuery.of(0, 20))).content()).isEmpty();
+
         // escopo: operador restrito ao credor B não vê nem lista a proposta do credor A
         assertThatThrownBy(() -> as(operator, DefaultRoles.OPERADOR, CreditorScope.of(Set.of(creditorB)),
                 () -> proposals.get(p.id()))).isInstanceOf(ResourceNotFoundException.class);

@@ -3,7 +3,7 @@
  * de novo (janela do WhatsApp, porteiro de contato, dono da conversa, escopo).
  */
 import { CHANNEL_LABELS, DENIAL_REASON_LABELS, FAILURE_LABELS, SENDER_LABELS } from './communication.labels';
-import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, TemplateView, VariableInput } from './communication.models';
+import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, SlaStatus, TemplateView, VariableInput } from './communication.models';
 
 export type InboxTab = 'mine' | 'queue' | 'assistant' | 'all';
 
@@ -23,22 +23,22 @@ export function tabFilter(tab: InboxTab): Pick<InboxFilter, 'owner' | 'assignee'
 
 export type SlaTone = 'ok' | 'warning' | 'late';
 
-/**
- * Metas de primeira resposta por canal (segundos): aviso e atraso. Canais instantâneos esperam
- * resposta em minutos; e-mail, no mesmo dia.
- */
-export const SLA_TARGETS: Record<ChannelType, { warning: number; late: number }> = {
-  WHATSAPP: { warning: 15 * 60, late: 60 * 60 },
-  SMS: { warning: 15 * 60, late: 60 * 60 },
-  EMAIL: { warning: 4 * 3600, late: 24 * 3600 },
-};
+const SLA_TONES: Record<SlaStatus, SlaTone> = { OK: 'ok', WARNING: 'warning', BREACHED: 'late' };
 
-export function slaTone(channel: ChannelType, waitingSeconds: number | null | undefined): SlaTone | null {
-  if (waitingSeconds === null || waitingSeconds === undefined) {
+/**
+ * Tom do SLA de primeira resposta. A classificação vem do servidor, pelas metas da assessoria para
+ * o canal (`/communication/response-targets`; padrões WhatsApp/SMS 15/60 min, e-mail 4/24 h).
+ */
+export function slaTone(c: Pick<ConversationView, 'slaStatus'>): SlaTone | null {
+  return c.slaStatus ? SLA_TONES[c.slaStatus] : null;
+}
+
+/** Explicação do prazo (para tooltip/leitor de tela), ex.: "Meta estoura às 14:35". */
+export function slaHint(c: Pick<ConversationView, 'slaStatus' | 'slaBreachAt'>, format: (iso: string) => string): string | null {
+  if (!c.slaStatus || !c.slaBreachAt) {
     return null;
   }
-  const t = SLA_TARGETS[channel];
-  return waitingSeconds >= t.late ? 'late' : waitingSeconds >= t.warning ? 'warning' : 'ok';
+  return c.slaStatus === 'BREACHED' ? `Meta de primeira resposta estourada às ${format(c.slaBreachAt)}` : `Meta de primeira resposta estoura às ${format(c.slaBreachAt)}`;
 }
 
 /** Duração curta em pt-BR ("8 min", "2 h 5 min", "3 d"). */

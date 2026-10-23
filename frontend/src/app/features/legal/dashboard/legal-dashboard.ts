@@ -6,7 +6,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { catchError, map, of, startWith } from 'rxjs';
-import { AuthService } from '../../../core/auth/auth.service';
 import { Amount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
@@ -17,10 +16,11 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
+import { LegalProfile } from '../data/legal-profile';
 import { LegalMattersApi, LegalOperationsApi } from '../data/legal.api';
 import { DEADLINE_KIND_LABELS, STAGE_ORDER } from '../data/legal.labels';
 import { DeadlineView } from '../data/legal.models';
-import { addDays, deadlineText, deadlineTone, isPartnerUser } from '../data/legal.rules';
+import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
 
 /**
  * Painel jurídico: casos por fase com dívida, custas e valor recuperado; prazos que vencem nos
@@ -232,10 +232,9 @@ import { addDays, deadlineText, deadlineTone, isPartnerUser } from '../data/lega
 export class LegalDashboard {
   private readonly mattersApi = inject(LegalMattersApi);
   private readonly operationsApi = inject(LegalOperationsApi);
-  private readonly auth = inject(AuthService);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly kinds = DEADLINE_KIND_LABELS;
-  protected readonly partner = computed(() => isPartnerUser(this.auth.user()?.roles));
+  protected readonly partner = inject(LegalProfile).external;
   private readonly today = signal(zonedNow().date);
 
   private readonly fb = inject(FormBuilder).nonNullable;

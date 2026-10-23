@@ -157,6 +157,30 @@ export interface ConversationView {
   closeReason: string | null;
   createdAt: string;
   version: number;
+  /** Meta de primeira resposta da assessoria para o canal (nulo sem espera). */
+  slaStatus: SlaStatus | null;
+  slaWarningAt: string | null;
+  slaBreachAt: string | null;
+}
+
+export type SlaStatus = 'OK' | 'WARNING' | 'BREACHED';
+
+/** `ConversationUseCases.InboxCounts`: abertas por aba e quantas estouraram a meta. */
+export interface InboxCounts {
+  mine: number;
+  queue: number;
+  assistant: number;
+  all: number;
+  breached: number;
+}
+
+/** `ResponseTargetUseCases.ResponseTargetView`. */
+export interface ResponseTargetView {
+  channel: ChannelType;
+  warningMinutes: number;
+  breachMinutes: number;
+  customized: boolean;
+  updatedAt: string | null;
 }
 
 export interface HandoffView {
