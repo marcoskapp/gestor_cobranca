@@ -30,7 +30,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled` |
 | Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
-| Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.approved`, `proposal.rejected`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue` |
+| Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue`, `installment.paid` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.reconciled`, `payment.divergence`, `payment.reversed` |
 | Prestação de contas | `commission.accrued`, `settlement.closed` |
 | Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
@@ -100,6 +100,23 @@ Ids e códigos apenas — nunca nome, documento ou contato do devedor, nem a obs
 | --- | --- | --- |
 | `policy.published` (`policyKind = collection`) | versão de política de cobrança publicada | `version`, `effectiveFrom`, `overrides`, `ladderLevels`, `maxInstallments`, `interestMode`, `hasCorrection` |
 | `negotiation.simulated` | simulação registrada (humano ou assistente) | `actorType`, `profileCode`, `policyVersion`, `override`, `requestedLevel`, `grantedLevel`, `levelCapped`, `escalationReason`, `titles`, `excludedTitles`, `offers`, `validOffers`, `daysOverdue`, `bestOfferAmount`; `amount` = dívida atualizada; `channel` |
+
+### 3.4 Atributos dos eventos de propostas e acordos (negotiation parte 2)
+
+Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `referenceType`/`referenceId` (`negotiation_proposal` ou `negotiation_agreement`) e `channel`. Nunca levam observação da justificativa, observação da decisão, motivo livre de cancelamento, IP ou agente do aceite. `actorType` permite comparar humanos e assistente.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `proposal.created` | proposta registrada | `actorType`, `profileCode`, `policyVersion`, `concessionLevel`, `installments`, `outcome` (WITHIN_AUTHORITY/REQUIRES_APPROVAL), `status`, `envelopeUsage`, `discountAmount`, `daysOverdue`, `renegotiation`, `fromHandoff`, `copilot`; `amount` = valor do acordo proposto |
+| `proposal.approval_requested` | humano acima da alçada → fila de aprovação | `actorType`, `profileCode`, `concessionLevel`, `reasons` (códigos de alçada) |
+| `proposal.handoff_requested` | assistente acima da alçada → transferência para humano | `actorType`, `concessionLevel`, `reasons` |
+| `proposal.approved` / `proposal.rejected` | decisão do aprovador | `actorType` (do proponente), `approverProfile`, `concessionLevel`, `installments`, `envelopeUsage`; `durationMs` = espera na fila |
+| `proposal.accepted` | aceite do devedor registrado (termo gerado) | `actorType`, `concessionLevel`, `installments`, `approved`; `channel` = canal do aceite |
+| `proposal.expired` | validade vencida (job diário) | `previousStatus`, `actorType`, `concessionLevel` |
+| `agreement.formalized` | acordo criado | `actorType` (de quem formalizou), `origin`, `concessionLevel`, `envelopeUsage`, `installments`, `policyVersion`, `daysOverdue`, `renegotiationNumber`, `totalAmount`, `discountAmount`, `incrementalAmount`, `replacedAgreementId`; `amount` = valor do acordo |
+| `agreement.settled` / `agreement.broken` / `agreement.cancelled` / `agreement.renegotiated` | encerramento | mesmos atributos + `previousStatus`, `paidAmount`, `daysSinceFormalization` (safra), `replacedByAgreementId`; `amount` = valor pago |
+| `installment.overdue` | parcela vencida sem pagamento integral (job diário) | `installmentNumber`, `installments`, `dueDate`, `origin`, `actorType`, `previousStatus`; `amount` = saldo da parcela |
+| `installment.paid` | parcela paga integralmente | idem; `amount` = valor da parcela |
 
 Consulta a extrato, razão, prévia ou simulação de **outra pessoa** gera `COMPENSATION_DATA_VIEWED` no log de acesso; exportação gera `DATA_EXPORTED` e download `FILE_DOWNLOADED`.
 
@@ -194,6 +211,14 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `negotiation.concession.escalations{actorType,level,reason}` | pedidos de subida na escada de concessões |
 | `negotiation.policy.transitions{status}`, `negotiation.authority.changes{operation}`, `negotiation.authority.profiles_seeded` | ciclo das políticas, mudanças de alçada e semeadura dos perfis padrão |
 | `negotiation.calculation.index_pending{index}` | cálculo com competência de índice não publicada (crescimento contínuo = tabela de índices desatualizada) |
+| `negotiation.proposals{actorType,status}` | propostas criadas por situação inicial (DRAFT, PENDING_APPROVAL, HANDED_OFF, REJECTED = recusada pela política) |
+| `negotiation.proposal.decisions{decision}`, `negotiation.proposal.approval_wait{decision}` | aprovações/recusas e tempo de espera na fila (F16) |
+| `negotiation.proposal.acceptances{channel}`, `negotiation.proposal.expirations`, `negotiation.handoffs` | aceites por canal, propostas expiradas e transferências do assistente |
+| `negotiation.agreement.transitions{status,origin}`, `negotiation.formalization.duration`, `negotiation.term.render.duration` | ciclo dos acordos por origem (humano × assistente) e latência da formalização e do termo |
+| `negotiation.installments.overdue` | parcelas que entraram em atraso |
+| `negotiation.payments{outcome}`, `negotiation.payment.reversals{outcome}` | baixas (APPLIED, PARTIAL = excedente, UNAPPLIED = acordo encerrado, DUPLICATE, IGNORED) e estornos (REVERSED, UNKNOWN, DUPLICATE); UNAPPLIED/PARTIAL contínuos = realocação pendente no payment |
+| `negotiation.ledger.postings{operation,outcome}` | lançamentos no razão do título (PAYMENT inclui a quitação do título; REVERSAL); `FAILED` = job em DEAD (alarme) |
+| `negotiation.anonymized_records` | registros neutralizados na anonimização LGPD do devedor |
 | `negotiation.jobs.failures{job}` | falhas dos agendamentos do módulo (alarme) |
 | `debt.collateral.registered{type,source}`, `debt.collateral.transitions{type,to}`, `debt.collateral.appraisals{source}` | garantias cadastradas, mudanças de situação e avaliações |
 | `debt.obligation_parties.registered{role,source}` | coobrigados incluídos |
