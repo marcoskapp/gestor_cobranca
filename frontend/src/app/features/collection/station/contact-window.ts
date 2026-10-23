@@ -1,62 +1,85 @@
 import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { AuthService } from '../../../core/auth/auth.service';
-import { Permission } from '../../../core/auth/permission';
 import { silentErrorContext } from '../../../core/http/http-context';
 import { valueOr } from '../../../shared/data/resource-value';
-import { ContactPolicyApi } from '../../compliance/data/compliance.api';
-import { TenantSettingsApi } from '../../organization/data/organization.api';
-import { CHANNEL_ICONS, CHANNEL_LABELS } from '../data/collection.labels';
+import { CasesApi } from '../data/collection.api';
+import { CHANNEL_ICONS, CHANNEL_LABELS, eligibilityText } from '../data/collection.labels';
 import { InteractionChannel } from '../data/collection.models';
-import { ContactWindow, WindowState, tenantDays, weekDayIndex, windowState, zonedNow } from '../data/collection.rules';
+import { AvailabilityState, availabilityState, zonedNow } from '../data/collection.rules';
 
-const CHANNELS: readonly InteractionChannel[] = ['PHONE', 'WHATSAPP', 'SMS', 'EMAIL'];
+/** Reconsulta periódica (a decisão muda com o horário, feriados e tentativas de outros canais). */
+const REFRESH_MS = 60_000;
 
 interface ChannelRow {
   channel: InteractionChannel;
-  restricted: boolean;
-  state: WindowState;
+  state: AvailabilityState;
 }
 
+const STATUS_CLASS: Record<AvailabilityState['kind'], string> = {
+  allowed: 'app-status--success',
+  wait: 'app-status--warning',
+  blocked: 'app-status--danger',
+  suspended: 'app-status--danger',
+};
+
+const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
+  allowed: 'check_circle',
+  wait: 'schedule',
+  blocked: 'block',
+  suspended: 'pause_circle',
+};
+
 /**
- * Janela de contato permitida, sempre visível na estação: por canal, se há restrição para o
- * devedor (elegibilidade do caso) e se o horário de agora está dentro da janela (política do
- * credor quando o usuário pode lê-la; senão o padrão da assessoria). É orientação: o porteiro de
- * contato do servidor valida janela, feriado e limites a cada contato.
+ * "Posso contatar agora?", sempre visível na estação: por canal, a decisão do porteiro de contato
+ * do servidor para o devedor e o credor do caso (restrições, política vigente, feriados, horários
+ * e limites), sem registrar tentativa e sem expor a política. A tela não calcula janelas: só
+ * apresenta a decisão e o próximo horário permitido. O porteiro decide de novo a cada contato.
  */
 @Component({
   selector: 'app-contact-window',
-  imports: [MatIconModule, MatTooltipModule],
+  imports: [MatButtonModule, MatIconModule, MatTooltipModule],
   template: `
-    <section class="cw" aria-labelledby="cw-title" data-tour="contact-window">
+    <section class="cw" aria-labelledby="cw-title" data-tour="contact-window" aria-live="polite">
       <h2 class="cw__title" id="cw-title">
         <mat-icon aria-hidden="true">schedule</mat-icon>
-        Janela de contato
+        Posso contatar agora?
         <span class="cw__now app-numeric">agora {{ now().time }}</span>
-      </h2>
-      <ul class="cw__list">
-        @for (row of rows(); track row.channel) {
-          <li class="cw__row">
-            <mat-icon class="cw__channel" aria-hidden="true">{{ icons[row.channel] }}</mat-icon>
-            <span class="cw__name">{{ labels[row.channel] }}</span>
-            @if (row.restricted) {
-              <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">block</mat-icon>Restrito</span>
-            } @else if (row.state.open) {
-              <span class="app-status app-status--success" [matTooltip]="row.state.text"
-                ><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>Permitido</span
-              >
-            } @else {
-              <span class="app-status app-status--warning" [matTooltip]="row.state.text"
-                ><mat-icon class="app-status__icon" aria-hidden="true">do_not_disturb_on</mat-icon>Fora da janela</span
-              >
-            }
-            <span class="cw__detail app-muted app-numeric" [matTooltip]="row.state.text">{{ row.restricted ? 'restrição vigente' : row.state.range }}</span>
-          </li>
+        @if (caseId()) {
+          <button mat-icon-button class="cw__refresh" type="button" (click)="refresh()" aria-label="Consultar de novo" matTooltip="Consultar de novo">
+            <mat-icon aria-hidden="true">refresh</mat-icon>
+          </button>
         }
-      </ul>
-      <p class="cw__note app-muted">{{ sourceText() }} Feriados e limites de tentativas são verificados pelo sistema a cada contato.</p>
+      </h2>
+      @if (!caseId()) {
+        <p class="cw__note app-muted">Selecione um caso para consultar o contato.</p>
+      } @else if (availability.error()) {
+        <p class="cw__note app-muted">Não foi possível consultar agora. O sistema verifica a cada contato.</p>
+      } @else if (result(); as r) {
+        @if (!r.caseEligible) {
+          <p class="cw__note">
+            <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">pause_circle</mat-icon>Contato suspenso</span>
+            {{ caseReasonsText() }}
+          </p>
+        }
+        <ul class="cw__list">
+          @for (row of rows(); track row.channel) {
+            <li class="cw__row">
+              <mat-icon class="cw__channel" aria-hidden="true">{{ icons[row.channel] }}</mat-icon>
+              <span class="cw__name">{{ labels[row.channel] }}</span>
+              <span class="app-status" [class]="statusClass[row.state.kind]" [matTooltip]="row.state.text"
+                ><mat-icon class="app-status__icon" aria-hidden="true">{{ statusIcon[row.state.kind] }}</mat-icon>{{ row.state.label }}</span
+              >
+              <span class="cw__detail app-muted app-numeric" [matTooltip]="row.state.text">{{ row.state.detail }}</span>
+            </li>
+          }
+        </ul>
+        <p class="cw__note app-muted">Decisão do sistema (restrições, política, feriados e limites). Nada é registrado nesta consulta.</p>
+      } @else {
+        <p class="cw__note app-muted">Consultando…</p>
+      }
     </section>
   `,
   styles: `
@@ -113,58 +136,52 @@ interface ChannelRow {
       margin: 6px 0 0;
       font-size: var(--app-text-xs);
     }
+    .cw__refresh {
+      width: 28px;
+      height: 28px;
+      padding: 2px;
+      --mat-icon-button-state-layer-size: 28px;
+    }
   `,
 })
 export class ContactWindowPanel {
-  readonly creditorId = input<string | null>(null);
-  /** Canais sem restrição (`CaseView.contactableChannels`); nulo = desconhecido (sem caso). */
-  readonly contactableChannels = input<readonly string[] | null>(null);
+  readonly caseId = input<string | null>(null);
 
-  private readonly auth = inject(AuthService);
-  private readonly tenantApi = inject(TenantSettingsApi);
-  private readonly policyApi = inject(ContactPolicyApi);
+  private readonly api = inject(CasesApi);
 
   protected readonly labels = CHANNEL_LABELS;
   protected readonly icons = CHANNEL_ICONS;
+  protected readonly statusClass = STATUS_CLASS;
+  protected readonly statusIcon = STATUS_ICON;
   private readonly tick = signal(Date.now());
   protected readonly now = computed(() => zonedNow(new Date(this.tick())));
+  /** Muda a cada reconsulta periódica ou manual. */
+  private readonly round = signal(0);
 
-  private readonly tenant = rxResource({ stream: () => this.tenantApi.current() });
-  private readonly tenantValue = valueOr(this.tenant, undefined);
-
-  /** A política efetiva por credor só é legível com `CONTACT_RESTRICTION_MANAGE` (ver pendências). */
-  private readonly policy = rxResource({
-    params: () => (this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE) && this.creditorId() ? this.creditorId()! : undefined),
-    stream: ({ params }) => this.policyApi.effective(params, silentErrorContext()),
+  protected readonly availability = rxResource({
+    params: () => (this.caseId() ? { id: this.caseId()!, round: this.round() } : undefined),
+    stream: ({ params }) => this.api.contactAvailability(params.id, {}, silentErrorContext()),
   });
-  private readonly policyValue = valueOr(this.policy, undefined);
+  protected readonly result = valueOr(this.availability, undefined);
 
-  protected readonly sourceText = computed(() =>
-    this.policyValue() ? 'Regras da política de contato vigente do credor.' : 'Janela padrão da assessoria.',
-  );
+  protected readonly caseReasonsText = computed(() => (this.result()?.caseReasons ?? []).map(eligibilityText).join(' · '));
 
   protected readonly rows = computed<ChannelRow[]>(() => {
-    const tenant = this.tenantValue();
-    const policy = this.policyValue();
-    const contactable = this.contactableChannels();
-    const now = this.now();
-    const fallback: ContactWindow = {
-      start: tenant?.contactWindowStart ?? null,
-      end: tenant?.contactWindowEnd ?? null,
-      days: tenant ? tenantDays(tenant.contactOnSaturday, tenant.contactOnSunday) : null,
-      source: 'TENANT',
-    };
-    return CHANNELS.map((channel) => {
-      const rule = policy?.channels.find((c) => c.channel === channel);
-      const window: ContactWindow = rule
-        ? { start: rule.windowStart, end: rule.windowEnd, days: rule.allowedDays?.map(weekDayIndex) ?? fallback.days, source: 'POLICY' }
-        : fallback;
-      return { channel, restricted: contactable !== null && !contactable.includes(channel), state: windowState(window, now) };
-    });
+    const r = this.result();
+    const now = new Date(this.tick());
+    return (r?.channels ?? []).map((c) => ({ channel: c.channel, state: availabilityState(c, r!.caseEligible, now) }));
   });
 
   constructor() {
-    const timer = setInterval(() => this.tick.set(Date.now()), 30_000);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    const clock = setInterval(() => this.tick.set(Date.now()), 30_000);
+    const poll = setInterval(() => this.refresh(), REFRESH_MS);
+    inject(DestroyRef).onDestroy(() => {
+      clearInterval(clock);
+      clearInterval(poll);
+    });
+  }
+
+  protected refresh(): void {
+    this.round.update((n) => n + 1);
   }
 }

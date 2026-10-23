@@ -1,4 +1,4 @@
-import { HttpClient, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { API_V1 } from '../../../core/config/api';
@@ -12,6 +12,7 @@ import {
   CaseFilter,
   CaseSheet,
   CaseView,
+  ContactAvailability,
   DisputeFilter,
   DisputeOutcome,
   DisputeView,
@@ -54,6 +55,14 @@ export class CasesApi {
   /** Ficha agregada do caso (devedor e contatos mascarados). */
   sheet(id: string): Observable<CaseSheet> {
     return this.http.get<CaseSheet>(`${BASE}/cases/${id}/sheet`);
+  }
+
+  /** "Posso contatar agora?": decisão do porteiro por canal, sem registrar tentativa. */
+  contactAvailability(id: string, options: { channel?: string | null; contactId?: string | null } = {}, context?: HttpContext): Observable<ContactAvailability> {
+    return this.http.get<ContactAvailability>(`${BASE}/cases/${id}/contact-availability`, {
+      params: toHttpParams({ channel: options.channel ?? null, contactId: options.contactId ?? null }),
+      context,
+    });
   }
 
   byDebtor(debtorId: string): Observable<CaseView[]> {

@@ -164,7 +164,7 @@ class InteractionService implements InteractionUseCases {
         if (tabulation.isCallback()) {
             CollectionTask task = taskService.create(c, TaskType.CALLBACK, cmd.callback().dueAt(),
                     cmd.callback().assigneeUserId(), cmd.callback().note(), interaction.getId());
-            callbackView = CollectionViews.task(task);
+            callbackView = CollectionViews.task(task, c.getDebtorId());
         }
         agenda.refresh(c);
         AssignmentMode mode = ownerBefore == OwnerType.ASSISTANT ? AssignmentMode.TAKE_OVER : AssignmentMode.INTERACTION;

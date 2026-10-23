@@ -2,7 +2,7 @@
  * Regras de tela da operação de cobrança (funções puras, testadas em `collection.rules.spec.ts`).
  * Datas e horas de retorno são do **fuso de operação** (`America/Sao_Paulo`, `TimeConfig.BUSINESS_ZONE`).
  */
-import { CaseView, TabulationView, TaskView } from './collection.models';
+import { CaseView, ChannelAvailability, ContactDenialReason, TabulationView, TaskView } from './collection.models';
 
 export const BUSINESS_ZONE = 'America/Sao_Paulo';
 
@@ -31,57 +31,61 @@ export function zonedNow(now: Date = new Date(), zone = BUSINESS_ZONE): ZonedNow
   return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${get('hour')}:${get('minute')}`, weekDay: days.indexOf(get('weekday')) };
 }
 
-/** Janela de contato aplicável a um canal (padrão da assessoria ou regra efetiva da política). */
-export interface ContactWindow {
-  /** "HH:mm" ou nulo (sem janela definida) */
-  start: string | null;
-  end: string | null;
-  /** Dias permitidos (0 = domingo); nulo = todos */
-  days: readonly number[] | null;
-  source: 'POLICY' | 'TENANT';
-}
+// --------------------------------------------------------------------- posso contatar agora?
 
-export interface WindowState {
-  open: boolean;
-  /** Situação completa ("Abre às 08:00 · 08:00 às 20:00"). */
+/** Motivos do porteiro de contato (`ContactGate.DenialReason`) em linguagem da operação. */
+export const CONTACT_DENIAL_LABELS: Record<ContactDenialReason, string> = {
+  RESTRICTED_DEBTOR: 'Restrição do devedor',
+  RESTRICTED_CHANNEL: 'Restrição no canal',
+  RESTRICTED_CONTACT_VALUE: 'Restrição neste contato',
+  OUTSIDE_WINDOW: 'Fora do horário permitido',
+  HOLIDAY: 'Feriado',
+  DAILY_LIMIT: 'Limite diário de tentativas',
+  WEEKLY_LIMIT: 'Limite semanal de tentativas',
+  MIN_INTERVAL: 'Intervalo mínimo entre tentativas',
+  DEBTOR_ANONYMIZED: 'Devedor anonimizado (LGPD)',
+};
+
+export type AvailabilityKind = 'allowed' | 'wait' | 'blocked' | 'suspended';
+
+export interface AvailabilityState {
+  kind: AvailabilityKind;
+  /** Rótulo curto do chip ("Permitido", "Aguardar", "Restrito", "Suspenso"). */
+  label: string;
+  /** Detalhe curto ("a partir de 08:00", "restrição vigente"). */
+  detail: string;
+  /** Motivos completos, para a dica. */
   text: string;
-  /** Faixa permitida ("08:00–20:00", "sáb. e dom. sem contato"). */
-  range: string;
-}
-
-const WEEK_DAY_NAMES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-
-/** `WeekDay` do backend → índice JS (0 = domingo). */
-export function weekDayIndex(day: string): number {
-  const i = WEEK_DAY_NAMES.indexOf(day);
-  return i < 0 ? -1 : (i + 1) % 7;
-}
-
-/** Dias permitidos pelos parâmetros da assessoria (segunda a sexta, mais sábado/domingo se marcados). */
-export function tenantDays(saturday: boolean, sunday: boolean): number[] {
-  return [...(sunday ? [0] : []), 1, 2, 3, 4, 5, ...(saturday ? [6] : [])];
 }
 
 /**
- * Situação da janela agora. A tela só orienta: feriados e limites de frequência são verificados
- * pelo porteiro de contato do servidor a cada contato.
+ * Situação de um canal a partir da decisão do servidor (`GET /cases/{id}/contact-availability`).
+ * A tela não calcula janela, feriado nem limites: só apresenta o que o porteiro decidiu.
  */
-export function windowState(window: ContactWindow, now: ZonedNow): WindowState {
-  const start = window.start?.slice(0, 5) ?? null;
-  const end = window.end?.slice(0, 5) ?? null;
-  const range = start && end ? `${start} às ${end}` : 'sem horário definido';
-  const short = start && end ? `${start}–${end}` : 'qualquer horário';
-  if (window.days && !window.days.includes(now.weekDay)) {
-    return { open: false, text: `Fora dos dias permitidos (${range})`, range: 'hoje não' };
+export function availabilityState(channel: ChannelAvailability, caseEligible: boolean, now: Date = new Date()): AvailabilityState {
+  const reasons = channel.reasons.map((r) => CONTACT_DENIAL_LABELS[r as ContactDenialReason] ?? r);
+  if (channel.allowed) {
+    return { kind: 'allowed', label: 'Permitido', detail: 'agora', text: 'Contato permitido agora' };
   }
-  if (!start || !end) {
-    return { open: true, text: 'Dia permitido, sem restrição de horário', range: short };
+  if (channel.reasons.length === 0 && !caseEligible) {
+    return { kind: 'suspended', label: 'Suspenso', detail: 'caso inelegível', text: 'Contato suspenso pela situação do caso' };
   }
-  const open = now.time >= start && now.time < end;
-  if (open) {
-    return { open: true, text: `Permitido agora · ${range}`, range: short };
+  if (!channel.nextAllowedAt) {
+    return { kind: 'blocked', label: 'Restrito', detail: 'sem previsão', text: reasons.join(' · ') || 'Contato não permitido' };
   }
-  return { open: false, text: now.time < start ? `Abre às ${start} · ${range}` : `Encerrado hoje · ${range}`, range: short };
+  const when = whenText(channel.nextAllowedAt, now);
+  return { kind: 'wait', label: 'Aguardar', detail: `a partir de ${when}`, text: `${reasons.join(' · ')} — permitido a partir de ${when}` };
+}
+
+/** "14:00" se for hoje (fuso de operação), senão "24/10 08:00". */
+function whenText(instant: string, now: Date): string {
+  const at = new Date(instant);
+  const time = new Intl.DateTimeFormat('pt-BR', { timeZone: BUSINESS_ZONE, hour: '2-digit', minute: '2-digit' }).format(at);
+  if (zonedNow(at).date === zonedNow(now).date) {
+    return time;
+  }
+  const day = new Intl.DateTimeFormat('pt-BR', { timeZone: BUSINESS_ZONE, day: '2-digit', month: '2-digit' }).format(at);
+  return `${day} ${time}`;
 }
 
 // --------------------------------------------------------------------- datas locais
