@@ -196,6 +196,36 @@ export interface DebtorSummary {
   totalOpenBalance: Amount;
   maxDaysOverdue: number;
   titleCount: number;
+  /** Contratos em que o devedor é coobrigado vigente (credores do escopo). */
+  coObligations: CoObligationSummary[];
+  /** Garantias dos contratos em que o devedor é principal ou coobrigado. */
+  collateral: CollateralSummary[];
+}
+
+/** `DebtorSheetQueries.CoObligationSummary` */
+export interface CoObligationSummary {
+  contractId: string;
+  creditorId: string;
+  contractExternalId: string;
+  role: ObligationRole;
+  sinceDate: string | null;
+  principalDebtorId: string;
+  openBalance: Amount;
+  maxDaysOverdue: number;
+  titleCount: number;
+}
+
+/** `DebtorSheetQueries.CollateralSummary` */
+export interface CollateralSummary {
+  collateralId: string;
+  contractId: string;
+  creditorId: string;
+  debtorRole: ObligationRole;
+  type: string;
+  assetSummary: string | null;
+  status: string;
+  estimatedValue: Amount | null;
+  lastAppraisalDate: string | null;
 }
 
 export interface ContactSummary {
@@ -226,4 +256,73 @@ export interface TitleSummary {
   status: TitleStatus;
   disputeBlocked: boolean;
   daysOverdue: number;
+}
+
+export type InstrumentType = 'CONTRACT' | 'CCB' | 'PROMISSORY_NOTE' | 'DUPLICATE' | 'CHECK' | 'DEBT_CONFESSION' | 'OTHER';
+export type ObligationRole = 'PRINCIPAL' | 'GUARANTOR_AVAL' | 'GUARANTOR_SURETY' | 'CO_DEBTOR' | 'THIRD_PARTY_COLLATERAL_PROVIDER';
+
+/** `OriginContractUseCases.ContractView` — contrato de origem informado na carga do credor. */
+export interface OriginContractView {
+  id: string;
+  creditorId: string;
+  portfolioId: string;
+  debtorId: string;
+  externalId: string;
+  product: string | null;
+  signedAt: string | null;
+  originalAmount: Amount | null;
+  instrumentType: InstrumentType | null;
+  executiveTitle: boolean;
+}
+
+/** `ObligationPartyUseCases.PartyView` — coobrigados do contrato (documento mascarado). */
+export interface ObligationPartyView {
+  partyId: string;
+  contractId: string;
+  debtorId: string;
+  name: string;
+  maskedDocument: string | null;
+  role: ObligationRole;
+  sinceDate: string | null;
+  endedOn: string | null;
+  endReason: string | null;
+  active: boolean;
+}
+
+/** `TitlePrescriptionUseCases.PrescriptionView` — prescrição estimada por pretensão. */
+export interface PrescriptionView {
+  titleId: string;
+  originContractId: string | null;
+  instrumentType: InstrumentType | null;
+  executiveTitle: boolean;
+  claims: PrescriptionClaimView[];
+  interruptions: PrescriptionInterruptionView[];
+}
+
+export interface PrescriptionClaimView {
+  claim: 'EXECUTION' | 'COLLECTION';
+  situation: 'RUNNING' | 'PRESCRIBED';
+  ruleId: string | null;
+  ruleValidated: boolean;
+  legalBasis: string | null;
+  baseDate: string | null;
+  countingStart: string | null;
+  termMonths: number;
+  estimatedDate: string | null;
+  daysRemaining: number;
+  lastAlertedFor: string | null;
+}
+
+export interface PrescriptionInterruptionView {
+  id: string;
+  type: 'PROTEST' | 'CITATION' | 'ACKNOWLEDGEMENT' | 'OTHER';
+  date: string;
+  reference: string | null;
+  notes: string | null;
+  origin: 'MANUAL' | 'LEGAL';
+  originReferenceId: string | null;
+  effectiveFor: string[];
+  evidence: { fileName: string; contentType: string; size: number; sha256: string } | null;
+  recordedAt: string;
+  recordedBy: string | null;
 }

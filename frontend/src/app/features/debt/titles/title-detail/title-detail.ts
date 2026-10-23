@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
 import { BreadcrumbService } from '../../../../core/layout/breadcrumbs/breadcrumbs';
@@ -22,14 +22,15 @@ import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { TITLE_MANUAL_ACTIONS, describeStatus } from '../../../../shared/status/status';
 import { CreditorNames, PortfolioNames } from '../../../organization/data/organization.lookups';
-import { TitlesApi } from '../../data/debt.api';
+import { OriginContractsApi, TitlesApi } from '../../data/debt.api';
 import { OverdueBadge } from '../../components/overdue-badge';
-import { titleLabel } from '../../data/debt.labels';
+import { INSTRUMENT_TYPE_LABELS, titleLabel } from '../../data/debt.labels';
 import { DebtorNames } from '../../data/debt.lookups';
 import { TitleView } from '../../data/debt.models';
 import { TitleBalance } from '../title-ledger/title-balance';
 import { TitleLedger } from '../title-ledger/title-ledger';
 import { TitleOwnership } from '../title-ledger/title-ownership';
+import { TitlePrescription } from '../title-ledger/title-prescription';
 import { TitleTransfer, TitleTransferData } from '../title-transfer/title-transfer';
 
 type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
@@ -52,6 +53,7 @@ type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
     TitleBalance,
     TitleLedger,
     TitleOwnership,
+    TitlePrescription,
     OverdueBadge,
   ],
   templateUrl: './title-detail.html',
@@ -69,6 +71,15 @@ export class TitleDetail {
 
   protected readonly title = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.title, undefined);
+
+  private readonly contractsApi = inject(OriginContractsApi);
+  /** Contrato de origem (produto e instrumento); indisponível não impede a tela. */
+  protected readonly contract = rxResource({
+    params: () => this.current()?.originContractId ?? undefined,
+    stream: ({ params }) => this.contractsApi.get(params).pipe(catchError(() => of(null))),
+  });
+  protected readonly contractView = valueOr(this.contract, null);
+  protected readonly instruments = INSTRUMENT_TYPE_LABELS;
 
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.DEBT_TITLE_MANAGE));
   protected readonly canOpenDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));

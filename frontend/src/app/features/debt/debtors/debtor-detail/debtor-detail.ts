@@ -42,40 +42,9 @@ import { ContactView, DebtorView, TitleView } from '../../data/debt.models';
 import { TitleLedger } from '../../titles/title-ledger/title-ledger';
 import { TitleOwnership } from '../../titles/title-ledger/title-ownership';
 import { ContactForm, ContactFormData } from '../contact-form/contact-form';
+import { DebtorGuarantees } from '../guarantees/debtor-guarantees';
+import { OriginContracts } from '../origin-contracts/origin-contracts';
 import { DebtorForm } from '../debtor-form/debtor-form';
-
-/** Títulos agrupados pelo contrato de origem (financiamento, cartão, plano) informado na carga. */
-export interface OriginContractGroup {
-  contractId: string | null;
-  creditorId: string;
-  titles: TitleView[];
-  principal: number;
-  openBalance: number;
-  openTitles: number;
-}
-
-export function groupByOriginContract(titles: readonly TitleView[]): OriginContractGroup[] {
-  const groups = new Map<string, OriginContractGroup>();
-  for (const t of titles) {
-    const key = `${t.creditorId}|${t.originContractId ?? ''}`;
-    const group = groups.get(key) ?? {
-      contractId: t.originContractId,
-      creditorId: t.creditorId,
-      titles: [],
-      principal: 0,
-      openBalance: 0,
-      openTitles: 0,
-    };
-    group.titles.push(t);
-    group.principal += Number(t.principalAmount) || 0;
-    if (t.status === 'OPEN' || t.status === 'SUSPENDED') {
-      group.openBalance += Number(t.openBalance) || 0;
-      group.openTitles += 1;
-    }
-    groups.set(key, group);
-  }
-  return [...groups.values()].sort((a, b) => b.openBalance - a.openBalance);
-}
 
 /**
  * Ficha do devedor: dados cadastrais (documento mascarado, revelação auditada), posição por
@@ -106,6 +75,8 @@ export function groupByOriginContract(titles: readonly TitleView[]): OriginContr
     TitleLedger,
     TitleOwnership,
     DebtorCompliance,
+    OriginContracts,
+    DebtorGuarantees,
   ],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
@@ -144,7 +115,6 @@ export class DebtorDetail {
   protected readonly contactRows = valueOr(this.contacts, []);
 
   protected readonly active = computed(() => this.current()?.status === 'ACTIVE');
-  protected readonly originContracts = computed(() => groupByOriginContract(this.titleRows()));
 
   /** Título escolhido nas abas de razão e titularidade: o primeiro em cobrança, por padrão. */
   protected readonly selectedTitleId = linkedSignal<readonly TitleView[], string | null>({
@@ -186,15 +156,6 @@ export class DebtorDetail {
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
-
-  protected readonly contractColumns: TableColumn[] = [
-    { key: 'contract', header: 'Contrato de origem' },
-    { key: 'creditor', header: 'Credor' },
-    { key: 'titles', header: 'Títulos' },
-    { key: 'principal', header: 'Valor original', align: 'end' },
-    { key: 'openBalance', header: 'Saldo em aberto', align: 'end' },
-  ];
-  protected readonly contractKey = (g: OriginContractGroup) => `${g.creditorId}|${g.contractId ?? ''}`;
 
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.current()?.name ?? null));

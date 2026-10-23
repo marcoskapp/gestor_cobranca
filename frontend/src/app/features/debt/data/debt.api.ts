@@ -12,6 +12,9 @@ import {
   DebtorSummary,
   DebtorView,
   LedgerPage,
+  ObligationPartyView,
+  OriginContractView,
+  PrescriptionView,
   OwnershipView,
   RegisterDebtorRequest,
   RevealedContact,
@@ -151,5 +154,25 @@ export class TitlesApi {
 
   transfer(titleIds: string[], targetPortfolioId: string, reason: string): Observable<TitleView[]> {
     return this.http.post<TitleView[]>(`${this.base}/transfer`, { titleIds, targetPortfolioId, reason });
+  }
+}
+
+/** Contratos de origem (`OriginContractController`) e suas partes, somente leitura nesta tela. */
+@Injectable({ providedIn: 'root' })
+export class OriginContractsApi {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${API_V1}/debt/contracts`;
+
+  get(id: string): Observable<OriginContractView> {
+    return this.http.get<OriginContractView>(`${this.base}/${id}`);
+  }
+
+  parties(id: string): Observable<ObligationPartyView[]> {
+    return this.http.get<ObligationPartyView[]>(`${this.base}/${id}/parties`);
+  }
+
+  /** Prescrição estimada do título (`PrescriptionController`). */
+  prescription(titleId: string): Observable<PrescriptionView> {
+    return this.http.get<PrescriptionView>(`${API_V1}/debt/titles/${titleId}/prescription`, { context: silentErrorContext() });
   }
 }

@@ -22,7 +22,8 @@ export type StatusDomain =
   | 'dataSubjectRequest'
   | 'retentionRun'
   | 'retentionItem'
-  | 'legalBasis';
+  | 'legalBasis'
+  | 'collateral';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -97,6 +98,16 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     FAILED: { label: 'Falhou', tone: 'danger' },
   },
   /** Vigência calculada na tela a partir de `validFrom`/`validUntil` (`legalBasisPeriod`). */
+  /** `CollateralStatus` do módulo debt. */
+  collateral: {
+    ACTIVE: { label: 'Vigente', tone: 'success' },
+    UNDER_ENFORCEMENT: { label: 'Em execução', tone: 'warning' },
+    SEIZED: { label: 'Apreendida', tone: 'warning' },
+    CONSOLIDATED: { label: 'Propriedade consolidada', tone: 'info' },
+    AUCTIONED: { label: 'Leiloada', tone: 'info' },
+    RELEASED: { label: 'Liberada', tone: 'neutral' },
+    WRITTEN_OFF: { label: 'Baixada', tone: 'neutral' },
+  },
   legalBasis: {
     CURRENT: { label: 'Vigente', tone: 'success' },
     FUTURE: { label: 'Futura', tone: 'info' },

@@ -113,3 +113,51 @@ export function overdueText(days: number): string {
 export function titleLabel(t: { externalId: string; installmentNumber: number | null }): string {
   return t.installmentNumber ? `${t.externalId} · parcela ${t.installmentNumber}` : t.externalId;
 }
+
+export const INSTRUMENT_TYPE_LABELS: Record<string, string> = {
+  CONTRACT: 'Contrato',
+  CCB: 'Cédula de Crédito Bancário',
+  PROMISSORY_NOTE: 'Nota promissória',
+  DUPLICATE: 'Duplicata',
+  CHECK: 'Cheque',
+  DEBT_CONFESSION: 'Confissão de dívida',
+  OTHER: 'Outro instrumento',
+};
+
+export const OBLIGATION_ROLE_LABELS: Record<string, string> = {
+  PRINCIPAL: 'Devedor principal',
+  GUARANTOR_AVAL: 'Avalista',
+  GUARANTOR_SURETY: 'Fiador',
+  CO_DEBTOR: 'Codevedor solidário',
+  THIRD_PARTY_COLLATERAL_PROVIDER: 'Garantidor (bem de terceiro)',
+};
+
+export const COLLATERAL_TYPE_LABELS: Record<string, string> = {
+  VEHICLE_FIDUCIARY_ALIENATION: 'Alienação fiduciária de veículo',
+  REAL_ESTATE_FIDUCIARY_ALIENATION: 'Alienação fiduciária de imóvel',
+  MORTGAGE: 'Hipoteca',
+  PLEDGE: 'Penhor',
+  RECEIVABLES_FIDUCIARY_ASSIGNMENT: 'Cessão fiduciária de recebíveis',
+  SURETY_INSURANCE: 'Seguro garantia',
+  OTHER: 'Outra garantia',
+};
+
+export const PRESCRIPTION_CLAIM_LABELS: Record<string, string> = {
+  EXECUTION: 'Execução (título executivo)',
+  COLLECTION: 'Cobrança',
+};
+
+export const INTERRUPTION_TYPE_LABELS: Record<string, string> = {
+  PROTEST: 'Protesto',
+  CITATION: 'Citação',
+  ACKNOWLEDGEMENT: 'Reconhecimento da dívida',
+  OTHER: 'Outra causa',
+};
+
+/** Tom da prescrição: prescrita = perigo; até 90 dias = alerta; demais = neutro. */
+export function prescriptionTone(c: { situation: string; daysRemaining: number }): 'danger' | 'warning' | 'neutral' {
+  if (c.situation === 'PRESCRIBED' || c.daysRemaining < 0) {
+    return 'danger';
+  }
+  return c.daysRemaining <= 90 ? 'warning' : 'neutral';
+}

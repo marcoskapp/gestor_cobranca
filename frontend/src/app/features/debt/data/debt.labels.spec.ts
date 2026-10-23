@@ -1,7 +1,7 @@
 import { toTitleFilter } from '../titles/title-list/title-list';
-import { groupByOriginContract } from '../debtors/debtor-detail/debtor-detail';
+import { groupByOriginContract } from '../debtors/origin-contracts/origin-contracts';
 import { parseDebtorQuery } from '../debtors/debtor-list/debtor-list';
-import { OVERDUE_BUCKETS, overdueText, overdueTone, titleLabel } from './debt.labels';
+import { OVERDUE_BUCKETS, overdueText, overdueTone, prescriptionTone, titleLabel } from './debt.labels';
 import { TitleView } from './debt.models';
 
 function title(overrides: Partial<TitleView>): TitleView {
@@ -78,5 +78,12 @@ describe('rótulos e regras de tela do módulo debt', () => {
       ['c-1', 'k-1', 2, 150, 120, 1],
       ['c-1', null, 1, 10, 10, 1],
     ]);
+  });
+
+  it('destaca a prescrição próxima (até 90 dias) e a já alcançada', () => {
+    expect(prescriptionTone({ situation: 'RUNNING', daysRemaining: 400 })).toBe('neutral');
+    expect(prescriptionTone({ situation: 'RUNNING', daysRemaining: 90 })).toBe('warning');
+    expect(prescriptionTone({ situation: 'PRESCRIBED', daysRemaining: 10 })).toBe('danger');
+    expect(prescriptionTone({ situation: 'RUNNING', daysRemaining: -1 })).toBe('danger');
   });
 });

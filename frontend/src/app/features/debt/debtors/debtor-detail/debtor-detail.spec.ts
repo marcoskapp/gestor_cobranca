@@ -31,6 +31,8 @@ const summary: DebtorSummary = {
   totalOpenBalance: 3120.45,
   maxDaysOverdue: 135,
   titleCount: 1,
+  coObligations: [],
+  collateral: [],
 };
 
 const title: TitleView = {

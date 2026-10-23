@@ -212,33 +212,15 @@
       </mat-tab>
 
       <mat-tab label="Contratos de origem">
-        <div class="debt-tab">
-          <app-data-table
-            caption="Contratos de origem"
-            [rows]="originContracts()"
-            [columns]="contractColumns"
-            [loading]="titles.isLoading()"
-            [failed]="titles.status() === 'error'"
-            (retry)="titles.reload()"
-            [rowKey]="contractKey"
-            emptyIcon="description"
-            emptyMessage="Nenhum contrato de origem informado nas cargas."
-          >
-            <ng-template appCell="contract" [appCellOf]="originContracts()" let-g>
-              @if (g.contractId) {
-                <span class="app-mono" [title]="g.contractId">Contrato {{ g.contractId.slice(0, 8) }}</span>
-              } @else {
-                <span class="app-muted">Sem contrato informado</span>
-              }
-            </ng-template>
-            <ng-template appCell="creditor" [appCellOf]="originContracts()" let-g>{{ creditors.name(g.creditorId) }}</ng-template>
-            <ng-template appCell="titles" [appCellOf]="originContracts()" let-g>
-              {{ g.titles.length }} título(s), {{ g.openTitles }} em cobrança
-            </ng-template>
-            <ng-template appCell="principal" [appCellOf]="originContracts()" let-g><app-amount [value]="g.principal" /></ng-template>
-            <ng-template appCell="openBalance" [appCellOf]="originContracts()" let-g><app-amount [value]="g.openBalance" /></ng-template>
-          </app-data-table>
-        </div>
+        <ng-template matTabContent>
+          <div class="debt-tab"><app-origin-contracts [titles]="titleRows()" [loading]="titles.isLoading()" /></div>
+        </ng-template>
+      </mat-tab>
+
+      <mat-tab label="Garantias e coobrigações">
+        <ng-template matTabContent>
+          <div class="debt-tab"><app-debtor-guarantees [summary]="position()" [loading]="summary.isLoading()" /></div>
+        </ng-template>
       </mat-tab>
 
       <mat-tab label="Razão">

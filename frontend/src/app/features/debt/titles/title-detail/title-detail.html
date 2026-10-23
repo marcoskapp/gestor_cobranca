@@ -108,8 +108,14 @@
       <dd>{{ t.lastPaymentAt | appDate }}</dd>
       <dt>Contrato de origem</dt>
       <dd>
-        @if (t.originContractId) {
-          <span class="app-mono" [title]="t.originContractId">{{ t.originContractId.slice(0, 8) }}</span>
+        @if (contractView(); as c) {
+          <span class="app-numeric">{{ c.externalId }}</span>
+          {{ c.product ? '· ' + c.product : '' }}
+          @if (c.instrumentType) {
+            <span class="app-muted"> · {{ instruments[c.instrumentType] }}{{ c.executiveTitle ? ' (título executivo)' : '' }}</span>
+          }
+        } @else if (t.originContractId) {
+          <span class="app-muted">{{ contract.isLoading() ? 'Carregando…' : 'Indisponível' }}</span>
         } @else {
           —
         }
@@ -133,6 +139,11 @@
       <mat-tab label="Razão">
         <ng-template matTabContent>
           <div class="debt-tab"><app-title-ledger [titleId]="t.id" /></div>
+        </ng-template>
+      </mat-tab>
+      <mat-tab label="Prescrição">
+        <ng-template matTabContent>
+          <div class="debt-tab"><app-title-prescription [titleId]="t.id" /></div>
         </ng-template>
       </mat-tab>
       <mat-tab label="Titularidade">
