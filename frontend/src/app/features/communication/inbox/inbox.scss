@@ -1,0 +1,199 @@
+// Duas zonas com rolagem própria no desktop; no celular, lista ou conversa.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--app-topbar-height) - 84px);
+  min-height: 520px;
+}
+
+.ib-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ib-bar__title {
+  margin: 0;
+  font-size: var(--app-text-xl);
+  font-weight: 600;
+}
+
+.ib-bar__spacer {
+  flex: 1;
+}
+
+.ib-zones {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: var(--app-gap);
+  min-height: 0;
+}
+
+.ib-list,
+.ib-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  overflow: hidden;
+}
+
+.ib-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.ib-tab {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--mat-sys-on-surface-variant);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  cursor: pointer;
+}
+
+.ib-tab--on {
+  border-bottom-color: var(--mat-sys-primary);
+  color: var(--mat-sys-primary);
+  font-weight: 600;
+}
+
+.ib-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--app-radius-pill);
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  font-size: var(--app-text-xs);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+
+.ib-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.ib-channel {
+  width: 140px;
+}
+
+.ib-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ib-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ib-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--app-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--app-surface-raised);
+  }
+}
+
+.ib-item--on {
+  box-shadow: inset 3px 0 0 var(--mat-sys-primary);
+  background: var(--app-surface-raised);
+}
+
+.ib-item__top,
+.ib-item__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: var(--app-text-sm);
+}
+
+.ib-item__top {
+  justify-content: space-between;
+}
+
+.ib-item__name {
+  font-weight: 600;
+}
+
+.ib-chan {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.ib-sla--warning {
+  color: var(--app-warning-fg);
+}
+
+.ib-sla--late {
+  font-weight: 600;
+  color: var(--app-danger-fg);
+}
+
+.ib-back {
+  display: none;
+  align-self: flex-start;
+}
+
+@media (max-width: 959.98px) {
+  :host {
+    height: auto;
+  }
+
+  .ib-zones {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ib-zones--detail .ib-list,
+  .ib-zones:not(.ib-zones--detail) .ib-detail {
+    display: none;
+  }
+
+  .ib-back {
+    display: inline-flex;
+  }
+
+  .ib-list,
+  .ib-detail {
+    min-height: 60dvh;
+  }
+}

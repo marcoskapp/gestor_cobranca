@@ -202,7 +202,7 @@ describe('CollectionStation', () => {
     const fixture = await render('k-1');
     const keys = TestBed.inject(KeyboardShortcuts);
     const ids = keys.shortcuts().filter((s) => s.group === 'Estação de cobrança').map((s) => s.keys);
-    expect(ids).toEqual(expect.arrayContaining(['alt+n', 'alt+r', 'alt+a', 'alt+s', 'alt+1', 'alt+5']));
+    expect(ids).toEqual(expect.arrayContaining(['alt+n', 'alt+r', 'alt+a', 'alt+s', 'alt+1', 'alt+5', 'alt+6']));
     press('3');
     fixture.detectChanges();
     expect(fixture.componentInstance['tab']()).toBe(2);

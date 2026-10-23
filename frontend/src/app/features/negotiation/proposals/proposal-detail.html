@@ -1,0 +1,282 @@
+@if (resource.isLoading() && !proposal()) {
+  <app-skeleton variant="card" [rows]="6" />
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar a proposta." message="Verifique a conexão e tente novamente.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+  </app-empty-state>
+} @else if (proposal(); as p) {
+  @let a = actions()!;
+  <app-page-header [title]="'Proposta · ' + (debtorName() ?? creditors.name(p.creditorId))" [subtitle]="'Criada em ' + (p.createdAt | appDate) + ' por ' + actorName(p.actor.type, p.actor.id)">
+    @if (a.term) {
+      <button mat-button type="button" (click)="downloadTerm()">
+        <mat-icon aria-hidden="true">picture_as_pdf</mat-icon>
+        Baixar termo
+      </button>
+    }
+    @if (p.agreementId && canViewAgreement()) {
+      <a mat-stroked-button [routerLink]="['/negociacao/acordos', p.agreementId]">
+        <mat-icon aria-hidden="true">handshake</mat-icon>
+        Ver acordo
+      </a>
+    }
+    @if (a.reject) {
+      <button mat-stroked-button type="button" (click)="reject()" [disabled]="busy()">Reprovar</button>
+    }
+    @if (a.approve) {
+      <button mat-flat-button type="button" (click)="approve()" [disabled]="busy()" data-tour="proposal-decide">
+        <mat-icon aria-hidden="true">verified</mat-icon>
+        Aprovar
+      </button>
+    }
+    @if (a.accept) {
+      <button mat-flat-button type="button" (click)="accept()" [disabled]="busy()" data-tour="proposal-accept">
+        <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+        Registrar aceite
+      </button>
+    }
+    @if (a.formalize) {
+      <button mat-flat-button type="button" (click)="formalize()" [disabled]="busy()" data-tour="proposal-formalize">
+        <mat-icon aria-hidden="true">handshake</mat-icon>
+        Formalizar acordo
+      </button>
+    }
+    @if (a.adopt) {
+      @if (canSimulate()) {
+        <button mat-stroked-button type="button" (click)="negotiateOther()">Negociar outras condições</button>
+      }
+      <button mat-flat-button type="button" (click)="adopt()" [disabled]="busy()" data-tour="proposal-adopt">
+        <mat-icon aria-hidden="true">smart_toy</mat-icon>
+        Assumir sugestão
+      </button>
+    }
+  </app-page-header>
+
+  <div class="pd-status" data-tour="proposal-status">
+    <app-status-chip domain="proposal" [status]="p.status" />
+    @if (p.validUntil) {
+      <span [class.pd-late]="lapsed()">{{ lapsed() ? 'Validade vencida em' : 'Válida até' }} {{ p.validUntil | appDate: 'date' }}</span>
+    }
+    @if (p.renegotiationNumber > 0) {
+      <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">autorenew</mat-icon>Renegociação {{ p.renegotiationNumber }}</span>
+    }
+    @if (p.copilot) {
+      <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">smart_toy</mat-icon>Com sugestão do assistente</span>
+    }
+  </div>
+
+  @switch (p.status) {
+    @case ('HANDED_OFF') {
+      <p class="app-alert app-alert--warning" role="note">
+        <mat-icon aria-hidden="true">smart_toy</mat-icon>
+        <span>O assistente sugeriu estas condições, mas elas passam da alçada dele. Assuma a sugestão (mesmas condições, revalidadas com a sua alçada) ou negocie outras.</span>
+      </p>
+    }
+    @case ('PENDING_APPROVAL') {
+      <p class="app-alert app-alert--warning" role="note">
+        <mat-icon aria-hidden="true">hourglass_top</mat-icon>
+        <span>
+          Aguardando quem tem alçada para estas condições.
+          @if (!a.approve && actorName(p.actor.type, p.actor.id) === 'Você') {
+            Você não pode decidir a própria proposta.
+          }
+        </span>
+      </p>
+    }
+    @case ('REJECTED') {
+      <p class="app-alert app-alert--error" role="note">
+        <mat-icon aria-hidden="true">block</mat-icon>
+        <span>Reprovada{{ p.decision?.note ? ': ' + p.decision.note : '.' }} Simule outras condições para o devedor.</span>
+      </p>
+    }
+    @case ('EXPIRED') {
+      <p class="app-alert app-alert--neutral" role="note">
+        <mat-icon aria-hidden="true">event_busy</mat-icon>
+        <span>A validade terminou antes do acordo. Simule de novo: os valores são recalculados para a nova data.</span>
+      </p>
+    }
+  }
+
+  <div class="pd-grid">
+    <div class="pd-main">
+      <section class="app-card" aria-labelledby="pd-conditions" data-tour="proposal-conditions">
+        <h2 class="app-card__title" id="pd-conditions">Condições</h2>
+        <div class="pd-kpis">
+          <div class="pd-kpi"><span class="pd-kpi__label">Total a pagar</span><span class="pd-kpi__value"><app-amount [value]="p.totalAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Dívida atualizada</span><span class="pd-kpi__value"><app-amount [value]="p.updatedAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Desconto</span><span class="pd-kpi__value"><app-amount [value]="p.discountAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Forma</span><span class="pd-kpi__value pd-kpi__text">{{ plan(p) }}</span></div>
+        </div>
+        <dl class="app-definition-list">
+          <dt>Valor negociado</dt>
+          <dd><app-amount [value]="p.negotiatedAmount" /></dd>
+          @if (p.downPayment) {
+            <dt>Entrada</dt>
+            <dd><app-amount [value]="p.downPayment" /></dd>
+          }
+          @if (p.installments > 1) {
+            <dt>Juros do parcelamento</dt>
+            <dd><app-amount [value]="p.financingInterest" /></dd>
+          }
+          <dt>Descontos por componente</dt>
+          <dd>{{ ratesText(p.discountRates) }}</dd>
+          <dt>Data-base do cálculo</dt>
+          <dd>{{ p.referenceDate | appDate: 'date' }} · política v{{ p.policy.version }}{{ p.policy.overrideCode ? ' (' + p.policy.overrideCode + ')' : '' }}</dd>
+          <dt>Canal da negociação</dt>
+          <dd>{{ channelText(p.channel) }}</dd>
+          <dt>Títulos</dt>
+          <dd>{{ p.titleIds.length }}</dd>
+        </dl>
+      </section>
+
+      <section class="app-card" aria-labelledby="pd-schedule">
+        <h2 class="app-card__title" id="pd-schedule">Cronograma</h2>
+        <div class="pd-scroll">
+          <table class="pd-table" aria-label="Cronograma de pagamentos da proposta">
+            <thead>
+              <tr>
+                <th scope="col">Pagamento</th>
+                <th scope="col">Vencimento</th>
+                <th scope="col" class="pd-end">Valor</th>
+                <th scope="col" class="pd-end">Juros</th>
+                <th scope="col" class="pd-end">Saldo após</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of p.offer.schedule; track s.number) {
+                <tr>
+                  <td>{{ s.number === 1 && p.downPayment ? 'Entrada' : s.number + 'º' }}</td>
+                  <td>{{ s.dueDate | appDate: 'date' }}</td>
+                  <td class="pd-end"><app-amount [value]="s.amount" /></td>
+                  <td class="pd-end"><app-amount [value]="s.interest" /></td>
+                  <td class="pd-end"><app-amount [value]="s.balanceAfter" /></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="app-card" aria-labelledby="pd-memory" data-tour="proposal-memory">
+        <div class="pd-head">
+          <h2 class="app-card__title" id="pd-memory">Memória de cálculo</h2>
+          <button mat-button type="button" (click)="showMemory.set(!showMemory())" [attr.aria-expanded]="showMemory()">
+            <mat-icon aria-hidden="true">{{ showMemory() ? 'expand_less' : 'receipt_long' }}</mat-icon>
+            {{ showMemory() ? 'Ocultar' : 'Ver memória' }}
+          </button>
+        </div>
+        @if (showMemory()) {
+          <h3 class="app-section-title">Descontos concedidos</h3>
+          <ul class="pd-lines">
+            @for (l of p.offer.discountLines; track $index) {
+              <li>
+                {{ engineLabels[l.component] ?? l.component }}: {{ percent(l.rate) }} de <app-amount [value]="l.base" /> =
+                <app-amount [value]="l.amount" />
+              </li>
+            } @empty {
+              <li class="app-muted">Sem desconto.</li>
+            }
+          </ul>
+          @if (composition(); as c) {
+            <h3 class="app-section-title">Dívida atualizada em {{ c.referenceDate | appDate: 'date' }}</h3>
+            <div class="pd-scroll">
+              <table class="pd-table" aria-label="Memória de cálculo por título">
+                <thead>
+                  <tr>
+                    <th scope="col">Título (venc.)</th>
+                    <th scope="col">Componente</th>
+                    <th scope="col">Regra</th>
+                    <th scope="col" class="pd-end">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (t of c.titles; track t.titleId) {
+                    @for (l of t.lines; track $index) {
+                      <tr>
+                        <td>{{ t.dueDate | appDate: 'date' }} · {{ t.daysOverdue }} d</td>
+                        <td>{{ engineLabels[l.component] ?? l.component }}</td>
+                        <td>{{ ruleLabels[l.rule] ?? l.rule }}{{ l.note ? ' — ' + l.note : '' }}</td>
+                        <td class="pd-end"><app-amount [value]="l.amount" /></td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else if (!canSeeSimulation()) {
+            <p class="app-muted">A composição detalhada por título fica na simulação de origem, disponível a quem simula.</p>
+          }
+        }
+      </section>
+    </div>
+
+    <aside class="pd-side">
+      <section class="app-card" aria-labelledby="pd-authority" data-tour="proposal-authority">
+        <h2 class="app-card__title" id="pd-authority">Nível e alçada</h2>
+        <dl class="app-definition-list">
+          <dt>Nível da escada</dt>
+          <dd>{{ p.level }} · {{ p.offer.levelName }}</dd>
+          <dt>Justificativa</dt>
+          <dd>{{ reasonText(p.justificationReason) }}</dd>
+          <dt>Uso do desconto máximo</dt>
+          <dd>{{ p.envelopeUsage !== null ? percent(p.envelopeUsage) : '—' }}</dd>
+        </dl>
+        @if (p.authorityViolations.length) {
+          <h3 class="app-section-title">Por que precisa de aprovação</h3>
+          <ul class="pd-violations">
+            @for (v of p.authorityViolations; track v) {
+              <li>{{ violationText(v) }}</li>
+            }
+          </ul>
+        } @else {
+          <p class="app-muted">Dentro da alçada de quem negociou.</p>
+        }
+      </section>
+
+      @if (debtorView(); as d) {
+        <section class="app-card" aria-labelledby="pd-debtor">
+          <h2 class="app-card__title" id="pd-debtor">Devedor</h2>
+          <p class="pd-debtor">{{ d.name }}</p>
+          <app-document [value]="d.maskedDocument" />
+          <p class="app-muted">{{ creditors.name(p.creditorId) }}</p>
+          @if (p.caseId) {
+            <a mat-button [routerLink]="['/cobranca/casos', p.caseId]">
+              <mat-icon aria-hidden="true">open_in_new</mat-icon>
+              Abrir caso
+            </a>
+          }
+        </section>
+      }
+
+      @if (p.acceptance; as ac) {
+        <section class="app-card" aria-labelledby="pd-evidence">
+          <h2 class="app-card__title" id="pd-evidence">Evidência do aceite</h2>
+          <dl class="app-definition-list">
+            <dt>Canal</dt>
+            <dd>{{ channelText(ac.channel) }}</dd>
+            <dt>Data e hora</dt>
+            <dd>{{ ac.acceptedAt | appDate }}</dd>
+            <dt>Referência</dt>
+            <dd>{{ ac.reference ?? '—' }}</dd>
+            <dt>Termo (SHA-256)</dt>
+            <dd class="app-mono" [attr.title]="ac.termSha256">{{ shortHash(ac.termSha256) }}</dd>
+          </dl>
+        </section>
+      }
+
+      <section class="app-card" aria-labelledby="pd-history">
+        <h2 class="app-card__title" id="pd-history">Histórico</h2>
+        <ol class="pd-timeline">
+          @for (e of timeline(); track $index) {
+            <li>
+              <mat-icon aria-hidden="true">{{ e.icon }}</mat-icon>
+              <div>
+                <strong>{{ e.title }}</strong>
+                <div class="app-muted">{{ e.at | appDate }}{{ e.detail ? ' · ' + e.detail : '' }}</div>
+              </div>
+            </li>
+          }
+        </ol>
+      </section>
+    </aside>
+  </div>
+}

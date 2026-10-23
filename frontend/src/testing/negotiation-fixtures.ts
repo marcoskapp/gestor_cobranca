@@ -1,3 +1,4 @@
+import { AgreementView, ProposalView } from '../app/features/negotiation/data/agreement.models';
 import { ComponentRates, OfferView, PolicyTerms, SimulationResult } from '../app/features/negotiation/data/negotiation.models';
 
 const rates = (principal: number, correction: number, interest: number, fine: number, fees: number, honorarium: number): ComponentRates => ({
@@ -126,6 +127,98 @@ export function simulationResult(overrides: Partial<SimulationResult> = {}): Sim
     excludedTitles: [],
     notes: [],
     engineVersion: 1,
+    ...overrides,
+  };
+}
+
+/** `ProposalView` de um operador júnior, pronta para o aceite. */
+export function proposal(overrides: Partial<ProposalView> = {}): ProposalView {
+  return {
+    id: 'p-1',
+    status: 'DRAFT',
+    creditorId: 'c-1',
+    debtorId: 'd-1',
+    portfolioId: 'pf-1',
+    caseId: 'k-1',
+    simulationId: 's-1',
+    policy: { policyId: 'pol-1', version: 2, overrideCode: null },
+    referenceDate: '2026-10-23',
+    actor: { type: 'USER', id: 'u-2', profileId: 'pr-1', profileCode: 'JUNIOR' },
+    level: 1,
+    justificationReason: 'PAYMENT_CAPACITY',
+    copilot: false,
+    channel: 'PHONE',
+    titleIds: ['t-1'],
+    discountRates: { principal: 0, correction: 50, interest: 50, fine: 50, fees: 0, honorarium: 0 },
+    installments: 1,
+    requestedDownPayment: null,
+    firstDueDate: '2026-10-28',
+    updatedAmount: 2953.22,
+    discountAmount: 111.97,
+    negotiatedAmount: 2841.25,
+    downPayment: null,
+    financingInterest: 0,
+    totalAmount: 2841.25,
+    envelopeUsage: 25,
+    validUntil: '2026-10-28',
+    authorityViolations: [],
+    replacedAgreementId: null,
+    renegotiationNumber: 0,
+    handoffProposalId: null,
+    decision: null,
+    acceptance: null,
+    agreementId: null,
+    formalizedAt: null,
+    createdAt: '2026-10-23T13:00:00Z',
+    offer: offer({ level: 1, levelName: 'Multa e juros', total: 2841.25, schedule: [{ number: 1, dueDate: '2026-10-28', amount: 2841.25, interest: 0, amortization: 2841.25, balanceAfter: 0 }] }),
+    version: 0,
+    ...overrides,
+  };
+}
+
+export function agreement(overrides: Partial<AgreementView> = {}): AgreementView {
+  return {
+    id: 'a-1',
+    status: 'IN_PAYMENT',
+    statusReason: null,
+    proposalId: 'p-1',
+    creditorId: 'c-1',
+    debtorId: 'd-1',
+    portfolioId: 'pf-1',
+    caseId: 'k-1',
+    policyId: 'pol-1',
+    policyVersion: 2,
+    concessionLevel: 1,
+    envelopeUsage: 25,
+    channel: 'PHONE',
+    origin: 'HUMAN',
+    participants: [{ actorType: 'USER', actorId: 'u-1', role: 'CLOSER' }],
+    updatedAmount: 3000,
+    discountAmount: 100,
+    negotiatedAmount: 2900,
+    financingInterest: 100,
+    totalAmount: 3000,
+    downPayment: 300,
+    paidAmount: 300,
+    remainingAmount: 2700,
+    titleIds: ['t-1'],
+    installments: [
+      { id: 'i-1', number: 1, dueDate: '2026-10-25', amount: 300, paidAmount: 300, status: 'PAID', paidAt: '2026-10-25T12:00:00Z' },
+      { id: 'i-2', number: 2, dueDate: '2026-11-25', amount: 1350, paidAmount: 0, status: 'OPEN', paidAt: null },
+      { id: 'i-3', number: 3, dueDate: '2026-12-25', amount: 1350, paidAmount: 0, status: 'OPEN', paidAt: null },
+    ],
+    breakRule: { overdueInstallments: 2, toleranceDays: 5 },
+    formalizedAt: '2026-10-23T14:05:00Z',
+    inPaymentAt: '2026-10-25T12:00:00Z',
+    settledAt: null,
+    endedAt: null,
+    replacedAgreementId: null,
+    replacedByAgreementId: null,
+    renegotiationNumber: 0,
+    incrementalAmount: null,
+    acceptance: null,
+    termAvailable: true,
+    version: 1,
     ...overrides,
   };
 }
