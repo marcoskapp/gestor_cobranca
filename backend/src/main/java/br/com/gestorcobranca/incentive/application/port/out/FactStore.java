@@ -1,11 +1,15 @@
 package br.com.gestorcobranca.incentive.application.port.out;
 
 import br.com.gestorcobranca.incentive.domain.model.DelayBucket;
+import br.com.gestorcobranca.incentive.domain.model.commitment.CallbackCommitment;
+import br.com.gestorcobranca.incentive.domain.model.commitment.CommitmentTally;
+import br.com.gestorcobranca.incentive.domain.model.commitment.PromiseOutcome;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -86,6 +90,22 @@ public interface FactStore {
 
     /** Responsável pelo caso no instante (modelo de crédito por carteira). */
     Optional<UUID> assigneeAt(UUID caseId, Instant at);
+
+    // ---------------------------------------------------------------- retornos e promessas
+
+    /** Soma a contribuição (positiva ou compensatória) de compromissos às colunas de retornos e promessas. */
+    void incrementCommitments(FactKey key, CommitmentTally tally);
+
+    /** Compromissos conhecidos de uma tarefa de retorno (um por horário combinado). */
+    List<CallbackCommitment> callbackCommitments(UUID taskId);
+
+    /** Grava (insere ou substitui) a situação do compromisso de retorno. */
+    void saveCallbackCommitment(CallbackCommitment commitment);
+
+    Optional<PromiseOutcome> promiseOutcome(UUID promiseId);
+
+    /** Grava (insere ou substitui) a situação da promessa. */
+    void savePromiseOutcome(PromiseOutcome outcome);
 
     // ---------------------------------------------------------------- acordos
 

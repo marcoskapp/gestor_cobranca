@@ -14,7 +14,8 @@ import java.util.UUID;
  * @param previousAssigneeId responsável anterior (null na primeira distribuição)
  * @param assigneeId         novo responsável (null = devolvido à fila)
  * @param teamId             equipe dona da fila do caso
- * @param eligibleBalance    saldo elegível do caso no momento da distribuição
+ * @param eligibleBalance    saldo elegível atribuível do caso no momento da distribuição (zero quando
+ *                           inelegível ou encerrado)
  */
 public record CaseAssignmentChanged(
         UUID eventId,

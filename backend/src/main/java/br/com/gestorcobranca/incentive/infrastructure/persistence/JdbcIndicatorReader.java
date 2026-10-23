@@ -39,7 +39,8 @@ class JdbcIndicatorReader implements IndicatorReader {
                        sum(agreements), sum(negotiated_amount), sum(agreement_amount), sum(updated_balance),
                        sum(discount_amount), sum(down_payment_amount), sum(envelope_usage_sum), sum(envelope_count),
                        sum(concession_level_sum), sum(concession_count), sum(first_installments), sum(accrued_amount),
-                       sum(reversed_amount)
+                       sum(reversed_amount), sum(callbacks_scheduled), sum(callbacks_kept), sum(callbacks_missed),
+                       sum(promises_registered), sum(promises_due), sum(promises_kept), sum(promises_broken)
                 from incentive.performance_fact f
                 where %s
                 group by 1
@@ -48,7 +49,9 @@ class JdbcIndicatorReader implements IndicatorReader {
             rows.put(key, new Totals(key, rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5), rs.getLong(6),
                     rs.getBigDecimal(7), rs.getBigDecimal(8), rs.getBigDecimal(9), rs.getBigDecimal(10),
                     rs.getBigDecimal(11), rs.getBigDecimal(12), rs.getLong(13), rs.getLong(14), rs.getLong(15),
-                    rs.getLong(16), rs.getBigDecimal(17), rs.getBigDecimal(18), null, null));
+                    rs.getLong(16), rs.getBigDecimal(17), rs.getBigDecimal(18), null, null,
+                    new Commitments(rs.getLong(19), rs.getLong(20), rs.getLong(21), rs.getLong(22), rs.getLong(23),
+                            rs.getLong(24), rs.getLong(25))));
         });
         boolean noBucket = groupBy != Dimension.DELAY_BUCKET
                 && (filter.delayBuckets() == null || filter.delayBuckets().isEmpty());
@@ -77,7 +80,7 @@ class JdbcIndicatorReader implements IndicatorReader {
                         t.agreements(), t.negotiatedAmount(), t.agreementAmount(), t.updatedBalance(), t.discountAmount(),
                         t.downPaymentAmount(), t.envelopeUsageSum(), t.envelopeCount(), t.concessionLevelSum(),
                         t.concessionCount(), t.firstInstallments(), t.accruedAmount(), t.reversedAmount(),
-                        worked.getOrDefault(key, 0L), median.get(key)));
+                        worked.getOrDefault(key, 0L), median.get(key), t.commitments()));
             }
             return result;
         }
@@ -86,7 +89,8 @@ class JdbcIndicatorReader implements IndicatorReader {
 
     private static Totals empty(String key) {
         return new Totals(key, 0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                BigDecimal.ZERO, BigDecimal.ZERO, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, null, null);
+                BigDecimal.ZERO, BigDecimal.ZERO, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, null, null,
+                Commitments.NONE);
     }
 
     @Override
