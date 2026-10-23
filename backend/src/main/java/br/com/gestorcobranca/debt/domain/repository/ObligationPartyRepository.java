@@ -3,6 +3,7 @@ package br.com.gestorcobranca.debt.domain.repository;
 import br.com.gestorcobranca.debt.domain.model.ObligationParty;
 import br.com.gestorcobranca.debt.domain.model.ObligationRole;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,9 @@ public interface ObligationPartyRepository {
 
     /** Credores dos contratos em que a pessoa é coobrigada vigente (define sua visibilidade por escopo). */
     List<UUID> findActiveCreditorIdsByDebtorId(UUID debtorId);
+
+    /** Dentre as pessoas informadas, as coobrigadas vigentes de contratos de algum dos credores. */
+    List<UUID> findActiveDebtorIdsInCreditors(Collection<UUID> debtorIds, Collection<UUID> creditorIds);
 
     /** A pessoa é coobrigada vigente de contrato com título em cobrança (aberto ou suspenso). */
     boolean existsActiveWithOpenTitles(UUID debtorId);

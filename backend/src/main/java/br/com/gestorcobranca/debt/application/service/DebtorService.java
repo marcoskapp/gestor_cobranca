@@ -125,9 +125,9 @@ class DebtorService implements DebtorUseCases {
         }
         Guard.require(debtorIds.size() <= MAX_NAMES, "debtor.names_limit",
                 "Informe no máximo %d devedores por consulta".formatted(MAX_NAMES));
-        return debtors.findAllByIdIn(Set.copyOf(debtorIds)).stream()
-                .flatMap(d -> visibility.findVisible(d).stream())
+        return visibility.filterVisible(debtors.findAllByIdIn(Set.copyOf(debtorIds))).stream()
                 .map(d -> new DebtorName(d.getId(), d.getName(), d.getStatus().name()))
+                .sorted(java.util.Comparator.comparing(DebtorName::name).thenComparing(DebtorName::id))
                 .toList();
     }
 

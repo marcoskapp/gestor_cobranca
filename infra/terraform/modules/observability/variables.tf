@@ -126,6 +126,12 @@ variable "login_failure_anomaly_band" {
   default     = 3
 }
 
+variable "inbox_sla_breaches_threshold" {
+  description = "Conversas que estouraram a meta de primeira resposta em 15 min que disparam o alarme (todas as assessorias e canais)."
+  type        = number
+  default     = 10
+}
+
 # --- Notificação ---------------------------------------------------------------------------
 
 variable "enable_sns_notifications" {

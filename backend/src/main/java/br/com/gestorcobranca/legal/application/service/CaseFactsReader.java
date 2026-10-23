@@ -12,6 +12,7 @@ import br.com.gestorcobranca.debt.application.port.in.TitlePrescriptionUseCases;
 import br.com.gestorcobranca.debt.application.port.in.TitlePrescriptionUseCases.ClaimView;
 import br.com.gestorcobranca.debt.application.port.in.TitlePrescriptionUseCases.PrescriptionView;
 import br.com.gestorcobranca.legal.domain.repository.AgreementRecordRepository;
+import br.com.gestorcobranca.legal.domain.repository.CadenceExhaustionRepository;
 import br.com.gestorcobranca.legal.domain.service.EligibilityEvaluator;
 import br.com.gestorcobranca.legal.domain.service.ViabilityCalculator;
 import br.com.gestorcobranca.shared.domain.Money;
@@ -33,8 +34,9 @@ import java.util.UUID;
 /**
  * Lê, pelas portas públicas do debt, os fatos de títulos de um caso de cobrança usados na
  * elegibilidade e na viabilidade: saldo e atraso, contrato de origem (natureza executiva),
- * garantias que cobrem cada título e prescrição por pretensão. Os acordos quebrados vêm do
- * registro próprio alimentado pelos eventos do negotiation.
+ * garantias que cobrem cada título e prescrição por pretensão. Os acordos quebrados e as réguas
+ * extrajudiciais esgotadas vêm de registros próprios alimentados pelos eventos do negotiation e do
+ * campaign.
  */
 @Component
 class CaseFactsReader {
@@ -49,14 +51,17 @@ class CaseFactsReader {
     private final CollateralUseCases collaterals;
     private final TitlePrescriptionUseCases prescriptions;
     private final AgreementRecordRepository agreements;
+    private final CadenceExhaustionRepository exhaustions;
 
     CaseFactsReader(DebtTitleUseCases titles, OriginContractUseCases contracts, CollateralUseCases collaterals,
-                    TitlePrescriptionUseCases prescriptions, AgreementRecordRepository agreements) {
+                    TitlePrescriptionUseCases prescriptions, AgreementRecordRepository agreements,
+                    CadenceExhaustionRepository exhaustions) {
         this.titles = titles;
         this.contracts = contracts;
         this.collaterals = collaterals;
         this.prescriptions = prescriptions;
         this.agreements = agreements;
+        this.exhaustions = exhaustions;
     }
 
     /** Título com contrato, garantias que o cobrem e prescrição. */
@@ -131,7 +136,8 @@ class CaseFactsReader {
                     t.status(), t.disputeBlocked(), !s.collaterals().isEmpty(), s.executive(), s.prescribed(EXECUTION),
                     s.prescribed(COLLECTION), nearest, hasRule, validated);
         }).toList();
-        return new EligibilityEvaluator.CaseFacts(c.id(), c.status(), facts, brokenAgreements(c.id()));
+        return new EligibilityEvaluator.CaseFacts(c.id(), c.status(), facts, brokenAgreements(c.id()),
+                exhaustions.findFirstByCollectionCaseIdOrderByExhaustedAtDesc(c.id()).isPresent());
     }
 
     List<ViabilityCalculator.TitleFact> viabilityTitles(List<TitleSnapshot> snapshots) {

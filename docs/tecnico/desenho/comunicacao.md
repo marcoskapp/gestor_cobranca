@@ -163,13 +163,53 @@ Lista por dono (`owner=QUEUE,USER…`), operador (`assignee=me|id`), equipe, per
 caso, canal, situação e "aguardando resposta" (ordenado pela espera mais antiga — SLA de primeira resposta, com
 `waitingSeconds` e fim da janela do WhatsApp na view); a ficha do devedor vem do collection (`/cases/{id}/sheet`).
 
+* **Contagem por aba** (`GET /conversations/counts?channel=&awaitingReply=`): minhas, fila (inclui sem dono),
+  assistente, todas e `breached` (estouraram a meta) numa única consulta agregada (`JdbcInboxCounter`, `count(*)
+  filter`, sob RLS e escopo de credores) — antes eram quatro listagens por ciclo.
+* **Linha do tempo do devedor** (`GET /debtors/{debtorId}/messages?creditorId=&page=&size=`): mensagens de todas as
+  conversas e canais do devedor, mais recentes primeiro, só das conversas nos credores do escopo (credor fora do escopo →
+  página vazia). Substitui a montagem no cliente (duas listagens + uma consulta por conversa).
+* **Nome do devedor** na caixa de entrada: `GET /api/v1/debtors/names` (debt), em lote, com `INBOX_VIEW`.
+
+### 6.1 SLA de primeira resposta
+
+Meta por assessoria e canal (`communication.response_target`): aviso e limite em minutos corridos desde a primeira
+mensagem do devedor sem resposta (`awaitingSince`). Padrões, enquanto a assessoria não grava os seus: WhatsApp e SMS
+15/60 min, e-mail 4/24 h (`ResponseTargets.DEFAULTS`). `GET /response-targets` (`INBOX_VIEW`) devolve os vigentes;
+`PUT /response-targets/{channel}` (`INBOX_MANAGE` + todos os credores, auditado `response_target.updated`) altera.
+
+* A view da conversa traz `slaStatus` (`OK`, `WARNING`, `BREACHED`), `slaWarningAt` e `slaBreachAt`; a tela não calcula
+  metas.
+* Primeira resposta (operador ou assistente): além do timer `communication.inbox.first_response`, o contador
+  `communication.inbox.first_response.sla{channel,responder,outcome}` classifica pela meta vigente.
+* Varredura a cada minuto (`InboxSlaScanner`, ShedLock `communication.sla_scan`): cada conversa aberta que cruza o limite
+  sem resposta gera **uma vez** o evento de negócio `conversation.sla_breached` e a métrica
+  `communication.inbox.sla.breaches{channel,owner}` (alarme `inbox-sla-breaches`). O cursor por canal
+  (`communication.sla_scan_cursor`) fica no banco e avança na mesma transação: execução atrasada ou pulada retoma de onde
+  parou (até 24 h); a primeira execução numa assessoria conta só o que estourar dali em diante. Mudança de meta vale a
+  partir da varredura seguinte.
+
+### 6.2 Tempo real (ADR-0008)
+
+`GET /inbox/stream` (`INBOX_VIEW`, `text/event-stream`): eventos `ready`, `conversation` (`conversationId`), `resync`,
+`expired`, `unauthorized`, `reconnect` e comentários `ping` (20 s). Gatilhos `tg_conversation_notify` e
+`tg_message_notify` (`V1003`) publicam `pg_notify('communication_inbox', {t, c, k})` — só ids — entregue na confirmação da
+transação a todas as instâncias; cada uma escuta numa conexão dedicada (`PostgresInboxListener`) e repassa às conexões
+locais filtrando assessoria e credores (`InboxChangeHub`). A conexão dura até 5 min (nunca além do token), com token e
+sessão revalidados a cada minuto; limites de 5 conexões por usuário e 2.000 por instância (503). O cliente
+(`InboxStream`, `fetch` com `Authorization`) recarrega lista, contagens e a conversa aberta a cada aviso e mantém a
+consulta periódica espaçada como rede de segurança. Parâmetros em `app.communication.realtime.*`.
+
 | Recurso | Métodos | Permissão |
 | --- | --- | --- |
 | `/channels` · `/channels/{id}` · `/{id}/credentials` · `/{id}/activate|deactivate` | `GET`, `POST`, `PUT` | `CHANNEL_MANAGE` |
 | `/templates` · `/templates/{id}` · `/{id}/preview` | `GET`, `POST` | `TEMPLATE_MANAGE` ou `MESSAGE_SEND` |
 | `/templates` · `/{id}` · `/{id}/approval|publish|retire` | `POST`, `PUT` | `TEMPLATE_MANAGE` |
 | `/messages` (cabeçalho `Idempotency-Key`) · `/messages/{id}` | `POST` · `GET` | `MESSAGE_SEND` · `INBOX_VIEW` |
-| `/conversations` · `/{id}` · `/{id}/messages` · `/{id}/handoffs` | `GET` | `INBOX_VIEW` |
+| `/conversations` · `/conversations/counts` · `/{id}` · `/{id}/messages` · `/{id}/handoffs` | `GET` | `INBOX_VIEW` |
+| `/debtors/{debtorId}/messages` | `GET` | `INBOX_VIEW` |
+| `/response-targets` · `/response-targets/{channel}` | `GET` · `PUT` | `INBOX_VIEW` · `INBOX_MANAGE` (+ todos os credores) |
+| `/inbox/stream` (SSE) | `GET` | `INBOX_VIEW` |
 | `/conversations/{id}/read|identify|take-over|release|assistant|close` · `/drafts/{draftId}/send|discard` | `POST` | `MESSAGE_SEND` |
 | `/conversations/{id}/assign|handoff` | `POST` | `INBOX_MANAGE` |
 | `/sandbox/inbound` (só com sandbox) | `POST` | `CHANNEL_MANAGE` |
@@ -186,7 +226,7 @@ templates sem `DELETE`.
 * Consumidos: `MessageStatusChanged` (interação), `HandoffRequested`, `CaseAssignmentChanged`, `CaseStatusChanged`
   (abertura vincula conversas sem caso do devedor no credor).
 * Negócio: `message.sent|delivered|read|failed|blocked|replied|received`, `conversation.handoff`,
-  `conversation.closed`, `assistant.handoff`, `template.published` — ver `docs/tecnico/logs-e-metricas.md` §3.4. Nunca conteúdo,
+  `conversation.closed`, `conversation.sla_breached`, `assistant.handoff`, `template.published` — ver `docs/tecnico/logs-e-metricas.md` §3.4. Nunca conteúdo,
   contato ou nome.
 * Métricas `communication.*` — `docs/tecnico/logs-e-metricas.md` §5. Auditoria: contas (sem credenciais), templates, aprovação,
   dono da conversa, identificação, encerramento e rascunhos.
@@ -214,11 +254,15 @@ templates sem `DELETE`.
 | 17 | Sandbox como adaptador condicionado a propriedade e bloqueado no `prod` | sem simulador | pedido do escopo para local/teste; não há provedor simulado em produção |
 | 18 | Permissões existentes (`INBOX_VIEW`, `MESSAGE_SEND`, `INBOX_MANAGE`, `TEMPLATE_MANAGE`, `CHANNEL_MANAGE`) | `CONVERSATION_VIEW/WORK` novas | já cobrem leitura, trabalho e supervisão da caixa de entrada; sem migração de perfis |
 | 19 | `DebtorContactUseCases#tryFingerprint` (sem exceção) | `fingerprint` com exceção | endereço inválido vindo do provedor não pode marcar a transação do webhook para rollback |
+| 20 | Meta de primeira resposta por assessoria e canal, em minutos corridos, classificada no servidor | por credor; horário comercial | é o parâmetro operacional pedido; horário comercial exigiria calendário por canal (pendência) |
+| 21 | Estouro contado por varredura com cursor no banco (uma vez por conversa) | gauge por instância | gauges ficariam desatualizados nas instâncias sem o lock do ShedLock; o cursor garante contagem única |
+| 22 | Tempo real por SSE + LISTEN/NOTIFY (ADR-0008), aviso só com ids | WebSocket; ElastiCache/SNS | sem serviço novo da AWS; o cliente rebusca pelos endpoints com permissão e escopo |
 
 ## 9. Pendências
 
 * SMS: adaptador após a escolha do provedor (issue #12). E-mail com bounces/reclamações: SES (issue #9).
 * `compliance.AttemptOrigin` sem `ASSISTANT` (decisão 16).
-* Frontend da caixa de entrada (telas e onboarding) não implementado neste módulo.
+* Tela de configuração das metas de SLA (a API existe; hoje só por `PUT /response-targets/{channel}`).
+* SLA em horário comercial (calendário por canal) e meta por credor, se a operação pedir.
 * Mídias (imagens, documentos) recebidas: registradas sem o arquivo (só legenda); download pela Cloud API e
   armazenamento no S3 quando houver demanda.

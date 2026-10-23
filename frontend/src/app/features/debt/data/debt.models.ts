@@ -9,6 +9,13 @@ export type PersonType = 'INDIVIDUAL' | 'COMPANY';
 export type DebtorStatus = 'ACTIVE' | 'ANONYMIZED';
 
 /** `DebtorUseCases.DebtorView` (documento sempre mascarado; nulo após anonimização). */
+/** `DebtorUseCases.DebtorName`: sem documento nem contatos. */
+export interface DebtorName {
+  id: string;
+  name: string;
+  status: 'ACTIVE' | 'ANONYMIZED';
+}
+
 export interface DebtorView {
   id: string;
   personType: PersonType;

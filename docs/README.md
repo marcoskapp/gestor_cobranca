@@ -23,6 +23,7 @@ docs/
 | [workflow-juridico.md](negocio/workflow-juridico.md) | Garantias da dívida e etapas do workflow jurídico (extrajudicial e judicial) |
 | [ux-identidade-visual.md](negocio/ux-identidade-visual.md) | Identidade visual, navegação e onboarding por perfil |
 | [layout-importacao.md](negocio/layout-importacao.md) | Layout canônico de importação de carteiras (CSV, XLSX e API) |
+| [layout-extrato-conciliacao.md](negocio/layout-extrato-conciliacao.md) | Layout do extrato/arquivo de retorno (CSV) para a conciliação de pagamentos |
 | [decisoes-autonomas.md](negocio/decisoes-autonomas.md) | Decisões de produto tomadas sem consulta, para revisão |
 
 Regras de negócio que só existem no desenho técnico, por enquanto: remuneração variável dos negociadores ([tecnico/desenho/remuneracao-variavel.md](tecnico/desenho/remuneracao-variavel.md)) e negociação e alçadas ([tecnico/desenho/negociacao-e-alcadas.md](tecnico/desenho/negociacao-e-alcadas.md)).
@@ -44,7 +45,7 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [convencoes.md](tecnico/convencoes.md) | Convenções de código, pacotes, persistência, testes |
 | [seguranca.md](tecnico/seguranca.md) | Controles de segurança, LGPD, segregação de funções |
 | [logs-e-metricas.md](tecnico/logs-e-metricas.md) | Fluxos de log (técnico, negócio, acesso), catálogo de eventos e métricas |
-| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `comunicacao`, `campanhas`, `negociacao-e-alcadas`, `juridico`, `assistente`, `remuneracao-variavel`, `ux` |
+| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `comunicacao`, `campanhas`, `negociacao-e-alcadas`, `pagamentos`, `juridico`, `assistente`, `remuneracao-variavel`, `ux` |
 
 ## Caminhos antigos
 

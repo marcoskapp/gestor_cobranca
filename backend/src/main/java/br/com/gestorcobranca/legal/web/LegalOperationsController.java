@@ -181,6 +181,13 @@ class LegalOperationsController {
 
     // ---------------------------------------------------------------- escritórios parceiros
 
+    /** Vínculo do usuário autenticado com escritório parceiro (visão restrita da interface). */
+    @GetMapping("/me")
+    @PreAuthorize("hasAuthority('LEGAL_VIEW')")
+    LawFirmUseCases.LegalProfileView me() {
+        return firms.me();
+    }
+
     @GetMapping("/law-firms")
     @PreAuthorize("hasAuthority('LEGAL_VIEW')")
     List<LawFirmView> firms() {

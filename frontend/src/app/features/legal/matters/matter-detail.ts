@@ -30,6 +30,7 @@ import { COLLATERAL_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { percent } from '../../negotiation/data/negotiation.labels';
 import { FieldOption, FormDialogService, options } from '../components/form-dialog';
+import { LegalProfile } from '../data/legal-profile';
 import { LegalMattersApi, LegalOperationsApi, LegalProceedingsApi } from '../data/legal.api';
 import {
   ADVANCER_LABELS,
@@ -42,6 +43,8 @@ import {
   DOCUMENT_LINK_LABELS,
   EXPENSE_TYPE_LABELS,
   FLAG_LABELS,
+  HEARING_MODE_LABELS,
+  HEARING_TYPE_LABELS,
   JUDICIAL_ROUTES,
   MEASURE_NEXT,
   MEASURE_TYPE_LABELS,
@@ -53,7 +56,7 @@ import {
   WARNING_FLAGS,
 } from '../data/legal.labels';
 import { AuthorizationView, DeadlineView, DocumentView, ExpenseView, LegalStage, MeasureView } from '../data/legal.models';
-import { budgetUsage, cnjValid, deadlineText, deadlineTone, isFinalStage, isPartnerUser } from '../data/legal.rules';
+import { budgetUsage, cnjValid, deadlineText, deadlineTone, isFinalStage } from '../data/legal.rules';
 import { LawsuitCard } from './lawsuit-card';
 import { ViabilityDialog, ViabilityDialogData } from './viability-dialog';
 
@@ -117,6 +120,9 @@ export class MatterDetail {
   protected readonly authChannels = AUTH_CHANNEL_LABELS;
   protected readonly checklistLabels = CHECKLIST_STATUS_LABELS;
   protected readonly tabs = MATTER_TABS;
+  protected readonly collateralTypes = COLLATERAL_TYPE_LABELS;
+  protected readonly hearingTypes = HEARING_TYPE_LABELS;
+  protected readonly hearingModes = HEARING_MODE_LABELS;
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.mattersApi.sheet(params) });
   protected readonly sheet = valueOr(this.resource, undefined);
@@ -138,7 +144,7 @@ export class MatterDetail {
   protected readonly canExpense = computed(() => this.auth.hasPermission(Permission.LEGAL_EXPENSE_MANAGE));
   protected readonly canUpload = computed(() => this.canManage() || this.canExpense());
   protected readonly canSeeCase = computed(() => this.auth.hasPermission(Permission.CASE_VIEW));
-  protected readonly partner = computed(() => isPartnerUser(this.auth.user()?.roles));
+  protected readonly partner = inject(LegalProfile).external;
 
   /** Transições possíveis agora (aceitar indicação exige também `LEGAL_AUTHORIZE`). */
   protected readonly transitions = computed(() => {
@@ -186,6 +192,11 @@ export class MatterDetail {
 
   protected deadlineText(d: DeadlineView): string {
     return deadlineText(d, this.today);
+  }
+
+  /** Número CNJ do processo da audiência (a ficha traz os processos do caso). */
+  protected lawsuitNumber(lawsuitId: string): string | null {
+    return this.sheet()?.lawsuits.find((l) => l.id === lawsuitId)?.cnjFormatted ?? null;
   }
 
   protected userName(id: string | null): string {

@@ -31,7 +31,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue`, `installment.paid` |
-| Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.reconciled`, `payment.divergence`, `payment.reversed` |
+| Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.rejected`, `payment.reconciled`, `payment.reallocated`, `payment.divergence`, `payment.reversed` |
 | Prestação de contas | `commission.accrued`, `settlement.closed` |
 | Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.received`, `message.blocked`, `conversation.handoff`, `conversation.closed`, `template.published` |
@@ -161,6 +161,7 @@ DEBTOR), `ownerType` (dono da conversa) e, com template, `templateCode`, `templa
 | `message.replied` / `message.received` | mensagem do devedor (com / sem envio anterior na conversa) | `contentType`, `identified`, `optOut` |
 | `conversation.handoff` / `assistant.handoff` | mudança de dono (o segundo quando o assistente transfere para humanos) | `kind`, `reason`, `from`, `to`, `fromUserId`, `toUserId`, `requiredProfile`, `referenceType`, `awaitingReply`; `durationMs` com o dono anterior |
 | `conversation.closed` | conversa encerrada | `from`, `messages`, `identified`; `durationMs` desde a abertura |
+| `conversation.sla_breached` | conversa aberta cruzou o limite de primeira resposta sem resposta (varredura; uma vez por espera) | `referenceType=conversation`, `owner` (ASSISTANT/QUEUE/USER/NONE), `ownerUserId`, `requiredProfile`, `breachMinutes`; `durationMs` = limite vigente |
 | `template.published` | versão de template publicada | `code`, `templateVersion`, `purpose`, `variables`, `replacedVersion` |
 
 ### 3.5 Atributos dos eventos do jurídico (legal)
@@ -169,7 +170,7 @@ Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |
-| `legal.matter_referred` | indicação (regra, alerta de prescrição ou manual) | `origin`, `ruleId`, `titles`, `excludedTitles`, `flags`, `prescribedExcluded`; `amount` = dívida |
+| `legal.matter_referred` | indicação (regra, alerta de prescrição, régua extrajudicial esgotada ou manual — `origin` `RULE`, `PRESCRIPTION_ALERT`, `CADENCE_EXHAUSTED`, `MANUAL`) | `origin`, `ruleId`, `titles`, `excludedTitles`, `flags`, `prescribedExcluded`; `amount` = dívida |
 | `legal.stage_changed` | toda transição de fase | `from`, `to`, `route`, `responsibleType`, `lawFirmId`, `cause` (`manual`, `measure`, `lawsuit`, `movement`, `capture`, `agreement`), `collectionHold`; `amount` = dívida |
 | `legal.matter_assigned` | responsável alterado | `responsibleType`, `previousType`, `responsibleUserId`, `lawFirmId`, `stage` |
 | `legal.viability_assessed` | análise registrada | `viable`, `economicallyViable`, `route`, `routes`, `debtAmount`, `collectibleDebt`, `collateralValue`, `expectedCosts`, `netBenefit`, `costBenefitRatio`, `successProbability`, `flags`, `checklistMissing`; `amount` = valor recuperável estimado |
@@ -201,6 +202,20 @@ documento, contato, valores de variáveis ou conteúdo de mensagem.
 | `campaign.replied` | primeira resposta do devedor numa inscrição ativa | `transition` (RB07: `STOP`, `GOTO_STEP`, `HAND_TO_ASSISTANT`, `MOVE_TO_QUEUE`, `CONTINUE`), `lastStepCode`, `stepsExecuted`; `channel`; `durationMs` desde a última etapa |
 | `campaign.cadence_exhausted` | régua percorrida sem resultado (insumo do jurídico) | `purpose`, `cadenceVersion`, `stepsExecuted`, `stepsSkipped`, `messagesSent`; `durationMs` desde a inscrição |
 | `experiment.variant_assigned` | braço do teste A/B atribuído ao devedor (uma vez) | `experimentId`, `arm`, `control`, `bucket` |
+### 3.7 Atributos dos eventos de pagamentos (payment)
+
+Ids, enums e valores apenas — nunca documento, nome, observação, descrição de extrato ou chave Pix. Referência `payment` (ou `payment_instruction`/`payment_divergence`), `creditorId`, `debtorId` e, quando alocado, `portfolioId`/`caseId`. Atributos comuns `source` (`PROVIDER`/`EXTERNAL`) e `method`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `payment_instruction.created` | instrução criada | `type`, `targetKind`, `agreementId`, `installmentNumber`, `dueDate`, `expiresInMinutes`; `channel`; `amount` |
+| `payment.informed` | pagamento externo registrado | `origin`, `reviewRequired`, `targetKind`, `hasEvidence`, `informedBy`, `daysSincePayment`; `amount` |
+| `payment.confirmed` | confirmado (provedor, extrato, baixo risco ou aprovação) | `trigger` (`provider`, `statement`, `auto_low_risk`, `review`), `reviewMode`, `allocations`, `allocatedAmount`, `unallocatedAmount`, `leftoverReason`, `targetKind`, `agreementId`, `instructionType`, `delayMinutes`; `channel` da instrução; `amount`; `durationMs` do pagamento à confirmação |
+| `payment.rejected` | informado recusado na revisão | `origin`, `reviewedBy`; `durationMs` na fila |
+| `payment.reconciled` | conciliado | `mode` (`PROVIDER_API`, `STATEMENT`, `MANUAL`), `statementImportId`, `daysFromPayment` |
+| `payment.reallocated` | sobra/não aplicado realocado ou devolvido | `fromKind`, `fromAgreementId`, `toKind`, `toAgreementId`; `amount` |
+| `payment.divergence` | divergência aberta ou resolvida | `type`, `source`, `status`, `paymentId`, `expectedAmount`, `resolution`, `resolvedBy`; `durationMs` até a resolução |
+| `payment.reversed` | estorno | `reason`, `reversalSource`, `previousStatus`, `allocations`, `daysSinceConfirmation`; `amount` |
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
@@ -282,6 +297,17 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `negotiation.proposal.acceptances{channel}`, `negotiation.proposal.expirations`, `negotiation.handoffs` | aceites por canal, propostas expiradas e transferências do assistente |
 | `negotiation.agreement.transitions{status,origin}`, `negotiation.formalization.duration`, `negotiation.term.render.duration` | ciclo dos acordos por origem (humano × assistente) e latência da formalização e do termo |
 | `negotiation.installments.overdue` | parcelas que entraram em atraso |
+| `payment.instructions{type,outcome}` | instruções: `created`, `reused`, `registered`, `failed`, `expired`, `cancelled`, `provider_cancelled`, `provider_cancel_refused`, `provider_unavailable` |
+| `payment.payments{source,method,status}`, `payment.confirmation.latency{source}` (p50/p95/p99) | transições de pagamento e tempo do pagamento à confirmação |
+| `payment.allocations{kind,origin,outcome}`, `payment.leftovers{reason}`, `payment.agreement.outcomes{outcome}` | alocações (`allocated`, `leftover`, `released`, `reversed`), sobras (`no_target`, `agreement_closed`, `title_unavailable`, `excess`) e resultado da baixa no negotiation (UNAPPLIED contínuo = fila de realocação crescendo) |
+| `payment.review.decisions{decision}`, `payment.review.wait{decision}` | revisão por segunda pessoa e espera na fila |
+| `payment.reversals{reason,source}` | estornos |
+| `payment.webhook.requests{provider,outcome}` | `ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `UNAUTHENTICATED` (alarme), `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED` |
+| `payment.webhook.events{outcome}`, `payment.pix.sync{outcome}` | itens do webhook (`scheduled`, `stale`, `invalid`) e confirmação por consulta (`confirmed`, `linked`, `duplicate_payment`, `unidentified`, `refund`, `unchanged`, `not_found`) |
+| `payment.reconciliation.imports{format,status}`, `payment.reconciliation.lines{outcome}`, `payment.divergences{type,status}` | conciliação por extrato e fila de divergências |
+| `payment.ledger.postings{operation,outcome}` | lançamentos no razão de títulos avulsos (`payment`/`reversal`; `failed` = alarme) |
+| `payment.events.consumed{type}`, `payment.jobs.failures{job}` | consumo de eventos e falhas (`pix_sync`, `expiration`, `webhook_receipts`; alarme) |
+| `integration.calls{provider=pix_bacen|pix_sandbox,operation,outcome}` | chamadas à API Pix (`oauth_token`, `create_cob`, `create_cobv`, `cancel_charge`, `find_pix`, `configure_webhook`) |
 | `negotiation.payments{outcome}`, `negotiation.payment.reversals{outcome}` | baixas (APPLIED, PARTIAL = excedente, UNAPPLIED = acordo encerrado, DUPLICATE, IGNORED) e estornos (REVERSED, UNKNOWN, DUPLICATE); UNAPPLIED/PARTIAL contínuos = realocação pendente no payment |
 | `negotiation.ledger.postings{operation,outcome}` | lançamentos no razão do título (PAYMENT inclui a quitação do título; REVERSAL); `FAILED` = job em DEAD (alarme) |
 | `negotiation.anonymized_records` | registros neutralizados na anonimização LGPD do devedor |
@@ -304,12 +330,16 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `legal.prescription.interruptions{type,outcome}` | interrupções enviadas ao debt (`registered`/`duplicate`) |
 | `legal.providers.manual_requests{port,operation}`, `legal.providers.captured{provider}` | pedidos de operação automática com adaptador manual; andamentos capturados |
 | `legal.access.law_firm_denied{resource}` | acessos negados a membros de escritório fora dos casos atribuídos |
-| `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos, duração da varredura diária e falhas (alarme) |
+| `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos (inclui `cadence_exhausted` e `cadence_exhausted_ignored` — régua de outra finalidade), duração da varredura diária e falhas (alarme) |
 | `communication.messages{channel,direction,sender,status}` | mudanças de status de mensagens (inclui `QUEUED` e `RECEIVED`) |
 | `communication.messages.blocked{channel,sender,stage,reason}` | envios negados pelo porteiro, por motivo (`precheck`/`send`) |
 | `communication.send.attempts{channel,provider,outcome}` | tentativas do job: `accepted`, `rejected`, `transient`, `blocked`, `account_unavailable`, `whatsapp_window_closed` |
 | `communication.send.latency{channel}`, `communication.delivery.latency{channel}` (p50/p95/p99) | enfileiramento → aceite; aceite → entrega |
 | `communication.inbox.first_response{channel,responder}` (p50/p95/p99) | SLA de primeira resposta (operador ou assistente) |
+| `communication.inbox.first_response.sla{channel,responder,outcome}` | primeiras respostas pela meta da assessoria: `OK`, `WARNING`, `BREACHED` (taxa de cumprimento do SLA) |
+| `communication.inbox.sla.breaches{channel,owner}` | conversas que estouraram o limite sem resposta (varredura de 1 min, contagem única por espera; alarme `inbox-sla-breaches`) |
+| `communication.realtime.subscribers` (gauge por instância), `communication.realtime.streams{outcome}` | conexões SSE abertas e ciclo (`opened`, `rejected_limit`, `expired`, `revoked`, `timeout`, `client_gone`, `completed`, `shutdown`) |
+| `communication.realtime.signals{kind,outcome}`, `communication.realtime.listener.failures`, `communication.realtime.listener.malformed` | avisos repassados (`conversation`/`resync`; `delivered`/`no_subscriber`), falhas da escuta LISTEN/NOTIFY (alarme `inbox-realtime-listener`) e avisos inválidos |
 | `communication.webhook.requests{provider,outcome}` | `ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` (alarme), `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`, `VERIFIED`, `VERIFY_REJECTED` |
 | `communication.webhook.events{provider,type,outcome}` | mensagens/status do webhook: `applied`, `duplicate`, `stale` (replay), `unknown_message`, `ignored` |
 | `communication.opt_out{channel}` | descadastros por palavra-chave |

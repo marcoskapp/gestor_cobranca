@@ -13,7 +13,8 @@ import java.util.UUID;
  * Regra de indicação ao jurídico por credor (e, opcionalmente, carteira). Todos os critérios
  * informados precisam ser atendidos (E); regras diferentes se somam (OU). Critérios: atraso
  * mínimo, saldo mínimo, garantia, título executivo com pretensão executiva vigente, acordos
- * quebrados e prescrição próxima (dias até a data estimada mais próxima).
+ * quebrados, prescrição próxima (dias até a data estimada mais próxima) e régua extrajudicial
+ * esgotada (campanha de cobrança extrajudicial percorrida sem resultado).
  */
 @Entity
 @Table(name = "eligibility_rule", schema = "legal")
@@ -49,6 +50,9 @@ public class LegalEligibilityRule extends TenantScopedEntity {
     @Column(name = "prescription_within_days")
     private Integer prescriptionWithinDays;
 
+    @Column(name = "require_cadence_exhausted", nullable = false)
+    private boolean requireCadenceExhausted;
+
     protected LegalEligibilityRule() {
     }
 
@@ -63,10 +67,12 @@ public class LegalEligibilityRule extends TenantScopedEntity {
     /**
      * @param minDaysOverdue         atraso mínimo do título mais antigo (dias)
      * @param minOpenBalance         saldo mínimo dos títulos indicáveis
-     * @param prescriptionWithinDays a data estimada de prescrição (vigente) mais próxima está a no máximo N dias
+     * @param prescriptionWithinDays  a data estimada de prescrição (vigente) mais próxima está a no máximo N dias
+     * @param requireCadenceExhausted o caso de cobrança teve régua de campanha extrajudicial esgotada
      */
     public record Criteria(String name, Integer minDaysOverdue, Money minOpenBalance, boolean requireCollateral,
-                           boolean requireExecutiveTitle, Integer minBrokenAgreements, Integer prescriptionWithinDays) {
+                           boolean requireExecutiveTitle, Integer minBrokenAgreements, Integer prescriptionWithinDays,
+                           boolean requireCadenceExhausted) {
     }
 
     /** @return true se algo mudou */
@@ -83,13 +89,15 @@ public class LegalEligibilityRule extends TenantScopedEntity {
                         || (c.prescriptionWithinDays() >= 1 && c.prescriptionWithinDays() <= 3650),
                 "legal_rule.prescription_days_invalid", "Janela de prescrição inválida");
         Guard.require(c.minDaysOverdue() != null || c.minOpenBalance() != null || c.requireCollateral()
-                        || c.requireExecutiveTitle() || c.minBrokenAgreements() != null || c.prescriptionWithinDays() != null,
+                        || c.requireExecutiveTitle() || c.minBrokenAgreements() != null || c.prescriptionWithinDays() != null
+                        || c.requireCadenceExhausted(),
                 "legal_rule.criteria_required", "Informe ao menos um critério");
         boolean changed = !c.name().trim().equals(name) || !java.util.Objects.equals(c.minDaysOverdue(), minDaysOverdue)
                 || !java.util.Objects.equals(c.minOpenBalance(), minOpenBalance) || c.requireCollateral() != requireCollateral
                 || c.requireExecutiveTitle() != requireExecutiveTitle
                 || !java.util.Objects.equals(c.minBrokenAgreements(), minBrokenAgreements)
-                || !java.util.Objects.equals(c.prescriptionWithinDays(), prescriptionWithinDays);
+                || !java.util.Objects.equals(c.prescriptionWithinDays(), prescriptionWithinDays)
+                || c.requireCadenceExhausted() != requireCadenceExhausted;
         this.name = c.name().trim();
         this.minDaysOverdue = c.minDaysOverdue();
         this.minOpenBalance = c.minOpenBalance();
@@ -97,6 +105,7 @@ public class LegalEligibilityRule extends TenantScopedEntity {
         this.requireExecutiveTitle = c.requireExecutiveTitle();
         this.minBrokenAgreements = c.minBrokenAgreements();
         this.prescriptionWithinDays = c.prescriptionWithinDays();
+        this.requireCadenceExhausted = c.requireCadenceExhausted();
         return changed;
     }
 
@@ -112,7 +121,7 @@ public class LegalEligibilityRule extends TenantScopedEntity {
 
     public Criteria criteria() {
         return new Criteria(name, minDaysOverdue, minOpenBalance, requireCollateral, requireExecutiveTitle,
-                minBrokenAgreements, prescriptionWithinDays);
+                minBrokenAgreements, prescriptionWithinDays, requireCadenceExhausted);
     }
 
     public UUID getCreditorId() {
@@ -153,5 +162,9 @@ public class LegalEligibilityRule extends TenantScopedEntity {
 
     public Integer getPrescriptionWithinDays() {
         return prescriptionWithinDays;
+    }
+
+    public boolean isRequireCadenceExhausted() {
+        return requireCadenceExhausted;
     }
 }

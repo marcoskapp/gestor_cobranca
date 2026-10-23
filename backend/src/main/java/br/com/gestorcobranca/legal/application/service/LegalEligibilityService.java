@@ -143,14 +143,16 @@ class LegalEligibilityService implements LegalEligibilityUseCases {
 
     private static LegalEligibilityRule.Criteria criteria(RuleCommand c) {
         return new LegalEligibilityRule.Criteria(c.name(), c.minDaysOverdue(), LegalViews.money(c.minOpenBalance()),
-                c.requireCollateral(), c.requireExecutiveTitle(), c.minBrokenAgreements(), c.prescriptionWithinDays());
+                c.requireCollateral(), c.requireExecutiveTitle(), c.minBrokenAgreements(), c.prescriptionWithinDays(),
+                c.requireCadenceExhausted());
     }
 
     private static String describe(LegalEligibilityRule r) {
-        return "minDaysOverdue=%s;minOpenBalance=%s;requireCollateral=%s;requireExecutiveTitle=%s;minBrokenAgreements=%s;prescriptionWithinDays=%s"
+        return ("minDaysOverdue=%s;minOpenBalance=%s;requireCollateral=%s;requireExecutiveTitle=%s;minBrokenAgreements=%s;"
+                + "prescriptionWithinDays=%s;requireCadenceExhausted=%s")
                 .formatted(r.getMinDaysOverdue(), r.getMinOpenBalance() == null ? null : r.getMinOpenBalance().amount(),
                         r.isRequireCollateral(), r.isRequireExecutiveTitle(), r.getMinBrokenAgreements(),
-                        r.getPrescriptionWithinDays());
+                        r.getPrescriptionWithinDays(), r.isRequireCadenceExhausted());
     }
 
     private LegalEligibilityRule visible(UUID ruleId) {

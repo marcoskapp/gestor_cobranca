@@ -69,7 +69,7 @@ shared ◄── organization ◄── identity
               ├── portal             (→ negotiation, payment, communication, debt, organization)
               ├── scoring            (→ collection, debt, payment, organization)
               ├── assistant          (→ negotiation, communication, collection, compliance, debt, organization)
-              ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation por evento)
+              ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               └── analytics          (→ organization; lê o banco por views próprias)
 ```

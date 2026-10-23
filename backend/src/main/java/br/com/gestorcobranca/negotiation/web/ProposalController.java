@@ -70,11 +70,12 @@ class ProposalController {
     @PreAuthorize("hasAuthority('AGREEMENT_VIEW') or hasAuthority('NEGOTIATION_PROPOSE') or hasAuthority('NEGOTIATION_APPROVE')")
     PageResponse<ProposalView> search(@RequestParam(required = false) UUID creditorId,
                                       @RequestParam(required = false) UUID debtorId,
+                                      @RequestParam(required = false) UUID caseId,
                                       @RequestParam(required = false) String status,
                                       @RequestParam(required = false) String actorType,
                                       @RequestParam(required = false) Integer page,
                                       @RequestParam(required = false) Integer size) {
-        return proposals.search(new ProposalFilter(creditorId, debtorId, status, actorType), PageQuery.of(page, size));
+        return proposals.search(new ProposalFilter(creditorId, debtorId, caseId, status, actorType), PageQuery.of(page, size));
     }
 
     @GetMapping("/approval-queue")

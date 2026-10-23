@@ -23,6 +23,9 @@ public interface HearingUseCases {
 
     List<HearingView> list(UUID lawsuitId);
 
+    /** Audiências de todos os processos do caso jurídico (ficha), em ordem cronológica. */
+    List<HearingView> listByMatter(UUID matterId);
+
     /**
      * @param type CONCILIATION, MEDIATION, INSTRUCTION_AND_JUDGMENT ou OTHER (ignorado na remarcação)
      * @param mode IN_PERSON, VIDEO ou HYBRID

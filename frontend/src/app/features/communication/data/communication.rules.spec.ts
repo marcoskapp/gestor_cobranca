@@ -8,6 +8,7 @@ import {
   newInbound,
   senderText,
   shortDuration,
+  slaHint,
   slaTone,
   tabFilter,
   usedVariables,
@@ -56,13 +57,14 @@ describe('regras da caixa de entrada', () => {
     expect(tabFilter('all')).toEqual({ owner: null, assignee: null });
   });
 
-  it('SLA de primeira resposta por canal', () => {
-    expect(slaTone('WHATSAPP', 60)).toBe('ok');
-    expect(slaTone('WHATSAPP', 20 * 60)).toBe('warning');
-    expect(slaTone('SMS', 2 * 3600)).toBe('late');
-    expect(slaTone('EMAIL', 2 * 3600)).toBe('ok');
-    expect(slaTone('EMAIL', 25 * 3600)).toBe('late');
-    expect(slaTone('WHATSAPP', null)).toBeNull();
+  it('SLA de primeira resposta segue a classificação do servidor (metas da assessoria)', () => {
+    expect(slaTone({ slaStatus: 'OK' })).toBe('ok');
+    expect(slaTone({ slaStatus: 'WARNING' })).toBe('warning');
+    expect(slaTone({ slaStatus: 'BREACHED' })).toBe('late');
+    expect(slaTone({ slaStatus: null })).toBeNull();
+    expect(slaHint({ slaStatus: 'WARNING', slaBreachAt: '2026-10-23T17:35:00Z' }, () => '14:35')).toBe('Meta de primeira resposta estoura às 14:35');
+    expect(slaHint({ slaStatus: 'BREACHED', slaBreachAt: '2026-10-23T17:35:00Z' }, () => '14:35')).toContain('estourada');
+    expect(slaHint({ slaStatus: null, slaBreachAt: null }, () => '')).toBeNull();
     expect(waitingText({ waitingSeconds: 3900 })).toBe('aguardando há 1 h 5 min');
     expect(shortDuration(30)).toBe('menos de 1 min');
     expect(shortDuration(3 * 86400)).toBe('3 d');

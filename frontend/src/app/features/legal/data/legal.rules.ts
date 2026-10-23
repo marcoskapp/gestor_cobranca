@@ -76,12 +76,6 @@ export function budgetUsage(m: Pick<MatterView, 'authorizedBudget' | 'expensesTo
   return m.authorizedBudget && m.authorizedBudget > 0 ? Math.round((m.expensesTotal / m.authorizedBudget) * 1000) / 10 : null;
 }
 
-/** Perfil padrão de advogado de escritório parceiro (visão restrita aos casos do escritório). */
-export const PARTNER_ROLE = 'ADVOGADO_PARCEIRO';
-
-export function isPartnerUser(roles: readonly string[] | null | undefined): boolean {
-  return !!roles?.includes(PARTNER_ROLE);
-}
 
 /** `LocalDate` a partir de hoje + n dias (fuso local). */
 export function addDays(today: string, days: number): string {

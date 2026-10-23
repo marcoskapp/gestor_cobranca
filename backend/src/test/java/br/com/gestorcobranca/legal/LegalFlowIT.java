@@ -72,13 +72,13 @@ class LegalFlowIT extends LegalTestSupport {
                 new LoadedTitle("T-2", "CCB-1", LocalDate.of(2026, 4, 11), "2000.00"),
                 new LoadedTitle("T-OLD", "CT-OLD", LocalDate.of(2020, 1, 10), "300.00"));
         executiveContract(creditorA, "CCB-1");
-        vehicleCollateral(creditorA, "CCB-1", "20000.00");
+        UUID collateral = vehicleCollateral(creditorA, "CCB-1", "20000.00");
         CaseView collectionCase = activeCase(debtor, portfolioA);
         assertThat(collectionCase.status()).isEqualTo("OPEN");
 
         // 1. indicação automática pela regra (atraso ≥ 90 dias); o título prescrito fica de fora
         asManager(() -> eligibility.createRule(new RuleCommand(creditorA, null, "Atraso 90+", 90, null, false, false,
-                null, null)));
+                null, null, false)));
         assertThat(LegalTestHooks.sweepEligibility(applicationContext, tenant)).isEqualTo(1);
         assertThat(LegalTestHooks.sweepEligibility(applicationContext, tenant)).as("um caso jurídico por caso").isZero();
         MatterView matter = asLawyer(() -> matters.search(new MatterFilter(null, null, debtor, null, null, null, null,
@@ -204,6 +204,19 @@ class LegalFlowIT extends LegalTestSupport {
         assertThatThrownBy(() -> asLawyer(() -> hearings.schedule(lawsuit.id(), new HearingCommand("CONCILIATION",
                 Instant.now().plus(10, ChronoUnit.DAYS), "VIDEO", null, "http://inseguro", Set.of(), null))))
                 .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("legal_hearing.link_invalid");
+
+        // ficha: audiências de todos os processos do caso e garantias que cobrem os títulos indicados
+        assertThat(asLawyer(() -> hearings.listByMatter(id))).extracting(HearingView::id).containsExactly(hearing.id());
+        MatterSheet filed = asLawyer(() -> matters.sheet(id));
+        assertThat(filed.hearings()).extracting(HearingView::id).containsExactly(hearing.id());
+        assertThat(filed.collaterals()).singleElement().satisfies(k -> {
+            assertThat(k.collateralId()).isEqualTo(collateral);
+            assertThat(k.type()).isEqualTo("VEHICLE_FIDUCIARY_ALIENATION");
+            assertThat(k.assetSummary()).contains("ABC1D23");
+            assertThat(k.estimatedValue()).isEqualByComparingTo("20000.00");
+            assertThat(k.titleIds()).containsExactlyInAnyOrder(titles.get(0), titles.get(1));
+        });
+        assertThat(asLawyer(() -> matters.collaterals(id))).extracting(c -> c.collateralId()).containsExactly(collateral);
 
         // 8. acordo judicial pelo evento do negotiation: SETTLED_IN_COURT com prazo de homologação; quebra retoma
         UUID agreement = Ids.newId();

@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.legal.application.service;
 
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
+import br.com.gestorcobranca.debt.application.port.in.CollateralUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
@@ -19,6 +20,7 @@ import br.com.gestorcobranca.legal.domain.repository.AgreementRecordRepository;
 import br.com.gestorcobranca.legal.domain.repository.CreditorAuthorizationRepository;
 import br.com.gestorcobranca.legal.domain.repository.DeadlineSearchCriteria;
 import br.com.gestorcobranca.legal.domain.repository.ExtrajudicialMeasureRepository;
+import br.com.gestorcobranca.legal.domain.repository.HearingRepository;
 import br.com.gestorcobranca.legal.domain.repository.LawFirmMemberRepository;
 import br.com.gestorcobranca.legal.domain.repository.LawFirmRepository;
 import br.com.gestorcobranca.legal.domain.repository.LawsuitRepository;
@@ -52,8 +54,10 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -70,6 +74,8 @@ class LegalMatterService implements LegalMatterUseCases {
     private final LegalDeadlineRepository deadlines;
     private final LegalExpenseRepository expenses;
     private final LegalDocumentRepository documents;
+    private final HearingRepository hearings;
+    private final CaseFactsReader facts;
     private final AgreementRecordRepository agreements;
     private final LegalDashboardReader dashboardReader;
     private final LawFirmRepository firms;
@@ -95,7 +101,8 @@ class LegalMatterService implements LegalMatterUseCases {
                        ViabilityAssessmentRepository assessments, CreditorAuthorizationRepository authorizations,
                        ExtrajudicialMeasureRepository measures, LawsuitRepository lawsuits,
                        LegalDeadlineRepository deadlines, LegalExpenseRepository expenses,
-                       LegalDocumentRepository documents, AgreementRecordRepository agreements,
+                       LegalDocumentRepository documents, HearingRepository hearings, CaseFactsReader facts,
+                       AgreementRecordRepository agreements,
                        LegalDashboardReader dashboardReader, LawFirmRepository firms,
                        LawFirmMemberRepository members, CaseUseCases cases, DebtorUseCases debtors,
                        DebtTitleUseCases titles, UserDirectory users, Referrals referrals, MatterRecorder recorder,
@@ -112,6 +119,8 @@ class LegalMatterService implements LegalMatterUseCases {
         this.deadlines = deadlines;
         this.expenses = expenses;
         this.documents = documents;
+        this.hearings = hearings;
+        this.facts = facts;
         this.agreements = agreements;
         this.dashboardReader = dashboardReader;
         this.firms = firms;
@@ -171,7 +180,30 @@ class LegalMatterService implements LegalMatterUseCases {
                 expenses.findByMatterIdOrderByIncurredOnDescCreatedAtDesc(m.getId()).stream().map(LegalViews::expense)
                         .toList(),
                 documents.findByMatterIdOrderByCreatedAtDesc(m.getId()).stream().map(LegalViews::document).toList(),
-                history(m));
+                history(m), collaterals(m),
+                hearings.findByMatterIdOrderByScheduledAtAscIdAsc(m.getId()).stream().map(LegalViews::hearing).toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatterCollateralView> collaterals(UUID matterId) {
+        return collaterals(access.visible(matterId));
+    }
+
+    /** Garantias que cobrem os títulos do caso, na ordem do primeiro título coberto. */
+    private List<MatterCollateralView> collaterals(LegalMatter m) {
+        Map<UUID, MatterCollateralView> byId = new LinkedHashMap<>();
+        for (CaseFactsReader.TitleSnapshot snapshot : facts.titles(m.getTitleIds())) {
+            for (CollateralUseCases.CollateralView k : snapshot.collaterals()) {
+                MatterCollateralView current = byId.get(k.id());
+                Set<UUID> covered = new LinkedHashSet<>(current == null ? Set.of() : current.titleIds());
+                covered.add(snapshot.title().id());
+                byId.put(k.id(), new MatterCollateralView(k.id(), k.contractId(), k.type(), k.description(),
+                        k.asset() == null ? null : k.asset().summary(), k.status(), k.estimatedValue(),
+                        k.lastAppraisalDate(), Set.copyOf(covered)));
+            }
+        }
+        return List.copyOf(byId.values());
     }
 
     @Override

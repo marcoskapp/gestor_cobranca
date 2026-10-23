@@ -220,6 +220,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 | `InstallmentStatusChanged` | toda mudança de situação de parcela |
 | `AgreementAttributionRecorded` | formalização |
 | `HandoffRequested` (contrato do `communication`, `shared.events.communication`) | proposta do assistente acima da alçada |
+| `AgreementPaymentRecorded` (**novo**, para o payment) | toda baixa de `PaymentConfirmed` com acordo: aplicado, não aplicado (acordo encerrado/excedente) ou ignorado (acordo desconhecido) |
 | consumidos: `PaymentConfirmed`, `PaymentReversed`, `DebtorAnonymized` (**novo**, publicado pelo debt na anonimização), `TenantProvisioned` | — |
 
 ### 10.9 LGPD
@@ -230,7 +231,7 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 
 | Recurso | Métodos | Permissão |
 | --- | --- | --- |
-| `/proposals` | `POST` (criar), `GET` (filtros: credor, devedor, status, tipo de ator) | `NEGOTIATION_PROPOSE` / leitura: `AGREEMENT_VIEW`, `NEGOTIATION_PROPOSE` ou `NEGOTIATION_APPROVE` |
+| `/proposals` | `POST` (criar), `GET` (filtros: credor, devedor, caso, status, tipo de ator) | `NEGOTIATION_PROPOSE` / leitura: `AGREEMENT_VIEW`, `NEGOTIATION_PROPOSE` ou `NEGOTIATION_APPROVE` |
 | `/proposals/approval-queue` | `GET` | `NEGOTIATION_APPROVE` |
 | `/proposals/{id}` · `/proposals/{id}/term` | `GET` | leitura |
 | `/proposals/{id}/approve` · `/reject` | `POST` | `NEGOTIATION_APPROVE` |
@@ -266,7 +267,7 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 
 ### 10.12 Pendências
 
-- **payment**: produzir `PaymentConfirmed` com `agreementId` e `agreementInstallmentId` sem lançar essas alocações no razão; realocar pagamentos `UNAPPLIED`.
+- ~~**payment**: produzir `PaymentConfirmed` com `agreementId` e `agreementInstallmentId` sem lançar essas alocações no razão; realocar pagamentos `UNAPPLIED`.~~ Feito (ver [pagamentos.md](pagamentos.md)); o `paymentId` recebido é o id da alocação no payment.
 - **assistant**: encerrar o turno com a mensagem de transferência quando a ferramenta de proposta devolver `HANDED_OFF` (o communication já consome `HandoffRequested`).
 - **collection**: consumir `DebtorAnonymized` para observações próprias; opcionalmente reagir ao handoff.
 - **debt**: operação compensatória de reconhecimento de encargo (estorno após lançamento, §10.5).

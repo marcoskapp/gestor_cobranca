@@ -29,6 +29,7 @@ import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -59,13 +61,14 @@ class MessageService implements MessageUseCases {
     private final AccessScope accessScope;
     private final JobQueue jobQueue;
     private final CommunicationMetrics metrics;
+    private final ResponseTargetProvider responseTargets;
     private final Clock clock;
 
     MessageService(MessageRepository messages, ConversationRepository conversations, MessageTemplateRepository templates,
                    TemplateVariables templateVariables, ChannelResolver channels, ConversationAccess access,
                    ConversationOwnership ownership, MessageRecorder recorder, ContactGate gate, DebtorUseCases debtors,
                    DebtorContactUseCases debtorContacts, CaseReader cases, AccessScope accessScope, JobQueue jobQueue,
-                   CommunicationMetrics metrics, Clock clock) {
+                   CommunicationMetrics metrics, ResponseTargetProvider responseTargets, Clock clock) {
         this.messages = messages;
         this.conversations = conversations;
         this.templates = templates;
@@ -81,6 +84,7 @@ class MessageService implements MessageUseCases {
         this.accessScope = accessScope;
         this.jobQueue = jobQueue;
         this.metrics = metrics;
+        this.responseTargets = responseTargets;
         this.clock = clock;
     }
 
@@ -125,6 +129,18 @@ class MessageService implements MessageUseCases {
     public PageResponse<MessageView> listByConversation(UUID conversationId, PageQuery page) {
         Conversation c = access.visible(conversationId);
         return PageResponse.of(messages.findByConversationIdOrderByCreatedAtDesc(c.getId(), page.toPageable()),
+                CommunicationViews::message);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<MessageView> listByDebtor(UUID debtorId, UUID creditorId, PageQuery page) {
+        Guard.require(debtorId != null, "message.debtor_required", "Devedor obrigatório");
+        Set<UUID> allowed = access.creditorFilter();
+        if (creditorId != null && allowed != null && !allowed.contains(creditorId)) {
+            return PageResponse.of(Page.empty());
+        }
+        return PageResponse.of(messages.findByDebtor(debtorId, creditorId, allowed, page.toPageable()),
                 CommunicationViews::message);
     }
 
@@ -175,8 +191,11 @@ class MessageService implements MessageUseCases {
             recorder.blocked(saved, c, reasons, "precheck");
             return saved;
         }
-        c.registerOutbound(sender, now).ifPresent(waited ->
-                metrics.firstResponse(c.getChannel().name(), sender.name(), waited));
+        c.registerOutbound(sender, now).ifPresent(waited -> {
+            metrics.firstResponse(c.getChannel().name(), sender.name(), waited);
+            metrics.firstResponseSla(c.getChannel().name(), sender.name(),
+                    responseTargets.current().classify(c.getChannel(), waited).name());
+        });
         conversations.save(c);
         Message saved = messages.saveAndFlush(message);
         jobQueue.enqueue(SendMessageJob.TYPE, new SendMessageJob.Payload(saved.getId()), null, "message:" + saved.getId());

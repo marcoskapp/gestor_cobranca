@@ -96,6 +96,8 @@ export interface ProposalView {
 export interface ProposalFilter {
   creditorId: string | null;
   debtorId: string | null;
+  /** Propostas de um caso de cobrança (aba Negociação da estação). */
+  caseId?: string | null;
   status: string | null;
   actorType: string | null;
 }

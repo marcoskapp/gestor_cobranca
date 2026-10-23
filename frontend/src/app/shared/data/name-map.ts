@@ -9,6 +9,8 @@ export const UNRESOLVED_NAME = 'Indisponível';
 /** Resolução de rótulos por id (as fontes de `app-entity-picker` também servem). */
 export interface NameSource {
   resolve(ids: string[]): Observable<Option[]>;
+  /** Ids por chamada quando a fonte consulta em lote (padrão de {@link NameMapOptions.batch}). */
+  readonly batchSize?: number;
 }
 
 export interface NameMap {
@@ -42,7 +44,7 @@ export function nameMap(source: NameSource, ids: () => readonly (string | null |
     { equal: (a, b) => a.length === b.length && a.every((id, i) => id === b[i]) },
   );
 
-  const size = Math.max(1, options.batch ?? 1);
+  const size = Math.max(1, options.batch ?? source.batchSize ?? 1);
   const chunk = (list: string[]) => Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, (i + 1) * size));
 
   rxResource({

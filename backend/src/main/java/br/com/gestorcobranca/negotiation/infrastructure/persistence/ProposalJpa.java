@@ -21,7 +21,8 @@ import java.util.UUID;
 interface ProposalJpa extends JpaRepository<Proposal, UUID>, JpaSpecificationExecutor<Proposal>, ProposalRepository {
 
     @Override
-    default Page<Proposal> search(Collection<UUID> creditorIds, UUID creditorId, UUID debtorId, ProposalStatus status,
+    default Page<Proposal> search(Collection<UUID> creditorIds, UUID creditorId, UUID debtorId, UUID caseId,
+                                  ProposalStatus status,
                                   String actorType, UUID actorId, Pageable page) {
         Specification<Proposal> spec = Specification.unrestricted();
         if (creditorIds != null) {
@@ -32,6 +33,9 @@ interface ProposalJpa extends JpaRepository<Proposal, UUID>, JpaSpecificationExe
         }
         if (debtorId != null) {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("debtorId"), debtorId));
+        }
+        if (caseId != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("caseId"), caseId));
         }
         if (status != null) {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("status"), status));

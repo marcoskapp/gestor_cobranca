@@ -69,6 +69,17 @@ class LawFirmService implements LawFirmUseCases {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public LegalProfileView me() {
+        LegalAccess.ActorScope scope = access.scope();
+        if (!scope.external()) {
+            return new LegalProfileView(false, null, null, true);
+        }
+        String name = firms.findById(scope.lawFirmId()).map(LawFirm::getName).orElse(null);
+        return new LegalProfileView(true, scope.lawFirmId(), name, scope.firmActive());
+    }
+
+    @Override
     public LawFirmView create(LawFirmCommand c) {
         manage();
         LawFirm firm = new LawFirm(c.name(), c.cnpj(), c.oabRegistration(), c.contactEmail());
