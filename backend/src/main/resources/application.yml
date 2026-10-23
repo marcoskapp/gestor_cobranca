@@ -200,3 +200,16 @@ app:
 
   scheduling:
     enabled: true
+
+  compliance:
+    data-subject-request:
+      # dias corridos para atender (LGPD art. 19, II); prazos específicos por tipo em due-days
+      default-due-days: 15
+      overdue-check-interval: PT30M
+    retention:
+      cron: "0 30 2 * * *"
+      batch-size: 200
+      stale-run-after: PT6H
+      expiry-check-interval: PT5M
+    evidence:
+      max-size-bytes: 20971520
