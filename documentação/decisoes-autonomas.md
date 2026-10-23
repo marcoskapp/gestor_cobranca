@@ -37,6 +37,8 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 31 | ingestion **[revisar]** | Título informado como pago/cancelado na carga **não** gera baixa: é suspenso para conciliação; contestado é suspenso. Dado jurídico inconsistente rejeita a linha inteira. | Baixar pela carga; gravar o título sem a garantia. | Baixa exige pagamento com evidência (RB06); carregar sem garantia é arriscado. |
 | 32 | ingestion | Processamento em fatias de 2 min com checkpoint a cada 500 linhas e transação por linha; garantia da carga cobre todos os títulos do contrato. | Job longo; cobertura por título. | Retomada exata sem transações longas. |
 | 33 | ingestion | API de registros autentica por usuário com `IMPORT_EXECUTE` até existir credencial de integração (ator `INTEGRATION`). | Bloquear a API. | Pendência de segurança registrada. |
+| 34 | incentive | Retornos contados no dia do horário combinado, para o responsável; cumprido com atraso e cancelado já atrasado contam como atrasado; reagendar antes do horário substitui o compromisso. Promessas contadas na data prometida, para quem registrou. | Contar pela data de resolução; cancelar remove o atraso. | Fórmulas do §2; impede "limpar" atraso cancelando. |
+| 35 | collection/incentive | Novo evento `CaseBalanceChanged` quando só o saldo elegível muda (corrigia denominador desatualizado da taxa de recuperação). | Reenviar `CaseStatusChanged` sem mudança de status. | Não altera o significado dos eventos de status para outros consumidores. |
 
 ## Situação ao fim da sessão autônoma
 

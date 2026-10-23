@@ -30,7 +30,18 @@ public interface IndicatorReader {
                   long agreements, BigDecimal negotiatedAmount, BigDecimal agreementAmount, BigDecimal updatedBalance,
                   BigDecimal discountAmount, BigDecimal downPaymentAmount, BigDecimal envelopeUsageSum, long envelopeCount,
                   long concessionLevelSum, long concessionCount, long firstInstallments, BigDecimal accruedAmount,
-                  BigDecimal reversedAmount, Long workedCases, BigDecimal medianResponseSeconds) {
+                  BigDecimal reversedAmount, Long workedCases, BigDecimal medianResponseSeconds,
+                  Commitments commitments) {
+    }
+
+    /**
+     * Somas de retornos e promessas (§2.1 e §2.2). Retornos no dia do horário combinado e promessas
+     * vencidas/cumpridas/quebradas na data prometida; registradas no dia do registro.
+     */
+    record Commitments(long callbacksScheduled, long callbacksKept, long callbacksMissed, long promisesRegistered,
+                       long promisesDue, long promisesKept, long promisesBroken) {
+
+        public static final Commitments NONE = new Commitments(0, 0, 0, 0, 0, 0, 0);
     }
 
     List<Totals> totals(Filter filter, Dimension groupBy);

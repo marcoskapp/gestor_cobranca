@@ -2,11 +2,18 @@ package br.com.gestorcobranca.incentive.infrastructure.persistence;
 
 import br.com.gestorcobranca.incentive.application.port.out.FactStore;
 import br.com.gestorcobranca.incentive.domain.model.DelayBucket;
+import br.com.gestorcobranca.incentive.domain.model.commitment.CallbackCommitment;
+import br.com.gestorcobranca.incentive.domain.model.commitment.CallbackCommitmentStatus;
+import br.com.gestorcobranca.incentive.domain.model.commitment.CommitmentTally;
+import br.com.gestorcobranca.incentive.domain.model.commitment.PromiseOutcome;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -248,6 +255,130 @@ class JdbcFactStore implements FactStore {
     }
 
     @Override
+    public void incrementCommitments(FactKey key, CommitmentTally t) {
+        if (t.isZero()) {
+            return;
+        }
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("date", key.date(), Types.DATE)
+                .addValue("user", key.userId())
+                .addValue("creditor", key.creditorId(), Types.OTHER)
+                .addValue("portfolio", key.portfolioId(), Types.OTHER)
+                .addValue("bucket", (key.delayBucket() == null ? DelayBucket.UNKNOWN : key.delayBucket()).name())
+                .addValue("channel", key.channel() == null || key.channel().isBlank() ? "UNKNOWN" : key.channel())
+                .addValue("cbScheduled", t.callbacksScheduled())
+                .addValue("cbKept", t.callbacksKept())
+                .addValue("cbMissed", t.callbacksMissed())
+                .addValue("prRegistered", t.promisesRegistered())
+                .addValue("prDue", t.promisesDue())
+                .addValue("prKept", t.promisesKept())
+                .addValue("prBroken", t.promisesBroken());
+        // atualiza primeiro: o check das medidas vale também para a linha proposta de um insert com
+        // "on conflict", e uma compensação (delta negativo) só existe sobre linha já gravada
+        int updated = jdbc.update("""
+                update incentive.performance_fact set
+                    callbacks_scheduled = callbacks_scheduled + :cbScheduled,
+                    callbacks_kept = callbacks_kept + :cbKept,
+                    callbacks_missed = callbacks_missed + :cbMissed,
+                    promises_registered = promises_registered + :prRegistered,
+                    promises_due = promises_due + :prDue,
+                    promises_kept = promises_kept + :prKept,
+                    promises_broken = promises_broken + :prBroken
+                where tenant_id = shared.current_tenant_id() and fact_date = :date and user_id = :user
+                  and creditor_id is not distinct from cast(:creditor as uuid)
+                  and portfolio_id is not distinct from cast(:portfolio as uuid)
+                  and delay_bucket = :bucket and channel = :channel
+                """, p);
+        if (updated > 0) {
+            return;
+        }
+        jdbc.update("""
+                insert into incentive.performance_fact (tenant_id, fact_date, user_id, creditor_id, portfolio_id,
+                    delay_bucket, channel, callbacks_scheduled, callbacks_kept, callbacks_missed, promises_registered,
+                    promises_due, promises_kept, promises_broken)
+                values (shared.current_tenant_id(), :date, :user, :creditor, :portfolio, :bucket, :channel, :cbScheduled,
+                    :cbKept, :cbMissed, :prRegistered, :prDue, :prKept, :prBroken)
+                on conflict (tenant_id, fact_date, user_id, creditor_id, portfolio_id, delay_bucket, channel) do update set
+                    callbacks_scheduled = performance_fact.callbacks_scheduled + excluded.callbacks_scheduled,
+                    callbacks_kept = performance_fact.callbacks_kept + excluded.callbacks_kept,
+                    callbacks_missed = performance_fact.callbacks_missed + excluded.callbacks_missed,
+                    promises_registered = performance_fact.promises_registered + excluded.promises_registered,
+                    promises_due = performance_fact.promises_due + excluded.promises_due,
+                    promises_kept = performance_fact.promises_kept + excluded.promises_kept,
+                    promises_broken = performance_fact.promises_broken + excluded.promises_broken
+                """, p);
+    }
+
+    @Override
+    public List<CallbackCommitment> callbackCommitments(UUID taskId) {
+        return jdbc.query("""
+                select task_id, due_at, case_id, creditor_id, portfolio_id, assignee_id, status, scheduled_at, last_event_at
+                from incentive.callback_commitment where task_id = :task order by due_at
+                """, new MapSqlParameterSource().addValue("task", taskId), (rs, i) -> new CallbackCommitment(
+                rs.getObject("task_id", UUID.class), instant(rs, "due_at"), rs.getObject("case_id", UUID.class),
+                rs.getObject("creditor_id", UUID.class), rs.getObject("portfolio_id", UUID.class),
+                rs.getObject("assignee_id", UUID.class), CallbackCommitmentStatus.valueOf(rs.getString("status")),
+                instant(rs, "scheduled_at"), instant(rs, "last_event_at")));
+    }
+
+    @Override
+    public void saveCallbackCommitment(CallbackCommitment c) {
+        jdbc.update("""
+                insert into incentive.callback_commitment (tenant_id, task_id, due_at, case_id, creditor_id, portfolio_id,
+                    assignee_id, status, scheduled_at, last_event_at)
+                values (shared.current_tenant_id(), :task, :due, :case, :creditor, :portfolio, :assignee, :status,
+                    :scheduledAt, :lastEventAt)
+                on conflict (tenant_id, task_id, due_at) do update set
+                    case_id = excluded.case_id, creditor_id = excluded.creditor_id, portfolio_id = excluded.portfolio_id,
+                    assignee_id = excluded.assignee_id, status = excluded.status, scheduled_at = excluded.scheduled_at,
+                    last_event_at = excluded.last_event_at
+                """, new MapSqlParameterSource().addValue("task", c.taskId())
+                .addValue("due", ts(c.dueAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                .addValue("case", c.caseId(), Types.OTHER).addValue("creditor", c.creditorId(), Types.OTHER)
+                .addValue("portfolio", c.portfolioId(), Types.OTHER).addValue("assignee", c.assigneeId(), Types.OTHER)
+                .addValue("status", c.status().name())
+                .addValue("scheduledAt", ts(c.scheduledAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                .addValue("lastEventAt", ts(c.lastEventAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+    }
+
+    @Override
+    public Optional<PromiseOutcome> promiseOutcome(UUID promiseId) {
+        return jdbc.query("""
+                select promise_id, case_id, creditor_id, portfolio_id, operator_id, due_date, status, status_at,
+                       registered_at
+                from incentive.promise_outcome where promise_id = :promise
+                """, new MapSqlParameterSource().addValue("promise", promiseId), (rs, i) -> new PromiseOutcome(
+                rs.getObject("promise_id", UUID.class), rs.getObject("case_id", UUID.class),
+                rs.getObject("creditor_id", UUID.class), rs.getObject("portfolio_id", UUID.class),
+                rs.getObject("operator_id", UUID.class), rs.getObject("due_date", LocalDate.class),
+                rs.getString("status"), instant(rs, "status_at"), instant(rs, "registered_at"))).stream().findFirst();
+    }
+
+    @Override
+    public void savePromiseOutcome(PromiseOutcome o) {
+        jdbc.update("""
+                insert into incentive.promise_outcome (tenant_id, promise_id, case_id, creditor_id, portfolio_id,
+                    operator_id, due_date, status, status_at, registered_at)
+                values (shared.current_tenant_id(), :promise, :case, :creditor, :portfolio, :operator, :due, :status,
+                    :statusAt, :registeredAt)
+                on conflict (tenant_id, promise_id) do update set
+                    case_id = excluded.case_id, creditor_id = excluded.creditor_id, portfolio_id = excluded.portfolio_id,
+                    operator_id = excluded.operator_id, due_date = excluded.due_date, status = excluded.status,
+                    status_at = excluded.status_at, registered_at = excluded.registered_at
+                """, new MapSqlParameterSource().addValue("promise", o.promiseId())
+                .addValue("case", o.caseId(), Types.OTHER).addValue("creditor", o.creditorId(), Types.OTHER)
+                .addValue("portfolio", o.portfolioId(), Types.OTHER).addValue("operator", o.operatorId(), Types.OTHER)
+                .addValue("due", o.dueDate(), Types.DATE).addValue("status", o.status())
+                .addValue("statusAt", ts(o.statusAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                .addValue("registeredAt", ts(o.registeredAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+    }
+
+    private static Instant instant(ResultSet rs, String column) throws SQLException {
+        Timestamp value = rs.getTimestamp(column);
+        return value == null ? null : value.toInstant();
+    }
+
+    @Override
     public void agreementStatus(UUID agreementId, String status, Instant at, BigDecimal totalAmount, UUID replacedAgreementId) {
         jdbc.update("""
                 insert into incentive.agreement_lifecycle (tenant_id, agreement_id, status, status_at, formalized_at,
@@ -374,7 +505,12 @@ class JdbcFactStore implements FactStore {
         return eligibleBalance(jdbc, userIds, at, creditorIds);
     }
 
-    /** Saldo elegível dos casos dos usuários no instante (último retrato de cada caso). */
+    /**
+     * Saldo elegível dos casos dos usuários no instante (último retrato de cada caso). O saldo dos
+     * eventos do collection já é zero quando o caso está inelegível ou encerrado, por isso a
+     * elegibilidade não é filtrada à parte: o flag herdado de um retrato anterior (eventos do mesmo
+     * instante chegam em qualquer ordem) poderia excluir um caso que acabou de ficar elegível.
+     */
     static BigDecimal eligibleBalance(NamedParameterJdbcTemplate jdbc, Collection<UUID> userIds, Instant at,
                                       Collection<UUID> creditorIds) {
         if (userIds == null || userIds.isEmpty()) {
@@ -383,13 +519,13 @@ class JdbcFactStore implements FactStore {
         boolean allCreditors = creditorIds == null || creditorIds.isEmpty();
         BigDecimal value = jdbc.queryForObject("""
                 select coalesce(sum(b.eligible_balance), 0)
-                from (select distinct on (case_id) case_id, assignee_id, eligible, creditor_id
+                from (select distinct on (case_id) case_id, assignee_id, creditor_id
                       from incentive.case_snapshot where effective_at <= :at
                       order by case_id, effective_at desc) s
                 cross join lateral (select c.eligible_balance from incentive.case_snapshot c
                                     where c.case_id = s.case_id and c.effective_at <= :at and c.eligible_balance is not null
                                     order by c.effective_at desc limit 1) b
-                where s.assignee_id in (:users) and coalesce(s.eligible, true)
+                where s.assignee_id in (:users)
                   and (:allCreditors or s.creditor_id in (:creditors))
                 """, new MapSqlParameterSource().addValue("users", userIds)
                 .addValue("at", ts(at), Types.TIMESTAMP_WITH_TIMEZONE).addValue("allCreditors", allCreditors)
