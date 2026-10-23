@@ -6,6 +6,8 @@ import br.com.gestorcobranca.ingestion.domain.model.ParsedRow.ContactKind;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow.ParsedContact;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow.ParsedContract;
 import br.com.gestorcobranca.ingestion.domain.model.RowIssue;
+import br.com.gestorcobranca.ingestion.domain.model.LegalTerms;
+import br.com.gestorcobranca.ingestion.domain.model.ParsedLegal;
 import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
 import br.com.gestorcobranca.ingestion.domain.model.TitleSituation;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -19,6 +21,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 import static br.com.gestorcobranca.ingestion.domain.model.CanonicalField.*;
 
@@ -40,7 +44,20 @@ public final class RowValidator {
     private static final Set<String> STATES = Set.of("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT",
             "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO");
     private static final List<CanonicalField> FORMULA_GUARDED = List.of(DEBTOR_NAME, TITLE_EXTERNAL_ID, CONTRACT_NUMBER,
-            PRODUCT, ADDRESS_STREET, ADDRESS_NUMBER, ADDRESS_COMPLEMENT, ADDRESS_DISTRICT, ADDRESS_CITY);
+            PRODUCT, ADDRESS_STREET, ADDRESS_NUMBER, ADDRESS_COMPLEMENT, ADDRESS_DISTRICT, ADDRESS_CITY,
+            CO_OBLIGOR_1_NAME, CO_OBLIGOR_2_NAME, COLLATERAL_EXTERNAL_ID, COLLATERAL_DESCRIPTION,
+            COLLATERAL_REGISTRY_OFFICE, COLLATERAL_MUNICIPALITY, COLLATERAL_LIEN_AUTHORITY, COLLATERAL_LIEN_NUMBER);
+    private static final List<CanonicalField> NATURE_FIELDS = List.of(INSTRUMENT_TYPE, EXECUTIVE_TITLE);
+    private static final CanonicalField[][] CO_OBLIGORS = {
+            {CO_OBLIGOR_1_DOCUMENT, CO_OBLIGOR_1_NAME, CO_OBLIGOR_1_ROLE, CO_OBLIGOR_1_SINCE},
+            {CO_OBLIGOR_2_DOCUMENT, CO_OBLIGOR_2_NAME, CO_OBLIGOR_2_ROLE, CO_OBLIGOR_2_SINCE}};
+    private static final List<CanonicalField> COLLATERAL_FIELDS = List.of(COLLATERAL_EXTERNAL_ID, COLLATERAL_TYPE,
+            COLLATERAL_ASSET_KIND, COLLATERAL_DESCRIPTION, COLLATERAL_PLATE, COLLATERAL_RENAVAM, COLLATERAL_CHASSIS,
+            COLLATERAL_MANUFACTURE_YEAR, COLLATERAL_MODEL_YEAR, COLLATERAL_REGISTRY_NUMBER, COLLATERAL_REGISTRY_OFFICE,
+            COLLATERAL_MUNICIPALITY, COLLATERAL_STATE, COLLATERAL_LIEN_AUTHORITY, COLLATERAL_LIEN_NUMBER,
+            COLLATERAL_LIEN_DATE);
+    private static final List<CanonicalField> APPRAISAL_FIELDS = List.of(APPRAISAL_AMOUNT, APPRAISAL_DATE, APPRAISAL_SOURCE);
+    static final int LEGAL_TEXT_MAX = 150;
     private static final CanonicalField[][] PHONES = {{PHONE_1, WHATSAPP_1}, {PHONE_2, WHATSAPP_2}, {PHONE_3, WHATSAPP_3}};
 
     private final LocalDate today;
@@ -93,14 +110,200 @@ public final class RowValidator {
         ReportedBalance balance = reportedBalance(ctx);
         TitleSituation situation = situation(ctx);
         rejectFormulas(ctx);
+        ParsedLegal legal = legal(ctx, contract, document);
 
         if (ctx.hasErrors()) {
             return new RowValidation(source.rowNumber(), null, ctx.issues);
         }
         ParsedRow row = new ParsedRow(source.rowNumber(), document, name, birthDate, contacts, contract, externalId,
                 installment, dueDate, principal, balance == null ? null : balance.amount(),
-                balance == null ? null : balance.referenceDate(), situation);
+                balance == null ? null : balance.referenceDate(), situation, legal);
         return new RowValidation(source.rowNumber(), row, ctx.issues);
+    }
+
+    // ------------------------------------------------------------ dados jurídicos (A.4)
+
+    /**
+     * Natureza do título, coobrigados e garantia. Exigem o contrato da linha (sem ele: aviso e os
+     * dados são ignorados, como os demais dados de contrato). Dado jurídico inconsistente é
+     * <b>erro</b>: a linha é gravada de forma atômica com o contrato, e carregar o título sem a
+     * garantia ou o coobrigado informado levaria a decisões de cobrança e jurídicas erradas.
+     */
+    private ParsedLegal legal(Context ctx, ParsedContract contract, Document debtorDocument) {
+        SourceRow s = ctx.source;
+        boolean anyNature = NATURE_FIELDS.stream().anyMatch(f -> s.get(f).isPresent());
+        boolean anyParty = Arrays.stream(CO_OBLIGORS).flatMap(Arrays::stream).anyMatch(f -> s.get(f).isPresent());
+        boolean anyCollateral = COLLATERAL_FIELDS.stream().anyMatch(f -> s.get(f).isPresent());
+        boolean anyAppraisal = APPRAISAL_FIELDS.stream().anyMatch(f -> s.get(f).isPresent());
+        if (!anyNature && !anyParty && !anyCollateral && !anyAppraisal) {
+            return null;
+        }
+        if (contract == null) {
+            ctx.warning(CONTRACT_NUMBER, "row.legal_fields_without_contract",
+                    "Natureza, coobrigados e garantias exigem o número do contrato: dados ignorados");
+            return null;
+        }
+        ParsedLegal.Nature nature = anyNature ? nature(ctx) : null;
+        List<ParsedLegal.Party> parties = new ArrayList<>();
+        for (CanonicalField[] fields : CO_OBLIGORS) {
+            party(ctx, fields, debtorDocument).ifPresent(parties::add);
+        }
+        ParsedLegal.Collateral collateral = anyCollateral ? collateral(ctx) : null;
+        if (anyAppraisal && collateral == null && !anyCollateral) {
+            ctx.warning(APPRAISAL_AMOUNT, "row.appraisal_without_collateral", "Avaliação sem garantia: dados ignorados");
+        }
+        return new ParsedLegal(nature, parties, collateral);
+    }
+
+    private static ParsedLegal.Nature nature(Context ctx) {
+        Optional<String> rawType = ctx.source.get(INSTRUMENT_TYPE);
+        Boolean executive = ctx.source.get(EXECUTIVE_TITLE).map(raw -> BrazilianFormats.parseFlag(raw).orElseGet(() -> {
+            ctx.error(EXECUTIVE_TITLE, "row.executive_title_invalid", "Título executivo deve ser S ou N");
+            return null;
+        })).orElse(null);
+        if (rawType.isEmpty()) {
+            ctx.warning(EXECUTIVE_TITLE, "row.instrument_type_missing",
+                    "Título executivo informado sem a natureza do título: dado ignorado");
+            return null;
+        }
+        Optional<String> type = LegalTerms.parse(LegalTerms.INSTRUMENT_TYPES, rawType.get());
+        if (type.isEmpty()) {
+            ctx.error(INSTRUMENT_TYPE, "row.instrument_type_invalid",
+                    "Natureza deve ser CONTRATO, CCB, NOTA_PROMISSORIA, DUPLICATA, CHEQUE, CONFISSAO_DIVIDA ou OUTRO");
+            return null;
+        }
+        return new ParsedLegal.Nature(type.get(), Boolean.TRUE.equals(executive));
+    }
+
+    private Optional<ParsedLegal.Party> party(Context ctx, CanonicalField[] f, Document debtorDocument) {
+        SourceRow s = ctx.source;
+        if (Arrays.stream(f).noneMatch(field -> s.get(field).isPresent())) {
+            return Optional.empty();
+        }
+        String rawDocument = ctx.required(f[0]);
+        String name = ctx.required(f[1]);
+        String rawRole = ctx.required(f[2]);
+        Document document = null;
+        if (rawDocument != null) {
+            try {
+                document = DocumentNormalizer.normalize(rawDocument, null).document();
+                if (document.equals(debtorDocument)) {
+                    ctx.error(f[0], "row.co_obligor_is_debtor", "Coobrigado não pode ser o próprio devedor do título");
+                }
+            } catch (BusinessRuleException e) {
+                ctx.error(f[0], "row.co_obligor_document_invalid", "CPF/CNPJ do coobrigado inválido");
+            }
+        }
+        if (name != null) {
+            name = name.replaceAll("\\s+", " ");
+            if (name.length() > NAME_MAX) {
+                ctx.error(f[1], "row.co_obligor_name_too_long", "Nome do coobrigado deve ter até %d caracteres".formatted(NAME_MAX));
+            }
+        }
+        String role = rawRole == null ? null : LegalTerms.parse(LegalTerms.ROLES, rawRole).orElseGet(() -> {
+            ctx.error(f[2], "row.co_obligor_role_invalid",
+                    "Papel do coobrigado deve ser AVALISTA, FIADOR, CODEVEDOR ou GARANTIDOR");
+            return null;
+        });
+        LocalDate since = s.get(f[3]).map(raw -> BrazilianFormats.parseDate(raw).filter(d -> !d.isAfter(today))
+                .orElseGet(() -> {
+                    ctx.error(f[3], "row.co_obligor_since_invalid", "Data de início do coobrigado inválida ou futura");
+                    return null;
+                })).orElse(null);
+        return document == null || name == null || role == null ? Optional.empty()
+                : Optional.of(new ParsedLegal.Party(document, name, role, since));
+    }
+
+    private ParsedLegal.Collateral collateral(Context ctx) {
+        SourceRow s = ctx.source;
+        String rawType = ctx.required(COLLATERAL_TYPE);
+        String type = rawType == null ? null : LegalTerms.parse(LegalTerms.COLLATERAL_TYPES, rawType).orElseGet(() -> {
+            ctx.error(COLLATERAL_TYPE, "row.collateral_type_invalid", "Tipo de garantia inválido (ver layout)");
+            return null;
+        });
+        String kind = s.get(COLLATERAL_ASSET_KIND).map(raw -> LegalTerms.parse(LegalTerms.ASSET_KINDS, raw).orElseGet(() -> {
+            ctx.error(COLLATERAL_ASSET_KIND, "row.collateral_asset_kind_invalid", "Bem deve ser VEICULO, IMOVEL ou OUTRO");
+            return null;
+        })).orElse(type == null ? null : LegalTerms.defaultAssetKind(type));
+        String externalId = text(ctx, COLLATERAL_EXTERNAL_ID, EXTERNAL_ID_MAX);
+        String description = text(ctx, COLLATERAL_DESCRIPTION, 500);
+        Integer manufactureYear = year(ctx, COLLATERAL_MANUFACTURE_YEAR);
+        Integer modelYear = year(ctx, COLLATERAL_MODEL_YEAR);
+        String state = s.get(COLLATERAL_STATE).map(uf -> uf.toUpperCase(Locale.ROOT)).orElse(null);
+        if (state != null && !STATES.contains(state)) {
+            ctx.error(COLLATERAL_STATE, "row.collateral_state_invalid", "UF do imóvel inválida");
+        }
+        if ("VEHICLE".equals(kind) && Stream.of(COLLATERAL_PLATE, COLLATERAL_RENAVAM, COLLATERAL_CHASSIS)
+                .noneMatch(f -> s.get(f).isPresent())) {
+            ctx.error(COLLATERAL_PLATE, "row.collateral_vehicle_identifier_required",
+                    "Veículo em garantia: informe placa, RENAVAM ou chassi");
+        }
+        if ("REAL_ESTATE".equals(kind)) {
+            for (CanonicalField f : List.of(COLLATERAL_REGISTRY_NUMBER, COLLATERAL_REGISTRY_OFFICE,
+                    COLLATERAL_MUNICIPALITY, COLLATERAL_STATE)) {
+                if (s.get(f).isEmpty()) {
+                    ctx.error(f, "row.collateral_real_estate_incomplete",
+                            "Imóvel em garantia: informe matrícula, cartório, município e UF");
+                }
+            }
+        }
+        if ("OTHER".equals(kind) && (externalId == null || description == null)) {
+            ctx.error(externalId == null ? COLLATERAL_EXTERNAL_ID : COLLATERAL_DESCRIPTION,
+                    "row.collateral_other_incomplete", "Garantia sem bem identificado: informe garantia_id e descrição");
+        }
+        LocalDate lienDate = s.get(COLLATERAL_LIEN_DATE).map(raw -> BrazilianFormats.parseDate(raw).orElseGet(() -> {
+            ctx.error(COLLATERAL_LIEN_DATE, "row.collateral_lien_date_invalid", "Data do gravame inválida");
+            return null;
+        })).orElse(null);
+        ParsedLegal.Appraisal appraisal = appraisal(ctx);
+        if (type == null || kind == null) {
+            return null;
+        }
+        return new ParsedLegal.Collateral(externalId, type, kind, description, s.get(COLLATERAL_PLATE).orElse(null),
+                s.get(COLLATERAL_RENAVAM).orElse(null), s.get(COLLATERAL_CHASSIS).orElse(null), manufactureYear, modelYear,
+                s.get(COLLATERAL_REGISTRY_NUMBER).orElse(null), text(ctx, COLLATERAL_REGISTRY_OFFICE, LEGAL_TEXT_MAX),
+                text(ctx, COLLATERAL_MUNICIPALITY, 100), state, text(ctx, COLLATERAL_LIEN_AUTHORITY, LEGAL_TEXT_MAX),
+                text(ctx, COLLATERAL_LIEN_NUMBER, EXTERNAL_ID_MAX), lienDate, appraisal);
+    }
+
+    private ParsedLegal.Appraisal appraisal(Context ctx) {
+        SourceRow s = ctx.source;
+        if (APPRAISAL_FIELDS.stream().noneMatch(f -> s.get(f).isPresent())) {
+            return null;
+        }
+        String raw = ctx.required(APPRAISAL_AMOUNT);
+        BigDecimal amount = raw == null ? null : BrazilianFormats.parseAmount(raw).filter(v -> v.signum() > 0)
+                .orElseGet(() -> {
+                    ctx.error(APPRAISAL_AMOUNT, "row.appraisal_amount_invalid", "Valor da avaliação deve ser maior que zero");
+                    return null;
+                });
+        LocalDate date = s.get(APPRAISAL_DATE).map(d -> BrazilianFormats.parseDate(d).filter(v -> !v.isAfter(today))
+                .orElseGet(() -> {
+                    ctx.error(APPRAISAL_DATE, "row.appraisal_date_invalid", "Data da avaliação inválida ou futura");
+                    return null;
+                })).orElse(null);
+        String source = s.get(APPRAISAL_SOURCE).map(v -> LegalTerms.parse(LegalTerms.APPRAISAL_SOURCES, v).orElseGet(() -> {
+            ctx.error(APPRAISAL_SOURCE, "row.appraisal_source_invalid",
+                    "Fonte da avaliação deve ser CREDOR, AVALIADOR, FIPE, MERCADO ou LEILAO");
+            return null;
+        })).orElse(null);
+        return amount == null ? null : new ParsedLegal.Appraisal(amount, date, source);
+    }
+
+    private static Integer year(Context ctx, CanonicalField field) {
+        return ctx.source.get(field).map(raw -> BrazilianFormats.parseInteger(raw).filter(y -> y >= 1900 && y <= 2199)
+                .orElseGet(() -> {
+                    ctx.error(field, "row.collateral_year_invalid", "Ano inválido");
+                    return null;
+                })).orElse(null);
+    }
+
+    private static String text(Context ctx, CanonicalField field, int max) {
+        String value = ctx.source.get(field).orElse(null);
+        if (value != null && value.length() > max) {
+            ctx.error(field, "row.text_too_long", "%s deve ter até %d caracteres".formatted(field.column(), max));
+        }
+        return value;
     }
 
     /** Situação informada pelo credor: valor desconhecido é erro, pois mudaria o tratamento do título. */

@@ -1,7 +1,11 @@
 package br.com.gestorcobranca.ingestion.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.CollateralAppraisalRecord;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.CollateralRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContactRecord;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContractNatureRecord;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ObligationPartyRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContractRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord;
@@ -11,6 +15,7 @@ import br.com.gestorcobranca.ingestion.domain.model.CanonicalField;
 import br.com.gestorcobranca.ingestion.domain.model.ImportBatchRow;
 import br.com.gestorcobranca.ingestion.domain.model.ImportRowIssue;
 import br.com.gestorcobranca.ingestion.domain.model.IssueSeverity;
+import br.com.gestorcobranca.ingestion.domain.model.ParsedLegal;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow;
 import br.com.gestorcobranca.ingestion.domain.model.RowIssue;
 import br.com.gestorcobranca.ingestion.domain.model.RowOutcome;
@@ -145,6 +150,7 @@ class RowWriter {
             UpsertResult title = debt.upsertTitle(titleRecord(target, row, debtor.id()), target.batchId());
             debtor.warnings().forEach(code -> rowIssues.add(DebtWarnings.toIssue(row.rowNumber(), code)));
             title.warnings().forEach(code -> rowIssues.add(DebtWarnings.toIssue(row.rowNumber(), code)));
+            writeLegal(target, row).forEach(code -> rowIssues.add(DebtWarnings.toIssue(row.rowNumber(), code)));
             boolean suspended = false;
             if (row.situation().holdsCollection()
                     && TitleSituationPolicy.suspendAfterWrite(row.situation(), debtTitles.get(title.id()).status())) {
@@ -162,6 +168,45 @@ class RowWriter {
                 .map(i -> new ImportRowIssue(target.batchId(), i)).toList();
         issues.saveAll(stored);
         return new Result(record, List.of(), stored.size(), false);
+    }
+
+    /**
+     * Natureza do título, coobrigados e garantia do contrato da linha (A.4), na ordem exigida pelo
+     * {@code DebtIngestionPort}: depois de {@code upsertTitle}, que grava o contrato. Idempotentes:
+     * linhas repetidas do mesmo contrato devolvem {@code UNCHANGED}.
+     *
+     * @return códigos de aviso devolvidos pelo debt
+     */
+    private List<String> writeLegal(Target target, ParsedRow row) {
+        ParsedLegal legal = row.legal();
+        if (row.contract() == null || legal.isEmpty()) {
+            return List.of();
+        }
+        String contract = row.contract().number();
+        List<String> warnings = new ArrayList<>();
+        if (legal.nature() != null) {
+            warnings.addAll(debt.classifyContract(new ContractNatureRecord(target.creditorId(), contract,
+                    legal.nature().instrumentType(), legal.nature().executiveTitle())).warnings());
+        }
+        for (ParsedLegal.Party party : legal.parties()) {
+            warnings.addAll(debt.upsertObligationParty(new ObligationPartyRecord(target.creditorId(), contract,
+                    new DebtorRecord(party.document().number(), party.name(), null, List.of()), party.role(),
+                    party.since())).warnings());
+        }
+        ParsedLegal.Collateral c = legal.collateral();
+        if (c != null) {
+            UpsertResult collateral = debt.upsertCollateral(new CollateralRecord(target.creditorId(), contract,
+                    c.externalId(), c.type(), c.description(), c.assetKind(), c.plate(), c.renavam(), c.chassis(),
+                    c.manufactureYear(), c.modelYear(), c.registryNumber(), c.registryOffice(), c.municipality(),
+                    c.state(), c.lienAuthority(), c.lienNumber(), c.lienDate(), List.of()));
+            warnings.addAll(collateral.warnings());
+            if (c.appraisal() != null) {
+                warnings.addAll(debt.recordCollateralAppraisal(new CollateralAppraisalRecord(collateral.id(),
+                        c.appraisal().amount(), c.appraisal().date(), c.appraisal().source(), null),
+                        target.batchId()).warnings());
+            }
+        }
+        return warnings;
     }
 
     private static DebtorRecord debtorRecord(ParsedRow row) {
@@ -193,6 +238,12 @@ class RowWriter {
         }
         if (code.startsWith("debtor.") || code.startsWith("document.")) {
             return CanonicalField.DEBTOR_DOCUMENT.column();
+        }
+        if (code.startsWith("collateral.")) {
+            return CanonicalField.COLLATERAL_TYPE.column();
+        }
+        if (code.startsWith("obligation_party.")) {
+            return CanonicalField.CO_OBLIGOR_1_ROLE.column();
         }
         if (code.startsWith("origin_contract.")) {
             return CanonicalField.CONTRACT_NUMBER.column();

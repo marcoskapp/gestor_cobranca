@@ -140,4 +140,53 @@ class RowValidatorTest {
         values.put(PERSON_TYPE, "PF");
         assertThat(validate(values).validation().valid()).isPresent();
     }
+
+    @Test
+    void parsesLegalDataOfTheContract() {
+        Map<CanonicalField, String> values = valid();
+        values.put(CONTRACT_NUMBER, "C-1");
+        values.put(INSTRUMENT_TYPE, "Nota Promissória");
+        values.put(EXECUTIVE_TITLE, "S");
+        values.put(CO_OBLIGOR_1_DOCUMENT, "111.444.777-35");
+        values.put(CO_OBLIGOR_1_NAME, "João");
+        values.put(CO_OBLIGOR_1_ROLE, "fiador");
+        values.put(COLLATERAL_TYPE, "HIPOTECA");
+        values.put(COLLATERAL_REGISTRY_NUMBER, "12.345");
+        values.put(COLLATERAL_REGISTRY_OFFICE, "1º RI de Campinas");
+        values.put(COLLATERAL_MUNICIPALITY, "Campinas");
+        values.put(COLLATERAL_STATE, "sp");
+        values.put(APPRAISAL_AMOUNT, "300.000,00");
+        values.put(APPRAISAL_SOURCE, "avaliador");
+        RowValidation result = validator.validate(new SourceRow(2, values), null);
+        assertThat(result.issues()).isEmpty();
+        var legal = result.valid().orElseThrow().legal();
+        assertThat(legal.nature().instrumentType()).isEqualTo("PROMISSORY_NOTE");
+        assertThat(legal.nature().executiveTitle()).isTrue();
+        assertThat(legal.parties()).singleElement().satisfies(p -> assertThat(p.role()).isEqualTo("GUARANTOR_SURETY"));
+        assertThat(legal.collateral().assetKind()).isEqualTo("REAL_ESTATE");
+        assertThat(legal.collateral().state()).isEqualTo("SP");
+        assertThat(legal.collateral().appraisal().source()).isEqualTo("APPRAISER");
+    }
+
+    @Test
+    void inconsistentLegalDataIsAnErrorAndRequiresTheContract() {
+        Map<CanonicalField, String> values = valid();
+        values.put(COLLATERAL_TYPE, "PENHOR");
+        assertThat(validate(values).hasCode("row.legal_fields_without_contract")).isTrue();
+        assertThat(validate(values).validation().valid()).isPresent();
+
+        values.put(CONTRACT_NUMBER, "C-1");
+        values.put(CO_OBLIGOR_1_DOCUMENT, "529.982.247-25");
+        values.put(CO_OBLIGOR_1_NAME, "Maria");
+        values.put(CO_OBLIGOR_1_ROLE, "AVALISTA");
+        values.put(APPRAISAL_DATE, "2030-01-01");
+        RowValidation result = validator.validate(new SourceRow(2, values), null);
+        assertThat(result.errors()).extracting(RowIssue::code).containsExactlyInAnyOrder("row.co_obligor_is_debtor",
+                "row.collateral_other_incomplete", "row.required_missing", "row.appraisal_date_invalid");
+
+        Map<CanonicalField, String> vehicle = valid();
+        vehicle.put(CONTRACT_NUMBER, "C-1");
+        vehicle.put(COLLATERAL_TYPE, "ALIENACAO_FIDUCIARIA_VEICULO");
+        assertThat(validate(vehicle).hasCode("row.collateral_vehicle_identifier_required")).isTrue();
+    }
 }

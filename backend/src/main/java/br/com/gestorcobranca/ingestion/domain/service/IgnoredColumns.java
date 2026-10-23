@@ -13,9 +13,9 @@ import java.util.List;
  * Avisos de colunas do arquivo (ou chaves da API) que o layout não usa. Nunca impedem a carga:
  * o layout é extensível, e arquivos com colunas a mais continuam válidos.
  * <ul>
- *   <li>{@code import.columns_not_supported}: colunas previstas para versão futura do layout
- *       canônico — garantias, avaliações, coobrigados e natureza do título (ver
- *       {@code docs/design/juridico.md}, A.4). Hoje são ignoradas.</li>
+ *   <li>{@code import.columns_not_supported}: colunas com prefixo jurídico (garantias, avaliações,
+ *       coobrigados, natureza do título — {@code docs/design/juridico.md}, A.4) que o layout não
+ *       reconhece, como um terceiro coobrigado ou uma segunda garantia na mesma linha.</li>
  *   <li>{@code import.columns_ignored}: demais colunas não mapeadas.</li>
  * </ul>
  * Um aviso por lote (linha 0), com até {@value #MAX_LISTED} nomes; os nomes passam pelo
@@ -25,7 +25,7 @@ public final class IgnoredColumns {
 
     public static final int MAX_LISTED = 20;
     private static final int NAME_MAX = 40;
-    /** Prefixos (normalizados) das colunas reservadas para a próxima versão do layout canônico. */
+    /** Prefixos (normalizados) das colunas jurídicas: as não reconhecidas recebem aviso próprio. */
     static final List<String> RESERVED_PREFIXES = List.of("garantia", "avaliacao", "coobrigado", "natureza_titulo",
             "titulo_executivo");
 
@@ -53,8 +53,8 @@ public final class IgnoredColumns {
         List<RowIssue> issues = new ArrayList<>();
         if (!reserved.isEmpty()) {
             issues.add(RowIssue.of(0, IssueSeverity.WARNING, null, "import.columns_not_supported",
-                    "Colunas previstas para versão futura do layout (garantias, coobrigados, natureza do título), "
-                            + "ignoradas nesta carga: " + list(reserved)));
+                    "Colunas de garantias, avaliações, coobrigados ou natureza do título não reconhecidas pelo layout "
+                            + "(ex.: terceiro coobrigado ou segunda garantia), ignoradas nesta carga: " + list(reserved)));
         }
         if (!other.isEmpty()) {
             issues.add(RowIssue.of(0, IssueSeverity.WARNING, null, "import.columns_ignored",

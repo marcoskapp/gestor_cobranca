@@ -24,11 +24,11 @@ class ColumnMappingTest {
     @Test
     void mapsHeadersIgnoringCaseAccentsAndBomAndReportsUnknownColumns() {
         ColumnMapping mapping = ColumnMapping.resolve(standard, Arrays.asList("﻿Documento", "NOME", "id_titulo",
-                "Vencimento ", "valor_principal", "garantia_tipo", "observação", null, ""));
+                "Vencimento ", "valor_principal", "garantia_3_tipo", "observação", null, ""));
         SourceRow row = mapping.map(2, List.of("52998224725", "Maria", "T-1", "10/03/2026", "100", "VEICULO", "x"));
         assertThat(row.get(CanonicalField.DEBTOR_NAME)).contains("Maria");
         assertThat(row.get(CanonicalField.DUE_DATE)).contains("10/03/2026");
-        assertThat(mapping.ignoredColumns()).containsExactly("garantia_tipo", "observação");
+        assertThat(mapping.ignoredColumns()).containsExactly("garantia_3_tipo", "observação");
     }
 
     @Test

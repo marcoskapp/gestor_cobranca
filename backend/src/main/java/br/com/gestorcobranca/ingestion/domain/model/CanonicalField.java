@@ -49,7 +49,39 @@ public enum CanonicalField {
     PRINCIPAL_AMOUNT("valor_principal", true, false),
     REPORTED_BALANCE("saldo", false, false),
     BALANCE_REFERENCE_DATE("data_saldo", false, false),
-    TITLE_SITUATION("situacao", false, false);
+    TITLE_SITUATION("situacao", false, false),
+    // natureza do título (contrato de origem)
+    INSTRUMENT_TYPE("natureza_titulo", false, false),
+    EXECUTIVE_TITLE("titulo_executivo", false, false),
+    // coobrigados do contrato (até dois por linha)
+    CO_OBLIGOR_1_DOCUMENT("coobrigado_1_documento", false, true),
+    CO_OBLIGOR_1_NAME("coobrigado_1_nome", false, true),
+    CO_OBLIGOR_1_ROLE("coobrigado_1_papel", false, false),
+    CO_OBLIGOR_1_SINCE("coobrigado_1_desde", false, false),
+    CO_OBLIGOR_2_DOCUMENT("coobrigado_2_documento", false, true),
+    CO_OBLIGOR_2_NAME("coobrigado_2_nome", false, true),
+    CO_OBLIGOR_2_ROLE("coobrigado_2_papel", false, false),
+    CO_OBLIGOR_2_SINCE("coobrigado_2_desde", false, false),
+    // garantia do contrato (uma por linha) e sua avaliação
+    COLLATERAL_EXTERNAL_ID("garantia_id", false, false),
+    COLLATERAL_TYPE("garantia_tipo", false, false),
+    COLLATERAL_ASSET_KIND("garantia_bem", false, false),
+    COLLATERAL_DESCRIPTION("garantia_descricao", false, false),
+    COLLATERAL_PLATE("garantia_placa", false, true),
+    COLLATERAL_RENAVAM("garantia_renavam", false, true),
+    COLLATERAL_CHASSIS("garantia_chassi", false, true),
+    COLLATERAL_MANUFACTURE_YEAR("garantia_ano_fabricacao", false, false),
+    COLLATERAL_MODEL_YEAR("garantia_ano_modelo", false, false),
+    COLLATERAL_REGISTRY_NUMBER("garantia_matricula", false, true),
+    COLLATERAL_REGISTRY_OFFICE("garantia_cartorio", false, false),
+    COLLATERAL_MUNICIPALITY("garantia_municipio", false, false),
+    COLLATERAL_STATE("garantia_uf", false, false),
+    COLLATERAL_LIEN_AUTHORITY("garantia_gravame_orgao", false, false),
+    COLLATERAL_LIEN_NUMBER("garantia_gravame_numero", false, false),
+    COLLATERAL_LIEN_DATE("garantia_gravame_data", false, false),
+    APPRAISAL_AMOUNT("avaliacao_valor", false, false),
+    APPRAISAL_DATE("avaliacao_data", false, false),
+    APPRAISAL_SOURCE("avaliacao_fonte", false, false);
 
     private static final Map<String, CanonicalField> BY_COLUMN = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(CanonicalField::column, Function.identity()));

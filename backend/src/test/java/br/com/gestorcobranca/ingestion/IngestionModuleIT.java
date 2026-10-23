@@ -49,6 +49,12 @@ class IngestionModuleIT extends IngestionTestSupport {
     ApplicationEvents events;
     @Autowired
     ImportLayoutUseCases layouts;
+    @Autowired
+    br.com.gestorcobranca.debt.application.port.in.OriginContractUseCases contractsQuery;
+    @Autowired
+    br.com.gestorcobranca.debt.application.port.in.ObligationPartyUseCases parties;
+    @Autowired
+    br.com.gestorcobranca.debt.application.port.in.CollateralUseCases collaterals;
 
     private static String file(String... lines) {
         return HEADER + "\n" + String.join("\n", lines) + "\n";
@@ -236,6 +242,48 @@ class IngestionModuleIT extends IngestionTestSupport {
     }
 
     @Test
+    void legalFieldsRegisterNatureCoObligorsAndCollateralIdempotently() {
+        String header = HEADER + ";natureza_titulo;titulo_executivo;coobrigado_1_documento;coobrigado_1_nome;"
+                + "coobrigado_1_papel;garantia_id;garantia_tipo;garantia_placa;garantia_ano_fabricacao;garantia_ano_modelo;"
+                + "avaliacao_valor;avaliacao_data;avaliacao_fonte";
+        String legal = ";CCB;S;" + JOAO + ";João Souza;Avalista;G-1;Alienação fiduciária veículo;ABC1D23;2020;2021;"
+                + "50.000,00;01/10/2026;FIPE";
+        String content = header + "\n"
+                + line(MARIA, "Maria Silva", "L-1", "10.000,00", null) + legal + "\n"
+                + line(MARIA, "Maria Silva", "L-2", "500,00", null) + ";;;" + JOAO + ";João Souza;sócio;;;;;;;;\n";
+        ImportBatchView received = uploadCsv("juridico.csv", content, null);
+        runJobs();
+        ImportBatchView done = batch(received.id());
+        assertThat(done.status()).isEqualTo("COMPLETED_WITH_ERRORS");
+        assertThat(issues(done.id())).extracting(ImportIssueView::rowNumber, ImportIssueView::code)
+                .containsExactly(tuple(3L, "row.co_obligor_role_invalid"));
+        assertThat(titleCount(creditorA)).isEqualTo(1);
+
+        UUID contractId = title(creditorA, "L-1").originContractId();
+        assertThat(system(() -> contractsQuery.get(contractId))).satisfies(c -> {
+            assertThat(c.instrumentType()).isEqualTo("CCB");
+            assertThat(c.executiveTitle()).isTrue();
+        });
+        // a lista inclui o devedor principal do contrato
+        assertThat(system(() -> parties.list(contractId))).extracting(p -> p.role(), p -> p.active())
+                .containsExactlyInAnyOrder(tuple("PRINCIPAL", true), tuple("GUARANTOR_AVAL", true));
+        var collateral = system(() -> collaterals.listByContract(contractId));
+        assertThat(collateral).singleElement().satisfies(c -> {
+            assertThat(c.type()).isEqualTo("VEHICLE_FIDUCIARY_ALIENATION");
+            assertThat(c.externalId()).isEqualTo("G-1");
+            assertThat(c.estimatedValue()).isEqualByComparingTo("50000.00");
+        });
+
+        // reimportação: nada é duplicado (contrato, coobrigado, garantia e avaliação)
+        ImportBatchView again = uploadCsv("juridico.csv", content, null, true, "Reenvio para teste de idempotência");
+        runJobs();
+        assertThat(batch(again.id()).counters().titlesUnchanged()).isEqualTo(1);
+        assertThat(system(() -> parties.list(contractId))).hasSize(2);
+        assertThat(system(() -> collaterals.listByContract(contractId))).hasSize(1);
+        assertThat(system(() -> collaterals.appraisals(collateral.getFirst().id()))).hasSize(1);
+    }
+
+    @Test
     void apiRecordsAreIdempotentByKey() {
         Map<String, String> record = new LinkedHashMap<>();
         record.put("documento", MARIA);
@@ -243,7 +291,7 @@ class IngestionModuleIT extends IngestionTestSupport {
         record.put("id_titulo", "API-1");
         record.put("vencimento", "2026-03-10");
         record.put("valor_principal", "150.00");
-        record.put("coobrigado_documento", JOAO);
+        record.put("coobrigado_3_documento", JOAO);
         ImportRecordsCommand command = new ImportRecordsCommand(portfolioA, null, false, null, List.of(record));
         ImportBatchView first = asImporterOf(creditorA, () -> batches.importRecords(command, "erp-2026-10-23-001"));
         ImportBatchView repeated = asImporterOf(creditorA, () -> batches.importRecords(command, "erp-2026-10-23-001"));

@@ -14,11 +14,13 @@ import java.util.List;
 public record ParsedRow(long rowNumber, Document document, String name, LocalDate birthDate,
                         List<ParsedContact> contacts, ParsedContract contract, String titleExternalId,
                         Integer installmentNumber, LocalDate dueDate, BigDecimal principalAmount,
-                        BigDecimal reportedBalance, LocalDate balanceReferenceDate, TitleSituation situation) {
+                        BigDecimal reportedBalance, LocalDate balanceReferenceDate, TitleSituation situation,
+                        ParsedLegal legal) {
 
     public ParsedRow {
         contacts = List.copyOf(contacts);
         situation = situation == null ? TitleSituation.ACTIVE : situation;
+        legal = legal == null ? new ParsedLegal(null, List.of(), null) : legal;
     }
 
     public enum ContactKind { PHONE, EMAIL, ADDRESS }

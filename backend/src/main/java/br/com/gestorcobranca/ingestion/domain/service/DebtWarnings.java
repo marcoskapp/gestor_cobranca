@@ -26,6 +26,10 @@ public final class DebtWarnings {
                     "Título encerrado na base (quitado, cancelado ou devolvido): dados do título não alterados";
             case "title.portfolio_mismatch" ->
                     "Título pertence a outra carteira: carteira não alterada (use a transferência de carteira)";
+            case "obligation_party.ended" ->
+                    "Participação do coobrigado já encerrada (ex.: exoneração): não reaberta pela carga";
+            case "collateral.type_mismatch" ->
+                    "Garantia já cadastrada com outro tipo: tipo não alterado pela carga (revise o cadastro)";
             case "contact.phone_invalid" -> "Telefone inválido: contato ignorado";
             case "contact.email_invalid" -> "E-mail inválido: contato ignorado";
             case "contact.address_invalid" -> "Endereço inválido: contato ignorado";
@@ -45,6 +49,12 @@ public final class DebtWarnings {
         }
         if (code.startsWith("contact.address")) {
             return "endereco";
+        }
+        if (code.startsWith("collateral.")) {
+            return "garantia_tipo";
+        }
+        if (code.startsWith("obligation_party.")) {
+            return "coobrigado";
         }
         return code.startsWith("title.") ? "id_titulo" : null;
     }

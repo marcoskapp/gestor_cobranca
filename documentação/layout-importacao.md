@@ -41,6 +41,26 @@ Obrigatórias em **negrito**. "Pessoal" indica dado do devedor: no relatório de
 | data_saldo | data-base do saldo | data; obrigatória com `saldo` | ausente/inválida → aviso, saldo ignorado |
 | situacao | situação do título no credor (§4) | `ATIVO`, `PAGO`, `SUSPENSO`, `CONTESTADO`, `CANCELADO` (aceita `EM ABERTO`, `QUITADO`, `LIQUIDADO`, `EM CONTESTACAO`, `BAIXADO`) | desconhecida → erro |
 
+### 2.1 Dados jurídicos do contrato (garantias, coobrigados, natureza do título)
+
+Opcionais, por contrato (`docs/design/juridico.md`, A.4). Exigem a coluna `contrato` — sem ela os dados são ignorados com aviso (`row.legal_fields_without_contract`). Quando o contrato tem vários títulos, repita os dados em cada linha ou informe-os em uma só: a gravação é idempotente. Dado jurídico inconsistente é **erro** (a linha não é gravada): carregar o título sem a garantia ou o coobrigado informado levaria a decisões de cobrança e jurídicas erradas; corrija e reenvie.
+
+| Coluna | Conteúdo / formato | Problema → efeito |
+| --- | --- | --- |
+| natureza_titulo | `CONTRATO`, `CCB`, `NOTA_PROMISSORIA`, `DUPLICATA`, `CHEQUE`, `CONFISSAO_DIVIDA`, `OUTRO` (reclassificar recalcula a prescrição) | desconhecida → erro |
+| titulo_executivo | `S`/`N` (exige `natureza_titulo`) | inválido → erro; sem natureza → aviso, ignorado |
+| coobrigado_1_documento, coobrigado_1_nome, coobrigado_1_papel, coobrigado_1_desde (e `coobrigado_2_*`) | CPF/CNPJ e nome (pessoais); papel `AVALISTA`, `FIADOR`, `CODEVEDOR` ou `GARANTIDOR` (terceiro que deu bem em garantia); data de início | documento, nome e papel obrigatórios quando qualquer coluna do coobrigado é informada; documento inválido ou igual ao do devedor, papel desconhecido, data futura → erro |
+| garantia_id | identificador da garantia no credor (obrigatório para bem `OUTRO`) | — |
+| garantia_tipo | `ALIENACAO_FIDUCIARIA_VEICULO`, `ALIENACAO_FIDUCIARIA_IMOVEL`, `HIPOTECA`, `PENHOR`, `CESSAO_FIDUCIARIA_RECEBIVEIS`, `SEGURO_GARANTIA`, `OUTRA` | obrigatório com qualquer coluna `garantia_*`; desconhecido → erro |
+| garantia_bem | `VEICULO`, `IMOVEL`, `OUTRO` (padrão pelo tipo: veículo para alienação de veículo; imóvel para alienação de imóvel e hipoteca; outro nos demais) | desconhecido → erro |
+| garantia_descricao | texto (obrigatório para bem `OUTRO`) | — |
+| garantia_placa, garantia_renavam, garantia_chassi, garantia_ano_fabricacao, garantia_ano_modelo | veículo: ao menos um identificador (pessoais para fins de mascaramento) | sem identificador, ano inválido, placa/RENAVAM/chassi inválidos → erro |
+| garantia_matricula, garantia_cartorio, garantia_municipio, garantia_uf | imóvel: todos obrigatórios | ausente ou UF inválida → erro |
+| garantia_gravame_orgao, garantia_gravame_numero, garantia_gravame_data | registro do gravame | data inválida → erro |
+| avaliacao_valor, avaliacao_data, avaliacao_fonte | avaliação da garantia: valor > 0, data não futura, fonte `CREDOR` (padrão), `AVALIADOR`, `FIPE`, `MERCADO` ou `LEILAO`; gravada uma vez por lote e só se mudar | inválida → erro; sem garantia → aviso, ignorada |
+
+A garantia é casada pelo `garantia_id` ou pelo bem (chassi, RENAVAM ou placa; matrícula + cartório + município + UF) e cobre todos os títulos do contrato. Na atualização mudam descrição, identificação e gravame; tipo e situação não mudam pela carga (aviso `collateral.type_mismatch`). Coobrigado com participação encerrada não é reaberto (aviso `obligation_party.ended`). Uma linha aceita até dois coobrigados e uma garantia; contratos com mais, em linhas adicionais do mesmo contrato.
+
 **Datas:** `dd/mm/aaaa` (dia/mês com 1 ou 2 dígitos), `dd-mm-aaaa` ou `aaaa-mm-dd` (horário descartado); anos 1900–2199; ano com 2 dígitos é recusado (ambíguo).
 **Valores:** `1.234,56`, `1234,56`, `1234.56`, `1234`, com ou sem `R$`; até 2 casas decimais. `1,234.56` (padrão americano) é recusado por ambiguidade.
 **Fórmulas:** texto iniciado por `=` ou `@` em nome, identificadores, produto e endereço é recusado (proteção contra *CSV/XLSX injection*).
@@ -64,9 +84,9 @@ A carga **nunca** dá baixa financeira nem encerra títulos — isso exige regis
 | `SUSPENSO`, `CONTESTADO` | cria e suspende | atualiza e suspende | atualiza | não altera (aviso) |
 | `PAGO`, `CANCELADO` | **não cria** (aviso `row.title_closed_not_found`) | não altera; **suspende** para conciliação (aviso `row.title_reported_paid` / `row.title_reported_cancelled`) | não altera (aviso) | não altera |
 
-## 5. Colunas futuras e colunas a mais
+## 5. Colunas a mais e evolução do layout
 
-Colunas que o layout não usa são ignoradas, com um aviso único no lote (linha 0, `import.columns_ignored`). Colunas com os prefixos `garantia`, `avaliacao`, `coobrigado`, `natureza_titulo` e `titulo_executivo` estão **reservadas** para a versão 2 do layout (garantias, avaliações, coobrigados e natureza do título — `docs/design/juridico.md`, A.4) e hoje geram o aviso `import.columns_not_supported`. Campos novos serão sempre opcionais: arquivos da versão 1 continuarão válidos.
+Colunas que o layout não usa são ignoradas, com um aviso único no lote (linha 0, `import.columns_ignored`). Colunas com prefixo jurídico (`garantia`, `avaliacao`, `coobrigado`, `natureza_titulo`, `titulo_executivo`) não reconhecidas — por exemplo `coobrigado_3_documento` ou uma segunda garantia — geram o aviso específico `import.columns_not_supported`. Campos novos de versões futuras serão sempre opcionais: arquivos desta versão continuarão válidos.
 
 ## 6. Processamento e limites
 

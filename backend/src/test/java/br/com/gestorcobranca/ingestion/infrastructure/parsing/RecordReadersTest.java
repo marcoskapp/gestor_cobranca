@@ -93,7 +93,7 @@ class RecordReadersTest {
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);
             }
-            header.createCell(5).setCellValue("garantia_tipo");
+            header.createCell(5).setCellValue("garantia_2_tipo");
             Row row = sheet.createRow(2);
             row.createCell(0).setCellValue(52998224725d);
             row.createCell(1).setCellValue("Maria");
@@ -112,7 +112,7 @@ class RecordReadersTest {
             assertThat(r.get(CanonicalField.DUE_DATE)).contains("2026-03-10");
             assertThat(r.get(CanonicalField.PRINCIPAL_AMOUNT)).contains("0.3");
         });
-        assertThat(result.ignored).containsExactly("garantia_tipo");
+        assertThat(result.ignored).containsExactly("garantia_2_tipo");
     }
 
     private static org.apache.poi.ss.usermodel.CellStyle dateStyle(XSSFWorkbook workbook) {
@@ -149,12 +149,12 @@ class RecordReadersTest {
     void readsApiRecordsAndReportsUnknownKeys() {
         String json = """
                 [{"documento":"52998224725","nome":"Maria","id_titulo":"T-1","vencimento":"2026-03-10",
-                  "valor_principal":"10","coobrigado_documento":"x"},
+                  "valor_principal":"10","coobrigado_3_documento":"x"},
                  {"documento":"11144477735","nome":"João","id_titulo":"T-2","vencimento":"2026-03-10","valor_principal":"20"}]
                 """;
         Collector result = read(json.getBytes(StandardCharsets.UTF_8), FileLayout.standard(ImportFormat.JSON));
         assertThat(result.rows).extracting(SourceRow::rowNumber).containsExactly(1L, 2L);
-        assertThat(result.ignored).containsExactly("coobrigado_documento");
+        assertThat(result.ignored).containsExactly("coobrigado_3_documento");
         assertThatThrownBy(() -> read("[{\"documento\":".getBytes(StandardCharsets.UTF_8),
                 FileLayout.standard(ImportFormat.JSON))).isInstanceOf(ImportFileException.class);
     }
