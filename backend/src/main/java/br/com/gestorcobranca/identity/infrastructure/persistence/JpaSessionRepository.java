@@ -57,6 +57,14 @@ class JpaSessionRepository implements SessionRepository {
     }
 
     @Override
+    public List<AuthSession> findOverlapping(java.util.Collection<UUID> userIds, Instant from, Instant to) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return sessions.findOverlapping(userIds, from, to);
+    }
+
+    @Override
     public int expireStale(Instant idleBefore, Instant now) {
         return sessions.expireStale(idleBefore, now);
     }

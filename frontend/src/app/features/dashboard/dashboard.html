@@ -1,35 +1,51 @@
 <header class="dashboard__header">
   <h1 class="app-page-header__title">{{ greeting() }}</h1>
   @if (user(); as u) {
-    <p class="app-page-header__subtitle">{{ u.tenantName }}</p>
+    <p class="app-page-header__subtitle">{{ u.tenantName }} · {{ today }}</p>
   }
 </header>
 
 @if (mfaPending()) {
   <p class="app-alert app-alert--warning" role="status">
-    Sua conta ainda não usa verificação em duas etapas.
-    <a routerLink="/conta/mfa">Ativar agora</a>
+    <mat-icon aria-hidden="true">shield</mat-icon>
+    <span>
+      Sua conta ainda não usa verificação em duas etapas.
+      <a routerLink="/conta/mfa">Ativar agora</a>
+    </span>
   </p>
 }
 
-@if (shortcuts().length > 0) {
-  <h2 class="dashboard__section">Acesso rápido</h2>
-  <ul class="dashboard__grid">
-    @for (item of shortcuts(); track item.route) {
-      <li>
-        <a class="dashboard__tile" [routerLink]="item.route">
-          <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>
-          <span class="dashboard__tile-text">
-            <strong>{{ item.label }}</strong>
-            <span class="app-muted">{{ item.section }}</span>
-          </span>
-        </a>
-      </li>
+<div class="dashboard__layout" [class.dashboard__layout--with-aside]="onboarding.checklistVisible()">
+  <section class="dashboard__main" aria-labelledby="acesso-rapido">
+    @if (shortcuts().length > 0) {
+      <h2 class="app-section-title" id="acesso-rapido">Acesso rápido</h2>
+      <ul class="dashboard__grid" data-tour="shortcuts">
+        @for (item of shortcuts(); track item.route) {
+          <li>
+            <a class="dashboard__tile" [routerLink]="item.route">
+              <span class="dashboard__tile-icon" aria-hidden="true"><mat-icon>{{ item.icon }}</mat-icon></span>
+              <span class="dashboard__tile-text">
+                <strong>{{ item.label }}</strong>
+                <span class="app-muted">{{ item.section }}</span>
+              </span>
+              <mat-icon class="dashboard__tile-go" aria-hidden="true">arrow_forward</mat-icon>
+            </a>
+          </li>
+        }
+      </ul>
+    } @else {
+      <h2 class="cdk-visually-hidden" id="acesso-rapido">Acesso rápido</h2>
+      <app-empty-state
+        icon="lock_person"
+        title="Nenhum módulo disponível para o seu perfil"
+        message="Em caso de dúvida, procure o administrador da assessoria."
+      />
     }
-  </ul>
-} @else {
-  <p class="app-muted">
-    Seu perfil ainda não tem acesso a módulos disponíveis nesta versão. Em caso de dúvida, procure o administrador da
-    assessoria.
-  </p>
-}
+  </section>
+
+  @if (onboarding.checklistVisible()) {
+    <aside class="dashboard__aside" aria-label="Primeiros passos">
+      <app-getting-started />
+    </aside>
+  }
+</div>

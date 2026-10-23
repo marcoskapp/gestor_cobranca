@@ -44,6 +44,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `scoring` | Score de propensão à recuperação e priorização | F23 |
 | `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/design/assistente.md` | F24 |
 | `analytics` | Read models e relatórios (painel operacional, recuperação, produtividade, exportação) | F11, F18 |
+| `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/design/remuneracao-variavel.md` | remuneração variável |
 | `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/design/juridico.md` | jurídico |
 
 ### 2.1 Grafo de dependências permitido (acíclico)
@@ -69,6 +70,7 @@ shared ◄── organization ◄── identity
               ├── scoring            (→ collection, debt, payment, organization)
               ├── assistant          (→ negotiation, communication, collection, compliance, debt, organization)
               ├── legal              (→ collection, negotiation, debt, compliance, identity, organization)
+              ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               └── analytics          (→ organization; lê o banco por views próprias)
 ```
 
@@ -174,6 +176,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V1500–V1599 | assistant |
 | V1600–V1699 | analytics |
 | V1700–V1799 | legal |
+| V1800–V1899 | incentive |
 
 * Nome: `V0301__debt_create_debtor.sql`. Arquivos em `backend/src/main/resources/db/migration/<modulo>/`.
 * Toda tabela de tenant: `tenant_id`, RLS habilitado e forçado, política `tenant_isolation`, `GRANT` para `app_runtime`. Use a função auxiliar `shared.enable_tenant_rls('<schema>.<tabela>')` criada em `V0002`.

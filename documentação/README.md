@@ -8,6 +8,8 @@ Documentação de produto e infraestrutura da plataforma. Os diagramas usam [Mer
 | [stack-tecnologica.md](stack-tecnologica.md) | Todas as tecnologias adotadas, versão e finalidade |
 | [infraestrutura-aws.md](infraestrutura-aws.md) | Estrutura recomendada na AWS, com fases de crescimento e estimativa de custo |
 | [workflow-juridico.md](workflow-juridico.md) | Garantias da dívida e etapas do workflow jurídico (extrajudicial e judicial) |
+| [ux-identidade-visual.md](ux-identidade-visual.md) | Identidade visual (temas, densidade, acessibilidade), navegação e onboarding por perfil |
 | [assistente-ia.md](assistente-ia.md) | Assistente de negociação com IA: limites, canais, alçadas, modos de operação e implantação |
+| [../docs/design/remuneracao-variavel.md](../docs/design/remuneracao-variavel.md) | Métricas dos negociadores e comissionamento parametrizável, com crédito justo quando o assistente participa |
 
 Documentação técnica para desenvolvimento (convenções de código, regras de camadas, faixas de migrations) fica em [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).

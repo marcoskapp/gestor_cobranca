@@ -12,12 +12,17 @@ import br.com.gestorcobranca.organization.application.port.in.TenantAdministrati
 import br.com.gestorcobranca.organization.application.port.in.TenantView;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.shared.events.identity.TenantProvisioned;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.tenancy.TenantSwitch;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +31,8 @@ import java.util.stream.Collectors;
 /**
  * Provisiona uma nova assessoria numa única transação: tenant (organization), perfis padrão e
  * administrador inicial (identity, já no contexto do novo tenant via {@link TenantSwitch}).
+ * Publica {@link TenantProvisioned} para que outros módulos criem a configuração inicial da
+ * assessoria (ex.: plano de comissão padrão) sem que este serviço dependa deles.
  */
 @Service
 class TenantProvisioningService implements TenantProvisioning {
@@ -37,10 +44,12 @@ class TenantProvisioningService implements TenantProvisioning {
     private final CredentialService credentialService;
     private final AccessScope accessScope;
     private final AuditTrail auditTrail;
+    private final ApplicationEventPublisher events;
+    private final Clock clock;
 
     TenantProvisioningService(TenantAdministration tenantAdministration, TenantSwitch tenantSwitch, RoleRepository roles,
                               UserRepository users, CredentialService credentialService, AccessScope accessScope,
-                              AuditTrail auditTrail) {
+                              AuditTrail auditTrail, ApplicationEventPublisher events, Clock clock) {
         this.tenantAdministration = tenantAdministration;
         this.tenantSwitch = tenantSwitch;
         this.roles = roles;
@@ -48,6 +57,8 @@ class TenantProvisioningService implements TenantProvisioning {
         this.credentialService = credentialService;
         this.accessScope = accessScope;
         this.auditTrail = auditTrail;
+        this.events = events;
+        this.clock = clock;
     }
 
     @Override
@@ -69,6 +80,7 @@ class TenantProvisioningService implements TenantProvisioning {
                     .created("roles", String.join(",", created.keySet()))
                     .created("adminUserId", admin.getId()));
             credentialService.issueCredentialLink(admin, ActionToken.Purpose.ACTIVATION, tenant);
+            events.publishEvent(new TenantProvisioned(Ids.newId(), tenant.id(), Instant.now(clock), admin.getId()));
             return admin.getId();
         });
         return new ProvisionedTenant(tenant, adminId);
