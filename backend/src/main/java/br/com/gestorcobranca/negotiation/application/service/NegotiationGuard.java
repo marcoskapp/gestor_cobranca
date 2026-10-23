@@ -51,7 +51,7 @@ import java.util.UUID;
  *       mínimo(envelope, perfil) pelo {@link TermsEvaluator}.</li>
  * </ol>
  * A simulação usa {@link #prepare} e {@link #evaluate} para gerar as ofertas; a validação de
- * condições específicas (e, na parte 2, a proposta) usa {@link #validate}.
+ * condições específicas e as propostas ({@code ProposalEvaluator}) usam {@link #validate}.
  */
 @Component
 class NegotiationGuard {
@@ -63,8 +63,16 @@ class NegotiationGuard {
      * @param titleIds         títulos pedidos (vazio = todos em aberto do devedor no credor)
      * @param referenceDate    data-base (nula = hoje)
      * @param expectedPolicyId versão que o chamador espera vigente (nula = não verificar)
+     * @param frozenReference  revalidação de proposta já registrada (aprovação, aceite, formalização): a
+     *                         data-base original vale mesmo que já tenha passado — o valor proposto não
+     *                         muda com o tempo de análise; a validade da proposta é controlada por ela
      */
-    record Request(UUID creditorId, UUID debtorId, List<UUID> titleIds, LocalDate referenceDate, UUID expectedPolicyId) {
+    record Request(UUID creditorId, UUID debtorId, List<UUID> titleIds, LocalDate referenceDate, UUID expectedPolicyId,
+                   boolean frozenReference) {
+
+        Request(UUID creditorId, UUID debtorId, List<UUID> titleIds, LocalDate referenceDate, UUID expectedPolicyId) {
+            this(creditorId, debtorId, titleIds, referenceDate, expectedPolicyId, false);
+        }
     }
 
     /**
@@ -136,7 +144,7 @@ class NegotiationGuard {
             contextViolations.add(Violation.of(ViolationKind.POLICY, "policy.version_not_effective",
                     "A versão de política informada não é a vigente (vigente: v" + policy.policy().getPolicyVersion() + ")"));
         }
-        Guard.require(!reference.isBefore(today), "negotiation.reference_date_past",
+        Guard.require(request.frozenReference() || !reference.isBefore(today), "negotiation.reference_date_past",
                 "A data-base não pode ser anterior a hoje");
 
         Map<UUID, TitleView> debtorTitles = debtTitles.ofDebtor(request.debtorId(), request.creditorId());

@@ -63,6 +63,69 @@ class NegotiationMetrics {
         Counter.builder("negotiation.authority.profiles_seeded").register(registry).increment(created);
     }
 
+    /** @param status DRAFT, PENDING_APPROVAL ou HANDED_OFF */
+    void proposalCreated(String actorType, String status) {
+        Counter.builder("negotiation.proposals").tag("actorType", actorType).tag("status", status)
+                .register(registry).increment();
+    }
+
+    /** @param decision APPROVED ou REJECTED; {@code waitTime} = criação → decisão */
+    void proposalDecided(String decision, Duration waitTime) {
+        Counter.builder("negotiation.proposal.decisions").tag("decision", decision).register(registry).increment();
+        Timer.builder("negotiation.proposal.approval_wait").tag("decision", decision).register(registry).record(waitTime);
+    }
+
+    void proposalAccepted(String channel) {
+        Counter.builder("negotiation.proposal.acceptances").tag("channel", channel).register(registry).increment();
+    }
+
+    void proposalsExpired(int count) {
+        Counter.builder("negotiation.proposal.expirations").register(registry).increment(count);
+    }
+
+    /** Transferência do assistente para humano (proposta acima da alçada do assistente). */
+    void handoffRequested() {
+        Counter.builder("negotiation.handoffs").register(registry).increment();
+    }
+
+    /** @param status novo status do acordo */
+    void agreementTransition(String status, String origin) {
+        Counter.builder("negotiation.agreement.transitions").tag("status", status).tag("origin", origin)
+                .register(registry).increment();
+    }
+
+    void formalization(Duration duration) {
+        Timer.builder("negotiation.formalization.duration").register(registry).record(duration);
+    }
+
+    void termRendered(Duration duration) {
+        Timer.builder("negotiation.term.render.duration").register(registry).record(duration);
+    }
+
+    void installmentOverdue() {
+        Counter.builder("negotiation.installments.overdue").register(registry).increment();
+    }
+
+    /** @param outcome APPLIED, UNAPPLIED, PARTIAL (com excedente), DUPLICATE, IGNORED (acordo desconhecido) */
+    void paymentConsumed(String outcome) {
+        Counter.builder("negotiation.payments").tag("outcome", outcome).register(registry).increment();
+    }
+
+    /** @param outcome REVERSED, UNKNOWN (pagamento não aplicado a acordo), DUPLICATE */
+    void reversalConsumed(String outcome) {
+        Counter.builder("negotiation.payment.reversals").tag("outcome", outcome).register(registry).increment();
+    }
+
+    /** @param operation PAYMENT (inclui a quitação do título) ou REVERSAL; @param outcome POSTED ou FAILED */
+    void ledgerPosting(String operation, String outcome) {
+        Counter.builder("negotiation.ledger.postings").tag("operation", operation).tag("outcome", outcome)
+                .register(registry).increment();
+    }
+
+    void anonymized(int records) {
+        Counter.builder("negotiation.anonymized_records").register(registry).increment(records);
+    }
+
     void jobFailure(String job) {
         Counter.builder("negotiation.jobs.failures").tag("job", job).register(registry).increment();
     }

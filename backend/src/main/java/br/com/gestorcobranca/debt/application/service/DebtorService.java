@@ -13,6 +13,8 @@ import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Document;
+import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.shared.events.debt.DebtorAnonymized;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
@@ -21,6 +23,7 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,11 +54,12 @@ class DebtorService implements DebtorUseCases {
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
     private final AccessLogger accessLogger;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     DebtorService(DebtorRepository debtors, DebtorContactRepository contacts, DebtTitleRepository titles,
                   ObligationPartyRepository parties, DebtorRegistry registry, DebtorVisibility visibility, PersonalDataIndex index, AccessScope accessScope, CurrentActor currentActor,
-                  AuditTrail auditTrail, AccessLogger accessLogger, Clock clock) {
+                  AuditTrail auditTrail, AccessLogger accessLogger, ApplicationEventPublisher events, Clock clock) {
         this.debtors = debtors;
         this.contacts = contacts;
         this.titles = titles;
@@ -67,6 +71,7 @@ class DebtorService implements DebtorUseCases {
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
         this.accessLogger = accessLogger;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -162,9 +167,12 @@ class DebtorService implements DebtorUseCases {
         }
         String maskedDocument = debtor.maskedDocument();
         List<DebtorContact> removed = contacts.findByDebtorIdOrderByTypeAscPriorityAscCreatedAtAsc(debtorId);
-        debtor.anonymize(Instant.now(clock));
+        Instant now = Instant.now(clock);
+        debtor.anonymize(now);
         contacts.deleteAll(removed);
         debtors.save(debtor);
+        // demais módulos (negotiation…) neutralizam os próprios textos livres e evidências do devedor
+        events.publishEvent(new DebtorAnonymized(Ids.newId(), currentActor.tenantId(), now, debtorId));
         auditTrail.record(AuditEntry.of("debtor.anonymized", "debtor", debtorId)
                 .reason(reason)
                 .change("status", "ACTIVE", debtor.getStatus())
