@@ -250,6 +250,11 @@ evento (pendência registrada lá).
 comandos de usuário obtêm o mesmo lock), o que evita abertura duplicada e colisões de lock otimista entre consumo e
 comando.
 
+**Uso pelo negotiation** (`negociacao-e-alcadas.md` §10): a elegibilidade para negociar usa `CaseUseCases#findActive` (caso fora de
+suspensão/jurídico/encerramento) e `DisputeUseCases#listByCase` (contestação impeditiva aberta ou em análise cobre o título); o
+acordo guarda o `caseId` e a equipe do caso. `DebtorAnonymized` (novo, publicado pelo debt) ainda não é consumido aqui
+(observações já são criptografadas; apagá-las na anonimização é pendência do módulo).
+
 ## 11. Segurança, escopo e auditoria
 
 * Permissões: `CASE_VIEW`, `CASE_WORK`, `CASE_ASSIGN`, `CASE_MANAGE` (**nova**: suspender, jurídico, encerrar),

@@ -52,12 +52,16 @@ public final class BusinessEventTypes {
     public static final String PROPOSAL_APPROVAL_REQUESTED = "proposal.approval_requested";
     public static final String PROPOSAL_APPROVED = "proposal.approved";
     public static final String PROPOSAL_REJECTED = "proposal.rejected";
+    public static final String PROPOSAL_HANDOFF_REQUESTED = "proposal.handoff_requested";
+    public static final String PROPOSAL_ACCEPTED = "proposal.accepted";
+    public static final String PROPOSAL_EXPIRED = "proposal.expired";
     public static final String AGREEMENT_FORMALIZED = "agreement.formalized";
     public static final String AGREEMENT_SETTLED = "agreement.settled";
     public static final String AGREEMENT_BROKEN = "agreement.broken";
     public static final String AGREEMENT_RENEGOTIATED = "agreement.renegotiated";
     public static final String AGREEMENT_CANCELLED = "agreement.cancelled";
     public static final String INSTALLMENT_OVERDUE = "installment.overdue";
+    public static final String INSTALLMENT_PAID = "installment.paid";
 
     // Pagamentos
     public static final String PAYMENT_INSTRUCTION_CREATED = "payment_instruction.created";

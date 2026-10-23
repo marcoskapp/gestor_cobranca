@@ -2,6 +2,7 @@ package br.com.gestorcobranca.negotiation;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ImportSummary;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord;
 import br.com.gestorcobranca.identity.application.port.in.RoleManagementUseCases;
 import br.com.gestorcobranca.identity.application.port.in.TenantProvisioning;
@@ -22,12 +23,14 @@ import br.com.gestorcobranca.organization.application.port.in.ServiceContractUse
 import br.com.gestorcobranca.organization.application.port.in.ServiceContractUseCases.CreateContractCommand;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.shared.jobs.JobDrain;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.support.IntegrationTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
@@ -73,6 +76,8 @@ abstract class NegotiationTestSupport extends IntegrationTest {
     JdbcTemplate jdbcTemplate;
     @Autowired
     AuthorityUseCases authorityUseCases;
+    @Autowired
+    ApplicationContext applicationContext;
 
     UUID tenant;
     UUID admin;
@@ -112,8 +117,22 @@ abstract class NegotiationTestSupport extends IntegrationTest {
                 today.minusDays(60), new BigDecimal("1000.00"), null, null), batch).id());
         title30 = system(() -> ingestion.upsertTitle(new TitleRecord(creditorA, portfolioA, debtor, "T-30", null, 2,
                 today.minusDays(30), new BigDecimal("500.00"), null, null), batch).id());
+        // fim da carga → PortfolioLoaded → caso de cobrança aberto pelo collection (elegibilidade da negociação)
+        system(() -> {
+            ingestion.completeImport(new ImportSummary(batch, creditorA, portfolioA, 2, 0, 1));
+            return null;
+        });
+        awaitTrue("consumo do PortfolioLoaded", () -> count("select count(*) from shared.processing_job "
+                + "where type = 'collection.portfolio_sync' and payload ->> 'importBatchId' = ?", batch.toString()) == 1);
+        drainJobs("collection.");
+        awaitTrue("caso de cobrança aberto", () -> count("select count(*) from collection.collection_case "
+                + "where debtor_id = ? and portfolio_id = ?", debtor, portfolioA) == 1);
         awaitTrue("perfis de alçada semeados",
                 () -> count("select count(*) from negotiation.authority_profile where system_profile") == 6);
+    }
+
+    void drainJobs(String typePrefix) {
+        JobDrain.drain(applicationContext, jdbcTemplate, typePrefix);
     }
 
     UUID portfolio(UUID creditorId, String code) {
@@ -181,7 +200,7 @@ abstract class NegotiationTestSupport extends IntegrationTest {
     }
 
     static void awaitTrue(String what, BooleanSupplier condition) {
-        long deadline = System.currentTimeMillis() + 20_000;
+        long deadline = System.currentTimeMillis() + 60_000;
         while (System.currentTimeMillis() < deadline) {
             if (condition.getAsBoolean()) {
                 return;

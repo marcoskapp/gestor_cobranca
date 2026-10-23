@@ -3,17 +3,15 @@ package br.com.gestorcobranca.negotiation.application.port.out;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Elegibilidade dos títulos para negociação (§5): status em cobrança, sem contestação impeditiva,
  * carteira operável e, a partir da parte 2, caso de cobrança elegível.
  * <p>
- * <strong>Adaptador provisório:</strong> {@code DebtBasedCaseEligibilityAdapter} decide pelo
- * módulo debt (status do título, bloqueio por contestação, saldo) e pela organization (carteira
- * operável). Na parte 2, quando o módulo collection estiver integrado, ele será substituído por um
- * adaptador que consulta o caso de cobrança (elegibilidade calculada, contestações F21), mantendo
- * este contrato e os códigos de motivo.
+ * Adaptador: {@code CollectionCaseEligibilityAdapter}, sobre os casos de uso do módulo collection
+ * (caso ativo e operável, contestações impeditivas F21) e do debt (status e saldo do título).
  */
 public interface CaseEligibilityPort {
 
@@ -23,9 +21,19 @@ public interface CaseEligibilityPort {
      */
     EligibilityResult check(UUID creditorId, UUID debtorId, Collection<UUID> titleIds);
 
+    /** Caso de cobrança ativo do devedor na carteira (vínculo da proposta e do acordo). */
+    Optional<CaseRef> activeCase(UUID debtorId, UUID portfolioId);
+
+    /**
+     * @param teamId    equipe responsável pelo caso (pool do assistente na remuneração variável)
+     * @param ownerType ASSISTANT, QUEUE, USER ou NONE
+     */
+    record CaseRef(UUID caseId, UUID teamId, UUID assigneeUserId, String ownerType) {
+    }
+
     /**
      * Motivos estáveis: {@code title.not_found}, {@code title.not_open}, {@code title.no_balance},
-     * {@code title.dispute_blocked}, {@code portfolio.not_operable}; (parte 2) {@code case.not_eligible}.
+     * {@code title.dispute_blocked}, {@code portfolio.not_operable}, {@code case.not_eligible}.
      *
      * @param ineligible motivos por título inelegível
      */

@@ -44,9 +44,12 @@ public final class OfferCalculator {
     public PricedDebt price(DebtComposition composition, Charges charges, ComponentRates discounts) {
         Breakdown gross = Breakdown.ZERO;
         Breakdown net = Breakdown.ZERO;
+        List<PricedDebt.TitlePricing> titles = new ArrayList<>();
         for (TitleComposition title : composition.titles()) {
+            Breakdown titleNet = priceTitle(title, charges, discounts);
             gross = gross.plus(title.gross());
-            net = net.plus(priceTitle(title, charges, discounts));
+            net = net.plus(titleNet);
+            titles.add(new PricedDebt.TitlePricing(title.titleId(), title.gross(), titleNet, title.recognized()));
         }
         Breakdown discount = gross.minus(net);
         List<CalculationLine> lines = new ArrayList<>();
@@ -56,7 +59,7 @@ public final class OfferCalculator {
                         discount.get(c), c == DebtComponent.HONORARIUM ? "Inclui recálculo sobre a base descontada" : null));
             }
         }
-        return new PricedDebt(discounts, gross, net, discount, lines);
+        return new PricedDebt(discounts, gross, net, discount, lines, titles);
     }
 
     private Breakdown priceTitle(TitleComposition title, Charges charges, ComponentRates discounts) {

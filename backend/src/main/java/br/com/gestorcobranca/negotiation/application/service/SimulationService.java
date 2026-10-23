@@ -204,7 +204,7 @@ class SimulationService implements NegotiationSimulationUseCases {
         return counts.stream().map(n -> new PlanRequest(n, null, reference)).toList();
     }
 
-    private static PlanRequest planRequest(PlanInput input, LocalDate reference) {
+    static PlanRequest planRequest(PlanInput input, LocalDate reference) {
         return new PlanRequest(input.installments(), input.downPayment() == null ? null : Money.of(input.downPayment()),
                 input.firstDueDate() == null ? reference : input.firstDueDate());
     }
@@ -249,7 +249,7 @@ class SimulationService implements NegotiationSimulationUseCases {
         return new Justification(reason, note);
     }
 
-    private static String channel(String channel) {
+    static String channel(String channel) {
         if (channel == null || channel.isBlank()) {
             return null;
         }
