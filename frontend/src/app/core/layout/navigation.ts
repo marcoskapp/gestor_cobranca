@@ -36,6 +36,14 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Comunicação',
+    items: [
+      { label: 'Caixa de entrada', icon: 'forum', route: '/conversas', permissions: [Permission.INBOX_VIEW] },
+      { label: 'Templates de mensagem', icon: 'article', route: '/conversas/templates', permissions: [Permission.TEMPLATE_MANAGE] },
+      { label: 'Canais', icon: 'settings_input_antenna', route: '/conversas/canais', permissions: [Permission.CHANNEL_MANAGE] },
+    ],
+  },
+  {
     label: 'Gestão da cobrança',
     items: [
       { label: 'Filas e distribuição', icon: 'view_list', route: '/cobranca/filas', permissions: [Permission.QUEUE_MANAGE, Permission.CASE_ASSIGN] },
@@ -48,9 +56,27 @@ export const NAVIGATION: readonly NavSection[] = [
     label: 'Negociação',
     items: [
       { label: 'Simulador', icon: 'calculate', route: '/negociacao/simulador', permissions: [Permission.NEGOTIATION_SIMULATE] },
+      {
+        label: 'Propostas',
+        icon: 'assignment',
+        route: '/negociacao/propostas',
+        permissions: [Permission.AGREEMENT_VIEW, Permission.NEGOTIATION_PROPOSE, Permission.NEGOTIATION_APPROVE],
+      },
+      { label: 'Aprovações', icon: 'how_to_reg', route: '/negociacao/aprovacoes', permissions: [Permission.NEGOTIATION_APPROVE] },
+      { label: 'Acordos', icon: 'handshake', route: '/negociacao/acordos', permissions: [Permission.AGREEMENT_VIEW] },
       { label: 'Políticas de cobrança', icon: 'policy', route: '/negociacao/politicas', permissions: [Permission.POLICY_VIEW] },
       { label: 'Índices de correção', icon: 'trending_up', route: '/negociacao/indices', permissions: [Permission.POLICY_VIEW] },
       { label: 'Alçadas', icon: 'verified_user', route: '/negociacao/alcadas', permissions: [Permission.AUTHORITY_MANAGE] },
+    ],
+  },
+  {
+    label: 'Jurídico',
+    items: [
+      { label: 'Painel jurídico', icon: 'balance', route: '/juridico', permissions: [Permission.LEGAL_VIEW] },
+      { label: 'Casos jurídicos', icon: 'folder_shared', route: '/juridico/casos', permissions: [Permission.LEGAL_VIEW] },
+      { label: 'Regras de elegibilidade', icon: 'rule', route: '/juridico/regras', permissions: [Permission.LEGAL_AUTHORIZE] },
+      { label: 'Escritórios parceiros', icon: 'business', route: '/juridico/escritorios', permissions: [Permission.LEGAL_AUTHORIZE] },
+      { label: 'Parâmetros do jurídico', icon: 'tune', route: '/juridico/parametros', permissions: [Permission.LEGAL_AUTHORIZE] },
     ],
   },
   {
