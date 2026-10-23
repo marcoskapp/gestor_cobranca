@@ -19,5 +19,11 @@ public enum ConcessionReason {
     /** Pagamento à vista imediato em troca de concessão. */
     IMMEDIATE_PAYMENT,
     /** Outro motivo (exige observação). */
-    OTHER
+    OTHER,
+    /**
+     * Concessão pré-autorizada do canal de autonegociação (perfil {@code PORTAL}): o devedor não
+     * justifica; a operação autorizou o nível ao configurar o perfil. Exclusivo do ator devedor, que
+     * não pode usar outro motivo.
+     */
+    SELF_SERVICE_PREAUTHORIZED
 }

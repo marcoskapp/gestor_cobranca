@@ -193,7 +193,8 @@ abstract class PaymentTestSupport extends IntegrationTest {
         awaitTrue("casos de cobrança abertos", () -> count("select count(*) from collection.collection_case "
                 + "where debtor_id = ?", debtor) == 2);
         awaitTrue("perfis de alçada semeados",
-                () -> count("select count(*) from negotiation.authority_profile where system_profile") == 6);
+                () -> count("select count(*) from negotiation.authority_profile where system_profile")
+                        == br.com.gestorcobranca.negotiation.domain.model.authority.StandardAuthorityProfiles.all().size());
         as(manager, DefaultRoles.GESTOR, CreditorScope.ALL, () -> {
             UUID id = policies.createDraft(new CreatePolicyCommand(creditorA, "Política A", null,
                     StandardPolicyTerms.marketDefault())).id();

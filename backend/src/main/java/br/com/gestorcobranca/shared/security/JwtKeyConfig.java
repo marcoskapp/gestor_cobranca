@@ -31,7 +31,8 @@ import java.util.Base64;
 
 /**
  * Assinatura e validação de JWT com RS256. A validação exige assinatura, emissor, validade
- * temporal (com tolerância de 30 s) e audiência da API. O {@code kid} permite rotação de chaves.
+ * temporal (com tolerância de 30 s) e audiência coerente com o tipo do token (API interna ou
+ * portal do devedor — {@link #audienceMatchesType}). O {@code kid} permite rotação de chaves.
  */
 @Configuration
 class JwtKeyConfig {
@@ -57,12 +58,26 @@ class JwtKeyConfig {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(jwtSigningKey.toRSAPublicKey())
                 .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .build();
-        OAuth2TokenValidator<Jwt> audience = jwt -> jwt.getAudience() != null && jwt.getAudience().contains(TokenClaims.AUDIENCE)
+        OAuth2TokenValidator<Jwt> audience = jwt -> audienceMatchesType(jwt)
                 ? OAuth2TokenValidatorResult.success()
                 : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Audiência inválida", null));
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(properties.issuer()), audience));
         return decoder;
+    }
+
+    /**
+     * Tokens do portal ({@code typ=portal}) só com a audiência do portal e exclusivamente ela; os
+     * demais só com a audiência da API interna. Assim um token de devedor nunca autentica como
+     * usuário interno (e vice-versa), mesmo assinado pela mesma chave.
+     */
+    static boolean audienceMatchesType(Jwt jwt) {
+        java.util.List<String> audiences = jwt.getAudience();
+        if (audiences == null || audiences.size() != 1) {
+            return false;
+        }
+        boolean portal = TokenClaims.TYPE_PORTAL.equals(jwt.getClaimAsString(TokenClaims.TYPE));
+        return audiences.getFirst().equals(portal ? TokenClaims.PORTAL_AUDIENCE : TokenClaims.AUDIENCE);
     }
 
     private static RSAPublicKey readPublicKey(JwtProperties properties) {

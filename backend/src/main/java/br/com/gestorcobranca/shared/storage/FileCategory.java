@@ -10,7 +10,9 @@ public enum FileCategory {
     SETTLEMENT_STATEMENT("settlements"),
     CALL_RECORDING("call-recordings"),
     MESSAGE_ATTACHMENT("message-attachments"),
-    DATA_SUBJECT_EXPORT("data-subject-exports");
+    DATA_SUBJECT_EXPORT("data-subject-exports"),
+    /** Marca do credor exibida no portal de autonegociação (logotipo público controlado). */
+    PORTAL_BRANDING("portal-branding");
 
     private final String prefix;
 

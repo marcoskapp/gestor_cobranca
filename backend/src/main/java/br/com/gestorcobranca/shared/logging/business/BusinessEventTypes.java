@@ -125,6 +125,16 @@ public final class BusinessEventTypes {
     public static final String CALL_COMPLETED = "call.completed";
     public static final String PORTAL_ACCESSED = "portal.accessed";
     public static final String PORTAL_AGREEMENT_FORMALIZED = "portal.agreement_formalized";
+    /** Devedor consultou as condições/simulou no portal (etapa "simulação" do funil). */
+    public static final String PORTAL_SIMULATED = "portal.simulated";
+    /** Pix da entrada/à vista ou 2ª via emitido pelo portal (etapa "pagamento solicitado"). */
+    public static final String PORTAL_PIX_ISSUED = "portal.pix_issued";
+    /** Pagamento confirmado de acordo fechado no portal (etapa "pagamento" do funil). */
+    public static final String PORTAL_PAYMENT_CONFIRMED = "portal.payment_confirmed";
+    /** Pedido que foge do portal (falar com atendente, contestação) encaminhado à fila humana. */
+    public static final String PORTAL_SERVICE_REQUESTED = "portal.service_requested";
+    /** Configuração do portal de um credor criada ou alterada. */
+    public static final String PORTAL_CONFIGURATION_CHANGED = "portal.configuration_changed";
     public static final String SCORE_CALCULATED = "score.calculated";
     public static final String ASSISTANT_REPLIED = "assistant.replied";
     public static final String ASSISTANT_HANDOFF = "assistant.handoff";
