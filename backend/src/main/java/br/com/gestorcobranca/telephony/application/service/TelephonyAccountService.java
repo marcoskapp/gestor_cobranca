@@ -37,7 +37,7 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
 
     private final TelephonyAccountRepository accounts;
     private final WebhookRouteDirectory routes;
-    private final CredentialCodec credentialCodec;
+    private final TelephonyCredentialCodec credentialCodec;
     private final CreditorUseCases creditors;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
@@ -47,7 +47,7 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
     private final SecureRandom random = new SecureRandom();
 
     TelephonyAccountService(TelephonyAccountRepository accounts, WebhookRouteDirectory routes,
-                            CredentialCodec credentialCodec, CreditorUseCases creditors, AccessScope accessScope,
+                            TelephonyCredentialCodec credentialCodec, CreditorUseCases creditors, AccessScope accessScope,
                             CurrentActor currentActor, AuditTrail auditTrail, TelephonyProperties properties,
                             Clock clock) {
         this.accounts = accounts;

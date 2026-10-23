@@ -46,13 +46,6 @@ interface CallJpaRepository extends JpaRepository<Call, UUID>, JpaSpecificationE
     long countUnconnectedActiveByCampaign(UUID campaignId);
 
     @Override
-    @Query(value = """
-            select id from telephony.phone_call
-             where campaign_id = :campaignId and status in ('QUEUED', 'DIALING', 'RINGING', 'ANSWERED')
-            """, nativeQuery = true)
-    List<UUID> findActiveIdsByCampaign(UUID campaignId);
-
-    @Override
     default List<Call> findIdentifiedByNumberHash(String numberHash, int limit) {
         return identifiedByNumberHash(numberHash, PageRequest.of(0, limit));
     }

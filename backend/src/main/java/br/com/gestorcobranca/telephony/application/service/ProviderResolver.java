@@ -24,10 +24,10 @@ class ProviderResolver {
 
     private final TelephonyAccountRepository accounts;
     private final Map<ProviderType, TelephonyProvider> providers;
-    private final CredentialCodec credentialCodec;
+    private final TelephonyCredentialCodec credentialCodec;
 
     ProviderResolver(TelephonyAccountRepository accounts, List<TelephonyProvider> providers,
-                     CredentialCodec credentialCodec) {
+                     TelephonyCredentialCodec credentialCodec) {
         this.accounts = accounts;
         this.providers = providers.stream()
                 .collect(Collectors.toUnmodifiableMap(TelephonyProvider::provider, Function.identity()));

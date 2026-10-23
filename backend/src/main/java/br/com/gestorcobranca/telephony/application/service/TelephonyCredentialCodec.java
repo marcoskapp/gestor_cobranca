@@ -13,14 +13,14 @@ import java.util.TreeMap;
  * criptografado pela entidade; aqui só circula em memória e nunca vai para log.
  */
 @Component
-class CredentialCodec {
+class TelephonyCredentialCodec {
 
     private static final TypeReference<Map<String, String>> TYPE = new TypeReference<>() {
     };
 
     private final JsonCodec json;
 
-    CredentialCodec(JsonCodec json) {
+    TelephonyCredentialCodec(JsonCodec json) {
         this.json = json;
     }
 

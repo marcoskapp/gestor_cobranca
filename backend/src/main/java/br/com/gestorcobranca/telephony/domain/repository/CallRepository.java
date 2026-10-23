@@ -32,9 +32,6 @@ public interface CallRepository {
     /** Chamadas da campanha ainda sem operador (na fila, discando, tocando ou atendidas aguardando conexão). */
     long countUnconnectedActiveByCampaign(UUID campaignId);
 
-    /** Ids das chamadas em andamento da campanha (cancelamento ao pausar/encerrar). */
-    List<UUID> findActiveIdsByCampaign(UUID campaignId);
-
     /** Últimas chamadas identificadas (com caso) ao número (blind index), da mais recente para a mais antiga. */
     List<Call> findIdentifiedByNumberHash(String numberHash, int limit);
 

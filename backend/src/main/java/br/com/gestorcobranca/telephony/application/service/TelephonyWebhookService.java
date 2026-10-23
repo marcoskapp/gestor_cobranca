@@ -48,7 +48,7 @@ class TelephonyWebhookService implements TelephonyWebhookUseCases {
     private final WebhookRouteDirectory routes;
     private final WebhookReceiptLog receipts;
     private final TelephonyAccountRepository accounts;
-    private final CredentialCodec credentialCodec;
+    private final TelephonyCredentialCodec credentialCodec;
     private final ProviderEventUseCases events;
     private final Map<ProviderType, TelephonyWebhookAdapter> adapters;
     private final TenantExecution tenantExecution;
@@ -58,7 +58,7 @@ class TelephonyWebhookService implements TelephonyWebhookUseCases {
     private final Clock clock;
 
     TelephonyWebhookService(WebhookRouteDirectory routes, WebhookReceiptLog receipts, TelephonyAccountRepository accounts,
-                            CredentialCodec credentialCodec, ProviderEventUseCases events,
+                            TelephonyCredentialCodec credentialCodec, ProviderEventUseCases events,
                             List<TelephonyWebhookAdapter> adapters, TenantExecution tenantExecution,
                             AccessLogger accessLogger, TelephonyMetrics metrics, TelephonyProperties properties,
                             Clock clock) {
