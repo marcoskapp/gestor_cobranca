@@ -1,6 +1,6 @@
 # Arquitetura — Gestor de Cobrança
 
-Documento de referência técnica. Toda decisão de código deve ser coerente com ele; divergências exigem um ADR em `docs/adr/`.
+Documento de referência técnica. Toda decisão de código deve ser coerente com ele; divergências exigem um ADR em `docs/arquitetura/adr/`.
 
 ## 1. Visão geral
 
@@ -33,19 +33,19 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `debt` | Devedor, contatos, contratos de origem, títulos, parcelas, saldos, histórico de titularidade, garantias, partes da obrigação e prescrição | F05 |
 | `ingestion` | Lotes de importação (CSV/XLSX/API), validação, erros por linha, reimportação idempotente | F04 |
 | `compliance` | Restrições de contato, opt-out, bases legais, solicitações de titulares (LGPD), retenção e descarte | M09 |
-| `collection` | Caso de cobrança, elegibilidade, filas, atribuição, interações/tabulação, tarefas e retornos, promessas simples, contestações — ver `docs/design/collection.md` | F06, F07, F21 |
-| `negotiation` | Políticas de cobrança versionadas, motor de cálculo, escada de concessões, perfis de alçada (humanos e assistente), propostas e aprovação, acordos, parcelas, quebra, renegociação, termo — ver `docs/design/negociacao-e-alcadas.md` | F08, F09, F16 |
+| `collection` | Caso de cobrança, elegibilidade, filas, atribuição, interações/tabulação, tarefas e retornos, promessas simples, contestações — ver `docs/tecnico/desenho/collection.md` | F06, F07, F21 |
+| `negotiation` | Políticas de cobrança versionadas, motor de cálculo, escada de concessões, perfis de alçada (humanos e assistente), propostas e aprovação, acordos, parcelas, quebra, renegociação, termo — ver `docs/tecnico/desenho/negociacao-e-alcadas.md` | F08, F09, F16 |
 | `payment` | Instruções de pagamento (Pix/boleto/link), pagamentos externos e integrados, webhooks, alocação, conciliação, estornos | F10, F14, F15 |
 | `settlement` | Comissão da assessoria e demonstrativo/prestação de contas por credor | F17, F22 |
-| `communication` | Canais (WhatsApp, e-mail, SMS), templates, conversas com dono do atendimento (assistente, fila ou operador), transferências, mensagens, caixa de entrada — ver `docs/design/comunicacao.md` | F12 |
+| `communication` | Canais (WhatsApp, e-mail, SMS), templates, conversas com dono do atendimento (assistente, fila ou operador), transferências, mensagens, caixa de entrada — ver `docs/tecnico/desenho/comunicacao.md` | F12 |
 | `campaign` | Segmentos, campanhas, réguas, execução, controle de concorrência, testes A/B | F13, F25 |
 | `telephony` | Integração CTI/discador: chamadas, gravações, resultado vinculado ao caso | F20 |
 | `portal` | Autonegociação do devedor (acesso seguro, consulta, proposta, formalização) | F19 |
 | `scoring` | Score de propensão à recuperação e priorização | F23 |
-| `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/design/assistente.md` | F24 |
+| `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/tecnico/desenho/assistente.md` | F24 |
 | `analytics` | Read models e relatórios (painel operacional, recuperação, produtividade, exportação) | F11, F18 |
-| `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/design/remuneracao-variavel.md` | remuneração variável |
-| `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/design/juridico.md` | jurídico |
+| `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/tecnico/desenho/remuneracao-variavel.md` | remuneração variável |
+| `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/tecnico/desenho/juridico.md` | jurídico |
 
 ### 2.1 Grafo de dependências permitido (acíclico)
 
@@ -138,11 +138,11 @@ Jobs sem usuário (agendados, consumidores de eventos) executam via `TenantExecu
 
 ## 6. Segurança
 
-Ver `docs/SECURITY.md`. Resumo: Spring Security com JWT RS256 de curta duração (10 min), refresh token opaco rotativo com detecção de reuso, MFA TOTP, bloqueio progressivo, política de senha (Argon2id), autorização por permissão (`@PreAuthorize("hasAuthority('…')")`) + escopo por credor, criptografia de campos sensíveis (AES-256-GCM) com *blind index* para busca, mascaramento em logs e respostas, cabeçalhos de segurança, CORS restrito, rate limiting por IP/usuário em endpoints sensíveis.
+Ver `docs/tecnico/seguranca.md`. Resumo: Spring Security com JWT RS256 de curta duração (10 min), refresh token opaco rotativo com detecção de reuso, MFA TOTP, bloqueio progressivo, política de senha (Argon2id), autorização por permissão (`@PreAuthorize("hasAuthority('…')")`) + escopo por credor, criptografia de campos sensíveis (AES-256-GCM) com *blind index* para busca, mascaramento em logs e respostas, cabeçalhos de segurança, CORS restrito, rate limiting por IP/usuário em endpoints sensíveis.
 
 ## 7. Logs e métricas
 
-Ver `docs/LOGGING.md`. Três fluxos independentes:
+Ver `docs/tecnico/logs-e-metricas.md`. Três fluxos independentes:
 
 | Fluxo | Logger | Destino | Finalidade |
 | --- | --- | --- | --- |

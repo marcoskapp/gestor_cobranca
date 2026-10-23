@@ -27,7 +27,7 @@ import java.util.stream.Stream;
 import static br.com.gestorcobranca.ingestion.domain.model.CanonicalField.*;
 
 /**
- * Validação e conversão de uma linha canônica (regras em {@code documentação/layout-importacao.md}).
+ * Validação e conversão de uma linha canônica (regras em {@code docs/negocio/layout-importacao.md}).
  * Função pura: não acessa banco nem relógio.
  * <p>
  * Critério de severidade: problemas no que identifica o devedor e o título ou nos valores do

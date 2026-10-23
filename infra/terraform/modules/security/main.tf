@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Cadeia de confiança dos security groups (documentação/infraestrutura-aws.md §2):
+# Cadeia de confiança dos security groups (docs/arquitetura/infraestrutura-aws.md §2):
 #   sg-alb  entrada 443/80 da internet          saída 8080 → sg-app
 #   sg-app  entrada 8080 somente de sg-alb      saída 5432 → sg-db; 443 → internet (NAT); S3 (endpoint)
 #   sg-db   entrada 5432 somente de sg-app      saída nenhuma

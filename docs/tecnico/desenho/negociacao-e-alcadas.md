@@ -75,7 +75,7 @@ Os mesmos cálculos alimentam a tela de negociação com intensidade definida pe
 
 ## Atribuição do acordo (insumo da remuneração variável)
 
-Na formalização, `negotiation` registra os participantes do acordo e publica `shared.events.negotiation.AgreementAttributionRecorded` com: `agreementId`, `caseId`, `creditorId`, `portfolioId`, `origin` (`HUMAN`, `HUMAN_COPILOT`, `ASSISTANT_HANDOFF_NEGOTIATED`, `ASSISTANT_HANDOFF_CONFIRMED`, `ASSISTANT_AUTONOMOUS`, `PORTAL_SELF_SERVICE`, `CAMPAIGN`), lista de participantes (`actorType`, `actorId`, `role` = `CLOSER`/`ORIGINATOR`/`PRE_NEGOTIATOR`/`APPROVER`/`INFLUENCER`), nível de concessão, uso do envelope (%), faixa de atraso e `replacedAgreementId`. `HANDOFF_CONFIRMED` × `HANDOFF_NEGOTIATED` é decidido no servidor comparando a proposta formalizada com a sugestão do handoff. Regras de uso em `docs/design/remuneracao-variavel.md`.
+Na formalização, `negotiation` registra os participantes do acordo e publica `shared.events.negotiation.AgreementAttributionRecorded` com: `agreementId`, `caseId`, `creditorId`, `portfolioId`, `origin` (`HUMAN`, `HUMAN_COPILOT`, `ASSISTANT_HANDOFF_NEGOTIATED`, `ASSISTANT_HANDOFF_CONFIRMED`, `ASSISTANT_AUTONOMOUS`, `PORTAL_SELF_SERVICE`, `CAMPAIGN`), lista de participantes (`actorType`, `actorId`, `role` = `CLOSER`/`ORIGINATOR`/`PRE_NEGOTIATOR`/`APPROVER`/`INFLUENCER`), nível de concessão, uso do envelope (%), faixa de atraso e `replacedAgreementId`. `HANDOFF_CONFIRMED` × `HANDOFF_NEGOTIATED` é decidido no servidor comparando a proposta formalizada com a sugestão do handoff. Regras de uso em `docs/tecnico/desenho/remuneracao-variavel.md`.
 
 ## 9. Implementação — parte 1 (decisões e contratos)
 

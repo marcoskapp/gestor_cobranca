@@ -14,7 +14,7 @@ import java.util.UUID;
 /**
  * Casos de cobrança (F06): consulta, ficha agregada e ciclo de vida manual. A abertura, a
  * atualização da posição e o encerramento automático acontecem pelos eventos do módulo debt
- * ({@code TitleStatusChanged}, {@code PortfolioLoaded}); ver {@code docs/design/collection.md}.
+ * ({@code TitleStatusChanged}, {@code PortfolioLoaded}); ver {@code docs/tecnico/desenho/collection.md}.
  * <p>
  * Escopo: leitura exige o credor do caso no escopo (404 fora dele); comandos, o credor no escopo
  * (403). Mudanças de status são auditadas, registram evento de negócio e publicam

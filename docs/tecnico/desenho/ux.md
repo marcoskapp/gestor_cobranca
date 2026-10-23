@@ -1,6 +1,6 @@
 # Desenho — UX, identidade visual e onboarding
 
-Escopo: frontend Angular (`frontend/`), tema e componentes compartilhados, shell, onboarding e o estado de interface do usuário no módulo `identity` (migration V0201). Visão de produto em [`documentação/ux-identidade-visual.md`](../../documentação/ux-identidade-visual.md).
+Escopo: frontend Angular (`frontend/`), tema e componentes compartilhados, shell, onboarding e o estado de interface do usuário no módulo `identity` (migration V0201). Visão de produto em [`docs/negocio/ux-identidade-visual.md`](../../negocio/ux-identidade-visual.md).
 
 Objetivo do responsável: *"uma identidade visual leve e fácil de operar, responsiva e cognitiva"*, com onboarding para novos usuários e para telas novas, alteradas ou ainda não navegadas.
 
