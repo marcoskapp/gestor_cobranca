@@ -89,6 +89,10 @@ filter eventType in ["proposal.created", "agreement.formalized", "payment.confir
 filter eventType = "payment.confirmed"
 | stats sum(amount) by actorId, bin(1d)
 
+# tours mais dispensados (técnico — adoção da interface)
+filter event = "ui.onboarding.tour_recorded"
+| stats count(*) by tourId, outcome | sort count(*) desc
+
 # tentativas de login negadas por IP (acesso)
 filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | stats count(*) as falhas by clientIp | sort falhas desc
@@ -116,4 +120,5 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `incentive.payments.awaiting_attribution` | pagamento recebido antes da atribuição do acordo (crescimento contínuo = produtor sem `AgreementAttributionRecorded`) |
 | `incentive.period.close.duration{trigger}`, `incentive.statements.calculated{trigger}`, `incentive.statements.transitions{status}` | fechamento de período e ciclo dos extratos |
 | `incentive.exports{format}`, `incentive.jobs.failures{job}` | exportações para a folha e falhas dos agendamentos (alarme) |
+| `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

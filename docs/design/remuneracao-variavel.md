@@ -196,7 +196,7 @@ Insumos de inteligência: custo de comissão por real recuperado, por credor e p
 
 ## 10. Implementação (22/10/2026)
 
-Código em `backend/src/main/java/br/com/gestorcobranca/incentive`, migrations `V1800`–`V1803` (schema `incentive`, RLS forçado em todas as tabelas) e `identity/V0201` (instante de desativação do usuário e permissões nos perfis existentes). API em `/api/v1/incentive/...` (OpenAPI gerado pelo springdoc).
+Código em `backend/src/main/java/br/com/gestorcobranca/incentive`, migrations `V1800`–`V1803` (schema `incentive`, RLS forçado em todas as tabelas) e `identity/V0202` (instante de desativação do usuário e permissões nos perfis existentes). API em `/api/v1/incentive/...` (OpenAPI gerado pelo springdoc).
 
 ### 10.1 Mapa
 
