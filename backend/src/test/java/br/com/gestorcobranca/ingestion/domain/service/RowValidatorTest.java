@@ -189,4 +189,83 @@ class RowValidatorTest {
         vehicle.put(COLLATERAL_TYPE, "ALIENACAO_FIDUCIARIA_VEICULO");
         assertThat(validate(vehicle).hasCode("row.collateral_vehicle_identifier_required")).isTrue();
     }
+
+    // ------------------------------------------------------------ formato numérico por coluna
+
+    private static RowValidation validateWith(Map<CanonicalField, String> values, java.util.Set<CanonicalField> typed,
+                                              br.com.gestorcobranca.ingestion.domain.model.format.FormatOption option) {
+        var format = new br.com.gestorcobranca.ingestion.domain.model.format.NumberFormat(Map.of(
+                "valor_principal", new br.com.gestorcobranca.ingestion.domain.model.format.ColumnDecision(option,
+                        br.com.gestorcobranca.ingestion.domain.model.format.DecisionSource.USER),
+                "saldo", new br.com.gestorcobranca.ingestion.domain.model.format.ColumnDecision(option,
+                        br.com.gestorcobranca.ingestion.domain.model.format.DecisionSource.USER)));
+        return new RowValidator(LocalDate.of(2026, 10, 23), format).validate(new SourceRow(7, values, typed), null);
+    }
+
+    private static boolean has(RowValidation v, String code) {
+        return v.issues().stream().map(RowIssue::code).anyMatch(code::equals);
+    }
+
+    @Test
+    void amountsFollowTheColumnConventionAndOneDotZeroZeroNeverBecomesOneHundred() {
+        var COMMA = br.com.gestorcobranca.ingestion.domain.model.format.FormatOption.COMMA;
+        var DOT = br.com.gestorcobranca.ingestion.domain.model.format.FormatOption.DOT;
+        Map<CanonicalField, String> values = valid();
+        values.put(PRINCIPAL_AMOUNT, "1.00");
+        assertThat(validateWith(values, java.util.Set.of(), DOT).valid().orElseThrow().principalAmount())
+                .isEqualByComparingTo("1.00");
+        // sob vírgula decimal, "1.00" não é lido (nunca vira 100)
+        RowValidation comma = validateWith(values, java.util.Set.of(), COMMA);
+        assertThat(comma.valid()).isEmpty();
+        assertThat(has(comma, "row.principal_invalid")).isTrue();
+        assertThat(comma.issues().getFirst().message()).contains("vírgula decimal");
+
+        values.put(PRINCIPAL_AMOUNT, "1.000");
+        assertThat(validateWith(values, java.util.Set.of(), COMMA).valid().orElseThrow().principalAmount())
+                .isEqualByComparingTo("1000");
+        assertThat(validateWith(values, java.util.Set.of(), DOT).valid().orElseThrow().principalAmount())
+                .isEqualByComparingTo("1");
+        // valor tipado (célula numérica / número JSON) dispensa a convenção
+        values.put(PRINCIPAL_AMOUNT, "1000.5");
+        assertThat(validateWith(values, java.util.Set.of(PRINCIPAL_AMOUNT), COMMA).valid().orElseThrow().principalAmount())
+                .isEqualByComparingTo("1000.50");
+    }
+
+    @Test
+    void reportsSpecificAmountProblems() {
+        var COMMA = br.com.gestorcobranca.ingestion.domain.model.format.FormatOption.COMMA;
+        Map<CanonicalField, String> values = valid();
+        values.put(PRINCIPAL_AMOUNT, "1,234");
+        assertThat(has(validateWith(values, java.util.Set.of(), COMMA), "row.amount_too_many_decimals")).isTrue();
+        values.put(PRINCIPAL_AMOUNT, "1,23457E+11");
+        assertThat(has(validateWith(values, java.util.Set.of(), COMMA), "row.amount_scientific_notation")).isTrue();
+        values.put(PRINCIPAL_AMOUNT, "10.005");
+        assertThat(has(validateWith(values, java.util.Set.of(PRINCIPAL_AMOUNT), COMMA), "row.amount_too_many_decimals")).isTrue();
+        // saldo com problema é aviso: a linha continua válida
+        values.put(PRINCIPAL_AMOUNT, "10,00");
+        values.put(REPORTED_BALANCE, "1,23E+3");
+        values.put(BALANCE_REFERENCE_DATE, "01/10/2026");
+        RowValidation v = validateWith(values, java.util.Set.of(), COMMA);
+        assertThat(v.valid()).isPresent();
+        assertThat(v.warnings()).anySatisfy(w -> assertThat(w.message()).contains("notação científica"));
+    }
+
+    @Test
+    void identifiersConvertedByTheSpreadsheetAreErrors() {
+        Map<CanonicalField, String> values = valid();
+        values.put(TITLE_EXTERNAL_ID, "1,23457E+15");
+        assertThat(validate(values).hasCode("row.scientific_notation")).isTrue();
+        values.put(TITLE_EXTERNAL_ID, "2E3456");
+        assertThat(validate(values).validation().valid()).isPresent();
+        values.put(TITLE_EXTERNAL_ID, "1234567890123460000");
+        RowValidation typed = new RowValidator(LocalDate.of(2026, 10, 23))
+                .validate(new SourceRow(7, values, java.util.Set.of(TITLE_EXTERNAL_ID)), null);
+        assertThat(has(typed, "row.identifier_precision_lost")).isTrue();
+        assertThat(validate(values).validation().valid()).isPresent();
+        values.put(TITLE_EXTERNAL_ID, "T-1");
+        values.put(DEBTOR_DOCUMENT, "5,29982E+10");
+        RowValidation doc = validate(values).validation();
+        assertThat(has(doc, "row.scientific_notation")).isTrue();
+        assertThat(has(doc, "row.document_invalid")).isFalse();
+    }
 }

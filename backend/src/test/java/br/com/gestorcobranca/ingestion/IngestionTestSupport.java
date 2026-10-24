@@ -42,6 +42,7 @@ import java.util.function.Supplier;
 abstract class IngestionTestSupport extends IntegrationTest {
 
     static final String JOB_TYPE = "ingestion.process-batch";
+    static final String ANALYSIS_JOB_TYPE = "ingestion.review-analysis";
     static final String HEADER = "documento;nome;telefone_1;whatsapp_1;email_1;contrato;id_titulo;parcela;vencimento;"
             + "valor_principal;saldo;data_saldo;situacao";
 
@@ -104,9 +105,14 @@ abstract class IngestionTestSupport extends IntegrationTest {
      * controla cada fatia com {@link #runJobs(int)}.
      */
     <T> T asImporterOf(UUID creditorId, Supplier<T> action) {
-        Actor user = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "importador",
-                EnumSet.of(Permission.IMPORT_VIEW, Permission.IMPORT_EXECUTE, Permission.DEBTOR_VIEW),
-                CreditorScope.of(List.of(creditorId)));
+        return asUser(Ids.newId(), EnumSet.of(Permission.IMPORT_VIEW, Permission.IMPORT_EXECUTE, Permission.DEBTOR_VIEW),
+                creditorId, action);
+    }
+
+    /** Usuário com id e permissões definidos (segregação de funções), escopo restrito ao credor. */
+    <T> T asUser(UUID userId, java.util.Set<Permission> permissions, UUID creditorId, Supplier<T> action) {
+        Actor user = new Actor(Actor.ActorType.USER, userId, tenant, Ids.newId(), "usuario-" + userId.toString().substring(0, 4),
+                EnumSet.copyOf(permissions), CreditorScope.of(List.of(creditorId)));
         return tenantExecution.callAs(user, () -> {
             T result = action.get();
             deferPendingJobs();
@@ -117,8 +123,8 @@ abstract class IngestionTestSupport extends IntegrationTest {
     private void deferPendingJobs() {
         jdbcTemplate.update("""
                 update shared.processing_job set run_at = now() + interval '1 day'
-                where tenant_id = ? and type = ? and status = 'PENDING'
-                """, tenant, JOB_TYPE);
+                where tenant_id = ? and type in (?, ?) and status = 'PENDING'
+                """, tenant, JOB_TYPE, ANALYSIS_JOB_TYPE);
     }
 
     ImportBatchView uploadCsv(String fileName, String content, String mode) {
@@ -143,24 +149,25 @@ abstract class IngestionTestSupport extends IntegrationTest {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     int runJobs(int maxJobs) {
-        JobHandler handler = jobHandlers.stream().filter(h -> h.type().equals(JOB_TYPE)).findFirst().orElseThrow();
         int executed = 0;
         while (executed < maxJobs) {
             List<Map<String, Object>> claimed = jdbcTemplate.queryForList("""
                     update shared.processing_job set status = 'RUNNING', attempts = attempts + 1, started_at = now()
                     where id = (select id from shared.processing_job
-                                where tenant_id = ? and type = ? and status = 'PENDING'
+                                where tenant_id = ? and type in (?, ?) and status = 'PENDING'
                                 order by created_at limit 1 for update skip locked)
-                    returning id, payload::text as payload, attempts
-                    """, tenant, JOB_TYPE);
+                    returning id, type, payload::text as payload, attempts
+                    """, tenant, JOB_TYPE, ANALYSIS_JOB_TYPE);
             if (claimed.isEmpty()) {
                 break;
             }
             UUID id = (UUID) claimed.getFirst().get("id");
+            String type = (String) claimed.getFirst().get("type");
+            JobHandler handler = jobHandlers.stream().filter(h -> h.type().equals(type)).findFirst().orElseThrow();
             int attempt = ((Number) claimed.getFirst().get("attempts")).intValue();
             Object payload = json.fromJson((String) claimed.getFirst().get("payload"), handler.payloadType());
-            tenantExecution.inTenant(tenant, "job:" + JOB_TYPE, () -> {
-                handler.handle(new JobContext(id, tenant, JOB_TYPE, attempt), payload);
+            tenantExecution.inTenant(tenant, "job:" + type, () -> {
+                handler.handle(new JobContext(id, tenant, type, attempt), payload);
                 // a próxima fatia, enfileirada nesta transação, também fica sob controle do teste
                 deferPendingJobs();
                 jdbcTemplate.update("update shared.processing_job set status = 'DONE', finished_at = now() where id = ?", id);

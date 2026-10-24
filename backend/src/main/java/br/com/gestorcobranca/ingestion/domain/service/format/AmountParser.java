@@ -209,10 +209,13 @@ public final class AmountParser {
         return AmountReading.of(negative ? value.negate() : value, style);
     }
 
-    /** {@code \d{1,3}(S\d{3})+} — agrupamento de milhar válido com o separador {@code sep}. */
+    /**
+     * {@code [1-9]\d{0,2}(S\d{3})+} — agrupamento de milhar válido com o separador {@code sep} (o primeiro grupo não
+     * começa com zero: {@code 0.500} não é quinhentos).
+     */
     static boolean grouped(String integer, char sep) {
         String[] groups = integer.split(Pattern.quote(String.valueOf(sep)), -1);
-        if (groups.length < 2 || groups[0].isEmpty() || groups[0].length() > 3) {
+        if (groups.length < 2 || groups[0].isEmpty() || groups[0].length() > 3 || groups[0].charAt(0) == '0') {
             return false;
         }
         for (int i = 1; i < groups.length; i++) {

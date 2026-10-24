@@ -111,8 +111,68 @@ class RecordReadersTest {
             assertThat(r.get(CanonicalField.DEBTOR_DOCUMENT)).contains("52998224725");
             assertThat(r.get(CanonicalField.DUE_DATE)).contains("2026-03-10");
             assertThat(r.get(CanonicalField.PRINCIPAL_AMOUNT)).contains("0.3");
+            assertThat(r.isTyped(CanonicalField.PRINCIPAL_AMOUNT)).isTrue();
+            assertThat(r.isTyped(CanonicalField.DEBTOR_NAME)).isFalse();
+            assertThat(r.isTyped(CanonicalField.DUE_DATE)).isFalse();
         });
         assertThat(result.ignored).containsExactly("garantia_2_tipo");
+    }
+
+    @Test
+    void xlsxNumericCellsAreTypedAndTextNumbersStayText() throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("dados");
+            Row header = sheet.createRow(0);
+            String[] columns = (HEADER + ";saldo;valor_contrato").split(";");
+            for (int i = 0; i < columns.length; i++) {
+                header.createCell(i).setCellValue(columns[i]);
+            }
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue("52998224725");
+            row.createCell(1).setCellValue("Maria");
+            row.createCell(2).setCellValue(1234567890123456789d);
+            row.createCell(3).setCellValue("10/03/2026");
+            // número formatado como moeda brasileira: lido como valor exato, sem separador de milhar
+            row.createCell(4).setCellValue(1000d);
+            org.apache.poi.ss.usermodel.CellStyle money = workbook.createCellStyle();
+            money.setDataFormat(workbook.createDataFormat().getFormat("\"R$\" #,##0.00"));
+            row.getCell(4).setCellStyle(money);
+            // "número armazenado como texto"
+            row.createCell(5).setCellValue("1.000");
+            row.createCell(6).setCellFormula("1234.5*2");
+            workbook.getCreationHelper().createFormulaEvaluator().evaluateAll();
+            workbook.write(out);
+        }
+        Collector result = read(out.toByteArray(), FileLayout.standard(ImportFormat.XLSX));
+        assertThat(result.rows).singleElement().satisfies(r -> {
+            assertThat(r.get(CanonicalField.PRINCIPAL_AMOUNT)).contains("1000");
+            assertThat(r.isTyped(CanonicalField.PRINCIPAL_AMOUNT)).isTrue();
+            assertThat(r.get(CanonicalField.REPORTED_BALANCE)).contains("1.000");
+            assertThat(r.isTyped(CanonicalField.REPORTED_BALANCE)).isFalse();
+            assertThat(r.get(CanonicalField.CONTRACT_AMOUNT)).contains("2469");
+            assertThat(r.isTyped(CanonicalField.CONTRACT_AMOUNT)).isTrue();
+            // identificador numérico longo: 15 dígitos significativos (o Excel perdeu os demais)
+            assertThat(r.get(CanonicalField.TITLE_EXTERNAL_ID)).contains("1234567890123460000");
+            assertThat(r.isTyped(CanonicalField.TITLE_EXTERNAL_ID)).isTrue();
+        });
+    }
+
+    @Test
+    void apiNumbersAreTypedAndStringsAreText() {
+        String json = """
+                [{"documento":"52998224725","nome":"Maria","id_titulo":"T-1","vencimento":"2026-03-10",
+                  "valor_principal":1000.50,"saldo":"1.000","valor_contrato":12345678901234.56,"parcela":3}]
+                """;
+        Collector result = read(json.getBytes(StandardCharsets.UTF_8), FileLayout.standard(ImportFormat.JSON));
+        assertThat(result.rows).singleElement().satisfies(r -> {
+            assertThat(r.get(CanonicalField.PRINCIPAL_AMOUNT)).contains("1000.5");
+            assertThat(r.isTyped(CanonicalField.PRINCIPAL_AMOUNT)).isTrue();
+            assertThat(r.get(CanonicalField.REPORTED_BALANCE)).contains("1.000");
+            assertThat(r.isTyped(CanonicalField.REPORTED_BALANCE)).isFalse();
+            assertThat(r.get(CanonicalField.CONTRACT_AMOUNT)).contains("12345678901234.56");
+            assertThat(r.get(CanonicalField.INSTALLMENT_NUMBER)).contains("3");
+        });
     }
 
     private static org.apache.poi.ss.usermodel.CellStyle dateStyle(XSSFWorkbook workbook) {
