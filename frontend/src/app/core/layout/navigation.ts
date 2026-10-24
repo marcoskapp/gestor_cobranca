@@ -44,6 +44,24 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Campanhas',
+    items: [
+      {
+        label: 'Campanhas',
+        icon: 'campaign',
+        route: '/campanhas',
+        permissions: [Permission.CAMPAIGN_VIEW, Permission.CAMPAIGN_MANAGE, Permission.CAMPAIGN_EXECUTE],
+      },
+      {
+        label: 'Segmentos',
+        icon: 'filter_alt',
+        route: '/campanhas/segmentos',
+        permissions: [Permission.SEGMENT_MANAGE, Permission.CAMPAIGN_MANAGE, Permission.CAMPAIGN_VIEW],
+      },
+      { label: 'Testes A/B', icon: 'science', route: '/campanhas/testes', permissions: [Permission.EXPERIMENT_MANAGE, Permission.CAMPAIGN_VIEW] },
+    ],
+  },
+  {
     label: 'Gestão da cobrança',
     items: [
       { label: 'Filas e distribuição', icon: 'view_list', route: '/cobranca/filas', permissions: [Permission.QUEUE_MANAGE, Permission.CASE_ASSIGN] },

@@ -1,0 +1,114 @@
+<div class="xr-head">
+  <mat-slide-toggle [ngModel]="mature()" (ngModelChange)="mature.set($event)">Somente devedores com o horizonte completo</mat-slide-toggle>
+  @if (data(); as r) {
+    <span class="app-muted xr-small">Calculado em {{ r.computedAt | appDate }} · horizonte de {{ r.observationDays }} dias · {{ count(totalDebtors()) }} devedores no total</span>
+  }
+</div>
+<p class="app-muted xr-small">
+  {{ mature() ? 'Todos os braços observados pelo mesmo período: comparação justa.' : 'Inclui devedores recentes, ainda em observação: use só para acompanhar, não para decidir.' }}
+</p>
+
+@if (results.isLoading()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Calculando resultados" />
+}
+
+@if (results.isLoading() && !data()) {
+  <app-skeleton variant="card" [rows]="4" />
+} @else if (results.status() === 'error' && !data()) {
+  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível calcular os resultados." [compact]="true">
+    <button mat-stroked-button type="button" (click)="results.reload()">Tentar novamente</button>
+  </app-empty-state>
+} @else if (data(); as r) {
+  @if (generalWarnings().length) {
+    <div class="app-alert app-alert--warning" role="status" data-tour="experiment-warnings">
+      <mat-icon aria-hidden="true">warning_amber</mat-icon>
+      <ul class="xr-list">
+        @for (w of generalWarnings(); track w) {
+          <li>{{ w }}</li>
+        }
+      </ul>
+    </div>
+  }
+
+  <details class="xr-method">
+    <summary>Como ler e como calculamos</summary>
+    <p>
+      Cada braço reúne os devedores sorteados para ele (o mesmo devedor fica sempre no mesmo braço). O denominador é sempre o número de devedores do braço, e
+      contam os resultados da inscrição até o fim do horizonte de observação — inclusive no grupo de controle, que não recebe nenhuma ação.
+    </p>
+    <p>
+      A barra mostra o <strong>intervalo de confiança de 95%</strong> (onde o valor real provavelmente está) e o ponto, a estimativa. Taxas usam o intervalo de
+      Wilson; a diferença para a referência, o método de Newcombe; o valor por devedor, intervalo normal da média e Welch para a diferença.
+    </p>
+    <p>
+      A diferença é <strong>significativa</strong> quando o intervalo dela não cruza o zero. Não há correção para várias comparações nem para espiar o resultado
+      todo dia: defina a amostra antes e decida só quando ela for atingida.
+    </p>
+  </details>
+
+  @for (b of blocks(); track b.metric) {
+    <section class="xr-metric" [attr.aria-labelledby]="'xr-' + b.metric" [attr.data-tour]="b.primary ? 'experiment-primary' : null">
+      <h3 class="xr-metric__title" [id]="'xr-' + b.metric">
+        {{ metricLabels[b.metric] }}
+        @if (b.primary) {
+          <span class="app-status app-status--info"><mat-icon aria-hidden="true">star</mat-icon>Métrica principal</span>
+        }
+      </h3>
+      <p class="app-muted xr-small">{{ metricHints[b.metric] }}</p>
+      <div class="xr-scale" aria-hidden="true">
+        <span></span>
+        <span class="xr-scale__ends"><span>{{ b.scaleText[0] }}</span><span>Estimativa e IC 95%</span><span>{{ b.scaleText[1] }}</span></span>
+        <span class="xr-scale__ends"><span>{{ b.diffScaleText[0] }}</span><span>Diferença para a referência</span><span>{{ b.diffScaleText[1] }}</span></span>
+      </div>
+      <ul class="xr-arms">
+        @for (row of b.rows; track row.arm) {
+          <li class="xr-arm" [class.xr-arm--control]="row.arm === 'CONTROL'">
+            <div class="xr-arm__name">
+              <strong>{{ row.label }}</strong>
+              <span class="app-muted xr-small">{{ count(row.debtors) }} devedores{{ row.baseline ? ' · referência' : '' }}</span>
+              @for (w of row.result.warnings; track w) {
+                <span class="app-status app-status--warning xr-warn"><mat-icon aria-hidden="true">warning_amber</mat-icon>{{ warningText(w) }}</span>
+              }
+            </div>
+            <div class="xr-arm__plot">
+              <div class="xr-track" aria-hidden="true">
+                @if (row.ci; as ci) {
+                  <span class="xr-interval" [class.xr-interval--control]="row.arm === 'CONTROL'" [style.left.%]="ci.lower" [style.width.%]="ci.upper - ci.lower"></span>
+                  <span class="xr-point" [style.left.%]="ci.estimate"></span>
+                }
+              </div>
+              <span class="xr-text">{{ row.text }}</span>
+            </div>
+            <div class="xr-arm__plot">
+              @if (row.diff; as d) {
+                <div class="xr-track xr-track--diff" aria-hidden="true">
+                  <span class="xr-zero" [style.left.%]="d.zero"></span>
+                  <span class="xr-interval" [class.xr-interval--better]="row.verdict === 'better'" [class.xr-interval--worse]="row.verdict === 'worse'" [style.left.%]="d.lower" [style.width.%]="d.upper - d.lower"></span>
+                  <span class="xr-point" [style.left.%]="d.estimate"></span>
+                </div>
+              }
+              @if (row.diffText) {
+                <span class="xr-text xr-verdict">
+                  @switch (row.verdict) {
+                    @case ('better') {
+                      <mat-icon aria-hidden="true">trending_up</mat-icon>
+                    }
+                    @case ('worse') {
+                      <mat-icon aria-hidden="true">trending_down</mat-icon>
+                    }
+                    @case ('none') {
+                      <mat-icon aria-hidden="true">drag_handle</mat-icon>
+                    }
+                  }
+                  {{ row.diffText }}
+                </span>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  } @empty {
+    <app-empty-state icon="science" title="Ainda não há devedores nos braços." message="Os resultados aparecem conforme os devedores são inscritos e observados." [compact]="true" />
+  }
+}

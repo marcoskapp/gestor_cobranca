@@ -30,7 +30,11 @@ public final class DefaultTabulations {
                 entry("DECEASED", "Informado falecimento", false, false, false, true, 120),
                 // registradas automaticamente pelo módulo communication (V1001 nas assessorias existentes)
                 entry("MESSAGE_SENT", "Mensagem enviada", false, false, false, false, 130),
-                entry("MESSAGE_RECEIVED", "Mensagem recebida", false, false, false, false, 140));
+                entry("MESSAGE_RECEIVED", "Mensagem recebida", false, false, false, false, 140),
+                // registradas automaticamente pelo módulo telephony (V1201 nas assessorias existentes)
+                entry("CALL_ANSWERED", "Chamada atendida (sem tabulação do operador)", false, false, false, false, 150),
+                entry("CALL_ABANDONED", "Chamada abandonada pelo discador", false, false, false, false, 160),
+                entry("CALL_FAILED", "Chamada não completada", false, false, false, false, 170));
     }
 
     private static Entry entry(String code, String name, boolean effectiveContact, boolean promise, boolean callback,

@@ -1,0 +1,144 @@
+.xp-gap {
+  margin-top: var(--app-gap);
+}
+
+.xp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--app-gap);
+  align-items: start;
+}
+
+.xp-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-gap);
+  min-width: 0;
+
+  .app-card + .app-card {
+    margin-top: 0;
+  }
+}
+
+.xp-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.xp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.xp-grow {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.xp-num {
+  flex: 0 1 200px;
+  min-width: 150px;
+  margin-bottom: 12px;
+}
+
+.xp-alloc {
+  display: flex;
+  overflow: hidden;
+  height: 28px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+}
+
+.xp-alloc__part {
+  display: flex;
+  flex-basis: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  overflow: hidden;
+  border-right: 2px solid var(--app-surface);
+  background: var(--app-info-bg);
+  color: var(--app-info-fg);
+  font-size: var(--app-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:last-child {
+    border-right: 0;
+  }
+}
+
+.xp-alloc__part--control {
+  background: repeating-linear-gradient(45deg, var(--app-neutral-bg) 0 6px, var(--app-surface-raised) 6px 12px);
+  color: var(--app-neutral-fg);
+}
+
+.xp-alloc-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--app-text-sm);
+}
+
+.xp-problems ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.xp-variant {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+}
+
+.xp-history {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--app-text-sm);
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding-left: 8px;
+    border-left: 3px solid var(--app-border);
+  }
+}
+
+.xp-history--current {
+  border-left-color: var(--mat-sys-primary) !important;
+  font-weight: 600;
+}
+
+.xp-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mat-sys-primary);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.xp-small {
+  font-size: var(--app-text-xs);
+}
+
+@media (max-width: 1099.98px) {
+  .xp-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

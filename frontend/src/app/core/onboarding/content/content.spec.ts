@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { DEBTOR_ROUTES, TITLE_ROUTES } from '../../../features/debt/debt.routes';
+import { CAMPAIGN_ROUTES } from '../../../features/campaign/campaign.routes';
 import { COLLECTION_ROUTES } from '../../../features/collection/collection.routes';
 import { COMMUNICATION_ROUTES } from '../../../features/communication/communication.routes';
 import { LEGAL_ROUTES } from '../../../features/legal/legal.routes';
@@ -61,9 +62,10 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/importacao', INGESTION_ROUTES),
       ...guarded('/conversas', COMMUNICATION_ROUTES),
       ...guarded('/juridico', LEGAL_ROUTES),
+      ...guarded('/campanhas', CAMPAIGN_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(31);
+    expect(items.length).toBe(34);
     for (const item of items) {
       expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -103,5 +105,26 @@ describe('conteúdo do onboarding', () => {
         expect(keys.has(item.completion.screenKey), item.id).toBe(true);
       }
     }
+  });
+
+  it('campanhas, segmentos, régua, execução e testes A/B registrados com tour (rotas fixas antes de :id)', () => {
+    expect(findScreen('/campanhas')?.tourId).toBe('campaign.list');
+    expect(findScreen('/campanhas/segmentos')?.key).toBe('campaign.segments');
+    expect(findScreen('/campanhas/segmentos/novo?copiar=s-1')?.tourId).toBe('campaign.segment');
+    expect(findScreen('/campanhas/segmentos/s-1')?.key).toBe('campaign.segment');
+    expect(findScreen('/campanhas/testes')?.key).toBe('campaign.experiments');
+    expect(findScreen('/campanhas/cp-1')?.tourId).toBe('campaign.detail');
+    expect(findScreen('/campanhas/cp-1/regua')?.tourId).toBe('campaign.cadence');
+    expect(findScreen('/campanhas/cp-1/execucao')?.tourId).toBe('campaign.execution');
+    expect(findScreen('/campanhas/cp-1/testes')?.tourId).toBe('campaign.experiment');
+    const manager = CHECKLISTS.find((c) => c.id === 'manager')!;
+    const keys = new Set(SCREENS.map((s) => s.key));
+    for (const item of manager.items) {
+      if (item.completion.kind === 'visit') {
+        expect(keys.has(item.completion.screenKey), item.id).toBe(true);
+      }
+    }
+    // o gestor (gestão de campanha, sem administração) vê o checklist de campanhas antes do de negociador
+    expect(CHECKLISTS.findIndex((c) => c.id === 'manager')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
   });
 });

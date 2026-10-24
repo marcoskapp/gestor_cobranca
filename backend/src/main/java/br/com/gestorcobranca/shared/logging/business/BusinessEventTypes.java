@@ -76,6 +76,16 @@ public final class BusinessEventTypes {
     // Comissão e prestação de contas
     public static final String COMMISSION_ACCRUED = "commission.accrued";
     public static final String SETTLEMENT_CLOSED = "settlement.closed";
+    public static final String COMMISSION_REVERSED = "commission.reversed";
+    public static final String COMMISSION_RULES_PUBLISHED = "commission.rules_published";
+    public static final String SETTLEMENT_RECEIPT_PENDING_RULES = "settlement.receipt_pending_rules";
+    public static final String SETTLEMENT_CALCULATED = "settlement.calculated";
+    public static final String SETTLEMENT_ADJUSTED = "settlement.adjusted";
+    public static final String SETTLEMENT_SENT = "settlement.sent";
+    public static final String SETTLEMENT_ACKNOWLEDGED = "settlement.acknowledged";
+    public static final String SETTLEMENT_CONTESTED = "settlement.contested";
+    public static final String SETTLEMENT_EXPORTED = "settlement.exported";
+    public static final String SETTLEMENT_TRANSFER_RECORDED = "settlement.transfer_recorded";
 
     // Remuneração variável dos negociadores (incentive)
     public static final String ATTRIBUTION_RECORDED = "attribution.recorded";
@@ -121,8 +131,19 @@ public final class BusinessEventTypes {
     public static final String DATA_SUBJECT_REQUEST_COMPLETED = "data_subject_request.completed";
     public static final String RETENTION_RUN_COMPLETED = "retention.run_completed";
 
-    // Telefonia, portal, score, IA
+    // Telefonia (telephony) — atributos em docs/tecnico/logs-e-metricas.md §3.7
+    public static final String CALL_DIALED = "call.dialed";
+    public static final String CALL_BLOCKED = "call.blocked";
     public static final String CALL_COMPLETED = "call.completed";
+    public static final String CALL_ABANDONED = "call.abandoned";
+    public static final String CALL_TABULATED = "call.tabulated";
+    public static final String CALL_RECORDING_STORED = "call.recording_stored";
+    public static final String DIALER_CAMPAIGN_ACTIVATED = "dialer.campaign_activated";
+    public static final String DIALER_CAMPAIGN_PAUSED = "dialer.campaign_paused";
+    public static final String DIALER_CAMPAIGN_FINISHED = "dialer.campaign_finished";
+    public static final String AGENT_PRESENCE_CHANGED = "agent.presence_changed";
+
+    // Portal, score, IA
     public static final String PORTAL_ACCESSED = "portal.accessed";
     public static final String PORTAL_AGREEMENT_FORMALIZED = "portal.agreement_formalized";
     /** Devedor consultou as condições/simulou no portal (etapa "simulação" do funil). */

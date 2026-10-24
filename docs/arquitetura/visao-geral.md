@@ -36,10 +36,10 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `collection` | Caso de cobrança, elegibilidade, filas, atribuição, interações/tabulação, tarefas e retornos, promessas simples, contestações — ver `docs/tecnico/desenho/collection.md` | F06, F07, F21 |
 | `negotiation` | Políticas de cobrança versionadas, motor de cálculo, escada de concessões, perfis de alçada (humanos e assistente), propostas e aprovação, acordos, parcelas, quebra, renegociação, termo — ver `docs/tecnico/desenho/negociacao-e-alcadas.md` | F08, F09, F16 |
 | `payment` | Instruções de pagamento (Pix/boleto/link), pagamentos externos e integrados, webhooks, alocação, conciliação, estornos | F10, F14, F15 |
-| `settlement` | Comissão da assessoria e demonstrativo/prestação de contas por credor | F17, F22 |
+| `settlement` | Regras de comissão da assessoria versionadas por contrato, recebimentos e razão de comissão, demonstrativo/prestação de contas por credor com aprovação segregada, exportação conciliável e repasses — ver `docs/tecnico/desenho/prestacao-de-contas.md` | F17, F22 |
 | `communication` | Canais (WhatsApp, e-mail, SMS), templates, conversas com dono do atendimento (assistente, fila ou operador), transferências, mensagens, caixa de entrada — ver `docs/tecnico/desenho/comunicacao.md` | F12 |
 | `campaign` | Segmentos, campanhas, réguas, execução, controle de concorrência, testes A/B | F13, F25 |
-| `telephony` | Integração CTI/discador: chamadas, gravações, resultado vinculado ao caso | F20 |
+| `telephony` | Integração CTI/discador: chamadas, clique para ligar, campanhas de discagem (progressiva/preditiva), presença do operador, gravações, resultado vinculado ao caso — ver `docs/tecnico/desenho/telefonia.md` | F20 |
 | `portal` | Autonegociação do devedor (acesso seguro, consulta, proposta, formalização) | F19 |
 | `scoring` | Score de propensão à recuperação e priorização | F23 |
 | `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/tecnico/desenho/assistente.md` | F24 |
