@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -27,6 +28,15 @@ public interface AgreementUseCases {
     List<PaymentView> payments(UUID agreementId);
 
     AgreementView cancel(UUID agreementId, String reason);
+
+    /**
+     * Distribuição de um pagamento aplicado ao acordo entre parcelas, títulos e componentes do razão
+     * (insumo da prestação de contas ao credor — módulo {@code settlement}). Vazio se o pagamento não
+     * foi registrado no acordo. {@code AGREEMENT_VIEW} e escopo por credor.
+     *
+     * @param paymentId o {@code paymentId} de {@code PaymentConfirmed} (id da alocação no payment)
+     */
+    Optional<PaymentDistributionView> paymentDistribution(UUID agreementId, UUID paymentId);
 
     /** Termo do acordo (PDF aceito pelo devedor). Registra {@code FILE_DOWNLOADED}. */
     TermContent openTerm(UUID agreementId);
@@ -59,6 +69,28 @@ public interface AgreementUseCases {
     }
 
     record BreakRuleView(int overdueInstallments, int toleranceDays) {
+    }
+
+    record InstallmentShareView(UUID installmentId, int number, BigDecimal amount) {
+    }
+
+    /**
+     * @param titleReference identificação do título no credor ({@code externalId} ou {@code externalId/parcela})
+     * @param component      PRINCIPAL, INTEREST, FINE, FEES ou HONORARIUM
+     */
+    record ComponentShareView(UUID titleId, String titleReference, String component, BigDecimal amount) {
+    }
+
+    /**
+     * @param status           APPLIED, UNAPPLIED ou REVERSED (situação do pagamento no acordo)
+     * @param installmentCount número de parcelas do acordo (1 = à vista)
+     * @param maxDaysOverdue   maior atraso dos títulos do acordo na formalização
+     */
+    record PaymentDistributionView(UUID agreementId, UUID paymentId, UUID creditorId, UUID debtorId, UUID portfolioId,
+                                   String status, BigDecimal amount, BigDecimal appliedAmount, Instant paidAt,
+                                   String source, String method, int installmentCount, long maxDaysOverdue,
+                                   int renegotiationNumber, UUID replacedAgreementId,
+                                   List<InstallmentShareView> installments, List<ComponentShareView> components) {
     }
 
     /**
