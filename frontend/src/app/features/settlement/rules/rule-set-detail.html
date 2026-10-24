@@ -1,0 +1,287 @@
+@if (resource.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando regras">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton variant="card" [rows]="6" />
+  </div>
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="percent" tone="error" title="Não foi possível abrir a versão." message="A versão pode não existir ou o credor estar fora do seu escopo.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/prestacao-de-contas/regras">Voltar para regras</a>
+  </app-empty-state>
+}
+
+@if (current(); as p) {
+  <app-page-header [title]="'Regras de comissão · v' + p.ruleVersion" [subtitle]="creditors.name(p.creditorId) + (contract() ? ' · contrato ' + contract()!.number : '')">
+    <a mat-button routerLink="/prestacao-de-contas/regras">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Regras
+    </a>
+    @if (canManage()) {
+      @if (p.status === 'DRAFT') {
+        @if (dirty()) {
+          <button mat-stroked-button type="button" (click)="discardChanges()">Descartar alterações</button>
+          <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">
+            <mat-icon aria-hidden="true">save</mat-icon>
+            Salvar rascunho
+          </button>
+        } @else {
+          <button mat-stroked-button type="button" (click)="discardDraft()">Descartar rascunho</button>
+          <button
+            mat-flat-button
+            type="button"
+            (click)="publish()"
+            [disabled]="problems().length > 0 || ownEdit()"
+            [matTooltip]="ownEdit() ? 'Você editou por último: outra pessoa publica' : 'Publicar com início de vigência'"
+            data-tour="rules-publish"
+          >
+            <mat-icon aria-hidden="true">publish</mat-icon>
+            Publicar
+          </button>
+        }
+      } @else if (p.status === 'PUBLISHED') {
+        <button mat-flat-button type="button" (click)="newVersion()" [disabled]="hasDraft()" [matTooltip]="hasDraft() ? 'Já existe um rascunho para este contrato' : 'Copia estas regras para um novo rascunho'">
+          <mat-icon aria-hidden="true">content_copy</mat-icon>
+          Nova versão
+        </button>
+      }
+    }
+  </app-page-header>
+
+  <div class="st-status" data-tour="rules-status">
+    <app-status-chip domain="commissionRuleSet" [status]="p.status" />
+    <span>Vigência: {{ period(p.effectiveFrom, p.effectiveTo) }}</span>
+    <span class="app-muted">Editado por {{ userName(p.rulesEditedBy) }} em {{ p.rulesEditedAt | appDate }}</span>
+    @if (p.publishedBy) {
+      <span class="app-muted">· publicado por {{ userName(p.publishedBy) }} em {{ p.publishedAt | appDate }}</span>
+    }
+    @if (dirty()) {
+      <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">edit</mat-icon>Alterações não salvas</span>
+    }
+  </div>
+
+  @if (actionError()) {
+    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ actionError() }}</span></p>
+  }
+  @if (ownEdit() && !dirty()) {
+    <p class="app-alert app-alert--info" role="note" data-tour="rules-own">
+      <mat-icon aria-hidden="true">group</mat-icon>
+      <span>Você editou estas regras por último. Para evitar erro ou fraude na transcrição do contrato, a <strong>publicação precisa ser feita por outra pessoa</strong> com permissão de gestão de comissão — o sistema recusa inclusive para administradores.</span>
+    </p>
+  } @else if (p.status === 'DRAFT' && canManage() && !dirty() && !problems().length) {
+    <p class="app-alert app-alert--neutral" role="note">
+      <mat-icon aria-hidden="true">fact_check</mat-icon>
+      <span>Confira as regras com o contrato assinado antes de publicar. Editado por {{ userName(p.rulesEditedBy) }}.</span>
+    </p>
+  }
+
+  <div class="st-grid">
+    <div class="st-main">
+      @if (problems().length && editable()) {
+        <section class="app-alert app-alert--error" role="alert" aria-label="Problemas nas regras">
+          <mat-icon aria-hidden="true">error_outline</mat-icon>
+          <div>
+            <strong>{{ problems().length }} problema(s) a corrigir antes de salvar e publicar:</strong>
+            <ul>
+              @for (pr of problems().slice(0, 8); track pr) {
+                <li>{{ pr }}</li>
+              }
+            </ul>
+          </div>
+        </section>
+      }
+
+      @if (draft(); as d) {
+        <section class="app-card" aria-labelledby="rs-base" data-tour="rules-base">
+          <h2 class="app-card__title" id="rs-base">Regras gerais</h2>
+          <div class="app-form-grid">
+            <mat-form-field>
+              <mat-label>Percentual padrão (%)</mat-label>
+              <input matInput inputmode="decimal" [ngModel]="rateText(d.defaultRate)" (ngModelChange)="setNumber('defaultRate', $event)" [readonly]="!editable()" />
+              <mat-hint>Quando nenhuma regra específica casa</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Valor fixo por acordo (R$)</mat-label>
+              <input matInput inputmode="decimal" [ngModel]="feeText(d.fixedFeePerAgreement)" (ngModelChange)="setFixedFee($event)" [readonly]="!editable()" placeholder="sem valor fixo" />
+              <mat-hint>Devido no primeiro recebimento de cada acordo</mat-hint>
+            </mat-form-field>
+            <div class="app-span-all">
+              <p class="app-section-title" id="rs-honorarium">Honorários cobrados do devedor</p>
+              <mat-button-toggle-group [value]="d.honorarium.ownership" (change)="setOwnership($event.value)" [disabled]="!editable()" aria-labelledby="rs-honorarium">
+                @for (o of ownerships; track o[0]) {
+                  <mat-button-toggle [value]="o[0]">{{ o[1] }}</mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+            </div>
+            @if (d.honorarium.ownership === 'AGENCY') {
+              <mat-form-field>
+                <mat-label>Fração da assessoria (%)</mat-label>
+                <input matInput inputmode="decimal" [ngModel]="rateText(d.honorarium.agencySharePercent)" (ngModelChange)="setShare($event)" [readonly]="!editable()" />
+                <mat-hint>O restante é repassado ao credor</mat-hint>
+              </mat-form-field>
+            }
+            <div class="app-span-all">
+              <mat-checkbox [ngModel]="d.reconciliationRequired" (ngModelChange)="setReconciliation($event)" [disabled]="!editable()">
+                Exigir conciliação com o extrato para o que entrou na conta da assessoria
+              </mat-checkbox>
+              <p class="app-muted st-small">O que foi pago direto ao credor entra sem conciliação.</p>
+            </div>
+            <mat-form-field class="app-span-all">
+              <mat-label>Observações</mat-label>
+              <textarea matInput rows="2" maxlength="2000" [ngModel]="notes()" (ngModelChange)="notes.set($event); edited()" [readonly]="!editable()"></textarea>
+              <mat-hint>Ex.: cláusula do contrato transcrita</mat-hint>
+            </mat-form-field>
+          </div>
+        </section>
+
+        <section class="app-card" aria-labelledby="rs-rules" data-tour="rules-specific">
+          <div class="st-head">
+            <h2 class="app-card__title" id="rs-rules">Regras específicas ({{ d.rateRules.length }})</h2>
+            @if (editable()) {
+              <button mat-stroked-button type="button" (click)="editRule(null)">
+                <mat-icon aria-hidden="true">add</mat-icon>
+                Regra
+              </button>
+            }
+          </div>
+          <p class="app-muted st-small">Vence a de maior prioridade; no empate, a mais específica (mais critérios), depois o código.</p>
+          @if (sortedRules().length) {
+            <div class="st-scroll">
+              <table class="st-table" aria-label="Regras específicas, na ordem de aplicação">
+                <thead>
+                  <tr>
+                    <th scope="col">Código</th>
+                    <th scope="col">Critérios</th>
+                    <th scope="col" class="st-end">Prioridade</th>
+                    <th scope="col" class="st-end">Percentual</th>
+                    @if (editable()) {
+                      <th scope="col"><span class="cdk-visually-hidden">Ações</span></th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of sortedRules(); track r.code + $index) {
+                    <tr>
+                      <td>
+                        <strong>{{ r.code }}</strong>
+                        @if (r.description) {
+                          <div class="app-muted st-small">{{ r.description }}</div>
+                        }
+                      </td>
+                      <td>{{ criteria(r) }}</td>
+                      <td class="st-end app-numeric">{{ r.priority }}</td>
+                      <td class="st-end app-numeric">{{ rateText(r.rate) }}%</td>
+                      @if (editable()) {
+                        <td class="st-end">
+                          <button mat-icon-button type="button" (click)="editRule(r)" [attr.aria-label]="'Editar regra ' + r.code" matTooltip="Editar"><mat-icon aria-hidden="true">edit</mat-icon></button>
+                          <button mat-icon-button type="button" (click)="removeRule(r)" [attr.aria-label]="'Remover regra ' + r.code" matTooltip="Remover"><mat-icon aria-hidden="true">delete</mat-icon></button>
+                        </td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <app-empty-state icon="rule" title="Sem regras específicas." message="Todo recebimento usa o percentual padrão." [compact]="true" />
+          }
+        </section>
+
+        <section class="app-card" aria-labelledby="rs-sim" data-tour="rules-simulate">
+          <h2 class="app-card__title" id="rs-sim">Simular um recebimento</h2>
+          <p class="app-muted st-small">Nada é gravado. {{ dirty() ? 'Usa as regras em edição (não salvas).' : 'Usa as regras desta versão.' }}</p>
+          <div class="app-form-grid">
+            <mat-form-field>
+              <mat-label>Valor recebido (R$)</mat-label>
+              <input matInput inputmode="decimal" [ngModel]="sim.amount()" (ngModelChange)="sim.amount.set($event)" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Honorários cobrados (R$)</mat-label>
+              <input matInput inputmode="decimal" [ngModel]="sim.honorarium()" (ngModelChange)="sim.honorarium.set($event)" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Dias de atraso</mat-label>
+              <input matInput type="number" min="0" [ngModel]="sim.daysPastDue()" (ngModelChange)="sim.daysPastDue.set($event)" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Forma de pagamento</mat-label>
+              <mat-select [ngModel]="sim.paymentType()" (ngModelChange)="sim.paymentType.set($event)">
+                @for (t of paymentTypes; track t[0]) {
+                  <mat-option [value]="t[0]">{{ t[1] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Quem recebeu</mat-label>
+              <mat-select [ngModel]="sim.receivedBy()" (ngModelChange)="sim.receivedBy.set($event)">
+                @for (r of receivers; track r[0]) {
+                  <mat-option [value]="r[0]">{{ r[1] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            @if (simPortfolios().length) {
+              <mat-form-field>
+                <mat-label>Carteira</mat-label>
+                <mat-select [ngModel]="sim.portfolioId()" (ngModelChange)="sim.portfolioId.set($event)">
+                  <mat-option value="">Outra carteira</mat-option>
+                  @for (id of simPortfolios(); track id) {
+                    <mat-option [value]="id">{{ portfolios.name(id) }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+            <div class="st-row app-span-all">
+              <mat-checkbox [ngModel]="sim.renegotiation()" (ngModelChange)="sim.renegotiation.set($event)">Renegociação</mat-checkbox>
+              <mat-checkbox [ngModel]="sim.first()" (ngModelChange)="sim.first.set($event)">Primeiro recebimento do acordo</mat-checkbox>
+              <button mat-stroked-button type="button" (click)="simulate()" [disabled]="simulating()">
+                <mat-icon aria-hidden="true">calculate</mat-icon>
+                Simular
+              </button>
+            </div>
+          </div>
+          @if (simulationError()) {
+            <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ simulationError() }}</span></p>
+          }
+          @if (simulation(); as calc) {
+            <div aria-live="polite">
+              <div class="st-kpis">
+                <div class="st-kpi"><span class="st-kpi__label">Comissão</span><span class="st-kpi__value"><app-amount [value]="calc.commission" /></span></div>
+                <div class="st-kpi"><span class="st-kpi__label">Valor fixo</span><span class="st-kpi__value"><app-amount [value]="calc.fixedFee" /></span></div>
+                <div class="st-kpi st-kpi--total"><span class="st-kpi__label">Efeito no repasse</span><span class="st-kpi__value"><app-amount [value]="calc.transferEffect" [signed]="true" /></span></div>
+              </div>
+              <app-calculation-memory [calculation]="calc" caption="Memória da simulação" />
+            </div>
+          }
+        </section>
+      }
+    </div>
+
+    <aside class="st-side">
+      <section class="app-card" aria-labelledby="rs-versions" data-tour="rules-versions">
+        <h2 class="app-card__title" id="rs-versions">Versões do contrato</h2>
+        <ol class="rs-versions">
+          @for (v of versions(); track v.id) {
+            <li [class.rs-version--current]="v.id === p.id">
+              <a [routerLink]="['/prestacao-de-contas/regras', v.id]">v{{ v.ruleVersion }}</a>
+              <app-status-chip domain="commissionRuleSet" [status]="v.status" />
+              <span class="app-muted st-small">{{ period(v.effectiveFrom, v.effectiveTo) }}</span>
+            </li>
+          }
+        </ol>
+        <p class="app-muted st-small">Recebimento apurado nunca muda de regra: a nova versão começa depois do último pagamento já apurado e do último período aprovado.</p>
+      </section>
+      @if (contract(); as c) {
+        <section class="app-card" aria-labelledby="rs-contract">
+          <h2 class="app-card__title" id="rs-contract">Contrato de serviço</h2>
+          <dl class="app-definition-list">
+            <dt>Número</dt>
+            <dd>{{ c.number }}</dd>
+            <dt>Vigência</dt>
+            <dd>{{ c.startDate | appDate: 'date' }} a {{ c.endDate ? (c.endDate | appDate: 'date') : 'em aberto' }}</dd>
+            <dt>Fechamento</dt>
+            <dd>dia {{ c.settlementDay }}</dd>
+          </dl>
+        </section>
+      }
+    </aside>
+  </div>
+}

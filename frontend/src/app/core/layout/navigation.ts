@@ -106,6 +106,15 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Prestação de contas',
+    items: [
+      { label: 'Demonstrativos', icon: 'request_page', route: '/prestacao-de-contas/demonstrativos', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_CLOSE, Permission.SETTLEMENT_APPROVE] },
+      { label: 'Repasses ao credor', icon: 'account_balance', route: '/prestacao-de-contas/repasses', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_TRANSFER] },
+      { label: 'Razão de comissão', icon: 'receipt_long', route: '/prestacao-de-contas/razao', permissions: [Permission.COMMISSION_VIEW, Permission.SETTLEMENT_VIEW] },
+      { label: 'Regras de comissão', icon: 'percent', route: '/prestacao-de-contas/regras', permissions: [Permission.COMMISSION_VIEW, Permission.COMMISSION_MANAGE] },
+    ],
+  },
+  {
     label: 'Jurídico',
     items: [
       { label: 'Painel jurídico', icon: 'balance', route: '/juridico', permissions: [Permission.LEGAL_VIEW] },
