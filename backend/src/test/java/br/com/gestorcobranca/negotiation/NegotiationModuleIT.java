@@ -73,7 +73,7 @@ class NegotiationModuleIT extends NegotiationTestSupport {
         assertThat(system(() -> authorityProvisioning.ensureDefaultProfiles())).isZero();
         List<ProfileView> profiles = asManager(() -> authority.listProfiles());
         assertThat(profiles).extracting(ProfileView::code).containsExactly("ASSISTENTE_INICIAL", "GESTOR", "JUNIOR",
-                "PLENO", "SENIOR", "SUPERVISOR");
+                "PLENO", "PORTAL", "SENIOR", "SUPERVISOR");
         assertThat(count("""
                 select count(*) from identity.role_permission rp join identity.role r on r.id = rp.role_id
                 where r.code in ('ADMIN', 'GESTOR') and rp.permission = 'AUTHORITY_MANAGE'""")).isEqualTo(2);
