@@ -61,16 +61,17 @@ import { PortalSite } from '../layout/portal-site';
       </section>
     }
     @if ((history.value() ?? []).length > 0) {
-      <h2 class="portal-subtitle">Pedidos anteriores</h2>
-      <ul class="portal-list portal-card">
+      <h2 class="portal-help-title">Pedidos anteriores</h2>
+      <section class="portal-card"><ul class="portal-list">
         @for (h of history.value()!; track h.id) {
           <li><span>{{ reasonLabels[h.reason].label }}<br /><small>Protocolo {{ h.protocol }}</small></span>
             <span class="portal-label">{{ h.createdAt | appDate }}</span></li>
         }
-      </ul>
+      </ul></section>
     }
   `,
   styles: `
+    .portal-help-title { margin: 8px 0; font-size: 18px; font-weight: 600; }
     .portal-fieldset { margin: 0 0 12px; padding: 0; border: 0; }
     .portal-fieldset legend { margin-bottom: 4px; font-weight: 600; }
     .portal-radios mat-radio-button { display: block; margin-bottom: 8px; }

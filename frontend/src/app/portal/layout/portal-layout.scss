@@ -75,12 +75,15 @@
 
   a {
     display: inline-flex;
-    flex: 1 0 auto;
+    flex: 1 1 0;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    min-height: 44px;
-    padding: 0 12px;
+    gap: 2px;
+    min-height: 56px;
+    padding: 4px 8px;
+    font-size: 14px;
+    text-align: center;
     border-bottom: 3px solid transparent;
     color: var(--mat-sys-on-surface-variant);
     text-decoration: none;
@@ -140,10 +143,11 @@
   text-align: center;
 }
 
-.portal-big-icon {
+mat-icon.portal-big-icon {
   width: 48px;
   height: 48px;
   font-size: 48px;
+  line-height: 48px;
   color: var(--portal-ink);
 }
 
@@ -197,6 +201,11 @@
   color: var(--app-info-fg);
 }
 
+.portal-alert > mat-icon,
+.portal-note > mat-icon {
+  flex: 0 0 auto;
+}
+
 .portal-success {
   background: var(--app-success-bg);
   color: var(--app-success-fg);
@@ -246,6 +255,13 @@
 }
 
 @media (min-width: 600px) {
+  .portal__nav a {
+    flex-direction: row;
+    gap: 6px;
+    min-height: 48px;
+    font-size: 15px;
+  }
+
   .portal-actions {
     flex-direction: row;
     justify-content: flex-end;

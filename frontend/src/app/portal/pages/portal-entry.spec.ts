@@ -11,7 +11,6 @@ describe('PortalEntry', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    sessionStorage.clear();
     TestBed.configureTestingModule({
       imports: [PortalEntry],
       providers: [provideLocale(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), PortalSite],

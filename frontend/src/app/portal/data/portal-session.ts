@@ -1,8 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { SessionGrant } from './portal.models';
 
-const STORAGE_KEY = 'portal.session';
-
 interface StoredSession {
   slug: string;
   token: string;
@@ -11,8 +9,8 @@ interface StoredSession {
 
 /**
  * Sessão do devedor no portal, separada da sessão dos usuários internos (outro token, outra
- * audiência, outro armazenamento). O token fica em memória e no `sessionStorage` da aba (some ao
- * fechar a aba; recarregar a página não derruba a sessão curta). Nunca em `localStorage` ou cookie.
+ * audiência). O token fica só em memória (regra do projeto: nenhum token em armazenamento do
+ * navegador); recarregar a página exige entrar de novo — a sessão é curta por desenho.
  */
 @Injectable({ providedIn: 'root' })
 export class PortalSession {
@@ -29,9 +27,6 @@ export class PortalSession {
 
   /** Sessão do portal informado (restaura da aba, se houver). */
   activeFor(slug: string): boolean {
-    if (!this.state()) {
-      this.restore();
-    }
     const s = this.state();
     return !!s && s.slug === slug && new Date(s.expiresAt).getTime() > Date.now();
   }
@@ -40,7 +35,6 @@ export class PortalSession {
     const session = { slug, token: grant.accessToken, expiresAt: grant.expiresAt };
     this.state.set(session);
     this.endedReason.set(null);
-    write(session);
   }
 
   renew(grant: SessionGrant): void {
@@ -53,36 +47,11 @@ export class PortalSession {
   clear(reason: 'expired' | 'logout' | null = null): void {
     this.state.set(null);
     this.endedReason.set(reason);
-    write(null);
   }
 
   /** O token vence em menos de um minuto (renovar antes de chamar a API). */
   expiringSoon(now = Date.now()): boolean {
     const expires = this.expiresAt();
     return !!expires && expires.getTime() - now < 60_000;
-  }
-
-  private restore(): void {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as StoredSession) : null;
-      if (parsed?.token && parsed.slug && parsed.expiresAt) {
-        this.state.set(parsed);
-      }
-    } catch {
-      // armazenamento indisponível (modo privado, bloqueado): sessão só em memória
-    }
-  }
-}
-
-function write(session: StoredSession | null): void {
-  try {
-    if (session) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    } else {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // sem armazenamento: a sessão continua em memória
   }
 }

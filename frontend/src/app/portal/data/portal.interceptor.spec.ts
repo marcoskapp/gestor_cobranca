@@ -15,7 +15,6 @@ describe('portalInterceptor', () => {
   const auth = { accessToken: () => 'token-interno', isTokenExpiring: () => false, refresh: vi.fn(), endSession: vi.fn() };
 
   beforeEach(() => {
-    sessionStorage.clear();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),

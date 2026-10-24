@@ -66,7 +66,7 @@ type Step = 'choose' | 'review' | 'done';
                   <span class="offer__title">{{ title(offer) }}</span>
                   <span class="offer__total">Total <app-amount [value]="offer.total" /></span>
                   @if (toNumber(offer.discount) > 0) {
-                    <span class="portal-badge">Desconto de <app-amount [value]="offer.discount" /> ({{ offer.discountPercent }}%)</span>
+                    <span class="portal-badge">Desconto de <app-amount [value]="offer.discount" /> ({{ percent(offer.discountPercent) }})</span>
                   }
                   <span class="portal-label">{{ offer.installments === 1 ? 'Pagamento' : '1ª parcela' }} em {{ offer.firstDueDate | appDate: 'date' }}</span>
                 </span>
@@ -75,7 +75,7 @@ type Step = 'choose' | 'review' | 'done';
           </fieldset>
           <p class="portal-label">Prefere outro número de parcelas (até {{ o.maxInstallments }})? Escolha acima; as que aparecem são as disponíveis.</p>
           <div class="portal-actions">
-            <a mat-button [routerLink]="['/portal', slug(), 'atendimento']">Nenhuma cabe no meu bolso</a>
+            <a mat-button [routerLink]="['/portal', slug(), 'atendimento']">Nenhuma condição cabe no meu orçamento</a>
             <button mat-flat-button type="button" [disabled]="!selected()" (click)="review()">Continuar</button>
           </div>
         }
@@ -149,6 +149,10 @@ export class PortalOffers {
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
   protected agreed = false;
+
+  protected percent(v: number | string): string {
+    return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(Number(v)) + '%';
+  }
 
   protected toNumber(v: number | string): number {
     return Number(v);
