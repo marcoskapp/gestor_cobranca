@@ -201,6 +201,6 @@ Escopo por credor em tudo (404 leitura, 403 comando, listagens filtradas); polí
 - **Conversas de referência** versionadas e execução automática por mudança de política/prompt/modelo (§8).
 - `compliance.AttemptOrigin` sem `ASSISTANT` (as tentativas do assistente aparecem como `SYSTEM`; o autor real está na mensagem e na trilha).
 - E-mail/SMS (dependem de templates por intenção) e portal (módulo `portal`).
-- Telas: configuração da política, fila de revisão e painel de qualidade.
+- ~~Telas~~ (24/10/2026): políticas por escopo (editor com validação contínua, publicação, nova versão, aposentadoria, desligamento de carteira com impacto), fila de revisão com segregação, detalhe do turno e painel de qualidade (`/assistente`).
 - Validação jurídica do roteiro, da verificação de identidade e dos gatilhos (especificação §9).
 - Experimentos A/B entre versões de política (F25, módulo campaign).
