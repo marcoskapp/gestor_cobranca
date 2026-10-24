@@ -1,5 +1,11 @@
 # Perfil de testes de integração. Banco definido por IntegrationTest (Testcontainers ou externo).
 app:
+  events:
+    executor:
+      core-size: 4
+      max-size: 4
+  jobs:
+    concurrency: 4
   base-url: http://localhost
   logging:
     dir: ./target/test-logs
@@ -48,13 +54,15 @@ app:
       public-key: classpath:it/jwt-public.pem
 
 spring:
-  # cada contexto de teste tem banco e pool próprios; vários contextos ficam vivos no cache do Spring,
-  # então o pool é pequeno para não esgotar max_connections do PostgreSQL
+  # Cada contexto de teste tem banco e pool próprios e vários contextos ficam vivos no cache do Spring.
+  # O pool acompanha a concorrência configurada abaixo (4 consumidores de eventos + 4 workers de jobs,
+  # cada um podendo segurar duas conexões em transações aninhadas, + requisições do teste) e encolhe
+  # para 1 conexão quando o contexto fica ocioso.
   datasource:
     hikari:
-      maximum-pool-size: 6
+      maximum-pool-size: 18
       minimum-idle: 1
-      idle-timeout: 30000
+      idle-timeout: 10000
   mail:
     host: localhost
     port: 2525
