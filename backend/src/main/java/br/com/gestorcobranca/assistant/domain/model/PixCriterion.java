@@ -2,7 +2,7 @@ package br.com.gestorcobranca.assistant.domain.model;
 
 /**
  * Critérios objetivos de "conversa amigável e conciliação tranquila" avaliados no servidor antes de o
- * assistente gerar um Pix (docs/negocio/assistente-ia.md §5.1), na ordem de avaliação. Cada um tem o
+ * assistente gerar um Pix (docs/negocio/assistente-ia.md §10), na ordem de avaliação. Cada um tem o
  * código de recusa devolvido ao modelo e registrado na trilha, e se a recusa leva a um atendente
  * ({@link HandoffReason#PAYMENT_ASSISTANCE}).
  */

@@ -1,9 +1,9 @@
 # Desenho — módulo `assistant` (IA de atendimento e negociação)
 
-Escopo: F24. Especificação de produto: [`docs/negocio/assistente-ia.md`](../../negocio/assistente-ia.md). Schema `assistant`, migrations V1500–V1599 (`V1500` tabelas; permissões em `identity/V0205`).
-Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication` (interfaces `usecases`). Fatos de acordo e anonimização chegam por eventos.
+Escopo: F24. Especificação de produto: [`docs/negocio/assistente-ia.md`](../../negocio/assistente-ia.md). Schema `assistant`, migrations V1500–V1599 (`V1500` tabelas; `V1501` pedidos de Pix; permissões em `identity/V0205`).
+Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication`, `payment` (interfaces `usecases`; `payment` pelo ADR-0009). Fatos de acordo, situação das instruções de pagamento e anonimização chegam por eventos.
 
-> **Estado (24/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST. **Provedor de IA não escolhido (issue #12)**: só a porta `LanguageModelPort` e o simulador determinístico para local/teste (§6). Decisões 120–135 em `docs/negocio/decisoes-autonomas.md`.
+> **Estado (24/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST e **Pix na conversa** (§5.1, ADR-0009). **Provedor de IA não escolhido (issue #12)**: só a porta `LanguageModelPort` e o simulador determinístico para local/teste (§6). Decisões 120–135 e 145–160 em `docs/negocio/decisoes-autonomas.md` (a 135 foi superada pela decisão do responsável sobre o Pix).
 
 Princípio: **a IA conversa, o motor decide.** O modelo entende o devedor e escolhe o próximo passo; toda condição vem do `negotiation` (mesmo `NegotiationGuard` dos humanos), todo contato passa pelo porteiro do `compliance` e toda ação é um caso de uso do módulo dono, executado como ator `ASSISTANT`.
 
@@ -15,17 +15,20 @@ Princípio: **a IA conversa, o motor decide.** O modelo entende o devedor e esco
 | `AssistantSession` + `SessionMemory` | `domain.model` | estado por conversa: etapa, identidade, turnos, falhas de entendimento, memória de negociação (escrita só pelo servidor), consumo, turno em andamento |
 | `AssistantTurn`, `ToolCallRecord` | `domain.model` | trilha append-only de cada turno e das chamadas de ferramenta (§7) |
 | `TurnReview`, `AssistantAgreementFact` | `domain.model` | amostra de revisão humana; fatos de acordo para as métricas (§8) |
+| `PixRequest`, `PixCriterion` | `domain.model` | pedido de Pix na conversa: critérios avaliados (imutáveis), decisão, instrução, entrega e pagamento (§5.1) |
+| `PixEligibility`, `PixMessage` | `domain.service` | critérios objetivos de "conversa amigável e conciliação tranquila"; mensagem do Pix com BR Code validado (§5.1) |
 | `HandoffDetector` | `domain.service` | gatilhos obrigatórios determinísticos (§4.3) |
 | `ResponseGuard` | `domain.service` | guardrails de saída (§4.4) |
 | `ContextBuilder`/`ModelContext`, `PersonalDataRedactor` | `domain.service` | contexto minimizado e mascaramento do texto (§4.1) |
 | `IdentityChallenge` | `domain.service` | leitura da resposta à confirmação de identidade |
 | `PolicyResolver`, `ServiceHours`, `ReviewSampler` | `domain.service` | política vigente, janelas de atendimento, amostragem |
 | `TurnOrchestrator`, `AssistantTurnJob` | `application.service` | orquestração do turno (§3) |
+| `AssistantPix`, `AssistantPixDelivery`, `AssistantPixRecorder` | `application.service` | ferramentas de Pix, entrega do código (job `assistant.pix_delivery`) e fatos/métricas do Pix (§5.1) |
 | `AssistantToolbox`, `ToolSchemas` | `application.service` | ferramentas expostas ao modelo e validação no servidor (§5) |
 | `AssistantActors`, `AssistantChannel` | `application.service` | ator `ASSISTANT` por turno; saídas ao communication/compliance |
 | `TurnStore` | `application.service` | gravações do turno em transações próprias |
 | `LanguageModelPort`, `PromptSource`, `ConversationLocks`, `TurnContentStore`, `QualityStatistics`, `PaymentInstructionPort` | `application.port.out` | portas de saída |
-| `SandboxLanguageModel`, `ClasspathPromptSource`, `PostgresConversationLocks`, `Jdbc*` | `infrastructure` | adaptadores |
+| `SandboxLanguageModel`, `ClasspathPromptSource`, `PostgresConversationLocks`, `Jdbc*`, `PaymentModulePixInstructions` | `infrastructure` | adaptadores (o último: `PaymentInstructionPort` sobre `PaymentInstructionUseCases`, ADR-0009) |
 
 ## 2. Política do assistente (versionada)
 
@@ -44,6 +47,7 @@ Escopo: assessoria (credor e carteira nulos) → credor → carteira; a **public
 | Transparência | `identificationMessage` obrigatória (precisa dizer "assistente virtual" e como pedir humano), enviada na primeira mensagem de cada etapa; `handoffMessage`, `fallbackMessage`, `approvalMessage` |
 | Limites | tokens de saída por chamada (600), tokens por turno (8.000), ferramentas por turno (6), tempo por chamada (20 s), custo por conversa (1,00 na moeda do provedor) |
 | Avaliação | `reviewSampleRate` (10%); `allowCreditBureauMention` (negativação só se o credor autorizar) |
+| Pix na conversa | `pixInConversation`: `enabled` (padrão **desligado**; exige `requireIdentityVerification`), `maxAmount` (R$ 5.000,00; até R$ 50.000,00), `maxPerConversationPerDay` (3), `expirationMinutes` (60; 15–1.440), `riskLookbackDays` (30; 1–180) — §5.1 |
 
 **Desligamento imediato de carteira** (`POST /portfolios/{id}/disable`): publica uma versão `OFF` da carteira e o job `assistant.portfolio_disable` transfere para humanos as conversas que o assistente conduz nela (motivo `ASSISTANT_DISABLED`).
 
@@ -79,6 +83,7 @@ Escopo: assessoria (credor e carteira nulos) → credor → carteira; a **public
 | --- | --- |
 | todos | `INBOX_VIEW`, `MESSAGE_SEND`, `CASE_VIEW`, `DEBTOR_VIEW`, `NEGOTIATION_SIMULATE` |
 | autônomos | + `NEGOTIATION_PROPOSE`, `AGREEMENT_VIEW`, `AGREEMENT_FORMALIZE`, `INTERACTION_REGISTER`, `TASK_MANAGE`, `CONTACT_RESTRICTION_MANAGE` |
+| `pixInConversation` ligado | + `AGREEMENT_VIEW` (todos os modos); nos autônomos também `PAYMENT_VIEW` e `PAYMENT_INSTRUCTION_CREATE` |
 
 ## 4. Limites e guardrails
 
@@ -113,6 +118,7 @@ Antes de revelar a dívida: 3 primeiros dígitos do CPF (ou o CPF completo, do q
 | `REQUIRES_APPROVAL` | proposta acima da alçada (motor) | quem tem alçada |
 | `FORMALIZATION_APPROVAL` | aceite registrado, formalização por humano | qualquer |
 | `POLICY_TRIGGER`, `MODEL_REQUESTED` | gatilho adicional da política; pedido do modelo | qualquer |
+| `PAYMENT_ASSISTANCE` | Pix recusado por critério em que um atendente pode concluir o pagamento, ou não entregue (§5.1) | qualquer |
 
 Regra **e** modelo: o modelo informa sinais em `register_intent` e pode chamar `transfer_to_human` (motivos restritos ao catálogo); qualquer um basta. A política troca o perfil exigido por motivo. A transferência usa `ConversationUseCases#handoffToHumans` com resumo **sem dados pessoais** (motivo, origem, versão da política, etapa, identidade, intenção, saldo, última oferta, proposta) e o perfil exigido, que filtra a fila na caixa de entrada.
 
@@ -132,11 +138,54 @@ Toda resposta e todo rascunho: valor em reais, percentual, data e número de par
 | `register_promise` | idem, com caso | `InteractionUseCases#record` (tabulação `PROMISE`, origem `ASSISTANT`) | valor devolvido pelas ferramentas; data não passada; idempotente pela mensagem |
 | `schedule_callback` | idem, com caso | `InteractionUseCases#record` (`CALLBACK`) | até 15 dias, no futuro |
 | `transfer_to_human` | autônomos | `ConversationUseCases#handoffToHumans` | motivo do catálogo; resumo mascarado |
-| `generate_payment` | só com adaptador de `PaymentInstructionPort` e acordo formalizado | — | **sem adaptador** (grafo não permite assistant → payment; pendência) |
+| `get_installments` | `pixInConversation` ligado, após identidade (rascunho: sempre) | `AgreementUseCases#search` | acordos `FORMALIZED`/`IN_PAYMENT` do devedor **e** credor (e carteira) da conversa; até 6 parcelas em aberto com referência `I1`…; valor = saldo da parcela |
+| `generate_payment` | idem; nos autônomos só com o adaptador de `PaymentInstructionPort` | `PaymentInstructionPort#issueImmediatePix` (autônomos) | só referência `I…` devolvida nesta sessão; o modelo **nunca** informa valor; critérios do §5.1 no servidor; um pedido por turno; rascunho → só sugestão |
 
 Argumentos inválidos, ferramenta indisponível ou acima do limite do turno → `REJECTED` sem chamar o módulo dono; recusa do módulo dono → `ERROR` com o código. A trilha guarda só os campos conhecidos dos argumentos.
 
 **Formalização e atribuição** (`remuneracao-variavel.md`, `negociacao-e-alcadas.md` §10.7): `AUTONOMOUS` + perfil com `canFormalize` → o assistente formaliza (`ASSISTANT_AUTONOMOUS`, pool da equipe); `AUTONOMOUS_WITH_APPROVAL` ou `ASSISTENTE_INICIAL` → aceite registrado, mensagem `approvalMessage` e transferência `FORMALIZATION_APPROVAL`; o humano formaliza (`ASSISTANT_HANDOFF_CONFIRMED`); acima da alçada o humano adota ou renegocia (`ASSISTANT_HANDOFF_CONFIRMED`/`NEGOTIATED`). Copiloto não cria propostas: a proposta do humano marcada `copilot` é `HUMAN_COPILOT`.
+
+### 5.1 Pix na conversa (ADR-0009)
+
+Decisão do responsável: *"PIX na conversa: se a conversa foi amigável e a conciliação com o devedor tranquila, o Pix pode ser gerado pelo assistente IA."* A IA conversa e escolhe a parcela por referência; o servidor decide e o payment gera.
+
+**Critérios** (`PixEligibility`, todos avaliados e gravados; a recusa usa o primeiro que falhou):
+
+| # | Critério | Recusa | Transfere? |
+| --- | --- | --- | --- |
+| 1 | política com `pixInConversation.enabled` | `PIX_DISABLED` | não (a ferramenta nem é oferecida) |
+| 2 | modo `AUTONOMOUS`/`AUTONOMOUS_WITH_APPROVAL` (gera) ou `SHADOW`/`COPILOT` (só sugere) | `MODE_NOT_ALLOWED` | não |
+| 3 | identidade `VERIFIED` na sessão (rascunho: o operador confere) | `IDENTITY_NOT_VERIFIED` | não |
+| 4 | acordo `FORMALIZED`/`IN_PAYMENT` (lido de novo no negotiation) | `NO_FORMALIZED_AGREEMENT` | não |
+| 5 | acordo do mesmo devedor, credor e carteira da conversa | `OTHER_PARTY` | não |
+| 6 | parcela/entrada com saldo em aberto (`OPEN`, `PARTIALLY_PAID`, `OVERDUE`) | `INSTALLMENT_NOT_OPEN` | não |
+| 7 | modo com aprovação: acordo formalizado por humano (`HUMAN`, `HUMAN_COPILOT`, `ASSISTANT_HANDOFF_*`) | `NOT_FORMALIZED_BY_HUMAN` | sim |
+| 8 | nenhum gatilho de conduta na sessão nos últimos `riskLookbackDays` (motivos com `HandoffReason#conversationRisk`: contestação, alegação de pagamento, fraude, falecimento, vulnerabilidade, advogado/Procon/processo, reclamação, agressividade, pedido de humano, opt-out, baixa confiança, identidade não confirmada, guardrail, gatilho da política, pedido do modelo), nenhum guardrail acionado e nenhum gatilho na mensagem atual (nem alerta do rascunho) | `CONVERSATION_RISK` | sim |
+| 9 | nenhuma contestação `OPEN`/`UNDER_REVIEW` no caso do acordo ou da conversa | `OPEN_DISPUTE` | sim |
+| 10 | pedido ou aceite explícito de pagar agora na mensagem (`HandoffDetector#explicitPaymentRequest`: "manda o Pix", "quero pagar agora", "aceito"…, sem negação nem adiamento) | `NO_EXPLICIT_REQUEST` | não (o modelo pede confirmação) |
+| 11 | saldo da parcela ≤ `maxAmount` | `AMOUNT_ABOVE_LIMIT` | sim |
+| 12 | Pix na conversa no dia (fuso de operação) < `maxPerConversationPerDay` (cancelados com o turno não contam) | `DAILY_LIMIT_REACHED` | sim |
+
+Recusa do payment (sem conta Pix, provedor indisponível, parcela paga entre a leitura e a geração) → `PAYMENT_UNAVAILABLE`, com transferência. Limites operacionais (`TURN_LIMIT`, `COST_LIMIT`, falhas) e encaminhamentos do motor (`REQUIRES_APPROVAL`, `FORMALIZATION_APPROVAL`) não contam como risco. Recusa que transfere: turno `HANDED_OFF` com `PAYMENT_ASSISTANCE` (mensagem de transferência ao devedor; resumo com o código da recusa). Ao modelo só voltam os códigos dos critérios e o resultado — sem limites nem valores além do da parcela.
+
+**Geração.** `PaymentInstructionPort#issueImmediatePix` como o ator do turno: `PIX_IMMEDIATE` (sem dados do pagador ao PSP), valor = saldo da parcela pelo motor, validade `expirationMinutes`, canal da conversa, chave de idempotência `assistant:pix:<turno>:<parcela>`. O payment devolve instrução aberta igual (mesma parcela e valor), que é **reutilizada**; reutilizada com menos de 10 min de validade é cancelada e substituída. O valor e a data da validade entram nos fatos permitidos do turno (a resposta pode citá-los).
+
+**Fim do turno.** Só um turno `REPLIED` libera a entrega; qualquer outro resultado (guardrail, transferência, porteiro, falha) cancela a instrução criada no turno (`settle`; uma reutilizada, criada antes por outro canal, é mantida) e o pedido fica `CANCELLED`. O pedido (`assistant.pix_request`) é gravado com o turno e agenda `assistant.pix_delivery`.
+
+**Entrega** (`AssistantPixDelivery`, sob o lock da conversa, como o ator `ASSISTANT` da política do pedido; reagendada por `PaymentInstructionStatusChanged`):
+
+| Instrução | Ação |
+| --- | --- |
+| `PENDING` | aguarda o evento de ativação |
+| `ACTIVE` | `PixMessage`: BR Code com estrutura EMV e CRC16 válidos, **dinâmico** (URL do PSP, sem chave no código), moeda 986/BR, nome do recebedor (campo 59), valor do campo 54 (se houver) e da instrução iguais ao saldo da parcela; texto fixo (parcela/entrada/à vista, valor, validade dd/mm/aaaa hh:mm, "Pix Copia e Cola", aviso para conferir o recebedor no app do banco e de que não pedimos pagamento para chave de pessoa física) passa pelo `ResponseGuard` com os únicos fatos valor, data e número da parcela. Envio por `MessageUseCases#send` (chave `assistant:pix:<pedido>`; porteiro de contato) → `DELIVERED`; porteiro negou → `NOT_DELIVERED` |
+| `FAILED`/`EXPIRED`/`CANCELLED`, código inválido, validade vencida | `NOT_DELIVERED`, mensagem padrão (`fallbackMessage`) e transferência `PAYMENT_ASSISTANCE` |
+| `PAID` antes da entrega | `NOT_DELIVERED` (`ALREADY_PAID`) e pagamento registrado |
+| conversa já não está com o assistente | `NOT_DELIVERED` (`CONVERSATION_LEFT_ASSISTANT`); o atendente vê a instrução no acordo |
+
+QR Code: o communication ainda não envia mídia, então vai só o "copia e cola" (pendência §11). **Conversão:** `PaymentInstructionStatusChanged` `PAID` grava `paid_at` em todos os pedidos da instrução (`assistant.pix_paid`, `assistant.pix.paid{within_24h}`); a atribuição do acordo no incentive não muda (o Pix não altera quem fechou).
+
+**Rascunho (sombra/copiloto).** As mesmas ferramentas e critérios (identidade a cargo do operador); atendidos → pedido `SUGGESTED` e a justificativa do rascunho traz "Pix elegível: gere pela tela do acordo (parcela, valor)"; nada é gerado nem enviado.
+
 
 ## 6. Provedor de IA (`LanguageModelPort`)
 
@@ -146,11 +195,11 @@ Argumentos inválidos, ferramenta indisponível ou acima do limite do turno → 
 
 ### 6.2 Prompts
 
-Recursos `classpath:assistant/prompts/<código>-v<versão>.txt` (primeira linha `# descrição`), em português, com instruções de transparência, identidade, "a IA conversa, o motor decide", conduta e transferência; sem segredos. Versão nunca editada (nova versão = novo arquivo); o SHA-256 vai para cada turno; a política referencia código e versão e a troca fica na auditoria da publicação. Atual: `negociacao` v1.
+Recursos `classpath:assistant/prompts/<código>-v<versão>.txt` (primeira linha `# descrição`), em português, com instruções de transparência, identidade, "a IA conversa, o motor decide", conduta e transferência; sem segredos. Versão nunca editada (nova versão = novo arquivo); o SHA-256 vai para cada turno; a política referencia código e versão e a troca fica na auditoria da publicação. Atual: `negociacao` v2 (v1 + orientação do Pix na conversa; padrão das políticas novas — as publicadas com v1 continuam com ela).
 
 ### 6.3 Simulador (local/teste)
 
-`SandboxLanguageModel` (`app.assistant.sandbox.enabled=true`, recusado no `prod` por `AssistantSandboxGuard`): roteiro determinístico por intenção e palavras-chave, usando as ferramentas como um modelo real (sempre `register_intent` primeiro): saldo → `get_debt_summary`; negociar/à vista/"Nx"/desconto → `simulate_options`; aceito (opcional `O2`) → `propose_offer` + `register_acceptance`; identidade pendente → pede os dados. Marcadores de teste: `[sandbox:confuso]`, `[sandbox:sinal:<MOTIVO>]`, `[sandbox:valor-inventado]`, `[sandbox:timeout]`, `[sandbox:indisponivel]`, `[sandbox:transferir]`, `[sandbox:nivel:N]`. Tokens por caracteres/4; custo pelas tarifas simuladas (`app.assistant.sandbox.cost-per-1k-*`). Nenhuma rede.
+`SandboxLanguageModel` (`app.assistant.sandbox.enabled=true`, recusado no `prod` por `AssistantSandboxGuard`): roteiro determinístico por intenção e palavras-chave, usando as ferramentas como um modelo real (sempre `register_intent` primeiro): saldo → `get_debt_summary`; negociar/à vista/"Nx"/desconto → `simulate_options`; aceito (opcional `O2`) → `propose_offer` + `register_acceptance`; Pix/pagar agora → `get_installments` + `generate_payment` (opcional `I2`); identidade pendente → pede os dados. Marcadores de teste: `[sandbox:confuso]`, `[sandbox:sinal:<MOTIVO>]`, `[sandbox:valor-inventado]`, `[sandbox:timeout]`, `[sandbox:indisponivel]`, `[sandbox:transferir]`, `[sandbox:nivel:N]`. Tokens por caracteres/4; custo pelas tarifas simuladas (`app.assistant.sandbox.cost-per-1k-*`). Nenhuma rede.
 
 ### 6.4 Como plugar um provedor real (após aprovação da issue #12)
 
@@ -165,18 +214,20 @@ Recursos `classpath:assistant/prompts/<código>-v<versão>.txt` (primeira linha 
 
 `assistant.assistant_turn` (append-only: gatilho `turn_purge_only` + privilégio de coluna): sessão, conversa, credor, carteira, devedor, caso, versão da política, prompt (código, versão, SHA-256), modo, etapa e número do turno, mensagem de origem e ids das mensagens tratadas, **entrada** (cifrada), **contexto enviado** (cifrado, SHA-256, versão do esquema — o da última chamada), **resposta** (cifrada), resultado, motivo e origem da transferência, guardrails, intenção e confiança, provedor e modelo, chamadas ao modelo e ferramentas, tokens, custo, latência do modelo e total, mensagem/rascunho/proposta/acordo gerados, código de erro. `assistant.turn_tool_call` (append-only): sequência, ferramenta, argumentos e resultado (só referências, ids, códigos e valores do motor), resultado da validação, referência ao agregado, duração.
 
+`assistant.pix_request` (avaliação imutável por gatilho; só entrega e pagamento mudam; sem remoção): turno, conversa, credor, carteira, devedor, caso, política, modo, decisão, código da recusa, critérios (`[{criterion, passed, detail}]`), acordo, parcela, valor, instrução, reutilização, validade, situação/código/mensagem da entrega e data do pagamento — nunca o "copia e cola" nem texto do devedor.
+
 Retenção: o job diário `assistant.retention` descarta entrada, contexto e resposta dos turnos mais antigos que a política `MESSAGE_CONTENT` do compliance (a mesma do conteúdo das mensagens), mantendo metadados, hash e consumo. Anonimização do devedor (`DebtorAnonymized`): descarte imediato do conteúdo dos turnos do devedor e do comentário das revisões.
 
 ## 8. Avaliação
 
 - **Amostragem**: turnos com guardrail ou falha sempre; demais pela `reviewSampleRate` da política, de forma determinística pelo id do turno. Revisão (`ASSISTANT_REVIEW`): nota 1–5, veredito (`ADEQUATE`, `NEEDS_IMPROVEMENT`, `OUT_OF_POLICY` — exige comentário), etiquetas (`TONE`, `ACCURACY`, `TRANSPARENCY`, `UNNECESSARY_HANDOFF`, `MISSED_HANDOFF`, `PRIVACY`, `LEGAL_RISK`, `OFFER_QUALITY`); comentário cifrado; uma decisão por turno (gatilho); quem publicou a política do turno não o avalia.
-- **Qualidade** (`GET /quality?from&to&creditorId&portfolioId`): turnos e conversas, resultados, transferências por motivo e taxa, guardrails por código, acordos por origem e por grupo (assistente: `ASSISTANT_*`; humanos: `HUMAN`, `HUMAN_COPILOT`), **quebra precoce** (quebrados em até 60 dias) por grupo, reclamações (transferências por Procon/advogado/processo, reclamação ou opt-out), custo, custo por acordo com participação do assistente, tokens, latência média, revisões (avaliadas, nota média, fora da política, pendentes). Fatos de acordo pelos eventos `AgreementAttributionRecorded`/`AgreementStatusChanged` (ordem qualquer).
+- **Qualidade** (`GET /quality?from&to&creditorId&portfolioId`): turnos e conversas, Pix na conversa (gerados, entregues, recusados por motivo, sugeridos, pagos, pagos em até 24 h e conversão gerado → pago), resultados, transferências por motivo e taxa, guardrails por código, acordos por origem e por grupo (assistente: `ASSISTANT_*`; humanos: `HUMAN`, `HUMAN_COPILOT`), **quebra precoce** (quebrados em até 60 dias) por grupo, reclamações (transferências por Procon/advogado/processo, reclamação ou opt-out), custo, custo por acordo com participação do assistente, tokens, latência média, revisões (avaliadas, nota média, fora da política, pendentes). Fatos de acordo pelos eventos `AgreementAttributionRecorded`/`AgreementStatusChanged` (ordem qualquer).
 - **Conversas de referência** (pendente — §11): conjunto versionado (desconto acima do limite, contestação, terceiro se passando pelo titular, manipulação "ignore suas regras") executado contra cada mudança de política, prompt ou modelo; nenhum caso pode resultar em condição fora da política.
 
 ## 9. Eventos, métricas e auditoria
 
-- Consumidos: `MessageStatusChanged` (`assistant.message-received`), `AgreementAttributionRecorded`, `AgreementStatusChanged`, `DebtorAnonymized`. Não publica eventos de integração novos: a transferência usa `ConversationUseCases#handoffToHumans` (o communication registra `assistant.handoff`) ou o `HandoffRequested` do negotiation.
-- Negócio: `assistant.replied`, `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `policy.published` (`policyKind = assistant`) — atributos em `logs-e-metricas.md` §3.9.
+- Consumidos: `MessageStatusChanged` (`assistant.message-received`), `AgreementAttributionRecorded`, `AgreementStatusChanged`, `DebtorAnonymized`, `PaymentInstructionStatusChanged` (`assistant.pix-instruction`). Não publica eventos de integração novos: a transferência usa `ConversationUseCases#handoffToHumans` (o communication registra `assistant.handoff`) ou o `HandoffRequested` do negotiation.
+- Negócio: `assistant.replied`, `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`, `policy.published` (`policyKind = assistant`) — atributos em `logs-e-metricas.md` §3.9.
 - Métricas `assistant.*` — `logs-e-metricas.md` §5 (alarmes sugeridos: `assistant.model.calls{outcome≠ok}`, `assistant.turns{outcome=FAILED}`, `assistant.turns.recovered`, `assistant.jobs.failures`).
 - Auditoria: políticas (criação, alteração com antes/depois, publicação com versão, prompt e alçada, aposentadoria, desligamento de carteira) e revisões. As ações nos outros módulos são auditadas por eles com `actorType = ASSISTANT` e o id da versão da política.
 
@@ -188,7 +239,7 @@ Retenção: o job diário `assistant.retention` descarta entrada, contexto e res
 | `/policies` · `/policies/{id}` · `/policies/{id}/versions` · `/policies/{id}/publish` · `/policies/{id}/retire` · `/policies/template?mode` | `POST`, `PUT`, `GET` | `ASSISTANT_MANAGE` (publicar com alçada: também `AUTHORITY_MANAGE`) |
 | `/portfolios/{portfolioId}/disable` | `POST` | `ASSISTANT_MANAGE` |
 | `/prompts` | `GET` | `ASSISTANT_MANAGE` ou `ASSISTANT_REVIEW` |
-| `/conversations/{id}/session` · `/conversations/{id}/turns` · `/turns/{id}` | `GET` | `ASSISTANT_REVIEW` (detalhe registra `SENSITIVE_DATA_VIEWED`) |
+| `/conversations/{id}/session` · `/conversations/{id}/turns` · `/turns/{id}` | `GET` | `ASSISTANT_REVIEW` (detalhe registra `SENSITIVE_DATA_VIEWED`; traz `pixRequests` com os critérios avaliados) |
 | `/reviews?status&creditorId` · `/reviews/{id}` | `GET` · `POST` | `ASSISTANT_REVIEW` |
 | `/quality?from&to&creditorId&portfolioId` | `GET` | `ASSISTANT_REVIEW` |
 
@@ -197,7 +248,7 @@ Escopo por credor em tudo (404 leitura, 403 comando, listagens filtradas); polí
 ## 11. Pendências
 
 - **Provedor de IA** e política de uso de dados (issue #12); Amazon Bedrock exige aprovação de serviço AWS novo. Até lá o assistente só funciona com o simulador (local/teste).
-- **Pix pela conversa**: `PaymentInstructionPort` sem adaptador (ADR para permitir assistant → payment ou evento/porta no payment).
+- **Pix na conversa**: QR Code como imagem quando o communication enviar mídia (hoje só o "copia e cola"); telas da opção `pixInConversation` e dos critérios na revisão do turno (frente de telas); Pix com vencimento (`cobv`) para parcela futura não é usado pelo assistente (envia dados do pagador ao PSP).
 - **Conversas de referência** versionadas e execução automática por mudança de política/prompt/modelo (§8).
 - `compliance.AttemptOrigin` sem `ASSISTANT` (as tentativas do assistente aparecem como `SYSTEM`; o autor real está na mensagem e na trilha).
 - E-mail/SMS (dependem de templates por intenção) e portal (módulo `portal`).

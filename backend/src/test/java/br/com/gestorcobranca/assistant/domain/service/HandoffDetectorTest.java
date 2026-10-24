@@ -2,9 +2,9 @@ package br.com.gestorcobranca.assistant.domain.service;
 
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
 import br.com.gestorcobranca.assistant.domain.model.PolicySettings.ExtraTrigger;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.api.Test;
 
 import java.util.List;
 

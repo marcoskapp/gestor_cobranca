@@ -1,8 +1,8 @@
 package br.com.gestorcobranca.assistant.application.service;
 
 import br.com.gestorcobranca.assistant.application.port.out.ConversationLocks;
-import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
 import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort.PixInstruction;
+import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
 import br.com.gestorcobranca.assistant.domain.model.AssistantPolicy;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
 import br.com.gestorcobranca.assistant.domain.model.PixRequest;
@@ -12,11 +12,11 @@ import br.com.gestorcobranca.assistant.domain.repository.AssistantPolicyReposito
 import br.com.gestorcobranca.assistant.domain.repository.AssistantSessionRepository;
 import br.com.gestorcobranca.assistant.domain.repository.PixRequestRepository;
 import br.com.gestorcobranca.assistant.domain.service.PixMessage;
-import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases;
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.HandoffCommand;
-import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
+import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.MessageView;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.SendMessageCommand;
+import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import br.com.gestorcobranca.shared.jobs.JobContext;

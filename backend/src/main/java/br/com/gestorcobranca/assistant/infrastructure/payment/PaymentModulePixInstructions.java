@@ -1,9 +1,9 @@
 package br.com.gestorcobranca.assistant.infrastructure.payment;
 
 import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
-import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases;
 import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases.CreateInstructionCommand;
 import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases.InstructionView;
+import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import org.springframework.stereotype.Component;
 

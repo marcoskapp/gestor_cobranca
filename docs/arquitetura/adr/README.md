@@ -12,3 +12,4 @@ Cada decisão estrutural fica registrada com contexto, decisão e consequências
 | [0006](0006-spring-boot-4.md) | Spring Boot 4 / Java 21 | Aceita |
 | [0007](0007-frontend-servido-pelo-backend.md) | Frontend Angular servido pelo backend | Aceita |
 | [0008](0008-tempo-real-sse-listen-notify.md) | Tempo real da caixa de entrada: SSE por instância e LISTEN/NOTIFY do PostgreSQL | Aceita |
+| [0009](0009-assistente-gera-pix-pelo-payment.md) | O assistente gera o Pix da conversa pela interface pública do payment (`assistant → payment`) | Aceita |

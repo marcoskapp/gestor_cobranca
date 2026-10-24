@@ -3,8 +3,8 @@ package br.com.gestorcobranca.assistant.domain.service;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
 import br.com.gestorcobranca.assistant.domain.model.AssistantPolicy;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
-import br.com.gestorcobranca.assistant.domain.model.PolicySettings;
 import br.com.gestorcobranca.assistant.domain.model.PolicySettings.ServiceWindow;
+import br.com.gestorcobranca.assistant.domain.model.PolicySettings;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import org.junit.jupiter.api.Test;
 

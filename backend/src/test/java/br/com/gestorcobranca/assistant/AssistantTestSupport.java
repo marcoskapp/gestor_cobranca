@@ -1,8 +1,8 @@
 package br.com.gestorcobranca.assistant;
 
-import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases.CreatePolicyCommand;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases.PolicyView;
+import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantReviewUseCases;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantTrailUseCases;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;

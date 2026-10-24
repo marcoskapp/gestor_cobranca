@@ -1,8 +1,8 @@
 package br.com.gestorcobranca.assistant.application.service;
 
-import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
 import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort.IssuePixCommand;
 import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort.PixInstruction;
+import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
 import br.com.gestorcobranca.assistant.application.service.AssistantToolbox.ArgumentException;
 import br.com.gestorcobranca.assistant.application.service.AssistantToolbox.Terminal;
 import br.com.gestorcobranca.assistant.application.service.AssistantToolbox.ToolOutcome;
@@ -17,14 +17,14 @@ import br.com.gestorcobranca.assistant.domain.model.TurnOutcome;
 import br.com.gestorcobranca.assistant.domain.repository.AssistantTurnRepository;
 import br.com.gestorcobranca.assistant.domain.repository.PixRequestRepository;
 import br.com.gestorcobranca.assistant.domain.service.HandoffDetector;
-import br.com.gestorcobranca.assistant.domain.service.PixEligibility;
 import br.com.gestorcobranca.assistant.domain.service.PixEligibility.Evaluation;
+import br.com.gestorcobranca.assistant.domain.service.PixEligibility;
 import br.com.gestorcobranca.assistant.domain.service.PixMessage;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases;
-import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.InstallmentView;
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import br.com.gestorcobranca.shared.paging.PageQuery;

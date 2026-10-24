@@ -1,11 +1,11 @@
 package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
-import br.com.gestorcobranca.payment.application.port.out.PixProvider;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.ChargeRequest;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.ChargeResult;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.Payer;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.ProviderException;
+import br.com.gestorcobranca.payment.application.port.out.PixProvider;
 import br.com.gestorcobranca.payment.domain.model.InstructionStatus;
 import br.com.gestorcobranca.payment.domain.model.InstructionType;
 import br.com.gestorcobranca.payment.domain.model.PaymentInstruction;
