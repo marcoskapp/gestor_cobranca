@@ -1,27 +1,24 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { Router, provideRouter } from '@angular/router';
 import { provideLocale } from '../../../core/config/locale.config';
 import { NotificationService } from '../../../core/notification/notification.service';
-import { UploadDialog } from './upload-dialog';
+import { ReviewStart } from './review-start';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
-describe('UploadDialog', () => {
+describe('ReviewStart', () => {
   let http: HttpTestingController;
-  const close = vi.fn();
 
   beforeEach(() => {
-    close.mockReset();
     TestBed.configureTestingModule({
-      imports: [UploadDialog],
+      imports: [ReviewStart],
       providers: [
         provideLocale(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: { portfolioId: 'p-1' } },
-        { provide: MatDialogRef, useValue: { close } },
+        provideRouter([]),
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
       ],
     });
@@ -30,8 +27,9 @@ describe('UploadDialog', () => {
 
   afterEach(() => http.verify());
 
-  async function render(): Promise<ComponentFixture<UploadDialog>> {
-    const fixture = TestBed.createComponent(UploadDialog);
+  async function render(): Promise<ComponentFixture<ReviewStart>> {
+    const fixture = TestBed.createComponent(ReviewStart);
+    fixture.componentInstance['form'].patchValue({ portfolio: ['p-1'] });
     for (let i = 0; i < 3; i++) {
       fixture.detectChanges();
       await tick();
@@ -55,47 +53,35 @@ describe('UploadDialog', () => {
   }
 
   const file = new File(['documento;nome\n'], 'carteira.csv', { type: 'text/csv' });
-  const submit = (f: ComponentFixture<UploadDialog>) => (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+  const submit = (f: ComponentFixture<ReviewStart>) => (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[type="submit"]')!;
 
-  it('lista só os layouts aplicáveis à carteira e envia em prévia por padrão', async () => {
+  it('lista só os layouts aplicáveis, envia o arquivo e abre a conferência', async () => {
     const fixture = await render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     expect(fixture.componentInstance['layouts']().map((l: { id: string }) => l.id)).toEqual(['l-1']);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Formato dos valores');
     fixture.componentInstance['pick']([file] as unknown as FileList);
     fixture.detectChanges();
     submit(fixture).click();
-    const req = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/ingestion/batches');
+    const req = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/ingestion/reviews');
     expect(req.request.params.get('portfolioId')).toBe('p-1');
-    expect(req.request.params.get('mode')).toBe('VALIDATE_ONLY');
-    expect(req.request.params.get('force')).toBe('false');
     expect((req.request.body as FormData).get('file')).toBeTruthy();
-    req.flush({ id: 'b-1' });
-    expect(close).toHaveBeenCalledWith({ id: 'b-1' });
+    req.flush({ id: 'r-1' });
+    expect(navigate).toHaveBeenCalledWith(['/importacao/conferencias', 'r-1']);
   });
 
-  it('arquivo já importado: pede justificativa e reenvia com force', async () => {
+  it('recusa arquivo de tipo inválido antes de enviar e mostra erro do servidor', async () => {
     const fixture = await render();
+    fixture.componentInstance['pick']([new File(['x'], 'carteira.xls')] as unknown as FileList);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('CSV ou XLSX');
+    expect(submit(fixture).disabled).toBe(true);
+
     fixture.componentInstance['pick']([file] as unknown as FileList);
-    fixture.componentInstance['form'].patchValue({ mode: 'IMPORT' });
     fixture.detectChanges();
     submit(fixture).click();
-    http
-      .expectOne((r) => r.url === '/api/v1/ingestion/batches')
-      .flush({ code: 'import.duplicate_file', detail: 'Arquivo já importado' }, { status: 409, statusText: 'Conflict' });
+    http.expectOne((r) => r.url === '/api/v1/ingestion/reviews').flush({ code: 'import.file_too_large' }, { status: 422, statusText: 'Unprocessable' });
     fixture.detectChanges();
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('Este arquivo já foi importado com sucesso nesta carteira.');
-    expect(submit(fixture).textContent).toContain('Reprocessar mesmo assim');
-
-    submit(fixture).click();
-    fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Informe a justificativa');
-    http.expectNone((r) => r.url === '/api/v1/ingestion/batches');
-
-    fixture.componentInstance['form'].patchValue({ reason: 'Credor corrigiu saldos' });
-    submit(fixture).click();
-    const req = http.expectOne((r) => r.url === '/api/v1/ingestion/batches');
-    expect(req.request.params.get('force')).toBe('true');
-    expect(req.request.params.get('reason')).toBe('Credor corrigiu saldos');
-    req.flush({ id: 'b-2' });
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('50 MB');
   });
 });

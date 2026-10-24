@@ -3,14 +3,13 @@ import { Component, DestroyRef, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -26,10 +25,11 @@ import { sameValue } from '../../../shared/data/same-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { CreditorLookup, CreditorNames, PortfolioLookup, PortfolioNames } from '../../organization/data/organization.lookups';
-import { ImportBatchesApi, ImportLayoutsApi } from '../data/ingestion.api';
+import { ImportBatchesApi, ImportLayoutsApi, ImportReviewsApi } from '../data/ingestion.api';
 import { MODE_LABELS, SOURCE_LABELS, isTerminal, progressText } from '../data/ingestion.labels';
-import { BatchFilter, ImportBatchView } from '../data/ingestion.models';
-import { UploadDialog, UploadDialogData } from './upload-dialog';
+import { BatchFilter, ImportBatchView, ReviewSummaryView } from '../data/ingestion.models';
+import { REVIEW_STEPS } from '../data/review.rules';
+import { Amount } from '../../../shared/components/amount/amount';
 
 /** Intervalo de atualização enquanto houver lote em andamento na página. */
 export const POLL_MS = 5000;
@@ -38,7 +38,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
   return { creditorId: v.creditor[0] ?? null, portfolioId: v.portfolio[0] ?? null, status: v.status || null, source: v.source || null };
 }
 
-/** Lotes de importação de carteira com progresso dos que estão em andamento. */
+/** Lotes de importação de carteira com progresso dos que estão em andamento e as conferências abertas. */
 @Component({
   selector: 'app-batch-list',
   imports: [
@@ -58,6 +58,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
     StatusChip,
     AppDatePipe,
     DecimalPipe,
+    Amount,
   ],
   template: `
     <app-page-header title="Importação de carteiras" subtitle="Arquivos e integrações recebidos dos credores, com prévia, progresso e ocorrências por linha.">
@@ -74,12 +75,30 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
         Layouts
       </a>
       @if (canExecute()) {
-        <button mat-flat-button type="button" (click)="upload()">
+        <a mat-flat-button routerLink="/importacao/nova" [queryParams]="newParams()">
           <mat-icon aria-hidden="true">upload_file</mat-icon>
           Nova importação
-        </button>
+        </a>
       }
     </app-page-header>
+
+    @if (reviews.rows().length) {
+      <section class="app-card bl-reviews" aria-labelledby="bl-reviews" data-tour="review-list">
+        <h2 class="app-card__title" id="bl-reviews">Conferências em andamento</h2>
+        <ul class="bl-review-list">
+          @for (r of reviews.rows(); track r.id) {
+            <li>
+              <a [routerLink]="['/importacao/conferencias', r.id]">{{ r.fileName || 'Arquivo' }}</a>
+              <app-status-chip domain="importReview" [status]="r.status" />
+              <span class="app-muted">{{ portfolios.name(r.portfolioId) }} · passo {{ r.currentStep }} de 6 ({{ stepLabel(r) }}) · {{ r.createdAt | appDate }}</span>
+              @if (r.status === 'AWAITING_APPROVAL' && r.principalToImport !== null) {
+                <span class="app-muted">· <app-amount [value]="r.principalToImport" /></span>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar lotes">
       <div class="app-filters__wide">
@@ -155,6 +174,23 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       width: 160px;
       margin-top: 4px;
     }
+    .bl-reviews {
+      margin-bottom: var(--app-gap);
+    }
+    .bl-review-list {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: var(--app-text-sm);
+    }
+    .bl-review-list li {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 10px;
+    }
     .bl-error {
       font-size: var(--app-text-xs);
       color: var(--app-danger-fg);
@@ -164,9 +200,8 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
 export class BatchList {
   private readonly api = inject(ImportBatchesApi);
   private readonly layoutsApi = inject(ImportLayoutsApi);
+  private readonly reviewsApi = inject(ImportReviewsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
-  private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly portfolioSource = inject(PortfolioLookup).source(() => this.filters.controls.creditor.value[0] ?? null);
@@ -189,9 +224,15 @@ export class BatchList {
     { initialValue: toBatchFilter(this.filters.getRawValue()), equal: sameValue },
   );
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  /** Conferências abertas ou aguardando aprovação (com o filtro de credor/carteira da tela). */
+  protected readonly reviews = pagedQuery(this.filter, (f, page) =>
+    this.reviewsApi.search({ status: ['OPEN', 'AWAITING_APPROVAL'], creditorId: f.creditorId, portfolioId: f.portfolioId }, page),
+    10,
+  );
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((b) => b.creditorId));
-  protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.query.rows().map((b) => b.portfolioId));
-  private readonly running = computed(() => this.query.rows().some((b) => !isTerminal(b.status)));
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => [...this.query.rows().map((b) => b.portfolioId), ...this.reviews.rows().map((r) => r.portfolioId)]);
+  private readonly running = computed(() => this.query.rows().some((b) => !isTerminal(b.status) && b.status !== 'AWAITING_FORMAT'));
+  protected readonly newParams = computed(() => (this.filter().portfolioId ? { carteira: this.filter().portfolioId } : {}));
 
   protected readonly columns: TableColumn[] = [
     { key: 'created', header: 'Recebido em' },
@@ -219,10 +260,7 @@ export class BatchList {
     this.layoutsApi.downloadTemplate(format).subscribe((name) => this.notifications.success(`Modelo baixado (${name}).`));
   }
 
-  protected upload(): void {
-    this.dialog
-      .open<UploadDialog, UploadDialogData, ImportBatchView>(UploadDialog, { data: { portfolioId: this.filters.controls.portfolio.value[0] ?? null }, width: '600px' })
-      .afterClosed()
-      .subscribe((batch) => batch && void this.router.navigate(['/importacao', batch.id]));
+  protected stepLabel(r: ReviewSummaryView): string {
+    return REVIEW_STEPS.find((s) => s.step === r.currentStep)?.label ?? '';
   }
 }

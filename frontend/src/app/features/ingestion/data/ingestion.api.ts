@@ -7,14 +7,26 @@ import { toHttpParams } from '../../../core/http/http-params';
 import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
+  AlertDecisionRequest,
+  AlertStatus,
+  AlertType,
+  AlertView,
+  AnalysisView,
   BatchFilter,
+  BreakdownRow,
   CanonicalLayoutView,
+  FormatOption,
   ImportBatchView,
   ImportIssueView,
   ImportLayoutView,
   ImportMode,
   IssueSeverity,
   PublishLayoutRequest,
+  ReviewStatus,
+  ReviewSummaryView,
+  ReviewView,
+  TotalsCheckView,
+  TotalsRequest,
   UploadRequest,
 } from './ingestion.models';
 
@@ -96,5 +108,75 @@ export class ImportLayoutsApi {
 
   deactivate(id: string): Observable<ImportLayoutView> {
     return this.http.post<ImportLayoutView>(`${BASE}/layouts/${id}/deactivate`, null);
+  }
+}
+
+/**
+ * Conferência da importação (assistente em passos). Ações com regra de negócio (formato, totais, efetivação) voltam sem
+ * notificação genérica: a tela apresenta o motivo no passo.
+ */
+@Injectable({ providedIn: 'root' })
+export class ImportReviewsApi {
+  private readonly http = inject(HttpClient);
+
+  start(file: File, portfolioId: string, layoutId: string | null): Observable<ReviewView> {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    return this.http.post<ReviewView>(`${BASE}/reviews`, body, { params: toHttpParams({ portfolioId, layoutId }), context: silentErrorContext() });
+  }
+
+  startFromBatch(batchId: string): Observable<ReviewView> {
+    return this.http.post<ReviewView>(`${BASE}/reviews/from-batch`, { batchId }, { context: silentErrorContext() });
+  }
+
+  search(filter: { status?: ReviewStatus[]; creditorId?: string | null; portfolioId?: string | null }, page: PageRequest): Observable<PageResponse<ReviewSummaryView>> {
+    return this.http.get<PageResponse<ReviewSummaryView>>(`${BASE}/reviews`, {
+      params: toHttpParams({ status: filter.status?.join(',') ?? null, creditorId: filter.creditorId, portfolioId: filter.portfolioId, page: page.page, size: page.size }),
+    });
+  }
+
+  get(id: string): Observable<ReviewView> {
+    return this.http.get<ReviewView>(`${BASE}/reviews/${id}`);
+  }
+
+  /** Salva o passo atual (estado do assistente no servidor). */
+  step(id: string, step: number): Observable<ReviewView> {
+    return this.http.put<ReviewView>(`${BASE}/reviews/${id}/step`, { step }, { context: silentErrorContext() });
+  }
+
+  confirmFormat(id: string, batchId: string, decisions: Record<string, FormatOption>): Observable<ReviewView> {
+    return this.http.post<ReviewView>(`${BASE}/reviews/${id}/format`, { batchId, decisions }, { context: silentErrorContext() });
+  }
+
+  checkTotals(id: string, request: TotalsRequest): Observable<TotalsCheckView> {
+    return this.http.post<TotalsCheckView>(`${BASE}/reviews/${id}/totals`, request, { context: silentErrorContext() });
+  }
+
+  breakdown(id: string): Observable<BreakdownRow[]> {
+    return this.http.get<BreakdownRow[]>(`${BASE}/reviews/${id}/totals/breakdown`, { context: silentErrorContext() });
+  }
+
+  alerts(id: string, type: AlertType | null, status: AlertStatus | null, page: PageRequest): Observable<PageResponse<AlertView>> {
+    return this.http.get<PageResponse<AlertView>>(`${BASE}/reviews/${id}/alerts`, { params: toHttpParams({ type, status, page: page.page, size: page.size }) });
+  }
+
+  decide(id: string, request: AlertDecisionRequest): Observable<AnalysisView> {
+    return this.http.post<AnalysisView>(`${BASE}/reviews/${id}/alerts/decisions`, request, { context: silentErrorContext() });
+  }
+
+  commit(id: string, confirmationText: string, forceReason: string | null): Observable<ReviewView> {
+    return this.http.post<ReviewView>(`${BASE}/reviews/${id}/commit`, { confirmationText, forceReason }, { context: silentErrorContext() });
+  }
+
+  approve(id: string, confirmationText: string, note: string | null): Observable<ReviewView> {
+    return this.http.post<ReviewView>(`${BASE}/reviews/${id}/approve`, { confirmationText, note }, { context: silentErrorContext() });
+  }
+
+  reject(id: string, reason: string): Observable<ReviewView> {
+    return this.http.post<ReviewView>(`${BASE}/reviews/${id}/reject`, { reason });
+  }
+
+  cancel(id: string, reason: string): Observable<ReviewView> {
+    return this.http.post<ReviewView>(`${BASE}/reviews/${id}/cancel`, { reason });
   }
 }
