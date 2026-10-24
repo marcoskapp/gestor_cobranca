@@ -131,6 +131,17 @@ describe('conteúdo do onboarding', () => {
     expect(CHECKLISTS.findIndex((c) => c.id === 'manager')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
   });
 
+  it('painéis registrados com tour cujas âncoras existem e nota de versão própria', () => {
+    for (const path of ['/paineis', '/paineis/recuperacao', '/paineis/conversao', '/paineis/produtividade', '/paineis/confiabilidade']) {
+      expect(findScreen(path + '?de=2026-06-01')?.tourId, path).toBe('analytics.panels');
+    }
+    const tour = findTour('analytics.panels')!;
+    expect(tour.steps.length).toBeLessThanOrEqual(6);
+    expect(tour.steps.map((s) => s.anchor)).toEqual(['analytics-tabs', 'filters', 'analytics-freshness', 'analytics-kpis', 'analytics-export']);
+    expect(RELEASE_NOTES[0].title).toContain('Painéis');
+    expect(findScreen('/')?.version).toBe(2);
+  });
+
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {
     expect(findScreen('/pagamentos?devedor=d-1')?.tourId).toBe('payment.list');
     expect(findScreen('/pagamentos/instrucoes')?.tourId).toBe('payment.instructions');
@@ -149,7 +160,7 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(4);
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES[0].version).toBe(Math.max(...RELEASE_NOTES.map((n) => n.version)));
-    expect(RELEASE_NOTES[0].title).toContain('Pagamentos');
+    expect(RELEASE_NOTES.find((n) => n.version === 6)?.title).toContain('Pagamentos');
     // financeiro: checklist próprio antes do negociador; itens de visita apontam para telas registradas
     const finance = CHECKLISTS.find((c) => c.id === 'finance')!;
     const keys = new Set(SCREENS.map((s) => s.key));
