@@ -63,6 +63,16 @@ export const EXCLUDED_REASON_LABELS: Record<string, string> = {
   CAMPAIGN_FINISHED: 'Campanha encerrada',
 };
 
+/** Tabulações automáticas do catálogo (`DefaultTabulations`), quando a assessoria não as renomeou. */
+export const AUTO_TABULATION_LABELS: Record<string, string> = {
+  CALL_ANSWERED: 'atendida sem tabulação do operador',
+  CALL_ABANDONED: 'chamada abandonada',
+  CALL_FAILED: 'chamada com falha',
+  NO_ANSWER: 'não atende',
+  BUSY: 'ocupado',
+  VOICEMAIL: 'caixa postal',
+};
+
 export const HANGUP_SIDE_LABELS: Record<string, string> = {
   DEBTOR: 'devedor',
   OPERATOR: 'operador',

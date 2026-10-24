@@ -12,12 +12,18 @@ export const tick = () => new Promise((r) => setTimeout(r, 0));
 
 export interface Harness {
   http: HttpTestingController;
-  notifications: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+  /** Mensagens enviadas ao usuário, por tipo (sem depender do `vi`: o arquivo também é compilado no build). */
+  notifications: { success: string[]; error: string[]; info: string[] };
 }
 
 /** TestBed com HTTP de teste, rotas vazias, locale pt-BR, usuário com as permissões e notificações simuladas. */
 export function setup(component: Type<unknown>, permissions: string[], userId = 'u-1', providers: Provider[] = []): Harness {
-  const notifications = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+  const notifications = { success: [] as string[], error: [] as string[], info: [] as string[] };
+  const notifier = {
+    success: (m: string) => notifications.success.push(m),
+    error: (m: string) => notifications.error.push(m),
+    info: (m: string) => notifications.info.push(m),
+  };
   TestBed.configureTestingModule({
     imports: [component],
     providers: [
@@ -25,7 +31,7 @@ export function setup(component: Type<unknown>, permissions: string[], userId = 
       provideRouter([{ path: '**', children: [] }]),
       provideHttpClient(),
       provideHttpClientTesting(),
-      { provide: NotificationService, useValue: notifications },
+      { provide: NotificationService, useValue: notifier },
       {
         provide: AuthService,
         useFactory: () => ({

@@ -90,12 +90,15 @@
 
         <section class="app-card" aria-labelledby="ap-mode" data-tour="assistant-mode">
           <h2 class="app-card__title" id="ap-mode">Modo e canais</h2>
-          <mat-button-toggle-group class="as-toggles" [value]="d.mode" (change)="set('mode', $event.value)" [disabled]="!editable()" aria-labelledby="ap-mode">
-            @for (m of modes; track m[0]) {
-              <mat-button-toggle [value]="m[0]">{{ m[1] }}</mat-button-toggle>
-            }
-          </mat-button-toggle-group>
-          <p class="app-muted as-small">{{ modeHints[d.mode] }}</p>
+          <mat-form-field class="app-full-width" subscriptSizing="dynamic">
+            <mat-label>Modo de operação</mat-label>
+            <mat-select [value]="d.mode" (selectionChange)="set('mode', $event.value)" [disabled]="!editable()">
+              @for (m of modes; track m[0]) {
+                <mat-option [value]="m[0]">{{ m[1] }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint>{{ modeHints[d.mode] }}</mat-hint>
+          </mat-form-field>
           <mat-checkbox [checked]="true" [disabled]="true">WhatsApp</mat-checkbox>
           <p class="app-muted as-small">E-mail e SMS exigem templates por intenção; o assistente atende hoje só o WhatsApp (texto livre).</p>
         </section>

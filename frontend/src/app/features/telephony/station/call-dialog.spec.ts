@@ -26,7 +26,7 @@ describe('CallDialog (clique para ligar)', () => {
 
   const gate = (allowed: boolean) => (url: string) =>
     url.endsWith('/cases/k-1/contact-availability')
-      ? { caseId: 'k-1', evaluatedAt: '', caseEligible: true, caseReasons: [], channels: [{ channel: 'PHONE', allowed, reasons: allowed ? [] : ['OUTSIDE_HOURS'], nextAllowedAt: allowed ? null : '2026-10-25T11:00:00Z', contactId: 'ct-1' }] }
+      ? { caseId: 'k-1', evaluatedAt: '', caseEligible: true, caseReasons: [], channels: [{ channel: 'PHONE', allowed, reasons: allowed ? [] : ['OUTSIDE_WINDOW'], nextAllowedAt: allowed ? null : '2026-10-25T11:00:00Z', contactId: 'ct-1' }] }
       : undefined;
 
   afterEach(() => vi.clearAllMocks());
@@ -41,7 +41,7 @@ describe('CallDialog (clique para ligar)', () => {
   });
 
   it('negado no clique: mostra os motivos, não fecha e não registra tentativa', async () => {
-    session.dial.mockReturnValue(of(callView({ status: 'FAILED', failureCode: 'CONTACT_DENIED', denialReasons: ['OUTSIDE_HOURS'], nextAllowedAt: '2026-10-25T11:00:00Z' })));
+    session.dial.mockReturnValue(of(callView({ status: 'FAILED', failureCode: 'CONTACT_DENIED', denialReasons: ['OUTSIDE_WINDOW'], nextAllowedAt: '2026-10-25T11:00:00Z' })));
     const { http } = create();
     const fixture = await render(CallDialog, http, gate(true));
     button(fixture, 'Ligar')!.click();

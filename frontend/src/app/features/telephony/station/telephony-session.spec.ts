@@ -71,7 +71,7 @@ describe('TelephonySession', () => {
 
   it('negada pelo porteiro: não acompanha nem reserva', () => {
     session.dial('k-1', null, 'key-2').subscribe();
-    http.expectOne('/api/v1/telephony/calls').flush(callView({ status: 'FAILED', failureCode: 'CONTACT_DENIED', denialReasons: ['OUTSIDE_HOURS'] }));
+    http.expectOne('/api/v1/telephony/calls').flush(callView({ status: 'FAILED', failureCode: 'CONTACT_DENIED', denialReasons: ['OUTSIDE_WINDOW'] }));
     expect(session.call()).toBeNull();
     vi.advanceTimersByTime(5_000);
     http.verify();

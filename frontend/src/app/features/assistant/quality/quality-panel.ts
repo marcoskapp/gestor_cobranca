@@ -41,7 +41,7 @@ interface QualityFilter {
   template: `
     <app-page-header title="Qualidade do assistente" subtitle="Resultado do assistente comparado aos humanos, para decidir carteira a carteira quando avançar de fase ou ampliar a alçada." />
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar qualidade">
-      <mat-form-field class="app-compact">
+      <mat-form-field class="app-compact qp-period">
         <mat-label>Período</mat-label>
         <mat-date-range-input [rangePicker]="period">
           <input matStartDate formControlName="from" placeholder="De" />
@@ -67,13 +67,13 @@ interface QualityFilter {
         <button mat-stroked-button type="button" (click)="quality.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (q(); as v) {
-      <p class="app-muted qp-small">{{ v.from | appDate: 'date' }} a {{ v.to | appDate: 'date' }} · {{ v.conversations }} conversa(s), {{ v.turns }} turno(s)</p>
+      <p class="app-muted qp-small">{{ v.from | appDate: 'date' }} a {{ v.to | appDate: 'date' }} · {{ num(v.conversations) }} conversa(s), {{ num(v.turns) }} turno(s)</p>
       <section class="qp-kpis" aria-label="Indicadores do período" data-tour="quality-kpis">
         <div class="qp-kpi"><span class="qp-kpi__label">Transferência para humano</span><span class="qp-kpi__value">{{ fraction(v.handoffRate) }}</span><span class="qp-kpi__hint">das conversas atendidas</span></div>
         <div class="qp-kpi"><span class="qp-kpi__label">Reclamações</span><span class="qp-kpi__value app-numeric">{{ v.complaints }}</span><span class="qp-kpi__hint">Procon, advogado, ouvidoria ou opt-out</span></div>
         <div class="qp-kpi"><span class="qp-kpi__label">Custo por acordo</span><span class="qp-kpi__value app-numeric">{{ money(v.costPerAgreement, v.costCurrency) }}</span><span class="qp-kpi__hint">total {{ money(v.cost, v.costCurrency) }}</span></div>
         <div class="qp-kpi"><span class="qp-kpi__label">Revisões</span><span class="qp-kpi__value app-numeric">{{ v.avgScore !== null ? score(v.avgScore) + '/5' : '—' }}</span><span class="qp-kpi__hint">{{ v.reviewed }} avaliadas · {{ v.outOfPolicy }} fora da política · <a routerLink="/assistente/revisao">{{ v.pendingReviews }} pendentes</a></span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Latência média</span><span class="qp-kpi__value app-numeric">{{ v.avgLatencyMs }} ms</span><span class="qp-kpi__hint">{{ v.inputTokens + v.outputTokens }} tokens</span></div>
+        <div class="qp-kpi"><span class="qp-kpi__label">Latência média</span><span class="qp-kpi__value app-numeric">{{ num(v.avgLatencyMs) }} ms</span><span class="qp-kpi__hint">{{ num(v.inputTokens + v.outputTokens) }} tokens</span></div>
       </section>
       <div class="qp-grid">
         <section class="app-card qp-card" data-tour="quality-handoffs">
@@ -98,6 +98,9 @@ interface QualityFilter {
   styles: `
     .qp-small {
       font-size: var(--app-text-xs);
+    }
+    .qp-period {
+      min-width: 250px;
     }
     .qp-kpis {
       display: grid;
@@ -187,6 +190,10 @@ export class QualityPanel {
 
   protected money(value: number | null, currency: string | null): string {
     return value === null ? '—' : `${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(value)} ${currency ?? ''}`.trim();
+  }
+
+  protected num(value: number): string {
+    return new Intl.NumberFormat('pt-BR').format(value);
   }
 
   protected score(value: number): string {

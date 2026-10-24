@@ -17,7 +17,7 @@ import { CaseWorkApi, CasesApi, CollectionSettingsApi, TabulationsApi } from '..
 import { interactionProblems, toLocalDateTime, zonedNow } from '../../collection/data/collection.rules';
 import { parseMoney } from '../../payment/data/payment.rules';
 import { CallsApi } from '../data/telephony.api';
-import { CALL_RESULT_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
+import { AUTO_TABULATION_LABELS, CALL_RESULT_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
 import { CallView } from '../data/telephony.models';
 import { clockText, durationText, tabulationDeadline } from '../data/telephony.rules';
 import { TelephonySession } from './telephony-session';
@@ -215,7 +215,7 @@ export class TabulationDialog {
     this.values();
     return this.tabulations().find((t) => t.id === this.form.controls.tabulationId.value) ?? null;
   });
-  protected readonly suggestion = computed(() => this.tabulations().find((t) => t.code === this.call().suggestedTabulation)?.name ?? this.call().suggestedTabulation ?? 'atendida sem tabulação');
+  protected readonly suggestion = computed(() => this.tabulations().find((t) => t.code === this.call().suggestedTabulation)?.name ?? AUTO_TABULATION_LABELS[this.call().suggestedTabulation ?? ''] ?? 'atendida sem tabulação');
   protected readonly problems = computed(() => {
     this.values();
     const v = this.form.getRawValue();
