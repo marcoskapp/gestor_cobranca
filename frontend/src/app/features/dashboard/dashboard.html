@@ -15,6 +15,14 @@
   </p>
 }
 
+@if (showKpis()) {
+  @defer (on idle) {
+    <app-home-kpis />
+  } @placeholder {
+    <p class="app-muted" role="status">Carregando indicadores…</p>
+  }
+}
+
 <div class="dashboard__layout" [class.dashboard__layout--with-aside]="onboarding.checklistVisible()">
   <section class="dashboard__main" aria-labelledby="acesso-rapido">
     @if (shortcuts().length > 0) {

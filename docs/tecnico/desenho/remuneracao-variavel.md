@@ -270,7 +270,7 @@ Exemplo verificado (`CommissionEngineTest#standardMarketPlanCombination`): 60.00
 - Reatribuição de um retorno (`TaskUseCases.reassign`) não publica evento: o compromisso passa ao novo responsável só no próximo evento do retorno (cumprimento, atraso ou cancelamento); até lá, segue no denominador do responsável anterior. Se a operação reatribuir retornos com frequência, o `collection` deve publicar `CallbackStatusChanged` também na reatribuição.
 - Retornos e promessas não têm faixa de atraso nem canal nos eventos: as medidas ficam em `delay_bucket = UNKNOWN` e `channel = UNKNOWN` e somem quando o painel filtra por faixa ou canal.
 - Histórico de composição de equipes (pool e meta de equipe usam a composição no fechamento).
-- Views para o `analytics`; telas no frontend.
+- Telas do incentive no frontend. (Views para o `analytics`: implementadas em 24/10/2026 — `analytics.src_performance_fact`, `src_worked_case`, `src_logged_time`, `src_case_snapshot`, `src_commission_statement`; ver `analytics.md` §3. Mudança de coluna dessas tabelas exige ajustar `R__analytics_contract.sql`.)
 - Validar com jurídico/RH antes de habilitar estorno de comissão (`clawbackEnabled`) ou mudar a política de desligamento.
 
 ### 10.6 Retornos cumpridos e promessas cumpridas (23/10/2026)

@@ -3,6 +3,18 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 7,
+    date: '2026-10-24',
+    title: 'Painéis e relatórios da operação',
+    items: [
+      { text: 'Painel operacional: carteira, saldo vencido e elegível, casos por estado e fila pendente.', route: '/paineis' },
+      { text: 'Recuperação líquida de estornos, com taxa sobre o saldo elegível, tempo e custo.', route: '/paineis/recuperacao' },
+      { text: 'Funil do contato à 1ª parcela, acordado × pago e quebras por safra.', route: '/paineis/conversao' },
+      { text: 'Produtividade por pessoa e equipe; o operador vê o próprio desempenho.', route: '/paineis/produtividade' },
+      { text: 'Confiabilidade: falhas de integração, conciliação, processamentos e importações.', route: '/paineis/confiabilidade' },
+    ],
+  },
+  {
     version: 6,
     date: '2026-10-23',
     title: 'Pagamentos, Pix e conciliação',

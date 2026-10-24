@@ -62,6 +62,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/campaign/campaign.routes').then((m) => m.CAMPAIGN_ROUTES),
       },
       {
+        path: 'paineis',
+        loadChildren: () => import('./features/analytics/analytics.routes').then((m) => m.ANALYTICS_ROUTES),
+      },
+      {
         path: 'autonegociacao',
         loadChildren: () => import('./features/portal-admin/portal-admin.routes').then((m) => m.PORTAL_ADMIN_ROUTES),
       },

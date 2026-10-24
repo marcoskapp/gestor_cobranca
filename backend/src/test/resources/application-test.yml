@@ -47,6 +47,9 @@ app:
     local-root: ./target/test-storage
   scheduling:
     enabled: false
+  analytics:
+    # testes atualizam os painéis explicitamente, várias vezes seguidas
+    manual-refresh-min-interval: PT0S
   security:
     cookie-secure: false
     jwt:
