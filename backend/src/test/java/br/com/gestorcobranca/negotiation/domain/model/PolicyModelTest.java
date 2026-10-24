@@ -119,11 +119,19 @@ class PolicyModelTest {
         List<AuthorityProfile> profiles = StandardAuthorityProfiles.all().stream()
                 .map(d -> new AuthorityProfile(d.code(), true, d.parameters())).toList();
         assertThat(profiles).extracting(AuthorityProfile::getCode).containsExactly("JUNIOR", "PLENO", "SENIOR",
-                "SUPERVISOR", "GESTOR", "ASSISTENTE_INICIAL");
-        AuthorityProfile assistant = profiles.getLast();
+                "SUPERVISOR", "GESTOR", "ASSISTENTE_INICIAL", "PORTAL");
+        AuthorityProfile assistant = profiles.get(5);
         assertThat(assistant.isCanFormalize()).isFalse();
         assertThat(assistant.limits().maxConcessionLevel()).isEqualTo(1);
         assertThat(profiles.get(4).getMaxAgreementAmount()).isNull();
+        // autonegociação: conservador (nível 1, até 6 pagamentos, entrada de 20%, sem renegociação), formaliza sozinho
+        AuthorityProfile portal = profiles.getLast();
+        assertThat(portal.isCanFormalize()).isTrue();
+        assertThat(portal.isCanApprove()).isFalse();
+        assertThat(portal.limits().maxConcessionLevel()).isEqualTo(1);
+        assertThat(portal.limits().maxInstallments()).isEqualTo(6);
+        assertThat(portal.limits().minDownPaymentShare()).isEqualByComparingTo("20");
+        assertThat(portal.limits().maxRenegotiations()).isZero();
     }
 
     @Test

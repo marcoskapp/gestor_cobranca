@@ -71,7 +71,9 @@ export type StatusDomain =
   | 'assistantPolicy'
   | 'assistantMode'
   | 'assistantReview'
-  | 'assistantTurn';
+  | 'assistantTurn'
+  | 'portalSession'
+  | 'portalRequest';
 
 const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   user: {
@@ -366,6 +368,19 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     EXECUTED: { label: 'Executada', tone: 'success' },
     SKIPPED: { label: 'Pulada', tone: 'warning' },
     FAILED: { label: 'Falhou', tone: 'danger' },
+  },
+  /** Sessão do devedor no portal. */
+  portalSession: {
+    ACTIVE: { label: 'Ativa', tone: 'success' },
+    ENDED: { label: 'Encerrada pelo devedor', tone: 'neutral' },
+    REVOKED: { label: 'Revogada', tone: 'warning' },
+    EXPIRED: { label: 'Expirada', tone: 'neutral' },
+  },
+  /** Pedido de atendimento vindo do portal. */
+  portalRequest: {
+    OPEN: { label: 'Aguardando envio', tone: 'info' },
+    FORWARDED: { label: 'Na fila de atendimento', tone: 'success' },
+    UNDELIVERED: { label: 'Sem conversa aberta', tone: 'danger' },
   },
   /** Instrução de pagamento (`InstructionStatus`). */
   paymentInstruction: {

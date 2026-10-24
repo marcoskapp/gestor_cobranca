@@ -88,12 +88,17 @@ public interface NegotiationSimulationUseCases {
      * @param envelope          envelope completo da política — somente para quem pode usar a escada inteira;
      *                          nunca para o assistente (minimização: o modelo só vê ofertas)
      * @param excludedTitles    títulos pedidos que ficaram fora por inelegibilidade
+     * @param breakRule         regra de quebra que valerá para o acordo (exibida antes do aceite; nula em
+     *                          simulações anteriores a este campo)
+     * @param proposalValidityDays validade da proposta em dias (idem)
      */
     record SimulationResult(UUID creditorId, UUID debtorId, UUID portfolioId, PolicyRef policy, LocalDate referenceDate,
                             ActorRef actor, LimitsView limits, int requestedLevel, int grantedLevel, boolean levelCapped,
                             boolean nextLevelAvailable, JustificationInput justification, String channel,
                             CompositionView composition, List<EnvelopeTierView> envelope, List<OfferView> offers,
-                            List<ExcludedTitleView> excludedTitles, List<String> notes, int engineVersion) {
+                            List<ExcludedTitleView> excludedTitles, List<String> notes, int engineVersion,
+                            AgreementUseCases.BreakRuleView breakRule, Integer proposalValidityDays,
+                            Integer maxDaysToFirstPayment) {
     }
 
     record PolicyRef(UUID policyId, int version, String overrideCode) {

@@ -198,6 +198,13 @@ class ProposalService implements ProposalUseCases {
                     "Condições fora da política ou títulos inelegíveis: " + String.join(", ", r.blockingCodes()),
                     Map.<String, Object>of("violations", r.blockingCodes()));
         }
+        if (r.outcome() == Outcome.REQUIRES_APPROVAL && DebtorSelfScope.isDebtor(actor)) {
+            // autonegociação: só o que o perfil do canal pré-autoriza; acima disso, atendimento humano
+            metrics.proposalCreated(actor.type().name(), "OUTSIDE_SELF_SERVICE");
+            throw new BusinessRuleException("proposal.outside_self_service",
+                    "Condições acima do autorizado para a autonegociação: " + String.join(", ", r.authorityCodes()),
+                    Map.<String, Object>of("violations", r.authorityCodes()));
+        }
         ProposalStatus status = r.outcome() == Outcome.WITHIN_AUTHORITY ? ProposalStatus.DRAFT
                 : actor.isAssistant() ? ProposalStatus.HANDED_OFF : ProposalStatus.PENDING_APPROVAL;
         Evaluation e = r.evaluation();
@@ -260,7 +267,12 @@ class ProposalService implements ProposalUseCases {
             metrics.handoffRequested();
         }
         metrics.proposalCreated(actor.type().name(), status.name());
-        return views.proposal(proposal, actor.isAssistant());
+        return views.proposal(proposal, minimized(actor));
+    }
+
+    /** Assistente e devedor no portal recebem a visão mínima (sem observações livres de decisão). */
+    static boolean minimized(Actor actor) {
+        return actor.isAssistant() || DebtorSelfScope.isDebtor(actor);
     }
 
     /** Resumo para o operador, sem dados pessoais: condições, valores e violações de alçada. */
@@ -303,7 +315,7 @@ class ProposalService implements ProposalUseCases {
     @Transactional(readOnly = true)
     public ProposalView get(UUID proposalId) {
         requireReader();
-        return views.proposal(loadVisible(proposalId), currentActor.get().isAssistant());
+        return views.proposal(loadVisible(proposalId), minimized(currentActor.get()));
     }
 
     @Override
@@ -317,10 +329,11 @@ class ProposalService implements ProposalUseCases {
         Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
         ProposalStatus status = filter.status() == null ? null : enumValue(ProposalStatus.class, filter.status(),
                 "proposal.status_invalid");
-        return PageResponse.of(proposals.search(allowed, filter.creditorId(), filter.debtorId(), filter.caseId(), status,
+        return PageResponse.of(proposals.search(allowed, filter.creditorId(),
+                DebtorSelfScope.debtorFilter(actor, filter.debtorId()), filter.caseId(), status,
                 actor.isAssistant() ? actor.type().name() : filter.actorType(), actor.isAssistant() ? actor.id() : null,
                 page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
-                p -> views.proposal(p, actor.isAssistant()));
+                p -> views.proposal(p, minimized(actor)));
     }
 
     @Override
@@ -434,6 +447,8 @@ class ProposalService implements ProposalUseCases {
         String channel = command == null || command.channel() == null ? null : command.channel().trim().toUpperCase();
         Guard.require(channel != null && AcceptanceEvidence.CHANNELS.contains(channel), "proposal.acceptance_channel_invalid",
                 "Informe o canal do aceite (PHONE, WHATSAPP, EMAIL, SMS, CHAT, PORTAL, IN_PERSON)");
+        Guard.require(!DebtorSelfScope.isDebtor(actor) || "PORTAL".equals(channel), "proposal.acceptance_channel_invalid",
+                "O aceite do devedor no portal é sempre pelo canal PORTAL");
         Result r = reevaluate(actor, p);
         StoredFile term = termIssuer.issue(p, r.evaluation(), r.ctx().rules().breakRule(), channel);
         Instant now = Instant.now(clock);
@@ -449,7 +464,7 @@ class ProposalService implements ProposalUseCases {
                 .attr("actorType", actor.type()).attr("concessionLevel", p.getLevel())
                 .attr("installments", p.getInstallments()).attr("approved", p.wasApproved()));
         metrics.proposalAccepted(channel);
-        return views.proposal(p, actor.isAssistant());
+        return views.proposal(p, minimized(actor));
     }
 
     @Override
@@ -552,6 +567,7 @@ class ProposalService implements ProposalUseCases {
             // o assistente só vê as próprias propostas (minimização)
             throw new ResourceNotFoundException(RESOURCE, id);
         }
+        DebtorSelfScope.requireOwn(actor, RESOURCE, id, p.getDebtorId(), accessLogger);
         return p;
     }
 

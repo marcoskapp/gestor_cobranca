@@ -43,6 +43,12 @@ public record AccessEvent(
         return new AccessEvent(type, isSuccess(type), tenantId, "USER", userId, sessionId, maskedPrincipal, details);
     }
 
+    /** Evento do devedor no portal fora de requisição autenticada (ex.: abertura da sessão). */
+    public static AccessEvent forDebtor(AccessEventType type, UUID tenantId, UUID debtorId, UUID sessionId,
+                                        Map<String, String> details) {
+        return new AccessEvent(type, isSuccess(type), tenantId, "DEBTOR", debtorId, sessionId, null, details);
+    }
+
     public static AccessEvent anonymous(AccessEventType type, UUID tenantId, String maskedPrincipal, Map<String, String> details) {
         return new AccessEvent(type, isSuccess(type), tenantId, "ANONYMOUS", null, null, maskedPrincipal, details);
     }
@@ -50,7 +56,7 @@ public record AccessEvent(
     private static boolean isSuccess(AccessEventType type) {
         return switch (type) {
             case LOGIN_FAILURE, LOGIN_BLOCKED, MFA_FAILURE, TOKEN_REUSE_DETECTED, ACCESS_DENIED, SCOPE_DENIED,
-                 UNAUTHENTICATED, WEBHOOK_REJECTED, PORTAL_LOGIN_FAILURE, RATE_LIMITED -> false;
+                 UNAUTHENTICATED, WEBHOOK_REJECTED, PORTAL_LOGIN_FAILURE, PORTAL_LOCKED, RATE_LIMITED -> false;
             default -> true;
         };
     }

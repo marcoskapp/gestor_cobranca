@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases;
 import br.com.gestorcobranca.negotiation.application.service.NegotiationGuard.Context;
 import br.com.gestorcobranca.negotiation.application.service.NegotiationGuard.Evaluation;
@@ -83,6 +84,7 @@ class SimulationService implements NegotiationSimulationUseCases {
         int requested = command.requestedLevel() == null ? 0 : command.requestedLevel();
         Guard.require(requested >= 0, "negotiation.level_invalid", "Nível inválido");
         Justification justification = justification(command.justification(), requested > 0);
+        requireReasonForActor(actor, justification);
 
         Context ctx = guard.prepare(actor, new NegotiationGuard.Request(command.creditorId(), command.debtorId(),
                 command.titleIds(), command.referenceDate(), null), false);
@@ -108,14 +110,17 @@ class SimulationService implements NegotiationSimulationUseCases {
                 }
             }
         }
-        boolean envelopeVisible = !actor.isAssistant() && limits.maxConcessionLevel() >= rules.topLevel();
+        // o envelope completo só para humanos com a escada inteira — nunca ao assistente nem ao devedor
+        boolean envelopeVisible = actor.isUser() && limits.maxConcessionLevel() >= rules.topLevel();
         SimulationResult result = new SimulationResult(command.creditorId(), command.debtorId(), ctx.portfolioId(),
                 new PolicyRef(ctx.policy().id(), ctx.policy().policy().getPolicyVersion(), ctx.resolved().overrideCode()),
                 reference, actorRef(ctx), SimulationViews.limits(rules, limits), requested, granted, requested > maxLevel,
                 granted < maxLevel, justification == null ? null : new JustificationInput(justification.reason().name(),
                 justification.note()), channel, SimulationViews.composition(ctx.composition()),
                 envelopeVisible ? envelope(ctx) : null, offers, SimulationViews.excluded(ctx.excluded()),
-                ctx.composition().notes(), DebtCalculator.ENGINE_VERSION);
+                ctx.composition().notes(), DebtCalculator.ENGINE_VERSION,
+                new AgreementUseCases.BreakRuleView(rules.breakRule().overdueInstallments(), rules.breakRule().toleranceDays()),
+                rules.validity().proposalValidityDays(), rules.validity().maxDaysToFirstPayment());
 
         NegotiationSimulation simulation = simulations.save(new NegotiationSimulation(new NegotiationSimulation.Header(
                 command.creditorId(), command.debtorId(), ctx.portfolioId(), ctx.policy().id(),
@@ -164,8 +169,9 @@ class SimulationService implements NegotiationSimulationUseCases {
                 .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, simulationId));
         accessScope.requireVisible(RESOURCE, simulationId, simulation.getCreditorId());
         Actor actor = currentActor.get();
-        if (actor.isAssistant() && !actor.id().equals(simulation.getActorId())) {
-            // o assistente só relê as próprias simulações (minimização de dados ao modelo)
+        if ((actor.isAssistant() || DebtorSelfScope.isDebtor(actor)) && !(actor.id().equals(simulation.getActorId())
+                && actor.type().name().equals(simulation.getActorType()))) {
+            // o assistente e o devedor no portal só releem as próprias simulações (minimização)
             throw new ResourceNotFoundException(RESOURCE, simulationId);
         }
         return new SimulationView(simulation.getId(), simulation.getCreatedAt(),
@@ -181,6 +187,7 @@ class SimulationService implements NegotiationSimulationUseCases {
         channel(command.channel());
         Justification justification = command.level() > 0 && command.justification() != null
                 ? justification(command.justification(), true) : null;
+        requireReasonForActor(currentActor.get(), justification);
         Context ctx = guard.prepare(currentActor.get(), new NegotiationGuard.Request(command.creditorId(),
                 command.debtorId(), command.titleIds(), command.referenceDate(), command.policyId()), true);
         PlanRequest plan = planRequest(command.plan(), ctx.composition().referenceDate());
@@ -225,7 +232,7 @@ class SimulationService implements NegotiationSimulationUseCases {
                 ctx.authority().profile().getCode());
     }
 
-    private record Justification(ConcessionReason reason, String note) {
+    record Justification(ConcessionReason reason, String note) {
     }
 
     private static Justification justification(JustificationInput input, boolean required) {
@@ -247,6 +254,20 @@ class SimulationService implements NegotiationSimulationUseCases {
         Guard.require(note == null || note.length() <= 500, "negotiation.justification_note_too_long",
                 "Observação até 500 caracteres");
         return new Justification(reason, note);
+    }
+
+    /**
+     * O motivo {@code SELF_SERVICE_PREAUTHORIZED} é exclusivo do devedor no portal, que não usa outro
+     * (o devedor não justifica concessão: o nível já foi autorizado pelo perfil do canal).
+     */
+    static void requireReasonForActor(Actor actor, Justification justification) {
+        if (justification == null) {
+            return;
+        }
+        boolean selfService = justification.reason() == ConcessionReason.SELF_SERVICE_PREAUTHORIZED;
+        Guard.require(selfService == DebtorSelfScope.isDebtor(actor), "negotiation.justification_reason_not_allowed",
+                selfService ? "Motivo exclusivo da autonegociação no portal"
+                        : "No portal, a concessão é sempre a pré-autorizada do canal");
     }
 
     static String channel(String channel) {

@@ -25,6 +25,7 @@ import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
+import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import org.springframework.stereotype.Component;
@@ -43,7 +44,8 @@ import java.util.UUID;
  * Validação única das condições de negociação (§5): <strong>nenhum caminho</strong> — tela, API,
  * automação ou assistente — oferece ou aceita condição sem passar por aqui. Aplica, nesta ordem:
  * <ol>
- *   <li>escopo de credor do ator (403 e log de acesso);</li>
+ *   <li>escopo de credor do ator (403 e log de acesso) e, para o devedor no portal, somente o próprio
+ *       devedor (404 e log de acesso — nunca negocia dívida de outra pessoa);</li>
  *   <li>política vigente do credor (e, se informada, que a versão esperada é a vigente);</li>
  *   <li>títulos do devedor no credor, em aberto e elegíveis ({@link CaseEligibilityPort});</li>
  *   <li>composição pelo {@link DebtCalculator} com as regras da sobreposição aplicável;</li>
@@ -98,6 +100,7 @@ class NegotiationGuard {
     }
 
     private final AccessScope accessScope;
+    private final AccessLogger accessLogger;
     private final PolicyResolver policies;
     private final DebtTitles debtTitles;
     private final CaseEligibilityPort eligibility;
@@ -109,10 +112,11 @@ class NegotiationGuard {
     private final OfferCalculator offers = new OfferCalculator();
     private final TermsEvaluator evaluator = new TermsEvaluator();
 
-    NegotiationGuard(AccessScope accessScope, PolicyResolver policies, DebtTitles debtTitles,
+    NegotiationGuard(AccessScope accessScope, AccessLogger accessLogger, PolicyResolver policies, DebtTitles debtTitles,
                      CaseEligibilityPort eligibility, MonetaryIndexProvider indexProvider,
                      AuthorityResolver authorityResolver, NegotiationMetrics metrics, Clock clock) {
         this.accessScope = accessScope;
+        this.accessLogger = accessLogger;
         this.policies = policies;
         this.debtTitles = debtTitles;
         this.eligibility = eligibility;
@@ -134,6 +138,7 @@ class NegotiationGuard {
         Guard.require(request.creditorId() != null && request.debtorId() != null, "negotiation.subject_required",
                 "Credor e devedor obrigatórios");
         accessScope.requireCreditor(request.creditorId());
+        DebtorSelfScope.require(actor, request.debtorId(), accessLogger);
         LocalDate today = LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
         LocalDate reference = request.referenceDate() == null ? today : request.referenceDate();
         ResolvedPolicy policy = policies.effective(request.creditorId(), today)
