@@ -39,7 +39,9 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
-| Outros | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.9), `score.calculated`, `assistant.replied`, `assistant.handoff` |
+| Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`; `policy.published` com `policyKind = assistant` |
+| Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
+| Outros | `score.calculated` |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -253,7 +255,25 @@ Comissão da assessoria junto ao credor (não é remuneração de pessoa): os ev
 | `settlement.acknowledged` / `settlement.contested` | resposta do credor registrada | `daysAfterSent`; aceite: `afterContestation`; contestação: `amount` = líquido |
 | `settlement.transfer_recorded` | repasse (ou recebimento do credor) registrado com comprovante | `statementId`, `direction`, `outstandingAfter`, `daysAfterApproval`; `amount` |
 
-### 3.9 Atributos dos eventos do portal de autonegociação (portal)
+### 3.9 Atributos dos eventos do assistente de IA (assistant)
+
+Eventos de turno levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `channel`, referência `assistant_turn`/id do turno e os atributos comuns `conversationId`, `mode`, `policyId`, `policyVersion`, `promptVersion` (`código@versão`), `episode`, `turn`. Nunca levam texto do devedor, resposta, nome, documento ou contato; o conteúdo fica cifrado na trilha (`assistant.assistant_turn`). `amount` = total da proposta corrente, quando houver.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `assistant.replied` | resposta enviada ao devedor (passou pelos guardrails e pelo porteiro) | `intent`, `toolCalls`, `modelCalls`, `identity`, `inputTokens`, `outputTokens`, `cost`, `costCurrency`, `proposalId`, `agreementId`; `durationMs` = turno |
+| `assistant.handoff_triggered` | o turno decidiu transferir (o communication registra `assistant.handoff` na mudança de dono) | os de `assistant.replied` + `reason` (motivo de `HandoffReason`), `source` (`RULE`, `MODEL`, `GUARDRAIL`, `LIMIT`, `ENGINE`, `POLICY`, `FAILURE`), `requiredProfile` |
+| `assistant.approval_requested` | aceite registrado; formalização por humano (modo com aprovação ou perfil sem `canFormalize`) | os de `assistant.handoff_triggered`; `proposalId` |
+| `assistant.draft_proposed` | rascunho/sugestão para o operador (sombra/copiloto) | os de `assistant.replied` |
+| `assistant.guardrail_blocked` | guardrail recusou a resposta | `codes` (lista), `action` (`FALLBACK_HANDOFF` no autônomo, `DRAFT_SUPPRESSED` no rascunho) |
+| `assistant.reply_blocked` | porteiro de contato negou o envio | `reasons` (motivos do compliance) |
+| `assistant.turn_failed` | falha técnica (provedor, tempo esgotado, turno interrompido) | `errorCode`; transferência registrada à parte |
+| `policy.published` (`policyKind = assistant`) | versão de política do assistente publicada | `code`, `version`, `mode`, `channels`, `promptCode`, `promptVersion`, `customAuthority`, `maxTurns`, `reviewSampleRate`, `extraTriggers` |
+| `assistant.policy_retired` | versão aposentada | `code`, `version`, `mode` |
+| `assistant.portfolio_disabled` | desligamento imediato da carteira | `previousMode`, `previousPolicyId` |
+| `assistant.review_recorded` | avaliação humana de turno amostrado | `score`, `verdict`, `sampleReason`, `tags`, `policyId` |
+
+### 3.10 Atributos dos eventos do portal de autonegociação (portal)
 
 Sem documento, contato, nome ou IP: só ids, canal `PORTAL`, valores e códigos. Funil por sessão: `portal.accessed` → `portal.simulated` → `portal.agreement_formalized` → `portal.pix_issued` → `portal.payment_confirmed`.
 
@@ -388,6 +408,15 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `legal.providers.manual_requests{port,operation}`, `legal.providers.captured{provider}` | pedidos de operação automática com adaptador manual; andamentos capturados |
 | `legal.access.law_firm_denied{resource}` | acessos negados a membros de escritório fora dos casos atribuídos |
 | `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos (inclui `cadence_exhausted` e `cadence_exhausted_ignored` — régua de outra finalidade), duração da varredura diária e falhas (alarme) |
+| `assistant.turns{mode,outcome}`, `assistant.turn.duration{mode,outcome}` (p50/p95/p99) | turnos por resultado (`REPLIED`, `DRAFTED`, `HANDED_OFF`, `APPROVAL_REQUESTED`, `SEND_BLOCKED`, `GUARDRAIL_BLOCKED`, `SKIPPED`, `FAILED`) e latência total do turno |
+| `assistant.model.calls{provider,outcome}`, `assistant.model.latency{provider}` (p50/p95/p99) | chamadas ao modelo (`ok`, `MODEL_TIMEOUT`, `MODEL_UNAVAILABLE`, `MODEL_REJECTED`) — alarme em taxa de falha |
+| `assistant.tokens{provider,direction}`, `assistant.cost{provider,currency}` | consumo de tokens (entrada/saída) e custo estimado do modelo (base do custo por acordo) |
+| `assistant.tool.calls{tool,outcome}` | ferramentas pedidas pelo modelo (`OK`, `REJECTED` = validação do servidor recusou, `ERROR` = módulo dono recusou); `REJECTED` crescente = prompt/modelo tentando sair dos limites |
+| `assistant.handoffs{reason,source}`, `assistant.guardrails{code}` | transferências por motivo e origem; guardrails acionados por código |
+| `assistant.drafts{mode}`, `assistant.identity.checks{outcome}`, `debt.identity_checks{outcome}` | rascunhos gerados; confirmações de identidade (`MATCHED`, `NOT_MATCHED`, `UNAVAILABLE`) |
+| `assistant.turns.scheduled{outcome}`, `assistant.turns.recovered` | agendamento dos turnos (`enqueued`, `deferred` fora do horário, `not_applicable`, `no_new_messages`, `skipped_conversation`) e turnos interrompidos recuperados (alarme se contínuo) |
+| `assistant.policy.transitions{status}`, `assistant.reviews{verdict}` | ciclo das políticas e avaliações humanas (`OUT_OF_POLICY` deve ser zero para avançar de fase) |
+| `assistant.retention.purged`, `assistant.events.consumed{type}`, `assistant.jobs.failures{job}` | descarte do conteúdo da trilha, consumo de eventos e falhas dos agendamentos (alarme) |
 | `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome}` | recebimentos registrados (`recorded`, `duplicate`) e apuração (`rated`, `pending_no_rules`, `pending_no_contract`, `pending_original_pending`); `pending_*` contínuo = contrato sem regras publicadas |
 | `settlement.events.ignored{type,reason}` | eventos sem efeito (ex.: `agreement_payment_recorded`/`unapplied`, `legal_expense`/`reimbursed_after_statement` — possível reembolso em duplicidade, investigar) |
 | `settlement.expenses{kind,effect}` | custas do jurídico materializadas (`CHARGE`/`CANCELLATION` × `DEDUCT`/`INFORMATIVE`) |

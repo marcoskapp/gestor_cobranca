@@ -189,4 +189,16 @@ public final class BusinessEventTypes {
     public static final String LEGAL_TITLES_SETTLED = "legal.titles_settled";
     public static final String LEGAL_PRESCRIPTION_ALERT = "legal.prescription_alert";
     public static final String LEGAL_MATTER_CLOSED = "legal.matter_closed";
+
+    // Assistente de IA (módulo assistant) — atributos em docs/tecnico/logs-e-metricas.md §3.8.
+    // assistant.replied e assistant.handoff (este publicado pelo communication na transferência) acima.
+    public static final String ASSISTANT_DRAFT_PROPOSED = "assistant.draft_proposed";
+    public static final String ASSISTANT_HANDOFF_TRIGGERED = "assistant.handoff_triggered";
+    public static final String ASSISTANT_APPROVAL_REQUESTED = "assistant.approval_requested";
+    public static final String ASSISTANT_GUARDRAIL_BLOCKED = "assistant.guardrail_blocked";
+    public static final String ASSISTANT_REPLY_BLOCKED = "assistant.reply_blocked";
+    public static final String ASSISTANT_TURN_FAILED = "assistant.turn_failed";
+    public static final String ASSISTANT_POLICY_RETIRED = "assistant.policy_retired";
+    public static final String ASSISTANT_PORTFOLIO_DISABLED = "assistant.portfolio_disabled";
+    public static final String ASSISTANT_REVIEW_RECORDED = "assistant.review_recorded";
 }

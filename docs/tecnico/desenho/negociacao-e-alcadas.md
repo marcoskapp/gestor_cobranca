@@ -270,7 +270,7 @@ Porta pública adicional (23/10/2026, para a prestação de contas — [prestaca
 ### 10.12 Pendências
 
 - ~~**payment**: produzir `PaymentConfirmed` com `agreementId` e `agreementInstallmentId` sem lançar essas alocações no razão; realocar pagamentos `UNAPPLIED`.~~ Feito (ver [pagamentos.md](pagamentos.md)); o `paymentId` recebido é o id da alocação no payment.
-- **assistant**: encerrar o turno com a mensagem de transferência quando a ferramenta de proposta devolver `HANDED_OFF` (o communication já consome `HandoffRequested`).
+- ~~**assistant**: encerrar o turno com a mensagem de transferência quando a ferramenta de proposta devolver `HANDED_OFF`.~~ Feito (ver [assistente.md](assistente.md) §5): o devedor é avisado antes do registro da proposta e o turno termina.
 - **collection**: consumir `DebtorAnonymized` para observações próprias; opcionalmente reagir ao handoff.
 - **debt**: operação compensatória de reconhecimento de encargo (estorno após lançamento, §10.5).
 - **jurídico/produto**: modelo de termo versionado por credor (cláusulas, foro, identificação completa).

@@ -5,6 +5,8 @@ import { provideRouter } from '@angular/router';
 import { agreement, proposal } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideLocale } from '../../../core/config/locale.config';
+import { of } from 'rxjs';
+import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { CaseNegotiation } from './case-negotiation';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -58,5 +60,13 @@ describe('CaseNegotiation (aba da estação)', () => {
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('a[href^="/negociacao/propostas/"]').length).toBe(1);
     expect(text).toContain('1 de 3 pagas');
     expect(text).toContain('1 vencida(s)');
+  });
+
+  it('gera Pix da próxima parcela do acordo em vigor durante o atendimento', async () => {
+    const fixture = await render();
+    const launch = vi.spyOn(TestBed.inject(PaymentLauncher), 'instruction').mockReturnValue(of(undefined));
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Gerar Pix da 2ª parcela'))!;
+    button.click();
+    expect(launch).toHaveBeenCalledWith(expect.objectContaining({ debtorId: 'd-1', target: expect.objectContaining({ kind: 'INSTALLMENT', installmentId: 'i-2', balance: 1350 }) }));
   });
 });

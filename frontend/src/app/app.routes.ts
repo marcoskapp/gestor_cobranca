@@ -50,6 +50,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/negotiation/negotiation.routes').then((m) => m.NEGOTIATION_ROUTES),
       },
       {
+        path: 'pagamentos',
+        loadChildren: () => import('./features/payment/payment.routes').then((m) => m.PAYMENT_ROUTES),
+      },
+      {
         path: 'conversas',
         loadChildren: () => import('./features/communication/communication.routes').then((m) => m.COMMUNICATION_ROUTES),
       },
