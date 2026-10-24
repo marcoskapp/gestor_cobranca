@@ -44,7 +44,7 @@ import { parseMoney } from '../data/payment.rules';
           <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
         }
         <div class="app-form-grid">
-          <mat-form-field>
+          <mat-form-field floatLabel="always">
             <mat-label>Limite para segunda aprovação</mat-label>
             <span matTextPrefix>R$&nbsp;</span>
             <input matInput formControlName="threshold" inputmode="decimal" />

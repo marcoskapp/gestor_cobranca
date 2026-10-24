@@ -1,10 +1,11 @@
 import { Component, effect, input, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { toDataURL } from 'qrcode';
 
 /**
  * QR Code do Pix gerado no navegador a partir do "copia e cola" (BR Code), sem serviço externo.
- * Usa a biblioteca `qrcode` (MIT), já adotada no cadastro de MFA, carregada sob demanda (fica num
- * bloco próprio, fora do pacote inicial). Correção de erro "M", recomendada para BR Code.
+ * Usa a biblioteca `qrcode` (MIT), já adotada no cadastro de MFA; o componente só existe em blocos
+ * carregados sob demanda (diálogo e ficha da instrução), fora do pacote inicial. Correção de erro "M", recomendada para BR Code.
  */
 @Component({
   selector: 'app-pix-qr',
@@ -73,8 +74,7 @@ export class PixQr {
       onCleanup(() => (cancelled = true));
       this.dataUrl.set(null);
       this.failed.set(false);
-      import('qrcode')
-        .then((qr) => qr.toDataURL(value, { errorCorrectionLevel: 'M', margin: 1, width: width * 2 }))
+      toDataURL(value, { errorCorrectionLevel: 'M', margin: 1, width: width * 2 })
         .then((url) => !cancelled && this.dataUrl.set(url))
         .catch(() => !cancelled && this.failed.set(true));
     });

@@ -59,12 +59,12 @@ export interface ExternalDialogData {
 
         <h3 class="app-section-title">Pagamento</h3>
         <div class="app-form-grid">
-          <mat-form-field>
+          <mat-form-field floatLabel="always">
             <mat-label>Valor pago</mat-label>
             <span matTextPrefix>R$&nbsp;</span>
             <input matInput formControlName="amount" inputmode="decimal" autocomplete="off" required />
             @if (target(); as t) {
-              <mat-hint>Saldo do destino: {{ money(t.balance) }}. O que passar vira sobra para realocar.</mat-hint>
+              <mat-hint>Saldo do destino: {{ money(t.balance) }}; o excedente vira sobra.</mat-hint>
             }
             <mat-error>Informe o valor (ex.: 350,00).</mat-error>
           </mat-form-field>
@@ -139,6 +139,9 @@ export interface ExternalDialogData {
     </form>
   `,
   styles: `
+    .app-form-grid {
+      align-items: start;
+    }
     .xd-file {
       display: flex;
       flex-wrap: wrap;

@@ -67,7 +67,7 @@ export interface ReallocateDialogData {
         }
 
         <div class="app-form-grid">
-          <mat-form-field>
+          <mat-form-field floatLabel="always">
             <mat-label>Valor</mat-label>
             <span matTextPrefix>R$&nbsp;</span>
             <input matInput formControlName="amount" inputmode="decimal" autocomplete="off" required />
