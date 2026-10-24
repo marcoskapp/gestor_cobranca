@@ -285,7 +285,7 @@ class IngestionModuleIT extends IngestionTestSupport {
 
     @Test
     void apiRecordsAreIdempotentByKey() {
-        Map<String, String> record = new LinkedHashMap<>();
+        Map<String, Object> record = new LinkedHashMap<>();
         record.put("documento", MARIA);
         record.put("nome", "Maria Silva");
         record.put("id_titulo", "API-1");
@@ -298,7 +298,7 @@ class IngestionModuleIT extends IngestionTestSupport {
         assertThat(repeated.id()).isEqualTo(first.id());
         assertThat(first.source()).isEqualTo("API");
 
-        Map<String, String> changed = new LinkedHashMap<>(record);
+        Map<String, Object> changed = new LinkedHashMap<>(record);
         changed.put("valor_principal", "200.00");
         assertThatThrownBy(() -> asImporterOf(creditorA, () -> batches.importRecords(
                 new ImportRecordsCommand(portfolioA, null, false, null, List.of(changed)), "erp-2026-10-23-001")))

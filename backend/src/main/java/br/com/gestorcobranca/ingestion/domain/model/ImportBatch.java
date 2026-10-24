@@ -8,6 +8,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -146,6 +148,28 @@ public class ImportBatch extends TenantScopedEntity {
     @Column(name = "started_at")
     private Instant startedAt;
 
+    /** Conferência (assistente) que acompanha esta prévia ou que gerou esta importação. */
+    @Column(name = "review_id", updatable = false)
+    private UUID reviewId;
+
+    /** Interpretação aplicada às colunas monetárias ({@code NumberFormat} em JSON). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "number_format")
+    private String numberFormat;
+
+    /** Análise do formato numérico da leitura prévia ({@code FileFormatAnalysis} em JSON). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "format_analysis")
+    private String formatAnalysis;
+
+    /** Totais de controle informados pela integração e o resultado da conferência (JSON). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "control_totals")
+    private String controlTotals;
+
+    @Column(name = "rows_excluded", nullable = false)
+    private int rowsExcluded;
+
     @Column(name = "finished_at")
     private Instant finishedAt;
 
@@ -154,6 +178,14 @@ public class ImportBatch extends TenantScopedEntity {
 
     public ImportBatch(UUID creditorId, UUID portfolioId, FileLayout layout, ImportSource source, ImportMode mode,
                        StoredContent file, Forcing forcing, UUID reprocessOfBatchId) {
+        this(creditorId, portfolioId, layout, source, mode, file, forcing, reprocessOfBatchId, Options.NONE);
+    }
+
+    /**
+     * @param options conferência vinculada, formato numérico informado (integração ou conferência) e totais de controle
+     */
+    public ImportBatch(UUID creditorId, UUID portfolioId, FileLayout layout, ImportSource source, ImportMode mode,
+                       StoredContent file, Forcing forcing, UUID reprocessOfBatchId, Options options) {
         Guard.require(creditorId != null, "import_batch.creditor_required", "Credor obrigatório");
         Guard.require(portfolioId != null, "import_batch.portfolio_required", "Carteira obrigatória");
         Guard.require(layout != null && source != null && mode != null && file != null,
@@ -184,6 +216,51 @@ public class ImportBatch extends TenantScopedEntity {
         }
         this.reprocessOfBatchId = reprocessOfBatchId;
         this.principalTotal = Money.ZERO;
+        Options o = options == null ? Options.NONE : options;
+        this.reviewId = o.reviewId();
+        this.numberFormat = o.numberFormat();
+        this.controlTotals = o.controlTotals();
+    }
+
+    /**
+     * Prévia de conferência com colunas monetárias ambíguas ou misturadas: a leitura prévia terminou e o lote aguarda a
+     * decisão do usuário antes de validar qualquer linha.
+     */
+    public void awaitFormat(Instant now, long totalRows, String analysisJson, String partialFormatJson) {
+        Guard.requireState(status == ImportBatchStatus.RECEIVED, "import_batch.not_processable",
+                "Lote com status %s não pode ser iniciado".formatted(status));
+        Guard.requireState(mode == ImportMode.VALIDATE_ONLY && reviewId != null, "import_batch.format_undecided",
+                "Somente a prévia de uma conferência aguarda a decisão sobre o formato");
+        this.status = ImportBatchStatus.AWAITING_FORMAT;
+        this.startedAt = now;
+        this.totalRows = totalRows;
+        this.formatAnalysis = analysisJson;
+        this.numberFormat = partialFormatJson;
+    }
+
+    /** Decisão do usuário sobre o formato: a validação das linhas começa. */
+    public void applyFormat(String numberFormatJson) {
+        Guard.requireState(status == ImportBatchStatus.AWAITING_FORMAT, "import_batch.not_awaiting_format",
+                "O lote não está aguardando a decisão sobre o formato");
+        this.numberFormat = numberFormatJson;
+        this.status = mode.workingStatus();
+    }
+
+    /** Formato analisado e aplicado (registrado no início do processamento). */
+    public void recordFormat(String analysisJson, String numberFormatJson) {
+        Guard.requireState(status == mode.workingStatus(), "import_batch.not_in_progress",
+                "Lote com status %s não está em processamento".formatted(status));
+        this.formatAnalysis = analysisJson;
+        this.numberFormat = numberFormatJson;
+    }
+
+    /** Resultado da conferência dos totais de controle informados pela integração. */
+    public void recordControlTotals(String json) {
+        this.controlTotals = json;
+    }
+
+    public boolean isAwaitingFormat() {
+        return status == ImportBatchStatus.AWAITING_FORMAT;
     }
 
     /** Lote aguardando o início do processamento (a leitura prévia ainda não ocorreu). */
@@ -232,6 +309,7 @@ public class ImportBatch extends TenantScopedEntity {
         titlesUnchanged += tally.titlesUnchanged();
         titlesSkipped += tally.titlesSkipped();
         titlesSuspended += tally.titlesSuspended();
+        rowsExcluded += tally.rowsExcluded();
         principalTotal = principalTotal.plus(tally.principalTotal());
         issuesRecorded += newIssuesRecorded;
         lastProcessedRow = lastRow;
@@ -268,7 +346,8 @@ public class ImportBatch extends TenantScopedEntity {
 
     /** Ocorrência de erro do arquivo como um todo (linha 0) gravada antes de falhar o lote. */
     public void recordFileError() {
-        Guard.requireState(status == ImportBatchStatus.RECEIVED || status == mode.workingStatus(),
+        Guard.requireState(status == ImportBatchStatus.RECEIVED || status == ImportBatchStatus.AWAITING_FORMAT
+                        || status == mode.workingStatus(),
                 "import_batch.not_failable", "Lote com status %s já foi encerrado".formatted(status));
         errors++;
         issuesRecorded++;
@@ -276,7 +355,8 @@ public class ImportBatch extends TenantScopedEntity {
 
     /** Falha do lote (arquivo ilegível, carteira sem aceitar cargas, erro persistente). */
     public void fail(Instant now, String reason, int debtorsCreated, int debtorsUpdated) {
-        Guard.requireState(status == ImportBatchStatus.RECEIVED || status == mode.workingStatus(),
+        Guard.requireState(status == ImportBatchStatus.RECEIVED || status == ImportBatchStatus.AWAITING_FORMAT
+                        || status == mode.workingStatus(),
                 "import_batch.not_failable", "Lote com status %s já foi encerrado".formatted(status));
         this.debtorsCreated = debtorsCreated;
         this.debtorsUpdated = debtorsUpdated;
@@ -289,13 +369,13 @@ public class ImportBatch extends TenantScopedEntity {
     /**
      * Pedido de cancelamento.
      *
-     * @return verdadeiro se o lote foi cancelado de imediato (ainda na fila); falso se o pedido foi
+     * @return verdadeiro se o lote foi cancelado de imediato (na fila ou aguardando formato); falso se o pedido foi
      *         registrado e o processamento em andamento vai parar ao fim do bloco corrente
      */
     public boolean requestCancel(Instant now, UUID requestedBy, String reason) {
         Guard.require(reason != null && !reason.isBlank(), "import_batch.cancel_reason_required",
                 "Informe o motivo do cancelamento");
-        if (status == ImportBatchStatus.RECEIVED) {
+        if (status == ImportBatchStatus.RECEIVED || status == ImportBatchStatus.AWAITING_FORMAT) {
             cancelRequestedAt = now;
             cancelRequestedBy = requestedBy;
             finish(ImportBatchStatus.CANCELLED, reason.strip(), now);
@@ -332,7 +412,7 @@ public class ImportBatch extends TenantScopedEntity {
         if (status.isTerminal() && status != ImportBatchStatus.CANCELLED && status != ImportBatchStatus.FAILED) {
             return 100;
         }
-        return totalRows == 0 ? 0 : (int) Math.min(100, rowsRead * 100L / totalRows);
+        return totalRows == 0 ? 0 : (int) Math.min(100, (rowsRead + rowsExcluded) * 100L / totalRows);
     }
 
     private void finish(ImportBatchStatus target, String reason, Instant now) {
@@ -509,6 +589,38 @@ public class ImportBatch extends TenantScopedEntity {
 
     public Instant getFinishedAt() {
         return finishedAt;
+    }
+
+    public UUID getReviewId() {
+        return reviewId;
+    }
+
+    public String getNumberFormat() {
+        return numberFormat;
+    }
+
+    public String getFormatAnalysis() {
+        return formatAnalysis;
+    }
+
+    public String getControlTotals() {
+        return controlTotals;
+    }
+
+    public int getRowsExcluded() {
+        return rowsExcluded;
+    }
+
+    /**
+     * Opções de criação do lote.
+     *
+     * @param reviewId      conferência vinculada (prévia de conferência ou importação gerada por ela)
+     * @param numberFormat  interpretação já decidida das colunas monetárias ({@code NumberFormat} em JSON), ou nula
+     * @param controlTotals totais de controle informados pela integração (JSON), ou nulos
+     */
+    public record Options(UUID reviewId, String numberFormat, String controlTotals) {
+
+        public static final Options NONE = new Options(null, null, null);
     }
 
     /** Arquivo original já gravado no armazenamento. */

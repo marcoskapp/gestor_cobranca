@@ -35,6 +35,7 @@ public enum Permission {
     // Ingestão
     IMPORT_VIEW("Consultar importações"),
     IMPORT_EXECUTE("Importar carteiras e títulos"),
+    IMPORT_APPROVE("Aprovar importações acima do limite (segunda pessoa, segregado de quem envia e efetiva)"),
 
     // Devedores e dívidas
     DEBTOR_VIEW("Consultar devedores"),

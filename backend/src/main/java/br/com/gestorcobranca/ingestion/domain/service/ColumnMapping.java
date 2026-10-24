@@ -7,6 +7,7 @@ import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,28 +93,51 @@ public final class ColumnMapping {
      */
     public static SourceRow fromRecord(FileLayout layout, long rowNumber, Map<String, String> record,
                                        Set<String> unknownKeys) {
+        return fromRecord(layout, rowNumber, record, Set.of(), unknownKeys);
+    }
+
+    /**
+     * @param typedKeys chaves cujo valor veio como número JSON (texto canônico em {@code record})
+     */
+    public static SourceRow fromRecord(FileLayout layout, long rowNumber, Map<String, String> record,
+                                       Set<String> typedKeys, Set<String> unknownKeys) {
         Map<String, CanonicalField> byKey = layout.columns().stream()
                 .collect(Collectors.toMap(c -> CanonicalField.normalizeHeader(c.header()), FileLayout.Column::field));
         Map<CanonicalField, String> values = new EnumMap<>(CanonicalField.class);
+        Set<CanonicalField> typed = EnumSet.noneOf(CanonicalField.class);
         record.forEach((key, value) -> {
             CanonicalField field = key == null ? null : byKey.get(CanonicalField.normalizeHeader(key));
             if (field != null && value != null) {
                 values.put(field, value);
+                if (typedKeys.contains(key)) {
+                    typed.add(field);
+                }
             } else if (field == null && key != null && unknownKeys.size() < IgnoredColumns.MAX_LISTED) {
                 unknownKeys.add(key.strip());
             }
         });
-        return new SourceRow(rowNumber, values);
+        return new SourceRow(rowNumber, values, typed);
     }
 
     public SourceRow map(long rowNumber, List<String> cells) {
+        return map(rowNumber, cells, null);
+    }
+
+    /**
+     * @param typedCells por posição, se a célula é numérica tipada (XLSX); nulo = todas em texto (CSV)
+     */
+    public SourceRow map(long rowNumber, List<String> cells, List<Boolean> typedCells) {
         Map<CanonicalField, String> values = new EnumMap<>(CanonicalField.class);
+        Set<CanonicalField> typed = EnumSet.noneOf(CanonicalField.class);
         indexes.forEach((field, index) -> {
             if (index < cells.size() && cells.get(index) != null) {
                 values.put(field, cells.get(index));
+                if (typedCells != null && index < typedCells.size() && Boolean.TRUE.equals(typedCells.get(index))) {
+                    typed.add(field);
+                }
             }
         });
-        return new SourceRow(rowNumber, values);
+        return new SourceRow(rowNumber, values, typed);
     }
 
     private static String stripBom(String value) {

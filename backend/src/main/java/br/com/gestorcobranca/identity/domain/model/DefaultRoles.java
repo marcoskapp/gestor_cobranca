@@ -32,6 +32,10 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * registra repasses ({@code SETTLEMENT_TRANSFER}); o gestor aprova ({@code SETTLEMENT_APPROVE}). Quem calcula
  * ou pede ajuste não aprova, inclusive o administrador.
  * <p>
+ * Importação (docs/tecnico/desenho/importacao.md §5): o gestor importa ({@code IMPORT_EXECUTE}) e aprova, como
+ * segunda pessoa, efetivações acima do limite ({@code IMPORT_APPROVE}); quem enviou o arquivo ou pediu a efetivação
+ * não aprova, inclusive o administrador.
+ * <p>
  * Telefonia (docs/tecnico/desenho/telefonia.md §7): o operador liga, entra no discador e tabula
  * as próprias chamadas ({@code TELEPHONY_USE}); o supervisor acompanha operadores e chamadas,
  * opera campanhas de discagem e ouve gravações ({@code TELEPHONY_SUPERVISE},
@@ -80,7 +84,8 @@ public final class DefaultRoles {
                 PORTAL_MANAGE, ACCESS_LOG_VIEW, DEBTOR_SENSITIVE_VIEW, PERFORMANCE_VIEW_ALL, COMMISSION_PLAN_MANAGE,
                 TABULATION_MANAGE,
                 COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE,
-                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, SETTLEMENT_APPROVE));
+                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, SETTLEMENT_APPROVE,
+                IMPORT_APPROVE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,

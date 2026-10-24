@@ -1,6 +1,5 @@
 package br.com.gestorcobranca.ingestion.domain.service;
 
-import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.DateTimeException;
 import java.time.LocalDate;
@@ -17,10 +16,8 @@ import java.util.regex.Pattern;
  *   <li>Datas: {@code dd/MM/aaaa} (aceita dia e mês com um dígito), {@code dd-MM-aaaa} e ISO
  *       {@code aaaa-MM-dd} (com ou sem horário, que é descartado). Datas inexistentes (31/02) e
  *       anos fora de 1900–2199 são recusados; ano com dois dígitos é ambíguo e recusado.</li>
- *   <li>Valores: {@code 1.234,56}, {@code 1234,56}, {@code 1234.56}, {@code 1234} e com
- *       prefixo {@code R$}; no máximo duas casas decimais. Com vírgula decimal, o ponto é
- *       separador de milhar (grupos de três). Sem vírgula, "1.234" só pode ser milhar —
- *       valores monetários não têm três casas — e vale 1234.</li>
+ *   <li>Valores monetários: {@code format.AmountParser}, com a convenção decidida por coluna
+ *       ({@code docs/tecnico/desenho/importacao.md} §2).</li>
  * </ul>
  */
 public final class BrazilianFormats {
@@ -34,11 +31,6 @@ public final class BrazilianFormats {
     private static final int MIN_YEAR = 1900;
     private static final int MAX_YEAR = 2199;
 
-    private static final Pattern BR_GROUPED = Pattern.compile("\\d{1,3}(\\.\\d{3})+(,\\d{1,2})?");
-    private static final Pattern BR_PLAIN = Pattern.compile("\\d+(,\\d{1,2})?");
-    private static final Pattern DOT_DECIMAL = Pattern.compile("\\d+\\.\\d{1,2}");
-    private static final Pattern DIGITS = Pattern.compile("\\d+");
-    private static final int MAX_INTEGER_DIGITS = 17;
 
     private static final Set<String> TRUE_VALUES = Set.of("S", "SIM", "Y", "YES", "1", "TRUE", "VERDADEIRO", "X");
     private static final Set<String> FALSE_VALUES = Set.of("N", "NAO", "NO", "0", "FALSE", "FALSO");
@@ -66,37 +58,6 @@ public final class BrazilianFormats {
         } catch (DateTimeException e) {
             return Optional.empty();
         }
-    }
-
-    /** Valor com sinal (o chamador decide se negativo é aceitável); vazio se o formato for inválido. */
-    public static Optional<BigDecimal> parseAmount(String raw) {
-        if (raw == null) {
-            return Optional.empty();
-        }
-        String value = raw.strip().replace("R$", "").replace(" ", "").replace("\u00A0", "");
-        boolean negative = value.startsWith("-");
-        if (negative || value.startsWith("+")) {
-            value = value.substring(1);
-        }
-        String normalized;
-        if (value.contains(",")) {
-            if (BR_GROUPED.matcher(value).matches() || BR_PLAIN.matcher(value).matches()) {
-                normalized = value.replace(".", "").replace(',', '.');
-            } else {
-                return Optional.empty();
-            }
-        } else if (DOT_DECIMAL.matcher(value).matches() || DIGITS.matcher(value).matches()) {
-            normalized = value;
-        } else if (BR_GROUPED.matcher(value).matches()) {
-            normalized = value.replace(".", "");
-        } else {
-            return Optional.empty();
-        }
-        BigDecimal amount = new BigDecimal(normalized);
-        if (amount.precision() - amount.scale() > MAX_INTEGER_DIGITS) {
-            return Optional.empty();
-        }
-        return Optional.of(negative ? amount.negate() : amount);
     }
 
     /** Inteiro positivo ou zero (aceita zeros à esquerda e o ".0" de planilhas); vazio se inválido. */

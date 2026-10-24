@@ -17,6 +17,7 @@ public final class BlockTally {
     private int titlesUnchanged;
     private int titlesSkipped;
     private int titlesSuspended;
+    private int rowsExcluded;
     private Money principalTotal = Money.ZERO;
 
     /**
@@ -56,6 +57,16 @@ public final class BlockTally {
         rowsWithError++;
         errors += errorCount;
         warnings += warningCount;
+    }
+
+    /** Linha excluída na conferência: não é validada nem gravada (não conta como lida). */
+    public void excludedRow() {
+        rowsExcluded++;
+        warnings++;
+    }
+
+    public int rowsExcluded() {
+        return rowsExcluded;
     }
 
     public int rowsRead() {

@@ -47,6 +47,7 @@ class IngestionMetrics {
     void block(String mode, BlockTally tally, int issuesSaved) {
         registry.counter("ingestion.rows", "mode", mode, "outcome", "valid").increment(tally.rowsValid());
         registry.counter("ingestion.rows", "mode", mode, "outcome", "rejected").increment(tally.rowsWithError());
+        registry.counter("ingestion.rows", "mode", mode, "outcome", "excluded").increment(tally.rowsExcluded());
         registry.counter("ingestion.titles", "outcome", "created").increment(tally.titlesCreated());
         registry.counter("ingestion.titles", "outcome", "updated").increment(tally.titlesUpdated());
         registry.counter("ingestion.titles", "outcome", "unchanged").increment(tally.titlesUnchanged());
@@ -71,6 +72,47 @@ class IngestionMetrics {
     void rowWrite(Timer.Sample sample, String outcome) {
         sample.stop(Timer.builder("ingestion.row.write.duration").tag("outcome", outcome)
                 .publishPercentiles(0.5, 0.95, 0.99).register(registry));
+    }
+
+    /** Situação do formato numérico de cada coluna monetária analisada na leitura prévia. */
+    void formatColumn(String status) {
+        registry.counter("ingestion.format.columns", "status", status).increment();
+    }
+
+    /** Valores monetários em texto (no XLSX: "números armazenados como texto"). */
+    void textNumbers(String source, long count) {
+        registry.counter("ingestion.format.text_numbers", "source", source).increment(count);
+    }
+
+    /**
+     * Conferência de totais ({@code result}: match, mismatch; {@code hint}: scale, alternative, none). Taxa de
+     * divergência = mismatch ÷ total.
+     */
+    void totalsCheck(String origin, boolean matched, String hint) {
+        registry.counter("ingestion.totals.checks", "origin", origin, "result", matched ? "match" : "mismatch",
+                "hint", hint).increment();
+    }
+
+    void alertsDetected(String type, long count) {
+        registry.counter("ingestion.review.alerts", "type", type).increment(count);
+    }
+
+    void alertsDecided(String decision, long count) {
+        registry.counter("ingestion.review.decisions", "decision", decision).increment(count);
+    }
+
+    void reviewCommitted(boolean approvalRequired) {
+        registry.counter("ingestion.review.commits", "approval", approvalRequired ? "required" : "not_required")
+                .increment();
+    }
+
+    void reviewApproval(String decision) {
+        registry.counter("ingestion.review.approvals", "decision", decision).increment();
+    }
+
+    void analysis(Timer.Sample sample, String outcome) {
+        sample.stop(Timer.builder("ingestion.review.analysis.duration").tag("outcome", outcome)
+                .publishPercentiles(0.5, 0.95).register(registry));
     }
 
     /** Linha regravada após conflito de unicidade com outra carga simultânea. */
