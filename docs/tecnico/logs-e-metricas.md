@@ -27,7 +27,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Domínio | Eventos |
 | --- | --- |
 | Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
-| Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled` |
+| Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled`, `import.format_confirmed`, `import.totals_matched`, `import.totals_mismatch`, `import.alerts_detected`, `import.outliers_reviewed`, `import.review_committed`, `import.review_approved`, `import.review_rejected` |
 | Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `installment.overdue`, `installment.paid` |
@@ -76,6 +76,17 @@ Referência `import_batch`/id do lote, `creditorId`, `portfolioId`; nenhum dado 
 | `import.completed` | lote concluído (`COMPLETED`, `COMPLETED_WITH_ERRORS` ou `VALIDATED`) | `source`, `mode`, `status`, `layoutCode`, `totalRows`, `rowsRead`, `rowsValid`, `rowsWithError`, `errors`, `warnings`, `debtorsCreated`, `debtorsUpdated`, `titlesCreated`, `titlesUpdated`, `titlesUnchanged`, `titlesSkipped`, `titlesSuspended`, `errorRate` (%), `requestedBy`; `amount` = principal das linhas válidas; `durationMs` |
 | `import.failed` | arquivo inválido, carteira sem aceitar cargas, falha técnica persistente ou arquivo sem linhas | os de `import.completed` + `failureCode` |
 | `import.cancelled` | cancelado na fila (`phase=queued`) ou em processamento | os de `import.completed` |
+
+Conferência da importação (`docs/tecnico/desenho/importacao.md`): referência `import_review`/id da conferência (exceto o `import.totals_mismatch` da API, com `import_batch`), `creditorId`, `portfolioId`; ator = usuário (análise: sistema). Nenhum dado de devedor — só contagens, valores agregados e nomes de coluna.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `import.format_confirmed` | usuário confirma/decide a leitura das colunas monetárias | `batchId`, `decisions` (coluna → opção), `statuses` (coluna → `NOT_NEEDED`/`DETECTED`/`INFERRED`/`AMBIGUOUS`/`MIXED`), `decisionRequired`, `textValues`, `newPreview`, `requestedBy` |
+| `import.totals_matched` / `import.totals_mismatch` | conferência de totais (`origin` = `REVIEW` ou `API`) | `batchId`, `measures`, `mismatched`, `scaleExponent` (n da razão 10ⁿ, ou nulo), `alternativeMatch`, `attempt`, `requestedBy`; `amount` = principal calculado |
+| `import.alerts_detected` | análise de valores concluída | `batchId`, `alerts`, `stored`, `truncated`, `byType`, `reference` (referência → linhas), `rowsAnalyzed` |
+| `import.outliers_reviewed` | efetivação pedida (resumo da revisão) | `batchId`, `alerts`, `byType` (tipo → situação → quantidade), `rowsExcluded`, `requestedBy` |
+| `import.review_committed` | efetivação pedida | `batchId`, `rows`, `rowsToImport`, `rowsWithError`, `rowsExcluded`, `newTitles`, `existingTitles`, `approvalRequired`, `previews`, `totalsChecks`, `totalsMismatches`, `forced`, `requestedBy`; `amount` = principal a importar |
+| `import.review_approved` / `import.review_rejected` | decisão da segunda pessoa | `batchId`, `requestedBy`, `approvedBy`/`rejectedBy`, `waitMinutes` |
 
 ### 3.3 Atributos dos eventos de remuneração variável
 
@@ -357,6 +368,11 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `ingestion.files.rejected{reason}` | envios recusados no recebimento (tamanho, tipo pelo conteúdo, duplicidade, chave de idempotência…) |
 | `ingestion.rows{mode,outcome}`, `ingestion.titles{outcome}`, `ingestion.issues{severity}`, `ingestion.issues.stored` | linhas válidas/rejeitadas, títulos criados/atualizados/inalterados/não gravados/suspensos, ocorrências |
 | `ingestion.slice.duration{mode,outcome}`, `ingestion.row.write.duration{outcome}`, `ingestion.rows.retried` | desempenho do processamento (fatia, gravação por linha) e conflitos entre cargas simultâneas |
+| `ingestion.format.columns{status}`, `ingestion.format.text_numbers{source}` | colunas monetárias por situação do formato (proporção de `AMBIGUOUS`/`MIXED` por origem) e valores numéricos em texto (no XLSX, "números armazenados como texto") |
+| `ingestion.totals.checks{origin,result,hint}` | conferências de totais (`REVIEW`/`API`); **taxa de divergência** = `result=mismatch` ÷ total; `hint=scale` indica erro de separador decimal |
+| `ingestion.review.alerts{type}`, `ingestion.review.decisions{decision}` | alertas de valor por tipo e decisões (confirmados, excluídos, reabertos) |
+| `ingestion.review.commits{approval}`, `ingestion.review.approvals{decision}`, `ingestion.review.analysis.duration{outcome}` | efetivações (com/sem aprovação), decisões da segunda pessoa e duração da análise de valores |
+| `ingestion.rows{mode,outcome=excluded}` | linhas excluídas na conferência e puladas na importação |
 | `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento (`interaction`, `call`, `message`, `case_status`, `case_assignment`, `case_balance`, `callback`, `promise`, `attribution`, `agreement_status`, `installment_status`, `payment_confirmed`, `payment_reversed`) |
 | `incentive.facts.ignored{type,reason}` | evento consumido sem efeito nos fatos (`unknown_status` = situação nova do produtor ainda não tratada; `incomplete` = sem tarefa/horário/promessa). Crescimento contínuo = contrato do produtor mudou |
 | `incentive.facts.out_of_order{type}` | evento de retorno/promessa mais antigo que o último já aplicado ao mesmo compromisso (entrega fora de ordem, tratada sem perda: a situação só avança ou vale o evento mais recente) |
