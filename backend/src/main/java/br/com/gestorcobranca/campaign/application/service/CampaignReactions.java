@@ -27,6 +27,7 @@ import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
+import br.com.gestorcobranca.shared.events.scoring.CaseScoreChanged;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -112,6 +113,18 @@ class CampaignReactions {
                 tryResume(e, c, snapshot, trigger);
             }
         }
+    }
+
+    /**
+     * Score de propensão recalculado (scoring): grava na projeção (filtro de faixa de score dos
+     * segmentos). Caso ainda fora da projeção é projetado antes; cálculo mais antigo que o aplicado é
+     * ignorado pela própria gravação.
+     */
+    void caseScoreChanged(CaseScoreChanged event) {
+        if (audience.find(event.caseId()).isEmpty()) {
+            projection.refresh(event.caseId(), "case_score");
+        }
+        audience.applyScore(event.caseId(), event.score(), event.calculatedAt());
     }
 
     /** Retomada automática: causa cessou na posição do caso e, para restrição, algum canal da régua está livre. */

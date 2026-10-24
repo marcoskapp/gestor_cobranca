@@ -213,7 +213,8 @@ public record PlanRules(
         void validate() {
             Guard.require(metric != null && scope != null, "plan.rules.goal_metric_required", "Métrica e escopo da meta obrigatórios");
             Guard.require(metric != GoalMetric.RECOVERED_VS_EXPECTED, "plan.rules.goal_metric_unavailable",
-                    "Meta por recuperado × esperado depende do módulo de score (ainda indisponível)");
+                    "Meta por recuperado × esperado ainda não é apurada pelo motor de comissão "
+                            + "(o indicador está disponível só para consulta)");
             Guard.require(defaultTarget == null || defaultTarget.signum() > 0, "plan.rules.goal_target_invalid",
                     "Meta padrão deve ser positiva");
             Guard.require(triggerPercent != null && triggerPercent.signum() >= 0 && triggerPercent.compareTo(new BigDecimal("1000")) <= 0,

@@ -21,6 +21,15 @@ public interface AudienceStore {
 
     Optional<AudienceSnapshot> find(UUID caseId);
 
+    /**
+     * Grava o score de propensão publicado pelo scoring ({@code CaseScoreChanged}) se for mais recente
+     * que o já aplicado. Depois do primeiro score por evento, a posição lida do collection não altera
+     * mais o score (o evento é a fonte, ordenada pelo instante do cálculo).
+     *
+     * @return false se o caso ainda não está na projeção ou o cálculo é mais antigo
+     */
+    boolean applyScore(UUID caseId, int score, Instant calculatedAt);
+
     /** Conta mais um acordo quebrado no caso (sem efeito se o caso ainda não está na projeção). */
     void incrementBrokenAgreements(UUID caseId);
 

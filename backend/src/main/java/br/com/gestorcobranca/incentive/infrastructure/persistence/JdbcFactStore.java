@@ -244,6 +244,31 @@ class JdbcFactStore implements FactStore {
     }
 
     @Override
+    public void saveExpectedRecovery(ExpectedRecovery r) {
+        jdbc.update("""
+                insert into incentive.expected_recovery_fact (tenant_id, cohort_id, reference_date, outcome_days,
+                    creditor_id, portfolio_id, user_id, cases, expected_amount, realized_amount, model_id, model_version,
+                    source_event_id, updated_at)
+                values (shared.current_tenant_id(), :cohort, :date, :days, :creditor, :portfolio, :user, :cases,
+                        :expected, :realized, :model, :modelVersion, :event, :at)
+                on conflict (tenant_id, cohort_id) do update set
+                    cases = excluded.cases, expected_amount = excluded.expected_amount,
+                    realized_amount = excluded.realized_amount, model_id = excluded.model_id,
+                    model_version = excluded.model_version, source_event_id = excluded.source_event_id,
+                    updated_at = excluded.updated_at
+                 where incentive.expected_recovery_fact.updated_at <= excluded.updated_at
+                """, new MapSqlParameterSource().addValue("cohort", r.cohortId())
+                .addValue("date", r.referenceDate(), Types.DATE).addValue("days", r.outcomeDays())
+                .addValue("creditor", r.creditorId(), Types.OTHER).addValue("portfolio", r.portfolioId(), Types.OTHER)
+                .addValue("user", r.userId(), Types.OTHER).addValue("cases", r.cases())
+                .addValue("expected", r.expectedAmount(), Types.NUMERIC)
+                .addValue("realized", r.realizedAmount(), Types.NUMERIC)
+                .addValue("model", r.modelId(), Types.OTHER).addValue("modelVersion", r.modelVersion())
+                .addValue("event", r.sourceEventId(), Types.OTHER)
+                .addValue("at", ts(r.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+    }
+
+    @Override
     public Optional<UUID> assigneeAt(UUID caseId, Instant at) {
         return jdbc.query("""
                         select assignee_id from incentive.case_snapshot
