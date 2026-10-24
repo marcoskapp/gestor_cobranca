@@ -1,9 +1,9 @@
 package br.com.gestorcobranca.assistant.application.service;
 
 import br.com.gestorcobranca.assistant.application.port.out.TurnContentStore;
-import br.com.gestorcobranca.assistant.domain.model.AgreementFact;
+import br.com.gestorcobranca.assistant.domain.model.AssistantAgreementFact;
 import br.com.gestorcobranca.assistant.domain.model.TurnReview;
-import br.com.gestorcobranca.assistant.domain.repository.AgreementFactRepository;
+import br.com.gestorcobranca.assistant.domain.repository.AssistantAgreementFactRepository;
 import br.com.gestorcobranca.assistant.domain.repository.TurnReviewRepository;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
@@ -21,13 +21,13 @@ import java.util.UUID;
 class AssistantReactions {
 
     private final JobQueue jobQueue;
-    private final AgreementFactRepository facts;
+    private final AssistantAgreementFactRepository facts;
     private final TurnReviewRepository reviews;
     private final TurnContentStore content;
     private final CurrentActor currentActor;
     private final AssistantMetrics metrics;
 
-    AssistantReactions(JobQueue jobQueue, AgreementFactRepository facts, TurnReviewRepository reviews,
+    AssistantReactions(JobQueue jobQueue, AssistantAgreementFactRepository facts, TurnReviewRepository reviews,
                        TurnContentStore content, CurrentActor currentActor, AssistantMetrics metrics) {
         this.jobQueue = jobQueue;
         this.facts = facts;
@@ -49,7 +49,7 @@ class AssistantReactions {
 
     void attribution(AgreementAttributionRecorded e) {
         metrics.eventConsumed("agreement_attribution");
-        AgreementFact fact = load(e.agreementId(), e.creditorId(), e.portfolioId(), e.caseId(), e.formalizedAt());
+        AssistantAgreementFact fact = load(e.agreementId(), e.creditorId(), e.portfolioId(), e.caseId(), e.formalizedAt());
         UUID assistantPolicy = e.participants().stream().filter(p -> "ASSISTANT".equals(p.actorType()))
                 .map(AgreementAttributionRecorded.Participant::actorId).findFirst().orElse(null);
         fact.attribution(e.origin(), assistantPolicy, e.agreementAmount(), e.formalizedAt());
@@ -58,7 +58,7 @@ class AssistantReactions {
 
     void agreementStatus(AgreementStatusChanged e) {
         metrics.eventConsumed("agreement_status");
-        AgreementFact fact = load(e.agreementId(), e.creditorId(), e.portfolioId(), e.caseId(), e.occurredAt());
+        AssistantAgreementFact fact = load(e.agreementId(), e.creditorId(), e.portfolioId(), e.caseId(), e.occurredAt());
         fact.status(e.newStatus(), e.totalAmount(), e.occurredAt());
         facts.save(fact);
     }
@@ -72,7 +72,7 @@ class AssistantReactions {
         }
     }
 
-    private AgreementFact load(UUID agreementId, UUID creditorId, UUID portfolioId, UUID caseId, java.time.Instant at) {
+    private AssistantAgreementFact load(UUID agreementId, UUID creditorId, UUID portfolioId, UUID caseId, java.time.Instant at) {
         facts.insertIfAbsent(Ids.newId(), currentActor.tenantId(), agreementId, creditorId, portfolioId, caseId,
                 "FORMALIZED", at);
         return facts.findByAgreementIdForUpdate(agreementId).orElseThrow();

@@ -1,13 +1,13 @@
 package br.com.gestorcobranca.assistant.domain.repository;
 
-import br.com.gestorcobranca.assistant.domain.model.AgreementFact;
+import br.com.gestorcobranca.assistant.domain.model.AssistantAgreementFact;
 
 import java.util.Optional;
 import java.util.UUID;
 
-public interface AgreementFactRepository {
+public interface AssistantAgreementFactRepository {
 
-    AgreementFact save(AgreementFact fact);
+    AssistantAgreementFact save(AssistantAgreementFact fact);
 
     /**
      * Cria o fato vazio do acordo se ainda não existir (idempotente sob concorrência, sem erro de
@@ -17,5 +17,5 @@ public interface AgreementFactRepository {
                         String status, java.time.Instant at);
 
     /** Com lock: atribuição e mudanças de situação do mesmo acordo podem chegar juntas. */
-    Optional<AgreementFact> findByAgreementIdForUpdate(UUID agreementId);
+    Optional<AssistantAgreementFact> findByAgreementIdForUpdate(UUID agreementId);
 }

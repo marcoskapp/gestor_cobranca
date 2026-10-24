@@ -17,7 +17,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "agreement_fact", schema = "assistant")
-public class AgreementFact extends TenantScopedEntity {
+public class AssistantAgreementFact extends TenantScopedEntity {
 
     @Column(name = "agreement_id", nullable = false, updatable = false)
     private UUID agreementId;
@@ -52,10 +52,10 @@ public class AgreementFact extends TenantScopedEntity {
     @Column(name = "status_at", nullable = false)
     private Instant statusAt;
 
-    protected AgreementFact() {
+    protected AssistantAgreementFact() {
     }
 
-    public AgreementFact(UUID agreementId, UUID creditorId, UUID portfolioId, UUID caseId, String status, Instant at) {
+    public AssistantAgreementFact(UUID agreementId, UUID creditorId, UUID portfolioId, UUID caseId, String status, Instant at) {
         this.agreementId = agreementId;
         this.creditorId = creditorId;
         this.portfolioId = portfolioId;

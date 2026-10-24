@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.assistant.infrastructure.persistence;
 
-import br.com.gestorcobranca.assistant.domain.model.AgreementFact;
-import br.com.gestorcobranca.assistant.domain.repository.AgreementFactRepository;
+import br.com.gestorcobranca.assistant.domain.model.AssistantAgreementFact;
+import br.com.gestorcobranca.assistant.domain.repository.AssistantAgreementFactRepository;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -12,12 +12,12 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-interface AgreementFactJpaRepository extends JpaRepository<AgreementFact, UUID>, AgreementFactRepository {
+interface AssistantAgreementFactJpaRepository extends JpaRepository<AssistantAgreementFact, UUID>, AssistantAgreementFactRepository {
 
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select f from AgreementFact f where f.agreementId = :agreementId")
-    Optional<AgreementFact> findByAgreementIdForUpdate(UUID agreementId);
+    @Query("select f from AssistantAgreementFact f where f.agreementId = :agreementId")
+    Optional<AssistantAgreementFact> findByAgreementIdForUpdate(UUID agreementId);
 
     @Override
     @Modifying
