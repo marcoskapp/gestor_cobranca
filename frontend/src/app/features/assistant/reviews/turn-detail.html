@@ -90,6 +90,44 @@
         }
       </section>
 
+      @if (d.pixRequests?.length) {
+        <section class="app-card" aria-labelledby="td-pix" data-tour="turn-pix">
+          <h2 class="app-card__title" id="td-pix">Pix na conversa</h2>
+          <p class="app-muted as-small">Critérios de conversa amigável e conciliação tranquila avaliados pelo servidor antes de gerar o Pix.</p>
+          @for (r of d.pixRequests; track r.id) {
+            <div class="td-pix">
+              <p>
+                @if (r.decision === 'ISSUED') {
+                  <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>{{ pixDecisions[r.decision] }}</span>
+                } @else if (r.decision === 'SUGGESTED') {
+                  <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">lightbulb</mat-icon>{{ pixDecisions[r.decision] }}</span>
+                } @else {
+                  <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">block</mat-icon>{{ pixDecisions[r.decision] }}: {{ pixDenials[r.denialCode ?? ''] || r.denialCode }}</span>
+                }
+                @if (r.installmentNumber !== null) {
+                  <span class="as-small"> · parcela {{ r.installmentNumber }}@if (r.amount !== null) { · {{ money(r.amount) }}}</span>
+                }
+                @if (r.deliveryStatus) {
+                  <span class="app-muted as-small"> · {{ pixDeliveries[r.deliveryStatus] }}@if (r.deliveryCode) { ({{ r.deliveryCode }})}@if (r.paidAt) { · pago em {{ r.paidAt | appDate }}}</span>
+                }
+              </p>
+              <ul class="td-criteria">
+                @for (c of r.criteria; track c.criterion) {
+                  <li>
+                    <mat-icon [class]="c.passed ? 'td-ok' : 'td-fail'" aria-hidden="true">{{ c.passed ? 'check' : 'close' }}</mat-icon>
+                    <span class="cdk-visually-hidden">{{ c.passed ? 'Atendido:' : 'Não atendido:' }}</span>
+                    {{ pixCriteria[c.criterion] || c.criterion }}
+                    @if (c.detail) {
+                      <span class="app-muted as-small"> — {{ c.detail }}</span>
+                    }
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </section>
+      }
+
       @if (!t.contentPurged && d.context) {
         <section class="app-card" aria-labelledby="td-context">
           <details>

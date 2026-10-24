@@ -20,7 +20,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AssistantPoliciesApi, AssistantReviewApi } from '../data/assistant.api';
-import { ASSISTANT_ERROR_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, MODE_LABELS, REVIEW_TAG_LABELS, TOOL_LABELS, TRIGGER_SOURCE_LABELS, VERDICT_LABELS } from '../data/assistant.labels';
+import { ASSISTANT_ERROR_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, MODE_LABELS, PIX_CRITERION_LABELS, PIX_DECISION_LABELS, PIX_DELIVERY_LABELS, PIX_DENIAL_LABELS, REVIEW_TAG_LABELS, TOOL_LABELS, TRIGGER_SOURCE_LABELS, VERDICT_LABELS } from '../data/assistant.labels';
 import { ReviewVerdict } from '../data/assistant.models';
 import { prettyJson, reviewBlocked, reviewProblems } from '../data/assistant.rules';
 
@@ -52,6 +52,14 @@ export class TurnDetailPage {
   protected readonly reasons = HANDOFF_REASON_LABELS;
   protected readonly guardrailLabels = GUARDRAIL_LABELS;
   protected readonly tools = TOOL_LABELS;
+  protected readonly pixCriteria = PIX_CRITERION_LABELS;
+  protected readonly pixDecisions = PIX_DECISION_LABELS;
+  protected readonly pixDenials = PIX_DENIAL_LABELS;
+  protected readonly pixDeliveries = PIX_DELIVERY_LABELS;
+
+  protected money(value: number): string {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  }
   protected readonly sources = TRIGGER_SOURCE_LABELS;
   protected readonly verdicts = Object.entries(VERDICT_LABELS) as [ReviewVerdict, string][];
   protected readonly tags = Object.entries(REVIEW_TAG_LABELS);

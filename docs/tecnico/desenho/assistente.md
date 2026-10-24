@@ -248,7 +248,7 @@ Escopo por credor em tudo (404 leitura, 403 comando, listagens filtradas); polí
 ## 11. Pendências
 
 - **Provedor de IA** e política de uso de dados (issue #12); Amazon Bedrock exige aprovação de serviço AWS novo. Até lá o assistente só funciona com o simulador (local/teste).
-- **Pix na conversa**: QR Code como imagem quando o communication enviar mídia (hoje só o "copia e cola"); telas da opção `pixInConversation` e dos critérios na revisão do turno (frente de telas); Pix com vencimento (`cobv`) para parcela futura não é usado pelo assistente (envia dados do pagador ao PSP).
+- **Pix na conversa**: QR Code como imagem quando o communication enviar mídia (hoje só o "copia e cola"); Pix com vencimento (`cobv`) para parcela futura não é usado pelo assistente (envia dados do pagador ao PSP).
 - **Conversas de referência** versionadas e execução automática por mudança de política/prompt/modelo (§8).
 - `compliance.AttemptOrigin` sem `ASSISTANT` (as tentativas do assistente aparecem como `SYSTEM`; o autor real está na mensagem e na trilha).
 - E-mail/SMS (dependem de templates por intenção) e portal (módulo `portal`).

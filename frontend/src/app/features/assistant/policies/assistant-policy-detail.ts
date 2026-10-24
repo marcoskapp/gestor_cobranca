@@ -31,7 +31,7 @@ import { ProfileView } from '../../negotiation/data/negotiation.models';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { AssistantPoliciesApi } from '../data/assistant.api';
 import { ASSISTANT_ERROR_LABELS, DAY_LABELS, DEFAULT_PROFILES, HANDOFF_REASON_LABELS, MANDATORY_TRIGGERS, MODE_HINTS, MODE_LABELS } from '../data/assistant.labels';
-import { AssistantMode, DayOfWeek, PolicySettings, PolicyView } from '../data/assistant.models';
+import { AssistantMode, DayOfWeek, PixInConversation, PolicySettings, PolicyView } from '../data/assistant.models';
 import { cloneSettings, scopeOf, settingsProblems } from '../data/assistant.rules';
 import { DisablePortfolioData, DisablePortfolioDialog } from './policy-dialogs';
 
@@ -169,6 +169,23 @@ export class AssistantPolicyDetail {
     if (d) {
       d.limits = { maxOutputTokens: null, maxTokensPerTurn: null, maxToolCallsPerTurn: null, timeoutSeconds: null, maxCostPerConversation: null, ...(d.limits ?? {}) };
       d.limits[key] = value === null || value === '' ? null : Number(String(value).replace(',', '.'));
+      this.edited();
+    }
+  }
+
+  protected setPixEnabled(enabled: boolean): void {
+    const d = this.draft();
+    if (d) {
+      d.pixInConversation = { ...emptyPix(), ...(d.pixInConversation ?? {}), enabled };
+      this.edited();
+    }
+  }
+
+  protected setPix(key: 'maxAmount' | 'maxPerConversationPerDay' | 'expirationMinutes' | 'riskLookbackDays', value: string | number | null): void {
+    const d = this.draft();
+    if (d) {
+      d.pixInConversation = { ...emptyPix(), ...(d.pixInConversation ?? {}) };
+      d.pixInConversation[key] = value === null || value === '' ? null : decimalBr(String(value));
       this.edited();
     }
   }
@@ -393,4 +410,14 @@ export class AssistantPolicyDetail {
     const e = toApiError(err);
     this.actionError.set((e.code && ASSISTANT_ERROR_LABELS[e.code]) || userMessage(e));
   }
+}
+
+function emptyPix(): PixInConversation {
+  return { enabled: false, maxAmount: null, maxPerConversationPerDay: null, expirationMinutes: null, riskLookbackDays: null };
+}
+
+/** "5.000,00" ou "5000.5" → número. */
+function decimalBr(text: string): number {
+  const t = text.trim();
+  return Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
 }

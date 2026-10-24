@@ -70,6 +70,16 @@ export function settingsProblems(s: PolicySettings): string[] {
   ] as const) {
     if ((text ?? '').length > 600) out.push(`Mensagem de ${label} com até 600 caracteres.`);
   }
+  const pix = s.pixInConversation;
+  if (pix?.enabled) {
+    if (s.requireIdentityVerification === false) out.push('O Pix na conversa exige a confirmação de identidade do devedor.');
+    if (pix.maxAmount !== null && pix.maxAmount !== undefined && !(pix.maxAmount > 0 && pix.maxAmount <= 50000)) {
+      out.push('Limite do Pix na conversa entre R$ 0,01 e R$ 50.000,00.');
+    }
+    if (!between(pix.maxPerConversationPerDay, 1, 10)) out.push('Pix por conversa no dia entre 1 e 10.');
+    if (!between(pix.expirationMinutes, 15, 1440)) out.push('Validade do Pix entre 15 e 1.440 minutos.');
+    if (!between(pix.riskLookbackDays, 1, 180)) out.push('Janela de risco do Pix entre 1 e 180 dias.');
+  }
   const l = s.limits;
   if (l) {
     if (!between(l.maxOutputTokens, 50, 4000)) out.push('Tokens de saída por chamada entre 50 e 4.000.');

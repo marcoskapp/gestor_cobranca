@@ -20,7 +20,7 @@ import { AGREEMENT_ORIGIN_LABELS } from '../../negotiation/data/agreement.labels
 import { CreditorLookup, PortfolioLookup } from '../../organization/data/organization.lookups';
 import { BarChart } from '../components/bar-chart';
 import { AssistantReviewApi } from '../data/assistant.api';
-import { AGREEMENT_GROUP_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS } from '../data/assistant.labels';
+import { AGREEMENT_GROUP_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, PIX_DENIAL_LABELS } from '../data/assistant.labels';
 import { Bar, bars, fractionText } from '../data/assistant.rules';
 
 interface QualityFilter {
@@ -92,6 +92,12 @@ interface QualityFilter {
         <section class="app-card qp-card">
           <app-bar-chart title="Acordos: com o assistente × só humanos" [data]="groups()" highlight="ASSISTANT" empty="Nenhum acordo no período." />
         </section>
+        @if (v.pix; as pix) {
+          <section class="app-card qp-card" data-tour="quality-pix">
+            <app-bar-chart title="Pix na conversa: recusas por motivo" [data]="pixDenied()" empty="Nenhuma recusa de Pix no período." />
+            <p class="app-muted qp-small">{{ pix.issued }} gerado(s) · {{ pix.delivered }} entregue(s) · {{ pix.suggested }} sugerido(s) · {{ pix.paid }} pago(s), {{ pix.paidWithin24h }} em até 24 h · conversão gerado → pago {{ fraction(pix.conversionRate) }} ({{ fraction(pix.paidWithin24hRate) }} em 24 h)</p>
+          </section>
+        }
       </div>
     }
   `,
@@ -179,6 +185,7 @@ export class QualityPanel {
   protected readonly origins = computed(() => bars(this.q()?.agreementsByOrigin, AGREEMENT_ORIGIN_LABELS));
   protected readonly guardrails = computed(() => bars(this.q()?.guardrails, GUARDRAIL_LABELS));
   protected readonly groups = computed(() => bars(this.q()?.agreementsByGroup, AGREEMENT_GROUP_LABELS));
+  protected readonly pixDenied = computed(() => bars(this.q()?.pix?.deniedByReason, PIX_DENIAL_LABELS));
   /** Taxas (0–1) como barras; a ordem fixa (assistente primeiro) facilita a comparação. */
   protected readonly earlyBreak = computed<Bar[]>(() => {
     const rates = this.q()?.earlyBreakRate ?? {};
