@@ -26,6 +26,7 @@ docs/
 | [layout-extrato-conciliacao.md](negocio/layout-extrato-conciliacao.md) | Layout do extrato/arquivo de retorno (CSV) para a conciliação de pagamentos |
 | [layout-demonstrativo-prestacao-contas.md](negocio/layout-demonstrativo-prestacao-contas.md) | Demonstrativo de prestação de contas ao credor: o que entra, cálculo do líquido, arquivo conciliável (CSV/XLSX) e ciclo |
 | [portal-autonegociacao.md](negocio/portal-autonegociacao.md) | Portal de autonegociação do devedor: acesso, condições, perfil `PORTAL`, atendimento e indicadores |
+| [score-propensao.md](negocio/score-propensao.md) | Score de propensão: finalidade e limites de uso, dados permitidos, modelos, explicação e LGPD |
 | [decisoes-autonomas.md](negocio/decisoes-autonomas.md) | Decisões de produto tomadas sem consulta, para revisão |
 
 Regras de negócio que só existem no desenho técnico, por enquanto: remuneração variável dos negociadores ([tecnico/desenho/remuneracao-variavel.md](tecnico/desenho/remuneracao-variavel.md)) e negociação e alçadas ([tecnico/desenho/negociacao-e-alcadas.md](tecnico/desenho/negociacao-e-alcadas.md)).
@@ -47,7 +48,7 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [convencoes.md](tecnico/convencoes.md) | Convenções de código, pacotes, persistência, testes |
 | [seguranca.md](tecnico/seguranca.md) | Controles de segurança, LGPD, segregação de funções |
 | [logs-e-metricas.md](tecnico/logs-e-metricas.md) | Fluxos de log (técnico, negócio, acesso), catálogo de eventos e métricas |
-| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `remuneracao-variavel`, `portal`, `ux` |
+| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `remuneracao-variavel`, `scoring`, `portal`, `ux` |
 
 ## Caminhos antigos
 

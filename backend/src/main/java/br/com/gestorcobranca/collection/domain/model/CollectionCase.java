@@ -128,9 +128,16 @@ public class CollectionCase extends TenantScopedEntity {
     @Column(name = "effective_contact_count", nullable = false)
     private int effectiveContactCount;
 
-    /** Score de propensão (módulo scoring, futuro); nulo enquanto não calculado. */
+    /**
+     * Score de propensão (0–1000) publicado pelo módulo scoring ({@code CaseScoreChanged}); nulo
+     * enquanto não calculado. Uso exclusivo de priorização (ordem da fila e critério de faixa).
+     */
     @Column(name = "score")
     private Integer score;
+
+    /** Instante do cálculo do score aplicado (descarta entregas fora de ordem). */
+    @Column(name = "score_calculated_at")
+    private Instant scoreCalculatedAt;
 
     protected CollectionCase() {
     }
@@ -339,6 +346,26 @@ public class CollectionCase extends TenantScopedEntity {
         }
     }
 
+    /**
+     * Aplica o score de propensão calculado em {@code calculatedAt}. Cálculos mais antigos que o já
+     * aplicado (reentrega ou republicação fora de ordem) são ignorados.
+     *
+     * @return true se o score mudou
+     */
+    public boolean applyScore(int value, Instant calculatedAt) {
+        Guard.require(value >= 0 && value <= 1000, "case.score_invalid", "Score entre 0 e 1000");
+        Guard.require(calculatedAt != null, "case.score_calculated_at_required", "Instante do cálculo obrigatório");
+        if (scoreCalculatedAt != null && !calculatedAt.isAfter(scoreCalculatedAt)) {
+            return false;
+        }
+        scoreCalculatedAt = calculatedAt;
+        if (Objects.equals(score, value)) {
+            return false;
+        }
+        score = value;
+        return true;
+    }
+
     /** Define (ou limpa, com nulo) o próximo instante de trabalho do caso. */
     public void scheduleNextAction(Instant at) {
         this.nextActionAt = at;
@@ -503,5 +530,9 @@ public class CollectionCase extends TenantScopedEntity {
 
     public Integer getScore() {
         return score;
+    }
+
+    public Instant getScoreCalculatedAt() {
+        return scoreCalculatedAt;
     }
 }

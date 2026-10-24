@@ -209,6 +209,28 @@ class JdbcIndicatorReader implements IndicatorReader {
         return JdbcFactStore.eligibleBalance(jdbc, userIds, at, creditorIds);
     }
 
+    @Override
+    public ExpectedRecoveryTotals expectedRecovery(Filter filter) {
+        StringBuilder where = new StringBuilder("e.reference_date between :from and :to");
+        MapSqlParameterSource p = new MapSqlParameterSource().addValue("from", filter.from(), Types.DATE)
+                .addValue("to", filter.to(), Types.DATE);
+        if (filter.userIds() != null) {
+            where.append(filter.userIds().isEmpty() ? " and false" : " and e.user_id in (:users)");
+            p.addValue("users", filter.userIds());
+        }
+        if (!isEmpty(filter.creditorIds())) {
+            where.append(" and e.creditor_id in (:creditors)");
+            p.addValue("creditors", filter.creditorIds());
+        }
+        if (!isEmpty(filter.portfolioIds())) {
+            where.append(" and e.portfolio_id in (:portfolios)");
+            p.addValue("portfolios", filter.portfolioIds());
+        }
+        return jdbc.queryForObject("select coalesce(sum(e.expected_amount), 0), coalesce(sum(e.realized_amount), 0), "
+                        + "coalesce(sum(e.cases), 0) from incentive.expected_recovery_fact e where " + where, p,
+                (rs, i) -> new ExpectedRecoveryTotals(rs.getBigDecimal(1), rs.getBigDecimal(2), rs.getLong(3)));
+    }
+
     // ------------------------------------------------------------------ SQL auxiliar
 
     private static String factGroup(Dimension dimension) {

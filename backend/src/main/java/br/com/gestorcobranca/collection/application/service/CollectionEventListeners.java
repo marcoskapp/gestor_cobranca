@@ -11,6 +11,7 @@ import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.organization.PortfolioStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
+import br.com.gestorcobranca.shared.events.scoring.CaseScoreChanged;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -78,6 +79,13 @@ class CollectionEventListeners extends TenantEventListener {
     @TransactionalEventListener
     void on(AgreementStatusChanged event) {
         handleOnce(event, "collection.agreement-status", () -> reactions.agreementStatusChanged(event));
+    }
+
+    /** Score de propensão (módulo scoring): ordem e critério de faixa das filas. */
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(CaseScoreChanged event) {
+        handleOnce(event, "collection.case-score", () -> reactions.caseScoreChanged(event));
     }
 
     /** Catálogo padrão de tabulações na nova assessoria. */
