@@ -152,6 +152,28 @@ class CaseSynchronizer {
         return recorder.commit(c, before, AssignmentMode.ROUTING, null, trigger);
     }
 
+    /**
+     * Score de propensão novo (módulo scoring): guarda no caso e reavalia só a fila — o critério de
+     * faixa de score pode mudar o roteamento; a elegibilidade não depende do score. Cálculo mais
+     * antigo que o aplicado é ignorado.
+     *
+     * @return true se o score do caso mudou
+     */
+    boolean applyScore(CollectionCase c, int score, Instant calculatedAt, String trigger) {
+        if (!c.getStatus().isActive()) {
+            return false;
+        }
+        CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
+        if (!c.applyScore(score, calculatedAt)) {
+            cases.save(c);
+            return false;
+        }
+        c.routeTo(QueueRouter.route(c, context().queues(), CollectionViews.today(clock)).map(CollectionQueue::getId)
+                .orElse(null));
+        recorder.commit(c, before, AssignmentMode.ROUTING, null, trigger);
+        return true;
+    }
+
     /** Recalcula elegibilidade e fila no caso em memória (sem persistir; o chamador faz o commit). */
     void applyEligibilityAndRoute(CollectionCase c, Context ctx) {
         Instant now = Instant.now(clock);

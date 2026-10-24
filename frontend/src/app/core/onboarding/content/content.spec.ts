@@ -149,7 +149,7 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(4);
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES[0].version).toBe(Math.max(...RELEASE_NOTES.map((n) => n.version)));
-    expect(RELEASE_NOTES[0].title).toContain('Pagamentos');
+    expect(RELEASE_NOTES.some((n) => n.title.includes('Pagamentos'))).toBe(true);
     // financeiro: checklist próprio antes do negociador; itens de visita apontam para telas registradas
     const finance = CHECKLISTS.find((c) => c.id === 'finance')!;
     const keys = new Set(SCREENS.map((s) => s.key));

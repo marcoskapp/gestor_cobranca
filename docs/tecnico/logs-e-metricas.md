@@ -41,7 +41,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`; `policy.published` com `policyKind = assistant` |
 | Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
-| Outros | `score.calculated` |
+| Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -266,6 +266,20 @@ Comissão da assessoria junto ao credor (não é remuneração de pessoa): os ev
 | `settlement.acknowledged` / `settlement.contested` | resposta do credor registrada | `daysAfterSent`; aceite: `afterContestation`; contestação: `amount` = líquido |
 | `settlement.transfer_recorded` | repasse (ou recebimento do credor) registrado com comprovante | `statementId`, `direction`, `outstandingAfter`, `daysAfterApproval`; `amount` |
 
+### 3.8 Atributos dos eventos do score (scoring)
+
+Ids, faixas e valores apenas — nunca dado pessoal nem os valores das features. Score 0–1000 (probabilidade × 1000).
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `score.calculated` | score publicado (primeiro, mudança de faixa ou variação mínima) ou cálculo fora do lote (sob demanda, evento, revisão) | `creditorId`, `portfolioId`, `debtorId`, `caseId`, referência `case_score`; `score`, `band`, `previousBand`, `bandChanged`, `published`, `trigger` (`BATCH`, `ON_DEMAND`, `EVENT`, `REVIEW`), `modelKind`, `modelVersion`, `outcomeDays`, `caseStatus`, `daysOverdue`; `amount` = saldo em aberto |
+| `score.batch_completed` | escoragem em lote concluída | referência `scoring_run`; `referenceDate`, `trigger`, `snapshot`, `scored`, `skipped`, `published`, `bandChanges`, `failures`, `modelKind`, `modelVersion`, `challenger`; `durationMs` |
+| `score.training_completed` | treino encerrado | `outcome` (`challenger`, `failed_validation`, `insufficient_data`, `error`), `trigger`, `observations`, `distinctCases`, `distinctPositiveCases`, `modelVersion`, `status`, `validationAuc`, `trainingRows`, `validationRows`, `reasons`; `durationMs` |
+| `score.model_promoted` / `score.model_rejected` | decisão manual sobre o desafiante | referência `scoring_model`; `modelVersion`, `kind`, `previousChampionVersion`, `validationAuc`, `decisionId`, `hasRealized` |
+| `score.drift_detected` | monitoramento com atenção/alerta | referência `scoring_monitoring`; `status`, `modelVersion`, `modelKind`, `referenceDate`, `scorePsi`, `alerts`, `kinds` (`score_psi:score`, `feature_psi:<feature>`, `realized_auc:<data>`) |
+| `score.cohort_measured` | recuperado × esperado de uma safra apurado | referência `scoring_run`; `referenceDate`, `outcomeDays`, `cohorts`, `cases`, `expectedAmount`, `realizedAmount`, `ratio`; `amount` = realizado |
+| `score.reviewed` | revisão do score (LGPD art. 20) | `creditorId`, `portfolioId`, `debtorId`, `caseId`, referência `score_review`; `origin`, `previousBand`, `band`, `bandChanged`, `modelChanged` |
+
 ### 3.9 Atributos dos eventos do assistente de IA (assistant)
 
 Eventos de turno levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `channel`, referência `assistant_turn`/id do turno e os atributos comuns `conversationId`, `mode`, `policyId`, `policyVersion`, `promptVersion` (`código@versão`), `episode`, `turn`. Nunca levam texto do devedor, resposta, nome, documento ou contato; o conteúdo fica cifrado na trilha (`assistant.assistant_turn`). `amount` = total da proposta corrente, quando houver.
@@ -363,7 +377,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `collection.callbacks{status}`, `collection.promises{status}`, `collection.disputes{status}` | retornos, promessas e contestações por situação |
 | `collection.disputes.overdue{type}` | contestações com prazo de resposta vencido (alarme) |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
-| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos e falhas dos agendamentos (alarme) |
+| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos (inclui `case_score`, do scoring) e falhas dos agendamentos (alarme) |
 | `ingestion.batches.received{source,mode}`, `ingestion.batches.finished{source,mode,status}`, `ingestion.batch.duration{source,mode,status}` | volume e duração dos lotes de importação |
 | `ingestion.files.rejected{reason}` | envios recusados no recebimento (tamanho, tipo pelo conteúdo, duplicidade, chave de idempotência…) |
 | `ingestion.rows{mode,outcome}`, `ingestion.titles{outcome}`, `ingestion.issues{severity}`, `ingestion.issues.stored` | linhas válidas/rejeitadas, títulos criados/atualizados/inalterados/não gravados/suspensos, ocorrências |
@@ -373,7 +387,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `ingestion.review.alerts{type}`, `ingestion.review.decisions{decision}` | alertas de valor por tipo e decisões (confirmados, excluídos, reabertos) |
 | `ingestion.review.commits{approval}`, `ingestion.review.approvals{decision}`, `ingestion.review.analysis.duration{outcome}` | efetivações (com/sem aprovação), decisões da segunda pessoa e duração da análise de valores |
 | `ingestion.rows{mode,outcome=excluded}` | linhas excluídas na conferência e puladas na importação |
-| `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento (`interaction`, `call`, `message`, `case_status`, `case_assignment`, `case_balance`, `callback`, `promise`, `attribution`, `agreement_status`, `installment_status`, `payment_confirmed`, `payment_reversed`) |
+| `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento (`expected_recovery`, `interaction`, `call`, `message`, `case_status`, `case_assignment`, `case_balance`, `callback`, `promise`, `attribution`, `agreement_status`, `installment_status`, `payment_confirmed`, `payment_reversed`) |
 | `incentive.facts.ignored{type,reason}` | evento consumido sem efeito nos fatos (`unknown_status` = situação nova do produtor ainda não tratada; `incomplete` = sem tarefa/horário/promessa). Crescimento contínuo = contrato do produtor mudou |
 | `incentive.facts.out_of_order{type}` | evento de retorno/promessa mais antigo que o último já aplicado ao mesmo compromisso (entrega fora de ordem, tratada sem perda: a situação só avança ou vale o evento mais recente) |
 | `incentive.ledger.entries{kind,beneficiary}`, `incentive.ledger.transitions{status}` | lançamentos do razão e liberações/dispensas |
@@ -483,5 +497,14 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `portal.offers.refused{reason}`, `portal.agreements.formalized{plan}`, `portal.pix{outcome}` | condições recusadas no servidor (`not_offered`, `guard_*`), acordos (`CASH`/`INSTALLMENTS`) e Pix (`ISSUED`, `REUSED`, `FAILED`) |
 | `portal.service_requests{reason,outcome}`, `portal.job.failures{job}` | pedidos à fila humana (`CREATED`, `FORWARDED`, `UNDELIVERED` — alarme se crescer) e falhas de jobs |
 | `compliance.privacy_acknowledgments{channel,outcome}` | aviso de privacidade reconhecido com/sem base legal vigente do credor (`without_legal_basis` exige regularização) |
+| `scoring.cases.scored{trigger,model,band}`, `scoring.cases.skipped{reason}` | casos escorados por gatilho, tipo de modelo e faixa; não escorados (`legal`, `closed`, `anonymized`, `error`) |
+| `scoring.events.published{reason}` | `CaseScoreChanged` publicados (`first`, `band_change`, `delta`) |
+| `scoring.batch.page.duration` (p50/p95/p99), `scoring.batch.page.cases`, `scoring.batch.duration{status}`, `scoring.batch.skipped{reason}` | desempenho da escoragem em lote; lote não iniciado (`legal_basis_missing`, `already_exists`) |
+| `scoring.on_demand.duration{outcome}` (p50/p95/p99) | recálculo sob demanda |
+| `scoring.training.runs{outcome}`, `scoring.training.duration{outcome}`, `scoring.models.decisions{decision}` | treinos (`challenger`, `failed_validation`, `insufficient_data`, `error`) e promoções/rejeições |
+| `scoring.monitoring.psi{scope}`, `scoring.monitoring.alerts{level,kind}` | PSI do score e das features; alertas de deriva (alarme em `level=ALERT`) |
+| `scoring.outcomes.resolved`, `scoring.cohorts.measured` | desfechos apurados e safras de recuperado × esperado publicadas |
+| `scoring.facts.recorded{kind}`, `scoring.facts.ignored{type,reason}`, `scoring.events.consumed{type}` | fatos gravados; ignorados (`disabled` = sem base legal, `no_portfolio`, `duplicate`, `not_applicable`) |
+| `scoring.retention.purged{what}`, `scoring.jobs.failures{job}` | retenção (`facts`, `snapshots`) e falhas de agendamento/execução interrompida (alarme) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

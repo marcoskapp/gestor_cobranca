@@ -16,6 +16,7 @@ import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.InstallmentStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
+import br.com.gestorcobranca.shared.events.scoring.ExpectedRecoveryMeasured;
 import br.com.gestorcobranca.shared.events.telephony.CallCompleted;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -120,6 +121,13 @@ class IncentiveEventListeners extends TenantEventListener {
     @TransactionalEventListener
     void on(MessageStatusChanged event) {
         handleOnce(event, "incentive.message-status", () -> facts.message(event));
+    }
+
+    /** Recuperado × esperado das safras de score (módulo scoring). */
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(ExpectedRecoveryMeasured event) {
+        handleOnce(event, "incentive.expected-recovery", () -> facts.expectedRecovery(event));
     }
 
     /** Plano padrão semeado na nova assessoria. */
