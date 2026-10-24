@@ -51,6 +51,13 @@ app:
       public-key: classpath:it/jwt-public.pem
 
 spring:
+  # cada contexto de teste tem banco e pool próprios; vários contextos ficam vivos no cache do Spring,
+  # então o pool é pequeno para não esgotar max_connections do PostgreSQL
+  datasource:
+    hikari:
+      maximum-pool-size: 6
+      minimum-idle: 1
+      idle-timeout: 30000
   mail:
     host: localhost
     port: 2525
