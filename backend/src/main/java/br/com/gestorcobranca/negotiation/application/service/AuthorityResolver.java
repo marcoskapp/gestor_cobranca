@@ -18,11 +18,12 @@ import java.util.UUID;
  *   <li>atribuição do sujeito para o credor;</li>
  *   <li>atribuição geral do sujeito (todos os credores);</li>
  *   <li>perfil padrão do tipo de ator ({@code JUNIOR} para usuários, {@code ASSISTENTE_INICIAL}
- *       para o assistente).</li>
+ *       para o assistente, {@code PORTAL} para o devedor no portal).</li>
  * </ol>
- * O perfil precisa valer para o credor; se não valer, passa-se ao próximo passo. Atores de outros
- * tipos (sistema, integração, devedor no portal) não têm alçada nesta parte: o portal e as
- * campanhas receberão atribuição própria quando existirem.
+ * O perfil precisa valer para o credor; se não valer, passa-se ao próximo passo. O devedor
+ * autenticado no portal usa a alçada do <em>canal</em> ({@link AssignmentSubject#PORTAL}, id
+ * {@link AssignmentSubject#PORTAL_CHANNEL_ID}), nunca uma alçada pessoal. Sistema e integração não
+ * têm alçada (as campanhas receberão sujeito próprio).
  */
 @Component
 class AuthorityResolver {
@@ -42,10 +43,12 @@ class AuthorityResolver {
         AssignmentSubject subject = switch (actor.type()) {
             case USER -> AssignmentSubject.USER;
             case ASSISTANT -> AssignmentSubject.ASSISTANT_POLICY;
+            case DEBTOR -> AssignmentSubject.PORTAL;
             default -> throw new BusinessRuleException("authority.actor_not_supported",
                     "Ator do tipo " + actor.type() + " não tem alçada de negociação");
         };
-        return resolve(subject, actor.id(), creditorId);
+        return resolve(subject, subject == AssignmentSubject.PORTAL ? AssignmentSubject.PORTAL_CHANNEL_ID : actor.id(),
+                creditorId);
     }
 
     Resolution resolve(AssignmentSubject subject, UUID subjectId, UUID creditorId) {
@@ -54,8 +57,11 @@ class AuthorityResolver {
         if (assigned.isPresent()) {
             return assigned.get();
         }
-        String fallback = subject == AssignmentSubject.ASSISTANT_POLICY ? StandardAuthorityProfiles.DEFAULT_FOR_ASSISTANT
-                : StandardAuthorityProfiles.DEFAULT_FOR_USERS;
+        String fallback = switch (subject) {
+            case ASSISTANT_POLICY -> StandardAuthorityProfiles.DEFAULT_FOR_ASSISTANT;
+            case PORTAL -> StandardAuthorityProfiles.DEFAULT_FOR_PORTAL;
+            case USER -> StandardAuthorityProfiles.DEFAULT_FOR_USERS;
+        };
         return authority.findProfileByCode(fallback).filter(p -> p.appliesTo(creditorId))
                 .map(p -> new Resolution(p, Source.DEFAULT))
                 .orElseThrow(() -> new BusinessRuleException("authority.not_configured",

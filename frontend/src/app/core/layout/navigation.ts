@@ -88,6 +88,13 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Portal do devedor',
+    items: [
+      { label: 'Portal de autonegociação', icon: 'storefront', route: '/autonegociacao', permissions: [Permission.PORTAL_MANAGE], exact: true },
+      { label: 'Pedidos do portal', icon: 'support_agent', route: '/autonegociacao/pedidos', permissions: [Permission.INBOX_VIEW] },
+    ],
+  },
+  {
     label: 'Pagamentos',
     items: [
       { label: 'Pagamentos', icon: 'payments', route: '/pagamentos', permissions: [Permission.PAYMENT_VIEW], exact: true },

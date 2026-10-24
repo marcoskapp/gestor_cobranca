@@ -19,9 +19,11 @@ import { AuthService } from './core/auth/auth.service';
 import { provideLocale } from './core/config/locale.config';
 import { provideMaterialDefaults } from './core/config/material.config';
 import { PageTitleStrategy } from './core/config/page-title.strategy';
+import { isPortalPath } from './core/config/api';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { GlobalErrorHandler } from './core/http/global-error-handler';
 import { ThemeService } from './core/preferences/theme.service';
+import { portalInterceptor } from './portal/data/portal.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -33,13 +35,15 @@ export const appConfig: ApplicationConfig = {
       withRouterConfig({ paramsInheritanceStrategy: 'always' }),
     ),
     // ordem: authInterceptor trata o 401 (renovação) antes de o errorInterceptor notificar
-    provideHttpClient(withFetch(), withInterceptors([errorInterceptor, authInterceptor])),
+    // portalInterceptor só age em /api/portal/v1/me (token do devedor); authInterceptor ignora /api/portal/
+    provideHttpClient(withFetch(), withInterceptors([errorInterceptor, authInterceptor, portalInterceptor])),
     provideLocale(),
     provideMaterialDefaults(),
     { provide: TitleStrategy, useClass: PageTitleStrategy },
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     // restaura a sessão (cookie de refresh) antes da primeira navegação
-    provideAppInitializer(() => inject(AuthService).restoreSession()),
+    // (o portal do devedor nunca toca a sessão interna)
+    provideAppInitializer(() => (isPortalPath(location.pathname) ? undefined : inject(AuthService).restoreSession())),
     // tema e densidade aplicados desde a primeira tela (o onboarding é carregado com o shell)
     provideAppInitializer(() => {
       inject(ThemeService);

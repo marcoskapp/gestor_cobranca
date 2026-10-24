@@ -32,6 +32,17 @@
         Dossiê de contato
       </button>
     }
+    @if (canSendPortalLink() && active() && portalCreditors().length) {
+      <button mat-stroked-button type="button" [matMenuTriggerFor]="portalMenu" matTooltip="Link de uso único por WhatsApp (passa pelo porteiro de contato)">
+        <mat-icon aria-hidden="true">link</mat-icon>
+        Enviar link do portal
+      </button>
+      <mat-menu #portalMenu="matMenu">
+        @for (c of portalCreditors(); track c) {
+          <button mat-menu-item type="button" (click)="sendPortalLink(d, c)">{{ creditors.name(c) }}</button>
+        }
+      </mat-menu>
+    }
     @if (canManage() && active()) {
       <button mat-flat-button type="button" (click)="edit(d)">
         <mat-icon aria-hidden="true">edit</mat-icon>

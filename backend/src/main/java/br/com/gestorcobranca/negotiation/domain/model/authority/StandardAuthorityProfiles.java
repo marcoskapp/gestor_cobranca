@@ -18,10 +18,16 @@ import java.util.List;
  * SUPERVISOR           99     100%       24      R$ 200.000     0%       sim      sim     2
  * GESTOR               99     100%      360      sem limite     0%       sim      sim     3
  * ASSISTENTE_INICIAL    1      50%        6      R$ 3.000      10%       não      não     0
+ * PORTAL                1      50%        6      R$ 5.000      20%       sim      não     0
  * </pre>
  * O {@code ASSISTENTE_INICIAL} é o perfil conservador de partida do assistente de IA: não
  * formaliza sozinho (o acordo depende de humano — modo {@code AUTONOMOUS_WITH_APPROVAL}) até que a
  * operação valide o desempenho e ajuste a alçada.
+ * <p>
+ * O {@code PORTAL} é a alçada conservadora da autonegociação (devedor no portal, sem negociador):
+ * só o primeiro nível da escada, metade do envelope, até 6 pagamentos, até R$ 5.000,00, entrada de
+ * pelo menos 20%, sem renegociação de acordo (quebrado ou em vigor → atendimento humano). Formaliza
+ * sozinho — o portal só oferece condições já pré-autorizadas por este perfil.
  */
 public final class StandardAuthorityProfiles {
 
@@ -31,11 +37,14 @@ public final class StandardAuthorityProfiles {
     public static final String SUPERVISOR = "SUPERVISOR";
     public static final String GESTOR = "GESTOR";
     public static final String ASSISTENTE_INICIAL = "ASSISTENTE_INICIAL";
+    public static final String PORTAL = "PORTAL";
 
     /** Perfil aplicado a usuário sem atribuição. */
     public static final String DEFAULT_FOR_USERS = JUNIOR;
     /** Perfil aplicado a política de assistente sem atribuição. */
     public static final String DEFAULT_FOR_ASSISTANT = ASSISTENTE_INICIAL;
+    /** Perfil aplicado ao canal de autonegociação sem atribuição por credor. */
+    public static final String DEFAULT_FOR_PORTAL = PORTAL;
 
     public record Definition(String code, Parameters parameters) {
     }
@@ -56,7 +65,10 @@ public final class StandardAuthorityProfiles {
                         360, null, "0", true, true, 3),
                 def(ASSISTENTE_INICIAL, "Assistente de IA (inicial)",
                         "Alçada conservadora do assistente; formalização depende de humano", 1, "50", 6, "3000", "10",
-                        false, false, 0));
+                        false, false, 0),
+                def(PORTAL, "Autonegociação (portal)",
+                        "Condições pré-autorizadas para o devedor fechar sozinho no portal", 1, "50", 6, "5000", "20",
+                        true, false, 0));
     }
 
     private static Definition def(String code, String name, String description, int level, String share, int installments,

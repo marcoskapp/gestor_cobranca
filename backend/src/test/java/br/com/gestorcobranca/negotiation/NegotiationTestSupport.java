@@ -128,7 +128,8 @@ abstract class NegotiationTestSupport extends IntegrationTest {
         awaitTrue("caso de cobrança aberto", () -> count("select count(*) from collection.collection_case "
                 + "where debtor_id = ? and portfolio_id = ?", debtor, portfolioA) == 1);
         awaitTrue("perfis de alçada semeados",
-                () -> count("select count(*) from negotiation.authority_profile where system_profile") == 6);
+                () -> count("select count(*) from negotiation.authority_profile where system_profile")
+                        == br.com.gestorcobranca.negotiation.domain.model.authority.StandardAuthorityProfiles.all().size());
     }
 
     void drainJobs(String typePrefix) {

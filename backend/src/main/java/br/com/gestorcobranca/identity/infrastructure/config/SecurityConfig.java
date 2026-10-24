@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.logging.MdcKeys;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
+import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.ActorAuthentication;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.PublicEndpoint;
@@ -21,6 +22,11 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -50,6 +56,8 @@ import java.util.stream.Collectors;
  *       conforme o tipo ({@code access} para usuários, {@code portal} para devedores), que
  *       também valida a sessão no servidor.</li>
  *   <li>Endpoints públicos são declarados pelos módulos como beans {@link PublicEndpoint}.</li>
+ *   <li>Separação de sessões: {@code /api/portal/v1/**} só aceita o devedor autenticado no portal
+ *       (token {@code portal}, audiência própria); as demais APIs recusam o devedor (403).</li>
  *   <li>Autorização fina por permissão com {@code @PreAuthorize} nos controllers.</li>
  *   <li>CSRF desabilitado: a API não usa cookies de autenticação, exceto o refresh token
  *       ({@code SameSite=Strict}, caminho restrito e verificação de origem no controller).</li>
@@ -60,6 +68,17 @@ import java.util.stream.Collectors;
 class SecurityConfig {
 
     private static final Logger LOG = LoggerFactory.getLogger(SecurityConfig.class);
+
+    /** Authority do ator devedor ({@code ActorAuthentication} acrescenta {@code ACTOR_<tipo>}). */
+    static final String DEBTOR_AUTHORITY = "ACTOR_" + Actor.ActorType.DEBTOR.name();
+
+    /** API interna: autenticado por token de usuário (nunca o token do portal do devedor). */
+    static final AuthorizationManager<RequestAuthorizationContext> INTERNAL_ONLY = (authentication, context) -> {
+        Authentication auth = authentication.get();
+        boolean allowed = auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)
+                && auth.getAuthorities().stream().noneMatch(a -> DEBTOR_AUTHORITY.equals(a.getAuthority()));
+        return new AuthorizationDecision(allowed);
+    };
 
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -100,7 +119,10 @@ class SecurityConfig {
                     auth.requestMatchers(matcher(HttpMethod.GET, "/actuator/health/**")).permitAll()
                             .requestMatchers(matcher(HttpMethod.GET, "/actuator/info")).permitAll()
                             .requestMatchers(matcher(null, "/actuator/**")).denyAll()
-                            .requestMatchers(matcher(null, "/api/**")).authenticated()
+                            // API do portal: somente o devedor autenticado no portal (token de audiência própria)
+                            .requestMatchers(matcher(null, ApiPaths.PORTAL + "/**")).hasAuthority(DEBTOR_AUTHORITY)
+                            // demais APIs: autenticado e nunca um devedor do portal (sessões não se misturam)
+                            .requestMatchers(matcher(null, "/api/**")).access(INTERNAL_ONLY)
                             .requestMatchers(matcher(null, "/v3/api-docs/**"), matcher(null, "/swagger-ui/**")).authenticated()
                             // aplicação Angular (estáticos) servida pelo próprio backend
                             .anyRequest().permitAll();

@@ -26,7 +26,12 @@ import br.com.gestorcobranca.shared.idempotency.IdempotencyService;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.logging.access.AccessEvent;
+import br.com.gestorcobranca.shared.logging.access.AccessEventType;
+import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.AccessScope;
+import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Sort;
@@ -38,6 +43,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -62,13 +68,18 @@ class InstructionService implements PaymentInstructionUseCases {
     private final AccessScope accessScope;
     private final AuditTrail auditTrail;
     private final PaymentMetrics metrics;
+    private final CurrentActor currentActor;
+    private final AccessLogger accessLogger;
     private final Clock clock;
 
     InstructionService(PaymentInstructionRepository instructions, PixAccountRepository accounts, TargetResolver resolver,
                        PixGateway pixGateway, ObjectProvider<BoletoProvider> boletoProvider,
                        ObjectProvider<PaymentLinkProvider> linkProvider, PaymentSettingsProvider settings,
                        IdempotencyService idempotency, JobQueue jobs, PaymentRecorder recorder, AccessScope accessScope,
-                       AuditTrail auditTrail, PaymentMetrics metrics, Clock clock) {
+                       AuditTrail auditTrail, PaymentMetrics metrics, CurrentActor currentActor,
+                       AccessLogger accessLogger, Clock clock) {
+        this.currentActor = currentActor;
+        this.accessLogger = accessLogger;
         this.instructions = instructions;
         this.accounts = accounts;
         this.resolver = resolver;
@@ -109,6 +120,7 @@ class InstructionService implements PaymentInstructionUseCases {
                 "Informe o acordo e a parcela");
         AgreementTarget agreement = resolver.agreement(c.agreementId());
         accessScope.requireCreditor(agreement.creditorId());
+        requireOwnDebt("negotiation_agreement", agreement.agreementId(), agreement.debtorId());
         if (!agreement.active()) {
             throw new BusinessRuleException("payment_instruction.agreement_not_active",
                     "Acordo encerrado não recebe instrução de pagamento");
@@ -137,6 +149,7 @@ class InstructionService implements PaymentInstructionUseCases {
     private UUID forTitle(InstructionType type, CreateInstructionCommand c) {
         TitleInfo title = resolver.titles(List.of(c.titleId())).getFirst();
         accessScope.requireCreditor(title.creditorId());
+        requireOwnDebt("debt_title", title.id(), title.debtorId());
         if (!title.payable()) {
             throw new BusinessRuleException("payment_instruction.title_unavailable", title.underAgreement()
                     ? "Título coberto por acordo em vigor: gere a instrução pela parcela do acordo"
@@ -182,9 +195,11 @@ class InstructionService implements PaymentInstructionUseCases {
         }
         Set<InstructionStatus> statuses = PaymentEnums.parseSet(InstructionStatus.class,
                 f.status() == null ? List.of() : List.of(f.status()), "payment_instruction.status_invalid", "Situação");
+        Actor actor = currentActor.get();
+        UUID debtorId = actor.type() == Actor.ActorType.DEBTOR ? actor.id() : f.debtorId();
         return PageResponse.of(instructions.search(new PaymentInstructionRepository.Criteria(
                 accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of()), f.creditorId(),
-                f.debtorId(), f.agreementId(), f.titleId(), statuses),
+                debtorId, f.agreementId(), f.titleId(), statuses),
                 page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))), PaymentViews::instruction);
     }
 
@@ -216,7 +231,21 @@ class InstructionService implements PaymentInstructionUseCases {
     private PaymentInstruction loadVisible(UUID id) {
         PaymentInstruction i = instructions.findById(id).orElseThrow(() -> new ResourceNotFoundException(RESOURCE, id));
         accessScope.requireVisible(RESOURCE, id, i.getCreditorId());
+        requireOwnDebt(RESOURCE, id, i.getDebtorId());
         return i;
+    }
+
+    /**
+     * Devedor autenticado no portal ({@code DEBTOR}): só instruções das próprias dívidas (defesa em
+     * profundidade; o portal já passa somente o devedor da sessão). Recusa como 404 + {@code SCOPE_DENIED}.
+     */
+    private void requireOwnDebt(String resource, UUID resourceId, UUID debtorId) {
+        Actor actor = currentActor.get();
+        if (actor.type() == Actor.ActorType.DEBTOR && !actor.id().equals(debtorId)) {
+            accessLogger.log(AccessEvent.of(AccessEventType.SCOPE_DENIED, actor, Map.of("resource", resource,
+                    "resourceId", String.valueOf(resourceId), "reason", "portal_other_debtor")));
+            throw new ResourceNotFoundException(resource, resourceId);
+        }
     }
 
     private void requireProvider(InstructionType type) {
