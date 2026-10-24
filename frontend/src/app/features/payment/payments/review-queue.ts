@@ -14,6 +14,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorNames } from '../../organization/data/organization.lookups';
+import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS } from '../data/payment.labels';
 import { PaymentView } from '../data/payment.models';
@@ -24,12 +25,12 @@ import { PaymentView } from '../data/payment.models';
  */
 @Component({
   selector: 'app-review-queue',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, PageHeader],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, PageHeader, RequestedTarget],
   template: `
     <app-page-header title="Aprovação de pagamentos" subtitle="Pagamentos informados acima do limite da assessoria aguardando uma segunda pessoa." />
     <p class="app-alert app-alert--info" role="note" data-tour="review-segregation">
       <mat-icon aria-hidden="true">group</mat-icon>
-      <span>Os pagamentos que <strong>você</strong> informou não aparecem aqui: quem informa não aprova (o sistema recusa, inclusive para administradores). Confira o comprovante e o destino antes de aprovar.</span>
+      <span>Os pagamentos que <strong>você</strong> informou não aparecem aqui: quem informa não aprova (o sistema recusa, inclusive para administradores). Confira o comprovante e <strong>para onde o valor vai</strong> (destino solicitado) antes de aprovar.</span>
     </p>
     <app-data-table
       caption="Pagamentos aguardando aprovação"
@@ -56,6 +57,13 @@ import { PaymentView } from '../data/payment.models';
       <ng-template appCell="origin" [appCellOf]="query.rows()" let-p>
         {{ methods[p.method] }}
         <div class="app-muted rq-small">{{ p.externalOrigin ? origins[p.externalOrigin] : '—' }}</div>
+      </ng-template>
+      <ng-template appCell="target" [appCellOf]="query.rows()" let-p>
+        @if (p.requestedTarget) {
+          <app-requested-target [target]="p.requestedTarget" />
+        } @else {
+          <span class="app-muted">—</span>
+        }
       </ng-template>
       <ng-template appCell="informedBy" [appCellOf]="query.rows()" let-p>{{ users.name(p.informedBy) }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
@@ -91,6 +99,7 @@ export class ReviewQueue {
     { key: 'debtor', header: 'Devedor e credor' },
     { key: 'amount', header: 'Valor', align: 'end' },
     { key: 'origin', header: 'Meio e origem' },
+    { key: 'target', header: 'Destino solicitado' },
     { key: 'informedBy', header: 'Informado por' },
     { key: 'actions', header: 'Ações', actions: true },
   ];

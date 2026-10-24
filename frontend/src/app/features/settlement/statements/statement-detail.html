@@ -1,0 +1,329 @@
+@if (resource.isLoading() && !statement()) {
+  <div aria-busy="true" aria-label="Carregando demonstrativo">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton variant="card" [rows]="6" />
+  </div>
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="request_page" tone="error" title="Não foi possível abrir o demonstrativo." message="Ele pode não existir ou o credor estar fora do seu escopo.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/prestacao-de-contas/demonstrativos">Voltar para demonstrativos</a>
+  </app-empty-state>
+}
+
+@if (statement(); as s) {
+  @let act = actions()!;
+  <app-page-header [title]="'Demonstrativo nº ' + s.sequenceNumber + ' · ' + creditors.name(s.creditorId)" [subtitle]="'Período ' + period(s)">
+    <a mat-button routerLink="/prestacao-de-contas/demonstrativos">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Demonstrativos
+    </a>
+    @if (act.cancel) {
+      <button mat-stroked-button type="button" (click)="cancel()" [disabled]="busy()">Cancelar</button>
+    }
+    @if (act.contest) {
+      <button mat-stroked-button type="button" (click)="contest()" [disabled]="busy()">Credor contestou</button>
+    }
+    @if (act.respond) {
+      <button mat-flat-button type="button" (click)="acknowledge()" [disabled]="busy()">
+        <mat-icon aria-hidden="true">thumb_up</mat-icon>
+        Credor aceitou
+      </button>
+    }
+    @if (act.send) {
+      <button mat-flat-button type="button" (click)="send()" [disabled]="busy()" data-tour="statement-send">
+        <mat-icon aria-hidden="true">send</mat-icon>
+        Registrar envio
+      </button>
+    }
+    @if (act.approve) {
+      <button mat-flat-button type="button" (click)="approve()" [disabled]="busy()" data-tour="statement-approve">
+        <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+        Aprovar
+      </button>
+    }
+    @if (act.review) {
+      <button mat-stroked-button type="button" (click)="calculate()" [disabled]="busy()">Recalcular</button>
+      <button mat-flat-button type="button" (click)="review()" [disabled]="busy()">
+        <mat-icon aria-hidden="true">fact_check</mat-icon>
+        Marcar como revisado
+      </button>
+    } @else if (act.calculate) {
+      <button mat-flat-button type="button" (click)="calculate()" [disabled]="busy()" data-tour="statement-calculate">
+        <mat-icon aria-hidden="true">calculate</mat-icon>
+        {{ s.status === 'DRAFT' ? 'Calcular' : 'Recalcular' }}
+      </button>
+    }
+    @if (act.transfer) {
+      <button mat-stroked-button type="button" (click)="registerTransfer()" [disabled]="busy()">
+        <mat-icon aria-hidden="true">account_balance</mat-icon>
+        {{ (s.totals?.outstanding ?? 0) > 0 ? 'Registrar repasse' : 'Registrar recebimento' }}
+      </button>
+    }
+  </app-page-header>
+
+  <section class="st-status" aria-label="Ciclo do demonstrativo" data-tour="statement-cycle">
+    @if (s.status === 'CANCELLED') {
+      <app-status-chip domain="settlementStatement" [status]="s.status" />
+      <span>Motivo: {{ s.cancelledReason }}</span>
+    } @else {
+      <ol class="st-steps">
+        @for (c of cycle; track c.status; let i = $index) {
+          <li class="st-step" [class.st-step--done]="i < stepIndex()" [class.st-step--current]="i === stepIndex()" [attr.aria-current]="i === stepIndex() ? 'step' : null">
+            <mat-icon aria-hidden="true">{{ i < stepIndex() ? 'check_circle' : i === stepIndex() ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
+            {{ i === 5 && s.status === 'CONTESTED' ? 'Contestado pelo credor' : c.label }}
+          </li>
+        }
+      </ol>
+    }
+  </section>
+
+  @if (actionError()) {
+    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ actionError() }}</span></p>
+  }
+  @if (act.approveBlocked) {
+    <p class="app-alert app-alert--info" role="note" data-tour="statement-segregation">
+      <mat-icon aria-hidden="true">group</mat-icon>
+      <span>{{ act.approveBlocked }} O sistema recusa a aprovação nesses casos, inclusive para administradores.</span>
+    </p>
+  } @else if (s.status === 'REVIEWED' && !canApprove()) {
+    <p class="app-alert app-alert--neutral" role="note" data-tour="statement-segregation">
+      <mat-icon aria-hidden="true">hourglass_top</mat-icon>
+      <span>Revisado por {{ userName(s.reviewedBy) }}. Aguarda a aprovação do gestor (quatro olhos: quem calcula ou pede ajuste nunca aprova).</span>
+    </p>
+  } @else if (act.periodOpen) {
+    <p class="app-alert app-alert--warning" role="note">
+      <mat-icon aria-hidden="true">event</mat-icon>
+      <span>O período termina em {{ s.periodEnd | appDate: 'date' }}. O cálculo fica disponível no dia seguinte.</span>
+    </p>
+  } @else if (s.status === 'CONTESTED') {
+    <p class="app-alert app-alert--warning" role="note">
+      <mat-icon aria-hidden="true">report</mat-icon>
+      <span>Contestado: {{ s.creditorResponseNote }}. Corrija com ajuste "acerto de contestação" no próximo demonstrativo e registre o aceite depois.</span>
+    </p>
+  }
+  @if (pendingAdjustments()) {
+    <p class="app-alert app-alert--warning" role="status">
+      <mat-icon aria-hidden="true">pending_actions</mat-icon>
+      <span>{{ pendingAdjustments() }} ajuste(s) aguardando segunda aprovação. O demonstrativo só é aprovado depois da decisão.</span>
+    </p>
+  }
+
+  @if (s.totals; as t) {
+    <section class="app-card" aria-labelledby="sd-totals" data-tour="statement-totals">
+      <h2 class="app-card__title" id="sd-totals">Totais do período</h2>
+      <div class="st-kpis">
+        <div class="st-kpi"><span class="st-kpi__label">Recebido na assessoria</span><span class="st-kpi__value"><app-amount [value]="t.receivedByAgency" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Pago direto ao credor</span><span class="st-kpi__value"><app-amount [value]="t.receivedByCreditor" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Estornos</span><span class="st-kpi__value"><app-amount [value]="t.reversed" [signed]="true" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Recuperado líquido</span><span class="st-kpi__value"><app-amount [value]="t.recovered" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Honorários da assessoria</span><span class="st-kpi__value"><app-amount [value]="t.agencyHonorarium" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Comissão</span><span class="st-kpi__value"><app-amount [value]="t.commission" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Valores fixos</span><span class="st-kpi__value"><app-amount [value]="t.fixedFees" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Custas deduzidas</span><span class="st-kpi__value"><app-amount [value]="t.expenses" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Ajustes</span><span class="st-kpi__value"><app-amount [value]="t.adjustments" [signed]="true" /></span></div>
+        <div class="st-kpi st-kpi--total">
+          <span class="st-kpi__label">{{ t.netTransfer < 0 ? 'Credor deve à assessoria' : 'Líquido a repassar' }}</span>
+          <span class="st-kpi__value"><app-amount [value]="t.netTransfer" [signed]="true" /></span>
+        </div>
+      </div>
+      <p class="app-muted st-small" data-tour="statement-check">
+        Conferência: efeitos dos recebimentos <app-amount [value]="effectSum()" [signed]="true" /> − custas <app-amount [value]="t.expenses" /> + ajustes <app-amount [value]="t.adjustments" [signed]="true" /> =
+        <strong><app-amount [value]="t.netTransfer" [signed]="true" /></strong>
+        @if (s.status !== 'DRAFT' && t.transferred !== 0) {
+          · já {{ t.netTransfer < 0 ? 'recebido' : 'repassado' }} <app-amount [value]="t.transferred" /> · saldo <app-amount [value]="t.outstanding" />
+        }
+      </p>
+      <h3 class="app-section-title">Informativos (não entram no líquido)</h3>
+      <dl class="app-definition-list">
+        <dt>Valor negociado em acordos</dt>
+        <dd><app-amount [value]="t.negotiated" /> <span class="app-muted st-small">&nbsp;— acordo não pago não é recuperação</span></dd>
+        <dt>Comissão prevista</dt>
+        <dd><app-amount [value]="t.forecastCommission" /> <span class="app-muted st-small">&nbsp;— saldo dos acordos em aberto × regras vigentes</span></dd>
+        <dt>Aguardando conciliação</dt>
+        <dd><app-amount [value]="t.pendingReconciliation" /> <span class="app-muted st-small">&nbsp;— entra no primeiro demonstrativo depois de conciliado</span></dd>
+        <dt>Aguardando regra</dt>
+        <dd><app-amount [value]="t.pendingRules" /></dd>
+        <dt>Divergências de conciliação abertas</dt>
+        <dd>
+          {{ t.openDivergences }}
+          @if (t.openDivergences > 0) {
+            <a routerLink="/pagamentos/divergencias" [queryParams]="{ situacao: 'OPEN' }">ver divergências</a>
+          }
+        </dd>
+      </dl>
+    </section>
+  } @else {
+    <app-empty-state icon="calculate" title="Ainda não calculado." message="Calcule depois do fim do período para ver recebimentos, comissão e o líquido a repassar." />
+  }
+
+  <mat-tab-group class="sd-tabs" animationDuration="0ms" mat-stretch-tabs="false">
+    <mat-tab [label]="'Recebimentos (' + (s.totals?.receipts ?? 0) + ')'">
+      <div class="sd-tab">
+        <app-receipt-table [query]="receiptQuery" [showCreditor]="false" emptyMessage="Nenhum recebimento neste demonstrativo." />
+      </div>
+    </mat-tab>
+    <mat-tab [label]="'Custas reembolsáveis (' + expenses().length + ')'">
+      <div class="sd-tab" data-tour="statement-expenses">
+        <p class="app-muted st-small">Adiantadas pela assessoria ou por escritório parceiro: deduzidas do repasse (o credor reembolsa). Pagas pelo credor ou não reembolsáveis: só informativas.</p>
+        <div class="st-kpis sd-gap">
+          <div class="st-kpi"><span class="st-kpi__label">Deduzidas do repasse</span><span class="st-kpi__value"><app-amount [value]="deducted()" /></span></div>
+          <div class="st-kpi"><span class="st-kpi__label">Informativas</span><span class="st-kpi__value"><app-amount [value]="informative()" /></span></div>
+        </div>
+        @if (expenses().length) {
+          <div class="st-scroll">
+            <table class="st-table" aria-label="Custas e despesas do jurídico">
+              <thead>
+                <tr>
+                  <th scope="col">Data</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Adiantada por</th>
+                  <th scope="col" class="st-end">Valor</th>
+                  <th scope="col">Efeito</th>
+                  <th scope="col">Comprovante</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (e of expenses(); track e.id) {
+                  <tr>
+                    <td>{{ e.incurredOn | appDate: 'date' }}@if (e.kind === 'CANCELLATION') {<div class="app-muted st-small">cancelamento</div>}</td>
+                    <td>
+                      @if (e.matterId) {
+                        <a [routerLink]="['/juridico/casos', e.matterId]">{{ expenseTypes[e.expenseType] || e.expenseType }}</a>
+                      } @else {
+                        {{ expenseTypes[e.expenseType] || e.expenseType }}
+                      }
+                    </td>
+                    <td>{{ advancers[e.advancedBy ?? ''] || e.advancedBy || '—' }}</td>
+                    <td class="st-end"><app-amount [value]="e.amount" [signed]="e.kind === 'CANCELLATION'" /></td>
+                    <td>
+                      @if (e.effect === 'DEDUCT') {
+                        <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">remove_circle_outline</mat-icon>Deduzida</span>
+                      } @else {
+                        <span class="app-status app-status--neutral"><mat-icon class="app-status__icon" aria-hidden="true">info</mat-icon>Informativa</span>
+                      }
+                    </td>
+                    <td>{{ e.hasReceipt ? 'Sim' : 'Não' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <app-empty-state icon="gavel" title="Nenhuma custa no período." [compact]="true" />
+        }
+      </div>
+    </mat-tab>
+    <mat-tab [label]="'Ajustes (' + adjustments().length + ')'">
+      <div class="sd-tab" data-tour="statement-adjustments">
+        <div class="st-head">
+          <p class="app-muted st-small">Motivo obrigatório; acima de R$ 1.000,00 exige a segunda aprovação de outra pessoa. Quem pede ajuste não aprova o demonstrativo.</p>
+          @if (act.adjust) {
+            <button mat-stroked-button type="button" (click)="requestAdjustment()">
+              <mat-icon aria-hidden="true">add</mat-icon>
+              Pedir ajuste
+            </button>
+          }
+        </div>
+        @for (a of adjustments(); track a.id) {
+          <article class="sd-adj">
+            <div class="st-head">
+              <strong>{{ categories[a.category] }} · <app-amount [value]="a.amount" [signed]="true" /></strong>
+              <app-status-chip domain="settlementAdjustment" [status]="a.status" />
+            </div>
+            <p class="sd-reason">{{ a.reason }}</p>
+            <p class="app-muted st-small">
+              Pedido por {{ userName(a.requestedBy) }} em {{ a.requestedAt | appDate }}
+              @if (a.decidedBy) {
+                · decidido por {{ userName(a.decidedBy) }} em {{ a.decidedAt | appDate }}{{ a.decisionNote ? ': ' + a.decisionNote : '' }}
+              }
+            </p>
+            @if (a.status === 'PENDING_SECOND_APPROVAL') {
+              @if (canDecide(a)) {
+                <div class="st-row">
+                  <button mat-stroked-button type="button" (click)="decide(a, 'reject')" [disabled]="busy()">Recusar</button>
+                  <button mat-flat-button type="button" (click)="decide(a, 'approve')" [disabled]="busy()">Aprovar ajuste</button>
+                </div>
+              } @else if (a.requestedBy === actorId()) {
+                <p class="app-muted st-small">Você pediu este ajuste: a segunda aprovação é de outra pessoa.</p>
+              }
+            }
+          </article>
+        } @empty {
+          <app-empty-state icon="tune" title="Nenhum ajuste." [compact]="true" />
+        }
+      </div>
+    </mat-tab>
+    <mat-tab [label]="'Arquivos (' + exportRows().length + ')'">
+      <div class="sd-tab" data-tour="statement-exports">
+        @if (act.export) {
+          <div class="st-row sd-gap">
+            @for (f of exportFormats; track f) {
+              <button mat-stroked-button type="button" (click)="generate(f)" [disabled]="busy()" [matTooltip]="formatHints[f]">
+                <mat-icon aria-hidden="true">{{ f === 'PDF' ? 'picture_as_pdf' : 'table_view' }}</mat-icon>
+                Gerar {{ formats[f] }}
+              </button>
+            }
+          </div>
+        } @else if (!s.approvedAt) {
+          <p class="app-muted st-small">Os arquivos para o credor são gerados depois da aprovação (o conteúdo depende só do demonstrativo aprovado).</p>
+        }
+        @for (x of exportRows(); track x.id) {
+          <article class="sd-file">
+            <div class="st-head">
+              <span><strong>{{ formats[x.format] }}</strong> · {{ x.fileName }} · {{ size(x.fileSize) }} · {{ x.rows }} registros</span>
+              <button mat-stroked-button type="button" (click)="download(x)" [disabled]="downloading() === x.id">
+                <mat-icon aria-hidden="true">download</mat-icon>
+                Baixar
+              </button>
+            </div>
+            <p class="st-small">
+              SHA-256 <span class="st-hash">{{ groupedHash(x.sha256) }}</span>
+              @if (verified().get(x.id) === true) {
+                <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">verified</mat-icon>Conferido no download</span>
+              } @else if (verified().get(x.id) === false) {
+                <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>Não confere</span>
+              }
+            </p>
+            <p class="app-muted st-small">Gerado por {{ userName(x.generatedBy) }} em {{ x.createdAt | appDate }}. O download fica registrado no log de acesso.</p>
+          </article>
+        } @empty {
+          <app-empty-state icon="description" title="Nenhum arquivo gerado." [compact]="true" />
+        }
+        @if (s.sentAt) {
+          <p class="app-alert app-alert--neutral" role="note">
+            <mat-icon aria-hidden="true">send</mat-icon>
+            <span>Enviado por {{ channels[s.sentChannel!] || s.sentChannel }} em {{ s.sentAt | appDate }} por {{ userName(s.sentBy) }}{{ s.sentReference ? ' · ' + s.sentReference : '' }}.
+              @if (s.creditorResponseAt) {
+                Resposta registrada em {{ s.creditorResponseAt | appDate }} por {{ userName(s.creditorResponseBy) }}{{ s.creditorResponseNote ? ': ' + s.creditorResponseNote : '' }}.
+              }
+            </span>
+          </p>
+        }
+      </div>
+    </mat-tab>
+    @if (s.approvedAt) {
+      <mat-tab [label]="'Repasses (' + transfers().length + ')'">
+        <div class="sd-tab">
+          @for (t of transfers(); track t.id) {
+            <article class="sd-file">
+              <div class="st-head">
+                <span>
+                  <strong><app-amount [value]="t.amount" /></strong> · {{ t.direction === 'AGENCY_TO_CREDITOR' ? 'repasse ao credor' : 'recebido do credor' }} em {{ t.transferredOn | appDate: 'date' }} · {{ t.bankReference }}
+                </span>
+                <span>
+                  <app-status-chip domain="settlementTransfer" [status]="t.status" />
+                  @if (t.evidenceName) {
+                    <button mat-icon-button type="button" (click)="downloadEvidence(t.id)" aria-label="Baixar comprovante" matTooltip="Baixar comprovante"><mat-icon aria-hidden="true">attach_file</mat-icon></button>
+                  }
+                </span>
+              </div>
+              <p class="app-muted st-small">Registrado por {{ userName(t.registeredBy) }} em {{ t.registeredAt | appDate }}{{ t.cancelReason ? ' · cancelado: ' + t.cancelReason : '' }}</p>
+            </article>
+          } @empty {
+            <app-empty-state icon="account_balance" title="Nenhum repasse registrado." message="O saldo a repassar fica pendente até zerar." [compact]="true" />
+          }
+        </div>
+      </mat-tab>
+    }
+  </mat-tab-group>
+}

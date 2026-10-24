@@ -260,8 +260,10 @@ pelo ritmo, itens da lista, presença, tabulações, interações, gravações, 
 ## 12. Pendências
 
 * Provedor real (issue #12) e conexão de áudio do operador (WebRTC no navegador × ramal SIP) — §9.
-* Telas: botão de ligar na ficha do caso, barra de presença/pós-atendimento na estação, supervisão de operadores e
-  campanhas, player de gravação com finalidade.
+* ~~Telas~~ (24/10/2026): "Ligar" (Alt + L) na estação/ficha com a decisão do porteiro por telefone, barra de presença
+  (sinal a cada 30 s enquanto conectado, na sessão inteira do usuário), tabulação obrigatória com contagem regressiva do
+  prazo automático, campanhas com painel de supervisão (5 s), chamadas com player de gravação (finalidade, áudio em
+  `blob:` — CSP `media-src 'self' blob:`) e ramais. Pendente: telas das contas do provedor (`/accounts`).
 * Incentive: consumir intervalos de presença (tempo logado **disponível**) — hoje usa sessões do identity (decisão 24
   da remuneração variável); evento ou view a definir.
 * Monitoria ao vivo (escuta/sussurro) e transferência de chamada dependem do provedor.

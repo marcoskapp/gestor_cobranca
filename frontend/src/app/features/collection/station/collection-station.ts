@@ -40,6 +40,8 @@ import { DensityInvite } from './density-invite';
 import { DisputeDialog, DisputeDialogData } from './dispute-dialog';
 import { InteractionPanel } from './interaction-panel';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
+import { CallButton } from '../../telephony/station/call-button';
+import { PresenceBar } from '../../telephony/station/presence-bar';
 
 const GROUP = 'Estação de cobrança';
 
@@ -72,6 +74,8 @@ const GROUP = 'Estação de cobrança';
     ContactWindowPanel,
     DensityInvite,
     InteractionPanel,
+    CallButton,
+    PresenceBar,
   ],
   templateUrl: './collection-station.html',
   styleUrl: './collection-station.scss',
@@ -94,6 +98,7 @@ export class CollectionStation {
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
   private readonly interactionPanel = viewChild(InteractionPanel);
+  private readonly callButton = viewChild(CallButton);
 
   protected readonly caseActions = CASE_ACTIONS;
   protected readonly nextActionText = nextActionText;
@@ -197,6 +202,7 @@ export class CollectionStation {
       keys.register({ id: 'collection.interaction', keys: 'alt+r', group: GROUP, description: 'Registrar interação', handler: () => this.interactionPanel()?.focus() }),
       keys.register({ id: 'collection.callback', keys: 'alt+a', group: GROUP, description: 'Agendar retorno', handler: () => this.schedule() }),
       keys.register({ id: 'collection.simulate', keys: 'alt+s', group: GROUP, description: 'Abrir simulação de negociação', handler: () => this.simulate() }),
+      keys.register({ id: 'collection.call', keys: 'alt+l', group: GROUP, description: 'Ligar para o devedor (clique para ligar)', handler: () => this.callButton()?.open() }),
       keys.register({ id: 'collection.queue', keys: 'alt+q', group: GROUP, description: 'Recolher ou expandir a fila', handler: () => this.queueCollapsed.update((v) => !v) }),
       ...SHEET_TABS.map((label, i) =>
         keys.register({ id: `collection.tab-${i + 1}`, keys: `alt+${i + 1}`, group: GROUP, description: `Aba ${label}`, handler: () => this.tab.set(i) }),

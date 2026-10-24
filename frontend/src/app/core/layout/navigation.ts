@@ -59,6 +59,22 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Assistente de IA',
+    items: [
+      { label: 'Políticas do assistente', icon: 'smart_toy', route: '/assistente/politicas', permissions: [Permission.ASSISTANT_MANAGE, Permission.ASSISTANT_REVIEW] },
+      { label: 'Revisão de turnos', icon: 'rate_review', route: '/assistente/revisao', permissions: [Permission.ASSISTANT_REVIEW] },
+      { label: 'Qualidade do assistente', icon: 'insights', route: '/assistente/qualidade', permissions: [Permission.ASSISTANT_REVIEW] },
+    ],
+  },
+  {
+    label: 'Telefonia',
+    items: [
+      { label: 'Campanhas de discagem', icon: 'phone_forwarded', route: '/telefonia/campanhas', permissions: [Permission.TELEPHONY_SUPERVISE] },
+      { label: 'Chamadas e gravações', icon: 'call', route: '/telefonia/chamadas', permissions: [Permission.TELEPHONY_SUPERVISE] },
+      { label: 'Operadores e ramais', icon: 'headset_mic', route: '/telefonia/operadores', permissions: [Permission.TELEPHONY_SUPERVISE] },
+    ],
+  },
+  {
     label: 'Campanhas',
     items: [
       {
@@ -125,6 +141,15 @@ export const NAVIGATION: readonly NavSection[] = [
         route: '/pagamentos/parametros',
         permissions: [Permission.ORG_SETTINGS_MANAGE, Permission.PAYMENT_REVIEW, Permission.RECONCILIATION_MANAGE],
       },
+    ],
+  },
+  {
+    label: 'Prestação de contas',
+    items: [
+      { label: 'Demonstrativos', icon: 'request_page', route: '/prestacao-de-contas/demonstrativos', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_CLOSE, Permission.SETTLEMENT_APPROVE] },
+      { label: 'Repasses ao credor', icon: 'account_balance', route: '/prestacao-de-contas/repasses', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_TRANSFER] },
+      { label: 'Razão de comissão', icon: 'receipt_long', route: '/prestacao-de-contas/razao', permissions: [Permission.COMMISSION_VIEW, Permission.SETTLEMENT_VIEW] },
+      { label: 'Regras de comissão', icon: 'percent', route: '/prestacao-de-contas/regras', permissions: [Permission.COMMISSION_VIEW, Permission.COMMISSION_MANAGE] },
     ],
   },
   {

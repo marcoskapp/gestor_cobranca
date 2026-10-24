@@ -22,6 +22,11 @@ export class FileDownloadService {
     );
   }
 
+  /** Salva um conteúdo já obtido (ex.: depois de conferir o SHA-256 informado pelo servidor). */
+  saveBlob(blob: Blob, name: string): void {
+    this.save(blob, name);
+  }
+
   private save(blob: Blob, name: string): void {
     const view = this.document.defaultView;
     if (!view?.URL?.createObjectURL) {

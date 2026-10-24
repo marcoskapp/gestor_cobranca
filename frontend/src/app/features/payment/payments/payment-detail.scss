@@ -6,3 +6,11 @@
   margin: 8px 0 0;
   font-size: var(--app-text-xs);
 }
+
+.pd-requested {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+}

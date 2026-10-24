@@ -3,6 +3,20 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 8,
+    date: '2026-10-24',
+    title: 'Prestação de contas, telefonia e assistente de IA',
+    items: [
+      { text: 'Regras de comissão por contrato com versões, simulação e publicação por outra pessoa.', route: '/prestacao-de-contas/regras' },
+      { text: 'Demonstrativos ao credor: cálculo, ajustes com segunda aprovação, aprovação segregada e arquivos com SHA-256.', route: '/prestacao-de-contas/demonstrativos' },
+      { text: 'Repasses com comprovante e saldo a repassar por credor; razão de comissão com memória de cálculo.', route: '/prestacao-de-contas/repasses' },
+      { text: 'Estação de cobrança: Ligar (Alt + L) com a decisão do porteiro, presença na telefonia e tabulação ao fim da chamada.', route: '/cobranca/fila' },
+      { text: 'Campanhas de discagem com painel de ASR, abandono e operadores; gravações com finalidade declarada.', route: '/telefonia/campanhas' },
+      { text: 'Assistente de IA: políticas por escopo, revisão de turnos e painel de qualidade.', route: '/assistente/politicas' },
+      { text: 'Aprovação de pagamentos mostra o destino solicitado antes de aprovar.', route: '/pagamentos/aprovacoes' },
+    ],
+  },
+  {
     version: 7,
     date: '2026-10-24',
     title: 'Painéis e relatórios da operação',
