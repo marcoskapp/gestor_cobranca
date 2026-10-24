@@ -19,6 +19,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.AccessScope;
+import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.stereotype.Service;
@@ -119,6 +120,9 @@ class AuthorityService implements AuthorityUseCases, AuthorityProvisioning {
                     Map.of("resource", ASSIGNMENT, "reason", "self_assignment")));
             throw new BusinessRuleException("authority.self_assignment", "Ninguém pode atribuir a própria alçada");
         }
+        Guard.require(subject != AssignmentSubject.PORTAL || AssignmentSubject.PORTAL_CHANNEL_ID.equals(command.subjectId()),
+                "authority.portal_subject_invalid",
+                "A alçada do portal é do canal: use o id " + AssignmentSubject.PORTAL_CHANNEL_ID);
         requireAssignmentScope(command.creditorId());
         if (subject == AssignmentSubject.USER) {
             // usuários ainda não ativados podem receber alçada (preparação do onboarding);
@@ -200,9 +204,14 @@ class AuthorityService implements AuthorityUseCases, AuthorityProvisioning {
         Guard.require(creditorId != null, "authority.creditor_required", "Credor obrigatório");
         accessScope.requireVisible("creditor", creditorId, creditorId);
         AuthorityResolver.Resolution r = resolver.resolve(currentActor.get(), creditorId);
-        String subject = currentActor.get().isAssistant() ? AssignmentSubject.ASSISTANT_POLICY.name()
-                : AssignmentSubject.USER.name();
-        return new EffectiveAuthorityView(subject, currentActor.actorId(), creditorId, r.source().name(),
+        Actor actor = currentActor.get();
+        String subject = switch (actor.type()) {
+            case ASSISTANT -> AssignmentSubject.ASSISTANT_POLICY.name();
+            case DEBTOR -> AssignmentSubject.PORTAL.name();
+            default -> AssignmentSubject.USER.name();
+        };
+        UUID subjectId = actor.type() == Actor.ActorType.DEBTOR ? AssignmentSubject.PORTAL_CHANNEL_ID : actor.id();
+        return new EffectiveAuthorityView(subject, subjectId, creditorId, r.source().name(),
                 view(r.profile()));
     }
 

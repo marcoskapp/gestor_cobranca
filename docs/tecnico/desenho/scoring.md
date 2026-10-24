@@ -71,7 +71,7 @@ gatilho `model_immutable`). Ciclo:
 * **Regressão logística L2** (`LogisticRegressionTrainer`): transformação por feature (`ln(1+x)`, recência
   `1/(1+dias/30)`, identidade com imputação pela média), padronização com estatísticas do treino, Newton-Raphson/IRLS
   com busca em linha, penalidade `λ‖β‖²/2` sem o intercepto, Cholesky. Features sem variação ficam fora.
-  **Implementação própria em Java** (decisão 136): o ajuste tem ~150 linhas, é determinístico e verificado por testes
+  **Implementação própria em Java** (decisão 145): o ajuste tem ~150 linhas, é determinístico e verificado por testes
   de resposta conhecida; uma biblioteca (Smile — GPL/comercial nas versões recentes; Tribuo — Apache 2.0, mas traz um
   framework inteiro; Commons Math 3 — sem logística regularizada pronta e em manutenção) não reduziria risco.
 * Alvo: **pagamento confirmado (líquido de estorno) do devedor na carteira do caso em até N dias** após a data de

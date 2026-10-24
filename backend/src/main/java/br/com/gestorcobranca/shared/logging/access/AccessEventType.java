@@ -42,8 +42,21 @@ public enum AccessEventType {
     FILE_DOWNLOADED,
     /** Webhook recebido com assinatura inválida. */
     WEBHOOK_REJECTED,
-    /** Acesso do devedor ao portal de autonegociação. */
+    /** Acesso do devedor ao portal de autonegociação (sessão aberta por link ou documento + código). */
     PORTAL_LOGIN_SUCCESS,
+    /** Código, link ou desafio de conhecimento inválido no portal (sem revelar se o documento existe). */
     PORTAL_LOGIN_FAILURE,
+    /** Pedido de código de acesso ao portal (registrado mesmo para documento inexistente). */
+    PORTAL_CODE_REQUESTED,
+    /** Link de acesso de uso único emitido (por operador ou sistema). */
+    PORTAL_LINK_ISSUED,
+    /** Bloqueio progressivo do acesso ao portal por documento ou IP. */
+    PORTAL_LOCKED,
+    /** Sessão do portal encerrada pelo devedor. */
+    PORTAL_LOGOUT,
+    /** Sessão do portal revogada (gestão, anonimização, novo acesso acima do limite). */
+    PORTAL_SESSION_REVOKED,
+    /** Aviso de privacidade do portal reconhecido pelo devedor. */
+    PORTAL_PRIVACY_ACKNOWLEDGED,
     RATE_LIMITED
 }

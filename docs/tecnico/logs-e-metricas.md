@@ -40,8 +40,8 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`; `policy.published` com `policyKind = assistant` |
+| Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
-| Outros | `portal.accessed`, `portal.agreement_formalized` |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -287,6 +287,22 @@ Eventos de turno levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `chann
 | `assistant.portfolio_disabled` | desligamento imediato da carteira | `previousMode`, `previousPolicyId` |
 | `assistant.review_recorded` | avaliação humana de turno amostrado | `score`, `verdict`, `sampleReason`, `tags`, `policyId` |
 
+### 3.10 Atributos dos eventos do portal de autonegociação (portal)
+
+Sem documento, contato, nome ou IP: só ids, canal `PORTAL`, valores e códigos. Funil por sessão: `portal.accessed` → `portal.simulated` → `portal.agreement_formalized` → `portal.pix_issued` → `portal.payment_confirmed`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `portal.accessed` | sessão aberta (código ou link, e conhecimento quando exigido) | `method` (`OTP`/`LINK`), `knowledgeChallenge`; referência `portal_session` |
+| `portal.simulated` | ofertas ou simulação do devedor (registrada no negotiation) | `offers`, `grantedLevel`, `plans`, `daysOverdue`; `amount` = dívida atualizada; referência `negotiation_simulation` |
+| `portal.agreement_formalized` | acordo fechado no portal | `installments`, `concessionLevel`, `discountAmount`, `origin` (`PORTAL_SELF_SERVICE`), `method`; `durationMs` = desde a abertura da sessão; `amount` = total |
+| `portal.pix_issued` | Pix da parcela emitido ou reaproveitado (2ª via) | `installmentNumber`, `reused`; `amount` |
+| `portal.payment_confirmed` | primeiro pagamento confirmado de acordo fechado no portal | `installments`, `method`; `durationMs` = desde a formalização; `amount` |
+| `portal.service_requested` | pedido de atendimento humano | `reason` (`TALK_TO_AGENT`, `DISPUTE`, `CANNOT_AFFORD`, `OTHER`), `preferredChannel`, `withNote` |
+| `portal.configuration_changed` | configuração do portal criada/alterada | `operation`, `enabled`, `portfolios`, `knowledgeChallenge`, `privacyNoticeVersion`, `noticeChanged` |
+
+Log de acesso: `PORTAL_CODE_REQUESTED` (inclusive para documento inexistente, com `match` só no log), `PORTAL_LOGIN_SUCCESS`, `PORTAL_LOGIN_FAILURE` (`reason`: `wrong_code`, `wrong_knowledge`, `no_match`, `challenge_closed`, `unknown_link`, `link_unusable`…), `PORTAL_LOCKED` (`key` `DOCUMENT`/`IP`, `until`), `PORTAL_LINK_ISSUED`, `PORTAL_LOGOUT`, `PORTAL_SESSION_REVOKED`, `PORTAL_PRIVACY_ACKNOWLEDGED`; documento sempre mascarado.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -458,6 +474,13 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `telephony.recordings{outcome}`, `telephony.recording.access{purpose}` | gravações (`stored`, `failed`, `too_large`, `purged_retention`, `purged_anonymization`) e acessos por finalidade |
 | `telephony.webhook.requests{provider,outcome}`, `telephony.webhook.events{provider,type,outcome}` | webhooks (`ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` — alarme —, `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`) e eventos (`applied`, `duplicate`, `stale`, `unknown_call`, `ignored`) |
 | `telephony.reconciliation{kind}`, `telephony.events.consumed{type}`, `telephony.jobs.failures{job}` | conciliação (`agent_timeout`, `stale_call`), consumo de eventos e falhas de jobs/agendamentos (alarme) |
+| `portal.funnel{step}` | funil do portal por sessão: `ACCESS`, `SIMULATION`, `ACCEPTANCE`, `PIX_ISSUED`, `PAYMENT_CONFIRMED` (conversão = etapa ÷ anterior) |
+| `portal.access.code_requests{channel,outcome}`, `portal.access.logins{method,outcome}` | pedidos de código (`SENT`, `DECOY` = documento sem cadastro, `NOT_DELIVERED`) e verificações (`SUCCESS`, `INVALID`, `KNOWLEDGE_REQUIRED`); alta de `INVALID`/`DECOY` = varredura |
+| `portal.access.locks{key,event}`, `portal.access.rate_limited` | bloqueios progressivos aplicados/recusados por documento ou IP e limite por IP (alarme sugerido: > 50 em 15 min) |
+| `portal.access.links{channel,outcome}`, `portal.sessions{event}` | links emitidos e ciclo das sessões (`OPENED`, `REFRESHED`, `LOGOUT`, `REVOKED`, `EXPIRED`) |
+| `portal.offers.refused{reason}`, `portal.agreements.formalized{plan}`, `portal.pix{outcome}` | condições recusadas no servidor (`not_offered`, `guard_*`), acordos (`CASH`/`INSTALLMENTS`) e Pix (`ISSUED`, `REUSED`, `FAILED`) |
+| `portal.service_requests{reason,outcome}`, `portal.job.failures{job}` | pedidos à fila humana (`CREATED`, `FORWARDED`, `UNDELIVERED` — alarme se crescer) e falhas de jobs |
+| `compliance.privacy_acknowledgments{channel,outcome}` | aviso de privacidade reconhecido com/sem base legal vigente do credor (`without_legal_basis` exige regularização) |
 | `scoring.cases.scored{trigger,model,band}`, `scoring.cases.skipped{reason}` | casos escorados por gatilho, tipo de modelo e faixa; não escorados (`legal`, `closed`, `anonymized`, `error`) |
 | `scoring.events.published{reason}` | `CaseScoreChanged` publicados (`first`, `band_change`, `delta`) |
 | `scoring.batch.page.duration` (p50/p95/p99), `scoring.batch.page.cases`, `scoring.batch.duration{status}`, `scoring.batch.skipped{reason}` | desempenho da escoragem em lote; lote não iniciado (`legal_basis_missing`, `already_exists`) |
