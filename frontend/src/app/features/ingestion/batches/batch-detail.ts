@@ -7,7 +7,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs';
@@ -26,26 +25,35 @@ import { pagedQuery } from '../../../shared/data/paged-query';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
-import { ImportBatchesApi } from '../data/ingestion.api';
+import { ImportBatchesApi, ImportReviewsApi } from '../data/ingestion.api';
+import { OPTION_LABELS } from '../data/review.rules';
 import { MODE_LABELS, SOURCE_LABELS, UPLOAD_ERROR_LABELS, isTerminal, progressText, sizeText } from '../data/ingestion.labels';
 import { ImportBatchView, IssueSeverity } from '../data/ingestion.models';
 import { POLL_MS } from './batch-list';
 
-/** Ações disponíveis pela situação do lote. */
-export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'source' | 'cancelRequestedAt'>): ('cancel' | 'import' | 'reprocess')[] {
+/**
+ * Ações disponíveis pela situação do lote. Importar uma prévia ou reprocessar um arquivo passa sempre pela conferência
+ * (formato, totais e alertas); a prévia de uma conferência é acompanhada pela própria conferência.
+ */
+export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'source' | 'cancelRequestedAt' | 'reviewId'>): ('cancel' | 'review' | 'import' | 'reprocess')[] {
+  if (b.reviewId && b.mode === 'VALIDATE_ONLY') {
+    return ['review'];
+  }
   if (!isTerminal(b.status)) {
-    return b.cancelRequestedAt ? [] : ['cancel'];
+    return b.cancelRequestedAt || b.status === 'AWAITING_FORMAT' ? [] : ['cancel'];
   }
   if (b.source === 'API') {
-    return [];
+    return b.reviewId ? ['review'] : [];
   }
-  return b.status === 'VALIDATED' ? ['import'] : ['reprocess'];
+  const own: ('review' | 'import' | 'reprocess')[] = b.status === 'VALIDATED' ? ['import'] : ['reprocess'];
+  return b.reviewId ? ['review', ...own] : own;
 }
 
 /**
  * Lote de importação: progresso (atualizado enquanto processa), contadores, ocorrências por linha
  * com valores mascarados, relatório CSV, arquivo original (dado pessoal: permissão própria e
- * registro do download), cancelamento e reprocessamento.
+ * registro do download), cancelamento, leitura aplicada aos valores e o caminho para a conferência
+ * (importar a prévia ou reprocessar o arquivo).
  */
 @Component({
   selector: 'app-batch-detail',
@@ -96,11 +104,14 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
               @case ('cancel') {
                 <button mat-stroked-button type="button" (click)="cancel(b)"><mat-icon aria-hidden="true">cancel</mat-icon>Cancelar</button>
               }
+              @case ('review') {
+                <a mat-flat-button [routerLink]="['/importacao/conferencias', b.reviewId]"><mat-icon aria-hidden="true">fact_check</mat-icon>Abrir a conferência</a>
+              }
               @case ('import') {
-                <button mat-flat-button type="button" (click)="reprocess(b)"><mat-icon aria-hidden="true">publish</mat-icon>Importar este arquivo</button>
+                <button mat-flat-button type="button" (click)="review(b)"><mat-icon aria-hidden="true">fact_check</mat-icon>Conferir e importar</button>
               }
               @case ('reprocess') {
-                <button mat-stroked-button type="button" (click)="reprocess(b)"><mat-icon aria-hidden="true">replay</mat-icon>Reprocessar</button>
+                <button mat-stroked-button type="button" (click)="review(b)"><mat-icon aria-hidden="true">replay</mat-icon>Conferir e reprocessar</button>
               }
             }
           }
@@ -157,7 +168,19 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
           }
           @if (b.reprocessOfBatchId) {
             <dt>Origem do arquivo</dt>
-            <dd><a [routerLink]="['/importacao', b.reprocessOfBatchId]">lote anterior</a></dd>
+            <dd><a [routerLink]="['/importacao', b.reprocessOfBatchId]">{{ b.reviewId && b.mode === 'IMPORT' ? 'prévia conferida' : 'lote anterior' }}</a></dd>
+          }
+          @if (b.reviewId) {
+            <dt>Conferência</dt>
+            <dd><a [routerLink]="['/importacao/conferencias', b.reviewId]">formato, totais e alertas conferidos</a></dd>
+          }
+          @if (formats(b).length) {
+            <dt>Leitura dos valores</dt>
+            <dd>
+              @for (f of formats(b); track f.column) {
+                <div>{{ f.column }}: {{ f.label }}</div>
+              }
+            </dd>
           }
           @if (b.duplicateOfBatchId) {
             <dt>Mesmo conteúdo de</dt>
@@ -264,6 +287,7 @@ export class BatchDetail {
   readonly id = input.required<string>();
 
   private readonly api = inject(ImportBatchesApi);
+  private readonly reviews = inject(ImportReviewsApi);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
@@ -310,6 +334,7 @@ export class BatchDetail {
       { label: 'Títulos novos / atualizados', value: `${n.format(c.titlesCreated)} / ${n.format(c.titlesUpdated)}`, alert: false },
       { label: 'Sem alteração / ignorados', value: `${n.format(c.titlesUnchanged)} / ${n.format(c.titlesSkipped)}`, alert: false },
       { label: 'Suspensos pela carga', value: n.format(c.titlesSuspended), alert: false },
+      ...(c.rowsExcluded ? [{ label: 'Excluídas na conferência', value: n.format(c.rowsExcluded), alert: false }] : []),
     ];
   });
 
@@ -365,33 +390,21 @@ export class BatchDetail {
       );
   }
 
-  protected reprocess(b: ImportBatchView, reason: string | null = null): void {
-    this.call(this.api.reprocess(b.id, 'IMPORT', reason), b);
-  }
-
-  private call(request: Observable<ImportBatchView>, b: ImportBatchView): void {
-    request.subscribe({
+  /** Importar ou reprocessar o arquivo passa pela conferência (nova prévia do mesmo arquivo). */
+  protected review(b: ImportBatchView): void {
+    this.reviews.startFromBatch(b.id).subscribe({
       next: (created) => {
-        this.notifications.success('Novo lote criado com o mesmo arquivo: importação em andamento.');
-        void this.router.navigate(['/importacao', created.id]);
+        this.notifications.success('Conferência iniciada com o mesmo arquivo.');
+        void this.router.navigate(['/importacao/conferencias', created.id]);
       },
       error: (err: unknown) => {
         const e = toApiError(err);
-        if (e.code === 'import.duplicate_file' || e.code === 'import.force_reason_required') {
-          this.confirm
-            .confirm({
-              title: 'Reprocessar arquivo já importado',
-              message: 'Este arquivo já foi importado com sucesso na carteira. Reprocessar não duplica títulos, mas fica registrado na auditoria.',
-              confirmLabel: 'Reprocessar',
-              reason: 'required',
-              reasonLabel: 'Motivo do reprocessamento',
-              details: [{ label: 'Arquivo', value: b.fileName ?? '' }],
-            })
-            .subscribe((reason) => this.reprocess(b, reason));
-          return;
-        }
         this.notifications.error((e.code && UPLOAD_ERROR_LABELS[e.code]) || userMessage(e));
       },
     });
+  }
+
+  protected formats(b: ImportBatchView): { column: string; label: string }[] {
+    return Object.entries(b.numberFormat ?? {}).map(([column, option]) => ({ column, label: OPTION_LABELS[option] ?? option }));
   }
 }

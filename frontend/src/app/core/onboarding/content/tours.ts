@@ -795,14 +795,19 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'ingestion.batches',
-    version: 1,
+    version: 2,
     title: 'Importação de carteiras',
-    summary: 'Envio de arquivos do credor com prévia, progresso e ocorrências.',
+    summary: 'Envio de arquivos do credor com conferência, progresso e ocorrências.',
     steps: [
       {
         anchor: 'page-actions',
         title: 'Modelo e envio',
-        body: 'Baixe o modelo do layout padrão e envie primeiro em prévia: nada é gravado até você importar.',
+        body: 'Baixe o modelo do layout padrão e comece uma nova importação: nada é gravado até você conferir e confirmar.',
+      },
+      {
+        anchor: 'review-list',
+        title: 'Conferências',
+        body: 'Conferências em andamento e as que aguardam aprovação. Retome do passo em que parou.',
       },
       {
         anchor: 'data-table',
@@ -810,6 +815,32 @@ export const TOURS: readonly TourDefinition[] = [
         body: 'Lotes em andamento mostram o progresso e se atualizam sozinhos. Abra um lote para ver as ocorrências por linha.',
         placement: 'above',
       },
+    ],
+  },
+  {
+    id: 'ingestion.review-start',
+    version: 1,
+    title: 'Nova importação',
+    summary: 'Escolha a carteira, o layout e o arquivo.',
+    steps: [
+      {
+        anchor: 'review-upload',
+        title: 'Arquivo e layout',
+        body: 'Escolha a carteira e o arquivo. Em seguida você confere o formato dos valores, os totais e os alertas.',
+      },
+    ],
+  },
+  {
+    id: 'ingestion.review',
+    version: 1,
+    title: 'Conferência da importação',
+    summary: 'Seis passos antes de gravar: formato, linhas, totais, alertas e resumo.',
+    steps: [
+      { anchor: 'review-steps', title: 'Passos', body: 'Avance e volte quando quiser: o andamento fica salvo. Passos com pendência ficam marcados.' },
+      { anchor: 'review-format', title: 'Formato dos valores', body: 'Veja exemplos do arquivo lidos lado a lado. Se 1.000 puder ser mil ou um real, você escolhe.' },
+      { anchor: 'review-totals', title: 'Totais da planilha', body: 'Informe a soma e a contagem da sua planilha. Divergência bloqueia a importação e indica onde procurar.' },
+      { anchor: 'review-alerts', title: 'Alertas de valor', body: 'Valores fora do ticket médio. Confirme ou exclua do lote, com justificativa.' },
+      { anchor: 'review-commit', title: 'Importar', body: 'Confira o impacto e digite a palavra de confirmação. Valores altos pedem aprovação de outra pessoa.' },
     ],
   },
   {

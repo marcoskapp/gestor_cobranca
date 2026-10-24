@@ -32,6 +32,8 @@ export type StatusDomain =
   | 'negotiationOutcome'
   | 'importBatch'
   | 'importIssue'
+  | 'importReview'
+  | 'importAlert'
   | 'proposal'
   | 'agreement'
   | 'installment'
@@ -203,6 +205,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   /** Lotes de importação (`ImportBatchStatus`). */
   importBatch: {
     RECEIVED: { label: 'Na fila', tone: 'info' },
+    AWAITING_FORMAT: { label: 'Aguardando formato', tone: 'warning' },
     VALIDATING: { label: 'Validando', tone: 'info' },
     VALIDATED: { label: 'Prévia concluída', tone: 'success' },
     PROCESSING: { label: 'Importando', tone: 'info' },
@@ -214,6 +217,20 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   importIssue: {
     ERROR: { label: 'Erro', tone: 'danger' },
     WARNING: { label: 'Aviso', tone: 'warning' },
+  },
+  /** Conferência da importação (`ReviewStatus`). */
+  importReview: {
+    OPEN: { label: 'Em conferência', tone: 'info' },
+    AWAITING_APPROVAL: { label: 'Aguardando aprovação', tone: 'warning' },
+    COMMITTED: { label: 'Importação criada', tone: 'success' },
+    REJECTED: { label: 'Recusada', tone: 'danger' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+  },
+  /** Alertas de valor da conferência (`AlertStatus`). */
+  importAlert: {
+    OPEN: { label: 'Aberto', tone: 'warning' },
+    CONFIRMED: { label: 'Confirmado', tone: 'success' },
+    EXCLUDED: { label: 'Excluído do lote', tone: 'neutral' },
   },
   legalBasis: {
     CURRENT: { label: 'Vigente', tone: 'success' },

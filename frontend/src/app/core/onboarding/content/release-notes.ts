@@ -3,6 +3,18 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 9,
+    date: '2026-10-24',
+    title: 'Conferência da importação',
+    items: [
+      { text: 'Nova importação em passos: nada é gravado até você conferir formato, linhas, totais e alertas.', route: '/importacao' },
+      { text: 'Vírgula ou ponto decimal identificados coluna por coluna; valores ambíguos (1.000) só com a sua escolha, vendo exemplos do arquivo.', route: '/importacao' },
+      { text: 'Confira a soma e a contagem da sua planilha: divergência bloqueia e aponta erro de separador decimal (×100, ÷100).', route: '/importacao' },
+      { text: 'Alertas de valor pelo ticket médio do credor: confirme ou exclua do lote, com justificativa.', route: '/importacao' },
+      { text: 'Importações de valor alto pedem a aprovação de outra pessoa.', route: '/importacao' },
+    ],
+  },
+  {
     version: 8,
     date: '2026-10-24',
     title: 'Prestação de contas, telefonia e assistente de IA',

@@ -15,6 +15,8 @@ export const UPLOAD_ERROR_LABELS: Record<string, string> = {
   'import.no_rows': 'O arquivo não tem linhas de dados.',
   'import.too_many_rows': 'O arquivo passa do limite de linhas por lote.',
   'import.already_in_progress': 'Já existe um lote em processamento para esta carteira.',
+  'import.file_signature_invalid': 'O conteúdo do arquivo não corresponde à extensão.',
+  'import.number_format_undecided': 'Há colunas de valor com separador decimal ambíguo: use a conferência para escolher a leitura.',
 };
 
 export const ACCEPT = '.csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -43,6 +45,9 @@ export function progressText(b: Pick<ImportBatchView, 'status' | 'counters' | 't
   const n = new Intl.NumberFormat('pt-BR');
   if (b.status === 'RECEIVED') {
     return 'Na fila de processamento';
+  }
+  if (b.status === 'AWAITING_FORMAT') {
+    return 'Aguardando a decisão sobre o formato dos valores';
   }
   if (b.totalRows) {
     return `${n.format(b.lastProcessedRow)} de ${n.format(b.totalRows)} linhas${b.progressPercent !== null ? ` (${b.progressPercent}%)` : ''}`;

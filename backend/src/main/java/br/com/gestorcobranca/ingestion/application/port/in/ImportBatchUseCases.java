@@ -75,18 +75,43 @@ public interface ImportBatchUseCases {
     }
 
     /**
-     * @param layoutId nulo = layout padrão (formato pela extensão: .csv ou .xlsx)
-     * @param mode     IMPORT (padrão) ou VALIDATE_ONLY
-     * @param force    confirma reprocessamento de arquivo já importado na carteira
-     * @param reason   justificativa obrigatória quando {@code force} é usado sobre arquivo já importado
+     * @param layoutId         nulo = layout padrão (formato pela extensão: .csv ou .xlsx)
+     * @param mode             IMPORT (padrão) ou VALIDATE_ONLY
+     * @param force            confirma reprocessamento de arquivo já importado na carteira
+     * @param reason           justificativa obrigatória quando {@code force} é usado sobre arquivo já importado
+     * @param decimalSeparator COMMA ou DOT para as colunas monetárias ambíguas ou misturadas (opcional; sem ele, o
+     *                         lote com coluna ambígua falha antes de gravar)
      */
     record UploadFileCommand(UUID portfolioId, UUID layoutId, String mode, boolean force, String reason,
-                             String fileName, String contentType, long size, FileContent content) {
+                             String fileName, String contentType, long size, FileContent content,
+                             String decimalSeparator) {
+
+        public UploadFileCommand(UUID portfolioId, UUID layoutId, String mode, boolean force, String reason,
+                                 String fileName, String contentType, long size, FileContent content) {
+            this(portfolioId, layoutId, mode, force, reason, fileName, contentType, size, content, null);
+        }
     }
 
-    /** @param records registros com as chaves canônicas (ver documentação do layout padrão) */
+    /**
+     * @param records       registros com as chaves canônicas (ver documentação do layout padrão); valores string,
+     *                      número ou booleano — números não têm ambiguidade de separador, strings passam pela análise
+     *                      do formato por coluna
+     * @param numberFormat  interpretação das colunas monetárias em texto ({@code valor_principal → COMMA|DOT}), opcional
+     * @param controlTotals totais de controle do lote, opcionais: divergência falha o lote antes de gravar
+     */
     record ImportRecordsCommand(UUID portfolioId, String mode, boolean force, String reason,
-                                List<Map<String, String>> records) {
+                                List<Map<String, Object>> records, Map<String, String> numberFormat,
+                                ControlTotalsCommand controlTotals) {
+
+        public ImportRecordsCommand(UUID portfolioId, String mode, boolean force, String reason,
+                                    List<Map<String, Object>> records) {
+            this(portfolioId, mode, force, reason, records, null, null);
+        }
+    }
+
+    /** Totais de controle informados pela integração (ao menos um). */
+    record ControlTotalsCommand(Long rows, BigDecimal principalTotal, BigDecimal balanceTotal,
+                                BigDecimal contractAmountTotal) {
     }
 
     /** @param reason obrigatória quando o arquivo já foi importado com sucesso na carteira */
@@ -102,6 +127,8 @@ public interface ImportBatchUseCases {
      * @param requestedBy      usuário que enviou o lote
      * @param lastProcessedRow checkpoint do processamento
      * @param issuesTruncated  há mais ocorrências do que as gravadas (limite por lote)
+     * @param reviewId         conferência que acompanha a prévia ou que gerou a importação
+     * @param numberFormat     interpretação aplicada às colunas monetárias (coluna → COMMA, DOT, PER_VALUE_*)
      */
     record ImportBatchView(UUID id, UUID creditorId, UUID portfolioId, UUID layoutId, String layoutCode,
                            int layoutVersion, String source, String mode, String status, String statusReason,
@@ -109,7 +136,7 @@ public interface ImportBatchUseCases {
                            UUID duplicateOfBatchId, UUID reprocessOfBatchId, Counters counters, int issuesRecorded,
                            boolean issuesTruncated, Long totalRows, Integer progressPercent, long lastProcessedRow,
                            Instant cancelRequestedAt, UUID requestedBy, Instant createdAt, Instant startedAt,
-                           Instant finishedAt) {
+                           Instant finishedAt, UUID reviewId, Map<String, String> numberFormat) {
     }
 
     /**
@@ -118,10 +145,11 @@ public interface ImportBatchUseCases {
      * @param titlesSkipped   linhas válidas não gravadas (título informado como pago/cancelado pelo credor)
      * @param titlesSuspended títulos suspensos pela carga a pedido do credor (suspenso, contestado, pago, cancelado)
      * @param principalTotal  principal das linhas válidas gravadas (ou validadas, na pré-visualização)
+     * @param rowsExcluded    linhas excluídas na conferência (não gravadas)
      */
     record Counters(int rowsRead, int rowsValid, int rowsWithError, int errors, int warnings, int debtorsCreated,
                     int debtorsUpdated, int titlesCreated, int titlesUpdated, int titlesUnchanged, int titlesSkipped,
-                    int titlesSuspended, BigDecimal principalTotal) {
+                    int titlesSuspended, BigDecimal principalTotal, int rowsExcluded) {
     }
 
     /** @param valueExcerpt trecho mascarado do valor recebido */

@@ -10,6 +10,9 @@ import br.com.gestorcobranca.ingestion.domain.model.LegalTerms;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedLegal;
 import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
 import br.com.gestorcobranca.ingestion.domain.model.TitleSituation;
+import br.com.gestorcobranca.ingestion.domain.model.format.AmountReading;
+import br.com.gestorcobranca.ingestion.domain.model.format.NumberFormat;
+import br.com.gestorcobranca.ingestion.domain.service.format.AmountParser;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Document;
 
@@ -22,6 +25,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static br.com.gestorcobranca.ingestion.domain.model.CanonicalField.*;
@@ -34,6 +38,10 @@ import static br.com.gestorcobranca.ingestion.domain.model.CanonicalField.*;
  * título e do contrato são <b>erros</b> (a linha não é gravada); problemas em dados
  * complementares (nascimento, contatos, endereço, saldo informado) são <b>avisos</b> e o dado
  * problemático é ignorado — a dívida é carregada e o credor corrige o dado na próxima carga.
+ * <p>
+ * Valores monetários são lidos com a interpretação aplicada ao lote ({@link NumberFormat}, decidida por coluna na
+ * leitura prévia ou pelo usuário — {@code docs/tecnico/desenho/importacao.md} §2): o validador nunca escolhe a
+ * convenção de um valor isolado.
  */
 public final class RowValidator {
 
@@ -59,12 +67,30 @@ public final class RowValidator {
     private static final List<CanonicalField> APPRAISAL_FIELDS = List.of(APPRAISAL_AMOUNT, APPRAISAL_DATE, APPRAISAL_SOURCE);
     static final int LEGAL_TEXT_MAX = 150;
     private static final CanonicalField[][] PHONES = {{PHONE_1, WHATSAPP_1}, {PHONE_2, WHATSAPP_2}, {PHONE_3, WHATSAPP_3}};
+    /** Identificadores que a planilha pode ter convertido em número (notação científica, perda de dígitos). */
+    private static final List<CanonicalField> IDENTIFIERS = List.of(DEBTOR_DOCUMENT, TITLE_EXTERNAL_ID, CONTRACT_NUMBER,
+            COLLATERAL_EXTERNAL_ID);
+    /** Forma que o Excel exibe para números longos ({@code 1,23457E+15}); exige o {@code +} para não confundir códigos. */
+    private static final Pattern SCIENTIFIC = Pattern.compile("\\d([.,]\\d+)?[eE]\\+\\d{1,2}");
+    /** Dígitos significativos que uma célula numérica do Excel guarda. */
+    static final int EXCEL_DIGITS = 15;
 
     private final LocalDate today;
+    private final NumberFormat numberFormat;
 
-    /** @param today data de hoje no fuso de operação (nascimento no futuro é aviso) */
+    /**
+     * Valores lidos valor a valor, com os ambíguos como milhar (lotes sem formato registrado).
+     *
+     * @param today data de hoje no fuso de operação (nascimento no futuro é aviso)
+     */
     public RowValidator(LocalDate today) {
+        this(today, NumberFormat.empty());
+    }
+
+    /** @param numberFormat interpretação das colunas monetárias aplicada ao lote */
+    public RowValidator(LocalDate today, NumberFormat numberFormat) {
         this.today = today;
+        this.numberFormat = numberFormat == null ? NumberFormat.empty() : numberFormat;
     }
 
     /** Identificador externo do título da linha (chave de duplicidade), ou nulo se ausente/inválido. */
@@ -79,6 +105,7 @@ public final class RowValidator {
         Context ctx = new Context(source);
 
         Boolean company = personType(ctx);
+        identifiers(ctx);
         Document document = document(ctx, company);
         String name = name(ctx);
         LocalDate birthDate = birthDate(ctx);
@@ -272,11 +299,17 @@ public final class RowValidator {
             return null;
         }
         String raw = ctx.required(APPRAISAL_AMOUNT);
-        BigDecimal amount = raw == null ? null : BrazilianFormats.parseAmount(raw).filter(v -> v.signum() > 0)
-                .orElseGet(() -> {
-                    ctx.error(APPRAISAL_AMOUNT, "row.appraisal_amount_invalid", "Valor da avaliação deve ser maior que zero");
-                    return null;
-                });
+        BigDecimal amount = null;
+        if (raw != null) {
+            AmountReading reading = amount(ctx, APPRAISAL_AMOUNT);
+            if (!reading.ok()) {
+                amountError(ctx, APPRAISAL_AMOUNT, reading, "row.appraisal_amount_invalid", "Valor da avaliação inválido");
+            } else if (reading.value().signum() <= 0) {
+                ctx.error(APPRAISAL_AMOUNT, "row.appraisal_amount_invalid", "Valor da avaliação deve ser maior que zero");
+            } else {
+                amount = reading.value();
+            }
+        }
         LocalDate date = s.get(APPRAISAL_DATE).map(d -> BrazilianFormats.parseDate(d).filter(v -> !v.isAfter(today))
                 .orElseGet(() -> {
                     ctx.error(APPRAISAL_DATE, "row.appraisal_date_invalid", "Data da avaliação inválida ou futura");
@@ -349,7 +382,7 @@ public final class RowValidator {
 
     private static Document document(Context ctx, Boolean company) {
         String raw = ctx.required(DEBTOR_DOCUMENT);
-        if (raw == null) {
+        if (raw == null || ctx.hasErrorOn(DEBTOR_DOCUMENT)) {
             return null;
         }
         try {
@@ -444,7 +477,7 @@ public final class RowValidator {
         return Optional.of(address.toString());
     }
 
-    private static ParsedContract contract(Context ctx) {
+    private ParsedContract contract(Context ctx) {
         SourceRow s = ctx.source;
         Optional<String> number = s.get(CONTRACT_NUMBER);
         if (number.isEmpty()) {
@@ -467,43 +500,85 @@ public final class RowValidator {
             return null;
         })).orElse(null);
         BigDecimal amount = s.get(CONTRACT_AMOUNT).map(raw -> {
-            Optional<BigDecimal> parsed = BrazilianFormats.parseAmount(raw);
-            if (parsed.isEmpty()) {
-                ctx.error(CONTRACT_AMOUNT, "row.contract_amount_invalid", "Valor do contrato inválido: use 1.234,56 ou 1234.56");
+            AmountReading reading = amount(ctx, CONTRACT_AMOUNT);
+            if (!reading.ok()) {
+                amountError(ctx, CONTRACT_AMOUNT, reading, "row.contract_amount_invalid", "Valor do contrato inválido");
                 return null;
             }
-            if (parsed.get().signum() < 0) {
+            if (reading.value().signum() < 0) {
                 ctx.error(CONTRACT_AMOUNT, "row.contract_amount_negative", "Valor do contrato não pode ser negativo");
                 return null;
             }
-            return parsed.get();
+            return reading.value();
         }).orElse(null);
         return new ParsedContract(number.get(), product, signedAt, amount);
     }
 
-    private static BigDecimal principal(Context ctx) {
+    private BigDecimal principal(Context ctx) {
         String raw = ctx.required(PRINCIPAL_AMOUNT);
         if (raw == null) {
             return null;
         }
-        Optional<BigDecimal> parsed = BrazilianFormats.parseAmount(raw);
-        if (parsed.isEmpty()) {
-            ctx.error(PRINCIPAL_AMOUNT, "row.principal_invalid", "Valor principal inválido: use 1.234,56 ou 1234.56");
+        AmountReading reading = amount(ctx, PRINCIPAL_AMOUNT);
+        if (!reading.ok()) {
+            amountError(ctx, PRINCIPAL_AMOUNT, reading, "row.principal_invalid", "Valor principal inválido");
             return null;
         }
-        if (parsed.get().signum() < 0) {
+        if (reading.value().signum() < 0) {
             ctx.error(PRINCIPAL_AMOUNT, "row.principal_negative", "Valor principal não pode ser negativo");
             return null;
         }
-        if (parsed.get().signum() == 0) {
+        if (reading.value().signum() == 0) {
             ctx.error(PRINCIPAL_AMOUNT, "row.principal_zero", "Valor principal deve ser maior que zero");
             return null;
         }
-        return parsed.get();
+        return reading.value();
+    }
+
+    /** Lê um valor monetário com a interpretação da coluna (o valor tipado dispensa interpretação). */
+    private AmountReading amount(Context ctx, CanonicalField field) {
+        return AmountParser.read(ctx.source.get(field).orElse(null), ctx.source.isTyped(field), numberFormat.option(field));
+    }
+
+    private void amountError(Context ctx, CanonicalField field, AmountReading reading, String formatCode, String label) {
+        switch (reading.problem()) {
+            case TOO_MANY_DECIMALS -> ctx.error(field, "row.amount_too_many_decimals",
+                    label + ": mais de 2 casas decimais (arredonde na planilha)");
+            case SCIENTIFIC_NOTATION -> ctx.error(field, "row.amount_scientific_notation",
+                    label + ": valor em notação científica (formate a coluna como número com 2 casas)");
+            default -> ctx.error(field, formatCode, label + ": " + formatHint(field));
+        }
+    }
+
+    private String formatHint(CanonicalField field) {
+        return switch (numberFormat.option(field)) {
+            case COMMA -> "use o formato confirmado, com vírgula decimal (1.234,56)";
+            case DOT -> "use o formato confirmado, com ponto decimal (1,234.56 ou 1234.56)";
+            default -> "use 1.234,56 ou 1234.56";
+        };
+    }
+
+    /**
+     * Identificador que a planilha converteu em número: em notação científica, ou numérico com mais dígitos do que o
+     * Excel guarda (os últimos viraram zero). Os dois são erro: o título seria casado com o identificador errado.
+     */
+    private static void identifiers(Context ctx) {
+        for (CanonicalField field : IDENTIFIERS) {
+            ctx.source.get(field).ifPresent(value -> {
+                if (SCIENTIFIC.matcher(value).matches()) {
+                    ctx.error(field, "row.scientific_notation",
+                            "Identificador em notação científica: formate a coluna como texto na planilha");
+                } else if (ctx.source.isTyped(field) && value.replaceAll("\\D", "").length() > EXCEL_DIGITS) {
+                    ctx.error(field, "row.identifier_precision_lost",
+                            "Identificador numérico com mais de %d dígitos perdeu precisão na planilha: formate a coluna como texto"
+                                    .formatted(EXCEL_DIGITS));
+                }
+            });
+        }
     }
 
     /** Saldo informado e data-base: dado de conciliação; qualquer problema é aviso e o saldo é ignorado. */
-    private static ReportedBalance reportedBalance(Context ctx) {
+    private ReportedBalance reportedBalance(Context ctx) {
         SourceRow s = ctx.source;
         Optional<String> rawBalance = s.get(REPORTED_BALANCE);
         Optional<String> rawDate = s.get(BALANCE_REFERENCE_DATE);
@@ -513,9 +588,15 @@ public final class RowValidator {
             }
             return null;
         }
-        Optional<BigDecimal> balance = BrazilianFormats.parseAmount(rawBalance.get());
+        AmountReading reading = amount(ctx, REPORTED_BALANCE);
+        Optional<BigDecimal> balance = Optional.ofNullable(reading.value());
         if (balance.isEmpty()) {
-            ctx.warning(REPORTED_BALANCE, "row.balance_invalid", "Saldo inválido: saldo ignorado");
+            String detail = switch (reading.problem()) {
+                case TOO_MANY_DECIMALS -> "mais de 2 casas decimais";
+                case SCIENTIFIC_NOTATION -> "notação científica";
+                default -> "formato inválido";
+            };
+            ctx.warning(REPORTED_BALANCE, "row.balance_invalid", "Saldo inválido (%s): saldo ignorado".formatted(detail));
             return null;
         }
         if (balance.get().signum() < 0) {
@@ -582,6 +663,10 @@ public final class RowValidator {
 
         boolean hasErrors() {
             return issues.stream().anyMatch(RowIssue::isError);
+        }
+
+        boolean hasErrorOn(CanonicalField field) {
+            return issues.stream().anyMatch(i -> i.isError() && field.column().equals(i.field()));
         }
     }
 }

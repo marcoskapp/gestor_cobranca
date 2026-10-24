@@ -8,12 +8,16 @@ import java.util.Set;
  * <pre>
  * IMPORT:        RECEIVED → PROCESSING → COMPLETED | COMPLETED_WITH_ERRORS | FAILED
  * VALIDATE_ONLY: RECEIVED → VALIDATING → VALIDATED | FAILED
+ *                RECEIVED → AWAITING_FORMAT → VALIDATING (prévia de conferência com valores ambíguos: aguarda a
+ *                decisão do usuário sobre o formato numérico antes de validar as linhas)
  * ambos:         RECEIVED → CANCELLED | FAILED;  PROCESSING/VALIDATING → CANCELLED (pedido do usuário,
  *                ao fim do bloco corrente)
  * </pre>
  */
 public enum ImportBatchStatus {
     RECEIVED,
+    /** Prévia de conferência parada após a leitura prévia, aguardando a decisão sobre o formato numérico. */
+    AWAITING_FORMAT,
     VALIDATING,
     VALIDATED,
     PROCESSING,

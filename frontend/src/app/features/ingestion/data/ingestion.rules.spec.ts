@@ -17,6 +17,7 @@ describe('regras de tela do módulo ingestion', () => {
 
   it('progresso, tamanho e situação final', () => {
     expect(progressText({ status: 'RECEIVED', counters, totalRows: null, progressPercent: null, lastProcessedRow: 0 })).toBe('Na fila de processamento');
+    expect(progressText({ status: 'AWAITING_FORMAT', counters, totalRows: 10, progressPercent: 0, lastProcessedRow: 0 })).toContain('formato');
     expect(progressText({ status: 'PROCESSING', counters, totalRows: 50000, progressPercent: 24, lastProcessedRow: 12000 })).toBe('12.000 de 50.000 linhas (24%)');
     expect(progressText({ status: 'PROCESSING', counters, totalRows: null, progressPercent: null, lastProcessedRow: 0 })).toBe('1.200 linhas lidas');
     expect(sizeText(1536)).toBe('2 KB');
@@ -25,12 +26,17 @@ describe('regras de tela do módulo ingestion', () => {
     expect(isTerminal('PROCESSING')).toBe(false);
   });
 
-  it('ações do lote pela situação', () => {
-    expect(batchActions({ status: 'PROCESSING', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null })).toEqual(['cancel']);
-    expect(batchActions({ status: 'PROCESSING', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: 'x' })).toEqual([]);
-    expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'XLSX', cancelRequestedAt: null })).toEqual(['import']);
-    expect(batchActions({ status: 'COMPLETED_WITH_ERRORS', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null })).toEqual(['reprocess']);
-    expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'API', cancelRequestedAt: null })).toEqual([]);
+  it('ações do lote pela situação: importar e reprocessar passam pela conferência', () => {
+    expect(batchActions({ status: 'PROCESSING', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null })).toEqual(['cancel']);
+    expect(batchActions({ status: 'PROCESSING', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: 'x', reviewId: null })).toEqual([]);
+    expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'XLSX', cancelRequestedAt: null, reviewId: null })).toEqual(['import']);
+    expect(batchActions({ status: 'COMPLETED_WITH_ERRORS', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null })).toEqual(['reprocess']);
+    expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'API', cancelRequestedAt: null, reviewId: null })).toEqual([]);
+    // prévia de conferência: acompanhada pela conferência
+    expect(batchActions({ status: 'AWAITING_FORMAT', mode: 'VALIDATE_ONLY', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1' })).toEqual(['review']);
+    expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1' })).toEqual(['review']);
+    // importação gerada pela conferência: link para ela e reprocessar de novo pela conferência
+    expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1' })).toEqual(['review', 'reprocess']);
     expect(toBatchFilter({ creditor: ['c-1'], portfolio: [], status: '', source: 'API' })).toEqual({ creditorId: 'c-1', portfolioId: null, status: null, source: 'API' });
   });
 

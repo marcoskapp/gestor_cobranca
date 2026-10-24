@@ -141,9 +141,31 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'negotiation.policy-detail', version: 1, path: '/negociacao/politicas/:id', tourId: 'negotiation.policy-detail' },
   { key: 'negotiation.indexes', version: 1, path: '/negociacao/indices' },
   { key: 'negotiation.authority', version: 1, path: '/negociacao/alcadas', tourId: 'negotiation.authority' },
-  { key: 'ingestion.batches', version: 1, path: '/importacao', tourId: 'ingestion.batches' },
+  {
+    key: 'ingestion.batches',
+    version: 2,
+    path: '/importacao',
+    tourId: 'ingestion.batches',
+    changes: [
+      {
+        version: 2,
+        items: [
+          '"Nova importação" abre a conferência em passos: formato dos valores, validação, totais da planilha, alertas e resumo.',
+          'Conferências em andamento e aguardando aprovação aparecem no topo da lista.',
+        ],
+      },
+    ],
+  },
   { key: 'ingestion.layouts', version: 1, path: '/importacao/layouts' },
-  { key: 'ingestion.batch-detail', version: 1, path: '/importacao/:id', tourId: 'ingestion.batch-detail' },
+  { key: 'ingestion.review-start', version: 1, path: '/importacao/nova', tourId: 'ingestion.review-start' },
+  { key: 'ingestion.review', version: 1, path: '/importacao/conferencias/:id', tourId: 'ingestion.review' },
+  {
+    key: 'ingestion.batch-detail',
+    version: 2,
+    path: '/importacao/:id',
+    tourId: 'ingestion.batch-detail',
+    changes: [{ version: 2, items: ['Importar a prévia ou reprocessar o arquivo passa pela conferência; a leitura aplicada aos valores aparece no recebimento.'] }],
+  },
   { key: 'compliance.restrictions', version: 1, path: '/compliance/restricoes', tourId: 'compliance.restrictions' },
   { key: 'compliance.contact-policy', version: 1, path: '/compliance/politica-de-contato', tourId: 'compliance.contact-policy' },
   { key: 'compliance.holidays', version: 1, path: '/compliance/feriados' },

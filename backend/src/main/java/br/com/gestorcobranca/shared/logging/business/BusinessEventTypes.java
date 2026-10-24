@@ -18,6 +18,14 @@ public final class BusinessEventTypes {
     public static final String IMPORT_COMPLETED = "import.completed";
     public static final String IMPORT_FAILED = "import.failed";
     public static final String IMPORT_CANCELLED = "import.cancelled";
+    public static final String IMPORT_FORMAT_CONFIRMED = "import.format_confirmed";
+    public static final String IMPORT_TOTALS_MATCHED = "import.totals_matched";
+    public static final String IMPORT_TOTALS_MISMATCH = "import.totals_mismatch";
+    public static final String IMPORT_ALERTS_DETECTED = "import.alerts_detected";
+    public static final String IMPORT_OUTLIERS_REVIEWED = "import.outliers_reviewed";
+    public static final String IMPORT_REVIEW_COMMITTED = "import.review_committed";
+    public static final String IMPORT_REVIEW_APPROVED = "import.review_approved";
+    public static final String IMPORT_REVIEW_REJECTED = "import.review_rejected";
 
     // Dívida
     public static final String DEBTOR_CONSOLIDATED = "debtor.consolidated";

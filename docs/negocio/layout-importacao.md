@@ -62,7 +62,8 @@ Opcionais, por contrato (`docs/tecnico/desenho/juridico.md`, A.4). Exigem a colu
 A garantia é casada pelo `garantia_id` ou pelo bem (chassi, RENAVAM ou placa; matrícula + cartório + município + UF) e cobre todos os títulos do contrato. Na atualização mudam descrição, identificação e gravame; tipo e situação não mudam pela carga (aviso `collateral.type_mismatch`). Coobrigado com participação encerrada não é reaberto (aviso `obligation_party.ended`). Uma linha aceita até dois coobrigados e uma garantia; contratos com mais, em linhas adicionais do mesmo contrato.
 
 **Datas:** `dd/mm/aaaa` (dia/mês com 1 ou 2 dígitos), `dd-mm-aaaa` ou `aaaa-mm-dd` (horário descartado); anos 1900–2199; ano com 2 dígitos é recusado (ambíguo).
-**Valores:** `1.234,56`, `1234,56`, `1234.56`, `1234`, com ou sem `R$`; até 2 casas decimais. `1,234.56` (padrão americano) é recusado por ambiguidade.
+**Valores:** vírgula ou ponto decimal, conforme a **coluna** (§7): `1.234,56`, `1234,56`, `1234.56`, `1,234.56`, `1 234,56`, `1234`, com ou sem `R$`, sinal `-` (no início ou no fim) ou parênteses `(1,50)`; até 2 casas decimais (casas a mais só se forem zeros). Recusados: notação científica (`1,23E+11`), outros símbolos de moeda, separadores repetidos ou fora do lugar (`1..5`, `12.34.567`). Célula **numérica** do XLSX e número JSON não têm ambiguidade; números guardados como texto passam pela análise da coluna.
+**Identificadores:** `id_titulo`, `contrato`, `documento` e `garantia_id` em notação científica (`1,23457E+15`) ou numéricos com mais de 15 dígitos no XLSX (a planilha perdeu os últimos) são erro: formate essas colunas como texto.
 **Fórmulas:** texto iniciado por `=` ou `@` em nome, identificadores, produto e endereço é recusado (proteção contra *CSV/XLSX injection*).
 
 Severidade: **erro** — a linha não é gravada; **aviso** — a linha é gravada e o dado apontado é ignorado ou ajustado. Um título com erro não impede as demais linhas.
@@ -100,6 +101,35 @@ Colunas que o layout não usa são ignoradas, com um aviso único no lote (linha
 
 O envio responde imediatamente (HTTP 202) e o lote segue `RECEIVED → PROCESSING → COMPLETED | COMPLETED_WITH_ERRORS | FAILED` (pré-visualização: `VALIDATING → VALIDATED`). O processamento lê o arquivo inteiro antes de gravar (estrutura, cabeçalho, limite de linhas), depois grava em blocos de 500 linhas com checkpoint: uma queda retoma do ponto em que parou, sem duplicar. O lote pode ser cancelado na fila (de imediato) ou em processamento (ao fim do bloco corrente; o que já foi gravado permanece e pode ser completado reenviando o arquivo).
 
-**Pré-visualização** (`mode=VALIDATE_ONLY`): valida e gera o relatório sem gravar nada; o lote validado pode ser importado depois com `POST /batches/{id}/reprocess`.
+**Pré-visualização** (`mode=VALIDATE_ONLY`): valida e gera o relatório sem gravar nada. Na tela, toda importação passa pela **conferência** (§8); pela API o lote validado ainda pode ser importado com `POST /batches/{id}/reprocess`.
+
+**Integrações:** `POST /batches/records` aceita valores string, número ou booleano. Números JSON não têm ambiguidade (até 15 dígitos significativos; acima disso envie como texto). Strings passam pela mesma análise do CSV: coluna ambígua sem `numberFormat` (`{"valor_principal": "COMMA"}`) falha o lote antes de gravar (`import.number_format_undecided`); declaração que contradiz os valores falha com `import.number_format_conflict`. `controlTotals` (`{"rows": 1000, "principalTotal": 123456.78}`) é opcional: divergência acima de R$ 0,01 (ou de uma linha) falha o lote antes de gravar (`import.control_totals_mismatch`, indicando a razão 10ⁿ). No envio de arquivo direto (`POST /batches`, `mode=IMPORT`), `decimalSeparator=COMMA|DOT` resolve colunas ambíguas.
 
 **Relatório de erros:** `GET /api/v1/ingestion/batches/{id}/issues/report` — CSV (UTF-8 com BOM, `;`) com linha, severidade, campo, código, mensagem e trecho do valor **mascarado**; células que começam com `= + - @` recebem apóstrofo inicial. O download fica registrado no log de acesso.
+
+## 7. Formato dos valores (vírgula ou ponto decimal)
+
+O separador decimal é decidido **por coluna**, olhando todas as linhas — nunca valor a valor:
+
+| O que a coluna contém | Exemplo | Resultado |
+| --- | --- | --- |
+| Só valores numéricos da planilha ou sem separador | `1234` | nada a decidir |
+| Valores que provam a vírgula decimal | `1.234,56`, `10,5`, `1.000.000` | vírgula decimal; `1.000` = mil |
+| Valores que provam o ponto decimal | `1,234.56`, `10.5`, `1.00` | ponto decimal; `1.00` = um real (nunca vira 100) |
+| Só valores ambíguos | `1.000`, `2.500`, `1,000` | **você escolhe** a leitura |
+| As duas convenções na mesma coluna | `1.234,56` e `1,234.56` | **você escolhe** a leitura (inclusive "cada valor pelo seu formato") |
+
+`1.000` é ambíguo porque pode ser mil (ponto de milhar) ou um real com três casas. Quando a coluna não prova a convenção, a conferência mostra os mesmos exemplos do arquivo convertidos em cada leitura (`1.000 → R$ 1.000,00` × `1.000 → R$ 1,00`) e a soma da coluna em cada uma.
+
+## 8. Conferência da importação — passo a passo
+
+Em **Importação de carteiras → Nova importação**. Nada é gravado na carteira até o último passo; você pode sair e voltar (o passo fica salvo).
+
+1. **Arquivo** — escolha a carteira, o layout e o arquivo.
+2. **Formato** — confira como os valores foram lidos, coluna por coluna, com exemplos reais. Coluna ambígua ou misturada: escolha a leitura (a validação só começa depois). Mudar a leitura depois refaz a prévia do mesmo arquivo.
+3. **Linhas** — erros e avisos por linha, como na prévia. Linhas com erro não são importadas.
+4. **Totais** — some na sua planilha e informe: quantidade de linhas (sem o cabeçalho), soma do `valor_principal`, do `saldo` e/ou do `valor_contrato` (a coluna como está, com repetições). Os totais do arquivo só aparecem depois que você informa os seus. Diferença acima de R$ 0,01 (ou de uma linha) **bloqueia**; a tela diz se a soma está 10, 100 ou 1000 vezes maior ou menor (erro de separador decimal), se ela bate com outra leitura do passo 2, quais linhas conferir primeiro e mostra subtotais por faixa de atraso, situação, produto e validade.
+5. **Alertas** — valores muito acima ou abaixo do ticket médio do credor (ou do próprio arquivo, sem histórico), valores que divididos ou multiplicados por 10/100/1000 ficariam normais (provável separador decimal), saldo acima do que encargos justificam, vencimentos distantes ou antigos demais, títulos do mesmo devedor com valores muito diferentes, parcelas que não conferem com o valor do contrato e centavos fora do padrão do credor. Para cada um: **Confirmo que está correto** ou **Excluir do lote**, por linha ou em lote, sempre com justificativa. Alertas de provável separador decimal precisam ser todos revisados; mais de 10 abertos bloqueiam.
+6. **Importar** — resumo do impacto (linhas a importar, títulos novos e existentes, suspensos, soma) e a palavra **IMPORTAR**. Acima de R$ 1.000.000,00 de principal, outra pessoa com permissão de aprovação (nem quem enviou nem quem pediu) precisa aprovar.
+
+Tudo o que foi confirmado — leitura escolhida, totais informados e calculados, alertas e justificativas, linhas excluídas — fica registrado na conferência e na auditoria. Linhas excluídas aparecem no relatório da importação (`row.excluded_by_review`).

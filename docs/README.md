@@ -49,7 +49,7 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [convencoes.md](tecnico/convencoes.md) | Convenções de código, pacotes, persistência, testes |
 | [seguranca.md](tecnico/seguranca.md) | Controles de segurança, LGPD, segregação de funções |
 | [logs-e-metricas.md](tecnico/logs-e-metricas.md) | Fluxos de log (técnico, negócio, acesso), catálogo de eventos e métricas |
-| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `remuneracao-variavel`, `scoring`, `analytics`, `portal`, `ux` |
+| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `importacao` (conferência da importação), `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `remuneracao-variavel`, `scoring`, `analytics`, `portal`, `ux` |
 
 ## Caminhos antigos
 

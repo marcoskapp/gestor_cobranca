@@ -2,6 +2,7 @@ package br.com.gestorcobranca.ingestion.web;
 
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.BatchSearch;
+import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.ControlTotalsCommand;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.DownloadableFile;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.ImportBatchView;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.ImportIssueView;
@@ -13,6 +14,8 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.web.ApiPaths;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
@@ -70,9 +74,11 @@ class ImportBatchController {
                            @RequestParam(required = false) UUID layoutId,
                            @RequestParam(required = false) String mode,
                            @RequestParam(defaultValue = "false") boolean force,
-                           @RequestParam(required = false) @Size(max = 500) String reason) {
+                           @RequestParam(required = false) @Size(max = 500) String reason,
+                           @RequestParam(required = false) @Size(max = 10) String decimalSeparator) {
         return batches.uploadFile(new UploadFileCommand(portfolioId, layoutId, mode, force, reason,
-                file.getOriginalFilename(), file.getContentType(), file.getSize(), file::getInputStream));
+                file.getOriginalFilename(), file.getContentType(), file.getSize(), file::getInputStream,
+                decimalSeparator));
     }
 
     @PostMapping(path = "/records", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -80,8 +86,11 @@ class ImportBatchController {
     @PreAuthorize("hasAuthority('IMPORT_EXECUTE')")
     ImportBatchView importRecords(@RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
                                   @Valid @RequestBody ImportRecordsRequest request) {
+        ControlTotalsRequest totals = request.controlTotals();
         return batches.importRecords(new ImportRecordsCommand(request.portfolioId(), request.mode(), request.force(),
-                request.reason(), request.records()), idempotencyKey);
+                request.reason(), request.records(), request.numberFormat(),
+                totals == null ? null : new ControlTotalsCommand(totals.rows(), totals.principalTotal(),
+                        totals.balanceTotal(), totals.contractAmountTotal())), idempotencyKey);
     }
 
     @GetMapping
@@ -151,9 +160,21 @@ class ImportBatchController {
         return batches.reprocess(id, request == null ? null : new ReprocessCommand(request.mode(), request.reason()));
     }
 
+    /**
+     * @param records       valores string, número ou booleano por chave canônica
+     * @param numberFormat  interpretação das colunas monetárias em texto ({@code {"valor_principal": "COMMA"}})
+     * @param controlTotals totais do lote; divergência falha o lote antes de gravar
+     */
     record ImportRecordsRequest(@NotNull UUID portfolioId, @Size(max = 20) String mode, boolean force,
                                 @Size(max = 500) String reason,
-                                @NotEmpty @Size(max = 10_000) List<Map<String, String>> records) {
+                                @NotEmpty @Size(max = 10_000) List<Map<String, Object>> records,
+                                @Size(max = 10) Map<String, @Size(max = 30) String> numberFormat,
+                                @Valid ControlTotalsRequest controlTotals) {
+    }
+
+    record ControlTotalsRequest(@PositiveOrZero Long rows, @Digits(integer = 17, fraction = 2) BigDecimal principalTotal,
+                                @Digits(integer = 17, fraction = 2) BigDecimal balanceTotal,
+                                @Digits(integer = 17, fraction = 2) BigDecimal contractAmountTotal) {
     }
 
     record CancelRequest(@NotBlank @Size(max = 500) String reason) {

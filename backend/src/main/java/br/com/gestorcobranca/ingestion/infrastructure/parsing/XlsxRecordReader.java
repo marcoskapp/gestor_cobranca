@@ -18,14 +18,18 @@ import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
 import org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler;
 import org.apache.poi.xssf.model.StylesTable;
+import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.XMLFilterImpl;
 
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -44,6 +48,11 @@ import java.util.zip.ZipFile;
  * <p>
  * O número da linha é o da planilha (primeira linha = 1); linhas em branco são ignoradas. Se o
  * layout tem cabeçalho, ele é a primeira linha não vazia.
+ * <p>
+ * Células numéricas (tipo {@code n} ou fórmula com resultado numérico) são entregues como valor <b>tipado</b> em texto
+ * canônico ({@code 1234.56}), sem ambiguidade de separador; células de texto — inclusive "números armazenados como
+ * texto" — seguem como texto e passam pela análise do formato por coluna. O tipo vem do atributo {@code t} da célula
+ * no XML da aba, capturado por um filtro SAX antes do tratamento do POI.
  * <p>
  * Proteção contra zip bomb em duas camadas: antes de abrir, o índice do ZIP é inspecionado
  * (quantidade de partes, tamanhos declarados, tabela de textos, razão de compressão); durante a
@@ -81,11 +90,11 @@ final class XlsxRecordReader {
             XSSFReader reader = new XSSFReader(pkg);
             ReadOnlySharedStringsTable strings = new ReadOnlySharedStringsTable(pkg, false);
             StylesTable styles = reader.getStylesTable();
-            RowCollector collector = new RowCollector(layout, sink);
-            XMLReader xml = XMLHelper.newXMLReader();
-            xml.setContentHandler(new XSSFSheetXMLHandler(styles, strings, collector, new RawValueFormatter(), false));
+            CellTypeFilter types = new CellTypeFilter(XMLHelper.newXMLReader());
+            RowCollector collector = new RowCollector(layout, sink, types);
+            types.setContentHandler(new XSSFSheetXMLHandler(styles, strings, collector, new RawValueFormatter(), false));
             try (InputStream sheet = selectSheet(reader, layout.sheetName())) {
-                xml.parse(new InputSource(sheet));
+                types.parse(new InputSource(sheet));
             }
             collector.finish();
         } catch (ConsumerFailure e) {
@@ -178,23 +187,56 @@ final class XlsxRecordReader {
         }
     }
 
+    /**
+     * Filtro SAX que registra se a célula em leitura é numérica ({@code <c>} sem atributo {@code t}, ou {@code t="n"};
+     * fórmulas com resultado numérico também não têm {@code t}). O POI entrega a célula ao {@link RowCollector} antes
+     * de começar a seguinte, então o tipo corrente corresponde à célula entregue.
+     */
+    static final class CellTypeFilter extends XMLFilterImpl {
+
+        private boolean numeric;
+
+        CellTypeFilter(XMLReader parent) {
+            super(parent);
+        }
+
+        @Override
+        public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
+            if ("c".equals(localName) || "c".equals(qName)) {
+                String type = atts.getValue("t");
+                numeric = type == null || "n".equals(type);
+            }
+            super.startElement(uri, localName, qName, atts);
+        }
+
+        boolean currentCellNumeric() {
+            return numeric;
+        }
+    }
+
     /** Monta as células de cada linha e entrega a linha mapeada ao consumidor. */
     private static final class RowCollector implements XSSFSheetXMLHandler.SheetContentsHandler {
 
+        private static final MathContext EXCEL_PRECISION = new MathContext(15);
+
         private final FileLayout layout;
         private final RecordSink sink;
+        private final CellTypeFilter types;
         private ColumnMapping mapping;
         private List<String> cells = new ArrayList<>();
+        private List<Boolean> typed = new ArrayList<>();
 
-        RowCollector(FileLayout layout, RecordSink sink) {
+        RowCollector(FileLayout layout, RecordSink sink, CellTypeFilter types) {
             this.layout = layout;
             this.sink = sink;
+            this.types = types;
             this.mapping = layout.hasHeader() ? null : ColumnMapping.resolve(layout, null);
         }
 
         @Override
         public void startRow(int rowNum) {
             cells = new ArrayList<>();
+            typed = new ArrayList<>();
         }
 
         @Override
@@ -202,8 +244,26 @@ final class XlsxRecordReader {
             int column = cellReference == null ? cells.size() : new CellReference(cellReference).getCol();
             while (cells.size() < column) {
                 cells.add(null);
+                typed.add(false);
             }
-            cells.add(formattedValue);
+            String number = types.currentCellNumeric() ? canonicalNumber(formattedValue) : null;
+            cells.add(number != null ? number : formattedValue);
+            typed.add(number != null);
+        }
+
+        /**
+         * Valor numérico em texto canônico (até 15 dígitos significativos, a precisão do Excel); nulo se a célula
+         * numérica foi formatada como data (o formatador entrega a data ISO).
+         */
+        private static String canonicalNumber(String value) {
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            try {
+                return new BigDecimal(value.strip()).round(EXCEL_PRECISION).stripTrailingZeros().toPlainString();
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
 
         @Override
@@ -217,7 +277,7 @@ final class XlsxRecordReader {
                     sink.ignoredColumns(mapping.ignoredColumns());
                     return;
                 }
-                SourceRow row = mapping.map(rowNum + 1L, cells);
+                SourceRow row = mapping.map(rowNum + 1L, cells, typed);
                 if (!row.isBlank()) {
                     sink.row(row);
                 }

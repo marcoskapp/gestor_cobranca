@@ -10,6 +10,8 @@ import br.com.gestorcobranca.ingestion.domain.model.ImportLayout;
 import br.com.gestorcobranca.ingestion.domain.model.ImportRowIssue;
 import br.com.gestorcobranca.ingestion.domain.model.LayoutColumn;
 
+import br.com.gestorcobranca.shared.json.JsonCodec;
+
 import java.util.Comparator;
 
 /** Conversão de entidades em views do módulo. */
@@ -18,16 +20,18 @@ final class ImportViews {
     private ImportViews() {
     }
 
-    static ImportBatchView batch(ImportBatch b) {
+    static ImportBatchView batch(ImportBatch b, JsonCodec json) {
         Counters counters = new Counters(b.getRowsRead(), b.getRowsValid(), b.getRowsWithError(), b.getErrors(),
                 b.getWarnings(), b.getDebtorsCreated(), b.getDebtorsUpdated(), b.getTitlesCreated(), b.getTitlesUpdated(),
-                b.getTitlesUnchanged(), b.getTitlesSkipped(), b.getTitlesSuspended(), b.getPrincipalTotal().amount());
+                b.getTitlesUnchanged(), b.getTitlesSkipped(), b.getTitlesSuspended(), b.getPrincipalTotal().amount(),
+                b.getRowsExcluded());
         return new ImportBatchView(b.getId(), b.getCreditorId(), b.getPortfolioId(), b.getLayoutId(), b.getLayoutCode(),
                 b.getLayoutVersion(), b.getSource().name(), b.getMode().name(), b.getStatus().name(), b.getStatusReason(),
                 b.getFileName(), b.getFileSize(), b.getFileSha256(), b.isForced(), b.getForceReason(),
                 b.getDuplicateOfBatchId(), b.getReprocessOfBatchId(), counters, b.getIssuesRecorded(),
                 b.isIssuesTruncated(), b.getTotalRows(), b.progressPercent(), b.getLastProcessedRow(),
-                b.getCancelRequestedAt(), b.getCreatedBy(), b.getCreatedAt(), b.getStartedAt(), b.getFinishedAt());
+                b.getCancelRequestedAt(), b.getCreatedBy(), b.getCreatedAt(), b.getStartedAt(), b.getFinishedAt(),
+                b.getReviewId(), NumberFormats.summary(NumberFormats.fromJson(json, b.getNumberFormat())));
     }
 
     static ImportIssueView issue(ImportRowIssue i) {
