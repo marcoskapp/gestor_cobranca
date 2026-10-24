@@ -110,6 +110,8 @@ class SecurityConfig {
                                 // fontes e ícones são servidos pelo próprio backend (pacotes npm), sem CDN
                                 "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
                                         + "font-src 'self'; img-src 'self' data:; "
+                                        // player das gravações de chamada: áudio obtido com o token e tocado de blob: em memória
+                                        + "media-src 'self' blob:; "
                                         + "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"))
                         .permissionsPolicyHeader(p -> p.policy("camera=(), microphone=(), geolocation=(), payment=()")))
                 .authorizeHttpRequests(auth -> {

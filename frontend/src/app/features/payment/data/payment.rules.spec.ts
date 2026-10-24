@@ -13,6 +13,7 @@ import {
   paymentTimeline,
   reallocationSources,
   requiresSecondReview,
+  requestedTargetText,
   statementFileProblem,
   toTargetRequest,
 } from './payment.rules';
@@ -133,5 +134,16 @@ describe('regras de pagamentos', () => {
     // hoje, sem hora, antes do meio-dia: usa o momento atual (nunca futuro)
     const morning = new Date(2026, 9, 23, 8, 15);
     expect(paidAtInstant(new Date(2026, 9, 23), '', morning)).toBe(morning.toISOString());
+  });
+
+  it('destino solicitado em texto para quem aprova (parcelas, todas em aberto, títulos)', () => {
+    const numbers = new Map([['i-3', 3], ['i-4', 4]]);
+    expect(requestedTargetText({ kind: 'AGREEMENT', itemIds: ['i-3', 'i-4'], strategy: null }, { agreementLabel: '20/09/2026', installmentNumbers: numbers })).toBe('Acordo de 20/09/2026 · 3ª e 4ª parcelas');
+    expect(requestedTargetText({ kind: 'AGREEMENT', itemIds: ['i-3'], strategy: null }, { installmentNumbers: numbers })).toBe('Acordo · 3ª parcela');
+    expect(requestedTargetText({ kind: 'AGREEMENT', itemIds: [], strategy: null })).toBe('Acordo · todas as parcelas em aberto, na ordem');
+    // sem acesso ao acordo: só a quantidade
+    expect(requestedTargetText({ kind: 'AGREEMENT', itemIds: ['i-9'], strategy: null })).toBe('Acordo · 1 parcela(s) escolhida(s)');
+    expect(requestedTargetText({ kind: 'TITLES', itemIds: ['t-1', 't-2'], strategy: 'OLDEST_FIRST' }, { titleLabels: new Map([['t-1', 'CRED-1/4'], ['t-2', 'CRED-1/5']]) })).toBe('Títulos CRED-1/4, CRED-1/5 · vencidos primeiro');
+    expect(requestedTargetText({ kind: 'TITLES', itemIds: ['t-1'], strategy: 'PROPORTIONAL' })).toBe('1 título(s) avulso(s) · proporcional ao saldo');
   });
 });

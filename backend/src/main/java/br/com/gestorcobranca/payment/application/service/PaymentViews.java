@@ -4,6 +4,7 @@ import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCa
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.AllocationView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.LineView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.PaymentView;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.RequestedTargetView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReversalView;
 import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.DivergenceView;
 import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.StatementImportView;
@@ -21,6 +22,7 @@ import br.com.gestorcobranca.shared.logging.SensitiveDataMasker;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /** Conversão de entidades em views (nunca expõem entidades nem segredos). */
 final class PaymentViews {
@@ -28,7 +30,12 @@ final class PaymentViews {
     private PaymentViews() {
     }
 
-    static PaymentView payment(Payment p, List<PaymentAllocation> allocations, Optional<PaymentReversal> reversal) {
+    /**
+     * @param targetItems ids do destino solicitado ({@code target_items}) já decodificados; ignorados sem
+     *                    {@code target_kind}
+     */
+    static PaymentView payment(Payment p, List<PaymentAllocation> allocations, Optional<PaymentReversal> reversal,
+                               List<UUID> targetItems) {
         Money pendingReallocation = p.isEffective()
                 ? allocations.stream().map(PaymentAllocation::availableForReallocation).reduce(p.unallocated(), Money::plus)
                 : Money.ZERO;
@@ -40,7 +47,16 @@ final class PaymentViews {
                 p.getReviewNote(), p.getConfirmedAt(), p.getReconciledAt(), PaymentEnums.name(p.getReconciliationMode()),
                 p.getReversedAt(), p.getAllocatedAmount().amount(), p.unallocated().amount(), pendingReallocation.amount(),
                 p.getEvidenceKey() != null, p.getEvidenceSha256(), allocations.stream().map(PaymentViews::allocation).toList(),
-                reversal.map(PaymentViews::reversal).orElse(null), p.getVersion() == null ? 0 : p.getVersion());
+                reversal.map(PaymentViews::reversal).orElse(null), requestedTarget(p, targetItems),
+                p.getVersion() == null ? 0 : p.getVersion());
+    }
+
+    static RequestedTargetView requestedTarget(Payment p, List<UUID> targetItems) {
+        if (p.getTargetKind() == null) {
+            return null;
+        }
+        return new RequestedTargetView(p.getTargetKind().name(), p.getTargetAgreementId(), targetItems,
+                PaymentEnums.name(p.getTargetStrategy()));
     }
 
     static AllocationView allocation(PaymentAllocation a) {

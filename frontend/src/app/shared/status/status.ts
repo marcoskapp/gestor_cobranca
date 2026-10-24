@@ -60,6 +60,20 @@ export type StatusDomain =
   | 'statementImport'
   | 'statementLine'
   | 'divergence'
+  | 'commissionRuleSet'
+  | 'receiptRating'
+  | 'settlementStatement'
+  | 'settlementAdjustment'
+  | 'settlementTransfer'
+  | 'call'
+  | 'agentPresence'
+  | 'dialerCampaign'
+  | 'dialerEntry'
+  | 'recording'
+  | 'assistantPolicy'
+  | 'assistantMode'
+  | 'assistantReview'
+  | 'assistantTurn'
   | 'portalSession'
   | 'portalRequest';
 
@@ -423,6 +437,111 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     OPEN: { label: 'Em aberto', tone: 'warning' },
     RESOLVED: { label: 'Resolvida', tone: 'success' },
     DISMISSED: { label: 'Descartada', tone: 'neutral' },
+  },
+  /** Versão das regras de comissão (`RuleSetStatus`). */
+  commissionRuleSet: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    PUBLISHED: { label: 'Publicada', tone: 'success' },
+    DISCARDED: { label: 'Descartada', tone: 'neutral' },
+  },
+  /** Apuração do recebimento (`RatingStatus`). */
+  receiptRating: {
+    RATED: { label: 'Apurado', tone: 'success' },
+    PENDING_RULES: { label: 'Aguardando regra', tone: 'warning' },
+  },
+  /** Demonstrativo (`StatementStatus`). */
+  settlementStatement: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    CALCULATED: { label: 'Calculado', tone: 'info' },
+    REVIEWED: { label: 'Revisado', tone: 'warning' },
+    APPROVED: { label: 'Aprovado', tone: 'success' },
+    SENT: { label: 'Enviado ao credor', tone: 'success' },
+    ACKNOWLEDGED: { label: 'Aceito pelo credor', tone: 'success' },
+    CONTESTED: { label: 'Contestado', tone: 'danger' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+  },
+  /** Ajuste do demonstrativo (`SettlementAdjustment.Status`). */
+  settlementAdjustment: {
+    APPLIED: { label: 'Aplicado', tone: 'success' },
+    PENDING_SECOND_APPROVAL: { label: 'Aguardando 2ª aprovação', tone: 'warning' },
+    REJECTED: { label: 'Recusado', tone: 'neutral' },
+  },
+  /** Repasse (`CreditorTransfer.Status`). */
+  settlementTransfer: {
+    REGISTERED: { label: 'Registrado', tone: 'success' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+  },
+  /** Chamada (`CallStatus`). */
+  call: {
+    QUEUED: { label: 'Na fila', tone: 'info' },
+    DIALING: { label: 'Discando', tone: 'info' },
+    RINGING: { label: 'Chamando', tone: 'info' },
+    ANSWERED: { label: 'Em conversa', tone: 'success' },
+    COMPLETED: { label: 'Encerrada', tone: 'neutral' },
+    NO_ANSWER: { label: 'Não atendeu', tone: 'neutral' },
+    BUSY: { label: 'Ocupado', tone: 'neutral' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
+    CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+  },
+  /** Presença do operador (`AgentStatus`). */
+  agentPresence: {
+    OFFLINE: { label: 'Fora da telefonia', tone: 'neutral' },
+    AVAILABLE: { label: 'Disponível', tone: 'success' },
+    ON_CALL: { label: 'Em chamada', tone: 'info' },
+    WRAP_UP: { label: 'Pós-atendimento', tone: 'warning' },
+    PAUSED: { label: 'Em pausa', tone: 'warning' },
+  },
+  /** Campanha de discagem (`DialerCampaignStatus`). */
+  dialerCampaign: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    ACTIVE: { label: 'Discando', tone: 'success' },
+    PAUSED: { label: 'Pausada', tone: 'warning' },
+    FINISHED: { label: 'Encerrada', tone: 'neutral' },
+  },
+  /** Item da lista de discagem (`DialerEntryStatus`). */
+  dialerEntry: {
+    PENDING: { label: 'Aguardando', tone: 'info' },
+    IN_PROGRESS: { label: 'Em chamada', tone: 'info' },
+    COMPLETED: { label: 'Contatado', tone: 'success' },
+    EXHAUSTED: { label: 'Tentativas esgotadas', tone: 'neutral' },
+    EXCLUDED: { label: 'Excluído', tone: 'neutral' },
+  },
+  /** Gravação de chamada (`RecordingStatus`). */
+  recording: {
+    PENDING: { label: 'Copiando do provedor', tone: 'info' },
+    STORED: { label: 'Disponível', tone: 'success' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
+    PURGED: { label: 'Descartada', tone: 'neutral' },
+  },
+  /** Versão da política do assistente (`PolicyStatus`). */
+  assistantPolicy: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    PUBLISHED: { label: 'Publicada', tone: 'success' },
+    RETIRED: { label: 'Aposentada', tone: 'neutral' },
+  },
+  /** Modo de operação do assistente (`AssistantMode`). */
+  assistantMode: {
+    OFF: { label: 'Desligado', tone: 'neutral' },
+    SHADOW: { label: 'Sombra', tone: 'info' },
+    COPILOT: { label: 'Copiloto', tone: 'info' },
+    AUTONOMOUS_WITH_APPROVAL: { label: 'Autônomo com aprovação', tone: 'warning' },
+    AUTONOMOUS: { label: 'Autônomo', tone: 'success' },
+  },
+  /** Revisão de turno do assistente (`ReviewStatus`). */
+  assistantReview: {
+    PENDING: { label: 'A revisar', tone: 'warning' },
+    REVIEWED: { label: 'Revisado', tone: 'success' },
+  },
+  /** Resultado do turno do assistente (`TurnOutcome`). */
+  assistantTurn: {
+    REPLIED: { label: 'Respondeu', tone: 'success' },
+    DRAFTED: { label: 'Sugeriu rascunho', tone: 'info' },
+    HANDED_OFF: { label: 'Transferiu', tone: 'warning' },
+    APPROVAL_REQUESTED: { label: 'Pediu aprovação', tone: 'warning' },
+    SEND_BLOCKED: { label: 'Envio bloqueado', tone: 'danger' },
+    GUARDRAIL_BLOCKED: { label: 'Bloqueado pelo guardrail', tone: 'danger' },
+    SKIPPED: { label: 'Sem ação', tone: 'neutral' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
   },
 };
 

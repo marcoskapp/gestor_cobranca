@@ -156,5 +156,5 @@ Métricas: `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome
 - **payment**: honorários de título avulso dependem da distribuição por componente (já publicada); consulta em lote da situação de conciliação (hoje uma leitura por alocação candidata no cálculo).
 - **analytics**: views sobre `receipt`/`commission_entry`/`statement` (custo de comissão por real recuperado, prazo de fechamento e de repasse).
 - **produto**: acesso do credor (portal/API) para aceite e contestação; envio automático por e-mail com o arquivo; configuração do limite de ajuste por assessoria.
-- **frontend**: telas de regras, demonstrativo, ajustes, exportação, envio e repasses.
+- ~~**frontend**~~ (24/10/2026): telas de regras, razão, demonstrativo (ciclo, ajustes, custas, exportação com conferência do SHA-256 no download, envio, resposta do credor) e repasses em `/prestacao-de-contas`.
 - Depósito judicial como origem de pagamento (payment) entra automaticamente como recebimento quando existir.

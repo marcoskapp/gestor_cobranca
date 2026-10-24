@@ -1,0 +1,55 @@
+.pn__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--app-gap);
+  margin-bottom: var(--app-gap);
+}
+.pn__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--app-gap);
+  margin-bottom: var(--app-gap);
+}
+.pn__grid > .app-card + .app-card {
+  margin-top: 0;
+}
+.pn__table-wrap {
+  overflow-x: auto;
+}
+.pn__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--app-text-sm);
+  th,
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--app-border);
+    text-align: left;
+    vertical-align: top;
+  }
+  thead th {
+    font-size: var(--app-text-xs);
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+  }
+  .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .sub {
+    display: block;
+    font-size: var(--app-text-xs);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+@media (max-width: 599.98px) {
+  .pn__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+.pn__hint {
+  margin: 4px 0 0;
+  font-size: var(--app-text-xs);
+  color: var(--mat-sys-on-surface-variant);
+}

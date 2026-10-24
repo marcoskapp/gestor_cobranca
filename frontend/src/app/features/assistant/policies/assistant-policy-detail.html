@@ -1,0 +1,333 @@
+@if (resource.isLoading() && !policy()) {
+  <app-skeleton variant="card" [rows]="8" />
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="smart_toy" tone="error" title="Não foi possível abrir a política." message="Ela pode não existir ou estar fora do seu escopo de credores.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/assistente/politicas">Voltar para políticas</a>
+  </app-empty-state>
+}
+
+@if (policy(); as p) {
+  <app-page-header [title]="p.name + ' · v' + p.policyVersion" [subtitle]="scope() + ' · ' + p.code">
+    <a mat-button routerLink="/assistente/politicas">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Políticas
+    </a>
+    @if (canManage()) {
+      @if (p.portfolioId) {
+        <button mat-stroked-button type="button" (click)="disablePortfolio()">
+          <mat-icon aria-hidden="true">power_settings_new</mat-icon>
+          Desligar carteira
+        </button>
+      }
+      @if (p.status === 'DRAFT') {
+        @if (dirty()) {
+          <button mat-stroked-button type="button" (click)="discardChanges()">Descartar alterações</button>
+          <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">
+            <mat-icon aria-hidden="true">save</mat-icon>
+            Salvar rascunho
+          </button>
+        } @else {
+          <button mat-flat-button type="button" (click)="publish()" [disabled]="problems().length > 0" data-tour="assistant-publish">
+            <mat-icon aria-hidden="true">publish</mat-icon>
+            Publicar
+          </button>
+        }
+      } @else {
+        @if (p.status === 'PUBLISHED') {
+          <button mat-stroked-button type="button" (click)="retire()">Aposentar</button>
+        }
+        <button mat-flat-button type="button" (click)="newVersion()" [disabled]="hasDraft()" [matTooltip]="hasDraft() ? 'Já existe um rascunho desta política' : 'Copia os parâmetros para um novo rascunho'">
+          <mat-icon aria-hidden="true">content_copy</mat-icon>
+          Nova versão
+        </button>
+      }
+    }
+  </app-page-header>
+
+  <div class="as-status">
+    <app-status-chip domain="assistantPolicy" [status]="p.status" />
+    <app-status-chip domain="assistantMode" [status]="p.mode" />
+    @if (p.publishedAt) {
+      <span class="app-muted">publicada em {{ p.publishedAt | appDate }} por {{ users.name(p.publishedBy) }}</span>
+    }
+    @if (p.retiredAt) {
+      <span class="app-muted">· aposentada em {{ p.retiredAt | appDate }}{{ p.retireReason ? ': ' + p.retireReason : '' }}</span>
+    }
+    @if (dirty()) {
+      <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">edit</mat-icon>Alterações não salvas</span>
+    }
+  </div>
+
+  @if (actionError()) {
+    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ actionError() }}</span></p>
+  }
+  @if (problems().length && editable()) {
+    <section class="app-alert app-alert--error" role="alert" aria-label="Problemas na política">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <div>
+        <strong>{{ problems().length }} problema(s) a corrigir:</strong>
+        <ul>
+          @for (pr of problems().slice(0, 8); track pr) {
+            <li>{{ pr }}</li>
+          }
+        </ul>
+      </div>
+    </section>
+  }
+
+  @if (draft(); as d) {
+    <div class="as-grid">
+      <div class="as-main">
+        @if (editable()) {
+          <section class="app-card">
+            <mat-form-field class="app-full-width">
+              <mat-label>Nome</mat-label>
+              <input matInput [ngModel]="name()" (ngModelChange)="name.set($event); edited()" maxlength="120" />
+            </mat-form-field>
+          </section>
+        }
+
+        <section class="app-card" aria-labelledby="ap-mode" data-tour="assistant-mode">
+          <h2 class="app-card__title" id="ap-mode">Modo e canais</h2>
+          <mat-form-field class="app-full-width" subscriptSizing="dynamic">
+            <mat-label>Modo de operação</mat-label>
+            <mat-select [value]="d.mode" (selectionChange)="set('mode', $event.value)" [disabled]="!editable()">
+              @for (m of modes; track m[0]) {
+                <mat-option [value]="m[0]">{{ m[1] }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint>{{ modeHints[d.mode] }}</mat-hint>
+          </mat-form-field>
+          <mat-checkbox [checked]="true" [disabled]="true">WhatsApp</mat-checkbox>
+          <p class="app-muted as-small">E-mail e SMS exigem templates por intenção; o assistente atende hoje só o WhatsApp (texto livre).</p>
+        </section>
+
+        <section class="app-card" aria-labelledby="ap-hours" data-tour="assistant-hours">
+          <div class="as-head">
+            <h2 class="app-card__title" id="ap-hours">Horários de atendimento</h2>
+            @if (editable()) {
+              <button mat-stroked-button type="button" (click)="addWindow()"><mat-icon aria-hidden="true">add</mat-icon>Janela</button>
+            }
+          </div>
+          <p class="app-muted as-small">Fuso de operação. Fora das janelas, a resposta é adiada para a abertura. Sem janelas = sempre.</p>
+          @for (w of d.serviceHours ?? []; track $index; let i = $index) {
+            <div class="as-row">
+              <mat-button-toggle-group multiple [value]="w.days" (change)="setWindowDays(i, $event.value)" [disabled]="!editable()" [attr.aria-label]="'Dias da janela ' + (i + 1)">
+                @for (day of days; track day) {
+                  <mat-button-toggle [value]="day">{{ dayLabels[day] }}</mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+              <mat-form-field class="app-compact as-time" subscriptSizing="dynamic">
+                <mat-label>Início</mat-label>
+                <input matInput type="time" [ngModel]="w.start.slice(0, 5)" (ngModelChange)="setWindowTime(i, 'start', $event)" [readonly]="!editable()" />
+              </mat-form-field>
+              <mat-form-field class="app-compact as-time" subscriptSizing="dynamic">
+                <mat-label>Fim</mat-label>
+                <input matInput type="time" [ngModel]="w.end.slice(0, 5)" (ngModelChange)="setWindowTime(i, 'end', $event)" [readonly]="!editable()" />
+              </mat-form-field>
+              @if (editable()) {
+                <button mat-icon-button type="button" (click)="removeWindow(i)" aria-label="Remover janela" matTooltip="Remover"><mat-icon aria-hidden="true">delete</mat-icon></button>
+              }
+            </div>
+          } @empty {
+            <p class="as-small">Atende a qualquer hora (respeitando a política de contato).</p>
+          }
+        </section>
+
+        <section class="app-card" aria-labelledby="ap-conv" data-tour="assistant-authority">
+          <h2 class="app-card__title" id="ap-conv">Alçada, prompt e conversa</h2>
+          <div class="app-form-grid">
+            <mat-form-field>
+              <mat-label>Perfil de alçada</mat-label>
+              <mat-select [value]="d.authorityProfileId ?? ''" (selectionChange)="set('authorityProfileId', $event.value || null)" [disabled]="!editable()">
+                <mat-option value="">Padrão (ASSISTENTE_INICIAL)</mat-option>
+                @for (pr of profiles(); track pr.id) {
+                  <mat-option [value]="pr.id">{{ pr.name }} ({{ pr.code }})</mat-option>
+                }
+              </mat-select>
+              @if (selectedProfile(); as sp) {
+                <mat-hint>até {{ sp.maxInstallments }} parcelas · {{ sp.canFormalize ? 'formaliza' : 'não formaliza' }}</mat-hint>
+              }
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Prompt</mat-label>
+              <mat-select [value]="(d.promptCode ?? p.promptCode) + '@' + (d.promptVersion ?? p.promptVersion)" (selectionChange)="setPrompt($event.value)" [disabled]="!editable()">
+                @for (pr of prompts(); track pr.code + pr.version) {
+                  <mat-option [value]="pr.code + '@' + pr.version">{{ pr.code }} v{{ pr.version }} · {{ pr.description }}</mat-option>
+                }
+                @if (!prompts().length) {
+                  <mat-option [value]="p.promptCode + '@' + p.promptVersion">{{ p.promptCode }} v{{ p.promptVersion }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint>Versões imutáveis, revisadas no código</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Tom</mat-label>
+              <mat-select [value]="d.tone ?? 'FORMAL'" (selectionChange)="set('tone', $event.value)" [disabled]="!editable()">
+                <mat-option value="FORMAL">Formal</mat-option>
+                <mat-option value="PROXIMO">Próximo</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Turnos antes de oferecer humano</mat-label>
+              <input matInput type="number" min="1" max="50" [ngModel]="d.maxTurns" (ngModelChange)="setNumber('maxTurns', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Falhas de entendimento seguidas</mat-label>
+              <input matInput type="number" min="1" max="5" [ngModel]="d.maxMisunderstandings" (ngModelChange)="setNumber('maxMisunderstandings', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Confiança mínima (%)</mat-label>
+              <input matInput inputmode="decimal" [ngModel]="percentOf(d.minConfidence)" (ngModelChange)="setFraction('minConfidence', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+            <div class="app-span-all">
+              <mat-checkbox [ngModel]="d.requireIdentityVerification ?? true" (ngModelChange)="set('requireIdentityVerification', $event)" [disabled]="!editable()">Confirmar a identidade antes de revelar a dívida (3 dígitos do CPF + nascimento)</mat-checkbox>
+            </div>
+            <mat-form-field>
+              <mat-label>Tentativas de identificação</mat-label>
+              <input matInput type="number" min="1" max="5" [ngModel]="d.maxIdentityAttempts" (ngModelChange)="setNumber('maxIdentityAttempts', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+          </div>
+        </section>
+
+        <section class="app-card" aria-labelledby="ap-topics">
+          <h2 class="app-card__title" id="ap-topics">Temas</h2>
+          <div class="app-form-grid">
+            <mat-form-field class="app-span-all">
+              <mat-label>Temas permitidos (separados por vírgula)</mat-label>
+              <input matInput [ngModel]="topicsText(d.allowedTopics)" (ngModelChange)="setTopics('allowedTopics', $event)" [readonly]="!editable()" />
+              <mat-hint>Informados ao modelo</mat-hint>
+            </mat-form-field>
+            <mat-form-field class="app-span-all">
+              <mat-label>Temas proibidos (separados por vírgula)</mat-label>
+              <input matInput [ngModel]="topicsText(d.forbiddenTopics)" (ngModelChange)="setTopics('forbiddenTopics', $event)" [readonly]="!editable()" />
+              <mat-hint>Bloqueiam a resposta (guardrail)</mat-hint>
+            </mat-form-field>
+          </div>
+        </section>
+
+        <section class="app-card" aria-labelledby="ap-triggers" data-tour="assistant-triggers">
+          <div class="as-head">
+            <h2 class="app-card__title" id="ap-triggers">Transferência para humano</h2>
+            @if (editable()) {
+              <button mat-stroked-button type="button" (click)="addTrigger()"><mat-icon aria-hidden="true">add</mat-icon>Gatilho adicional</button>
+            }
+          </div>
+          <p class="app-muted as-small">Os gatilhos obrigatórios não se desligam; a política troca só o perfil exigido na fila e acrescenta gatilhos.</p>
+          <div class="as-scroll">
+            <table class="as-table" aria-label="Gatilhos obrigatórios e perfil exigido">
+              <thead>
+                <tr>
+                  <th scope="col">Motivo obrigatório</th>
+                  <th scope="col">Perfil exigido</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of mandatory; track r) {
+                  <tr>
+                    <td><mat-icon class="as-lock" aria-hidden="true">lock</mat-icon>{{ reasons[r] }}</td>
+                    <td>
+                      <input class="as-inline-input" [attr.aria-label]="'Perfil exigido para ' + reasons[r]" [ngModel]="profileFor(r)" (ngModelChange)="setProfile(r, $event)" [placeholder]="defaultProfiles[r] ?? 'qualquer operador'" [readonly]="!editable()" maxlength="40" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @for (t of d.extraTriggers ?? []; track $index; let i = $index) {
+            <div class="as-row">
+              <mat-form-field class="app-compact as-grow" subscriptSizing="dynamic">
+                <mat-label>Expressão</mat-label>
+                <input matInput [ngModel]="t.keyword" (ngModelChange)="setTrigger(i, 'keyword', $event)" maxlength="60" [readonly]="!editable()" />
+              </mat-form-field>
+              <mat-form-field class="app-compact as-grow" subscriptSizing="dynamic">
+                <mat-label>Motivo</mat-label>
+                <mat-select [value]="t.reasonCode ?? 'POLICY_TRIGGER'" (selectionChange)="setTrigger(i, 'reasonCode', $event.value)" [disabled]="!editable()">
+                  @for (code of reasonCodes; track code) {
+                    <mat-option [value]="code">{{ reasons[code] }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              @if (editable()) {
+                <button mat-icon-button type="button" (click)="removeTrigger(i)" aria-label="Remover gatilho" matTooltip="Remover"><mat-icon aria-hidden="true">delete</mat-icon></button>
+              }
+            </div>
+          }
+        </section>
+
+        <section class="app-card" aria-labelledby="ap-messages">
+          <h2 class="app-card__title" id="ap-messages">Mensagens</h2>
+          <mat-form-field class="app-full-width">
+            <mat-label>Apresentação (transparência)</mat-label>
+            <textarea matInput rows="2" maxlength="600" [ngModel]="d.identificationMessage" (ngModelChange)="set('identificationMessage', $event)" [readonly]="!editable()"></textarea>
+            <mat-hint>Precisa dizer "assistente virtual" e como pedir atendimento humano</mat-hint>
+          </mat-form-field>
+          <mat-form-field class="app-full-width">
+            <mat-label>Ao transferir para humano</mat-label>
+            <textarea matInput rows="2" maxlength="600" [ngModel]="d.handoffMessage" (ngModelChange)="set('handoffMessage', $event)" [readonly]="!editable()"></textarea>
+          </mat-form-field>
+          <mat-form-field class="app-full-width">
+            <mat-label>Em falha ou resposta bloqueada</mat-label>
+            <textarea matInput rows="2" maxlength="600" [ngModel]="d.fallbackMessage" (ngModelChange)="set('fallbackMessage', $event)" [readonly]="!editable()"></textarea>
+          </mat-form-field>
+          <mat-form-field class="app-full-width">
+            <mat-label>Aceite aguardando formalização humana</mat-label>
+            <textarea matInput rows="2" maxlength="600" [ngModel]="d.approvalMessage" (ngModelChange)="set('approvalMessage', $event)" [readonly]="!editable()"></textarea>
+          </mat-form-field>
+        </section>
+
+        <section class="app-card" aria-labelledby="ap-limits" data-tour="assistant-limits">
+          <h2 class="app-card__title" id="ap-limits">Limites e avaliação</h2>
+          <div class="app-form-grid">
+            <mat-form-field>
+              <mat-label>Tokens de saída por chamada</mat-label>
+              <input matInput type="number" [ngModel]="d.limits?.maxOutputTokens" (ngModelChange)="setLimit('maxOutputTokens', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Tokens por turno</mat-label>
+              <input matInput type="number" [ngModel]="d.limits?.maxTokensPerTurn" (ngModelChange)="setLimit('maxTokensPerTurn', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Ferramentas por turno</mat-label>
+              <input matInput type="number" [ngModel]="d.limits?.maxToolCallsPerTurn" (ngModelChange)="setLimit('maxToolCallsPerTurn', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Tempo por chamada ao modelo (s)</mat-label>
+              <input matInput type="number" [ngModel]="d.limits?.timeoutSeconds" (ngModelChange)="setLimit('timeoutSeconds', $event)" [readonly]="!editable()" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Custo máximo por conversa</mat-label>
+              <input matInput inputmode="decimal" [ngModel]="d.limits?.maxCostPerConversation" (ngModelChange)="setLimit('maxCostPerConversation', $event)" [readonly]="!editable()" />
+              <mat-hint>Moeda do provedor</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Turnos revisados por amostra (%)</mat-label>
+              <input matInput inputmode="decimal" [ngModel]="percentOf(d.reviewSampleRate)" (ngModelChange)="setFraction('reviewSampleRate', $event)" [readonly]="!editable()" />
+              <mat-hint>Guardrail e falha: sempre revisados</mat-hint>
+            </mat-form-field>
+            <div class="app-span-all">
+              <mat-checkbox [ngModel]="d.allowCreditBureauMention ?? false" (ngModelChange)="set('allowCreditBureauMention', $event)" [disabled]="!editable()">Pode mencionar negativação (somente com autorização do credor)</mat-checkbox>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="as-side">
+        <section class="app-card" aria-labelledby="ap-versions">
+          <h2 class="app-card__title" id="ap-versions">Versões</h2>
+          <ol class="as-versions">
+            @for (v of versions(); track v.id) {
+              <li [class.as-version--current]="v.id === p.id">
+                <a [routerLink]="['/assistente/politicas', v.id]">v{{ v.policyVersion }}</a>
+                <app-status-chip domain="assistantPolicy" [status]="v.status" />
+                <span class="app-muted as-small">{{ modeLabels[v.mode] }}</span>
+              </li>
+            }
+          </ol>
+          <p class="app-muted as-small">O id da versão publicada identifica o assistente na auditoria, nos eventos e na atribuição dos acordos.</p>
+        </section>
+      </aside>
+    </div>
+  }
+}

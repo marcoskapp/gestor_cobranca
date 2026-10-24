@@ -342,6 +342,10 @@ filter eventType = "call.completed" and `attr.origin` = "DIALER"
 filter eventType = "campaign.step_skipped"
 | stats count(*) by `attr.campaignCode`, `attr.reason`
 
+# consultas de painel lentas (técnico)
+filter message = "Consulta de painel lenta"
+| stats count(*), pct(durationMs, 95) by report, groupBy
+
 # tours mais dispensados (técnico — adoção da interface)
 filter event = "ui.onboarding.tour_recorded"
 | stats count(*) by tourId, outcome | sort count(*) desc
@@ -506,5 +510,9 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `scoring.outcomes.resolved`, `scoring.cohorts.measured` | desfechos apurados e safras de recuperado × esperado publicadas |
 | `scoring.facts.recorded{kind}`, `scoring.facts.ignored{type,reason}`, `scoring.events.consumed{type}` | fatos gravados; ignorados (`disabled` = sem base legal, `no_portfolio`, `duplicate`, `not_applicable`) |
 | `scoring.retention.purged{what}`, `scoring.jobs.failures{job}` | retenção (`facts`, `snapshots`) e falhas de agendamento/execução interrompida (alarme) |
+| `analytics.query.duration{report,outcome}` (p50/p95/p99), `analytics.queries.slow{report}` | latência das consultas dos painéis e consultas acima de `app.analytics.slow-query-threshold` (2 s; WARN no log técnico com relatório e agrupamento) |
+| `analytics.refresh.duration{dataset,outcome}`, `analytics.refresh.rows{dataset}`, `analytics.refresh.cycle.duration{trigger}`, `analytics.refresh.tenants{trigger,outcome}` | reconstrução dos snapshots dos painéis por conjunto e ciclo agendado (carimbo "dados até") |
+| `analytics.refresh.failures{trigger}` | falha ao atualizar os painéis de uma assessoria (alarme) |
+| `analytics.exports{report,format}`, `analytics.export.rows{report}` | exportações de relatórios (cada uma também em `DATA_EXPORTED` no log de acesso) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

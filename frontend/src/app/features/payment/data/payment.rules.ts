@@ -1,7 +1,7 @@
 import { toAmount } from '../../../shared/components/amount/amount';
-import { RECONCILIATION_MODE_LABELS, REVERSAL_REASON_LABELS, REVIEW_MODE_LABELS } from './payment.labels';
+import { RECONCILIATION_MODE_LABELS, REVERSAL_REASON_LABELS, REVIEW_MODE_LABELS, STRATEGY_LABELS } from './payment.labels';
 import type { TargetSelection } from '../components/payment-target';
-import { AllocationView, InstructionView, PaymentView, PixAccountView, StatementImportView, TargetRequest } from './payment.models';
+import { AllocationView, InstructionView, PaymentView, PixAccountView, RequestedTargetView, StatementImportView, TargetRequest } from './payment.models';
 
 // --------------------------------------------------------------------------- arquivos
 
@@ -327,6 +327,36 @@ export function allocationTarget(a: Pick<AllocationView, 'kind' | 'lines' | 'ref
     case 'REFUND':
       return `Devolução ao pagador${a.refundReference ? ` · ${a.refundReference}` : ''}`;
   }
+}
+
+/**
+ * Destino solicitado em texto, para quem aprova: "Acordo de 20/09/2026 · 3ª e 4ª parcelas",
+ * "Acordo · todas as parcelas em aberto" ou "Títulos CRED-1/4, CRED-1/5 · vencidos primeiro".
+ * Sem acesso ao acordo/título, o texto fica genérico (quantidade de itens).
+ */
+export function requestedTargetText(
+  target: Pick<RequestedTargetView, 'kind' | 'itemIds' | 'strategy'>,
+  lookup: { agreementLabel?: string | null; installmentNumbers?: ReadonlyMap<string, number>; titleLabels?: ReadonlyMap<string, string> } = {},
+): string {
+  if (target.kind === 'AGREEMENT') {
+    const head = lookup.agreementLabel ? `Acordo de ${lookup.agreementLabel}` : 'Acordo';
+    if (!target.itemIds.length) {
+      return `${head} · todas as parcelas em aberto, na ordem`;
+    }
+    const numbers = target.itemIds.map((id) => lookup.installmentNumbers?.get(id));
+    if (numbers.every((n): n is number => n !== undefined)) {
+      const list = numbers.map((n) => `${n}ª`);
+      const text = list.length === 1 ? list[0] : `${list.slice(0, -1).join(', ')} e ${list.at(-1)}`;
+      return `${head} · ${text} parcela${list.length > 1 ? 's' : ''}`;
+    }
+    return `${head} · ${target.itemIds.length} parcela(s) escolhida(s)`;
+  }
+  const strategy = target.strategy ? ` · ${STRATEGY_LABELS[target.strategy].toLowerCase()}` : '';
+  const labels = target.itemIds.map((id) => lookup.titleLabels?.get(id));
+  if (target.itemIds.length && labels.every((l): l is string => !!l)) {
+    return `Título${labels.length > 1 ? 's' : ''} ${labels.join(', ')}${strategy}`;
+  }
+  return `${target.itemIds.length} título(s) avulso(s)${strategy}`;
 }
 
 // --------------------------------------------------------------------------- conciliação

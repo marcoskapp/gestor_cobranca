@@ -73,6 +73,7 @@ class PaymentPixFlowIT extends PaymentTestSupport {
         PaymentView payment = asFinance1(() -> payments.search(new PaymentFilter(null, debtor, null, null, null, null, null,
                 null), PageQuery.of(0, 10))).content().getFirst();
         assertThat(payment.source()).isEqualTo("PROVIDER");
+        assertThat(payment.requestedTarget()).as("pagamento integrado não tem destino solicitado").isNull();
         assertThat(payment.status()).isEqualTo("RECONCILED");
         assertThat(payment.reconciliationMode()).isEqualTo("PROVIDER_API");
         assertThat(payment.providerTransactionId()).isEqualTo(n.endToEndId());

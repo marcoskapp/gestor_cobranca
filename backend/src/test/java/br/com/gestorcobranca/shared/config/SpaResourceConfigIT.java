@@ -44,6 +44,9 @@ class SpaResourceConfigIT extends IntegrationTest {
     void securityHeadersArePresent() throws Exception {
         HttpResponse<String> response = get("/");
         assertThat(response.headers().firstValue("Content-Security-Policy")).isPresent();
+        // player de gravações: áudio em blob: (nada de outras origens)
+        assertThat(response.headers().firstValue("Content-Security-Policy").orElseThrow())
+                .contains("media-src 'self' blob:").contains("default-src 'self'");
         assertThat(response.headers().firstValue("X-Frame-Options")).hasValue("DENY");
         assertThat(response.headers().firstValue("X-Content-Type-Options")).hasValue("nosniff");
     }

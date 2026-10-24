@@ -1,0 +1,209 @@
+@if (resource.isLoading() && !campaign()) {
+  <app-skeleton variant="card" [rows]="6" />
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="phone_forwarded" tone="error" title="Não foi possível abrir a campanha." message="Ela pode não existir ou estar fora do seu escopo de credores.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/telefonia/campanhas">Voltar para campanhas</a>
+  </app-empty-state>
+}
+
+@if (campaign(); as c) {
+  <app-page-header [title]="c.name" [subtitle]="c.code + ' · fila ' + queues.name(c.queueId) + (c.creditorId ? ' · ' + creditors.name(c.creditorId) : '')">
+    <a mat-button routerLink="/telefonia/campanhas">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Campanhas
+    </a>
+    @if (canSupervise() && c.status !== 'FINISHED') {
+      <button mat-stroked-button type="button" (click)="finish()" [disabled]="busy()">Encerrar</button>
+      @if (c.status === 'ACTIVE' || c.status === 'PAUSED') {
+        <button mat-stroked-button type="button" (click)="reload()" [disabled]="busy()" matTooltip="Acrescenta os casos que entraram na fila desde a última carga">
+          <mat-icon aria-hidden="true">playlist_add</mat-icon>
+          Recarregar lista
+        </button>
+      }
+      @if (c.status === 'ACTIVE') {
+        <button mat-flat-button type="button" (click)="pause()" [disabled]="busy()" data-tour="dialer-pause">
+          <mat-icon aria-hidden="true">pause</mat-icon>
+          Pausar
+        </button>
+      } @else {
+        <button mat-flat-button type="button" (click)="activate()" [disabled]="busy()" data-tour="dialer-activate">
+          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+          {{ c.status === 'PAUSED' ? 'Retomar' : 'Ativar' }}
+        </button>
+      }
+    }
+  </app-page-header>
+
+  <div class="tl-status">
+    <app-status-chip domain="dialerCampaign" [status]="c.status" />
+    <span>{{ modes[c.mode] }}{{ c.mode === 'PREDICTIVE' ? ' · razão até ' + c.maxDialRatio : '' }} · abandono máx. {{ percent(c.maxAbandonRate) }}</span>
+    @if (c.lastLoadedAt) {
+      <span class="app-muted">{{ c.entriesLoaded }} caso(s) carregados · última carga {{ c.lastLoadedAt | appDate }}</span>
+    }
+    @if (lastUpdate() && c.status === 'ACTIVE') {
+      <span class="app-muted tl-small" aria-live="off">atualizado {{ lastUpdate() | appDate: 'time' }} (a cada 5 s)</span>
+    }
+  </div>
+
+  @if (actionError()) {
+    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ actionError() }}</span></p>
+  }
+
+  <div class="tl-grid">
+    <div class="tl-main">
+      @if (stats(); as s) {
+        <section class="app-card" aria-labelledby="dc-today" data-tour="dialer-stats">
+          <div class="tl-head">
+            <h2 class="app-card__title" id="dc-today">Hoje</h2>
+            <span class="app-muted tl-small">desde {{ s.since | appDate }}</span>
+          </div>
+          <div class="tl-kpis">
+            <div class="tl-kpi">
+              <span class="tl-kpi__label">ASR</span>
+              <span class="tl-kpi__value app-numeric">{{ percent(s.asr) }}</span>
+              <span class="tl-kpi__hint">{{ s.answered }} atendidas de {{ s.dialed }} discadas</span>
+            </div>
+            <div class="tl-kpi" data-tour="dialer-abandon">
+              <span class="tl-kpi__label">Abandono</span>
+              <span class="tl-kpi__value app-numeric">{{ percent(s.abandonRate) }}</span>
+              <div class="tl-meter" role="meter" [attr.aria-valuenow]="s.abandonRate ?? 0" aria-valuemin="0" [attr.aria-valuemax]="s.maxAbandonRate * 2" [attr.aria-label]="'Abandono ' + percent(s.abandonRate) + ' de máximo ' + percent(s.maxAbandonRate)">
+                <div class="tl-meter__bar" [class.tl-meter__bar--near]="abandon() === 'near'" [class.tl-meter__bar--limit]="abandon() === 'limit'" [style.width.%]="abandonWidth()"></div>
+                <div class="tl-meter__limit" style="left: 50%"></div>
+              </div>
+              <span class="tl-kpi__hint">
+                @if (abandon() === 'limit') {
+                  <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>No máximo</span>
+                } @else if (abandon() === 'near') {
+                  <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">warning_amber</mat-icon>Perto do máximo</span>
+                } @else {
+                  máximo {{ percent(s.maxAbandonRate) }} · {{ s.abandoned }} de {{ s.live }} por pessoa
+                }
+              </span>
+            </div>
+            <div class="tl-kpi">
+              <span class="tl-kpi__label">Conectadas</span>
+              <span class="tl-kpi__value app-numeric">{{ s.connected }}</span>
+              <span class="tl-kpi__hint">{{ s.machine }} caixa postal (AMD)</span>
+            </div>
+            <div class="tl-kpi">
+              <span class="tl-kpi__label">Ritmo agora</span>
+              <span class="tl-kpi__value app-numeric">{{ s.currentRatio ?? '—' }}</span>
+              <span class="tl-kpi__hint">{{ pacing[s.pacingReason ?? ''] || s.pacingReason || '—' }}</span>
+            </div>
+            <div class="tl-kpi">
+              <span class="tl-kpi__label">Operadores livres</span>
+              <span class="tl-kpi__value app-numeric">{{ s.availableAgents }}</span>
+              <span class="tl-kpi__hint">{{ s.callsInProgress }} chamada(s) em andamento</span>
+            </div>
+            <div class="tl-kpi">
+              <span class="tl-kpi__label">Tempos médios</span>
+              <span class="tl-kpi__value tl-small">conversa {{ duration(s.averageTalkSeconds) }}</span>
+              <span class="tl-kpi__hint">toque {{ duration(s.averageRingSeconds) }} · pós {{ duration(s.averageWrapUpSeconds) }}</span>
+            </div>
+          </div>
+          <h3 class="app-section-title">Lista</h3>
+          <ul class="tl-funnel" aria-label="Situação dos itens da lista">
+            <li><strong class="app-numeric">{{ s.pending }}</strong>aguardando</li>
+            <li><strong class="app-numeric">{{ s.inProgress }}</strong>em chamada</li>
+            <li><strong class="app-numeric">{{ s.completed }}</strong>contatados</li>
+            <li><strong class="app-numeric">{{ s.exhausted }}</strong>esgotados</li>
+            <li><strong class="app-numeric">{{ s.excluded }}</strong>excluídos</li>
+          </ul>
+        </section>
+      } @else if (statsResource.isLoading()) {
+        <app-skeleton variant="card" [rows]="4" />
+      }
+
+      <section class="app-card" aria-labelledby="dc-entries">
+        <div class="tl-head">
+          <h2 class="app-card__title" id="dc-entries">Itens da lista</h2>
+          <mat-form-field class="app-compact" subscriptSizing="dynamic">
+            <mat-label>Situação</mat-label>
+            <mat-select [ngModel]="entryStatus()" (ngModelChange)="entryStatus.set($event)">
+              <mat-option value="">Todas</mat-option>
+              @for (o of entryStatuses; track o.value) {
+                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <app-data-table
+          caption="Itens da lista de discagem"
+          [rows]="entries.rows()"
+          [columns]="entryColumns"
+          [loading]="entries.loading()"
+          [failed]="entries.failed()"
+          [page]="entries.tablePage()"
+          (pageChange)="entries.setPage($event)"
+          (retry)="entries.reload()"
+          emptyIcon="playlist_remove"
+          emptyMessage="Nenhum item com esta situação."
+          emptyHint="A lista é montada a partir da fila quando a campanha é ativada."
+        >
+          <ng-template appCell="debtor" [appCellOf]="entries.rows()" let-e>
+            <a [routerLink]="['/cobranca/casos', e.caseId]">{{ debtors.name(e.debtorId) }}</a>
+            <div class="app-muted tl-small">prioridade {{ e.priority }}</div>
+          </ng-template>
+          <ng-template appCell="status" [appCellOf]="entries.rows()" let-e>
+            <app-status-chip domain="dialerEntry" [status]="e.status" />
+            @if (e.excludedReason) {
+              <div class="app-muted tl-small">{{ excludedText(e.excludedReason) }}</div>
+            }
+          </ng-template>
+          <ng-template appCell="attempts" [appCellOf]="entries.rows()" let-e>{{ e.attempts }} / {{ c.maxAttempts }}</ng-template>
+          <ng-template appCell="last" [appCellOf]="entries.rows()" let-e>
+            {{ resultText(e.lastResult) }}
+            <div class="app-muted tl-small">{{ e.lastAttemptAt | appDate }}</div>
+            @if (e.lastDenial.length) {
+              <div class="app-muted tl-small">adiado: {{ denialText(e.lastDenial) }}</div>
+            }
+          </ng-template>
+          <ng-template appCell="next" [appCellOf]="entries.rows()" let-e>{{ e.status === 'PENDING' ? (e.nextAttemptAt | appDate) : '—' }}</ng-template>
+        </app-data-table>
+      </section>
+    </div>
+
+    <aside class="tl-side">
+      <section class="app-card" aria-labelledby="dc-agents" data-tour="dialer-agents">
+        <h2 class="app-card__title" id="dc-agents">Operadores na campanha ({{ agents().length }})</h2>
+        <ul class="tl-agents">
+          @for (a of agents(); track a.id) {
+            <li>
+              <span>{{ users.name(a.userId) }} <span class="app-muted tl-small">ramal {{ a.extension }}</span></span>
+              <app-status-chip domain="agentPresence" [status]="a.status" />
+            </li>
+          } @empty {
+            <li class="app-muted tl-small">Nenhum operador conectado nesta campanha. Os operadores entram pela estação de cobrança.</li>
+          }
+        </ul>
+      </section>
+      <section class="app-card" aria-labelledby="dc-settings" data-tour="dialer-settings">
+        <div class="tl-head">
+          <h2 class="app-card__title" id="dc-settings">Parâmetros</h2>
+          @if (canManage() && c.status !== 'ACTIVE' && c.status !== 'FINISHED') {
+            <button mat-stroked-button type="button" (click)="edit()">Editar</button>
+          }
+        </div>
+        <dl class="app-definition-list">
+          <dt>Ritmo</dt>
+          <dd>{{ modes[c.mode] }}</dd>
+          <dt>Carteira</dt>
+          <dd>{{ c.portfolioId ? portfolios.name(c.portfolioId) : 'todas da fila' }}</dd>
+          <dt>Casos atribuídos</dt>
+          <dd>{{ c.includeAssigned ? 'incluídos' : 'só os aguardando na fila' }}</dd>
+          <dt>Tentativas</dt>
+          <dd>até {{ c.maxAttempts }}, a cada {{ c.retryIntervalMinutes }} min</dd>
+          <dt>Tempo de toque</dt>
+          <dd>{{ c.ringTimeoutSeconds }} s</dd>
+          <dt>Janela própria</dt>
+          <dd>{{ c.windowStart ? c.windowStart.slice(0, 5) + ' às ' + c.windowEnd?.slice(0, 5) : 'a da política de contato' }}</dd>
+        </dl>
+        <p class="app-muted tl-small">{{ modeHints[c.mode] }}</p>
+        @if (c.status === 'ACTIVE' && canManage()) {
+          <p class="app-muted tl-small">Pause a campanha para alterar os parâmetros.</p>
+        }
+      </section>
+    </aside>
+  </div>
+}
