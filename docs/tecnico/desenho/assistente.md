@@ -3,7 +3,7 @@
 Escopo: F24. Especificação de produto: [`docs/negocio/assistente-ia.md`](../../negocio/assistente-ia.md). Schema `assistant`, migrations V1500–V1599 (`V1500` tabelas; permissões em `identity/V0205`).
 Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication` (interfaces `usecases`). Fatos de acordo e anonimização chegam por eventos.
 
-> **Estado (24/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST. **Provedor de IA não escolhido (issue #12)**: só a porta `LanguageModelPort` e o simulador determinístico para local/teste (§6). Decisões 114–129 em `docs/negocio/decisoes-autonomas.md`.
+> **Estado (24/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST. **Provedor de IA não escolhido (issue #12)**: só a porta `LanguageModelPort` e o simulador determinístico para local/teste (§6). Decisões 120–135 em `docs/negocio/decisoes-autonomas.md`.
 
 Princípio: **a IA conversa, o motor decide.** O modelo entende o devedor e escolhe o próximo passo; toda condição vem do `negotiation` (mesmo `NegotiationGuard` dos humanos), todo contato passa pelo porteiro do `compliance` e toda ação é um caso de uso do módulo dono, executado como ator `ASSISTANT`.
 
