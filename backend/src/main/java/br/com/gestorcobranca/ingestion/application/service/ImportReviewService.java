@@ -377,11 +377,13 @@ class ImportReviewService implements ImportReviewUseCases {
             }
             String column = m.measure().field().column();
             if (m.scaleExponent() != null) {
+                // n = informado ÷ calculado: n < 0, o arquivo ficou maior que a planilha; n > 0, menor
                 int n = m.scaleExponent();
-                hints.add(new HintView("SCALE", m.measure().name(), ("A soma informada é %s a calculada para %s: parece "
-                        + "erro de separador decimal (por exemplo, 1.000 lido como %s). Confira as linhas indicadas e o "
-                        + "formato no passo 2.").formatted(n > 0 ? "%s vezes".formatted(pow(n)) : "1/%s de".formatted(pow(-n)),
-                        column, n > 0 ? "1,00" : "100.000")));
+                String relation = n < 0 ? "%s vezes o total".formatted(pow(n)) : "1/%s do total".formatted(pow(n));
+                String example = n < 0 ? "1.00 (um real) lido como 100" : "1.000 (mil) lido como 1,00";
+                hints.add(new HintView("SCALE", m.measure().name(), ("O arquivo soma %s da sua planilha em %s: parece erro "
+                        + "de separador decimal (por exemplo, %s). Confira as linhas indicadas e o formato no passo 2.")
+                        .formatted(relation, column, example)));
             }
             if (analysis != null) {
                 analysis.column(column).ifPresent(c -> c.options().stream()

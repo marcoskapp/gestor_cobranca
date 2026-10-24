@@ -59,7 +59,7 @@ describe('ReviewStart', () => {
     const fixture = await render();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     expect(fixture.componentInstance['layouts']().map((l: { id: string }) => l.id)).toEqual(['l-1']);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Formato dos valores');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Totais');
     fixture.componentInstance['pick']([file] as unknown as FileList);
     fixture.detectChanges();
     submit(fixture).click();

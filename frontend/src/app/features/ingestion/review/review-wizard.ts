@@ -72,7 +72,7 @@ import { ValidationStep } from './validation-step';
 
       <div class="rw-status" role="status" aria-live="polite">
         <app-status-chip domain="importReview" [status]="r.status" />
-        <span class="app-muted">Prévia {{ r.previews > 1 ? r.previews + ' (refeita após mudança de formato)' : '' }}: </span>
+        <span class="app-muted">Prévia{{ r.previews > 1 ? ' ' + r.previews + ' (refeita após mudança de formato)' : '' }}:</span>
         <app-status-chip domain="importBatch" [status]="r.batch.status" />
         <span class="app-muted">Iniciada em {{ r.createdAt | appDate }}</span>
       </div>
@@ -91,7 +91,7 @@ import { ValidationStep } from './validation-step';
         @for (s of steps; track s.step) {
           <mat-step [completed]="state(r, s.step) === 'done'" [hasError]="state(r, s.step) === 'attention'" [editable]="true" [aria-label]="s.label + ': ' + stateText(r, s.step)">
             <ng-template matStepLabel>
-              <span class="rw-label">{{ s.label }}</span>
+              <span class="rw-label" [attr.title]="s.hint">{{ s.label }}</span>
               <span class="rw-label__state"><span class="cdk-visually-hidden">Situação: </span>{{ stateText(r, s.step) }}</span>
             </ng-template>
             @if (!reachable().includes(s.step)) {

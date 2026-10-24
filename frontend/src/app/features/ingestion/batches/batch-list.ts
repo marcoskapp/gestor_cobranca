@@ -152,7 +152,9 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       <ng-template appCell="status" [appCellOf]="query.rows()" let-b>
         <app-status-chip domain="importBatch" [status]="b.status" />
         @if (!terminal(b)) {
-          <mat-progress-bar class="bl-progress" [mode]="b.progressPercent === null ? 'indeterminate' : 'determinate'" [value]="b.progressPercent ?? 0" [attr.aria-label]="progress(b)" />
+          @if (b.status !== 'AWAITING_FORMAT') {
+            <mat-progress-bar class="bl-progress" [mode]="b.progressPercent === null ? 'indeterminate' : 'determinate'" [value]="b.progressPercent ?? 0" [attr.aria-label]="progress(b)" />
+          }
           <div class="app-muted">{{ progress(b) }}</div>
         }
       </ng-template>

@@ -41,6 +41,9 @@ describe('regras da conferência da importação', () => {
     expect(reachableSteps(validated)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(stepState(validated, 4)).toBe('pending');
     expect(stepState({ ...validated, totals: { checked: true, matched: false, checks: 1, mismatches: 1, lastCheck: null } }, 4)).toBe('attention');
+    expect(stepState(validated, 3)).toBe('done');
+    expect(stepState(validated, 6)).toBe('pending');
+    expect(stepState({ ...validated, status: 'COMMITTED' }, 6)).toBe('done');
     expect(stepState(validated, 5)).toBe('running');
   });
 
@@ -54,8 +57,8 @@ describe('regras da conferência da importação', () => {
   });
 
   it('textos de escala, sugestão e pendências', () => {
-    expect(scaleText(2)).toBe('100 vezes');
-    expect(scaleText(-3)).toBe('1/1000 de');
+    expect(scaleText(-2)).toBe('o arquivo soma 100 vezes a planilha');
+    expect(scaleText(3)).toBe('o arquivo soma 1/1000 da planilha');
     expect(suggestedAmount(12000, -2)).toBe(120);
     expect(suggestedAmount(null, -2)).toBeNull();
     expect(pendingColumns(mixedReview().format.columns, {})).toEqual(['valor_principal']);

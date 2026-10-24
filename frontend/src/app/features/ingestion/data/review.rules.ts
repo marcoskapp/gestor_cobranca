@@ -3,11 +3,11 @@ import { AlertType, AmountStyle, ColumnFormatStatus, FormatOption, ReviewView, T
 /** Passos do assistente de conferência (`docs/tecnico/desenho/importacao.md` §1). */
 export const REVIEW_STEPS = [
   { step: 1, label: 'Arquivo', hint: 'Envio do arquivo e layout' },
-  { step: 2, label: 'Formato dos valores', hint: 'Como lemos vírgulas e pontos' },
-  { step: 3, label: 'Validação das linhas', hint: 'Erros e avisos por linha' },
-  { step: 4, label: 'Totais de controle', hint: 'Confira com a sua planilha' },
-  { step: 5, label: 'Alertas de valor', hint: 'Valores fora do esperado' },
-  { step: 6, label: 'Resumo e importação', hint: 'Impacto e confirmação' },
+  { step: 2, label: 'Formato', hint: 'Como lemos vírgulas e pontos' },
+  { step: 3, label: 'Linhas', hint: 'Erros e avisos por linha' },
+  { step: 4, label: 'Totais', hint: 'Confira com a sua planilha' },
+  { step: 5, label: 'Alertas', hint: 'Valores fora do esperado' },
+  { step: 6, label: 'Importar', hint: 'Impacto e confirmação' },
 ] as const;
 
 export type StepState = 'done' | 'attention' | 'pending' | 'running';
@@ -175,7 +175,8 @@ export function stepState(review: ReviewView, step: number): StepState {
       return review.format.confirmed ? 'done' : 'attention';
     case 3:
       if (b.status === 'FAILED' || b.status === 'CANCELLED') return 'attention';
-      if (b.status === 'VALIDATED') return b.counters.rowsWithError > 0 ? 'attention' : 'done';
+      // linhas com erro não bloqueiam (não são importadas): o passo está concluído
+      if (b.status === 'VALIDATED') return 'done';
       return b.status === 'VALIDATING' || b.status === 'RECEIVED' ? 'running' : 'pending';
     case 4:
       if (!review.totals.checked) return 'pending';
@@ -187,7 +188,8 @@ export function stepState(review: ReviewView, step: number): StepState {
         ? 'attention'
         : 'done';
     default:
-      return review.status === 'COMMITTED' ? 'done' : review.status === 'OPEN' && review.blockers.length === 0 ? 'pending' : 'attention';
+      if (review.status === 'COMMITTED') return 'done';
+      return review.status === 'REJECTED' || review.status === 'CANCELLED' ? 'attention' : 'pending';
   }
 }
 
@@ -237,10 +239,13 @@ export function parseCount(text: string | null | undefined): number | null {
   return Number(value.replace(/\./g, ''));
 }
 
-/** "100 vezes" / "1/100 de" para a razão 10ⁿ. */
+/**
+ * Razão 10ⁿ entre a planilha e o arquivo (n = informado ÷ calculado), do ponto de vista do arquivo: "o arquivo soma
+ * 100 vezes a planilha" (n = −2) ou "o arquivo soma 1/100 da planilha" (n = 2).
+ */
 export function scaleText(exponent: number): string {
   const n = `1${'0'.repeat(Math.abs(exponent))}`;
-  return exponent > 0 ? `${n} vezes` : `1/${n} de`;
+  return exponent < 0 ? `o arquivo soma ${n} vezes a planilha` : `o arquivo soma 1/${n} da planilha`;
 }
 
 /** Valor que o usuário provavelmente quis dizer (alerta de escala). */

@@ -114,7 +114,7 @@ export function referenceSummary(references: Record<string, unknown>): string | 
           </ng-template>
           <ng-template appCell="row" [appCellOf]="alerts.rows()" let-x>
             <span class="app-numeric">{{ x.rowNumber || 'Arquivo' }}</span>
-            @if (x.externalId) {<div class="app-muted app-mono">{{ x.externalId }}</div>}
+            @if (x.externalId) {<div class="app-muted app-mono as-id">{{ x.externalId }}</div>}
           </ng-template>
           <ng-template appCell="type" [appCellOf]="alerts.rows()" let-x>
             <span class="app-status" [class.app-status--danger]="x.scale" [class.app-status--warning]="!x.scale">
@@ -186,6 +186,9 @@ export function referenceSummary(references: Record<string, unknown>): string | 
     }
     .as-spacer {
       flex: 1;
+    }
+    .as-id {
+      white-space: nowrap;
     }
     .as-suggested {
       font-size: var(--app-text-xs);

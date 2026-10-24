@@ -14,7 +14,7 @@ const MISMATCH: TotalsCheckView = {
     { measure: 'ROWS', column: null, entered: 4, computed: 4, difference: 0, matches: true, scaleExponent: null, invalidCount: 0 },
     { measure: 'PRINCIPAL', column: 'valor_principal', entered: 34.79, computed: 3479.12, difference: -3444.33, matches: false, scaleExponent: -2, invalidCount: 0 },
   ],
-  hints: [{ code: 'SCALE', measure: 'PRINCIPAL', message: 'A soma informada é 1/100 de a calculada para valor_principal: parece erro de separador decimal.' }],
+  hints: [{ code: 'SCALE', measure: 'PRINCIPAL', message: 'O arquivo soma 100 vezes o total da sua planilha em valor_principal: parece erro de separador decimal.' }],
   suspectRows: [{ rowNumber: 4, externalId: 'T-3', amount: 1000, ambiguous: true }],
   equalToDifference: [],
   createdBy: 'u-1',
@@ -57,7 +57,7 @@ describe('TotalsStep', () => {
     req.flush(MISMATCH);
     fixture.detectChanges();
     expect(el.textContent).toContain('Os totais não conferem');
-    expect(el.textContent).toContain('razão de 1/100 de');
+    expect(el.textContent).toContain('o arquivo soma 100 vezes a planilha');
     expect(el.textContent).toContain('parece erro de separador decimal');
     expect(el.textContent).toContain('valor ambíguo');
     const back = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Rever o formato'))!;

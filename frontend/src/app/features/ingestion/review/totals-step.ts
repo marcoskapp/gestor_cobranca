@@ -99,7 +99,7 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
                       } @else {
                         <span class="app-status app-status--danger"><mat-icon aria-hidden="true">close</mat-icon>Diverge</span>
                         @if (m.scaleExponent !== null) {
-                          <div class="ts-note">razão de {{ scale(m.scaleExponent) }}</div>
+                          <div class="ts-note">{{ scale(m.scaleExponent) }}</div>
                         }
                       }
                     </td>
