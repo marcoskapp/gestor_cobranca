@@ -9,6 +9,7 @@ import { agreement } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideLocale } from '../../../core/config/locale.config';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
+import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementView } from '../data/agreement.models';
 import { AgreementDetail } from './agreement-detail';
 
@@ -99,5 +100,36 @@ describe('AgreementDetail', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     button(fixture, 'Renegociar')!.click();
     expect(navigate).toHaveBeenCalledWith(['/negociacao/simulador'], { queryParams: { credor: 'c-1', devedor: 'd-1', caso: 'k-1', renegociar: 'a-1' } });
+  });
+
+  it('Pix por parcela em aberto: abre o diálogo de pagamento com a parcela e o saldo', async () => {
+    permissions.push('PAYMENT_INSTRUCTION_CREATE');
+    try {
+      const fixture = await render(agreement());
+      const launch = vi.spyOn(TestBed.inject(PaymentLauncher), 'instruction').mockReturnValue(of(undefined));
+      const pix = [...el(fixture).querySelectorAll<HTMLButtonElement>('button[aria-label^="Gerar Pix da parcela"]')];
+      // parcela 1 paga: só as duas em aberto
+      expect(pix.map((b) => b.getAttribute('aria-label'))).toEqual(['Gerar Pix da parcela 2', 'Gerar Pix da parcela 3']);
+      pix[0].click();
+      expect(launch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: { kind: 'INSTALLMENT', creditorId: 'c-1', agreementId: 'a-1', installmentId: 'i-2', installmentNumber: 2, dueDate: '2026-11-25', balance: 1350 },
+          debtorId: 'd-1',
+          debtorName: 'Ana Paula Ribeiro',
+        }),
+      );
+    } finally {
+      permissions.pop();
+    }
+  });
+
+  it('acordo encerrado não oferece Pix', async () => {
+    permissions.push('PAYMENT_INSTRUCTION_CREATE');
+    try {
+      const fixture = await render(agreement({ status: 'SETTLED' }));
+      expect(el(fixture).querySelectorAll('button[aria-label^="Gerar Pix"]').length).toBe(0);
+    } finally {
+      permissions.pop();
+    }
   });
 });

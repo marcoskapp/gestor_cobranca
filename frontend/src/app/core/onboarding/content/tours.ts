@@ -656,12 +656,13 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'negotiation.agreement-detail',
-    version: 1,
+    version: 2,
     title: 'Acordo',
-    summary: 'Cronograma de parcelas, pagamentos, termo e renegociação.',
+    summary: 'Cronograma de parcelas, Pix por parcela, pagamentos, termo e renegociação.',
     steps: [
       { anchor: 'agreement-status', title: 'Situação do acordo', body: 'Pagas, vencidas e a regra de quebra fixada na formalização.' },
       { anchor: 'agreement-schedule', title: 'Cronograma', body: 'Cada parcela com valor, pago, saldo e situação. A próxima a pagar fica destacada.' },
+      { anchor: 'agreement-pix', title: 'Pix da parcela', body: 'Gere o QR Code e o copia e cola de uma parcela para enviar ao devedor.' },
       { anchor: 'agreement-term', title: 'Termo do acordo', body: 'PDF aceito pelo devedor, com o código de integridade registrado.' },
       { anchor: 'agreement-renegotiate', title: 'Renegociar', body: 'Volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização.' },
     ],
@@ -889,6 +890,111 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'experiment-variants', title: 'Variantes', body: 'Altere template, canal, horário ou oferta de etapas da régua publicada.' },
       { anchor: 'experiment-results', title: 'Resultados', body: 'Barra e texto mostram estimativa e intervalo de 95%. Significativa quando a diferença não cruza o zero.' },
       { anchor: 'page-actions', title: 'Iniciar e encerrar', body: 'Ao iniciar, o teste fica congelado. Encerre registrando a decisão.' },
+    ],
+  },
+  {
+    id: 'payment.instructions',
+    version: 1,
+    title: 'Instruções de pagamento',
+    summary: 'Pix gerados, validade e se já foram pagos.',
+    steps: [
+      { anchor: 'page-actions', title: 'Gerar Pix', body: 'Escolha o devedor e a parcela ou o título. Também dá para gerar na ficha do acordo e na estação.' },
+      { anchor: 'filters', title: 'Filtros', body: 'Por credor, devedor e situação: aguardando pagamento, paga, expirada ou cancelada.' },
+      { anchor: 'data-table', title: 'Instruções', body: 'Abra uma instrução para ver o QR Code, copiar o código ou cancelar.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'payment.instruction',
+    version: 1,
+    title: 'Pix para o devedor',
+    summary: 'QR Code, copia e cola, validade e cancelamento.',
+    steps: [
+      { anchor: 'instruction-panel', title: 'QR Code', body: 'Gerado no seu navegador a partir do código do PSP. A tela avisa quando o pagamento chega.' },
+      { anchor: 'instruction-copy', title: 'Copia e cola', body: 'Copie e cole na conversa com o devedor. O código vale até a data de validade.' },
+    ],
+  },
+  {
+    id: 'payment.list',
+    version: 1,
+    title: 'Pagamentos',
+    summary: 'Tudo o que entrou, com filtros e o registro de pagamento informado.',
+    steps: [
+      { anchor: 'page-actions', title: 'Informar pagamento', body: 'Para dinheiro que entrou fora do Pix integrado. Comprovante e destino são obrigatórios.' },
+      { anchor: 'filters', title: 'Filtros', body: 'Situação, origem, meio, credor e período. "Com saldo a realocar" mostra sobras.' },
+      { anchor: 'data-table', title: 'Pagamentos', body: 'Abra um pagamento para ver destinos, linha do tempo e comprovante.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'payment.detail',
+    version: 1,
+    title: 'Pagamento',
+    summary: 'Destinos, linha do tempo, comprovante, aprovação, realocação e estorno.',
+    steps: [
+      { anchor: 'payment-status', title: 'Situação', body: 'Informado, confirmado, conciliado, recusado ou estornado, com o meio e a origem.' },
+      { anchor: 'payment-allocations', title: 'Destinos', body: 'Quanto foi para cada acordo ou título e se a baixa foi aplicada.' },
+      { anchor: 'payment-timeline', title: 'Linha do tempo', body: 'Quem informou, quem aprovou, quando confirmou, conciliou ou estornou.' },
+      { anchor: 'page-actions', title: 'Ações', body: 'Aprovar exige outra pessoa. Estorno pede motivo e a palavra de confirmação.' },
+    ],
+  },
+  {
+    id: 'payment.review',
+    version: 1,
+    title: 'Aprovação de pagamentos',
+    summary: 'Segunda pessoa para pagamentos informados acima do limite.',
+    steps: [
+      { anchor: 'review-segregation', title: 'Quem informa não aprova', body: 'Os pagamentos que você informou não aparecem aqui; o sistema recusa a aprovação própria.' },
+      { anchor: 'data-table', title: 'Revisar', body: 'Baixe o comprovante, confira valor e destino e aprove ou recuse com motivo.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'payment.reallocation',
+    version: 1,
+    title: 'Sobras e realocação',
+    summary: 'Dinheiro recebido que ainda não abateu dívida.',
+    steps: [
+      { anchor: 'data-table', title: 'Fila', body: 'Sobras sem destino e valores que o acordo não aplicou, por pagamento.', placement: 'above' },
+      { anchor: 'reallocate-action', title: 'Realocar', body: 'Envie a outro acordo ou títulos do devedor, ou registre a devolução com a referência.' },
+    ],
+  },
+  {
+    id: 'payment.reconciliation',
+    version: 1,
+    title: 'Conciliação',
+    summary: 'Importação do extrato e resultado por lote.',
+    steps: [
+      { anchor: 'statement-import', title: 'Importar extrato', body: 'CSV do banco no layout genérico. A prévia aponta linhas com problema antes do envio.' },
+      { anchor: 'data-table', title: 'Lotes', body: 'Linhas conciliadas, confirmações e divergências de cada extrato.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'payment.statement',
+    version: 1,
+    title: 'Extrato importado',
+    summary: 'Indicadores do lote e o tratamento de cada linha.',
+    steps: [
+      { anchor: 'statement-indicators', title: 'Indicadores', body: 'Taxa de conciliação sobre os créditos; débitos e repetidas são ignorados.' },
+      { anchor: 'data-table', title: 'Linhas', body: 'Cada linha com o tratamento e o pagamento vinculado.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'payment.divergences',
+    version: 1,
+    title: 'Divergências',
+    summary: 'Créditos que o sistema não conciliou sozinho.',
+    steps: [
+      { anchor: 'filters', title: 'Por tipo', body: 'Valor diferente, duplicidade, sem correspondência, não confirmado e devolução parcial.' },
+      { anchor: 'data-table', title: 'Resolver', body: 'Vincule a um pagamento, aceite ou descarte, sempre com justificativa auditada.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'payment.pix-accounts',
+    version: 1,
+    title: 'Contas Pix',
+    summary: 'Conexão com o PSP, certificado, segredos e webhook.',
+    steps: [
+      { anchor: 'page-actions', title: 'Nova conta', body: 'Por credor ou da assessoria. Informe URLs, chave Pix, credenciais e o certificado PKCS#12.' },
+      { anchor: 'pix-accounts', title: 'Segredos protegidos', body: 'Nenhum segredo volta à tela: só a impressão digital e a validade do certificado.' },
+      { anchor: 'pix-rotate', title: 'Rotação', body: 'Troque as credenciais antes do vencimento do certificado. Registre o webhook para receber avisos.' },
     ],
   },
 ];
