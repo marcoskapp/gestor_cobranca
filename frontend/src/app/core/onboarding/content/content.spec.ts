@@ -167,6 +167,7 @@ describe('conteúdo do onboarding', () => {
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES[0].version).toBe(Math.max(...RELEASE_NOTES.map((n) => n.version)));
     expect(RELEASE_NOTES.find((n) => n.version === 6)?.title).toContain('Pagamentos');
+    expect(RELEASE_NOTES.find((n) => n.version === 9)?.title).toContain('Conferência da importação');
     // financeiro: checklist próprio antes do negociador; itens de visita apontam para telas registradas
     const finance = CHECKLISTS.find((c) => c.id === 'finance')!;
     const keys = new Set(SCREENS.map((s) => s.key));
@@ -196,8 +197,7 @@ describe('conteúdo do onboarding', () => {
     expect(findTour('collection.station')?.version).toBe(2);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
     // nota de versão nova, a mais recente primeiro
-    expect(RELEASE_NOTES[0].version).toBe(8);
-    expect(RELEASE_NOTES[0].title).toContain('Prestação de contas');
+    expect(RELEASE_NOTES.find((n) => n.version === 8)?.title).toContain('Prestação de contas');
     // checklists: itens de visita apontam para telas registradas; supervisão antes do negociador
     const keys = new Set(SCREENS.map((s) => s.key));
     for (const item of CHECKLISTS.flatMap((c) => c.items)) {
