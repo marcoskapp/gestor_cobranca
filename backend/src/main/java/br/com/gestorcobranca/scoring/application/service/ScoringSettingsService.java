@@ -21,7 +21,7 @@ import java.time.Instant;
 @Transactional
 class ScoringSettingsService implements ScoringSettingsUseCases {
 
-    private final SettingsProvider provider;
+    private final ScoringSettingsProvider provider;
     private final ScoringSettingsRepository repository;
     private final ModelRegistry registry;
     private final AccessScope accessScope;
@@ -29,7 +29,7 @@ class ScoringSettingsService implements ScoringSettingsUseCases {
     private final AuditTrail auditTrail;
     private final Clock clock;
 
-    ScoringSettingsService(SettingsProvider provider, ScoringSettingsRepository repository, ModelRegistry registry,
+    ScoringSettingsService(ScoringSettingsProvider provider, ScoringSettingsRepository repository, ModelRegistry registry,
                            AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail, Clock clock) {
         this.provider = provider;
         this.repository = repository;

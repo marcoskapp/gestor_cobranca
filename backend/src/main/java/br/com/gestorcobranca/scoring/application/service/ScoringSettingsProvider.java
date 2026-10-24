@@ -13,13 +13,13 @@ import java.util.Optional;
 /** Parâmetros da assessoria corrente, criados com os padrões na primeira leitura (sob lock). */
 @Component
 @Transactional(propagation = Propagation.MANDATORY)
-class SettingsProvider {
+class ScoringSettingsProvider {
 
     private final ScoringSettingsRepository settings;
     private final ScoringLocks locks;
     private final ScoringProperties properties;
 
-    SettingsProvider(ScoringSettingsRepository settings, ScoringLocks locks, ScoringProperties properties) {
+    ScoringSettingsProvider(ScoringSettingsRepository settings, ScoringLocks locks, ScoringProperties properties) {
         this.settings = settings;
         this.locks = locks;
         this.properties = properties;

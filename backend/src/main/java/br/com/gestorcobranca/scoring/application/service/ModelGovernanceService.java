@@ -64,7 +64,7 @@ class ModelGovernanceService implements ModelUseCases {
     private final MonitoringReportRepository reports;
     private final SnapshotStore snapshots;
     private final ModelRegistry registry;
-    private final SettingsProvider settingsProvider;
+    private final ScoringSettingsProvider settingsProvider;
     private final TrainingService training;
     private final ScoringViews views;
     private final JsonCodec json;
@@ -77,7 +77,7 @@ class ModelGovernanceService implements ModelUseCases {
 
     ModelGovernanceService(ScoringModelRepository models, ModelDecisionRepository decisions,
                            MonitoringReportRepository reports, SnapshotStore snapshots, ModelRegistry registry,
-                           SettingsProvider settingsProvider, TrainingService training, ScoringViews views,
+                           ScoringSettingsProvider settingsProvider, TrainingService training, ScoringViews views,
                            JsonCodec json, AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
                            BusinessEventLogger businessEvents, ScoringMetrics metrics, Clock clock) {
         this.models = models;

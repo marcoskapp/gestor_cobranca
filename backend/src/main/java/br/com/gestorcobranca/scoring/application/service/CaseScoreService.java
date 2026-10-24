@@ -46,7 +46,7 @@ class CaseScoreService implements CaseScoreUseCases {
     private final CaseScoreRepository scores;
     private final ScoreReviewRepository reviews;
     private final SnapshotStore snapshots;
-    private final SettingsProvider settingsProvider;
+    private final ScoringSettingsProvider settingsProvider;
     private final ModelRegistry registry;
     private final CaseScorer scorer;
     private final ScoreBatchService batch;
@@ -59,7 +59,7 @@ class CaseScoreService implements CaseScoreUseCases {
     private final Clock clock;
 
     CaseScoreService(CaseUseCases cases, CaseScoreRepository scores, ScoreReviewRepository reviews,
-                     SnapshotStore snapshots, SettingsProvider settingsProvider, ModelRegistry registry,
+                     SnapshotStore snapshots, ScoringSettingsProvider settingsProvider, ModelRegistry registry,
                      CaseScorer scorer, ScoreBatchService batch, ScoringViews views, AccessScope accessScope,
                      CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                      ScoringMetrics metrics, Clock clock) {

@@ -43,7 +43,7 @@ class FactRecorder {
     private final FactStore facts;
     private final SnapshotStore snapshots;
     private final CaseScoreRepository scores;
-    private final SettingsProvider settings;
+    private final ScoringSettingsProvider settings;
     private final CaseUseCases cases;
     private final DebtTitleUseCases titles;
     private final JobQueue jobQueue;
@@ -51,7 +51,7 @@ class FactRecorder {
     private final ScoringProperties properties;
     private final Clock clock;
 
-    FactRecorder(FactStore facts, SnapshotStore snapshots, CaseScoreRepository scores, SettingsProvider settings,
+    FactRecorder(FactStore facts, SnapshotStore snapshots, CaseScoreRepository scores, ScoringSettingsProvider settings,
                  CaseUseCases cases, DebtTitleUseCases titles, JobQueue jobQueue, ScoringMetrics metrics,
                  ScoringProperties properties, Clock clock) {
         this.facts = facts;

@@ -49,7 +49,7 @@ class ScoreBatchService {
     private static final int RATE_MIN_ROWS = 30;
 
     private final ScoringRunRepository runs;
-    private final SettingsProvider settingsProvider;
+    private final ScoringSettingsProvider settingsProvider;
     private final ModelRegistry registry;
     private final CaseScorer scorer;
     private final CaseUseCases cases;
@@ -62,7 +62,7 @@ class ScoreBatchService {
     private final ScoringProperties properties;
     private final Clock clock;
 
-    ScoreBatchService(ScoringRunRepository runs, SettingsProvider settingsProvider, ModelRegistry registry,
+    ScoreBatchService(ScoringRunRepository runs, ScoringSettingsProvider settingsProvider, ModelRegistry registry,
                       CaseScorer scorer, CaseUseCases cases, SnapshotStore snapshots, ScoringLocks locks,
                       JobQueue jobQueue, JsonCodec json, BusinessEventLogger businessEvents, ScoringMetrics metrics,
                       ScoringProperties properties, Clock clock) {

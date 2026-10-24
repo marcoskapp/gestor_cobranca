@@ -46,7 +46,7 @@ class JdbcSnapshotStore implements SnapshotStore {
         MapSqlParameterSource[] batch = rows.stream().map(r -> new MapSqlParameterSource()
                 .addValue("id", Ids.newId()).addValue("run", r.runId())
                 .addValue("date", r.referenceDate(), Types.DATE)
-                .addValue("at", ts(r.referenceAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                .addValue("at", ts(r.referenceAt()))
                 .addValue("caseId", r.caseId()).addValue("debtorId", r.debtorId())
                 .addValue("creditorId", r.creditorId()).addValue("portfolioId", r.portfolioId())
                 .addValue("assignee", r.assigneeUserId(), Types.OTHER).addValue("status", r.caseStatus())
@@ -58,7 +58,7 @@ class JdbcSnapshotStore implements SnapshotStore {
                 .addValue("challenger", r.challengerModelId(), Types.OTHER)
                 .addValue("challengerP", r.challengerProbability() == null ? null
                         : probability(r.challengerProbability()), Types.NUMERIC)
-                .addValue("due", ts(r.outcomeDueAt()), Types.TIMESTAMP_WITH_TIMEZONE))
+                .addValue("due", ts(r.outcomeDueAt())))
                 .toArray(MapSqlParameterSource[]::new);
         jdbc.batchUpdate("""
                 insert into scoring.feature_snapshot (tenant_id, id, run_id, reference_date, reference_at, case_id,
@@ -206,7 +206,7 @@ class JdbcSnapshotStore implements SnapshotStore {
                 .addValue("realizedPayers", c.realizedPayers())
                 .addValue("expectedAmount", c.expectedAmount(), Types.NUMERIC)
                 .addValue("realizedAmount", c.realizedAmount(), Types.NUMERIC)
-                .addValue("at", ts(c.measuredAt()), Types.TIMESTAMP_WITH_TIMEZONE))
+                .addValue("at", ts(c.measuredAt())))
                 .toArray(MapSqlParameterSource[]::new);
         jdbc.batchUpdate("""
                 insert into scoring.cohort_outcome (tenant_id, cohort_id, run_id, reference_date, outcome_days,

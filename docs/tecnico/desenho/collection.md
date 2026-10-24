@@ -264,6 +264,11 @@ elegibilidade do caso (respeita o grafo collection → compliance).
 | `PromiseStatusChanged` (**novo**) | promessa registrada/cumprida/quebrada/cancelada/reaberta | `operatorId`, `amount`, `paidAmount`, `dueDate`, `breaksAfter`, `previousStatus`, `status` |
 | `DisputeStatusChanged` | contestação aberta, em análise, resolvida, retirada | `titleIds`, `status`, `blocksCollection` |
 
+**Score de propensão** (24/10/2026): consome `CaseScoreChanged` do `scoring` (`collection.case-score`): grava `score` e
+`score_calculated_at` (`V0602`; cálculo mais antigo que o aplicado é ignorado) e reavalia só a fila (critério de faixa de
+score). A ordem `HIGHEST_SCORE` do "próximo caso" já usava `c.score desc nulls last`. Teste: `CollectionScoreOrderingIT`.
+Nova consulta pública `CaseUseCases#listActiveAfter(cursor, limite ≤ 500)` para varreduras em lote (escoragem diária).
+
 **Incentive.** `eligibleBalance` em `CaseStatusChanged`, `CaseAssignmentChanged` e `CaseBalanceChanged` é o saldo elegível
 **atribuível** (zero quando o caso está inelegível ou encerrado) — o denominador da taxa de recuperação do negociador.
 Correção de 23/10/2026 (bug no produtor): mudanças só de saldo não publicavam evento, e o incentive ficava com o saldo do
@@ -276,7 +281,7 @@ evento (pendência registrada lá).
 ## 10. Eventos consumidos
 
 `TitleStatusChanged`, `PortfolioLoaded`, `PortfolioStatusChanged`, `ContactRestrictionChanged`, `ContactPolicyPublished`,
-`PaymentConfirmed`, `PaymentReversed`, `AgreementStatusChanged`, `TenantProvisioned` — consumidores
+`PaymentConfirmed`, `PaymentReversed`, `AgreementStatusChanged`, `CaseScoreChanged`, `TenantProvisioned` — consumidores
 `collection.<reacao>` idempotentes (`shared.consumed_event`), com lock consultivo por devedor antes de carregar o caso (os
 comandos de usuário obtêm o mesmo lock), o que evita abertura duplicada e colisões de lock otimista entre consumo e
 comando.

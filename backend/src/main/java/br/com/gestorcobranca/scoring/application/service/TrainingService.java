@@ -65,7 +65,7 @@ class TrainingService {
     private final ScoringRunRepository runs;
     private final ScoringModelRepository models;
     private final SnapshotStore snapshots;
-    private final SettingsProvider settingsProvider;
+    private final ScoringSettingsProvider settingsProvider;
     private final ModelRegistry registry;
     private final JobQueue jobQueue;
     private final JsonCodec json;
@@ -76,7 +76,7 @@ class TrainingService {
     private final Clock clock;
 
     TrainingService(ScoringRunRepository runs, ScoringModelRepository models, SnapshotStore snapshots,
-                    SettingsProvider settingsProvider, ModelRegistry registry, JobQueue jobQueue, JsonCodec json,
+                    ScoringSettingsProvider settingsProvider, ModelRegistry registry, JobQueue jobQueue, JsonCodec json,
                     AuditTrail auditTrail, BusinessEventLogger businessEvents, ScoringMetrics metrics,
                     ScoringProperties properties, Clock clock) {
         this.runs = runs;

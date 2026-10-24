@@ -19,11 +19,11 @@ import java.util.UUID;
 /** {@link FactStore} em SQL; RLS restringe ao tenant da transação. */
 @Repository
 @Transactional(propagation = Propagation.MANDATORY)
-class JdbcFactStore implements FactStore {
+class JdbcScoringFactStore implements FactStore {
 
     private final NamedParameterJdbcTemplate jdbc;
 
-    JdbcFactStore(NamedParameterJdbcTemplate jdbc) {
+    JdbcScoringFactStore(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
@@ -41,8 +41,8 @@ class JdbcFactStore implements FactStore {
                 .addValue("creditorId", f.creditorId(), Types.OTHER).addValue("portfolioId", f.portfolioId(), Types.OTHER)
                 .addValue("referenceId", f.referenceId(), Types.OTHER).addValue("channel", f.channel(), Types.VARCHAR)
                 .addValue("amount", f.amount(), Types.NUMERIC)
-                .addValue("occurredAt", Timestamp.from(f.occurredAt()), Types.TIMESTAMP_WITH_TIMEZONE)
-                .addValue("effectiveAt", Timestamp.from(f.effectiveAt()), Types.TIMESTAMP_WITH_TIMEZONE)) > 0;
+                .addValue("occurredAt", Timestamp.from(f.occurredAt()))
+                .addValue("effectiveAt", Timestamp.from(f.effectiveAt()))) > 0;
     }
 
     @Override
@@ -56,7 +56,7 @@ class JdbcFactStore implements FactStore {
                   from scoring.case_fact
                  where debtor_id in (:debtors) and occurred_at >= :since
                 """, new MapSqlParameterSource("debtors", debtorIds)
-                        .addValue("since", Timestamp.from(since), Types.TIMESTAMP_WITH_TIMEZONE),
+                        .addValue("since", Timestamp.from(since)),
                 (rs, i) -> new CaseFact(FactKind.valueOf(rs.getString("kind")), rs.getString("status"),
                         rs.getObject("case_id", UUID.class), rs.getObject("debtor_id", UUID.class),
                         rs.getObject("creditor_id", UUID.class), rs.getObject("portfolio_id", UUID.class),

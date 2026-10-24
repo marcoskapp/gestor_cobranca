@@ -54,13 +54,13 @@ class MonitoringService {
     private final ScoringModelRepository models;
     private final MonitoringReportRepository reports;
     private final SnapshotStore snapshots;
-    private final SettingsProvider settingsProvider;
+    private final ScoringSettingsProvider settingsProvider;
     private final JsonCodec json;
     private final BusinessEventLogger businessEvents;
     private final ScoringMetrics metrics;
 
     MonitoringService(ScoringRunRepository runs, ScoringModelRepository models, MonitoringReportRepository reports,
-                      SnapshotStore snapshots, SettingsProvider settingsProvider, JsonCodec json,
+                      SnapshotStore snapshots, ScoringSettingsProvider settingsProvider, JsonCodec json,
                       BusinessEventLogger businessEvents, ScoringMetrics metrics) {
         this.runs = runs;
         this.models = models;

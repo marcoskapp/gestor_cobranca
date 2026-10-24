@@ -39,7 +39,8 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
-| Outros | `portal.accessed`, `portal.agreement_formalized`, `score.calculated`, `assistant.replied`, `assistant.handoff` |
+| Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
+| Outros | `portal.accessed`, `portal.agreement_formalized`, `assistant.replied`, `assistant.handoff` |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -253,6 +254,20 @@ Comissão da assessoria junto ao credor (não é remuneração de pessoa): os ev
 | `settlement.acknowledged` / `settlement.contested` | resposta do credor registrada | `daysAfterSent`; aceite: `afterContestation`; contestação: `amount` = líquido |
 | `settlement.transfer_recorded` | repasse (ou recebimento do credor) registrado com comprovante | `statementId`, `direction`, `outstandingAfter`, `daysAfterApproval`; `amount` |
 
+### 3.8 Atributos dos eventos do score (scoring)
+
+Ids, faixas e valores apenas — nunca dado pessoal nem os valores das features. Score 0–1000 (probabilidade × 1000).
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `score.calculated` | score publicado (primeiro, mudança de faixa ou variação mínima) ou cálculo fora do lote (sob demanda, evento, revisão) | `creditorId`, `portfolioId`, `debtorId`, `caseId`, referência `case_score`; `score`, `band`, `previousBand`, `bandChanged`, `published`, `trigger` (`BATCH`, `ON_DEMAND`, `EVENT`, `REVIEW`), `modelKind`, `modelVersion`, `outcomeDays`, `caseStatus`, `daysOverdue`; `amount` = saldo em aberto |
+| `score.batch_completed` | escoragem em lote concluída | referência `scoring_run`; `referenceDate`, `trigger`, `snapshot`, `scored`, `skipped`, `published`, `bandChanges`, `failures`, `modelKind`, `modelVersion`, `challenger`; `durationMs` |
+| `score.training_completed` | treino encerrado | `outcome` (`challenger`, `failed_validation`, `insufficient_data`, `error`), `trigger`, `observations`, `distinctCases`, `distinctPositiveCases`, `modelVersion`, `status`, `validationAuc`, `trainingRows`, `validationRows`, `reasons`; `durationMs` |
+| `score.model_promoted` / `score.model_rejected` | decisão manual sobre o desafiante | referência `scoring_model`; `modelVersion`, `kind`, `previousChampionVersion`, `validationAuc`, `decisionId`, `hasRealized` |
+| `score.drift_detected` | monitoramento com atenção/alerta | referência `scoring_monitoring`; `status`, `modelVersion`, `modelKind`, `referenceDate`, `scorePsi`, `alerts`, `kinds` (`score_psi:score`, `feature_psi:<feature>`, `realized_auc:<data>`) |
+| `score.cohort_measured` | recuperado × esperado de uma safra apurado | referência `scoring_run`; `referenceDate`, `outcomeDays`, `cohorts`, `cases`, `expectedAmount`, `realizedAmount`, `ratio`; `amount` = realizado |
+| `score.reviewed` | revisão do score (LGPD art. 20) | `creditorId`, `portfolioId`, `debtorId`, `caseId`, referência `score_review`; `origin`, `previousBand`, `band`, `bandChanged`, `modelChanged` |
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -316,12 +331,12 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `collection.callbacks{status}`, `collection.promises{status}`, `collection.disputes{status}` | retornos, promessas e contestações por situação |
 | `collection.disputes.overdue{type}` | contestações com prazo de resposta vencido (alarme) |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
-| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos e falhas dos agendamentos (alarme) |
+| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos (inclui `case_score`, do scoring) e falhas dos agendamentos (alarme) |
 | `ingestion.batches.received{source,mode}`, `ingestion.batches.finished{source,mode,status}`, `ingestion.batch.duration{source,mode,status}` | volume e duração dos lotes de importação |
 | `ingestion.files.rejected{reason}` | envios recusados no recebimento (tamanho, tipo pelo conteúdo, duplicidade, chave de idempotência…) |
 | `ingestion.rows{mode,outcome}`, `ingestion.titles{outcome}`, `ingestion.issues{severity}`, `ingestion.issues.stored` | linhas válidas/rejeitadas, títulos criados/atualizados/inalterados/não gravados/suspensos, ocorrências |
 | `ingestion.slice.duration{mode,outcome}`, `ingestion.row.write.duration{outcome}`, `ingestion.rows.retried` | desempenho do processamento (fatia, gravação por linha) e conflitos entre cargas simultâneas |
-| `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento (`interaction`, `call`, `message`, `case_status`, `case_assignment`, `case_balance`, `callback`, `promise`, `attribution`, `agreement_status`, `installment_status`, `payment_confirmed`, `payment_reversed`) |
+| `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento (`expected_recovery`, `interaction`, `call`, `message`, `case_status`, `case_assignment`, `case_balance`, `callback`, `promise`, `attribution`, `agreement_status`, `installment_status`, `payment_confirmed`, `payment_reversed`) |
 | `incentive.facts.ignored{type,reason}` | evento consumido sem efeito nos fatos (`unknown_status` = situação nova do produtor ainda não tratada; `incomplete` = sem tarefa/horário/promessa). Crescimento contínuo = contrato do produtor mudou |
 | `incentive.facts.out_of_order{type}` | evento de retorno/promessa mais antigo que o último já aplicado ao mesmo compromisso (entrega fora de ordem, tratada sem perda: a situação só avança ou vale o evento mais recente) |
 | `incentive.ledger.entries{kind,beneficiary}`, `incentive.ledger.transitions{status}` | lançamentos do razão e liberações/dispensas |
@@ -415,5 +430,14 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `telephony.recordings{outcome}`, `telephony.recording.access{purpose}` | gravações (`stored`, `failed`, `too_large`, `purged_retention`, `purged_anonymization`) e acessos por finalidade |
 | `telephony.webhook.requests{provider,outcome}`, `telephony.webhook.events{provider,type,outcome}` | webhooks (`ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` — alarme —, `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`) e eventos (`applied`, `duplicate`, `stale`, `unknown_call`, `ignored`) |
 | `telephony.reconciliation{kind}`, `telephony.events.consumed{type}`, `telephony.jobs.failures{job}` | conciliação (`agent_timeout`, `stale_call`), consumo de eventos e falhas de jobs/agendamentos (alarme) |
+| `scoring.cases.scored{trigger,model,band}`, `scoring.cases.skipped{reason}` | casos escorados por gatilho, tipo de modelo e faixa; não escorados (`legal`, `closed`, `anonymized`, `error`) |
+| `scoring.events.published{reason}` | `CaseScoreChanged` publicados (`first`, `band_change`, `delta`) |
+| `scoring.batch.page.duration` (p50/p95/p99), `scoring.batch.page.cases`, `scoring.batch.duration{status}`, `scoring.batch.skipped{reason}` | desempenho da escoragem em lote; lote não iniciado (`legal_basis_missing`, `already_exists`) |
+| `scoring.on_demand.duration{outcome}` (p50/p95/p99) | recálculo sob demanda |
+| `scoring.training.runs{outcome}`, `scoring.training.duration{outcome}`, `scoring.models.decisions{decision}` | treinos (`challenger`, `failed_validation`, `insufficient_data`, `error`) e promoções/rejeições |
+| `scoring.monitoring.psi{scope}`, `scoring.monitoring.alerts{level,kind}` | PSI do score e das features; alertas de deriva (alarme em `level=ALERT`) |
+| `scoring.outcomes.resolved`, `scoring.cohorts.measured` | desfechos apurados e safras de recuperado × esperado publicadas |
+| `scoring.facts.recorded{kind}`, `scoring.facts.ignored{type,reason}`, `scoring.events.consumed{type}` | fatos gravados; ignorados (`disabled` = sem base legal, `no_portfolio`, `duplicate`, `not_applicable`) |
+| `scoring.retention.purged{what}`, `scoring.jobs.failures{job}` | retenção (`facts`, `snapshots`) e falhas de agendamento/execução interrompida (alarme) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

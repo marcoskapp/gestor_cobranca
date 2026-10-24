@@ -41,7 +41,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `campaign` | Segmentos, campanhas, réguas, execução, controle de concorrência, testes A/B | F13, F25 |
 | `telephony` | Integração CTI/discador: chamadas, clique para ligar, campanhas de discagem (progressiva/preditiva), presença do operador, gravações, resultado vinculado ao caso — ver `docs/tecnico/desenho/telefonia.md` | F20 |
 | `portal` | Autonegociação do devedor (acesso seguro, consulta, proposta, formalização) | F19 |
-| `scoring` | Score de propensão à recuperação e priorização | F23 |
+| `scoring` | Score de propensão à recuperação e priorização: features, scorecard e regressão logística versionados, escoragem em lote, monitoramento, recuperado × esperado — ver `docs/tecnico/desenho/scoring.md` | F23 |
 | `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/tecnico/desenho/assistente.md` | F24 |
 | `analytics` | Read models e relatórios (painel operacional, recuperação, produtividade, exportação) | F11, F18 |
 | `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/tecnico/desenho/remuneracao-variavel.md` | remuneração variável |
