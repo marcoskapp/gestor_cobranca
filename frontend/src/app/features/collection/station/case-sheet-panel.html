@@ -91,6 +91,9 @@
               <th scope="col" class="sp-end">Valor original</th>
               <th scope="col" class="sp-end">Saldo</th>
               <th scope="col">Situação</th>
+              @if (canPix()) {
+                <th scope="col"><span class="cdk-visually-hidden">Pix</span></th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -107,9 +110,18 @@
                 <td class="sp-end"><app-amount [value]="t.principalAmount" /></td>
                 <td class="sp-end"><app-amount [value]="t.openBalance" /></td>
                 <td><app-status-chip domain="title" [status]="t.status" /></td>
+                @if (canPix()) {
+                  <td class="sp-end">
+                    @if (pixableTitle(t)) {
+                      <button mat-icon-button type="button" (click)="titlePix(t)" [attr.aria-label]="'Gerar Pix do título ' + t.externalId" matTooltip="Gerar Pix do título">
+                        <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+                      </button>
+                    }
+                  </td>
+                }
               </tr>
             } @empty {
-              <tr><td colspan="6" class="app-muted">Nenhum título nesta carteira.</td></tr>
+              <tr><td [attr.colspan]="canPix() ? 7 : 6" class="app-muted">Nenhum título nesta carteira.</td></tr>
             }
           </tbody>
         </table>

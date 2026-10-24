@@ -58,6 +58,7 @@ let nextId = 0;
   styles: `
     .fn { margin: 0; }
     .fn__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .fn__head > button { flex: none; white-space: nowrap; }
     .fn__title { font-size: 15px; font-weight: 600; }
     .fn__summary { margin: 0 0 8px; font-size: var(--app-text-sm); color: var(--mat-sys-on-surface-variant); }
     .fn__stages { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }

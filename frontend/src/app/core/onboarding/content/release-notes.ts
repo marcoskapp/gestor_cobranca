@@ -3,7 +3,7 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
-    version: 6,
+    version: 7,
     date: '2026-10-24',
     title: 'Painéis e relatórios da operação',
     items: [
@@ -12,6 +12,19 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
       { text: 'Funil do contato à 1ª parcela, acordado × pago e quebras por safra.', route: '/paineis/conversao' },
       { text: 'Produtividade por pessoa e equipe; o operador vê o próprio desempenho.', route: '/paineis/produtividade' },
       { text: 'Confiabilidade: falhas de integração, conciliação, processamentos e importações.', route: '/paineis/confiabilidade' },
+    ],
+  },
+  {
+    version: 6,
+    date: '2026-10-23',
+    title: 'Pagamentos, Pix e conciliação',
+    items: [
+      { text: 'Gerar Pix (imediato ou com vencimento) com QR Code e copia e cola, na ficha do acordo e na estação.', route: '/pagamentos/instrucoes' },
+      { text: 'Pagamentos com destinos, linha do tempo e comprovante; informar pagamento externo com evidência.', route: '/pagamentos' },
+      { text: 'Aprovação por outra pessoa acima do limite: quem informa não aprova.', route: '/pagamentos/aprovacoes' },
+      { text: 'Fila de sobras para realocar ou registrar devolução ao pagador.', route: '/pagamentos/sobras' },
+      { text: 'Conciliação por extrato CSV com prévia, indicadores do lote e divergências por tipo.', route: '/pagamentos/conciliacao' },
+      { text: 'Contas Pix por credor com certificado mTLS, rotação de credenciais e webhook.', route: '/pagamentos/contas-pix' },
     ],
   },
   {

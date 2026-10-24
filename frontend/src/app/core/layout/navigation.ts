@@ -103,6 +103,24 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Pagamentos',
+    items: [
+      { label: 'Pagamentos', icon: 'payments', route: '/pagamentos', permissions: [Permission.PAYMENT_VIEW], exact: true },
+      { label: 'Instruções de pagamento', icon: 'qr_code_2', route: '/pagamentos/instrucoes', permissions: [Permission.PAYMENT_VIEW] },
+      { label: 'Aprovação de pagamentos', icon: 'how_to_reg', route: '/pagamentos/aprovacoes', permissions: [Permission.PAYMENT_REVIEW] },
+      { label: 'Sobras e realocação', icon: 'savings', route: '/pagamentos/sobras', permissions: [Permission.RECONCILIATION_MANAGE] },
+      { label: 'Conciliação', icon: 'account_balance', route: '/pagamentos/conciliacao', permissions: [Permission.RECONCILIATION_MANAGE] },
+      { label: 'Divergências', icon: 'rule', route: '/pagamentos/divergencias', permissions: [Permission.RECONCILIATION_MANAGE] },
+      { label: 'Contas Pix', icon: 'account_balance_wallet', route: '/pagamentos/contas-pix', permissions: [Permission.INTEGRATION_MANAGE] },
+      {
+        label: 'Parâmetros de pagamentos',
+        icon: 'tune',
+        route: '/pagamentos/parametros',
+        permissions: [Permission.ORG_SETTINGS_MANAGE, Permission.PAYMENT_REVIEW, Permission.RECONCILIATION_MANAGE],
+      },
+    ],
+  },
+  {
     label: 'Jurídico',
     items: [
       { label: 'Painel jurídico', icon: 'balance', route: '/juridico', permissions: [Permission.LEGAL_VIEW] },

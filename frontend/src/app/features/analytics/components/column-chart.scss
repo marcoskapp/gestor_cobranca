@@ -4,6 +4,10 @@
 }
 .cc__head {
   display: flex;
+  > button {
+    flex: none;
+    white-space: nowrap;
+  }
   align-items: center;
   justify-content: space-between;
   gap: 8px;

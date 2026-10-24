@@ -29,7 +29,11 @@ export function fixed2(value: Money | null | undefined): string {
 
 export function percent(ratio: Ratio | null | undefined): string {
   const v = toAmount(ratio?.value);
-  return v === null ? '—' : PERCENT.format(v);
+  if (v === null) {
+    return '—';
+  }
+  // valor positivo pequeno não vira "0,0%" (esconderia ocorrências reais)
+  return v > 0 && v < 0.0005 ? '< 0,1%' : PERCENT.format(v);
 }
 
 export function unavailable(ratio: Ratio | null | undefined): string | null {

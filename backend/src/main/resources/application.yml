@@ -341,6 +341,22 @@ app:
       enabled: false
       auto-progress: true
 
+  assistant:
+    # mensagens mais recentes da conversa enviadas ao modelo (texto minimizado)
+    history-messages: 12
+    # tentativas do job de turno (falha de infraestrutura; falha do modelo transfere para humano sem repetir)
+    turn-max-attempts: 3
+    # turno sem conclusão além deste prazo é recuperado (instância caiu): registra falha e transfere
+    stale-turn-after: PT10M
+    # janela da quebra precoce nas métricas de qualidade (acordos do assistente × humanos)
+    early-break-days: 60
+    # descarte diário do conteúdo da trilha (política MESSAGE_CONTENT do compliance)
+    retention-cron: "0 55 2 * * *"
+    retention-batch: 500
+    # modelo simulado determinístico: somente local/teste (recusado no perfil prod); provedor real na issue #12
+    sandbox:
+      enabled: false
+
   collection:
     # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)
     defaults:
