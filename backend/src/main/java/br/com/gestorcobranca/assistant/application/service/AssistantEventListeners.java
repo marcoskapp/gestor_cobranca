@@ -4,6 +4,7 @@ import br.com.gestorcobranca.shared.config.AsyncConfig;
 import br.com.gestorcobranca.shared.events.TenantEventListener;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.debt.DebtorAnonymized;
+import br.com.gestorcobranca.shared.events.payment.PaymentInstructionStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementAttributionRecorded;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import org.springframework.scheduling.annotation.Async;
@@ -17,7 +18,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
  *       e pela política);</li>
  *   <li>{@code AgreementAttributionRecorded} / {@code AgreementStatusChanged} → fatos de acordo para as
  *       métricas de qualidade;</li>
- *   <li>{@code DebtorAnonymized} → descarte do conteúdo da trilha e dos comentários de revisão.</li>
+ *   <li>{@code DebtorAnonymized} → descarte do conteúdo da trilha e dos comentários de revisão;</li>
+ *   <li>{@code PaymentInstructionStatusChanged} → entrega do Pix gerado na conversa (cobrança ativa no PSP) e
+ *       pagamento (conversão Pix emitido → pago).</li>
  * </ul>
  */
 @Component
@@ -47,6 +50,12 @@ class AssistantEventListeners extends TenantEventListener {
     @TransactionalEventListener
     void on(AgreementStatusChanged event) {
         handleOnce(event, "assistant.agreement-status", () -> reactions.agreementStatus(event));
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(PaymentInstructionStatusChanged event) {
+        handleOnce(event, "assistant.pix-instruction", () -> reactions.pixInstruction(event));
     }
 
     @Async(AsyncConfig.EVENT_EXECUTOR)

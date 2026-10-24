@@ -219,6 +219,7 @@ class InstructionService implements PaymentInstructionUseCases {
         InstructionStatus before = instruction.getStatus();
         boolean registered = instruction.cancel(reason, Instant.now(clock));
         instructions.save(instruction);
+        recorder.instructionStatusChanged(instruction, before);
         if (registered && instruction.isPix()) {
             InstructionCancellationJob.enqueue(jobs, instruction.getId());
         }

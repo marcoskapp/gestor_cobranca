@@ -50,6 +50,20 @@ public interface AssistantReviewUseCases {
                        Map<String, Long> agreementsByOrigin, Map<String, Long> agreementsByGroup,
                        Map<String, BigDecimal> earlyBreakRate, int earlyBreakDays, long complaints, BigDecimal cost,
                        String costCurrency, BigDecimal costPerAgreement, long inputTokens, long outputTokens,
-                       long avgLatencyMs, long reviewed, BigDecimal avgScore, long outOfPolicy, long pendingReviews) {
+                       long avgLatencyMs, long reviewed, BigDecimal avgScore, long outOfPolicy, long pendingReviews,
+                       PixQuality pix) {
+    }
+
+    /**
+     * Pix gerado pelo assistente na conversa (pedidos do período).
+     *
+     * @param issued           gerados e liberados para envio
+     * @param deniedByReason   recusas por critério (ex.: CONVERSATION_RISK, AMOUNT_ABOVE_LIMIT)
+     * @param suggested        sugestões ao operador (sombra/copiloto)
+     * @param conversionRate   pagos ÷ gerados (nulo sem Pix gerado)
+     * @param paidWithin24hRate pagos em até 24 h ÷ gerados
+     */
+    record PixQuality(long issued, long delivered, long denied, Map<String, Long> deniedByReason, long suggested,
+                      long paid, long paidWithin24h, BigDecimal conversionRate, BigDecimal paidWithin24hRate) {
     }
 }

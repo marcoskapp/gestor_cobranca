@@ -43,6 +43,7 @@ import java.util.UUID;
  * @param limits                limites de tokens, ferramentas, tempo e custo
  * @param reviewSampleRate      fração dos turnos amostrada para revisão humana (0–1)
  * @param allowCreditBureauMention a resposta pode mencionar negativação (só se autorizada pelo credor)
+ * @param pixInConversation     Pix gerado pelo assistente na conversa (padrão desligado; ver {@link PixInConversation})
  */
 public record PolicySettings(
         AssistantMode mode,
@@ -67,11 +68,14 @@ public record PolicySettings(
         String approvalMessage,
         Limits limits,
         BigDecimal reviewSampleRate,
-        Boolean allowCreditBureauMention) {
+        Boolean allowCreditBureauMention,
+        PixInConversation pixInConversation) {
 
     public static final int SCHEMA_VERSION = 1;
     public static final Set<String> SUPPORTED_CHANNELS = Set.of("WHATSAPP");
     public static final String DEFAULT_PROMPT = "negociacao";
+    /** v2: orientação do Pix na conversa (v1 continua válida nas políticas publicadas com ela). */
+    public static final int DEFAULT_PROMPT_VERSION = 2;
     public static final String DEFAULT_IDENTIFICATION = "Olá! Sou a assistente virtual de cobrança e vou te ajudar por aqui. "
             + "Se preferir falar com um atendente humano, é só escrever HUMANO a qualquer momento.";
     public static final String DEFAULT_HANDOFF = "Vou transferir seu atendimento para um de nossos atendentes, que "
@@ -103,10 +107,47 @@ public record PolicySettings(
                          Integer timeoutSeconds, BigDecimal maxCostPerConversation) {
     }
 
+    /**
+     * Pix gerado pelo assistente na conversa (decisão do responsável: "se a conversa foi amigável e a
+     * conciliação com o devedor tranquila, o Pix pode ser gerado pelo assistente IA"). Os critérios são
+     * avaliados no servidor ({@code PixEligibility}); aqui ficam só os parâmetros ligáveis pelo gestor.
+     *
+     * @param enabled                  liga a ferramenta (padrão desligado); exige confirmação de identidade
+     * @param maxAmount                valor máximo de um Pix gerado na conversa (padrão R$ 5.000,00)
+     * @param maxPerConversationPerDay Pix enviados por conversa no dia (padrão 3; reenvio conta)
+     * @param expirationMinutes        validade do Pix imediato (padrão 60 min)
+     * @param riskLookbackDays         janela em que transferência por risco, guardrail ou reclamação na sessão
+     *                                 impede o Pix pelo assistente (padrão 30 dias)
+     */
+    public record PixInConversation(Boolean enabled, BigDecimal maxAmount, Integer maxPerConversationPerDay,
+                                    Integer expirationMinutes, Integer riskLookbackDays) {
+
+        public static final BigDecimal DEFAULT_MAX_AMOUNT = new BigDecimal("5000.00");
+        public static final BigDecimal CEILING_AMOUNT = new BigDecimal("50000.00");
+
+        public static PixInConversation disabled() {
+            return new PixInConversation(false, null, null, null, null).normalized();
+        }
+
+        public boolean on() {
+            return Boolean.TRUE.equals(enabled);
+        }
+
+        public PixInConversation normalized() {
+            BigDecimal max = maxAmount == null ? DEFAULT_MAX_AMOUNT : maxAmount.setScale(2, java.math.RoundingMode.HALF_EVEN);
+            Guard.require(max.signum() > 0 && max.compareTo(CEILING_AMOUNT) <= 0, "assistant_policy.pix_max_amount_invalid",
+                    "Limite do Pix na conversa entre R$ 0,01 e R$ 50.000,00");
+            return new PixInConversation(Boolean.TRUE.equals(enabled), max,
+                    bounded(maxPerConversationPerDay, 3, 1, 10, "pix_per_day"),
+                    bounded(expirationMinutes, 60, 15, 1440, "pix_expiration_minutes"),
+                    bounded(riskLookbackDays, 30, 1, 180, "pix_risk_lookback_days"));
+        }
+    }
+
     /** Política mínima usada como modelo de cadastro. */
     public static PolicySettings defaults(AssistantMode mode) {
         return new PolicySettings(mode, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null).normalized();
+                null, null, null, null, null, null, null, null, null, null).normalized();
     }
 
     /** Cópia com os padrões aplicados e as regras de segurança validadas. */
@@ -186,12 +227,30 @@ public record PolicySettings(
                 "Taxa de amostragem entre 0 e 1");
         String prompt = promptCode == null || promptCode.isBlank() ? DEFAULT_PROMPT : promptCode.trim().toLowerCase(Locale.ROOT);
         Guard.require(prompt.matches("[a-z0-9-]{2,40}"), "assistant_policy.prompt_invalid", "Código de prompt inválido");
-        int pv = promptVersion == null ? 1 : promptVersion;
+        int pv = promptVersion == null ? DEFAULT_PROMPT_VERSION : promptVersion;
         Guard.require(pv >= 1, "assistant_policy.prompt_invalid", "Versão de prompt inválida");
+        PixInConversation pix = (pixInConversation == null ? new PixInConversation(false, null, null, null, null)
+                : pixInConversation).normalized();
+        Guard.require(!pix.on() || identity, "assistant_policy.pix_requires_identity",
+                "Pix na conversa exige a confirmação de identidade do devedor");
         return new PolicySettings(mode, Set.copyOf(ch), List.copyOf(hours), authorityProfileId, prompt, pv, t, turns,
                 misunderstandings, confidence, identity, identityAttempts, allowed, forbidden, List.copyOf(extras),
                 Map.copyOf(profiles), identification, handoff, fallback, approval, lim, sample,
-                allowCreditBureauMention != null && allowCreditBureauMention);
+                allowCreditBureauMention != null && allowCreditBureauMention, pix);
+    }
+
+    /** Cópia com outro modo (mesmos parâmetros, normalizada). */
+    public PolicySettings withMode(AssistantMode newMode) {
+        return new PolicySettings(newMode, channels, serviceHours, authorityProfileId, promptCode, promptVersion, tone,
+                maxTurns, maxMisunderstandings, minConfidence, requireIdentityVerification, maxIdentityAttempts,
+                allowedTopics, forbiddenTopics, extraTriggers, requiredProfiles, identificationMessage, handoffMessage,
+                fallbackMessage, approvalMessage, limits, reviewSampleRate, allowCreditBureauMention, pixInConversation)
+                .normalized();
+    }
+
+    /** Parâmetros do Pix na conversa (desligado quando a política foi gravada antes da opção). */
+    public PixInConversation pix() {
+        return pixInConversation == null ? PixInConversation.disabled() : pixInConversation;
     }
 
     /** Perfil exigido na fila para o motivo (política → padrão do motivo). */

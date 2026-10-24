@@ -40,10 +40,29 @@ public interface AssistantTrailUseCases {
     }
 
     /**
-     * @param inputText texto recebido do devedor (nulo após retenção/anonimização)
-     * @param context   contexto minimizado enviado ao modelo (JSON)
+     * @param inputText   texto recebido do devedor (nulo após retenção/anonimização)
+     * @param context     contexto minimizado enviado ao modelo (JSON)
+     * @param pixRequests pedidos de Pix do turno com os critérios avaliados no servidor
      */
-    record TurnDetail(TurnView turn, String inputText, String context, String outputText, List<ToolCallView> toolCalls) {
+    record TurnDetail(TurnView turn, String inputText, String context, String outputText, List<ToolCallView> toolCalls,
+                      List<PixRequestView> pixRequests) {
+    }
+
+    /**
+     * Pedido de Pix na conversa (ferramenta {@code generate_payment}).
+     *
+     * @param decision       ISSUED, DENIED ou SUGGESTED
+     * @param denialCode     critério que recusou (ex.: AMOUNT_ABOVE_LIMIT, CONVERSATION_RISK)
+     * @param deliveryStatus AWAITING, DELIVERED, CANCELLED ou NOT_DELIVERED
+     */
+    record PixRequestView(UUID id, String decision, String denialCode, List<CriterionView> criteria, UUID agreementId,
+                          Integer installmentNumber, BigDecimal amount, UUID instructionId, boolean reusedInstruction,
+                          Instant expiresAt, String deliveryStatus, String deliveryCode, Instant deliveredAt,
+                          Instant paidAt, Instant requestedAt) {
+    }
+
+    /** @param detail observação do servidor (situação, motivos, limite), sem dados pessoais */
+    record CriterionView(String criterion, boolean passed, String detail) {
     }
 
     record ToolCallView(int sequence, String tool, String arguments, String result, String outcome, String errorCode,

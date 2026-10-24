@@ -32,6 +32,8 @@ public enum HandoffReason {
     ASSISTANT_DISABLED(null, false, true),
     CHANNEL_NOT_ENABLED(null, false, true),
     POLICY_TRIGGER(null, false, true),
+    /** o devedor quer pagar, mas o Pix não pode ser gerado pelo assistente (limite, risco, contestação…) */
+    PAYMENT_ASSISTANCE(null, false, true),
     MODEL_REQUESTED(null, false, true);
 
     private final String defaultProfile;
@@ -57,6 +59,21 @@ public enum HandoffReason {
     /** O devedor recebe a mensagem de transferência (opt-out: nenhum contato depois do pedido). */
     public boolean notifiesDebtor() {
         return notifiesDebtor;
+    }
+
+    /**
+     * Gatilho de transferência ligado à conduta da conversa (regra, sinal do modelo, guardrail, gatilho da
+     * política, identidade não confirmada, pedido de humano ou do modelo). Qualquer um deles na sessão impede
+     * o Pix gerado pelo assistente ("conversa amigável e conciliação tranquila"). Limites operacionais,
+     * falhas técnicas e encaminhamentos do motor (alçada, formalização) não contam.
+     */
+    public boolean conversationRisk() {
+        return switch (this) {
+            case DISPUTE, PAYMENT_CLAIM, FRAUD_SUSPECTED, DECEASED, VULNERABILITY, LEGAL_MENTION, COMPLAINT, ABUSIVE,
+                 HUMAN_REQUESTED, OPT_OUT, LOW_CONFIDENCE, IDENTITY_NOT_CONFIRMED, GUARDRAIL, POLICY_TRIGGER,
+                 MODEL_REQUESTED -> true;
+            default -> false;
+        };
     }
 
     /** Motivos que o modelo pode informar ao pedir a transferência. */

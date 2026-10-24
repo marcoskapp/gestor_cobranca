@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
  *       nível 1 com motivo {@code IMMEDIATE_PAYMENT}; "[sandbox:nivel:N]" pede o nível N) e lista as ofertas;</li>
  *   <li>aceito/fechar (opcional "O2") → {@code propose_offer} e, se a proposta ficou {@code DRAFT},
  *       {@code register_acceptance};</li>
+ *   <li>Pix/pagar agora (com as ferramentas de Pix disponíveis) → {@code get_installments} e
+ *       {@code generate_payment} da parcela pedida ("I2") ou da primeira;</li>
  *   <li>identidade pendente → pede os 3 primeiros dígitos do CPF e a data de nascimento.</li>
  * </ul>
  * Marcadores para testes: {@code [sandbox:confuso]} (confiança 0,2), {@code [sandbox:sinal:<MOTIVO>]}
@@ -54,6 +56,7 @@ class SandboxLanguageModel implements LanguageModelPort {
     private static final Pattern TIMES = Pattern.compile("(\\d{1,2})\\s?(?:x|vezes|parcelas)");
     private static final Pattern LEVEL = Pattern.compile("\\[sandbox:nivel:(\\d)]");
     private static final Pattern SIGNAL = Pattern.compile("\\[sandbox:sinal:([a-z_]+)]");
+    private static final Pattern INSTALLMENT_REF = Pattern.compile("\\b[iI](\\d{1,2})\\b");
 
     private final JsonCodec json;
     private final AssistantProperties.Sandbox tariff;
@@ -151,6 +154,35 @@ class SandboxLanguageModel implements LanguageModelPort {
                     + "nascimento (dia/mês/ano)." + (left <= 1 && !retry.isEmpty() ? " Esta é a última tentativa." : ""));
         }
         switch (intent) {
+            case "PAYMENT" -> {
+                if (!tools.contains("generate_payment")) {
+                    return Step.say("Um de nossos atendentes pode te ajudar com o pagamento por aqui.");
+                }
+                if (!called.contains("get_installments")) {
+                    return Step.call("get_installments", Map.of(), json);
+                }
+                if (!called.contains("generate_payment")) {
+                    Object raw = results.get("get_installments").get("installments");
+                    List<?> list = raw instanceof List<?> l ? l : List.of();
+                    if (list.isEmpty()) {
+                        return Step.say("Não encontrei parcela em aberto de acordo para gerar o Pix.");
+                    }
+                    Matcher ref = INSTALLMENT_REF.matcher(plain);
+                    String installment = ref.find() ? "I" + ref.group(1) : String.valueOf(((Map<?, ?>) list.getFirst()).get("ref"));
+                    return Step.call("generate_payment", Map.of("installment", installment), json);
+                }
+                Map<String, Object> pix = results.get("generate_payment");
+                if (Boolean.TRUE.equals(pix.get("issued"))) {
+                    return Step.say("Certo! O Pix de " + money(pix.get("amount")) + " foi gerado e vale até "
+                            + LocalDate.parse(String.valueOf(pix.get("validUntilDate"))).format(BR_DATE)
+                            + ". O código chega em seguida, em mensagem separada.");
+                }
+                if (Boolean.TRUE.equals(pix.get("suggested"))) {
+                    return Step.say("O atendente vai enviar o Pix de " + money(pix.get("amount")) + " por aqui.");
+                }
+                return Step.say("Se quiser pagar agora, é só confirmar, por exemplo: quero pagar agora. "
+                        + "Se preferir, um atendente pode ajudar.");
+            }
             case "IDENTITY" -> {
                 return Step.say("Obrigado, seus dados foram confirmados. Posso informar o saldo atualizado ou simular "
                         + "opções de pagamento.");
@@ -259,6 +291,9 @@ class SandboxLanguageModel implements LanguageModelPort {
     private static String intent(String plain) {
         if (plain.contains("[digitos omitidos]") || plain.contains("[data omitida]") || plain.contains("[documento omitido]")) {
             return "IDENTITY";
+        }
+        if (plain.matches(".*\\b(pix|copia e cola|pagar agora|pagar hoje)\\b.*")) {
+            return "PAYMENT";
         }
         if (plain.matches(".*\\b(aceito|fechado|pode fechar|fechar o acordo|confirmo)\\b.*")) {
             return "ACCEPT";

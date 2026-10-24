@@ -81,7 +81,7 @@ abstract class AssistantTestSupport extends CommunicationTestSupport {
         PolicySettings base = PolicySettings.defaults(mode);
         PolicySettings settings = new PolicySettings(mode, null, null, authorityProfileId, null, null, null, null, null,
                 null, null, null, List.of("negociação", "segunda via"), List.of("sorteio"), null, null, null, null,
-                null, null, null, BigDecimal.ONE, null);
+                null, null, null, BigDecimal.ONE, null, null);
         assert base.mode() == mode;
         return asAdmin(() -> {
             PolicyView draft = assistantPolicies.createDraft(new CreatePolicyCommand(creditorId, null, code,

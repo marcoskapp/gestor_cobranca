@@ -2,6 +2,7 @@ package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.payment.application.PaymentProperties;
 import br.com.gestorcobranca.payment.application.port.out.WebhookReceiptLog;
+import br.com.gestorcobranca.payment.domain.model.InstructionStatus;
 import br.com.gestorcobranca.payment.domain.model.PaymentInstruction;
 import br.com.gestorcobranca.payment.domain.repository.PaymentInstructionRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
@@ -38,12 +39,14 @@ class PaymentJobs {
     private final WebhookReceiptLog receipts;
     private final AuditTrail auditTrail;
     private final PaymentMetrics metrics;
+    private final PaymentRecorder recorder;
     private final PaymentProperties properties;
     private final Clock clock;
 
     PaymentJobs(TenantDirectory tenantDirectory, TenantExecution tenantExecution, PaymentInstructionRepository instructions,
-                WebhookReceiptLog receipts, AuditTrail auditTrail, PaymentMetrics metrics, PaymentProperties properties,
-                Clock clock) {
+                WebhookReceiptLog receipts, AuditTrail auditTrail, PaymentMetrics metrics, PaymentRecorder recorder,
+                PaymentProperties properties, Clock clock) {
+        this.recorder = recorder;
         this.tenantDirectory = tenantDirectory;
         this.tenantExecution = tenantExecution;
         this.instructions = instructions;
@@ -77,7 +80,9 @@ class PaymentJobs {
         Instant now = Instant.now(clock);
         List<PaymentInstruction> due = instructions.findOpenExpiredBefore(now, BATCH);
         for (PaymentInstruction instruction : due) {
+            InstructionStatus before = instruction.getStatus();
             if (instruction.expireIfDue(now)) {
+                recorder.instructionStatusChanged(instruction, before);
                 instructions.save(instruction);
                 metrics.instruction(instruction.getType().name(), "expired");
                 auditTrail.record(AuditEntry.of("payment_instruction.expired", InstructionService.RESOURCE,

@@ -25,6 +25,19 @@ public interface QualityStatistics {
                     Map<String, Long> guardrails, BigDecimal cost, String costCurrency, long inputTokens,
                     long outputTokens, long avgLatencyMs, Map<String, Long> agreementsByOrigin,
                     Map<String, Long> earlyBreaksByOrigin, long reviewed, BigDecimal avgScore, long outOfPolicy,
-                    long pendingReviews) {
+                    long pendingReviews, PixStats pix) {
+    }
+
+    /**
+     * Pix na conversa no período (pela data do pedido).
+     *
+     * @param issued        gerados e liberados para envio (cancelados com o turno não contam)
+     * @param delivered     código entregue ao devedor
+     * @param deniedByReason recusas por critério
+     * @param paid          pagos (qualquer prazo)
+     * @param paidWithin24h pagos em até 24 h do pedido
+     */
+    record PixStats(long issued, long delivered, Map<String, Long> deniedByReason, long suggested, long paid,
+                    long paidWithin24h) {
     }
 }

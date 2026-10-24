@@ -65,4 +65,21 @@ class HandoffDetectorTest {
         assertThat(HandoffDetector.explicitAcceptance("não aceito")).isFalse();
         assertThat(HandoffDetector.explicitAcceptance("quanto fica?")).isFalse();
     }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "pode mandar o pix | true",
+            "manda o código do pix por favor | true",
+            "quero pagar agora | true",
+            "vou pagar hoje no pix | true",
+            "aceito, pode gerar | true",
+            "pode mandar | true",
+            "e o pix? | false",
+            "não quero pagar agora | false",
+            "agora não, pago depois | false",
+            "manda o pix mês que vem | false",
+            "quanto é a parcela? | false"})
+    void explicitPaymentRequestFollowsTheExplicitWordsRule(String text, boolean expected) {
+        assertThat(HandoffDetector.explicitPaymentRequest(text)).isEqualTo(expected);
+    }
 }

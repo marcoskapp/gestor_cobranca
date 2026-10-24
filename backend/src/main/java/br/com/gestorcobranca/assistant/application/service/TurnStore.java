@@ -3,6 +3,7 @@ package br.com.gestorcobranca.assistant.application.service;
 import br.com.gestorcobranca.assistant.domain.model.AssistantSession;
 import br.com.gestorcobranca.assistant.domain.model.AssistantTurn;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
+import br.com.gestorcobranca.assistant.domain.model.PixRequest;
 import br.com.gestorcobranca.assistant.domain.model.SampleReason;
 import br.com.gestorcobranca.assistant.domain.model.SessionMemory;
 import br.com.gestorcobranca.assistant.domain.model.ToolCallRecord;
@@ -10,10 +11,12 @@ import br.com.gestorcobranca.assistant.domain.model.TurnOutcome;
 import br.com.gestorcobranca.assistant.domain.model.TurnReview;
 import br.com.gestorcobranca.assistant.domain.repository.AssistantSessionRepository;
 import br.com.gestorcobranca.assistant.domain.repository.AssistantTurnRepository;
+import br.com.gestorcobranca.assistant.domain.repository.PixRequestRepository;
 import br.com.gestorcobranca.assistant.domain.repository.ToolCallRepository;
 import br.com.gestorcobranca.assistant.domain.repository.TurnReviewRepository;
 import br.com.gestorcobranca.assistant.domain.service.ReviewSampler;
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.ConversationView;
+import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
@@ -29,8 +32,8 @@ import java.util.UUID;
 
 /**
  * Gravações do turno em transações próprias (o turno chama outros módulos entre elas): sessão, marca de
- * início e o registro final — turno, chamadas de ferramenta, sessão atualizada, amostra de revisão e
- * eventos de negócio — numa única transação.
+ * início e o registro final — turno, chamadas de ferramenta, pedidos de Pix (com o job de entrega),
+ * sessão atualizada, amostra de revisão e eventos de negócio — numa única transação.
  */
 @Component
 class TurnStore {
@@ -42,11 +45,18 @@ class TurnStore {
     private final AssistantCodec codec;
     private final BusinessEventLogger businessEvents;
     private final AssistantMetrics metrics;
+    private final PixRequestRepository pixRequests;
+    private final AssistantPixRecorder pixRecorder;
+    private final JobQueue jobQueue;
     private final Clock clock;
 
     TurnStore(AssistantSessionRepository sessions, AssistantTurnRepository turns, ToolCallRepository toolCalls,
               TurnReviewRepository reviews, AssistantCodec codec, BusinessEventLogger businessEvents,
-              AssistantMetrics metrics, Clock clock) {
+              AssistantMetrics metrics, PixRequestRepository pixRequests, AssistantPixRecorder pixRecorder,
+              JobQueue jobQueue, Clock clock) {
+        this.pixRequests = pixRequests;
+        this.pixRecorder = pixRecorder;
+        this.jobQueue = jobQueue;
         this.sessions = sessions;
         this.turns = turns;
         this.toolCalls = toolCalls;
@@ -103,6 +113,14 @@ class TurnStore {
         for (TurnContext.ToolCallLog call : ctx.toolCalls) {
             toolCalls.save(new ToolCallRecord(turn.getId(), call.sequence(), call.tool(), call.arguments(), call.result(),
                     call.outcome(), call.errorCode(), call.referenceType(), call.referenceId(), call.durationMs()));
+        }
+        for (PixRequest request : ctx.pixRequests) {
+            request.attachTo(turn.getId());
+            PixRequest saved = pixRequests.save(request);
+            pixRecorder.evaluated(saved, ctx.conversation.channel());
+            if (saved.getDeliveryStatus() != null && saved.getDeliveryStatus().open()) {
+                AssistantPixDelivery.enqueue(jobQueue, saved.getId());
+            }
         }
         session.remember(codec.memory(ctx.memory));
         session.finish(ctx.token, ctx.inputTokens, ctx.outputTokens, ctx.cost, ctx.costCurrency);

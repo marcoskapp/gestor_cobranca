@@ -4,7 +4,9 @@ import br.com.gestorcobranca.assistant.application.port.in.AssistantTrailUseCase
 import br.com.gestorcobranca.assistant.domain.model.AssistantSession;
 import br.com.gestorcobranca.assistant.domain.model.AssistantTurn;
 import br.com.gestorcobranca.assistant.domain.repository.AssistantSessionRepository;
+import br.com.gestorcobranca.assistant.domain.model.PixRequest;
 import br.com.gestorcobranca.assistant.domain.repository.AssistantTurnRepository;
+import br.com.gestorcobranca.assistant.domain.repository.PixRequestRepository;
 import br.com.gestorcobranca.assistant.domain.repository.ToolCallRepository;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
@@ -29,14 +31,16 @@ class AssistantTrailService implements AssistantTrailUseCases {
     private final AssistantSessionRepository sessions;
     private final AssistantTurnRepository turns;
     private final ToolCallRepository toolCalls;
+    private final PixRequestRepository pixRequests;
     private final AssistantCodec codec;
     private final AccessScope accessScope;
     private final AccessLogger accessLogger;
     private final CurrentActor currentActor;
 
     AssistantTrailService(AssistantSessionRepository sessions, AssistantTurnRepository turns, ToolCallRepository toolCalls,
-                          AssistantCodec codec, AccessScope accessScope, AccessLogger accessLogger,
-                          CurrentActor currentActor) {
+                          PixRequestRepository pixRequests, AssistantCodec codec, AccessScope accessScope,
+                          AccessLogger accessLogger, CurrentActor currentActor) {
+        this.pixRequests = pixRequests;
         this.sessions = sessions;
         this.turns = turns;
         this.toolCalls = toolCalls;
@@ -79,7 +83,16 @@ class AssistantTrailService implements AssistantTrailUseCases {
                         .map(c -> new ToolCallView(c.getSequence(), c.getToolName(), c.getArguments(), c.getResult(),
                                 c.getOutcome().name(), c.getErrorCode(), c.getReferenceType(), c.getReferenceId(),
                                 c.getDurationMs()))
-                        .toList());
+                        .toList(),
+                pixRequests.findByTurnIdOrderByRequestedAtAsc(turnId).stream().map(this::view).toList());
+    }
+
+    private PixRequestView view(PixRequest r) {
+        return new PixRequestView(r.getId(), r.getDecision().name(), r.getDenialCode(),
+                codec.criteria(r.getCriteria()).stream().map(c -> new CriterionView(c.criterion(), c.passed(), c.detail()))
+                        .toList(), r.getAgreementId(), r.getInstallmentNumber(), r.getAmount(), r.getInstructionId(),
+                r.isReusedInstruction(), r.getExpiresAt(), r.getDeliveryStatus() == null ? null : r.getDeliveryStatus().name(),
+                r.getDeliveryCode(), r.getDeliveredAt(), r.getPaidAt(), r.getRequestedAt());
     }
 
     private SessionView view(AssistantSession s) {

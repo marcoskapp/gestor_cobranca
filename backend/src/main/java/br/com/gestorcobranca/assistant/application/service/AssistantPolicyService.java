@@ -332,11 +332,6 @@ class AssistantPolicyService implements AssistantPolicyUseCases {
     }
 
     private static PolicySettings withMode(PolicySettings s, AssistantMode mode) {
-        return new PolicySettings(mode, s.channels(), s.serviceHours(), s.authorityProfileId(), s.promptCode(),
-                s.promptVersion(), s.tone(), s.maxTurns(), s.maxMisunderstandings(), s.minConfidence(),
-                s.requireIdentityVerification(), s.maxIdentityAttempts(), s.allowedTopics(), s.forbiddenTopics(),
-                s.extraTriggers(), s.requiredProfiles(), s.identificationMessage(), s.handoffMessage(),
-                s.fallbackMessage(), s.approvalMessage(), s.limits(), s.reviewSampleRate(), s.allowCreditBureauMention())
-                .normalized();
+        return s.withMode(mode);
     }
 }

@@ -67,6 +67,16 @@ public final class HandoffDetector {
             "pode ser", "quero (essa|esse|esta|este) (opcao|proposta|acordo)", "fechar o acordo", "confirmo", "de acordo",
             "sim,? quero", "vamos fechar");
 
+    /** Pedido explícito de pagar agora / receber o Pix (mesma regra de palavras explícitas do aceite). */
+    private static final Pattern PAYMENT_REQUEST = words("(manda|mande|mandar|envia|envie|enviar|gera|gere|gerar|passa|passe)"
+                    + " (o |um )?(pix|codigo( do pix)?|copia e cola)", "quero (o |um )?pix",
+            "(quero|vou|posso|prefiro) pagar (agora|hoje|ja|no pix|por pix|com pix|via pix)",
+            "pagar (agora|ja) (no|por|com|via) pix", "pode (mandar|enviar|gerar)( o)?( pix| codigo)?",
+            "(me )?(manda|envia|passa) (o )?(pix|codigo)", "pago (agora|hoje|ja)", "vou pagar agora", "quero pagar agora");
+    private static final Pattern NEGATED_PAYMENT = words("nao (quero|vou|posso|consigo|tenho como) pagar",
+            "nao (manda|mande|envia|envie|gera|gere|precisa)", "(agora|hoje) nao", "ainda nao", "pago depois",
+            "pagar depois", "mais tarde", "outro dia", "semana que vem", "mes que vem");
+
     /** Gatilho encontrado e a regra (expressão) que o acionou. */
     public record Detection(HandoffReason reason, String rule) {
     }
@@ -114,6 +124,16 @@ public final class HandoffDetector {
     public static boolean explicitAcceptance(String text) {
         String normalized = TextNormalizer.normalize(text);
         return ACCEPTANCE.matcher(normalized).find() && !NEGATED_ACCEPTANCE.matcher(normalized).find();
+    }
+
+    /**
+     * O devedor pede ou aceita explicitamente pagar agora ("manda o Pix", "quero pagar agora", "aceito"),
+     * sem negação nem adiamento na mesma mensagem.
+     */
+    public static boolean explicitPaymentRequest(String text) {
+        String normalized = TextNormalizer.normalize(text);
+        boolean asked = PAYMENT_REQUEST.matcher(normalized).find() || ACCEPTANCE.matcher(normalized).find();
+        return asked && !NEGATED_PAYMENT.matcher(normalized).find() && !NEGATED_ACCEPTANCE.matcher(normalized).find();
     }
 
     private static Pattern words(String... alternatives) {

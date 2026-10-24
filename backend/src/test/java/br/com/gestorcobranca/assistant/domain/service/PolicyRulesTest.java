@@ -27,7 +27,7 @@ class PolicyRulesTest {
 
     private static PolicySettings with(String identification, Set<String> channels) {
         return new PolicySettings(AssistantMode.AUTONOMOUS, channels, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, Map.of("DISPUTE", "juridico"), identification, null, null, null, null, null, null);
+                null, null, null, null, Map.of("DISPUTE", "juridico"), identification, null, null, null, null, null, null, null);
     }
 
     @Test

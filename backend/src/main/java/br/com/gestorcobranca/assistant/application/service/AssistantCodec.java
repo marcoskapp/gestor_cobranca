@@ -19,6 +19,12 @@ class AssistantCodec {
 
     private static final TypeReference<List<String>> STRINGS = new TypeReference<>() {
     };
+    private static final TypeReference<List<Criterion>> CRITERIA = new TypeReference<>() {
+    };
+
+    /** Critério do Pix avaliado no servidor, como gravado em {@code pix_request.criteria}. */
+    record Criterion(String criterion, boolean passed, String detail) {
+    }
 
     private final JsonCodec json;
 
@@ -52,6 +58,10 @@ class AssistantCodec {
 
     List<String> strings(String value) {
         return value == null || value.isBlank() ? List.of() : json.fromJson(value, STRINGS);
+    }
+
+    List<Criterion> criteria(String value) {
+        return value == null || value.isBlank() ? List.of() : json.fromJson(value, CRITERIA);
     }
 
     static String sha256(String value) {

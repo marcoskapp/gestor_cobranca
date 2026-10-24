@@ -201,4 +201,10 @@ public final class BusinessEventTypes {
     public static final String ASSISTANT_POLICY_RETIRED = "assistant.policy_retired";
     public static final String ASSISTANT_PORTFOLIO_DISABLED = "assistant.portfolio_disabled";
     public static final String ASSISTANT_REVIEW_RECORDED = "assistant.review_recorded";
+    // Pix na conversa pelo assistente (ADR-0009)
+    public static final String ASSISTANT_PIX_ISSUED = "assistant.pix_issued";
+    public static final String ASSISTANT_PIX_DENIED = "assistant.pix_denied";
+    public static final String ASSISTANT_PIX_SUGGESTED = "assistant.pix_suggested";
+    public static final String ASSISTANT_PIX_DELIVERY = "assistant.pix_delivery";
+    public static final String ASSISTANT_PIX_PAID = "assistant.pix_paid";
 }
