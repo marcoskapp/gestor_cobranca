@@ -1,0 +1,252 @@
+@if (resource.isLoading() && !payment()) {
+  <app-skeleton variant="card" [rows]="6" />
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o pagamento." message="Verifique a conexão e tente novamente.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+  </app-empty-state>
+} @else if (payment(); as p) {
+  @let act = actions()!;
+  <app-page-header [title]="'Pagamento · ' + (debtorName() ?? creditors.name(p.creditorId))" [subtitle]="'Pago em ' + (p.paidAt | appDate) + ' · ' + creditors.name(p.creditorId)">
+    @if (p.evidenceAvailable) {
+      <button mat-button type="button" (click)="downloadEvidence()" data-tour="payment-evidence">
+        <mat-icon aria-hidden="true">attach_file</mat-icon>
+        Baixar comprovante
+      </button>
+    }
+    @if (act.reverse) {
+      <button mat-stroked-button type="button" class="ad-danger" (click)="reverse()" [disabled]="busy()" data-tour="payment-reverse">
+        <mat-icon aria-hidden="true">replay</mat-icon>
+        Estornar
+      </button>
+    }
+    @if (act.reallocate) {
+      <button mat-stroked-button type="button" (click)="reallocate()" [disabled]="busy()">
+        <mat-icon aria-hidden="true">call_split</mat-icon>
+        Realocar
+      </button>
+    }
+    @if (act.review) {
+      <button mat-stroked-button type="button" class="ad-danger" (click)="reject()" [disabled]="busy()">Recusar</button>
+      <button mat-flat-button type="button" (click)="approve()" [disabled]="busy()" data-tour="payment-approve">
+        <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+        Aprovar
+      </button>
+    }
+  </app-page-header>
+
+  <div class="pd-status" data-tour="payment-status">
+    <app-status-chip domain="payment" [status]="p.status" />
+    <span>{{ methods[p.method] }} · {{ sources[p.source] }}</span>
+    @if (p.reviewThresholdExceeded) {
+      <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">group</mat-icon>Acima do limite: segunda pessoa</span>
+    }
+  </div>
+
+  @if (reviewError()) {
+    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ reviewError() }}</span></p>
+  }
+  @if (act.ownPending) {
+    <p class="app-alert app-alert--info" role="note" data-tour="payment-own">
+      <mat-icon aria-hidden="true">group</mat-icon>
+      <span>Você informou este pagamento. Por segurança, a aprovação precisa ser feita por <strong>outra pessoa</strong> com permissão de revisão — o sistema recusa a aprovação de quem informou.</span>
+    </p>
+  } @else if (p.status === 'INFORMED' && !act.review) {
+    <p class="app-alert app-alert--warning" role="note">
+      <mat-icon aria-hidden="true">hourglass_top</mat-icon>
+      <span>Aguardando a aprovação do financeiro. O valor só abate a dívida depois de aprovado.</span>
+    </p>
+  } @else if (p.status === 'REJECTED') {
+    <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">block</mat-icon><span>Recusado por {{ userName(p.reviewedBy) }}{{ p.reviewNote ? ': ' + p.reviewNote : '' }}.</span></p>
+  } @else if (p.status === 'REVERSED' && p.reversal) {
+    <p class="app-alert app-alert--error" role="note"><mat-icon aria-hidden="true">replay</mat-icon><span>Estornado em {{ p.reversal.reversedAt | appDate }}. Os destinos voltaram a ter saldo em aberto.</span></p>
+  }
+  @if (p.pendingReallocation > 0 && p.status !== 'REVERSED') {
+    <p class="app-alert app-alert--warning" role="note">
+      <mat-icon aria-hidden="true">savings</mat-icon>
+      <span><app-amount [value]="p.pendingReallocation" /> sem destino ou não aplicado no acordo. Realoque para outro destino ou registre a devolução ao pagador.</span>
+    </p>
+  }
+
+  <div class="pd-grid">
+    <div class="pd-main">
+      <section class="app-card" aria-labelledby="pm-values">
+        <h2 class="app-card__title" id="pm-values">Valores</h2>
+        <div class="pd-kpis">
+          <div class="pd-kpi"><span class="pd-kpi__label">Valor pago</span><span class="pd-kpi__value"><app-amount [value]="p.amount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Alocado</span><span class="pd-kpi__value"><app-amount [value]="p.allocatedAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Sobra</span><span class="pd-kpi__value"><app-amount [value]="p.unallocatedAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">A realocar</span><span class="pd-kpi__value"><app-amount [value]="p.pendingReallocation" /></span></div>
+        </div>
+      </section>
+
+      <section class="app-card" aria-labelledby="pm-allocations" data-tour="payment-allocations">
+        <h2 class="app-card__title" id="pm-allocations">Destinos (alocações)</h2>
+        @if (p.allocations.length) {
+          <div class="pd-scroll">
+            <table class="pd-table" aria-label="Alocações do pagamento">
+              <thead>
+                <tr>
+                  <th scope="col">Destino</th>
+                  <th scope="col">Itens</th>
+                  <th scope="col" class="pd-end">Valor</th>
+                  <th scope="col">Baixa</th>
+                  <th scope="col">Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (a of p.allocations; track a.id) {
+                  <tr>
+                    <td>
+                      @if (a.agreementId && canViewAgreements()) {
+                        <a [routerLink]="['/negociacao/acordos', a.agreementId]">{{ target(a) }}</a>
+                      } @else {
+                        {{ target(a) }}
+                      }
+                      <div class="app-muted">{{ a.origin === 'REALLOCATION' ? 'Realocação' : 'Destino original' }} · {{ a.createdAt | appDate }}</div>
+                    </td>
+                    <td>
+                      @for (l of a.lines; track $index) {
+                        <div>
+                          @if (l.titleId && canViewTitles()) {
+                            <a [routerLink]="['/titulos', l.titleId]">{{ lineText(l) }}</a>
+                          } @else {
+                            {{ lineText(l) }}
+                          }
+                          · <app-amount [value]="l.amount" />
+                        </div>
+                      } @empty {
+                        <span class="app-muted">—</span>
+                      }
+                    </td>
+                    <td class="pd-end">
+                      <app-amount [value]="a.amount" />
+                      @if (a.releasedAmount > 0) {
+                        <div class="app-muted">liberado <app-amount [value]="a.releasedAmount" /></div>
+                      }
+                    </td>
+                    <td>
+                      {{ outcomeText(a) }}
+                      @if (a.unappliedAmount && a.unappliedAmount > 0) {
+                        <div class="pd-late">não aplicado <app-amount [value]="a.unappliedAmount" /></div>
+                      }
+                    </td>
+                    <td>
+                      @if (a.status === 'REVERSED') {
+                        <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">replay</mat-icon>Estornada</span>
+                      } @else {
+                        <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>Ativa</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (p.status === 'INFORMED') {
+          <p class="app-muted">O destino escolhido por quem informou é aplicado na aprovação.</p>
+        } @else {
+          <p class="app-muted">Nenhuma alocação: o valor inteiro está como sobra.</p>
+        }
+      </section>
+
+      <section class="app-card" aria-labelledby="pm-timeline" data-tour="payment-timeline">
+        <h2 class="app-card__title" id="pm-timeline">Linha do tempo</h2>
+        <ul class="pd-timeline">
+          @for (e of timeline(); track $index) {
+            <li>
+              <mat-icon aria-hidden="true">{{ e.icon }}</mat-icon>
+              <div>
+                <strong>{{ e.title }}</strong>
+                <div class="app-muted">{{ e.at | appDate }}{{ e.userId ? ' · ' + userName(e.userId) : '' }}</div>
+                @if (e.detail) {
+                  <div>{{ e.detail }}</div>
+                }
+              </div>
+            </li>
+          } @empty {
+            <li class="app-muted">Sem eventos registrados.</li>
+          }
+        </ul>
+      </section>
+    </div>
+
+    <aside class="pd-side">
+      <section class="app-card" aria-labelledby="pm-data">
+        <h2 class="app-card__title" id="pm-data">Dados do pagamento</h2>
+        <dl class="app-definition-list">
+          <dt>Devedor</dt>
+          <dd>{{ debtorName() ?? '—' }}</dd>
+          <dt>Credor</dt>
+          <dd>{{ creditors.name(p.creditorId) }}</dd>
+          <dt>Meio</dt>
+          <dd>{{ methods[p.method] }}</dd>
+          @if (p.externalOrigin) {
+            <dt>Onde entrou</dt>
+            <dd>{{ origins[p.externalOrigin] }}</dd>
+          }
+          @if (p.reviewMode) {
+            <dt>Confirmação</dt>
+            <dd>{{ reviewModes[p.reviewMode] }}</dd>
+          }
+          @if (p.externalReference) {
+            <dt>Referência</dt>
+            <dd class="app-mono">{{ p.externalReference }}</dd>
+          }
+          @if (p.providerTransactionId) {
+            <dt>Id no PSP (E2E)</dt>
+            <dd class="app-mono pm-break">{{ p.providerTransactionId }}</dd>
+          }
+          @if (p.instructionId) {
+            <dt>Instrução</dt>
+            <dd><a [routerLink]="['/pagamentos/instrucoes', p.instructionId]">Abrir instrução</a></dd>
+          }
+          @if (p.informedBy) {
+            <dt>Informado por</dt>
+            <dd>{{ userName(p.informedBy) }}</dd>
+          }
+          @if (p.note) {
+            <dt>Observação</dt>
+            <dd>{{ p.note }}</dd>
+          }
+        </dl>
+      </section>
+
+      @if (p.source === 'EXTERNAL') {
+        <section class="app-card" aria-labelledby="pm-evidence">
+          <h2 class="app-card__title" id="pm-evidence">Comprovante</h2>
+          @if (p.evidenceAvailable) {
+            <dl class="app-definition-list">
+              <dt>SHA-256</dt>
+              <dd class="app-mono pm-break" [attr.title]="p.evidenceSha256">{{ p.evidenceSha256 }}</dd>
+            </dl>
+            <button mat-stroked-button type="button" (click)="downloadEvidence()">
+              <mat-icon aria-hidden="true">download</mat-icon>
+              Baixar comprovante
+            </button>
+            <p class="app-muted pm-small">O download fica registrado no log de acesso.</p>
+          } @else {
+            <p class="app-muted">Comprovante indisponível.</p>
+          }
+        </section>
+      }
+
+      @if (p.reversal; as r) {
+        <section class="app-card" aria-labelledby="pm-reversal">
+          <h2 class="app-card__title" id="pm-reversal">Estorno</h2>
+          <dl class="app-definition-list">
+            <dt>Valor</dt>
+            <dd><app-amount [value]="-r.amount" [signed]="true" /></dd>
+            <dt>Origem</dt>
+            <dd>{{ r.source === 'PROVIDER' ? 'Devolução pelo PSP' : 'Manual' }}</dd>
+            <dt>Por</dt>
+            <dd>{{ userName(r.reversedBy) }}</dd>
+            @if (r.note) {
+              <dt>Justificativa</dt>
+              <dd>{{ r.note }}</dd>
+            }
+          </dl>
+        </section>
+      }
+    </aside>
+  </div>
+}

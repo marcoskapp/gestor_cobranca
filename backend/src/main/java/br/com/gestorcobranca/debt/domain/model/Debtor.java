@@ -127,6 +127,25 @@ public class Debtor extends TenantScopedEntity {
         return document == null ? java.util.Optional.empty() : java.util.Optional.of(Document.parse(document));
     }
 
+    /**
+     * Confere a identidade declarada por quem fala pelo devedor (atendimento automatizado) sem
+     * revelar o documento: os primeiros dígitos do documento (comparação em tempo constante) e a
+     * data de nascimento. Devedor anonimizado, sem data de nascimento ou pessoa jurídica nunca
+     * confere (a verificação fica com um humano).
+     *
+     * @param documentPrefix primeiros 3 a 6 dígitos informados
+     */
+    public boolean matchesIdentity(String documentPrefix, LocalDate declaredBirthDate) {
+        if (document == null || birthDate == null || personType != PersonType.INDIVIDUAL || documentPrefix == null
+                || declaredBirthDate == null || !documentPrefix.matches("\\d{3,6}")) {
+            return false;
+        }
+        byte[] expected = document.substring(0, documentPrefix.length()).getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] declared = documentPrefix.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        boolean documentMatches = java.security.MessageDigest.isEqual(expected, declared);
+        return documentMatches & birthDate.equals(declaredBirthDate);
+    }
+
     /** Documento mascarado para exibição; {@code null} após anonimização. */
     public String maskedDocument() {
         return document().map(Document::masked).orElse(null);

@@ -45,7 +45,7 @@ A política define níveis (ex.: nível 0 = sem desconto; nível 1 = desconto em
 | `canApprove` | pode aprovar propostas de outros até o próprio limite |
 | `maxRenegotiations` | renegociações de acordo quebrado permitidas |
 
-Perfis semeados no provisionamento (ajustáveis): `JUNIOR`, `PLENO`, `SENIOR`, `SUPERVISOR`, `GESTOR` e `ASSISTENTE_INICIAL`.
+Perfis semeados no provisionamento (ajustáveis): `JUNIOR`, `PLENO`, `SENIOR`, `SUPERVISOR`, `GESTOR`, `ASSISTENTE_INICIAL` e `PORTAL` (autonegociação — canal portal, ver [portal.md](portal.md) §4).
 
 Atribuição: usuário → perfil (opcionalmente por credor); assistente → perfil via `AssistantPolicy` (módulo `assistant`). O limite efetivo é sempre **mínimo(envelope da política, perfil do ator)**.
 
@@ -131,7 +131,7 @@ REST (`/api/v1/negotiation`): `policies` (CRUD de rascunho, `/{id}/versions`, `/
 
 - Perfis semeados por `TenantProvisioned` (consumidor `negotiation.tenant-provisioned`) e por job diário idempotente (`negotiation.default-profiles`, ShedLock) para assessorias existentes. Parâmetros em `StandardAuthorityProfiles`; nível 99 = "topo da escada".
 - `ASSISTENTE_INICIAL`: nível 1, 50% do envelope, 6 pagamentos, R$ 3.000, entrada 10%, **não formaliza** (modo com aprovação humana até a operação validar o desempenho).
-- Resolução: atribuição do sujeito para o credor → atribuição geral → padrão do tipo de ator (`JUNIOR` para usuário, `ASSISTENTE_INICIAL` para o assistente); o perfil precisa valer para o credor. Outros tipos de ator (sistema, integração, devedor) não têm alçada nesta parte (`authority.actor_not_supported`) — portal e campanhas receberão sujeitos próprios.
+- Resolução: atribuição do sujeito para o credor → atribuição geral → padrão do tipo de ator (`JUNIOR` para usuário, `ASSISTENTE_INICIAL` para o assistente); o perfil precisa valer para o credor. O devedor no portal (`DEBTOR`) usa a alçada do canal (sujeito `PORTAL`, id fixo, perfil padrão `PORTAL`, motivo de concessão `SELF_SERVICE_PREAUTHORIZED`, acima da alçada → recusa `proposal.outside_self_service`, escopo estrito do próprio devedor — [portal.md](portal.md)); sistema e integração não têm alçada (`authority.actor_not_supported`) — campanhas receberão sujeito próprio.
 - Assistente: `Actor.assistant(policyId, …)`; o sujeito da atribuição é `ASSISTANT_POLICY` com o id da `AssistantPolicy`. O módulo assistant (futuro) chama `AuthorityUseCases.assign` ao publicar a política e usa `NegotiationSimulationUseCases` como ferramenta.
 - Segurança: ninguém atribui a própria alçada; atribuição geral exige escopo de todos os credores; perfis sem restrição de credor só são criados/alterados por quem tem todos os credores; mudanças auditadas e registradas no log de acesso (`PERMISSION_CHANGED`, `change = negotiation_authority`). Usuário ainda não ativado pode receber alçada.
 - Copiloto/minimização: o envelope completo só é devolvido a humanos cujo perfil alcança o topo da escada; **nunca** ao assistente, que também só relê as próprias simulações.
@@ -270,7 +270,7 @@ Porta pública adicional (23/10/2026, para a prestação de contas — [prestaca
 ### 10.12 Pendências
 
 - ~~**payment**: produzir `PaymentConfirmed` com `agreementId` e `agreementInstallmentId` sem lançar essas alocações no razão; realocar pagamentos `UNAPPLIED`.~~ Feito (ver [pagamentos.md](pagamentos.md)); o `paymentId` recebido é o id da alocação no payment.
-- **assistant**: encerrar o turno com a mensagem de transferência quando a ferramenta de proposta devolver `HANDED_OFF` (o communication já consome `HandoffRequested`).
+- ~~**assistant**: encerrar o turno com a mensagem de transferência quando a ferramenta de proposta devolver `HANDED_OFF`.~~ Feito (ver [assistente.md](assistente.md) §5): o devedor é avisado antes do registro da proposta e o turno termina.
 - **collection**: consumir `DebtorAnonymized` para observações próprias; opcionalmente reagir ao handoff.
 - **debt**: operação compensatória de reconhecimento de encargo (estorno após lançamento, §10.5).
 - **jurídico/produto**: modelo de termo versionado por credor (cláusulas, foro, identificação completa).

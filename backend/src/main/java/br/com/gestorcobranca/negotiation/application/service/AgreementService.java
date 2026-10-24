@@ -91,7 +91,8 @@ class AgreementService implements AgreementUseCases {
         Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
         AgreementStatus status = filter.status() == null ? null
                 : ProposalService.enumValue(AgreementStatus.class, filter.status(), "agreement.status_invalid");
-        return PageResponse.of(agreements.search(allowed, filter.creditorId(), filter.debtorId(), filter.caseId(), status,
+        UUID debtorId = DebtorSelfScope.debtorFilter(currentActor.get(), filter.debtorId());
+        return PageResponse.of(agreements.search(allowed, filter.creditorId(), debtorId, filter.caseId(), status,
                 page.toPageable(Sort.by(Sort.Direction.DESC, "formalizedAt").and(Sort.by("id")))), views::agreement);
     }
 
@@ -182,6 +183,7 @@ class AgreementService implements AgreementUseCases {
         if (actor.isAssistant() && !(actor.id().equals(a.getCloserId()) || actor.id().equals(a.getOriginatorId()))) {
             throw new ResourceNotFoundException(RESOURCE, id);
         }
+        DebtorSelfScope.requireOwn(actor, RESOURCE, id, a.getDebtorId(), accessLogger);
         return a;
     }
 }

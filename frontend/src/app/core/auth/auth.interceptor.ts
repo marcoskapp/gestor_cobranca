@@ -7,17 +7,19 @@ import {
 } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Observable, catchError, switchMap, throwError } from 'rxjs';
-import { isApiRequest } from '../config/api';
+import { isApiRequest, isPortalRequest } from '../config/api';
 import { SKIP_AUTH } from '../http/http-context';
 import { AuthService } from './auth.service';
 
 /**
- * Anexa `Authorization: Bearer` somente às chamadas da própria API (`/api/`). Em 401, tenta UMA
+ * Anexa `Authorization: Bearer` somente às chamadas da própria API (`/api/`, exceto o portal do
+ * devedor, que tem token próprio — `portalInterceptor`). Em 401, tenta UMA
  * renovação (compartilhada entre requisições concorrentes) e repete a requisição; se a sessão
  * terminou, limpa o estado e leva ao login preservando a rota de retorno.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  if (!isApiRequest(req.url) || req.context.get(SKIP_AUTH)) {
+  // o portal do devedor tem sessão e token próprios: o token interno nunca vai para /api/portal/
+  if (!isApiRequest(req.url) || isPortalRequest(req.url) || req.context.get(SKIP_AUTH)) {
     return next(req);
   }
   const auth = inject(AuthService);

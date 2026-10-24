@@ -9,6 +9,8 @@ const authLayout = () => import('./core/layout/auth-layout/auth-layout').then((m
  * superior). Cada rota pública declara o próprio caminho para que `/` sempre chegue ao shell.
  */
 export const routes: Routes = [
+  // portal do devedor: público, sem o shell e sem a sessão interna (carregado sob demanda)
+  { path: 'portal', loadChildren: () => import('./portal/portal.routes').then((m) => m.PORTAL_ROUTES) },
   { path: 'login', loadComponent: authLayout, canActivate: [guestGuard], children: LOGIN_ROUTES },
   ...PUBLIC_AUTH_ROUTES.map((route) => ({
     path: route.path,
@@ -48,12 +50,20 @@ export const routes: Routes = [
         loadChildren: () => import('./features/negotiation/negotiation.routes').then((m) => m.NEGOTIATION_ROUTES),
       },
       {
+        path: 'pagamentos',
+        loadChildren: () => import('./features/payment/payment.routes').then((m) => m.PAYMENT_ROUTES),
+      },
+      {
         path: 'conversas',
         loadChildren: () => import('./features/communication/communication.routes').then((m) => m.COMMUNICATION_ROUTES),
       },
       {
         path: 'campanhas',
         loadChildren: () => import('./features/campaign/campaign.routes').then((m) => m.CAMPAIGN_ROUTES),
+      },
+      {
+        path: 'autonegociacao',
+        loadChildren: () => import('./features/portal-admin/portal-admin.routes').then((m) => m.PORTAL_ADMIN_ROUTES),
       },
       {
         path: 'juridico',

@@ -124,7 +124,8 @@ public enum Permission {
 
     // IA
     ASSISTANT_USE("Usar assistente de IA"),
-    ASSISTANT_MANAGE("Configurar assistente de IA"),
+    ASSISTANT_MANAGE("Configurar assistente de IA: políticas, modos, prompts e desligamento por carteira"),
+    ASSISTANT_REVIEW("Revisar conversas do assistente de IA: trilha dos turnos, avaliação por amostragem e métricas de qualidade"),
 
     // Jurídico (módulo legal)
     LEGAL_VIEW("Consultar casos jurídicos, processos, prazos e audiências"),

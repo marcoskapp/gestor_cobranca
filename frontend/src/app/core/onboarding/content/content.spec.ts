@@ -7,6 +7,8 @@ import { LEGAL_ROUTES } from '../../../features/legal/legal.routes';
 import { COMPLIANCE_ROUTES } from '../../../features/compliance/compliance.routes';
 import { INGESTION_ROUTES } from '../../../features/ingestion/ingestion.routes';
 import { NEGOTIATION_ROUTES } from '../../../features/negotiation/negotiation.routes';
+import { PAYMENT_ROUTES } from '../../../features/payment/payment.routes';
+import { RELEASE_NOTES } from './release-notes';
 import { NAVIGATION } from '../../layout/navigation';
 import { CHECKLISTS } from './checklists';
 import { SCREENS, findScreen } from './screens';
@@ -63,9 +65,10 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/conversas', COMMUNICATION_ROUTES),
       ...guarded('/juridico', LEGAL_ROUTES),
       ...guarded('/campanhas', CAMPAIGN_ROUTES),
+      ...guarded('/pagamentos', PAYMENT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(34);
+    expect(items.length).toBe(42);
     for (const item of items) {
       expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -126,5 +129,35 @@ describe('conteúdo do onboarding', () => {
     }
     // o gestor (gestão de campanha, sem administração) vê o checklist de campanhas antes do de negociador
     expect(CHECKLISTS.findIndex((c) => c.id === 'manager')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
+  });
+
+  it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {
+    expect(findScreen('/pagamentos?devedor=d-1')?.tourId).toBe('payment.list');
+    expect(findScreen('/pagamentos/instrucoes')?.tourId).toBe('payment.instructions');
+    expect(findScreen('/pagamentos/instrucoes/in-1')?.tourId).toBe('payment.instruction');
+    expect(findScreen('/pagamentos/aprovacoes')?.tourId).toBe('payment.review');
+    expect(findScreen('/pagamentos/sobras')?.tourId).toBe('payment.reallocation');
+    expect(findScreen('/pagamentos/conciliacao')?.tourId).toBe('payment.reconciliation');
+    expect(findScreen('/pagamentos/conciliacao/st-1')?.tourId).toBe('payment.statement');
+    expect(findScreen('/pagamentos/divergencias?situacao=OPEN')?.tourId).toBe('payment.divergences');
+    expect(findScreen('/pagamentos/contas-pix')?.tourId).toBe('payment.pix-accounts');
+    expect(findScreen('/pagamentos/parametros')?.key).toBe('payment.settings');
+    expect(findScreen('/pagamentos/pg-1')?.tourId).toBe('payment.detail');
+    // a ficha do acordo e a estação ganharam o Pix: novidades na tela e tour revisado
+    expect(findScreen('/negociacao/acordos/a-1')?.version).toBe(2);
+    expect(findTour('negotiation.agreement-detail')?.version).toBe(2);
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(4);
+    // nota de versão nova, a mais recente primeiro
+    expect(RELEASE_NOTES[0].version).toBe(Math.max(...RELEASE_NOTES.map((n) => n.version)));
+    expect(RELEASE_NOTES[0].title).toContain('Pagamentos');
+    // financeiro: checklist próprio antes do negociador; itens de visita apontam para telas registradas
+    const finance = CHECKLISTS.find((c) => c.id === 'finance')!;
+    const keys = new Set(SCREENS.map((s) => s.key));
+    for (const item of finance.items) {
+      if (item.completion.kind === 'visit') {
+        expect(keys.has(item.completion.screenKey), item.id).toBe(true);
+      }
+    }
+    expect(CHECKLISTS.findIndex((c) => c.id === 'finance')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
   });
 });
