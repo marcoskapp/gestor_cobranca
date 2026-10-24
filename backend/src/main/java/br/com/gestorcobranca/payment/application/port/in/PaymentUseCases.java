@@ -108,9 +108,26 @@ public interface PaymentUseCases {
     }
 
     /**
+     * Destino solicitado no registro de um pagamento externo (o que o operador informou), para quem aprova
+     * ver para onde o valor vai antes de a confirmação gerar as alocações.
+     *
+     * @param kind      AGREEMENT (parcelas de um acordo) ou TITLES (títulos avulsos)
+     * @param itemIds   parcelas (AGREEMENT) ou títulos (TITLES) em ordem de preferência; vazio no acordo = todas
+     *                  as parcelas em aberto
+     * @param strategy  títulos: OLDEST_FIRST ou PROPORTIONAL; nulo no acordo
+     */
+    record RequestedTargetView(String kind, UUID agreementId, List<UUID> itemIds, String strategy) {
+
+        public RequestedTargetView {
+            itemIds = itemIds == null ? List.of() : List.copyOf(itemIds);
+        }
+    }
+
+    /**
      * @param unallocatedAmount        parte do pagamento sem destino (sobra)
      * @param pendingReallocation      sobra + não aplicado pelo negotiation ainda não realocado
      * @param reviewThresholdExceeded  externo acima do limite: aprovação por segunda pessoa
+     * @param requestedTarget          destino solicitado do pagamento externo (nulo nos integrados)
      */
     record PaymentView(UUID id, String source, String method, String status, UUID creditorId, UUID debtorId,
                        BigDecimal amount, Instant paidAt, UUID instructionId, String providerTransactionId,
@@ -119,6 +136,7 @@ public interface PaymentUseCases {
                        String reviewNote, Instant confirmedAt, Instant reconciledAt, String reconciliationMode,
                        Instant reversedAt, BigDecimal allocatedAmount, BigDecimal unallocatedAmount,
                        BigDecimal pendingReallocation, boolean evidenceAvailable, String evidenceSha256,
-                       List<AllocationView> allocations, ReversalView reversal, long version) {
+                       List<AllocationView> allocations, ReversalView reversal, RequestedTargetView requestedTarget,
+                       long version) {
     }
 }

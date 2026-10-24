@@ -17,6 +17,7 @@
     </button>
   }
   <span class="st-bar__spacer"></span>
+  <app-presence-bar />
   @if (selectedCase()) {
     <span class="st-timer app-numeric" role="timer" aria-label="Tempo de atendimento" matTooltip="Tempo de atendimento deste caso">
       <mat-icon aria-hidden="true">timer</mat-icon>{{ elapsed() }}
@@ -139,6 +140,9 @@
       @if (current(); as s) {
         @let c = s.collectionCase;
         <div class="st-quick" data-tour="case-actions">
+          @if (workable() && c.status !== 'CLOSED') {
+            <app-call-button [caseId]="c.id" [debtorName]="s.debtor.name" [contacts]="s.debtor.contacts" />
+          }
           @if (canSchedule() && workable()) {
             <button mat-stroked-button type="button" (click)="schedule()" matTooltip="Agendar retorno (Alt + A)">
               <mat-icon aria-hidden="true">event</mat-icon>

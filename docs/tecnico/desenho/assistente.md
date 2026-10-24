@@ -3,7 +3,7 @@
 Escopo: F24. Especificação de produto: [`docs/negocio/assistente-ia.md`](../../negocio/assistente-ia.md). Schema `assistant`, migrations V1500–V1599 (`V1500` tabelas; `V1501` pedidos de Pix; permissões em `identity/V0205`).
 Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication`, `payment` (interfaces `usecases`; `payment` pelo ADR-0009). Fatos de acordo, situação das instruções de pagamento e anonimização chegam por eventos.
 
-> **Estado (24/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST e **Pix na conversa** (§5.1, ADR-0009). **Provedor de IA não escolhido (issue #12)**: só a porta `LanguageModelPort` e o simulador determinístico para local/teste (§6). Decisões 120–135 e 153–168 em `docs/negocio/decisoes-autonomas.md` (a 135 foi superada pela decisão do responsável sobre o Pix).
+> **Estado (24/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST e **Pix na conversa** (§5.1, ADR-0009). **Provedor de IA não escolhido (issue #12)**: só a porta `LanguageModelPort` e o simulador determinístico para local/teste (§6). Decisões 120–135 e 175–190 em `docs/negocio/decisoes-autonomas.md` (a 135 foi superada pela decisão do responsável sobre o Pix).
 
 Princípio: **a IA conversa, o motor decide.** O modelo entende o devedor e escolhe o próximo passo; toda condição vem do `negotiation` (mesmo `NegotiationGuard` dos humanos), todo contato passa pelo porteiro do `compliance` e toda ação é um caso de uso do módulo dono, executado como ator `ASSISTANT`.
 
@@ -252,6 +252,6 @@ Escopo por credor em tudo (404 leitura, 403 comando, listagens filtradas); polí
 - **Conversas de referência** versionadas e execução automática por mudança de política/prompt/modelo (§8).
 - `compliance.AttemptOrigin` sem `ASSISTANT` (as tentativas do assistente aparecem como `SYSTEM`; o autor real está na mensagem e na trilha).
 - E-mail/SMS (dependem de templates por intenção) e portal (módulo `portal`).
-- Telas: configuração da política, fila de revisão e painel de qualidade.
+- ~~Telas~~ (24/10/2026): políticas por escopo (editor com validação contínua, publicação, nova versão, aposentadoria, desligamento de carteira com impacto), fila de revisão com segregação, detalhe do turno e painel de qualidade (`/assistente`).
 - Validação jurídica do roteiro, da verificação de identidade e dos gatilhos (especificação §9).
 - Experimentos A/B entre versões de política (F25, módulo campaign).

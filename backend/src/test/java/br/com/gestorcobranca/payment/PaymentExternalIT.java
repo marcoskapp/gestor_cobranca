@@ -85,6 +85,16 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThat(asFinance1(() -> payments.reviewQueue(PageQuery.of(0, 10))).content()).isEmpty();
         assertThat(asFinance2(() -> payments.reviewQueue(PageQuery.of(0, 10))).content()).extracting(PaymentView::id)
                 .containsExactly(big.id());
+        // quem aprova vê o destino solicitado antes de existir alocação (na fila e no detalhe)
+        assertThat(big.allocations()).isEmpty();
+        assertThat(asFinance2(() -> payments.reviewQueue(PageQuery.of(0, 10))).content().getFirst().requestedTarget())
+                .satisfies(t -> {
+                    assertThat(t.kind()).isEqualTo("TITLES");
+                    assertThat(t.agreementId()).isNull();
+                    assertThat(t.itemIds()).containsExactly(titleB);
+                    assertThat(t.strategy()).isEqualTo("OLDEST_FIRST");
+                });
+        assertThat(asFinance2(() -> payments.get(big.id())).requestedTarget().itemIds()).containsExactly(titleB);
         assertThatThrownBy(() -> asFinance1(() -> payments.approve(big.id(), null)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("não pode revisá-lo");
         assertThatThrownBy(() -> asOperator(() -> payments.approve(big.id(), null)))
@@ -164,6 +174,13 @@ class PaymentExternalIT extends PaymentTestSupport {
         });
         assertThat(payment.status()).isEqualTo("CONFIRMED");
         assertThat(payment.allocations()).singleElement().satisfies(a -> assertThat(a.outcome()).isEqualTo("PENDING"));
+        // destino solicitado: acordo sem parcelas escolhidas (= todas em aberto), sem estratégia de títulos
+        assertThat(payment.requestedTarget()).satisfies(t -> {
+            assertThat(t.kind()).isEqualTo("AGREEMENT");
+            assertThat(t.agreementId()).isEqualTo(agreement.id());
+            assertThat(t.itemIds()).isEmpty();
+            assertThat(t.strategy()).isNull();
+        });
         awaitConsumed("payment.agreement-payment-recorded", 1);
         AllocationView unapplied = asFinance1(() -> payments.get(payment.id())).allocations().getFirst();
         assertThat(unapplied.outcome()).isEqualTo("UNAPPLIED");

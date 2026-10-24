@@ -54,12 +54,28 @@ export const routes: Routes = [
         loadChildren: () => import('./features/payment/payment.routes').then((m) => m.PAYMENT_ROUTES),
       },
       {
+        path: 'prestacao-de-contas',
+        loadChildren: () => import('./features/settlement/settlement.routes').then((m) => m.SETTLEMENT_ROUTES),
+      },
+      {
+        path: 'assistente',
+        loadChildren: () => import('./features/assistant/assistant.routes').then((m) => m.ASSISTANT_ROUTES),
+      },
+      {
+        path: 'telefonia',
+        loadChildren: () => import('./features/telephony/telephony.routes').then((m) => m.TELEPHONY_ROUTES),
+      },
+      {
         path: 'conversas',
         loadChildren: () => import('./features/communication/communication.routes').then((m) => m.COMMUNICATION_ROUTES),
       },
       {
         path: 'campanhas',
         loadChildren: () => import('./features/campaign/campaign.routes').then((m) => m.CAMPAIGN_ROUTES),
+      },
+      {
+        path: 'paineis',
+        loadChildren: () => import('./features/analytics/analytics.routes').then((m) => m.ANALYTICS_ROUTES),
       },
       {
         path: 'autonegociacao',

@@ -99,6 +99,10 @@ export const Permission = {
   LEGAL_AUTHORIZE: 'LEGAL_AUTHORIZE',
   LEGAL_EXPENSE_MANAGE: 'LEGAL_EXPENSE_MANAGE',
 
+  PERFORMANCE_VIEW_OWN: 'PERFORMANCE_VIEW_OWN',
+  PERFORMANCE_VIEW_TEAM: 'PERFORMANCE_VIEW_TEAM',
+  PERFORMANCE_VIEW_ALL: 'PERFORMANCE_VIEW_ALL',
+
   DASHBOARD_VIEW: 'DASHBOARD_VIEW',
   REPORT_VIEW: 'REPORT_VIEW',
   REPORT_EXPORT: 'REPORT_EXPORT',
@@ -134,6 +138,7 @@ export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly str
   { label: 'Score', prefixes: ['SCORING_'] },
   { label: 'Assistente de IA', prefixes: ['ASSISTANT_'] },
   { label: 'Jurídico', prefixes: ['LEGAL_'] },
+  { label: 'Desempenho dos negociadores', prefixes: ['PERFORMANCE_'] },
   { label: 'Gestão e relatórios', prefixes: ['DASHBOARD_', 'REPORT_'] },
 ];
 

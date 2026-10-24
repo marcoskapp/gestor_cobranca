@@ -1,0 +1,171 @@
+@if (resource.isLoading() && !detail()) {
+  <app-skeleton variant="card" [rows]="8" />
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="smart_toy" tone="error" title="Não foi possível abrir o turno." message="Ele pode não existir ou o credor da conversa estar fora do seu escopo.">
+    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a mat-button routerLink="/assistente/revisao">Voltar para a revisão</a>
+  </app-empty-state>
+}
+
+@if (detail(); as d) {
+  @let t = d.turn;
+  <app-page-header [title]="'Turno ' + t.turnNumber + ' · etapa ' + t.episode" [subtitle]="(t.startedAt | appDate) + ' · ' + modes[t.mode] + (t.policyVersion ? ' · política v' + t.policyVersion : '')">
+    <a mat-button routerLink="/assistente/revisao">
+      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+      Revisão
+    </a>
+    <a mat-button [routerLink]="['/conversas', t.conversationId]">
+      <mat-icon aria-hidden="true">forum</mat-icon>
+      Conversa
+    </a>
+  </app-page-header>
+
+  <p class="app-alert app-alert--warning" role="note" data-tour="turn-access">
+    <mat-icon aria-hidden="true">policy</mat-icon>
+    <span>Conteúdo da conversa com o devedor (já mascarado). <strong>Este acesso foi registrado</strong> no log de acesso; use só para avaliação e auditoria.</span>
+  </p>
+
+  <div class="as-status">
+    <app-status-chip domain="assistantTurn" [status]="t.outcome" />
+    @if (t.handoffReason) {
+      <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">support_agent</mat-icon>{{ reasons[t.handoffReason] || t.handoffReason }}{{ t.triggerSource ? ' (' + (sources[t.triggerSource] || t.triggerSource) + ')' : '' }}</span>
+    }
+    @if (t.intent) {
+      <span>intenção {{ t.intent }} · confiança {{ percent(t.confidence) }}</span>
+    }
+    @if (t.errorCode) {
+      <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>{{ t.errorCode }}</span>
+    }
+  </div>
+
+  <div class="as-grid">
+    <div class="as-main">
+      @if (t.guardrails.length) {
+        <section class="app-card" aria-labelledby="td-guard" data-tour="turn-guardrails">
+          <h2 class="app-card__title" id="td-guard">Guardrails acionados</h2>
+          <mat-chip-set aria-label="Guardrails acionados">
+            @for (g of t.guardrails; track g) {
+              <mat-chip>{{ guardrailLabels[g] || g }}</mat-chip>
+            }
+          </mat-chip-set>
+          <p class="app-muted as-small">A resposta foi bloqueada antes do envio; o devedor recebeu a mensagem padrão e a conversa foi para humano.</p>
+        </section>
+      }
+
+      <section class="app-card" aria-labelledby="td-content">
+        <h2 class="app-card__title" id="td-content">Mensagens</h2>
+        @if (t.contentPurged) {
+          <p class="app-muted">Conteúdo descartado pela política de retenção ou pela anonimização do devedor. Metadados e hashes permanecem.</p>
+        } @else {
+          <h3 class="app-section-title">Devedor</h3>
+          <pre class="as-pre">{{ d.inputText || '—' }}</pre>
+          <h3 class="app-section-title">Assistente</h3>
+          <pre class="as-pre">{{ d.outputText || '(sem resposta enviada)' }}</pre>
+        }
+      </section>
+
+      <section class="app-card" aria-labelledby="td-tools" data-tour="turn-tools">
+        <h2 class="app-card__title" id="td-tools">Ferramentas chamadas ({{ d.toolCalls.length }})</h2>
+        <p class="app-muted as-small">O modelo escolhe; o servidor valida cada chamada e executa no módulo dono. Recusadas não chegam ao módulo.</p>
+        @for (c of d.toolCalls; track c.sequence) {
+          <details class="td-tool">
+            <summary>
+              <span>{{ c.sequence }}. {{ tools[c.tool] || c.tool }}</span>
+              @if (c.outcome === 'OK') {
+                <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>Executada</span>
+              } @else if (c.outcome === 'REJECTED') {
+                <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">block</mat-icon>Recusada pelo servidor</span>
+              } @else {
+                <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>Erro {{ c.errorCode }}</span>
+              }
+              <span class="app-muted as-small">{{ c.durationMs }} ms</span>
+            </summary>
+            <h4 class="app-section-title">Argumentos</h4>
+            <pre class="as-pre">{{ pretty(c.arguments) || '—' }}</pre>
+            <h4 class="app-section-title">Resultado</h4>
+            <pre class="as-pre">{{ pretty(c.result) || '—' }}</pre>
+          </details>
+        } @empty {
+          <p class="as-small">Nenhuma ferramenta chamada.</p>
+        }
+      </section>
+
+      @if (!t.contentPurged && d.context) {
+        <section class="app-card" aria-labelledby="td-context">
+          <details>
+            <summary><h2 class="app-card__title td-inline" id="td-context">Contexto minimizado enviado ao modelo</h2></summary>
+            <p class="app-muted as-small">Esquema v{{ t.contextVersion }} · SHA-256 {{ t.contextSha256 }}. Sem documento, contatos, nome completo nem ids internos.</p>
+            <pre class="as-pre">{{ pretty(d.context) }}</pre>
+          </details>
+        </section>
+      }
+    </div>
+
+    <aside class="as-side">
+      @if (revisao()) {
+        <section class="app-card" aria-labelledby="td-review" data-tour="turn-review">
+          <h2 class="app-card__title" id="td-review">Avaliação</h2>
+          @if (ownPolicy()) {
+            <p class="app-alert app-alert--info" role="note"><mat-icon aria-hidden="true">group</mat-icon><span>Você publicou a política deste turno. A avaliação precisa ser de outra pessoa (quem configura não avalia).</span></p>
+          } @else {
+            <p class="as-small" id="td-score">Nota</p>
+            <mat-button-toggle-group [value]="score()" (change)="score.set($event.value)" aria-labelledby="td-score">
+              @for (n of [1, 2, 3, 4, 5]; track n) {
+                <mat-button-toggle [value]="n">{{ n }}</mat-button-toggle>
+              }
+            </mat-button-toggle-group>
+            <p class="as-small" id="td-verdict">Veredito</p>
+            <mat-button-toggle-group class="as-toggles" [value]="verdict()" (change)="verdict.set($event.value)" aria-labelledby="td-verdict" vertical>
+              @for (v of verdicts; track v[0]) {
+                <mat-button-toggle [value]="v[0]">{{ v[1] }}</mat-button-toggle>
+              }
+            </mat-button-toggle-group>
+            <p class="as-small">Etiquetas</p>
+            <mat-chip-listbox multiple aria-label="Etiquetas da avaliação">
+              @for (tag of tags; track tag[0]) {
+                <mat-chip-option [selected]="selectedTags().includes(tag[0])" (selectionChange)="toggleTag(tag[0])">{{ tag[1] }}</mat-chip-option>
+              }
+            </mat-chip-listbox>
+            <mat-form-field class="app-full-width td-gap">
+              <mat-label>Comentário{{ verdict() === 'OUT_OF_POLICY' ? '' : ' (opcional)' }}</mat-label>
+              <textarea matInput rows="3" maxlength="2000" [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+              <mat-hint>Guardado cifrado</mat-hint>
+            </mat-form-field>
+            @if (submitted() && problems().length) {
+              <ul class="app-alert app-alert--error td-problems" role="alert">
+                @for (p of problems(); track p) {
+                  <li>{{ p }}</li>
+                }
+              </ul>
+            }
+            @if (error()) {
+              <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+            }
+            <button mat-flat-button type="button" (click)="submit()" [disabled]="sending()">Registrar avaliação</button>
+          }
+        </section>
+      }
+      <section class="app-card" aria-labelledby="td-usage">
+        <h2 class="app-card__title" id="td-usage">Consumo</h2>
+        <dl class="app-definition-list">
+          <dt>Modelo</dt>
+          <dd>{{ t.provider ?? '—' }} {{ t.model ?? '' }}</dd>
+          <dt>Prompt</dt>
+          <dd>{{ t.promptCode ?? '—' }} v{{ t.promptVersion ?? '—' }}</dd>
+          <dt>Chamadas</dt>
+          <dd>{{ t.modelCalls }} ao modelo · {{ t.toolCalls }} ferramentas</dd>
+          <dt>Tokens</dt>
+          <dd class="app-numeric">{{ t.inputTokens }} entrada · {{ t.outputTokens }} saída</dd>
+          <dt>Custo</dt>
+          <dd class="app-numeric">{{ t.cost ?? '—' }} {{ t.costCurrency ?? '' }}</dd>
+          <dt>Latência</dt>
+          <dd class="app-numeric">{{ t.modelLatencyMs }} ms modelo · {{ t.totalLatencyMs }} ms total</dd>
+          @if (policy(); as p) {
+            <dt>Política</dt>
+            <dd><a [routerLink]="['/assistente/politicas', p.id]">{{ p.name }} v{{ p.policyVersion }}</a></dd>
+          }
+        </dl>
+      </section>
+    </aside>
+  </div>
+}

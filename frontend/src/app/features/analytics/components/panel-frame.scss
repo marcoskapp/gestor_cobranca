@@ -1,0 +1,57 @@
+.pf__tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--app-border);
+}
+.pf__tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: var(--app-text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+  &:hover {
+    color: var(--mat-sys-on-surface);
+  }
+}
+.pf__tab--active {
+  border-bottom-color: var(--mat-sys-primary);
+  color: var(--mat-sys-primary);
+}
+.pf__fresh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0 0 12px;
+  font-size: var(--app-text-sm);
+  color: var(--mat-sys-on-surface-variant);
+  > mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+.pf__body {
+  transition: opacity var(--app-motion-fast) var(--app-easing);
+}
+.pf__body--loading {
+  opacity: 0.6;
+}
+.pf__note {
+  margin: 16px 0 0;
+  font-size: var(--app-text-xs);
+  color: var(--mat-sys-on-surface-variant);
+}

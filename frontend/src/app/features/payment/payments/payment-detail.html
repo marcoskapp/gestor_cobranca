@@ -143,7 +143,14 @@
             </table>
           </div>
         } @else if (p.status === 'INFORMED') {
-          <p class="app-muted">O destino escolhido por quem informou é aplicado na aprovação.</p>
+          @if (p.requestedTarget; as t) {
+            <p class="pd-requested" data-tour="payment-requested-target">
+              <span class="app-muted">Destino solicitado por quem informou (aplicado na aprovação):</span>
+              <app-requested-target [target]="t" />
+            </p>
+          } @else {
+            <p class="app-muted">O destino escolhido por quem informou é aplicado na aprovação.</p>
+          }
         } @else {
           <p class="app-muted">Nenhuma alocação: o valor inteiro está como sobra.</p>
         }

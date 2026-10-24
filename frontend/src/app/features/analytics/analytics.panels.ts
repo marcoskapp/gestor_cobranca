@@ -1,0 +1,18 @@
+import { Permission } from '../../core/auth/permission';
+
+/** Painéis e permissões (espelham o `@PreAuthorize` de `AnalyticsController`). */
+export const ANALYTICS_PERMISSIONS = {
+  operational: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW],
+  recovery: [Permission.REPORT_VIEW],
+  conversion: [Permission.REPORT_VIEW],
+  productivity: [Permission.REPORT_VIEW, Permission.PERFORMANCE_VIEW_OWN, Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL],
+  reliability: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW],
+} as const;
+
+export const ANALYTICS_PANELS: readonly { label: string; icon: string; route: string; permissions: readonly string[] }[] = [
+  { label: 'Operacional', icon: 'space_dashboard', route: '/paineis', permissions: ANALYTICS_PERMISSIONS.operational },
+  { label: 'Recuperação', icon: 'payments', route: '/paineis/recuperacao', permissions: ANALYTICS_PERMISSIONS.recovery },
+  { label: 'Conversão', icon: 'filter_alt', route: '/paineis/conversao', permissions: ANALYTICS_PERMISSIONS.conversion },
+  { label: 'Produtividade', icon: 'groups', route: '/paineis/produtividade', permissions: ANALYTICS_PERMISSIONS.productivity },
+  { label: 'Confiabilidade', icon: 'monitor_heart', route: '/paineis/confiabilidade', permissions: ANALYTICS_PERMISSIONS.reliability },
+];

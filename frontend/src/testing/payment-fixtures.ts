@@ -94,6 +94,7 @@ export function payment(overrides: Partial<PaymentView> = {}): PaymentView {
     evidenceSha256: 'ab'.repeat(32),
     allocations: [allocation()],
     reversal: null,
+    requestedTarget: { kind: 'AGREEMENT', agreementId: 'a-1', itemIds: ['i-2'], strategy: null },
     version: 2,
     ...overrides,
   };

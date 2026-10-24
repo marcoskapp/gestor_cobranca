@@ -71,7 +71,7 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 
 - Informados por operador (`PAYMENT_REGISTER_EXTERNAL`): credor, devedor, valor, data (não futura), meio, fonte (`AGENCY_ACCOUNT`, `CREDITOR_DIRECT`, `CREDITOR_REPORT`, `OTHER`), referência, observação (criptografada) e **destino obrigatório** (parcelas de um acordo ou títulos).
 - **Evidência obrigatória**: PDF, PNG ou JPEG até 10 MB, tipo conferido pela assinatura do conteúdo; `FileStorage` (`EVIDENCE`) com SHA-256; removida se a transação for desfeita; download com `FILE_DOWNLOADED`.
-- **Revisão conforme risco**: valor ≤ `externalReviewThreshold` (padrão R$ 500,00, por assessoria) → confirmado no registro (`AUTO_LOW_RISK`); acima → `INFORMED` até aprovação por **outra pessoa** com `PAYMENT_REVIEW` (`DUAL_CONTROL`); a fila de revisão não mostra ao revisor os próprios pagamentos e o domínio recusa `payment.self_review`. Recusa exige motivo (`REJECTED`, sem baixa).
+- **Revisão conforme risco**: valor ≤ `externalReviewThreshold` (padrão R$ 500,00, por assessoria) → confirmado no registro (`AUTO_LOW_RISK`); acima → `INFORMED` até aprovação por **outra pessoa** com `PAYMENT_REVIEW` (`DUAL_CONTROL`); a fila de revisão não mostra ao revisor os próprios pagamentos e o domínio recusa `payment.self_review`. Recusa exige motivo (`REJECTED`, sem baixa). A `PaymentView` traz o **destino solicitado** (`requestedTarget`: tipo, acordo, parcelas/títulos em ordem e estratégia) do pagamento externo, para quem aprova ver para onde o valor vai antes de a confirmação gerar as alocações (nulo nos integrados).
 - `Idempotency-Key` (escopo `payment.external`): mesma chave e conteúdo → mesmo pagamento.
 
 ## 6. Alocação (RB06)

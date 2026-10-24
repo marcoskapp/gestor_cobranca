@@ -8,6 +8,9 @@ import { COMPLIANCE_ROUTES } from '../../../features/compliance/compliance.route
 import { INGESTION_ROUTES } from '../../../features/ingestion/ingestion.routes';
 import { NEGOTIATION_ROUTES } from '../../../features/negotiation/negotiation.routes';
 import { PAYMENT_ROUTES } from '../../../features/payment/payment.routes';
+import { ASSISTANT_ROUTES } from '../../../features/assistant/assistant.routes';
+import { SETTLEMENT_ROUTES } from '../../../features/settlement/settlement.routes';
+import { TELEPHONY_ROUTES } from '../../../features/telephony/telephony.routes';
 import { RELEASE_NOTES } from './release-notes';
 import { NAVIGATION } from '../../layout/navigation';
 import { CHECKLISTS } from './checklists';
@@ -66,9 +69,12 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/juridico', LEGAL_ROUTES),
       ...guarded('/campanhas', CAMPAIGN_ROUTES),
       ...guarded('/pagamentos', PAYMENT_ROUTES),
+      ...guarded('/prestacao-de-contas', SETTLEMENT_ROUTES),
+      ...guarded('/telefonia', TELEPHONY_ROUTES),
+      ...guarded('/assistente', ASSISTANT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(42);
+    expect(items.length).toBe(52);
     for (const item of items) {
       expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -131,6 +137,17 @@ describe('conteúdo do onboarding', () => {
     expect(CHECKLISTS.findIndex((c) => c.id === 'manager')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
   });
 
+  it('painéis registrados com tour cujas âncoras existem e nota de versão própria', () => {
+    for (const path of ['/paineis', '/paineis/recuperacao', '/paineis/conversao', '/paineis/produtividade', '/paineis/confiabilidade']) {
+      expect(findScreen(path + '?de=2026-06-01')?.tourId, path).toBe('analytics.panels');
+    }
+    const tour = findTour('analytics.panels')!;
+    expect(tour.steps.length).toBeLessThanOrEqual(6);
+    expect(tour.steps.map((s) => s.anchor)).toEqual(['analytics-tabs', 'filters', 'analytics-freshness', 'analytics-kpis', 'analytics-export']);
+    expect(RELEASE_NOTES.find((n) => n.version === 7)?.title).toContain('Painéis');
+    expect(findScreen('/')?.version).toBe(2);
+  });
+
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {
     expect(findScreen('/pagamentos?devedor=d-1')?.tourId).toBe('payment.list');
     expect(findScreen('/pagamentos/instrucoes')?.tourId).toBe('payment.instructions');
@@ -146,10 +163,10 @@ describe('conteúdo do onboarding', () => {
     // a ficha do acordo e a estação ganharam o Pix: novidades na tela e tour revisado
     expect(findScreen('/negociacao/acordos/a-1')?.version).toBe(2);
     expect(findTour('negotiation.agreement-detail')?.version).toBe(2);
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(4);
+    expect(findScreen('/cobranca/fila')?.changes?.find((c) => c.version === 4)).toBeDefined();
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES[0].version).toBe(Math.max(...RELEASE_NOTES.map((n) => n.version)));
-    expect(RELEASE_NOTES[0].title).toContain('Pagamentos');
+    expect(RELEASE_NOTES.find((n) => n.version === 6)?.title).toContain('Pagamentos');
     // financeiro: checklist próprio antes do negociador; itens de visita apontam para telas registradas
     const finance = CHECKLISTS.find((c) => c.id === 'finance')!;
     const keys = new Set(SCREENS.map((s) => s.key));
@@ -159,5 +176,37 @@ describe('conteúdo do onboarding', () => {
       }
     }
     expect(CHECKLISTS.findIndex((c) => c.id === 'finance')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
+  });
+
+  it('prestação de contas, telefonia e assistente registrados com tour (rotas fixas antes de :id)', () => {
+    expect(findScreen('/prestacao-de-contas/regras')?.tourId).toBe('settlement.rules');
+    expect(findScreen('/prestacao-de-contas/regras/rs-1')?.tourId).toBe('settlement.rule-set');
+    expect(findScreen('/prestacao-de-contas/razao?credor=c-1')?.tourId).toBe('settlement.ledger');
+    expect(findScreen('/prestacao-de-contas/demonstrativos')?.tourId).toBe('settlement.statements');
+    expect(findScreen('/prestacao-de-contas/demonstrativos/st-1')?.tourId).toBe('settlement.statement');
+    expect(findScreen('/prestacao-de-contas/repasses')?.tourId).toBe('settlement.transfers');
+    expect(findScreen('/telefonia/campanhas/dc-1')?.tourId).toBe('telephony.campaign');
+    expect(findScreen('/telefonia/chamadas')?.tourId).toBe('telephony.calls');
+    expect(findScreen('/telefonia/operadores')?.key).toBe('telephony.agents');
+    expect(findScreen('/assistente/politicas/p-1')?.tourId).toBe('assistant.policy');
+    expect(findScreen('/assistente/turnos/t-1?revisao=r-1')?.tourId).toBe('assistant.turn');
+    expect(findScreen('/assistente/qualidade')?.tourId).toBe('assistant.quality');
+    // estação ganhou o clique para ligar e a presença: novidades na tela e tour revisado
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(5);
+    expect(findTour('collection.station')?.version).toBe(2);
+    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
+    // nota de versão nova, a mais recente primeiro
+    expect(RELEASE_NOTES[0].version).toBe(8);
+    expect(RELEASE_NOTES[0].title).toContain('Prestação de contas');
+    // checklists: itens de visita apontam para telas registradas; supervisão antes do negociador
+    const keys = new Set(SCREENS.map((s) => s.key));
+    for (const item of CHECKLISTS.flatMap((c) => c.items)) {
+      if (item.completion.kind === 'visit') {
+        expect(keys.has(item.completion.screenKey), item.id).toBe(true);
+      }
+    }
+    expect(CHECKLISTS.findIndex((c) => c.id === 'supervision')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
+    const ids = CHECKLISTS.flatMap((c) => c.items.map((i) => `${c.id}/${i.id}`));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

@@ -39,6 +39,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -60,6 +61,8 @@ import java.util.stream.Collectors;
 class PaymentService implements PaymentUseCases {
 
     private static final String RESOURCE = AllocationService.RESOURCE;
+    private static final TypeReference<List<UUID>> TARGET_ITEMS = new TypeReference<>() {
+    };
 
     private final PaymentRepository payments;
     private final PaymentAllocationRepository allocations;
@@ -343,12 +346,21 @@ class PaymentService implements PaymentUseCases {
                 .stream().collect(Collectors.groupingBy(PaymentAllocation::getPaymentId));
         return PageResponse.of(page, p -> PaymentViews.payment(p, byPayment.getOrDefault(p.getId(), List.of()).stream()
                 .sorted(java.util.Comparator.comparing(PaymentAllocation::getCreatedAt)).toList(),
-                p.getStatus() == PaymentStatus.REVERSED ? reversals.findByPaymentId(p.getId()) : java.util.Optional.empty()));
+                p.getStatus() == PaymentStatus.REVERSED ? reversals.findByPaymentId(p.getId()) : java.util.Optional.empty(),
+                targetItems(p)));
     }
 
     private PaymentView view(Payment p) {
         return PaymentViews.payment(p, allocations.findByPaymentIdOrderByCreatedAtAsc(p.getId()),
-                reversals.findByPaymentId(p.getId()));
+                reversals.findByPaymentId(p.getId()), targetItems(p));
+    }
+
+    /** Ids do destino solicitado (JSON gravado no registro do pagamento externo). */
+    private List<UUID> targetItems(Payment p) {
+        if (p.getTargetItems() == null || p.getTargetItems().isBlank()) {
+            return List.of();
+        }
+        return json.fromJson(p.getTargetItems(), TARGET_ITEMS);
     }
 
     private String hash(ExternalPaymentCommand c) {
