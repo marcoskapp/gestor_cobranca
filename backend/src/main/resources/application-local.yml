@@ -32,6 +32,9 @@ app:
   communication:
     sandbox:
       enabled: true
+  assistant:
+    sandbox:
+      enabled: true
   telephony:
     sandbox:
       enabled: true
