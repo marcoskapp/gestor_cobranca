@@ -56,6 +56,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/campaign/campaign.routes').then((m) => m.CAMPAIGN_ROUTES),
       },
       {
+        path: 'paineis',
+        loadChildren: () => import('./features/analytics/analytics.routes').then((m) => m.ANALYTICS_ROUTES),
+      },
+      {
         path: 'juridico',
         loadChildren: () => import('./features/legal/legal.routes').then((m) => m.LEGAL_ROUTES),
       },

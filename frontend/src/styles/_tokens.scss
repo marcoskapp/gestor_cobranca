@@ -34,6 +34,16 @@
   --app-neutral-bg: light-dark(#eceff3, #262b32);
   --app-neutral-fg: light-dark(#3c4652, #c9d1db); // 9.0:1 / 9.2:1
 
+  // ------------------------------------------------------------------ gráficos (painéis)
+  // Série 1 (azul) e 2 (laranja), passos validados para CVD e contraste ≥ 3:1 sobre a superfície
+  // clara (#fff) e escura (validate_palette.js da skill de visualização; docs/tecnico/desenho/analytics.md §7).
+  // Texto nunca usa a cor da série; grade e eixo recessivos.
+  --app-chart-1: light-dark(#2a78d6, #3987e5);
+  --app-chart-2: light-dark(#eb6834, #d95926);
+  --app-chart-grid: light-dark(#e1e0d9, #2c2c2a);
+  --app-chart-axis: light-dark(#c3c2b7, #383835);
+  --app-chart-track: light-dark(#eceff3, #262b32);
+
   // valores monetários negativos/positivos (texto sobre superfície)
   --app-amount-negative: light-dark(#8c1d18, #ffb4ab);
   --app-amount-positive: light-dark(#135c2b, #a6e3b8);

@@ -21,6 +21,21 @@ export const NAVIGATION: readonly NavSection[] = [
     items: [{ label: 'Início', icon: 'home', route: '/', permissions: [], exact: true }],
   },
   {
+    label: 'Painéis',
+    items: [
+      { label: 'Painel operacional', icon: 'space_dashboard', route: '/paineis', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW], exact: true },
+      { label: 'Recuperação', icon: 'payments', route: '/paineis/recuperacao', permissions: [Permission.REPORT_VIEW] },
+      { label: 'Conversão', icon: 'filter_alt', route: '/paineis/conversao', permissions: [Permission.REPORT_VIEW] },
+      {
+        label: 'Produtividade',
+        icon: 'groups',
+        route: '/paineis/produtividade',
+        permissions: [Permission.REPORT_VIEW, Permission.PERFORMANCE_VIEW_OWN, Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL],
+      },
+      { label: 'Confiabilidade', icon: 'monitor_heart', route: '/paineis/confiabilidade', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW] },
+    ],
+  },
+  {
     label: 'Cobrança',
     items: [
       { label: 'Estação de cobrança', icon: 'support_agent', route: '/cobranca/fila', permissions: [Permission.CASE_WORK] },

@@ -1,0 +1,129 @@
+.bc {
+  position: relative;
+  margin: 0;
+}
+.bc__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bc__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.bc__summary,
+.bc__empty {
+  margin: 0 0 8px;
+  font-size: var(--app-text-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+.bc__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--app-text-xs);
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+.bc__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.bc__rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bc__row {
+  display: grid;
+  grid-template-columns: minmax(96px, 30%) 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.bc__label {
+  overflow: hidden;
+  font-size: var(--app-text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bc__bars {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.bc__bar-line {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  min-height: 16px;
+  border-radius: 4px;
+  outline-offset: 2px;
+  &:hover .bc__bar,
+  &:focus-visible .bc__bar {
+    filter: brightness(1.12);
+  }
+}
+.bc__bar {
+  flex: none;
+  // reserva espaço para o valor escrito na ponta (nunca cortado nem sobreposto)
+  width: calc((100% - 136px) * var(--bc-w, 0));
+  height: 14px;
+  border-radius: 0 4px 4px 0;
+}
+.bc__value {
+  flex: none;
+  font-size: var(--app-text-xs);
+  color: var(--mat-sys-on-surface);
+}
+.bc__tip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  gap: 2px;
+  max-width: min(320px, 80%);
+  padding: 8px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-raised);
+  box-shadow: var(--mat-sys-level2);
+  font-size: var(--app-text-xs);
+  pointer-events: none;
+  strong {
+    font-size: var(--app-text-md);
+  }
+}
+.bc__table-wrap {
+  overflow-x: auto;
+}
+.bc__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--app-text-sm);
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--app-border);
+    text-align: left;
+  }
+  .num {
+    text-align: right;
+  }
+}
+@media (max-width: 599.98px) {
+  .bc__row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

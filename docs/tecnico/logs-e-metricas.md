@@ -281,6 +281,10 @@ filter eventType = "call.completed" and `attr.origin` = "DIALER"
 filter eventType = "campaign.step_skipped"
 | stats count(*) by `attr.campaignCode`, `attr.reason`
 
+# consultas de painel lentas (técnico)
+filter message = "Consulta de painel lenta"
+| stats count(*), pct(durationMs, 95) by report, groupBy
+
 # tours mais dispensados (técnico — adoção da interface)
 filter event = "ui.onboarding.tour_recorded"
 | stats count(*) by tourId, outcome | sort count(*) desc
@@ -415,5 +419,9 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `telephony.recordings{outcome}`, `telephony.recording.access{purpose}` | gravações (`stored`, `failed`, `too_large`, `purged_retention`, `purged_anonymization`) e acessos por finalidade |
 | `telephony.webhook.requests{provider,outcome}`, `telephony.webhook.events{provider,type,outcome}` | webhooks (`ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` — alarme —, `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`) e eventos (`applied`, `duplicate`, `stale`, `unknown_call`, `ignored`) |
 | `telephony.reconciliation{kind}`, `telephony.events.consumed{type}`, `telephony.jobs.failures{job}` | conciliação (`agent_timeout`, `stale_call`), consumo de eventos e falhas de jobs/agendamentos (alarme) |
+| `analytics.query.duration{report,outcome}` (p50/p95/p99), `analytics.queries.slow{report}` | latência das consultas dos painéis e consultas acima de `app.analytics.slow-query-threshold` (2 s; WARN no log técnico com relatório e agrupamento) |
+| `analytics.refresh.duration{dataset,outcome}`, `analytics.refresh.rows{dataset}`, `analytics.refresh.cycle.duration{trigger}`, `analytics.refresh.tenants{trigger,outcome}` | reconstrução dos snapshots dos painéis por conjunto e ciclo agendado (carimbo "dados até") |
+| `analytics.refresh.failures{trigger}` | falha ao atualizar os painéis de uma assessoria (alarme) |
+| `analytics.exports{report,format}`, `analytics.export.rows{report}` | exportações de relatórios (cada uma também em `DATA_EXPORTED` no log de acesso) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

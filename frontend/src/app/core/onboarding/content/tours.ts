@@ -7,6 +7,19 @@ import { TourDefinition } from '../onboarding.models';
  */
 export const TOURS: readonly TourDefinition[] = [
   {
+    id: 'analytics.panels',
+    version: 1,
+    title: 'Painéis da operação',
+    summary: 'Filtros, indicadores com a base de cálculo, gráficos com tabela e exportação.',
+    steps: [
+      { anchor: 'analytics-tabs', title: 'Cinco painéis', body: 'Operacional, recuperação, conversão, produtividade e confiabilidade. Os filtros acompanham você entre eles.' },
+      { anchor: 'filters', title: 'Filtros na URL', body: 'Período, credor, carteira, pessoas e canal. Copie o endereço para compartilhar exatamente esta visão.' },
+      { anchor: 'analytics-freshness', title: 'Dados até', body: 'Os números são consolidados periodicamente. Veja até quando valem e atualize quando precisar.' },
+      { anchor: 'analytics-kpis', title: 'Sempre com a base', body: 'Cada taxa mostra numerador e denominador. Recuperado é só o pagamento confirmado, líquido de estornos.' },
+      { anchor: 'analytics-export', title: 'Exportar', body: 'Planilha ou CSV com os mesmos filtros. Cada exportação fica registrada no log de acesso.' },
+    ],
+  },
+  {
     id: 'app.welcome',
     version: 1,
     title: 'Conheça o Gestor de Cobrança',

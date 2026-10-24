@@ -6,14 +6,16 @@ import { NAVIGATION, NavItem } from '../../core/layout/navigation';
 import { GettingStarted } from '../../core/onboarding/getting-started/getting-started';
 import { OnboardingService } from '../../core/onboarding/onboarding.service';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
+import { Permission } from '../../core/auth/permission';
+import { HomeKpis } from '../analytics/components/home-kpis';
 
 /**
- * Página inicial: boas-vindas, atalhos conforme as permissões e "primeiros passos" do perfil
- * (o painel de métricas virá depois).
+ * Página inicial: boas-vindas, resumo da operação (para quem vê painéis, carregado sob demanda),
+ * atalhos conforme as permissões e "primeiros passos" do perfil.
  */
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, MatIconModule, GettingStarted, EmptyState],
+  imports: [RouterLink, MatIconModule, GettingStarted, EmptyState, HomeKpis],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -39,6 +41,12 @@ export class Dashboard {
         .filter((item) => item.route !== '/' && this.auth.hasAnyPermission(item.permissions))
         .map((item) => ({ ...item, section: section.label ?? '' })),
     );
+  });
+
+  /** Resumo de indicadores para quem tem acesso ao painel operacional. */
+  protected readonly showKpis = computed(() => {
+    this.user();
+    return this.auth.hasAnyPermission([Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW]);
   });
 
   protected readonly mfaPending = computed(() => this.user()?.mfaEnabled === false);

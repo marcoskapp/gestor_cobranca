@@ -6,7 +6,17 @@ import { ScreenGuide } from '../onboarding.models';
  * tela vê o destaque das novidades uma vez).
  */
 export const SCREENS: readonly ScreenGuide[] = [
-  { key: 'app.home', version: 1, path: '/' },
+  {
+    key: 'app.home',
+    version: 2,
+    path: '/',
+    changes: [{ version: 2, items: ['Indicadores da operação na página inicial, com atalho para os painéis.'] }],
+  },
+  { key: 'analytics.operational', version: 1, path: '/paineis', tourId: 'analytics.panels' },
+  { key: 'analytics.recovery', version: 1, path: '/paineis/recuperacao', tourId: 'analytics.panels' },
+  { key: 'analytics.conversion', version: 1, path: '/paineis/conversao', tourId: 'analytics.panels' },
+  { key: 'analytics.productivity', version: 1, path: '/paineis/produtividade', tourId: 'analytics.panels' },
+  { key: 'analytics.reliability', version: 1, path: '/paineis/confiabilidade', tourId: 'analytics.panels' },
   { key: 'admin.users', version: 1, path: '/admin/usuarios', tourId: 'admin.users' },
   { key: 'admin.user-detail', version: 1, path: '/admin/usuarios/:id' },
   { key: 'admin.roles', version: 1, path: '/admin/perfis', tourId: 'admin.roles' },
