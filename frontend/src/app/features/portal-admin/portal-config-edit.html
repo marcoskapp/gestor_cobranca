@@ -1,0 +1,134 @@
+<app-page-header [title]="isNew() ? 'Configurar portal' : (current()?.displayName ?? 'Portal')" subtitle="O devedor só vê as carteiras habilitadas e só recebe condições do perfil de alçada PORTAL.">
+  <a mat-button routerLink="/autonegociacao"><mat-icon aria-hidden="true">arrow_back</mat-icon>Portais</a>
+  @if (current(); as c) {
+    <a mat-stroked-button [href]="'/portal/' + c.slug" target="_blank" rel="noopener"><mat-icon aria-hidden="true">open_in_new</mat-icon>Abrir portal</a>
+  }
+  <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">Salvar</button>
+</app-page-header>
+
+@if (errors().length) {
+  <div class="app-alert app-alert--danger" role="alert">
+    <mat-icon aria-hidden="true">error</mat-icon>
+    <ul>@for (e of errors(); track e) {<li>{{ e }}</li>}</ul>
+  </div>
+}
+
+<div class="portal-admin">
+  <form class="app-card" [formGroup]="form" (ngSubmit)="save()" novalidate aria-label="Configuração do portal">
+    <h2 class="app-card__title">Endereço e carteiras</h2>
+    <div class="app-form-grid">
+      <app-entity-picker [control]="creditorControl" [source]="creditorSource" label="Credor" [single]="true" />
+      <mat-form-field>
+        <mat-label>Endereço do portal</mat-label>
+        <span matTextPrefix>/portal/&nbsp;</span>
+        <input matInput formControlName="slug" maxlength="60" />
+        <mat-hint>Letras minúsculas, números e hífens</mat-hint>
+      </mat-form-field>
+      <div class="app-span-all">
+        <app-entity-picker [control]="portfolioControl" [source]="portfolioSource" label="Carteiras habilitadas"
+                           hint="Só estas carteiras aparecem para o devedor" />
+      </div>
+      <mat-slide-toggle formControlName="enabled">Portal ativo para os devedores</mat-slide-toggle>
+    </div>
+
+    <h2 class="app-card__title">Marca do credor</h2>
+    <div class="app-form-grid">
+      <mat-form-field>
+        <mat-label>Nome exibido</mat-label>
+        <input matInput formControlName="displayName" maxlength="80" />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Cor primária (botões)</mat-label>
+        <input matInput formControlName="primaryColor" maxlength="7" />
+        <mat-hint [class.contrast-bad]="(primaryContrast() ?? 0) < 4.5">Contraste com branco: {{ primaryContrast()?.toFixed(2) ?? '—' }}:1 (mín. 4,5)</mat-hint>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Cor de destaque</mat-label>
+        <input matInput formControlName="accentColor" maxlength="7" />
+        <mat-hint [class.contrast-bad]="(accentContrast() ?? 0) < 3">Contraste com branco: {{ accentContrast()?.toFixed(2) ?? '—' }}:1 (mín. 3)</mat-hint>
+      </mat-form-field>
+      <mat-form-field class="app-span-all">
+        <mat-label>Texto de atendimento (rodapé)</mat-label>
+        <input matInput formControlName="supportText" maxlength="300" />
+      </mat-form-field>
+    </div>
+    <div class="brand-preview" [style.--preview-primary]="form.controls.primaryColor.value" [style.--preview-accent]="form.controls.accentColor.value" aria-label="Prévia da marca">
+      <span class="brand-preview__bar">{{ form.controls.displayName.value || 'Nome do credor' }}</span>
+      <span class="brand-preview__button">Ver condições para pagar</span>
+    </div>
+    @if (current(); as c) {
+      <div class="logo-row">
+        @if (logoPreview()) {
+          <img [src]="logoPreview()" alt="Logotipo atual" class="logo-row__img" />
+        } @else {
+          <span class="app-muted">Sem logotipo (o portal mostra as iniciais).</span>
+        }
+        <label class="logo-row__upload" mat-stroked-button>
+          <mat-icon aria-hidden="true">upload</mat-icon> Enviar logotipo (PNG, JPEG ou WebP, até 256 KB)
+          <input type="file" accept="image/png,image/jpeg,image/webp" class="cdk-visually-hidden" (change)="onLogo($event)" />
+        </label>
+        @if (c.hasLogo) {
+          <button mat-button type="button" (click)="removeLogo()">Remover</button>
+        }
+      </div>
+    }
+
+    <h2 class="app-card__title">Acesso do devedor</h2>
+    <fieldset class="channels">
+      <legend>Canais para o código de acesso</legend>
+      <mat-checkbox formControlName="whatsapp">WhatsApp</mat-checkbox>
+      <mat-checkbox formControlName="sms">SMS</mat-checkbox>
+      <mat-checkbox formControlName="email">E-mail</mat-checkbox>
+    </fieldset>
+    <div class="app-form-grid">
+      <mat-form-field>
+        <mat-label>Confirmação adicional</mat-label>
+        <mat-select formControlName="knowledgeChallenge">
+          <mat-option value="NONE">Nenhuma (só o código ou o link)</mat-option>
+          <mat-option value="BIRTH_DATE">Data de nascimento</mat-option>
+          <mat-option value="CONTRACT_SUFFIX">4 últimos números do contrato</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Validade do link (horas)</mat-label>
+        <input matInput type="number" formControlName="linkValidityHours" min="1" max="168" />
+      </mat-form-field>
+      <mat-form-field class="app-span-all">
+        <mat-label>Aviso de privacidade</mat-label>
+        <textarea matInput formControlName="privacyNoticeText" rows="6" maxlength="8000"></textarea>
+        <mat-hint>Alterar o texto cria nova versão; os devedores confirmam de novo. @if (current(); as c) {Versão atual: {{ c.privacyNoticeVersion }}.}</mat-hint>
+      </mat-form-field>
+    </div>
+  </form>
+
+  @if (current(); as c) {
+    <section class="app-card" aria-labelledby="funil">
+      <h2 class="app-card__title" id="funil">Funil dos últimos 30 dias</h2>
+      @if (funnel.value(); as f) {
+        <ol class="funnel">
+          <li><span class="funnel__value">{{ f.accesses }}</span> acessos</li>
+          <li><span class="funnel__value">{{ f.simulations }}</span> simularam</li>
+          <li><span class="funnel__value">{{ f.acceptances }}</span> fecharam acordo</li>
+          <li><span class="funnel__value">{{ f.pixIssued }}</span> geraram Pix</li>
+          <li><span class="funnel__value">{{ f.paid }}</span> pagaram</li>
+        </ol>
+        <p class="app-muted">{{ f.serviceRequests }} pedido(s) de atendimento no período.</p>
+      }
+    </section>
+    <section class="app-card">
+      <h2 class="app-card__title">Sessões do portal</h2>
+      <app-data-table caption="Sessões dos devedores" [rows]="sessionRows()" [columns]="sessionColumns" [loading]="sessions.isLoading()"
+                      [page]="sessionTablePage()" (pageChange)="sessionPage.set($event)" emptyIcon="devices" emptyMessage="Nenhuma sessão ainda.">
+        <ng-template appCell="createdAt" [appCellOf]="sessionRows()" let-s>{{ s.createdAt | appDate }}</ng-template>
+        <ng-template appCell="method" [appCellOf]="sessionRows()" let-s>{{ s.method === 'LINK' ? 'Link' : 'Documento + código' }}</ng-template>
+        <ng-template appCell="lastSeenAt" [appCellOf]="sessionRows()" let-s>{{ s.lastSeenAt | appDate }}</ng-template>
+        <ng-template appCell="status" [appCellOf]="sessionRows()" let-s><app-status-chip domain="portalSession" [status]="s.status" /></ng-template>
+        <ng-template appCell="actions" [appCellOf]="sessionRows()" let-s>
+          @if (s.status === 'ACTIVE') {
+            <button mat-button type="button" (click)="revoke(s)">Encerrar</button>
+          }
+        </ng-template>
+      </app-data-table>
+    </section>
+  }
+</div>

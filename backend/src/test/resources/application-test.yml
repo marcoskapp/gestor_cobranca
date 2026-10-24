@@ -23,6 +23,11 @@ app:
       api-base-url: http://127.0.0.1:9
       connect-timeout: PT1S
       read-timeout: PT1S
+  portal:
+    access:
+      # o limite por minuto por IP é testado em unidade; nos ITs todas as requisições vêm de 127.0.0.1
+      requests-per-minute-per-ip: 100000
+      min-response-time: PT0.05S
   assistant:
     sandbox:
       enabled: true

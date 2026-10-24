@@ -1,0 +1,13 @@
+.portal-admin { display: flex; flex-direction: column; gap: var(--app-gap); }
+.channels { margin: 0 0 12px; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.channels legend { width: 100%; margin-bottom: 4px; color: var(--mat-sys-on-surface-variant); }
+.contrast-bad { color: var(--app-danger-fg); font-weight: 600; }
+.brand-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 8px 0 16px; padding: 12px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); }
+.brand-preview__bar { padding-bottom: 4px; border-bottom: 3px solid var(--preview-accent); font-weight: 600; }
+.brand-preview__button { padding: 8px 16px; border-radius: 999px; background: var(--preview-primary); color: #fff; font-weight: 500; }
+.logo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.logo-row__img { max-height: 48px; max-width: 200px; }
+.logo-row__upload { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; border: 1px solid var(--app-border); border-radius: var(--app-radius-sm); }
+.funnel { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.funnel li { flex: 1 1 120px; padding: 12px; border-radius: var(--app-radius-md); background: var(--app-surface-raised); }
+.funnel__value { display: block; font-size: var(--app-text-xl); font-weight: 600; }

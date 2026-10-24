@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -28,6 +29,7 @@ import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { DebtorCompliance } from '../../../compliance/restrictions/debtor-compliance/debtor-compliance';
 import { RestrictionsApi } from '../../../compliance/data/compliance.api';
 import { CreditorNames, PortfolioNames } from '../../../organization/data/organization.lookups';
+import { PortalAdminApi } from '../../../portal-admin/data/portal-admin.api';
 import { OverdueBadge } from '../../components/overdue-badge';
 import { DebtorContactsApi, DebtorsApi, TitlesApi } from '../../data/debt.api';
 import {
@@ -54,6 +56,7 @@ import { DebtorForm } from '../debtor-form/debtor-form';
 @Component({
   selector: 'app-debtor-detail',
   imports: [
+    MatMenuModule,
     FormsModule,
     RouterLink,
     MatButtonModule,
@@ -104,6 +107,12 @@ export class DebtorDetail {
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.DEBTOR_MANAGE));
   protected readonly canReveal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
   protected readonly canExportEvidence = computed(() => this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE));
+  protected readonly canSendPortalLink = computed(() => this.auth.hasPermission(Permission.MESSAGE_SEND));
+  private readonly portalApi = inject(PortalAdminApi);
+  /** Credores em que o devedor tem títulos em cobrança (o servidor confere se o portal está habilitado). */
+  protected readonly portalCreditors = computed(() => [
+    ...new Set(this.titleRows().filter((t) => t.status === 'OPEN' || t.status === 'SUSPENDED').map((t) => t.creditorId)),
+  ]);
 
   protected readonly debtor = rxResource({ params: () => this.id(), stream: ({ params }) => this.debtorsApi.get(params) });
   protected readonly current = valueOr(this.debtor, undefined);
@@ -156,6 +165,14 @@ export class DebtorDetail {
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
+
+  protected sendPortalLink(d: DebtorView, creditorId: string): void {
+    this.portalApi.sendLink(d.id, creditorId, 'WHATSAPP').subscribe((link) =>
+      link.messageStatus === 'FAILED'
+        ? this.notifications.error('O link não foi enviado: o contato não é permitido agora ou o devedor não tem WhatsApp.')
+        : this.notifications.success('Link de acesso ao portal enviado por WhatsApp.'),
+    );
+  }
 
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.current()?.name ?? null));

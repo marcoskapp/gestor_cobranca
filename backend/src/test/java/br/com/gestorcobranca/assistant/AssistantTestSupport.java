@@ -66,7 +66,8 @@ abstract class AssistantTestSupport extends CommunicationTestSupport {
             return collectionPolicies.publish(id, today);
         });
         awaitTrue("perfis de alçada semeados",
-                () -> count("select count(*) from negotiation.authority_profile where system_profile") == 6);
+                () -> count("select count(*) from negotiation.authority_profile where system_profile")
+                        == br.com.gestorcobranca.negotiation.domain.model.authority.StandardAuthorityProfiles.all().size());
         debtor = debtor(CPF);
         kase = loadCase(creditorA, portfolioA, debtor, principal);
         publishedTemplate(null, "COBRANCA", "WHATSAPP");

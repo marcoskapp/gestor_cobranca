@@ -311,6 +311,35 @@ app:
     sandbox:
       enabled: false
 
+  portal:
+    # endereço público usado nos links enviados ao devedor: <base>/portal/<slug>/entrar#<token>
+    public-base-url: ${PORTAL_PUBLIC_BASE_URL:${APP_BASE_URL:https://localhost:8443}}
+    session:
+      token-ttl: PT10M
+      idle-timeout: PT15M
+      absolute-timeout: PT60M
+      max-active-per-debtor: 3
+    access:
+      code-ttl: PT10M
+      code-max-attempts: 5
+      knowledge-ttl: PT10M
+      requests-per-minute-per-ip: 20
+      # bloqueio progressivo (persistido) por documento e por IP: 15 min, dobrando até 24 h
+      window: PT30M
+      document-max-failures: 5
+      document-max-requests: 3
+      ip-max-failures: 20
+      ip-max-requests: 15
+      base-lock: PT15M
+      max-lock: PT24H
+      # equaliza o tempo de resposta do pedido de código (documento existente × inexistente)
+      min-response-time: PT0.4S
+    # templates do communication (sufixo = canal: _WHATSAPP, _SMS, _EMAIL)
+    templates:
+      access-code: PORTAL_CODIGO
+      access-link: PORTAL_LINK
+      service-request: PORTAL_ATENDIMENTO
+    session-expiry-interval: PT10M
   telephony:
     # tentativas do job de discagem (falhas transitórias do provedor) antes de FAILED
     dial-max-attempts: 3
