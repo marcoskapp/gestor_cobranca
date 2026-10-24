@@ -163,6 +163,18 @@ export interface ReversalView {
   reversedBy: string | null;
 }
 
+/**
+ * `PaymentUseCases.RequestedTargetView`: destino informado no registro do pagamento externo, para
+ * quem aprova ver para onde o valor vai antes de a confirmação gerar as alocações.
+ */
+export interface RequestedTargetView {
+  kind: 'AGREEMENT' | 'TITLES';
+  agreementId: string | null;
+  /** Parcelas (acordo) ou títulos, em ordem de preferência; vazio no acordo = todas em aberto. */
+  itemIds: string[];
+  strategy: TitleStrategy | null;
+}
+
 /** `PaymentUseCases.PaymentView` */
 export interface PaymentView {
   id: string;
@@ -199,6 +211,8 @@ export interface PaymentView {
   evidenceSha256: string | null;
   allocations: AllocationView[];
   reversal: ReversalView | null;
+  /** Destino solicitado do pagamento externo (nulo nos integrados). */
+  requestedTarget: RequestedTargetView | null;
   version: number;
 }
 

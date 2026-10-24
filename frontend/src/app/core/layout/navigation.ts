@@ -44,6 +44,14 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Telefonia',
+    items: [
+      { label: 'Campanhas de discagem', icon: 'phone_forwarded', route: '/telefonia/campanhas', permissions: [Permission.TELEPHONY_SUPERVISE] },
+      { label: 'Chamadas e gravações', icon: 'call', route: '/telefonia/chamadas', permissions: [Permission.TELEPHONY_SUPERVISE] },
+      { label: 'Operadores e ramais', icon: 'headset_mic', route: '/telefonia/operadores', permissions: [Permission.TELEPHONY_SUPERVISE] },
+    ],
+  },
+  {
     label: 'Campanhas',
     items: [
       {

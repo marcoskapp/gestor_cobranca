@@ -56,6 +56,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/settlement/settlement.routes').then((m) => m.SETTLEMENT_ROUTES),
       },
       {
+        path: 'telefonia',
+        loadChildren: () => import('./features/telephony/telephony.routes').then((m) => m.TELEPHONY_ROUTES),
+      },
+      {
         path: 'conversas',
         loadChildren: () => import('./features/communication/communication.routes').then((m) => m.COMMUNICATION_ROUTES),
       },

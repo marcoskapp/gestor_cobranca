@@ -30,8 +30,9 @@ import { CreditorNames } from '../../organization/data/organization.lookups';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS } from '../data/payment.labels';
 import { AllocationView, LineView, PaymentView } from '../data/payment.models';
-import { allocationTarget, paymentActions, paymentTimeline } from '../data/payment.rules';
+import { allocationTarget, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
+import { RequestedTarget } from '../components/requested-target';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
 
 /**
@@ -40,7 +41,7 @@ import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })
@@ -84,7 +85,8 @@ export class PaymentDetail {
   /** Número das parcelas: lido dos acordos das alocações (a alocação traz só o id da parcela). */
   private readonly agreements = rxResource({
     params: () => {
-      const ids = [...new Set((this.payment()?.allocations ?? []).map((a) => a.agreementId).filter((x): x is string => !!x))];
+      const p = this.payment();
+      const ids = [...new Set([...(p?.allocations ?? []).map((a) => a.agreementId), p?.requestedTarget?.agreementId].filter((x): x is string => !!x))];
       return this.canViewAgreements() && ids.length ? ids : undefined;
     },
     stream: ({ params }) => forkJoin(params.map((id) => this.agreementsApi.get(id).pipe(catchError(() => of(null))))),
@@ -109,8 +111,27 @@ export class PaymentDetail {
       ),
   };
   protected readonly titles = nameMap(this.titleSource, () =>
-    this.canViewTitles() ? (this.payment()?.allocations ?? []).flatMap((a) => a.lines.map((l) => l.titleId)) : [],
+    this.canViewTitles()
+      ? [
+          ...(this.payment()?.allocations ?? []).flatMap((a) => a.lines.map((l) => l.titleId)),
+          ...(this.payment()?.requestedTarget?.kind === 'TITLES' ? this.payment()!.requestedTarget!.itemIds : []),
+        ]
+      : [],
   );
+
+  /** Destino solicitado em texto (fila de aprovação e resumo do impacto antes de aprovar). */
+  protected readonly requestedText = computed(() => {
+    const t = this.payment()?.requestedTarget;
+    if (!t) {
+      return null;
+    }
+    const agreement = this.agreementList().find((a) => a?.id === t.agreementId);
+    return requestedTargetText(t, {
+      agreementLabel: agreement?.formalizedAt ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(agreement.formalizedAt)) : null,
+      installmentNumbers: this.installmentNumbers(),
+      titleLabels: new Map(t.itemIds.map((id) => [id, this.titles.name(id)] as const).filter(([, label]) => !!label && label !== '…' && label !== 'Título').map(([id, label]) => [id, label.replace(/^Título /, '')])),
+    });
+  });
 
   protected readonly actions = computed(() => {
     const p = this.payment();
@@ -251,7 +272,7 @@ export class PaymentDetail {
       { label: 'Devedor', value: this.debtorName() ?? 'Devedor' },
       { label: 'Valor', value: formatAmount(p.amount) },
       { label: 'Informado por', value: this.userName(p.informedBy) },
-      { label: 'Destino', value: p.allocations.map(allocationTarget).join('; ') || 'Definido por quem informou (aplicado na aprovação)' },
+      { label: 'Destino', value: p.allocations.map(allocationTarget).join('; ') || this.requestedText() || 'Definido por quem informou (aplicado na aprovação)' },
     ];
   }
 }
