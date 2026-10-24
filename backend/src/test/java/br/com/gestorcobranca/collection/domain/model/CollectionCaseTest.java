@@ -129,4 +129,20 @@ class CollectionCaseTest {
         assertThatThrownBy(() -> new CaseBalance(Money.of("10.00"), Money.of("11.00"), 1, 0, 0, null))
                 .isInstanceOf(BusinessRuleException.class);
     }
+
+    @Test
+    void scoreKeepsOnlyTheLatestCalculation() {
+        CollectionCase c = newCase();
+        assertThat(c.applyScore(700, T0)).isTrue();
+        assertThat(c.getScore()).isEqualTo(700);
+        // cálculo mais antigo (reentrega fora de ordem) é ignorado
+        assertThat(c.applyScore(100, T0.minusSeconds(60))).isFalse();
+        assertThat(c.getScore()).isEqualTo(700);
+        // mesmo valor mais recente: só avança o instante
+        assertThat(c.applyScore(700, T0.plusSeconds(60))).isFalse();
+        assertThat(c.getScoreCalculatedAt()).isEqualTo(T0.plusSeconds(60));
+        assertThat(c.applyScore(350, T0.plusSeconds(120))).isTrue();
+        assertThat(c.getScore()).isEqualTo(350);
+        assertThatThrownBy(() -> c.applyScore(1001, T0.plusSeconds(180))).isInstanceOf(BusinessRuleException.class);
+    }
 }

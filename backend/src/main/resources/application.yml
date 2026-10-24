@@ -227,6 +227,35 @@ app:
     evidence:
       max-size-bytes: 20971520
 
+  scoring:
+    # parâmetros iniciais da assessoria (PUT /api/v1/scoring/settings altera por tenant)
+    defaults:
+      outcome-days: 30              # alvo: pagamento confirmado em N dias
+      min-cases: 500                # critério mínimo de dados para treinar a regressão
+      min-positives: 50
+      min-partition-positives: 10
+      validation-share: 0.30        # datas mais recentes (validação fora do tempo)
+      l2-lambda: 1.0
+      min-auc: 0.60                 # AUC mínima na validação para virar desafiante
+      training-window-days: 365
+      snapshot-interval-days: 7     # snapshot de features semanal
+      publish-min-delta: 10         # variação (0–1000) que publica CaseScoreChanged sem mudar de faixa
+      psi-warning: 0.10
+      psi-alert: 0.25
+      band-cutoffs: 400,250,150,75  # A ≥ 400 > B ≥ 250 > C ≥ 150 > D ≥ 75 > E
+      default-paid-share: 0.30
+      auto-train: true              # treino mensal; promoção é sempre manual
+    batch-size: 200
+    daily-cron: "0 30 2 * * *"
+    maintenance-cron: "0 15 4 * * *"
+    training-cron: "0 0 5 1 * *"
+    fact-lookback-days: 730
+    fact-retention-days: 1095
+    snapshot-retention-days: 730
+    outcome-grace-days: 5
+    rescore-delay: PT5M
+    max-training-rows: 200000
+
   incentive:
     # ajuste manual de extrato acima deste valor (absoluto) exige segunda aprovação
     dual-approval-threshold: 500.00

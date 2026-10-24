@@ -15,6 +15,7 @@ import br.com.gestorcobranca.shared.events.collection.CaseStatusChanged;
 import br.com.gestorcobranca.shared.events.collection.InteractionRecorded;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
+import br.com.gestorcobranca.shared.events.scoring.ExpectedRecoveryMeasured;
 import br.com.gestorcobranca.shared.events.negotiation.InstallmentStatusChanged;
 import br.com.gestorcobranca.shared.events.telephony.CallCompleted;
 import org.springframework.stereotype.Service;
@@ -115,6 +116,14 @@ class FactIngestionService {
         metrics.factConsumed("case_balance");
         facts.recordCaseSnapshot(new CaseSnapshot(e.eventId(), e.caseId(), e.occurredAt(), e.creditorId(), e.portfolioId(),
                 e.assigneeId(), e.teamId(), null, e.eligible(), e.eligibleBalance()));
+    }
+
+    /** Safra de score com recuperado × esperado (scoring): substitui a anterior da mesma safra/grupo. */
+    void expectedRecovery(ExpectedRecoveryMeasured e) {
+        metrics.factConsumed("expected_recovery");
+        facts.saveExpectedRecovery(new FactStore.ExpectedRecovery(e.eventId(), e.cohortId(), e.referenceDate(),
+                e.outcomeDays(), e.creditorId(), e.portfolioId(), e.assigneeId(), e.cases(), e.expectedAmount(),
+                e.realizedAmount(), e.modelId(), e.modelVersion(), e.occurredAt()));
     }
 
     void agreementStatus(AgreementStatusChanged e) {

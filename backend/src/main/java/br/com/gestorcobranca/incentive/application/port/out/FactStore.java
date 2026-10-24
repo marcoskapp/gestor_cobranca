@@ -91,6 +91,21 @@ public interface FactStore {
     /** Responsável pelo caso no instante (modelo de crédito por carteira). */
     Optional<UUID> assigneeAt(UUID caseId, Instant at);
 
+    // ---------------------------------------------------------------- recuperado × esperado (scoring)
+
+    /**
+     * Safra de score com recuperado × esperado (evento {@code ExpectedRecoveryMeasured}).
+     *
+     * @param userId responsável no momento do cálculo (null = fila/assistente)
+     */
+    record ExpectedRecovery(UUID sourceEventId, UUID cohortId, LocalDate referenceDate, int outcomeDays, UUID creditorId,
+                            UUID portfolioId, UUID userId, long cases, BigDecimal expectedAmount,
+                            BigDecimal realizedAmount, UUID modelId, int modelVersion, Instant updatedAt) {
+    }
+
+    /** Insere ou substitui a safra (idempotente por {@code cohortId}; vale o evento mais recente). */
+    void saveExpectedRecovery(ExpectedRecovery recovery);
+
     // ---------------------------------------------------------------- retornos e promessas
 
     /** Soma a contribuição (positiva ou compensatória) de compromissos às colunas de retornos e promessas. */

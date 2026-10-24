@@ -45,7 +45,7 @@ class PerformanceQueryService implements PerformanceQueries {
     /** Métricas cuja fonte ainda não publica eventos de integração (pendências documentadas no desenho). */
     static final List<String> UNAVAILABLE = List.of(
             "effort.handoffsReceived", "conversion.contactToProposal", "conversion.proposalToAgreement",
-            "conversion.handoffResolution", "financial.expectedRecoveryRatio");
+            "conversion.handoffResolution");
 
     private final IndicatorReader reader;
     private final IncentiveAccess access;
@@ -161,6 +161,7 @@ class PerformanceQueryService implements PerformanceQueries {
         Totals totals = t == null ? emptyTotals(key) : t;
         Long logged = null;
         BigDecimal recoveryRate = null;
+        BigDecimal expectedRecoveryRatio = null;
         QualityTotals conduct = null;
         BigDecimal recovered = nz(totals.accruedAmount()).subtract(nz(totals.reversedAmount()));
         if (people != null || (rowFilter != null && rowFilter.userIds() == null)) {
@@ -172,6 +173,9 @@ class PerformanceQueryService implements PerformanceQueries {
                 recoveryRate = ratio(recovered, reader.eligibleBalanceAt(who, start, rowFilter.creditorIds()));
             }
             conduct = sum(reader.quality(rowFilter.from(), rowFilter.to(), who));
+            // recuperado ÷ esperado pelo score nas safras (data do score) do período — §2.5
+            IndicatorReader.ExpectedRecoveryTotals expected = reader.expectedRecovery(rowFilter);
+            expectedRecoveryRatio = ratio(nz(expected.realizedAmount()), nz(expected.expectedAmount()));
         }
         BigDecimal hours = logged == null || logged == 0 ? null
                 : BigDecimal.valueOf(logged).divide(HOUR, 6, RoundingMode.HALF_EVEN);
@@ -194,7 +198,7 @@ class PerformanceQueryService implements PerformanceQueries {
                 totals.envelopeCount() == 0 ? null : nz(totals.envelopeUsageSum())
                         .divide(BigDecimal.valueOf(totals.envelopeCount()).multiply(HUNDRED), 4, RoundingMode.HALF_EVEN),
                 average(BigDecimal.valueOf(totals.concessionLevelSum()), totals.concessionCount()),
-                ratio(nz(totals.downPaymentAmount()), nz(totals.agreementAmount())), null);
+                ratio(nz(totals.downPaymentAmount()), nz(totals.agreementAmount())), expectedRecoveryRatio);
         long formalized = s == null ? 0 : s.formalized();
         Quality quality = new Quality(formalized, s == null ? null : ratio(s.broken30(), formalized),
                 s == null ? null : ratio(s.broken60(), formalized), s == null ? null : ratio(s.broken90(), formalized),

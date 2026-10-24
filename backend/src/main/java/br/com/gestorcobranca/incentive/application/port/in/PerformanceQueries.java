@@ -67,6 +67,10 @@ public interface PerformanceQueries {
     /**
      * @param recoveredAmount pagamentos confirmados creditados (peso de crédito aplicado), líquidos de estornos
      * @param recoveryRate    recuperado ÷ saldo elegível atribuído no início do período
+     * @param expectedRecoveryRatio recuperado × esperado pelo score (módulo scoring): Σ valor confirmado na
+     *                        janela de desfecho ÷ Σ valor esperado (probabilidade × saldo × fração paga típica)
+     *                        das safras de score com data no período, pelo responsável na data do score;
+     *                        nulo nas dimensões que não são por pessoa ou sem safra encerrada
      */
     record Financial(BigDecimal negotiatedAmount, BigDecimal recoveredAmount, BigDecimal recoveryRate,
                      BigDecimal recoveredPerLoggedHour, BigDecimal averageTicket, BigDecimal averageDiscount,
