@@ -77,6 +77,8 @@ public enum Permission {
     COMMISSION_MANAGE("Gerenciar regras de comissão"),
     SETTLEMENT_VIEW("Consultar demonstrativos"),
     SETTLEMENT_CLOSE("Fechar e enviar demonstrativos"),
+    SETTLEMENT_APPROVE("Aprovar demonstrativos e ajustes da prestação de contas (segregado de quem calcula)"),
+    SETTLEMENT_TRANSFER("Registrar repasses ao credor e recebimentos do credor"),
 
     // Desempenho e remuneração variável dos negociadores (módulo incentive)
     PERFORMANCE_VIEW_OWN("Consultar os próprios indicadores e extratos de comissão"),
@@ -107,8 +109,10 @@ public enum Permission {
     RETENTION_MANAGE("Gerenciar retenção e descarte"),
 
     // Telefonia
-    TELEPHONY_USE("Usar telefonia"),
-    TELEPHONY_MANAGE("Configurar telefonia e discador"),
+    TELEPHONY_USE("Usar telefonia: clique para ligar, presença no discador e tabulação das próprias chamadas"),
+    TELEPHONY_SUPERVISE("Acompanhar operadores e chamadas, operar campanhas de discagem e forçar saída"),
+    TELEPHONY_MANAGE("Configurar telefonia, ramais e campanhas de discagem"),
+    CALL_RECORDING_LISTEN("Ouvir e baixar gravações de chamadas (acesso registrado)"),
 
     // Portal de autonegociação
     PORTAL_MANAGE("Configurar portal de autonegociação"),

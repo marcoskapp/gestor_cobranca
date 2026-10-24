@@ -74,8 +74,17 @@ class TargetResolver {
         }
     }
 
+    /** @param externalId identificação do título no credor; {@code installmentNumber} parcela do título no credor */
     record TitleInfo(UUID id, UUID creditorId, UUID debtorId, UUID portfolioId, LocalDate dueDate, Money openBalance,
-                     String status, boolean underAgreement) {
+                     String status, boolean underAgreement, String externalId, Integer installmentNumber) {
+
+        /** Identificação do título para o credor: {@code externalId} ou {@code externalId/parcela}. */
+        String reference() {
+            if (externalId == null) {
+                return null;
+            }
+            return installmentNumber == null ? externalId : externalId + "/" + installmentNumber;
+        }
 
         boolean payable() {
             return PAYABLE_TITLE.contains(status) && !underAgreement && openBalance.isPositive();
@@ -107,7 +116,8 @@ class TargetResolver {
         List<TitleView> views = ids.stream().map(titles::get).toList();
         Set<UUID> covered = coveredByAgreements(views);
         return views.stream().map(t -> new TitleInfo(t.id(), t.creditorId(), t.debtorId(), t.portfolioId(), t.dueDate(),
-                Money.ofNullable(t.openBalance()), t.status(), covered.contains(t.id()))).toList();
+                Money.ofNullable(t.openBalance()), t.status(), covered.contains(t.id()), t.externalId(),
+                t.installmentNumber())).toList();
     }
 
     static List<TitleBalance> balances(List<TitleInfo> titles) {

@@ -19,13 +19,17 @@ import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
+import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.events.legal.LegalExpenseChanged;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -48,12 +52,14 @@ class LegalExpenseService implements LegalExpenseUseCases {
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final LegalMetrics metrics;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     LegalExpenseService(LegalExpenseRepository expenses, LegalMatterRepository matters, LawsuitRepository lawsuits,
                         LegalDocumentRepository documents, MatterRequirements requirements,
                         LegalSettingsProvider settings, MatterRecorder matterRecorder, LegalAccess access,
-                        AuditTrail auditTrail, BusinessEventLogger businessEvents, LegalMetrics metrics, Clock clock) {
+                        AuditTrail auditTrail, BusinessEventLogger businessEvents, LegalMetrics metrics,
+                        ApplicationEventPublisher events, Clock clock) {
         this.expenses = expenses;
         this.matters = matters;
         this.lawsuits = lawsuits;
@@ -65,6 +71,7 @@ class LegalExpenseService implements LegalExpenseUseCases {
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -126,6 +133,7 @@ class LegalExpenseService implements LegalExpenseUseCases {
                 .attr("authorizedBudget", m.getAuthorizedBudget() == null ? null : m.getAuthorizedBudget().amount())
                 .attr("stage", m.getStage()));
         metrics.expense(e.getType(), e.getAdvancedBy(), e.isOverBudget());
+        publishChanged(e);
         return LegalViews.expense(e);
     }
 
@@ -141,6 +149,7 @@ class LegalExpenseService implements LegalExpenseUseCases {
                 .reason(e.getStatusReason()).change("status", ExpenseStatus.RECORDED, e.getStatus()));
         businessEvents.log(matterRecorder.base(BusinessEventTypes.LEGAL_EXPENSE_CANCELLED, m).amount(e.getAmount())
                 .reference(ENTITY, e.getId()).attr("matterId", m.getId()).attr("type", e.getType()));
+        publishChanged(e);
         return LegalViews.expense(e);
     }
 
@@ -156,6 +165,7 @@ class LegalExpenseService implements LegalExpenseUseCases {
                 .reference(ENTITY, e.getId()).attr("matterId", m.getId()).attr("type", e.getType())
                 .attr("advancedBy", e.getAdvancedBy())
                 .attr("daysToReimburse", java.time.temporal.ChronoUnit.DAYS.between(e.getIncurredOn(), e.getStatusDate())));
+        publishChanged(e);
         return LegalViews.expense(e);
     }
 
@@ -164,6 +174,14 @@ class LegalExpenseService implements LegalExpenseUseCases {
     public List<ExpenseView> list(UUID matterId) {
         LegalMatter m = access.visible(matterId);
         return expenses.findByMatterIdOrderByIncurredOnDescCreatedAtDesc(m.getId()).stream().map(LegalViews::expense).toList();
+    }
+
+    /** Contrato com a prestação de contas (settlement): despesas reembolsáveis no demonstrativo do credor. */
+    private void publishChanged(LegalExpense e) {
+        events.publishEvent(new LegalExpenseChanged(Ids.newId(), e.getTenantId(), Instant.now(clock), e.getId(),
+                e.getMatterId(), e.getCreditorId(), e.getType().name(), e.getAmount().amount(), e.getIncurredOn(),
+                e.getAdvancedBy().name(), e.isReimbursable(), e.getReceiptDocumentId() != null, e.getStatus().name(),
+                e.getStatusDate()));
     }
 
     private LegalExpense load(UUID id) {
