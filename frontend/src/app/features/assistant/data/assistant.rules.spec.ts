@@ -45,6 +45,18 @@ describe('regras do assistente', () => {
     expect(settingsProblems(settings({ limits: { maxOutputTokens: 10, maxTokensPerTurn: null, maxToolCallsPerTurn: null, timeoutSeconds: null, maxCostPerConversation: 0 } })).length).toBe(2);
   });
 
+  it('Pix na conversa: desligado por padrão, exige identidade e limites válidos', () => {
+    const pix = { enabled: true, maxAmount: 5000, maxPerConversationPerDay: 3, expirationMinutes: 60, riskLookbackDays: 30 };
+    expect(settingsProblems(settings({ pixInConversation: null }))).toEqual([]);
+    expect(settingsProblems(settings({ pixInConversation: pix }))).toEqual([]);
+    expect(settingsProblems(settings({ pixInConversation: { ...pix, enabled: false, maxAmount: 999999 } }))).toEqual([]);
+    expect(settingsProblems(settings({ pixInConversation: pix, requireIdentityVerification: false })).join()).toContain('identidade');
+    expect(settingsProblems(settings({ pixInConversation: { ...pix, maxAmount: 50000.01 } })).join()).toContain('50.000');
+    expect(settingsProblems(settings({ pixInConversation: { ...pix, maxPerConversationPerDay: 11 } })).join()).toContain('no dia');
+    expect(settingsProblems(settings({ pixInConversation: { ...pix, expirationMinutes: 5 } })).join()).toContain('Validade');
+    expect(settingsProblems(settings({ pixInConversation: { ...pix, riskLookbackDays: 0 } })).join()).toContain('Janela');
+  });
+
   it('escopo e segregação da revisão (quem publicou a política não avalia)', () => {
     expect(scopeOf({ creditorId: null, portfolioId: null })).toBe('TENANT');
     expect(scopeOf({ creditorId: 'c-1', portfolioId: null })).toBe('CREDITOR');

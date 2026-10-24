@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
-import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
+import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.TermContent;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
@@ -78,7 +78,7 @@ class AgreementService implements AgreementUseCases {
     @Transactional(readOnly = true)
     public AgreementView get(UUID agreementId) {
         accessScope.requirePermission(Permission.AGREEMENT_VIEW);
-        return views.agreement(loadVisible(agreementId));
+        return views.agreement(loadVisible(agreementId, false));
     }
 
     @Override
@@ -177,10 +177,22 @@ class AgreementService implements AgreementUseCases {
     }
 
     private Agreement loadVisible(UUID id) {
+        return loadVisible(id, true);
+    }
+
+    /**
+     * @param ownOnlyForAssistant o assistente só acessa acordos de que participou (pagamentos, termo, cancelamento).
+     *                            A consulta do acordo ({@code get}) segue a busca: o assistente lê os acordos do
+     *                            credor da conversa (escopo do ator = um credor) — necessário ao Pix da parcela de
+     *                            acordo formalizado por humano ou por outra versão da política (ADR-0009); a
+     *                            vinculação ao devedor da conversa é garantida pelo assistant.
+     */
+    private Agreement loadVisible(UUID id, boolean ownOnlyForAssistant) {
         Agreement a = agreements.findById(id).orElseThrow(() -> new ResourceNotFoundException(RESOURCE, id));
         accessScope.requireVisible(RESOURCE, id, a.getCreditorId());
         Actor actor = currentActor.get();
-        if (actor.isAssistant() && !(actor.id().equals(a.getCloserId()) || actor.id().equals(a.getOriginatorId()))) {
+        if (ownOnlyForAssistant && actor.isAssistant()
+                && !(actor.id().equals(a.getCloserId()) || actor.id().equals(a.getOriginatorId()))) {
             throw new ResourceNotFoundException(RESOURCE, id);
         }
         DebtorSelfScope.requireOwn(actor, RESOURCE, id, a.getDebtorId(), accessLogger);

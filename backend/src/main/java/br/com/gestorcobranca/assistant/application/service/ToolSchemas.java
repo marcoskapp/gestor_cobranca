@@ -12,7 +12,7 @@ final class ToolSchemas {
             """
             {"type":"object","additionalProperties":false,"required":["intent","confidence"],
              "properties":{
-              "intent":{"type":"string","enum":["GREETING","IDENTITY","BALANCE","NEGOTIATE","ACCEPT","PROMISE","CALLBACK","QUESTION","OTHER"]},
+              "intent":{"type":"string","enum":["GREETING","IDENTITY","BALANCE","NEGOTIATE","ACCEPT","PAYMENT","PROMISE","CALLBACK","QUESTION","OTHER"]},
               "confidence":{"type":"number","minimum":0,"maximum":1},
               "signals":{"type":"array","items":{"type":"string","enum":["DISPUTE","PAYMENT_CLAIM","FRAUD_SUSPECTED","DECEASED","VULNERABILITY","LEGAL_MENTION","COMPLAINT","ABUSIVE","HUMAN_REQUESTED"]}}}}
             """);
@@ -73,10 +73,20 @@ final class ToolSchemas {
               "summary":{"type":"string","maxLength":500}}}
             """);
 
-    static final ToolDefinition PAYMENT = new ToolDefinition(AssistantToolbox.PAYMENT,
-            "Gera e envia ao devedor o Pix da próxima parcela do acordo formalizado.",
+    static final ToolDefinition INSTALLMENTS = new ToolDefinition(AssistantToolbox.INSTALLMENTS,
+            "Lista as parcelas em aberto dos acordos vigentes do devedor nesta conversa (referências I1, I2…, com "
+                    + "número, vencimento e valor calculados pelo sistema).",
             """
             {"type":"object","additionalProperties":false,"properties":{}}
+            """);
+
+    static final ToolDefinition PAYMENT = new ToolDefinition(AssistantToolbox.PAYMENT,
+            "Pede o Pix da parcela indicada (referência de get_installments). Use só quando o devedor pedir ou aceitar "
+                    + "explicitamente pagar agora. O sistema avalia os critérios e, se aprovado, envia o código em "
+                    + "mensagem separada; o valor é sempre o da parcela. Se recusado, não insista.",
+            """
+            {"type":"object","additionalProperties":false,"required":["installment"],
+             "properties":{"installment":{"type":"string","description":"referência da parcela, ex.: I1"}}}
             """);
 
     private ToolSchemas() {

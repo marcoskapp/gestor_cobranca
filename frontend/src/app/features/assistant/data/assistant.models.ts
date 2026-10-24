@@ -24,6 +24,18 @@ export interface PolicyLimits {
   maxCostPerConversation: number | null;
 }
 
+/**
+ * `PolicySettings.PixInConversation` — Pix gerado pelo assistente na conversa (ADR-0009). Desligado por
+ * padrão; os critérios de "conversa amigável e conciliação tranquila" são avaliados no servidor.
+ */
+export interface PixInConversation {
+  enabled: boolean | null;
+  maxAmount: number | null;
+  maxPerConversationPerDay: number | null;
+  expirationMinutes: number | null;
+  riskLookbackDays: number | null;
+}
+
 /** `PolicySettings` (jsonb esquema v1; nulos recebem o padrão no servidor). */
 export interface PolicySettings {
   mode: AssistantMode;
@@ -49,6 +61,7 @@ export interface PolicySettings {
   limits: PolicyLimits | null;
   reviewSampleRate: number | null;
   allowCreditBureauMention: boolean | null;
+  pixInConversation?: PixInConversation | null;
 }
 
 /** `AssistantPolicyUseCases.PolicyView` */
@@ -176,6 +189,46 @@ export interface TurnDetail {
   context: string | null;
   outputText: string | null;
   toolCalls: ToolCallView[];
+  pixRequests?: PixRequestView[];
+}
+
+/** `AssistantTrailUseCases.CriterionView` — critério do Pix avaliado no servidor. */
+export interface PixCriterionView {
+  criterion: string;
+  passed: boolean;
+  detail: string | null;
+}
+
+/** `AssistantTrailUseCases.PixRequestView` — pedido de Pix na conversa. */
+export interface PixRequestView {
+  id: string;
+  decision: 'ISSUED' | 'DENIED' | 'SUGGESTED';
+  denialCode: string | null;
+  criteria: PixCriterionView[];
+  agreementId: string | null;
+  installmentNumber: number | null;
+  amount: number | null;
+  instructionId: string | null;
+  reusedInstruction: boolean;
+  expiresAt: string | null;
+  deliveryStatus: 'AWAITING' | 'DELIVERED' | 'CANCELLED' | 'NOT_DELIVERED' | null;
+  deliveryCode: string | null;
+  deliveredAt: string | null;
+  paidAt: string | null;
+  requestedAt: string;
+}
+
+/** `AssistantReviewUseCases.PixQuality` */
+export interface PixQuality {
+  issued: number;
+  delivered: number;
+  denied: number;
+  deniedByReason: Record<string, number>;
+  suggested: number;
+  paid: number;
+  paidWithin24h: number;
+  conversionRate: number | null;
+  paidWithin24hRate: number | null;
 }
 
 /** `AssistantReviewUseCases.QualityView` */
@@ -203,4 +256,5 @@ export interface QualityView {
   avgScore: number | null;
   outOfPolicy: number;
   pendingReviews: number;
+  pix?: PixQuality | null;
 }

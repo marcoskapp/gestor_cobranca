@@ -97,6 +97,33 @@ class AssistantMetrics {
         registry.counter("assistant.events.consumed", "type", type).increment();
     }
 
+    // ------------------------------------------------------------------ Pix na conversa
+
+    void pixIssued(String mode, boolean reused) {
+        registry.counter("assistant.pix.issued", "mode", mode, "reused", String.valueOf(reused)).increment();
+    }
+
+    void pixDenied(String reason) {
+        registry.counter("assistant.pix.denied", "reason", reason).increment();
+    }
+
+    void pixSuggested(String mode) {
+        registry.counter("assistant.pix.suggested", "mode", mode).increment();
+    }
+
+    /** @param outcome DELIVERED, NOT_DELIVERED ou CANCELLED; {@code code} = motivo da não entrega */
+    void pixDelivery(String outcome, String code, Duration sinceRequest) {
+        registry.counter("assistant.pix.deliveries", "outcome", outcome, "code", code == null ? "NA" : code).increment();
+        if (sinceRequest != null && "DELIVERED".equals(outcome)) {
+            Timer.builder("assistant.pix.delivery.latency").publishPercentiles(0.5, 0.95, 0.99).register(registry)
+                    .record(sinceRequest);
+        }
+    }
+
+    void pixPaid(boolean within24h) {
+        registry.counter("assistant.pix.paid", "within_24h", String.valueOf(within24h)).increment();
+    }
+
     void jobFailure(String job) {
         registry.counter("assistant.jobs.failures", "job", job).increment();
     }

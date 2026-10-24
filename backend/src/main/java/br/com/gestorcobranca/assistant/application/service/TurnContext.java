@@ -4,6 +4,7 @@ import br.com.gestorcobranca.assistant.application.port.out.PromptSource.PromptT
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
 import br.com.gestorcobranca.assistant.domain.model.AssistantSession;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
+import br.com.gestorcobranca.assistant.domain.model.PixRequest;
 import br.com.gestorcobranca.assistant.domain.model.SessionMemory;
 import br.com.gestorcobranca.assistant.domain.model.ToolCallOutcome;
 import br.com.gestorcobranca.assistant.domain.model.TriggerSource;
@@ -72,6 +73,10 @@ final class TurnContext {
     String blockReasons;
     /** gatilho detectado nos modos de rascunho (alerta ao operador em vez de transferência) */
     String alert;
+    /** pedidos de Pix avaliados no turno (gravados com o turno — {@link TurnStore}) */
+    final List<PixRequest> pixRequests = new ArrayList<>();
+    /** sugestão de Pix ao operador nos modos de rascunho */
+    String pixSuggestion;
     private int sendSequence;
 
     TurnContext(UUID tenantId, ConversationView conversation, PolicyLookup.Effective policy, AssistantMode mode,

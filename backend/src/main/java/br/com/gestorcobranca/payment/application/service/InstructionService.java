@@ -24,11 +24,11 @@ import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.idempotency.IdempotencyService;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
-import br.com.gestorcobranca.shared.paging.PageQuery;
-import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -219,6 +219,7 @@ class InstructionService implements PaymentInstructionUseCases {
         InstructionStatus before = instruction.getStatus();
         boolean registered = instruction.cancel(reason, Instant.now(clock));
         instructions.save(instruction);
+        recorder.instructionStatusChanged(instruction, before);
         if (registered && instruction.isPix()) {
             InstructionCancellationJob.enqueue(jobs, instruction.getId());
         }

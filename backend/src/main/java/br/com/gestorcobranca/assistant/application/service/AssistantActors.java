@@ -31,16 +31,30 @@ class AssistantActors {
             Permission.AGREEMENT_FORMALIZE, Permission.INTERACTION_REGISTER, Permission.TASK_MANAGE,
             Permission.CONTACT_RESTRICTION_MANAGE);
 
+    /**
+     * Pix na conversa (só com {@code pixInConversation} ligado na política): leitura de acordos e, nos modos
+     * autônomos, geração/consulta/cancelamento de instrução de pagamento.
+     */
+    static final Set<Permission> PIX_READ = EnumSet.of(Permission.AGREEMENT_VIEW);
+    static final Set<Permission> PIX_ACT = EnumSet.of(Permission.PAYMENT_VIEW, Permission.PAYMENT_INSTRUCTION_CREATE);
+
     private final TenantExecution tenantExecution;
 
     AssistantActors(TenantExecution tenantExecution) {
         this.tenantExecution = tenantExecution;
     }
 
-    Actor forPolicy(UUID tenantId, AssistantPolicy policy, AssistantMode mode, UUID creditorId) {
+    /** @param pix a política liga o Pix na conversa */
+    Actor forPolicy(UUID tenantId, AssistantPolicy policy, AssistantMode mode, UUID creditorId, boolean pix) {
         Set<Permission> permissions = EnumSet.copyOf(READ);
         if (mode.autonomous()) {
             permissions.addAll(ACT);
+        }
+        if (pix) {
+            permissions.addAll(PIX_READ);
+            if (mode.autonomous()) {
+                permissions.addAll(PIX_ACT);
+            }
         }
         return Actor.assistant(tenantId, policy.getId(), policy.getCode(), permissions, Set.of(creditorId));
     }

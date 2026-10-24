@@ -39,7 +39,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
-| Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`; `policy.published` com `policyKind = assistant` |
+| Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`; `policy.published` com `policyKind = assistant` |
 | Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 
@@ -293,10 +293,20 @@ Eventos de turno levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `chann
 | `assistant.guardrail_blocked` | guardrail recusou a resposta | `codes` (lista), `action` (`FALLBACK_HANDOFF` no autônomo, `DRAFT_SUPPRESSED` no rascunho) |
 | `assistant.reply_blocked` | porteiro de contato negou o envio | `reasons` (motivos do compliance) |
 | `assistant.turn_failed` | falha técnica (provedor, tempo esgotado, turno interrompido) | `errorCode`; transferência registrada à parte |
-| `policy.published` (`policyKind = assistant`) | versão de política do assistente publicada | `code`, `version`, `mode`, `channels`, `promptCode`, `promptVersion`, `customAuthority`, `maxTurns`, `reviewSampleRate`, `extraTriggers` |
+| `policy.published` (`policyKind = assistant`) | versão de política do assistente publicada | `code`, `version`, `mode`, `channels`, `promptCode`, `promptVersion`, `customAuthority`, `maxTurns`, `reviewSampleRate`, `extraTriggers`, `pixInConversation`, `pixMaxAmount` |
 | `assistant.policy_retired` | versão aposentada | `code`, `version`, `mode` |
 | `assistant.portfolio_disabled` | desligamento imediato da carteira | `previousMode`, `previousPolicyId` |
 | `assistant.review_recorded` | avaliação humana de turno amostrado | `score`, `verdict`, `sampleReason`, `tags`, `policyId` |
+
+Eventos do Pix na conversa (ADR-0009) levam referência `assistant_pix_request`/id do pedido, `creditorId`, `portfolioId`, `debtorId`, `caseId`, `channel` e os atributos comuns `conversationId`, `turnId`, `mode`, `policyId`, `decision`, `agreementId`, `installmentNumber`, `installmentKind` (`SINGLE`, `DOWN_PAYMENT`, `INSTALLMENT`); `amount` = saldo da parcela (valor do Pix). Nunca o "copia e cola", txid, chave ou texto do devedor.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `assistant.pix_issued` | Pix gerado e liberado para envio (turno respondeu ao devedor) | `reusedInstruction`, `expiresInMinutes` |
+| `assistant.pix_denied` | critério do servidor recusou | `reason` (`PIX_DISABLED`, `MODE_NOT_ALLOWED`, `IDENTITY_NOT_VERIFIED`, `NO_FORMALIZED_AGREEMENT`, `OTHER_PARTY`, `INSTALLMENT_NOT_OPEN`, `NOT_FORMALIZED_BY_HUMAN`, `CONVERSATION_RISK`, `OPEN_DISPUTE`, `NO_EXPLICIT_REQUEST`, `AMOUNT_ABOVE_LIMIT`, `DAILY_LIMIT_REACHED`, `PAYMENT_UNAVAILABLE`), `failedCriteria` (lista) |
+| `assistant.pix_suggested` | sombra/copiloto: critérios atendidos, sugestão ao operador | — |
+| `assistant.pix_delivery` | entrega concluída, recusada ou cancelada com o turno | `outcome` (`DELIVERED`, `NOT_DELIVERED`, `CANCELLED`), `code` (`CONTACT_DENIED`, `CONVERSATION_LEFT_ASSISTANT`, `INSTRUCTION_FAILED`, `INSTRUCTION_EXPIRED`, `INVALID_PIX_CODE`, `STATIC_PIX_CODE`, `AMOUNT_MISMATCH`, `ALREADY_PAID`, `TURN_<resultado>`…), `instructionId`; `durationMs` = pedido → entrega |
+| `assistant.pix_paid` | Pix gerado pelo assistente pago (evento `PaymentInstructionStatusChanged`) | `paidWithin24h`, `delivered`, `minutesToPay`; `durationMs` = pedido → pagamento |
 
 ### 3.10 Atributos dos eventos do portal de autonegociação (portal)
 
@@ -451,6 +461,9 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `assistant.turns.scheduled{outcome}`, `assistant.turns.recovered` | agendamento dos turnos (`enqueued`, `deferred` fora do horário, `not_applicable`, `no_new_messages`, `skipped_conversation`) e turnos interrompidos recuperados (alarme se contínuo) |
 | `assistant.policy.transitions{status}`, `assistant.reviews{verdict}` | ciclo das políticas e avaliações humanas (`OUT_OF_POLICY` deve ser zero para avançar de fase) |
 | `assistant.retention.purged`, `assistant.events.consumed{type}`, `assistant.jobs.failures{job}` | descarte do conteúdo da trilha, consumo de eventos e falhas dos agendamentos (alarme) |
+| `assistant.pix.issued{mode,reused}`, `assistant.pix.denied{reason}`, `assistant.pix.suggested{mode}` | Pix na conversa: gerados (instrução nova ou reutilizada), recusados por critério e sugeridos ao operador |
+| `assistant.pix.deliveries{outcome,code}`, `assistant.pix.delivery.latency` (p50/p95/p99) | entrega do código (`DELIVERED`, `NOT_DELIVERED`, `CANCELLED`) e tempo pedido → entrega (registro no PSP); `NOT_DELIVERED` com `INVALID_PIX_CODE`/`STATIC_PIX_CODE`/`AMOUNT_MISMATCH` = alarme (PSP devolvendo código fora do padrão) |
+| `assistant.pix.paid{within_24h}` | Pix do assistente pagos, dentro ou fora de 24 h do pedido (conversão: ÷ `assistant.pix.issued`) |
 | `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome}` | recebimentos registrados (`recorded`, `duplicate`) e apuração (`rated`, `pending_no_rules`, `pending_no_contract`, `pending_original_pending`); `pending_*` contínuo = contrato sem regras publicadas |
 | `settlement.events.ignored{type,reason}` | eventos sem efeito (ex.: `agreement_payment_recorded`/`unapplied`, `legal_expense`/`reimbursed_after_statement` — possível reembolso em duplicidade, investigar) |
 | `settlement.expenses{kind,effect}` | custas do jurídico materializadas (`CHARGE`/`CANCELLATION` × `DEDUCT`/`INFORMATIVE`) |

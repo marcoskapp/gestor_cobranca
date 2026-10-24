@@ -42,7 +42,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `telephony` | Integração CTI/discador: chamadas, clique para ligar, campanhas de discagem (progressiva/preditiva), presença do operador, gravações, resultado vinculado ao caso — ver `docs/tecnico/desenho/telefonia.md` | F20 |
 | `portal` | Autonegociação do devedor (acesso seguro, consulta, proposta, formalização) — ver `docs/tecnico/desenho/portal.md` | F19 |
 | `scoring` | Score de propensão à recuperação e priorização: features, scorecard e regressão logística versionados, escoragem em lote, monitoramento, recuperado × esperado — ver `docs/tecnico/desenho/scoring.md` | F23 |
-| `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails e transferência para humano — ver `docs/tecnico/desenho/assistente.md` | F24 |
+| `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails, transferência para humano e Pix da parcela na conversa (pela interface do `payment`, ADR-0009) — ver `docs/tecnico/desenho/assistente.md` | F24 |
 | `analytics` | Read models e relatórios (painel operacional, recuperação, conversão, produtividade, confiabilidade, exportação) por views `security_invoker` e snapshots por assessoria — ver `docs/tecnico/desenho/analytics.md` | F11, F18 |
 | `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/tecnico/desenho/remuneracao-variavel.md` | remuneração variável |
 | `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/tecnico/desenho/juridico.md` | jurídico |
@@ -68,7 +68,7 @@ shared ◄── organization ◄── identity
               ├── telephony          (→ collection, compliance, debt, organization)
               ├── portal             (→ negotiation, payment, communication, debt, organization)
               ├── scoring            (→ collection, debt, payment, organization)
-              ├── assistant          (→ negotiation, communication, collection, compliance, debt, organization)
+              ├── assistant          (→ negotiation, communication, collection, compliance, debt, payment [ADR-0009], organization)
               ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               └── analytics          (→ organization; lê o banco por views próprias)

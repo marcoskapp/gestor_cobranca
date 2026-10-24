@@ -4,6 +4,7 @@ import br.com.gestorcobranca.payment.application.port.out.PixProvider;
 import br.com.gestorcobranca.payment.application.port.out.PixSandbox;
 import br.com.gestorcobranca.payment.domain.model.PixProviderType;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
+import br.com.gestorcobranca.shared.domain.PixBrCode;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -59,9 +60,10 @@ class SandboxPixProvider implements PixProvider, PixSandbox {
         }
         charges.put(request.txid(), new Charge(connection.accountId(), request.txid(), request.amount(), true));
         count("create_charge", "success");
-        String copyPaste = "00020101021226830014br.gov.bcb.pix2561sandbox.local/qr/v2/" + request.txid()
-                + "5204000053039865802BR5915GESTOR SANDBOX6009SAO PAULO62070503***6304ABCD";
-        return new ChargeResult(request.txid(), 0, "sandbox.local/qr/v2/" + request.txid(), copyPaste,
+        // BR Code dinâmico válido (estrutura EMV e CRC16), como o de um PSP real: URL do payload, sem chave
+        String location = "sandbox.local/qr/v2/" + request.txid();
+        String copyPaste = PixBrCode.dynamic(location, "GESTOR SANDBOX", "SAO PAULO");
+        return new ChargeResult(request.txid(), 0, location, copyPaste,
                 request.due() ? "ATIVA" : "ATIVA");
     }
 

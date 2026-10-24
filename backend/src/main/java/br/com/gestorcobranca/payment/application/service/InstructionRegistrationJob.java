@@ -1,11 +1,11 @@
 package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
-import br.com.gestorcobranca.payment.application.port.out.PixProvider;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.ChargeRequest;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.ChargeResult;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.Payer;
 import br.com.gestorcobranca.payment.application.port.out.PixProvider.ProviderException;
+import br.com.gestorcobranca.payment.application.port.out.PixProvider;
 import br.com.gestorcobranca.payment.domain.model.InstructionStatus;
 import br.com.gestorcobranca.payment.domain.model.InstructionType;
 import br.com.gestorcobranca.payment.domain.model.PaymentInstruction;
@@ -49,11 +49,13 @@ class InstructionRegistrationJob implements JobHandler<InstructionRegistrationJo
     private final DebtorUseCases debtors;
     private final AuditTrail auditTrail;
     private final PaymentMetrics metrics;
+    private final PaymentRecorder recorder;
     private final Clock clock;
 
     InstructionRegistrationJob(PaymentInstructionRepository instructions, PixAccountRepository accounts,
                                PixGateway pixGateway, DebtorUseCases debtors, AuditTrail auditTrail,
-                               PaymentMetrics metrics, Clock clock) {
+                               PaymentMetrics metrics, PaymentRecorder recorder, Clock clock) {
+        this.recorder = recorder;
         this.instructions = instructions;
         this.accounts = accounts;
         this.pixGateway = pixGateway;
@@ -93,9 +95,11 @@ class InstructionRegistrationJob implements JobHandler<InstructionRegistrationJo
         }
         Instant now = Instant.now(clock);
         if (!instruction.getExpiresAt().isAfter(now)) {
-            instruction.expireIfDue(now);
-            instructions.save(instruction);
-            metrics.instruction(instruction.getType().name(), "expired");
+            if (instruction.expireIfDue(now)) {
+                instructions.save(instruction);
+                metrics.instruction(instruction.getType().name(), "expired");
+                recorder.instructionStatusChanged(instruction, InstructionStatus.PENDING);
+            }
             return;
         }
         PixAccount account = accounts.findById(instruction.getPixAccountId()).filter(PixAccount::isActive).orElse(null);
@@ -113,6 +117,7 @@ class InstructionRegistrationJob implements JobHandler<InstructionRegistrationJo
             ChargeResult result = provider.createCharge(pixGateway.connection(account), request);
             instruction.activate(result.revision(), result.location(), result.copyPaste(), now);
             instructions.save(instruction);
+            recorder.instructionStatusChanged(instruction, InstructionStatus.PENDING);
             metrics.instruction(instruction.getType().name(), "registered");
             auditTrail.record(AuditEntry.of("payment_instruction.registered", InstructionService.RESOURCE,
                     instruction.getId()).creditor(instruction.getCreditorId())
@@ -131,6 +136,7 @@ class InstructionRegistrationJob implements JobHandler<InstructionRegistrationJo
     private void fail(PaymentInstruction instruction, String code, String detail) {
         instruction.fail(code, detail);
         instructions.save(instruction);
+        recorder.instructionStatusChanged(instruction, InstructionStatus.PENDING);
         metrics.instruction(instruction.getType().name(), "failed");
         LOG.atWarn().addKeyValue("instructionId", instruction.getId()).addKeyValue("code", code)
                 .log("Cobrança Pix recusada pelo provedor; instrução encerrada como FAILED");

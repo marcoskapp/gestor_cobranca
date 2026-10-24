@@ -2,25 +2,23 @@ package br.com.gestorcobranca.assistant.application.service;
 
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolCall;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolDefinition;
-import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
 import br.com.gestorcobranca.assistant.domain.model.AllowedFacts;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
-import br.com.gestorcobranca.assistant.domain.model.SessionMemory;
 import br.com.gestorcobranca.assistant.domain.model.SessionMemory.OfferMemo;
 import br.com.gestorcobranca.assistant.domain.model.SessionMemory.ProposalMemo;
+import br.com.gestorcobranca.assistant.domain.model.SessionMemory;
 import br.com.gestorcobranca.assistant.domain.model.ToolCallOutcome;
 import br.com.gestorcobranca.assistant.domain.model.TriggerSource;
 import br.com.gestorcobranca.assistant.domain.model.TurnOutcome;
 import br.com.gestorcobranca.assistant.domain.service.HandoffDetector;
 import br.com.gestorcobranca.assistant.domain.service.PersonalDataRedactor;
-import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.CallbackInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.PromiseInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.RecordInteractionCommand;
+import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases;
-import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.ComponentsView;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.JustificationInput;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.OfferView;
@@ -28,13 +26,13 @@ import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulati
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.PlanInput;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.SimulateCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.SimulationView;
-import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases;
+import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.AcceptCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.CreateProposalCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ProposalView;
+import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.DomainException;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -71,10 +69,11 @@ class AssistantToolbox {
     static final String PROMISE = "register_promise";
     static final String CALLBACK = "schedule_callback";
     static final String TRANSFER = "transfer_to_human";
+    static final String INSTALLMENTS = "get_installments";
     static final String PAYMENT = "generate_payment";
 
-    static final Set<String> INTENTS = Set.of("GREETING", "IDENTITY", "BALANCE", "NEGOTIATE", "ACCEPT", "PROMISE",
-            "CALLBACK", "QUESTION", "OTHER");
+    static final Set<String> INTENTS = Set.of("GREETING", "IDENTITY", "BALANCE", "NEGOTIATE", "ACCEPT", "PAYMENT",
+            "PROMISE", "CALLBACK", "QUESTION", "OTHER");
     static final Set<String> CONCESSION_REASONS = Set.of("PAYMENT_CAPACITY", "INCOME_LOSS", "HEALTH_OR_FAMILY",
             "COMPETING_OFFER", "LOW_RECOVERY_PROSPECT", "IMMEDIATE_PAYMENT");
     private static final int MAX_INSTALLMENTS = 60;
@@ -100,7 +99,7 @@ class AssistantToolbox {
     private final AuthorityUseCases authority;
     private final InteractionUseCases interactions;
     private final DebtTitleUseCases titles;
-    private final ObjectProvider<PaymentInstructionPort> payments;
+    private final AssistantPix pix;
     private final AssistantChannel channel;
     private final AssistantActors actors;
     private final AssistantCodec codec;
@@ -109,14 +108,14 @@ class AssistantToolbox {
 
     AssistantToolbox(NegotiationSimulationUseCases simulations, ProposalUseCases proposals, AuthorityUseCases authority,
                      InteractionUseCases interactions, DebtTitleUseCases titles,
-                     ObjectProvider<PaymentInstructionPort> payments, AssistantChannel channel, AssistantActors actors,
+                     AssistantPix pix, AssistantChannel channel, AssistantActors actors,
                      AssistantCodec codec, AssistantMetrics metrics, Clock clock) {
         this.simulations = simulations;
         this.proposals = proposals;
         this.authority = authority;
         this.interactions = interactions;
         this.titles = titles;
-        this.payments = payments;
+        this.pix = pix;
         this.channel = channel;
         this.actors = actors;
         this.codec = codec;
@@ -135,6 +134,11 @@ class AssistantToolbox {
         if (confirmed) {
             tools.add(ToolSchemas.DEBT_SUMMARY);
             tools.add(ToolSchemas.SIMULATE);
+            if (pix.offered(ctx)) {
+                // nos modos de rascunho o Pix vira sugestão ao operador (nada é gerado nem enviado)
+                tools.add(ToolSchemas.INSTALLMENTS);
+                tools.add(ToolSchemas.PAYMENT);
+            }
         }
         if (!drafts) {
             tools.add(ToolSchemas.TRANSFER);
@@ -144,10 +148,6 @@ class AssistantToolbox {
                 if (ctx.conversation.caseId() != null) {
                     tools.add(ToolSchemas.PROMISE);
                     tools.add(ToolSchemas.CALLBACK);
-                }
-                if (payments.getIfAvailable() != null && ctx.memory.proposal() != null
-                        && ctx.memory.proposal().agreementId() != null) {
-                    tools.add(ToolSchemas.PAYMENT);
                 }
             }
         }
@@ -180,7 +180,8 @@ class AssistantToolbox {
                     case PROMISE -> promise(ctx, args);
                     case CALLBACK -> callback(ctx, args);
                     case TRANSFER -> transfer(args);
-                    case PAYMENT -> payment(ctx);
+                    case INSTALLMENTS -> pix.installments(ctx);
+                    case PAYMENT -> pix.request(ctx, text(args.get("installment")));
                     default -> rejected("unknown_tool");
                 };
             } catch (DomainException e) {
@@ -456,21 +457,6 @@ class AssistantToolbox {
                 note, null, null, false, false));
     }
 
-    private ToolOutcome payment(TurnContext ctx) {
-        PaymentInstructionPort port = payments.getIfAvailable();
-        ProposalMemo memo = ctx.memory.proposal();
-        if (port == null || memo == null || memo.agreementId() == null) {
-            throw new ArgumentException("payment_not_available");
-        }
-        PaymentInstructionPort.PixInstruction pix = actors.as(ctx.actor, () -> port.createPix(memo.agreementId(), null));
-        // o código Pix vai ao devedor em mensagem própria; o modelo só recebe valor e vencimento
-        channel.send(ctx, "Pix para pagamento: " + pix.copyPaste());
-        ctx.memory = ctx.memory.withFacts(ctx.memory.facts().withAmounts(List.of(pix.amount()))
-                .withDates(pix.dueDate() == null ? List.of() : List.of(pix.dueDate())));
-        return new ToolOutcome(ToolCallOutcome.OK, codec.toJson(Map.of("sent", true, "amount", pix.amount(),
-                "dueDate", String.valueOf(pix.dueDate()))), null, "payment_instruction", pix.instructionId(), null);
-    }
-
     // ------------------------------------------------------------------ apoio
 
     private void remember(TurnContext ctx, ProposalView view) {
@@ -559,7 +545,7 @@ class AssistantToolbox {
         }
         Map<String, Object> kept = new LinkedHashMap<>();
         for (String key : List.of("intent", "confidence", "signals", "installments", "level", "reason", "offer",
-                "proposal", "amount", "date", "dateTime")) {
+                "proposal", "amount", "date", "dateTime", "installment")) {
             if (args.containsKey(key)) {
                 kept.put(key, args.get(key));
             }

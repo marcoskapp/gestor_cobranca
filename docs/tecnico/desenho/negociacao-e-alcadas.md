@@ -239,6 +239,8 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 | `/proposals/{id}/accept` · `/formalize` | `POST` | `AGREEMENT_FORMALIZE` |
 | `/agreements` · `/agreements/{id}` · `/installments` · `/payments` · `/term` | `GET` | `AGREEMENT_VIEW` |
 
+Assistente (ator `ASSISTANT`, escopo = credor da conversa): consulta e busca de acordos do credor (24/10/2026 — Pix na conversa, ADR-0009; a ligação ao devedor é garantida no assistant); pagamentos, termo e cancelamento só dos acordos de que a versão da política participou (`closer`/`originator`); propostas só as próprias.
+
 Porta pública adicional (23/10/2026, para a prestação de contas — [prestacao-de-contas.md](prestacao-de-contas.md)): `AgreementUseCases#paymentDistribution(agreementId, paymentId)` devolve a distribuição de um pagamento aplicado (parcelas com número, títulos com a identificação no credor e componentes do razão), número de parcelas, maior atraso na formalização e número da renegociação. Sem endpoint REST; `AGREEMENT_VIEW` e escopo por credor.
 | `/agreements/{id}/cancel` | `POST` | `AGREEMENT_CANCEL` |
 

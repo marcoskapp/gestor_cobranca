@@ -28,7 +28,8 @@ import java.util.UUID;
 @Table(name = "assistant_turn", schema = "assistant")
 public class AssistantTurn extends TenantScopedEntity {
 
-    public static final int CONTEXT_SCHEMA_VERSION = 1;
+    /** v2: parcelas em aberto ({@code I1}…) e indicador do Pix na conversa. */
+    public static final int CONTEXT_SCHEMA_VERSION = 2;
 
     @Column(name = "session_id", nullable = false, updatable = false)
     private UUID sessionId;

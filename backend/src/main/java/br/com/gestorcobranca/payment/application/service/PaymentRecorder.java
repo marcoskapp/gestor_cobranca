@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.payment.domain.model.Divergence;
+import br.com.gestorcobranca.payment.domain.model.InstructionStatus;
 import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.PaymentAllocation;
 import br.com.gestorcobranca.payment.domain.model.PaymentInstruction;
@@ -10,10 +11,13 @@ import br.com.gestorcobranca.payment.domain.model.TargetKind;
 import br.com.gestorcobranca.payment.domain.repository.PaymentAllocationRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.Money;
+import br.com.gestorcobranca.shared.events.payment.PaymentInstructionStatusChanged;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -35,10 +39,12 @@ class PaymentRecorder {
     private final AuditTrail auditTrail;
     private final PaymentAllocationRepository allocations;
     private final PaymentMetrics metrics;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     PaymentRecorder(BusinessEventLogger businessEvents, AuditTrail auditTrail, PaymentAllocationRepository allocations,
-                    PaymentMetrics metrics, Clock clock) {
+                    PaymentMetrics metrics, ApplicationEventPublisher events, Clock clock) {
+        this.events = events;
         this.businessEvents = businessEvents;
         this.auditTrail = auditTrail;
         this.allocations = allocations;
@@ -61,6 +67,21 @@ class PaymentRecorder {
                 .created("targetKind", i.targetKind()).created("expiresAt", i.getExpiresAt())
                 .meta("agreementId", i.getAgreementId()).meta("installmentId", i.getInstallmentId())
                 .meta("titleId", i.getTitleId()).meta("txid", i.getTxid()));
+    }
+
+    /**
+     * Publica {@code PaymentInstructionStatusChanged} (na transação da mudança; só ids, enums e valores).
+     *
+     * @param previous situação antes da mudança
+     */
+    void instructionStatusChanged(PaymentInstruction i, InstructionStatus previous) {
+        if (previous == i.getStatus()) {
+            return;
+        }
+        events.publishEvent(new PaymentInstructionStatusChanged(Ids.newId(), i.getTenantId(), Instant.now(clock),
+                i.getId(), i.getType().name(), previous == null ? null : previous.name(), i.getStatus().name(),
+                i.getCreditorId(), i.getDebtorId(), i.getAgreementId(), i.getInstallmentId(), i.getAmount().amount(),
+                i.getPaidAt()));
     }
 
     void informed(Payment p) {

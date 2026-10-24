@@ -2,7 +2,6 @@ package br.com.gestorcobranca.assistant.application.service;
 
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolCall;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolDefinition;
-import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
 import br.com.gestorcobranca.assistant.domain.model.AssistantPolicy;
 import br.com.gestorcobranca.assistant.domain.model.AssistantSession;
@@ -21,7 +20,6 @@ import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.security.Actor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
@@ -53,10 +51,9 @@ class AssistantToolboxTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         when(actors.as(any(), any())).thenAnswer(inv -> ((Supplier<Object>) inv.getArgument(1)).get());
-        ObjectProvider<PaymentInstructionPort> payments = mock(ObjectProvider.class);
         AssistantCodec codec = new AssistantCodec(new JsonCodec(JsonMapper.builder().build()));
         toolbox = new AssistantToolbox(simulations, proposals, mock(AuthorityUseCases.class), interactions,
-                mock(DebtTitleUseCases.class), payments, mock(AssistantChannel.class), actors, codec,
+                mock(DebtTitleUseCases.class), mock(AssistantPix.class), mock(AssistantChannel.class), actors, codec,
                 mock(AssistantMetrics.class), Clock.systemUTC());
         ctx = context(AssistantMode.AUTONOMOUS, true);
     }

@@ -2,12 +2,12 @@ package br.com.gestorcobranca.assistant.application.service;
 
 import br.com.gestorcobranca.assistant.application.AssistantProperties;
 import br.com.gestorcobranca.assistant.application.port.out.ConversationLocks;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelException;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelMessage;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelRequest;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelResponse;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolCall;
+import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort;
 import br.com.gestorcobranca.assistant.application.service.AssistantToolbox.Terminal;
 import br.com.gestorcobranca.assistant.application.service.AssistantToolbox.ToolOutcome;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
@@ -21,18 +21,18 @@ import br.com.gestorcobranca.assistant.domain.model.ToolCallOutcome;
 import br.com.gestorcobranca.assistant.domain.model.TriggerSource;
 import br.com.gestorcobranca.assistant.domain.model.TurnOutcome;
 import br.com.gestorcobranca.assistant.domain.service.ContextBuilder;
-import br.com.gestorcobranca.assistant.domain.service.HandoffDetector;
 import br.com.gestorcobranca.assistant.domain.service.HandoffDetector.Detection;
+import br.com.gestorcobranca.assistant.domain.service.HandoffDetector;
 import br.com.gestorcobranca.assistant.domain.service.IdentityChallenge;
 import br.com.gestorcobranca.assistant.domain.service.ModelContext;
 import br.com.gestorcobranca.assistant.domain.service.PersonalDataRedactor;
 import br.com.gestorcobranca.assistant.domain.service.ResponseGuard;
 import br.com.gestorcobranca.assistant.domain.service.ServiceHours;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
-import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases;
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.ConversationView;
-import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
+import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.MessageView;
+import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorIdentityUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -98,6 +98,7 @@ class TurnOrchestrator {
     private final AssistantActors actors;
     private final AssistantChannel channel;
     private final AssistantToolbox toolbox;
+    private final AssistantPix pix;
     private final ObjectProvider<LanguageModelPort> models;
     private final TurnStore store;
     private final ConversationLocks locks;
@@ -109,7 +110,7 @@ class TurnOrchestrator {
 
     TurnOrchestrator(ConversationUseCases conversations, MessageUseCases messages, CaseUseCases cases,
                      DebtorUseCases debtors, DebtorIdentityUseCases identity, PolicyLookup lookup, PromptCatalog prompts,
-                     AssistantActors actors, AssistantChannel channel, AssistantToolbox toolbox,
+                     AssistantActors actors, AssistantChannel channel, AssistantToolbox toolbox, AssistantPix pix,
                      ObjectProvider<LanguageModelPort> models, TurnStore store, ConversationLocks locks,
                      JobQueue jobQueue, AssistantCodec codec, AssistantMetrics metrics, AssistantProperties properties,
                      Clock clock) {
@@ -123,6 +124,7 @@ class TurnOrchestrator {
         this.actors = actors;
         this.channel = channel;
         this.toolbox = toolbox;
+        this.pix = pix;
         this.models = models;
         this.store = store;
         this.locks = locks;
@@ -174,7 +176,8 @@ class TurnOrchestrator {
         }
         AssistantMode mode = policy.map(p -> p.settings().mode()).orElse(AssistantMode.OFF);
         TurnContext ctx = new TurnContext(tenantId, c, policy.orElse(null), mode,
-                policy.map(p -> actors.forPolicy(tenantId, p.policy(), mode, c.creditorId())).orElse(null), Ids.newId(),
+                policy.map(p -> actors.forPolicy(tenantId, p.policy(), mode, c.creditorId(), p.settings().pix().on()))
+                        .orElse(null), Ids.newId(),
                 now);
         Instant upTo = pending.stream().map(TurnOrchestrator::receivedAt).max(Comparator.naturalOrder()).orElse(now);
         ctx.session = store.begin(session, ctx.token, upTo, policy.map(p -> p.policy().getId()).orElse(null));
@@ -192,7 +195,22 @@ class TurnOrchestrator {
         } catch (RuntimeException e) {
             fail(ctx, e, decision.action() != Action.DRAFT);
         }
+        settlePix(ctx);
         store.record(ctx);
+    }
+
+    /** Pix gerado num turno que não respondeu ao devedor é cancelado (nunca falha o registro do turno). */
+    private void settlePix(TurnContext ctx) {
+        if (ctx.pixRequests.isEmpty()) {
+            return;
+        }
+        try {
+            pix.settle(ctx);
+        } catch (RuntimeException e) {
+            LOG.atError().addKeyValue("conversationId", ctx.conversation.id()).setCause(e)
+                    .log("Falha ao concluir o Pix do turno do assistente");
+            ctx.pixRequests.forEach(r -> r.cancelDelivery("SETTLE_FAILED"));
+        }
     }
 
     /**
@@ -394,6 +412,9 @@ class TurnOrchestrator {
             sb.append(" | Próxima oferta sugerida: ").append(best.installments()).append(" pagamento(s), total R$ ")
                     .append(best.total().toPlainString()).append(", nível ").append(best.level());
         }
+        if (ctx.pixSuggestion != null) {
+            sb.append(" | ").append(ctx.pixSuggestion);
+        }
         sb.append(" | Confirme a identidade do titular antes de enviar valores.");
         return sb.length() <= 500 ? sb.toString() : sb.substring(0, 500);
     }
@@ -544,7 +565,8 @@ class TurnOrchestrator {
         UUID interrupted = session.abandonPending();
         AssistantMode mode = policy == null ? AssistantMode.OFF : policy.settings().mode();
         TurnContext ctx = new TurnContext(tenantId, c, policy, mode,
-                policy == null ? null : actors.forPolicy(tenantId, policy.policy(), mode, c.creditorId()), interrupted,
+                policy == null ? null : actors.forPolicy(tenantId, policy.policy(), mode, c.creditorId(),
+                        policy.settings().pix().on()), interrupted,
                 Instant.now(clock));
         // a sessão já sem a marca do turno interrompido; o registro usa a mesma marca para concluir
         session.begin(interrupted, null, Instant.now(clock), policy == null ? null : policy.policy().getId());

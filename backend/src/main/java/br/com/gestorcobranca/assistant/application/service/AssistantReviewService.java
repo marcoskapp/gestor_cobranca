@@ -180,7 +180,14 @@ class AssistantReviewService implements AssistantReviewUseCases {
                 s.conversations() == 0 ? null : ratio(handoffs, s.conversations()), s.guardrails(), s.agreementsByOrigin(),
                 byGroup, earlyRate, properties.earlyBreakDays(), complaints, s.cost(), s.costCurrency(), costPerAgreement,
                 s.inputTokens(), s.outputTokens(), s.avgLatencyMs(), s.reviewed(), s.avgScore(), s.outOfPolicy(),
-                s.pendingReviews());
+                s.pendingReviews(), pix(s.pix()));
+    }
+
+    private static PixQuality pix(QualityStatistics.PixStats p) {
+        long denied = p.deniedByReason().values().stream().mapToLong(Long::longValue).sum();
+        return new PixQuality(p.issued(), p.delivered(), denied, p.deniedByReason(), p.suggested(), p.paid(),
+                p.paidWithin24h(), p.issued() == 0 ? null : ratio(p.paid(), p.issued()),
+                p.issued() == 0 ? null : ratio(p.paidWithin24h(), p.issued()));
     }
 
     private ReviewView view(TurnReview r) {

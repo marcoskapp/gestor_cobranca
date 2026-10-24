@@ -6,7 +6,7 @@ M07 parcial, F10 (instruções de pagamento), F14 (pagamentos), F15 (conciliaç�
 
 | Componente | Onde | Papel |
 | --- | --- | --- |
-| `PixAccount` | `domain.model` | conta Pix (PSP) da assessoria (`creditorId` nulo) ou de um credor; URL da API, URL do token, chave Pix, segredos e certificado mTLS criptografados, modo de autenticação do webhook (MTLS/HMAC), `routingKey` de 256 bits |
+| `PixAccount` | `domain.model` | conta Pix (PSP) da assessoria (`creditorId` nulo) ou de um credor; URL da API, URL do token, chave Pix (chave CPF — pessoa física — é recusada: a conta é sempre do credor ou da assessoria), segredos e certificado mTLS criptografados, modo de autenticação do webhook (MTLS/HMAC), `routingKey` de 256 bits |
 | `PaymentInstruction` | `domain.model` | Pix imediato (`cob`), com vencimento (`cobv`), boleto ou link para UMA parcela de acordo ou UM título; `PENDING → ACTIVE → PAID | EXPIRED | CANCELLED`, `FAILED` |
 | `Payment` | `domain.model` | pagamento integrado (`PROVIDER`) ou externo (`EXTERNAL`, evidência obrigatória); `INFORMED → CONFIRMED → RECONCILED`, `INFORMED → REJECTED`, `CONFIRMED/RECONCILED → REVERSED` |
 | `PaymentAllocation` (+ linhas) | `domain.model` | parte do pagamento para UM destino (parcelas de um acordo, títulos avulsos, devolução); resultado da baixa no negotiation; liberação para realocação; compensação publicada |
@@ -99,6 +99,7 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 | --- | --- | --- |
 | `PaymentConfirmed` | payment → negotiation (`agreementId`, `Allocation.agreementInstallmentId`, `paymentId`, `amount`, `paidAt`, `source`, `method`), collection (`agreementId` nulo, `debtorId`, `creditorId`, `portfolioId` ou `Allocation.titleId`, `amount`, `paidAt`), incentive (`agreementId`, alocações a parcelas, `portfolioId`, `paidAt`, `occurredAt`), settlement (títulos avulsos: `Allocation.titleReference`, `daysPastDue`, `honorariumAmount` — novos, 23/10/2026) | todos preenchidos; `portfolioId` = carteira do acordo ou dos títulos (nulo se títulos de carteiras diferentes); nas alocações a títulos, `titleReference` = `externalId/parcela` do título, `daysPastDue` = atraso na data do pagamento e `honorariumAmount` = parte distribuída ao componente `HONORARIUM` |
 | `PaymentReversed` | payment → negotiation (`agreementId`, `paymentId`, `reversalId`, `reason`), collection (`debtorId`, `paymentId`), incentive e settlement (`reversalId`, `paymentId`, `agreementId`, `amount`) | `paymentId` = alocação; `reason` = motivo (`REALLOCATED` na liberação) |
+| `PaymentInstructionStatusChanged` (24/10/2026, ADR-0009) | payment → assistant (`instructionId`, `status`, `paidAt`) | publicado em toda mudança de situação da instrução (`ACTIVE` no registro, `FAILED`, `PAID`, `EXPIRED`, `CANCELLED`) com `previous`, `type`, `creditorId`, `debtorId`, `agreementId`, `installmentId`, `amount`; nunca o "copia e cola", txid ou dados do pagador |
 | `AgreementPaymentRecorded` (**novo**) | negotiation → payment | `paymentId` (alocação), `appliedAmount`, `unappliedAmount`, `status`, `agreementStatus` |
 | consumidos | `AgreementStatusChanged`, `InstallmentStatusChanged`, `TitleStatusChanged` | cancelamento de instruções abertas |
 

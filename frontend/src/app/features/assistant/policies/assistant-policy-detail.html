@@ -311,6 +311,36 @@
             </div>
           </div>
         </section>
+
+        <section class="app-card" aria-labelledby="ap-pix" data-tour="assistant-pix">
+          <h2 class="app-card__title" id="ap-pix">Pix na conversa</h2>
+          <p class="app-muted as-small">O assistente gera o Pix imediato da parcela de um acordo formalizado do próprio devedor quando a conversa foi amigável e a conciliação tranquila. O sistema confere os critérios (identidade, acordo, nenhum gatilho de transferência, guardrail ou contestação, pedido explícito de pagar agora, limites); a IA nunca informa o valor. Nos modos sombra e copiloto só sugere ao operador.</p>
+          <div class="app-form-grid">
+            <div class="app-span-all">
+              <mat-checkbox [ngModel]="d.pixInConversation?.enabled ?? false" (ngModelChange)="setPixEnabled($event)" [disabled]="!editable()">Permitir que o assistente gere o Pix na conversa</mat-checkbox>
+            </div>
+            @if (d.pixInConversation?.enabled && d.pixInConversation; as pix) {
+              <mat-form-field>
+                <mat-label>Valor máximo por Pix (R$)</mat-label>
+                <input matInput inputmode="decimal" [ngModel]="pix.maxAmount" (ngModelChange)="setPix('maxAmount', $event)" [readonly]="!editable()" placeholder="5000,00" />
+                <mat-hint>Padrão R$ 5.000,00; acima disso um atendente gera</mat-hint>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Pix por conversa no dia</mat-label>
+                <input matInput type="number" [ngModel]="pix.maxPerConversationPerDay" (ngModelChange)="setPix('maxPerConversationPerDay', $event)" [readonly]="!editable()" placeholder="3" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Validade do Pix (minutos)</mat-label>
+                <input matInput type="number" [ngModel]="pix.expirationMinutes" (ngModelChange)="setPix('expirationMinutes', $event)" [readonly]="!editable()" placeholder="60" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Janela de risco (dias)</mat-label>
+                <input matInput type="number" [ngModel]="pix.riskLookbackDays" (ngModelChange)="setPix('riskLookbackDays', $event)" [readonly]="!editable()" placeholder="30" />
+                <mat-hint>Transferência por conduta ou guardrail na sessão impede o Pix</mat-hint>
+              </mat-form-field>
+            }
+          </div>
+        </section>
       </div>
 
       <aside class="as-side">

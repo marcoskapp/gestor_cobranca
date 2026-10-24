@@ -35,6 +35,7 @@ public class PixAccount extends TenantScopedEntity {
 
     public static final int CREDENTIALS_MAX = 4000;
     public static final int CERTIFICATE_MAX = 22000;
+    private static final Pattern CPF_KEY = Pattern.compile("\\d{11}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}");
     private static final Pattern FINGERPRINT = Pattern.compile("[0-9a-f]{64}");
 
     @Column(name = "creditor_id", updatable = false)
@@ -111,6 +112,10 @@ public class PixAccount extends TenantScopedEntity {
                 "Nome obrigatório (até 120 caracteres)");
         Guard.require(pixKey != null && !pixKey.isBlank() && pixKey.trim().length() <= 77, "pix_account.pix_key_invalid",
                 "Chave Pix do recebedor obrigatória (até 77 caracteres)");
+        // conta de cobrança do credor/assessoria (pessoa jurídica): chave CPF (11 dígitos no DICT) é de
+        // pessoa física e nunca recebe pagamentos de devedores
+        Guard.require(!CPF_KEY.matcher(pixKey.trim()).matches(), "pix_account.pix_key_natural_person",
+                "Chave Pix de pessoa física (CPF) não é aceita: use a chave da conta do credor ou da assessoria");
         this.name = name.trim();
         this.pixKey = pixKey.trim();
         this.apiBaseUrl = endpoint(apiBaseUrl, "pix_account.api_url_invalid", "URL base da API Pix");

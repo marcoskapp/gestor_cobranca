@@ -146,3 +146,35 @@
   display: block;
   padding-left: 28px;
 }
+.td-pix {
+  padding: 8px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  & + & {
+    margin-top: 6px;
+  }
+}
+.td-criteria {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  li {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 0;
+  }
+  mat-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    align-self: center;
+  }
+  .td-ok {
+    color: var(--app-success-fg);
+  }
+  .td-fail {
+    color: var(--app-danger-fg);
+  }
+}

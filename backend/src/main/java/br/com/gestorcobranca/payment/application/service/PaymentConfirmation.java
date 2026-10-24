@@ -3,6 +3,7 @@ package br.com.gestorcobranca.payment.application.service;
 import br.com.gestorcobranca.payment.application.service.AllocationService.Destination;
 import br.com.gestorcobranca.payment.application.service.AllocationService.Result;
 import br.com.gestorcobranca.payment.domain.model.AllocationOrigin;
+import br.com.gestorcobranca.payment.domain.model.InstructionStatus;
 import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.PaymentInstruction;
 import br.com.gestorcobranca.payment.domain.model.TargetKind;
@@ -53,8 +54,10 @@ class PaymentConfirmation {
                 : allocationService.allocate(payment, destination, payment.getAmount(), AllocationOrigin.INITIAL, null);
         payments.save(payment);
         if (instruction != null) {
+            InstructionStatus before = instruction.getStatus();
             instruction.markPaid(payment.getId(), payment.getPaidAt());
             instructions.save(instruction);
+            recorder.instructionStatusChanged(instruction, before);
         }
         recorder.confirmed(payment, result.allocations(), result.leftover(), result.leftoverReason(), trigger, instruction);
     }

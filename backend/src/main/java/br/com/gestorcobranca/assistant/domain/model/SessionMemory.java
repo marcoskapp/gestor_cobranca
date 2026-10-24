@@ -12,13 +12,26 @@ import java.util.UUID;
  * da dívida e fatos citáveis. O modelo nunca escreve aqui diretamente.
  */
 public record SessionMemory(DebtSummary debt, UUID simulationId, List<OfferMemo> offers, ProposalMemo proposal,
-                            AllowedFacts facts, String lastIntent) {
+                            AllowedFacts facts, String lastIntent, List<InstallmentMemo> installments) {
 
-    public static final SessionMemory EMPTY = new SessionMemory(null, null, List.of(), null, AllowedFacts.EMPTY, null);
+    public static final SessionMemory EMPTY = new SessionMemory(null, null, List.of(), null, AllowedFacts.EMPTY, null,
+            List.of());
 
     public SessionMemory {
         offers = offers == null ? List.of() : List.copyOf(offers);
         facts = facts == null ? AllowedFacts.EMPTY : facts;
+        installments = installments == null ? List.of() : List.copyOf(installments);
+    }
+
+    /**
+     * Parcela/entrada em aberto de acordo vigente do devedor no credor da conversa, devolvida pelo
+     * negotiation (ferramenta {@code get_installments}); o modelo só vê a referência opaca ({@code I1}…).
+     *
+     * @param amount          saldo em aberto da parcela (valor exato do Pix)
+     * @param agreementOrigin origem da atribuição do acordo (HUMAN, ASSISTANT_AUTONOMOUS…)
+     */
+    public record InstallmentMemo(String ref, UUID agreementId, UUID installmentId, int number, LocalDate dueDate,
+                                  BigDecimal amount, String status, String agreementOrigin) {
     }
 
     /** Resumo da dívida devolvido pelo motor (saldo atualizado na data). */
@@ -48,13 +61,24 @@ public record SessionMemory(DebtSummary debt, UUID simulationId, List<OfferMemo>
                                UUID agreementId) {
     }
 
+    public Optional<InstallmentMemo> installment(String ref) {
+        return installments.stream().filter(i -> i.ref().equalsIgnoreCase(ref == null ? "" : ref.trim())).findFirst();
+    }
+
+    /** Parcelas devolvidas pelo motor (valores e vencimentos passam a ser citáveis). */
+    public SessionMemory withInstallments(List<InstallmentMemo> list) {
+        AllowedFacts f = facts.withAmounts(list.stream().map(InstallmentMemo::amount).toList())
+                .withDates(list.stream().map(InstallmentMemo::dueDate).toList());
+        return new SessionMemory(debt, simulationId, offers, proposal, f, lastIntent, list);
+    }
+
     public Optional<OfferMemo> offer(String ref) {
         return offers.stream().filter(o -> o.ref().equalsIgnoreCase(ref == null ? "" : ref.trim())).findFirst();
     }
 
     public SessionMemory withDebt(DebtSummary summary) {
         return new SessionMemory(summary, simulationId, offers, proposal,
-                facts.withAmounts(List.of(summary.updatedTotal())), lastIntent);
+                facts.withAmounts(List.of(summary.updatedTotal())), lastIntent, installments);
     }
 
     public SessionMemory withOffers(UUID simulation, List<OfferMemo> newOffers) {
@@ -66,20 +90,21 @@ public record SessionMemory(DebtSummary debt, UUID simulationId, List<OfferMemo>
                     .withInstallments(List.of(o.installments()))
                     .withPercents(o.discountRates());
         }
-        return new SessionMemory(debt, simulation, newOffers, proposal, f, lastIntent);
+        return new SessionMemory(debt, simulation, newOffers, proposal, f, lastIntent, installments);
     }
 
     public SessionMemory withProposal(ProposalMemo memo) {
         return new SessionMemory(debt, simulationId, offers, memo,
-                facts.withAmounts(List.of(memo.total())).withInstallments(List.of(memo.installments())), lastIntent);
+                facts.withAmounts(List.of(memo.total())).withInstallments(List.of(memo.installments())), lastIntent,
+                installments);
     }
 
     public SessionMemory withFacts(AllowedFacts newFacts) {
-        return new SessionMemory(debt, simulationId, offers, proposal, newFacts, lastIntent);
+        return new SessionMemory(debt, simulationId, offers, proposal, newFacts, lastIntent, installments);
     }
 
     public SessionMemory withIntent(String intent) {
-        return new SessionMemory(debt, simulationId, offers, proposal, facts, intent);
+        return new SessionMemory(debt, simulationId, offers, proposal, facts, intent, installments);
     }
 
     /** Nova etapa de atendimento (conversa devolvida ao assistente): ofertas e proposta são recalculadas. */

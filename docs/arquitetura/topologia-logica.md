@@ -92,7 +92,7 @@ flowchart BT
     TEL["telephony<br/>chamadas · discador"]
     POR["portal<br/>autonegociação do devedor"]
     SCO["scoring<br/>propensão à recuperação"]
-    AST["assistant<br/>IA com limites e handoff"]
+    AST["assistant<br/>IA com limites, handoff e Pix na conversa"]
     ANA["analytics<br/>painéis · relatórios"]
 
     ORG --> SH
@@ -109,7 +109,7 @@ flowchart BT
     TEL --> COL
     POR --> PAY & COM
     SCO --> PAY & COL
-    AST --> NEG & COM
+    AST --> NEG & COM & PAY
     ANA --> ORG
 ```
 
@@ -125,6 +125,7 @@ flowchart BT
 | `DisputeStatusChanged` | collection | campaign, negotiation |
 | `AgreementStatusChanged`, `InstallmentStatusChanged` | negotiation | collection, campaign, settlement, portal |
 | `PaymentConfirmed`, `PaymentReversed` | payment | collection, campaign, settlement, scoring |
+| `PaymentInstructionStatusChanged` | payment | assistant (entrega do Pix gerado na conversa e conversão — ADR-0009) |
 | `MessageStatusChanged` | communication | collection, campaign, assistant |
 | `CallCompleted` | telephony | collection, scoring |
 | `CadenceExhausted` | campaign | legal (critério "régua extrajudicial esgotada") |

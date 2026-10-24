@@ -64,12 +64,27 @@ class JdbcQualityStatistics implements QualityStatistics {
                        count(*) filter (where verdict = 'OUT_OF_POLICY') as out_of_policy,
                        count(*) filter (where status = 'PENDING') as pending
                   from assistant.turn_review""" + reviewsWhere, p);
+        String pixWhere = " where requested_at >= :from and requested_at < :to and " + scope;
+        Map<String, Object> pix = jdbc.queryForMap("""
+                select count(*) filter (where decision = 'ISSUED' and delivery_status <> 'CANCELLED') as issued,
+                       count(*) filter (where delivery_status = 'DELIVERED') as delivered,
+                       count(*) filter (where decision = 'SUGGESTED') as suggested,
+                       count(*) filter (where decision = 'ISSUED' and paid_at is not null) as paid,
+                       count(*) filter (where decision = 'ISSUED' and paid_at is not null
+                                          and paid_at <= requested_at + interval '24 hours') as paid24
+                  from assistant.pix_request""" + pixWhere, p);
+        Map<String, Long> denied = grouped("select denial_code as k, count(*) as n from assistant.pix_request" + pixWhere
+                + " and decision = 'DENIED' group by denial_code", p);
+        QualityStatistics.PixStats pixStats = new QualityStatistics.PixStats(num(pix.get("issued")),
+                num(pix.get("delivered")), denied, num(pix.get("suggested")), num(pix.get("paid")),
+                num(pix.get("paid24")));
         BigDecimal avgScore = review.get("avg_score") == null ? null
                 : new BigDecimal(review.get("avg_score").toString()).setScale(2, java.math.RoundingMode.HALF_EVEN);
         return new Snapshot(num(totals.get("turns")), num(totals.get("conversations")), outcomes, handoffs, guardrails,
                 new BigDecimal(totals.get("cost").toString()), (String) totals.get("currency"),
                 num(totals.get("input_tokens")), num(totals.get("output_tokens")), num(totals.get("latency")), agreements,
-                early, num(review.get("reviewed")), avgScore, num(review.get("out_of_policy")), num(review.get("pending")));
+                early, num(review.get("reviewed")), avgScore, num(review.get("out_of_policy")), num(review.get("pending")),
+                pixStats);
     }
 
     private Map<String, Long> grouped(String sql, MapSqlParameterSource p) {

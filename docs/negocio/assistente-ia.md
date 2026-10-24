@@ -17,7 +17,7 @@ O assistente age apenas por **ferramentas** com permissão explícita:
 | Simular opções | Ofertas dentro do envelope permitido para o assistente |
 | Registrar proposta | Grava a proposta aceita pelo devedor |
 | Formalizar acordo | Gera termo e registra aceite (somente se a alçada permitir) |
-| Gerar pagamento | Pix (e boleto/link quando houver provedor) |
+| Gerar pagamento | Pix imediato da parcela de acordo do próprio devedor, quando a conversa foi amigável e a conciliação tranquila (§10); boleto/link quando houver provedor |
 | Registrar promessa / agendar retorno | Compromissos com data |
 | Registrar opt-out | Bloqueio imediato de contato |
 | Transferir para humano | Encerra a atuação do assistente no caso, com resumo e motivo |
@@ -88,6 +88,7 @@ Versionada e auditada, por credor → carteira → segmento (a mais específica 
 | Conversa | Tom (formal/próximo); máximo de interações antes de oferecer humano |
 | Desligamento imediato | Por carteira, efeito instantâneo nas conversas em andamento |
 | Experimentos | Testes A/B entre versões de política (F25) |
+| Pix na conversa | Desligado por padrão; o gestor liga por política e define o valor máximo (padrão R$ 5.000), Pix por conversa no dia (3), validade (60 min) e a janela de risco (30 dias) — §10 |
 
 ## 7. Métricas de acompanhamento
 
@@ -98,7 +99,8 @@ A promoção de alçada e a comparação com humanos usam, por carteira e perío
 - desconto médio concedido e desconto como percentual do limite;
 - taxa de transferência para humano e motivo;
 - reclamações, opt-outs e contestações originados de conversas do assistente;
-- custo por real recuperado (inclui custo do modelo e das mensagens).
+- custo por real recuperado (inclui custo do modelo e das mensagens);
+- Pix na conversa: gerados, recusados por motivo, pagos em até 24 h e conversão Pix gerado → pago.
 
 ## 8. Implantação recomendada
 
@@ -116,3 +118,27 @@ Meta realista: o assistente absorver a maior parte dos casos simples e de baixo 
 - Carteiras e segmentos do piloto e alçada inicial.
 - Se o assistente formaliza sozinho desde o início ou apenas com aprovação humana.
 - Validação jurídica do roteiro de conduta, da verificação de identidade e dos gatilhos de transferência.
+- Envio do QR Code como imagem no WhatsApp (o communication ainda não envia mídia; hoje vai o "copia e cola").
+
+## 10. Pix na conversa
+
+**Decisão do responsável (24/10/2026):** *"PIX na conversa: se a conversa foi amigável e a conciliação com o devedor tranquila, o Pix pode ser gerado pelo assistente IA."* (substitui a decisão 135, que deixava o Pix só para humanos).
+
+**Quando o assistente gera o Pix.** Só quando **todos** os critérios abaixo são atendidos — verificados pelo sistema, nunca pela IA sozinha:
+
+1. a política do assistente liga o Pix na conversa (desligado por padrão; ligado pelo gestor);
+2. o assistente atua no modo autônomo ou autônomo com aprovação — neste, só para acordo já formalizado por um humano; nos modos sombra e copiloto ele apenas **sugere** ao operador, que gera pela tela;
+3. a identidade do devedor foi confirmada na conversa;
+4. existe acordo formalizado e vigente do mesmo devedor e credor da conversa, com a parcela (ou entrada) em aberto — o valor do Pix é **exatamente** o da parcela; a IA escolhe a parcela, nunca o valor;
+5. a conversa foi amigável: nos últimos 30 dias nenhuma transferência por contestação, alegação de pagamento, fraude, falecimento, vulnerabilidade, advogado/Procon/processo, reclamação, agressividade, pedido de humano, opt-out, falha de entendimento, identidade não confirmada ou gatilho da política; nenhum guardrail acionado; nada disso na mensagem atual;
+6. nenhuma contestação aberta no caso;
+7. o devedor pediu ou aceitou explicitamente pagar agora ("manda o Pix", "quero pagar agora", "aceito"), sem negação ou adiamento;
+8. valor até o limite da política (padrão R$ 5.000) e no máximo 3 Pix na conversa por dia.
+
+Se algum critério falhar, o assistente não gera o Pix; quando um atendente pode concluir o pagamento (valor acima do limite, risco na conversa, contestação, limite diário, acordo não formalizado por humano no modo com aprovação), ele informa que um atendente vai ajudar e transfere a conversa. Todos os critérios avaliados ficam na trilha do turno.
+
+**O que o devedor recebe.** Uma mensagem separada, montada pelo sistema: valor e validade (padrão 60 minutos), o código "Pix Copia e Cola" e um aviso de segurança — conferir no app do banco o nome do recebedor (a conta Pix do credor ou da assessoria) e que nunca pedimos pagamento para chave Pix de pessoa física. O código é sempre uma cobrança do PSP da conta Pix do credor/assessoria (Pix imediato, sem enviar dados do pagador ao PSP); código com chave Pix, de outro recebedor ou com valor diferente da parcela não é enviado. O QR Code em imagem depende do envio de mídia pelo WhatsApp (pendência).
+
+**Por que R$ 5.000 como limite padrão.** Cobre a grande maioria das parcelas e entradas de acordos de varejo, cartão e consumo (tíquete típico bem abaixo disso), fica alinhado ao valor máximo do perfil `PORTAL` de autoatendimento (decisão 139) e limita a exposição em caso de engenharia social; acima dele, um atendente gera o Pix. Ajustável por política até R$ 50.000, na tela da política do assistente (cartão "Pix na conversa").
+
+**Acompanhamento.** Pix gerados, recusados por motivo, sugeridos, entregues, pagos e pagos em até 24 h, e a conversão Pix gerado → pago entram no painel de qualidade do assistente; o Pix não muda a atribuição do acordo (quem fechou continua com o crédito).

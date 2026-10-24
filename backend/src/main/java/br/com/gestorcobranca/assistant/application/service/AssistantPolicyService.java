@@ -259,7 +259,9 @@ class AssistantPolicyService implements AssistantPolicyUseCases {
                 .attr("promptCode", settings.promptCode()).attr("promptVersion", settings.promptVersion())
                 .attr("customAuthority", settings.authorityProfileId() != null)
                 .attr("maxTurns", settings.maxTurns()).attr("reviewSampleRate", settings.reviewSampleRate())
-                .attr("extraTriggers", settings.extraTriggers().size()));
+                .attr("extraTriggers", settings.extraTriggers().size())
+                .attr("pixInConversation", settings.pix().on())
+                .attr("pixMaxAmount", settings.pix().on() ? settings.pix().maxAmount() : null));
         metrics.policy(PolicyStatus.PUBLISHED.name());
         return saved;
     }
@@ -332,11 +334,6 @@ class AssistantPolicyService implements AssistantPolicyUseCases {
     }
 
     private static PolicySettings withMode(PolicySettings s, AssistantMode mode) {
-        return new PolicySettings(mode, s.channels(), s.serviceHours(), s.authorityProfileId(), s.promptCode(),
-                s.promptVersion(), s.tone(), s.maxTurns(), s.maxMisunderstandings(), s.minConfidence(),
-                s.requireIdentityVerification(), s.maxIdentityAttempts(), s.allowedTopics(), s.forbiddenTopics(),
-                s.extraTriggers(), s.requiredProfiles(), s.identificationMessage(), s.handoffMessage(),
-                s.fallbackMessage(), s.approvalMessage(), s.limits(), s.reviewSampleRate(), s.allowCreditBureauMention())
-                .normalized();
+        return s.withMode(mode);
     }
 }

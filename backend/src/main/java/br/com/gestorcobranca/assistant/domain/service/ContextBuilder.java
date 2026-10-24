@@ -32,6 +32,7 @@ public final class ContextBuilder {
         ModelContext.DebtInfo debt = null;
         List<ModelContext.OfferInfo> offers = List.of();
         ModelContext.ProposalInfo proposal = null;
+        List<ModelContext.InstallmentInfo> installments = List.of();
         ModelContext.CaseInfo kase = null;
         if (confirmed) {
             kase = caseDays == null ? null : new ModelContext.CaseInfo(caseDays, caseStage);
@@ -43,6 +44,8 @@ public final class ContextBuilder {
                     .map(o -> new ModelContext.OfferInfo(o.ref(), o.level(), o.installments(), o.total(), o.downPayment(),
                             o.installmentAmount(), o.firstDueDate(), o.discountTotal(), o.withinAuthority()))
                     .toList();
+            installments = memory.installments().stream().map(i -> new ModelContext.InstallmentInfo(i.ref(), i.number(),
+                    i.dueDate(), i.amount(), i.status())).toList();
             if (memory.proposal() != null) {
                 proposal = new ModelContext.ProposalInfo(memory.proposal().ref(), memory.proposal().status(),
                         memory.proposal().installments(), memory.proposal().total());
@@ -58,6 +61,11 @@ public final class ContextBuilder {
             rules.add("Identidade não confirmada: peça os 3 primeiros dígitos do CPF e a data de nascimento; "
                     + "não fale da dívida, de valores ou do credor.");
         }
+        boolean pix = policy.pix().on();
+        if (pix) {
+            rules.add("Pix: só com pedido explícito de pagar agora; nunca informe valor nem escreva código, chave ou link — "
+                    + "o sistema decide e envia o código em mensagem separada.");
+        }
         if (policy.mode().autonomous() && session.getTurns() + 1 >= policy.maxTurns()) {
             rules.add("Último turno disponível: ofereça atendimento humano.");
         }
@@ -65,7 +73,7 @@ public final class ContextBuilder {
                 confirmed ? firstName : null,
                 operatorMediated ? "OPERATOR_MEDIATED" : session.getIdentityStatus().name(), attemptsLeft,
                 session.getTurns() + 1, policy.maxTurns(), kase, debt,
-                offers, proposal, policy.allowedTopics(), rules);
+                offers, proposal, installments, new ModelContext.PixInfo(pix), policy.allowedTopics(), rules);
     }
 
     /** Primeiro nome com inicial maiúscula; nulo para nomes ausentes ou anonimizados. */

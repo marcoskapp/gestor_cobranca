@@ -41,4 +41,28 @@ describe('TurnDetailPage (turno do assistente)', () => {
     expect(text(fixture)).toContain('Você publicou a política deste turno');
     expect(button(fixture, 'Registrar avaliação')).toBeUndefined();
   });
+
+  it('mostra os critérios do Pix avaliados pelo servidor', async () => {
+    const { http } = setup(TurnDetailPage, ['ASSISTANT_REVIEW'], 'u-1');
+    const withPix: TurnDetail = {
+      ...detail,
+      pixRequests: [{
+        id: 'px-1', decision: 'DENIED', denialCode: 'AMOUNT_ABOVE_LIMIT', agreementId: 'ag-1', installmentNumber: 2, amount: 6200,
+        instructionId: null, reusedInstruction: false, expiresAt: null, deliveryStatus: null, deliveryCode: null, deliveredAt: null, paidAt: null,
+        requestedAt: '2026-10-24T12:00:00Z',
+        criteria: [
+          { criterion: 'IDENTITY_VERIFIED', passed: true, detail: 'VERIFIED' },
+          { criterion: 'AMOUNT_WITHIN_LIMIT', passed: false, detail: 'limite 5000.00' },
+        ],
+      }],
+    };
+    const fixture = await render(TurnDetailPage, http, (url: string) => (url.endsWith('/assistant/turns/t-1') ? withPix : respond('u-9')(url)),
+      { id: 't-1', revisao: 'rv-1' });
+    const t = text(fixture);
+    expect(t).toContain('Pix na conversa');
+    expect(t).toContain('Valor acima do limite');
+    expect(t).toContain('Identidade confirmada na sessão');
+    expect(t).toContain('Não atendido:');
+    expect(t).toContain('limite 5000.00');
+  });
 });
