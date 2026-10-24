@@ -67,4 +67,14 @@ public interface IndicatorReader {
     List<QualityTotals> quality(LocalDate from, LocalDate to, Collection<UUID> userIds);
 
     BigDecimal eligibleBalanceAt(Collection<UUID> userIds, Instant at, Collection<UUID> creditorIds);
+
+    /** Somas de recuperado × esperado das safras de score (data de referência no intervalo). */
+    record ExpectedRecoveryTotals(BigDecimal expectedAmount, BigDecimal realizedAmount, long cases) {
+    }
+
+    /**
+     * Safras de score com data de referência no intervalo do filtro, dos responsáveis informados
+     * ({@code userIds} null = todos, inclusive casos sem responsável), credores e carteiras do filtro.
+     */
+    ExpectedRecoveryTotals expectedRecovery(Filter filter);
 }

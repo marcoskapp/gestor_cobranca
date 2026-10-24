@@ -29,6 +29,15 @@ public interface CaseUseCases {
     /** Casos (ativos e encerrados) do devedor nos credores do escopo, do mais recente ao mais antigo. */
     List<CaseView> listByDebtor(UUID debtorId);
 
+    /**
+     * Casos ativos em ordem de id, a partir do cursor (exclusivo; nulo = início), para varreduras em
+     * lote de outros módulos (ex.: escoragem diária do scoring). Casos fora do escopo do ator são
+     * omitidos, mas o cursor avança sobre eles.
+     *
+     * @param limit até 500 por página
+     */
+    ActiveCasePage listActiveAfter(UUID afterCaseId, int limit);
+
     /** Caso ativo do devedor na carteira, se houver (uso por negotiation, communication, telephony…). */
     Optional<CaseView> findActive(UUID debtorId, UUID portfolioId);
 
@@ -79,6 +88,12 @@ public interface CaseUseCases {
                     UUID assigneeUserId, UUID assigneeTeamId, Instant assignedAt, Instant nextActionAt,
                     Instant lastInteractionAt, Instant lastEffectiveContactAt, int interactionCount,
                     int effectiveContactCount, Integer score, long version) {
+    }
+
+    /**
+     * @param nextAfter cursor da próxima página (último id lido); nulo quando não há mais casos
+     */
+    record ActiveCasePage(List<CaseView> cases, UUID nextAfter) {
     }
 
     record CaseSheet(CaseView collectionCase, DebtorInfo debtor, List<TitleInfo> titles,

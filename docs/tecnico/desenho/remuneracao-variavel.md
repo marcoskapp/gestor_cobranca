@@ -77,7 +77,7 @@ Todas por negociador, equipe, credor, carteira, faixa de atraso, canal e períod
 
 - **Segmentos de dificuldade**: faixa de atraso × faixa de valor × credor/carteira. Metas e taxas podem ser definidas por segmento.
 - **Multiplicador de dificuldade** por segmento (ex.: 1,0 para 31–90 dias; 1,4 para 181–360; 1,8 para 360+), configurável no plano.
-- **Recuperação esperada** (quando o módulo `scoring` existir): recuperado ÷ esperado pelo score da carteira atribuída — o indicador mais justo, porque desconta a qualidade da carteira recebida.
+- **Recuperação esperada** (`financial.expectedRecoveryRatio`, disponível desde 24/10/2026 — §10.9): recuperado ÷ esperado pelo score da carteira atribuída — o indicador mais justo, porque desconta a qualidade da carteira recebida.
 - **Safra**: indicadores de quebra e 1ª parcela são medidos pela safra de formalização, não pelo mês do pagamento.
 
 ## 3. Atribuição de crédito (quem gerou o acordo)
@@ -266,7 +266,7 @@ Exemplo verificado (`CommissionEngineTest#standardMarketPlanCombination`): 60.00
 ### 10.5 Pendências
 
 - Produtores: `communication` informar o autor das mensagens. (`telephony` já publica `CallCompleted` com a carteira, o operador que atendeu e `durationSeconds` = conversação — ver `telefonia.md` §6; presença do discador em `telephony.presence_interval`, ainda não consumida aqui.) (`negotiation` já publica `AgreementAttributionRecorded`, `AgreementStatusChanged` e `InstallmentStatusChanged` — ver `negociacao-e-alcadas.md` §10.7–§10.8; a distinção `HANDOFF_CONFIRMED` × `HANDOFF_NEGOTIATED` usa a impressão digital das condições.) (`collection` já preenche os campos novos e publica `CaseAssignmentChanged` — ver `collection.md` §9.)
-- Indicadores sem fonte (retornam nulos e listados em `unavailableMetrics`): handoffs recebidos/resolvidos, propostas (contato → proposta, proposta → acordo), recuperado × esperado (`scoring`) — exigem eventos de integração próprios (o negotiation já registra `proposal.*` e `proposal.handoff_requested` no log de negócio e publica `HandoffRequested` (contrato do communication); falta um evento de integração de proposta criada, ou o consumo do handoff, aqui). (Retornos cumpridos e promessas cumpridas: implementados em 23/10/2026, §10.6.)
+- Indicadores sem fonte (retornam nulos e listados em `unavailableMetrics`): handoffs recebidos/resolvidos, propostas (contato → proposta, proposta → acordo) — exigem eventos de integração próprios (o negotiation já registra `proposal.*` e `proposal.handoff_requested` no log de negócio e publica `HandoffRequested` (contrato do communication); falta um evento de integração de proposta criada, ou o consumo do handoff, aqui). (Retornos cumpridos e promessas cumpridas: implementados em 23/10/2026, §10.6.)
 - Reatribuição de um retorno (`TaskUseCases.reassign`) não publica evento: o compromisso passa ao novo responsável só no próximo evento do retorno (cumprimento, atraso ou cancelamento); até lá, segue no denominador do responsável anterior. Se a operação reatribuir retornos com frequência, o `collection` deve publicar `CallbackStatusChanged` também na reatribuição.
 - Retornos e promessas não têm faixa de atraso nem canal nos eventos: as medidas ficam em `delay_bucket = UNKNOWN` e `channel = UNKNOWN` e somem quando o painel filtra por faixa ou canal.
 - Histórico de composição de equipes (pool e meta de equipe usam a composição no fechamento).
@@ -316,3 +316,15 @@ Denominador da taxa de recuperação: soma, nos casos cujo último retrato até 
 | 38 | Novo evento `CaseBalanceChanged` em vez de publicar `CaseStatusChanged` sem mudança de status | Reusar `CaseStatusChanged` | Outros consumidores reagem a transições de status; evento novo não muda a semântica existente |
 | 39 | Teste ponta a ponta no pacote de testes do `collection` | Duplicar o cenário do collection no pacote do incentive | Reaproveita a carga de carteira, relógio deslocável e ganchos dos jobs do módulo produtor |
 
+### 10.9 Recuperado × esperado pelo score (24/10/2026)
+
+Fonte: `ExpectedRecoveryMeasured` do módulo `scoring` (ver `scoring.md` §7), publicado quando a janela de desfecho de uma
+safra de score termina, por credor × carteira × responsável na data do score. Consumidor `incentive.expected-recovery`
+grava `incentive.expected_recovery_fact` (`V1805`; uma linha por safra/grupo, republicação substitui).
+
+| Indicador (API) | Fórmula | Data e pessoa |
+| --- | --- | --- |
+| `financial.expectedRecoveryRatio` | Σ valor confirmado na janela ÷ Σ valor esperado (probabilidade × saldo em aberto × fração paga típica do modelo) | data de referência do score (safra) × responsável no cálculo; nulo nas dimensões que não são por pessoa ou sem safra apurada |
+
+O indicador saiu de `unavailableMetrics`. Meta de plano `RECOVERED_VS_EXPECTED` continua recusada: o motor de comissão
+não apura metas por essa métrica (pendência).

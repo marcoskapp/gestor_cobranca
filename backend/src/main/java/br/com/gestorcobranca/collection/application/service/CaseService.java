@@ -44,6 +44,7 @@ class CaseService implements CaseUseCases {
     private static final int REASON_MAX = 500;
     private static final int SHEET_INTERACTIONS = 10;
     private static final int SHEET_RESTRICTIONS = 50;
+    private static final int MAX_ACTIVE_PAGE = 500;
 
     private final CollectionCaseRepository cases;
     private final CaseAccess access;
@@ -108,6 +109,22 @@ class CaseService implements CaseUseCases {
         return cases.findByDebtorIdOrderByOpenedAtDesc(debtorId).stream()
                 .filter(c -> accessScope.canAccessCreditor(c.getCreditorId()))
                 .map(c -> CollectionViews.caseView(c, today)).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ActiveCasePage listActiveAfter(UUID afterCaseId, int limit) {
+        Guard.require(limit > 0 && limit <= MAX_ACTIVE_PAGE, "case.page_size_invalid", "Página entre 1 e 500 casos");
+        List<UUID> ids = cases.findActiveIdsAfter(afterCaseId, limit);
+        if (ids.isEmpty()) {
+            return new ActiveCasePage(List.of(), null);
+        }
+        LocalDate today = CollectionViews.today(clock);
+        List<CaseView> views = cases.findAllByIdIn(ids).stream()
+                .filter(c -> accessScope.canAccessCreditor(c.getCreditorId()))
+                .sorted(java.util.Comparator.comparing(CollectionCase::getId))
+                .map(c -> CollectionViews.caseView(c, today)).toList();
+        return new ActiveCasePage(views, ids.size() == limit ? ids.getLast() : null);
     }
 
     @Override

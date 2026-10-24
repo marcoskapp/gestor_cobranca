@@ -41,8 +41,8 @@ reconciliação diária/sob demanda (`AudienceRebuildJob`, páginas de `CaseUseC
 fuso de operação, nunca negativo), faixa de saldo em aberto, situações do caso, somente elegíveis (padrão sim — RB02),
 canal contatável, faixa de interações, já houve/nunca houve contato efetivo, sem interação/contato efetivo há N dias
 (inclui nunca), com/sem promessa pendente, com/sem acordo em vigor (estágio ou estágio guardado), acordos quebrados
-mínimos, faixa de score (critério opcional: casos sem score ficam fora; o score é preenchido pelo módulo `scoring`
-quando existir) e dono do atendimento. A mesma semântica é implementada em SQL (`JdbcAudienceStore.where`, contagem e
+mínimos, faixa de score (critério opcional: casos sem score ficam fora; o score vem do módulo `scoring` pelo evento
+`CaseScoreChanged`) e dono do atendimento. A mesma semântica é implementada em SQL (`JdbcAudienceStore.where`, contagem e
 seleção em lote) e em memória (`SegmentMatcher`, reavaliação antes de cada etapa) — `SegmentMatcherTest` documenta os
 limites.
 
@@ -290,6 +290,7 @@ inscrição × tipo × referência; estorno (`PaymentReversed`) gera valor negat
 
 * Adaptador de `CampaignOfferPort` (alçada de campanha no negotiation + link no payment).
 * Consumo de `CadenceExhausted` pelo legal (critério "régua extrajudicial esgotada").
-* Score no read model: depende do módulo `scoring` (o campo já é lido de `CaseView.score`).
+* ~~Score no read model~~: implementado em 24/10/2026 — `campaign.case-score` consome `CaseScoreChanged` e grava o score na
+  projeção (`score_calculated_at`, `V1101`; o evento é a fonte depois do primeiro score, ordenado pelo instante do cálculo).
 * Frontend (construtor de segmento e régua, painel, resultados A/B).
 * Envio por SMS depende do adaptador do communication (issue #12).

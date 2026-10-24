@@ -157,6 +157,14 @@ public final class BusinessEventTypes {
     /** Configuração do portal de um credor criada ou alterada. */
     public static final String PORTAL_CONFIGURATION_CHANGED = "portal.configuration_changed";
     public static final String SCORE_CALCULATED = "score.calculated";
+    // Score de propensão (módulo scoring) — atributos em docs/tecnico/logs-e-metricas.md §3.8
+    public static final String SCORE_BATCH_COMPLETED = "score.batch_completed";
+    public static final String SCORE_TRAINING_COMPLETED = "score.training_completed";
+    public static final String SCORE_MODEL_PROMOTED = "score.model_promoted";
+    public static final String SCORE_MODEL_REJECTED = "score.model_rejected";
+    public static final String SCORE_DRIFT_DETECTED = "score.drift_detected";
+    public static final String SCORE_COHORT_MEASURED = "score.cohort_measured";
+    public static final String SCORE_REVIEWED = "score.reviewed";
     public static final String ASSISTANT_REPLIED = "assistant.replied";
     public static final String ASSISTANT_HANDOFF = "assistant.handoff";
 

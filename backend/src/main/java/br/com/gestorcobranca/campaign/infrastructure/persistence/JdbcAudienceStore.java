@@ -66,7 +66,9 @@ class JdbcAudienceStore implements AudienceStore {
                    owner_type = excluded.owner_type, interaction_count = excluded.interaction_count,
                    effective_contact_count = excluded.effective_contact_count,
                    last_interaction_at = excluded.last_interaction_at,
-                   last_effective_contact_at = excluded.last_effective_contact_at, score = excluded.score,
+                   last_effective_contact_at = excluded.last_effective_contact_at,
+                   score = case when campaign.audience_case.score_calculated_at is null then excluded.score
+                                else campaign.audience_case.score end,
                    case_version = excluded.case_version, refreshed_at = excluded.refreshed_at
                  where campaign.audience_case.case_version <= excluded.case_version
                 """, new MapSqlParameterSource()
@@ -99,6 +101,16 @@ class JdbcAudienceStore implements AudienceStore {
     public Optional<AudienceSnapshot> find(UUID caseId) {
         return jdbc.query("select " + COLUMNS + " from campaign.audience_case a where a.case_id = :caseId",
                 new MapSqlParameterSource("caseId", caseId), MAPPER).stream().findFirst();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean applyScore(UUID caseId, int score, Instant calculatedAt) {
+        return jdbc.update("""
+                update campaign.audience_case set score = :score, score_calculated_at = :calculatedAt
+                 where case_id = :caseId and (score_calculated_at is null or score_calculated_at < :calculatedAt)
+                """, new MapSqlParameterSource("caseId", caseId).addValue("score", score)
+                .addValue("calculatedAt", timestamp(calculatedAt))) > 0;
     }
 
     @Override

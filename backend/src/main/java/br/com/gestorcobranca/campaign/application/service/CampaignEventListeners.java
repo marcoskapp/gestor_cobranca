@@ -14,6 +14,7 @@ import br.com.gestorcobranca.shared.events.legal.LegalMatterStageChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
+import br.com.gestorcobranca.shared.events.scoring.CaseScoreChanged;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -39,6 +40,15 @@ class CampaignEventListeners extends TenantEventListener {
         handleOnce(event, "campaign.case-status", () -> {
             reactions.caseChanged(event.caseId(), "case_status");
             metrics.eventConsumed("case_status");
+        });
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(CaseScoreChanged event) {
+        handleOnce(event, "campaign.case-score", () -> {
+            reactions.caseScoreChanged(event);
+            metrics.eventConsumed("case_score");
         });
     }
 

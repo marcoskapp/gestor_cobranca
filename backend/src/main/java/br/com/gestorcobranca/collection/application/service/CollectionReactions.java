@@ -11,6 +11,7 @@ import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.organization.PortfolioStatusChanged;
+import br.com.gestorcobranca.shared.events.scoring.CaseScoreChanged;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -125,6 +126,21 @@ class CollectionReactions {
         }
         agenda.refresh(c);
         recorder.commit(c, before, AssignmentMode.ROUTING, null, "agreement_status");
+    }
+
+    /**
+     * Score de propensão recalculado (módulo scoring): o caso guarda o score para a ordem
+     * {@code HIGHEST_SCORE} do "próximo caso" e o critério de faixa de score das filas. Só o cálculo
+     * mais recente prevalece (instante do cálculo); caso encerrado é ignorado.
+     */
+    void caseScoreChanged(CaseScoreChanged e) {
+        metrics.eventConsumed("case_score");
+        Optional<UUID> debtorId = cases.findDebtorIdById(e.caseId());
+        if (debtorId.isEmpty()) {
+            return;
+        }
+        access.lockDebtor(debtorId.get());
+        cases.findById(e.caseId()).ifPresent(c -> synchronizer.applyScore(c, e.score(), e.calculatedAt(), "case_score"));
     }
 
     void tenantProvisioned() {
