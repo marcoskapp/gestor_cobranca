@@ -144,7 +144,7 @@ describe('conteúdo do onboarding', () => {
     const tour = findTour('analytics.panels')!;
     expect(tour.steps.length).toBeLessThanOrEqual(6);
     expect(tour.steps.map((s) => s.anchor)).toEqual(['analytics-tabs', 'filters', 'analytics-freshness', 'analytics-kpis', 'analytics-export']);
-    expect(RELEASE_NOTES[0].title).toContain('Painéis');
+    expect(RELEASE_NOTES.find((n) => n.version === 7)?.title).toContain('Painéis');
     expect(findScreen('/')?.version).toBe(2);
   });
 
@@ -196,7 +196,7 @@ describe('conteúdo do onboarding', () => {
     expect(findTour('collection.station')?.version).toBe(2);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
     // nota de versão nova, a mais recente primeiro
-    expect(RELEASE_NOTES[0].version).toBe(7);
+    expect(RELEASE_NOTES[0].version).toBe(8);
     expect(RELEASE_NOTES[0].title).toContain('Prestação de contas');
     // checklists: itens de visita apontam para telas registradas; supervisão antes do negociador
     const keys = new Set(SCREENS.map((s) => s.key));
