@@ -44,6 +44,14 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Assistente de IA',
+    items: [
+      { label: 'Políticas do assistente', icon: 'smart_toy', route: '/assistente/politicas', permissions: [Permission.ASSISTANT_MANAGE, Permission.ASSISTANT_REVIEW] },
+      { label: 'Revisão de turnos', icon: 'rate_review', route: '/assistente/revisao', permissions: [Permission.ASSISTANT_REVIEW] },
+      { label: 'Qualidade do assistente', icon: 'insights', route: '/assistente/qualidade', permissions: [Permission.ASSISTANT_REVIEW] },
+    ],
+  },
+  {
     label: 'Telefonia',
     items: [
       { label: 'Campanhas de discagem', icon: 'phone_forwarded', route: '/telefonia/campanhas', permissions: [Permission.TELEPHONY_SUPERVISE] },

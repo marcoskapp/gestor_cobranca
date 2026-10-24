@@ -98,7 +98,9 @@ describe('PaymentDetail', () => {
     expect(text).toContain('outra pessoa');
     expect(button(fixture, 'Aprovar')).toBeFalsy();
     expect(button(fixture, 'Estornar')).toBeFalsy();
-    expect(text).toContain('O destino escolhido por quem informou é aplicado na aprovação.');
+    // quem aprova (e quem informou) vê para onde o valor vai antes de existir alocação
+    expect(text).toContain('Destino solicitado por quem informou');
+    expect(text).toContain('2ª parcela');
   });
 
   it('revisor aprova; recusa do servidor por segregação aparece na tela', async () => {
@@ -119,5 +121,11 @@ describe('PaymentDetail', () => {
     open.mockReturnValue({ afterClosed: () => of(undefined) });
     button(fixture, 'Estornar')!.click();
     expect(open).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ data: expect.objectContaining({ debtorName: 'Ana Paula Ribeiro' }) }));
+  });
+
+  it('pagamento informado sem destino registrado mantém a explicação genérica', async () => {
+    userId = 'u-9';
+    const fixture = await render(payment({ status: 'INFORMED', informedBy: 'u-2', reviewedAt: null, reviewedBy: null, reviewMode: null, confirmedAt: null, allocations: [], allocatedAmount: 0, requestedTarget: null }));
+    expect(el(fixture).textContent).toContain('O destino escolhido por quem informou é aplicado na aprovação.');
   });
 });

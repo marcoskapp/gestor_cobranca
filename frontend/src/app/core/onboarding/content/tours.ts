@@ -464,7 +464,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'collection.station',
-    version: 1,
+    version: 2,
     title: 'Estação de cobrança',
     summary: 'Fila, ficha do caso e registro do atendimento em uma só tela, pelo teclado.',
     steps: [
@@ -498,8 +498,8 @@ export const TOURS: readonly TourDefinition[] = [
       },
       {
         anchor: 'case-actions',
-        title: 'Retorno, simulação e contestação',
-        body: 'Alt + A agenda retorno e Alt + S abre a simulação. Contestação com evidência suspende a cobrança até a resolução.',
+        title: 'Ligar, retorno e simulação',
+        body: 'Alt + L liga mostrando antes a decisão do porteiro por telefone. Alt + A agenda retorno e Alt + S abre a simulação.',
         placement: 'start',
       },
     ],
@@ -938,12 +938,12 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'payment.review',
-    version: 1,
+    version: 2,
     title: 'Aprovação de pagamentos',
     summary: 'Segunda pessoa para pagamentos informados acima do limite.',
     steps: [
       { anchor: 'review-segregation', title: 'Quem informa não aprova', body: 'Os pagamentos que você informou não aparecem aqui; o sistema recusa a aprovação própria.' },
-      { anchor: 'data-table', title: 'Revisar', body: 'Baixe o comprovante, confira valor e destino e aprove ou recuse com motivo.', placement: 'above' },
+      { anchor: 'data-table', title: 'Revisar', body: 'Confira o destino solicitado e o comprovante; abra o pagamento para aprovar ou recusar com motivo.', placement: 'above' },
     ],
   },
   {
@@ -995,6 +995,157 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'page-actions', title: 'Nova conta', body: 'Por credor ou da assessoria. Informe URLs, chave Pix, credenciais e o certificado PKCS#12.' },
       { anchor: 'pix-accounts', title: 'Segredos protegidos', body: 'Nenhum segredo volta à tela: só a impressão digital e a validade do certificado.' },
       { anchor: 'pix-rotate', title: 'Rotação', body: 'Troque as credenciais antes do vencimento do certificado. Registre o webhook para receber avisos.' },
+    ],
+  },
+  {
+    id: 'settlement.rules',
+    version: 1,
+    title: 'Regras de comissão',
+    summary: 'Quanto a assessoria recebe do credor, por contrato e versão.',
+    steps: [
+      { anchor: 'filters', title: 'Credor e contrato', body: 'As regras são versionadas por contrato de serviço. Escolha o contrato para ver as versões.' },
+      { anchor: 'rules-segregation', title: 'Quatro olhos', body: 'Quem editou as regras por último não publica. Versões publicadas não mudam; recebimento apurado nunca troca de regra.' },
+      { anchor: 'page-actions', title: 'Novo rascunho', body: 'Nasce da última versão publicada do contrato, ou do modelo inicial.' },
+    ],
+  },
+  {
+    id: 'settlement.rule-set',
+    version: 1,
+    title: 'Versão das regras',
+    summary: 'Percentuais, valor fixo, honorários, simulação e publicação.',
+    steps: [
+      { anchor: 'rules-base', title: 'Regras gerais', body: 'Percentual padrão, valor fixo por acordo, honorários da assessoria e exigência de conciliação.' },
+      { anchor: 'rules-specific', title: 'Regras específicas', body: 'Por carteira, faixa de atraso, à vista ou parcelado, quem recebeu e renegociação. Vence a maior prioridade.' },
+      { anchor: 'rules-simulate', title: 'Simular', body: 'Calcula um recebimento com a memória de cálculo, sem gravar nada.' },
+      { anchor: 'rules-versions', title: 'Versões', body: 'Cada versão tem vigência; a anterior termina na véspera da nova.', placement: 'start' },
+      { anchor: 'page-actions', title: 'Publicar', body: 'Escolha o início da vigência. A publicação é de outra pessoa, não de quem editou.' },
+    ],
+  },
+  {
+    id: 'settlement.ledger',
+    version: 1,
+    title: 'Razão de comissão',
+    summary: 'Lançamentos por recebimento, com regra e memória de cálculo.',
+    steps: [
+      { anchor: 'filters', title: 'Filtros', body: 'Apurados ou aguardando regra, prestados ou não, por período de pagamento.' },
+      { anchor: 'data-table', title: 'Memória de cálculo', body: 'Abra um lançamento para ver base, percentual, comissão, valor fixo e o efeito no repasse.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'settlement.statements',
+    version: 1,
+    title: 'Demonstrativos',
+    summary: 'Prestação de contas ao credor por período.',
+    steps: [
+      { anchor: 'page-actions', title: 'Novo demonstrativo', body: 'O período é sugerido pelo dia de fechamento do contrato: um em aberto por credor, sem lacunas.' },
+      { anchor: 'data-table', title: 'Ciclo', body: 'Rascunho, calculado, revisado, aprovado, enviado e a resposta do credor.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'settlement.statement',
+    version: 1,
+    title: 'Demonstrativo',
+    summary: 'Totais, ajustes, arquivos, envio e repasses.',
+    steps: [
+      { anchor: 'statement-cycle', title: 'Etapas', body: 'Calcular depois do fim do período, revisar e aprovar. Quem calcula ou pede ajuste não aprova.' },
+      { anchor: 'statement-totals', title: 'Totais', body: 'Recebido, comissão, valores fixos, custas e ajustes até o líquido a repassar, com a conferência da soma.' },
+      { anchor: 'page-actions', title: 'Ações da etapa', body: 'O botão principal muda conforme a etapa. Ações financeiras mostram o impacto antes de confirmar.' },
+    ],
+  },
+  {
+    id: 'settlement.transfers',
+    version: 1,
+    title: 'Repasses',
+    summary: 'Saldo a repassar por credor e repasses com comprovante.',
+    steps: [
+      { anchor: 'transfer-balances', title: 'Saldos', body: 'Demonstrativos aprovados com saldo a repassar ou a receber do credor.' },
+      { anchor: 'data-table', title: 'Repasses', body: 'Cada repasse tem comprovante e referência bancária. Cancelamento exige motivo; nada é excluído.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'telephony.campaigns',
+    version: 1,
+    title: 'Campanhas de discagem',
+    summary: 'Discador progressivo ou preditivo sobre uma fila.',
+    steps: [
+      { anchor: 'page-actions', title: 'Nova campanha', body: 'Escolha a fila, o ritmo, o abandono máximo (padrão 3%), as retentativas e a janela.' },
+      { anchor: 'data-table', title: 'Painel', body: 'Abra a campanha para acompanhar ASR, abandono e operadores em tempo quase real.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'telephony.campaign',
+    version: 1,
+    title: 'Painel da campanha',
+    summary: 'Indicadores do dia, operadores e lista.',
+    steps: [
+      { anchor: 'dialer-stats', title: 'Hoje', body: 'ASR, conectadas, caixa postal e tempos médios, atualizados a cada 5 segundos enquanto disca.' },
+      { anchor: 'dialer-abandon', title: 'Abandono', body: 'Atendidas sem operador ÷ atendidas por pessoa. Perto do máximo, o ritmo reduz sozinho.' },
+      { anchor: 'dialer-agents', title: 'Operadores', body: 'Quem está na campanha e em que estado. Operadores entram pela estação de cobrança.', placement: 'start' },
+      { anchor: 'page-actions', title: 'Operar', body: 'Ativar, pausar, recarregar a lista e encerrar. Parâmetros mudam com a campanha pausada.' },
+    ],
+  },
+  {
+    id: 'telephony.calls',
+    version: 1,
+    title: 'Chamadas e gravações',
+    summary: 'Resultado, tabulação e gravação com finalidade.',
+    steps: [
+      { anchor: 'filters', title: 'Filtros', body: 'Por credor, resultado, direção e período.' },
+      { anchor: 'data-table', title: 'Gravação', body: 'Ouvir exige permissão própria e a finalidade declarada; o acesso fica registrado no log de acesso.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'assistant.policies',
+    version: 1,
+    title: 'Políticas do assistente',
+    summary: 'Como o assistente de IA atua em cada escopo.',
+    steps: [
+      { anchor: 'data-table', title: 'Escopos', body: 'Assessoria, credor ou carteira: a versão publicada mais específica vale na próxima mensagem.', placement: 'above' },
+      { anchor: 'page-actions', title: 'Nova política e desligamento', body: 'Comece em Sombra. Desligar numa carteira transfere na hora as conversas para humanos.' },
+    ],
+  },
+  {
+    id: 'assistant.policy',
+    version: 1,
+    title: 'Versão da política',
+    summary: 'Modo, horários, alçada, gatilhos e limites.',
+    steps: [
+      { anchor: 'assistant-mode', title: 'Modo', body: 'Sombra e copiloto só sugerem ao operador. Os autônomos conversam e negociam dentro da alçada.' },
+      { anchor: 'assistant-authority', title: 'Alçada e conversa', body: 'O perfil de alçada limita as condições; a identidade é confirmada antes de revelar a dívida.' },
+      { anchor: 'assistant-triggers', title: 'Transferência', body: 'Gatilhos obrigatórios não se desligam. A política troca o perfil exigido e acrescenta expressões.' },
+      { anchor: 'assistant-limits', title: 'Limites e avaliação', body: 'Tokens, ferramentas, tempo e custo por conversa; taxa de turnos revisados por humanos.' },
+      { anchor: 'page-actions', title: 'Publicar', body: 'A versão publicada não muda e aposenta a anterior do mesmo escopo.' },
+    ],
+  },
+  {
+    id: 'assistant.reviews',
+    version: 1,
+    title: 'Revisão do assistente',
+    summary: 'Avaliação humana dos turnos amostrados.',
+    steps: [
+      { anchor: 'review-segregation', title: 'Quem configura não avalia', body: 'Turnos de políticas que você publicou aparecem sem a ação de revisar.' },
+      { anchor: 'data-table', title: 'Revisar', body: 'Guardrail e falha entram sempre; os demais por amostra. Abrir o turno registra o acesso.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'assistant.turn',
+    version: 1,
+    title: 'Turno do assistente',
+    summary: 'O que o assistente recebeu, fez e respondeu.',
+    steps: [
+      { anchor: 'turn-access', title: 'Acesso registrado', body: 'O conteúdo é da conversa com o devedor (mascarado). Este acesso fica no log de acesso.' },
+      { anchor: 'turn-tools', title: 'Ferramentas', body: 'Cada chamada do modelo, validada pelo servidor: executada, recusada ou com erro.' },
+      { anchor: 'turn-review', title: 'Avaliar', body: 'Nota, veredito e etiquetas. "Fora da política" exige comentário.', placement: 'start' },
+    ],
+  },
+  {
+    id: 'assistant.quality',
+    version: 1,
+    title: 'Qualidade do assistente',
+    summary: 'Assistente comparado aos humanos.',
+    steps: [
+      { anchor: 'quality-kpis', title: 'Indicadores', body: 'Transferência, reclamações, custo por acordo e revisões no período.' },
+      { anchor: 'quality-break', title: 'Quebra precoce', body: 'Avance de fase quando a quebra com o assistente for igual ou menor que a dos humanos.' },
     ],
   },
 ];

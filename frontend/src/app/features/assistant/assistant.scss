@@ -1,0 +1,148 @@
+// Estilos compartilhados das telas do assistente (somente tokens `--app-*`).
+.as-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: var(--app-gap);
+}
+.as-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: var(--app-gap);
+  align-items: start;
+}
+.as-main,
+.as-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-gap);
+  min-width: 0;
+  .app-card + .app-card {
+    margin-top: 0;
+  }
+}
+.as-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.as-small {
+  font-size: var(--app-text-xs);
+}
+.as-toggles {
+  flex-wrap: wrap;
+}
+.as-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.as-time {
+  width: 120px;
+}
+.as-grow {
+  flex: 1 1 200px;
+}
+.as-scroll {
+  overflow-x: auto;
+}
+.as-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--app-text-sm);
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--app-border);
+    text-align: left;
+    vertical-align: middle;
+  }
+  th {
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+.as-lock {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  font-size: 14px;
+  vertical-align: middle;
+  color: var(--mat-sys-on-surface-variant);
+}
+.as-inline-input {
+  width: 100%;
+  max-width: 200px;
+  padding: 4px 6px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.as-versions {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: var(--app-radius-sm);
+  }
+}
+.as-version--current {
+  background: var(--app-surface-raised);
+  font-weight: 600;
+}
+.as-pre {
+  max-height: 320px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-raised);
+  font-family: var(--app-font-mono);
+  font-size: var(--app-text-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+@media (max-width: 959px) {
+  .as-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.td-tool {
+  padding: 8px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  & + & {
+    margin-top: 6px;
+  }
+  summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+}
+.td-inline {
+  display: inline;
+}
+.td-gap {
+  margin-top: 12px;
+}
+.td-problems {
+  display: block;
+  padding-left: 28px;
+}
