@@ -32,6 +32,10 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * opera campanhas de discagem e ouve gravações ({@code TELEPHONY_SUPERVISE},
  * {@code CALL_RECORDING_LISTEN}); o gestor configura contas, ramais e campanhas
  * ({@code TELEPHONY_MANAGE}).
+ * <p>
+ * Assistente de IA (docs/tecnico/desenho/assistente.md): o gestor configura políticas, modos e o
+ * desligamento por carteira ({@code ASSISTANT_MANAGE}); supervisor e gestor revisam a trilha dos
+ * turnos, avaliam a amostra e acompanham a qualidade ({@code ASSISTANT_REVIEW}).
  */
 public final class DefaultRoles {
 
@@ -66,7 +70,7 @@ public final class DefaultRoles {
         supervisor.addAll(EnumSet.of(USER_VIEW, TEAM_MANAGE, CASE_ASSIGN, CASE_MANAGE, QUEUE_MANAGE, DISPUTE_MANAGE,
                 NEGOTIATION_APPROVE, AGREEMENT_CANCEL, INBOX_MANAGE, CONTACT_RESTRICTION_MANAGE,
                 CAMPAIGN_VIEW, DASHBOARD_VIEW, REPORT_VIEW, DEBTOR_MANAGE, IMPORT_VIEW, PERFORMANCE_VIEW_TEAM,
-                QUALITY_EVALUATE, LEGAL_VIEW, TELEPHONY_SUPERVISE, CALL_RECORDING_LISTEN));
+                QUALITY_EVALUATE, LEGAL_VIEW, TELEPHONY_SUPERVISE, CALL_RECORDING_LISTEN, ASSISTANT_REVIEW));
 
         Set<Permission> gestor = EnumSet.copyOf(supervisor);
         gestor.addAll(EnumSet.of(CREDITOR_MANAGE, CONTRACT_MANAGE, PORTFOLIO_MANAGE, POLICY_MANAGE, IMPORT_EXECUTE,
@@ -75,7 +79,7 @@ public final class DefaultRoles {
                 PORTAL_MANAGE, ACCESS_LOG_VIEW, DEBTOR_SENSITIVE_VIEW, PERFORMANCE_VIEW_ALL, COMMISSION_PLAN_MANAGE,
                 TABULATION_MANAGE,
                 COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE,
-                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE));
+                LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, ASSISTANT_MANAGE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
