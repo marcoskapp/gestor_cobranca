@@ -259,7 +259,9 @@ class AssistantPolicyService implements AssistantPolicyUseCases {
                 .attr("promptCode", settings.promptCode()).attr("promptVersion", settings.promptVersion())
                 .attr("customAuthority", settings.authorityProfileId() != null)
                 .attr("maxTurns", settings.maxTurns()).attr("reviewSampleRate", settings.reviewSampleRate())
-                .attr("extraTriggers", settings.extraTriggers().size()));
+                .attr("extraTriggers", settings.extraTriggers().size())
+                .attr("pixInConversation", settings.pix().on())
+                .attr("pixMaxAmount", settings.pix().on() ? settings.pix().maxAmount() : null));
         metrics.policy(PolicyStatus.PUBLISHED.name());
         return saved;
     }

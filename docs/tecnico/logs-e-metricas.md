@@ -268,7 +268,7 @@ Eventos de turno levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `chann
 | `assistant.guardrail_blocked` | guardrail recusou a resposta | `codes` (lista), `action` (`FALLBACK_HANDOFF` no autônomo, `DRAFT_SUPPRESSED` no rascunho) |
 | `assistant.reply_blocked` | porteiro de contato negou o envio | `reasons` (motivos do compliance) |
 | `assistant.turn_failed` | falha técnica (provedor, tempo esgotado, turno interrompido) | `errorCode`; transferência registrada à parte |
-| `policy.published` (`policyKind = assistant`) | versão de política do assistente publicada | `code`, `version`, `mode`, `channels`, `promptCode`, `promptVersion`, `customAuthority`, `maxTurns`, `reviewSampleRate`, `extraTriggers` |
+| `policy.published` (`policyKind = assistant`) | versão de política do assistente publicada | `code`, `version`, `mode`, `channels`, `promptCode`, `promptVersion`, `customAuthority`, `maxTurns`, `reviewSampleRate`, `extraTriggers`, `pixInConversation`, `pixMaxAmount` |
 | `assistant.policy_retired` | versão aposentada | `code`, `version`, `mode` |
 | `assistant.portfolio_disabled` | desligamento imediato da carteira | `previousMode`, `previousPolicyId` |
 | `assistant.review_recorded` | avaliação humana de turno amostrado | `score`, `verdict`, `sampleReason`, `tags`, `policyId` |

@@ -99,15 +99,12 @@ class AssistantPixDelivery implements JobHandler<AssistantPixDelivery.Payload> {
 
     @Override
     public void handle(JobContext context, Payload payload) {
-        PixRequest peek = requests.findById(payload.pixRequestId()).orElse(null);
-        if (peek == null || peek.getDeliveryStatus() == null || !peek.getDeliveryStatus().open()) {
+        PixRequest r = requests.findByIdForUpdate(payload.pixRequestId()).orElse(null);
+        if (r == null || r.getDeliveryStatus() == null || !r.getDeliveryStatus().open()) {
             return;
         }
-        locks.lockConversation(peek.getConversationId());
-        PixRequest r = requests.findByIdForUpdate(payload.pixRequestId()).orElseThrow();
-        if (!r.getDeliveryStatus().open()) {
-            return;
-        }
+        // serializa com os turnos da conversa (a mensagem do Pix nunca sai no meio de um turno)
+        locks.lockConversation(r.getConversationId());
         AssistantPolicy policy = policies.findById(r.getPolicyId()).orElseThrow();
         PolicySettings settings = codec.settings(policy.getSettings());
         Actor actor = actors.forPolicy(context.tenantId(), policy, r.getMode(), r.getCreditorId(), true);

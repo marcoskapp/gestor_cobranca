@@ -2,6 +2,7 @@ package br.com.gestorcobranca.assistant;
 
 import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases.CreatePolicyCommand;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases.PolicyView;
+import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases.UpdatePolicyCommand;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantReviewUseCases.QualityQuery;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantTrailUseCases.TurnDetail;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
@@ -56,12 +57,36 @@ class AssistantPixIT extends AssistantTestSupport {
                 "HMAC", List.of(), new CredentialsCommand("client", "secret", WEBHOOK_SECRET, null, null))));
     }
 
-    private PolicyView publishPixPolicy(String code, AssistantMode mode, UUID profile, BigDecimal maxAmount) {
-        PolicySettings settings = new PolicySettings(mode, null, null, profile, null, null, null, null, null, null, null,
+    private static PolicySettings pixSettings(AssistantMode mode, UUID profile, BigDecimal maxAmount) {
+        return new PolicySettings(mode, null, null, profile, null, null, null, null, null, null, null,
                 null, List.of("negociação", "pagamento"), List.of("sorteio"), null, null, null, null, null, null, null,
                 BigDecimal.ONE, null, new PixInConversation(true, maxAmount, null, null, null));
+    }
+
+    private PolicyView publishPixPolicy(String code, AssistantMode mode, UUID profile, BigDecimal maxAmount) {
+        PolicySettings settings = pixSettings(mode, profile, maxAmount);
         return asAdmin(() -> assistantPolicies.publish(assistantPolicies.createDraft(new CreatePolicyCommand(creditorA,
                 null, code, "Assistente " + code, settings)).id()));
+    }
+
+    /** Nova versão da política publicada, com outro modo. */
+    private PolicyView republish(PolicyView current, AssistantMode mode) {
+        return asAdmin(() -> {
+            PolicyView draft = assistantPolicies.newVersion(current.id());
+            assistantPolicies.updateDraft(draft.id(), new UpdatePolicyCommand(draft.name(), pixSettings(mode, null, null)));
+            return assistantPolicies.publish(draft.id());
+        });
+    }
+
+    /** O atendente assume a conversa da fila e a devolve ao assistente. */
+    private void operatorReturnsToAssistant(String reason) {
+        asOperator(operatorX, () -> conversations.takeOver(conversationId, reason));
+        asOperator(operatorX, () -> conversations.returnToAssistant(conversationId, reason));
+    }
+
+    private String assistantText(String fragment) {
+        return assistantMessages().stream().map(MessageView::content).filter(c -> c.contains(fragment)).reduce((a, b) -> b)
+                .orElse("");
     }
 
     /** Registro no PSP simulado, evento de ativação e entrega pelo assistente. */
@@ -101,10 +126,10 @@ class AssistantPixIT extends AssistantTestSupport {
 
         inbound("pode mandar o pix");
         assertThat(outcomes()).last().isEqualTo("REPLIED");
-        assertThat(lastAssistantText()).contains("foi gerado").contains("mensagem separada");
+        assertThat(assistantText("foi gerado")).contains("mensagem separada");
         Map<String, Object> request = lastPixRequest();
         assertThat(request.get("decision")).isEqualTo("ISSUED");
-        assertThat(request.get("delivery_status")).isEqualTo("AWAITING");
+        assertThat(request.get("delivery_status")).isIn("AWAITING", "DELIVERED");
         BigDecimal amount = (BigDecimal) request.get("amount");
         UUID instructionId = (UUID) request.get("instruction_id");
         // Pix imediato da parcela, exatamente o valor do acordo, pela conta Pix da assessoria
@@ -201,7 +226,7 @@ class AssistantPixIT extends AssistantTestSupport {
         inbound("isso é um absurdo, vou fazer uma reclamação no Reclame Aqui");
         assertThat(lastTurnColumn("handoff_reason")).isEqualTo("COMPLAINT");
         // o atendente devolve a conversa ao assistente; a reclamação continua na sessão
-        asOperator(operatorX, () -> conversations.returnToAssistant(conversationId, "Cliente acalmou"));
+        operatorReturnsToAssistant("Cliente acalmou");
         inbound("pode mandar o pix");
 
         Map<String, Object> request = lastPixRequest();
@@ -245,7 +270,7 @@ class AssistantPixIT extends AssistantTestSupport {
         assertThat(outcomes()).last().isEqualTo("APPROVAL_REQUESTED");
         UUID proposalId = UUID.fromString(lastTurnColumn("proposal_id::text"));
         UUID agreementId = asOperator(operatorX, () -> proposals.formalize(proposalId)).id();
-        asOperator(operatorX, () -> conversations.returnToAssistant(conversationId, "Acordo formalizado"));
+        operatorReturnsToAssistant("Acordo formalizado");
 
         inbound("quero pagar agora no pix");
         Map<String, Object> request = lastPixRequest();
@@ -261,12 +286,12 @@ class AssistantPixIT extends AssistantTestSupport {
     void shadowModeOnlySuggestsToTheOperator() {
         scenario("pix-shadow", "800.00");
         pixAccount();
-        publishPixPolicy("pix", AssistantMode.AUTONOMOUS, assistantProfile(true), null);
+        PolicyView autonomous = publishPixPolicy("pix", AssistantMode.AUTONOMOUS, assistantProfile(true), null);
         handToAssistant();
         agreeInCash();
         UUID agreementId = UUID.fromString(lastTurnColumn("agreement_id::text"));
         // nova versão da política em modo sombra: a próxima mensagem vai para a fila e o assistente só rascunha
-        publishPixPolicy("pix", AssistantMode.SHADOW, null, null);
+        republish(autonomous, AssistantMode.SHADOW);
         inbound("oi");
         assertThat(conversation().ownerType()).isEqualTo("QUEUE");
 
