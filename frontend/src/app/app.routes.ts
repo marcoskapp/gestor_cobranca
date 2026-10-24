@@ -58,6 +58,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/campaign/campaign.routes').then((m) => m.CAMPAIGN_ROUTES),
       },
       {
+        path: 'autonegociacao',
+        loadChildren: () => import('./features/portal-admin/portal-admin.routes').then((m) => m.PORTAL_ADMIN_ROUTES),
+      },
+      {
         path: 'juridico',
         loadChildren: () => import('./features/legal/legal.routes').then((m) => m.LEGAL_ROUTES),
       },

@@ -33,7 +33,7 @@ import { PortalSite } from '../layout/portal-site';
       @if (!challenge()) {
         <h1 class="portal-title" #heading tabindex="-1">Consulte e negocie suas dívidas</h1>
         <p class="portal-subtitle">Veja o valor atualizado, escolha como pagar e feche o acordo aqui mesmo.</p>
-        <form (ngSubmit)="requestCode()" novalidate>
+        <form (submit)="$event.preventDefault(); requestCode()" novalidate>
           <mat-form-field class="portal-field" appearance="outline">
             <mat-label>CPF ou CNPJ</mat-label>
             <input matInput [formControl]="document" inputmode="numeric" autocomplete="off" maxlength="18"
@@ -68,7 +68,7 @@ import { PortalSite } from '../layout/portal-site';
           Se o documento estiver cadastrado, você vai receber um código de {{ challenge()!.codeLength }} números
           pelo {{ channelLabels[challenge()!.channel] }}. Ele vale por alguns minutos.
         </p>
-        <form (ngSubmit)="verify()" novalidate>
+        <form (submit)="$event.preventDefault(); verify()" novalidate>
           <mat-form-field class="portal-field" appearance="outline">
             <mat-label>Código recebido</mat-label>
             <input matInput [formControl]="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />

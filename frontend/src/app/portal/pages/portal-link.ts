@@ -23,7 +23,7 @@ import { lockMessage } from './portal-entry';
       @if (step(); as s) {
         <h1 class="portal-title">Confirme seus dados</h1>
         <p class="portal-subtitle">Para sua segurança, informe o dado abaixo.</p>
-        <form (ngSubmit)="confirm(s)" novalidate>
+        <form (submit)="$event.preventDefault(); confirm(s)" novalidate>
           <mat-form-field class="portal-field" appearance="outline">
             <mat-label>{{ knowledge()?.label }}</mat-label>
             <input matInput [formControl]="answer" autocomplete="off" maxlength="20" aria-describedby="k-hint" />
