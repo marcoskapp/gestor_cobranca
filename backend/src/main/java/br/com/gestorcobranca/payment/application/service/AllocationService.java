@@ -16,6 +16,7 @@ import br.com.gestorcobranca.payment.domain.service.AllocationPlanner;
 import br.com.gestorcobranca.payment.domain.service.AllocationPlanner.Plan;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Ids;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -164,15 +166,23 @@ class AllocationService {
         UUID portfolioId = portfolios.size() == 1 ? portfolios.iterator().next() : null;
         PaymentAllocation allocation = allocations.save(PaymentAllocation.toTitles(payment.getId(), origin, portfolioId,
                 lines, sourceAllocationId));
+        Map<UUID, TitleInfo> byId = infos.stream().collect(Collectors.toMap(TitleInfo::id, t -> t, (a, b) -> a));
+        LocalDate paidOn = payment.getPaidAt().atZone(TimeConfig.BUSINESS_ZONE).toLocalDate();
+        List<PaymentConfirmed.Allocation> published = new java.util.ArrayList<>();
         for (PaymentAllocation.Line line : lines) {
-            postToLedger(allocation, line, payment.getPaidAt());
+            Map<Component, Money> parts = postToLedger(allocation, line, payment.getPaidAt());
+            TitleInfo info = byId.get(line.titleId());
+            Money honorarium = parts.getOrDefault(Component.HONORARIUM, Money.ZERO);
+            Integer daysPastDue = info == null || info.dueDate() == null ? null
+                    : (int) Math.max(0, java.time.temporal.ChronoUnit.DAYS.between(info.dueDate(), paidOn));
+            published.add(new PaymentConfirmed.Allocation(line.titleId(), null, line.amount().amount(),
+                    info == null ? null : info.reference(), daysPastDue, honorarium.amount()));
         }
         payment.allocate(allocation.getAmount());
         events.publishEvent(new PaymentConfirmed(Ids.newId(), currentActor.tenantId(), Instant.now(clock),
                 allocation.getId(), payment.getDebtorId(), payment.getCreditorId(), portfolioId, null,
                 allocation.getAmount().amount(), payment.getPaidAt(), payment.getSource().name(),
-                payment.getMethod().name(), lines.stream().map(l -> new PaymentConfirmed.Allocation(l.titleId(), null,
-                l.amount().amount())).toList()));
+                payment.getMethod().name(), published));
         recorded(payment, allocation);
         if (plan.leftover().isPositive()) {
             metrics.leftover("excess");
@@ -240,7 +250,8 @@ class AllocationService {
         }
     }
 
-    private void postToLedger(PaymentAllocation allocation, PaymentAllocation.Line line, Instant paidAt) {
+    /** Lança a linha no razão do título; devolve a distribuição por componente. */
+    private Map<Component, Money> postToLedger(PaymentAllocation allocation, PaymentAllocation.Line line, Instant paidAt) {
         Map<String, Money> balances = new LinkedHashMap<>();
         titles.balance(line.titleId()).components()
                 .forEach(c -> balances.put(c.component(), Money.ofNullable(c.balance())));
@@ -251,6 +262,7 @@ class AllocationService {
                     amount(parts, Component.INTEREST), amount(parts, Component.FINE), amount(parts, Component.FEES),
                     amount(parts, Component.HONORARIUM)), paidAt));
             metrics.ledgerPosting("payment", result.applied() ? "applied" : "duplicate");
+            return parts;
         } catch (RuntimeException e) {
             metrics.ledgerPosting("payment", "failed");
             throw e;

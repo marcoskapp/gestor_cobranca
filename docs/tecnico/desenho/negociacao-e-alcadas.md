@@ -238,6 +238,8 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 | `/proposals/{id}/adopt` | `POST` | `NEGOTIATION_PROPOSE` |
 | `/proposals/{id}/accept` · `/formalize` | `POST` | `AGREEMENT_FORMALIZE` |
 | `/agreements` · `/agreements/{id}` · `/installments` · `/payments` · `/term` | `GET` | `AGREEMENT_VIEW` |
+
+Porta pública adicional (23/10/2026, para a prestação de contas — [prestacao-de-contas.md](prestacao-de-contas.md)): `AgreementUseCases#paymentDistribution(agreementId, paymentId)` devolve a distribuição de um pagamento aplicado (parcelas com número, títulos com a identificação no credor e componentes do razão), número de parcelas, maior atraso na formalização e número da renegociação. Sem endpoint REST; `AGREEMENT_VIEW` e escopo por credor.
 | `/agreements/{id}/cancel` | `POST` | `AGREEMENT_CANCEL` |
 
 ### 10.11 Decisões da parte 2
