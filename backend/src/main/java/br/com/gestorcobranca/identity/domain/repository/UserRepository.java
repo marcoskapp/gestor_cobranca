@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface UserRepository {
@@ -29,5 +30,10 @@ public interface UserRepository {
 
     List<User> findActiveByRoleIds(Collection<UUID> roleIds);
 
-    Page<User> search(String text, UserStatus status, UUID roleId, UUID businessUnitId, Pageable pageable);
+    /**
+     * @param withinCreditors nulo = sem restrição; senão só usuários sem "todos os credores" e cujos
+     *                        credores estão todos neste conjunto
+     */
+    Page<User> search(String text, UserStatus status, UUID roleId, UUID businessUnitId, Set<UUID> withinCreditors,
+                      Pageable pageable);
 }

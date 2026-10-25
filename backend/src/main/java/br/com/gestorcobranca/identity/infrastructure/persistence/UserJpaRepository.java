@@ -5,6 +5,8 @@ import br.com.gestorcobranca.identity.domain.model.UserStatus;
 import br.com.gestorcobranca.identity.domain.repository.UserRepository;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,6 +18,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 interface UserJpaRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User>, UserRepository {
@@ -49,8 +52,21 @@ interface UserJpaRepository extends JpaRepository<User, UUID>, JpaSpecificationE
     List<User> findActiveByRoleIds(Collection<UUID> roleIds);
 
     @Override
-    default Page<User> search(String text, UserStatus status, UUID roleId, UUID businessUnitId, Pageable pageable) {
+    default Page<User> search(String text, UserStatus status, UUID roleId, UUID businessUnitId, Set<UUID> withinCreditors,
+                              Pageable pageable) {
         Specification<User> spec = Specification.unrestricted();
+        if (withinCreditors != null) {
+            spec = spec.and((root, query, cb) -> {
+                Subquery<UUID> outside = query.subquery(UUID.class);
+                Root<User> same = outside.correlate(root);
+                Join<User, UUID> creditor = same.join("creditorIds");
+                outside.select(creditor);
+                if (!withinCreditors.isEmpty()) {
+                    outside.where(cb.not(creditor.in(withinCreditors)));
+                }
+                return cb.and(cb.isFalse(root.get("allCreditors")), cb.not(cb.exists(outside)));
+            });
+        }
         if (status != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
         }

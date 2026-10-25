@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.identity.application.service;
 
 import br.com.gestorcobranca.identity.application.port.in.RoleManagementUseCases;
+import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
 import br.com.gestorcobranca.identity.domain.model.Role;
 import br.com.gestorcobranca.identity.domain.repository.RoleRepository;
 import br.com.gestorcobranca.identity.domain.repository.UserRepository;
@@ -28,9 +29,17 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Perfis configuráveis. Alterar permissões de um perfil afeta os usuários no próximo refresh de
- * token (no máximo a validade do access token); por isso a alteração fica registrada na
- * auditoria e no log de acesso.
+ * Perfis configuráveis, com hierarquia de administração:
+ * <ul>
+ *   <li>só se concede o que se tem (permissões novas ⊆ permissões de quem edita);</li>
+ *   <li>só se edita ou desativa um perfil que se domina (permissões atuais ⊆ permissões de quem edita);</li>
+ *   <li>o perfil {@code ADMIN} nunca perde o núcleo de governança e só fica abaixo do conjunto padrão
+ *       por decisão de um administrador;</li>
+ *   <li>códigos dos perfis padrão e de plataforma são reservados;</li>
+ *   <li>quando um perfil perde permissões, as sessões de quem o tem são revogadas na hora (sem esperar
+ *       o próximo refresh).</li>
+ * </ul>
+ * Tudo vai para a auditoria e para o log de acesso.
  */
 @Service
 @Transactional
@@ -41,19 +50,43 @@ class RoleManagementService implements RoleManagementUseCases {
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
     private final AccessLogger accessLogger;
+    private final AdministrationHierarchy hierarchy;
+    private final SessionManager sessionManager;
+
+    /** O perfil ADMIN nunca perde estas permissões: sem elas ninguém mais administraria a assessoria. */
+    static final Set<Permission> ADMIN_GOVERNANCE_CORE = EnumSet.of(Permission.USER_VIEW, Permission.USER_MANAGE,
+            Permission.ROLE_MANAGE);
+
+    /** Códigos que perfis da assessoria não podem usar: perfis padrão e o de plataforma. */
+    static final Set<String> RESERVED_CODES = reservedCodes();
 
     RoleManagementService(RoleRepository roles, UserRepository users, CurrentActor currentActor, AuditTrail auditTrail,
-                          AccessLogger accessLogger) {
+                          AccessLogger accessLogger, AdministrationHierarchy hierarchy, SessionManager sessionManager) {
         this.roles = roles;
         this.users = users;
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
         this.accessLogger = accessLogger;
+        this.hierarchy = hierarchy;
+        this.sessionManager = sessionManager;
+    }
+
+    private static Set<String> reservedCodes() {
+        Set<String> codes = new java.util.HashSet<>();
+        DefaultRoles.forTenant().forEach(d -> codes.add(d.code()));
+        codes.add(DefaultRoles.PLATFORM_ADMIN);
+        return Set.copyOf(codes);
     }
 
     @Override
     public RoleView create(RoleCommand command) {
         String code = command.code() == null ? null : command.code().trim().toUpperCase();
+        if (code != null && RESERVED_CODES.contains(code)) {
+            accessLogger.log(AccessEvent.of(AccessEventType.ACCESS_DENIED, currentActor.get(),
+                    Map.of("reason", "reserved_role_code", "roleCode", code)));
+            throw new BusinessRuleException("role.code_reserved",
+                    "Código reservado aos perfis padrão do sistema; escolha outro código");
+        }
         if (code != null && roles.existsByCode(code)) {
             throw new ConflictException("role.code_taken", "Já existe perfil com este código");
         }
@@ -68,22 +101,64 @@ class RoleManagementService implements RoleManagementUseCases {
 
     @Override
     public RoleView update(UUID roleId, RoleCommand command) {
+        Actor actor = currentActor.get();
         Role role = load(roleId);
         Set<Permission> permissions = parse(command.permissions());
+        hierarchy.requireDominates(actor, role, "update_role");
         requireGrantable(permissions);
+        if (isAdminRole(role)) {
+            protectAdminRole(actor, permissions);
+        }
+        Set<Permission> removed = EnumSet.noneOf(Permission.class);
+        removed.addAll(role.getPermissions());
+        removed.removeAll(permissions);
         AuditEntry audit = AuditEntry.of("role.updated", "role", roleId)
                 .change("name", role.getName(), command.name())
                 .change("permissions", names(role.getPermissions()), names(permissions));
         role.update(command.name(), command.description(), permissions);
         roles.save(role);
-        auditTrail.record(audit);
+        int revoked = removed.isEmpty() ? 0 : revokeHolders(role, "role_permissions_reduced");
+        auditTrail.record(audit.meta("permissionsRemoved", names(removed)).meta("sessionsRevoked", revoked));
         logPermissionChange(role, permissions);
         return view(role);
+    }
+
+    private static boolean isAdminRole(Role role) {
+        return role.isSystemRole() && DefaultRoles.ADMIN.equals(role.getCode());
+    }
+
+    /**
+     * ADMIN: nunca sem o núcleo de governança; abaixo do conjunto padrão só por um administrador (perfil
+     * ADMIN). Quem edita já domina o perfil (tem todas as permissões dele).
+     */
+    private void protectAdminRole(Actor actor, Set<Permission> permissions) {
+        if (!permissions.containsAll(ADMIN_GOVERNANCE_CORE)) {
+            throw new BusinessRuleException("role.admin_governance_required",
+                    "O perfil Administrador deve manter a gestão de usuários e de perfis");
+        }
+        Set<Permission> baseline = DefaultRoles.forTenant().stream().filter(d -> DefaultRoles.ADMIN.equals(d.code()))
+                .findFirst().map(DefaultRoles.Definition::permissions).orElse(Set.of());
+        if (!permissions.containsAll(baseline) && !hierarchy.actorIsAdministrator(actor)) {
+            accessLogger.log(AccessEvent.of(AccessEventType.ACCESS_DENIED, actor,
+                    Map.of("reason", "admin_role_reduction_requires_admin")));
+            throw new BusinessRuleException("role.admin_reduction_requires_admin",
+                    "Somente um administrador pode retirar permissões padrão do perfil Administrador");
+        }
+    }
+
+    /** Revoga as sessões de todos os usuários ativos com o perfil (a perda de permissão vale na hora). */
+    private int revokeHolders(Role role, String reason) {
+        int revoked = 0;
+        for (var holder : users.findActiveByRoleIds(Set.of(role.getId()))) {
+            revoked += sessionManager.revokeAll(holder.getId(), reason);
+        }
+        return revoked;
     }
 
     @Override
     public RoleView changeStatus(UUID roleId, boolean active) {
         Role role = load(roleId);
+        hierarchy.requireDominates(currentActor.get(), role, active ? "activate_role" : "deactivate_role");
         if (!active && users.countActiveWithRole(roleId) > 0) {
             throw new BusinessRuleException("role.in_use", "Perfil atribuído a usuários ativos não pode ser desativado");
         }

@@ -117,9 +117,17 @@ class DefaultRolesIT extends IntegrationTest {
         assertThat(in(tenant, () -> roles.findByCode("COBRANCA_NOTURNA").orElseThrow().getPermissions()))
                 .containsExactly(Permission.CASE_VIEW);
 
-        UUID platform = createTenant("plat");
-        in(platform, () -> roles.save(new Role(DefaultRoles.PLATFORM_ADMIN, "Plataforma", null,
-                DefaultRoles.platformAdmin().permissions(), true)));
+        // um perfil da assessoria com o código de plataforma não desliga a sincronização (revisão A8)
+        UUID impostor = createTenant("imit");
+        in(impostor, () -> roles.save(new Role(DefaultRoles.PLATFORM_ADMIN, "Plataforma", null,
+                Set.of(Permission.CASE_VIEW), false)));
+        assertThat(synchronizer.syncTenant(impostor).createdRoles()).contains(DefaultRoles.ADMIN, DefaultRoles.OPERADOR);
+
+        // o tenant da plataforma é reconhecido pelo atributo do tenant e não recebe perfis de assessoria
+        UUID platform = tenantExecution.callInTenant(Ids.newId(), "test.setup",
+                () -> tenantAdministration.ensurePlatformTenant("11.444.777/0001-61").tenant().id());
+        in(platform, () -> roles.findByCode(DefaultRoles.PLATFORM_ADMIN).orElseGet(() -> roles.save(new Role(
+                DefaultRoles.PLATFORM_ADMIN, "Plataforma", null, DefaultRoles.platformAdmin().permissions(), true))));
         assertThat(synchronizer.syncTenant(platform).createdRoles()).isEmpty();
         assertThat(in(platform, () -> roles.findAll()).stream().map(Role::getCode)).containsExactly(DefaultRoles.PLATFORM_ADMIN);
     }
