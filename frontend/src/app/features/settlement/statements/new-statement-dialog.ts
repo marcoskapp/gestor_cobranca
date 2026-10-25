@@ -28,7 +28,7 @@ import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
       <h2 appDialogTitle class="h5 mb-0">Novo demonstrativo</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="create()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="create()" novalidate>
       <div class="modal-body">
         <app-entity-picker [control]="form.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
         @if (suggestion(); as s) {

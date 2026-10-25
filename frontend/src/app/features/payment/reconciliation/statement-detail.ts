@@ -1,8 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import { timer } from 'rxjs';
 import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs';
@@ -10,6 +7,7 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -30,20 +28,20 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
 /** Resultado de um extrato importado: indicadores do lote e o tratamento de cada linha. */
 @Component({
   selector: 'app-statement-detail',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, Amount, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip],
   template: `
     @if (resource.isLoading() && !statement()) {
       <app-skeleton variant="card" [rows]="5" />
     } @else if (resource.status() === 'error' && !statement()) {
-      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o extrato." message="Verifique a conexão e tente novamente.">
-        <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+      <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o extrato." message="Verifique a conexão e tente novamente.">
+        <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (statement(); as s) {
       @let ind = indicators()!;
       <app-page-header [title]="s.fileName ?? 'Extrato importado'" [subtitle]="'Importado em ' + (s.createdAt | appDate) + ' por ' + users.name(s.requestedBy) + ' · ' + (s.creditorId ? creditors.name(s.creditorId) : 'todos os credores')">
         @if (s.divergentLines > 0) {
-          <a mat-flat-button routerLink="/pagamentos/divergencias" [queryParams]="{ situacao: 'OPEN' }">
-            <mat-icon aria-hidden="true">rule</mat-icon>
+          <a class="btn btn-primary d-inline-flex align-items-center gap-2" routerLink="/pagamentos/divergencias" [queryParams]="{ situacao: 'OPEN' }">
+            <app-icon name="list-check" />
             Tratar divergências
           </a>
         }
@@ -56,14 +54,14 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
         }
       </div>
       @if (running()) {
-        <mat-progress-bar mode="indeterminate" aria-label="Conciliando" />
+        <div class="progress" role="progressbar" aria-label="Conciliando"><div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div></div>
         <p class="app-muted" role="status">Conciliando as linhas. Esta tela se atualiza sozinha.</p>
       }
       @if (s.status === 'FAILED') {
-        <p class="app-alert app-alert--error" role="alert">
-          <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
+          <app-icon name="exclamation-circle" />
           <span>O arquivo foi recusado: {{ failure(s.failureCode) }} Nenhuma linha foi conciliada. Corrija e importe de novo (a prévia aponta as linhas com problema).</span>
-        </p>
+        </div>
       }
 
       <section class="app-card" aria-labelledby="sd-kpis" data-tour="statement-indicators">
@@ -92,7 +90,7 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
         [page]="lines.tablePage()"
         (pageChange)="lines.setPage($event)"
         (retry)="lines.reload()"
-        emptyIcon="receipt_long"
+        emptyIcon="receipt"
         [emptyMessage]="running() ? 'As linhas aparecem ao fim do processamento.' : 'Nenhuma linha registrada.'"
       >
         <ng-template appCell="lineNumber" [appCellOf]="lines.rows()" let-l><span class="app-numeric">{{ l.lineNumber }}</span></ng-template>
@@ -133,18 +131,18 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
       flex-direction: column;
       gap: 2px;
       padding: 10px 12px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
     }
     .sd-kpi--warn .sd-kpi__value {
-      color: var(--app-warning-fg);
+      color: var(--bs-warning-text-emphasis);
     }
     .sd-kpi__label {
       font-size: var(--app-text-xs);
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .sd-kpi__value {
       font-size: var(--app-text-lg);

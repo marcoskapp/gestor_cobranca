@@ -58,7 +58,7 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
       <h2 appDialogTitle class="h5 mb-0">{{ data.base ? 'Nova versão do layout ' + data.base.code : 'Novo layout de importação' }}</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         @for (e of errors(); track e) {
           <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">{{ e }}</div>

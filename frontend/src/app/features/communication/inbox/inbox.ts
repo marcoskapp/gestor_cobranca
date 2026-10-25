@@ -1,21 +1,18 @@
 import { DOCUMENT, Component, DestroyRef, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorNames } from '../../organization/data/organization.lookups';
@@ -51,7 +48,7 @@ export function inboxFilter(tab: InboxTab, channel: string, awaiting: boolean): 
  */
 @Component({
   selector: 'app-inbox',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatSlideToggleModule, EmptyState, Skeleton, StatusChip, AppDatePipe, ConversationPanel],
+  imports: [FormsModule, RouterLink, ...FORM_FIELD, Icon, EmptyState, Skeleton, StatusChip, AppDatePipe, ConversationPanel],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
 })

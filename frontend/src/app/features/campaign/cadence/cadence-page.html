@@ -4,9 +4,9 @@
     <app-skeleton class="cp-gap" variant="card" [rows]="6" />
   </div>
 } @else if (campaign.status() === 'error') {
-  <app-empty-state icon="format_list_numbered" tone="error" title="Não foi possível abrir a régua." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/campanhas">Voltar para campanhas</a>
+  <app-empty-state icon="list-ol" tone="error" title="Não foi possível abrir a régua." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="campaign.reload()">Tentar novamente</button>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas">Voltar para campanhas</a>
   </app-empty-state>
 }
 
@@ -15,26 +15,26 @@
     @if (canManage() && c.status !== 'FINISHED') {
       @if (editable()) {
         @if (dirty()) {
-          <button mat-stroked-button type="button" (click)="discard()">Descartar alterações</button>
-          <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
-            <mat-icon aria-hidden="true">save</mat-icon>
+          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="discard()">Descartar alterações</button>
+          <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
+            <app-icon name="floppy" />
             Salvar rascunho
           </button>
         } @else if (draftVersion()) {
           <button
-            mat-flat-button
+            class="btn btn-primary d-inline-flex align-items-center gap-2"
             type="button"
             (click)="publish()"
             [disabled]="allProblems().length > 0 || hasOffer()"
-            [matTooltip]="hasOffer() ? 'Etapas de oferta ainda não podem ser publicadas' : allProblems().length ? 'Corrija os problemas indicados' : 'Publica a nova versão da régua'"
+            [ngbTooltip]="hasOffer() ? 'Etapas de oferta ainda não podem ser publicadas' : allProblems().length ? 'Corrija os problemas indicados' : 'Publica a nova versão da régua'"
           >
-            <mat-icon aria-hidden="true">publish</mat-icon>
+            <app-icon name="upload" />
             Publicar versão
           </button>
         }
       } @else if (publishedVersion() && !draftVersion()) {
-        <button mat-flat-button type="button" (click)="newVersion()" matTooltip="Copia a versão publicada para um novo rascunho">
-          <mat-icon aria-hidden="true">content_copy</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="newVersion()" ngbTooltip="Copia a versão publicada para um novo rascunho">
+          <app-icon name="copy" />
           Nova versão
         </button>
       }
@@ -43,8 +43,8 @@
   <app-campaign-tabs [campaignId]="c.id" />
 
   @for (e of errors(); track e) {
-    <p class="app-alert app-alert--error" role="alert">
-      <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="alert alert-danger d-flex gap-2" role="alert">
+      <app-icon name="exclamation-circle" />
       <span>{{ e }}</span>
     </p>
   }
@@ -68,7 +68,7 @@
           <span>Primeira versão (ainda não salva)</span>
         }
         @if (dirty()) {
-          <span class="app-status app-status--warning">Alterações não salvas</span>
+          <span class="badge rounded-pill border bg-warning-subtle text-warning-emphasis border-warning-subtle fw-normal">Alterações não salvas</span>
         }
         @if (templates() === null && editable()) {
           <span class="app-muted cp-small">Templates conferidos pelo servidor ao publicar.</span>
@@ -76,8 +76,8 @@
       </section>
 
       @if (editable() && allProblems().length) {
-        <section class="app-alert app-alert--error cp-problems" role="alert" aria-label="Problemas na régua">
-          <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <section class="alert alert-danger d-flex gap-2 cp-problems" role="alert" aria-label="Problemas na régua">
+          <app-icon name="exclamation-circle" />
           <div>
             <strong>{{ allProblems().length }} problema(s) a corrigir antes de publicar:</strong>
             <ul>
@@ -91,36 +91,33 @@
 
       <section class="app-card" aria-labelledby="cp-reply" data-tour="cadence-reply">
         <h2 class="app-card__title" id="cp-reply">Resposta do devedor (regra padrão)</h2>
-        <div class="cp-row">
-          <mat-form-field subscriptSizing="dynamic" class="app-compact cp-grow">
-            <mat-label>Quando o devedor responde</mat-label>
-            <mat-select [ngModel]="draft().defaultOnReply" (ngModelChange)="setDefaultReply($event)" [disabled]="!editable()">
+        <div class="row g-3">
+          <app-field class="col-md-6" label="Quando o devedor responde" hint="Vale para as etapas sem regra própria (a da última etapa executada prevalece).">
+            <select appInput [ngModel]="draft().defaultOnReply" (ngModelChange)="setDefaultReply($event)" [disabled]="!editable()">
               @for (r of replies; track r) {
-                <mat-option [value]="r">{{ replyLabels[r] }}</mat-option>
+                <option [ngValue]="r">{{ replyLabels[r] }}</option>
               }
-            </mat-select>
-            <mat-hint>Vale para as etapas sem regra própria (a da última etapa executada prevalece).</mat-hint>
-          </mat-form-field>
+            </select>
+          </app-field>
           @if (draft().defaultOnReply === 'GOTO_STEP') {
-            <mat-form-field class="app-compact cp-grow">
-              <mat-label>Ir para a etapa</mat-label>
-              <mat-select [(ngModel)]="draft().defaultOnReplyStepCode" (ngModelChange)="edited()" [disabled]="!editable()">
+            <app-field class="col-md-6" label="Ir para a etapa">
+              <select appInput [(ngModel)]="draft().defaultOnReplyStepCode" (ngModelChange)="edited()" [disabled]="!editable()">
+                <option [ngValue]="null" disabled>Selecione</option>
                 @for (s of draft().steps; track s.code) {
-                  <mat-option [value]="s.code">{{ s.code }}</mat-option>
+                  <option [ngValue]="s.code">{{ s.code }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
+              </select>
+            </app-field>
           }
           @if (draft().defaultOnReply === 'MOVE_TO_QUEUE') {
-            <mat-form-field class="app-compact cp-grow">
-              <mat-label>Equipe</mat-label>
-              <mat-select [ngModel]="draft().replyTeamId ?? ''" (ngModelChange)="draft().replyTeamId = $event || null; edited()" [disabled]="!editable()">
-                <mat-option value="">Fila do roteamento</mat-option>
+            <app-field class="col-md-6" label="Equipe">
+              <select appInput [ngModel]="draft().replyTeamId ?? ''" (ngModelChange)="draft().replyTeamId = $event || null; edited()" [disabled]="!editable()">
+                <option value="">Fila do roteamento</option>
                 @for (t of teams(); track t.value) {
-                  <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                  <option [value]="t.value">{{ t.label }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
+              </select>
+            </app-field>
           }
         </div>
       </section>
@@ -129,22 +126,22 @@
         <h2 class="app-section-title" id="cp-steps">Etapas ({{ draft().steps.length }} de até {{ maxSteps }})</h2>
         <ol class="cp-flow">
           <li class="cp-start" aria-hidden="true">
-            <mat-icon>login</mat-icon>
+            <app-icon name="box-arrow-in-right" />
             Caso inscrito
           </li>
           @for (s of draft().steps; track $index; let i = $index; let last = $last) {
             @let bad = stepProblems(i).length > 0;
             <li class="cp-wait">
               <span class="cp-wait__line" aria-hidden="true"></span>
-              <span class="cp-wait__text"><mat-icon aria-hidden="true">schedule</mat-icon>{{ wait(s, i) }} · {{ window(s) }}</span>
+              <span class="cp-wait__text"><app-icon name="clock" />{{ wait(s, i) }} · {{ window(s) }}</span>
             </li>
             <li class="cp-step" [class.cp-step--open]="openStep() === i" [class.cp-step--bad]="bad">
               <button type="button" class="cp-step__head" (click)="toggle(i)" [attr.aria-expanded]="openStep() === i" [attr.aria-controls]="'cp-step-' + i">
                 <span class="cp-step__num" aria-hidden="true">{{ i + 1 }}</span>
-                <mat-icon class="cp-step__icon" aria-hidden="true">{{ actionIcons[s.action.type] }}</mat-icon>
+                <app-icon class="cp-step__icon" [name]="actionIcons[s.action.type]" />
                 <span class="cp-step__text">
                   <span class="cp-step__title">
-                    <span class="cdk-visually-hidden">Etapa {{ i + 1 }}:</span>
+                    <span class="visually-hidden">Etapa {{ i + 1 }}:</span>
                     {{ s.code }}{{ s.name ? ' — ' + s.name : '' }}
                   </span>
                   <span class="cp-step__summary">{{ summary(s) }}</span>
@@ -154,11 +151,11 @@
                   <span class="cp-step__meta">Resposta: {{ reply(s) }}</span>
                 </span>
                 @if (bad) {
-                  <span class="app-status app-status--danger cp-step__badge"><mat-icon aria-hidden="true">error_outline</mat-icon>{{ stepProblems(i).length }} problema(s)</span>
+                  <span class="badge rounded-pill border bg-danger-subtle text-danger-emphasis border-danger-subtle fw-normal cp-step__badge"><app-icon name="exclamation-circle" />{{ stepProblems(i).length }} problema(s)</span>
                 } @else if (stepWarnings(i).length) {
-                  <span class="app-status app-status--warning cp-step__badge"><mat-icon aria-hidden="true">warning_amber</mat-icon>aviso</span>
+                  <span class="badge rounded-pill border bg-warning-subtle text-warning-emphasis border-warning-subtle fw-normal cp-step__badge"><app-icon name="exclamation-triangle" />aviso</span>
                 }
-                <mat-icon class="cp-step__chevron" aria-hidden="true">{{ openStep() === i ? 'expand_less' : 'expand_more' }}</mat-icon>
+                <app-icon class="cp-step__chevron" [name]="openStep() === i ? 'chevron-up' : 'chevron-down'" />
               </button>
               @if (openStep() === i) {
                 <div class="cp-step__body" [id]="'cp-step-' + i">
@@ -182,7 +179,7 @@
             </li>
             @if (last) {
               <li class="cp-end" aria-hidden="true">
-                <mat-icon>flag</mat-icon>
+                <app-icon name="flag" />
                 Fim da régua: sem resposta, contato, acordo ou pagamento = régua esgotada{{ c.purpose === 'EXTRAJUDICIAL_COLLECTION' ? ' (indica ao jurídico)' : '' }}
               </li>
             }
@@ -191,8 +188,8 @@
           }
         </ol>
         @if (editable()) {
-          <button mat-stroked-button type="button" (click)="addStep()" [disabled]="draft().steps.length >= maxSteps" data-tour="cadence-add-step">
-            <mat-icon aria-hidden="true">add</mat-icon>
+          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="addStep()" [disabled]="draft().steps.length >= maxSteps" data-tour="cadence-add-step">
+            <app-icon name="plus-lg" />
             Adicionar etapa
           </button>
         }
@@ -204,7 +201,7 @@
       <ol class="cp-version-list">
         @for (v of versions(); track v.id) {
           <li [class.cp-version--current]="v.id === selected()?.id && !startingNew()">
-            <button type="button" class="cp-link" (click)="select(v.id)">Versão {{ v.versionNumber }}</button>
+            <button type="button" class="btn btn-link p-0 align-baseline" (click)="select(v.id)">Versão {{ v.versionNumber }}</button>
             <app-status-chip domain="cadence" [status]="v.status" />
             <span class="app-muted cp-small">{{ v.publishedAt ? 'publicada ' + (v.publishedAt | appDate: 'date') : 'criada ' + (v.createdAt | appDate: 'date') }}</span>
           </li>

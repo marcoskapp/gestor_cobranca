@@ -1,17 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, map, startWith } from 'rxjs';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { TemplatesApi } from '../data/communication.api';
 import { CHANNEL_LABELS, PURPOSE_LABELS, VARIABLE_EXAMPLES, VARIABLE_TYPE_LABELS } from '../data/communication.labels';
@@ -31,145 +28,106 @@ export interface TemplateDialogData {
  */
 @Component({
   selector: 'app-template-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
-    EntityPicker,
-  ],
+  imports: [ReactiveFormsModule, NgbTooltip, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title>{{ title }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
-        <div class="app-form-stack">
-        @if (creating) {
-          <div class="td-row">
-            <mat-form-field>
-              <mat-label>Código</mat-label>
-              <input matInput formControlName="code" maxlength="60" required [readonly]="!!data.asNewVersion" />
-              <mat-hint>Maiúsculas, números e _ (ex.: LEMBRETE_VENCIMENTO)</mat-hint>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Canal</mat-label>
-              <mat-select formControlName="channel" required>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ title }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
+        <div class="row g-3">
+          @if (creating) {
+            <app-field class="col-sm-6" label="Código" hint="Maiúsculas, números e _ (ex.: LEMBRETE_VENCIMENTO)">
+              <input appInput formControlName="code" maxlength="60" required [readonly]="!!data.asNewVersion" />
+            </app-field>
+            <app-field class="col-sm-6" label="Canal">
+              <select appInput formControlName="channel" required>
                 @for (c of channelOptions; track c.value) {
-                  <mat-option [value]="c.value" [disabled]="!!data.asNewVersion && c.value !== data.template?.channel">{{ c.label }}</mat-option>
+                  <option [ngValue]="c.value" [disabled]="!!data.asNewVersion && c.value !== data.template?.channel">{{ c.label }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
-          </div>
-          @if (!data.asNewVersion) {
-            <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor (vazio = template da assessoria)" [single]="true" />
+              </select>
+            </app-field>
+            @if (!data.asNewVersion) {
+              <div class="col-12">
+                <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor (vazio = template da assessoria)" [single]="true" />
+              </div>
+            }
           }
-        }
-        <div class="td-row">
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="120" required />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Finalidade</mat-label>
-            <mat-select formControlName="purpose" required>
+          <app-field class="col-sm-6" label="Nome">
+            <input appInput formControlName="name" maxlength="120" required />
+          </app-field>
+          <app-field class="col-sm-6" label="Finalidade">
+            <select appInput formControlName="purpose" required>
               @for (p of purposes; track p.value) {
-                <mat-option [value]="p.value">{{ p.label }}</mat-option>
+                <option [ngValue]="p.value">{{ p.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
+            </select>
+          </app-field>
+          @if (channel() === 'EMAIL') {
+            <app-field class="col-12" label="Assunto">
+              <input appInput formControlName="subject" maxlength="300" required />
+            </app-field>
+          }
+          <app-field class="col-12" label="Texto" [hint]="'Use ' + example + ' para inserir valores. Não inclua CPF, telefone, e-mail ou endereço.'">
+            <textarea appInput rows="5" formControlName="body" maxlength="8000" required></textarea>
+          </app-field>
         </div>
-        @if (channel() === 'EMAIL') {
-          <mat-form-field>
-            <mat-label>Assunto</mat-label>
-            <input matInput formControlName="subject" maxlength="300" required />
-          </mat-form-field>
-        }
-        <mat-form-field>
-          <mat-label>Texto</mat-label>
-          <textarea matInput rows="5" formControlName="body" maxlength="8000" required></textarea>
-          <mat-hint>Use {{ example }} para inserir valores. Não inclua CPF, telefone, e-mail ou endereço.</mat-hint>
-        </mat-form-field>
 
-        <h3 class="app-section-title">Variáveis</h3>
-        <div formArrayName="variables">
+        <h3 class="app-section-title mt-3">Variáveis</h3>
+        <div class="d-grid gap-2" formArrayName="variables">
           @for (v of variables.controls; track v; let i = $index) {
-            <div class="td-var" [formGroupName]="i">
-              <mat-form-field class="app-compact">
-                <mat-label>Nome</mat-label>
-                <input matInput formControlName="name" maxlength="40" required />
-              </mat-form-field>
-              <mat-form-field class="app-compact">
-                <mat-label>Tipo</mat-label>
-                <mat-select formControlName="type">
+            <div class="row g-2 align-items-end" [formGroupName]="i">
+              <app-field class="col-6 col-sm-4" label="Nome">
+                <input appInput formControlName="name" maxlength="40" required />
+              </app-field>
+              <app-field class="col-6 col-sm-4" label="Tipo">
+                <select appInput formControlName="type">
                   @for (t of types; track t.value) {
-                    <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                    <option [ngValue]="t.value">{{ t.label }}</option>
                   }
-                </mat-select>
-              </mat-form-field>
-              <mat-checkbox formControlName="required">Obrigatória</mat-checkbox>
-              <button mat-icon-button type="button" (click)="variables.removeAt(i)" aria-label="Remover variável" matTooltip="Remover">
-                <mat-icon aria-hidden="true">delete</mat-icon>
-              </button>
+                </select>
+              </app-field>
+              <div class="col-auto">
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" formControlName="required" [id]="'td-var-required-' + i" />
+                  <label class="form-check-label" [for]="'td-var-required-' + i">Obrigatória</label>
+                </div>
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-link" type="button" (click)="variables.removeAt(i)" aria-label="Remover variável" ngbTooltip="Remover">
+                  <app-icon name="trash3" />
+                </button>
+              </div>
             </div>
           }
         </div>
-        <button mat-button type="button" class="td-add" (click)="addVariable()"><mat-icon aria-hidden="true">add</mat-icon>Adicionar variável</button>
+        <button class="btn btn-link d-inline-flex align-items-center gap-2 px-0 mt-1" type="button" (click)="addVariable()"><app-icon name="plus-lg" />Adicionar variável</button>
         @if (channel() === 'WHATSAPP') {
-          <mat-form-field>
-            <mat-label>Nome do template no WhatsApp (opcional)</mat-label>
-            <input matInput formControlName="providerTemplateName" maxlength="120" />
-            <mat-hint>No WhatsApp, os parâmetros seguem a ordem das variáveis declaradas.</mat-hint>
-          </mat-form-field>
+          <app-field class="d-block mt-3" label="Nome do template no WhatsApp (opcional)" hint="No WhatsApp, os parâmetros seguem a ordem das variáveis declaradas.">
+            <input appInput formControlName="providerTemplateName" maxlength="120" />
+          </app-field>
         }
         @for (p of problems(); track p) {
-          <p class="app-field-error" role="alert">{{ p }}</p>
+          <div class="invalid-feedback d-block" role="alert">{{ p }}</div>
         }
         @if (channel() === 'WHATSAPP') {
-          <p class="app-alert app-alert--neutral" role="note">
-            <mat-icon aria-hidden="true">info</mat-icon>
+          <p class="alert alert-secondary d-flex gap-2 mt-3 mb-0" role="note">
+            <app-icon name="info-circle" />
             <span>Rascunho de WhatsApp fica aguardando a aprovação do provedor; editar volta a aguardar. Só o aprovado pode ser publicado.</span>
           </p>
         }
-        </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar rascunho</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar rascunho</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .td-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 0 12px;
-    }
-    .td-add {
-      align-self: flex-start;
-    }
-    .td-var {
-      display: grid;
-      grid-template-columns: minmax(120px, 1fr) minmax(160px, 1fr) auto auto;
-      align-items: center;
-      gap: 0 8px;
-    }
-    @media (max-width: 599.98px) {
-      .td-add {
-      align-self: flex-start;
-    }
-    .td-var {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
   `,
 })
 export class TemplateDialog {
-  protected readonly data = inject<TemplateDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<TemplateDialog, TemplateView>>(MatDialogRef);
+  protected readonly data = inject<TemplateDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<TemplateView>>(DialogRef);
   private readonly api = inject(TemplatesApi);
   protected readonly creditors = inject(CreditorLookup);
   protected readonly creating = !this.data.template || !!this.data.asNewVersion;
@@ -246,67 +204,66 @@ export class TemplateDialog {
 /** Registro da decisão do WhatsApp sobre o template (submetido, aprovado ou recusado). */
 @Component({
   selector: 'app-approval-dialog',
-  imports: [ReactiveFormsModule, MatButtonModule, MatDatepickerModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon],
   template: `
-    <h2 mat-dialog-title>Aprovação do WhatsApp</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
-        <div class="app-form-stack">
-        <p class="app-dialog-message">{{ data.template!.name }} (v{{ data.template!.templateVersion }}). Registre o que o provedor respondeu no gerenciador do WhatsApp.</p>
-        <mat-form-field>
-          <mat-label>Decisão</mat-label>
-          <mat-select formControlName="decision" required>
-            <mat-option value="PENDING">Submetido, aguardando</mat-option>
-            <mat-option value="APPROVED">Aprovado</mat-option>
-            <mat-option value="REJECTED">Recusado</mat-option>
-          </mat-select>
-        </mat-form-field>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Aprovação do WhatsApp</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body d-grid gap-3">
+        <p class="app-dialog-message mb-0">{{ data.template!.name }} (v{{ data.template!.templateVersion }}). Registre o que o provedor respondeu no gerenciador do WhatsApp.</p>
+        <app-field label="Decisão">
+          <select appInput formControlName="decision" required>
+            <option value="PENDING">Submetido, aguardando</option>
+            <option value="APPROVED">Aprovado</option>
+            <option value="REJECTED">Recusado</option>
+          </select>
+        </app-field>
         @if (form.controls.decision.value === 'APPROVED') {
-          <mat-form-field>
-            <mat-label>Nome do template no WhatsApp</mat-label>
-            <input matInput formControlName="providerTemplateName" maxlength="120" required />
-          </mat-form-field>
+          <app-field label="Nome do template no WhatsApp">
+            <input appInput formControlName="providerTemplateName" maxlength="120" required />
+          </app-field>
         }
-        <mat-form-field>
-          <mat-label>Referência (opcional)</mat-label>
-          <input matInput formControlName="reference" maxlength="120" />
-        </mat-form-field>
-        <mat-form-field>
-          <mat-label>Data da decisão</mat-label>
-          <input matInput [matDatepicker]="picker" formControlName="decidedAt" />
-          <mat-datepicker-toggle matIconSuffix [for]="picker" />
-          <mat-datepicker #picker />
-        </mat-form-field>
-        <mat-form-field>
-          <mat-label>{{ form.controls.decision.value === 'REJECTED' ? 'Motivo da recusa' : 'Observação (opcional)' }}</mat-label>
-          <textarea matInput rows="2" formControlName="note" maxlength="500" [required]="form.controls.decision.value === 'REJECTED'"></textarea>
-        </mat-form-field>
-        </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Registrar</button>
-      </mat-dialog-actions>
+        <app-field label="Referência (opcional)">
+          <input appInput formControlName="reference" maxlength="120" />
+        </app-field>
+        <app-field label="Data da decisão">
+          <div class="input-group">
+            <input appInput formControlName="decidedAt" ngbDatepicker #picker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+            <button class="btn btn-outline-secondary" type="button" (click)="picker.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+          </div>
+        </app-field>
+        <app-field [label]="form.controls.decision.value === 'REJECTED' ? 'Motivo da recusa' : 'Observação (opcional)'">
+          <textarea appInput rows="2" formControlName="note" maxlength="500" [required]="form.controls.decision.value === 'REJECTED'"></textarea>
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Registrar</button>
+      </div>
     </form>
   `,
 })
 export class ApprovalDialog {
-  protected readonly data = inject<TemplateDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ApprovalDialog, TemplateView>>(MatDialogRef);
+  protected readonly data = inject<TemplateDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<TemplateView>>(DialogRef);
   private readonly api = inject(TemplatesApi);
   protected readonly saving = signal(false);
   private readonly fb = inject(FormBuilder).nonNullable;
+  /** Hoje (data local): sem alteração, a decisão é registrada com o instante atual, como antes. */
+  private readonly today = toLocalDate(new Date());
   protected readonly form = this.fb.group({
     decision: this.fb.control<ApprovalRequest['decision']>('APPROVED'),
     providerTemplateName: [this.data.template?.providerTemplateName ?? '', Validators.maxLength(120)],
     reference: ['', Validators.maxLength(120)],
-    decidedAt: this.fb.control<Date | null>(new Date()),
+    decidedAt: this.fb.control<string | null>(this.today),
     note: ['', Validators.maxLength(500)],
   });
 
   protected save(): void {
     const v = this.form.getRawValue();
-    if ((v.decision === 'APPROVED' && !v.providerTemplateName.trim()) || (v.decision === 'REJECTED' && !v.note.trim()) || this.saving()) {
+    if ((v.decision === 'APPROVED' && !v.providerTemplateName.trim()) || (v.decision === 'REJECTED' && !v.note.trim()) || this.form.controls.decidedAt.invalid || this.saving()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -317,10 +274,18 @@ export class ApprovalDialog {
         providerTemplateName: v.providerTemplateName.trim() || null,
         reference: v.reference.trim() || null,
         note: v.note.trim() || null,
-        decidedAt: v.decidedAt ? v.decidedAt.toISOString() : null,
+        decidedAt: this.decidedAt(v.decidedAt),
       })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe((t) => this.ref.close(t));
+  }
+
+  /** Instante da decisão: agora (data não alterada) ou início do dia escolhido. */
+  private decidedAt(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+    return value === this.today ? new Date().toISOString() : (fromLocalDate(value)?.toISOString() ?? null);
   }
 }
 

@@ -129,7 +129,7 @@ export function apiValue(field: FormField, raw: unknown): unknown {
       <h2 appDialogTitle class="h5 mb-0">{{ data.title }}</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         @if (data.message) {
           <p class="app-dialog-message">{{ data.message }}</p>

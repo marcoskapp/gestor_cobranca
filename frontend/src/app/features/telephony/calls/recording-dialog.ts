@@ -1,13 +1,12 @@
 import { DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { groupedHash, sha256Hex } from '../../settlement/data/settlement.rules';
 import { CallsApi } from '../data/telephony.api';
@@ -27,11 +26,14 @@ export interface RecordingDialogData {
  */
 @Component({
   selector: 'app-recording-dialog',
-  imports: [FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, AppDatePipe],
+  imports: [FormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon, AppDatePipe],
   template: `
-    <h2 mat-dialog-title>Gravação da chamada</h2>
-    <mat-dialog-content>
-      <dl class="app-definition-list rd-dl">
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Gravação da chamada</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
+      <dl class="app-definition-list mb-3">
         <dt>Devedor</dt>
         <dd>{{ data.debtorName }} · {{ data.call.numberMasked ?? '—' }}</dd>
         <dt>Chamada</dt>
@@ -39,65 +41,50 @@ export interface RecordingDialogData {
         <dt>Aviso ao devedor</dt>
         <dd>{{ data.call.recording?.announced ? 'Aviso de gravação tocado no início' : 'Sem registro do aviso' }}</dd>
       </dl>
-      <p class="app-alert app-alert--warning" role="note" data-tour="recording-notice">
-        <mat-icon aria-hidden="true">policy</mat-icon>
+      <p class="alert alert-warning d-flex gap-2" role="note" data-tour="recording-notice">
+        <app-icon name="shield-check" />
         <span>Gravação é dado pessoal. <strong>Seu acesso fica registrado</strong> no log de acesso com a finalidade declarada; use só para a finalidade escolhida.</span>
       </p>
       @if (!audioUrl()) {
-        <mat-form-field class="app-full-width">
-          <mat-label>Finalidade do acesso</mat-label>
-          <mat-select [ngModel]="purpose()" (ngModelChange)="purpose.set($event)" required>
+        <app-field label="Finalidade do acesso">
+          <select appInput [ngModel]="purpose()" (ngModelChange)="purpose.set($event)" required>
+            <option [ngValue]="null" disabled>Selecione</option>
             @for (p of purposes; track p[0]) {
-              <mat-option [value]="p[0]">{{ p[1] }}</mat-option>
+              <option [ngValue]="p[0]">{{ p[1] }}</option>
             }
-          </mat-select>
-        </mat-form-field>
+          </select>
+        </app-field>
       } @else {
-        <p class="rd-purpose">Finalidade declarada: <strong>{{ purposeLabel() }}</strong></p>
-        <audio class="rd-audio" controls autoplay [src]="audioUrl()" aria-label="Gravação da chamada"></audio>
+        <p class="mb-2">Finalidade declarada: <strong>{{ purposeLabel() }}</strong></p>
+        <audio class="w-100" controls autoplay [src]="audioUrl()" aria-label="Gravação da chamada"></audio>
         @if (sha(); as h) {
-          <p class="app-muted rd-small">
+          <p class="app-muted small text-break">
             SHA-256 {{ grouped(h.actual) }} ·
             @if (h.verified) {
-              <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">verified</mat-icon>íntegro</span>
+              <span class="badge rounded-pill border bg-success-subtle text-success-emphasis border-success-subtle fw-normal"><app-icon name="patch-check" />íntegro</span>
             } @else {
-              <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>não confere com o servidor</span>
+              <span class="badge rounded-pill border bg-danger-subtle text-danger-emphasis border-danger-subtle fw-normal"><app-icon name="exclamation-circle" />não confere com o servidor</span>
             }
           </p>
         }
       }
       @if (error()) {
-        <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+        <p class="alert alert-danger d-flex gap-2 mt-3 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Fechar</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Fechar</button>
       @if (!audioUrl()) {
-        <button mat-flat-button type="button" (click)="listen()" [disabled]="!purpose() || loading()">
-          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="listen()" [disabled]="!purpose() || loading()">
+          <app-icon name="play" />
           Ouvir
         </button>
       }
-    </mat-dialog-actions>
-  `,
-  styles: `
-    .rd-dl {
-      margin-bottom: 12px;
-    }
-    .rd-audio {
-      width: 100%;
-    }
-    .rd-purpose {
-      margin: 0 0 8px;
-    }
-    .rd-small {
-      font-size: var(--app-text-xs);
-      word-break: break-all;
-    }
+    </div>
   `,
 })
 export class RecordingDialog {
-  protected readonly data = inject<RecordingDialogData>(MAT_DIALOG_DATA);
+  protected readonly data = inject<RecordingDialogData>(DIALOG_DATA);
   private readonly api = inject(CallsApi);
   private readonly document = inject(DOCUMENT);
   protected readonly purposes = Object.entries(RECORDING_PURPOSE_LABELS) as [RecordingPurpose, string][];

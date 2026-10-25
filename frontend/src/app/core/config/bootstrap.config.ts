@@ -4,8 +4,8 @@ import {
   NgbDateParserFormatter,
   NgbDateStruct,
   NgbDatepickerConfig,
-  NgbDropdownConfig,
   NgbInputDatepickerConfig,
+  NgbDropdownConfig,
   NgbModalConfig,
   NgbPaginationConfig,
   NgbTooltipConfig,
@@ -79,18 +79,16 @@ export function provideBootstrapDefaults(): EnvironmentProviders {
       pagination.ellipses = false;
       pagination.size = 'sm';
 
-      const datepicker = inject(NgbDatepickerConfig);
-      datepicker.firstDayOfWeek = 7; // domingo, como no calendário brasileiro
-      datepicker.minDate = { year: 1900, month: 1, day: 1 };
-      datepicker.maxDate = { year: 2100, month: 12, day: 31 };
+      // o datepicker em campo (`input[ngbDatepicker]`) tem configuração própria (NgbInputDatepickerConfig,
+      // outra instância): os mesmos padrões valem para os dois
+      for (const datepicker of [inject(NgbDatepickerConfig), inject(NgbInputDatepickerConfig)]) {
+        datepicker.firstDayOfWeek = 7; // domingo, como no calendário brasileiro
+        datepicker.minDate = { year: 1900, month: 1, day: 1 };
+        datepicker.maxDate = { year: 2100, month: 12, day: 31 };
+      }
 
-      // o datepicker de campo (`ngbDatepicker`) tem configuração própria, que não herda a acima
-      const inputDatepicker = inject(NgbInputDatepickerConfig);
-      inputDatepicker.firstDayOfWeek = datepicker.firstDayOfWeek;
-      inputDatepicker.minDate = datepicker.minDate;
-      inputDatepicker.maxDate = datepicker.maxDate;
-      // posição fixa: o calendário não é cortado pelo corpo rolável do diálogo nem por tabelas
-      inputDatepicker.popperOptions = (options) => ({ ...options, strategy: 'fixed' });
+      // posição fixa: o calendário do campo não é cortado pelo corpo rolável do diálogo nem por tabelas
+      inject(NgbInputDatepickerConfig).popperOptions = (options) => ({ ...options, strategy: 'fixed' });
 
       inject(NgbTypeaheadConfig).focusFirst = false;
     }),

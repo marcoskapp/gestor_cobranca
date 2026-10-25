@@ -2,7 +2,6 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
@@ -10,6 +9,7 @@ import { campaign, flushAll, page, panel, tick } from '../../../../testing/campa
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideLocale } from '../../../core/config/locale.config';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { EnrollmentView } from '../data/campaign.models';
 import { EnrollmentDialog } from './enrollment-dialog';
 import { ExecutionPage } from './execution-page';
@@ -145,8 +145,8 @@ describe('EnrollmentDialog', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         auth(() => ['CAMPAIGN_EXECUTE']),
-        { provide: MAT_DIALOG_DATA, useValue: { enrollmentId: 'e-1', debtorName: 'Ana Paula Ribeiro', canExecute: true } },
-        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        { provide: DIALOG_DATA, useValue: { enrollmentId: 'e-1', debtorName: 'Ana Paula Ribeiro', canExecute: true } },
+        { provide: DialogRef, useValue: { close: vi.fn() } },
       ],
     });
     http = TestBed.inject(HttpTestingController);

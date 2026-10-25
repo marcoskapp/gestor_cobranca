@@ -32,7 +32,7 @@ const toNumber = (v: string | number | null): number | null => (v === null || v 
       <h2 appDialogTitle class="h5 mb-0">{{ data.rule ? 'Editar regra ' + data.rule.code : 'Nova regra específica' }}</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         <div class="app-form-grid">
           <app-field label="Código" hint="Aparece na memória de cálculo e no arquivo do credor">

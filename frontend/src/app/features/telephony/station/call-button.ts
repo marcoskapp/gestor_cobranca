@@ -1,8 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { Icon } from '../../../shared/components/icon/icon';
 import { SheetContact } from '../../collection/data/collection.models';
 import { TelephonyLauncher } from './telephony-launcher';
 import { TelephonySession } from './telephony-session';
@@ -14,13 +13,16 @@ import { TelephonySession } from './telephony-session';
  */
 @Component({
   selector: 'app-call-button',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [NgbTooltip, Icon],
   template: `
     @if (session.enabled()) {
-      <button mat-stroked-button type="button" (click)="open()" [disabled]="inCall()" [matTooltip]="inCall() ? 'Você já está em uma chamada' : 'Ligar para o devedor (Alt + L)'" data-tour="call-button">
-        <mat-icon aria-hidden="true">call</mat-icon>
-        Ligar
-      </button>
+      <!-- o tooltip fica no invólucro: botão desabilitado não recebe ponteiro nem foco -->
+      <span class="d-inline-block" [ngbTooltip]="inCall() ? 'Você já está em uma chamada' : 'Ligar para o devedor (Alt + L)'">
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="open()" [disabled]="inCall()" data-tour="call-button">
+          <app-icon name="telephone" />
+          Ligar
+        </button>
+      </span>
     }
   `,
 })

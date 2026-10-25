@@ -54,7 +54,7 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
       <h2 appDialogTitle class="h5 mb-0">Análise de viabilidade</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         <h3 class="app-section-title">Premissas</h3>
         <div class="vd-grid">

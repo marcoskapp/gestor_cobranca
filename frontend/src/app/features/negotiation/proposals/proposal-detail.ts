@@ -1,9 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -14,11 +10,13 @@ import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { DocumentDisplay } from '../../../shared/components/document-display/document-display';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { zonedNow } from '../../collection/data/collection.rules';
@@ -43,7 +41,7 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-proposal-detail',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe],
+  imports: [Icon, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe],
   templateUrl: './proposal-detail.html',
   styleUrl: '../detail-page.scss',
 })
@@ -55,7 +53,7 @@ export class ProposalDetail {
   private readonly debtorsApi = inject(DebtorsApi);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly breadcrumbs = inject(BreadcrumbService);
@@ -190,7 +188,7 @@ export class ProposalDetail {
       return;
     }
     this.dialog
-      .open<AcceptDialog, AcceptDialogData, ProposalView>(AcceptDialog, { data: { proposal: p, details: this.impact(p) }, width: '520px' })
+      .open<AcceptDialog, AcceptDialogData, ProposalView>(AcceptDialog, { data: { proposal: p, details: this.impact(p) } })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

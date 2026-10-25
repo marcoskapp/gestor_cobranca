@@ -1,11 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { map, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
@@ -13,9 +9,11 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { UserNames } from '../../collection/data/collection.lookups';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
@@ -41,113 +39,120 @@ export function levelText(level: number): string {
  */
 @Component({
   selector: 'app-authority-page',
-  imports: [ReactiveFormsModule, MatButtonModule, MatIconModule, MatTabsModule, MatTooltipModule, Amount, CellDef, DataTable, EntityPicker, PageHeader],
+  imports: [Icon, NgbNavModule, NgbTooltip, ReactiveFormsModule, Amount, CellDef, DataTable, EntityPicker, PageHeader],
   template: `
     <app-page-header title="Alçadas de negociação" subtitle="Perfis de alçada e quem usa cada um. Humanos e o assistente de IA passam pela mesma validação.">
-      <button mat-stroked-button type="button" (click)="editProfile(null)">
-        <mat-icon aria-hidden="true">add</mat-icon>
+      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="editProfile(null)">
+        <app-icon name="plus-lg" />
         Novo perfil
       </button>
-      <button mat-flat-button type="button" (click)="assign()" [disabled]="!profileRows().length">
-        <mat-icon aria-hidden="true">person_add</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="assign()" [disabled]="!profileRows().length">
+        <app-icon name="person-plus" />
         Atribuir alçada
       </button>
     </app-page-header>
 
-    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" data-tour="authority-tabs">
-      <mat-tab label="Perfis ({{ profileRows().length }})">
-        <div class="au-tab">
-          <app-data-table
-            caption="Perfis de alçada"
-            [rows]="profileRows()"
-            [columns]="profileColumns"
-            [loading]="profiles.isLoading()"
-            [failed]="profiles.status() === 'error'"
-            (retry)="profiles.reload()"
-            emptyIcon="verified_user"
-            emptyMessage="Nenhum perfil de alçada."
-          >
-            <ng-template appCell="name" [appCellOf]="profileRows()" let-p>
-              <strong>{{ p.name }}</strong>&ngsp;<span class="app-muted app-mono">{{ p.code }}</span>
-              @if (p.systemProfile) {
-                &ngsp;<span class="app-status app-status--neutral">padrão</span>
-              }
-              @if (p.description) {
-                <div class="app-muted">{{ p.description }}</div>
-              }
-            </ng-template>
-            <ng-template appCell="level" [appCellOf]="profileRows()" let-p>{{ levelText(p.maxConcessionLevel) }}</ng-template>
-            <ng-template appCell="share" [appCellOf]="profileRows()" let-p><span class="app-numeric">{{ percent(p.maxDiscountShare) }}</span></ng-template>
-            <ng-template appCell="installments" [appCellOf]="profileRows()" let-p><span class="app-numeric">{{ p.maxInstallments }}</span></ng-template>
-            <ng-template appCell="amount" [appCellOf]="profileRows()" let-p>
-              @if (p.maxAgreementAmount) {
-                <app-amount [value]="p.maxAgreementAmount" />
-              } @else {
-                <span class="app-muted">sem limite</span>
-              }
-            </ng-template>
-            <ng-template appCell="down" [appCellOf]="profileRows()" let-p><span class="app-numeric">{{ percent(p.minDownPaymentShare) }}</span></ng-template>
-            <ng-template appCell="powers" [appCellOf]="profileRows()" let-p>
-              {{ p.canFormalize ? 'Formaliza' : 'Não formaliza' }}{{ p.canApprove ? ' · aprova' : '' }}
-              <div class="app-muted">{{ p.creditorIds.length ? p.creditorIds.length + ' credor(es)' : 'Todos os credores' }} · {{ p.assignments }} atribuição(ões)</div>
-            </ng-template>
-            <ng-template appCell="actions" [appCellOf]="profileRows()" let-p>
-              <button mat-icon-button type="button" (click)="editProfile(p)" [attr.aria-label]="'Editar perfil ' + p.name" matTooltip="Editar">
-                <mat-icon aria-hidden="true">edit</mat-icon>
-              </button>
-            </ng-template>
-          </app-data-table>
-        </div>
-      </mat-tab>
+    <ul ngbNav #nav="ngbNav" class="nav-tabs" data-tour="authority-tabs">
+      <li ngbNavItem="profiles">
+        <button type="button" ngbNavLink>Perfis ({{ profileRows().length }})</button>
+        <ng-template ngbNavContent>
+          <div class="au-tab">
+            <app-data-table
+              caption="Perfis de alçada"
+              [rows]="profileRows()"
+              [columns]="profileColumns"
+              [loading]="profiles.isLoading()"
+              [failed]="profiles.status() === 'error'"
+              (retry)="profiles.reload()"
+              emptyIcon="shield-check"
+              emptyMessage="Nenhum perfil de alçada."
+            >
+              <ng-template appCell="name" [appCellOf]="profileRows()" let-p>
+                <strong>{{ p.name }}</strong>&ngsp;<span class="app-muted app-mono">{{ p.code }}</span>
+                @if (p.systemProfile) {
+                  &ngsp;<span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-secondary-subtle text-secondary-emphasis border-secondary-subtle">padrão</span>
+                }
+                @if (p.description) {
+                  <div class="app-muted">{{ p.description }}</div>
+                }
+              </ng-template>
+              <ng-template appCell="level" [appCellOf]="profileRows()" let-p>{{ levelText(p.maxConcessionLevel) }}</ng-template>
+              <ng-template appCell="share" [appCellOf]="profileRows()" let-p><span class="app-numeric">{{ percent(p.maxDiscountShare) }}</span></ng-template>
+              <ng-template appCell="installments" [appCellOf]="profileRows()" let-p><span class="app-numeric">{{ p.maxInstallments }}</span></ng-template>
+              <ng-template appCell="amount" [appCellOf]="profileRows()" let-p>
+                @if (p.maxAgreementAmount) {
+                  <app-amount [value]="p.maxAgreementAmount" />
+                } @else {
+                  <span class="app-muted">sem limite</span>
+                }
+              </ng-template>
+              <ng-template appCell="down" [appCellOf]="profileRows()" let-p><span class="app-numeric">{{ percent(p.minDownPaymentShare) }}</span></ng-template>
+              <ng-template appCell="powers" [appCellOf]="profileRows()" let-p>
+                {{ p.canFormalize ? 'Formaliza' : 'Não formaliza' }}{{ p.canApprove ? ' · aprova' : '' }}
+                <div class="app-muted">{{ p.creditorIds.length ? p.creditorIds.length + ' credor(es)' : 'Todos os credores' }} · {{ p.assignments }} atribuição(ões)</div>
+              </ng-template>
+              <ng-template appCell="actions" [appCellOf]="profileRows()" let-p>
+                <button class="btn btn-sm btn-link" type="button" (click)="editProfile(p)" [attr.aria-label]="'Editar perfil ' + p.name" ngbTooltip="Editar">
+                  <app-icon name="pencil" />
+                </button>
+              </ng-template>
+            </app-data-table>
+          </div>
+        </ng-template>
+      </li>
 
-      <mat-tab label="Atribuições">
-        <div class="au-tab">
-          <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar atribuições">
-            <div class="app-filters__wide">
-              <app-entity-picker [control]="filters.controls.user" [source]="users" label="Usuário" [single]="true" hint="Vazio = todas as atribuições." />
-            </div>
-            <div class="app-filters__wide">
-              <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor (alçada efetiva)" [single]="true" />
-            </div>
-          </form>
-          @if (effective(); as e) {
-            <p class="app-alert app-alert--info" role="status">
-              <mat-icon aria-hidden="true">verified_user</mat-icon>
-              <span>
-                Alçada efetiva para {{ creditors.name(e.creditorId) }}: <strong>{{ e.profile.name }}</strong> · {{ sourceLabels[e.source] }} ·
-                {{ levelText(e.profile.maxConcessionLevel) }}, {{ percent(e.profile.maxDiscountShare) }} do envelope, até {{ e.profile.maxInstallments }} pagamentos
-              </span>
-            </p>
-          }
-          <app-data-table
-            caption="Atribuições de alçada"
-            [rows]="assignmentRows()"
-            [columns]="assignmentColumns"
-            [loading]="assignments.isLoading()"
-            [failed]="assignments.status() === 'error'"
-            (retry)="assignments.reload()"
-            emptyIcon="person_off"
-            emptyMessage="Nenhuma atribuição."
-            emptyHint="Sem atribuição, usuários usam o perfil JUNIOR e o assistente, ASSISTENTE_INICIAL."
-          >
-            <ng-template appCell="subject" [appCellOf]="assignmentRows()" let-a>
-              @if (a.subjectType === 'USER') {
-                {{ userNames.name(a.subjectId) }}
-              } @else {
-                Política do assistente <span class="app-mono app-muted">{{ a.subjectId.slice(0, 8) }}</span>
-              }
-            </ng-template>
-            <ng-template appCell="creditor" [appCellOf]="assignmentRows()" let-a>{{ a.creditorId ? creditors.name(a.creditorId) : 'Todos os credores' }}</ng-template>
-            <ng-template appCell="profile" [appCellOf]="assignmentRows()" let-a>{{ profileName(a.profileId) }} <span class="app-muted app-mono">{{ a.profileCode }}</span></ng-template>
-            <ng-template appCell="actions" [appCellOf]="assignmentRows()" let-a>
-              <button mat-icon-button type="button" (click)="unassign(a)" aria-label="Remover atribuição" matTooltip="Remover">
-                <mat-icon aria-hidden="true">delete</mat-icon>
-              </button>
-            </ng-template>
-          </app-data-table>
-        </div>
-      </mat-tab>
-    </mat-tab-group>
+      <li ngbNavItem="assignments">
+        <button type="button" ngbNavLink>Atribuições</button>
+        <ng-template ngbNavContent>
+          <div class="au-tab">
+            <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar atribuições">
+              <div class="app-filters__wide">
+                <app-entity-picker [control]="filters.controls.user" [source]="users" label="Usuário" [single]="true" hint="Vazio = todas as atribuições." />
+              </div>
+              <div class="app-filters__wide">
+                <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor (alçada efetiva)" [single]="true" />
+              </div>
+            </form>
+            @if (effective(); as e) {
+              <div class="alert alert-info d-flex gap-2 align-items-start" role="status">
+                <app-icon name="shield-check" />
+                <span>
+                  Alçada efetiva para {{ creditors.name(e.creditorId) }}: <strong>{{ e.profile.name }}</strong> · {{ sourceLabels[e.source] }} ·
+                  {{ levelText(e.profile.maxConcessionLevel) }}, {{ percent(e.profile.maxDiscountShare) }} do envelope, até {{ e.profile.maxInstallments }} pagamentos
+                </span>
+              </div>
+            }
+            <app-data-table
+              caption="Atribuições de alçada"
+              [rows]="assignmentRows()"
+              [columns]="assignmentColumns"
+              [loading]="assignments.isLoading()"
+              [failed]="assignments.status() === 'error'"
+              (retry)="assignments.reload()"
+              emptyIcon="person-slash"
+              emptyMessage="Nenhuma atribuição."
+              emptyHint="Sem atribuição, usuários usam o perfil JUNIOR e o assistente, ASSISTENTE_INICIAL."
+            >
+              <ng-template appCell="subject" [appCellOf]="assignmentRows()" let-a>
+                @if (a.subjectType === 'USER') {
+                  {{ userNames.name(a.subjectId) }}
+                } @else {
+                  Política do assistente <span class="app-mono app-muted">{{ a.subjectId.slice(0, 8) }}</span>
+                }
+              </ng-template>
+              <ng-template appCell="creditor" [appCellOf]="assignmentRows()" let-a>{{ a.creditorId ? creditors.name(a.creditorId) : 'Todos os credores' }}</ng-template>
+              <ng-template appCell="profile" [appCellOf]="assignmentRows()" let-a>{{ profileName(a.profileId) }} <span class="app-muted app-mono">{{ a.profileCode }}</span></ng-template>
+              <ng-template appCell="actions" [appCellOf]="assignmentRows()" let-a>
+                <button class="btn btn-sm btn-link" type="button" (click)="unassign(a)" aria-label="Remover atribuição" ngbTooltip="Remover">
+                  <app-icon name="trash3" />
+                </button>
+              </ng-template>
+            </app-data-table>
+          </div>
+        </ng-template>
+      </li>
+    </ul>
+    <div [ngbNavOutlet]="nav"></div>
   `,
   styles: `
     .au-tab {
@@ -157,7 +162,7 @@ export function levelText(level: number): string {
 })
 export class AuthorityPage {
   private readonly api = inject(AuthorityApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly users = inject(UserLookup);
@@ -223,7 +228,7 @@ export class AuthorityPage {
 
   protected editProfile(profile: ProfileView | null): void {
     this.dialog
-      .open<ProfileForm, ProfileView | null, ProfileView>(ProfileForm, { data: profile, width: '720px' })
+      .open<ProfileForm, ProfileView | null, ProfileView>(ProfileForm, { data: profile, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
@@ -235,7 +240,7 @@ export class AuthorityPage {
 
   protected assign(): void {
     this.dialog
-      .open<AssignAuthorityDialog, AssignAuthorityData, AuthorityAssignmentView>(AssignAuthorityDialog, { data: { profiles: this.profileRows() }, width: '560px' })
+      .open<AssignAuthorityDialog, AssignAuthorityData, AuthorityAssignmentView>(AssignAuthorityDialog, { data: { profiles: this.profileRows() } })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

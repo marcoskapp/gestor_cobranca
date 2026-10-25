@@ -4,45 +4,45 @@
     <app-skeleton class="pd-gap" variant="card" [rows]="6" />
   </div>
 } @else if (policy.status() === 'error') {
-  <app-empty-state icon="policy" tone="error" title="Não foi possível abrir a política." message="A versão pode não existir ou o credor estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="policy.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/negociacao/politicas">Voltar para políticas</a>
+  <app-empty-state icon="shield-check" tone="error" title="Não foi possível abrir a política." message="A versão pode não existir ou o credor estar fora do seu escopo.">
+    <button class="btn btn-outline-primary" type="button" (click)="policy.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/negociacao/politicas">Voltar para políticas</a>
   </app-empty-state>
 }
 
 @if (current(); as p) {
   <app-page-header [title]="'v' + p.version + ' · ' + p.name" [subtitle]="creditors.name(p.creditorId) + ' · esquema v' + p.termsSchemaVersion">
-    <a mat-button routerLink="/negociacao/politicas">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/negociacao/politicas">
+      <app-icon name="arrow-left" />
       Políticas
     </a>
     @if (canManage()) {
       @if (p.status === 'DRAFT') {
-        <button mat-stroked-button type="button" (click)="applyTemplate()" matTooltip="Substitui os termos pelos parâmetros usuais de mercado">
-          <mat-icon aria-hidden="true">auto_fix_high</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="applyTemplate()" ngbTooltip="Substitui os termos pelos parâmetros usuais de mercado">
+          <app-icon name="magic" />
           Modelo de mercado
         </button>
         @if (dirty()) {
-          <button mat-stroked-button type="button" (click)="discard()">Descartar alterações</button>
-          <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">
-            <mat-icon aria-hidden="true">save</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="discard()">Descartar alterações</button>
+          <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving()">
+            <app-icon name="floppy" />
             Salvar rascunho
           </button>
         } @else {
-          <button mat-flat-button type="button" (click)="publish()" [disabled]="problems().length > 0">
-            <mat-icon aria-hidden="true">publish</mat-icon>
+          <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="publish()" [disabled]="problems().length > 0">
+            <app-icon name="upload" />
             Publicar
           </button>
         }
       } @else {
         @if (p.status === 'PUBLISHED' && !p.retiredAt) {
-          <button mat-stroked-button type="button" (click)="retire()">
-            <mat-icon aria-hidden="true">event_busy</mat-icon>
+          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="retire()">
+            <app-icon name="calendar-x" />
             Aposentar
           </button>
         }
-        <button mat-flat-button type="button" (click)="newVersion()" [disabled]="hasDraft()" [matTooltip]="hasDraft() ? 'Já existe um rascunho para este credor' : 'Copia os termos desta versão para um novo rascunho'">
-          <mat-icon aria-hidden="true">content_copy</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="newVersion()" [disabled]="hasDraft()" [ngbTooltip]="hasDraft() ? 'Já existe um rascunho para este credor' : 'Copia os termos desta versão para um novo rascunho'">
+          <app-icon name="copy" />
           Nova versão
         </button>
       }
@@ -64,21 +64,19 @@
           <span class="app-muted">· publicada em {{ p.publishedAt | appDate }}@if (p.publishedBy) { por {{ publishers.name(p.publishedBy) }}}</span>
         }
         @if (dirty()) {
-          <span class="app-status app-status--warning">Alterações não salvas</span>
+          <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-warning-subtle text-warning-emphasis border-warning-subtle">Alterações não salvas</span>
         }
       </section>
 
       @if (editable()) {
         <section class="app-card">
           <div class="pd-row">
-            <mat-form-field class="app-compact pd-grow">
-              <mat-label>Nome</mat-label>
-              <input matInput [ngModel]="name()" (ngModelChange)="name.set($event); edited()" maxlength="120" required />
-            </mat-form-field>
-            <mat-form-field class="app-compact pd-grow">
-              <mat-label>Descrição</mat-label>
-              <input matInput [ngModel]="description()" (ngModelChange)="description.set($event); edited()" maxlength="1000" />
-            </mat-form-field>
+            <app-field class="pd-grow" label="Nome">
+              <input appInput [ngModel]="name()" (ngModelChange)="name.set($event); edited()" maxlength="120" required />
+            </app-field>
+            <app-field class="pd-grow" label="Descrição">
+              <input appInput [ngModel]="description()" (ngModelChange)="description.set($event); edited()" maxlength="1000" />
+            </app-field>
           </div>
         </section>
       } @else if (p.description) {
@@ -86,8 +84,8 @@
       }
 
       @if (problems().length && editable()) {
-        <section class="app-alert app-alert--error pd-problems" role="alert" aria-label="Problemas nos termos">
-          <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <section class="alert alert-danger d-flex gap-2 align-items-start pd-problems" role="alert" aria-label="Problemas nos termos">
+          <app-icon name="exclamation-circle" />
           <div>
             <strong>{{ problems().length }} problema(s) a corrigir antes de publicar:</strong>
             <ul>
@@ -103,8 +101,8 @@
         <div class="pd-head">
           <h2 class="app-card__title" id="pd-overrides">Regras e sobreposições</h2>
           @if (editable()) {
-            <button mat-stroked-button type="button" (click)="editOverride(null)">
-              <mat-icon aria-hidden="true">add</mat-icon>
+            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="editOverride(null)">
+              <app-icon name="plus-lg" />
               Sobreposição
             </button>
           }
@@ -125,8 +123,8 @@
             <span><strong>{{ o.code }}</strong> · {{ scope(o) }} · especificidade {{ specificityText(o) }} · substitui {{ groupsText(o) }}</span>
             @if (editable()) {
               <span>
-                <button mat-button type="button" (click)="editOverride(selectedOverride())">Editar seletor e grupos</button>
-                <button mat-button type="button" (click)="removeOverride(selectedOverride())">Remover</button>
+                <button class="btn btn-link" type="button" (click)="editOverride(selectedOverride())">Editar seletor e grupos</button>
+                <button class="btn btn-link" type="button" (click)="removeOverride(selectedOverride())">Remover</button>
               </span>
             }
           </p>

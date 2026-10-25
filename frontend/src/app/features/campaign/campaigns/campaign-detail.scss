@@ -48,7 +48,7 @@
 .cd-big {
   margin: 4px 0 0;
   font-size: var(--app-text-2xl);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .cd-unit {
@@ -58,26 +58,6 @@
 
 .cd-small {
   font-size: var(--app-text-xs);
-}
-
-.cd-table {
-  width: 100%;
-  margin-bottom: 8px;
-  border-collapse: collapse;
-  font-size: var(--app-text-sm);
-
-  th,
-  td {
-    padding: 6px 4px;
-    border-bottom: 1px solid var(--app-border);
-    text-align: left;
-    vertical-align: top;
-  }
-
-  th {
-    font-size: var(--app-text-xs);
-    color: var(--mat-sys-on-surface-variant);
-  }
 }
 
 @media (max-width: 1099.98px) {

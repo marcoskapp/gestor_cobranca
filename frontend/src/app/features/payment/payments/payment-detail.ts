@@ -1,9 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, finalize, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -14,11 +10,13 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { NameSource, nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { Option } from '../../../shared/models/lookup';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
@@ -27,12 +25,12 @@ import { DebtorNames } from '../../debt/data/debt.lookups';
 import { AgreementsApi } from '../../negotiation/data/agreement.api';
 import { AgreementView } from '../../negotiation/data/agreement.models';
 import { CreditorNames } from '../../organization/data/organization.lookups';
+import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS } from '../data/payment.labels';
 import { AllocationView, LineView, PaymentView } from '../data/payment.models';
 import { allocationTarget, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
-import { RequestedTarget } from '../components/requested-target';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
 
 /**
@@ -41,7 +39,7 @@ import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })
@@ -53,7 +51,7 @@ export class PaymentDetail {
   private readonly titlesApi = inject(TitlesApi);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
 
@@ -225,7 +223,7 @@ export class PaymentDetail {
       return;
     }
     this.dialog
-      .open<ReverseDialog, ReverseDialogData, PaymentView>(ReverseDialog, { data: { payment: p, debtorName: this.debtorName() ?? 'Devedor' }, width: '520px', maxWidth: '96vw' })
+      .open<ReverseDialog, ReverseDialogData, PaymentView>(ReverseDialog, { data: { payment: p, debtorName: this.debtorName() ?? 'Devedor' } })
       .afterClosed()
       .subscribe((updated) => {
         if (updated) {
@@ -241,7 +239,7 @@ export class PaymentDetail {
       return;
     }
     this.dialog
-      .open<ReallocateDialog, ReallocateDialogData, PaymentView>(ReallocateDialog, { data: { payment: p, debtorName: this.debtorName() ?? 'Devedor' }, width: '720px', maxWidth: '96vw' })
+      .open<ReallocateDialog, ReallocateDialogData, PaymentView>(ReallocateDialog, { data: { payment: p, debtorName: this.debtorName() ?? 'Devedor' }, size: 'lg' })
       .afterClosed()
       .subscribe((updated) => {
         if (updated) {

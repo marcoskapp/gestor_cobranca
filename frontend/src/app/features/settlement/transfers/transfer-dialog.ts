@@ -41,7 +41,7 @@ export interface TransferDialogData {
       <h2 appDialogTitle class="h5 mb-0">{{ toCreditor ? 'Registrar repasse ao credor' : 'Registrar recebimento do credor' }}</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="send()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="send()" novalidate>
       <div class="modal-body">
         <dl class="app-definition-list td-dl">
           <dt>Credor</dt>

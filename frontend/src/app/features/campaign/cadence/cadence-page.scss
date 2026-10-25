@@ -32,17 +32,6 @@
   padding-left: 18px;
 }
 
-.cp-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-}
-
-.cp-grow {
-  flex: 1 1 260px;
-  min-width: 0;
-}
-
 .cp-small {
   font-size: var(--app-text-xs);
 }
@@ -66,13 +55,8 @@
   width: fit-content;
   max-width: 100%;
   font-size: var(--app-text-sm);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 
-  mat-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 18px;
-  }
 }
 
 .cp-end {
@@ -100,18 +84,13 @@
   align-items: center;
   gap: 4px;
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 
-  mat-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-  }
 }
 
 .cp-step {
   border: 1px solid var(--app-border);
-  border-left: 4px solid var(--mat-sys-primary);
+  border-left: 4px solid var(--bs-primary);
   border-radius: var(--app-radius-md);
   background: var(--app-surface);
   box-shadow: var(--app-elevation-1);
@@ -141,16 +120,16 @@
   place-items: center;
   height: 28px;
   border-radius: 50%;
-  background: var(--mat-sys-primary);
-  color: var(--mat-sys-on-primary);
+  background: var(--bs-primary);
+  color: var(--bs-white);
   font-size: var(--app-text-sm);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .cp-step__icon {
   flex: 0 0 auto;
   margin-top: 2px;
-  color: var(--mat-sys-primary);
+  color: var(--bs-primary-text-emphasis);
 }
 
 .cp-step__text {
@@ -162,7 +141,7 @@
 }
 
 .cp-step__title {
-  font-weight: 600;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
@@ -173,7 +152,7 @@
 
 .cp-step__meta {
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .cp-step__badge {
@@ -210,18 +189,8 @@
 }
 
 .cp-version--current {
-  border-left-color: var(--mat-sys-primary) !important;
-  font-weight: 600;
-}
-
-.cp-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--mat-sys-primary);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
+  border-left-color: var(--bs-primary) !important;
+  font-weight: 500;
 }
 
 @media (max-width: 1099.98px) {

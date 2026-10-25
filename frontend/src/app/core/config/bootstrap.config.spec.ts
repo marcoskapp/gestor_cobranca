@@ -1,4 +1,7 @@
-import { IsoDateAdapter, PtBrDateParserFormatter } from './bootstrap.config';
+import { ApplicationInitStatus } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { NgbDatepickerConfig, NgbInputDatepickerConfig } from '@ng-bootstrap/ng-bootstrap';
+import { IsoDateAdapter, PtBrDateParserFormatter, provideBootstrapDefaults } from './bootstrap.config';
 import { NGB_TRANSLATIONS_PT_BR } from './ngb-translations';
 
 describe('padrões do ng-bootstrap', () => {
@@ -29,5 +32,15 @@ describe('padrões do ng-bootstrap', () => {
   it('traduz os rótulos acessíveis do ng-bootstrap', () => {
     expect(NGB_TRANSLATIONS_PT_BR['ngb.pagination.next-aria']).toBe('Próxima página');
     expect(NGB_TRANSLATIONS_PT_BR['ngb.toast.close-aria']).toBe('Fechar');
+  });
+
+  it('domingo como primeiro dia e faixa 1900–2100 também no datepicker em campo', async () => {
+    TestBed.configureTestingModule({ providers: [provideBootstrapDefaults()] });
+    await TestBed.inject(ApplicationInitStatus).donePromise;
+    for (const config of [TestBed.inject(NgbDatepickerConfig), TestBed.inject(NgbInputDatepickerConfig)]) {
+      expect(config.firstDayOfWeek).toBe(7);
+      expect(config.minDate).toEqual({ year: 1900, month: 1, day: 1 });
+      expect(config.maxDate).toEqual({ year: 2100, month: 12, day: 31 });
+    }
   });
 });

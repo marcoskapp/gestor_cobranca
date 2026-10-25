@@ -1,8 +1,8 @@
 @if (loading()) {
   <app-skeleton variant="lines" [rows]="8" />
 } @else if (detail.status() === 'error') {
-  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar a conversa." message="Verifique a conexão e tente novamente." [compact]="true">
-    <button mat-stroked-button type="button" (click)="refresh()">Tentar novamente</button>
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a conversa." message="Verifique a conexão e tente novamente." [compact]="true">
+    <button class="btn btn-outline-primary" type="button" (click)="refresh()">Tentar novamente</button>
   </app-empty-state>
 } @else if (conversation(); as c) {
   @let act = actions();
@@ -10,7 +10,7 @@
     <div class="cv-head__main">
       <h2 class="cv-head__name">{{ c.debtorId ? debtors.name(c.debtorId) : 'Contato não identificado' }}</h2>
       <div class="cv-head__meta">
-        <span class="cv-channel"><mat-icon aria-hidden="true">{{ channelIcons[c.channel] }}</mat-icon>{{ channelLabels[c.channel] }}</span>
+        <span class="d-inline-flex align-items-center gap-1"><app-icon [name]="channelIcons[c.channel]" />{{ channelLabels[c.channel] }}</span>
         <span class="app-numeric">{{ c.contactMasked }}</span>
         @if (c.creditorId) {
           <span class="app-muted">{{ creditors.name(c.creditorId) }}</span>
@@ -28,47 +28,49 @@
           <app-status-chip domain="conversation" status="CLOSED" />
         }
         @if (waitingText(c); as w) {
-          <span class="cv-sla" [class]="'cv-sla--' + slaTone(c)" [attr.title]="slaHint(c, time)"><mat-icon aria-hidden="true">schedule</mat-icon>{{ w }}</span>
+          <span class="cv-sla d-inline-flex align-items-center gap-1" [class]="'cv-sla--' + slaTone(c)" [attr.title]="slaHint(c, time)"><app-icon name="clock" />{{ w }}</span>
         }
       </div>
     </div>
     <div class="cv-head__actions" data-tour="conversation-actions">
       @if (act.identify) {
-        <button mat-flat-button type="button" (click)="identify()" [disabled]="busy()">
-          <mat-icon aria-hidden="true">person_search</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="identify()" [disabled]="busy()">
+          <app-icon name="person-bounding-box" />
           Identificar devedor
         </button>
       }
       @if (act.takeOver && act.identify) {
-        <button mat-stroked-button type="button" (click)="takeOver()" [disabled]="busy()">
-          <mat-icon aria-hidden="true">front_hand</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="takeOver()" [disabled]="busy()">
+          <app-icon name="hand-index" />
           Assumir
         </button>
       } @else if (act.takeOver) {
-        <button mat-flat-button type="button" (click)="takeOver()" [disabled]="busy()">
-          <mat-icon aria-hidden="true">front_hand</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="takeOver()" [disabled]="busy()">
+          <app-icon name="hand-index" />
           Assumir
         </button>
       }
       @if (act.release || act.assistant || act.assign || act.close) {
-        <button mat-stroked-button type="button" [matMenuTriggerFor]="more" [disabled]="busy()">
-          Mais ações
-          <mat-icon iconPositionEnd aria-hidden="true">expand_more</mat-icon>
-        </button>
-        <mat-menu #more="matMenu">
-          @if (act.release) {
-            <button mat-menu-item type="button" (click)="release()"><mat-icon aria-hidden="true">move_to_inbox</mat-icon>Devolver à fila</button>
-          }
-          @if (act.assistant) {
-            <button mat-menu-item type="button" (click)="toAssistant()"><mat-icon aria-hidden="true">smart_toy</mat-icon>Devolver ao assistente</button>
-          }
-          @if (act.assign) {
-            <button mat-menu-item type="button" (click)="assign()"><mat-icon aria-hidden="true">person_add</mat-icon>Atribuir a operador</button>
-          }
-          @if (act.close) {
-            <button mat-menu-item type="button" (click)="close()"><mat-icon aria-hidden="true">check_circle</mat-icon>Encerrar conversa</button>
-          }
-        </mat-menu>
+        <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" ngbDropdownToggle [disabled]="busy()">
+            Mais ações
+            <app-icon name="chevron-down" />
+          </button>
+          <div ngbDropdownMenu class="shadow app-menu" aria-label="Mais ações">
+            @if (act.release) {
+              <button ngbDropdownItem type="button" (click)="release()"><app-icon name="inbox" />Devolver à fila</button>
+            }
+            @if (act.assistant) {
+              <button ngbDropdownItem type="button" (click)="toAssistant()"><app-icon name="robot" />Devolver ao assistente</button>
+            }
+            @if (act.assign) {
+              <button ngbDropdownItem type="button" (click)="assign()"><app-icon name="person-plus" />Atribuir a operador</button>
+            }
+            @if (act.close) {
+              <button ngbDropdownItem type="button" (click)="close()"><app-icon name="check-circle" />Encerrar conversa</button>
+            }
+          </div>
+        </div>
       }
     </div>
   </header>
@@ -77,17 +79,17 @@
     @for (item of timeline(); track $index) {
       @if (item.kind === 'event') {
         <li class="cv-event">
-          <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+          <app-icon name="arrow-left-right" />
           <span>{{ eventText(item.handoff) }} · {{ eventActor(item.handoff) }} · {{ item.at | appDate }}</span>
         </li>
       } @else {
         @let m = item.message;
         <li class="cv-msg" [class.cv-msg--in]="m.direction === 'INBOUND'" [class.cv-msg--assistant]="m.senderType === 'ASSISTANT'" [class.cv-msg--failed]="m.status === 'FAILED'">
           <div class="cv-msg__meta">
-            <span class="cv-channel"><mat-icon aria-hidden="true">{{ channelIcons[m.channel] }}</mat-icon>{{ channelLabels[m.channel] }}</span>
+            <span class="d-inline-flex align-items-center gap-1"><app-icon [name]="channelIcons[m.channel]" />{{ channelLabels[m.channel] }}</span>
             <strong>
               @if (m.senderType === 'ASSISTANT') {
-                <mat-icon class="cv-inline" aria-hidden="true">smart_toy</mat-icon>
+                <app-icon name="robot" />
               }
               {{ m.direction === 'INBOUND' ? 'Devedor' : senderName(m) }}
             </strong>
@@ -105,7 +107,7 @@
             <p class="cv-msg__body">{{ m.content }}</p>
           }
           @if (blockText(m); as b) {
-            <p class="cv-msg__block" role="note"><mat-icon aria-hidden="true">block</mat-icon>{{ b }}</p>
+            <p class="cv-msg__block d-flex gap-1 mt-2 mb-0 small" role="note"><app-icon name="slash-circle" />{{ b }}</p>
           }
         </li>
       }
@@ -120,20 +122,19 @@
       @for (d of drafts(); track d.id) {
         <article class="cv-draft">
           <p class="cv-draft__head">
-            <mat-icon aria-hidden="true">smart_toy</mat-icon>
+            <app-icon name="robot" />
             <strong>Assistente</strong>
             <span class="app-muted">· {{ d.mode === 'SHADOW' ? 'modo sombra' : 'copiloto' }} · {{ d.createdAt | appDate }}</span>
           </p>
-          <mat-form-field class="app-full-width" subscriptSizing="dynamic">
-            <mat-label>Texto sugerido (edite antes de enviar, se quiser)</mat-label>
-            <textarea matInput rows="3" maxlength="4096" [ngModel]="draftText(d)" (ngModelChange)="editDraft(d, $event)"></textarea>
-          </mat-form-field>
+          <app-field label="Texto sugerido (edite antes de enviar, se quiser)">
+            <textarea appInput rows="3" maxlength="4096" [ngModel]="draftText(d)" (ngModelChange)="editDraft(d, $event)"></textarea>
+          </app-field>
           @if (d.rationale) {
             <p class="app-muted cv-draft__why">Por quê: {{ d.rationale }}</p>
           }
           <div class="cv-draft__actions">
-            <button mat-button type="button" (click)="discardDraft(d)" [disabled]="busy()">Descartar</button>
-            <button mat-flat-button type="button" (click)="sendDraft(d)" [disabled]="busy() || !!replyBlocked()">
+            <button class="btn btn-link" type="button" (click)="discardDraft(d)" [disabled]="busy()">Descartar</button>
+            <button class="btn btn-primary" type="button" (click)="sendDraft(d)" [disabled]="busy() || !!replyBlocked()">
               {{ draftText(d) !== d.content ? 'Enviar editado' : 'Aprovar e enviar' }}
             </button>
           </div>
@@ -144,10 +145,10 @@
 
   <section class="cv-reply" aria-label="Responder" data-tour="conversation-reply">
     @if (lastBlock(); as b) {
-      <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">block</mat-icon><span>{{ b }}</span></p>
+      <p class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="slash-circle" /><span>{{ b }}</span></p>
     }
     @if (replyBlocked(); as why) {
-      <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>{{ why }}</span></p>
+      <p class="alert alert-secondary d-flex gap-2 mb-0" role="note"><app-icon name="info-circle" /><span>{{ why }}</span></p>
     } @else {
       <app-composer [conversation]="c" (sent)="afterSend($event)" />
     }

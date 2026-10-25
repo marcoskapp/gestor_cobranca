@@ -2,13 +2,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { agreement } from '../../../../testing/negotiation-fixtures';
 import { payment } from '../../../../testing/payment-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { ExternalDialog } from './external-dialog';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -23,11 +24,12 @@ describe('ExternalDialog', () => {
     TestBed.configureTestingModule({
       imports: [ExternalDialog],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: { debtorId: 'd-1', debtorName: 'Ana Paula Ribeiro' } },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DIALOG_DATA, useValue: { debtorId: 'd-1', debtorName: 'Ana Paula Ribeiro' } },
+        { provide: DialogRef, useValue: { close } },
         { provide: NotificationService, useValue: notifications },
         {
           provide: AuthService,
@@ -109,5 +111,24 @@ describe('ExternalDialog', () => {
     req.flush(payment({ status: 'CONFIRMED', amount: 300 }));
     expect(close).toHaveBeenCalled();
     expect(notifications.success).toHaveBeenCalledWith(expect.stringContaining('confirmado'));
+  });
+
+  it('lê a data digitada em dd/mm/aaaa (modelo ISO, sem fuso) e recusa data futura', async () => {
+    const fixture = await render();
+    const form = fixture.componentInstance['form'];
+    const input = el(fixture).querySelector<HTMLInputElement>('input[formcontrolname="paidOn"]')!;
+    const type = (value: string) => {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+    };
+    type('20/10/2025');
+    expect(form.controls.paidOn.value).toBe('2025-10-20');
+    expect(form.controls.paidOn.valid).toBe(true);
+    type('01/01/2999');
+    expect(form.controls.paidOn.invalid).toBe(true);
+    expect(el(fixture).textContent).toContain('Informe a data (não pode ser futura).');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
   });
 });

@@ -1,8 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { Observable, switchMap } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -11,6 +8,8 @@ import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { describeStatus } from '../../../shared/status/status';
 import { CampaignExecutionApi } from '../data/campaign.api';
@@ -27,15 +26,19 @@ export interface EnrollmentDialogData {
 /** Inscrição: estado, motivo, linha do tempo das etapas executadas e comandos (pausar, retomar, encerrar). */
 @Component({
   selector: 'app-enrollment-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule, RouterLink, EmptyState, Skeleton, StatusChip, AppDatePipe],
+  imports: [...DIALOG_DIRECTIVES, RouterLink, EmptyState, Skeleton, StatusChip, AppDatePipe],
   template: `
-    <h2 mat-dialog-title>Inscrição · {{ data.debtorName }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Inscrição · {{ data.debtorName }}</h2>
+      <!-- fechar devolve se houve comando, como o botão Fechar -->
+      <button type="button" class="btn-close" aria-label="Fechar" (click)="ref.close(changed())"></button>
+    </div>
+    <div class="modal-body">
       @if (detail.isLoading() && !view()) {
         <app-skeleton variant="lines" [rows]="5" />
       } @else if (detail.status() === 'error') {
-        <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar a inscrição." [compact]="true">
-          <button mat-stroked-button type="button" (click)="detail.reload()">Tentar novamente</button>
+        <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a inscrição." [compact]="true">
+          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="detail.reload()">Tentar novamente</button>
         </app-empty-state>
       } @else if (view(); as d) {
         @let e = d.enrollment;
@@ -89,22 +92,22 @@ export interface EnrollmentDialogData {
           }
         </ol>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
+    </div>
+    <div class="modal-footer">
       @if (data.canExecute && view(); as d) {
         @let e = d.enrollment;
         @if (e.status === 'ACTIVE' || e.status === 'FAILED') {
-          <button mat-button type="button" (click)="pause(e)">Pausar</button>
+          <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="pause(e)">Pausar</button>
         }
         @if (e.status === 'PAUSED') {
-          <button mat-button type="button" (click)="resume(e)">Retomar</button>
+          <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="resume(e)">Retomar</button>
         }
         @if (e.status !== 'ENDED') {
-          <button mat-button type="button" class="ed-danger" (click)="stop(e)">Encerrar inscrição</button>
+          <button class="btn btn-link d-inline-flex align-items-center gap-2 ed-danger" type="button" (click)="stop(e)">Encerrar inscrição</button>
         }
       }
-      <button mat-flat-button type="button" (click)="ref.close(changed())">Fechar</button>
-    </mat-dialog-actions>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="ref.close(changed())">Fechar</button>
+    </div>
   `,
   styles: `
     .ed-head {
@@ -134,7 +137,7 @@ export interface EnrollmentDialogData {
     }
     .ed-when {
       flex: 0 0 120px;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .ed-what {
       flex: 1 1 220px;
@@ -144,10 +147,11 @@ export interface EnrollmentDialogData {
       flex-basis: 100%;
       padding-left: 130px;
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .ed-danger {
-      color: var(--app-danger-fg);
+      --bs-btn-color: var(--bs-danger-text-emphasis);
+      --bs-btn-hover-color: var(--bs-danger-text-emphasis);
     }
     @media (max-width: 599.98px) {
       .ed-why {
@@ -157,8 +161,8 @@ export interface EnrollmentDialogData {
   `,
 })
 export class EnrollmentDialog {
-  protected readonly data = inject<EnrollmentDialogData>(MAT_DIALOG_DATA);
-  protected readonly ref = inject<MatDialogRef<EnrollmentDialog, boolean>>(MatDialogRef);
+  protected readonly data = inject<EnrollmentDialogData>(DIALOG_DATA);
+  protected readonly ref = inject<DialogRef<boolean>>(DialogRef);
   private readonly api = inject(CampaignExecutionApi);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);

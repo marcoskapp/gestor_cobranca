@@ -1,12 +1,8 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -14,11 +10,13 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
@@ -32,12 +30,12 @@ import { expirationText, instructionTarget } from '../data/payment.rules';
 /** Instruções de pagamento (Pix) geradas, com a situação no PSP e a validade. */
 @Component({
   selector: 'app-instruction-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [Icon, NgbTooltip, ...FORM_FIELD, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Instruções de pagamento" subtitle="Cobranças Pix enviadas aos devedores: QR Code, validade e se já foram pagas.">
       @if (canCreate()) {
-        <button mat-flat-button type="button" (click)="create()">
-          <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()">
+          <app-icon name="qr-code" />
           Gerar Pix
         </button>
       }
@@ -51,15 +49,14 @@ import { expirationText, instructionTarget } from '../data/payment.rules';
           <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor" [single]="true" />
         </div>
       }
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
     <app-data-table
       caption="Instruções de pagamento"
@@ -70,12 +67,12 @@ import { expirationText, instructionTarget } from '../data/payment.rules';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="qr_code_2"
+      emptyIcon="qr-code"
       emptyMessage="Nenhuma instrução encontrada."
       emptyHint="Gere o Pix pela ficha do acordo, pela estação de cobrança ou aqui."
     >
       @if (canCreate()) {
-        <button mat-stroked-button appEmptyAction type="button" (click)="create()">Gerar Pix</button>
+        <button class="btn btn-outline-primary" appEmptyAction type="button" (click)="create()">Gerar Pix</button>
       }
       <ng-template appCell="createdAt" [appCellOf]="query.rows()" let-i>{{ i.createdAt | appDate }}</ng-template>
       <ng-template appCell="debtor" [appCellOf]="query.rows()" let-i>
@@ -97,8 +94,8 @@ import { expirationText, instructionTarget } from '../data/payment.rules';
       </ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-i><app-status-chip domain="paymentInstruction" [status]="i.status" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-i>
-        <a mat-icon-button [routerLink]="['/pagamentos/instrucoes', i.id]" aria-label="Abrir instrução" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-link" [routerLink]="['/pagamentos/instrucoes', i.id]" aria-label="Abrir instrução" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>

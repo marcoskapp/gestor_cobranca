@@ -1,14 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { Option } from '../../../shared/models/lookup';
 import { ACTION_HINTS, ACTION_LABELS, CHANNEL_LABELS, DAY_LABELS, DAYS, REPLY_LABELS, TASK_LABELS, VARIABLE_SOURCE_LABELS } from '../data/campaign.labels';
 import { ActionType, CadenceStep, DayOfWeek, MessageChannel, ReplyTransition, VariableSource } from '../data/campaign.models';
@@ -54,7 +47,7 @@ export interface StepMove {
  */
 @Component({
   selector: 'app-step-editor',
-  imports: [FormsModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule, MatTooltipModule, CriteriaEditor],
+  imports: [FormsModule, ...FORM_FIELD, Icon, CriteriaEditor],
   templateUrl: './step-editor.html',
   styleUrl: './step-editor.scss',
 })
@@ -76,6 +69,9 @@ export class StepEditor {
   readonly duplicate = output<number>();
   readonly remove = output<number>();
 
+  private static seq = 0;
+  /** Prefixo dos ids das caixas de seleção e dos dias (rótulos ligados por `for`). */
+  protected readonly uid = `se-${++StepEditor.seq}`;
   protected readonly actions = ACTIONS;
   protected readonly actionLabels = ACTION_LABELS;
   protected readonly actionHints = ACTION_HINTS;
@@ -189,6 +185,12 @@ export class StepEditor {
       w.days = DAYS.filter((d) => days.includes(d));
       this.changed();
     }
+  }
+
+  /** Marca/desmarca um dia da janela (equivale ao grupo de botões de seleção múltipla anterior). */
+  protected toggleDay(day: DayOfWeek): void {
+    const current = this.step().window?.days ?? [];
+    this.setDays(current.includes(day) ? current.filter((d) => d !== day) : [...current, day]);
   }
 
   protected setCondition(field: 'requireNoReply' | 'requireNoEffectiveContact' | 'requirePreviousMessageUnread', value: boolean): void {

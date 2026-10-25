@@ -1,14 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { ChannelsApi } from '../data/communication.api';
 import { CHANNEL_LABELS, CREDENTIAL_LABELS, PROVIDER_CHANNELS, PROVIDER_CREDENTIALS, PROVIDER_LABELS } from '../data/communication.labels';
@@ -21,82 +18,71 @@ export interface AccountDialogData {
 /** Cadastro e edição de conta de canal. Credenciais só entram; a tela nunca as exibe. */
 @Component({
   selector: 'app-account-dialog',
-  imports: [ReactiveFormsModule, MatButtonModule, MatDialogModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker],
   template: `
-    <h2 mat-dialog-title>{{ editing ? 'Editar conta de canal' : 'Nova conta de canal' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
-        <div class="app-form-stack">
-        @if (!editing) {
-          <div class="ch-row">
-            <mat-form-field>
-              <mat-label>Provedor</mat-label>
-              <mat-select formControlName="provider" required>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ editing ? 'Editar conta de canal' : 'Nova conta de canal' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
+        <div class="row g-3">
+          @if (!editing) {
+            <app-field class="col-sm-6" label="Provedor">
+              <select appInput formControlName="provider" required>
                 @for (p of providers; track p.value) {
-                  <mat-option [value]="p.value">{{ p.label }}</mat-option>
+                  <option [ngValue]="p.value">{{ p.label }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Canal</mat-label>
-              <mat-select formControlName="channel" required>
+              </select>
+            </app-field>
+            <app-field class="col-sm-6" label="Canal">
+              <select appInput formControlName="channel" required>
                 @for (c of channels(); track c) {
-                  <mat-option [value]="c">{{ channelLabels[c] }}</mat-option>
+                  <option [ngValue]="c">{{ channelLabels[c] }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
-          </div>
-          <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor (vazio = conta padrão da assessoria)" [single]="true" />
-        }
-        <mat-form-field>
-          <mat-label>Nome da conta</mat-label>
-          <input matInput formControlName="name" maxlength="120" required />
-        </mat-form-field>
-        <mat-form-field>
-          <mat-label>{{ form.controls.channel.value === 'EMAIL' ? 'E-mail do remetente' : 'Identificador do número (WhatsApp) ou remetente' }}</mat-label>
-          <input matInput formControlName="senderAddress" maxlength="320" required />
-        </mat-form-field>
-        <div class="ch-row">
-          <mat-form-field>
-            <mat-label>Nome exibido (opcional)</mat-label>
-            <input matInput formControlName="senderName" maxlength="120" />
-          </mat-form-field>
+              </select>
+            </app-field>
+            <div class="col-12">
+              <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor (vazio = conta padrão da assessoria)" [single]="true" />
+            </div>
+          }
+          <app-field class="col-12" label="Nome da conta">
+            <input appInput formControlName="name" maxlength="120" required />
+          </app-field>
+          <app-field class="col-12" [label]="form.controls.channel.value === 'EMAIL' ? 'E-mail do remetente' : 'Identificador do número (WhatsApp) ou remetente'">
+            <input appInput formControlName="senderAddress" maxlength="320" required />
+          </app-field>
+          <app-field class="col-sm-6" label="Nome exibido (opcional)">
+            <input appInput formControlName="senderName" maxlength="120" />
+          </app-field>
           @if (form.controls.channel.value === 'EMAIL') {
-            <mat-form-field>
-              <mat-label>Responder para (opcional)</mat-label>
-              <input matInput formControlName="replyTo" maxlength="320" />
-            </mat-form-field>
+            <app-field class="col-sm-6" label="Responder para (opcional)">
+              <input appInput formControlName="replyTo" maxlength="320" />
+            </app-field>
+          }
+          @if (!editing && keys().length) {
+            <div class="col-12">
+              <h3 class="app-section-title">Credenciais do provedor</h3>
+              <p class="app-muted mb-0">Guardadas criptografadas. Depois de salvas, só os nomes das chaves ficam visíveis.</p>
+            </div>
+            @for (k of keys(); track k) {
+              <app-field class="col-12" [label]="credentialLabels[k] ?? k">
+                <input appInput type="password" autocomplete="off" [formControl]="credential(k)" required />
+              </app-field>
+            }
           }
         </div>
-        @if (!editing && keys().length) {
-          <h3 class="app-section-title">Credenciais do provedor</h3>
-          <p class="app-muted">Guardadas criptografadas. Depois de salvas, só os nomes das chaves ficam visíveis.</p>
-          @for (k of keys(); track k) {
-            <mat-form-field>
-              <mat-label>{{ credentialLabels[k] ?? k }}</mat-label>
-              <input matInput type="password" autocomplete="off" [formControl]="credential(k)" required />
-            </mat-form-field>
-          }
-        }
-        </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Cadastrar conta' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Cadastrar conta' }}</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .ch-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 0 12px;
-    }
   `,
 })
 export class AccountDialog {
-  protected readonly data = inject<AccountDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<AccountDialog, AccountView>>(MatDialogRef);
+  protected readonly data = inject<AccountDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<AccountView>>(DialogRef);
   private readonly api = inject(ChannelsApi);
   protected readonly creditors = inject(CreditorLookup);
   protected readonly editing = !!this.data.account;
@@ -164,31 +150,31 @@ export class AccountDialog {
 /** Rotação de credenciais: substitui todas as chaves do provedor (os valores antigos não são exibidos). */
 @Component({
   selector: 'app-credentials-dialog',
-  imports: [ReactiveFormsModule, MatButtonModule, MatDialogModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD],
   template: `
-    <h2 mat-dialog-title>Trocar credenciais</h2>
-    <form (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
-        <div class="app-form-stack">
-        <p class="app-dialog-message">Conta {{ data.account!.name }}. Informe os novos valores; os atuais deixam de valer ao salvar.</p>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Trocar credenciais</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" (ngSubmit)="save()" novalidate>
+      <div class="modal-body d-grid gap-3">
+        <p class="app-dialog-message mb-0">Conta {{ data.account!.name }}. Informe os novos valores; os atuais deixam de valer ao salvar.</p>
         @for (k of keys; track k) {
-          <mat-form-field>
-            <mat-label>{{ labels[k] ?? k }}</mat-label>
-            <input matInput type="password" autocomplete="off" [formControl]="controls[k]" required />
-          </mat-form-field>
+          <app-field [label]="labels[k] ?? k">
+            <input appInput type="password" autocomplete="off" [formControl]="controls[k]" required />
+          </app-field>
         }
-        </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar credenciais</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar credenciais</button>
+      </div>
     </form>
   `,
 })
 export class CredentialsDialog {
-  protected readonly data = inject<AccountDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<CredentialsDialog, AccountView>>(MatDialogRef);
+  protected readonly data = inject<AccountDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<AccountView>>(DialogRef);
   private readonly api = inject(ChannelsApi);
   protected readonly labels = CREDENTIAL_LABELS;
   protected readonly keys = PROVIDER_CREDENTIALS[this.data.account!.provider];

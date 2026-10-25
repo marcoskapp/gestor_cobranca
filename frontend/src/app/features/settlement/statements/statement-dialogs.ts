@@ -35,7 +35,7 @@ export interface SendDialogData {
       <h2 appDialogTitle class="h5 mb-0">Registrar envio ao credor</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="send()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="send()" novalidate>
       <div class="modal-body">
         <p class="app-dialog-message">O envio é feito fora do sistema (e-mail, portal do credor…). Registre aqui o canal, a referência e quais arquivos foram enviados.</p>
         <app-field class="mb-3" label="Canal">
@@ -155,7 +155,7 @@ export interface AdjustmentDialogData {
       <h2 appDialogTitle class="h5 mb-0">Pedir ajuste no demonstrativo</h2>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         <div class="app-form-grid">
           <app-field label="Categoria">

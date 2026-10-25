@@ -1,12 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
@@ -25,13 +24,13 @@ import { PaymentView } from '../data/payment.models';
  */
 @Component({
   selector: 'app-review-queue',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, PageHeader, RequestedTarget],
+  imports: [Icon, NgbTooltip, RouterLink, Amount, AppDatePipe, CellDef, DataTable, PageHeader, RequestedTarget],
   template: `
     <app-page-header title="Aprovação de pagamentos" subtitle="Pagamentos informados acima do limite da assessoria aguardando uma segunda pessoa." />
-    <p class="app-alert app-alert--info" role="note" data-tour="review-segregation">
-      <mat-icon aria-hidden="true">group</mat-icon>
+    <div class="alert alert-info d-flex gap-2 align-items-start" role="note" data-tour="review-segregation">
+      <app-icon name="people" />
       <span>Os pagamentos que <strong>você</strong> informou não aparecem aqui: quem informa não aprova (o sistema recusa, inclusive para administradores). Confira o comprovante e <strong>para onde o valor vai</strong> (destino solicitado) antes de aprovar.</span>
-    </p>
+    </div>
     <app-data-table
       caption="Pagamentos aguardando aprovação"
       [rows]="query.rows()"
@@ -41,7 +40,7 @@ import { PaymentView } from '../data/payment.models';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="task_alt"
+      emptyIcon="check2-circle"
       emptyMessage="Nada aguardando a sua aprovação."
       emptyHint="Pagamentos informados acima do limite aparecem aqui assim que registrados."
     >
@@ -68,11 +67,11 @@ import { PaymentView } from '../data/payment.models';
       <ng-template appCell="informedBy" [appCellOf]="query.rows()" let-p>{{ users.name(p.informedBy) }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
         @if (p.evidenceAvailable) {
-          <button mat-icon-button type="button" (click)="download(p)" [disabled]="downloading() === p.id" aria-label="Baixar comprovante" matTooltip="Baixar comprovante">
-            <mat-icon aria-hidden="true">attach_file</mat-icon>
+          <button class="btn btn-sm btn-link" type="button" (click)="download(p)" [disabled]="downloading() === p.id" aria-label="Baixar comprovante" ngbTooltip="Baixar comprovante">
+            <app-icon name="paperclip" />
           </button>
         }
-        <a mat-stroked-button [routerLink]="['/pagamentos', p.id]">Revisar</a>
+        <a class="btn btn-outline-primary" [routerLink]="['/pagamentos', p.id]">Revisar</a>
       </ng-template>
     </app-data-table>
   `,

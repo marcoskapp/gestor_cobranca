@@ -1,14 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { NgbDateAdapter, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { PortfolioLookup } from '../../organization/data/organization.lookups';
 import { OVERRIDE_GROUP_LABELS } from '../data/negotiation.labels';
 import { OVERRIDE_GROUPS, OverrideGroup, PolicyOverride, PolicyRules } from '../data/negotiation.models';
@@ -29,52 +26,48 @@ export interface DateDialogData {
 /** Confirmação com data (publicar a partir de / aposentar em), com o resumo do impacto. */
 @Component({
   selector: 'app-date-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [Icon, NgbInputDatepicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule],
   template: `
-    <h2 mat-dialog-title>{{ data.title }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.title }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <p class="app-dialog-message">{{ data.message }}</p>
-      <dl class="app-definition-list pd-details">
+      <dl class="app-definition-list bg-body-tertiary rounded p-3 mb-3">
         @for (d of data.details; track d.label) {
           <dt>{{ d.label }}</dt>
           <dd>{{ d.value }}</dd>
         }
       </dl>
-      <mat-form-field class="app-full-width">
-        <mat-label>{{ data.label }}</mat-label>
-        <input matInput [matDatepicker]="picker" [formControl]="date" [min]="min" required />
-        <mat-datepicker-toggle matIconSuffix [for]="picker" />
-        <mat-datepicker #picker />
-      </mat-form-field>
+      <app-field class="mb-3" [label]="data.label">
+        <div class="input-group">
+          <input appInput ngbDatepicker #picker="ngbDatepicker" placeholder="dd/mm/aaaa" [formControl]="date" [minDate]="min" required ngbAutofocus />
+          <button type="button" class="btn btn-outline-secondary" (click)="picker.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+        </div>
+      </app-field>
       @if (data.warning) {
-        <p class="app-alert app-alert--warning" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>{{ data.warning }}</span></p>
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="note"><app-icon name="info-circle" /><span>{{ data.warning }}</span></div>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="null">Cancelar</button>
-      <button mat-flat-button type="button" (click)="confirm()">{{ data.confirmLabel }}</button>
-    </mat-dialog-actions>
-  `,
-  styles: `
-    .pd-details {
-      margin: 0 0 16px;
-      padding: 12px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
-    }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" [appDialogClose]="null">Cancelar</button>
+      <button class="btn btn-primary" type="button" (click)="confirm()">{{ data.confirmLabel }}</button>
+    </div>
   `,
 })
 export class DateDialog {
-  protected readonly data = inject<DateDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<DateDialog, string | null>>(MatDialogRef);
-  protected readonly min = fromLocalDate(this.data.min);
-  protected readonly date = inject(FormBuilder).nonNullable.control<Date | null>(fromLocalDate(this.data.initial));
+  protected readonly data = inject<DateDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<string | null>>(DialogRef);
+  protected readonly min = inject<NgbDateAdapter<string>>(NgbDateAdapter).fromModel(this.data.min)!;
+  /** Modelo ISO yyyy-MM-dd (datepicker do ng-bootstrap). */
+  protected readonly date = inject(FormBuilder).control<string | null>(this.data.initial);
 
   protected confirm(): void {
-    const value = toLocalDate(this.date.value);
+    const value = this.date.value;
     if (!value || value < this.data.min) {
       this.date.markAsTouched();
-      this.date.setErrors({ min: true });
+      this.date.setErrors(value ? { ngbDate: { minDate: this.min } } : { required: true });
       return;
     }
     this.ref.close(value);
@@ -94,60 +87,52 @@ export interface OverrideDialogData {
  */
 @Component({
   selector: 'app-override-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, EntityPicker],
+  imports: [...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, EntityPicker],
   template: `
-    <h2 mat-dialog-title>{{ data.override ? 'Editar sobreposição' : 'Nova sobreposição' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.override ? 'Editar sobreposição' : 'Nova sobreposição' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" maxlength="40" required />
-            <mat-hint>Maiúsculas, dígitos e _ (aparece na memória de cálculo)</mat-hint>
-          </mat-form-field>
+          <app-field label="Código" hint="Maiúsculas, dígitos e _ (aparece na memória de cálculo)">
+            <input appInput formControlName="code" maxlength="40" required ngbAutofocus />
+          </app-field>
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira" [single]="true" hint="Vazio = todas as carteiras do credor." />
           </div>
-          <mat-form-field>
-            <mat-label>Atraso a partir de (dias)</mat-label>
-            <input matInput type="number" min="0" formControlName="minDaysOverdue" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Atraso até (dias)</mat-label>
-            <input matInput type="number" min="0" formControlName="maxDaysOverdue" />
-          </mat-form-field>
+          <app-field label="Atraso a partir de (dias)">
+            <input appInput type="number" min="0" formControlName="minDaysOverdue" />
+          </app-field>
+          <app-field label="Atraso até (dias)">
+            <input appInput type="number" min="0" formControlName="maxDaysOverdue" />
+          </app-field>
         </div>
-        <fieldset class="od-groups">
-          <legend>Grupos que esta sobreposição substitui</legend>
+        <fieldset class="border rounded px-3 py-2 my-2">
+          <legend class="float-none w-auto px-1 mb-1 fs-6">Grupos que esta sobreposição substitui</legend>
           @for (g of groups; track g) {
-            <mat-checkbox [checked]="selected().has(g)" (change)="toggle(g, $event.checked)">{{ labels[g] }}</mat-checkbox>
+            <div class="form-check">
+              <input #check class="form-check-input" type="checkbox" [id]="'od-group-' + g" [checked]="selected().has(g)" (change)="toggle(g, check.checked)" />
+              <label class="form-check-label" [for]="'od-group-' + g">{{ labels[g] }}</label>
+            </div>
           }
         </fieldset>
         @if (problem()) {
-          <p class="app-field-error" role="alert">{{ problem() }}</p>
+          <div class="invalid-feedback d-block" role="alert">{{ problem() }}</div>
         }
         <p class="app-muted">A mais específica vence: carteira + faixa, depois só carteira, depois só faixa. A faixa usa o maior atraso entre os títulos.</p>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit">Aplicar</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit">Aplicar</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .od-groups {
-      display: flex;
-      flex-direction: column;
-      margin: 8px 0;
-      padding: 8px 12px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-    }
   `,
 })
 export class OverrideDialog {
-  protected readonly data = inject<OverrideDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<OverrideDialog, PolicyOverride>>(MatDialogRef);
+  protected readonly data = inject<OverrideDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<PolicyOverride>>(DialogRef);
   protected readonly portfolios = inject(PortfolioLookup).source(() => this.data.creditorId);
   protected readonly groups = OVERRIDE_GROUPS;
   protected readonly labels = OVERRIDE_GROUP_LABELS;

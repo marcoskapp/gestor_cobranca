@@ -27,7 +27,7 @@
   font-size: var(--app-text-sm);
 
   summary {
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
   }
 
@@ -49,7 +49,7 @@
   gap: 8px;
   margin: 0;
   font-size: var(--app-text-lg);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .xr-scale,
@@ -62,7 +62,7 @@
 .xr-scale {
   margin: 8px 0 2px;
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .xr-scale__ends {
@@ -119,7 +119,7 @@
   height: 6px;
   min-width: 2px;
   border-radius: var(--app-radius-pill);
-  background: var(--mat-sys-primary);
+  background: var(--bs-primary);
 }
 
 // controle: barra listrada (forma além da cor)
@@ -144,14 +144,14 @@
   margin-left: -6px;
   border: 2px solid var(--app-surface);
   border-radius: 50%;
-  background: var(--mat-sys-on-surface);
+  background: var(--bs-emphasis-color);
 }
 
 .xr-zero {
   position: absolute;
   top: -2px;
   bottom: -2px;
-  border-left: 2px dashed var(--mat-sys-on-surface-variant);
+  border-left: 2px dashed var(--bs-secondary-color);
 }
 
 .xr-text {
@@ -164,12 +164,6 @@
   align-items: flex-start;
   gap: 4px;
 
-  mat-icon {
-    flex: 0 0 auto;
-    width: 18px;
-    height: 18px;
-    font-size: 18px;
-  }
 }
 
 @media (forced-colors: active) {

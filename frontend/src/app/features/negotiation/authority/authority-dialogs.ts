@@ -1,16 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators } from '../../../shared/validation/validators';
 import { UserLookup } from '../../admin/data/user.lookup';
@@ -23,74 +19,68 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Perfil de alçada: quanto do envelope da política o ator usa sem aprovação. */
 @Component({
   selector: 'app-profile-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, EntityPicker],
+  imports: [...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, EntityPicker],
   template: `
-    <h2 mat-dialog-title>{{ data ? 'Editar perfil de alçada' : 'Novo perfil de alçada' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data ? 'Editar perfil de alçada' : 'Novo perfil de alçada' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
         <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" maxlength="40" [readonly]="!!data" required />
-            <mat-hint>{{ data ? 'Imutável' : 'Maiúsculas, dígitos e _' }}</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="120" required />
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Descrição</mat-label>
-            <input matInput formControlName="description" maxlength="500" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Nível máximo da escada</mat-label>
-            <input matInput type="number" min="0" max="99" formControlName="maxConcessionLevel" required />
-            <mat-hint>99 = topo da escada da política</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Fatia do desconto máximo (%)</mat-label>
-            <input matInput type="number" min="0" max="100" step="0.01" formControlName="maxDiscountShare" required />
-            <mat-hint>100 = todo o envelope da política</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Pagamentos máximos</mat-label>
-            <input matInput type="number" min="1" max="360" formControlName="maxInstallments" required />
-            <mat-hint>Nunca acima da política</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Valor máximo do acordo (R$)</mat-label>
-            <input matInput type="number" min="0.01" step="0.01" formControlName="maxAgreementAmount" />
-            <mat-hint>Vazio = sem limite próprio</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Entrada mínima (%)</mat-label>
-            <input matInput type="number" min="0" max="99.99" step="0.01" formControlName="minDownPaymentShare" required />
-            <mat-hint>Vale a maior entre política e perfil</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Renegociações de acordo quebrado</mat-label>
-            <input matInput type="number" min="0" max="10" formControlName="maxRenegotiations" required />
-          </mat-form-field>
-          <mat-checkbox formControlName="canFormalize">Formaliza sem aprovação</mat-checkbox>
-          <mat-checkbox formControlName="canApprove">Aprova propostas de outros até o próprio limite</mat-checkbox>
+          <app-field label="Código" hint="{{ data ? 'Imutável' : 'Maiúsculas, dígitos e _' }}">
+            <input appInput formControlName="code" maxlength="40" [readonly]="!!data" required ngbAutofocus />
+          </app-field>
+          <app-field label="Nome">
+            <input appInput formControlName="name" maxlength="120" required />
+          </app-field>
+          <app-field class="app-span-all" label="Descrição">
+            <input appInput formControlName="description" maxlength="500" />
+          </app-field>
+          <app-field label="Nível máximo da escada" hint="99 = topo da escada da política">
+            <input appInput type="number" min="0" max="99" formControlName="maxConcessionLevel" required />
+          </app-field>
+          <app-field label="Fatia do desconto máximo (%)" hint="100 = todo o envelope da política">
+            <input appInput type="number" min="0" max="100" step="0.01" formControlName="maxDiscountShare" required />
+          </app-field>
+          <app-field label="Pagamentos máximos" hint="Nunca acima da política">
+            <input appInput type="number" min="1" max="360" formControlName="maxInstallments" required />
+          </app-field>
+          <app-field label="Valor máximo do acordo (R$)" hint="Vazio = sem limite próprio">
+            <input appInput type="number" min="0.01" step="0.01" formControlName="maxAgreementAmount" />
+          </app-field>
+          <app-field label="Entrada mínima (%)" hint="Vale a maior entre política e perfil">
+            <input appInput type="number" min="0" max="99.99" step="0.01" formControlName="minDownPaymentShare" required />
+          </app-field>
+          <app-field label="Renegociações de acordo quebrado">
+            <input appInput type="number" min="0" max="10" formControlName="maxRenegotiations" required />
+          </app-field>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="pf-canFormalize" formControlName="canFormalize" />
+            <label class="form-check-label" for="pf-canFormalize">Formaliza sem aprovação</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="pf-canApprove" formControlName="canApprove" />
+            <label class="form-check-label" for="pf-canApprove">Aprova propostas de outros até o próprio limite</label>
+          </div>
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.creditors" [source]="creditorSource" label="Restrito aos credores" hint="Vazio = vale para todos (exige acesso a todos os credores)." />
           </div>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar perfil</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar perfil</button>
+      </div>
     </form>
   `,
 })
 export class ProfileForm {
-  protected readonly data = inject<ProfileView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ProfileForm, ProfileView>>(MatDialogRef);
+  protected readonly data = inject<ProfileView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<ProfileView>>(DialogRef);
   private readonly api = inject(AuthorityApi);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly saving = signal(false);
@@ -148,55 +138,54 @@ export interface AssignAuthorityData {
 /** Atribui (ou troca) o perfil de um usuário ou de uma política do assistente, geral ou por credor. */
 @Component({
   selector: 'app-assign-authority',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatRadioModule, MatSelectModule, EntityPicker],
+  imports: [...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, EntityPicker],
   template: `
-    <h2 mat-dialog-title>Atribuir alçada</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
-        <mat-radio-group formControlName="subjectType" aria-label="Quem recebe a alçada" class="aa-type">
-          <mat-radio-button value="USER">Usuário</mat-radio-button>
-          <mat-radio-button value="ASSISTANT_POLICY">Política do assistente de IA</mat-radio-button>
-        </mat-radio-group>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Atribuir alçada</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
+        <fieldset class="d-flex flex-wrap column-gap-3 mb-2">
+          <legend class="visually-hidden">Quem recebe a alçada</legend>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" formControlName="subjectType" value="USER" id="aa-subjectType-user" ngbAutofocus />
+            <label class="form-check-label" for="aa-subjectType-user">Usuário</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" formControlName="subjectType" value="ASSISTANT_POLICY" id="aa-subjectType-assistant-policy" />
+            <label class="form-check-label" for="aa-subjectType-assistant-policy">Política do assistente de IA</label>
+          </div>
+        </fieldset>
         @if (form.controls.subjectType.value === 'USER') {
           <app-entity-picker [control]="form.controls.user" [source]="users" label="Usuário" [single]="true" hint="Ninguém atribui alçada a si mesmo." />
         } @else {
-          <mat-form-field class="app-full-width">
-            <mat-label>Id da política do assistente</mat-label>
-            <input matInput formControlName="assistantPolicyId" autocomplete="off" />
-            <mat-hint>A política do assistente vincula o perfil ao ser publicada; use aqui só para ajuste manual.</mat-hint>
-          </mat-form-field>
+          <app-field class="mb-3" label="Id da política do assistente" hint="A política do assistente vincula o perfil ao ser publicada; use aqui só para ajuste manual.">
+            <input appInput formControlName="assistantPolicyId" autocomplete="off" />
+          </app-field>
         }
         <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" hint="Vazio = todos os credores (exige acesso a todos)." />
-        <mat-form-field class="app-full-width">
-          <mat-label>Perfil</mat-label>
-          <mat-select formControlName="profileId" required>
+        <app-field class="mb-3" label="Perfil">
+          <select appInput formControlName="profileId" required>
             @for (p of data.profiles; track p.id) {
-              <mat-option [value]="p.id">{{ p.name }} ({{ p.code }})</mat-option>
+              <option [ngValue]="p.id">{{ p.name }} ({{ p.code }})</option>
             }
-          </mat-select>
-        </mat-form-field>
+          </select>
+        </app-field>
         @if (problem()) {
-          <p class="app-field-error" role="alert">{{ problem() }}</p>
+          <div class="invalid-feedback d-block" role="alert">{{ problem() }}</div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Atribuir</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Atribuir</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .aa-type {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      margin-bottom: 8px;
-    }
   `,
 })
 export class AssignAuthorityDialog {
-  protected readonly data = inject<AssignAuthorityData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<AssignAuthorityDialog, AuthorityAssignmentView>>(MatDialogRef);
+  protected readonly data = inject<AssignAuthorityData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<AuthorityAssignmentView>>(DialogRef);
   private readonly api = inject(AuthorityApi);
   private readonly notifications = inject(NotificationService);
   protected readonly users = inject(UserLookup);

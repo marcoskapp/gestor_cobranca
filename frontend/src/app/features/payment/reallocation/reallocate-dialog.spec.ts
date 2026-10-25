@@ -1,10 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { allocation, payment } from '../../../../testing/payment-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { ReallocateDialog } from './reallocate-dialog';
 
 describe('ReallocateDialog', () => {
@@ -17,11 +18,12 @@ describe('ReallocateDialog', () => {
     TestBed.configureTestingModule({
       imports: [ReallocateDialog],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: { payment: view, debtorName: 'Ana Paula Ribeiro' } },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DIALOG_DATA, useValue: { payment: view, debtorName: 'Ana Paula Ribeiro' } },
+        { provide: DialogRef, useValue: { close } },
         { provide: AuthService, useValue: { hasPermission: () => true, hasAnyPermission: () => true } },
       ],
     });
