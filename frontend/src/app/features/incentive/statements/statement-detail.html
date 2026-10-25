@@ -1,0 +1,188 @@
+@if (resource.isLoading() && !detail()) {
+  <div aria-busy="true" aria-label="Carregando extrato">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton variant="card" [rows]="6" />
+  </div>
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="receipt" tone="error" title="Não foi possível abrir o extrato." message="Ele pode não existir ou estar fora do seu escopo (próprio, equipe ou todos).">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/remuneracao/extratos">Voltar para extratos</a>
+  </app-empty-state>
+}
+
+@if (detail(); as d) {
+  @let s = d.summary;
+  @let act = actions()!;
+  <app-page-header [title]="'Extrato de ' + (act.own ? 'comissão' : (s.userName ?? 'negociador')) + ' · ' + month(s.period)" [subtitle]="s.planCode ? 'Plano ' + s.planCode + ' v' + s.planVersion : 'Sem plano de comissão no período'">
+    <a class="btn btn-link" routerLink="/remuneracao/extratos">
+      <app-icon name="arrow-left" />
+      Extratos
+    </a>
+    @if (act.dispute) {
+      <button class="btn btn-outline-primary" type="button" (click)="openDispute()" [disabled]="busy()" data-tour="statement-dispute">
+        <app-icon name="flag" />
+        Contestar
+      </button>
+    }
+    @if (act.recalculate) {
+      <button class="btn btn-outline-primary" type="button" (click)="recalculate()" [disabled]="busy()">
+        <app-icon name="arrow-repeat" />
+        Recalcular
+      </button>
+    }
+    @if (act.adjust) {
+      <button class="btn btn-outline-primary" type="button" (click)="adjust()" [disabled]="busy()">
+        <app-icon name="pencil-square" />
+        Ajustar
+      </button>
+    }
+    @if (act.approve) {
+      <button class="btn btn-primary" type="button" (click)="approve()" [disabled]="busy()" data-tour="statement-approve">
+        <app-icon name="person-check" />
+        Aprovar
+      </button>
+    }
+  </app-page-header>
+
+  <div class="in-status" data-tour="statement-status">
+    <app-status-chip domain="commissionStatement" [status]="s.status" />
+    <app-status-chip domain="commissionOutcome" [status]="s.outcome" />
+    @if (s.approvedAt) {
+      <span class="app-muted">Aprovado em {{ s.approvedAt | appDate }} por {{ person(d.approvedBy) }}</span>
+    }
+  </div>
+
+  @if (actionError()) {
+    <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ actionError() }}</span></div>
+  }
+  @if (act.approveBlocked) {
+    <div class="alert alert-info d-flex align-items-start gap-2" role="note" data-tour="statement-segregation">
+      <app-icon name="people" />
+      <span>{{ act.approveBlocked }} Quem fechou o período também não aprova; o sistema recusa nesses casos, inclusive para administradores.</span>
+    </div>
+  }
+  @if (s.outcome === 'SUSPENDED_QUALITY_GATE') {
+    <div class="alert alert-warning d-flex align-items-start gap-2" role="note">
+      <app-icon name="patch-exclamation" />
+      <span>Variável suspenso pelo portão de monitoria: a nota média ficou abaixo do mínimo do plano. O valor fica retido e é liberado por recálculo depois de nova monitoria.</span>
+    </div>
+  } @else if (s.outcome === 'NOT_ELIGIBLE') {
+    <div class="alert alert-secondary d-flex align-items-start gap-2" role="note">
+      <app-icon name="info-circle" />
+      <span>Fora da elegibilidade do plano no período (por exemplo, dias trabalhados abaixo do mínimo). A memória de cálculo mostra o motivo.</span>
+    </div>
+  } @else if (s.outcome === 'NO_PLAN') {
+    <div class="alert alert-secondary d-flex align-items-start gap-2" role="note">
+      <app-icon name="info-circle" />
+      <span>Nenhum plano de comissão publicado cobria este negociador no período; o extrato fica com valor zero.</span>
+    </div>
+  }
+  @if (openDisputes() && !act.own) {
+    <div class="alert alert-warning d-flex align-items-start gap-2" role="status">
+      <app-icon name="flag" />
+      <span>{{ openDisputes() }} contestação(ões) em aberto. O extrato só é aprovado depois da resolução.</span>
+    </div>
+  }
+  @if (pendingAdjustments()) {
+    <div class="alert alert-warning d-flex align-items-start gap-2" role="status">
+      <app-icon name="hourglass-split" />
+      <span>{{ pendingAdjustments() }} ajuste(s) aguardando segunda aprovação.</span>
+    </div>
+  }
+
+  <section class="app-card" aria-labelledby="sd-values" data-tour="statement-values">
+    <h2 class="app-card__title" id="sd-values">Valores do período</h2>
+    <div class="in-kpis mb-0">
+      <div class="in-kpi"><span class="in-kpi__label">Recuperado creditado</span><span class="in-kpi__value"><app-amount [value]="s.creditedRecovery" /></span></div>
+      <div class="in-kpi"><span class="in-kpi__label">Calculado</span><span class="in-kpi__value"><app-amount [value]="s.calculatedAmount" /></span></div>
+      <div class="in-kpi"><span class="in-kpi__label">Ajustes</span><span class="in-kpi__value"><app-amount [value]="s.adjustmentsAmount" [signed]="true" /></span></div>
+      @if (s.withheldAmount > 0) {
+        <div class="in-kpi"><span class="in-kpi__label">Retido</span><span class="in-kpi__value"><app-amount [value]="s.withheldAmount" /></span></div>
+      }
+      <div class="in-kpi in-kpi--total"><span class="in-kpi__label">A pagar</span><span class="in-kpi__value"><app-amount [value]="s.payableAmount" /></span></div>
+    </div>
+  </section>
+
+  <div class="in-grid mt-3">
+    <div class="in-main">
+      <section class="app-card" aria-labelledby="sd-lines" data-tour="statement-lines">
+        <div class="in-head">
+          <h2 class="app-card__title" id="sd-lines">Memória de cálculo</h2>
+          <span class="app-muted in-small">Soma das linhas: <app-amount [value]="linesSum()" [signed]="true" /></span>
+        </div>
+        <app-statement-lines [lines]="d.lines" [disputable]="act.dispute" (dispute)="openDispute({ line: $event })" />
+        @if (d.calculationMemory) {
+          <details class="mt-3">
+            <summary>Memória completa (dados usados no cálculo)</summary>
+            <pre class="in-pre mt-2">{{ d.calculationMemory }}</pre>
+          </details>
+        }
+      </section>
+
+      <section class="app-card" aria-labelledby="sd-ledger">
+        <h2 class="app-card__title" id="sd-ledger">Lançamentos do período</h2>
+        <app-ledger-table [userId]="s.userId" [period]="s.period" caption="Lançamentos do período do extrato" [disputable]="act.dispute" [disputeEntry]="disputeEntryFn" />
+      </section>
+    </div>
+
+    <aside class="in-side">
+      <section class="app-card" aria-labelledby="sd-disputes">
+        <h2 class="app-card__title" id="sd-disputes">Contestações ({{ d.disputes.length }})</h2>
+        @if (d.disputes.length === 0) {
+          <p class="app-muted mb-0">Nenhuma contestação.{{ act.dispute ? ' Conteste uma linha da memória, um lançamento ou um acordo que faltou.' : '' }}</p>
+        } @else {
+          <ul class="in-list">
+            @for (x of d.disputes; track x.id) {
+              <li class="in-item">
+                <div class="in-item__head">
+                  <strong>{{ target(x) }}</strong>
+                  <app-status-chip domain="commissionDispute" [status]="x.status" />
+                </div>
+                <p class="mb-1">{{ x.reason }}</p>
+                <div class="app-muted in-small">Aberta por {{ person(x.openedBy) }} em {{ x.openedAt | appDate }}</div>
+                @if (x.resolution) {
+                  <p class="mb-1 mt-2"><strong>Resposta:</strong> {{ x.resolution }}</p>
+                  <div class="app-muted in-small">{{ person(x.resolvedBy) }} em {{ x.resolvedAt | appDate }}</div>
+                }
+                @if (resolvable(x)) {
+                  <div class="in-item__actions">
+                    <button type="button" class="btn btn-sm btn-primary" (click)="resolve(x)" [disabled]="busy()">Resolver</button>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="app-card" aria-labelledby="sd-adjustments">
+        <h2 class="app-card__title" id="sd-adjustments">Ajustes ({{ d.adjustments.length }})</h2>
+        @if (d.adjustments.length === 0) {
+          <p class="app-muted mb-0">Nenhum ajuste manual.</p>
+        } @else {
+          <ul class="in-list">
+            @for (a of d.adjustments; track a.id) {
+              <li class="in-item">
+                <div class="in-item__head">
+                  <strong><app-amount [value]="a.amount" [signed]="true" /></strong>
+                  <app-status-chip domain="commissionAdjustment" [status]="a.status" />
+                </div>
+                <p class="mb-1">{{ a.reason }}</p>
+                <div class="app-muted in-small">Pedido por {{ person(a.requestedBy) }} em {{ a.requestedAt | appDate }}</div>
+                @if (a.decidedBy) {
+                  <div class="app-muted in-small">Decidido por {{ person(a.decidedBy) }} em {{ a.decidedAt | appDate }}{{ a.decisionNote ? ': ' + a.decisionNote : '' }}</div>
+                }
+                @if (decidable(a)) {
+                  <div class="in-item__actions">
+                    <button type="button" class="btn btn-sm btn-primary" (click)="decide(a, true)" [disabled]="busy()">Aprovar ajuste</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="decide(a, false)" [disabled]="busy()">Recusar</button>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </aside>
+  </div>
+}

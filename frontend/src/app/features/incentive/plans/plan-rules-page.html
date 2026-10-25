@@ -1,0 +1,353 @@
+@if (resource.isLoading() && !plan()) {
+  <div aria-busy="true" aria-label="Carregando regras"><app-skeleton variant="card" [rows]="8" /></div>
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="sliders" tone="error" title="Não foi possível abrir as regras do plano." message="A versão pode ter sido descartada.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/remuneracao/planos">Voltar para planos</a>
+  </app-empty-state>
+} @else if (plan(); as p) {
+  @if (p.status !== 'DRAFT') {
+    <app-empty-state icon="lock" title="Versão publicada não muda." message="Para alterar as regras, crie uma nova versão (rascunho) a partir desta.">
+      <a class="btn btn-primary" [routerLink]="['/remuneracao/planos', p.id]">Voltar ao plano</a>
+    </app-empty-state>
+  } @else if (model(); as r) {
+    <app-page-header [title]="'Regras · ' + p.name + ' v' + p.version" subtitle="Rascunho: nada remunera até a publicação. Percentuais de 0 a 100 (1,5 = 1,5%); fatores multiplicam (1,2 = +20%).">
+      <a class="btn btn-link" [routerLink]="['/remuneracao/planos', p.id]">
+        <app-icon name="arrow-left" />
+        Plano
+      </a>
+      <button class="btn btn-outline-secondary" type="button" (click)="revert()" [disabled]="!dirty() || saving()">Desfazer alterações</button>
+      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()" data-tour="rules-save">
+        <app-icon name="floppy" />
+        Salvar rascunho
+      </button>
+    </app-page-header>
+
+    @if (submitted() && issues().length) {
+      <div class="alert alert-danger" role="alert" data-tour="rules-issues">
+        <p class="mb-1 d-flex align-items-center gap-2"><app-icon name="exclamation-circle" /><strong>Corrija antes de salvar:</strong></p>
+        <ul class="mb-0">
+          @for (i of issues(); track i) {
+            <li>{{ i }}</li>
+          }
+        </ul>
+      </div>
+    }
+    @if (error()) {
+      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+    }
+
+    <section class="app-card" aria-labelledby="re-plan">
+      <h2 class="app-card__title" id="re-plan">Plano</h2>
+      <div class="re-row">
+        <app-field label="Nome" [error]="'Informe o nome.'">
+          <input appInput [ngModel]="header().name" (ngModelChange)="setHeader('name', $event)" maxlength="120" required />
+        </app-field>
+        <app-field label="Prioridade" hint="Maior vence quando dois planos cobrem a mesma pessoa">
+          <input appInput type="number" min="0" max="1000" [ngModel]="header().priority" (ngModelChange)="setHeader('priority', $event)" />
+        </app-field>
+        <app-field class="app-span-all" label="Descrição (opcional)">
+          <input appInput [ngModel]="header().description" (ngModelChange)="setHeader('description', $event)" maxlength="1000" />
+        </app-field>
+      </div>
+    </section>
+
+    <section class="app-card" aria-labelledby="re-elig" data-tour="rules-eligibility">
+      <h2 class="app-card__title" id="re-elig">Elegibilidade</h2>
+      <div class="re-row">
+        <app-field label="Perfis elegíveis" hint="Códigos separados por vírgula (vazio = qualquer perfil)">
+          <input appInput class="font-monospace" [ngModel]="roleText()" (ngModelChange)="setRoles($event)" />
+        </app-field>
+        <app-field label="Dias trabalhados mínimos" hint="0 = sem exigência">
+          <input appInput type="number" min="0" max="31" step="1" [(ngModel)]="r.eligibility.minWorkedDays" (ngModelChange)="touch()" />
+        </app-field>
+        <app-ids-field [ids]="r.eligibility.teamIds" [source]="teams" label="Equipes" hint="Vazio = qualquer equipe" (changed)="touch()" />
+        <app-ids-field [ids]="r.eligibility.creditorIds" [source]="creditors" label="Credores cobertos" hint="Vazio = todos" (changed)="touch()" />
+        <app-ids-field [ids]="r.eligibility.portfolioIds" [source]="portfolios" label="Carteiras cobertas" hint="Vazio = todas" (changed)="touch()" />
+      </div>
+    </section>
+
+    <section class="app-card" aria-labelledby="re-rate" data-tour="rules-rate">
+      <h2 class="app-card__title" id="re-rate">Percentual sobre recuperado</h2>
+      <div class="form-check form-switch re-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="re-rate-on" [checked]="has('recoveryRate')" (change)="toggle('recoveryRate', checked($event))" />
+        <label class="form-check-label" for="re-rate-on">Paga percentual sobre o valor recuperado</label>
+      </div>
+      @if (r.recoveryRate; as rr) {
+        <app-field label="Modo das faixas">
+          <select appInput [(ngModel)]="rr.mode" (ngModelChange)="touch()">
+            @for (o of tierModes; track o.value) {
+              <option [ngValue]="o.value">{{ o.label }}</option>
+            }
+          </select>
+        </app-field>
+        @for (t of rr.tables; track $index; let ti = $index) {
+          <div class="re-block">
+            <app-segment-editor [segment]="t.segment" [legend]="'Tabela ' + (ti + 1) + ' — segmento'" (changed)="touch()" />
+            <p class="re-sub">Faixas (a primeira começa em R$ 0,00)</p>
+            @for (tier of t.tiers; track $index; let i = $index) {
+              <div class="re-row">
+                <app-field [label]="'A partir de (R$) — faixa ' + (i + 1)">
+                  <input appInput type="number" min="0" step="0.01" [(ngModel)]="tier.fromAmount" (ngModelChange)="touch()" />
+                </app-field>
+                <app-field [label]="'Taxa (%) — faixa ' + (i + 1)">
+                  <input appInput type="number" min="0" max="100" step="0.01" [(ngModel)]="tier.ratePercent" (ngModelChange)="touch()" />
+                </app-field>
+                <div class="pb-3">
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeTier(ti, i)" [disabled]="t.tiers.length === 1" [attr.aria-label]="'Remover a faixa ' + (i + 1) + ' da tabela ' + (ti + 1)">
+                    <app-icon name="trash3" />
+                  </button>
+                </div>
+              </div>
+            }
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="addTier(ti)"><app-icon name="plus-lg" /> Faixa</button>
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeTable(ti)" [disabled]="rr.tables.length === 1">Remover tabela</button>
+            </div>
+          </div>
+        }
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="addTable()"><app-icon name="plus-lg" /> Tabela para outro segmento</button>
+        <p class="app-muted in-small mt-2 mb-0">Vale a tabela mais específica que casar com o segmento do lançamento.</p>
+      }
+    </section>
+
+    <section class="app-card" aria-labelledby="re-fixed">
+      <h2 class="app-card__title" id="re-fixed">Valor fixo por acordo</h2>
+      <div class="form-check form-switch re-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="re-fixed-on" [checked]="has('fixedPerAgreement')" (change)="toggle('fixedPerAgreement', checked($event))" />
+        <label class="form-check-label" for="re-fixed-on">Paga valor fixo por acordo com a 1ª parcela paga</label>
+      </div>
+      @if (r.fixedPerAgreement; as f) {
+        <div class="re-row">
+          <app-field label="Valor por acordo (R$)">
+            <input appInput type="number" min="0.01" step="0.01" [(ngModel)]="f.amount" (ngModelChange)="touch()" />
+          </app-field>
+        </div>
+      }
+    </section>
+
+    <section class="app-card" aria-labelledby="re-goal" data-tour="rules-goal">
+      <h2 class="app-card__title" id="re-goal">Meta</h2>
+      <div class="form-check form-switch re-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="re-goal-on" [checked]="has('goal')" (change)="toggle('goal', checked($event))" />
+        <label class="form-check-label" for="re-goal-on">Aplica meta com gatilho, acelerador e teto</label>
+      </div>
+      @if (r.goal; as g) {
+        <div class="re-row">
+          <app-field label="Métrica">
+            <select appInput [(ngModel)]="g.metric" (ngModelChange)="touch()">
+              @for (o of goalMetrics; track o.value) {
+                <option [ngValue]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </app-field>
+          <app-field label="Escopo">
+            <select appInput [(ngModel)]="g.scope" (ngModelChange)="touch()">
+              @for (o of goalScopes; track o.value) {
+                <option [ngValue]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </app-field>
+          <app-field label="Meta padrão" hint="Vazio = só quem tiver meta cadastrada no período">
+            <input appInput type="number" min="0" step="0.01" [(ngModel)]="g.defaultTarget" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Gatilho (% da meta)">
+            <input appInput type="number" min="0" max="1000" step="1" [(ngModel)]="g.triggerPercent" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Fator abaixo do gatilho" hint="0 a 1 (0,5 = paga metade)">
+            <input appInput type="number" min="0" max="1" step="0.05" [(ngModel)]="g.belowTriggerFactor" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Acelera a partir de (%)">
+            <input appInput type="number" min="0" max="1000" step="1" [(ngModel)]="g.acceleratorThresholdPercent" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Fator do acelerador" hint="1 a 10">
+            <input appInput type="number" min="1" max="10" step="0.05" [(ngModel)]="g.acceleratorFactor" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Acelerador aplicado">
+            <select appInput [(ngModel)]="g.acceleratorMode" (ngModelChange)="touch()">
+              @for (o of acceleratorModes; track o.value) {
+                <option [ngValue]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </app-field>
+          <app-field label="Teto de atingimento (%)" hint="Vazio = sem teto (300 = 3× a meta)">
+            <input appInput type="number" min="0" step="1" [(ngModel)]="g.capPercent" (ngModelChange)="touch()" />
+          </app-field>
+        </div>
+      }
+    </section>
+
+    <section class="app-card" aria-labelledby="re-mult">
+      <h2 class="app-card__title" id="re-mult">Multiplicadores de dificuldade</h2>
+      <p class="app-muted in-small">Para comparar carteiras de dificuldade diferente. Sem multiplicador, o fator é 1,0; vale o mais específico.</p>
+      @for (m of r.difficultyMultipliers; track $index; let i = $index) {
+        <div class="re-block">
+          <app-segment-editor [segment]="m.segment" [legend]="'Multiplicador ' + (i + 1) + ' — segmento'" (changed)="touch()" />
+          <div class="re-row">
+            <app-field [label]="'Fator — multiplicador ' + (i + 1)" hint="0 a 10">
+              <input appInput type="number" min="0" max="10" step="0.05" [(ngModel)]="m.factor" (ngModelChange)="touch()" />
+            </app-field>
+            <div class="pb-3">
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeMultiplier(i)" [attr.aria-label]="'Remover o multiplicador ' + (i + 1)"><app-icon name="trash3" /></button>
+            </div>
+          </div>
+        </div>
+      }
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="addMultiplier()"><app-icon name="plus-lg" /> Multiplicador</button>
+    </section>
+
+    <section class="app-card" aria-labelledby="re-quality" data-tour="rules-quality">
+      <h2 class="app-card__title" id="re-quality">Modificadores de qualidade</h2>
+      <div class="form-check form-switch re-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="re-eb-on" [checked]="has('earlyBreak')" (change)="toggle('earlyBreak', checked($event))" />
+        <label class="form-check-label" for="re-eb-on">Deflator por quebra precoce</label>
+      </div>
+      @if (r.quality.earlyBreak; as e) {
+        <div class="re-row">
+          <app-field label="Janela">
+            <select appInput [(ngModel)]="e.windowDays" (ngModelChange)="touch()">
+              <option [ngValue]="30">30 dias</option>
+              <option [ngValue]="60">60 dias</option>
+              <option [ngValue]="90">90 dias</option>
+            </select>
+          </app-field>
+          <app-field label="Limite (% da safra)">
+            <input appInput type="number" min="0" max="100" step="1" [(ngModel)]="e.thresholdPercent" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Redução (%)">
+            <input appInput type="number" min="0" max="100" step="1" [(ngModel)]="e.deflatorPercent" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Amostra mínima (acordos)">
+            <input appInput type="number" min="1" step="1" [(ngModel)]="e.minSample" (ngModelChange)="touch()" />
+          </app-field>
+        </div>
+      }
+      <div class="form-check form-switch re-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="re-env-on" [checked]="has('envelope')" (change)="toggle('envelope', checked($event))" />
+        <label class="form-check-label" for="re-env-on">Deflator por uso do envelope de desconto</label>
+      </div>
+      @if (r.quality.envelope; as e) {
+        <div class="re-row">
+          <app-field label="Limite de uso médio (%)">
+            <input appInput type="number" min="0" max="100" step="1" [(ngModel)]="e.thresholdPercent" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Redução (%)">
+            <input appInput type="number" min="0" max="100" step="1" [(ngModel)]="e.deflatorPercent" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Amostra mínima (acordos)">
+            <input appInput type="number" min="1" step="1" [(ngModel)]="e.minSample" (ngModelChange)="touch()" />
+          </app-field>
+        </div>
+      }
+      <div class="form-check form-switch re-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="re-gate-on" [checked]="has('monitoringGate')" (change)="toggle('monitoringGate', checked($event))" />
+        <label class="form-check-label" for="re-gate-on">Portão de monitoria (suspende o variável abaixo da nota)</label>
+      </div>
+      @if (r.quality.monitoringGate; as m) {
+        <div class="re-row">
+          <app-field label="Nota mínima (0 a 10)">
+            <input appInput type="number" min="0" max="10" step="0.1" [(ngModel)]="m.minScore" (ngModelChange)="touch()" />
+          </app-field>
+          <div class="form-check pb-3">
+            <input class="form-check-input" type="checkbox" id="re-gate-none" [(ngModel)]="m.suspendWithoutEvaluation" (ngModelChange)="touch()" />
+            <label class="form-check-label" for="re-gate-none">Sem avaliação no período, suspender</label>
+          </div>
+        </div>
+      }
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="re-zero" [(ngModel)]="r.quality.zeroOnSevereViolation" (ngModelChange)="touch()" />
+        <label class="form-check-label" for="re-zero">Violação grave de compliance confirmada zera o variável do período</label>
+      </div>
+    </section>
+
+    <section class="app-card" aria-labelledby="re-attr" data-tour="rules-attribution">
+      <h2 class="app-card__title" id="re-attr">Atribuição de crédito</h2>
+      <p class="app-muted in-small">Peso do crédito individual por origem do acordo, fixado na formalização.</p>
+      <div class="re-row">
+        @for (o of origins; track o) {
+          <app-field [label]="originLabels[o] + ' (%)'" [hint]="o === 'ASSISTANT_AUTONOMOUS' ? 'Sempre 0%: entra só no pool' : undefined">
+            <input appInput type="number" min="0" max="100" step="1" [(ngModel)]="r.attribution.originWeights[o]" (ngModelChange)="touch()" [disabled]="o === 'ASSISTANT_AUTONOMOUS'" />
+          </app-field>
+        }
+      </div>
+      <div class="re-row">
+        <app-field label="Janela de influência (dias)" hint="Portal e campanha: contato efetivo humano nesse prazo">
+          <input appInput type="number" min="0" max="90" step="1" [(ngModel)]="r.attribution.influenceWindowDays" (ngModelChange)="touch()" />
+        </app-field>
+        <app-field label="Mudança de carteira">
+          <select appInput [(ngModel)]="r.attribution.creditModel" (ngModelChange)="touch()">
+            @for (o of creditModels; track o.value) {
+              <option [ngValue]="o.value">{{ o.label }}</option>
+            }
+          </select>
+        </app-field>
+        <app-field label="Renegociação própria (%)" hint="Peso ao refazer acordo do próprio negociador">
+          <input appInput type="number" min="0" max="100" step="1" [(ngModel)]="r.attribution.ownRenegotiationWeightPercent" (ngModelChange)="touch()" />
+        </app-field>
+        <app-field label="Desligamento" hint="Validar com jurídico/RH">
+          <select appInput [(ngModel)]="r.attribution.terminationPolicy" (ngModelChange)="touch()">
+            @for (o of terminationPolicies; track o.value) {
+              <option [ngValue]="o.value">{{ o.label }}</option>
+            }
+          </select>
+        </app-field>
+        <app-field label="Carência do desligamento (dias úteis)">
+          <input appInput type="number" min="0" max="60" step="1" [(ngModel)]="r.attribution.terminationGraceDays" (ngModelChange)="touch()" />
+        </app-field>
+      </div>
+    </section>
+
+    <section class="app-card" aria-labelledby="re-pool">
+      <h2 class="app-card__title" id="re-pool">Pool da equipe</h2>
+      <div class="form-check form-switch re-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="re-pool-on" [checked]="has('teamPool')" (change)="toggle('teamPool', checked($event))" />
+        <label class="form-check-label" for="re-pool-on">Paga percentual do recuperado da equipe aos supervisores</label>
+      </div>
+      @if (r.teamPool; as tp) {
+        <div class="re-row">
+          <app-field label="Taxa do pool (%)">
+            <input appInput type="number" min="0.01" max="100" step="0.01" [(ngModel)]="tp.ratePercent" (ngModelChange)="touch()" />
+          </app-field>
+          <app-field label="Distribuição">
+            <select appInput [(ngModel)]="tp.distribution" (ngModelChange)="touch()">
+              @for (o of poolDistributions; track o.value) {
+                <option [ngValue]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </app-field>
+          <div class="form-check pb-3">
+            <input class="form-check-input" type="checkbox" id="re-pool-ai" [(ngModel)]="tp.includeAssistantAutonomous" (ngModelChange)="touch()" />
+            <label class="form-check-label" for="re-pool-ai">Inclui acordos fechados sozinhos pelo assistente</label>
+          </div>
+        </div>
+      }
+    </section>
+
+    <section class="app-card" aria-labelledby="re-limits">
+      <h2 class="app-card__title" id="re-limits">Limites e carência</h2>
+      <div class="re-row">
+        <app-field label="Teto por período (R$)" hint="Vazio = sem teto; não há piso">
+          <input appInput type="number" min="0.01" step="0.01" [(ngModel)]="r.limits.periodCap" (ngModelChange)="touch()" />
+        </app-field>
+        <app-field label="Carência (dias úteis)" hint="Após a confirmação do pagamento">
+          <input appInput type="number" min="0" max="60" step="1" [(ngModel)]="r.clearing.graceBusinessDays" (ngModelChange)="touch()" />
+        </app-field>
+        <div class="form-check pb-3">
+          <input class="form-check-input" type="checkbox" id="re-clawback" [(ngModel)]="r.clearing.clawbackEnabled" (ngModelChange)="touch()" />
+          <label class="form-check-label" for="re-clawback">Estornar comissão de período já fechado</label>
+        </div>
+      </div>
+      @if (r.clearing.clawbackEnabled) {
+        <div class="alert alert-warning d-flex align-items-start gap-2 mb-0" role="note">
+          <app-icon name="exclamation-triangle" />
+          <span>Estorno de comissão já paga é restrito pela legislação trabalhista (CLT art. 457; Lei 3.207/1957, art. 7º). Habilite só com validação do jurídico e do RH.</span>
+        </div>
+      }
+    </section>
+
+    <div class="app-form-actions mt-3">
+      <button class="btn btn-outline-secondary" type="button" (click)="revert()" [disabled]="!dirty() || saving()">Desfazer alterações</button>
+      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">Salvar rascunho</button>
+    </div>
+  }
+}

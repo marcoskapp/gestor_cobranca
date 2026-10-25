@@ -10,6 +10,7 @@ import { NEGOTIATION_ROUTES } from '../../../features/negotiation/negotiation.ro
 import { PAYMENT_ROUTES } from '../../../features/payment/payment.routes';
 import { ASSISTANT_ROUTES } from '../../../features/assistant/assistant.routes';
 import { SETTLEMENT_ROUTES } from '../../../features/settlement/settlement.routes';
+import { INCENTIVE_ROUTES } from '../../../features/incentive/incentive.routes';
 import { TELEPHONY_ROUTES } from '../../../features/telephony/telephony.routes';
 import { RELEASE_NOTES } from './release-notes';
 import { NAVIGATION } from '../../layout/navigation';
@@ -70,11 +71,12 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/campanhas', CAMPAIGN_ROUTES),
       ...guarded('/pagamentos', PAYMENT_ROUTES),
       ...guarded('/prestacao-de-contas', SETTLEMENT_ROUTES),
+      ...guarded('/remuneracao', INCENTIVE_ROUTES),
       ...guarded('/telefonia', TELEPHONY_ROUTES),
       ...guarded('/assistente', ASSISTANT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(52);
+    expect(items.length).toBe(62);
     for (const item of items) {
       expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }

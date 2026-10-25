@@ -75,6 +75,11 @@ export const SHELL_ROUTES: Routes = [
           import('../../../features/settlement/settlement.routes').then((m) => m.SETTLEMENT_ROUTES),
       },
       {
+        path: 'remuneracao',
+        loadChildren: () =>
+          import('../../../features/incentive/incentive.routes').then((m) => m.INCENTIVE_ROUTES),
+      },
+      {
         path: 'assistente',
         loadChildren: () =>
           import('../../../features/assistant/assistant.routes').then((m) => m.ASSISTANT_ROUTES),

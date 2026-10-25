@@ -103,6 +103,10 @@ export const Permission = {
   PERFORMANCE_VIEW_OWN: 'PERFORMANCE_VIEW_OWN',
   PERFORMANCE_VIEW_TEAM: 'PERFORMANCE_VIEW_TEAM',
   PERFORMANCE_VIEW_ALL: 'PERFORMANCE_VIEW_ALL',
+  COMMISSION_PLAN_MANAGE: 'COMMISSION_PLAN_MANAGE',
+  COMMISSION_STATEMENT_MANAGE: 'COMMISSION_STATEMENT_MANAGE',
+  COMMISSION_STATEMENT_APPROVE: 'COMMISSION_STATEMENT_APPROVE',
+  QUALITY_EVALUATE: 'QUALITY_EVALUATE',
 
   DASHBOARD_VIEW: 'DASHBOARD_VIEW',
   REPORT_VIEW: 'REPORT_VIEW',
@@ -139,10 +143,22 @@ export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly str
   { label: 'Score', prefixes: ['SCORING_'] },
   { label: 'Assistente de IA', prefixes: ['ASSISTANT_'] },
   { label: 'Jurídico', prefixes: ['LEGAL_'] },
-  { label: 'Desempenho dos negociadores', prefixes: ['PERFORMANCE_'] },
+  {
+    label: 'Desempenho dos negociadores',
+    prefixes: ['PERFORMANCE_', 'COMMISSION_PLAN_', 'COMMISSION_STATEMENT_', 'QUALITY_'],
+  },
   { label: 'Gestão e relatórios', prefixes: ['DASHBOARD_', 'REPORT_'] },
 ];
 
+/** Grupo do prefixo mais longo que casa (`COMMISSION_PLAN_` vence `COMMISSION_`). */
 export function permissionGroupOf(code: string): string {
-  return PERMISSION_GROUPS.find((g) => g.prefixes.some((p) => code.startsWith(p)))?.label ?? 'Outras';
+  let best: { label: string; length: number } | null = null;
+  for (const group of PERMISSION_GROUPS) {
+    for (const prefix of group.prefixes) {
+      if (code.startsWith(prefix) && (!best || prefix.length > best.length)) {
+        best = { label: group.label, length: prefix.length };
+      }
+    }
+  }
+  return best?.label ?? 'Outras';
 }

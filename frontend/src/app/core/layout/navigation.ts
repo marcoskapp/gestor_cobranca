@@ -16,6 +16,10 @@ export interface NavSection {
   items: readonly NavItem[];
 }
 
+/** Remuneração variável (módulo incentive): mesmas listas de `INCENTIVE_PERMISSIONS`. */
+const PERFORMANCE = [Permission.PERFORMANCE_VIEW_OWN, Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL];
+const COMMISSION_STATEMENTS = [...PERFORMANCE, Permission.COMMISSION_STATEMENT_MANAGE, Permission.COMMISSION_STATEMENT_APPROVE];
+
 /** Menu principal. Cada rota repete as permissões em `data.permissions` (permissionGuard). */
 export const NAVIGATION: readonly NavSection[] = [
   {
@@ -152,6 +156,21 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Repasses ao credor', icon: 'bank', route: '/prestacao-de-contas/repasses', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_TRANSFER] },
       { label: 'Razão de comissão', icon: 'receipt', route: '/prestacao-de-contas/razao', permissions: [Permission.COMMISSION_VIEW, Permission.SETTLEMENT_VIEW] },
       { label: 'Regras de comissão', icon: 'percent', route: '/prestacao-de-contas/regras', permissions: [Permission.COMMISSION_VIEW, Permission.COMMISSION_MANAGE] },
+    ],
+  },
+  {
+    label: 'Remuneração variável',
+    items: [
+      { label: 'Desempenho', icon: 'speedometer2', route: '/remuneracao/desempenho', permissions: PERFORMANCE },
+      { label: 'Extratos de comissão', icon: 'receipt', route: '/remuneracao/extratos', permissions: COMMISSION_STATEMENTS },
+      { label: 'Lançamentos de comissão', icon: 'journal-text', route: '/remuneracao/lancamentos', permissions: COMMISSION_STATEMENTS },
+      { label: 'Planos de remuneração', icon: 'sliders', route: '/remuneracao/planos', permissions: [Permission.COMMISSION_PLAN_MANAGE] },
+      { label: 'Metas por período', icon: 'flag', route: '/remuneracao/metas', permissions: [Permission.COMMISSION_PLAN_MANAGE] },
+      { label: 'Períodos de apuração', icon: 'calendar-check', route: '/remuneracao/periodos', permissions: [Permission.COMMISSION_STATEMENT_MANAGE] },
+      { label: 'Exportação para a folha', icon: 'download', route: '/remuneracao/exportacao', permissions: [Permission.COMMISSION_STATEMENT_APPROVE] },
+      { label: 'Monitoria de qualidade', icon: 'clipboard-check', route: '/remuneracao/qualidade/avaliacoes', permissions: [...PERFORMANCE, Permission.QUALITY_EVALUATE] },
+      { label: 'Ocorrências de conduta', icon: 'shield-exclamation', route: '/remuneracao/qualidade/ocorrencias', permissions: [...PERFORMANCE, Permission.QUALITY_EVALUATE] },
+      { label: 'Formulários de monitoria', icon: 'card-checklist', route: '/remuneracao/qualidade/formularios', permissions: [...PERFORMANCE, Permission.QUALITY_EVALUATE] },
     ],
   },
   {
