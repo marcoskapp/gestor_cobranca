@@ -117,14 +117,15 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
       @if (resolving()) {
         <form class="dd-resolve" [formGroup]="form" (ngSubmit)="resolve()" id="resolve-form" novalidate>
           <h3 class="app-section-title">Resolver</h3>
-          <app-field class="app-full-width" label="Resultado">
+          <app-field class="app-full-width mb-3" label="Resultado">
             <select appInput formControlName="outcome" required>
+              <option value="" disabled>Selecione</option>
               @for (o of outcomeOptions; track o.value) {
                 <option [ngValue]="o.value">{{ o.label }}</option>
               }
             </select>
           </app-field>
-          <app-field class="app-full-width" label="Parecer" hint="Procedente não altera o título: ajuste ou cancele o título na tela de títulos.">
+          <app-field class="app-full-width mb-3" label="Parecer" hint="Procedente não altera o título: ajuste ou cancele o título na tela de títulos.">
             <textarea appInput formControlName="note" rows="4" [maxlength]="noteMax" required></textarea>
           </app-field>
         </form>

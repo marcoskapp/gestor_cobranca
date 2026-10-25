@@ -35,7 +35,7 @@ import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
             Prazos maiores exigidos pela base legal de cada credor prevalecem.
           }
         </p>
-        <app-field class="app-full-width" label="Prazo de retenção (meses)" hint="Contado a partir da última movimentação." [error]="form.controls.retentionMonths.invalid ? (error()) : undefined">
+        <app-field class="app-full-width mb-3" label="Prazo de retenção (meses)" hint="Contado a partir da última movimentação." [error]="form.controls.retentionMonths.invalid ? (error()) : undefined">
           <input appInput type="number" formControlName="retentionMonths" min="1" max="1200" />
         </app-field>
         <div class="form-check form-switch">

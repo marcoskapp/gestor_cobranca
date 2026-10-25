@@ -35,7 +35,7 @@ import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
         @for (e of generalErrors(); track e) {
           <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
-        <app-field class="app-full-width" label="Último dia de vigência" [error]="form.controls.lastDay.invalid ? (message('lastDay')) : undefined">
+        <app-field class="app-full-width mb-3" label="Último dia de vigência" [error]="form.controls.lastDay.invalid ? (message('lastDay')) : undefined">
           <div class="input-group">
             <input appInput ngbDatepicker #last="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="lastDay" [minDate]="minDate" />
             <button type="button" class="btn btn-outline-secondary" (click)="last.toggle()" aria-label="Abrir calendário">
@@ -43,7 +43,7 @@ import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
             </button>
           </div>
         </app-field>
-        <app-field class="app-full-width" label="Motivo" [error]="form.controls.reason.invalid ? (message('reason')) : undefined">
+        <app-field class="app-full-width mb-3" label="Motivo" [error]="form.controls.reason.invalid ? (message('reason')) : undefined">
           <textarea appInput formControlName="reason" rows="3" [maxlength]="maxReason"></textarea>
         </app-field>
       </div>

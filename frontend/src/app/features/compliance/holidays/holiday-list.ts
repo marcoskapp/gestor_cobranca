@@ -9,7 +9,7 @@ import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { valueOr } from '../../../shared/data/resource-value';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { fromLocalDate } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { errorMessage } from '../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
@@ -111,7 +111,8 @@ export class HolidayList {
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
-    date: this.fb.control<Date | null>(null, [Validators.required]),
+    /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+    date: this.fb.control<string | null>(null, [Validators.required]),
     name: ['', [AppValidators.notBlank, Validators.maxLength(120)]],
   });
 
@@ -137,7 +138,7 @@ export class HolidayList {
       return;
     }
     const v = this.form.getRawValue();
-    const date = toLocalDate(v.date)!;
+    const date = v.date!;
     this.saving.set(true);
     this.generalErrors.set([]);
     this.api

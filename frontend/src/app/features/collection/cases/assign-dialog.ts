@@ -48,7 +48,7 @@ export interface AssignDialogData {
         @if (missing()) {
           <p class="app-field-error" role="alert">Escolha o destino.</p>
         }
-        <app-field class="app-full-width" label="Motivo (opcional)">
+        <app-field class="app-full-width mb-3" label="Motivo (opcional)">
           <textarea appInput formControlName="reason" rows="2" [maxlength]="maxReason"></textarea>
         </app-field>
       </div>

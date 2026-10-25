@@ -60,15 +60,18 @@ export function agendaFilter(
     </app-page-header>
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar agenda">
-      <div class="btn-group ag-period" role="group" aria-label="Período">
-        <input type="radio" class="btn-check" id="agenda-period-today" value="today" formControlName="period" />
-        <label class="btn btn-outline-primary" for="agenda-period-today">Hoje</label>
-        <input type="radio" class="btn-check" id="agenda-period-week" value="week" formControlName="period" />
-        <label class="btn btn-outline-primary" for="agenda-period-week">7 dias</label>
-        <input type="radio" class="btn-check" id="agenda-period-late" value="late" formControlName="period" />
-        <label class="btn btn-outline-primary" for="agenda-period-late">Atrasados</label>
-        <input type="radio" class="btn-check" id="agenda-period-custom" value="custom" formControlName="period" />
-        <label class="btn btn-outline-primary" for="agenda-period-custom">Período</label>
+      <div class="ag-period">
+        <span class="form-label d-block" id="ag-period-label">Período</span>
+        <div class="btn-group" role="group" aria-labelledby="ag-period-label">
+          <input type="radio" class="btn-check" id="agenda-period-today" value="today" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-today">Hoje</label>
+          <input type="radio" class="btn-check" id="agenda-period-week" value="week" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-week">7 dias</label>
+          <input type="radio" class="btn-check" id="agenda-period-late" value="late" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-late">Atrasados</label>
+          <input type="radio" class="btn-check" id="agenda-period-custom" value="custom" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-custom">Período</label>
+        </div>
       </div>
       @if (period() === 'custom') {
         <app-field label="De">
@@ -156,9 +159,6 @@ export function agendaFilter(
     </app-data-table>
   `,
   styles: `
-    .ag-period {
-      align-self: flex-end;
-    }
     .ag-late {
       font-weight: 500;
       color: var(--bs-danger-text-emphasis);

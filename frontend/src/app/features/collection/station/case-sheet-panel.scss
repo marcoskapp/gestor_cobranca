@@ -66,8 +66,14 @@
   padding-top: 12px;
 }
 
+// abas numa linha só, com rolagem horizontal quando a ficha estreita (atalhos Alt + 1…6)
 .sp-tabs {
+  flex-wrap: nowrap;
   margin-top: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  white-space: nowrap;
   --bs-nav-link-padding-x: 0.75rem;
   --bs-nav-link-padding-y: 0.375rem;
   font-size: var(--app-text-sm);
@@ -150,4 +156,11 @@
   margin-left: 6px;
   font-size: var(--app-text-xs);
   color: var(--bs-warning-text-emphasis);
+}
+
+// atalhos de teclado não se aplicam a telas de toque
+@media (pointer: coarse) {
+  .sp-kbd {
+    display: none;
+  }
 }

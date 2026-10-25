@@ -149,6 +149,13 @@ const MAX_FILES = 20;
       border: var(--bs-border-width) solid var(--bs-border-color);
       border-radius: var(--bs-border-radius);
     }
+    .dd-titles legend {
+      float: none;
+      width: auto;
+      margin: 0;
+      padding: 0 4px;
+      font-size: var(--bs-body-font-size);
+    }
     .dd-files {
       display: flex;
       flex-wrap: wrap;

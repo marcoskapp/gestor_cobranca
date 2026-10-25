@@ -40,6 +40,7 @@ type Field = 'type' | 'channel' | 'requesterName' | 'document' | 'requesterConta
         <div class="app-form-grid gap-3">
           <app-field label="Tipo de pedido" [error]="form.controls.type.invalid ? (message('type')) : undefined">
             <select appInput formControlName="type">
+              <option value="" disabled>Selecione</option>
               @for (t of types; track t.value) {
                 <option [ngValue]="t.value">{{ t.label }}</option>
               }
@@ -47,6 +48,7 @@ type Field = 'type' | 'channel' | 'requesterName' | 'document' | 'requesterConta
           </app-field>
           <app-field label="Canal de recebimento" [error]="form.controls.channel.invalid ? (message('channel')) : undefined">
             <select appInput formControlName="channel">
+              <option value="" disabled>Selecione</option>
               @for (c of channels; track c.value) {
                 <option [ngValue]="c.value">{{ c.label }}</option>
               }

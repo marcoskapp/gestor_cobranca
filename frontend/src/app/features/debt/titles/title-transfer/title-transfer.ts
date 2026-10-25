@@ -54,7 +54,7 @@ export interface TitleTransferData {
         @if (form.controls.target.touched && form.controls.target.invalid) {
           <p class="app-field-error" role="alert">Escolha a carteira de destino.</p>
         }
-        <app-field class="app-full-width" label="Motivo" [hintEnd]="(form.controls.reason.value.length) + ' / ' + (maxReason)" [error]="form.controls.reason.invalid ? (reasonError()) : undefined">
+        <app-field class="app-full-width mb-3" label="Motivo" [hintEnd]="(form.controls.reason.value.length) + ' / ' + (maxReason)" [error]="form.controls.reason.invalid ? (reasonError()) : undefined">
           <textarea appInput formControlName="reason" rows="3" [maxlength]="maxReason" required></textarea>
         </app-field>
       </div>

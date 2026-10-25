@@ -1,5 +1,5 @@
 import { EnvironmentProviders, Injectable, inject, makeEnvironmentProviders, provideEnvironmentInitializer } from '@angular/core';
-import { NgbDateAdapter, NgbDateParserFormatter, NgbDateStruct, NgbDatepickerConfig } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDateAdapter, NgbDateParserFormatter, NgbDateStruct, NgbDatepickerConfig, NgbInputDatepickerConfig } from '@ng-bootstrap/ng-bootstrap';
 
 const pad = (value: number, size = 2) => String(value).padStart(size, '0');
 
@@ -41,7 +41,8 @@ export class PtBrDateParserFormatter extends NgbDateParserFormatter {
 
 /**
  * Padrões do datepicker do ng-bootstrap: modelo ISO (`IsoDateAdapter`), digitação/exibição
- * pt-BR (`PtBrDateParserFormatter`), domingo como primeiro dia e intervalo 1900–2100.
+ * pt-BR (`PtBrDateParserFormatter`), domingo como primeiro dia, intervalo 1900–2100 e calendário
+ * anexado ao `body` (não é cortado pela rolagem de diálogos e painéis, como os menus e tooltips).
  *
  * Fornecido no injetor das rotas do shell e do portal — e não na raiz — porque o esbuild divide o
  * código por arquivo: referenciar o módulo do datepicker na raiz levava o datepicker inteiro (e o
@@ -53,10 +54,14 @@ export function provideDatepickerDefaults(): EnvironmentProviders {
     { provide: NgbDateAdapter, useClass: IsoDateAdapter },
     { provide: NgbDateParserFormatter, useClass: PtBrDateParserFormatter },
     provideEnvironmentInitializer(() => {
-      const datepicker = inject(NgbDatepickerConfig);
-      datepicker.firstDayOfWeek = 7; // domingo, como no calendário brasileiro
-      datepicker.minDate = { year: 1900, month: 1, day: 1 };
-      datepicker.maxDate = { year: 2100, month: 12, day: 31 };
+      // o calendário embutido (NgbDatepicker) e o do campo (NgbInputDatepicker) têm configurações
+      // separadas no ng-bootstrap: os mesmos padrões valem para os dois
+      for (const config of [inject(NgbDatepickerConfig), inject(NgbInputDatepickerConfig)]) {
+        config.firstDayOfWeek = 7; // domingo, como no calendário brasileiro
+        config.minDate = { year: 1900, month: 1, day: 1 };
+        config.maxDate = { year: 2100, month: 12, day: 31 };
+      }
+      inject(NgbInputDatepickerConfig).container = 'body';
     }),
   ]);
 }

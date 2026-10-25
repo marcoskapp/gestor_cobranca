@@ -51,6 +51,7 @@ type Field = 'legalBasis' | 'contractReference' | 'validFrom' | 'validUntil' | '
         <div class="app-form-grid gap-3">
           <app-field class="app-span-all" label="Base legal" [error]="form.controls.legalBasis.invalid ? (message('legalBasis')) : undefined">
             <select appInput formControlName="legalBasis">
+              <option value="" disabled>Selecione</option>
               @for (b of bases; track b.value) {
                 <option [ngValue]="b.value">{{ b.label }}</option>
               }
@@ -117,8 +118,9 @@ export class LegalBasisForm {
     legalBasis: this.fb.control<LegalBasisCode | ''>('', [AppValidators.notBlank]),
     processingRole: this.fb.control<ProcessingRole>('OPERADOR'),
     contractReference: ['', [AppValidators.notBlank, Validators.maxLength(120)]],
-    validFrom: this.fb.control<Date | null>(new Date(), [Validators.required]),
-    validUntil: this.fb.control<Date | null>(null),
+    /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+    validFrom: this.fb.control<string | null>(toLocalDate(new Date()), [Validators.required]),
+    validUntil: this.fb.control<string | null>(null),
     legalResponsible: ['', [AppValidators.notBlank, Validators.maxLength(150)]],
     retentionMonths: this.fb.control<number | null>(60, [Validators.required, Validators.min(1), Validators.max(1200)]),
     notes: ['', [Validators.maxLength(1000)]],
@@ -143,8 +145,8 @@ export class LegalBasisForm {
         legalBasis: v.legalBasis as LegalBasisCode,
         processingRole: v.processingRole,
         contractReference: v.contractReference.trim(),
-        validFrom: toLocalDate(v.validFrom)!,
-        validUntil: toLocalDate(v.validUntil),
+        validFrom: v.validFrom!,
+        validUntil: v.validUntil || null,
         legalResponsible: v.legalResponsible.trim(),
         retentionMonths: v.retentionMonths ?? 0,
         notes: v.notes.trim() || null,

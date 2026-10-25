@@ -35,7 +35,7 @@ export interface ResponseDialogData {
           <dd>{{ d.value }}</dd>
         }
       </dl>
-      <app-field class="app-full-width" [label]="(data.label)" [hintEnd]="(text.value.length) + ' / ' + (max)" [error]="text.invalid ? (error()) : undefined">
+      <app-field class="app-full-width mb-3" [label]="(data.label)" [hintEnd]="(text.value.length) + ' / ' + (max)" [error]="text.invalid ? (error()) : undefined">
         <textarea appInput [formControl]="text" rows="6" [maxlength]="max" required></textarea>
       </app-field>
     </div>

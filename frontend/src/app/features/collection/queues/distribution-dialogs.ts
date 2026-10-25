@@ -56,7 +56,7 @@ export function distributionText(result: DistributionResult): string {
         <app-skeleton variant="lines" [rows]="4" />
       }
       <form [formGroup]="form" (ngSubmit)="run()" id="distribute-form" novalidate>
-        <app-field class="app-full-width" label="Quantidade máxima nesta execução" hint="1 a 1.000 casos. Respeita escopo de credores e capacidade de cada operador.">
+        <app-field class="app-full-width mb-3" label="Quantidade máxima nesta execução" hint="1 a 1.000 casos. Respeita escopo de credores e capacidade de cada operador.">
           <input appInput type="number" min="1" max="1000" formControlName="limit" required />
         </app-field>
       </form>
@@ -140,7 +140,7 @@ export class DistributeDialog {
         @if (sameUser()) {
           <p class="app-field-error" role="alert">O operador de origem não pode estar entre os destinos.</p>
         }
-        <app-field class="app-full-width" label="Motivo (opcional)">
+        <app-field class="app-full-width mb-3" label="Motivo (opcional)">
           <textarea appInput formControlName="reason" rows="2" [maxlength]="maxReason"></textarea>
         </app-field>
       </div>

@@ -31,6 +31,11 @@
   border: var(--bs-border-width) solid var(--bs-border-color);
   border-radius: var(--bs-border-radius);
 
+  // valor/data e data/hora: um campo por linha quando o painel é estreito (calendário legível)
+  .ip__row > app-field {
+    flex-basis: 160px;
+  }
+
   legend {
     float: none;
     width: auto;
