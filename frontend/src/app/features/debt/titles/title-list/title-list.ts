@@ -1,13 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -21,7 +14,7 @@ import { StatusChip } from '../../../../shared/components/status-chip/status-chi
 import { nameMap } from '../../../../shared/data/name-map';
 import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
-import { toLocalDate } from '../../../../shared/models/dates';
+import { toDateStruct } from '../../../../shared/models/dates';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../../shared/status/status';
 import { CreditorLookup, CreditorNames, PortfolioLookup, PortfolioNames } from '../../../organization/data/organization.lookups';
@@ -30,6 +23,9 @@ import { TitlesApi } from '../../data/debt.api';
 import { OVERDUE_BUCKETS, titleLabel } from '../../data/debt.labels';
 import { DebtorNames } from '../../data/debt.lookups';
 import { TitleFilter } from '../../data/debt.models';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { NgbTooltip, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 
 /** Converte o formulário de filtros no `TitleSearch` do backend. */
 export function toTitleFilter(v: {
@@ -38,8 +34,9 @@ export function toTitleFilter(v: {
   debtorId: string;
   status: string;
   bucket: string;
-  dueFrom: Date | null;
-  dueTo: Date | null;
+  /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+  dueFrom: string | null;
+  dueTo: string | null;
 }): TitleFilter {
   const bucket = OVERDUE_BUCKETS.find((b) => b.value === v.bucket);
   return {
@@ -49,33 +46,15 @@ export function toTitleFilter(v: {
     status: v.status || null,
     minOverdueDays: bucket?.min ?? null,
     maxOverdueDays: bucket?.max ?? null,
-    dueFrom: toLocalDate(v.dueFrom),
-    dueTo: toLocalDate(v.dueTo),
+    dueFrom: v.dueFrom || null,
+    dueTo: v.dueTo || null,
   };
 }
 
 /** Consulta de títulos por credor, carteira, situação, faixa de atraso e vencimento. */
 @Component({
   selector: 'app-title-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatTooltipModule,
-    DataTable,
-    CellDef,
-    EntityPicker,
-    PageHeader,
-    StatusChip,
-    Amount,
-    AppDatePipe,
-    OverdueBadge,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, Amount, AppDatePipe, OverdueBadge, Icon, NgbTooltip, ...FORM_FIELD, NgbInputDatepicker],
   templateUrl: './title-list.html',
   styles: `
     .title-list__flag {
@@ -83,13 +62,8 @@ export function toTitleFilter(v: {
     }
     .title-list__debtor {
       align-self: center;
-      padding-right: 0;
-    }
-    .title-list__debtor button {
-      --mat-icon-button-state-layer-size: 24px;
-      width: 24px;
-      height: 24px;
-      padding: 0;
+      gap: 6px;
+      --bs-btn-close-width: 0.625em;
     }
   `,
 })
@@ -113,8 +87,18 @@ export class TitleList {
     debtorId: [this.param('devedor')],
     status: [statusOptions('title').some((s) => s.value === this.param('situacao')) ? this.param('situacao') : ''],
     bucket: [OVERDUE_BUCKETS.some((b) => b.value === this.param('atraso')) ? this.param('atraso') : ''],
-    dueFrom: this.fb.control<Date | null>(null),
-    dueTo: this.fb.control<Date | null>(null),
+    dueFrom: this.fb.control<string | null>(null),
+    dueTo: this.fb.control<string | null>(null),
+  });
+  private readonly dueValues = toSignal(this.filters.valueChanges.pipe(startWith(null)), { initialValue: null });
+  /** O intervalo não se inverte: "de" ≤ "até" (limites dos calendários). */
+  protected readonly dueFromLimit = computed(() => {
+    this.dueValues();
+    return toDateStruct(this.filters.controls.dueFrom.value || '1900-01-01');
+  });
+  protected readonly dueToLimit = computed(() => {
+    this.dueValues();
+    return toDateStruct(this.filters.controls.dueTo.value || '2100-12-31');
   });
   protected readonly portfolioSource = this.portfolioLookup.source(() => this.filters.controls.creditor.value[0] ?? null);
 

@@ -1,12 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -22,6 +16,10 @@ import { EVIDENCE_ACCEPT, evidenceProblem } from '../../compliance/data/complian
 import { DisputesApi } from '../data/collection.api';
 import { DISPUTE_ORIGIN_LABELS, DISPUTE_OUTCOME_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DisputeOutcome, DisputeView, EvidenceView } from '../data/collection.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA } from '../../../shared/dialog/dialog-ref';
 
 export interface DisputeDetailData {
   dispute: DisputeView;
@@ -45,13 +43,16 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
  */
 @Component({
   selector: 'app-dispute-detail',
-  imports: [ReactiveFormsModule, RouterLink, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, Amount, StatusChip, AppDatePipe],
+  imports: [ReactiveFormsModule, RouterLink, Amount, StatusChip, AppDatePipe, Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
   template: `
-    <h2 mat-dialog-title>Contestação · {{ types[d().type] }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Contestação · {{ types[d().type] }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <dl class="app-definition-list">
         <dt>Devedor</dt>
-        <dd><a [routerLink]="['/cobranca/casos', d().caseId]" mat-dialog-close>{{ data.debtorName }}</a></dd>
+        <dd><a [routerLink]="['/cobranca/casos', d().caseId]" appDialogClose>{{ data.debtorName }}</a></dd>
         <dt>Situação</dt>
         <dd><app-status-chip domain="dispute" [status]="d().status" /></dd>
         <dt>Origem</dt>
@@ -91,13 +92,13 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
       <ul class="dd-evidence">
         @for (e of evidenceRows(); track e.id) {
           <li>
-            <mat-icon aria-hidden="true">description</mat-icon>
+            <app-icon name="file-earmark-text" />
             <span>{{ e.fileName }}</span>
             <span class="app-muted">{{ size(e) }} · {{ e.createdAt | appDate }}{{ e.createdByName ? ' · ' + e.createdByName : '' }}</span>
             <span class="app-muted app-mono" [attr.title]="'SHA-256 ' + e.sha256">{{ e.sha256.slice(0, 12) }}…</span>
             @if (canDownload()) {
-              <button mat-icon-button type="button" (click)="download(e)" [attr.aria-label]="'Baixar ' + e.fileName + ' (acesso registrado)'">
-                <mat-icon aria-hidden="true">download</mat-icon>
+              <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="download(e)" [attr.aria-label]="'Baixar ' + e.fileName + ' (acesso registrado)'">
+                <app-icon name="download" />
               </button>
             }
           </li>
@@ -107,8 +108,8 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
       </ul>
       @if (open() && canAttach()) {
         <input #file type="file" [accept]="accept" (change)="attach(file.files); file.value = ''" hidden />
-        <button mat-stroked-button type="button" (click)="file.click()" [disabled]="busy()">
-          <mat-icon aria-hidden="true">attach_file</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="file.click()" [disabled]="busy()">
+          <app-icon name="paperclip" />
           Anexar evidência
         </button>
       }
@@ -116,40 +117,37 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
       @if (resolving()) {
         <form class="dd-resolve" [formGroup]="form" (ngSubmit)="resolve()" id="resolve-form" novalidate>
           <h3 class="app-section-title">Resolver</h3>
-          <mat-form-field class="app-full-width">
-            <mat-label>Resultado</mat-label>
-            <mat-select formControlName="outcome" required>
+          <app-field class="app-full-width" label="Resultado">
+            <select appInput formControlName="outcome" required>
               @for (o of outcomeOptions; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                <option [ngValue]="o.value">{{ o.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field class="app-full-width">
-            <mat-label>Parecer</mat-label>
-            <textarea matInput formControlName="note" rows="4" [maxlength]="noteMax" required></textarea>
-            <mat-hint>Procedente não altera o título: ajuste ou cancele o título na tela de títulos.</mat-hint>
-          </mat-form-field>
+            </select>
+          </app-field>
+          <app-field class="app-full-width" label="Parecer" hint="Procedente não altera o título: ajuste ou cancele o título na tela de títulos.">
+            <textarea appInput formControlName="note" rows="4" [maxlength]="noteMax" required></textarea>
+          </app-field>
         </form>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="changed()">Fechar</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" [appDialogClose]="changed()">Fechar</button>
       @if (canManage()) {
         @if (actions().includes('withdraw')) {
-          <button mat-stroked-button type="button" (click)="withdraw()" [disabled]="busy()">Registrar desistência</button>
+          <button class="btn btn-outline-primary" type="button" (click)="withdraw()" [disabled]="busy()">Registrar desistência</button>
         }
         @if (actions().includes('review')) {
-          <button mat-stroked-button type="button" (click)="review()" [disabled]="busy()">Enviar para análise</button>
+          <button class="btn btn-outline-primary" type="button" (click)="review()" [disabled]="busy()">Enviar para análise</button>
         }
         @if (actions().includes('resolve')) {
           @if (resolving()) {
-            <button mat-flat-button type="submit" form="resolve-form" [disabled]="busy()">Confirmar resolução</button>
+            <button class="btn btn-primary" type="submit" form="resolve-form" [disabled]="busy()">Confirmar resolução</button>
           } @else {
-            <button mat-flat-button type="button" (click)="resolving.set(true)">Resolver</button>
+            <button class="btn btn-primary" type="button" (click)="resolving.set(true)">Resolver</button>
           }
         }
       }
-    </mat-dialog-actions>
+    </div>
   `,
   styles: `
     .dd-late {
@@ -192,7 +190,7 @@ export function disputeActions(status: string): ('review' | 'resolve' | 'withdra
   `,
 })
 export class DisputeDetail {
-  protected readonly data = inject<DisputeDetailData>(MAT_DIALOG_DATA);
+  protected readonly data = inject<DisputeDetailData>(DIALOG_DATA);
   private readonly api = inject(DisputesApi);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);

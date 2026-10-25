@@ -1,4 +1,4 @@
-import { IsoDateAdapter, PtBrDateParserFormatter } from './bootstrap.config';
+import { IsoDateAdapter, PtBrDateParserFormatter } from './datepicker.config';
 import { NGB_TRANSLATIONS_PT_BR } from './ngb-translations';
 
 describe('padrões do ng-bootstrap', () => {

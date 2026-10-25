@@ -1,9 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -14,6 +10,9 @@ import { AppValidators, Limits } from '../../../../shared/validation/validators'
 import { PortfolioLookup } from '../../../organization/data/organization.lookups';
 import { TitlesApi } from '../../data/debt.api';
 import { TitleView } from '../../data/debt.models';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 
 export interface TitleTransferData {
   title: TitleView;
@@ -24,11 +23,15 @@ export interface TitleTransferData {
 /** Transfere o título para outra carteira do mesmo credor, encerrando e abrindo titularidade. */
 @Component({
   selector: 'app-title-transfer',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, EntityPicker],
+  imports: [ReactiveFormsModule, EntityPicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>Transferir de carteira</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Transferir de carteira</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <p class="app-dialog-message">
           O título passa para a carteira escolhida do mesmo credor. O período de titularidade atual é encerrado e fica no histórico.
         </p>
@@ -39,7 +42,7 @@ export interface TitleTransferData {
           }
         </dl>
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
         <app-entity-picker
           [control]="form.controls.target"
@@ -51,19 +54,14 @@ export interface TitleTransferData {
         @if (form.controls.target.touched && form.controls.target.invalid) {
           <p class="app-field-error" role="alert">Escolha a carteira de destino.</p>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Motivo</mat-label>
-          <textarea matInput formControlName="reason" rows="3" [maxlength]="maxReason" required></textarea>
-          <mat-hint align="end">{{ form.controls.reason.value.length }} / {{ maxReason }}</mat-hint>
-          @if (form.controls.reason.invalid) {
-            <mat-error>{{ reasonError() }}</mat-error>
-          }
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Transferir</button>
-      </mat-dialog-actions>
+        <app-field class="app-full-width" label="Motivo" [hintEnd]="(form.controls.reason.value.length) + ' / ' + (maxReason)" [error]="form.controls.reason.invalid ? (reasonError()) : undefined">
+          <textarea appInput formControlName="reason" rows="3" [maxlength]="maxReason" required></textarea>
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Transferir</button>
+      </div>
     </form>
   `,
   styles: `
@@ -76,8 +74,8 @@ export interface TitleTransferData {
   `,
 })
 export class TitleTransfer {
-  protected readonly data = inject<TitleTransferData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<TitleTransfer, TitleView>>(MatDialogRef);
+  protected readonly data = inject<TitleTransferData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<TitleView>>(DialogRef);
   private readonly api = inject(TitlesApi);
   private readonly notifications = inject(NotificationService);
   protected readonly portfolioSource = inject(PortfolioLookup).source(() => this.data.title.creditorId);

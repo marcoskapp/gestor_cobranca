@@ -1,12 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -32,6 +26,10 @@ import { QueueNames, UserNames } from '../data/collection.lookups';
 import { CaseFilter, CaseView, OwnerType } from '../data/collection.models';
 import { nextActionText } from '../data/collection.rules';
 import { AssignDialog, AssignDialogData } from './assign-dialog';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 interface CaseFormValue {
   creditor: string[];
@@ -58,27 +56,12 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
 /** Consulta de casos para supervisão: filtros por credor, fila, responsável e elegibilidade, com atribuição manual. */
 @Component({
   selector: 'app-case-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
-    MatTooltipModule,
-    Amount,
-    CellDef,
-    DataTable,
-    EntityPicker,
-    OverdueBadge,
-    PageHeader,
-    StatusChip,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, Amount, CellDef, DataTable, EntityPicker, OverdueBadge, PageHeader, StatusChip, Icon, NgbTooltip, ...FORM_FIELD],
   template: `
     <app-page-header title="Casos de cobrança" subtitle="Casos por devedor e carteira, com situação, elegibilidade e responsável pelo atendimento.">
       @if (canQueues()) {
-        <a mat-stroked-button routerLink="/cobranca/filas">
-          <mat-icon aria-hidden="true">view_list</mat-icon>
+        <a class="btn btn-outline-primary" routerLink="/cobranca/filas">
+          <app-icon name="view-list" />
           Filas e distribuição
         </a>
       }
@@ -88,57 +71,52 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="ACTIVE">Ativos</mat-option>
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="ACTIVE">Ativos</option>
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Fila</mat-label>
-        <mat-select formControlName="queueId">
-          <mat-option value="">Todas</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Fila">
+        <select appInput formControlName="queueId">
+          <option value="">Todas</option>
           @for (q of queues(); track q.value) {
-            <mat-option [value]="q.value">{{ q.label }}</mat-option>
+            <option [ngValue]="q.value">{{ q.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Atendimento</mat-label>
-        <mat-select formControlName="ownerType">
-          <mat-option value="">Qualquer</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Atendimento">
+        <select appInput formControlName="ownerType">
+          <option value="">Qualquer</option>
           @for (o of owners; track o.value) {
-            <mat-option [value]="o.value">{{ o.label }}</mat-option>
+            <option [ngValue]="o.value">{{ o.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Responsável</mat-label>
-        <mat-select formControlName="assignee">
-          <mat-option value="">Qualquer</mat-option>
-          <mat-option value="me">Eu</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Responsável">
+        <select appInput formControlName="assignee">
+          <option value="">Qualquer</option>
+          <option value="me">Eu</option>
           @if (canPickUser()) {
-            <mat-option value="user">Escolher operador…</mat-option>
+            <option value="user">Escolher operador…</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
       @if (filters.controls.assignee.value === 'user') {
         <div class="app-filters__wide">
           <app-entity-picker [control]="filters.controls.user" [source]="users" label="Operador" [single]="true" />
         </div>
       }
-      <mat-form-field class="app-compact">
-        <mat-label>Elegibilidade</mat-label>
-        <mat-select formControlName="eligible">
-          <mat-option value="">Todos</mat-option>
-          <mat-option value="true">Elegíveis</mat-option>
-          <mat-option value="false">Inelegíveis</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <app-field label="Elegibilidade">
+        <select appInput formControlName="eligible">
+          <option value="">Todos</option>
+          <option value="true">Elegíveis</option>
+          <option value="false">Inelegíveis</option>
+        </select>
+      </app-field>
     </form>
 
     <app-data-table
@@ -150,7 +128,7 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="folder_off"
+      emptyIcon="folder-x"
       emptyMessage="Nenhum caso encontrado."
       emptyHint="Casos são abertos automaticamente quando a carteira recebe títulos em aberto."
     >
@@ -161,7 +139,7 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
       <ng-template appCell="status" [appCellOf]="query.rows()" let-c>
         <app-status-chip domain="case" [status]="c.status" />
         @if (!c.eligible) {
-          <div class="app-muted" [matTooltip]="reasons(c)">Inelegível</div>
+          <div class="app-muted" [ngbTooltip]="reasons(c)">Inelegível</div>
         }
       </ng-template>
       <ng-template appCell="balance" [appCellOf]="query.rows()" let-c><app-amount [value]="c.openBalance" /></ng-template>
@@ -175,12 +153,12 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
       <ng-template appCell="next" [appCellOf]="query.rows()" let-c>{{ nextActionText(c.nextActionAt) ?? '—' }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-c>
         @if (canAssign() && c.status !== 'CLOSED') {
-          <button mat-icon-button type="button" (click)="assign(c)" aria-label="Atribuir caso" matTooltip="Atribuir">
-            <mat-icon aria-hidden="true">assignment_ind</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="assign(c)" aria-label="Atribuir caso" ngbTooltip="Atribuir">
+            <app-icon name="person-badge" />
           </button>
         }
-        <a mat-icon-button [routerLink]="['/cobranca/casos', c.id]" aria-label="Abrir caso" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/cobranca/casos', c.id]" aria-label="Abrir caso" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -189,7 +167,7 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
 export class CaseList {
   private readonly api = inject(CasesApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly users = inject(UserLookup);
   private readonly queueLookup = inject(QueueNames);
@@ -248,7 +226,7 @@ export class CaseList {
 
   protected assign(c: CaseView): void {
     this.dialog
-      .open<AssignDialog, AssignDialogData, CaseView>(AssignDialog, { data: { caseView: c, debtorName: this.debtors.name(c.debtorId) }, width: '520px' })
+      .open<AssignDialog, AssignDialogData, CaseView>(AssignDialog, { data: { caseView: c, debtorName: this.debtors.name(c.debtorId) } })
       .afterClosed()
       .subscribe((saved) => saved && this.query.reload());
   }

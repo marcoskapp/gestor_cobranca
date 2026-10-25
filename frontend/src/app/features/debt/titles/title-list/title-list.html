@@ -7,46 +7,46 @@
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.portfolio" [source]="portfolioSource" label="Carteira" [single]="true" />
   </div>
-  <mat-form-field class="app-compact">
-    <mat-label>Situação</mat-label>
-    <mat-select formControlName="status">
-      <mat-option value="">Todas</mat-option>
+  <app-field label="Situação">
+    <select appInput formControlName="status">
+      <option value="">Todas</option>
       @for (s of statuses; track s.value) {
-        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+        <option [ngValue]="s.value">{{ s.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact" data-tour="overdue-filter">
-    <mat-label>Faixa de atraso</mat-label>
-    <mat-select formControlName="bucket">
-      <mat-option value="">Qualquer atraso</mat-option>
+    </select>
+  </app-field>
+  <app-field data-tour="overdue-filter" label="Faixa de atraso" [hint]="filters.controls.bucket.value ? 'Somente títulos em cobrança.' : undefined">
+    <select appInput formControlName="bucket">
+      <option value="">Qualquer atraso</option>
       @for (b of buckets; track b.value) {
-        <mat-option [value]="b.value">{{ b.label }}</mat-option>
+        <option [ngValue]="b.value">{{ b.label }}</option>
       }
-    </mat-select>
-    @if (filters.controls.bucket.value) {
-      <mat-hint>Somente títulos em cobrança.</mat-hint>
-    }
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Vencimento</mat-label>
-    <mat-date-range-input [rangePicker]="due">
-      <input matStartDate formControlName="dueFrom" placeholder="De" />
-      <input matEndDate formControlName="dueTo" placeholder="Até" />
-    </mat-date-range-input>
-    <mat-datepicker-toggle matIconSuffix [for]="due" />
-    <mat-date-range-picker #due />
-  </mat-form-field>
+    </select>
+  </app-field>
+  <app-field label="Vencimento de">
+    <div class="input-group">
+      <input appInput ngbDatepicker #dueFrom="ngbDatepicker" formControlName="dueFrom" placeholder="dd/mm/aaaa" [maxDate]="dueToLimit()" />
+      <button type="button" class="btn btn-outline-secondary" (click)="dueFrom.toggle()" aria-label="Abrir calendário (vencimento de)">
+        <app-icon name="calendar-event" />
+      </button>
+    </div>
+  </app-field>
+  <app-field label="Vencimento até">
+    <div class="input-group">
+      <input appInput ngbDatepicker #dueTo="ngbDatepicker" formControlName="dueTo" placeholder="dd/mm/aaaa" [minDate]="dueFromLimit()" />
+      <button type="button" class="btn btn-outline-secondary" (click)="dueTo.toggle()" aria-label="Abrir calendário (vencimento até)">
+        <app-icon name="calendar-event" />
+      </button>
+    </div>
+  </app-field>
   @if (filters.controls.debtorId.value) {
     <span class="app-status app-status--info title-list__debtor">
       Devedor: {{ debtors.name(filters.controls.debtorId.value) || 'selecionado' }}
-      <button mat-icon-button type="button" (click)="clearDebtor()" aria-label="Remover filtro de devedor">
-        <mat-icon aria-hidden="true">close</mat-icon>
-      </button>
+      <button class="btn-close" type="button" (click)="clearDebtor()" aria-label="Remover filtro de devedor"></button>
     </span>
   }
   <div class="app-filters__actions">
-    <button mat-button type="button" (click)="clear()">Limpar filtros</button>
+    <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
   </div>
 </form>
 
@@ -59,15 +59,15 @@
   [page]="query.tablePage()"
   (pageChange)="query.setPage($event)"
   (retry)="query.reload()"
-  emptyIcon="request_quote"
+  emptyIcon="file-earmark-text"
   emptyMessage="Nenhum título encontrado."
   emptyHint="Ajuste os filtros. Títulos chegam pelas cargas das carteiras dos credores."
 >
   <ng-template appCell="title" [appCellOf]="query.rows()" let-t>
     <a class="app-numeric" [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
     @if (t.disputeBlocked) {
-      <span class="app-status app-status--warning title-list__flag" matTooltip="Em contestação: cobrança bloqueada">
-        <mat-icon class="app-status__icon" aria-hidden="true">gavel</mat-icon>Contestação
+      <span class="app-status app-status--warning title-list__flag" ngbTooltip="Em contestação: cobrança bloqueada">
+        <app-icon class="app-status__icon" name="hammer" />Contestação
       </span>
     }
   </ng-template>

@@ -40,3 +40,12 @@ export function endOfDayInstant(value: Date | null | undefined): string | null {
 export function toHourMinute(value: string | null | undefined): string {
   return value ? value.slice(0, 5) : '';
 }
+
+/**
+ * `{ year, month, day }` (`NgbDateStruct`) de um `LocalDate` (yyyy-MM-dd), para os limites
+ * `[minDate]`/`[maxDate]` do `ngbDatepicker` (o modelo dos formulários continua ISO).
+ */
+export function toDateStruct(value: string): { year: number; month: number; day: number } {
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  return { year, month, day };
+}

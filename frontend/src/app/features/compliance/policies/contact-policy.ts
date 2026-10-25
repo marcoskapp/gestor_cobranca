@@ -1,15 +1,6 @@
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { finalize, map, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
@@ -27,6 +18,10 @@ import { ContactPolicyApi } from '../data/compliance.api';
 import { CHANNEL_LABELS, RULE_SOURCE_LABELS, WEEK_DAYS, WINDOW_SOURCE_LABELS, weekDaysText } from '../data/compliance.labels';
 import { EffectiveChannelRule, PolicyView, WeekDay } from '../data/compliance.models';
 import { RuleDraft, draftFrom, draftProblems, limitsText, toRuleInputs, windowText } from './policy-draft';
+import { Icon } from '../../../shared/components/icon/icon';
+import { fromLocalDate, toDateStruct, toLocalDate } from '../../../shared/models/dates';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbInputDatepicker, NgbAccordionModule } from '@ng-bootstrap/ng-bootstrap';
 
 /** Início de vigência a partir da data e hora escolhidas; nulo = agora. */
 export function effectiveFromInstant(date: Date | null, time: string): string | null {
@@ -43,26 +38,7 @@ export function effectiveFromInstant(date: Date | null, time: string): string | 
  */
 @Component({
   selector: 'app-contact-policy',
-  imports: [
-    FormsModule,
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatCheckboxModule,
-    MatDatepickerModule,
-    MatExpansionModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSlideToggleModule,
-    DataTable,
-    CellDef,
-    EmptyState,
-    EntityPicker,
-    PageHeader,
-    Skeleton,
-    AppDatePipe,
-  ],
+  imports: [FormsModule, ReactiveFormsModule, DataTable, CellDef, EmptyState, EntityPicker, PageHeader, Skeleton, AppDatePipe, Icon, NgbInputDatepicker, ...FORM_FIELD, NgbAccordionModule],
   templateUrl: './contact-policy.html',
   styleUrl: '../compliance.scss',
 })
@@ -119,11 +95,12 @@ export class ContactPolicyPage {
   protected readonly baseline = computed(() => JSON.stringify(draftFrom(this.latest())));
   protected readonly dirty = computed(() => JSON.stringify(this.draft()) !== this.baseline());
   protected readonly problems = computed(() => draftProblems(this.draft()));
-  protected readonly effectiveDate = signal<Date | null>(null);
+  /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+  protected readonly effectiveDate = signal<string | null>(null);
   protected readonly effectiveTime = signal('08:00');
   protected readonly notes = signal('');
   protected readonly publishing = signal(false);
-  protected readonly today = new Date();
+  protected readonly today = toDateStruct(toLocalDate(new Date())!);
 
   protected readonly effectiveColumns: TableColumn[] = [
     { key: 'channel', header: 'Canal' },
@@ -171,7 +148,7 @@ export class ContactPolicyPage {
     if (creditorId === undefined || this.problems().length || this.publishing()) {
       return;
     }
-    const effectiveFrom = effectiveFromInstant(this.effectiveDate(), this.effectiveTime());
+    const effectiveFrom = effectiveFromInstant(fromLocalDate(this.effectiveDate()), this.effectiveTime());
     if (effectiveFrom && new Date(effectiveFrom) < new Date()) {
       this.notifications.error('O início da vigência não pode estar no passado.');
       return;

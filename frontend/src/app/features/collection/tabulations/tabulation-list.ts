@@ -1,13 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -21,6 +14,12 @@ import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators } from '../../../shared/validation/validators';
 import { TabulationsApi } from '../data/collection.api';
 import { TabulationRequest, TabulationView } from '../data/collection.models';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Efeitos da tabulação em texto (lista e formulário). */
 export function tabulationEffects(t: Pick<TabulationView, 'effectiveContact' | 'promise' | 'callback' | 'requiresNote'>): string[] {
@@ -35,43 +34,55 @@ export function tabulationEffects(t: Pick<TabulationView, 'effectiveContact' | '
 /** Cadastro de tabulação. Promessa e retorno são exclusivos; promessa pressupõe contato efetivo. */
 @Component({
   selector: 'app-tabulation-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>{{ data ? 'Editar tabulação' : 'Nova tabulação' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data ? 'Editar tabulação' : 'Nova tabulação' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
-        <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="120" required />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" maxlength="40" [readonly]="!!data" />
-            <mat-hint>{{ data ? 'Imutável (usado nos relatórios).' : 'Vazio = gerado pelo nome.' }}</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Ordem de exibição</mat-label>
-            <input matInput type="number" formControlName="displayOrder" />
-          </mat-form-field>
+        <div class="app-form-grid gap-3">
+          <app-field label="Nome">
+            <input appInput formControlName="name" maxlength="120" required />
+          </app-field>
+          <app-field label="Código" [hint]="(data ? 'Imutável (usado nos relatórios).' : 'Vazio = gerado pelo nome.')">
+            <input appInput formControlName="code" maxlength="40" [readonly]="!!data" />
+          </app-field>
+          <app-field label="Ordem de exibição">
+            <input appInput type="number" formControlName="displayOrder" />
+          </app-field>
         </div>
         <div class="tf-flags" role="group" aria-label="Efeitos da tabulação">
-          <mat-checkbox formControlName="effectiveContact">Contato efetivo (CPC)</mat-checkbox>
-          <mat-checkbox formControlName="promise">Registra promessa de pagamento</mat-checkbox>
-          <mat-checkbox formControlName="callback">Agenda retorno</mat-checkbox>
-          <mat-checkbox formControlName="requiresNote">Observação obrigatória</mat-checkbox>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="tabulation-list-effectiveContact" formControlName="effectiveContact" />
+            <label class="form-check-label" for="tabulation-list-effectiveContact">Contato efetivo (CPC)</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="tabulation-list-promise" formControlName="promise" />
+            <label class="form-check-label" for="tabulation-list-promise">Registra promessa de pagamento</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="tabulation-list-callback" formControlName="callback" />
+            <label class="form-check-label" for="tabulation-list-callback">Agenda retorno</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="tabulation-list-requiresNote" formControlName="requiresNote" />
+            <label class="form-check-label" for="tabulation-list-requiresNote">Observação obrigatória</label>
+          </div>
         </div>
         @if (conflict()) {
           <p class="app-field-error" role="alert">{{ conflict() }}</p>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar</button>
+      </div>
     </form>
   `,
   styles: `
@@ -82,8 +93,8 @@ export function tabulationEffects(t: Pick<TabulationView, 'effectiveContact' | '
   `,
 })
 export class TabulationForm {
-  protected readonly data = inject<TabulationView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<TabulationForm, TabulationView>>(MatDialogRef);
+  protected readonly data = inject<TabulationView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<TabulationView>>(DialogRef);
   private readonly api = inject(TabulationsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly saving = signal(false);
@@ -135,11 +146,11 @@ export class TabulationForm {
 /** Tabulações (resultados de interação) da assessoria: desativadas, nunca removidas. */
 @Component({
   selector: 'app-tabulation-list',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [CellDef, DataTable, PageHeader, StatusChip, Icon, NgbTooltip],
   template: `
     <app-page-header title="Tabulações" subtitle="Resultados de contato usados pelos operadores. Os efeitos definem o que o registro exige e como o caso avança.">
-      <button mat-flat-button type="button" (click)="edit(null)">
-        <mat-icon aria-hidden="true">add</mat-icon>
+      <button class="btn btn-primary" type="button" (click)="edit(null)">
+        <app-icon name="plus-lg" />
         Nova tabulação
       </button>
     </app-page-header>
@@ -150,7 +161,7 @@ export class TabulationForm {
       [loading]="list.isLoading()"
       [failed]="list.status() === 'error'"
       (retry)="list.reload()"
-      emptyIcon="label"
+      emptyIcon="tag"
       emptyMessage="Nenhuma tabulação cadastrada."
     >
       <ng-template appCell="order" [appCellOf]="rows()" let-t><span class="app-numeric">{{ t.displayOrder }}</span></ng-template>
@@ -160,11 +171,11 @@ export class TabulationForm {
       <ng-template appCell="effects" [appCellOf]="rows()" let-t>{{ effects(t).join(' · ') || 'Sem efeitos (registro simples)' }}</ng-template>
       <ng-template appCell="active" [appCellOf]="rows()" let-t><app-status-chip domain="active" [status]="t.active" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-t>
-        <button mat-icon-button type="button" (click)="edit(t)" [attr.aria-label]="'Editar ' + t.name" matTooltip="Editar">
-          <mat-icon aria-hidden="true">edit</mat-icon>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="edit(t)" [attr.aria-label]="'Editar ' + t.name" ngbTooltip="Editar">
+          <app-icon name="pencil" />
         </button>
-        <button mat-icon-button type="button" (click)="toggle(t)" [attr.aria-label]="(t.active ? 'Desativar ' : 'Ativar ') + t.name" [matTooltip]="t.active ? 'Desativar' : 'Ativar'">
-          <mat-icon aria-hidden="true">{{ t.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="toggle(t)" [attr.aria-label]="(t.active ? 'Desativar ' : 'Ativar ') + t.name" [ngbTooltip]="t.active ? 'Desativar' : 'Ativar'">
+          <app-icon [name]="t.active ? 'toggle-on' : 'toggle-off'" />
         </button>
       </ng-template>
     </app-data-table>
@@ -172,7 +183,7 @@ export class TabulationForm {
 })
 export class TabulationList {
   private readonly api = inject(TabulationsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -190,7 +201,7 @@ export class TabulationList {
 
   protected edit(t: TabulationView | null): void {
     this.dialog
-      .open<TabulationForm, TabulationView | null, TabulationView>(TabulationForm, { data: t, width: '560px' })
+      .open<TabulationForm, TabulationView | null, TabulationView>(TabulationForm, { data: t })
       .afterClosed()
       .subscribe((saved) => saved && this.list.reload());
   }

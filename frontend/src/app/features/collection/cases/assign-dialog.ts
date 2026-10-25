@@ -1,10 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
@@ -13,6 +8,9 @@ import { UserLookup } from '../../admin/data/user.lookup';
 import { CaseWorkApi } from '../data/collection.api';
 import { TeamLookup } from '../data/collection.lookups';
 import { CaseView } from '../data/collection.models';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 
 export interface AssignDialogData {
   caseView: CaseView;
@@ -22,16 +20,26 @@ export interface AssignDialogData {
 /** Atribuição manual do caso a um operador (com acesso ao credor) ou a uma equipe. */
 @Component({
   selector: 'app-assign-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatRadioModule, EntityPicker],
+  imports: [ReactiveFormsModule, EntityPicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>Atribuir caso</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Atribuir caso</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <p class="app-dialog-message">Devedor: <strong>{{ data.debtorName }}</strong></p>
-        <mat-radio-group formControlName="target" aria-label="Destino" class="ad-target">
-          <mat-radio-button value="user">Operador</mat-radio-button>
-          <mat-radio-button value="team">Equipe (sem operador)</mat-radio-button>
-        </mat-radio-group>
+        <div role="radiogroup" aria-label="Destino" class="ad-target">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" id="assign-dialog-target-user" value="user" formControlName="target" />
+            <label class="form-check-label" for="assign-dialog-target-user">Operador</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" id="assign-dialog-target-team" value="team" formControlName="target" />
+            <label class="form-check-label" for="assign-dialog-target-team">Equipe (sem operador)</label>
+          </div>
+        </div>
         @if (form.controls.target.value === 'user') {
           <app-entity-picker [control]="form.controls.user" [source]="users" label="Operador" [single]="true" hint="Precisa ter acesso ao credor e permissão de trabalhar casos." />
         } @else {
@@ -40,15 +48,14 @@ export interface AssignDialogData {
         @if (missing()) {
           <p class="app-field-error" role="alert">Escolha o destino.</p>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Motivo (opcional)</mat-label>
-          <textarea matInput formControlName="reason" rows="2" [maxlength]="maxReason"></textarea>
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Atribuir</button>
-      </mat-dialog-actions>
+        <app-field class="app-full-width" label="Motivo (opcional)">
+          <textarea appInput formControlName="reason" rows="2" [maxlength]="maxReason"></textarea>
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Atribuir</button>
+      </div>
     </form>
   `,
   styles: `
@@ -60,8 +67,8 @@ export interface AssignDialogData {
   `,
 })
 export class AssignDialog {
-  protected readonly data = inject<AssignDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<AssignDialog, CaseView>>(MatDialogRef);
+  protected readonly data = inject<AssignDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<CaseView>>(DialogRef);
   private readonly api = inject(CaseWorkApi);
   private readonly notifications = inject(NotificationService);
   protected readonly users = inject(UserLookup);

@@ -1,4 +1,4 @@
-// Estilos compartilhados das telas de compliance (somente tokens `--app-*`).
+// Estilos compartilhados das telas de compliance (variáveis `--bs-*` do Bootstrap e tokens `--app-*`).
 
 .cmp-lead {
   margin: -4px 0 12px;
@@ -29,9 +29,9 @@
   min-width: 0;
   margin: 0;
   padding: 12px 16px 16px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface-raised);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-tertiary-bg);
 }
 
 .cmp-rule--off {
@@ -39,16 +39,20 @@
 }
 
 .cmp-rule__legend {
+  float: none;
+  width: auto;
+  margin: 0;
   padding: 0 4px;
-  font-weight: 600;
+  font-size: var(--app-text-md);
+  font-weight: 500;
 }
 
 .cmp-rule__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: 8px 12px;
 
-  mat-form-field {
+  > app-field {
     flex: 1 1 110px;
     min-width: 0;
   }
@@ -63,7 +67,7 @@
 .cmp-publish {
   margin-top: var(--app-gap);
 
-  mat-form-field {
+  > app-field {
     width: 200px;
   }
 
@@ -85,32 +89,32 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 16px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-body-bg);
 }
 
 .cmp-kpi__label {
   font-size: var(--app-text-xs);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .cmp-kpi__value {
   font-size: var(--app-text-lg);
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 .cmp-due--late {
-  font-weight: 600;
-  color: var(--app-danger-fg);
+  font-weight: 500;
+  color: var(--bs-danger-text-emphasis);
 }
 
 .cmp-due--soon {
-  color: var(--app-warning-fg);
+  color: var(--bs-warning-text-emphasis);
 }
 
 .cmp-steps {
@@ -131,12 +135,6 @@
   border-radius: var(--app-radius-pill);
   background: var(--app-neutral-bg);
   color: var(--app-neutral-fg);
-
-  .mat-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-  }
 }
 
 .cmp-step--done {
@@ -147,7 +145,7 @@
 .cmp-step--current {
   background: var(--app-info-bg);
   color: var(--app-info-fg);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 @media (max-width: 599.98px) {
@@ -155,8 +153,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .cmp-rule__row mat-form-field,
-  .cmp-publish mat-form-field {
+  .cmp-rule__row > app-field,
+  .cmp-publish > app-field {
     width: 100%;
   }
 }
@@ -168,7 +166,7 @@
   cursor: pointer;
 
   &:hover {
-    border-color: var(--mat-sys-primary);
+    border-color: var(--bs-primary);
   }
 }
 
@@ -177,10 +175,7 @@
 }
 
 .cmp-icon {
-  width: 16px;
-  height: 16px;
-  font-size: 16px;
-  vertical-align: -3px;
+  font-size: 1rem;
 }
 
 .cmp-actions {

@@ -1,10 +1,5 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, map, of } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -32,30 +27,16 @@ import { TitleLedger } from '../title-ledger/title-ledger';
 import { TitleOwnership } from '../title-ledger/title-ownership';
 import { TitlePrescription } from '../title-ledger/title-prescription';
 import { TitleTransfer, TitleTransferData } from '../title-transfer/title-transfer';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
+import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 
 type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
 
 /** Detalhe do título: dados, saldo por componente, razão, titularidade e ações de ciclo de vida. */
 @Component({
   selector: 'app-title-detail',
-  imports: [
-    RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatTabsModule,
-    MatTooltipModule,
-    PageHeader,
-    StatusChip,
-    Skeleton,
-    EmptyState,
-    Amount,
-    AppDatePipe,
-    TitleBalance,
-    TitleLedger,
-    TitleOwnership,
-    TitlePrescription,
-    OverdueBadge,
-  ],
+  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, OverdueBadge, Icon, NgbNavModule],
   templateUrl: './title-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -65,7 +46,7 @@ export class TitleDetail {
   private readonly api = inject(TitlesApi);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
 
@@ -161,7 +142,7 @@ export class TitleDetail {
 
   protected transfer(t: TitleView): void {
     this.dialog
-      .open<TitleTransfer, TitleTransferData, TitleView>(TitleTransfer, { data: { title: t, details: this.impact(t) }, width: '560px' })
+      .open<TitleTransfer, TitleTransferData, TitleView>(TitleTransfer, { data: { title: t, details: this.impact(t) } })
       .afterClosed()
       .subscribe((updated) => updated && this.title.set(updated));
   }

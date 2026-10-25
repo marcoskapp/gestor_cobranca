@@ -53,6 +53,8 @@ describe('regras de tela do módulo collection', () => {
     it('LocalDateTime do retorno sem conversão de fuso', () => {
       expect(toLocalDateTime(new Date(2026, 9, 24), '14:30')).toBe('2026-10-24T14:30:00');
       expect(toLocalDateTime(new Date(2026, 9, 24), '')).toBeNull();
+      expect(toLocalDateTime('2026-10-24', '14:30')).toBe('2026-10-24T14:30:00');
+      expect(toLocalDateTime('24/10/2026', '14:30')).toBeNull();
       expect(formatLocalDateTime('2026-10-24T14:30:00')).toBe('24/10/2026 14:30');
       expect(formatLocalDateTime(null)).toBe('—');
       expect(isPastLocal('2026-10-23T09:59', now)).toBe(true);
@@ -186,7 +188,7 @@ describe('regras de tela do módulo collection', () => {
       expect(agendaFilter({ ...base, period: 'today' }, '2026-10-23')).toEqual({ userId: null, from: '2026-10-23', to: '2026-10-23', status: null });
       expect(agendaFilter({ ...base, period: 'week', user: ['u-9'] }, '2026-10-23')).toEqual({ userId: 'u-9', from: '2026-10-23', to: '2026-10-29', status: null });
       expect(agendaFilter({ ...base, period: 'late' }, '2026-10-23')).toEqual({ userId: null, from: '2026-09-23', to: '2026-10-23', status: 'MISSED' });
-      expect(agendaFilter({ ...base, period: 'custom', from: new Date(2026, 9, 1), status: 'DONE' }, '2026-10-23')).toEqual({
+      expect(agendaFilter({ ...base, period: 'custom', from: '2026-10-01', status: 'DONE' }, '2026-10-23')).toEqual({
         userId: null,
         from: '2026-10-01',
         to: '2026-10-01',

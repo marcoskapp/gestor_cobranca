@@ -22,7 +22,6 @@
 .st-bar__title {
   margin: 0;
   font-size: var(--app-text-xl);
-  font-weight: 600;
 }
 
 .st-bar__queue {
@@ -45,13 +44,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-weight: 600;
-
-  .mat-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 18px;
-  }
+  font-weight: 500;
 }
 
 .st-zones {
@@ -71,9 +64,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-body-bg);
   overflow: hidden;
 }
 
@@ -82,13 +75,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 4px 4px 12px;
-  border-bottom: 1px solid var(--app-border);
+  border-bottom: var(--bs-border-width) solid var(--bs-border-color);
 }
 
 .st-zone__title {
   margin: 0;
   font-size: var(--app-text-sm);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .st-zone__body {
@@ -108,14 +101,18 @@
 
 .st-progress {
   position: absolute;
+  z-index: 1;
   inset: 0 0 auto;
+  --bs-progress-height: 3px;
+  --bs-progress-border-radius: 0;
 }
 
+// botão só de ícone (variáveis documentadas de `.btn`)
 .st-icon {
-  --mat-icon-button-state-layer-size: 32px;
-  width: 32px;
-  height: 32px;
-  padding: 4px;
+  --bs-btn-padding-x: 0.375rem;
+  --bs-btn-padding-y: 0.25rem;
+  --bs-btn-hover-bg: var(--bs-secondary-bg);
+  --bs-btn-active-bg: var(--bs-secondary-bg);
 }
 
 .st-cases {
@@ -129,12 +126,12 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--app-border);
+  border-bottom: var(--bs-border-width) solid var(--bs-border-color);
   border-left: 3px solid transparent;
   cursor: pointer;
 
   &:hover {
-    background: var(--app-surface-raised);
+    background: var(--bs-tertiary-bg);
   }
 
   &:focus-visible {
@@ -143,13 +140,13 @@
 }
 
 .st-case--selected {
-  border-left-color: var(--mat-sys-primary);
-  background: var(--app-surface-raised);
+  border-left-color: var(--bs-primary);
+  background: var(--bs-primary-bg-subtle);
 }
 
 .st-case__name {
   overflow: hidden;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -163,12 +160,12 @@
 }
 
 .st-case__action {
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .st-late {
-  font-weight: 600;
-  color: var(--app-danger-fg);
+  font-weight: 500;
+  color: var(--bs-danger-text-emphasis);
 }
 
 .st-actions .st-zone__body {

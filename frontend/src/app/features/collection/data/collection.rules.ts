@@ -90,10 +90,16 @@ function whenText(instant: string, now: Date): string {
 
 // --------------------------------------------------------------------- datas locais
 
-/** `LocalDateTime` ("yyyy-MM-ddTHH:mm:00") a partir da data escolhida e de "HH:mm". */
-export function toLocalDateTime(date: Date | null, time: string | null): string | null {
+/**
+ * `LocalDateTime` ("yyyy-MM-ddTHH:mm:00") a partir da data escolhida — `LocalDate` ISO do
+ * `ngbDatepicker` ou `Date` local (telas ainda com o datepicker do Material) — e de "HH:mm".
+ */
+export function toLocalDateTime(date: Date | string | null | undefined, time: string | null): string | null {
   if (!date || !time || !/^\d{2}:\d{2}$/.test(time)) {
     return null;
+  }
+  if (typeof date === 'string') {
+    return /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T${time}:00` : null;
   }
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');

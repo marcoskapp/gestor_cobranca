@@ -1,12 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -16,6 +10,9 @@ import { AppValidators } from '../../../../shared/validation/validators';
 import { DebtorContactsApi } from '../../data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_LABELS, options } from '../../data/debt.labels';
 import { ContactLabel, ContactType, ContactView } from '../../data/debt.models';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 
 export interface ContactFormData {
   debtorId: string;
@@ -37,13 +34,17 @@ type Field = 'type' | 'value' | 'label' | 'priority' | 'source';
 
 @Component({
   selector: 'app-contact-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>{{ data.contact ? 'Editar contato' : 'Novo contato' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.contact ? 'Editar contato' : 'Novo contato' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
         @if (data.contact; as c) {
           <p class="app-dialog-message">
@@ -51,30 +52,27 @@ type Field = 'type' | 'value' | 'label' | 'priority' | 'source';
             marque este como inválido.
           </p>
         }
-        <div class="app-form-grid">
+        <div class="app-form-grid gap-3">
           @if (!data.contact) {
-            <mat-form-field>
-              <mat-label>Tipo</mat-label>
-              <mat-select formControlName="type">
+            <app-field label="Tipo">
+              <select appInput formControlName="type">
                 @for (t of types; track t.value) {
-                  <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                  <option [ngValue]="t.value">{{ t.label }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Informado por</mat-label>
-              <mat-select formControlName="source">
-                <mat-option value="MANUAL">Cadastro manual</mat-option>
-                <mat-option value="DEBTOR">O próprio devedor</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field class="app-span-all">
-              <mat-label>{{ type() === 'PHONE' ? 'Telefone com DDD' : type() === 'EMAIL' ? 'E-mail' : 'Endereço completo' }}</mat-label>
+              </select>
+            </app-field>
+            <app-field label="Informado por">
+              <select appInput formControlName="source">
+                <option value="MANUAL">Cadastro manual</option>
+                <option value="DEBTOR">O próprio devedor</option>
+              </select>
+            </app-field>
+            <app-field class="app-span-all" [label]="(type() === 'PHONE' ? 'Telefone com DDD' : type() === 'EMAIL' ? 'E-mail' : 'Endereço completo')" [error]="form.controls.value.invalid ? (message('value')) : undefined">
               @if (type() === 'ADDRESS') {
-                <textarea matInput formControlName="value" rows="2" maxlength="500"></textarea>
+                <textarea appInput formControlName="value" rows="2" maxlength="500"></textarea>
               } @else {
                 <input
-                  matInput
+                  appInput
                   formControlName="value"
                   [type]="type() === 'EMAIL' ? 'email' : 'tel'"
                   [attr.inputmode]="type() === 'PHONE' ? 'tel' : 'email'"
@@ -82,42 +80,36 @@ type Field = 'type' | 'value' | 'label' | 'priority' | 'source';
                   maxlength="254"
                 />
               }
-              @if (form.controls.value.invalid) {
-                <mat-error>{{ message('value') }}</mat-error>
-              }
-            </mat-form-field>
+            </app-field>
           }
-          <mat-form-field>
-            <mat-label>Classificação</mat-label>
-            <mat-select formControlName="label">
+          <app-field label="Classificação">
+            <select appInput formControlName="label">
               @for (l of labels; track l.value) {
-                <mat-option [value]="l.value">{{ l.label }}</mat-option>
+                <option [ngValue]="l.value">{{ l.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Prioridade de uso</mat-label>
-            <input matInput type="number" formControlName="priority" min="0" max="1000" />
-            <mat-hint>Menor número é usado primeiro{{ data.contact ? '' : '; vazio = depois dos existentes' }}.</mat-hint>
-            @if (form.controls.priority.invalid) {
-              <mat-error>{{ message('priority') }}</mat-error>
-            }
-          </mat-form-field>
+            </select>
+          </app-field>
+          <app-field label="Prioridade de uso" [hint]="'Menor número é usado primeiro' + (data.contact ? '' : '; vazio = depois dos existentes') + '.'" [error]="form.controls.priority.invalid ? (message('priority')) : undefined">
+            <input appInput type="number" formControlName="priority" min="0" max="1000" />
+          </app-field>
           @if (type() === 'PHONE') {
-            <mat-slide-toggle class="app-span-all" formControlName="whatsapp">Número com WhatsApp</mat-slide-toggle>
+            <div class="form-check form-switch app-span-all">
+              <input class="form-check-input" type="checkbox" role="switch" id="contact-form-whatsapp" formControlName="whatsapp" />
+              <label class="form-check-label" for="contact-form-whatsapp">Número com WhatsApp</label>
+            </div>
           }
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ data.contact ? 'Salvar' : 'Cadastrar contato' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ data.contact ? 'Salvar' : 'Cadastrar contato' }}</button>
+      </div>
     </form>
   `,
 })
 export class ContactForm {
-  protected readonly data = inject<ContactFormData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ContactForm, ContactView>>(MatDialogRef);
+  protected readonly data = inject<ContactFormData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<ContactView>>(DialogRef);
   private readonly api = inject(DebtorContactsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly types = options(CONTACT_TYPE_LABELS);

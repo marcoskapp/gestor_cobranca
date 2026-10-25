@@ -1,10 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -13,9 +9,11 @@ import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { DocumentDisplay } from '../../../shared/components/document-display/document-display';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { NameMap, nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
@@ -41,7 +39,7 @@ export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e prome
  */
 @Component({
   selector: 'app-case-sheet-panel',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTabsModule, MatTooltipModule, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation],
+  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
 })
@@ -61,7 +59,7 @@ export class CaseSheetPanel {
   private readonly tasksApi = inject(TasksApi);
   private readonly promisesApi = inject(PromisesApi);
   private readonly confirm = inject(ConfirmService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly paymentLauncher = inject(PaymentLauncher);
 
@@ -176,7 +174,7 @@ export class CaseSheetPanel {
 
   protected reschedule(task: TaskView): void {
     this.dialog
-      .open<ScheduleDialog, ScheduleDialogData, TaskView>(ScheduleDialog, { data: { caseId: task.caseId, task }, width: '480px' })
+      .open<ScheduleDialog, ScheduleDialogData, TaskView>(ScheduleDialog, { data: { caseId: task.caseId, task } })
       .afterClosed()
       .subscribe((saved) => saved && this.changed.emit());
   }

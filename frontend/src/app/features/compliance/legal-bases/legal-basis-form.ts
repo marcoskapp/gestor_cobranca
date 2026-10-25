@@ -1,11 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -18,6 +12,11 @@ import { PortfolioLookup } from '../../organization/data/organization.lookups';
 import { LegalBasesApi } from '../data/compliance.api';
 import { LEGAL_BASIS_LABELS, PROCESSING_ROLE_LABELS } from '../data/compliance.labels';
 import { LegalBasisCode, LegalBasisView, ProcessingRole } from '../data/compliance.models';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 
 export interface LegalBasisFormData {
   creditorId: string;
@@ -29,23 +28,18 @@ type Field = 'legalBasis' | 'contractReference' | 'validFrom' | 'validUntil' | '
 /** Registro da base legal do tratamento (art. 7º da LGPD) para o credor ou uma carteira. */
 @Component({
   selector: 'app-legal-basis-form',
-  imports: [
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    EntityPicker,
-  ],
+  imports: [ReactiveFormsModule, EntityPicker, Icon, NgbInputDatepicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>Registrar base legal</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Registrar base legal</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <p class="app-dialog-message">Credor: <strong>{{ data.creditorName }}</strong>. As vigências do mesmo alcance não podem se sobrepor.</p>
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
         <app-entity-picker
           [control]="form.controls.portfolio"
@@ -54,80 +48,61 @@ type Field = 'legalBasis' | 'contractReference' | 'validFrom' | 'validUntil' | '
           hint="Vazio = vale para todas as carteiras do credor sem registro próprio."
           [single]="true"
         />
-        <div class="app-form-grid">
-          <mat-form-field class="app-span-all">
-            <mat-label>Base legal</mat-label>
-            <mat-select formControlName="legalBasis">
+        <div class="app-form-grid gap-3">
+          <app-field class="app-span-all" label="Base legal" [error]="form.controls.legalBasis.invalid ? (message('legalBasis')) : undefined">
+            <select appInput formControlName="legalBasis">
               @for (b of bases; track b.value) {
-                <mat-option [value]="b.value">{{ b.label }}</mat-option>
+                <option [ngValue]="b.value">{{ b.label }}</option>
               }
-            </mat-select>
-            @if (form.controls.legalBasis.invalid) {
-              <mat-error>{{ message('legalBasis') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Papel da assessoria</mat-label>
-            <mat-select formControlName="processingRole">
+            </select>
+          </app-field>
+          <app-field label="Papel da assessoria">
+            <select appInput formControlName="processingRole">
               @for (r of roles; track r.value) {
-                <mat-option [value]="r.value">{{ r.label }}</mat-option>
+                <option [ngValue]="r.value">{{ r.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Referência contratual</mat-label>
-            <input matInput formControlName="contractReference" maxlength="120" placeholder="Ex.: Contrato 2026/015, cláusula 9" />
-            @if (form.controls.contractReference.invalid) {
-              <mat-error>{{ message('contractReference') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Início da vigência</mat-label>
-            <input matInput [matDatepicker]="from" formControlName="validFrom" />
-            <mat-datepicker-toggle matIconSuffix [for]="from" />
-            <mat-datepicker #from />
-            @if (form.controls.validFrom.invalid) {
-              <mat-error>{{ message('validFrom') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Fim da vigência</mat-label>
-            <input matInput [matDatepicker]="until" formControlName="validUntil" />
-            <mat-datepicker-toggle matIconSuffix [for]="until" />
-            <mat-datepicker #until />
-            <mat-hint>Vazio = sem prazo.</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Responsável jurídico</mat-label>
-            <input matInput formControlName="legalResponsible" maxlength="150" />
-            @if (form.controls.legalResponsible.invalid) {
-              <mat-error>{{ message('legalResponsible') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Retenção após o encerramento (meses)</mat-label>
-            <input matInput type="number" formControlName="retentionMonths" min="1" max="1200" />
-            <mat-hint>Prazo mínimo de guarda exigido para este credor.</mat-hint>
-            @if (form.controls.retentionMonths.invalid) {
-              <mat-error>{{ message('retentionMonths') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Observações</mat-label>
-            <textarea matInput formControlName="notes" rows="2" maxlength="1000"></textarea>
-          </mat-form-field>
+            </select>
+          </app-field>
+          <app-field label="Referência contratual" [error]="form.controls.contractReference.invalid ? (message('contractReference')) : undefined">
+            <input appInput formControlName="contractReference" maxlength="120" placeholder="Ex.: Contrato 2026/015, cláusula 9" />
+          </app-field>
+          <app-field label="Início da vigência" [error]="form.controls.validFrom.invalid ? (message('validFrom')) : undefined">
+            <div class="input-group">
+              <input appInput ngbDatepicker #from="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="validFrom" />
+              <button type="button" class="btn btn-outline-secondary" (click)="from.toggle()" aria-label="Abrir calendário">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field label="Fim da vigência" hint="Vazio = sem prazo.">
+            <div class="input-group">
+              <input appInput ngbDatepicker #until="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="validUntil" />
+              <button type="button" class="btn btn-outline-secondary" (click)="until.toggle()" aria-label="Abrir calendário">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field label="Responsável jurídico" [error]="form.controls.legalResponsible.invalid ? (message('legalResponsible')) : undefined">
+            <input appInput formControlName="legalResponsible" maxlength="150" />
+          </app-field>
+          <app-field label="Retenção após o encerramento (meses)" hint="Prazo mínimo de guarda exigido para este credor." [error]="form.controls.retentionMonths.invalid ? (message('retentionMonths')) : undefined">
+            <input appInput type="number" formControlName="retentionMonths" min="1" max="1200" />
+          </app-field>
+          <app-field class="app-span-all" label="Observações">
+            <textarea appInput formControlName="notes" rows="2" maxlength="1000"></textarea>
+          </app-field>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Registrar base legal</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Registrar base legal</button>
+      </div>
     </form>
   `,
 })
 export class LegalBasisForm {
-  protected readonly data = inject<LegalBasisFormData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<LegalBasisForm, LegalBasisView>>(MatDialogRef);
+  protected readonly data = inject<LegalBasisFormData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<LegalBasisView>>(DialogRef);
   private readonly api = inject(LegalBasesApi);
   private readonly notifications = inject(NotificationService);
   protected readonly portfolioSource = inject(PortfolioLookup).source(() => this.data.creditorId);

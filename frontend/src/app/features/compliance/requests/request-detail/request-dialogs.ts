@@ -1,12 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { EntityPicker, EntitySource } from '../../../../shared/components/entity-picker/entity-picker';
 import { errorMessage } from '../../../../shared/validation/error-messages';
 import { AppValidators } from '../../../../shared/validation/validators';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 
 const RESPONSE_MAX = 4000;
 
@@ -22,10 +21,13 @@ export interface ResponseDialogData {
 /** Resposta ao titular na conclusão ou fundamentação da recusa (até 4.000 caracteres). */
 @Component({
   selector: 'app-request-response-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
   template: `
-    <h2 mat-dialog-title>{{ data.title }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.title }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <p class="app-dialog-message">{{ data.message }}</p>
       <dl class="app-definition-list rd-details">
         @for (d of data.details; track d.label) {
@@ -33,19 +35,14 @@ export interface ResponseDialogData {
           <dd>{{ d.value }}</dd>
         }
       </dl>
-      <mat-form-field class="app-full-width">
-        <mat-label>{{ data.label }}</mat-label>
-        <textarea matInput [formControl]="text" rows="6" [maxlength]="max" required></textarea>
-        <mat-hint align="end">{{ text.value.length }} / {{ max }}</mat-hint>
-        @if (text.invalid) {
-          <mat-error>{{ error() }}</mat-error>
-        }
-      </mat-form-field>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Cancelar</button>
-      <button mat-flat-button type="button" [class.app-button-danger]="data.destructive" (click)="confirm()">{{ data.confirmLabel }}</button>
-    </mat-dialog-actions>
+      <app-field class="app-full-width" [label]="(data.label)" [hintEnd]="(text.value.length) + ' / ' + (max)" [error]="text.invalid ? (error()) : undefined">
+        <textarea appInput [formControl]="text" rows="6" [maxlength]="max" required></textarea>
+      </app-field>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+      <button class="btn" type="button" [class.btn-primary]="!data.destructive" [class.btn-danger]="data.destructive" (click)="confirm()">{{ data.confirmLabel }}</button>
+    </div>
   `,
   styles: `
     .rd-details {
@@ -57,8 +54,8 @@ export interface ResponseDialogData {
   `,
 })
 export class ResponseDialog {
-  protected readonly data = inject<ResponseDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ResponseDialog, string>>(MatDialogRef);
+  protected readonly data = inject<ResponseDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<string>>(DialogRef);
   protected readonly max = RESPONSE_MAX;
   protected readonly text = inject(FormBuilder).nonNullable.control('', [AppValidators.notBlank, Validators.maxLength(RESPONSE_MAX)]);
 
@@ -89,25 +86,28 @@ export interface PickDialogData {
 /** Escolha de um registro (titular ou responsável). Resultado: id escolhido, `null` (sem escolha) ou `undefined` (cancelado). */
 @Component({
   selector: 'app-request-pick-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, EntityPicker],
+  imports: [ReactiveFormsModule, EntityPicker, ...DIALOG_DIRECTIVES],
   template: `
-    <h2 mat-dialog-title>{{ data.title }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.title }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <p class="app-dialog-message">{{ data.message }}</p>
       <app-entity-picker [control]="picked" [source]="data.source" [label]="data.label" [hint]="data.hint" [single]="true" />
       @if (picked.touched && picked.invalid) {
         <p class="app-field-error" role="alert">Escolha uma opção.</p>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Cancelar</button>
-      <button mat-flat-button type="button" (click)="confirm()">{{ data.confirmLabel }}</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+      <button class="btn btn-primary" type="button" (click)="confirm()">{{ data.confirmLabel }}</button>
+    </div>
   `,
 })
 export class PickDialog {
-  protected readonly data = inject<PickDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<PickDialog, string | null>>(MatDialogRef);
+  protected readonly data = inject<PickDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<string | null>>(DialogRef);
   protected readonly picked = inject(FormBuilder).nonNullable.control<string[]>([], this.data.required ? [AppValidators.notBlank] : []);
 
   protected confirm(): void {

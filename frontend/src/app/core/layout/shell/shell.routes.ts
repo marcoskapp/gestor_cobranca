@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { provideDatepickerDefaults } from '../../config/datepicker.config';
 import { provideMaterialDefaults } from '../../config/material.config';
 import { LEGACY_DIALOG_LAUNCHERS } from './legacy-dialog-launchers';
 import { Shell } from './shell';
@@ -13,7 +14,8 @@ export const SHELL_ROUTES: Routes = [
   {
     path: '',
     component: Shell,
-    providers: [provideMaterialDefaults(), ...LEGACY_DIALOG_LAUNCHERS],
+    // datepicker do ng-bootstrap (datas ISO/pt-BR) aqui, fora do bundle inicial (datepicker.config.ts)
+    providers: [provideDatepickerDefaults(), provideMaterialDefaults(), ...LEGACY_DIALOG_LAUNCHERS],
     children: [
       {
         path: '',

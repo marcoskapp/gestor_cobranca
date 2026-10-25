@@ -1,17 +1,28 @@
 <div class="st-bar" data-tour="page-header">
   <h1 class="st-bar__title">Estação de cobrança</h1>
   @if (canWork()) {
-    <mat-form-field class="app-compact st-bar__queue" subscriptSizing="dynamic">
-      <mat-label>Fila</mat-label>
-      <mat-select [ngModel]="queueId()" (ngModelChange)="queueId.set($event)">
-        <mat-option value="">Minhas filas (por prioridade)</mat-option>
+    <div class="st-bar__queue">
+      <label class="visually-hidden" for="st-queue">Fila</label>
+      <select
+        id="st-queue"
+        class="form-select"
+        [class.form-select-sm]="density.compact()"
+        [ngModel]="queueId()"
+        (ngModelChange)="queueId.set($event)"
+        aria-label="Fila"
+      >
+        <option value="">Minhas filas (por prioridade)</option>
         @for (q of queueOptions(); track q.value) {
-          <mat-option [value]="q.value">{{ q.label }}</mat-option>
+          <option [value]="q.value">{{ q.label }}</option>
         }
-      </mat-select>
-    </mat-form-field>
-    <button mat-flat-button type="button" (click)="nextCase()" [disabled]="nextLoading()" data-tour="next-case" matTooltip="Próximo caso (Alt + N)">
-      <mat-icon aria-hidden="true">skip_next</mat-icon>
+      </select>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="nextCase()" [disabled]="nextLoading()" data-tour="next-case" ngbTooltip="Próximo caso (Alt + N)">
+      @if (nextLoading()) {
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+      } @else {
+        <app-icon name="skip-forward" />
+      }
       Próximo caso
       <kbd class="st-kbd" aria-hidden="true">Alt N</kbd>
     </button>
@@ -19,12 +30,12 @@
   <span class="st-bar__spacer"></span>
   <app-presence-bar />
   @if (selectedCase()) {
-    <span class="st-timer app-numeric" role="timer" aria-label="Tempo de atendimento" matTooltip="Tempo de atendimento deste caso">
-      <mat-icon aria-hidden="true">timer</mat-icon>{{ elapsed() }}
+    <span class="st-timer app-numeric" role="timer" aria-label="Tempo de atendimento" ngbTooltip="Tempo de atendimento deste caso">
+      <app-icon name="stopwatch" />{{ elapsed() }}
     </span>
   }
-  <a mat-button routerLink="/cobranca/agenda">
-    <mat-icon aria-hidden="true">event_note</mat-icon>
+  <a class="btn btn-link" routerLink="/cobranca/agenda">
+    <app-icon name="calendar-week" />
     Agenda
   </a>
 </div>
@@ -39,15 +50,14 @@
         <h2 class="st-zone__title">Meus casos ({{ myCaseRows().length }})</h2>
       }
       <button
-        mat-icon-button
         type="button"
-        class="st-icon"
+        class="btn btn-sm st-icon"
         (click)="queueCollapsed.set(!queueCollapsed())"
         [attr.aria-expanded]="!queueCollapsed()"
         [attr.aria-label]="queueCollapsed() ? 'Expandir fila' : 'Recolher fila'"
-        [matTooltip]="(queueCollapsed() ? 'Expandir' : 'Recolher') + ' (Alt + Q)'"
+        [ngbTooltip]="(queueCollapsed() ? 'Expandir' : 'Recolher') + ' (Alt + Q)'"
       >
-        <mat-icon aria-hidden="true">{{ queueCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+        <app-icon [name]="queueCollapsed() ? 'chevron-right' : 'chevron-left'" />
       </button>
     </div>
     @if (!queueCollapsed()) {
@@ -96,17 +106,19 @@
   <!-- zona 2: ficha -->
   <section class="st-zone st-sheet" aria-label="Ficha do caso" [attr.aria-busy]="sheet.isLoading()">
     @if (sheet.isLoading() && current()) {
-      <mat-progress-bar mode="indeterminate" class="st-progress" aria-label="Atualizando" />
+      <div class="progress st-progress" role="progressbar" aria-label="Atualizando">
+        <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+      </div>
     }
     <div class="st-zone__body st-pad">
       @if (!selectedId()) {
         <app-empty-state
-          icon="support_agent"
+          icon="headset"
           title="Nenhum caso aberto."
           message="Peça o próximo caso ou escolha um dos seus casos na fila. Atalhos: Alt + N próximo caso, ? lista todos."
         >
           @if (canWork()) {
-            <button mat-flat-button type="button" (click)="nextCase()">Próximo caso</button>
+            <button type="button" class="btn btn-primary" (click)="nextCase()">Próximo caso</button>
           }
         </app-empty-state>
       } @else if (sheet.isLoading() && !current()) {
@@ -116,8 +128,8 @@
           <app-skeleton class="st-gap" variant="table" [rows]="4" />
         </div>
       } @else if (sheet.status() === 'error') {
-        <app-empty-state icon="cloud_off" tone="error" title="Não foi possível abrir o caso." message="O caso pode não existir ou estar fora do seu escopo de credores.">
-          <button mat-stroked-button type="button" (click)="sheet.reload()">Tentar novamente</button>
+        <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível abrir o caso." message="O caso pode não existir ou estar fora do seu escopo de credores.">
+          <button type="button" class="btn btn-outline-primary" (click)="sheet.reload()">Tentar novamente</button>
         </app-empty-state>
       } @else if (current(); as s) {
         <app-case-sheet-panel
@@ -144,76 +156,78 @@
             <app-call-button [caseId]="c.id" [debtorName]="s.debtor.name" [contacts]="s.debtor.contacts" />
           }
           @if (canSchedule() && workable()) {
-            <button mat-stroked-button type="button" (click)="schedule()" matTooltip="Agendar retorno (Alt + A)">
-              <mat-icon aria-hidden="true">event</mat-icon>
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="schedule()" ngbTooltip="Agendar retorno (Alt + A)">
+              <app-icon name="calendar-event" />
               Agendar retorno
             </button>
           }
           @if (canSimulate()) {
-            <button mat-stroked-button type="button" (click)="simulate()" matTooltip="Simular negociação (Alt + S)">
-              <mat-icon aria-hidden="true">calculate</mat-icon>
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="simulate()" ngbTooltip="Simular negociação (Alt + S)">
+              <app-icon name="calculator" />
               Simular
             </button>
           }
           @if (canDispute() && workable() && c.status !== 'CLOSED') {
-            <button mat-stroked-button type="button" (click)="openDispute()">
-              <mat-icon aria-hidden="true">gavel</mat-icon>
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="openDispute()">
+              <app-icon name="hammer" />
               Contestação
             </button>
           }
-          <button mat-icon-button type="button" [matMenuTriggerFor]="more" aria-label="Mais ações do caso" matTooltip="Mais ações">
-            <mat-icon aria-hidden="true">more_vert</mat-icon>
-          </button>
-          <mat-menu #more="matMenu" xPosition="before">
-            @if (canWork() && !mine() && c.status !== 'CLOSED') {
-              <button mat-menu-item type="button" (click)="takeOver()">
-                <mat-icon aria-hidden="true">pan_tool</mat-icon>
-                <span>Assumir atendimento</span>
-              </button>
-            }
-            @if (canWork() && mine()) {
-              <button mat-menu-item type="button" (click)="release()">
-                <mat-icon aria-hidden="true">move_to_inbox</mat-icon>
-                <span>Devolver à fila</span>
-              </button>
-            }
-            @if (canAssign()) {
-              <button mat-menu-item type="button" (click)="assign()">
-                <mat-icon aria-hidden="true">assignment_ind</mat-icon>
-                <span>Atribuir a operador ou equipe</span>
-              </button>
-            }
-            <button mat-menu-item type="button" (click)="refreshCase()">
-              <mat-icon aria-hidden="true">sync</mat-icon>
-              <span>Atualizar posição dos títulos</span>
+          <div ngbDropdown placement="bottom-end" class="d-inline-block">
+            <button type="button" class="btn btn-sm st-icon" ngbDropdownToggle aria-label="Mais ações do caso" ngbTooltip="Mais ações">
+              <app-icon name="three-dots-vertical" />
             </button>
-            @if (canManage()) {
-              @for (a of lifecycle(); track a) {
-                <button mat-menu-item type="button" (click)="runLifecycle(a)">
-                  <mat-icon aria-hidden="true">{{ caseActions[a].icon }}</mat-icon>
-                  <span>{{ caseActions[a].label }}</span>
+            <div ngbDropdownMenu class="shadow app-menu">
+              @if (canWork() && !mine() && c.status !== 'CLOSED') {
+                <button ngbDropdownItem type="button" (click)="takeOver()">
+                  <app-icon name="hand-index" />
+                  <span>Assumir atendimento</span>
                 </button>
               }
-            }
-          </mat-menu>
+              @if (canWork() && mine()) {
+                <button ngbDropdownItem type="button" (click)="release()">
+                  <app-icon name="inbox" />
+                  <span>Devolver à fila</span>
+                </button>
+              }
+              @if (canAssign()) {
+                <button ngbDropdownItem type="button" (click)="assign()">
+                  <app-icon name="person-badge" />
+                  <span>Atribuir a operador ou equipe</span>
+                </button>
+              }
+              <button ngbDropdownItem type="button" (click)="refreshCase()">
+                <app-icon name="arrow-repeat" />
+                <span>Atualizar posição dos títulos</span>
+              </button>
+              @if (canManage()) {
+                @for (a of lifecycle(); track a) {
+                  <button ngbDropdownItem type="button" (click)="runLifecycle(a)">
+                    <app-icon [name]="caseActions[a].icon" />
+                    <span>{{ caseActions[a].label }}</span>
+                  </button>
+                }
+              }
+            </div>
+          </div>
         </div>
 
         @if (!workable() && c.status !== 'CLOSED') {
-          <p class="app-alert app-alert--neutral" role="note">
-            <mat-icon aria-hidden="true">lock</mat-icon>
+          <div class="alert alert-secondary d-flex gap-2 align-items-start mb-0" role="note">
+            <app-icon name="lock" />
             <span>Caso de outro operador. Para registrar, peça a atribuição ao supervisor.</span>
-          </p>
+          </div>
         } @else if (c.status === 'CLOSED') {
-          <p class="app-alert app-alert--neutral" role="note">
-            <mat-icon aria-hidden="true">lock</mat-icon>
+          <div class="alert alert-secondary d-flex gap-2 align-items-start mb-0" role="note">
+            <app-icon name="lock" />
             <span>Caso encerrado{{ c.closeReason ? ': ' + c.closeReason : '' }}.</span>
-          </p>
+          </div>
         } @else if (canRegister()) {
           @if (retained()) {
-            <p class="app-alert app-alert--warning" role="note">
-              <mat-icon aria-hidden="true">info</mat-icon>
+            <div class="alert alert-warning d-flex gap-2 align-items-start mb-0" role="note">
+              <app-icon name="info-circle" />
               <span>Caso retido: registre apenas contatos recebidos ou necessários (o porteiro de contato bloqueia contatos ativos).</span>
-            </p>
+            </div>
           }
           <app-interaction-panel [sheet]="s" [tabulations]="activeTabulations()" [promiseMaxDays]="promiseMaxDays()" [startedAt]="startedAt()" (recorded)="onRecorded($event)" />
         }
