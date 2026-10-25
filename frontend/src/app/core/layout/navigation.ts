@@ -104,6 +104,16 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Score de propensão',
+    items: [
+      { label: 'Modelos do score', icon: 'diagram-3', route: '/score/modelos', permissions: [Permission.SCORING_VIEW] },
+      { label: 'Execuções do score', icon: 'arrow-repeat', route: '/score/execucoes', permissions: [Permission.SCORING_VIEW] },
+      { label: 'Monitoramento do score', icon: 'activity', route: '/score/monitoramento', permissions: [Permission.SCORING_VIEW] },
+      { label: 'Decisões e variáveis', icon: 'card-checklist', route: '/score/transparencia', permissions: [Permission.SCORING_VIEW] },
+      { label: 'Parâmetros do score', icon: 'sliders', route: '/score/parametros', permissions: [Permission.SCORING_VIEW] },
+    ],
+  },
+  {
     label: 'Negociação',
     items: [
       { label: 'Simulador', icon: 'calculator', route: '/negociacao/simulador', permissions: [Permission.NEGOTIATION_SIMULATE] },

@@ -72,6 +72,21 @@ describe('gráficos acessíveis', () => {
     expect(el(fixture).querySelector('table')!.textContent).toContain('mai/26');
   });
 
+  it('colunas de índice pequeno (PSI) com marcas de 2 casas; o padrão continua com 1', () => {
+    const fixture = TestBed.createComponent(ColumnChart);
+    fixture.componentRef.setInput('title', 'PSI');
+    fixture.componentRef.setInput('summary', 'Resumo');
+    fixture.componentRef.setInput('series', { name: 'PSI', color: '--app-chart-1' });
+    fixture.componentRef.setInput('rows', [{ key: 'a', label: '18/10', values: [0.08], display: ['0,080'] }]);
+    fixture.componentRef.setInput('money', false);
+    fixture.detectChanges();
+    const ticks = () => [...el(fixture).querySelectorAll('.cc__tick')].map((t) => t.textContent);
+    expect(ticks()).toEqual(['0', '0,1', '0,1']);
+    fixture.componentRef.setInput('axisFractionDigits', 2);
+    fixture.detectChanges();
+    expect(ticks()).toEqual(['0', '0,05', '0,1']);
+  });
+
   it('funil escreve a conversão entre as etapas', () => {
     const fixture = TestBed.createComponent(FunnelChart);
     fixture.componentRef.setInput('title', 'Funil');

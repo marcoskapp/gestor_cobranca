@@ -60,6 +60,9 @@
   </div>
 </section>
 
+<!-- score de propensão (módulo scoring): só com SCORING_VIEW; o cartão decide se aparece -->
+<app-case-score-card [caseId]="cs.id" [debtorId]="cs.debtorId" />
+
 @if (sheet().pendingPromise; as p) {
   <div class="alert alert-warning d-flex gap-2 align-items-start sp-alert" role="note">
     <app-icon name="person-hearts" />
