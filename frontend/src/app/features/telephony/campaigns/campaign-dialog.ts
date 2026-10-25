@@ -1,18 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize, startWith } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { QueueNames } from '../../collection/data/collection.lookups';
 import { CreditorLookup, PortfolioLookup } from '../../organization/data/organization.lookups';
 import { DialerCampaignsApi } from '../data/telephony.api';
@@ -34,118 +30,100 @@ const num = (v: string | number | null | undefined): number | null => (v === nul
  */
 @Component({
   selector: 'app-campaign-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title>{{ data.campaign ? 'Parâmetros da campanha' : 'Nova campanha de discagem' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
-        <div class="app-form-grid">
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.campaign ? 'Parâmetros da campanha' : 'Nova campanha de discagem' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
+        <div class="row g-3">
           @if (!data.campaign) {
-            <mat-form-field>
-              <mat-label>Código</mat-label>
-              <input matInput formControlName="code" maxlength="40" required />
-              <mat-hint>Ex.: VAREJO-30-60</mat-hint>
-            </mat-form-field>
+            <app-field class="col-md-6" label="Código" hint="Ex.: VAREJO-30-60">
+              <input appInput formControlName="code" maxlength="40" required />
+            </app-field>
           }
-          <mat-form-field [class.app-span-all]="!!data.campaign">
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="120" required />
-          </mat-form-field>
+          <app-field [class]="data.campaign ? 'col-12' : 'col-md-6'" label="Nome">
+            <input appInput formControlName="name" maxlength="120" required />
+          </app-field>
           @if (!data.campaign) {
-            <mat-form-field>
-              <mat-label>Fila de origem</mat-label>
-              <mat-select formControlName="queueId" required>
+            <app-field class="col-md-6" label="Fila de origem" hint="Casos aguardando nesta fila formam a lista">
+              <select appInput formControlName="queueId" required>
+                <option value="" disabled>Selecione</option>
                 @for (q of queues(); track q.value) {
-                  <mat-option [value]="q.value">{{ q.label }}</mat-option>
+                  <option [value]="q.value">{{ q.label }}</option>
                 }
-              </mat-select>
-              <mat-hint>Casos aguardando nesta fila formam a lista</mat-hint>
-            </mat-form-field>
-            <div>
+              </select>
+            </app-field>
+            <div class="col-md-6">
               <app-entity-picker [control]="form.controls.creditor" [source]="creditorSource" label="Credor (o da fila)" [single]="true" />
             </div>
           }
-          <div class="app-span-all">
+          <div class="col-12">
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolioSource" label="Carteira (opcional)" [single]="true" />
           </div>
-          <div class="app-span-all">
-            <mat-checkbox formControlName="includeAssigned">Incluir casos já atribuídos a operadores</mat-checkbox>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="cg-assigned" formControlName="includeAssigned" />
+              <label class="form-check-label" for="cg-assigned">Incluir casos já atribuídos a operadores</label>
+            </div>
           </div>
-          <div class="app-span-all">
+          <div class="col-12">
             <p class="app-section-title" id="cg-mode">Ritmo</p>
-            <mat-button-toggle-group formControlName="mode" aria-labelledby="cg-mode">
+            <div class="btn-group" role="group" aria-labelledby="cg-mode">
               @for (m of modes; track m[0]) {
-                <mat-button-toggle [value]="m[0]">{{ m[1] }}</mat-button-toggle>
+                <input class="btn-check" type="radio" formControlName="mode" [id]="'cg-mode-' + m[0]" [value]="m[0]" />
+                <label class="btn btn-outline-primary" [for]="'cg-mode-' + m[0]">{{ m[1] }}</label>
               }
-            </mat-button-toggle-group>
-            <p class="app-muted cg-small">{{ hints[value().mode] }}</p>
+            </div>
+            <p class="app-muted small mt-1 mb-0">{{ hints[value().mode] }}</p>
           </div>
           @if (value().mode === 'PREDICTIVE') {
-            <mat-form-field>
-              <mat-label>Razão máxima (chamadas por operador livre)</mat-label>
-              <input matInput formControlName="maxDialRatio" inputmode="decimal" />
-              <mat-hint>1 a 5; o ritmo reduz sozinho quando o abandono sobe</mat-hint>
-            </mat-form-field>
+            <app-field class="col-md-6" label="Razão máxima (chamadas por operador livre)" hint="1 a 5; o ritmo reduz sozinho quando o abandono sobe">
+              <input appInput formControlName="maxDialRatio" inputmode="decimal" />
+            </app-field>
           }
-          <mat-form-field>
-            <mat-label>Abandono máximo (%)</mat-label>
-            <input matInput formControlName="maxAbandonRate" inputmode="decimal" />
-            <mat-hint>Padrão de mercado: 3% (Ofcom/FTC)</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Tentativas por caso</mat-label>
-            <input matInput type="number" formControlName="maxAttempts" min="1" max="20" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Intervalo entre tentativas (min)</mat-label>
-            <input matInput type="number" formControlName="retryIntervalMinutes" min="5" max="10080" />
-            <mat-hint>Ocupado: metade do intervalo</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Tempo de toque (s)</mat-label>
-            <input matInput type="number" formControlName="ringTimeoutSeconds" min="10" max="60" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Janela própria: início</mat-label>
-            <input matInput type="time" formControlName="windowStart" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Janela própria: fim</mat-label>
-            <input matInput type="time" formControlName="windowEnd" />
-            <mat-hint>A política de contato continua valendo</mat-hint>
-          </mat-form-field>
+          <app-field class="col-md-6" label="Abandono máximo (%)" hint="Padrão de mercado: 3% (Ofcom/FTC)">
+            <input appInput formControlName="maxAbandonRate" inputmode="decimal" />
+          </app-field>
+          <app-field class="col-md-6" label="Tentativas por caso">
+            <input appInput type="number" formControlName="maxAttempts" min="1" max="20" />
+          </app-field>
+          <app-field class="col-md-6" label="Intervalo entre tentativas (min)" hint="Ocupado: metade do intervalo">
+            <input appInput type="number" formControlName="retryIntervalMinutes" min="5" max="10080" />
+          </app-field>
+          <app-field class="col-md-6" label="Tempo de toque (s)">
+            <input appInput type="number" formControlName="ringTimeoutSeconds" min="10" max="60" />
+          </app-field>
+          <app-field class="col-md-6" label="Janela própria: início">
+            <input appInput type="time" formControlName="windowStart" />
+          </app-field>
+          <app-field class="col-md-6" label="Janela própria: fim" hint="A política de contato continua valendo">
+            <input appInput type="time" formControlName="windowEnd" />
+          </app-field>
         </div>
         @if (problems().length && submitted()) {
-          <ul class="app-alert app-alert--error cg-problems" role="alert">
+          <ul class="alert alert-danger mt-3 mb-0 ps-4" role="alert">
             @for (p of problems(); track p) {
               <li>{{ p }}</li>
             }
           </ul>
         }
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <p class="alert alert-danger d-flex gap-2 mt-3 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ data.campaign ? 'Salvar parâmetros' : 'Criar campanha' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ data.campaign ? 'Salvar parâmetros' : 'Criar campanha' }}</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .cg-small {
-      margin: 4px 0 0;
-      font-size: var(--app-text-xs);
-    }
-    .cg-problems {
-      display: block;
-      padding-left: 28px;
-    }
   `,
 })
 export class CampaignDialog {
-  protected readonly data = inject<CampaignDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<CampaignDialog, CampaignView>>(MatDialogRef);
+  protected readonly data = inject<CampaignDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<CampaignView>>(DialogRef);
   private readonly api = inject(DialerCampaignsApi);
   private readonly queueNames = inject(QueueNames);
   protected readonly creditorSource = inject(CreditorLookup);
