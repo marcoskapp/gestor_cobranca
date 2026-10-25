@@ -226,6 +226,7 @@ O responsável pelo produto ficou indisponível por ~10 h e pediu que as decisõ
 | 234 | frontend | `app-data-table` ganha ordenação opcional (`sortable`, `sort`, `sortChange`) e ignora ajustes de página feitos pelo `ngb-pagination` durante a carga. | Sem ordenação. | Pedido da onda 1; o paginador do ng-bootstrap emite ao ajustar a página às entradas. |
 | 235 | frontend | Página inicial (dashboard) migrada junto com o shell (os ícones do menu passaram ao Bootstrap Icons). | Manter em Material. | Usa os itens do menu; é a tela de entrada. |
 | 236 | frontend **[revisar]** | Durante a migração as telas em Material convivem com o shell em Bootstrap (o reboot do Bootstrap vale para todas; tokens `--app-*` mantidos como aliases). Campos `app-password-field`/`app-entity-picker` já em Bootstrap aparecem ao lado de `mat-form-field` nas telas não migradas. | Migrar tudo de uma vez. | Migração em ondas pedida; mistura visual temporária em algumas telas. |
+| 214 | plataforma | Flyway com `out-of-order: true` (validação mantida): com faixas de versão por módulo, migration nova de faixa baixa (ex.: identity V0207) chega depois de versões altas já aplicadas; sem isso, toda base existente falhava ao subir ("resolved migration not applied"). Teste `MigrationOrderIT`. | Renumerar migrations para sempre crescerem. | Mantém as faixas por módulo e corrige a atualização de bases existentes. |
 
 ## Situação ao fim da sessão autônoma
 
