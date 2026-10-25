@@ -1,6 +1,5 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
-import { MatRadioModule } from '@angular/material/radio';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -18,7 +17,7 @@ import { Icon } from '../../../shared/components/icon/icon';
  */
 @Component({
   selector: 'app-format-step',
-  imports: [Icon, DecimalPipe, MatRadioModule, Amount, Skeleton, AppDatePipe],
+  imports: [Icon, DecimalPipe, Amount, Skeleton, AppDatePipe],
   template: `
     @if (!review().format.available) {
       <p class="app-muted" role="status">Lendo o arquivo para identificar o formato dos valores…</p>
@@ -69,15 +68,26 @@ import { Icon } from '../../../shared/components/icon/icon';
             <p class="fs-suggestion"><app-icon name="lightbulb" /> As outras colunas do arquivo usam {{ optionLabel(c.suggestion) }}.</p>
           }
           @let editable = canEdit() && (c.requiresDecision || c.options.length > 1);
-          <mat-radio-group class="fs-options" [attr.aria-label]="'Leitura de ' + label(c.column)" [value]="chosen()[c.column]" (change)="choose(c.column, $event.value)" [disabled]="!editable">
+          <div class="fs-options" role="radiogroup" [attr.aria-label]="'Leitura de ' + label(c.column)">
             @for (o of c.options; track o.option) {
               <div class="fs-option" [class.fs-option--selected]="chosen()[c.column] === o.option">
-                <mat-radio-button [value]="o.option">
-                  <strong>{{ optionLabel(o.option) }}</strong>
-                  @if (c.recommended === o.option) {
-                    <span class="app-status app-status--info fs-badge"><app-icon name="stars" /> indicada pelos dados</span>
-                  }
-                </mat-radio-button>
+                <div class="form-check mb-1">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    [name]="'fs-' + c.column"
+                    [id]="'fs-' + c.column + '-' + o.option"
+                    [checked]="chosen()[c.column] === o.option"
+                    [disabled]="!editable"
+                    (change)="choose(c.column, o.option)"
+                  />
+                  <label class="form-check-label" [for]="'fs-' + c.column + '-' + o.option">
+                    <strong>{{ optionLabel(o.option) }}</strong>
+                    @if (c.recommended === o.option) {
+                      <span class="app-status app-status--info fs-badge"><app-icon name="stars" /> indicada pelos dados</span>
+                    }
+                  </label>
+                </div>
                 <p class="app-muted fs-hint">{{ hint(o.option) }}</p>
                 <p class="fs-total">
                   Soma da coluna: <strong><app-amount [value]="o.total" /></strong>
@@ -108,7 +118,7 @@ import { Icon } from '../../../shared/components/icon/icon';
                 </table>
               </div>
             }
-          </mat-radio-group>
+          </div>
         </section>
       }
       @if (error()) {
@@ -213,7 +223,7 @@ import { Icon } from '../../../shared/components/icon/icon';
       color: var(--bs-danger-text-emphasis);
       font-size: var(--app-text-sm);
     }
-    .fs-invalid .mat-icon {
+    .fs-invalid app-icon {
       width: 16px;
       height: 16px;
       font-size: 16px;
