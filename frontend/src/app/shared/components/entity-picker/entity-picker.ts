@@ -32,8 +32,11 @@ let nextId = 0;
       [class.app-picker--disabled]="disabled()"
     >
       @for (item of selected(); track item.value) {
-        <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle app-picker__chip">
-          {{ item.label }}
+        <span
+          class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle app-picker__chip"
+          [title]="item.label"
+        >
+          <span class="text-truncate">{{ item.label }}</span>
           <button
             type="button"
             class="btn-close app-picker__remove"
@@ -89,9 +92,14 @@ let nextId = 0;
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      /* selo nunca maior que o campo: o rótulo longo é cortado com reticências (texto completo no
+         title e no rótulo acessível do botão de remover) */
+      max-width: 100%;
+      min-width: 0;
       font-weight: var(--bs-body-font-weight);
     }
     .app-picker__remove {
+      flex: none;
       --bs-btn-close-width: 0.5em;
       --bs-btn-close-height: 0.5em;
     }
