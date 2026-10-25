@@ -107,6 +107,17 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
     }
 
     @Override
+    public void discardDraft(UUID planId) {
+        access.requirePermission(Permission.COMMISSION_PLAN_MANAGE);
+        CommissionPlan plan = load(planId);
+        plan.requireDiscardable();
+        plans.delete(plan);
+        auditTrail.record(AuditEntry.of("commission_plan.discarded", "commission_plan", planId)
+                .change("status", PlanStatus.DRAFT, null).change("rules", plan.getRules(), null)
+                .meta("code", plan.getCode()).meta("version", plan.getPlanVersion()));
+    }
+
+    @Override
     public PlanView newVersion(UUID planId) {
         access.requirePermission(Permission.COMMISSION_PLAN_MANAGE);
         CommissionPlan source = load(planId);
@@ -257,6 +268,18 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
     public List<GoalView> goals(YearMonth period) {
         access.requirePermission(Permission.COMMISSION_PLAN_MANAGE);
         return plans.findGoals(period.atDay(1)).stream().map(CommissionPlanService::goalView).toList();
+    }
+
+    @Override
+    public void removeGoal(UUID goalId) {
+        access.requirePermission(Permission.COMMISSION_PLAN_MANAGE);
+        GoalTarget goal = plans.findGoalById(goalId).orElseThrow(() -> ResourceNotFoundException.of("commission_goal", goalId));
+        Guard.requireState(ledger.findPeriod(goal.getPeriodStart()).map(p -> !p.isClosed()).orElse(true), "goal.period_closed",
+                "Período já fechado");
+        plans.deleteGoal(goal);
+        auditTrail.record(AuditEntry.of("commission_goal.removed", "commission_goal", goalId)
+                .change("target", goal.getTargetValue(), null).meta("period", YearMonth.from(goal.getPeriodStart()).toString())
+                .meta("subjectType", goal.getSubjectType()).meta("subjectId", goal.getSubjectId()));
     }
 
     @Override

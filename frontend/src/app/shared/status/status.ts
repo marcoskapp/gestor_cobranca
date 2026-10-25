@@ -68,6 +68,14 @@ export type StatusDomain =
   | 'settlementStatement'
   | 'settlementAdjustment'
   | 'settlementTransfer'
+  | 'commissionPlan'
+  | 'commissionPeriod'
+  | 'commissionStatement'
+  | 'commissionOutcome'
+  | 'commissionDispute'
+  | 'commissionAdjustment'
+  | 'commissionEntry'
+  | 'conductOccurrence'
   | 'call'
   | 'agentPresence'
   | 'dialerCampaign'
@@ -495,6 +503,59 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   settlementTransfer: {
     REGISTERED: { label: 'Registrado', tone: 'success' },
     CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+  },
+  /** Versão de plano de comissão do negociador (`PlanStatus` + vigência calculada na tela). */
+  commissionPlan: {
+    DRAFT: { label: 'Rascunho', tone: 'info' },
+    CURRENT: { label: 'Vigente', tone: 'success' },
+    SCHEDULED: { label: 'Programada', tone: 'info' },
+    ENDED: { label: 'Encerrada', tone: 'neutral' },
+    PUBLISHED: { label: 'Publicada', tone: 'success' },
+    RETIRED: { label: 'Aposentada', tone: 'neutral' },
+  },
+  /** Período de apuração (`PeriodStatus`). */
+  commissionPeriod: {
+    OPEN: { label: 'Aberto', tone: 'info' },
+    CLOSED: { label: 'Fechado', tone: 'success' },
+  },
+  /** Extrato de comissão (`StatementStatus`). */
+  commissionStatement: {
+    CALCULATED: { label: 'Calculado', tone: 'info' },
+    DISPUTED: { label: 'Contestado', tone: 'warning' },
+    ADJUSTED: { label: 'Ajustado', tone: 'info' },
+    APPROVED: { label: 'Aprovado', tone: 'success' },
+    EXPORTED: { label: 'Exportado para a folha', tone: 'success' },
+  },
+  /** Resultado do extrato (`StatementOutcome`). */
+  commissionOutcome: {
+    PAYABLE: { label: 'A pagar', tone: 'success' },
+    NOT_ELIGIBLE: { label: 'Não elegível', tone: 'neutral' },
+    NO_PLAN: { label: 'Sem plano', tone: 'neutral' },
+    SUSPENDED_QUALITY_GATE: { label: 'Suspenso pela monitoria', tone: 'warning' },
+    NOT_COVERED: { label: 'Fora da elegibilidade', tone: 'neutral' },
+  },
+  /** Contestação de extrato (`DisputeStatus`). */
+  commissionDispute: {
+    OPEN: { label: 'Em aberto', tone: 'warning' },
+    ACCEPTED: { label: 'Aceita', tone: 'success' },
+    REJECTED: { label: 'Recusada', tone: 'neutral' },
+  },
+  /** Ajuste de extrato (`AdjustmentStatus`). */
+  commissionAdjustment: {
+    APPLIED: { label: 'Aplicado', tone: 'success' },
+    PENDING_SECOND_APPROVAL: { label: 'Aguardando 2ª aprovação', tone: 'warning' },
+    REJECTED: { label: 'Recusado', tone: 'neutral' },
+  },
+  /** Lançamento do razão de comissão (`EntryStatus`). */
+  commissionEntry: {
+    PENDING: { label: 'Em carência', tone: 'warning' },
+    CLEARED: { label: 'Liberado', tone: 'success' },
+    WAIVED: { label: 'Dispensado', tone: 'neutral' },
+  },
+  /** Ocorrência de conduta (`ConductOccurrence.Status`). */
+  conductOccurrence: {
+    CONFIRMED: { label: 'Confirmada', tone: 'danger' },
+    DISMISSED: { label: 'Dispensada', tone: 'neutral' },
   },
   /** Chamada (`CallStatus`). */
   call: {

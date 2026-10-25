@@ -270,7 +270,7 @@ Exemplo verificado (`CommissionEngineTest#standardMarketPlanCombination`): 60.00
 - Reatribuição de um retorno (`TaskUseCases.reassign`) não publica evento: o compromisso passa ao novo responsável só no próximo evento do retorno (cumprimento, atraso ou cancelamento); até lá, segue no denominador do responsável anterior. Se a operação reatribuir retornos com frequência, o `collection` deve publicar `CallbackStatusChanged` também na reatribuição.
 - Retornos e promessas não têm faixa de atraso nem canal nos eventos: as medidas ficam em `delay_bucket = UNKNOWN` e `channel = UNKNOWN` e somem quando o painel filtra por faixa ou canal.
 - Histórico de composição de equipes (pool e meta de equipe usam a composição no fechamento).
-- Telas do incentive no frontend. (Views para o `analytics`: implementadas em 24/10/2026 — `analytics.src_performance_fact`, `src_worked_case`, `src_logged_time`, `src_case_snapshot`, `src_commission_statement`; ver `analytics.md` §3. Mudança de coluna dessas tabelas exige ajustar `R__analytics_contract.sql`.)
+- ~~Telas do incentive no frontend~~ — implementadas em 25/10/2026 (§11). (Views para o `analytics`: implementadas em 24/10/2026 — `analytics.src_performance_fact`, `src_worked_case`, `src_logged_time`, `src_case_snapshot`, `src_commission_statement`; ver `analytics.md` §3. Mudança de coluna dessas tabelas exige ajustar `R__analytics_contract.sql`.)
 - Validar com jurídico/RH antes de habilitar estorno de comissão (`clawbackEnabled`) ou mudar a política de desligamento.
 
 ### 10.6 Retornos cumpridos e promessas cumpridas (23/10/2026)
@@ -328,3 +328,35 @@ grava `incentive.expected_recovery_fact` (`V1805`; uma linha por safra/grupo, re
 
 O indicador saiu de `unavailableMetrics`. Meta de plano `RECOVERED_VS_EXPECTED` continua recusada: o motor de comissão
 não apura metas por essa métrica (pendência).
+
+## 11. Telas (frontend, 25/10/2026)
+
+Feature `frontend/src/app/features/incentive`, rotas em `/remuneracao` (seção "Remuneração variável" do menu). Bootstrap 5.3 + ng-bootstrap com os componentes compartilhados (`app-page-header`, `app-data-table`, `app-field`/`appInput`, `app-status-chip`, `app-amount`, `app-empty-state`, `DialogService`, `ConfirmService`); estados de carregamento, vazio e erro em todas as telas; tours curtos em `core/onboarding/content`. Decisões 340–354 em `docs/negocio/decisoes-autonomas.md`.
+
+| Tela | Rota | Permissão (menu e guarda) | API |
+| --- | --- | --- | --- |
+| Desempenho (próprio, equipe ou todos pela maior permissão) | `/remuneracao/desempenho` | `PERFORMANCE_VIEW_OWN/TEAM/ALL` | `GET /performance` (total + agrupamento) |
+| Extratos de comissão | `/remuneracao/extratos` | `PERFORMANCE_VIEW_*`, `COMMISSION_STATEMENT_MANAGE`, `COMMISSION_STATEMENT_APPROVE` | `GET /statements` |
+| Prévia do período atual | `/remuneracao/extratos/previa` | idem | `GET /statements/preview`, `GET /ledger` |
+| Extrato (memória contestável, contestações, ajustes, lançamentos, aprovação) | `/remuneracao/extratos/:id` | idem | `GET /statements/{id}`, `POST …/recalculate`, `…/disputes`, `…/disputes/{id}/resolve`, `…/adjustments`, `…/adjustments/{id}/decision`, `…/approve`, `GET /ledger` |
+| Lançamentos de comissão | `/remuneracao/lancamentos` | idem | `GET /ledger` |
+| Planos de remuneração | `/remuneracao/planos` | `COMMISSION_PLAN_MANAGE` | `GET/POST /plans` |
+| Plano (regras, versões, simular, publicar, nova versão, aposentar, descartar rascunho) | `/remuneracao/planos/:id` | idem | `GET /plans/{id}`, `POST …/simulations`, `…/publish`, `…/versions`, `…/retire`, `DELETE /plans/{id}` |
+| Regras do rascunho | `/remuneracao/planos/:id/regras` | idem | `PUT /plans/{id}` |
+| Metas por período | `/remuneracao/metas` | `COMMISSION_PLAN_MANAGE` | `GET/PUT /goals`, `DELETE /goals/{id}` |
+| Períodos de apuração | `/remuneracao/periodos` | `COMMISSION_STATEMENT_MANAGE` | `GET /periods`, `POST /periods/{p}/close` |
+| Exportação para a folha | `/remuneracao/exportacao` | `COMMISSION_STATEMENT_APPROVE` | `GET/POST /exports`, `GET /exports/{id}/file` |
+| Monitoria, ocorrências e formulários | `/remuneracao/qualidade/{avaliacoes,ocorrencias,formularios}` | `PERFORMANCE_VIEW_*`, `QUALITY_EVALUATE` (registro); dispensa de ocorrência com `COMMISSION_STATEMENT_MANAGE` | `/quality/forms`, `/quality/evaluations`, `/quality/occurrences` (+ `dismiss`) |
+| Atribuição de crédito do acordo (link no detalhe do acordo) | `/remuneracao/atribuicoes/:agreementId` | `PERFORMANCE_VIEW_*`, `AGREEMENT_VIEW` | `GET /attributions/{agreementId}` |
+
+Regras de tela (o servidor continua decidindo):
+
+- **Segregação** (`statementActions`): o beneficiário contesta e não aprova; quem pediu/decidiu ajuste ou resolveu contestação não aprova; contestação aberta ou ajuste pendente bloqueiam a aprovação com o motivo escrito; quem fechou o período recebe a recusa traduzida. Resolução de contestação e segunda aprovação de ajuste só aparecem para outra pessoa da gestão. Ajuste acima de R$ 500 (padrão de `app.incentive.dual-approval-threshold`) avisa a segunda aprovação.
+- **Confirmação forte**: aprovar extrato (`APROVAR`), fechar período (`FECHAR`), publicar (`PUBLICAR`) e aposentar (`APOSENTAR`) mostram o impacto antes; motivos com 10 a 2000 caracteres como no servidor.
+- **Vigência**: publicação só no dia 1º do mês corrente em diante; aposentadoria no último dia de um mês, nunca antes da véspera do início. A simulação só oferece meses encerrados.
+- **Editor de regras**: validação espelhada de `PlanRules.validate()` (`data/plan-rules.ts`), normalização (perfis em maiúsculas, faixas ordenadas, vazios como nulos), meta "recuperado × esperado" fora das opções, aviso trabalhista ao habilitar estorno.
+- **Exportação**: o arquivo baixado de novo é conferido com o SHA-256 registrado.
+- **Desempenho**: reaproveita `app-kpi-card` e `app-bar-chart` do `analytics` sem alterá-los; taxas sempre com a base; indicadores sem fonte listados (`unavailableMetrics`).
+
+Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição); backend `PlanDraftAndGoalRemovalIT`.
+

@@ -52,6 +52,12 @@ class JpaCommissionPlanRepository implements CommissionPlanRepository {
     }
 
     @Override
+    public void delete(CommissionPlan plan) {
+        plans.delete(plan);
+        plans.flush();
+    }
+
+    @Override
     public GoalTarget saveGoal(GoalTarget goal) {
         return goals.save(goal);
     }
@@ -64,5 +70,16 @@ class JpaCommissionPlanRepository implements CommissionPlanRepository {
     @Override
     public List<GoalTarget> findGoals(LocalDate periodStart) {
         return goals.findByPeriodStart(periodStart);
+    }
+
+    @Override
+    public Optional<GoalTarget> findGoalById(UUID id) {
+        return goals.findById(id);
+    }
+
+    @Override
+    public void deleteGoal(GoalTarget goal) {
+        goals.delete(goal);
+        goals.flush();
     }
 }

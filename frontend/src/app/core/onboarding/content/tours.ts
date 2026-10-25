@@ -1150,6 +1150,70 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'incentive.performance',
+    version: 1,
+    title: 'Desempenho',
+    summary: 'Indicadores do negociador, da equipe ou de todos.',
+    steps: [
+      { anchor: 'filters', title: 'Recorte', body: 'Mês, agrupamento, faixa de atraso e credor. Você vê só o que o seu perfil permite.' },
+      { anchor: 'performance-kpis', title: 'Indicadores', body: 'Cada taxa mostra a base. Recuperado conta só pagamento confirmado, com o peso de crédito.' },
+    ],
+  },
+  {
+    id: 'incentive.statements',
+    version: 1,
+    title: 'Extratos de comissão',
+    summary: 'Remuneração variável apurada por período.',
+    steps: [
+      { anchor: 'page-actions', title: 'Prévia', body: 'Acompanhe o mês em curso: o que já foi liberado e o que ainda está em carência.' },
+      { anchor: 'data-table', title: 'Extratos', body: 'Gerados no fechamento do período. Abra para ver a memória de cálculo e contestar.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'incentive.statement',
+    version: 1,
+    title: 'Extrato',
+    summary: 'Memória de cálculo, contestação, ajustes e aprovação.',
+    steps: [
+      { anchor: 'statement-values', title: 'Valores', body: 'Calculado, ajustes, retido e o valor a pagar.' },
+      { anchor: 'statement-lines', title: 'Memória de cálculo', body: 'A soma das linhas é o valor calculado. Cada linha pode ser contestada pelo negociador.' },
+      { anchor: 'page-actions', title: 'Ações', body: 'Quem fecha o período, ajusta ou resolve contestação não aprova o extrato.' },
+    ],
+  },
+  {
+    id: 'incentive.plans',
+    version: 1,
+    title: 'Planos de remuneração',
+    summary: 'Regras de comissão versionadas dos negociadores.',
+    steps: [
+      { anchor: 'page-actions', title: 'Novo plano', body: 'Nasce como rascunho, a partir do modelo de mercado ou de um plano vigente.' },
+      { anchor: 'data-table', title: 'Versões', body: 'Cada plano mostra a versão vigente e o rascunho em edição.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'incentive.plan',
+    version: 1,
+    title: 'Plano',
+    summary: 'Regras, versões, simulação e publicação.',
+    steps: [
+      { anchor: 'plan-rules', title: 'Regras', body: 'Componentes, meta, qualidade e atribuição em linguagem de negócio.' },
+      { anchor: 'plan-versions', title: 'Versões', body: 'Publicadas não mudam; a anterior termina na véspera da nova.', placement: 'start' },
+      { anchor: 'page-actions', title: 'Simular e publicar', body: 'Simule sobre um mês encerrado antes de publicar a partir do dia 1º.' },
+    ],
+  },
+  {
+    id: 'incentive.plan-rules',
+    version: 1,
+    title: 'Regras do plano',
+    summary: 'Edição do rascunho com validação antes de salvar.',
+    steps: [
+      { anchor: 'rules-eligibility', title: 'Elegibilidade', body: 'Perfis, equipes, credores e dias trabalhados mínimos.' },
+      { anchor: 'rules-rate', title: 'Percentual', body: 'Tabelas por segmento com faixas progressivas ou por faixa atingida.' },
+      { anchor: 'rules-attribution', title: 'Atribuição', body: 'Peso do crédito por origem do acordo; o autônomo do assistente vai para o pool.' },
+      { anchor: 'page-actions', title: 'Salvar', body: 'Problemas aparecem em lista antes de enviar; o servidor valida de novo.' },
+    ],
+  },
+  {
     id: 'telephony.campaigns',
     version: 1,
     title: 'Campanhas de discagem',
