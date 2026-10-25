@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { provideLocale } from '../../core/config/locale.config';
+import { provideAppLocale } from '../../core/config/app-locale';
 import { PortalSite } from '../layout/portal-site';
 import { PortalEntry, lockMessage } from './portal-entry';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -13,7 +13,7 @@ describe('PortalEntry', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [PortalEntry],
-      providers: [provideLocale(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), PortalSite],
+      providers: [provideAppLocale(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), PortalSite],
     });
     http = TestBed.inject(HttpTestingController);
     TestBed.inject(PortalSite).set({

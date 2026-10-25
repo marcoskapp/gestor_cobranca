@@ -1,10 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, map, startWith, switchMap } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
@@ -17,6 +13,8 @@ import { PortfolioLookup } from '../../organization/data/organization.lookups';
 import { ImportLayoutsApi, ImportReviewsApi } from '../data/ingestion.api';
 import { ACCEPT, UPLOAD_ERROR_LABELS, fileProblem, sizeText } from '../data/ingestion.labels';
 import { REVIEW_STEPS } from '../data/review.rules';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 
 /**
  * Passo 1 da conferência da importação: carteira, layout e arquivo. Nada é gravado na carteira até o passo 6; o
@@ -24,10 +22,10 @@ import { REVIEW_STEPS } from '../data/review.rules';
  */
 @Component({
   selector: 'app-review-start',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, EntityPicker, PageHeader],
+  imports: [...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, EntityPicker, PageHeader],
   template: `
     <app-page-header title="Nova importação" subtitle="Envie o arquivo do credor. Antes de gravar, você confere formato, totais e alertas.">
-      <a mat-button routerLink="/importacao"><mat-icon aria-hidden="true">arrow_back</mat-icon>Importações</a>
+      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
     </app-page-header>
 
     <ol class="rs-steps" aria-label="Etapas da conferência">
@@ -39,19 +37,18 @@ import { REVIEW_STEPS } from '../data/review.rules';
     <form class="app-card rs-form" [formGroup]="form" (ngSubmit)="send()" novalidate data-tour="review-upload">
       <h2 class="app-card__title">Arquivo e layout</h2>
       <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira" [single]="true" hint="Os títulos entram nesta carteira (e no seu credor)." />
-      <mat-form-field class="app-full-width">
-        <mat-label>Layout</mat-label>
-        <mat-select formControlName="layoutId">
-          <mat-option value="">Layout padrão (formato pela extensão)</mat-option>
+      <app-field class="app-full-width" label="Layout">
+        <select appInput formControlName="layoutId">
+          <option value="">Layout padrão (formato pela extensão)</option>
           @for (l of layouts(); track l.id) {
-            <mat-option [value]="l.id">{{ l.name }} · {{ l.code }} v{{ l.version }} ({{ l.format }})</mat-option>
+            <option [ngValue]="l.id">{{ l.name }} · {{ l.code }} v{{ l.version }} ({{ l.format }})</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
       <div class="rs-file">
         <input #input type="file" [accept]="accept" (change)="pick(input.files); input.value = ''" hidden />
-        <button mat-stroked-button type="button" (click)="input.click()">
-          <mat-icon aria-hidden="true">upload_file</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="input.click()">
+          <app-icon name="file-earmark-arrow-up" />
           Escolher arquivo
         </button>
         @if (file(); as f) {
@@ -65,12 +62,12 @@ import { REVIEW_STEPS } from '../data/review.rules';
         você escolhe a leitura vendo exemplos do próprio arquivo.
       </p>
       @if (error()) {
-        <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+        <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
       }
       <div class="rs-actions">
-        <a mat-button routerLink="/importacao">Cancelar</a>
-        <button mat-flat-button type="submit" [disabled]="sending() || !file() || !portfolioId()">
-          <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+        <a class="btn btn-link" routerLink="/importacao">Cancelar</a>
+        <button class="btn btn-primary" type="submit" [disabled]="sending() || !file() || !portfolioId()">
+          <app-icon name="arrow-right" />
           Enviar e conferir
         </button>
       </div>
@@ -85,7 +82,7 @@ import { REVIEW_STEPS } from '../data/review.rules';
       padding: 0;
       list-style: none;
       font-size: var(--app-text-sm);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .rs-steps li {
       display: inline-flex;
@@ -98,17 +95,17 @@ import { REVIEW_STEPS } from '../data/review.rules';
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      border: 1px solid var(--app-border);
+      border: 1px solid var(--bs-border-color);
       font-size: var(--app-text-xs);
     }
     .rs-steps--current {
-      color: var(--mat-sys-on-surface);
+      color: var(--bs-body-color);
       font-weight: 600;
     }
     .rs-steps--current .rs-steps__n {
-      background: var(--mat-sys-primary);
-      border-color: var(--mat-sys-primary);
-      color: var(--mat-sys-on-primary);
+      background: var(--bs-primary);
+      border-color: var(--bs-primary-text-emphasis);
+      color: var(--bs-white);
     }
     .rs-form {
       max-width: 720px;

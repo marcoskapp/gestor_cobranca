@@ -1,20 +1,20 @@
 import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, finalize, of, switchMap } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { isoDate } from '../../../shared/models/dates';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { StatementsApi } from '../data/settlement.api';
 import { SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { PeriodSuggestion, StatementView } from '../data/settlement.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+
 
 /**
  * Novo demonstrativo do credor: o período sugerido é o ciclo seguinte ao último demonstrativo (ou o
@@ -22,33 +22,48 @@ import { PeriodSuggestion, StatementView } from '../data/settlement.models';
  */
 @Component({
   selector: 'app-new-statement-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, EntityPicker],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title>Novo demonstrativo</h2>
-    <form [formGroup]="form" (ngSubmit)="create()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Novo demonstrativo</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="create()" novalidate>
+      <div class="modal-body">
         <app-entity-picker [control]="form.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
         @if (suggestion(); as s) {
           <p class="app-muted ns-small" role="status">Período sugerido pelo fechamento {{ s.settlementDay ? 'do dia ' + s.settlementDay : 'do contrato' }}. Ajuste só se o credor pediu outro ciclo (até 3 meses, sem lacunas).</p>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Período</mat-label>
-          <mat-date-range-input [rangePicker]="picker">
-            <input matStartDate formControlName="start" placeholder="Início" />
-            <input matEndDate formControlName="end" placeholder="Fim" />
-          </mat-date-range-input>
-          <mat-datepicker-toggle matIconSuffix [for]="picker" />
-          <mat-date-range-picker #picker />
-          <mat-hint>Vazio = o sistema escolhe o próximo ciclo</mat-hint>
-        </mat-form-field>
+        <fieldset class="mt-3" aria-describedby="ns-period-hint">
+          <legend class="form-label fs-5 mb-1">Período</legend>
+          <div class="row g-2">
+            <app-field class="col-sm-6" label="Início">
+              <div class="input-group">
+                <input appInput ngbDatepicker #start="ngbDatepicker" formControlName="start" placeholder="dd/mm/aaaa" autocomplete="off" />
+                <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário do início" (click)="start.toggle()">
+                  <app-icon name="calendar-event" />
+                </button>
+              </div>
+            </app-field>
+            <app-field class="col-sm-6" label="Fim">
+              <div class="input-group">
+                <input appInput ngbDatepicker #end="ngbDatepicker" formControlName="end" placeholder="dd/mm/aaaa" autocomplete="off" />
+                <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário do fim" (click)="end.toggle()">
+                  <app-icon name="calendar-event" />
+                </button>
+              </div>
+            </app-field>
+          </div>
+          <div class="form-text" id="ns-period-hint">Vazio = o sistema escolhe o próximo ciclo</div>
+        </fieldset>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="!form.controls.creditor.value.length || sending()">Criar rascunho</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="!form.controls.creditor.value.length || sending()">Criar rascunho</button>
+      </div>
     </form>
   `,
   styles: `
@@ -60,7 +75,7 @@ import { PeriodSuggestion, StatementView } from '../data/settlement.models';
 })
 export class NewStatementDialog {
   private readonly api = inject(StatementsApi);
-  private readonly ref = inject<MatDialogRef<NewStatementDialog, StatementView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<StatementView>>(DialogRef);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly suggestion = signal<PeriodSuggestion | null>(null);
   protected readonly sending = signal(false);
@@ -69,8 +84,9 @@ export class NewStatementDialog {
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
     creditor: this.fb.control<string[]>([]),
-    start: this.fb.control<Date | null>(null),
-    end: this.fb.control<Date | null>(null),
+    // LocalDate (`yyyy-MM-dd`) do ngbDatepicker
+    start: this.fb.control<string | null>(null),
+    end: this.fb.control<string | null>(null),
   });
 
   constructor() {
@@ -81,7 +97,7 @@ export class NewStatementDialog {
       )
       .subscribe((s) => {
         this.suggestion.set(s);
-        this.form.patchValue({ start: fromLocalDate(s?.periodStart), end: fromLocalDate(s?.periodEnd) });
+        this.form.patchValue({ start: s?.periodStart ?? null, end: s?.periodEnd ?? null });
       });
   }
 
@@ -94,7 +110,7 @@ export class NewStatementDialog {
     this.sending.set(true);
     this.error.set(null);
     this.api
-      .create({ creditorId, periodStart: toLocalDate(v.start), periodEnd: toLocalDate(v.end) })
+      .create({ creditorId, periodStart: isoDate(v.start), periodEnd: isoDate(v.end) })
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe({
         next: (s) => this.ref.close(s),

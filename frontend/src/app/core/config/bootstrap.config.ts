@@ -90,6 +90,9 @@ export function provideBootstrapDefaults(): EnvironmentProviders {
       // diálogos (`modal-dialog-scrollable`) e painéis com `overflow`
       inject(NgbInputDatepickerConfig).container = 'body';
 
+      // posição fixa: o calendário do campo não é cortado pelo corpo rolável do diálogo nem por tabelas
+      inject(NgbInputDatepickerConfig).popperOptions = (options) => ({ ...options, strategy: 'fixed' });
+
       inject(NgbTypeaheadConfig).focusFirst = false;
     }),
   ]);

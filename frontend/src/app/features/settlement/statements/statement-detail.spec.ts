@@ -1,4 +1,4 @@
-import { MatDialog } from '@angular/material/dialog';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { of } from 'rxjs';
 import { button, page, render, setup, text } from '../../../../testing/component-harness';
 import { adjustment, statement } from '../../../../testing/settlement-fixtures';
@@ -51,7 +51,7 @@ describe('StatementDetail (demonstrativo)', () => {
 
   it('ajuste aguardando segunda aprovação fica em destaque até a decisão', async () => {
     const pending = adjustment({ status: 'PENDING_SECOND_APPROVAL', amount: 1500, requestedBy: 'u-3' });
-    const own = setup(StatementDetail, ['SETTLEMENT_VIEW', 'SETTLEMENT_APPROVE'], 'u-3', [{ provide: ConfirmService, useValue: confirm }, { provide: MatDialog, useValue: { open: vi.fn() } }]);
+    const own = setup(StatementDetail, ['SETTLEMENT_VIEW', 'SETTLEMENT_APPROVE'], 'u-3', [{ provide: ConfirmService, useValue: confirm }, { provide: DialogService, useValue: { open: vi.fn() } }]);
     const fixture = await render(StatementDetail, own.http, respond(statement({ status: 'CALCULATED' }), [pending]), { id: 'st-1' });
     expect(text(fixture)).toContain('1 ajuste(s) aguardando segunda aprovação');
     expect(text(fixture)).toContain('Ajustes (1)');

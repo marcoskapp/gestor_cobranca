@@ -1,13 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, finalize, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -17,11 +10,14 @@ import { EntityPicker } from '../../../shared/components/entity-picker/entity-pi
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
-import { toLocalDate } from '../../../shared/models/dates';
+import { isoDate } from '../../../shared/models/dates';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { ReceiptTable } from '../components/receipt-table';
 import { CommissionLedgerApi } from '../data/settlement.api';
 import { RatingStatus, ReceiptFilter } from '../data/settlement.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 /**
  * Razão de comissão: recebimentos e estornos apurados (append-only), com regra, versão e memória de
@@ -29,12 +25,12 @@ import { RatingStatus, ReceiptFilter } from '../data/settlement.models';
  */
 @Component({
   selector: 'app-receipt-list',
-  imports: [ReactiveFormsModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatTooltipModule, EntityPicker, PageHeader, ReceiptTable],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, NgbTooltip, ...FORM_FIELD, Icon, EntityPicker, PageHeader, ReceiptTable],
   template: `
     <app-page-header title="Razão de comissão" subtitle="Cada recebimento confirmado vira um lançamento com a regra vigente na data do pagamento. Lançamentos não mudam: estornos compensam.">
       @if (canManage()) {
-        <button mat-stroked-button type="button" (click)="ratePending()" [disabled]="!creditorId() || rating()" [matTooltip]="creditorId() ? 'Tenta apurar os recebimentos que aguardam regra' : 'Escolha um credor'" data-tour="ledger-rate">
-          <mat-icon aria-hidden="true">autorenew</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="ratePending()" [disabled]="!creditorId() || rating()" [ngbTooltip]="creditorId() ? 'Tenta apurar os recebimentos que aguardam regra' : 'Escolha um credor'" data-tour="ledger-rate">
+          <app-icon name="arrow-repeat" />
           Reapurar pendentes
         </button>
       }
@@ -43,33 +39,38 @@ import { RatingStatus, ReceiptFilter } from '../data/settlement.models';
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Apuração</mat-label>
-        <mat-select formControlName="rating">
-          <mat-option value="">Todas</mat-option>
-          <mat-option value="RATED">Apurados</mat-option>
-          <mat-option value="PENDING_RULES">Aguardando regra</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Prestação de contas</mat-label>
-        <mat-select formControlName="inStatement">
-          <mat-option value="">Todos</mat-option>
-          <mat-option value="false">Ainda não prestados</mat-option>
-          <mat-option value="true">Já prestados</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Pago entre</mat-label>
-        <mat-date-range-input [rangePicker]="period">
-          <input matStartDate formControlName="from" placeholder="De" />
-          <input matEndDate formControlName="to" placeholder="Até" />
-        </mat-date-range-input>
-        <mat-datepicker-toggle matIconSuffix [for]="period" />
-        <mat-date-range-picker #period />
-      </mat-form-field>
+      <app-field label="Apuração">
+        <select appInput formControlName="rating">
+          <option value="">Todas</option>
+          <option value="RATED">Apurados</option>
+          <option value="PENDING_RULES">Aguardando regra</option>
+        </select>
+      </app-field>
+      <app-field label="Prestação de contas">
+        <select appInput formControlName="inStatement">
+          <option value="">Todos</option>
+          <option value="false">Ainda não prestados</option>
+          <option value="true">Já prestados</option>
+        </select>
+      </app-field>
+      <app-field label="Pago de">
+        <div class="input-group">
+          <input appInput ngbDatepicker #from="ngbDatepicker" formControlName="from" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário (pago de)" (click)="from.toggle()">
+            <app-icon name="calendar-event" />
+          </button>
+        </div>
+      </app-field>
+      <app-field label="Pago até">
+        <div class="input-group">
+          <input appInput ngbDatepicker #to="ngbDatepicker" formControlName="to" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário (pago até)" (click)="to.toggle()">
+            <app-icon name="calendar-event" />
+          </button>
+        </div>
+      </app-field>
       <div class="app-filters__actions">
-        <button mat-button type="button" (click)="clear()">Limpar filtros</button>
+        <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
       </div>
     </form>
     <app-receipt-table [query]="query" />
@@ -89,8 +90,8 @@ export class ReceiptList {
     creditor: this.fb.control<string[]>(this.params.get('credor') ? [this.params.get('credor')!] : []),
     rating: [this.params.get('apuracao') ?? ''],
     inStatement: [''],
-    from: this.fb.control<Date | null>(null),
-    to: this.fb.control<Date | null>(null),
+    from: this.fb.control<string | null>(null),
+    to: this.fb.control<string | null>(null),
   });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -128,8 +129,8 @@ export class ReceiptList {
       creditorId: v.creditor[0] ?? null,
       ratingStatus: (v.rating || null) as RatingStatus | null,
       inStatement: v.inStatement === '' ? null : v.inStatement === 'true',
-      from: toLocalDate(v.from),
-      to: toLocalDate(v.to),
+      from: isoDate(v.from),
+      to: isoDate(v.to),
     };
   }
 }

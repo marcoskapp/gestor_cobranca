@@ -1,8 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -18,6 +15,8 @@ import { CreditorLookup, CreditorNames, PortfolioNames } from '../../organizatio
 import { FormDialogService } from '../components/form-dialog';
 import { LegalSetupApi } from '../data/legal.api';
 import { RuleRequest, RuleView } from '../data/legal.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 /** Critérios da regra em texto curto (combinados por "e"). */
 export function ruleCriteria(r: Pick<RuleView, 'minDaysOverdue' | 'minOpenBalance' | 'requireCollateral' | 'requireExecutiveTitle' | 'minBrokenAgreements' | 'prescriptionWithinDays'>): string {
@@ -37,11 +36,11 @@ export function ruleCriteria(r: Pick<RuleView, 'minDaysOverdue' | 'minOpenBalanc
  */
 @Component({
   selector: 'app-eligibility-rules',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, Amount, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [NgbTooltip, Icon, Amount, CellDef, DataTable, PageHeader, StatusChip],
   template: `
     <app-page-header title="Regras de elegibilidade" subtitle="Quando um caso de cobrança é indicado ao jurídico. Critérios combinam por “e”; regras somam-se por “ou”.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="edit(null)"><mat-icon aria-hidden="true">add</mat-icon>Nova regra</button>
+        <button class="btn btn-primary" type="button" (click)="edit(null)"><app-icon name="plus-lg" /> Nova regra</button>
       }
     </app-page-header>
     <app-data-table
@@ -51,7 +50,7 @@ export function ruleCriteria(r: Pick<RuleView, 'minDaysOverdue' | 'minOpenBalanc
       [loading]="rules.isLoading()"
       [failed]="rules.status() === 'error'"
       (retry)="rules.reload()"
-      emptyIcon="rule"
+      emptyIcon="list-check"
       emptyMessage="Nenhuma regra cadastrada."
       emptyHint="Sem regras, os casos chegam ao jurídico só por indicação manual ou alerta de prescrição."
     >
@@ -70,9 +69,9 @@ export function ruleCriteria(r: Pick<RuleView, 'minDaysOverdue' | 'minOpenBalanc
       <ng-template appCell="status" [appCellOf]="rows()" let-r><app-status-chip domain="active" [status]="r.active" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-r>
         @if (canManage()) {
-          <button mat-icon-button type="button" (click)="edit(r)" [attr.aria-label]="'Editar regra ' + r.name" matTooltip="Editar"><mat-icon aria-hidden="true">edit</mat-icon></button>
-          <button mat-icon-button type="button" (click)="toggle(r)" [attr.aria-label]="(r.active ? 'Desativar' : 'Ativar') + ' regra ' + r.name" [matTooltip]="r.active ? 'Desativar' : 'Ativar'">
-            <mat-icon aria-hidden="true">{{ r.active ? 'pause_circle' : 'play_circle' }}</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="edit(r)" [attr.aria-label]="'Editar regra ' + r.name" ngbTooltip="Editar"><app-icon name="pencil" /></button>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="toggle(r)" [attr.aria-label]="(r.active ? 'Desativar' : 'Ativar') + ' regra ' + r.name" [ngbTooltip]="r.active ? 'Desativar' : 'Ativar'">
+            <app-icon [name]="r.active ? 'pause-circle' : 'play-circle'" />
           </button>
         }
       </ng-template>

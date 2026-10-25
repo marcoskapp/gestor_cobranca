@@ -1,8 +1,4 @@
 import { Component, inject, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
@@ -14,11 +10,14 @@ import { CreditorNames } from '../../organization/data/organization.lookups';
 import { PAYMENT_TYPE_LABELS, PENDING_REASON_LABELS } from '../data/settlement.labels';
 import { ReceiptView } from '../data/settlement.models';
 import { ReceiptDialog, ReceiptDialogData } from '../ledger/receipt-dialog';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Tabela do razão de comissão (lista geral e recebimentos de um demonstrativo). */
 @Component({
   selector: 'app-receipt-table',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, StatusChip],
+  imports: [NgbTooltip, Icon, Amount, AppDatePipe, CellDef, DataTable, StatusChip],
   template: `
     <app-data-table
       caption="Recebimentos e estornos no razão de comissão"
@@ -29,7 +28,7 @@ import { ReceiptDialog, ReceiptDialogData } from '../ledger/receipt-dialog';
       [page]="query().tablePage()"
       (pageChange)="query().setPage($event)"
       (retry)="query().reload()"
-      emptyIcon="receipt_long"
+      emptyIcon="receipt"
       [emptyMessage]="emptyMessage()"
       emptyHint="Recebimentos entram no razão quando o pagamento é confirmado e aplicado."
     >
@@ -71,8 +70,8 @@ import { ReceiptDialog, ReceiptDialogData } from '../ledger/receipt-dialog';
         }
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query().rows()" let-r>
-        <button mat-icon-button type="button" (click)="open(r)" aria-label="Ver memória de cálculo" matTooltip="Memória de cálculo">
-          <mat-icon aria-hidden="true">functions</mat-icon>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="open(r)" aria-label="Ver memória de cálculo" ngbTooltip="Memória de cálculo">
+          <app-icon name="calculator" />
         </button>
       </ng-template>
     </app-data-table>
@@ -88,7 +87,7 @@ export class ReceiptTable {
   readonly showCreditor = input(true);
   readonly emptyMessage = input('Nenhum recebimento encontrado.');
 
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   protected readonly paymentTypes = PAYMENT_TYPE_LABELS;
   protected readonly pending = PENDING_REASON_LABELS;
   protected readonly creditors = nameMap(inject(CreditorNames), () => (this.showCreditor() ? this.query().rows().map((r) => r.creditorId) : []));
@@ -104,6 +103,6 @@ export class ReceiptTable {
   ];
 
   protected open(r: ReceiptView): void {
-    this.dialog.open<ReceiptDialog, ReceiptDialogData>(ReceiptDialog, { data: { receiptId: r.id }, width: '720px', maxWidth: '96vw' });
+    this.dialog.open<ReceiptDialog, ReceiptDialogData>(ReceiptDialog, { data: { receiptId: r.id }, size: 'lg' });
   }
 }

@@ -1,11 +1,6 @@
 import { Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -27,6 +22,9 @@ import { LegalProfile } from '../data/legal-profile';
 import { LegalMattersApi } from '../data/legal.api';
 import { FLAG_LABELS, RESPONSIBLE_LABELS, ROUTE_LABELS, WARNING_FLAGS } from '../data/legal.labels';
 import { MatterFilter } from '../data/legal.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 export function toMatterFilter(v: { creditor: string[]; stage: string; responsible: string }): MatterFilter {
   return {
@@ -41,13 +39,11 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
 @Component({
   selector: 'app-matter-list',
   imports: [
+    NgbTooltip,
+    ...FORM_FIELD,
+    Icon,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
-    MatTooltipModule,
     Amount,
     CellDef,
     DataTable,
@@ -60,35 +56,33 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
     <app-page-header title="Casos jurídicos" subtitle="Títulos que saíram da cobrança amigável: triagem, autorização do credor, medidas extrajudiciais e processos." />
 
     @if (partner()) {
-      <p class="app-alert app-alert--info" role="note">
-        <mat-icon aria-hidden="true">business</mat-icon>
+      <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+        <app-icon name="building" />
         <span>Você vê somente os casos atribuídos ao seu escritório.</span>
-      </p>
+      </div>
     }
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar casos jurídicos">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Fase</mat-label>
-        <mat-select formControlName="stage">
-          <mat-option value="OPEN">Em aberto</mat-option>
-          <mat-option value="ALL">Todas</mat-option>
+      <app-field label="Fase">
+        <select appInput formControlName="stage">
+          <option value="OPEN">Em aberto</option>
+          <option value="ALL">Todas</option>
           @for (s of stages; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Responsável</mat-label>
-        <mat-select formControlName="responsible">
-          <mat-option value="">Qualquer</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Responsável">
+        <select appInput formControlName="responsible">
+          <option value="">Qualquer</option>
           @for (r of responsibles; track r.value) {
-            <mat-option [value]="r.value">{{ r.label }}</mat-option>
+            <option [ngValue]="r.value">{{ r.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
 
     <app-data-table
@@ -100,7 +94,7 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="gavel"
+      emptyIcon="hammer"
       emptyMessage="Nenhum caso jurídico encontrado."
       emptyHint="Casos chegam pelas regras de elegibilidade, por alerta de prescrição ou por indicação manual."
     >
@@ -130,8 +124,8 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
         }
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-m>
-        <a mat-icon-button [routerLink]="['/juridico/casos', m.id]" aria-label="Abrir caso jurídico" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/juridico/casos', m.id]" aria-label="Abrir caso jurídico" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -141,15 +135,15 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
       display: inline-block;
       margin: 0 4px 4px 0;
       padding: 0 8px;
-      border-radius: var(--app-radius-pill);
-      background: var(--app-neutral-bg);
-      color: var(--app-neutral-fg);
+      border-radius: var(--bs-border-radius-pill);
+      background: var(--bs-secondary-bg-subtle);
+      color: var(--bs-secondary-text-emphasis);
       font-size: var(--app-text-xs);
       line-height: 20px;
     }
     .ml-flag--warn {
-      background: var(--app-warning-bg);
-      color: var(--app-warning-fg);
+      background: var(--bs-warning-bg-subtle);
+      color: var(--bs-warning-text-emphasis);
     }
   `,
 })

@@ -1,7 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { tap } from 'rxjs';
 import { Amount } from '../../shared/components/amount/amount';
@@ -9,26 +7,27 @@ import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { PortalApi, portalMessage } from '../data/portal.api';
 import { UNAVAILABLE_LABELS } from '../data/portal.labels';
 import { PortalFlow } from '../data/portal-flow';
+import { Icon } from '../../shared/components/icon/icon';
 
 /** Minhas dívidas: carteiras habilitadas do credor, valor atualizado hoje e o caminho para negociar. */
 @Component({
   selector: 'app-portal-debts',
-  imports: [RouterLink, MatButtonModule, MatIconModule, Amount, AppDatePipe],
+  imports: [Icon, RouterLink, Amount, AppDatePipe],
   template: `
     <h1 class="portal-title">Minhas dívidas</h1>
-    <p class="portal-subtitle">Com {{ debts.value()?.creditorName ?? '…' }}</p>
+    <p class="mb-3 text-body-secondary">Com {{ debts.value()?.creditorName ?? '…' }}</p>
 
     @if (debts.isLoading() && !debts.value()) {
-      <p class="portal-loading" role="status" aria-live="polite">Buscando suas dívidas…</p>
+      <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Buscando suas dívidas…</p>
     } @else if (debts.error()) {
-      <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ errorText() }}</span></p>
-      <div class="portal-actions"><button mat-stroked-button type="button" (click)="debts.reload()">Tentar de novo</button></div>
+      <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
+      <div class="portal-actions"><button class="btn btn-outline-primary portal-btn-outline" type="button" (click)="debts.reload()">Tentar de novo</button></div>
     } @else if ((debts.value()?.portfolios ?? []).length === 0) {
-      <section class="portal-card portal-center">
-        <mat-icon class="portal-big-icon" aria-hidden="true">task_alt</mat-icon>
+      <section class="portal-card text-center">
+        <app-icon class="portal-big-icon" name="check2-circle" />
         <h2 class="portal-title">Nenhuma dívida em aberto</h2>
         <p>Não encontramos dívidas em aberto neste portal. Se tiver dúvidas, fale com um atendente.</p>
-        <div class="portal-actions"><a mat-stroked-button [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
+        <div class="portal-actions"><a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
       </section>
     } @else {
       @for (p of debts.value()!.portfolios; track p.portfolioId) {
@@ -55,15 +54,15 @@ import { PortalFlow } from '../data/portal-flow';
           </details>
           @if (p.negotiable) {
             <div class="portal-actions">
-              <a mat-flat-button [routerLink]="['/portal', slug(), 'dividas', p.portfolioId]">Ver condições para pagar</a>
+              <a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug(), 'dividas', p.portfolioId]">Ver condições para pagar</a>
             </div>
           } @else {
-            <p class="portal-note" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>{{ unavailable[p.unavailableReason!] }}</span></p>
+            <p class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" /><span>{{ unavailable[p.unavailableReason!] }}</span></p>
             <div class="portal-actions">
               @if (p.activeAgreementId) {
-                <a mat-flat-button [routerLink]="['/portal', slug(), 'acordos', p.activeAgreementId]">Ver meu acordo</a>
+                <a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug(), 'acordos', p.activeAgreementId]">Ver meu acordo</a>
               } @else {
-                <a mat-stroked-button [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a>
+                <a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a>
               }
             </div>
           }

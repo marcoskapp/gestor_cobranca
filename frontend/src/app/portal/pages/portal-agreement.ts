@@ -1,7 +1,5 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { Amount } from '../../shared/components/amount/amount';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
@@ -9,15 +7,16 @@ import { PortalPix } from '../components/portal-pix';
 import { PortalApi, portalMessage } from '../data/portal.api';
 import { AGREEMENT_LABELS, INSTALLMENT_LABELS } from '../data/portal.labels';
 import { InstallmentItem, PixView } from '../data/portal.models';
+import { Icon } from '../../shared/components/icon/icon';
 
 /** Acordo e parcelas: 2ª via do Pix por parcela em aberto e o termo aceito (PDF). */
 @Component({
   selector: 'app-portal-agreement',
-  imports: [RouterLink, MatButtonModule, MatIconModule, Amount, AppDatePipe, PortalPix],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, PortalPix],
   template: `
-    <a mat-button [routerLink]="['/portal', slug(), 'acordos']"><mat-icon aria-hidden="true">arrow_back</mat-icon>Meus acordos</a>
+    <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'acordos']"><app-icon name="arrow-left" /> Meus acordos</a>
     @if (agreement.error()) {
-      <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ errorText() }}</span></p>
+      <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
     } @else if (agreement.value(); as a) {
       <h1 class="portal-title">{{ labels[a.status] ?? a.status }}</h1>
       <section class="portal-card">
@@ -30,8 +29,8 @@ import { InstallmentItem, PixView } from '../data/portal.models';
         <p class="portal-label">Fechado em {{ a.formalizedAt | appDate }}.</p>
         @if (a.termAvailable) {
           <div class="portal-actions">
-            <button mat-stroked-button type="button" (click)="downloadTerm(a.id)">
-              <mat-icon aria-hidden="true">description</mat-icon>Baixar termo do acordo (PDF)
+            <button class="btn btn-outline-primary portal-btn-outline" type="button" (click)="downloadTerm(a.id)">
+              <app-icon name="file-earmark-text" /> Baixar termo do acordo (PDF)
             </button>
           </div>
         }
@@ -48,18 +47,18 @@ import { InstallmentItem, PixView } from '../data/portal.models';
             <app-portal-pix [pix]="p" (refresh)="loadPix(a.id, i)" />
           } @else if (open(i) && ['FORMALIZED', 'IN_PAYMENT'].includes(a.status)) {
             <div class="portal-actions">
-              <button mat-flat-button type="button" (click)="loadPix(a.id, i)" [disabled]="loading() === i.id">
-                <mat-icon aria-hidden="true">qr_code_2</mat-icon>{{ loading() === i.id ? 'Gerando…' : 'Pagar com Pix' }}
+              <button class="btn btn-primary portal-btn" type="button" (click)="loadPix(a.id, i)" [disabled]="loading() === i.id">
+                <app-icon name="qr-code" /> {{ loading() === i.id ? 'Gerando…' : 'Pagar com Pix' }}
               </button>
             </div>
           }
         </section>
       }
       @if (error()) {
-        <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ error() }}</span></p>
+        <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
       }
     } @else {
-      <p class="portal-loading" role="status" aria-live="polite">Carregando…</p>
+      <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Carregando…</p>
     }
   `,
   styles: `

@@ -1,15 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -28,17 +19,21 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { zonedNow } from '../../collection/data/collection.rules';
-import { DateDialog, DateDialogData } from '../../negotiation/policies/policy-dialogs';
 import { ContractsApi } from '../../organization/data/organization.api';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { ContractView } from '../../organization/data/organization.models';
 import { parseMoney } from '../../payment/data/payment.rules';
+import { FormDialogService } from '../../legal/components/form-dialog';
 import { CalculationMemory } from '../components/calculation-memory';
 import { CommissionRulesApi } from '../data/settlement.api';
 import { HONORARIUM_OWNERSHIP_LABELS, PAYMENT_TYPE_LABELS, RECEIVED_BY_LABELS, SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { CalculationView, CommissionRules, HonorariumOwnership, PaymentType, RateRule, ReceivedBy } from '../data/settlement.models';
 import { cloneRules, criteriaText, periodText, rulesProblems, specificity } from '../data/settlement.rules';
 import { RateRuleDialog, RateRuleDialogData } from './rate-rule-dialog';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /**
  * Versão das regras de comissão: leitura (publicada/descartada) ou edição do rascunho com
@@ -50,14 +45,9 @@ import { RateRuleDialog, RateRuleDialogData } from './rate-rule-dialog';
   imports: [
     FormsModule,
     RouterLink,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
+    NgbTooltip,
+    ...FORM_FIELD,
+    Icon,
     Amount,
     AppDatePipe,
     CalculationMemory,
@@ -75,8 +65,9 @@ export class RuleSetDetail {
   private readonly api = inject(CommissionRulesApi);
   private readonly contractsApi = inject(ContractsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
+  private readonly forms = inject(FormDialogService);
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly breadcrumbs = inject(BreadcrumbService);
@@ -226,7 +217,7 @@ export class RuleSetDetail {
     }
     const used = d.rateRules.filter((r) => r !== rule).map((r) => r.code);
     this.dialog
-      .open<RateRuleDialog, RateRuleDialogData, RateRule>(RateRuleDialog, { data: { creditorId: p.creditorId, rule, usedCodes: used }, width: '640px', maxWidth: '96vw' })
+      .open<RateRuleDialog, RateRuleDialogData, RateRule>(RateRuleDialog, { data: { creditorId: p.creditorId, rule, usedCodes: used }, size: 'lg' })
       .afterClosed()
       .subscribe((result) => {
         if (!result) {
@@ -301,29 +292,34 @@ export class RuleSetDetail {
     const today = zonedNow().date;
     const active = this.versions().find((v) => v.status === 'PUBLISHED' && (!v.effectiveTo || v.effectiveTo >= today));
     const c = this.contract();
-    this.dialog
-      .open<DateDialog, DateDialogData, string | null>(DateDialog, {
-        data: {
-          title: `Publicar versão ${p.ruleVersion}`,
-          message: 'A versão publicada não muda mais. Recebimentos com data de pagamento a partir do início da vigência são apurados por ela; os que aguardavam regra são apurados agora.',
-          label: 'Vigente a partir de',
-          confirmLabel: 'Publicar',
-          min: c?.startDate ?? '2000-01-01',
-          initial: today,
-          details: [
-            { label: 'Credor', value: this.creditors.name(p.creditorId) },
-            { label: 'Contrato', value: c ? `${c.number} (fechamento dia ${c.settlementDay})` : p.contractId.slice(0, 8) },
-            { label: 'Percentual padrão', value: `${this.rateText(p.rules.defaultRate)}%` },
-            { label: 'Regras específicas', value: String(p.rules.rateRules.length) },
-            { label: 'Editado por', value: this.users.name(p.rulesEditedBy) },
-            { label: 'Versão vigente', value: active ? `v${active.ruleVersion} (termina na véspera)` : 'nenhuma' },
-          ],
-          warning: 'A vigência não pode alcançar recebimentos já apurados nem períodos já prestados.',
-        },
-        width: '540px',
-        maxWidth: '96vw',
+    const min = c?.startDate ?? '2000-01-01';
+    this.forms
+      .open<string>({
+        title: `Publicar versão ${p.ruleVersion}`,
+        message: 'A versão publicada não muda mais. Recebimentos com data de pagamento a partir do início da vigência são apurados por ela; os que aguardavam regra são apurados agora.',
+        submitLabel: 'Publicar',
+        details: [
+          { label: 'Credor', value: this.creditors.name(p.creditorId) },
+          { label: 'Contrato', value: c ? `${c.number} (fechamento dia ${c.settlementDay})` : p.contractId.slice(0, 8) },
+          { label: 'Percentual padrão', value: `${this.rateText(p.rules.defaultRate)}%` },
+          { label: 'Regras específicas', value: String(p.rules.rateRules.length) },
+          { label: 'Editado por', value: this.users.name(p.rulesEditedBy) },
+          { label: 'Versão vigente', value: active ? `v${active.ruleVersion} (termina na véspera)` : 'nenhuma' },
+        ],
+        warning: 'A vigência não pode alcançar recebimentos já apurados nem períodos já prestados.',
+        fields: [
+          {
+            key: 'effectiveFrom',
+            label: 'Vigente a partir de',
+            type: 'date',
+            required: true,
+            value: today,
+            wide: true,
+            validate: (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && v < min ? `Use uma data a partir de ${min.split('-').reverse().join('/')}.` : null),
+          },
+        ],
+        submit: (v) => of(v['effectiveFrom'] as string),
       })
-      .afterClosed()
       .subscribe((date) => {
         if (!date) {
           return;

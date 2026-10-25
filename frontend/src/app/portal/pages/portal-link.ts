@@ -1,15 +1,13 @@
 import { Component, DOCUMENT, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { PortalApi, portalMessage } from '../data/portal.api';
 import { KNOWLEDGE_LABELS } from '../data/portal.labels';
 import { ChallengeView } from '../data/portal.models';
 import { PortalFlow } from '../data/portal-flow';
 import { lockMessage } from './portal-entry';
+import { Icon } from '../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../shared/forms/field';
 
 /**
  * Entrada pelo link de uso único (`/portal/:slug/entrar#<token>`). O token vem no fragmento (não vai
@@ -17,34 +15,32 @@ import { lockMessage } from './portal-entry';
  */
 @Component({
   selector: 'app-portal-link',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, Icon],
   template: `
     <section class="portal-card">
       @if (step(); as s) {
         <h1 class="portal-title">Confirme seus dados</h1>
-        <p class="portal-subtitle">Para sua segurança, informe o dado abaixo.</p>
+        <p class="mb-3 text-body-secondary">Para sua segurança, informe o dado abaixo.</p>
         <form (submit)="$event.preventDefault(); confirm(s)" novalidate>
-          <mat-form-field class="portal-field" appearance="outline">
-            <mat-label>{{ knowledge()?.label }}</mat-label>
-            <input matInput [formControl]="answer" autocomplete="off" maxlength="20" aria-describedby="k-hint" />
-            <mat-hint id="k-hint">{{ knowledge()?.hint }}</mat-hint>
-          </mat-form-field>
+          <app-field class="portal-field" [label]="knowledge()?.label ?? ''" [hint]="knowledge()?.hint">
+            <input appInput class="form-control-lg" [formControl]="answer" autocomplete="off" maxlength="20" />
+          </app-field>
           @if (error()) {
-            <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ error() }}</span></p>
+            <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
           }
           <div class="portal-actions">
-            <button mat-flat-button type="submit" [disabled]="busy()">Entrar</button>
+            <button class="btn btn-primary portal-btn" type="submit" [disabled]="busy()">Entrar</button>
           </div>
         </form>
       } @else if (error()) {
         <h1 class="portal-title">Não foi possível entrar pelo link</h1>
-        <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon>
+        <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" />
           <span>{{ error() }} O link vale uma única vez e por tempo limitado.</span></p>
         <div class="portal-actions">
-          <a mat-flat-button [routerLink]="['/portal', slug()]">Entrar com CPF ou CNPJ</a>
+          <a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug()]">Entrar com CPF ou CNPJ</a>
         </div>
       } @else {
-        <p class="portal-loading" role="status" aria-live="polite">Verificando o link…</p>
+        <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Verificando o link…</p>
       }
     </section>
   `,

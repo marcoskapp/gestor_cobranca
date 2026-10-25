@@ -1,8 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { catchError, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -19,6 +16,8 @@ import { UserLookup } from '../../admin/data/user.lookup';
 import { FormDialogService } from '../components/form-dialog';
 import { LegalOperationsApi } from '../data/legal.api';
 import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 /**
  * Escritórios parceiros e seus advogados. Cada usuário pode estar ativo em um único escritório e,
@@ -27,11 +26,11 @@ import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
  */
 @Component({
   selector: 'app-law-firms',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, CellDef, DataTable, PageHeader, StatusChip, AppDatePipe],
+  imports: [NgbTooltip, Icon, CellDef, DataTable, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Escritórios parceiros" subtitle="Escritórios que conduzem casos jurídicos e os advogados vinculados a cada um.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="edit(null)"><mat-icon aria-hidden="true">add</mat-icon>Novo escritório</button>
+        <button class="btn btn-primary" type="button" (click)="edit(null)"><app-icon name="plus-lg" /> Novo escritório</button>
       }
     </app-page-header>
 
@@ -42,7 +41,7 @@ import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
       [loading]="firms.isLoading()"
       [failed]="firms.status() === 'error'"
       (retry)="firms.reload()"
-      emptyIcon="business"
+      emptyIcon="building"
       emptyMessage="Nenhum escritório parceiro cadastrado."
       emptyHint="Com o modelo “somente jurídico interno”, escritórios não acessam a plataforma."
     >
@@ -54,11 +53,11 @@ import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
       <ng-template appCell="oab" [appCellOf]="rows()" let-f>{{ f.oabRegistration ?? '—' }}</ng-template>
       <ng-template appCell="status" [appCellOf]="rows()" let-f><app-status-chip domain="active" [status]="f.active" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-f>
-        <button mat-icon-button type="button" (click)="select(f)" [attr.aria-label]="'Advogados de ' + f.name" matTooltip="Advogados"><mat-icon aria-hidden="true">groups</mat-icon></button>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="select(f)" [attr.aria-label]="'Advogados de ' + f.name" ngbTooltip="Advogados"><app-icon name="people-fill" /></button>
         @if (canManage()) {
-          <button mat-icon-button type="button" (click)="edit(f)" [attr.aria-label]="'Editar ' + f.name" matTooltip="Editar"><mat-icon aria-hidden="true">edit</mat-icon></button>
-          <button mat-icon-button type="button" (click)="toggle(f)" [attr.aria-label]="(f.active ? 'Desativar ' : 'Ativar ') + f.name" [matTooltip]="f.active ? 'Desativar' : 'Ativar'">
-            <mat-icon aria-hidden="true">{{ f.active ? 'pause_circle' : 'play_circle' }}</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="edit(f)" [attr.aria-label]="'Editar ' + f.name" ngbTooltip="Editar"><app-icon name="pencil" /></button>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="toggle(f)" [attr.aria-label]="(f.active ? 'Desativar ' : 'Ativar ') + f.name" [ngbTooltip]="f.active ? 'Desativar' : 'Ativar'">
+            <app-icon [name]="f.active ? 'pause-circle' : 'play-circle'" />
           </button>
         }
       </ng-template>
@@ -69,7 +68,7 @@ import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
         <div class="lf-head">
           <h2 class="app-card__title" id="lf-members-title">Advogados de {{ f.name }}</h2>
           @if (canManage() && f.active) {
-            <button mat-stroked-button type="button" (click)="addMember(f)"><mat-icon aria-hidden="true">person_add</mat-icon>Vincular advogado</button>
+            <button class="btn btn-outline-primary" type="button" (click)="addMember(f)"><app-icon name="person-plus" /> Vincular advogado</button>
           }
         </div>
         <ul class="lf-list">
@@ -79,7 +78,7 @@ import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
               <span class="app-muted">desde {{ m.joinedAt | appDate: 'date' }}{{ m.leftAt ? ' até ' + (m.leftAt | appDate: 'date') : '' }}</span>
               <app-status-chip domain="active" [status]="m.active" />
               @if (canManage() && m.active) {
-                <button mat-button type="button" (click)="removeMember(f, m)">Desvincular</button>
+                <button class="btn btn-link" type="button" (click)="removeMember(f, m)">Desvincular</button>
               }
             </li>
           } @empty {
@@ -94,7 +93,7 @@ import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
       padding: 0;
       border: 0;
       background: none;
-      color: var(--mat-sys-primary);
+      color: var(--bs-primary-text-emphasis);
       font: inherit;
       font-weight: 600;
       text-decoration: underline;
@@ -120,7 +119,7 @@ import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
         align-items: center;
         gap: 4px 12px;
         padding: 8px 0;
-        border-bottom: 1px solid var(--app-border);
+        border-bottom: 1px solid var(--bs-border-color);
       }
     }
   `,

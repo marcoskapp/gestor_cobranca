@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ReviewStart } from './review-start';
 
@@ -15,7 +15,7 @@ describe('ReviewStart', () => {
     TestBed.configureTestingModule({
       imports: [ReviewStart],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
