@@ -1,14 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatRadioModule } from '@angular/material/radio';
 import { catchError, forkJoin, map, of } from 'rxjs';
 import { silentErrorContext } from '../../../core/http/http-context';
 import { toApiError, userMessage } from '../../../core/http/problem';
+import { Icon } from '../../../shared/components/icon/icon';
+import { IconName } from '../../../shared/components/icon/icon-names';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CasesApi } from '../../collection/data/collection.api';
 import { CONTACT_LABEL_LABELS } from '../../debt/data/debt.labels';
@@ -32,18 +31,19 @@ interface PhoneRow {
   state: AvailabilityState | null;
 }
 
+/** Selo da decisão do porteiro (cores "subtle"/"emphasis" do Bootstrap; texto e ícone, nunca só a cor). */
 const STATE_CLASS: Record<AvailabilityState['kind'], string> = {
-  allowed: 'app-status--success',
-  wait: 'app-status--warning',
-  blocked: 'app-status--danger',
-  suspended: 'app-status--danger',
+  allowed: 'bg-success-subtle text-success-emphasis border-success-subtle',
+  wait: 'bg-warning-subtle text-warning-emphasis border-warning-subtle',
+  blocked: 'bg-danger-subtle text-danger-emphasis border-danger-subtle',
+  suspended: 'bg-danger-subtle text-danger-emphasis border-danger-subtle',
 };
 
-const STATE_ICON: Record<AvailabilityState['kind'], string> = {
-  allowed: 'check_circle',
-  wait: 'schedule',
-  blocked: 'block',
-  suspended: 'pause_circle',
+const STATE_ICON: Record<AvailabilityState['kind'], IconName> = {
+  allowed: 'check-circle',
+  wait: 'clock',
+  blocked: 'slash-circle',
+  suspended: 'pause-circle',
 };
 
 /**
@@ -53,18 +53,21 @@ const STATE_ICON: Record<AvailabilityState['kind'], string> = {
  */
 @Component({
   selector: 'app-call-dialog',
-  imports: [FormsModule, MatDialogModule, MatButtonModule, MatIconModule, MatRadioModule, AppDatePipe],
+  imports: [...DIALOG_DIRECTIVES, Icon, AppDatePipe],
   template: `
-    <h2 mat-dialog-title>Ligar para {{ data.debtorName }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Ligar para {{ data.debtorName }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       @if (presenceProblem(); as problem) {
-        <div class="app-alert app-alert--warning cd-presence" role="note">
-          <mat-icon aria-hidden="true">headset_mic</mat-icon>
-          <span>{{ problem }}</span>
+        <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="note">
+          <app-icon name="headset" />
+          <span class="flex-grow-1">{{ problem }}</span>
           @if (session.agent()?.status === 'OFFLINE') {
-            <button mat-stroked-button type="button" (click)="enter()" [disabled]="session.busy()">Entrar na telefonia</button>
+            <button class="btn btn-sm btn-outline-primary" type="button" (click)="enter()" [disabled]="session.busy()">Entrar na telefonia</button>
           } @else if (session.agent()?.status === 'PAUSED') {
-            <button mat-stroked-button type="button" (click)="resume()" [disabled]="session.busy()">Ficar disponível</button>
+            <button class="btn btn-sm btn-outline-primary" type="button" (click)="resume()" [disabled]="session.busy()">Ficar disponível</button>
           }
         </div>
       }
@@ -73,33 +76,44 @@ const STATE_ICON: Record<AvailabilityState['kind'], string> = {
         <p class="app-muted" role="status">Consultando o porteiro de contato…</p>
       }
       @if (rows().length) {
-        <mat-radio-group class="cd-list" [ngModel]="contactId()" (ngModelChange)="contactId.set($event)" aria-label="Telefone do devedor">
+        <fieldset class="d-flex flex-column gap-2 mb-3">
+          <legend class="visually-hidden">Telefone do devedor</legend>
           @for (row of rows(); track row.contact.contactId) {
-            <mat-radio-button [value]="row.contact.contactId" [disabled]="row.state?.kind === 'blocked' || row.state?.kind === 'suspended'">
-              <span class="cd-row">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                name="cd-phone"
+                [id]="'cd-phone-' + row.contact.contactId"
+                [value]="row.contact.contactId"
+                [checked]="contactId() === row.contact.contactId"
+                [disabled]="row.state?.kind === 'blocked' || row.state?.kind === 'suspended'"
+                (change)="contactId.set(row.contact.contactId)"
+              />
+              <label class="form-check-label d-inline-flex flex-wrap align-items-center column-gap-2 row-gap-1" [for]="'cd-phone-' + row.contact.contactId">
                 <span class="app-numeric">{{ row.contact.maskedValue }}</span>
                 <span class="app-muted">{{ labels[row.contact.label] }} · prioridade {{ row.contact.priority }}</span>
                 @if (row.state; as st) {
-                  <span class="app-status" [class]="stateClass[st.kind]" [attr.title]="st.text">
-                    <mat-icon class="app-status__icon" aria-hidden="true">{{ stateIcon[st.kind] }}</mat-icon>{{ st.label }} {{ st.kind === 'wait' ? st.detail : '' }}
+                  <span class="badge rounded-pill border d-inline-flex align-items-center gap-1 fw-normal" [class]="stateClass[st.kind]" [attr.title]="st.text">
+                    <app-icon [name]="stateIcon[st.kind]" />{{ st.label }} {{ st.kind === 'wait' ? st.detail : '' }}
                   </span>
                 }
-              </span>
-            </mat-radio-button>
-            @if (row.state && row.state.kind !== 'allowed') {
-              <p class="app-muted cd-reason">{{ row.state.text }}</p>
-            }
+              </label>
+              @if (row.state && row.state.kind !== 'allowed') {
+                <p class="app-muted small mb-0">{{ row.state.text }}</p>
+              }
+            </div>
           }
-        </mat-radio-group>
+        </fieldset>
       } @else if (!gate.isLoading()) {
-        <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">phone_disabled</mat-icon><span>O devedor não tem telefone válido cadastrado.</span></p>
+        <p class="alert alert-secondary d-flex gap-2" role="note"><app-icon name="telephone-x" /><span>O devedor não tem telefone válido cadastrado.</span></p>
       }
       @if (denied(); as d) {
-        <div class="app-alert app-alert--error" role="alert" data-tour="call-denied">
-          <mat-icon aria-hidden="true">block</mat-icon>
+        <div class="alert alert-danger d-flex gap-2" role="alert" data-tour="call-denied">
+          <app-icon name="slash-circle" />
           <div>
             <strong>O sistema não permitiu a ligação agora.</strong>
-            <ul class="cd-denial">
+            <ul class="my-1 ps-3">
               @for (r of d.denialReasons; track r) {
                 <li>{{ denialText(r) }}</li>
               }
@@ -112,46 +126,21 @@ const STATE_ICON: Record<AvailabilityState['kind'], string> = {
         </div>
       }
       @if (error()) {
-        <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+        <p class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Fechar</button>
-      <button mat-flat-button type="button" (click)="dial()" [disabled]="!canDial()">
-        <mat-icon aria-hidden="true">call</mat-icon>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Fechar</button>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="dial()" [disabled]="!canDial()">
+        <app-icon name="telephone" />
         Ligar
       </button>
-    </mat-dialog-actions>
-  `,
-  styles: `
-    .cd-presence {
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .cd-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .cd-row {
-      display: inline-flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 4px 10px;
-    }
-    .cd-reason {
-      margin: -4px 0 4px 40px;
-      font-size: var(--app-text-xs);
-    }
-    .cd-denial {
-      margin: 4px 0;
-      padding-left: 18px;
-    }
+    </div>
   `,
 })
 export class CallDialog {
-  protected readonly data = inject<CallDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<CallDialog, CallView>>(MatDialogRef);
+  protected readonly data = inject<CallDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<CallView>>(DialogRef);
   private readonly cases = inject(CasesApi);
   protected readonly session = inject(TelephonySession);
   protected readonly labels = CONTACT_LABEL_LABELS;

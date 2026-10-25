@@ -1,19 +1,19 @@
 @if (campaign.status() === 'error') {
-  <app-empty-state icon="insights" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/campanhas">Voltar para campanhas</a>
+  <app-empty-state icon="graph-up" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="campaign.reload()">Tentar novamente</button>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas">Voltar para campanhas</a>
   </app-empty-state>
 }
 
 @if (current(); as c) {
   <app-page-header [title]="'Execução · ' + c.name" subtitle="Quem foi inscrito, o que cada etapa fez, por que pulou ou falhou e quais resultados vieram da campanha.">
-    <button mat-stroked-button type="button" (click)="refresh()" [disabled]="dashboard.isLoading()">
-      <mat-icon aria-hidden="true">refresh</mat-icon>
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="refresh()" [disabled]="dashboard.isLoading()">
+      <app-icon name="arrow-clockwise" />
       Atualizar
     </button>
     @if (canExecute()) {
-      <button mat-flat-button type="button" (click)="reprocess()" [disabled]="failedEnrollments() === 0" [matTooltip]="failedEnrollments() ? 'Reprocessa as inscrições com falha, sem duplicar mensagens' : 'Nenhuma inscrição com falha'">
-        <mat-icon aria-hidden="true">replay</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="reprocess()" [disabled]="failedEnrollments() === 0" [ngbTooltip]="failedEnrollments() ? 'Reprocessa as inscrições com falha, sem duplicar mensagens' : 'Nenhuma inscrição com falha'">
+        <app-icon name="arrow-counterclockwise" />
         Reprocessar falhas ({{ count(failedEnrollments()) }})
       </button>
     }
@@ -23,12 +23,14 @@
   @if (dashboard.isLoading() && !panel()) {
     <app-skeleton variant="card" [rows]="4" />
   } @else if (dashboard.status() === 'error' && !panel()) {
-    <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o painel." message="Verifique a conexão e tente novamente.">
-      <button mat-stroked-button type="button" (click)="dashboard.reload()">Tentar novamente</button>
+    <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o painel." message="Verifique a conexão e tente novamente.">
+      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="dashboard.reload()">Tentar novamente</button>
     </app-empty-state>
   } @else if (panel(); as p) {
     @if (dashboard.isLoading()) {
-      <mat-progress-bar mode="indeterminate" aria-label="Atualizando painel" />
+      <div class="progress mb-2" role="progressbar" aria-label="Atualizando painel">
+        <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+      </div>
     }
     <p class="app-muted ex-small">
       <app-status-chip domain="campaign" [status]="c.status" />
@@ -50,7 +52,7 @@
         <span class="ex-kpi__label">Inscrições com falha</span>
         <span class="ex-kpi__value app-numeric">
           @if (failedEnrollments() > 0) {
-            <mat-icon aria-hidden="true">error_outline</mat-icon>
+            <app-icon name="exclamation-circle" />
           }
           {{ count(failedEnrollments()) }}
         </span>
@@ -154,16 +156,16 @@
 
     <section class="app-card" aria-labelledby="ex-steps">
       <h2 class="app-card__title" id="ex-steps">Por etapa</h2>
-      <div class="ex-scroll">
-        <table class="ex-table">
-          <caption class="cdk-visually-hidden">Execuções por etapa</caption>
+      <div class="table-responsive">
+        <table class="table table-sm small text-nowrap mb-0">
+          <caption class="visually-hidden">Execuções por etapa</caption>
           <thead>
             <tr>
               <th scope="col">Etapa</th>
               <th scope="col">Ação</th>
-              <th scope="col" class="ex-end">Executadas</th>
-              <th scope="col" class="ex-end">Puladas</th>
-              <th scope="col" class="ex-end">Falhas</th>
+              <th scope="col" class="text-end">Executadas</th>
+              <th scope="col" class="text-end">Puladas</th>
+              <th scope="col" class="text-end">Falhas</th>
             </tr>
           </thead>
           <tbody>
@@ -171,9 +173,9 @@
               <tr>
                 <th scope="row">{{ s.stepCode === 'REPLY' ? 'Resposta do devedor' : s.stepCode }}</th>
                 <td>{{ s.actionType ? actionLabels[s.actionType] : '—' }}{{ s.channel ? ' · ' + channel(s.channel) : '' }}</td>
-                <td class="ex-end app-numeric">{{ count(s.executed) }}</td>
-                <td class="ex-end app-numeric">{{ count(s.skipped) }}</td>
-                <td class="ex-end app-numeric" [class.ex-bad]="s.failed > 0">{{ count(s.failed) }}</td>
+                <td class="text-end app-numeric">{{ count(s.executed) }}</td>
+                <td class="text-end app-numeric">{{ count(s.skipped) }}</td>
+                <td class="text-end app-numeric" [class.ex-bad]="s.failed > 0">{{ count(s.failed) }}</td>
               </tr>
             } @empty {
               <tr><td colspan="5" class="app-muted">Nenhuma etapa executada ainda.</td></tr>
@@ -187,15 +189,14 @@
   <section class="ex-enrollments" aria-labelledby="ex-list" data-tour="execution-enrollments">
     <h2 class="app-section-title" id="ex-list">Inscrições</h2>
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar inscrições">
-      <mat-form-field class="app-compact">
-        <mat-label>Estado</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todos</mat-option>
+      <app-field label="Estado">
+        <select appInput formControlName="status">
+          <option value="">Todos</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor" [single]="true" placeholder="Nome ou CPF/CNPJ…" />
       </div>
@@ -209,7 +210,7 @@
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="group_off"
+      emptyIcon="person-x"
       emptyMessage="Nenhuma inscrição encontrada."
       emptyHint="Com a campanha ativa, os casos do segmento são inscritos em lotes a cada poucos minutos."
     >
@@ -223,8 +224,8 @@
       <ng-template appCell="arm" [appCellOf]="query.rows()" let-e>{{ e.experimentId ? (e.control ? 'Controle' : e.variantCode) : '—' }}</ng-template>
       <ng-template appCell="enrolled" [appCellOf]="query.rows()" let-e>{{ e.enrolledAt | appDate }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-e>
-        <button mat-icon-button type="button" (click)="open(e)" [attr.aria-label]="'Abrir inscrição de ' + debtors.name(e.debtorId)" matTooltip="Etapas e comandos">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <button class="btn btn-link" type="button" (click)="open(e)" [attr.aria-label]="'Abrir inscrição de ' + debtors.name(e.debtorId)" ngbTooltip="Etapas e comandos">
+          <app-icon name="chevron-right" />
         </button>
       </ng-template>
     </app-data-table>

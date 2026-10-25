@@ -1,12 +1,10 @@
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbDropdownModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, of } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { Icon } from '../../../shared/components/icon/icon';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
 import { DialerCampaignsApi } from '../data/telephony.api';
@@ -23,105 +21,81 @@ import { TelephonySession } from './telephony-session';
  */
 @Component({
   selector: 'app-presence-bar',
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, StatusChip],
+  imports: [NgbDropdownModule, NgbTooltip, Icon, StatusChip],
   template: `
     @if (session.enabled()) {
-      <div class="pb" role="group" aria-label="Presença na telefonia" data-tour="presence">
+      <div class="d-flex flex-wrap align-items-center column-gap-2 row-gap-1" role="group" aria-label="Presença na telefonia" data-tour="presence">
         @if (session.configured() === false) {
-          <span class="app-muted pb-small" matTooltip="Peça ao gestor para habilitar o seu usuário na telefonia"><mat-icon class="pb-icon" aria-hidden="true">phone_disabled</mat-icon>Sem ramal</span>
+          <span class="app-muted small d-inline-flex align-items-center gap-1" ngbTooltip="Peça ao gestor para habilitar o seu usuário na telefonia"><app-icon name="telephone-x" />Sem ramal</span>
         } @else if (agent(); as a) {
           <app-status-chip domain="agentPresence" [status]="a.status" />
           @if (a.status === 'PAUSED' && a.pauseReason) {
-            <span class="pb-small">{{ pauseLabels[a.pauseReason] }}</span>
+            <span class="small">{{ pauseLabels[a.pauseReason] }}</span>
           }
           @if (a.status !== 'OFFLINE') {
-            <span class="pb-small app-numeric app-muted" matTooltip="Tempo neste estado">{{ since() }}</span>
+            <span class="small app-numeric app-muted" ngbTooltip="Tempo neste estado">{{ since() }}</span>
           }
           @if (call(); as c) {
-            <span class="pb-call" aria-live="polite">
-              <mat-icon class="pb-icon" aria-hidden="true">call</mat-icon>
+            <span class="d-inline-flex flex-wrap align-items-center gap-2 px-2 py-1 rounded bg-body-tertiary small" aria-live="polite">
+              <app-icon name="telephone" />
               {{ c.numberMasked }} · <app-status-chip domain="call" [status]="c.status" />
               @if (active()) {
-                <button mat-stroked-button type="button" class="pb-hangup" (click)="hangup()" aria-label="Encerrar chamada">
-                  <mat-icon aria-hidden="true">call_end</mat-icon>
+                <button class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" type="button" (click)="hangup()" aria-label="Encerrar chamada">
+                  <app-icon name="telephone-x" />
                   Encerrar
                 </button>
               }
             </span>
           }
           @if (actions().login) {
-            <button mat-stroked-button type="button" [matMenuTriggerFor]="loginMenu" [disabled]="session.busy()">
-              <mat-icon aria-hidden="true">headset_mic</mat-icon>
-              Entrar na telefonia
-            </button>
+            <div ngbDropdown class="d-inline-flex">
+              <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" type="button" ngbDropdownToggle [disabled]="session.busy()">
+                <app-icon name="headset" />
+                Entrar na telefonia
+                <app-icon name="chevron-down" />
+              </button>
+              <div ngbDropdownMenu class="shadow app-menu" aria-label="Entrar na telefonia">
+                <button ngbDropdownItem type="button" (click)="login(null)">Somente clique para ligar</button>
+                @for (c of activeCampaigns(); track c.id) {
+                  <button ngbDropdownItem type="button" (click)="login(c.id)">Campanha {{ c.name }}</button>
+                }
+              </div>
+            </div>
           }
           @if (actions().available) {
-            <button mat-flat-button type="button" (click)="available()" [disabled]="session.busy()">Ficar disponível</button>
+            <button class="btn btn-sm btn-primary" type="button" (click)="available()" [disabled]="session.busy()">Ficar disponível</button>
           }
           @if (actions().pause) {
-            <button mat-stroked-button type="button" [matMenuTriggerFor]="pauseMenu" [disabled]="session.busy()">
-              <mat-icon aria-hidden="true">pause</mat-icon>
-              Pausa
-            </button>
+            <div ngbDropdown class="d-inline-flex">
+              <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" type="button" ngbDropdownToggle [disabled]="session.busy()">
+                <app-icon name="pause" />
+                Pausa
+                <app-icon name="chevron-down" />
+              </button>
+              <div ngbDropdownMenu class="shadow app-menu" aria-label="Motivo da pausa">
+                @for (r of pauseReasons; track r) {
+                  <button ngbDropdownItem type="button" (click)="pause(r)">
+                    <span>{{ pauseLabels[r] }}</span>
+                    @if (productive.includes(r)) {
+                      <span class="app-muted small">· produtiva</span>
+                    }
+                  </button>
+                }
+              </div>
+            </div>
           }
           @if (actions().logout) {
-            <button mat-icon-button type="button" (click)="logout()" [disabled]="session.busy()" aria-label="Sair da telefonia" matTooltip="Sair da telefonia">
-              <mat-icon aria-hidden="true">logout</mat-icon>
+            <button class="btn btn-sm btn-link" type="button" (click)="logout()" [disabled]="session.busy()" aria-label="Sair da telefonia" ngbTooltip="Sair da telefonia">
+              <app-icon name="box-arrow-right" />
             </button>
           }
           @if (actions().blocked && !call()) {
-            <span class="pb-small app-muted">{{ actions().blocked }}</span>
+            <span class="small app-muted">{{ actions().blocked }}</span>
           }
         } @else {
-          <span class="app-muted pb-small">Telefonia…</span>
+          <span class="app-muted small">Telefonia…</span>
         }
       </div>
-      <mat-menu #pauseMenu="matMenu">
-        @for (r of pauseReasons; track r) {
-          <button mat-menu-item type="button" (click)="pause(r)">
-            <span>{{ pauseLabels[r] }}</span>
-            @if (productive.includes(r)) {
-              <span class="app-muted pb-small"> · produtiva</span>
-            }
-          </button>
-        }
-      </mat-menu>
-      <mat-menu #loginMenu="matMenu">
-        <button mat-menu-item type="button" (click)="login(null)">Somente clique para ligar</button>
-        @for (c of activeCampaigns(); track c.id) {
-          <button mat-menu-item type="button" (click)="login(c.id)">Campanha {{ c.name }}</button>
-        }
-      </mat-menu>
-    }
-  `,
-  styles: `
-    .pb {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 6px 10px;
-    }
-    .pb-small {
-      font-size: var(--app-text-xs);
-    }
-    .pb-icon {
-      width: 16px;
-      height: 16px;
-      font-size: 16px;
-      vertical-align: middle;
-    }
-    .pb-call {
-      display: inline-flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 6px;
-      padding: 2px 8px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
-      font-size: var(--app-text-sm);
-    }
-    .pb-hangup {
-      color: var(--app-danger-fg);
     }
   `,
 })

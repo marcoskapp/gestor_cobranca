@@ -6,12 +6,17 @@
   min-width: 0;
   margin: 0 0 12px;
   padding: 8px 12px 6px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
 
+  // legenda no contorno do grupo (o reboot do Bootstrap a coloca em bloco, acima do conteúdo)
   legend {
+    float: none;
+    width: auto;
+    margin: 0;
     padding: 0 4px;
-    font-weight: 600;
+    font-size: var(--app-text-md);
+    font-weight: 500;
   }
 }
 
@@ -50,8 +55,8 @@
 }
 
 .se-days {
-  flex-wrap: wrap;
-  margin-bottom: 16px;
+  align-self: flex-end;
+  margin-bottom: 4px;
 }
 
 .se-checks {
@@ -70,7 +75,7 @@
 .se-sub {
   margin: 8px 0 4px;
   font-size: var(--app-text-sm);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .se-var {
@@ -99,7 +104,7 @@
 
 .se-var--unknown {
   border-top-style: solid;
-  border-top-color: var(--app-danger-fg);
+  border-top-color: var(--bs-danger);
 }
 
 .se-small {
@@ -123,7 +128,9 @@
 }
 
 .se-danger {
-  color: var(--app-danger-fg);
+  --bs-btn-color: var(--bs-danger-text-emphasis);
+  --bs-btn-hover-color: var(--bs-danger-text-emphasis);
+  --bs-btn-active-color: var(--bs-danger-text-emphasis);
 }
 
 @media (max-width: 599.98px) {

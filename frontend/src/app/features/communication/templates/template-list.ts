@@ -1,24 +1,21 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatSelectModule } from '@angular/material/select';
+import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
@@ -39,12 +36,9 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
   selector: 'app-template-list',
   imports: [
     ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatMenuModule,
-    MatSelectModule,
+    NgbDropdownModule,
+    ...FORM_FIELD,
+    Icon,
     CellDef,
     DataTable,
     EntityPicker,
@@ -54,8 +48,8 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
   ],
   template: `
     <app-page-header title="Templates de mensagem" subtitle="Textos aprovados para cada canal. E-mail e SMS só saem por template; no WhatsApp, fora da janela de 24 h.">
-      <button mat-flat-button type="button" (click)="edit(null)">
-        <mat-icon aria-hidden="true">add</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="edit(null)">
+        <app-icon name="plus-lg" />
         Novo template
       </button>
     </app-page-header>
@@ -64,40 +58,37 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Código</mat-label>
-        <input matInput formControlName="code" maxlength="60" />
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Canal</mat-label>
-        <mat-select formControlName="channel">
-          <mat-option value="">Todos</mat-option>
+      <app-field label="Código">
+        <input appInput formControlName="code" maxlength="60" />
+      </app-field>
+      <app-field label="Canal">
+        <select appInput formControlName="channel">
+          <option value="">Todos</option>
           @for (c of channelOptions; track c.value) {
-            <mat-option [value]="c.value">{{ c.label }}</mat-option>
+            <option [value]="c.value">{{ c.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [value]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
 
     @if (preview(); as p) {
-      <section class="app-card tl-preview" aria-labelledby="tl-preview-title" role="region">
-        <div class="tl-head">
+      <section class="app-card mb-3" aria-labelledby="tl-preview-title" role="region">
+        <div class="d-flex justify-content-between align-items-center">
           <h2 class="app-card__title" id="tl-preview-title">Prévia: {{ p.name }}</h2>
-          <button mat-icon-button type="button" (click)="preview.set(null)" aria-label="Fechar prévia"><mat-icon aria-hidden="true">close</mat-icon></button>
+          <button class="btn-close" type="button" (click)="preview.set(null)" aria-label="Fechar prévia"></button>
         </div>
         @if (p.subject) {
           <p><strong>{{ p.subject }}</strong></p>
         }
-        <p class="tl-body">{{ p.body }}</p>
+        <p class="text-pre-wrap">{{ p.body }}</p>
         <p class="app-muted">Valores de exemplo; no envio, o operador preenche cada variável.</p>
       </section>
     }
@@ -111,7 +102,7 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="article"
+      emptyIcon="file-earmark-text"
       emptyMessage="Nenhum template encontrado."
     >
       <ng-template appCell="code" [appCellOf]="query.rows()" let-t>
@@ -119,7 +110,7 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
         <div class="app-muted">{{ t.name }}</div>
       </ng-template>
       <ng-template appCell="channel" [appCellOf]="query.rows()" let-t>
-        <span class="tl-chan"><mat-icon aria-hidden="true">{{ icons[t.channel] }}</mat-icon>{{ channels[t.channel] }}</span>
+        <span class="d-inline-flex align-items-center gap-1"><app-icon [name]="icons[t.channel]" />{{ channels[t.channel] }}</span>
         <div class="app-muted">{{ purposes[t.purpose] }}</div>
       </ng-template>
       <ng-template appCell="creditor" [appCellOf]="query.rows()" let-t>{{ t.creditorId ? creditors.name(t.creditorId) : 'Assessoria' }}</ng-template>
@@ -134,52 +125,41 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
         }
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-t>
-        <button mat-icon-button type="button" [matMenuTriggerFor]="menu" [attr.aria-label]="'Ações do template ' + t.code">
-          <mat-icon aria-hidden="true">more_vert</mat-icon>
-        </button>
-        <mat-menu #menu="matMenu">
-          <button mat-menu-item type="button" (click)="showPreview(t)"><mat-icon aria-hidden="true">visibility</mat-icon>Prévia</button>
-          @if (t.status === 'DRAFT') {
-            <button mat-menu-item type="button" (click)="edit(t)"><mat-icon aria-hidden="true">edit</mat-icon>Editar rascunho</button>
-            @if (t.channel === 'WHATSAPP') {
-              <button mat-menu-item type="button" (click)="approval(t)"><mat-icon aria-hidden="true">fact_check</mat-icon>Registrar aprovação do WhatsApp</button>
+        <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+          <button class="btn btn-link" type="button" ngbDropdownToggle [attr.aria-label]="'Ações do template ' + t.code">
+            <app-icon name="three-dots-vertical" />
+          </button>
+          <div ngbDropdownMenu class="shadow app-menu" [attr.aria-label]="'Ações do template ' + t.code">
+            <button ngbDropdownItem type="button" (click)="showPreview(t)"><app-icon name="eye" />Prévia</button>
+            @if (t.status === 'DRAFT') {
+              <button ngbDropdownItem type="button" (click)="edit(t)"><app-icon name="pencil" />Editar rascunho</button>
+              @if (t.channel === 'WHATSAPP') {
+                <button ngbDropdownItem type="button" (click)="approval(t)"><app-icon name="card-checklist" />Registrar aprovação do WhatsApp</button>
+              }
+              <button ngbDropdownItem type="button" (click)="publish(t)" [disabled]="t.channel === 'WHATSAPP' && t.approvalStatus !== 'APPROVED'">
+                <app-icon name="upload" />Publicar
+              </button>
+            } @else {
+              <button ngbDropdownItem type="button" (click)="newVersion(t)"><app-icon name="copy" />Criar nova versão</button>
             }
-            <button mat-menu-item type="button" (click)="publish(t)" [disabled]="t.channel === 'WHATSAPP' && t.approvalStatus !== 'APPROVED'">
-              <mat-icon aria-hidden="true">publish</mat-icon>Publicar
-            </button>
-          } @else {
-            <button mat-menu-item type="button" (click)="newVersion(t)"><mat-icon aria-hidden="true">content_copy</mat-icon>Criar nova versão</button>
-          }
-          @if (t.status === 'PUBLISHED') {
-            <button mat-menu-item type="button" (click)="retire(t)"><mat-icon aria-hidden="true">archive</mat-icon>Retirar</button>
-          }
-          <button mat-menu-item type="button" (click)="versions(t)"><mat-icon aria-hidden="true">history</mat-icon>Ver versões</button>
-        </mat-menu>
+            @if (t.status === 'PUBLISHED') {
+              <button ngbDropdownItem type="button" (click)="retire(t)"><app-icon name="archive" />Retirar</button>
+            }
+            <button ngbDropdownItem type="button" (click)="versions(t)"><app-icon name="clock-history" />Ver versões</button>
+          </div>
+        </div>
       </ng-template>
     </app-data-table>
   `,
   styles: `
-    .tl-chan {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .tl-preview {
-      margin-bottom: var(--app-gap);
-    }
-    .tl-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .tl-body {
+    .text-pre-wrap {
       white-space: pre-wrap;
     }
   `,
 })
 export class TemplateList {
   private readonly api = inject(TemplatesApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -223,7 +203,7 @@ export class TemplateList {
 
   private openEditor(data: TemplateDialogData, message: string): void {
     this.dialog
-      .open<TemplateDialog, TemplateDialogData, TemplateView>(TemplateDialog, { data, width: '720px' })
+      .open<TemplateDialog, TemplateDialogData, TemplateView>(TemplateDialog, { data, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
@@ -235,7 +215,7 @@ export class TemplateList {
 
   protected approval(template: TemplateView): void {
     this.dialog
-      .open<ApprovalDialog, TemplateDialogData, TemplateView>(ApprovalDialog, { data: { template }, width: '520px' })
+      .open<ApprovalDialog, TemplateDialogData, TemplateView>(ApprovalDialog, { data: { template } })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

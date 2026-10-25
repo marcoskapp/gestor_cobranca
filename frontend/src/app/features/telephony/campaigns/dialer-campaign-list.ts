@@ -1,18 +1,17 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { QueueNames } from '../../collection/data/collection.lookups';
 import { CreditorNames } from '../../organization/data/organization.lookups';
@@ -27,18 +26,18 @@ const ORDER: Record<string, number> = { ACTIVE: 0, PAUSED: 1, DRAFT: 2, FINISHED
 /** Campanhas de discagem (progressivo/preditivo) montadas a partir das filas do collection. */
 @Component({
   selector: 'app-dialer-campaign-list',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [RouterLink, NgbTooltip, Icon, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
   template: `
     <app-page-header title="Campanhas de discagem" subtitle="Discador progressivo ou preditivo sobre uma fila de cobrança, com abandono máximo, retentativas e janela própria.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="create()" data-tour="dialer-new">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()" data-tour="dialer-new">
+          <app-icon name="plus-lg" />
           Nova campanha
         </button>
       }
     </app-page-header>
-    <p class="app-alert app-alert--info" role="note">
-      <mat-icon aria-hidden="true">verified_user</mat-icon>
+    <p class="alert alert-info d-flex gap-2" role="note">
+      <app-icon name="shield-check" />
       <span>Toda discagem passa pelo porteiro de contato (horário, feriados, limites e restrições). Fora da janela, o item é adiado sem gastar tentativa.</span>
     </p>
     <app-data-table
@@ -48,43 +47,38 @@ const ORDER: Record<string, number> = { ACTIVE: 0, PAUSED: 1, DRAFT: 2, FINISHED
       [loading]="list.isLoading()"
       [failed]="list.status() === 'error'"
       (retry)="list.reload()"
-      emptyIcon="phone_forwarded"
+      emptyIcon="telephone-forward"
       emptyMessage="Nenhuma campanha de discagem."
       emptyHint="Crie uma campanha a partir de uma fila de cobrança."
     >
       <ng-template appCell="name" [appCellOf]="rows()" let-c>
         <strong>{{ c.name }}</strong>
-        <div class="app-muted dl-small">{{ c.code }} · {{ c.creditorId ? creditors.name(c.creditorId) : 'vários credores' }}</div>
+        <div class="app-muted small">{{ c.code }} · {{ c.creditorId ? creditors.name(c.creditorId) : 'vários credores' }}</div>
       </ng-template>
       <ng-template appCell="queue" [appCellOf]="rows()" let-c>
         {{ queues.name(c.queueId) }}
-        <div class="app-muted dl-small">{{ c.entriesLoaded }} caso(s) carregados</div>
+        <div class="app-muted small">{{ c.entriesLoaded }} caso(s) carregados</div>
       </ng-template>
       <ng-template appCell="mode" [appCellOf]="rows()" let-c>
         {{ modes[c.mode] }}
-        <div class="app-muted dl-small">abandono máx. {{ percent(c.maxAbandonRate) }}{{ c.mode === 'PREDICTIVE' ? ' · razão até ' + c.maxDialRatio : '' }}</div>
+        <div class="app-muted small">abandono máx. {{ percent(c.maxAbandonRate) }}{{ c.mode === 'PREDICTIVE' ? ' · razão até ' + c.maxDialRatio : '' }}</div>
       </ng-template>
       <ng-template appCell="status" [appCellOf]="rows()" let-c>
         <app-status-chip domain="dialerCampaign" [status]="c.status" />
-        <div class="app-muted dl-small">{{ (c.finishedAt ?? c.pausedAt ?? c.activatedAt) | appDate }}</div>
+        <div class="app-muted small">{{ (c.finishedAt ?? c.pausedAt ?? c.activatedAt) | appDate }}</div>
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-c>
-        <a mat-icon-button [routerLink]="['/telefonia/campanhas', c.id]" [attr.aria-label]="'Abrir campanha ' + c.name" matTooltip="Abrir painel">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-link" [routerLink]="['/telefonia/campanhas', c.id]" [attr.aria-label]="'Abrir campanha ' + c.name" ngbTooltip="Abrir painel">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
-  `,
-  styles: `
-    .dl-small {
-      font-size: var(--app-text-xs);
-    }
   `,
 })
 export class DialerCampaignList {
   private readonly api = inject(DialerCampaignsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   protected readonly modes = DIALER_MODE_LABELS;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.TELEPHONY_MANAGE));
@@ -106,7 +100,7 @@ export class DialerCampaignList {
 
   protected create(): void {
     this.dialog
-      .open<CampaignDialog, CampaignDialogData, CampaignView>(CampaignDialog, { data: { campaign: null }, width: '720px', maxWidth: '96vw' })
+      .open<CampaignDialog, CampaignDialogData, CampaignView>(CampaignDialog, { data: { campaign: null }, size: 'lg' })
       .afterClosed()
       .subscribe((c) => c && void this.router.navigate(['/telefonia/campanhas', c.id]));
   }

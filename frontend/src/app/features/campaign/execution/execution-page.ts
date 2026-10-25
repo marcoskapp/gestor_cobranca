@@ -1,14 +1,7 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -21,6 +14,7 @@ import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -28,6 +22,8 @@ import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { valueOr } from '../../../shared/data/resource-value';
 import { sameValue } from '../../../shared/data/same-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { DEBTOR_NAMES_BATCH, DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
@@ -44,7 +40,7 @@ import { EnrollmentDialog, EnrollmentDialogData } from './enrollment-dialog';
  */
 @Component({
   selector: 'app-execution-page',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatSelectModule, MatTooltipModule, Amount, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs],
+  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, Amount, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs],
   templateUrl: './execution-page.html',
   styleUrl: './execution-page.scss',
 })
@@ -55,7 +51,7 @@ export class ExecutionPage {
   private readonly api = inject(CampaignExecutionApi);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
   protected readonly debtorSource = inject(DebtorLookup);
@@ -156,8 +152,7 @@ export class ExecutionPage {
     this.dialog
       .open<EnrollmentDialog, EnrollmentDialogData, boolean>(EnrollmentDialog, {
         data: { enrollmentId: e.id, debtorName: this.debtors.name(e.debtorId), canExecute: this.canExecute() },
-        width: '760px',
-        maxWidth: '96vw',
+        size: 'lg',
       })
       .afterClosed()
       .subscribe((changed) => {

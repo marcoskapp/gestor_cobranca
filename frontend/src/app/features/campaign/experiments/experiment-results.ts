@@ -1,11 +1,8 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -43,7 +40,7 @@ interface MetricBlock {
  */
 @Component({
   selector: 'app-experiment-results',
-  imports: [FormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatSlideToggleModule, EmptyState, Skeleton, AppDatePipe],
+  imports: [FormsModule, Icon, EmptyState, Skeleton, AppDatePipe],
   templateUrl: './experiment-results.html',
   styleUrl: './experiment-results.scss',
 })

@@ -1,3 +1,4 @@
+import type { IconName } from '../../../shared/components/icon/icon-names';
 import {
   ActionType,
   CampaignPurpose,
@@ -31,12 +32,13 @@ export const ACTION_LABELS: Record<ActionType, string> = {
   OFFER: 'Enviar oferta com link de pagamento',
 };
 
-export const ACTION_ICONS: Record<ActionType, string> = {
+/** Ícone da ação da etapa (Bootstrap Icons); sempre acompanhado do texto da ação. */
+export const ACTION_ICONS: Record<ActionType, IconName> = {
   SEND_MESSAGE: 'send',
-  CREATE_TASK: 'event_note',
-  HAND_TO_ASSISTANT: 'smart_toy',
-  MOVE_TO_QUEUE: 'support_agent',
-  OFFER: 'request_quote',
+  CREATE_TASK: 'calendar-week',
+  HAND_TO_ASSISTANT: 'robot',
+  MOVE_TO_QUEUE: 'headset',
+  OFFER: 'file-earmark-text',
 };
 
 export const ACTION_HINTS: Record<ActionType, string> = {
@@ -48,7 +50,7 @@ export const ACTION_HINTS: Record<ActionType, string> = {
 };
 
 export const CHANNEL_LABELS: Record<ContactChannel, string> = { WHATSAPP: 'WhatsApp', EMAIL: 'E-mail', SMS: 'SMS', PHONE: 'Telefone' };
-export const CHANNEL_ICONS: Record<ContactChannel, string> = { WHATSAPP: 'chat', EMAIL: 'mail', SMS: 'sms', PHONE: 'call' };
+export const CHANNEL_ICONS: Record<ContactChannel, IconName> = { WHATSAPP: 'chat', EMAIL: 'envelope', SMS: 'chat-dots', PHONE: 'telephone' };
 
 export const TASK_LABELS: Record<TaskType, string> = { CALLBACK: 'Retorno (ligar)', FOLLOW_UP: 'Acompanhamento' };
 

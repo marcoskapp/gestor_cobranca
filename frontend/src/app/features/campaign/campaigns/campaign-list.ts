@@ -1,13 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, finalize, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -17,11 +11,16 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { statusOptions } from '../../../shared/status/status';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators } from '../../../shared/validation/validators';
@@ -35,56 +34,48 @@ import { CampaignSettingsFields, settingsForm, toSettings } from './settings-fie
 /** Nova campanha por credor (carteira opcional) e segmento; a régua vem depois, na própria campanha. */
 @Component({
   selector: 'app-campaign-create',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, EntityPicker, CampaignSettingsFields],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, CampaignSettingsFields],
   template: `
-    <h2 mat-dialog-title>Nova campanha</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Nova campanha</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <p class="alert alert-danger" role="alert">{{ e }}</p>
         }
         <p class="app-dialog-message">A campanha começa em preparação. Depois monte e publique a régua e ative quando estiver pronta.</p>
-        <div class="cc-row">
-          <div class="cc-grow">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
             <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" />
             @if (form.controls.creditor.touched && form.controls.creditor.invalid) {
-              <p class="app-field-error" role="alert">Escolha o credor.</p>
+              <div class="invalid-feedback d-block" role="alert">Escolha o credor.</div>
             }
           </div>
-          <div class="cc-grow">
+          <div class="col-md-6">
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira (opcional)" [single]="true" hint="Vazio = todas as carteiras do credor." />
           </div>
+          <app-field
+            class="col-12"
+            label="Código"
+            hint="Maiúsculas, dígitos e _ (ex.: REGUA_ATRASO_30). Não muda depois."
+            error="Use letras maiúsculas, dígitos e _, começando por letra (2 a 60)."
+          >
+            <input appInput formControlName="code" maxlength="60" required spellcheck="false" autocomplete="off" (input)="codeTouched = true" />
+          </app-field>
         </div>
-        <mat-form-field subscriptSizing="dynamic" class="app-full-width">
-          <mat-label>Código</mat-label>
-          <input matInput formControlName="code" maxlength="60" required spellcheck="false" autocomplete="off" (input)="codeTouched = true" />
-          <mat-hint>Maiúsculas, dígitos e _ (ex.: REGUA_ATRASO_30). Não muda depois.</mat-hint>
-          @if (form.controls.code.invalid && form.controls.code.touched) {
-            <mat-error>Use letras maiúsculas, dígitos e _, começando por letra (2 a 60).</mat-error>
-          }
-        </mat-form-field>
         <app-campaign-settings-fields [form]="form.controls.settings" [creditorId]="creditorId()" />
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Criar campanha</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Criar campanha</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .cc-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0 12px;
-    }
-    .cc-grow {
-      flex: 1 1 240px;
-      min-width: 0;
-    }
   `,
 })
 export class CampaignCreate {
-  private readonly ref = inject<MatDialogRef<CampaignCreate, CampaignView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<CampaignView>>(DialogRef);
   private readonly api = inject(CampaignsApi);
   protected readonly creditors = inject(CreditorLookup);
   protected readonly saving = signal(false);
@@ -138,12 +129,12 @@ export class CampaignCreate {
 /** Campanhas por credor e situação, com finalidade, prioridade, grupo e versão da régua. */
 @Component({
   selector: 'app-campaign-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Campanhas" subtitle="Réguas automáticas por credor: quem alcançar, em que ordem, por qual canal e com que prioridade.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="create()">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()">
+          <app-icon name="plus-lg" />
           Nova campanha
         </button>
       }
@@ -152,15 +143,14 @@ export class CampaignCreate {
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [value]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
     <app-data-table
       caption="Campanhas"
@@ -171,25 +161,25 @@ export class CampaignCreate {
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="campaign"
+      emptyIcon="megaphone"
       emptyMessage="Nenhuma campanha encontrada."
       emptyHint="Crie um segmento e depois a campanha com a régua de contatos."
     >
       @if (canManage()) {
-        <button mat-stroked-button appEmptyAction type="button" (click)="create()">Nova campanha</button>
+        <button class="btn btn-outline-primary" appEmptyAction type="button" (click)="create()">Nova campanha</button>
       }
       <ng-template appCell="name" [appCellOf]="query.rows()" let-c>
         <a [routerLink]="['/campanhas', c.id]">{{ c.name }}</a>
-        <div class="app-muted cl-small">{{ c.code }}</div>
+        <div class="app-muted small">{{ c.code }}</div>
       </ng-template>
       <ng-template appCell="creditor" [appCellOf]="query.rows()" let-c>
         {{ creditors.name(c.creditorId) }}
-        <div class="app-muted cl-small">{{ c.portfolioId ? portfolios.name(c.portfolioId) : 'Todas as carteiras' }}</div>
+        <div class="app-muted small">{{ c.portfolioId ? portfolios.name(c.portfolioId) : 'Todas as carteiras' }}</div>
       </ng-template>
       <ng-template appCell="purpose" [appCellOf]="query.rows()" let-c>{{ purposeLabels[c.purpose] }}</ng-template>
       <ng-template appCell="priority" [appCellOf]="query.rows()" let-c>
         <span class="app-numeric">{{ c.priority }}</span>
-        <div class="app-muted cl-small">{{ c.exclusivityGroup ?? 'sem grupo' }}</div>
+        <div class="app-muted small">{{ c.exclusivityGroup ?? 'sem grupo' }}</div>
       </ng-template>
       <ng-template appCell="cadence" [appCellOf]="query.rows()" let-c>
         @if (c.publishedCadenceVersion) {
@@ -198,33 +188,28 @@ export class CampaignCreate {
           <span class="app-muted">sem régua publicada</span>
         }
         @if (c.hasDraft) {
-          <div class="app-muted cl-small">rascunho em edição</div>
+          <div class="app-muted small">rascunho em edição</div>
         }
       </ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-c><app-status-chip domain="campaign" [status]="c.status" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-c>
-        <a mat-icon-button [routerLink]="['/campanhas', c.id, 'regua']" [attr.aria-label]="'Régua de ' + c.name" matTooltip="Régua">
-          <mat-icon aria-hidden="true">format_list_numbered</mat-icon>
+        <a class="btn btn-link" [routerLink]="['/campanhas', c.id, 'regua']" [attr.aria-label]="'Régua de ' + c.name" ngbTooltip="Régua">
+          <app-icon name="list-ol" />
         </a>
-        <a mat-icon-button [routerLink]="['/campanhas', c.id, 'execucao']" [attr.aria-label]="'Execução de ' + c.name" matTooltip="Execução">
-          <mat-icon aria-hidden="true">insights</mat-icon>
+        <a class="btn btn-link" [routerLink]="['/campanhas', c.id, 'execucao']" [attr.aria-label]="'Execução de ' + c.name" ngbTooltip="Execução">
+          <app-icon name="graph-up" />
         </a>
-        <a mat-icon-button [routerLink]="['/campanhas', c.id]" [attr.aria-label]="'Abrir ' + c.name" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-link" [routerLink]="['/campanhas', c.id]" [attr.aria-label]="'Abrir ' + c.name" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
-  `,
-  styles: `
-    .cl-small {
-      font-size: var(--app-text-xs);
-    }
   `,
 })
 export class CampaignList {
   private readonly api = inject(CampaignsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -261,7 +246,7 @@ export class CampaignList {
 
   protected create(): void {
     this.dialog
-      .open<CampaignCreate, void, CampaignView>(CampaignCreate, { width: '720px', maxWidth: '96vw' })
+      .open<CampaignCreate, void, CampaignView>(CampaignCreate, { size: 'lg' })
       .afterClosed()
       .subscribe((created) => {
         if (created) {

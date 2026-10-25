@@ -1,4 +1,4 @@
-// Estilos compartilhados das telas de telefonia (somente tokens `--app-*`).
+// Estilos compartilhados das telas de telefonia (variáveis `--bs-*` do Bootstrap e tokens `--app-*`).
 .tl-status {
   display: flex;
   flex-wrap: wrap;
@@ -21,18 +21,18 @@
 }
 .tl-kpi__label {
   font-size: var(--app-text-xs);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 .tl-kpi__value {
   font-size: var(--app-text-xl);
-  font-weight: 600;
+  font-weight: 400;
 }
 .tl-kpi__hint {
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 .tl-meter {
   position: relative;
@@ -58,7 +58,7 @@
   top: -2px;
   bottom: -2px;
   width: 2px;
-  background: var(--mat-sys-on-surface);
+  background: var(--bs-emphasis-color);
 }
 .tl-grid {
   display: grid;
@@ -82,6 +82,9 @@
 }
 .tl-small {
   font-size: var(--app-text-xs);
+}
+.tl-filter {
+  width: 200px;
 }
 .tl-funnel {
   display: grid;
