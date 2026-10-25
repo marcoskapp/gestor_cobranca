@@ -1,18 +1,16 @@
 import { Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { ChannelsApi } from '../data/communication.api';
@@ -26,11 +24,11 @@ import { AccountDialog, AccountDialogData, CredentialsDialog } from './channel-d
  */
 @Component({
   selector: 'app-channel-list',
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, CellDef, DataTable, PageHeader, StatusChip, AppDatePipe],
+  imports: [NgbDropdownModule, Icon, CellDef, DataTable, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Canais de comunicação" subtitle="Contas de envio por canal. O credor usa a própria conta ativa; sem ela, a conta padrão da assessoria.">
-      <button mat-flat-button type="button" (click)="edit(null)">
-        <mat-icon aria-hidden="true">add</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="edit(null)">
+        <app-icon name="plus-lg" />
         Nova conta
       </button>
     </app-page-header>
@@ -42,7 +40,7 @@ import { AccountDialog, AccountDialogData, CredentialsDialog } from './channel-d
       [loading]="accounts.isLoading()"
       [failed]="accounts.status() === 'error'"
       (retry)="accounts.reload()"
-      emptyIcon="settings_input_antenna"
+      emptyIcon="broadcast-pin"
       emptyMessage="Nenhuma conta de canal cadastrada."
       emptyHint="Sem conta ativa no canal, o envio é recusado."
     >
@@ -51,7 +49,7 @@ import { AccountDialog, AccountDialogData, CredentialsDialog } from './channel-d
         <div class="app-muted">{{ a.creditorId ? creditors.name(a.creditorId) : 'Padrão da assessoria' }}</div>
       </ng-template>
       <ng-template appCell="channel" [appCellOf]="rows()" let-a>
-        <span class="chl-chan"><mat-icon aria-hidden="true">{{ icons[a.channel] }}</mat-icon>{{ channels[a.channel] }}</span>
+        <span class="d-inline-flex align-items-center gap-1"><app-icon [name]="icons[a.channel]" />{{ channels[a.channel] }}</span>
         <div class="app-muted">{{ providers[a.provider] }}</div>
       </ng-template>
       <ng-template appCell="sender" [appCellOf]="rows()" let-a>
@@ -65,7 +63,7 @@ import { AccountDialog, AccountDialogData, CredentialsDialog } from './channel-d
           <span>{{ keyText(a) }}</span>
           <div class="app-muted">trocadas em {{ a.credentialsUpdatedAt | appDate }}</div>
         } @else if (required(a).length) {
-          <span class="chl-missing">Não configuradas</span>
+          <span class="fw-semibold text-danger-emphasis">Não configuradas</span>
         } @else {
           <span class="app-muted">Não exigidas</span>
         }
@@ -74,39 +72,30 @@ import { AccountDialog, AccountDialogData, CredentialsDialog } from './channel-d
         <app-status-chip domain="active" [status]="a.active" />
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-a>
-        <button mat-icon-button type="button" [matMenuTriggerFor]="menu" [attr.aria-label]="'Ações da conta ' + a.name">
-          <mat-icon aria-hidden="true">more_vert</mat-icon>
-        </button>
-        <mat-menu #menu="matMenu">
-          <button mat-menu-item type="button" (click)="edit(a)"><mat-icon aria-hidden="true">edit</mat-icon>Editar</button>
-          @if (required(a).length) {
-            <button mat-menu-item type="button" (click)="rotate(a)"><mat-icon aria-hidden="true">key</mat-icon>Trocar credenciais</button>
-          }
-          @if (a.webhookPath) {
-            <button mat-menu-item type="button" (click)="copyWebhook(a)"><mat-icon aria-hidden="true">link</mat-icon>Copiar endereço do webhook</button>
-          }
-          <button mat-menu-item type="button" (click)="toggle(a)">
-            <mat-icon aria-hidden="true">{{ a.active ? 'pause_circle' : 'play_circle' }}</mat-icon>{{ a.active ? 'Desativar' : 'Ativar' }}
+        <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+          <button class="btn btn-link" type="button" ngbDropdownToggle [attr.aria-label]="'Ações da conta ' + a.name">
+            <app-icon name="three-dots-vertical" />
           </button>
-        </mat-menu>
+          <div ngbDropdownMenu class="shadow app-menu" [attr.aria-label]="'Ações da conta ' + a.name">
+            <button ngbDropdownItem type="button" (click)="edit(a)"><app-icon name="pencil" />Editar</button>
+            @if (required(a).length) {
+              <button ngbDropdownItem type="button" (click)="rotate(a)"><app-icon name="key" />Trocar credenciais</button>
+            }
+            @if (a.webhookPath) {
+              <button ngbDropdownItem type="button" (click)="copyWebhook(a)"><app-icon name="link-45deg" />Copiar endereço do webhook</button>
+            }
+            <button ngbDropdownItem type="button" (click)="toggle(a)">
+              <app-icon [name]="a.active ? 'pause-circle' : 'play-circle'" />{{ a.active ? 'Desativar' : 'Ativar' }}
+            </button>
+          </div>
+        </div>
       </ng-template>
     </app-data-table>
-  `,
-  styles: `
-    .chl-chan {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .chl-missing {
-      font-weight: 600;
-      color: var(--app-danger-fg);
-    }
   `,
 })
 export class ChannelList {
   private readonly api = inject(ChannelsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -137,7 +126,7 @@ export class ChannelList {
 
   protected edit(account: AccountView | null): void {
     this.dialog
-      .open<AccountDialog, AccountDialogData, AccountView>(AccountDialog, { data: { account }, width: '560px' })
+      .open<AccountDialog, AccountDialogData, AccountView>(AccountDialog, { data: { account } })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
@@ -149,7 +138,7 @@ export class ChannelList {
 
   protected rotate(account: AccountView): void {
     this.dialog
-      .open<CredentialsDialog, AccountDialogData, AccountView>(CredentialsDialog, { data: { account }, width: '480px' })
+      .open<CredentialsDialog, AccountDialogData, AccountView>(CredentialsDialog, { data: { account } })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
