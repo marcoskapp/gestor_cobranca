@@ -1,15 +1,10 @@
 import { Component, DestroyRef, computed, effect, inject, input, linkedSignal, output, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbDropdownModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { statusOptions } from '../../../shared/status/status';
 import { PortfolioLookup } from '../../organization/data/organization.lookups';
 import { CHANNEL_LABELS, OWNER_TYPE_LABELS } from '../data/campaign.labels';
@@ -23,13 +18,16 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
  */
 @Component({
   selector: 'app-criteria-editor',
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatMenuModule, MatSelectModule, MatSlideToggleModule, MatTooltipModule, EntityPicker],
+  imports: [FormsModule, NgbDropdownModule, NgbTooltip, ...FORM_FIELD, EntityPicker, Icon],
   template: `
     @let c = criteria();
     @let ro = readonly();
-    <div class="ce-head">
-      <mat-slide-toggle [(ngModel)]="c.eligibleOnly" (ngModelChange)="changed()" [disabled]="ro">Somente casos elegíveis</mat-slide-toggle>
-      <span class="app-muted ce-small">{{ c.eligibleOnly === false ? 'Inclui casos bloqueados (ex.: contestação, carteira suspensa): use só para comunicados.' : 'Regra RB02: casos bloqueados ficam fora.' }}</span>
+    <div class="d-flex flex-wrap align-items-center column-gap-3 row-gap-1 mb-2">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" [id]="id + 'eligible'" [(ngModel)]="c.eligibleOnly" (ngModelChange)="changed()" [disabled]="ro" />
+        <label class="form-check-label" [for]="id + 'eligible'">Somente casos elegíveis</label>
+      </div>
+      <span class="app-muted small">{{ c.eligibleOnly === false ? 'Inclui casos bloqueados (ex.: contestação, carteira suspensa): use só para comunicados.' : 'Regra RB02: casos bloqueados ficam fora.' }}</span>
     </div>
 
     <ul class="ce-list" [attr.aria-label]="label()">
@@ -46,103 +44,96 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
                   </div>
                 }
                 @case ('statuses') {
-                  <mat-form-field class="app-compact ce-wide">
-                    <mat-label>Situações</mat-label>
-                    <mat-select multiple [(ngModel)]="c.caseStatuses" (ngModelChange)="changed()" [disabled]="ro">
-                      @for (s of caseStatuses; track s.value) {
-                        <mat-option [value]="s.value">{{ s.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+                  <!-- o grupo é nomeado pelo rótulo do filtro (ex.: "Situação do caso") -->
+                  <fieldset class="ce-wide" [attr.aria-labelledby]="id + f.key">
+                    @for (s of caseStatuses; track s.value) {
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" [id]="id + 'status-' + s.value" [checked]="has(c.caseStatuses, s.value)" (change)="toggle('caseStatuses', s.value)" [disabled]="ro" />
+                        <label class="form-check-label" [for]="id + 'status-' + s.value">{{ s.label }}</label>
+                      </div>
+                    }
+                  </fieldset>
                 }
                 @case ('owners') {
-                  <mat-form-field class="app-compact ce-wide">
-                    <mat-label>Dono</mat-label>
-                    <mat-select multiple [(ngModel)]="c.ownerTypes" (ngModelChange)="changed()" [disabled]="ro">
-                      @for (o of owners; track o) {
-                        <mat-option [value]="o">{{ ownerLabels[o] }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+                  <fieldset class="ce-wide" [attr.aria-labelledby]="id + f.key">
+                    @for (o of owners; track o) {
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" [id]="id + 'owner-' + o" [checked]="has(c.ownerTypes, o)" (change)="toggle('ownerTypes', o)" [disabled]="ro" />
+                        <label class="form-check-label" [for]="id + 'owner-' + o">{{ ownerLabels[o] }}</label>
+                      </div>
+                    }
+                  </fieldset>
                 }
                 @case ('channel') {
-                  <mat-form-field class="app-compact">
-                    <mat-label>Canal</mat-label>
-                    <mat-select [(ngModel)]="c.contactableChannel" (ngModelChange)="changed()" [disabled]="ro">
+                  <app-field label="Canal">
+                    <select appInput [(ngModel)]="c.contactableChannel" (ngModelChange)="changed()" [disabled]="ro">
+                      <option [ngValue]="null" disabled>Selecione</option>
                       @for (ch of channels; track ch) {
-                        <mat-option [value]="ch">{{ channelLabels[ch] }}</mat-option>
+                        <option [ngValue]="ch">{{ channelLabels[ch] }}</option>
                       }
-                    </mat-select>
-                  </mat-form-field>
+                    </select>
+                  </app-field>
                 }
                 @case ('yes-no') {
-                  <mat-form-field class="app-compact ce-wide">
-                    <mat-label>{{ f.label }}</mat-label>
-                    <mat-select [ngModel]="boolValue(f)" (ngModelChange)="setBool(f, $event)" [disabled]="ro">
-                      <mat-option [value]="true">{{ f.yes }}</mat-option>
-                      <mat-option [value]="false">{{ f.no }}</mat-option>
-                    </mat-select>
-                  </mat-form-field>
+                  <app-field class="ce-wide" [label]="f.label">
+                    <select appInput [ngModel]="boolValue(f)" (ngModelChange)="setBool(f, $event)" [disabled]="ro">
+                      <option [ngValue]="true">{{ f.yes }}</option>
+                      <option [ngValue]="false">{{ f.no }}</option>
+                    </select>
+                  </app-field>
                 }
                 @case ('int') {
-                  <mat-form-field class="app-compact">
-                    <mat-label>Dias</mat-label>
-                    <input matInput type="number" min="0" [max]="f.max ?? 36500" step="1" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
-                  </mat-form-field>
+                  <app-field label="Dias">
+                    <input appInput type="number" min="0" [max]="f.max ?? 36500" step="1" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
+                  </app-field>
                 }
                 @default {
-                  <mat-form-field class="app-compact">
-                    <mat-label>Mínimo</mat-label>
-                    <input matInput type="number" min="0" [max]="f.max ?? null" [step]="f.kind === 'money-range' ? 0.01 : 1" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
-                  </mat-form-field>
-                  <mat-form-field class="app-compact">
-                    <mat-label>Máximo</mat-label>
-                    <input matInput type="number" min="0" [max]="f.max ?? null" [step]="f.kind === 'money-range' ? 0.01 : 1" [ngModel]="num(f.fields[1])" (ngModelChange)="setNum(f.fields[1], $event)" [disabled]="ro" />
-                  </mat-form-field>
+                  <app-field label="Mínimo">
+                    <input appInput type="number" min="0" [max]="f.max ?? null" [step]="f.kind === 'money-range' ? 0.01 : 1" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
+                  </app-field>
+                  <app-field label="Máximo">
+                    <input appInput type="number" min="0" [max]="f.max ?? null" [step]="f.kind === 'money-range' ? 0.01 : 1" [ngModel]="num(f.fields[1])" (ngModelChange)="setNum(f.fields[1], $event)" [disabled]="ro" />
+                  </app-field>
                 }
               }
             </div>
             @if (f.hint) {
-              <span class="app-muted ce-small">{{ f.hint }}</span>
+              <span class="app-muted small mt-1">{{ f.hint }}</span>
             }
           </div>
           @if (!ro) {
-            <button mat-icon-button type="button" (click)="remove(f)" [attr.aria-label]="'Remover filtro ' + f.label" matTooltip="Remover filtro">
-              <mat-icon aria-hidden="true">close</mat-icon>
+            <button class="btn btn-link" type="button" (click)="remove(f)" [attr.aria-label]="'Remover filtro ' + f.label" ngbTooltip="Remover filtro">
+              <app-icon name="x-lg" />
             </button>
           }
         </li>
       } @empty {
-        <li class="app-muted ce-small ce-none">Nenhum filtro além da elegibilidade: todos os casos {{ c.eligibleOnly === false ? '' : 'elegíveis ' }}entram.</li>
+        <li class="app-muted small py-1">Nenhum filtro além da elegibilidade: todos os casos {{ c.eligibleOnly === false ? '' : 'elegíveis ' }}entram.</li>
       }
     </ul>
 
     @if (!ro && hiddenFilters().length) {
-      <button mat-stroked-button type="button" [matMenuTriggerFor]="menu" data-tour="segment-add-filter">
-        <mat-icon aria-hidden="true">add</mat-icon>
-        Adicionar filtro
-      </button>
-      <mat-menu #menu="matMenu">
-        @for (g of groups(); track g.group) {
-          <div class="ce-menu-group" role="presentation">{{ g.group }}</div>
-          @for (f of g.filters; track f.key) {
-            <button mat-menu-item type="button" (click)="add(f)">{{ f.label }}</button>
+      <div ngbDropdown class="d-inline-flex">
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" ngbDropdownToggle data-tour="segment-add-filter">
+          <app-icon name="plus-lg" />
+          Adicionar filtro
+          <app-icon name="chevron-down" />
+        </button>
+        <div ngbDropdownMenu class="shadow app-menu ce-menu" aria-label="Filtros disponíveis">
+          @for (g of groups(); track g.group; let firstGroup = $first) {
+            @if (!firstGroup) {
+              <div class="dropdown-divider" role="separator"></div>
+            }
+            <h3 class="dropdown-header">{{ g.group }}</h3>
+            @for (f of g.filters; track f.key) {
+              <button ngbDropdownItem type="button" (click)="add(f)">{{ f.label }}</button>
+            }
           }
-        }
-      </mat-menu>
+        </div>
+      </div>
     }
   `,
   styles: `
-    .ce-head {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 4px 12px;
-      margin-bottom: 8px;
-    }
-    .ce-small {
-      font-size: var(--app-text-xs);
-    }
     .ce-list {
       display: grid;
       gap: 8px;
@@ -155,36 +146,36 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
       align-items: flex-start;
       gap: 8px;
       padding: 8px 4px 0 8px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: var(--bs-border-width) solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
     }
     .ce-and {
       flex: 0 0 44px;
       padding-top: 4px;
       font-size: var(--app-text-xs);
-      font-weight: 700;
+      font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--mat-sys-primary);
+      color: var(--bs-primary-text-emphasis);
     }
     .ce-body {
       display: flex;
       flex: 1 1 auto;
       flex-direction: column;
       min-width: 0;
-      padding-bottom: 6px;
+      padding-bottom: 8px;
     }
     .ce-label {
       margin-bottom: 4px;
       font-size: var(--app-text-sm);
-      font-weight: 600;
+      font-weight: 500;
     }
     .ce-fields {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      mat-form-field {
+      app-field {
         flex: 0 1 160px;
         min-width: 120px;
       }
@@ -192,16 +183,9 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
         flex: 1 1 260px;
       }
     }
-    .ce-none {
-      padding: 4px 0;
-    }
-    .ce-menu-group {
-      padding: 8px 16px 4px;
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--mat-sys-on-surface-variant);
+    .ce-menu {
+      max-height: 60vh;
+      overflow-y: auto;
     }
     @media (max-width: 599.98px) {
       .ce-and {
@@ -263,6 +247,18 @@ export class CriteriaEditor {
 
   protected changed(): void {
     this.edited.emit();
+  }
+
+  protected has(list: readonly string[] | null | undefined, value: string): boolean {
+    return !!list?.includes(value);
+  }
+
+  /** Marca/desmarca uma opção da lista múltipla (equivale à seleção múltipla anterior). */
+  protected toggle(field: 'caseStatuses' | 'ownerTypes', value: string): void {
+    const c = this.criteria() as unknown as Record<string, string[] | null>;
+    const list = c[field] ?? [];
+    c[field] = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+    this.changed();
   }
 
   protected num(field: keyof SegmentCriteria): number | null {

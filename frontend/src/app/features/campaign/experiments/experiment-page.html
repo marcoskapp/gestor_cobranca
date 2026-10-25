@@ -4,39 +4,39 @@
     <app-skeleton class="xp-gap" variant="card" [rows]="5" />
   </div>
 } @else if (campaign.status() === 'error') {
-  <app-empty-state icon="science" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/campanhas/testes">Voltar para testes A/B</a>
+  <app-empty-state icon="eyedropper" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="campaign.reload()">Tentar novamente</button>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas/testes">Voltar para testes A/B</a>
   </app-empty-state>
 }
 
 @if (current(); as c) {
   <app-page-header [title]="'Testes A/B · ' + c.name" subtitle="Compare variantes de template, canal, horário ou oferta com um grupo de controle sorteado.">
     @if (canCreate()) {
-      <button mat-flat-button type="button" (click)="create()" [disabled]="!c.publishedCadenceId" [matTooltip]="c.publishedCadenceId ? 'Um teste aberto por campanha' : 'Publique a régua antes de testar variantes'">
-        <mat-icon aria-hidden="true">add</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()" [disabled]="!c.publishedCadenceId" [ngbTooltip]="c.publishedCadenceId ? 'Um teste aberto por campanha' : 'Publique a régua antes de testar variantes'">
+        <app-icon name="plus-lg" />
         Novo teste
       </button>
     }
     @if (editable()) {
       @if (creating()) {
-        <button mat-stroked-button type="button" (click)="cancelCreate()">Cancelar</button>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="cancelCreate()">Cancelar</button>
       }
       @if (dirty()) {
-        <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
-          <mat-icon aria-hidden="true">save</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
+          <app-icon name="floppy" />
           Salvar rascunho
         </button>
       } @else if (selected()?.status === 'DRAFT') {
-        <button mat-flat-button type="button" (click)="start()" [disabled]="problems().length > 0 || !c.publishedCadenceId || c.status === 'FINISHED'">
-          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="start()" [disabled]="problems().length > 0 || !c.publishedCadenceId || c.status === 'FINISHED'">
+          <app-icon name="play" />
           Iniciar teste
         </button>
       }
     }
     @if (canManage() && selected()?.status === 'RUNNING') {
-      <button mat-stroked-button type="button" (click)="stop()">
-        <mat-icon aria-hidden="true">stop_circle</mat-icon>
+      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="stop()">
+        <app-icon name="stop-circle" />
         Encerrar teste
       </button>
     }
@@ -44,8 +44,8 @@
   <app-campaign-tabs [campaignId]="c.id" />
 
   @for (e of errors(); track e) {
-    <p class="app-alert app-alert--error" role="alert">
-      <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="alert alert-danger d-flex gap-2" role="alert">
+      <app-icon name="exclamation-circle" />
       <span>{{ e }}</span>
     </p>
   }
@@ -53,9 +53,9 @@
   @if (list.isLoading() && !list.hasValue()) {
     <app-skeleton variant="card" [rows]="4" />
   } @else if (!draft() && !selected()) {
-    <app-empty-state icon="science" title="Nenhum teste A/B nesta campanha." [message]="c.publishedCadenceId ? 'Crie um teste para comparar variantes da régua publicada com um grupo de controle.' : 'Publique a régua da campanha para poder testar variantes.'">
+    <app-empty-state icon="eyedropper" title="Nenhum teste A/B nesta campanha." [message]="c.publishedCadenceId ? 'Crie um teste para comparar variantes da régua publicada com um grupo de controle.' : 'Publique a régua da campanha para poder testar variantes.'">
       @if (canCreate() && c.publishedCadenceId) {
-        <button mat-stroked-button type="button" (click)="create()">Novo teste</button>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()">Novo teste</button>
       }
     </app-empty-state>
   } @else {
@@ -78,7 +78,7 @@
               }
             }
             @if (dirty() && !creating()) {
-              <span class="app-status app-status--warning">Alterações não salvas</span>
+              <span class="badge rounded-pill border bg-warning-subtle text-warning-emphasis border-warning-subtle fw-normal">Alterações não salvas</span>
             }
           </section>
 
@@ -92,40 +92,30 @@
           <section class="app-card" aria-labelledby="xp-config" data-tour="experiment-config">
             <h2 class="app-card__title" id="xp-config">Configuração</h2>
             <div class="xp-row">
-              <mat-form-field class="app-compact xp-grow">
-                <mat-label>Nome</mat-label>
-                <input matInput [(ngModel)]="d.name" (ngModelChange)="edited()" maxlength="120" [disabled]="!editable()" />
-              </mat-form-field>
-              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-grow">
-                <mat-label>Métrica principal</mat-label>
-                <mat-select [(ngModel)]="d.primaryMetric" (ngModelChange)="edited()" [disabled]="!editable()">
+              <app-field class="xp-grow" label="Nome">
+                <input appInput [(ngModel)]="d.name" (ngModelChange)="edited()" maxlength="120" [disabled]="!editable()" />
+              </app-field>
+              <app-field class="xp-grow" label="Métrica principal" [hint]="d.primaryMetric ? metricHints[d.primaryMetric] : ''">
+                <select appInput [(ngModel)]="d.primaryMetric" (ngModelChange)="edited()" [disabled]="!editable()">
                   @for (m of metrics; track m) {
-                    <mat-option [value]="m">{{ metricLabels[m] }}</mat-option>
+                    <option [ngValue]="m">{{ metricLabels[m] }}</option>
                   }
-                </mat-select>
-                <mat-hint>{{ d.primaryMetric ? metricHints[d.primaryMetric] : '' }}</mat-hint>
-              </mat-form-field>
+                </select>
+              </app-field>
             </div>
-            <mat-form-field class="app-compact app-full-width">
-              <mat-label>Hipótese (opcional)</mat-label>
-              <textarea matInput rows="2" [(ngModel)]="d.hypothesis" (ngModelChange)="edited()" maxlength="500" [disabled]="!editable()" placeholder="Ex.: lembrete às 9 h aumenta a taxa de pagamento em relação às 15 h."></textarea>
-            </mat-form-field>
+            <app-field label="Hipótese (opcional)">
+              <textarea appInput rows="2" [(ngModel)]="d.hypothesis" (ngModelChange)="edited()" maxlength="500" [disabled]="!editable()" placeholder="Ex.: lembrete às 9 h aumenta a taxa de pagamento em relação às 15 h."></textarea>
+            </app-field>
             <div class="xp-row">
-              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
-                <mat-label>Grupo de controle (%)</mat-label>
-                <input matInput type="number" min="0" max="50" step="1" [(ngModel)]="d.controlShare" (ngModelChange)="edited()" [disabled]="!editable()" />
-                <mat-hint>0 a 50%; não recebe nenhuma ação.</mat-hint>
-              </mat-form-field>
-              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
-                <mat-label>Horizonte (dias)</mat-label>
-                <input matInput type="number" min="1" max="180" step="1" [(ngModel)]="d.observationDays" (ngModelChange)="edited()" [disabled]="!editable()" />
-                <mat-hint>Resultados contados até aqui.</mat-hint>
-              </mat-form-field>
-              <mat-form-field subscriptSizing="dynamic" class="app-compact xp-num">
-                <mat-label>Amostra mínima por braço</mat-label>
-                <input matInput type="number" min="10" step="10" [(ngModel)]="d.minSamplePerArm" (ngModelChange)="edited()" [disabled]="!editable()" />
-                <mat-hint>Abaixo disso, aviso de amostra insuficiente.</mat-hint>
-              </mat-form-field>
+              <app-field class="xp-num" label="Grupo de controle (%)" hint="0 a 50%; não recebe nenhuma ação.">
+                <input appInput type="number" min="0" max="50" step="1" [(ngModel)]="d.controlShare" (ngModelChange)="edited()" [disabled]="!editable()" />
+              </app-field>
+              <app-field class="xp-num" label="Horizonte (dias)" hint="Resultados contados até aqui.">
+                <input appInput type="number" min="1" max="180" step="1" [(ngModel)]="d.observationDays" (ngModelChange)="edited()" [disabled]="!editable()" />
+              </app-field>
+              <app-field class="xp-num" label="Amostra mínima por braço" hint="Abaixo disso, aviso de amostra insuficiente.">
+                <input appInput type="number" min="10" step="10" [(ngModel)]="d.minSamplePerArm" (ngModelChange)="edited()" [disabled]="!editable()" />
+              </app-field>
             </div>
 
             <h3 class="app-section-title">Repartição dos devedores</h3>
@@ -141,8 +131,8 @@
             </ul>
 
             @if (editable() && problems().length) {
-              <section class="app-alert app-alert--error xp-problems" role="alert" aria-label="Problemas no teste">
-                <mat-icon aria-hidden="true">error_outline</mat-icon>
+              <section class="alert alert-danger d-flex gap-2 xp-problems" role="alert" aria-label="Problemas no teste">
+                <app-icon name="exclamation-circle" />
                 <ul>
                   @for (p of problems(); track p) {
                     <li>{{ p }}</li>
@@ -168,8 +158,8 @@
               </div>
             }
             @if (editable()) {
-              <button mat-stroked-button type="button" (click)="addVariant()" [disabled]="d.variants.length >= 10">
-                <mat-icon aria-hidden="true">add</mat-icon>
+              <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="addVariant()" [disabled]="d.variants.length >= 10">
+                <app-icon name="plus-lg" />
                 Variante
               </button>
             }
