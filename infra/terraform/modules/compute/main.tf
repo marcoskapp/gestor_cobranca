@@ -49,6 +49,7 @@ locals {
     GC_SECRETS_BUCKET            = var.use_ssm_parameters ? "" : var.secrets_bucket_name
     GC_APP_BASE_URL              = var.app_base_url
     GC_CORS_ALLOWED_ORIGINS      = join(",", var.cors_allowed_origins)
+    GC_TRUSTED_PROXY_CIDRS       = join(",", var.trusted_proxy_cidrs)
     GC_DB_HOST                   = var.db_address
     GC_DB_PORT                   = tostring(var.db_port)
     GC_DB_NAME                   = var.db_name

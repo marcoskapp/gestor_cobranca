@@ -78,6 +78,15 @@ run "tudo_aprovado_fase2" {
     condition     = output.secrets_source == "ssm"
     error_message = "ssm"
   }
+  assert {
+    condition = anytrue([for r in aws_wafv2_web_acl.app[0].rule : r.name == "limite-de-taxa-por-ip"
+    && r.statement[0].rate_based_statement[0].aggregate_key_type == "IP"])
+    error_message = "o limite de taxa do WAF agrega pelo IP da conexão, nunca pelo X-Forwarded-For do cliente"
+  }
+  assert {
+    condition     = length(module.network.public_subnet_cidrs) == 2 && module.compute[0].trusted_proxy_cidrs == module.network.public_subnet_cidrs
+    error_message = "a aplicação confia somente nas sub-redes do ALB"
+  }
 }
 
 run "sem_computacao" {

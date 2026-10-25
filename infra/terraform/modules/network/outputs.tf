@@ -18,6 +18,11 @@ output "public_subnet_ids" {
   value       = aws_subnet.public[*].id
 }
 
+output "public_subnet_cidrs" {
+  description = "CIDRs das sub-redes públicas: de onde partem as conexões do ALB às instâncias (proxies confiáveis da aplicação)."
+  value       = aws_subnet.public[*].cidr_block
+}
+
 output "app_subnet_ids" {
   description = "Sub-redes privadas de aplicação (EC2)."
   value       = aws_subnet.app[*].id

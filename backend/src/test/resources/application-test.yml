@@ -7,6 +7,9 @@ app:
   jobs:
     concurrency: 4
   base-url: http://localhost
+  http:
+    # nos ITs a conexão vem de 127.0.0.1 e faz o papel do ALB (proxy confiável)
+    trusted-proxies: 127.0.0.1/32,::1/128
   logging:
     dir: ./target/test-logs
     technical-level: INFO

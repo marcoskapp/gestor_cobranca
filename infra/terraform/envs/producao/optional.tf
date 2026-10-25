@@ -110,15 +110,13 @@ resource "aws_wafv2_web_acl" "app" {
     }
 
     statement {
+      # IP de origem da conexão com o ALB. NÃO usar FORWARDED_IP: sem CDN confiável à frente, o
+      # X-Forwarded-For que chega ao WAF é o que o cliente escreveu (um valor novo a cada requisição
+      # escaparia do limite).
       rate_based_statement {
         limit                 = var.waf_rate_limit_per_5min
-        aggregate_key_type    = "FORWARDED_IP"
+        aggregate_key_type    = "IP"
         evaluation_window_sec = 300
-
-        forwarded_ip_config {
-          header_name       = "X-Forwarded-For"
-          fallback_behavior = "MATCH"
-        }
       }
     }
 

@@ -32,3 +32,8 @@ output "ami_id" {
   description = "AMI em uso no launch template."
   value       = aws_launch_template.app.image_id
 }
+
+output "trusted_proxy_cidrs" {
+  description = "Faixas de proxies confiáveis entregues à aplicação (APP_HTTP_TRUSTED_PROXIES)."
+  value       = var.trusted_proxy_cidrs
+}

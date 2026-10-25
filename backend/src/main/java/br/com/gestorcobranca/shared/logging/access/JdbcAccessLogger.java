@@ -4,6 +4,7 @@ import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.LogStreams;
 import br.com.gestorcobranca.shared.logging.MdcKeys;
+import br.com.gestorcobranca.shared.web.ClientAddresses;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -57,10 +60,12 @@ class JdbcAccessLogger implements AccessLogger {
     }
 
     @Override
-    public void log(AccessEvent event) {
+    public void log(AccessEvent incoming) {
+        AccessEvent event = withIpValidity(incoming);
         UUID id = Ids.newId();
         Instant now = Instant.now(clock);
-        String clientIp = MDC.get(MdcKeys.CLIENT_IP);
+        // nunca grava em inet um valor que não seja IP literal: o evento sai sem IP, mas sai
+        String clientIp = ClientAddresses.orNull(MDC.get(MdcKeys.CLIENT_IP));
         String userAgent = truncate(MDC.get(MdcKeys.USER_AGENT), 512);
         String requestId = MDC.get(MdcKeys.REQUEST_ID);
         String route = MDC.get(MdcKeys.ROUTE);
@@ -76,6 +81,19 @@ class JdbcAccessLogger implements AccessLogger {
             meterRegistry.counter("access.log.write_failures").increment();
             LOG.error("Falha ao persistir evento de acesso {} ({})", id, event.type(), e);
         }
+    }
+
+    /** IP de cliente inválido informado pelo proxy: o evento é gravado sem IP e marcado. */
+    private static AccessEvent withIpValidity(AccessEvent event) {
+        String rawIp = MDC.get(MdcKeys.CLIENT_IP);
+        boolean invalid = (rawIp != null && !ClientAddresses.isValid(rawIp))
+                || "true".equals(MDC.get(MdcKeys.CLIENT_IP_INVALID));
+        if (!invalid) {
+            return event;
+        }
+        Map<String, String> details = new LinkedHashMap<>(event.details());
+        details.put("clientIpInvalid", "true");
+        return event.withDetails(details);
     }
 
     private static void emit(UUID id, Instant now, AccessEvent event, String clientIp, String userAgent,

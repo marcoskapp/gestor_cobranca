@@ -85,8 +85,9 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
-  # O ALB repassa X-Forwarded-For/Proto; as instâncias só aceitam tráfego do ALB (security group)
-  forward-headers-strategy: framework
+  # Cabeçalhos de proxy tratados só pelo TrustedProxyFilter (app.http.trusted-proxies). NÃO use
+  # "framework" (ForwardedHeaderFilter confia em qualquer cliente e lê o valor mais à esquerda).
+  forward-headers-strategy: none
   shutdown: graceful
   compression:
     enabled: true
@@ -144,6 +145,10 @@ springdoc:
 app:
   environment: ${APP_ENV:local}
   base-url: ${APP_BASE_URL:http://localhost:4200}
+  http:
+    # CIDRs dos proxies confiáveis (produção: sub-redes do ALB, vindas do Terraform). Vazio = sem proxy:
+    # X-Forwarded-* é ignorado e o IP é o da conexão. Ver shared/web/TrustedProxyFilter.
+    trusted-proxies: ${APP_HTTP_TRUSTED_PROXIES:}
 
   logging:
     dir: ${LOG_DIR:./var/log}
