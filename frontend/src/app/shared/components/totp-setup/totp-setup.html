@@ -17,8 +17,8 @@
   <div class="totp-setup__manual">
     <span class="totp-setup__label" id="totp-secret-label">Chave para digitação manual</span>
     <code class="totp-setup__secret" aria-labelledby="totp-secret-label">{{ groupedSecret() }}</code>
-    <button mat-stroked-button type="button" (click)="copy()">
-      <mat-icon aria-hidden="true">content_copy</mat-icon>
+    <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2" (click)="copy()">
+      <app-icon name="copy" />
       Copiar chave
     </button>
   </div>

@@ -1,6 +1,4 @@
 import { Component, ElementRef, inject, viewChild } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { TourEngine } from './tour-engine.service';
 
 let nextId = 0;
@@ -11,7 +9,6 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-tour-popover',
-  imports: [MatButtonModule, MatIconModule],
   template: `
     @if (engine.view(); as v) {
       <section
@@ -26,9 +23,7 @@ let nextId = 0;
       >
         <header class="tour__header">
           <span class="tour__progress" [id]="id + '-progress'">{{ v.tour.title }} · passo {{ v.index + 1 }} de {{ v.total }}</span>
-          <button mat-icon-button type="button" class="tour__close" aria-label="Fechar tour" (click)="engine.dismiss()">
-            <mat-icon aria-hidden="true">close</mat-icon>
-          </button>
+          <button type="button" class="btn-close tour__close" aria-label="Fechar tour" (click)="engine.dismiss()"></button>
         </header>
         <h2 class="tour__title" [id]="id + '-title'">{{ v.step.title }}</h2>
         <p class="tour__body" [id]="id + '-body'">{{ v.step.body }}</p>
@@ -39,13 +34,13 @@ let nextId = 0;
         </div>
         <footer class="tour__actions">
           @if (!v.isLast) {
-            <button mat-button type="button" (click)="engine.dismiss()">Pular tour</button>
+            <button type="button" class="btn btn-sm btn-link" (click)="engine.dismiss()">Pular tour</button>
           }
           <span class="tour__spacer"></span>
           @if (v.hasPrevious) {
-            <button mat-stroked-button type="button" (click)="engine.previous()">Voltar</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="engine.previous()">Voltar</button>
           }
-          <button mat-flat-button type="button" (click)="engine.next()">{{ v.isLast ? 'Concluir' : 'Próximo' }}</button>
+          <button type="button" class="btn btn-sm btn-primary" (click)="engine.next()">{{ v.isLast ? 'Concluir' : 'Próximo' }}</button>
         </footer>
       </section>
     }
@@ -55,11 +50,11 @@ let nextId = 0;
       box-sizing: border-box;
       width: 360px;
       max-width: calc(100vw - 32px);
-      padding: 12px 16px 12px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-lg);
-      background: var(--mat-sys-surface-container-high);
-      color: var(--mat-sys-on-surface);
+      padding: 14px 16px 12px;
+      border: var(--bs-border-width) solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius-lg);
+      background: var(--bs-body-bg);
+      color: var(--bs-body-color);
       box-shadow: var(--app-elevation-3);
       outline: none;
     }
@@ -71,18 +66,18 @@ let nextId = 0;
       display: flex;
       align-items: center;
       gap: 8px;
-      margin: -4px -8px 0 0;
+      margin: 0 0 4px;
     }
     .tour__progress {
       flex: 1;
       font-size: var(--app-text-xs);
       font-weight: 500;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .tour__title {
       margin: 0 0 6px;
       font-size: var(--app-text-lg);
-      font-weight: 600;
+      font-weight: 400;
       line-height: var(--app-line-tight);
     }
     .tour__body {
@@ -99,17 +94,20 @@ let nextId = 0;
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: var(--mat-sys-outline-variant);
+      background: var(--bs-border-color);
     }
     .tour__dot--active {
       width: 18px;
       border-radius: 3px;
-      background: var(--mat-sys-primary);
+      background: var(--bs-primary);
     }
     .tour__actions {
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+    .tour__close {
+      font-size: 0.75rem;
     }
     .tour__spacer {
       flex: 1;

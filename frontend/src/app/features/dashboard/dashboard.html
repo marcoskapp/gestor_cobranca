@@ -7,7 +7,7 @@
 
 @if (mfaPending()) {
   <p class="app-alert app-alert--warning" role="status">
-    <mat-icon aria-hidden="true">shield</mat-icon>
+    <app-icon name="shield" />
     <span>
       Sua conta ainda não usa verificação em duas etapas.
       <a routerLink="/conta/mfa">Ativar agora</a>
@@ -31,20 +31,20 @@
         @for (item of shortcuts(); track item.route) {
           <li>
             <a class="dashboard__tile" [routerLink]="item.route">
-              <span class="dashboard__tile-icon" aria-hidden="true"><mat-icon>{{ item.icon }}</mat-icon></span>
+              <span class="dashboard__tile-icon" aria-hidden="true"><app-icon [name]="item.icon" /></span>
               <span class="dashboard__tile-text">
                 <strong>{{ item.label }}</strong>
                 <span class="app-muted">{{ item.section }}</span>
               </span>
-              <mat-icon class="dashboard__tile-go" aria-hidden="true">arrow_forward</mat-icon>
+              <app-icon class="dashboard__tile-go" name="arrow-right" />
             </a>
           </li>
         }
       </ul>
     } @else {
-      <h2 class="cdk-visually-hidden" id="acesso-rapido">Acesso rápido</h2>
+      <h2 class="visually-hidden" id="acesso-rapido">Acesso rápido</h2>
       <app-empty-state
-        icon="lock_person"
+        icon="person-lock"
         title="Nenhum módulo disponível para o seu perfil"
         message="Em caso de dúvida, procure o administrador da assessoria."
       />

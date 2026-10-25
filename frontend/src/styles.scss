@@ -1,86 +1,31 @@
-@use '@angular/material' as mat;
-@use 'theme-colors' as palette;
-@use 'tokens';
-
 // =============================================================================
 // Identidade visual "Gestor de Cobrança" (docs/tecnico/desenho/ux.md)
 //
-// - Material 3 com `theme-type: color-scheme`: claro, escuro ou do sistema operacional,
-//   conforme `color-scheme` do <html> (atributo `data-theme`, aplicado por ThemeService).
-// - Densidade ajustável (`data-density`): confortável (padrão) e compacta (estação de trabalho
-//   com alto volume). Em telas de toque a densidade compacta é ignorada (alvos ≥ 24px, WCAG 2.5.8).
-// - Primária azul institucional (#1D4E89), neutros frios para conforto em uso prolongado.
+// 1. Bootstrap 5.3 parametrizado só por variáveis documentadas (styles/bootstrap/).
+// 2. Tokens `--app-*` como aliases das variáveis do Bootstrap e densidade compacta.
+// 3. Classes globais da aplicação (layout de página, estados, onboarding).
+// 4. TRANSITÓRIO: tema Angular Material para as telas ainda não migradas.
+//
+// Tema: `data-bs-theme` (light/dark) aplicado pelo ThemeService; `data-theme` ausente = segue
+// o sistema (o ThemeService resolve o modo efetivo). Densidade: `data-density`.
 // =============================================================================
+
+// o @use precisa vir antes dos @import; emite o tema Material (transitório) primeiro na cascata
+@use 'material-legacy';
+
+@import 'bootstrap/index';
+@import 'tokens';
+@import 'density';
+
+// --------------------------------------------------------------------- base
 
 html {
   color-scheme: light dark;
-
-  @include mat.theme(
-    (
-      color: (
-        theme-type: color-scheme,
-        primary: palette.$primary-palette,
-        tertiary: palette.$tertiary-palette,
-      ),
-      typography: (
-        plain-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
-        brand-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
-      ),
-      density: -1,
-    )
-  );
-
-  // tabelas e listas um pouco mais densas que os formulários
-  @include mat.table-density(-2);
-  @include mat.list-density(-1);
-  @include mat.paginator-density(-3);
-  @include mat.icon-button-density(-1);
-
-  @include mat.table-overrides(
-    (
-      header-headline-weight: 600,
-      header-headline-color: var(--mat-sys-on-surface-variant),
-      row-item-label-text-size: 13px,
-      header-headline-size: 12px,
-      background-color: var(--app-surface),
-    )
-  );
-
-  @include mat.snack-bar-overrides(
-    (
-      container-color: var(--app-snack-bg),
-      supporting-text-color: var(--app-snack-fg),
-      button-color: var(--app-snack-action),
-    )
-  );
-
-  @include mat.tooltip-overrides(
-    (
-      supporting-text-size: 12px,
-    )
-  );
-
-  @include tokens.tokens;
 }
 
-html[data-theme='light'] {
+// `color-scheme` acompanha o tema escolhido (o Bootstrap já define `dark` em [data-bs-theme=dark])
+[data-bs-theme='light'] {
   color-scheme: light;
-}
-
-html[data-theme='dark'] {
-  color-scheme: dark;
-}
-
-// densidade compacta somente com ponteiro fino (mouse/trackpad)
-@media (pointer: fine) {
-  html[data-density='compact'] {
-    @include mat.theme((density: -3));
-    @include mat.table-density(-4);
-    @include mat.list-density(-3);
-    @include mat.paginator-density(-4);
-    @include mat.icon-button-density(-2);
-    @include tokens.compact-tokens;
-  }
 }
 
 html,
@@ -89,18 +34,10 @@ body {
 }
 
 body {
-  margin: 0;
-  background: var(--app-page-bg);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   // cifras alinhadas em colunas (valores, datas, documentos)
   font-variant-numeric: tabular-nums;
-}
-
-a {
-  color: var(--mat-sys-primary);
-  text-underline-offset: 2px;
 }
 
 // --------------------------------------------------------------------- acessibilidade
@@ -114,12 +51,12 @@ a {
   position: absolute;
   left: 8px;
   top: -48px;
-  z-index: 1000;
+  z-index: $zindex-fixed + 10;
   padding: 8px 12px;
-  border-radius: 4px;
-  background: var(--mat-sys-surface);
-  color: var(--mat-sys-primary);
-  font-weight: 600;
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-body-bg);
+  color: var(--bs-link-color);
+  font-weight: $font-weight-medium;
 
   &:focus {
     top: 8px;
@@ -137,21 +74,6 @@ a {
   }
 }
 
-// atalhos de teclado exibidos na interface
-kbd,
-.app-kbd {
-  display: inline-block;
-  min-width: 1.5em;
-  padding: 1px 6px;
-  border: 1px solid var(--app-border);
-  border-bottom-width: 2px;
-  border-radius: var(--app-radius-sm);
-  background: var(--app-surface-raised);
-  color: var(--mat-sys-on-surface-variant);
-  font: 500 11px/18px var(--app-font-sans);
-  text-align: center;
-}
-
 // --------------------------------------------------------------------- layout de página
 
 .app-page-header {
@@ -165,16 +87,15 @@ kbd,
 
 .app-page-header__title {
   margin: 0;
-  font: var(--mat-sys-headline-small);
   font-size: var(--app-text-xl);
-  font-weight: 600;
+  font-weight: $headings-font-weight;
   line-height: var(--app-line-tight);
   letter-spacing: -0.01em;
 }
 
 .app-page-header__subtitle {
   margin: 4px 0 0;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .app-page-header__actions {
@@ -185,8 +106,8 @@ kbd,
 
 .app-card {
   padding: var(--app-card-padding);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
+  border: var(--bs-border-width) solid var(--app-border);
+  border-radius: var(--bs-border-radius-lg);
   background: var(--app-surface);
 
   & + & {
@@ -197,7 +118,7 @@ kbd,
 .app-card__title {
   margin: 0 0 12px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: $font-weight-medium;
 }
 
 .app-filters {
@@ -207,7 +128,8 @@ kbd,
   gap: 8px 12px;
   margin-bottom: 12px;
 
-  mat-form-field {
+  > app-field,
+  > .app-filters__field {
     width: 220px;
   }
 
@@ -222,9 +144,10 @@ kbd,
   }
 }
 
-@media (max-width: 599.98px) {
+@include media-breakpoint-down(sm) {
   .app-filters {
-    mat-form-field,
+    > app-field,
+    > .app-filters__field,
     .app-filters__wide {
       width: 100%;
     }
@@ -273,7 +196,8 @@ kbd,
   margin: 0;
 
   dt {
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--bs-secondary-color);
+    font-weight: $font-weight-base;
   }
 
   dd {
@@ -283,11 +207,11 @@ kbd,
 }
 
 .app-muted {
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .app-mono {
-  font-family: var(--app-font-mono);
+  font-family: var(--bs-font-monospace);
   font-size: 12px;
 }
 
@@ -297,24 +221,24 @@ kbd,
   text-align: center;
 
   h1 {
-    font-size: 22px;
+    font-size: var(--app-text-xl);
   }
 }
 
 // --------------------------------------------------------------------- estados e alertas
 
+// selo de estado (telas ainda em Material o usam com <mat-icon>; o `app-status-chip` usa o badge)
 .app-status {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 1px 8px;
-  border-radius: var(--app-radius-pill);
+  border-radius: var(--bs-border-radius-pill);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: $font-weight-medium;
   line-height: 20px;
   white-space: nowrap;
 
-  .mat-icon,
   .app-status__icon {
     width: 14px;
     height: 14px;
@@ -337,16 +261,9 @@ kbd,
   gap: 8px;
   margin: 0 0 16px;
   padding: 10px 12px;
-  border-radius: var(--app-radius-md);
+  border-radius: var(--bs-border-radius);
   font-size: 13px;
   line-height: 20px;
-
-  > .mat-icon {
-    flex: none;
-    width: 20px;
-    height: 20px;
-    font-size: 20px;
-  }
 }
 
 .app-alert--error {
@@ -357,7 +274,7 @@ kbd,
 .app-field-error {
   margin: -4px 0 4px;
   font-size: 12px;
-  color: var(--mat-sys-error);
+  color: var(--bs-form-invalid-color);
 }
 
 // --------------------------------------------------------------------- telas de autenticação
@@ -365,12 +282,12 @@ kbd,
 .app-auth-title {
   margin: 0 0 8px;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: $headings-font-weight;
 }
 
 .app-auth-text {
   margin: 0 0 16px;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .app-auth-links {
@@ -383,40 +300,9 @@ kbd,
   font-size: 18px;
 }
 
-.app-button-spinner {
-  display: inline-block;
-  margin-right: 8px;
-  vertical-align: middle;
-
-  --mat-progress-spinner-active-indicator-color: currentColor;
-}
-
-// --------------------------------------------------------------------- componentes Material
-
-.app-button-danger {
-  --mat-button-filled-container-color: var(--mat-sys-error);
-  --mat-button-filled-label-text-color: var(--mat-sys-on-error);
-}
-
 .app-dialog-message {
   margin-top: 0;
   white-space: pre-line;
-}
-
-.mat-mdc-snack-bar-container.app-snack-error {
-  --mat-snack-bar-container-color: var(--app-snack-error-bg);
-  --mat-snack-bar-supporting-text-color: var(--app-snack-error-fg);
-  --mat-snack-bar-button-color: var(--app-snack-error-fg);
-}
-
-.mat-mdc-snack-bar-container.app-snack-success {
-  --mat-snack-bar-container-color: var(--app-snack-success-bg);
-  --mat-snack-bar-supporting-text-color: var(--app-snack-success-fg);
-  --mat-snack-bar-button-color: var(--app-snack-success-fg);
-}
-
-mat-form-field.app-compact {
-  @include mat.form-field-density(-4);
 }
 
 // --------------------------------------------------------------------- utilitários de leitura
@@ -437,78 +323,22 @@ mat-form-field.app-compact {
 .app-section-title {
   margin: 8px 0 12px;
   font-size: var(--app-text-xs);
-  font-weight: 600;
+  font-weight: $font-weight-medium;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
-// --------------------------------------------------------------------- cabeçalho: avatar e menus (overlay)
-
-.app-avatar {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 20%);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-
-.app-user-menu__header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 16px 12px;
-  font-size: 13px;
-
-  span {
-    color: var(--mat-sys-on-surface-variant);
-  }
-}
-
-.app-user-menu__label {
-  margin: 8px 16px 2px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--mat-sys-on-surface-variant);
-}
-
-.app-menu-check {
-  margin-left: 16px;
-  font-size: 18px;
-  vertical-align: middle;
-  color: var(--mat-sys-primary);
-}
-
-.app-menu-badge {
-  margin-left: 8px;
-  padding: 0 6px;
-  border-radius: var(--app-radius-pill);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.app-menu-kbd {
-  margin-left: 12px;
-}
-
-// --------------------------------------------------------------------- onboarding (overlays)
+// --------------------------------------------------------------------- onboarding (overlays do CDK)
 
 .app-tour-pane {
   max-width: calc(100vw - 32px);
 }
 
 .cdk-overlay-pane.app-tour-highlight {
-  border-radius: var(--app-radius-md);
+  border-radius: var(--bs-border-radius);
   box-shadow:
-    0 0 0 3px var(--mat-sys-primary),
+    0 0 0 3px var(--app-focus-color),
     0 0 0 9999px rgb(0 0 0 / 28%);
   // apenas visual: cliques atravessam o destaque (o tour nunca bloqueia a tela)
   pointer-events: none;
@@ -524,10 +354,51 @@ mat-form-field.app-compact {
   }
 }
 
-.app-palette-pane {
-  width: min(640px, calc(100vw - 32px));
+// --------------------------------------------------------------------- diálogos (NgbModal)
+
+// busca rápida: 640px, próxima ao topo (`windowClass` do CommandPaletteService), pela variável
+// documentada do modal
+.app-palette-window {
+  --bs-modal-width: 640px;
 }
 
-.app-palette-backdrop {
-  background: rgb(0 0 0 / 32%);
+@include media-breakpoint-up(sm) {
+  .app-palette-window {
+    --bs-modal-margin: 12vh;
+  }
+}
+
+// --------------------------------------------------------------------- shell: menus do cabeçalho (ngbDropdown no body)
+
+.app-menu {
+  min-width: 240px;
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  app-icon {
+    font-size: 1rem;
+  }
+}
+
+.app-user-menu__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 12px 8px;
+  font-size: 13px;
+}
+
+.app-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 20%);
+  font-size: 12px;
+  font-weight: 500;
 }

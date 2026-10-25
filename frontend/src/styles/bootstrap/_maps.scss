@@ -1,0 +1,10 @@
+// =============================================================================
+// Bootstrap 5.3 — ajustes de mapas Sass (API documentada em "Customize → Sass → Maps and loops").
+// Importado depois de `bootstrap/scss/variables(-dark)` e antes de `bootstrap/scss/maps`.
+//
+// "light" e "dark" saem das cores do tema: a aplicação usa modos de cor (`data-bs-theme`), não
+// variantes claras/escuras de componentes. Isso elimina `.btn-light`, `.btn-dark`,
+// `.text-bg-light`, `.alert-dark`, `.table-light` etc. e reduz o CSS inicial.
+// =============================================================================
+
+$theme-colors: map-remove($theme-colors, 'light', 'dark');

@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
+import { provideMaterialDefaults } from '../core/config/material.config';
 import { PortalSession } from './data/portal-session';
 
 /** Telas do devedor exigem a sessão do portal deste endereço; sem ela, volta à entrada. */
@@ -17,6 +18,8 @@ export const PORTAL_ROUTES: Routes = [
   {
     path: ':slug',
     loadComponent: () => import('./layout/portal-layout').then((m) => m.PortalLayout),
+    // TRANSITÓRIO: o portal ainda usa Angular Material (fora do bundle inicial)
+    providers: [provideMaterialDefaults()],
     children: [
       {
         path: '',

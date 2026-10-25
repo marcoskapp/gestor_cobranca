@@ -26,6 +26,6 @@ describe('Amount', () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     expect(host.getAttribute('title')).toBe('R$ 1.250.000,00');
-    expect(host.querySelector('.cdk-visually-hidden')?.textContent).toContain('1.250.000,00');
+    expect(host.querySelector('.visually-hidden')?.textContent).toContain('1.250.000,00');
   });
 });

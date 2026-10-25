@@ -1,7 +1,8 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DialogTitle } from '../../../shared/dialog/dialog.directives';
+import { Icon } from '../../../shared/components/icon/icon';
 import { AuthService } from '../../auth/auth.service';
 import { NAVIGATION } from '../navigation';
 import { CommandPaletteService, PaletteCommand, filterCommands } from './command-palette.service';
@@ -14,13 +15,15 @@ const NAV_GROUP = 'Ir para';
  */
 @Component({
   selector: 'app-command-palette',
-  imports: [MatIconModule],
+  imports: [Icon, DialogTitle],
   template: `
     <div class="palette">
+      <h2 appDialogTitle class="visually-hidden">Busca rápida</h2>
       <div class="palette__search">
-        <mat-icon aria-hidden="true">search</mat-icon>
+        <app-icon name="search" />
         <input
           #input
+          ngbAutofocus
           class="palette__input"
           type="text"
           role="combobox"
@@ -55,7 +58,7 @@ const NAV_GROUP = 'Ir para';
             (click)="execute(command)"
             (mousemove)="active.set(i)"
           >
-            <mat-icon aria-hidden="true">{{ command.icon }}</mat-icon>
+            <app-icon [name]="command.icon" />
             <span class="palette__label">{{ command.label }}</span>
             @if (command.hint) {
               <span class="palette__hint">{{ command.hint }}</span>
@@ -80,7 +83,7 @@ const NAV_GROUP = 'Ir para';
       gap: 10px;
       padding: 12px 16px;
       border-bottom: 1px solid var(--app-border);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .palette__input {
       flex: 1;
@@ -88,7 +91,7 @@ const NAV_GROUP = 'Ir para';
       border: 0;
       outline: none;
       background: transparent;
-      color: var(--mat-sys-on-surface);
+      color: var(--bs-body-color);
       font: inherit;
       font-size: var(--app-text-lg);
     }
@@ -102,10 +105,10 @@ const NAV_GROUP = 'Ir para';
     .palette__group {
       padding: 8px 16px 4px;
       font-size: var(--app-text-xs);
-      font-weight: 600;
+      font-weight: 500;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .palette__option {
       display: flex;
@@ -114,36 +117,36 @@ const NAV_GROUP = 'Ir para';
       min-height: 40px;
       margin: 0 6px;
       padding: 0 10px;
-      border-radius: var(--app-radius-md);
+      border-radius: var(--bs-border-radius);
       cursor: pointer;
     }
     .palette__option--active {
-      background: var(--mat-sys-secondary-container);
-      color: var(--mat-sys-on-secondary-container);
+      background: var(--bs-primary-bg-subtle);
+      color: var(--bs-primary-text-emphasis);
     }
     .palette__label {
       flex: 1;
     }
     .palette__hint {
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .palette__empty {
       padding: 24px 16px;
       text-align: center;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .palette__footer {
       margin: 0;
       padding: 8px 16px;
       border-top: 1px solid var(--app-border);
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
   `,
 })
 export class CommandPalette {
-  private readonly ref = inject(MatDialogRef<CommandPalette>);
+  private readonly ref = inject(DialogRef);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly palette = inject(CommandPaletteService);

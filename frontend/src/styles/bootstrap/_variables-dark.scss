@@ -1,0 +1,42 @@
+// =============================================================================
+// Bootstrap 5.3 — modo escuro nativo (`[data-bs-theme="dark"]`), só variáveis documentadas de
+// node_modules/bootstrap/scss/_variables-dark.scss. Importado antes de `variables-dark`.
+// Neutros frios de baixo brilho para jornadas longas; textos com contraste ≥ 7:1.
+// =============================================================================
+
+$primary-text-emphasis-dark: #a7c8ff; // sobre bg-subtle 8.5:1
+$secondary-text-emphasis-dark: #c9d1db; // 9.2:1
+$success-text-emphasis-dark: #a6e3b8; // 9.8:1
+$info-text-emphasis-dark: #a7c8ff; // 8.5:1
+$warning-text-emphasis-dark: #ffd970; // 10.6:1
+$danger-text-emphasis-dark: #ffb4ab; // 9.3:1
+
+$primary-bg-subtle-dark: #132a47;
+$secondary-bg-subtle-dark: #262b32;
+$success-bg-subtle-dark: #12301e;
+$info-bg-subtle-dark: #132a47;
+$warning-bg-subtle-dark: #33280a;
+$danger-bg-subtle-dark: #3d1714;
+
+$primary-border-subtle-dark: #2a4a75;
+$secondary-border-subtle-dark: #3a414b;
+$success-border-subtle-dark: #24553a;
+$info-border-subtle-dark: #2a4a75;
+$warning-border-subtle-dark: #5c4a12;
+$danger-border-subtle-dark: #6b2a24;
+
+$body-color-dark: #e6edf3; // 14.5:1 sobre #171c23
+$body-bg-dark: #171c23; // superfície
+$body-secondary-bg-dark: #262b32;
+$body-tertiary-bg-dark: #0f1217; // fundo da página
+$body-emphasis-color-dark: #ffffff;
+$border-color-dark: #2d343d;
+$border-color-translucent-dark: rgba(#ffffff, 0.12);
+
+$link-color-dark: #a7c8ff; // 9.1:1
+$link-hover-color-dark: #c6dbff;
+
+$form-valid-color-dark: #a6e3b8;
+$form-valid-border-color-dark: #a6e3b8;
+$form-invalid-color-dark: #ffb4ab;
+$form-invalid-border-color-dark: #ffb4ab;

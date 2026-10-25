@@ -1,75 +1,98 @@
 // =============================================================================
 // Tokens de design da aplicação (CSS custom properties `--app-*`).
 //
-// Complementam os tokens de sistema do Material 3 (`--mat-sys-*`). Cores usam `light-dark()`
-// e acompanham o `color-scheme` do documento (tema claro, escuro ou do sistema), definido em
-// `ThemeService`. Contraste verificado para WCAG 2.2 AA (texto ≥ 4.5:1) sobre o fundo indicado.
+// Desde a migração para o Bootstrap 5.3, os tokens semânticos são ALIASES das variáveis do
+// Bootstrap (`--bs-*`, geradas a partir de styles/bootstrap/_variables*.scss): a fonte da
+// verdade é a parametrização do Bootstrap. Os tokens continuam existindo porque as telas e os
+// componentes os usam (e as telas ainda em Angular Material dependem deles).
+// Cores próprias (barra superior, gráficos, borda de controles) mudam por modo com o mixin
+// documentado `color-mode()` do Bootstrap. Importado depois do Bootstrap (styles.scss).
 // Documentação: docs/tecnico/desenho/ux.md.
 // =============================================================================
 
-@mixin tokens {
-  // ------------------------------------------------------------------ superfícies
-  --app-page-bg: light-dark(#f6f8fb, #0f1217);
-  --app-auth-bg: light-dark(#eef2f7, #0b0e12);
-  --app-surface: var(--mat-sys-surface-container-lowest);
-  --app-surface-raised: var(--mat-sys-surface-container-low);
-  --app-border: var(--mat-sys-outline-variant);
-  --app-border-strong: var(--mat-sys-outline);
+:root,
+[data-bs-theme='light'] {
+  // ---------------------------------------------------------------- superfícies (Bootstrap)
+  --app-page-bg: var(--bs-tertiary-bg);
+  --app-auth-bg: var(--bs-tertiary-bg);
+  --app-surface: var(--bs-body-bg);
+  --app-surface-raised: var(--bs-tertiary-bg);
+  --app-border: var(--bs-border-color);
+  --app-border-strong: var(--app-control-border);
 
-  // barra superior: azul institucional no claro, superfície neutra no escuro (menos brilho)
-  --app-topbar-bg: light-dark(#0f2f57, #161b22); // texto 13.4:1 / 14.6:1
-  --app-topbar-fg: light-dark(#ffffff, #e6edf3);
-  --app-topbar-subtle: light-dark(rgb(255 255 255 / 14%), rgb(255 255 255 / 8%));
+  // borda de controles (campos, caixas de seleção): ≥ 3:1 contra a superfície (WCAG 1.4.11)
+  --app-control-border: #8a93a0; // 3.11:1 sobre #fff
 
-  // ------------------------------------------------------------------ cores semânticas (tom)
-  // Sempre acompanhadas de texto e ícone: nunca a cor sozinha comunica o estado.
-  --app-success-bg: light-dark(#e3f4e8, #12301e);
-  --app-success-fg: light-dark(#135c2b, #a6e3b8); // 7.3:1 / 9.8:1
-  --app-warning-bg: light-dark(#fff4d6, #33280a);
-  --app-warning-fg: light-dark(#6b4700, #ffd970); // 7.1:1 / 10.6:1
-  --app-danger-bg: light-dark(#fde7e7, #3d1714);
-  --app-danger-fg: light-dark(#8c1d18, #ffb4ab); // 7.6:1 / 9.3:1
-  --app-info-bg: light-dark(#e3edfb, #132a47);
-  --app-info-fg: light-dark(#123f73, #a7c8ff); // 9.1:1 / 8.5:1
-  --app-neutral-bg: light-dark(#eceff3, #262b32);
-  --app-neutral-fg: light-dark(#3c4652, #c9d1db); // 9.0:1 / 9.2:1
+  // foco: anel de 2px sempre ≥ 3:1 contra o fundo
+  --app-focus-color: var(--bs-primary);
 
-  // ------------------------------------------------------------------ gráficos (painéis)
-  // Série 1 (azul) e 2 (laranja), passos validados para CVD e contraste ≥ 3:1 sobre a superfície
-  // clara (#fff) e escura (validate_palette.js da skill de visualização; docs/tecnico/desenho/analytics.md §7).
-  // Texto nunca usa a cor da série; grade e eixo recessivos.
-  --app-chart-1: light-dark(#2a78d6, #3987e5);
-  --app-chart-2: light-dark(#eb6834, #d95926);
-  --app-chart-grid: light-dark(#e1e0d9, #2c2c2a);
-  --app-chart-axis: light-dark(#c3c2b7, #383835);
-  --app-chart-track: light-dark(#eceff3, #262b32);
+  // ---------------------------------------------------------------- gráficos (painéis)
+  // Série 1 (azul) e 2 (laranja), validadas para CVD e contraste ≥ 3:1 sobre a superfície
+  // (docs/tecnico/desenho/analytics.md §7). Texto nunca usa a cor da série.
+  --app-chart-1: #2a78d6;
+  --app-chart-2: #eb6834;
+  --app-chart-grid: #e1e0d9;
+  --app-chart-axis: #c3c2b7;
+  --app-chart-track: #eceff3;
+
+  // notificações (toasts) de tom forte
+  --app-snack-bg: #1f2933;
+  --app-snack-fg: #ffffff;
+}
+
+@include color-mode(dark, true) {
+  --app-control-border: #6b7480; // 3.62:1 sobre #171c23
+  --app-focus-color: #a7c8ff;
+  --app-chart-1: #3987e5;
+  --app-chart-2: #d95926;
+  --app-chart-grid: #2c2c2a;
+  --app-chart-axis: #383835;
+  --app-chart-track: #262b32;
+  --app-snack-bg: #e2e2e9;
+  --app-snack-fg: #1b1f26;
+}
+
+// barra superior: depende do modo GLOBAL (o próprio cabeçalho usa `data-bs-theme="dark"`, então
+// estes tokens são definidos só no <html>): azul institucional no claro, neutra no escuro.
+:root {
+  --app-topbar-bg: #0f2f57; // texto branco 13.4:1
+  --app-topbar-fg: #ffffff;
+  --app-topbar-subtle: rgb(255 255 255 / 14%);
+}
+
+:root[data-bs-theme='dark'] {
+  --app-topbar-bg: #161b22; // texto 14.6:1
+  --app-topbar-fg: #e6edf3;
+  --app-topbar-subtle: rgb(255 255 255 / 8%);
+}
+
+:root {
+  // ---------------------------------------------------------------- tons semânticos (Bootstrap)
+  // Sempre acompanhados de texto e ícone: nunca a cor sozinha comunica o estado.
+  // `neutral` = secondary do Bootstrap. Os valores (e o contraste) estão em bootstrap/_variables*.
+  @each $tone, $color in (success: success, warning: warning, danger: danger, info: info, neutral: secondary) {
+    --app-#{$tone}-bg: var(--bs-#{$color}-bg-subtle);
+    --app-#{$tone}-fg: var(--bs-#{$color}-text-emphasis);
+    --app-#{$tone}-border: var(--bs-#{$color}-border-subtle);
+  }
 
   // valores monetários negativos/positivos (texto sobre superfície)
-  --app-amount-negative: light-dark(#8c1d18, #ffb4ab);
-  --app-amount-positive: light-dark(#135c2b, #a6e3b8);
+  --app-amount-negative: var(--bs-danger-text-emphasis);
+  --app-amount-positive: var(--bs-success-text-emphasis);
 
-  // notificações (snack-bar)
-  --app-snack-bg: light-dark(#1f2933, #e2e2e9);
-  --app-snack-fg: light-dark(#ffffff, #1b1f26);
-  --app-snack-action: light-dark(#a7c8ff, #325f9b);
-  --app-snack-error-bg: light-dark(#8c1d18, #ffb4ab);
-  --app-snack-error-fg: light-dark(#ffffff, #3d1714);
-  --app-snack-success-bg: light-dark(#135c2b, #a6e3b8);
-  --app-snack-success-fg: light-dark(#ffffff, #12301e);
-
-  // ------------------------------------------------------------------ tipografia
-  --app-font-sans: 'Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --app-font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  // ---------------------------------------------------------------- tipografia (Bootstrap)
+  --app-font-sans: var(--bs-font-sans-serif);
+  --app-font-mono: var(--bs-font-monospace);
   --app-text-xs: 0.75rem; // 12px — rótulos auxiliares, cabeçalho de tabela
   --app-text-sm: 0.8125rem; // 13px — tabelas, listas densas
-  --app-text-md: 0.875rem; // 14px — texto padrão
+  --app-text-md: 0.875rem; // 14px — texto padrão ($font-size-base)
   --app-text-lg: 1rem; // 16px — títulos de cartão
   --app-text-xl: 1.375rem; // 22px — título de página
   --app-text-2xl: 1.75rem; // 28px — números de destaque
   --app-line-tight: 1.25;
   --app-line-normal: 1.5;
 
-  // ------------------------------------------------------------------ espaçamento (base 4px)
+  // ---------------------------------------------------------------- espaçamento (base 4px)
   --app-space-1: 4px;
   --app-space-2: 8px;
   --app-space-3: 12px;
@@ -79,39 +102,31 @@
   --app-space-8: 32px;
   --app-space-12: 48px;
 
-  // ------------------------------------------------------------------ forma e elevação
-  --app-radius-sm: 4px;
-  --app-radius-md: 8px;
-  --app-radius-lg: 12px;
-  --app-radius-pill: 999px;
-  --app-elevation-1: 0 1px 2px rgb(0 0 0 / 6%), 0 1px 3px rgb(0 0 0 / 8%);
-  --app-elevation-2: 0 2px 6px rgb(0 0 0 / 10%), 0 1px 2px rgb(0 0 0 / 8%);
-  --app-elevation-3: 0 8px 24px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 10%);
+  // ---------------------------------------------------------------- forma e elevação (Bootstrap)
+  --app-radius-sm: var(--bs-border-radius-sm);
+  --app-radius-md: var(--bs-border-radius);
+  --app-radius-lg: var(--bs-border-radius-lg);
+  --app-radius-pill: var(--bs-border-radius-pill);
+  --app-elevation-1: var(--bs-box-shadow-sm);
+  --app-elevation-2: var(--bs-box-shadow);
+  --app-elevation-3: var(--bs-box-shadow-lg);
 
-  // ------------------------------------------------------------------ foco e movimento
-  --app-focus-ring: 2px solid var(--mat-sys-primary);
+  // ---------------------------------------------------------------- foco e movimento
+  --app-focus-ring: 2px solid var(--app-focus-color);
   --app-focus-offset: 2px;
   --app-motion-fast: 120ms;
   --app-motion-standard: 200ms;
   --app-easing: cubic-bezier(0.2, 0, 0, 1);
 
-  // ------------------------------------------------------------------ densidade (ver [data-density])
+  // ---------------------------------------------------------------- densidade (ver _density.scss)
   --app-content-padding: 20px 24px 32px;
   --app-card-padding: 16px 20px;
   --app-gap: 16px;
   --app-table-cell-y: 10px;
 
-  // ------------------------------------------------------------------ layout
+  // ---------------------------------------------------------------- layout
   --app-topbar-height: 56px;
   --app-sidenav-width: 256px;
   --app-sidenav-rail-width: 72px;
   --app-content-max-width: 1600px;
-}
-
-@mixin compact-tokens {
-  --app-content-padding: 12px 16px 24px;
-  --app-card-padding: 12px 16px;
-  --app-gap: 12px;
-  --app-table-cell-y: 6px;
-  --app-topbar-height: 48px;
 }

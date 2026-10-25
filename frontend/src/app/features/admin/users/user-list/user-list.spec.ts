@@ -85,7 +85,7 @@ describe('UserList', () => {
     req.flush(page([user({}), user({ id: 'u-2', name: 'Bruno Lima', status: 'PENDING_ACTIVATION', locked: true, mfaEnabled: false })], 2));
     await fixture.whenStable();
 
-    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row');
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('app-data-table tbody tr');
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('Ana Souza');
     expect(rows[0].textContent).toContain('Operador');
@@ -147,6 +147,6 @@ describe('UserList', () => {
     fixture.detectChanges();
     usersRequest().flush(page([user({})]));
     await fixture.whenStable();
-    expect(el.querySelectorAll('tr.mat-mdc-row').length).toBe(1);
+    expect(el.querySelectorAll('app-data-table tbody tr').length).toBe(1);
   });
 });

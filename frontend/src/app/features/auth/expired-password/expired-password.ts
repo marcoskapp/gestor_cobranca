@@ -1,6 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AUTH_ROUTES, AuthService } from '../../../core/auth/auth.service';
@@ -13,12 +12,12 @@ import { buildNewPasswordForm } from '../new-password-form';
 /** Troca de senha obrigatória (expirada ou primeiro acesso), com step token. */
 @Component({
   selector: 'app-expired-password',
-  imports: [ReactiveFormsModule, MatButtonModule, PasswordField],
+  imports: [ReactiveFormsModule, PasswordField],
   template: `
     <h1 class="app-auth-title">Defina uma nova senha</h1>
     <p class="app-auth-text">Sua senha expirou ou precisa ser trocada antes de continuar.</p>
     @if (error(); as e) {
-      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+      <div class="alert alert-danger" role="alert">{{ e }}</div>
     }
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="app-form-stack">
       <app-password-field
@@ -29,10 +28,10 @@ import { buildNewPasswordForm } from '../new-password-form';
       />
       <app-password-field [control]="form.controls.confirmation" label="Confirme a nova senha" autocomplete="new-password" />
       @if (form.hasError('mismatch') && form.controls.confirmation.touched) {
-        <p class="app-field-error" role="alert">As senhas não conferem.</p>
+        <div class="invalid-feedback d-block" role="alert">As senhas não conferem.</div>
       }
-      <button mat-flat-button type="submit" [disabled]="submitting()">Salvar nova senha</button>
-      <button mat-button type="button" (click)="back()">Voltar ao login</button>
+      <button type="submit" class="btn btn-primary mt-2" [disabled]="submitting()">Salvar nova senha</button>
+      <button type="button" class="btn btn-link" (click)="back()">Voltar ao login</button>
     </form>
   `,
 })

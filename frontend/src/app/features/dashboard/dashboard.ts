@@ -1,11 +1,11 @@
 import { Component, computed, inject } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { NAVIGATION, NavItem } from '../../core/layout/navigation';
 import { GettingStarted } from '../../core/onboarding/getting-started/getting-started';
 import { OnboardingService } from '../../core/onboarding/onboarding.service';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
+import { Icon } from '../../shared/components/icon/icon';
 import { Permission } from '../../core/auth/permission';
 import { HomeKpis } from '../analytics/components/home-kpis';
 
@@ -15,7 +15,7 @@ import { HomeKpis } from '../analytics/components/home-kpis';
  */
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, MatIconModule, GettingStarted, EmptyState, HomeKpis],
+  imports: [RouterLink, Icon, GettingStarted, EmptyState, HomeKpis],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })

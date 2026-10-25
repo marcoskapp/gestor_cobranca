@@ -1,11 +1,10 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { DIALOG_DATA, DialogRef } from '../../dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../dialog/dialog.directives';
+import { FORM_FIELD } from '../../forms/field';
+import { Icon } from '../icon/icon';
 import { AppValidators, Limits } from '../../validation/validators';
 import { errorMessage } from '../../validation/error-messages';
 
@@ -36,15 +35,18 @@ export type ConfirmDialogResult = string | false;
 
 @Component({
   selector: 'app-confirm-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon],
   template: `
-    <h2 mat-dialog-title class="app-confirm__title">
-      @if (data.destructive) {
-        <mat-icon class="app-confirm__icon" aria-hidden="true">warning_amber</mat-icon>
-      }
-      {{ data.title }}
-    </h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 d-flex align-items-center gap-2 mb-0">
+        @if (data.destructive) {
+          <app-icon class="text-danger-emphasis" name="exclamation-triangle" />
+        }
+        {{ data.title }}
+      </h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <p class="app-dialog-message">{{ data.message }}</p>
       @if (data.details?.length) {
         <dl class="app-definition-list app-confirm__details">
@@ -55,67 +57,49 @@ export type ConfirmDialogResult = string | false;
         </dl>
       }
       @if (data.warning) {
-        <p class="app-alert app-alert--warning" role="note">
-          <mat-icon aria-hidden="true">info</mat-icon>
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+          <app-icon name="info-circle" />
           <span>{{ data.warning }}</span>
-        </p>
+        </div>
       }
       @if (data.reason) {
-        <mat-form-field class="app-full-width">
-          <mat-label>{{ data.reasonLabel ?? 'Motivo' }}</mat-label>
-          <textarea
-            matInput
-            [formControl]="reason"
-            rows="3"
-            [maxlength]="maxReason"
-            [required]="data.reason === 'required'"
-          ></textarea>
-          <mat-hint align="end">{{ reason.value.length }} / {{ maxReason }}</mat-hint>
-          @if (reason.invalid) {
-            <mat-error>{{ error() }}</mat-error>
-          }
-        </mat-form-field>
+        <app-field class="mb-3" [label]="data.reasonLabel ?? 'Motivo'" [hintEnd]="reason.value.length + ' / ' + maxReason" [error]="error()">
+          <textarea appInput [formControl]="reason" rows="3" [maxlength]="maxReason" [required]="data.reason === 'required'"></textarea>
+        </app-field>
       }
       @if (data.confirmationText) {
-        <mat-form-field class="app-full-width">
-          <mat-label>Digite {{ data.confirmationText }} para confirmar</mat-label>
-          <input matInput [formControl]="typed" autocomplete="off" spellcheck="false" />
-        </mat-form-field>
+        <app-field [label]="'Digite ' + data.confirmationText + ' para confirmar'">
+          <input appInput [formControl]="typed" autocomplete="off" spellcheck="false" />
+        </app-field>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="false">Cancelar</button>
+    </div>
+    <div class="modal-footer">
+      <!-- foco inicial em "Cancelar" (prevenção de erro, docs/tecnico/desenho/ux.md §2) -->
+      <button type="button" class="btn btn-link" ngbAutofocus [appDialogClose]="false">Cancelar</button>
       <button
-        mat-flat-button
         type="button"
-        [class.app-button-danger]="data.destructive"
+        class="btn"
+        [class.btn-primary]="!data.destructive"
+        [class.btn-danger]="data.destructive"
         [disabled]="!typedMatches()"
         (click)="confirm()"
       >
         {{ data.confirmLabel ?? 'Confirmar' }}
       </button>
-    </mat-dialog-actions>
+    </div>
   `,
   styles: `
-    .app-confirm__title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .app-confirm__icon {
-      color: var(--app-danger-fg);
-    }
     .app-confirm__details {
       margin: 0 0 16px;
-      padding: 12px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
+      padding: 12px 16px;
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
     }
   `,
 })
 export class ConfirmDialog {
-  protected readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ConfirmDialog, ConfirmDialogResult>>(MatDialogRef);
+  protected readonly data = inject<ConfirmDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<ConfirmDialogResult>>(DialogRef);
   protected readonly maxReason = Math.min(this.data.reasonMaxLength ?? Limits.reason, Limits.reason);
   protected readonly reason = new FormControl('', {
     nonNullable: true,
@@ -131,9 +115,11 @@ export class ConfirmDialog {
     () => !this.data.confirmationText || this.typedValue().trim().toUpperCase() === this.data.confirmationText.toUpperCase(),
   );
 
-  protected error(): string {
+  private readonly reasonValue = toSignal(this.reason.valueChanges, { initialValue: '' });
+  protected readonly error = computed(() => {
+    this.reasonValue();
     return errorMessage(this.reason.errors);
-  }
+  });
 
   protected confirm(): void {
     if (!this.typedMatches()) {

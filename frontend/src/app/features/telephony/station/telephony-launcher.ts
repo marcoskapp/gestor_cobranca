@@ -9,7 +9,10 @@ import { CallView } from '../data/telephony.models';
  * Abre os diálogos de telefonia a partir da estação de cobrança carregando-os sob demanda: o
  * código da ligação e da tabulação não entra no bloco da estação.
  */
-@Injectable({ providedIn: 'root' })
+// TRANSITÓRIO (migração para Bootstrap): fornecido nas rotas do shell (shell.routes.ts), não na raiz,
+// para usar o MatDialog e os padrões do Material daquele injetor. Volta a `providedIn: 'root'`
+// quando passar a usar o DialogService.
+@Injectable()
 export class TelephonyLauncher {
   private readonly dialog = inject(MatDialog);
   private tabulationOpen = false;

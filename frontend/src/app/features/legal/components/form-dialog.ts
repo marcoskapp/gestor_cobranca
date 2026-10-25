@@ -413,7 +413,10 @@ export class FormDialog {
 }
 
 /** Abre o formulário em diálogo; emite o resultado do envio somente quando o usuário conclui. */
-@Injectable({ providedIn: 'root' })
+// TRANSITÓRIO (migração para Bootstrap): fornecido nas rotas do shell (shell.routes.ts), não na raiz,
+// para usar o MatDialog e os padrões do Material daquele injetor. Volta a `providedIn: 'root'`
+// quando passar a usar o DialogService.
+@Injectable()
 export class FormDialogService {
   private readonly dialog = inject(MatDialog);
 

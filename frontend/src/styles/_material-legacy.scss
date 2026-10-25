@@ -1,0 +1,109 @@
+@use '@angular/material' as mat;
+@use 'theme-colors' as palette;
+
+// =============================================================================
+// TRANSITÓRIO — tema do Angular Material para as telas ainda não migradas ao Bootstrap.
+//
+// A migração para Bootstrap 5.3 + ng-bootstrap é feita em ondas (docs/tecnico/desenho/ux.md,
+// "Guia de migração"). Enquanto houver telas em `features/*` com componentes `mat-*`, este
+// arquivo mantém o tema Material 3 (tokens `--mat-sys-*`), a densidade e os ajustes desses
+// componentes. Ao fim da migração: apagar este arquivo, `_theme-colors.scss`, o `@use` em
+// styles.scss e as dependências `@angular/material`, `@angular/material-date-fns-adapter` e
+// `material-icons`.
+// =============================================================================
+
+html {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: color-scheme,
+        primary: palette.$primary-palette,
+        tertiary: palette.$tertiary-palette,
+      ),
+      typography: (
+        plain-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
+        brand-family: ('Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
+      ),
+      density: -1,
+    )
+  );
+
+  @include mat.table-density(-2);
+  @include mat.list-density(-1);
+  @include mat.paginator-density(-3);
+  @include mat.icon-button-density(-1);
+
+  @include mat.table-overrides(
+    (
+      header-headline-weight: 600,
+      header-headline-color: var(--mat-sys-on-surface-variant),
+      row-item-label-text-size: 13px,
+      header-headline-size: 12px,
+      background-color: var(--app-surface),
+    )
+  );
+
+  @include mat.snack-bar-overrides(
+    (
+      container-color: var(--app-snack-bg),
+      supporting-text-color: var(--app-snack-fg),
+    )
+  );
+
+  @include mat.tooltip-overrides(
+    (
+      supporting-text-size: 12px,
+    )
+  );
+}
+
+@media (pointer: fine) {
+  html[data-density='compact'] {
+    @include mat.theme((density: -3));
+    @include mat.table-density(-4);
+    @include mat.list-density(-3);
+    @include mat.paginator-density(-4);
+    @include mat.icon-button-density(-2);
+  }
+}
+
+.app-filters mat-form-field {
+  width: 220px;
+}
+
+@media (max-width: 599.98px) {
+  .app-filters mat-form-field {
+    width: 100%;
+  }
+}
+
+.app-button-spinner {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+
+  --mat-progress-spinner-active-indicator-color: currentColor;
+}
+
+.app-button-danger {
+  --mat-button-filled-container-color: var(--mat-sys-error);
+  --mat-button-filled-label-text-color: var(--mat-sys-on-error);
+}
+
+.app-status .mat-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+  line-height: 14px;
+}
+
+.app-alert > .mat-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+}
+
+mat-form-field.app-compact {
+  @include mat.form-field-density(-4);
+}

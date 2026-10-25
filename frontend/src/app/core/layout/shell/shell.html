@@ -1,22 +1,22 @@
 <a class="app-skip-link" href="#conteudo">Pular para o conteúdo</a>
 
-<header class="app-topbar" role="banner">
+<!-- barra superior sempre em modo de cor escuro do Bootstrap (fundo institucional) -->
+<header class="app-topbar" data-bs-theme="dark">
   <button
-    mat-icon-button
     type="button"
-    class="app-topbar__menu"
+    class="btn app-topbar__btn"
     (click)="toggleMenu()"
     [attr.aria-expanded]="menuExpanded()"
-    aria-controls="menu-principal"
+    [attr.aria-controls]="compact() ? null : 'menu-principal'"
     [attr.aria-label]="menuExpanded() ? 'Recolher menu' : 'Expandir menu'"
-    [matTooltip]="menuExpanded() ? 'Recolher menu (Alt + M)' : 'Expandir menu (Alt + M)'"
+    [ngbTooltip]="menuExpanded() ? 'Recolher menu (Alt + M)' : 'Expandir menu (Alt + M)'"
   >
-    <mat-icon aria-hidden="true">{{ compact() || rail() ? 'menu' : 'menu_open' }}</mat-icon>
+    <app-icon [name]="compact() || rail() ? 'list' : 'text-indent-right'" />
   </button>
 
   <a class="app-topbar__brand" routerLink="/" [attr.aria-label]="appName + ' — início'">
     <svg class="app-logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.16" />
+      <rect width="32" height="32" rx="9" fill="currentColor" opacity="0.16" />
       <path d="M9 21.5V10.5h2.8v11z M14.6 21.5v-7h2.8v7z M20.2 21.5v-4h2.8v4z" fill="currentColor" />
       <path d="M8.5 24.5h15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
     </svg>
@@ -24,11 +24,11 @@
   </a>
 
   @if (user(); as u) {
-    <div class="app-context" data-tour="tenant" [matTooltip]="'Assessoria e escopo de credores do seu acesso'">
-      <mat-icon aria-hidden="true">domain</mat-icon>
+    <div class="app-context" data-tour="tenant" ngbTooltip="Assessoria e escopo de credores do seu acesso">
+      <app-icon name="building" />
       <span class="app-context__text">
-        <span class="cdk-visually-hidden">Assessoria:</span>
-        <strong class="app-context__tenant">{{ u.tenantName }}</strong>
+        <span class="visually-hidden">Assessoria:</span>
+        <span class="app-context__tenant">{{ u.tenantName }}</span>
         <span class="app-context__scope">{{ creditorScope() }}</span>
       </span>
     </div>
@@ -37,204 +37,191 @@
   <span class="app-topbar__spacer"></span>
 
   <button type="button" class="app-search" data-tour="search" (click)="openPalette()" aria-haspopup="dialog">
-    <mat-icon aria-hidden="true">search</mat-icon>
+    <app-icon name="search" />
     <span class="app-search__label">Buscar ou ir para…</span>
     <kbd class="app-search__kbd" aria-hidden="true">{{ paletteKeys }}</kbd>
-    <span class="cdk-visually-hidden">(atalho {{ paletteKeys }})</span>
+    <span class="visually-hidden">(atalho {{ paletteKeys }})</span>
   </button>
 
   <button
-    mat-icon-button
     type="button"
-    class="app-topbar__action"
+    class="btn app-topbar__btn"
     (click)="theme.toggleTheme()"
     [attr.aria-label]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
-    [matTooltip]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
+    [ngbTooltip]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
   >
-    <mat-icon aria-hidden="true">{{ theme.effectiveTheme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+    <app-icon [name]="theme.effectiveTheme() === 'dark' ? 'sun' : 'moon-stars'" />
   </button>
 
-  <button
-    mat-icon-button
-    type="button"
-    class="app-topbar__action"
-    data-tour="help"
-    [matMenuTriggerFor]="helpMenu"
-    [attr.aria-label]="onboarding.unreadReleaseNotes() ? 'Ajuda (há novidades)' : 'Ajuda'"
-    matTooltip="Ajuda"
-  >
-    <mat-icon
-      aria-hidden="true"
-      matBadge=" "
-      matBadgeSize="small"
-      matBadgeColor="warn"
-      [matBadgeHidden]="!onboarding.unreadReleaseNotes()"
-      >help_outline</mat-icon
+  <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+    <button
+      type="button"
+      ngbDropdownToggle
+      class="btn app-topbar__btn position-relative"
+      data-tour="help"
+      [attr.aria-label]="onboarding.unreadReleaseNotes() ? 'Ajuda (há novidades)' : 'Ajuda'"
+      ngbTooltip="Ajuda"
     >
-  </button>
-  <mat-menu #helpMenu="matMenu" xPosition="before">
-    <button mat-menu-item type="button" [disabled]="!onboarding.screenTour()" (click)="onboarding.startScreenTour()">
-      <mat-icon aria-hidden="true">tour</mat-icon>
-      <span>Tour desta tela</span>
-    </button>
-    <button mat-menu-item type="button" (click)="showGettingStarted()">
-      <mat-icon aria-hidden="true">checklist</mat-icon>
-      <span>Primeiros passos</span>
-    </button>
-    <button mat-menu-item type="button" (click)="help.openWhatsNew()">
-      <mat-icon aria-hidden="true">new_releases</mat-icon>
-      <span>Novidades</span>
+      <app-icon name="question-circle" />
       @if (onboarding.unreadReleaseNotes()) {
-        <span class="app-menu-badge">Novo</span>
+        <span class="app-topbar__dot position-absolute translate-middle p-1 bg-warning rounded-circle" aria-hidden="true"></span>
       }
     </button>
-    <button mat-menu-item type="button" (click)="help.openShortcuts()">
-      <mat-icon aria-hidden="true">keyboard</mat-icon>
-      <span>Atalhos de teclado</span>
-      <kbd class="app-menu-kbd">?</kbd>
-    </button>
-    <mat-divider />
-    <button mat-menu-item type="button" (click)="onboarding.resetTours()">
-      <mat-icon aria-hidden="true">replay</mat-icon>
-      <span>Rever todos os tours</span>
-    </button>
-    <button
-      mat-menu-item
-      type="button"
-      role="menuitemcheckbox"
-      [attr.aria-checked]="onboarding.hintsEnabled()"
-      (click)="onboarding.setHintsEnabled(!onboarding.hintsEnabled())"
-    >
-      <mat-icon aria-hidden="true">{{ onboarding.hintsEnabled() ? 'toggle_on' : 'toggle_off' }}</mat-icon>
-      <span>Dicas automáticas</span>
-    </button>
-  </mat-menu>
+    <div ngbDropdownMenu class="shadow app-menu" role="menu" aria-label="Ajuda">
+      <button ngbDropdownItem type="button" role="menuitem" [disabled]="!onboarding.screenTour()" (click)="onboarding.startScreenTour()">
+        <app-icon name="signpost" /> Tour desta tela
+      </button>
+      <button ngbDropdownItem type="button" role="menuitem" (click)="showGettingStarted()">
+        <app-icon name="list-check" /> Primeiros passos
+      </button>
+      <button ngbDropdownItem type="button" role="menuitem" (click)="help.openWhatsNew()">
+        <app-icon name="patch-exclamation" /> Novidades
+        @if (onboarding.unreadReleaseNotes()) {
+          <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis ms-auto">Novo</span>
+        }
+      </button>
+      <button ngbDropdownItem type="button" role="menuitem" (click)="help.openShortcuts()">
+        <app-icon name="keyboard" /> Atalhos de teclado <kbd class="ms-auto">?</kbd>
+      </button>
+      <div class="dropdown-divider" role="separator"></div>
+      <button ngbDropdownItem type="button" role="menuitem" (click)="onboarding.resetTours()">
+        <app-icon name="arrow-counterclockwise" /> Rever todos os tours
+      </button>
+      <button
+        ngbDropdownItem
+        type="button"
+        role="menuitemcheckbox"
+        [attr.aria-checked]="onboarding.hintsEnabled()"
+        (click)="onboarding.setHintsEnabled(!onboarding.hintsEnabled())"
+      >
+        <app-icon [name]="onboarding.hintsEnabled() ? 'toggle-on' : 'toggle-off'" /> Dicas automáticas
+      </button>
+    </div>
+  </div>
 
   @if (user(); as u) {
-    <button
-      mat-button
-      type="button"
-      class="app-topbar__user"
-      data-tour="user-menu"
-      [matMenuTriggerFor]="userMenu"
-      aria-label="Menu do usuário e aparência"
-    >
-      <span class="app-avatar" aria-hidden="true">{{ initials() }}</span>
-      <span class="app-topbar__user-name">{{ u.name }}</span>
-      <mat-icon iconPositionEnd aria-hidden="true">expand_more</mat-icon>
-    </button>
-    <mat-menu #userMenu="matMenu" xPosition="before" class="app-user-menu">
-      <div class="app-user-menu__header" role="presentation">
-        <strong>{{ u.name }}</strong>
-        <span>{{ u.email }}</span>
-      </div>
-      <mat-divider />
-      <p class="app-user-menu__label" role="presentation">Tema</p>
-      @for (t of themes; track t.value) {
-        <button
-          mat-menu-item
-          type="button"
-          role="menuitemradio"
-          [attr.aria-checked]="theme.theme() === t.value"
-          (click)="theme.setTheme(t.value)"
-        >
-          <mat-icon aria-hidden="true">{{ t.icon }}</mat-icon>
-          <span>{{ t.label }}</span>
-          @if (theme.theme() === t.value) {
-            <span class="app-menu-check material-icons-outlined" aria-hidden="true">check</span>
-          }
-        </button>
-      }
-      <p class="app-user-menu__label" role="presentation">Densidade</p>
-      @for (d of densities; track d.value) {
-        <button
-          mat-menu-item
-          type="button"
-          role="menuitemradio"
-          [attr.aria-checked]="theme.density() === d.value"
-          (click)="theme.setDensity(d.value)"
-        >
-          <mat-icon aria-hidden="true">{{ d.icon }}</mat-icon>
-          <span>{{ d.label }}</span>
-          @if (theme.density() === d.value) {
-            <span class="app-menu-check material-icons-outlined" aria-hidden="true">check</span>
-          }
-        </button>
-      }
-      <mat-divider />
-      <a mat-menu-item routerLink="/conta/perfil">
-        <mat-icon aria-hidden="true">person</mat-icon>
-        <span>Meu perfil</span>
-      </a>
-      <a mat-menu-item routerLink="/conta/senha">
-        <mat-icon aria-hidden="true">password</mat-icon>
-        <span>Trocar senha</span>
-      </a>
-      <a mat-menu-item routerLink="/conta/sessoes">
-        <mat-icon aria-hidden="true">devices</mat-icon>
-        <span>Minhas sessões</span>
-      </a>
-      <mat-divider />
-      <button mat-menu-item type="button" (click)="logout()">
-        <mat-icon aria-hidden="true">logout</mat-icon>
-        <span>Sair</span>
+    <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+      <button
+        type="button"
+        ngbDropdownToggle
+        class="btn app-topbar__btn app-topbar__user"
+        data-tour="user-menu"
+        aria-label="Menu do usuário e aparência"
+      >
+        <span class="app-avatar" aria-hidden="true">{{ initials() }}</span>
+        <span class="app-topbar__user-name">{{ u.name }}</span>
+        <app-icon class="app-topbar__chevron" name="chevron-down" />
       </button>
-    </mat-menu>
+      <div ngbDropdownMenu class="shadow app-menu app-user-menu" role="menu" aria-label="Usuário e aparência">
+        <div class="app-user-menu__header" role="presentation">
+          <span class="app-user-menu__name">{{ u.name }}</span>
+          <span class="text-body-secondary">{{ u.email }}</span>
+        </div>
+        <div class="dropdown-divider" role="separator"></div>
+        <h6 class="dropdown-header" role="presentation">Tema</h6>
+        @for (t of themes; track t.value) {
+          <button
+            ngbDropdownItem
+            type="button"
+            role="menuitemradio"
+            [attr.aria-checked]="theme.theme() === t.value"
+            (click)="theme.setTheme(t.value)"
+          >
+            <app-icon [name]="t.icon" /> {{ t.label }}
+            @if (theme.theme() === t.value) {
+              <app-icon class="ms-auto text-primary-emphasis" name="check-lg" />
+            }
+          </button>
+        }
+        <h6 class="dropdown-header" role="presentation">Densidade</h6>
+        @for (d of densities; track d.value) {
+          <button
+            ngbDropdownItem
+            type="button"
+            role="menuitemradio"
+            [attr.aria-checked]="theme.density() === d.value"
+            (click)="theme.setDensity(d.value)"
+          >
+            <app-icon [name]="d.icon" /> {{ d.label }}
+            @if (theme.density() === d.value) {
+              <app-icon class="ms-auto text-primary-emphasis" name="check-lg" />
+            }
+          </button>
+        }
+        <div class="dropdown-divider" role="separator"></div>
+        <a ngbDropdownItem role="menuitem" routerLink="/conta/perfil"><app-icon name="person" /> Meu perfil</a>
+        <a ngbDropdownItem role="menuitem" routerLink="/conta/senha"><app-icon name="asterisk" /> Trocar senha</a>
+        <a ngbDropdownItem role="menuitem" routerLink="/conta/sessoes"><app-icon name="laptop" /> Minhas sessões</a>
+        <div class="dropdown-divider" role="separator"></div>
+        <button ngbDropdownItem type="button" role="menuitem" (click)="logout()">
+          <app-icon name="box-arrow-right" /> Sair
+        </button>
+      </div>
+    </div>
   }
 </header>
 
-<mat-sidenav-container class="app-shell" [autosize]="true">
-  <mat-sidenav
-    id="menu-principal"
-    class="app-sidenav"
-    [class.app-sidenav--rail]="rail()"
-    [mode]="compact() ? 'over' : 'side'"
-    [opened]="sidenavOpened()"
-    (closedStart)="onSidenavClosed()"
-    data-tour="nav"
-  >
-    <nav aria-label="Menu principal">
-      @for (section of sections(); track section.label; let first = $first) {
-        @if (section.label) {
-          @if (rail()) {
-            @if (!first) {
-              <mat-divider class="app-sidenav__divider" />
-            }
-          } @else {
-            <h2 class="app-sidenav__section">{{ section.label }}</h2>
+<div class="app-shell">
+  @if (!compact()) {
+    <aside id="menu-principal" class="app-sidenav" [class.app-sidenav--rail]="rail()" data-tour="nav">
+      <ng-container *ngTemplateOutlet="navigation; context: { rail: rail() }" />
+    </aside>
+  }
+
+  <main id="conteudo" class="app-content" tabindex="-1">
+    <app-breadcrumbs />
+    <router-outlet />
+  </main>
+</div>
+
+<!-- menu lateral (o mesmo conteúdo no painel fixo e no painel do celular) -->
+<ng-template #navigation let-rail="rail">
+  <nav aria-label="Menu principal">
+    @for (section of sections(); track section.label; let first = $first) {
+      @if (section.label) {
+        @if (rail) {
+          @if (!first) {
+            <hr class="app-sidenav__divider" />
           }
+        } @else {
+          <h2 class="app-sidenav__section" [id]="'menu-secao-' + $index">{{ section.label }}</h2>
         }
-        <mat-nav-list [attr.aria-label]="section.label ?? 'Início'">
-          @for (item of section.items; track item.route) {
+      }
+      <ul class="nav nav-pills flex-column app-sidenav__list" [attr.aria-label]="rail ? (section.label ?? 'Início') : null">
+        @for (item of section.items; track item.route) {
+          <li class="nav-item">
             <a
-              mat-list-item
+              class="nav-link app-sidenav__link"
               [routerLink]="item.route"
-              routerLinkActive="app-sidenav__item--active"
+              routerLinkActive="active"
               ariaCurrentWhenActive="page"
               [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-              [matTooltip]="item.label"
-              matTooltipPosition="right"
-              [matTooltipDisabled]="!rail()"
-              [attr.aria-label]="rail() ? item.label : null"
+              [ngbTooltip]="item.label"
+              placement="end"
+              [disableTooltip]="!rail"
+              [attr.aria-label]="rail ? item.label : null"
               (click)="onNavigate()"
             >
-              <mat-icon matListItemIcon aria-hidden="true">{{ item.icon }}</mat-icon>
-              @if (!rail()) {
-                <span matListItemTitle>{{ item.label }}</span>
+              <app-icon class="app-sidenav__icon" [name]="item.icon" />
+              @if (!rail) {
+                <span>{{ item.label }}</span>
               }
             </a>
-          }
-        </mat-nav-list>
-      }
-    </nav>
-  </mat-sidenav>
+          </li>
+        }
+      </ul>
+    }
+  </nav>
+</ng-template>
 
-  <mat-sidenav-content class="app-shell__content">
-    <main id="conteudo" class="app-content" tabindex="-1">
-      <app-breadcrumbs />
-      <router-outlet />
-    </main>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+<ng-template #offcanvasNav let-offcanvas>
+  <div class="offcanvas-header">
+    <h2 class="offcanvas-title h6 mb-0" id="menu-principal-titulo">{{ appName }}</h2>
+    <button type="button" class="btn-close" aria-label="Fechar menu" (click)="offcanvas.dismiss()"></button>
+  </div>
+  <div class="offcanvas-body app-sidenav app-sidenav--panel" data-tour="nav">
+    <ng-container *ngTemplateOutlet="navigation; context: { rail: false }" />
+  </div>
+</ng-template>
 
 <app-onboarding-hint />
