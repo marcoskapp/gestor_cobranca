@@ -1,95 +1,102 @@
-<h2 mat-dialog-title>{{ editing ? 'Editar perfil' : 'Novo perfil' }}</h2>
-<form [formGroup]="form" (ngSubmit)="save()" novalidate>
-  <mat-dialog-content>
+<div class="modal-header">
+  <h2 appDialogTitle class="h5 mb-0">{{ editing ? 'Editar perfil' : 'Novo perfil' }}</h2>
+  <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+</div>
+<form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="modal-body">
     @for (e of generalErrors(); track e) {
-      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
     }
     @if (role?.systemRole) {
-      <p class="app-alert app-alert--info">Perfil de sistema: pode ter as permissões ajustadas, mas não pode ser desativado.</p>
+      <div class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" /><span>Perfil de sistema: pode ter as permissões ajustadas, mas não pode ser desativado.</span></div>
     }
-    <div class="app-form-grid">
-      <mat-form-field>
-        <mat-label>Código</mat-label>
-        <input matInput formControlName="code" autocomplete="off" maxlength="40" class="app-mono" />
-        <mat-hint>Ex.: OPERADOR_SENIOR</mat-hint>
-        @if (form.controls.code.invalid) {
-          <mat-error>{{ message('code') }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Nome</mat-label>
-        <input matInput formControlName="name" autocomplete="off" [maxlength]="limits.roleName" />
-        @if (form.controls.name.invalid) {
-          <mat-error>{{ message('name') }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field class="app-span-all">
-        <mat-label>Descrição</mat-label>
-        <textarea matInput formControlName="description" rows="2" [maxlength]="limits.roleDescription"></textarea>
-        @if (form.controls.description.invalid) {
-          <mat-error>{{ message('description') }}</mat-error>
-        }
-      </mat-form-field>
+    <div class="app-form-grid row-gap-3">
+      <app-field label="Código" hint="Ex.: OPERADOR_SENIOR" [error]="message('code')">
+        <input appInput formControlName="code" autocomplete="off" maxlength="40" class="font-monospace" [attr.ngbAutofocus]="editing ? null : ''" />
+      </app-field>
+      <app-field label="Nome" [error]="message('name')">
+        <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.roleName" [attr.ngbAutofocus]="editing ? '' : null" />
+      </app-field>
+      <app-field class="app-span-all" label="Descrição" [error]="message('description')">
+        <textarea appInput formControlName="description" rows="2" [maxlength]="limits.roleDescription"></textarea>
+      </app-field>
     </div>
 
-    <h3 class="role-form__heading" id="permissoes">
+    <h3 class="h6 fw-medium mt-3 mb-2" id="permissoes">
       Permissões
       <span class="app-muted">({{ selectedSet().size }} selecionadas)</span>
     </h3>
     @if (notGrantable().length > 0) {
-      <p class="app-alert app-alert--info" role="note">
+      <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+        <app-icon name="lock" />
+        <span>
         Você só pode conceder permissões que o seu próprio perfil possui. {{ notGrantable().length }}
         {{ notGrantable().length === 1 ? 'permissão aparece bloqueada' : 'permissões aparecem bloqueadas' }}
         @if (lockedSelected() > 0) {
           ({{ lockedSelected() }} já {{ lockedSelected() === 1 ? 'marcada continua' : 'marcadas continuam' }} no perfil)
         }.
         Peça a um administrador da assessoria para concedê-las.
-      </p>
+        </span>
+      </div>
     }
-    <div class="role-form__bulk">
-      <button mat-stroked-button type="button" (click)="selectAllGrantable()" [disabled]="catalogLoading()">
+    <div class="d-flex flex-wrap gap-2 my-2">
+      <button class="btn btn-outline-primary" type="button" (click)="selectAllGrantable()" [disabled]="catalogLoading()">
         {{ notGrantable().length > 0 ? 'Marcar todas que posso conceder' : 'Marcar todas' }}
       </button>
-      <button mat-button type="button" (click)="clearGrantable()" [disabled]="catalogLoading()">Desmarcar</button>
+      <button class="btn btn-link" type="button" (click)="clearGrantable()" [disabled]="catalogLoading()">Desmarcar</button>
     </div>
     @if (form.controls.permissions.invalid && form.controls.permissions.touched) {
-      <p class="app-field-error" role="alert">Selecione ao menos uma permissão.</p>
+      <div class="invalid-feedback d-block mb-2" role="alert">Selecione ao menos uma permissão.</div>
     }
     @if (catalogLoading()) {
-      <mat-progress-bar mode="indeterminate" aria-label="Carregando permissões" />
+      <div class="progress" role="progressbar" aria-label="Carregando permissões">
+        <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+      </div>
     }
-    <div class="role-form__groups" aria-labelledby="permissoes">
-      @for (group of groups(); track group.label) {
-        <fieldset class="role-form__group">
-          <legend>
-            <mat-checkbox
-              [checked]="groupState(group) === 'all'"
-              [indeterminate]="groupState(group) === 'some'"
-              [disabled]="!groupGrantable(group)"
-              (change)="toggleGroup(group, $event.checked)"
-            >
-              <strong>{{ group.label }}</strong>
-            </mat-checkbox>
+    <div class="role-form__groups" role="group" aria-labelledby="permissoes">
+      @for (group of groups(); track group.label; let gi = $index) {
+        <fieldset class="role-form__group border rounded-3 px-3 pb-2 pt-1">
+          <legend class="float-none w-auto px-1 mb-1 fs-6">
+            <span class="form-check mb-0">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                [id]="'role-group-' + gi"
+                [checked]="groupState(group) === 'all'"
+                [indeterminate]="groupState(group) === 'some'"
+                [disabled]="!groupGrantable(group)"
+                #groupBox
+                (change)="toggleGroup(group, groupBox.checked)"
+              />
+              <label class="form-check-label fw-medium" [for]="'role-group-' + gi">{{ group.label }}</label>
+            </span>
           </legend>
           @for (p of group.permissions; track p.code) {
-            <mat-checkbox
-              [checked]="selectedSet().has(p.code)"
-              [disabled]="!p.grantable"
-              (change)="toggle(p.code, $event.checked)"
-            >
-              {{ p.description }}
-              <span class="app-mono app-muted">{{ p.code }}</span>
-              @if (!p.grantable) {
-                <span class="app-muted"> — fora do seu perfil</span>
-              }
-            </mat-checkbox>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                [id]="'role-perm-' + p.code"
+                [checked]="selectedSet().has(p.code)"
+                [disabled]="!p.grantable"
+                #permBox
+                (change)="toggle(p.code, permBox.checked)"
+              />
+              <label class="form-check-label" [for]="'role-perm-' + p.code">
+                {{ p.description }}
+                <span class="app-mono app-muted small ms-1">{{ p.code }}</span>
+                @if (!p.grantable) {
+                  <span class="app-muted"> — fora do seu perfil</span>
+                }
+              </label>
+            </div>
           }
         </fieldset>
       }
     </div>
-  </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button type="button" mat-dialog-close>Cancelar</button>
-    <button mat-flat-button type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Criar perfil' }}</button>
-  </mat-dialog-actions>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+    <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Criar perfil' }}</button>
+  </div>
 </form>

@@ -1,10 +1,6 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
+import { IsActiveMatchOptions, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -14,6 +10,7 @@ import { ANALYTICS_PANELS } from '../analytics.panels';
 import { filterParams } from '../data/analytics.filters';
 import { AnalyticsApi } from '../data/analytics.api';
 import { AnalyticsFilter, ReportMeta, ReportName } from '../data/analytics.models';
+import { Icon } from '../../../shared/components/icon/icon';
 
 const FILTER_LABELS: Record<string, string> = {
   from: 'período',
@@ -38,34 +35,48 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
  */
 @Component({
   selector: 'app-panel-frame',
-  imports: [RouterLink, RouterLinkActive, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, PageHeader, AppDatePipe],
+  imports: [Icon, RouterLink, RouterLinkActive, NgbDropdownModule, PageHeader, AppDatePipe],
   template: `
     <app-page-header [title]="title()" [subtitle]="subtitle()">
       @if (report() && canExport()) {
-        <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu" [disabled]="exporting()" data-tour="analytics-export">
-          <mat-icon aria-hidden="true">download</mat-icon>
-          Exportar
-        </button>
-        <mat-menu #exportMenu="matMenu">
-          <button mat-menu-item type="button" (click)="export('XLSX')">Planilha (XLSX)</button>
-          <button mat-menu-item type="button" (click)="export('CSV')">Texto separado por ponto e vírgula (CSV)</button>
-        </mat-menu>
+        <div ngbDropdown class="d-inline-flex" placement="bottom-end">
+          <button class="btn btn-outline-primary" type="button" ngbDropdownToggle [disabled]="exporting()" data-tour="analytics-export">
+            <app-icon name="download" />
+            Exportar
+            <app-icon name="chevron-down" />
+          </button>
+          <div ngbDropdownMenu class="shadow app-menu" aria-label="Formato da exportação">
+            <button ngbDropdownItem type="button" (click)="export('XLSX')">Planilha (XLSX)</button>
+            <button ngbDropdownItem type="button" (click)="export('CSV')">Texto separado por ponto e vírgula (CSV)</button>
+          </div>
+        </div>
       }
     </app-page-header>
 
-    <nav class="pf__tabs" aria-label="Painéis" data-tour="analytics-tabs">
-      @for (p of panels(); track p.route) {
-        <a class="pf__tab" [routerLink]="p.route" [queryParams]="queryParams()" routerLinkActive="pf__tab--active"
-           [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">
-          <mat-icon aria-hidden="true">{{ p.icon }}</mat-icon>{{ p.label }}
-        </a>
-      }
+    <nav class="mb-3" aria-label="Painéis" data-tour="analytics-tabs">
+      <ul class="nav nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden">
+        @for (p of panels(); track p.route) {
+          <li class="nav-item flex-shrink-0">
+            <a
+              class="nav-link d-inline-flex align-items-center gap-2"
+              [routerLink]="p.route"
+              [queryParams]="queryParams()"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="activeOptions"
+              ariaCurrentWhenActive="page"
+            >
+              <app-icon [name]="p.icon" />
+              {{ p.label }}
+            </a>
+          </li>
+        }
+      </ul>
     </nav>
 
     <ng-content select="[panel-filters]" />
 
     <p class="pf__fresh" data-tour="analytics-freshness">
-      <mat-icon aria-hidden="true">schedule</mat-icon>
+      <app-icon name="clock" />
       @if (meta(); as m) {
         @if (m.dataUntil) {
           <span>Dados até <strong>{{ m.dataUntil | appDate: 'datetime' }}</strong></span>
@@ -76,8 +87,8 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
         <span>Carregando…</span>
       }
       @if (canRefresh()) {
-        <button mat-button type="button" (click)="refresh()" [disabled]="refreshing()">
-          <mat-icon aria-hidden="true">refresh</mat-icon>
+        <button class="btn btn-sm btn-link" type="button" (click)="refresh()" [disabled]="refreshing()">
+          <app-icon name="arrow-clockwise" />
           Atualizar agora
         </button>
       }
@@ -85,21 +96,23 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
 
     @if (meta(); as m) {
       @if (m.peopleRestricted) {
-        <p class="app-alert app-alert--info" role="note">
-          <mat-icon aria-hidden="true">person</mat-icon>
+        <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+          <app-icon name="person" />
           <span>Os dados por pessoa mostram somente quem está no seu escopo ({{ scopeText() }}).</span>
-        </p>
+        </div>
       }
       @if (notApplicable().length) {
-        <p class="app-alert app-alert--warning" role="note">
-          <mat-icon aria-hidden="true">info</mat-icon>
+        <div class="alert alert-warning d-flex align-items-start gap-2" role="note">
+          <app-icon name="info-circle" />
           <span>Filtro sem efeito neste painel: {{ notApplicable().join(', ') }}.</span>
-        </p>
+        </div>
       }
     }
 
     @if (loading()) {
-      <mat-progress-bar mode="indeterminate" aria-label="Atualizando o painel" />
+      <div class="progress" role="progressbar" aria-label="Atualizando o painel">
+        <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+      </div>
     }
     <div class="pf__body" [class.pf__body--loading]="loading()" [attr.aria-busy]="loading()">
       <ng-content />
@@ -123,6 +136,8 @@ export class PanelFrame {
   private readonly auth = inject(AuthService);
   private readonly api = inject(AnalyticsApi);
   private readonly notifications = inject(NotificationService);
+  /** Painel atual pelo caminho (os filtros na URL — período, agrupamento, canais — não mudam o painel). */
+  protected readonly activeOptions: IsActiveMatchOptions = { paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' };
   protected readonly exporting = signal(false);
   protected readonly refreshing = signal(false);
 

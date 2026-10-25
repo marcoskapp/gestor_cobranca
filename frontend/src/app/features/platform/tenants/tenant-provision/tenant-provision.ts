@@ -1,9 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -12,76 +8,58 @@ import { errorMessage } from '../../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits, Patterns } from '../../../../shared/validation/validators';
 import { PlatformTenantsApi, ProvisionedTenant } from '../../data/platform.api';
+import { DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 type Field = 'slug' | 'legalName' | 'tradeName' | 'cnpj' | 'adminName' | 'adminEmail';
 
 /** Provisiona assessoria, perfis padrão e primeiro administrador (que recebe link de ativação). */
 @Component({
   selector: 'app-tenant-provision',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, DocumentMask],
+  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule, ...DIALOG_DIRECTIVES, DocumentMask],
   template: `
-    <h2 mat-dialog-title>Provisionar assessoria</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Provisionar assessoria</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
-        <div class="app-form-grid">
-          <mat-form-field class="app-span-all">
-            <mat-label>Identificador de acesso</mat-label>
-            <input matInput formControlName="slug" class="app-mono" maxlength="50" autocapitalize="off" spellcheck="false" />
-            <mat-hint>Usado no login. Letras minúsculas, números e hífen (3 a 50).</mat-hint>
-            @if (form.controls.slug.invalid) {
-              <mat-error>{{ message('slug') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Razão social</mat-label>
-            <input matInput formControlName="legalName" [maxlength]="limits.legalName" />
-            @if (form.controls.legalName.invalid) {
-              <mat-error>{{ message('legalName') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Nome fantasia</mat-label>
-            <input matInput formControlName="tradeName" [maxlength]="limits.legalName" />
-            @if (form.controls.tradeName.invalid) {
-              <mat-error>{{ message('tradeName') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>CNPJ</mat-label>
-            <input matInput formControlName="cnpj" appDocumentMask="CNPJ" maxlength="18" />
-            @if (form.controls.cnpj.invalid) {
-              <mat-error>{{ message('cnpj') }}</mat-error>
-            }
-          </mat-form-field>
+        <div class="app-form-grid row-gap-3">
+          <app-field class="app-span-all" label="Identificador de acesso" hint="Usado no login. Letras minúsculas, números e hífen (3 a 50)." [error]="message('slug')">
+            <input appInput formControlName="slug" class="font-monospace" ngbAutofocus maxlength="50" autocapitalize="off" spellcheck="false" />
+          </app-field>
+          <app-field class="app-span-all" label="Razão social" [error]="message('legalName')">
+            <input appInput formControlName="legalName" [maxlength]="limits.legalName" />
+          </app-field>
+          <app-field label="Nome fantasia" [error]="message('tradeName')">
+            <input appInput formControlName="tradeName" [maxlength]="limits.legalName" />
+          </app-field>
+          <app-field label="CNPJ" [error]="message('cnpj')">
+            <input appInput formControlName="cnpj" appDocumentMask="CNPJ" maxlength="18" />
+          </app-field>
           <h3 class="app-span-all app-card__title">Primeiro administrador</h3>
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="adminName" [maxlength]="limits.personName" />
-            @if (form.controls.adminName.invalid) {
-              <mat-error>{{ message('adminName') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>E-mail</mat-label>
-            <input matInput type="email" formControlName="adminEmail" [maxlength]="limits.email" />
-            @if (form.controls.adminEmail.invalid) {
-              <mat-error>{{ message('adminEmail') }}</mat-error>
-            }
-          </mat-form-field>
+          <app-field label="Nome" [error]="message('adminName')">
+            <input appInput formControlName="adminName" [maxlength]="limits.personName" />
+          </app-field>
+          <app-field label="E-mail" [error]="message('adminEmail')">
+            <input appInput type="email" formControlName="adminEmail" [maxlength]="limits.email" />
+          </app-field>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Provisionar</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Provisionar</button>
+      </div>
     </form>
   `,
 })
 export class TenantProvision {
-  private readonly ref = inject<MatDialogRef<TenantProvision, ProvisionedTenant>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<ProvisionedTenant>>(DialogRef);
   private readonly api = inject(PlatformTenantsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly limits = Limits;

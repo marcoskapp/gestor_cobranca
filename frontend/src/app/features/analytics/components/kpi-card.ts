@@ -21,16 +21,16 @@ import { Component, input } from '@angular/core';
       gap: 4px;
       min-width: 0;
       padding: 12px 16px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
     }
     .kpi__label {
       font-size: var(--app-text-xs);
       font-weight: 600;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .kpi__value {
       font-size: var(--app-text-xl);
@@ -40,7 +40,7 @@ import { Component, input } from '@angular/core';
     }
     .kpi__detail {
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
   `,
 })

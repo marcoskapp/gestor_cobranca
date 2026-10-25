@@ -1,35 +1,5 @@
-.role-form__heading {
-  margin: 12px 0 8px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .role-form__groups {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 12px;
-}
-
-.role-form__group {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 4px 8px 8px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 6px;
-
-  legend {
-    padding: 0 4px;
-  }
-
-  .app-mono {
-    margin-left: 4px;
-    font-size: 11px;
-  }
-}
-
-.role-form__bulk {
-  display: flex;
-  gap: var(--app-space-2, 8px);
-  margin-block: var(--app-space-2, 8px);
 }

@@ -1,24 +1,23 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, startWith } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { EntityPicker } from '../../../../shared/components/entity-picker/entity-picker';
 import { valueOr } from '../../../../shared/data/resource-value';
-import { fromLocalDate, toLocalDate } from '../../../../shared/models/dates';
+import { toLocalDate } from '../../../../shared/models/dates';
 import { errorMessage } from '../../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits, Patterns } from '../../../../shared/validation/validators';
 import { ContractsApi, PortfoliosApi } from '../../data/organization.api';
 import { CreditorLookup } from '../../data/organization.lookups';
 import { PortfolioView } from '../../data/organization.models';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 export interface PortfolioFormData {
   portfolio: PortfolioView | null;
@@ -29,21 +28,12 @@ type Field = 'creditor' | 'contractId' | 'code' | 'name' | 'description' | 'rece
 
 @Component({
   selector: 'app-portfolio-form',
-  imports: [
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatDatepickerModule,
-    EntityPicker,
-  ],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, NgbInputDatepicker, EntityPicker, Icon],
   templateUrl: './portfolio-form.html',
 })
 export class PortfolioForm {
-  protected readonly data = inject<PortfolioFormData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<PortfolioForm, PortfolioView>>(MatDialogRef);
+  protected readonly data = inject<PortfolioFormData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<PortfolioView>>(DialogRef);
   private readonly api = inject(PortfoliosApi);
   private readonly contractsApi = inject(ContractsApi);
   private readonly notifications = inject(NotificationService);
@@ -68,8 +58,9 @@ export class PortfolioForm {
       ],
       name: [this.data.portfolio?.name ?? '', [AppValidators.notBlank, Validators.maxLength(Limits.portfolioName)]],
       description: [this.data.portfolio?.description ?? '', [Validators.maxLength(Limits.portfolioDescription)]],
-      receivedOn: [fromLocalDate(this.data.portfolio?.receivedOn) ?? new Date(), [Validators.required]],
-      validUntil: [fromLocalDate(this.data.portfolio?.validUntil)],
+      // modelo ISO (yyyy-MM-dd) do ngbDatepicker
+      receivedOn: [this.data.portfolio?.receivedOn ?? toLocalDate(new Date()), [Validators.required]],
+      validUntil: [this.data.portfolio?.validUntil ?? null],
     },
     { validators: AppValidators.dateRange('receivedOn', 'validUntil') },
   );
@@ -115,8 +106,8 @@ export class PortfolioForm {
     const common = {
       name: (v.name ?? '').trim(),
       description: v.description?.trim() || null,
-      receivedOn: toLocalDate(v.receivedOn) as string,
-      validUntil: toLocalDate(v.validUntil),
+      receivedOn: v.receivedOn as string,
+      validUntil: v.validUntil || null,
     };
     const request$ = this.data.portfolio
       ? this.api.update(this.data.portfolio.id, common)

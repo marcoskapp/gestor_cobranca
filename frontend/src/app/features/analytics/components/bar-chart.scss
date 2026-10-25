@@ -20,7 +20,7 @@
 .bc__empty {
   margin: 0 0 8px;
   font-size: var(--app-text-sm);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 .bc__legend {
   display: flex;
@@ -88,7 +88,7 @@
 .bc__value {
   flex: none;
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface);
+  color: var(--bs-body-color);
 }
 .bc__tip {
   position: absolute;
@@ -98,10 +98,10 @@
   gap: 2px;
   max-width: min(320px, 80%);
   padding: 8px 10px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-sm);
-  background: var(--app-surface-raised);
-  box-shadow: var(--mat-sys-level2);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-tertiary-bg);
+  box-shadow: var(--bs-box-shadow);
   font-size: var(--app-text-xs);
   pointer-events: none;
   strong {
@@ -118,7 +118,7 @@
   th,
   td {
     padding: 6px 8px;
-    border-bottom: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--bs-border-color);
     text-align: left;
   }
   .num {

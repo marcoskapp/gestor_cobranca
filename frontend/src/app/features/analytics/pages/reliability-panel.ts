@@ -1,6 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
 import { Amount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
@@ -22,15 +21,15 @@ import { urlFilter } from '../data/url-filter';
  */
 @Component({
   selector: 'app-reliability-panel',
-  imports: [MatButtonModule, Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Confiabilidade" subtitle="Falhas de integração, mensagens, conciliação, processamentos e importações."
                      report="reliability" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
       <app-analytics-filters panel-filters [filter]="state.filter()" [options]="{ period: true, creditor: true, portfolio: true, channel: true }"
                              (changed)="state.update($event)" />
       @if (data.error()) {
-        <app-empty-state tone="error" icon="error" title="Não foi possível carregar a confiabilidade" message="Tente novamente em instantes.">
-          <button mat-flat-button type="button" (click)="data.reload()">Tentar novamente</button>
+        <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar a confiabilidade" message="Tente novamente em instantes.">
+          <button class="btn btn-primary" type="button" (click)="data.reload()">Tentar novamente</button>
         </app-empty-state>
       } @else if (!report()) {
         <app-skeleton variant="card" [rows]="4" />

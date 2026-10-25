@@ -19,7 +19,7 @@
 .cc__summary {
   margin: 0 0 8px;
   font-size: var(--app-text-sm);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 :host {
   display: block;
@@ -44,11 +44,11 @@
 .cc__xlabel,
 .cc__value {
   font-size: 11px;
-  fill: var(--mat-sys-on-surface-variant);
+  fill: var(--bs-secondary-color);
   font-variant-numeric: tabular-nums;
 }
 .cc__value {
-  fill: var(--mat-sys-on-surface);
+  fill: var(--bs-body-color);
   font-weight: 600;
 }
 .cc__hit {
@@ -61,7 +61,7 @@
     filter: brightness(1.15);
   }
   &:focus-visible .cc__hit {
-    stroke: var(--mat-sys-primary);
+    stroke: var(--bs-primary);
     stroke-width: 2;
     vector-effect: non-scaling-stroke;
   }
@@ -73,10 +73,10 @@
   display: grid;
   gap: 2px;
   padding: 8px 10px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-sm);
-  background: var(--app-surface-raised);
-  box-shadow: var(--mat-sys-level2);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-tertiary-bg);
+  box-shadow: var(--bs-box-shadow);
   font-size: var(--app-text-xs);
   pointer-events: none;
   strong {
@@ -93,7 +93,7 @@
   th,
   td {
     padding: 6px 8px;
-    border-bottom: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--bs-border-color);
     text-align: left;
   }
   .num {

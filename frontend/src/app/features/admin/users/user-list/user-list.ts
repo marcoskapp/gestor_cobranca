@@ -1,13 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, map } from 'rxjs';
 import { Permission } from '../../../../core/auth/permission';
@@ -24,18 +17,16 @@ import { UserFilter, UserView } from '../../data/admin.models';
 import { RolesApi } from '../../data/roles.api';
 import { UsersApi } from '../../data/users.api';
 import { UserForm, UserFormData } from '../user-form/user-form';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 @Component({
   selector: 'app-user-list',
-  imports: [
+  imports: [NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatTooltipModule,
     DataTable,
     CellDef,
     PageHeader,
@@ -48,7 +39,7 @@ import { UserForm, UserFormData } from '../user-form/user-form';
 export class UserList {
   private readonly api = inject(UsersApi);
   private readonly rolesApi = inject(RolesApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
 
   protected readonly permission = Permission;
@@ -95,7 +86,7 @@ export class UserList {
 
   protected create(): void {
     this.dialog
-      .open<UserForm, UserFormData, UserView>(UserForm, { data: { user: null }, width: '640px' })
+      .open<UserForm, UserFormData, UserView>(UserForm, { data: { user: null } })
       .afterClosed()
       .subscribe((created) => {
         if (created) {

@@ -42,9 +42,9 @@
   gap: 12px;
   min-height: 64px;
   padding: 12px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--bs-border-color);
   border-radius: var(--app-radius-lg);
-  background: var(--app-surface);
+  background: var(--bs-body-bg);
   color: var(--bs-body-color);
   text-decoration: none;
   transition:
@@ -67,7 +67,7 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: var(--app-radius-md);
+  border-radius: var(--bs-border-radius);
   background: var(--bs-primary-bg-subtle);
   color: var(--bs-primary-text-emphasis);
   font-size: 1.125rem;

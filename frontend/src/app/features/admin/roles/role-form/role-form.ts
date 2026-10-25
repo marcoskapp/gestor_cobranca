@@ -1,12 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { finalize, startWith } from 'rxjs';
 import { Permission, permissionGroupOf, PERMISSION_GROUPS } from '../../../../core/auth/permission';
 import { toApiError } from '../../../../core/http/problem';
@@ -17,6 +11,10 @@ import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits, Patterns } from '../../../../shared/validation/validators';
 import { PermissionView, RoleView } from '../../data/admin.models';
 import { RolesApi } from '../../data/roles.api';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
 
 interface PermissionGroup {
   label: string;
@@ -25,21 +23,13 @@ interface PermissionGroup {
 
 @Component({
   selector: 'app-role-form',
-  imports: [
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatCheckboxModule,
-    MatProgressBarModule,
-  ],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon],
   templateUrl: './role-form.html',
   styleUrl: './role-form.scss',
 })
 export class RoleForm {
-  protected readonly role = inject<RoleView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<RoleForm, RoleView>>(MatDialogRef);
+  protected readonly role = inject<RoleView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<RoleView>>(DialogRef);
   private readonly api = inject(RolesApi);
   private readonly notifications = inject(NotificationService);
 

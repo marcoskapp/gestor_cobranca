@@ -1,6 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { CellDef } from '../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../shared/components/data-table/data-table';
@@ -22,12 +21,12 @@ const REASONS: Record<string, string> = {
 /** Pedidos do portal que foram (ou não puderam ser) encaminhados à fila humana (`INBOX_VIEW`). */
 @Component({
   selector: 'app-portal-requests',
-  imports: [RouterLink, MatIconModule, DataTable, CellDef, PageHeader, StatusChip, AppDatePipe],
+  imports: [RouterLink, DataTable, CellDef, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Pedidos do portal" subtitle="Devedores que pediram atendimento humano no portal. Os encaminhados estão na caixa de entrada." />
     <app-data-table caption="Pedidos de atendimento do portal" [rows]="rows()" [columns]="columns" [loading]="list.isLoading()"
                     [failed]="list.status() === 'error'" (retry)="list.reload()" [page]="tablePage()" (pageChange)="page.set($event)"
-                    emptyIcon="support_agent" emptyMessage="Nenhum pedido do portal.">
+                    emptyIcon="headset" emptyMessage="Nenhum pedido do portal.">
       <ng-template appCell="protocol" [appCellOf]="rows()" let-r><code>{{ r.protocol }}</code><div class="app-muted">{{ r.createdAt | appDate }}</div></ng-template>
       <ng-template appCell="reason" [appCellOf]="rows()" let-r>{{ reasons[r.reason] ?? r.reason }}
         @if (r.note) {<div class="app-muted">“{{ r.note }}”</div>}</ng-template>

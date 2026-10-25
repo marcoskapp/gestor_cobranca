@@ -35,6 +35,22 @@ describe('TurnDetailPage (turno do assistente)', () => {
     http.expectNone((r) => r.method === 'POST');
   });
 
+  it('nota, veredito e etiquetas por botões de seleção do Bootstrap entram na avaliação enviada', async () => {
+    const { http } = setup(TurnDetailPage, ['ASSISTANT_REVIEW'], 'u-1');
+    const fixture = await render(TurnDetailPage, http, respond('u-9'), { id: 't-1', revisao: 'rv-1' });
+    const el = fixture.nativeElement as HTMLElement;
+    el.querySelector<HTMLInputElement>('#td-score-4')!.click();
+    el.querySelector<HTMLInputElement>('#td-verdict-ADEQUATE')!.click();
+    const tag = el.querySelector<HTMLInputElement>('[id^="td-tag-"]')!;
+    tag.click();
+    fixture.detectChanges();
+    expect(el.querySelector<HTMLInputElement>('#td-score-4')!.checked).toBe(true);
+    button(fixture, 'Registrar avaliação')!.click();
+    fixture.detectChanges();
+    const req = http.expectOne((r) => r.method === 'POST');
+    expect(req.request.body).toMatchObject({ score: 4, verdict: 'ADEQUATE', tags: [tag.id.replace('td-tag-', '')] });
+  });
+
   it('quem publicou a política do turno não avalia', async () => {
     const { http } = setup(TurnDetailPage, ['ASSISTANT_REVIEW'], 'u-1');
     const fixture = await render(TurnDetailPage, http, respond('u-1'), { id: 't-1', revisao: 'rv-1' });

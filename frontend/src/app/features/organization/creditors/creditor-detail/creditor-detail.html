@@ -1,32 +1,34 @@
 @if (creditor.isLoading() && !current()) {
-  <mat-progress-bar mode="indeterminate" aria-label="Carregando credor" />
+  <div class="progress" role="progressbar" aria-label="Carregando credor">
+    <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+  </div>
 }
 @if (creditor.status() === 'error') {
-  <p class="app-alert app-alert--error" role="alert">Não foi possível carregar o credor.</p>
-  <a mat-button routerLink="/organizacao/credores">Voltar para credores</a>
+  <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>Não foi possível carregar o credor.</span></div>
+  <a class="btn btn-link" routerLink="/organizacao/credores">Voltar para credores</a>
 }
 
 @if (current(); as c) {
   <app-page-header [title]="c.tradeName || c.legalName" [subtitle]="c.tradeName ? c.legalName : ''">
-    <a mat-button routerLink="/organizacao/credores">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/organizacao/credores">
+      <app-icon name="arrow-left" />
       Credores
     </a>
     @if (canViewPortfolios()) {
-      <a mat-stroked-button routerLink="/organizacao/carteiras" [queryParams]="{ credor: c.id }">
-        <mat-icon aria-hidden="true">folder_open</mat-icon>
+      <a class="btn btn-outline-primary" routerLink="/organizacao/carteiras" [queryParams]="{ credor: c.id }">
+        <app-icon name="folder2-open" />
         Carteiras
       </a>
     }
     @if (canManage()) {
-      <button mat-stroked-button type="button" (click)="edit(c)">
-        <mat-icon aria-hidden="true">edit</mat-icon>
+      <button class="btn btn-outline-primary" type="button" (click)="edit(c)">
+        <app-icon name="pencil" />
         Editar
       </button>
       @if (c.status === 'ACTIVE') {
-        <button mat-stroked-button type="button" (click)="setActive(c, false)">Inativar</button>
+        <button class="btn btn-outline-primary" type="button" (click)="setActive(c, false)">Inativar</button>
       } @else {
-        <button mat-flat-button type="button" (click)="setActive(c, true)">Ativar</button>
+        <button class="btn btn-primary" type="button" (click)="setActive(c, true)">Ativar</button>
       }
     }
   </app-page-header>
@@ -49,8 +51,8 @@
     <div class="app-page-header">
       <h2 class="app-card__title" id="contratos-credor">Contratos de prestação de serviço</h2>
       @if (canManageContracts()) {
-        <button mat-stroked-button type="button" (click)="newContract()">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="newContract()">
+          <app-icon name="plus-lg" />
           Novo contrato
         </button>
       }
@@ -71,11 +73,11 @@
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="contractRows()" let-k>
         @if (canManageContracts() && k.status === 'ACTIVE') {
-          <button mat-icon-button type="button" (click)="editTerms(k)" [attr.aria-label]="'Alterar termos do contrato ' + k.number" matTooltip="Alterar termos">
-            <mat-icon aria-hidden="true">edit_note</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="editTerms(k)" [attr.aria-label]="'Alterar termos do contrato ' + k.number" ngbTooltip="Alterar termos">
+            <app-icon name="pencil-square" />
           </button>
-          <button mat-icon-button type="button" (click)="terminate(k)" [attr.aria-label]="'Encerrar contrato ' + k.number" matTooltip="Encerrar">
-            <mat-icon aria-hidden="true">event_busy</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="terminate(k)" [attr.aria-label]="'Encerrar contrato ' + k.number" ngbTooltip="Encerrar">
+            <app-icon name="calendar-x" />
           </button>
         }
       </ng-template>

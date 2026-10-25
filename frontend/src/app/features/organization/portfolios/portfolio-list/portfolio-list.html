@@ -1,7 +1,7 @@
 <app-page-header title="Carteiras" subtitle="Lotes de títulos recebidos dos credores, com vigência e ciclo de vida.">
   @if (canManage()) {
-    <button mat-flat-button type="button" (click)="create()">
-      <mat-icon aria-hidden="true">create_new_folder</mat-icon>
+    <button class="btn btn-primary" type="button" (click)="create()">
+      <app-icon name="folder-plus" />
       Nova carteira
     </button>
   }
@@ -11,20 +11,20 @@
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
   </div>
-  <mat-form-field class="app-compact">
-    <mat-label>Situação</mat-label>
-    <mat-select formControlName="status">
-      <mat-option value="">Todas</mat-option>
+  <app-field label="Situação">
+    <select appInput formControlName="status">
+      <option value="">Todas</option>
       @for (s of statuses; track s.value) {
-        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+        <option [ngValue]="s.value">{{ s.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Código ou nome</mat-label>
-    <input matInput formControlName="q" type="search" />
-    <mat-icon matSuffix aria-hidden="true">search</mat-icon>
-  </mat-form-field>
+    </select>
+  </app-field>
+  <app-field label="Código ou nome">
+  <div class="input-group">
+    <input appInput formControlName="q" type="search" />
+    <span class="input-group-text" aria-hidden="true"><app-icon name="search" /></span>
+  </div>
+  </app-field>
 </form>
 
 <app-data-table
@@ -51,7 +51,7 @@
   <ng-template appCell="status" [appCellOf]="query.rows()" let-p>
     <app-status-chip domain="portfolio" [status]="p.status" />
     @if (p.status === 'ACTIVE' && !p.operable) {
-      <span class="app-status app-status--warning" matTooltip="Fora da vigência">Fora da vigência</span>
+      <span class="app-status app-status--warning ms-1" ngbTooltip="Fora da vigência">Fora da vigência</span>
     }
     @if (p.statusReason) {
       <div class="app-muted">{{ p.statusReason }}</div>
@@ -59,18 +59,17 @@
   </ng-template>
   <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
     @if (canManage()) {
-      <button mat-icon-button type="button" (click)="edit(p)" [attr.aria-label]="'Editar carteira ' + p.code" matTooltip="Editar">
-        <mat-icon aria-hidden="true">edit</mat-icon>
+      <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="edit(p)" [attr.aria-label]="'Editar carteira ' + p.code" ngbTooltip="Editar">
+        <app-icon name="pencil" />
       </button>
-      <button
-        mat-icon-button
+      <button class="btn btn-sm btn-outline-secondary border-0"
         type="button"
         (click)="changeStatus(p)"
         [disabled]="!canChangeStatus(p)"
         [attr.aria-label]="'Alterar situação da carteira ' + p.code"
-        matTooltip="Alterar situação"
+        ngbTooltip="Alterar situação"
       >
-        <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+        <app-icon name="arrow-left-right" />
       </button>
     }
   </ng-template>

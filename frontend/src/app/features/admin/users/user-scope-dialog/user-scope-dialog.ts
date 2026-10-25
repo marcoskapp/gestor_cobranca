@@ -1,38 +1,40 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { EntityPicker } from '../../../../shared/components/entity-picker/entity-picker';
 import { CreditorLookup } from '../../../organization/data/organization.lookups';
 import { UserView } from '../../data/admin.models';
 import { UsersApi } from '../../data/users.api';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
 
 @Component({
   selector: 'app-user-scope-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, EntityPicker],
   template: `
-    <h2 mat-dialog-title>Escopo de credores de {{ user.name }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Escopo de credores de {{ user.name }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <p class="app-muted">O usuário só acessa carteiras, devedores e operações dos credores do seu escopo.</p>
-        <mat-checkbox formControlName="allCreditors">Acesso a todos os credores</mat-checkbox>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="usersc-allCreditors" formControlName="allCreditors"  /><label class="form-check-label" for="usersc-allCreditors">Acesso a todos os credores</label></div>
         @if (!form.controls.allCreditors.value) {
           <app-entity-picker [control]="form.controls.creditorIds" [source]="creditors" label="Credores permitidos" />
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar escopo</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar escopo</button>
+      </div>
     </form>
   `,
 })
 export class UserScopeDialog {
-  protected readonly user = inject<UserView>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<UserScopeDialog, UserView>>(MatDialogRef);
+  protected readonly user = inject<UserView>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<UserView>>(DialogRef);
   private readonly api = inject(UsersApi);
   private readonly notifications = inject(NotificationService);
   protected readonly creditors = inject(CreditorLookup);

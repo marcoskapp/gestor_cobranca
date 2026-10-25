@@ -1,5 +1,5 @@
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { button, render, setup, text } from '../../../../../testing/component-harness';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 import { RoleForm } from './role-form';
 
 const catalog = (grantable: (code: string) => boolean) => [
@@ -11,8 +11,8 @@ const catalog = (grantable: (code: string) => boolean) => [
 describe('RoleForm (permissões que podem ser concedidas)', () => {
   function create() {
     return setup(RoleForm, ['ROLE_MANAGE', 'USER_VIEW'], 'u-1', [
-      { provide: MAT_DIALOG_DATA, useValue: null },
-      { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      { provide: DIALOG_DATA, useValue: null },
+      { provide: DialogRef, useValue: { close: vi.fn() } },
     ]);
   }
 
@@ -33,8 +33,15 @@ describe('RoleForm (permissões que podem ser concedidas)', () => {
     const t = text(fixture);
     expect(t).toContain('Você só pode conceder permissões que o seu próprio perfil possui');
     expect(t).toContain('fora do seu perfil');
+    const locked = fixture.nativeElement.querySelector('#role-perm-PAYMENT_REVERSE') as HTMLInputElement;
+    expect(locked.disabled).toBe(true);
+    expect(button(fixture, 'Desmarcar')).toBeTruthy();
     button(fixture, 'Marcar todas que posso conceder')!.click();
     fixture.detectChanges();
     expect(text(fixture)).toContain('(2 selecionadas)');
+    expect(locked.checked).toBe(false);
+    button(fixture, 'Desmarcar')!.click();
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('(0 selecionadas)');
   });
 });

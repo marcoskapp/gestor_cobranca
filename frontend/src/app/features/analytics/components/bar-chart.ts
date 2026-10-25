@@ -1,7 +1,6 @@
 import { Component, computed, input, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { ChartRow, ChartSeries } from './chart.models';
+import { Icon } from '../../../shared/components/icon/icon';
 
 let nextId = 0;
 
@@ -12,13 +11,13 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-bar-chart',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [Icon],
   template: `
     <figure class="bc" [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-s'">
       <div class="bc__head">
         <figcaption [id]="id + '-t'" class="bc__title">{{ title() }}</figcaption>
-        <button mat-button type="button" class="bc__toggle" (click)="table.set(!table())" [attr.aria-pressed]="table()">
-          <mat-icon aria-hidden="true">{{ table() ? 'bar_chart' : 'table_rows' }}</mat-icon>
+        <button type="button" class="btn btn-link bc__toggle" (click)="table.set(!table())" [attr.aria-pressed]="table()">
+          <app-icon [name]="table() ? 'bar-chart' : 'table'" />
           {{ table() ? 'Ver gráfico' : 'Ver tabela' }}
         </button>
       </div>

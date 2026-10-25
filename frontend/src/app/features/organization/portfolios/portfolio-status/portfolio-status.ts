@@ -1,11 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
 import { finalize, startWith } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -15,6 +10,10 @@ import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits } from '../../../../shared/validation/validators';
 import { PortfoliosApi } from '../../data/organization.api';
 import { PortfolioView } from '../../data/organization.models';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 const CONSEQUENCES: Record<string, string> = {
   ACTIVE: 'Os títulos passam a ser elegíveis para cobrança dentro da vigência.',
@@ -26,49 +25,58 @@ const CONSEQUENCES: Record<string, string> = {
 /** Mudança de status com as transições permitidas pelo domínio e motivo quando exigido. */
 @Component({
   selector: 'app-portfolio-status',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatRadioModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon],
   template: `
-    <h2 mat-dialog-title>Alterar situação da carteira {{ portfolio.code }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Alterar situação da carteira {{ portfolio.code }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <p>Situação atual: <strong>{{ currentLabel }}</strong></p>
         @if (targets.length === 0) {
-          <p class="app-alert app-alert--info">Carteira encerrada: não há transições disponíveis.</p>
+          <div class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" /><span>Carteira encerrada: não há transições disponíveis.</span></div>
         } @else {
-          <mat-radio-group formControlName="status" class="app-form-stack" aria-label="Nova situação">
+          <fieldset class="mb-3">
+            <legend class="visually-hidden">Nova situação</legend>
             @for (t of targets; track t.value) {
-              <mat-radio-button [value]="t.value">
-                <strong>{{ t.label }}</strong>
-                <div class="app-muted">{{ t.consequence }}</div>
-              </mat-radio-button>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" formControlName="status" [id]="'portfolio-status-' + t.value" [value]="t.value" [attr.ngbAutofocus]="$first ? '' : null" />
+                <label class="form-check-label" [for]="'portfolio-status-' + t.value">
+                  <span class="fw-medium">{{ t.label }}</span>
+                  <span class="d-block app-muted small">{{ t.consequence }}</span>
+                </label>
+              </div>
             }
-          </mat-radio-group>
-          <mat-form-field class="app-full-width">
-            <mat-label>{{ reasonRequired() ? 'Motivo (obrigatório)' : 'Motivo' }}</mat-label>
-            <textarea matInput formControlName="reason" rows="3" [maxlength]="maxReason"></textarea>
-            @if (form.controls.reason.invalid) {
-              <mat-error>{{ reasonError() }}</mat-error>
-            }
-          </mat-form-field>
+          </fieldset>
+          <app-field [label]="(reasonRequired() ? 'Motivo (obrigatório)' : 'Motivo')" [error]="reasonError()">
+            <textarea appInput formControlName="reason" rows="3" [maxlength]="maxReason"></textarea>
+          </app-field>
         }
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2 mt-3 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
         @if (targets.length > 0) {
-          <button mat-flat-button type="submit" [disabled]="saving()" [class.app-button-danger]="selected() === 'CLOSED'">
+          <button
+            class="btn"
+            type="submit"
+            [disabled]="saving()"
+            [class.btn-primary]="selected() !== 'CLOSED'"
+            [class.btn-danger]="selected() === 'CLOSED'"
+          >
             Confirmar
           </button>
         }
-      </mat-dialog-actions>
+      </div>
     </form>
   `,
 })
 export class PortfolioStatusDialog {
-  protected readonly portfolio = inject<PortfolioView>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<PortfolioStatusDialog, PortfolioView>>(MatDialogRef);
+  protected readonly portfolio = inject<PortfolioView>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<PortfolioView>>(DialogRef);
   private readonly api = inject(PortfoliosApi);
   private readonly notifications = inject(NotificationService);
 

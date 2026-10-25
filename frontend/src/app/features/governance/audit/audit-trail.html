@@ -1,56 +1,50 @@
 <app-page-header title="Trilha de auditoria" subtitle="Alterações relevantes com autor, motivo e valores antes/depois.">
-  <button mat-stroked-button type="button" (click)="verify()" [disabled]="checking()">
-    <mat-icon aria-hidden="true">verified</mat-icon>
+  <button class="btn btn-outline-primary" type="button" (click)="verify()" [disabled]="checking()">
+    <app-icon name="patch-check" />
     {{ checking() ? 'Verificando…' : 'Verificar integridade' }}
   </button>
 </app-page-header>
 
 @if (integrity(); as r) {
   @if (r.intact) {
-    <p class="app-alert app-alert--success" role="status">
-      Trilha íntegra: o encadeamento de hash foi verificado em {{ r.checkedAt | appDate }} sem divergências.
-    </p>
+    <div class="alert alert-success d-flex align-items-start gap-2" role="status"><app-icon name="check-circle" /><span>Trilha íntegra: o encadeamento de hash foi verificado em {{ r.checkedAt | appDate }} sem divergências.</span></div>
   } @else {
-    <p class="app-alert app-alert--error" role="alert">
-      Integridade comprometida a partir do registro nº {{ r.firstInvalidSeq }}{{ r.reason ? ': ' + r.reason : '' }}.
-      Verificado em {{ r.checkedAt | appDate }}. Acione a equipe de segurança.
-    </p>
+    <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>Integridade comprometida a partir do registro nº {{ r.firstInvalidSeq }}{{ r.reason ? ': ' + r.reason : '' }}.
+      Verificado em {{ r.checkedAt | appDate }}. Acione a equipe de segurança.</span></div>
   }
 }
 
 <form class="app-filters" data-tour="filters" [formGroup]="filters" (ngSubmit)="apply()" role="search" aria-label="Filtrar trilha de auditoria">
-  <mat-form-field class="app-compact">
-    <mat-label>De</mat-label>
-    <input matInput [matDatepicker]="from" formControlName="from" placeholder="dd/mm/aaaa" />
-    <mat-datepicker-toggle matIconSuffix [for]="from" />
-    <mat-datepicker #from />
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Até</mat-label>
-    <input matInput [matDatepicker]="to" formControlName="to" placeholder="dd/mm/aaaa" />
-    <mat-datepicker-toggle matIconSuffix [for]="to" />
-    <mat-datepicker #to />
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Entidade</mat-label>
-    <mat-select formControlName="entityType">
-      <mat-option value="">Todas</mat-option>
+  <app-field label="De">
+    <div class="input-group">
+      <input appInput formControlName="from" ngbDatepicker #from="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
+      <button class="btn btn-outline-secondary" type="button" (click)="from.toggle()" aria-label="Abrir calendário: De">
+        <app-icon name="calendar-event" />
+      </button>
+    </div>
+  </app-field>
+  <app-field label="Até">
+    <div class="input-group">
+      <input appInput formControlName="to" ngbDatepicker #to="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
+      <button class="btn btn-outline-secondary" type="button" (click)="to.toggle()" aria-label="Abrir calendário: Até">
+        <app-icon name="calendar-event" />
+      </button>
+    </div>
+  </app-field>
+  <app-field label="Entidade">
+    <select appInput formControlName="entityType">
+      <option value="">Todas</option>
       @for (t of entityTypes; track t.value) {
-        <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        <option [ngValue]="t.value">{{ t.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Ação</mat-label>
-    <input matInput formControlName="action" placeholder="ex.: user.disabled" maxlength="100" />
-  </mat-form-field>
-  <mat-form-field class="app-compact app-filters__wide">
-    <mat-label>Id da entidade</mat-label>
-    <input matInput formControlName="entityId" class="app-mono" maxlength="36" />
-    @if (filters.controls.entityId.invalid) {
-      <mat-error>Informe um identificador (UUID) válido.</mat-error>
-    }
-  </mat-form-field>
+    </select>
+  </app-field>
+  <app-field label="Ação">
+    <input appInput formControlName="action" placeholder="ex.: user.disabled" maxlength="100" />
+  </app-field>
+  <app-field class="app-filters__wide" label="Id da entidade" [error]="'Informe um identificador (UUID) válido.'">
+    <input appInput formControlName="entityId" class="font-monospace" maxlength="36" />
+  </app-field>
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.actor" [source]="users" label="Autor" [single]="true" />
   </div>
@@ -58,11 +52,11 @@
     <app-entity-picker [control]="filters.controls.creditor" [source]="creditors" label="Credor" [single]="true" />
   </div>
   <div class="app-filters__actions">
-    <button mat-flat-button type="submit">Filtrar</button>
-    <button mat-button type="button" (click)="clear()">Limpar</button>
+    <button class="btn btn-primary" type="submit">Filtrar</button>
+    <button class="btn btn-link" type="button" (click)="clear()">Limpar</button>
   </div>
   @if (filters.hasError('dateRange')) {
-    <p class="app-field-error app-full-width" role="alert">A data final não pode ser anterior à inicial.</p>
+    <div class="invalid-feedback d-block w-100" role="alert">A data final não pode ser anterior à inicial.</div>
   }
 </form>
 
@@ -85,14 +79,14 @@
   <ng-template appCell="reason" [appCellOf]="query.rows()" let-e>{{ e.reason ?? '—' }}</ng-template>
   <ng-template appCell="sealed" [appCellOf]="query.rows()" let-e>
     @if (e.sealed) {
-      <mat-icon aria-label="Selado" matTooltip="Selado">lock</mat-icon>
+      <app-icon label="Selado" ngbTooltip="Selado" name="lock" />
     } @else {
-      <mat-icon aria-label="Pendente de selagem" matTooltip="Pendente de selagem" class="app-muted">lock_open</mat-icon>
+      <app-icon label="Pendente de selagem" ngbTooltip="Pendente de selagem" class="app-muted" name="unlock" />
     }
   </ng-template>
   <ng-template appCell="actions" [appCellOf]="query.rows()" let-e>
-    <button mat-icon-button type="button" (click)="details(e)" [attr.aria-label]="'Detalhes do registro ' + e.seq" matTooltip="Detalhes">
-      <mat-icon aria-hidden="true">open_in_new</mat-icon>
+    <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="details(e)" [attr.aria-label]="'Detalhes do registro ' + e.seq" ngbTooltip="Detalhes">
+      <app-icon name="box-arrow-up-right" />
     </button>
   </ng-template>
 </app-data-table>

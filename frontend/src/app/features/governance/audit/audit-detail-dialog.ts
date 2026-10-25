@@ -1,16 +1,19 @@
 import { Component, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { JsonView } from '../../../shared/components/detail-dialog/json-view';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AUDIT_ENTITY_LABELS, AuditLogEntry } from '../data/governance.models';
+import { DIALOG_DATA } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 @Component({
   selector: 'app-audit-detail-dialog',
-  imports: [MatDialogModule, MatButtonModule, JsonView, AppDatePipe],
+  imports: [...DIALOG_DIRECTIVES, JsonView, AppDatePipe],
   template: `
-    <h2 mat-dialog-title>Registro de auditoria nº {{ e.seq }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Registro de auditoria nº {{ e.seq }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <dl class="app-definition-list">
         <dt>Data/hora</dt>
         <dd>{{ e.occurredAt | appDate }}</dd>
@@ -31,22 +34,22 @@ import { AUDIT_ENTITY_LABELS, AuditLogEntry } from '../data/governance.models';
       </dl>
       <div class="audit-diff">
         <section>
-          <h3 class="app-card__title">Antes</h3>
+          <h3 class="app-section-title mt-3">Antes</h3>
           <app-json-view [value]="e.before" />
         </section>
         <section>
-          <h3 class="app-card__title">Depois</h3>
+          <h3 class="app-section-title mt-3">Depois</h3>
           <app-json-view [value]="e.after" />
         </section>
       </div>
       @if (e.metadata) {
-        <h3 class="app-card__title">Metadados</h3>
+        <h3 class="app-section-title mt-3">Metadados</h3>
         <app-json-view [value]="e.metadata" />
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Fechar</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" type="button" ngbAutofocus appDialogClose>Fechar</button>
+    </div>
   `,
   styles: `
     .audit-diff {
@@ -58,6 +61,6 @@ import { AUDIT_ENTITY_LABELS, AuditLogEntry } from '../data/governance.models';
   `,
 })
 export class AuditDetailDialog {
-  protected readonly e = inject<AuditLogEntry>(MAT_DIALOG_DATA);
+  protected readonly e = inject<AuditLogEntry>(DIALOG_DATA);
   protected readonly entity = AUDIT_ENTITY_LABELS[this.e.entityType] ?? this.e.entityType;
 }

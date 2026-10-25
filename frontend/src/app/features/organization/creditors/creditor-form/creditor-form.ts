@@ -1,9 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -14,68 +10,54 @@ import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits } from '../../../../shared/validation/validators';
 import { CreditorsApi } from '../../data/organization.api';
 import { CreditorView } from '../../data/organization.models';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 type Field = 'legalName' | 'tradeName' | 'document' | 'externalCode' | 'contactEmail';
 
 @Component({
   selector: 'app-creditor-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, DocumentMask],
+  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule, ...DIALOG_DIRECTIVES, DocumentMask],
   template: `
-    <h2 mat-dialog-title>{{ creditor ? 'Editar credor' : 'Novo credor' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ creditor ? 'Editar credor' : 'Novo credor' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
-        <div class="app-form-grid">
-          <mat-form-field class="app-span-all">
-            <mat-label>Razão social</mat-label>
-            <input matInput formControlName="legalName" [maxlength]="limits.legalName" />
-            @if (form.controls.legalName.invalid) {
-              <mat-error>{{ message('legalName') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Nome fantasia</mat-label>
-            <input matInput formControlName="tradeName" [maxlength]="limits.legalName" />
-            @if (form.controls.tradeName.invalid) {
-              <mat-error>{{ message('tradeName') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>CNPJ ou CPF</mat-label>
-            <input matInput formControlName="document" appDocumentMask maxlength="18" />
-            @if (form.controls.document.invalid) {
-              <mat-error>{{ message('document') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Código externo</mat-label>
-            <input matInput formControlName="externalCode" [maxlength]="limits.externalCode" />
-            <mat-hint>Identificador do credor em sistemas de origem</mat-hint>
-            @if (form.controls.externalCode.invalid) {
-              <mat-error>{{ message('externalCode') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>E-mail de contato</mat-label>
-            <input matInput type="email" formControlName="contactEmail" [maxlength]="limits.email" />
-            @if (form.controls.contactEmail.invalid) {
-              <mat-error>{{ message('contactEmail') }}</mat-error>
-            }
-          </mat-form-field>
+        <div class="app-form-grid row-gap-3">
+          <app-field class="app-span-all" label="Razão social" [error]="message('legalName')">
+            <input appInput formControlName="legalName" [maxlength]="limits.legalName" ngbAutofocus />
+          </app-field>
+          <app-field class="app-span-all" label="Nome fantasia" [error]="message('tradeName')">
+            <input appInput formControlName="tradeName" [maxlength]="limits.legalName" />
+          </app-field>
+          <app-field label="CNPJ ou CPF" [error]="message('document')">
+            <input appInput formControlName="document" appDocumentMask maxlength="18" />
+          </app-field>
+          <app-field label="Código externo" hint="Identificador do credor em sistemas de origem" [error]="message('externalCode')">
+            <input appInput formControlName="externalCode" [maxlength]="limits.externalCode" />
+          </app-field>
+          <app-field class="app-span-all" label="E-mail de contato" [error]="message('contactEmail')">
+            <input appInput type="email" formControlName="contactEmail" [maxlength]="limits.email" />
+          </app-field>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ creditor ? 'Salvar' : 'Cadastrar credor' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ creditor ? 'Salvar' : 'Cadastrar credor' }}</button>
+      </div>
     </form>
   `,
 })
 export class CreditorForm {
-  protected readonly creditor = inject<CreditorView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<CreditorForm, CreditorView>>(MatDialogRef);
+  protected readonly creditor = inject<CreditorView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<CreditorView>>(DialogRef);
   private readonly api = inject(CreditorsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly limits = Limits;

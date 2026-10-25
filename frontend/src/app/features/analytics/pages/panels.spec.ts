@@ -145,8 +145,8 @@ describe('painéis de analytics', () => {
     expect(all).not.toContain('Agrupar por');
     expect(el(fixture).querySelector('app-bar-chart')).toBeNull();
     // painéis do menu interno filtrados por permissão
-    const tabs = [...el(fixture).querySelectorAll('.pf__tab')].map((a) => a.textContent!.trim());
-    expect(tabs).toEqual(['groupsProdutividade']);
+    const tabs = [...el(fixture).querySelectorAll('nav[aria-label="Painéis"] .nav-link')].map((a) => a.textContent!.trim());
+    expect(tabs).toEqual(['Produtividade']);
   });
 
   it('supervisor vê a equipe com gráfico e agrupamento', async () => {

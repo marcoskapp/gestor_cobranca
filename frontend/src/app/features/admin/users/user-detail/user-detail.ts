@@ -1,12 +1,6 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, Type, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { ComponentType } from '@angular/cdk/portal';
-import { MatDialog } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { Observable, map } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -27,16 +21,14 @@ import { UsersApi } from '../../data/users.api';
 import { UserForm, UserFormData } from '../user-form/user-form';
 import { UserRolesDialog } from '../user-roles-dialog/user-roles-dialog';
 import { UserScopeDialog } from '../user-scope-dialog/user-scope-dialog';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-user-detail',
-  imports: [
+  imports: [Icon,
     RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatMenuModule,
-    MatDividerModule,
-    MatProgressBarModule,
+    NgbDropdownModule,
     PageHeader,
     StatusChip,
     SessionTable,
@@ -52,7 +44,7 @@ export class UserDetail {
   private readonly rolesApi = inject(RolesApi);
   private readonly unitsApi = inject(BusinessUnitsApi);
   private readonly creditorLookup = inject(CreditorLookup);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly auth = inject(AuthService);
@@ -93,7 +85,7 @@ export class UserDetail {
   protected readonly creditorNames = computed(() => this.creditors().map((c) => c.label));
 
   protected edit(user: UserView): void {
-    this.openDialog(UserForm, { user } satisfies UserFormData, '640px');
+    this.openDialog(UserForm, { user } satisfies UserFormData);
   }
 
   protected editRoles(user: UserView): void {
@@ -101,7 +93,7 @@ export class UserDetail {
   }
 
   protected editScope(user: UserView): void {
-    this.openDialog(UserScopeDialog, user, '640px');
+    this.openDialog(UserScopeDialog, user);
   }
 
   protected disable(user: UserView): void {
@@ -174,9 +166,9 @@ export class UserDetail {
       );
   }
 
-  private openDialog<C, D>(component: ComponentType<C>, data: D, width = '560px'): void {
+  private openDialog<C, D>(component: Type<C>, data: D): void {
     this.dialog
-      .open<C, D, UserView>(component, { data, width })
+      .open<C, D, UserView>(component, { data })
       .afterClosed()
       .subscribe((updated) => {
         if (updated) {

@@ -1,13 +1,6 @@
 import { Component, OnInit, computed, inject, input } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
@@ -25,6 +18,10 @@ import { CreditorLookup } from '../../data/organization.lookups';
 import { PortfolioView } from '../../data/organization.models';
 import { PortfolioForm, PortfolioFormData } from '../portfolio-form/portfolio-form';
 import { PortfolioStatusDialog } from '../portfolio-status/portfolio-status';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 interface PortfolioFilter {
   creditorId: string | null;
@@ -34,14 +31,8 @@ interface PortfolioFilter {
 
 @Component({
   selector: 'app-portfolio-list',
-  imports: [
+  imports: [NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatTooltipModule,
     DataTable,
     CellDef,
     EntityPicker,
@@ -56,7 +47,7 @@ export class PortfolioList implements OnInit {
   readonly credor = input<string>();
 
   private readonly api = inject(PortfoliosApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly auth = inject(AuthService);
   protected readonly creditorSource = inject(CreditorLookup);
 
@@ -127,14 +118,14 @@ export class PortfolioList implements OnInit {
 
   protected changeStatus(portfolio: PortfolioView): void {
     this.dialog
-      .open<PortfolioStatusDialog, PortfolioView, PortfolioView>(PortfolioStatusDialog, { data: portfolio, width: '560px' })
+      .open<PortfolioStatusDialog, PortfolioView, PortfolioView>(PortfolioStatusDialog, { data: portfolio })
       .afterClosed()
       .subscribe((updated) => updated && this.query.reload());
   }
 
   private openForm(data: PortfolioFormData): void {
     this.dialog
-      .open<PortfolioForm, PortfolioFormData, PortfolioView>(PortfolioForm, { data, width: '720px' })
+      .open<PortfolioForm, PortfolioFormData, PortfolioView>(PortfolioForm, { data, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => saved && this.query.reload());
   }

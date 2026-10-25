@@ -1,6 +1,5 @@
 import { Component, computed, input, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { Icon } from '../../../shared/components/icon/icon';
 
 export interface FunnelStage {
   label: string;
@@ -19,13 +18,13 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-funnel-chart',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [Icon],
   template: `
     <figure class="fn" [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-s'">
       <div class="fn__head">
         <figcaption [id]="id + '-t'" class="fn__title">{{ title() }}</figcaption>
-        <button mat-button type="button" (click)="table.set(!table())" [attr.aria-pressed]="table()">
-          <mat-icon aria-hidden="true">{{ table() ? 'filter_alt' : 'table_rows' }}</mat-icon>
+        <button class="btn btn-link" type="button" (click)="table.set(!table())" [attr.aria-pressed]="table()">
+          <app-icon [name]="table() ? 'funnel' : 'table'" />
           {{ table() ? 'Ver funil' : 'Ver tabela' }}
         </button>
       </div>
@@ -60,16 +59,16 @@ let nextId = 0;
     .fn__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .fn__head > button { flex: none; white-space: nowrap; }
     .fn__title { font-size: 15px; font-weight: 600; }
-    .fn__summary { margin: 0 0 8px; font-size: var(--app-text-sm); color: var(--mat-sys-on-surface-variant); }
+    .fn__summary { margin: 0 0 8px; font-size: var(--app-text-sm); color: var(--bs-secondary-color); }
     .fn__stages { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
     .fn__stage { display: grid; grid-template-columns: minmax(110px, 28%) 1fr auto; align-items: center; gap: 12px; }
     .fn__label { font-size: var(--app-text-sm); }
     .fn__track { height: 20px; }
     .fn__bar { display: block; height: 20px; border-radius: 0 4px 4px 0; background: var(--app-chart-1); }
     .fn__value { min-width: 56px; font-size: var(--app-text-sm); font-weight: 600; text-align: right; }
-    .fn__conv { padding-left: calc(28% + 12px); font-size: var(--app-text-xs); color: var(--mat-sys-on-surface-variant); }
+    .fn__conv { padding-left: calc(28% + 12px); font-size: var(--app-text-xs); color: var(--bs-secondary-color); }
     .fn__table { width: 100%; border-collapse: collapse; font-size: var(--app-text-sm); }
-    .fn__table th, .fn__table td { padding: 6px 8px; border-bottom: 1px solid var(--app-border); text-align: left; }
+    .fn__table th, .fn__table td { padding: 6px 8px; border-bottom: 1px solid var(--bs-border-color); text-align: left; }
     .fn__table .num { text-align: right; }
     @media (max-width: 599.98px) {
       .fn__stage { grid-template-columns: 1fr auto; }

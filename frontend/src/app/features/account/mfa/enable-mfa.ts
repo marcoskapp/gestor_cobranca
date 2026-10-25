@@ -1,9 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MfaEnrollment } from '../../../core/auth/auth.models';
@@ -15,17 +11,15 @@ import { TotpSetup } from '../../../shared/components/totp-setup/totp-setup';
 import { errorMessage } from '../../../shared/validation/error-messages';
 import { AppValidators } from '../../../shared/validation/validators';
 import { AccountApi } from '../account.api';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** Ativação voluntária de MFA pelo próprio usuário. */
 @Component({
   selector: 'app-enable-mfa',
-  imports: [
+  imports: [Icon, ...FORM_FIELD,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
     PageHeader,
     TotpSetup,
   ],
@@ -33,24 +27,20 @@ import { AccountApi } from '../account.api';
     <app-page-header title="Verificação em duas etapas" subtitle="Proteja sua conta com um código gerado no celular." />
     <section class="app-card enable-mfa">
       @if (alreadyEnabled()) {
-        <p class="app-alert app-alert--success" role="status">A verificação em duas etapas está ativa na sua conta.</p>
-        <a mat-stroked-button routerLink="/conta/perfil">Voltar ao perfil</a>
+        <div class="alert alert-success d-flex align-items-start gap-2" role="status"><app-icon name="check-circle" /><span>A verificação em duas etapas está ativa na sua conta.</span></div>
+        <a class="btn btn-outline-primary" routerLink="/conta/perfil">Voltar ao perfil</a>
       } @else if (enrollment(); as en) {
         @if (error(); as e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
         <app-totp-setup [otpauthUri]="en.otpauthUri" [secret]="en.secret" />
-        <form [formGroup]="form" (ngSubmit)="confirm()" novalidate class="app-form-stack">
-          <mat-form-field>
-            <mat-label>Código do aplicativo</mat-label>
-            <input matInput formControlName="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="app-otp-input" />
-            @if (code.invalid) {
-              <mat-error>{{ message() }}</mat-error>
-            }
-          </mat-form-field>
+        <form [formGroup]="form" (ngSubmit)="confirm()" novalidate class="vstack gap-3">
+          <app-field label="Código do aplicativo" [error]="message()">
+            <input appInput formControlName="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="app-otp-input" />
+          </app-field>
           <div class="app-form-actions">
-            <a mat-button routerLink="/conta/perfil">Cancelar</a>
-            <button mat-flat-button type="submit" [disabled]="submitting()">Ativar</button>
+            <a class="btn btn-link" routerLink="/conta/perfil">Cancelar</a>
+            <button class="btn btn-primary" type="submit" [disabled]="submitting()">Ativar</button>
           </div>
         </form>
       } @else {
@@ -58,9 +48,11 @@ import { AccountApi } from '../account.api';
           Você precisará de um aplicativo autenticador no celular. A cada acesso, além da senha, será solicitado o código
           de 6 dígitos exibido no aplicativo.
         </p>
-        <button mat-flat-button type="button" (click)="start()" [disabled]="starting()">Começar</button>
+        <button class="btn btn-primary" type="button" (click)="start()" [disabled]="starting()">Começar</button>
         @if (starting()) {
-          <mat-progress-bar mode="indeterminate" aria-label="Preparando cadastro" />
+          <div class="progress" role="progressbar" aria-label="Preparando cadastro">
+            <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+          </div>
         }
       }
     </section>

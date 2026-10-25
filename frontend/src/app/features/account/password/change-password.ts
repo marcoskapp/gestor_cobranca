@@ -1,6 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { toApiError, userMessage } from '../../../core/http/problem';
@@ -10,25 +9,26 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators, Limits } from '../../../shared/validation/validators';
 import { AccountApi } from '../account.api';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** Troca de senha com confirmação da atual. O servidor encerra as demais sessões. */
 @Component({
   selector: 'app-change-password',
-  imports: [ReactiveFormsModule, MatButtonModule, PasswordField, PageHeader],
+  imports: [Icon, ReactiveFormsModule, PasswordField, PageHeader],
   template: `
     <app-page-header title="Trocar senha" subtitle="Ao trocar a senha, suas outras sessões abertas serão encerradas." />
     <form class="app-card change-password" [formGroup]="form" (ngSubmit)="submit()" novalidate>
       @if (error(); as e) {
-        <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+        <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
       }
       <app-password-field [control]="form.controls.currentPassword" label="Senha atual" autocomplete="current-password" />
       <app-password-field [control]="form.controls.newPassword" label="Nova senha" autocomplete="new-password" [hint]="hint" />
       <app-password-field [control]="form.controls.confirmation" label="Confirme a nova senha" autocomplete="new-password" />
       @if (form.hasError('mismatch') && form.controls.confirmation.touched) {
-        <p class="app-field-error" role="alert">As senhas não conferem.</p>
+        <div class="invalid-feedback d-block" role="alert">As senhas não conferem.</div>
       }
       <div class="app-form-actions">
-        <button mat-flat-button type="submit" [disabled]="submitting()">Trocar senha</button>
+        <button class="btn btn-primary" type="submit" [disabled]="submitting()">Trocar senha</button>
       </div>
     </form>
   `,
