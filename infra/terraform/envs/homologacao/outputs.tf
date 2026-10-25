@@ -91,6 +91,21 @@ output "instance_role_arn" {
   value       = var.enable_compute ? module.compute[0].instance_role_arn : null
 }
 
+output "instance_role_name" {
+  description = "Nome do papel IAM das instâncias (migrate.sh cria nele a política temporária da janela de migração)."
+  value       = var.enable_compute ? module.compute[0].instance_role_name : null
+}
+
+output "migration_secret_resources" {
+  description = "Recursos dos segredos de migração (migration/*), fora do alcance do runtime."
+  value       = var.enable_compute ? module.compute[0].migration_secret_resources : null
+}
+
+output "secret_read_actions" {
+  description = "Ações IAM de leitura de segredo da origem configurada."
+  value       = var.enable_compute ? module.compute[0].secret_read_actions : null
+}
+
 output "log_group_names" {
   description = "Grupos de log da aplicação."
   value       = module.observability.log_group_names

@@ -37,3 +37,13 @@ output "trusted_proxy_cidrs" {
   description = "Faixas de proxies confiáveis entregues à aplicação (APP_HTTP_TRUSTED_PROXIES)."
   value       = var.trusted_proxy_cidrs
 }
+
+output "migration_secret_resources" {
+  description = "Recursos (SSM ou S3) dos segredos de migração (migration/*), que o runtime não lê; migrate.sh concede a leitura só à instância da migração e só durante a janela."
+  value       = local.migration_secret_resources
+}
+
+output "secret_read_actions" {
+  description = "Ações IAM de leitura de segredo conforme a origem (SSM ou S3)."
+  value       = local.secret_read_actions
+}

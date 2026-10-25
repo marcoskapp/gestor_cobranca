@@ -50,6 +50,10 @@ run "fase1_sem_aprovacoes" {
     condition     = output.secrets_source == "s3"
     error_message = "sem SSM usa bucket"
   }
+  assert {
+    condition     = endswith(output.migration_secret_resources[0], "/migration/*") && length(output.migration_secret_resources) == 1
+    error_message = "o segredo de migração fica num caminho próprio, fora do alcance do runtime (app/*)"
+  }
 }
 
 run "tudo_aprovado_fase2" {
