@@ -1,15 +1,17 @@
 import { Component, computed, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule } from '@angular/material/dialog';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { KeyboardShortcuts, formatKeys } from '../../keyboard/keyboard-shortcuts.service';
 
 /** Ajuda de atalhos de teclado ativos (tecla ?). */
 @Component({
   selector: 'app-shortcuts-dialog',
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [...DIALOG_DIRECTIVES],
   template: `
-    <h2 mat-dialog-title>Atalhos de teclado</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Atalhos de teclado</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       @for (group of groups(); track group.name) {
         <h3 class="sc__group">{{ group.name }}</h3>
         <dl class="sc__list">
@@ -28,19 +30,19 @@ import { KeyboardShortcuts, formatKeys } from '../../keyboard/keyboard-shortcuts
           }
         </dl>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-flat-button type="button" mat-dialog-close>Fechar</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" ngbAutofocus appDialogClose>Fechar</button>
+    </div>
   `,
   styles: `
     .sc__group {
       margin: 8px 0 6px;
       font-size: var(--app-text-xs);
-      font-weight: 600;
+      font-weight: 500;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .sc__list {
       margin: 0 0 12px;
@@ -51,9 +53,10 @@ import { KeyboardShortcuts, formatKeys } from '../../keyboard/keyboard-shortcuts
       align-items: center;
       gap: 12px;
       padding: 6px 0;
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: var(--bs-border-width) solid var(--bs-border-color);
     }
     dt {
+      font-weight: inherit;
       display: flex;
       align-items: center;
       gap: 4px;

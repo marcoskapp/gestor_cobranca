@@ -1,6 +1,5 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthApi } from '../../../core/auth/auth.api';
@@ -19,18 +18,18 @@ export type CredentialPurpose = 'activation' | 'reset';
  */
 @Component({
   selector: 'app-credential-action',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, PasswordField],
+  imports: [ReactiveFormsModule, RouterLink, PasswordField],
   template: `
     <h1 class="app-auth-title">{{ title() }}</h1>
     @if (!actionToken) {
-      <p class="app-alert app-alert--error" role="alert">
+      <div class="alert alert-danger" role="alert">
         Link inválido ou incompleto. Solicite um novo link ao administrador ou pela opção "Esqueci minha senha".
-      </p>
-      <a mat-flat-button routerLink="/esqueci-a-senha" class="app-full-width">Solicitar novo link</a>
+      </div>
+      <a class="btn btn-primary w-100" routerLink="/esqueci-a-senha">Solicitar novo link</a>
     } @else {
       <p class="app-auth-text">{{ description() }}</p>
       @if (error(); as e) {
-        <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+        <div class="alert alert-danger" role="alert">{{ e }}</div>
       }
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="app-form-stack">
         <app-password-field
@@ -41,9 +40,9 @@ export type CredentialPurpose = 'activation' | 'reset';
         />
         <app-password-field [control]="form.controls.confirmation" label="Confirme a nova senha" autocomplete="new-password" />
         @if (form.hasError('mismatch') && form.controls.confirmation.touched) {
-          <p class="app-field-error" role="alert">As senhas não conferem.</p>
+          <div class="invalid-feedback d-block" role="alert">As senhas não conferem.</div>
         }
-        <button mat-flat-button type="submit" [disabled]="submitting()">{{ submitLabel() }}</button>
+        <button type="submit" class="btn btn-primary mt-2" [disabled]="submitting()">{{ submitLabel() }}</button>
       </form>
     }
     <p class="app-auth-links"><a routerLink="/login">Voltar ao login</a></p>

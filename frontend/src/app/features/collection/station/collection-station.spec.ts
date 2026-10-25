@@ -15,6 +15,7 @@ import { UiStateStore } from '../../../core/preferences/ui-state.store';
 import { CaseSheet, CaseView, ContactAvailability, TabulationView } from '../data/collection.models';
 import { CollectionStation } from './collection-station';
 import { DENSITY_INVITE_ID } from './density-invite';
+import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
 
 export function caseView(overrides: Partial<CaseView> = {}): CaseView {
   return {
@@ -114,6 +115,7 @@ describe('CollectionStation', () => {
     TestBed.configureTestingModule({
       imports: [CollectionStation],
       providers: [
+        ...LEGACY_DIALOG_LAUNCHERS,
         provideLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),

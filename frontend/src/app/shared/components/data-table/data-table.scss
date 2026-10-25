@@ -2,38 +2,59 @@
   display: block;
 }
 
+// cartão da tabela (mesmo raio e borda do `.card` do Bootstrap)
 .app-table {
   position: relative;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-body-bg);
   overflow: hidden;
-}
-
-tr.mat-mdc-row:hover {
-  background: var(--mat-sys-surface-container-low);
 }
 
 .app-table__progress {
   position: absolute;
   inset: 0 0 auto;
   z-index: 2;
+  border-radius: 0;
 }
 
-.app-table__scroll {
-  overflow-x: auto;
+// cabeçalho fixo e discreto (variáveis da tabela do Bootstrap)
+.app-table__head th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: var(--app-text-xs);
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
 }
 
-table {
-  width: 100%;
+.app-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--bs-border-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+
+  &:hover {
+    color: var(--bs-body-color);
+  }
 }
 
-.app-table__cell--end {
-  text-align: end;
+.app-table__sort-icon {
+  font-size: 0.75rem;
 }
 
-.app-table__cell--center {
-  text-align: center;
+td {
+  font-size: var(--app-text-sm);
+}
+
+tbody tr:last-child > td {
+  border-bottom-width: 0;
 }
 
 .app-table__cell--actions {
@@ -41,6 +62,16 @@ table {
   width: 1%;
 }
 
-mat-paginator {
-  border-top: 1px solid var(--app-border);
+.app-table__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 24px;
+  padding: 8px 12px;
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+}
+
+.app-table__pagination ::ng-deep .pagination {
+  margin: 0;
 }

@@ -9,7 +9,10 @@ import { RestrictionView } from '../data/compliance.models';
 import { RestrictionForm, RestrictionFormData } from './restriction-form/restriction-form';
 
 /** Ações sobre restrições compartilhadas pela lista, pela ficha do devedor e pelas solicitações LGPD. */
-@Injectable({ providedIn: 'root' })
+// TRANSITÓRIO (migração para Bootstrap): fornecido nas rotas do shell (shell.routes.ts), não na raiz,
+// para usar o MatDialog e os padrões do Material daquele injetor. Volta a `providedIn: 'root'`
+// quando passar a usar o DialogService.
+@Injectable()
 export class RestrictionActions {
   private readonly api = inject(RestrictionsApi);
   private readonly dialog = inject(MatDialog);

@@ -1,12 +1,9 @@
 import { Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { Observable, catchError, debounceTime, distinctUntilChanged, of, startWith, switchMap } from 'rxjs';
+import { NgbTypeahead, NgbTypeaheadSelectItemEvent } from '@ng-bootstrap/ng-bootstrap';
+import { Observable, Subject, catchError, debounceTime, distinctUntilChanged, map, merge, of, switchMap, tap } from 'rxjs';
+import { DensityService } from '../../../core/preferences/density.service';
 import { Option } from '../../models/lookup';
 
 /** Fonte de dados do seletor: busca no servidor e resolução de rótulos dos ids já escolhidos. */
@@ -15,44 +12,97 @@ export interface EntitySource {
   resolve(ids: string[]): Observable<Option[]>;
 }
 
+let nextId = 0;
+
 /**
- * Seleção de entidades com busca no servidor (autocomplete) e chips. O valor do controle é a
- * lista de ids; em modo `single`, no máximo um id.
+ * Seleção de entidades com busca no servidor (typeahead do ng-bootstrap, padrão combobox da
+ * WAI-ARIA) e selos removíveis. O valor do controle é a lista de ids; em modo `single`, no
+ * máximo um id. Mesma API do componente anterior (Angular Material).
  */
 @Component({
   selector: 'app-entity-picker',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatChipsModule, MatAutocompleteModule, MatIconModule],
+  imports: [ReactiveFormsModule, NgbTypeahead],
+  host: { class: 'd-block' },
   template: `
-    <mat-form-field class="app-full-width">
-      <mat-label>{{ label() }}</mat-label>
-      <mat-chip-grid #grid [attr.aria-label]="label()" [disabled]="control().disabled">
-        @for (item of selected(); track item.value) {
-          <mat-chip-row (removed)="remove(item.value)">
-            {{ item.label }}
-            <button matChipRemove type="button" [attr.aria-label]="'Remover ' + item.label">
-              <mat-icon aria-hidden="true">cancel</mat-icon>
-            </button>
-          </mat-chip-row>
-        }
-        <input
-          [formControl]="query"
-          [matChipInputFor]="grid"
-          [matAutocomplete]="auto"
-          [placeholder]="placeholder()"
-          autocomplete="off"
-        />
-      </mat-chip-grid>
-      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="add($event)">
-        @for (option of available(); track option.value) {
-          <mat-option [value]="option">{{ option.label }}</mat-option>
-        } @empty {
-          <mat-option disabled>Nenhum resultado</mat-option>
-        }
-      </mat-autocomplete>
-      @if (hint()) {
-        <mat-hint>{{ hint() }}</mat-hint>
+    <label class="form-label" [for]="inputId">{{ label() }}</label>
+    <div
+      class="form-control app-picker"
+      [class.form-control-sm]="density.compact()"
+      [class.is-invalid]="invalid()"
+      [class.app-picker--disabled]="disabled()"
+    >
+      @for (item of selected(); track item.value) {
+        <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle app-picker__chip">
+          {{ item.label }}
+          <button
+            type="button"
+            class="btn-close app-picker__remove"
+            [disabled]="disabled()"
+            [attr.aria-label]="'Remover ' + item.label"
+            (click)="remove(item.value)"
+          ></button>
+        </span>
       }
-    </mat-form-field>
+      <input
+        class="app-picker__input"
+        type="text"
+        [id]="inputId"
+        [formControl]="query"
+        [ngbTypeahead]="search"
+        [resultFormatter]="formatOption"
+        [inputFormatter]="formatOption"
+        [editable]="false"
+        [placeholder]="placeholder()"
+        [attr.aria-describedby]="hint() || empty() ? hintId : null"
+        [attr.aria-invalid]="invalid() ? 'true' : null"
+        autocomplete="off"
+        (focus)="focus$.next(query.value)"
+        (selectItem)="add($event)"
+      />
+    </div>
+    <div class="form-text" [id]="hintId" aria-live="polite">
+      @if (empty()) {
+        Nenhum resultado para a busca.
+      } @else {
+        {{ hint() }}
+      }
+    </div>
+  `,
+  styles: `
+    .app-picker {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      min-height: calc(1.5em + 0.875rem + 2px);
+      padding-block: 0.25rem;
+      cursor: text;
+    }
+    .app-picker:focus-within {
+      border-color: var(--bs-primary);
+      box-shadow: 0 0 0 0.1875rem rgba(var(--bs-primary-rgb), 0.45);
+    }
+    .app-picker--disabled {
+      background-color: var(--bs-secondary-bg);
+    }
+    .app-picker__chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: var(--bs-body-font-weight);
+    }
+    .app-picker__remove {
+      --bs-btn-close-width: 0.5em;
+      --bs-btn-close-height: 0.5em;
+    }
+    .app-picker__input {
+      flex: 1 1 120px;
+      min-width: 120px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: inherit;
+    }
   `,
 })
 export class EntityPicker implements OnInit {
@@ -64,18 +114,42 @@ export class EntityPicker implements OnInit {
   readonly single = input(false);
 
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly density = inject(DensityService);
+  protected readonly inputId = `app-entity-picker-${++nextId}`;
+  protected readonly hintId = `${this.inputId}-hint`;
   protected readonly query = new FormControl<string | Option>('', { nonNullable: true });
+  protected readonly focus$ = new Subject<string | Option>();
   private readonly labels = signal<ReadonlyMap<string, string>>(new Map());
   private readonly ids = signal<string[]>([]);
-  private readonly results = signal<Option[]>([]);
+  private readonly state = signal(0);
+  protected readonly empty = signal(false);
 
   protected readonly selected = computed(() =>
     this.ids().map((id) => ({ value: id, label: this.labels().get(id) ?? 'Carregando…' })),
   );
-  protected readonly available = computed(() => {
-    const chosen = new Set(this.ids());
-    return this.results().filter((o) => !chosen.has(o.value));
+  protected readonly disabled = computed(() => {
+    this.state();
+    return this.control().disabled;
   });
+  protected readonly invalid = computed(() => {
+    this.state();
+    const control = this.control();
+    return control.invalid && control.touched;
+  });
+
+  protected readonly formatOption = (option: Option | string): string => (typeof option === 'string' ? option : option.label);
+
+  /** Busca no servidor ao digitar ou focar; opções já escolhidas ficam de fora. */
+  protected readonly search = (text$: Observable<string>): Observable<readonly Option[]> =>
+    merge(text$.pipe(debounceTime(300), distinctUntilChanged()), this.focus$.pipe(map((v) => (typeof v === 'string' ? v : '')))).pipe(
+      switchMap((term) => this.source().search(term.trim()).pipe(catchError(() => of<Option[]>([])))),
+      tap((options) => this.remember(options)),
+      map((options) => {
+        const chosen = new Set(this.ids());
+        return options.filter((o) => !chosen.has(o.value));
+      }),
+      tap((options) => this.empty.set(options.length === 0)),
+    );
 
   ngOnInit(): void {
     const control = this.control();
@@ -84,36 +158,33 @@ export class EntityPicker implements OnInit {
       this.ids.set([...(value ?? [])]);
       this.resolveMissing();
     });
+    control.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.state.update((v) => v + 1));
+    this.syncDisabled(control.disabled);
+    control.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.syncDisabled(control.disabled));
     this.resolveMissing();
-
-    this.query.valueChanges
-      .pipe(
-        startWith(''),
-        debounceTime(300),
-        distinctUntilChanged(),
-        switchMap((value) =>
-          typeof value === 'string' ? this.source().search(value.trim()).pipe(catchError(() => of<Option[]>([]))) : of(null),
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((options) => {
-        if (options) {
-          this.results.set(options);
-          this.remember(options);
-        }
-      });
   }
 
-  protected add(event: MatAutocompleteSelectedEvent): void {
-    const option = event.option.value as Option;
+  protected add(event: NgbTypeaheadSelectItemEvent<Option>): void {
+    // mantém o campo de busca vazio: a escolha vira um selo
+    event.preventDefault();
+    const option = event.item;
     this.remember([option]);
     const next = this.single() ? [option.value] : [...this.ids().filter((id) => id !== option.value), option.value];
     this.commit(next);
     this.query.setValue('');
+    this.empty.set(false);
   }
 
   protected remove(id: string): void {
     this.commit(this.ids().filter((value) => value !== id));
+  }
+
+  private syncDisabled(disabled: boolean): void {
+    if (disabled && this.query.enabled) {
+      this.query.disable({ emitEvent: false });
+    } else if (!disabled && this.query.disabled) {
+      this.query.enable({ emitEvent: false });
+    }
   }
 
   private commit(ids: string[]): void {

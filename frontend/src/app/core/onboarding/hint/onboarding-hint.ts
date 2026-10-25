@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { Icon } from '../../../shared/components/icon/icon';
+import { IconName } from '../../../shared/components/icon/icon-names';
 import { OnboardingService } from '../onboarding.service';
 
 /**
@@ -9,12 +9,12 @@ import { OnboardingService } from '../onboarding.service';
  */
 @Component({
   selector: 'app-onboarding-hint',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [Icon],
   template: `
     <div class="hint-region" role="region" aria-label="Dica de uso" aria-live="polite">
       @if (onboarding.hint(); as hint) {
         <div class="hint">
-          <mat-icon class="hint__icon" aria-hidden="true">{{ icon() }}</mat-icon>
+          <app-icon class="hint__icon" [name]="icon()" />
           <div class="hint__content">
             @switch (hint.kind) {
               @case ('welcome') {
@@ -37,21 +37,19 @@ import { OnboardingService } from '../onboarding.service';
             <div class="hint__actions">
               @if (hint.kind === 'changes') {
                 @if (hint.tour) {
-                  <button mat-flat-button type="button" (click)="onboarding.acceptHint()">Ver no tour</button>
+                  <button type="button" class="btn btn-sm btn-primary" (click)="onboarding.acceptHint()">Ver no tour</button>
                 }
-                <button mat-button type="button" (click)="onboarding.closeHint()">Entendi</button>
+                <button type="button" class="btn btn-sm btn-link" (click)="onboarding.closeHint()">Entendi</button>
               } @else {
-                <button mat-flat-button type="button" (click)="onboarding.acceptHint()">Fazer o tour</button>
-                <button mat-button type="button" (click)="onboarding.declineHint()">Agora não</button>
+                <button type="button" class="btn btn-sm btn-primary" (click)="onboarding.acceptHint()">Fazer o tour</button>
+                <button type="button" class="btn btn-sm btn-link" (click)="onboarding.declineHint()">Agora não</button>
               }
             </div>
             <button type="button" class="hint__optout" (click)="onboarding.setHintsEnabled(false)">
               Não mostrar dicas automáticas
             </button>
           </div>
-          <button mat-icon-button type="button" class="hint__close" aria-label="Fechar dica" (click)="onboarding.closeHint()">
-            <mat-icon aria-hidden="true">close</mat-icon>
-          </button>
+          <button type="button" class="btn-close hint__close" aria-label="Fechar dica" (click)="onboarding.closeHint()"></button>
         </div>
       }
     </div>
@@ -70,11 +68,11 @@ import { OnboardingService } from '../onboarding.service';
       width: 360px;
       max-width: 100%;
       box-sizing: border-box;
-      padding: 14px 8px 12px 16px;
-      border: 1px solid var(--app-border);
-      border-left: 4px solid var(--mat-sys-primary);
-      border-radius: var(--app-radius-lg);
-      background: var(--mat-sys-surface-container-high);
+      padding: 14px 14px 12px 16px;
+      border: var(--bs-border-width) solid var(--bs-border-color);
+      border-left: 4px solid var(--bs-primary);
+      border-radius: var(--bs-border-radius-lg);
+      background: var(--bs-body-bg);
       box-shadow: var(--app-elevation-3);
       animation: hint-in var(--app-motion-standard) var(--app-easing);
     }
@@ -86,7 +84,8 @@ import { OnboardingService } from '../onboarding.service';
     }
     .hint__icon {
       flex: none;
-      color: var(--mat-sys-primary);
+      font-size: 1.25rem;
+      color: var(--bs-primary-text-emphasis);
     }
     .hint__content {
       flex: 1;
@@ -95,14 +94,14 @@ import { OnboardingService } from '../onboarding.service';
     .hint__title {
       margin: 0 0 4px;
       font-size: var(--app-text-md);
-      font-weight: 600;
+      font-weight: 500;
     }
     .hint__text,
     .hint__list {
       margin: 0 0 10px;
       font-size: var(--app-text-sm);
       line-height: var(--app-line-normal);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .hint__list {
       padding-left: 18px;
@@ -117,7 +116,7 @@ import { OnboardingService } from '../onboarding.service';
       padding: 4px 0;
       border: 0;
       background: none;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
       font: inherit;
       font-size: var(--app-text-xs);
       text-decoration: underline;
@@ -125,7 +124,7 @@ import { OnboardingService } from '../onboarding.service';
     }
     .hint__close {
       flex: none;
-      margin-top: -8px;
+      font-size: 0.75rem;
     }
     @media (max-width: 599.98px) {
       .hint-region {
@@ -141,8 +140,8 @@ import { OnboardingService } from '../onboarding.service';
 })
 export class OnboardingHint {
   protected readonly onboarding = inject(OnboardingService);
-  protected readonly icon = computed(() => {
+  protected readonly icon = computed<IconName>(() => {
     const kind = this.onboarding.hint()?.kind;
-    return kind === 'changes' ? 'new_releases' : kind === 'welcome' ? 'waving_hand' : 'tips_and_updates';
+    return kind === 'changes' ? 'patch-exclamation' : kind === 'welcome' ? 'hand-index-thumb' : 'lightbulb';
   });
 }

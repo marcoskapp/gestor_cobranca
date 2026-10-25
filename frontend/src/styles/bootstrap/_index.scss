@@ -1,0 +1,66 @@
+// =============================================================================
+// Bootstrap 5.3 importado por partes, na ordem de "Customize → Sass → Importing" da documentação:
+// functions → (sobrescritas) → variables → variables-dark → maps → mixins → utilities → root/
+// reboot → componentes usados → helpers → utilities/api.
+//
+// Só entram os módulos usados pelas telas (ver docs/tecnico/desenho/ux.md): carousel, form-range,
+// images, navbar, popover e floating labels ficam de fora para reduzir o CSS inicial.
+// Para usar um deles, acrescente o @import correspondente abaixo (não copie CSS do Bootstrap).
+// =============================================================================
+
+// 1. funções (necessárias às sobrescritas que usam tint/shade)
+@import 'bootstrap/scss/functions';
+
+// 2. sobrescritas de variáveis documentadas (claro e escuro)
+@import 'variables';
+@import 'variables-dark';
+
+// 3. configuração do Bootstrap
+@import 'bootstrap/scss/variables';
+@import 'bootstrap/scss/variables-dark';
+@import 'maps';
+@import 'bootstrap/scss/maps';
+@import 'bootstrap/scss/mixins';
+@import 'bootstrap/scss/utilities';
+@import 'utilities';
+
+// 4. base
+@import 'bootstrap/scss/root';
+@import 'bootstrap/scss/reboot';
+@import 'bootstrap/scss/type';
+@import 'bootstrap/scss/containers';
+@import 'bootstrap/scss/grid';
+
+// 5. componentes
+@import 'bootstrap/scss/tables';
+@import 'bootstrap/scss/forms/labels';
+@import 'bootstrap/scss/forms/form-text';
+@import 'bootstrap/scss/forms/form-control';
+@import 'bootstrap/scss/forms/form-select';
+@import 'bootstrap/scss/forms/form-check';
+@import 'bootstrap/scss/forms/input-group';
+@import 'bootstrap/scss/forms/validation';
+@import 'bootstrap/scss/buttons';
+@import 'bootstrap/scss/transitions';
+@import 'bootstrap/scss/dropdown';
+@import 'bootstrap/scss/button-group';
+@import 'bootstrap/scss/nav';
+@import 'bootstrap/scss/card';
+@import 'bootstrap/scss/accordion';
+@import 'bootstrap/scss/breadcrumb';
+@import 'bootstrap/scss/pagination';
+@import 'bootstrap/scss/badge';
+@import 'bootstrap/scss/alert';
+@import 'bootstrap/scss/progress';
+@import 'bootstrap/scss/list-group';
+@import 'bootstrap/scss/close';
+@import 'bootstrap/scss/toasts';
+@import 'bootstrap/scss/modal';
+@import 'bootstrap/scss/tooltip';
+@import 'bootstrap/scss/spinners';
+@import 'bootstrap/scss/offcanvas';
+@import 'bootstrap/scss/placeholders';
+
+// 6. helpers e utilitários (API de utilitários por último)
+@import 'bootstrap/scss/helpers';
+@import 'bootstrap/scss/utilities/api';

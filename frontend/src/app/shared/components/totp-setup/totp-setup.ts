@@ -1,9 +1,8 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Component, effect, inject, input, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { toDataURL } from 'qrcode';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { Icon } from '../icon/icon';
 
 /**
  * QR code do cadastro de MFA (TOTP), gerado localmente a partir do `otpauthUri` (nenhum serviço
@@ -11,7 +10,7 @@ import { NotificationService } from '../../../core/notification/notification.ser
  */
 @Component({
   selector: 'app-totp-setup',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [Icon],
   templateUrl: './totp-setup.html',
   styleUrl: './totp-setup.scss',
 })

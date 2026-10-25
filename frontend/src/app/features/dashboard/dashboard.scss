@@ -43,16 +43,16 @@
   min-height: 64px;
   padding: 12px 14px;
   border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
+  border-radius: var(--app-radius-lg);
   background: var(--app-surface);
-  color: var(--mat-sys-on-surface);
+  color: var(--bs-body-color);
   text-decoration: none;
   transition:
     border-color var(--app-motion-fast) ease,
     box-shadow var(--app-motion-fast) ease;
 
   &:hover {
-    border-color: var(--mat-sys-primary);
+    border-color: var(--bs-primary-border-subtle);
     box-shadow: var(--app-elevation-1);
 
     .dashboard__tile-go {
@@ -68,8 +68,9 @@
   width: 40px;
   height: 40px;
   border-radius: var(--app-radius-md);
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary-text-emphasis);
+  font-size: 1.125rem;
 }
 
 .dashboard__tile-text {
@@ -83,6 +84,6 @@
 
 .dashboard__tile-go {
   opacity: 0.4;
-  color: var(--mat-sys-primary);
+  color: var(--bs-primary-text-emphasis);
   transition: opacity var(--app-motion-fast) ease;
 }

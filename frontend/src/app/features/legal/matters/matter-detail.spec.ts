@@ -11,6 +11,7 @@ import { provideLocale } from '../../../core/config/locale.config';
 import { FormDialogData, FormDialogService } from '../components/form-dialog';
 import { MatterSheet, MatterView } from '../data/legal.models';
 import { MatterDetail } from './matter-detail';
+import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -93,6 +94,7 @@ describe('MatterDetail', () => {
     TestBed.configureTestingModule({
       imports: [MatterDetail],
       providers: [
+        ...LEGACY_DIALOG_LAUNCHERS,
         provideLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),

@@ -1,5 +1,4 @@
 import { Component, input, output } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { SessionView } from '../../../core/auth/auth.models';
 import { AppDatePipe } from '../../pipes/date-time.pipe';
 import { CellDef } from '../data-table/cell-def';
@@ -9,7 +8,7 @@ import { StatusChip } from '../status-chip/status-chip';
 /** Sessões de um usuário (próprias ou administradas). */
 @Component({
   selector: 'app-session-table',
-  imports: [DataTable, CellDef, StatusChip, AppDatePipe, MatButtonModule],
+  imports: [DataTable, CellDef, StatusChip, AppDatePipe],
   template: `
     <app-data-table
       [caption]="caption()"
@@ -23,7 +22,7 @@ import { StatusChip } from '../status-chip/status-chip';
       <ng-template appCell="status" [appCellOf]="sessions()" let-s>
         <app-status-chip domain="session" [status]="s.status" />
         @if (s.current) {
-          <span class="app-status app-status--info">Esta sessão</span>
+          <span class="badge rounded-pill border bg-info-subtle text-info-emphasis border-info-subtle ms-1">Esta sessão</span>
         }
       </ng-template>
       <ng-template appCell="startedAt" [appCellOf]="sessions()" let-s>{{ s.startedAt | appDate }}</ng-template>
@@ -35,7 +34,7 @@ import { StatusChip } from '../status-chip/status-chip';
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="sessions()" let-s>
         @if (revocable() && s.status === 'ACTIVE' && !s.current) {
-          <button mat-button type="button" (click)="revoke.emit(s)">Encerrar</button>
+          <button type="button" class="btn btn-sm btn-outline-danger" (click)="revoke.emit(s)">Encerrar</button>
         }
       </ng-template>
     </app-data-table>

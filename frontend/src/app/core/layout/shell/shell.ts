@@ -1,16 +1,12 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatBadgeModule } from '@angular/material/badge';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbDropdownModule, NgbOffcanvas, NgbOffcanvasRef, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
+import { Icon } from '../../../shared/components/icon/icon';
+import { IconName } from '../../../shared/components/icon/icon-names';
 import { AuthService } from '../../auth/auth.service';
 import { APP_NAME } from '../../config/page-title.strategy';
 import { KeyboardShortcuts, formatKeys } from '../../keyboard/keyboard-shortcuts.service';
@@ -27,24 +23,25 @@ import { NAVIGATION, NavSection } from '../navigation';
 interface Choice<T> {
   value: T;
   label: string;
-  icon: string;
+  icon: IconName;
 }
 
 const THEMES: readonly Choice<ThemePreference>[] = [
-  { value: 'SYSTEM', label: 'Seguir o sistema', icon: 'brightness_auto' },
-  { value: 'LIGHT', label: 'Claro', icon: 'light_mode' },
-  { value: 'DARK', label: 'Escuro', icon: 'dark_mode' },
+  { value: 'SYSTEM', label: 'Seguir o sistema', icon: 'circle-half' },
+  { value: 'LIGHT', label: 'Claro', icon: 'sun' },
+  { value: 'DARK', label: 'Escuro', icon: 'moon-stars' },
 ];
 
 const DENSITIES: readonly Choice<DensityPreference>[] = [
-  { value: 'COMFORTABLE', label: 'Confortável', icon: 'density_medium' },
-  { value: 'COMPACT', label: 'Compacta', icon: 'density_small' },
+  { value: 'COMFORTABLE', label: 'Confortável', icon: 'distribute-vertical' },
+  { value: 'COMPACT', label: 'Compacta', icon: 'list' },
 ];
 
 /**
- * Estrutura da área autenticada: cabeçalho (contexto da assessoria, busca rápida, ajuda e
- * conta), menu lateral por permissão recolhível em trilho de ícones, trilha de navegação,
- * conteúdo e convites do onboarding.
+ * Estrutura da área autenticada (Bootstrap 5.3 + ng-bootstrap): cabeçalho (contexto da
+ * assessoria, busca rápida, ajuda e conta em menus `ngbDropdown`), menu lateral por permissão
+ * recolhível em trilho de ícones (telas largas) ou em painel `NgbOffcanvas` (telas estreitas),
+ * trilha de navegação, conteúdo e convites do onboarding.
  */
 @Component({
   selector: 'app-shell',
@@ -52,14 +49,10 @@ const DENSITIES: readonly Choice<DensityPreference>[] = [
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
-    MatSidenavModule,
-    MatListModule,
-    MatIconModule,
-    MatButtonModule,
-    MatMenuModule,
-    MatDividerModule,
-    MatTooltipModule,
-    MatBadgeModule,
+    NgTemplateOutlet,
+    NgbDropdownModule,
+    NgbTooltip,
+    Icon,
     Breadcrumbs,
     OnboardingHint,
   ],
@@ -72,6 +65,9 @@ export class Shell {
   private readonly store = inject(UiStateStore);
   private readonly palette = inject(CommandPaletteService);
   private readonly shortcuts = inject(KeyboardShortcuts);
+  private readonly offcanvas = inject(NgbOffcanvas);
+  private readonly offcanvasNav = viewChild.required<TemplateRef<unknown>>('offcanvasNav');
+  private offcanvasRef: NgbOffcanvasRef | null = null;
   protected readonly theme = inject(ThemeService);
   protected readonly onboarding = inject(OnboardingService);
   protected readonly help = inject(HelpService);
@@ -88,10 +84,9 @@ export class Shell {
       .pipe(map((state) => state.matches)),
     { initialValue: false },
   );
-  /** Menu fixo (telas largas, expandido ou trilho de ícones) ou sobreposto (telas estreitas). */
+  /** Menu fixo (telas largas, expandido ou trilho de ícones) ou painel lateral (telas estreitas). */
   private readonly mobileOpen = signal(false);
   protected readonly rail = computed(() => !this.compact() && this.store.state().navigationCollapsed);
-  protected readonly sidenavOpened = computed(() => (this.compact() ? this.mobileOpen() : true));
   protected readonly menuExpanded = computed(() => (this.compact() ? this.mobileOpen() : !this.rail()));
 
   protected readonly sections = computed<NavSection[]>(() => {
@@ -126,26 +121,42 @@ export class Shell {
     for (const unregister of [this.registerShortcuts(), this.registerCommands()]) {
       destroy.onDestroy(unregister);
     }
+    destroy.onDestroy(() => this.offcanvasRef?.dismiss());
+    // ao alargar a janela com o painel aberto, o menu volta a ser fixo
+    effect(() => {
+      if (!this.compact()) {
+        this.offcanvasRef?.dismiss();
+      }
+    });
   }
 
   protected toggleMenu(): void {
-    if (this.compact()) {
-      this.mobileOpen.update((open) => !open);
-    } else {
+    if (!this.compact()) {
       this.store.update({ navigationCollapsed: !this.store.state().navigationCollapsed });
+    } else if (this.offcanvasRef) {
+      this.offcanvasRef.dismiss();
+    } else {
+      this.openMobileMenu();
     }
   }
 
   protected onNavigate(): void {
-    if (this.compact()) {
-      this.mobileOpen.set(false);
-    }
+    this.offcanvasRef?.close();
   }
 
-  protected onSidenavClosed(): void {
-    if (this.compact()) {
+  private openMobileMenu(): void {
+    const ref = this.offcanvas.open(this.offcanvasNav(), {
+      position: 'start',
+      ariaLabelledBy: 'menu-principal-titulo',
+      panelClass: 'app-offcanvas-nav',
+    });
+    this.offcanvasRef = ref;
+    this.mobileOpen.set(true);
+    const done = () => {
+      this.offcanvasRef = null;
       this.mobileOpen.set(false);
-    }
+    };
+    ref.result.then(done, done);
   }
 
   protected openPalette(): void {
@@ -192,7 +203,7 @@ export class Shell {
   }
 
   private registerCommands(): () => void {
-    const action = (id: string, label: string, icon: string, run: () => void, keywords: string[] = []): PaletteCommand => ({
+    const action = (id: string, label: string, icon: IconName, run: () => void, keywords: string[] = []): PaletteCommand => ({
       id,
       label,
       icon,
@@ -201,19 +212,19 @@ export class Shell {
       group: 'Ações',
     });
     return this.palette.register([
-      action('theme.light', 'Usar tema claro', 'light_mode', () => this.theme.setTheme('LIGHT'), ['aparência', 'cor']),
-      action('theme.dark', 'Usar tema escuro', 'dark_mode', () => this.theme.setTheme('DARK'), ['aparência', 'noturno']),
-      action('theme.system', 'Seguir o tema do sistema', 'brightness_auto', () => this.theme.setTheme('SYSTEM'), ['aparência']),
-      action('density.compact', 'Densidade compacta', 'density_small', () => this.theme.setDensity('COMPACT'), ['tabela', 'espaço']),
-      action('density.comfortable', 'Densidade confortável', 'density_medium', () => this.theme.setDensity('COMFORTABLE'), ['espaço']),
-      action('help.tour', 'Fazer o tour desta tela', 'tour', () => this.onboarding.startScreenTour(), ['ajuda', 'onboarding']),
-      action('help.getting-started', 'Primeiros passos', 'checklist', () => this.showGettingStarted(), ['ajuda', 'checklist']),
-      action('help.whats-new', 'Novidades da versão', 'new_releases', () => void this.help.openWhatsNew(), ['ajuda', 'release']),
+      action('theme.light', 'Usar tema claro', 'sun', () => this.theme.setTheme('LIGHT'), ['aparência', 'cor']),
+      action('theme.dark', 'Usar tema escuro', 'moon-stars', () => this.theme.setTheme('DARK'), ['aparência', 'noturno']),
+      action('theme.system', 'Seguir o tema do sistema', 'circle-half', () => this.theme.setTheme('SYSTEM'), ['aparência']),
+      action('density.compact', 'Densidade compacta', 'list', () => this.theme.setDensity('COMPACT'), ['tabela', 'espaço']),
+      action('density.comfortable', 'Densidade confortável', 'distribute-vertical', () => this.theme.setDensity('COMFORTABLE'), ['espaço']),
+      action('help.tour', 'Fazer o tour desta tela', 'signpost', () => this.onboarding.startScreenTour(), ['ajuda', 'onboarding']),
+      action('help.getting-started', 'Primeiros passos', 'list-check', () => this.showGettingStarted(), ['ajuda', 'checklist']),
+      action('help.whats-new', 'Novidades da versão', 'patch-exclamation', () => void this.help.openWhatsNew(), ['ajuda', 'release']),
       action('help.shortcuts', 'Atalhos de teclado', 'keyboard', () => void this.help.openShortcuts(), ['ajuda', 'teclas']),
       action('account.profile', 'Meu perfil', 'person', () => void this.router.navigateByUrl('/conta/perfil'), ['conta']),
-      action('account.sessions', 'Minhas sessões', 'devices', () => void this.router.navigateByUrl('/conta/sessoes'), ['conta']),
-      action('account.password', 'Trocar senha', 'password', () => void this.router.navigateByUrl('/conta/senha'), ['conta']),
-      action('account.logout', 'Sair', 'logout', () => void this.logout(), ['logout', 'encerrar']),
+      action('account.sessions', 'Minhas sessões', 'laptop', () => void this.router.navigateByUrl('/conta/sessoes'), ['conta']),
+      action('account.password', 'Trocar senha', 'asterisk', () => void this.router.navigateByUrl('/conta/senha'), ['conta']),
+      action('account.logout', 'Sair', 'box-arrow-right', () => void this.logout(), ['logout', 'encerrar']),
     ]);
   }
 }

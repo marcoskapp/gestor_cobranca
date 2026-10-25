@@ -1,10 +1,9 @@
 import { Component, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth/auth.service';
 import { NAVIGATION } from '../../layout/navigation';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { RELEASE_NOTES } from '../content/release-notes';
 import { ReleaseNoteItem } from '../onboarding.models';
@@ -12,10 +11,13 @@ import { ReleaseNoteItem } from '../onboarding.models';
 /** Central "Novidades": mudanças por versão, com atalho para conhecer cada uma. */
 @Component({
   selector: 'app-whats-new-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule, AppDatePipe],
+  imports: [...DIALOG_DIRECTIVES, AppDatePipe],
   template: `
-    <h2 mat-dialog-title>Novidades</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Novidades</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       @for (note of notes; track note.version) {
         <section class="note" [attr.aria-labelledby]="'nota-' + note.version">
           <h3 class="note__title" [id]="'nota-' + note.version">{{ note.title }}</h3>
@@ -25,28 +27,28 @@ import { ReleaseNoteItem } from '../onboarding.models';
               <li>
                 {{ item.text }}
                 @if (canOpen(item)) {
-                  <button mat-button type="button" class="note__link" (click)="open(item)">Conhecer</button>
+                  <button type="button" class="btn btn-sm btn-link note__link" (click)="open(item)">Conhecer</button>
                 }
               </li>
             }
           </ul>
         </section>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-flat-button type="button" mat-dialog-close>Fechar</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" ngbAutofocus appDialogClose>Fechar</button>
+    </div>
   `,
   styles: `
     .note + .note {
       margin-top: 20px;
       padding-top: 16px;
-      border-top: 1px solid var(--app-border);
+      border-top: var(--bs-border-width) solid var(--bs-border-color);
     }
     .note__title {
       margin: 0;
       font-size: var(--app-text-lg);
-      font-weight: 600;
+      font-weight: 400;
     }
     .note__date {
       margin: 2px 0 8px;
@@ -65,7 +67,7 @@ import { ReleaseNoteItem } from '../onboarding.models';
 export class WhatsNewDialog {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly ref = inject(MatDialogRef<WhatsNewDialog>);
+  private readonly ref = inject(DialogRef);
   protected readonly notes = RELEASE_NOTES;
   private readonly allowed = new Set(
     NAVIGATION.flatMap((s) => s.items)

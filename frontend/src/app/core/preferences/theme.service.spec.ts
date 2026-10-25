@@ -38,6 +38,7 @@ describe('ThemeService', () => {
     });
     document.documentElement.removeAttribute('data-theme');
     document.documentElement.removeAttribute('data-density');
+    document.documentElement.removeAttribute('data-bs-theme');
     TestBed.configureTestingModule({
       providers: [
         { provide: AuthService, useValue: { user: signal(null) } },
@@ -59,14 +60,20 @@ describe('ThemeService', () => {
     expect(service.theme()).toBe('SYSTEM');
     expect(service.effectiveTheme()).toBe('dark');
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
     expect(document.documentElement.getAttribute('data-density')).toBe('comfortable');
   });
 
   it('reage à mudança de preferência do sistema operacional', () => {
     const service = create();
     expect(service.effectiveTheme()).toBe('light');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('light');
     listeners.forEach((l) => l({ matches: true } as MediaQueryListEvent));
     expect(service.effectiveTheme()).toBe('dark');
+    TestBed.tick();
+    // o modo de cor do Bootstrap acompanha o sistema sem fixar a preferência
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
   });
 
   it('aplica tema e densidade escolhidos no <html>', () => {
@@ -75,7 +82,17 @@ describe('ThemeService', () => {
     service.setDensity('COMPACT');
     TestBed.tick();
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
     expect(document.documentElement.getAttribute('data-density')).toBe('compact');
+  });
+
+  it('tema claro fixado prevalece sobre o sistema escuro', () => {
+    systemDark = true;
+    const service = create();
+    service.setTheme('LIGHT');
+    TestBed.tick();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('light');
   });
 
   it('alternância rápida parte do tema efetivo', () => {
@@ -91,6 +108,7 @@ describe('ThemeService', () => {
     localStorage.setItem('gc.ui.appearance', JSON.stringify({ theme: 'DARK', density: 'COMPACT' }));
     applyCachedAppearance(document);
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
     expect(document.documentElement.getAttribute('data-density')).toBe('compact');
   });
 
