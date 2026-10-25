@@ -188,7 +188,7 @@ app:
       login-per-minute-per-ip: 20
     mfa:
       issuer: Gestor de Cobranca
-      required-for-roles: ADMIN,GESTOR,FINANCEIRO,AUDITOR,JURIDICO,ADVOGADO_PARCEIRO
+      required-for-roles: ADMIN,GESTOR,FINANCEIRO,AUDITOR,JURIDICO,ADVOGADO_PARCEIRO,QUALIDADE,COMPLIANCE,INTEGRACAO
 
   audit:
     seal-interval: PT1M

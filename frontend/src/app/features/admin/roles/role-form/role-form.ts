@@ -83,6 +83,16 @@ export class RoleForm {
     return order.filter((label) => byGroup.has(label)).map((label) => ({ label, permissions: byGroup.get(label) ?? [] }));
   });
 
+  /** Permissões do catálogo que o usuário atual não pode conceder (fora do próprio perfil). */
+  protected readonly notGrantable = computed(() =>
+    this.groups().flatMap((g) => g.permissions).filter((p) => !p.grantable),
+  );
+
+  /** Já marcadas no perfil, mas fora do alcance de quem edita: ficam como estão. */
+  protected readonly lockedSelected = computed(() =>
+    this.notGrantable().filter((p) => this.selectedSet().has(p.code)).length,
+  );
+
   protected message(control: 'code' | 'name' | 'description'): string {
     const errors = this.form.controls[control].errors;
     if (control === 'code' && errors?.['pattern']) {
@@ -98,12 +108,31 @@ export class RoleForm {
   }
 
   protected groupState(group: PermissionGroup): 'all' | 'some' | 'none' {
-    const count = group.permissions.filter((p) => this.selectedSet().has(p.code)).length;
-    return count === 0 ? 'none' : count === group.permissions.length ? 'all' : 'some';
+    const grantable = group.permissions.filter((p) => p.grantable);
+    const count = grantable.filter((p) => this.selectedSet().has(p.code)).length;
+    return count === 0 ? 'none' : count === grantable.length ? 'all' : 'some';
+  }
+
+  protected groupGrantable(group: PermissionGroup): boolean {
+    return group.permissions.some((p) => p.grantable);
+  }
+
+  /** Marca todas as permissões que o usuário atual pode conceder. */
+  protected selectAllGrantable(): void {
+    const grantable = this.groups().flatMap((g) => g.permissions).filter((p) => p.grantable).map((p) => p.code);
+    this.form.controls.permissions.setValue([...new Set([...this.form.controls.permissions.value, ...grantable])]);
+    this.form.controls.permissions.markAsTouched();
+  }
+
+  protected clearGrantable(): void {
+    const grantable = new Set(this.groups().flatMap((g) => g.permissions).filter((p) => p.grantable).map((p) => p.code));
+    this.form.controls.permissions.setValue(this.form.controls.permissions.value.filter((c) => !grantable.has(c)));
+    this.form.controls.permissions.markAsTouched();
   }
 
   protected toggleGroup(group: PermissionGroup, checked: boolean): void {
-    const codes = new Set(group.permissions.map((p) => p.code));
+    // só as permissões que o usuário pode conceder; as demais ficam como estão
+    const codes = new Set(group.permissions.filter((p) => p.grantable).map((p) => p.code));
     const others = this.form.controls.permissions.value.filter((value) => !codes.has(value));
     this.form.controls.permissions.setValue(checked ? [...others, ...codes] : others);
     this.form.controls.permissions.markAsTouched();

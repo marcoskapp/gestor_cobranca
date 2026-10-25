@@ -48,6 +48,17 @@ public class Role extends TenantScopedEntity {
     @Column(name = "permission", nullable = false, length = 60)
     private Set<Permission> permissions = new HashSet<>();
 
+    /**
+     * Permissões padrão (de {@code DefaultRoles}) já aplicadas a este perfil de sistema. Uma permissão
+     * nova da definição padrão é acrescentada uma única vez; se o administrador a retirar depois, ela
+     * não volta na próxima sincronização.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "role_default_baseline", schema = "identity", joinColumns = @JoinColumn(name = "role_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "permission", nullable = false, length = 60)
+    private Set<Permission> appliedDefaults = new HashSet<>();
+
     protected Role() {
     }
 
@@ -58,6 +69,35 @@ public class Role extends TenantScopedEntity {
         this.systemRole = systemRole;
         this.active = true;
         update(name, description, permissions);
+        if (systemRole) {
+            this.appliedDefaults.addAll(permissions);
+        }
+    }
+
+    /**
+     * Acrescenta a este perfil de sistema as permissões da definição padrão que ainda não foram
+     * aplicadas (ex.: permissões criadas por versões novas do sistema). Nunca remove permissões.
+     *
+     * @return as permissões efetivamente acrescentadas
+     */
+    public Set<Permission> applyDefaultPermissions(Set<Permission> definition) {
+        Guard.requireState(systemRole, "role.not_system", "Somente perfis de sistema recebem permissões padrão");
+        Set<Permission> pending = EnumSet.noneOf(Permission.class);
+        for (Permission permission : definition) {
+            if (permission != Permission.TENANT_MANAGE || "PLATFORM_ADMIN".equals(code)) {
+                if (!appliedDefaults.contains(permission)) {
+                    pending.add(permission);
+                }
+            }
+        }
+        appliedDefaults.addAll(pending);
+        Set<Permission> added = EnumSet.noneOf(Permission.class);
+        for (Permission permission : pending) {
+            if (permissions.add(permission)) {
+                added.add(permission);
+            }
+        }
+        return added;
     }
 
     public void update(String name, String description, Collection<Permission> permissions) {

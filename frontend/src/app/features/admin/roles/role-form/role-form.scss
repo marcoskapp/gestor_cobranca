@@ -27,3 +27,9 @@
     font-size: 11px;
   }
 }
+
+.role-form__bulk {
+  display: flex;
+  gap: var(--app-space-2, 8px);
+  margin-block: var(--app-space-2, 8px);
+}

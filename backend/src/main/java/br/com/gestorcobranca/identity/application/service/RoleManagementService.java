@@ -15,7 +15,6 @@ import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
-import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -113,9 +112,10 @@ class RoleManagementService implements RoleManagementUseCases {
 
     @Override
     public List<PermissionView> permissionCatalog() {
+        Actor actor = currentActor.get();
         return Arrays.stream(Permission.values())
                 .filter(p -> p != Permission.TENANT_MANAGE)
-                .map(p -> new PermissionView(p.name(), p.description()))
+                .map(p -> new PermissionView(p.name(), p.description(), actor.isSystem() || actor.permissions().contains(p)))
                 .toList();
     }
 
@@ -123,8 +123,13 @@ class RoleManagementService implements RoleManagementUseCases {
     private void requireGrantable(Set<Permission> permissions) {
         Actor actor = currentActor.get();
         if (!actor.isSystem() && !actor.permissions().containsAll(permissions)) {
-            accessLogger.log(AccessEvent.of(AccessEventType.ACCESS_DENIED, actor, Map.of("reason", "privilege_escalation_attempt")));
-            throw new ScopeAccessDeniedException();
+            Set<Permission> missing = EnumSet.noneOf(Permission.class);
+            permissions.stream().filter(p -> !actor.permissions().contains(p)).forEach(missing::add);
+            accessLogger.log(AccessEvent.of(AccessEventType.ACCESS_DENIED, actor,
+                    Map.of("reason", "privilege_escalation_attempt", "permissions", names(missing))));
+            // a lista é do próprio usuário (o que ele não tem); ajuda a corrigir a seleção na tela
+            throw new BusinessRuleException("role.permission_not_grantable",
+                    "Você só pode conceder permissões que o seu perfil possui. Fora do seu perfil: " + names(missing));
         }
     }
 
