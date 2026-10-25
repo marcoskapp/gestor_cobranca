@@ -8,9 +8,10 @@ export type EffectiveTheme = 'light' | 'dark';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 /**
- * Aplica tema e densidade ao documento. As cores vêm de `light-dark()` nos tokens (styles.scss),
- * portanto basta ajustar `data-theme` (ausente = segue o sistema) e `data-density` no `<html>`.
- * Usada também antes do bootstrap (`applyAppearance`) para evitar o "piscar" de tema.
+ * Aplica tema e densidade ao documento: `data-bs-theme` (modo de cor nativo do Bootstrap 5.3,
+ * sempre o modo efetivo), `data-theme` (preferência fixada; ausente = segue o sistema, usado pelo
+ * `color-scheme` e pelo tema Material transitório) e `data-density` no `<html>`.
+ * Usada também antes do bootstrap (`applyCachedAppearance`) para evitar o "piscar" de tema.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
@@ -29,11 +30,13 @@ export class ThemeService {
     const media = this.document.defaultView?.matchMedia?.(DARK_QUERY);
     if (media) {
       this.systemDark.set(media.matches);
+    }
+    if (media && typeof media.addEventListener === 'function') {
       const listener = (event: MediaQueryListEvent) => this.systemDark.set(event.matches);
       media.addEventListener('change', listener);
       inject(DestroyRef).onDestroy(() => media.removeEventListener('change', listener));
     }
-    effect(() => applyAppearance(this.document, this.theme(), this.density()));
+    effect(() => applyAppearance(this.document, this.theme(), this.density(), this.systemDark()));
   }
 
   setTheme(theme: ThemePreference): void {
@@ -51,8 +54,15 @@ export class ThemeService {
 }
 
 /** Reflete tema e densidade nos atributos do `<html>` e na meta `color-scheme`. */
-export function applyAppearance(doc: Document, theme: ThemePreference, density: DensityPreference): void {
+export function applyAppearance(
+  doc: Document,
+  theme: ThemePreference,
+  density: DensityPreference,
+  systemDark = systemPrefersDark(doc),
+): void {
   const root = doc.documentElement;
+  const dark = theme === 'DARK' || (theme === 'SYSTEM' && systemDark);
+  root.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
   if (theme === 'SYSTEM') {
     root.removeAttribute('data-theme');
   } else {
@@ -62,6 +72,10 @@ export function applyAppearance(doc: Document, theme: ThemePreference, density: 
   doc
     .querySelector('meta[name="color-scheme"]')
     ?.setAttribute('content', theme === 'SYSTEM' ? 'light dark' : theme === 'DARK' ? 'dark' : 'light');
+}
+
+function systemPrefersDark(doc: Document): boolean {
+  return doc.defaultView?.matchMedia?.(DARK_QUERY).matches ?? false;
 }
 
 /** Aplica a aparência guardada no navegador antes do bootstrap (sem esperar o login). */

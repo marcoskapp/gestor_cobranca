@@ -1,6 +1,5 @@
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatIconModule } from '@angular/material/icon';
 import { NavigationEnd, Router, RouterLink, TitleStrategy } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 import { NAVIGATION } from '../navigation';
@@ -73,20 +72,17 @@ export function buildBreadcrumbs(url: string, pageTitle: string | undefined): Br
 
 @Component({
   selector: 'app-breadcrumbs',
-  imports: [RouterLink, MatIconModule],
+  imports: [RouterLink],
   template: `
     @if (crumbs().length > 1) {
-      <nav class="crumbs" aria-label="Trilha de navegação">
-        <ol>
+      <nav aria-label="Trilha de navegação">
+        <ol class="breadcrumb app-crumbs">
           @for (crumb of crumbs(); track $index; let last = $last) {
-            <li>
+            <li class="breadcrumb-item" [class.active]="last" [attr.aria-current]="last ? 'page' : null">
               @if (crumb.route && !last) {
                 <a [routerLink]="crumb.route">{{ crumb.label }}</a>
               } @else {
-                <span [attr.aria-current]="last ? 'page' : null">{{ crumb.label }}</span>
-              }
-              @if (!last) {
-                <mat-icon class="crumbs__sep" aria-hidden="true">chevron_right</mat-icon>
+                {{ crumb.label }}
               }
             </li>
           }
@@ -95,42 +91,22 @@ export function buildBreadcrumbs(url: string, pageTitle: string | undefined): Br
     }
   `,
   styles: `
-    .crumbs ol {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 2px;
-      margin: 0 0 8px;
-      padding: 0;
-      list-style: none;
-      font-size: var(--app-text-sm);
-      color: var(--mat-sys-on-surface-variant);
+    .app-crumbs a {
+      color: var(--bs-secondary-color);
+      border-radius: var(--bs-border-radius-sm);
     }
-    .crumbs li {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-    }
-    .crumbs a {
-      color: inherit;
-      text-decoration: none;
-      border-radius: var(--app-radius-sm);
-    }
-    .crumbs a:hover {
-      color: var(--mat-sys-primary);
-      text-decoration: underline;
-    }
-    [aria-current='page'] {
-      color: var(--mat-sys-on-surface);
-      font-weight: 500;
-    }
-    .crumbs__sep {
-      width: 16px;
-      height: 16px;
-      font-size: 16px;
+    .app-crumbs a:hover {
+      color: var(--bs-link-hover-color);
     }
     @media (max-width: 599.98px) {
-      .crumbs li:not(:nth-last-child(-n + 2)) {
+      .app-crumbs .breadcrumb-item:not(:nth-last-child(-n + 2)) {
+        display: none;
+      }
+      /* o primeiro item visível não mostra o separador */
+      .app-crumbs .breadcrumb-item:nth-last-child(2) {
+        padding-left: 0;
+      }
+      .app-crumbs .breadcrumb-item:nth-last-child(2)::before {
         display: none;
       }
     }

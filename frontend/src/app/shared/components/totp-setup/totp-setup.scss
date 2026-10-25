@@ -1,7 +1,7 @@
 .totp-steps {
   margin: 0 0 16px;
   padding-inline-start: 20px;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 
   li + li {
     margin-top: 4px;
@@ -21,8 +21,8 @@
   place-items: center;
   width: 200px;
   height: 200px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 8px;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
   background: #fff;
   text-align: center;
 }
@@ -36,8 +36,8 @@
 }
 
 .totp-setup__label {
-  font: var(--mat-sys-label-medium);
-  color: var(--mat-sys-on-surface-variant);
+  font-size: var(--app-text-sm);
+  color: var(--bs-secondary-color);
 }
 
 .totp-setup__secret {
@@ -46,7 +46,7 @@
   letter-spacing: 0.05em;
   word-break: break-all;
   padding: 8px 12px;
-  border-radius: 4px;
-  background: var(--mat-sys-surface-container);
-  color: var(--mat-sys-on-surface);
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
 }

@@ -10,9 +10,10 @@ import { Component, computed, input } from '@angular/core';
       padding: 8px 12px;
       max-height: 280px;
       overflow: auto;
-      border-radius: 4px;
-      background: var(--mat-sys-surface-container);
-      font: 12px/1.5 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+      border-radius: var(--bs-border-radius-sm);
+      background: var(--bs-tertiary-bg);
+      color: var(--bs-body-color);
+      font: 12px/1.5 var(--bs-font-monospace);
       white-space: pre-wrap;
       word-break: break-word;
     }

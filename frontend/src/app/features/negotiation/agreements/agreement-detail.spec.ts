@@ -12,6 +12,7 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementView } from '../data/agreement.models';
 import { AgreementDetail } from './agreement-detail';
+import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -23,6 +24,7 @@ describe('AgreementDetail', () => {
     TestBed.configureTestingModule({
       imports: [AgreementDetail],
       providers: [
+        ...LEGACY_DIALOG_LAUNCHERS,
         provideLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),

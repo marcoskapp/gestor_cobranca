@@ -1,6 +1,8 @@
 # Gestor de Cobrança — frontend
 
-SPA em Angular 22 (componentes standalone, signals, zoneless, OnPush por padrão) com Angular Material.
+SPA em Angular 22 (componentes standalone, signals, zoneless, OnPush por padrão) com Bootstrap 5.3 +
+ng-bootstrap (parametrização em `src/styles/bootstrap/`, guia em `docs/tecnico/desenho/ux.md` §11–15).
+As telas ainda não migradas usam Angular Material (transitório, migração em ondas).
 Consome a API REST do backend em `/api/v1`.
 
 ## Pré-requisitos
@@ -15,6 +17,8 @@ npm start          # ng serve em http://localhost:4200, /api → http://localhos
 npm run build      # build de produção em dist/gestor-cobranca-web/ (base href "/")
 npm test           # testes unitários (Vitest + jsdom), sem watch
 npm run lint       # ESLint (angular-eslint), deve terminar sem erros
+npm run icons      # regenera o sprite de ícones (Bootstrap Icons) a partir de icon-names.ts
+npm run bootstrap:check  # confere se só variáveis documentadas do Bootstrap são sobrescritas
 ```
 
 O build de produção é servido como estático pelo backend, que faz fallback de rotas para
@@ -29,9 +33,9 @@ src/app/
                layout (shell, menu, trilha, busca rápida, ajuda, moldura de autenticação),
                preferences (tema, densidade, estado de interface no servidor),
                onboarding (tours, convites, novidades, primeiros passos), keyboard (atalhos),
-               config (locale pt-BR, Material, títulos)
+               config (locale pt-BR, ng-bootstrap, Material transitório, títulos)
   shared/      tabela paginada, estado vazio, esqueleto, valor monetário, CPF/CNPJ mascarado,
-               diálogos, seletor de entidades, máscara e validação de CPF/CNPJ, pipes, status
+               ícones (app-icon), diálogos (DialogService), campos (app-field), seletor de entidades, máscara e validação de CPF/CNPJ, pipes, status
   features/
     auth/          login, MFA, cadastro de MFA, senha expirada, esqueci a senha, redefinir/ativar
     account/       perfil, trocar senha, MFA voluntário, sessões

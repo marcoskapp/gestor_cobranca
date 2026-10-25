@@ -33,7 +33,7 @@ export function formatAmount(value: number | string | null | undefined, compact 
     '[class.app-amount--positive]': 'signed() && (amount() ?? 0) > 0',
     '[attr.title]': 'compact() ? full() : null',
   },
-  template: `{{ prefix() }}{{ text() }}@if (compact()) {<span class="cdk-visually-hidden"> ({{ full() }})</span>}`,
+  template: `{{ prefix() }}{{ text() }}@if (compact()) {<span class="visually-hidden"> ({{ full() }})</span>}`,
 })
 export class Amount {
   readonly value = input.required<number | string | null | undefined>();

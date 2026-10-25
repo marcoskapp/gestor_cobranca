@@ -10,7 +10,10 @@ import { InstructionView, PaymentView } from './payment.models';
  * carregando-os sob demanda: o código do módulo de pagamentos (inclusive o gerador de QR Code)
  * não entra no bloco da tela de origem.
  */
-@Injectable({ providedIn: 'root' })
+// TRANSITÓRIO (migração para Bootstrap): fornecido nas rotas do shell (shell.routes.ts), não na raiz,
+// para usar o MatDialog e os padrões do Material daquele injetor. Volta a `providedIn: 'root'`
+// quando passar a usar o DialogService.
+@Injectable()
 export class PaymentLauncher {
   private readonly dialog = inject(MatDialog);
 

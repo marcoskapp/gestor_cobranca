@@ -1,11 +1,13 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 export interface PaletteCommand {
   id: string;
   label: string;
   /** Grupo exibido na lista (ex.: "Ir para", "Ações"). */
   group: string;
+  /** Bootstrap Icons (ou, na transição, nome do Material Icons — ver `app-icon`). */
   icon: string;
   /** Texto auxiliar à direita (seção do menu ou atalho). */
   hint?: string;
@@ -20,9 +22,9 @@ export interface PaletteCommand {
  */
 @Injectable({ providedIn: 'root' })
 export class CommandPaletteService {
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly extra = signal<readonly PaletteCommand[]>([]);
-  private ref: MatDialogRef<unknown> | null = null;
+  private ref: DialogRef | null = null;
 
   readonly commands = this.extra.asReadonly();
 
@@ -37,15 +39,7 @@ export class CommandPaletteService {
       return;
     }
     const { CommandPalette } = await import('./command-palette');
-    this.ref = this.dialog.open(CommandPalette, {
-      panelClass: 'app-palette-pane',
-      backdropClass: 'app-palette-backdrop',
-      position: { top: '12vh' },
-      width: '640px',
-      maxWidth: 'calc(100vw - 32px)',
-      autoFocus: 'first-tabbable',
-      ariaLabel: 'Busca rápida',
-    });
+    this.ref = this.dialog.open(CommandPalette, { windowClass: 'app-palette-window' });
     this.ref.afterClosed().subscribe(() => (this.ref = null));
   }
 }

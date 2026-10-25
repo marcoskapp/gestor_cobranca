@@ -1,15 +1,11 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { toApiError } from '../../../core/http/problem';
 import { PasswordField } from '../../../shared/components/password-field/password-field';
-import { errorMessage } from '../../../shared/validation/error-messages';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppValidators, Limits } from '../../../shared/validation/validators';
 import { authErrorMessage } from '../auth-errors';
 
@@ -26,10 +22,7 @@ const REASONS: Record<string, string> = {
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatProgressSpinnerModule,
+    ...FORM_FIELD,
     PasswordField,
   ],
   templateUrl: './login.html',
@@ -52,10 +45,6 @@ export class Login {
     email: ['', [AppValidators.notBlank, AppValidators.email, Validators.maxLength(Limits.email)]],
     password: ['', [AppValidators.notBlank, Validators.maxLength(Limits.password)]],
   });
-
-  protected message(control: 'tenant' | 'email'): string {
-    return errorMessage(this.form.controls[control].errors);
-  }
 
   protected submit(): void {
     if (this.form.invalid || this.submitting()) {

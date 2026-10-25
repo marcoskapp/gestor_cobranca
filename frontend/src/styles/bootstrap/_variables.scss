@@ -1,0 +1,242 @@
+// =============================================================================
+// Bootstrap 5.3 — parametrização da identidade "Gestor de Cobrança" (tema claro).
+//
+// Regra: este arquivo só redefine VARIÁVEIS DOCUMENTADAS do Bootstrap (todas existem em
+// node_modules/bootstrap/scss/_variables.scss com `!default`). Nada de seletores aqui.
+// É importado ANTES de `bootstrap/scss/variables` (ver `_index.scss`), como manda
+// "Customize → Sass" da documentação. Ao atualizar o Bootstrap, compare esta lista com o
+// `_variables.scss` da nova versão (docs/tecnico/desenho/ux.md, "Bootstrap: parametrização").
+//
+// Contraste (WCAG 2.2 AA) medido sobre a superfície indicada; valores comentados.
+// =============================================================================
+
+// ----------------------------------------------------------------- opções globais
+// prefixo das CSS custom properties (valor padrão; declarado aqui para as sobrescritas abaixo
+// poderem referenciar `var(--bs-…)` antes do import de `bootstrap/scss/variables`)
+$prefix: bs-;
+$enable-shadows: false; // superfícies planas; elevação explícita com `.shadow-sm`/`.shadow`
+$enable-gradients: false;
+$enable-caret: false; // menus mostram ícone explícito (chevron) quando a seta ajuda; botões só de ícone ficam limpos
+$enable-validation-icons: false; // a mensagem de erro em texto já comunica (o ícone embutido não acompanha o modo escuro)
+$enable-reduced-motion: true; // respeita prefers-reduced-motion
+$enable-smooth-scroll: false; // rolagem instantânea (estação de trabalho, teclado)
+$enable-negative-margins: false;
+$enable-dark-mode: true;
+$color-mode-type: data; // `data-bs-theme` controlado pelo ThemeService (sistema/claro/escuro)
+$enable-deprecation-messages: false;
+
+// ----------------------------------------------------------------- cores do tema
+// Azul institucional: o navy #1d4e89 fica na barra superior e nos textos de ênfase; os
+// componentes usam um azul um tom acima, que mantém ≥ 4,5:1 com texto branco e ≥ 3:1 contra
+// a superfície escura (um único `$primary` para os dois modos, sem sobrescrever componentes).
+$primary: #3068b5; // branco 5.57:1 · vs. #171c23 3.08:1
+$secondary: #5b6675; // branco 5.83:1
+$success: #1e7b3f; // branco 5.30:1
+$info: #1f6fb5; // branco 5.25:1
+$warning: #e8a317; // texto preto 9.68:1 (color-contrast escolhe o preto)
+$danger: #b3261e; // branco 6.54:1
+$min-contrast-ratio: 4.5;
+
+// tons "subtle"/"emphasis" (alertas, selos de status, fundos de destaque) = tokens atuais
+$primary-text-emphasis: #123f73; // sobre bg-subtle 9.1:1
+$secondary-text-emphasis: #3c4652; // 9.0:1
+$success-text-emphasis: #135c2b; // 7.3:1
+$info-text-emphasis: #123f73; // 9.1:1
+$warning-text-emphasis: #6b4700; // 7.1:1
+$danger-text-emphasis: #8c1d18; // 7.6:1
+
+$primary-bg-subtle: #e3edfb;
+$secondary-bg-subtle: #eceff3;
+$success-bg-subtle: #e3f4e8;
+$info-bg-subtle: #e3edfb;
+$warning-bg-subtle: #fff4d6;
+$danger-bg-subtle: #fde7e7;
+
+$primary-border-subtle: #b9cff0;
+$secondary-border-subtle: #d3d9e1;
+$success-border-subtle: #b5e0c2;
+$info-border-subtle: #b9cff0;
+$warning-border-subtle: #f5d98c;
+$danger-border-subtle: #f4bcb8;
+
+// ----------------------------------------------------------------- corpo e superfícies
+$body-color: #1b2430; // 15.6:1 sobre branco
+$body-bg: #ffffff; // superfície (cartões, campos, diálogos)
+$body-secondary-bg: #eceff3; // hover, esqueleto
+$body-tertiary-bg: #f6f8fb; // fundo da página (`.bg-body-tertiary` no <body>)
+$body-emphasis-color: #0b1220;
+$box-shadow: 0 0.5rem 1.5rem rgba(#0b1220, 0.1);
+$box-shadow-sm: 0 0.125rem 0.375rem rgba(#0b1220, 0.06);
+$box-shadow-lg: 0 1rem 2.5rem rgba(#0b1220, 0.14);
+$border-color: #dde2e9; // decorativo (cartões, tabelas)
+$border-color-translucent: rgba(#0b1220, 0.12);
+$link-color: $primary; // 5.57:1
+$link-decoration: none;
+$link-hover-decoration: underline;
+
+// ----------------------------------------------------------------- tipografia (fina e delicada)
+// Inter Variable (OFL, @fontsource-variable/inter), servida pela aplicação — sem CDN.
+$font-family-sans-serif: 'Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-family-monospace: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+$font-size-base: 0.875rem; // 14px — texto padrão da operação
+$font-size-sm: 0.8125rem; // 13px — tabelas, listas densas
+$font-size-lg: 1rem;
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 500; // moderado
+$font-weight-bold: 600; // moderado
+$font-weight-base: 300;
+$line-height-base: 1.5;
+
+$h1-font-size: $font-size-base * 1.6; // 22px — título de página
+$h2-font-size: $font-size-base * 1.35; // ~19px
+$h3-font-size: $font-size-base * 1.15; // 16px — título de cartão
+$h4-font-size: $font-size-base * 1.05;
+$h5-font-size: $font-size-base;
+$h6-font-size: $font-size-base * 0.9;
+$headings-font-weight: 400;
+$headings-line-height: 1.25;
+$headings-margin-bottom: 0.5rem;
+$display-font-weight: 300;
+$lead-font-weight: 300;
+$small-font-size: 0.857em; // 12px sobre 14px
+$dt-font-weight: $font-weight-medium;
+$legend-font-weight: $font-weight-normal;
+
+// ----------------------------------------------------------------- arredondamento generoso
+$border-radius: 0.75rem; // 12px — botões, campos, menus
+$border-radius-sm: 0.5rem; // 8px — botões e campos pequenos, tooltips
+$border-radius-lg: 1rem; // 16px — cartões, alertas, popovers
+$border-radius-xl: 1.25rem; // 20px — diálogos
+$border-radius-xxl: 1.75rem;
+$border-radius-pill: 50rem; // selos, busca
+
+$btn-border-radius: var(--#{$prefix}border-radius);
+$btn-border-radius-sm: var(--#{$prefix}border-radius-sm);
+$btn-border-radius-lg: var(--#{$prefix}border-radius-lg);
+$input-border-radius: var(--#{$prefix}border-radius);
+$input-border-radius-sm: var(--#{$prefix}border-radius-sm);
+$input-border-radius-lg: var(--#{$prefix}border-radius-lg);
+$card-border-radius: var(--#{$prefix}border-radius-lg);
+$modal-content-border-radius: var(--#{$prefix}border-radius-xl);
+$dropdown-border-radius: var(--#{$prefix}border-radius);
+$toast-border-radius: var(--#{$prefix}border-radius-lg);
+$alert-border-radius: var(--#{$prefix}border-radius-lg);
+$list-group-border-radius: var(--#{$prefix}border-radius-lg);
+$accordion-border-radius: var(--#{$prefix}border-radius-lg);
+$popover-border-radius: var(--#{$prefix}border-radius-lg);
+$tooltip-border-radius: var(--#{$prefix}border-radius-sm);
+$badge-border-radius: var(--#{$prefix}border-radius-pill);
+$progress-border-radius: var(--#{$prefix}border-radius-pill);
+$pagination-border-radius: var(--#{$prefix}border-radius);
+$nav-pills-border-radius: var(--#{$prefix}border-radius);
+$form-check-input-border-radius: 0.375em;
+
+// ----------------------------------------------------------------- foco (WCAG 2.4.7)
+$focus-ring-width: 0.1875rem;
+$focus-ring-opacity: 0.45;
+
+// ----------------------------------------------------------------- botões e campos
+$input-btn-padding-y: 0.4375rem; // altura 37px no texto de 14px
+$input-btn-padding-x: 0.875rem;
+$input-btn-padding-y-sm: 0.25rem;
+$input-btn-padding-x-sm: 0.625rem;
+$btn-font-weight: $font-weight-normal;
+$btn-padding-x: 1rem;
+
+// borda dos controles com ≥ 3:1 contra a superfície (WCAG 1.4.11) nos dois modos:
+// o token `--app-control-border` é definido por modo em `styles/_tokens.scss`.
+$input-border-color: var(--app-control-border);
+$form-check-input-border: var(--#{$prefix}border-width) solid var(--app-control-border);
+$form-label-margin-bottom: 0.25rem;
+$form-label-font-weight: $font-weight-normal;
+$form-text-margin-top: 0.25rem;
+$input-placeholder-color: var(--#{$prefix}secondary-color);
+
+// ----------------------------------------------------------------- tabelas
+$table-color: var(--#{$prefix}body-color);
+$table-th-font-weight: $font-weight-medium;
+$table-cell-padding-y: 0.625rem;
+$table-cell-padding-x: 0.75rem;
+$table-cell-padding-y-sm: 0.375rem;
+$table-cell-padding-x-sm: 0.5rem;
+$table-cell-vertical-align: middle;
+$table-border-color: var(--#{$prefix}border-color);
+$table-hover-bg-factor: 0.04;
+
+// ----------------------------------------------------------------- cartões, diálogos, menus, avisos
+$card-spacer-y: 1rem;
+$card-spacer-x: 1.25rem;
+$card-cap-bg: transparent;
+$card-border-color: var(--#{$prefix}border-color);
+
+$modal-inner-padding: 1.25rem;
+$modal-header-padding-y: 1.25rem;
+$modal-header-padding-x: 1.5rem;
+$modal-header-border-width: 0;
+$modal-footer-border-width: 0;
+$modal-sm: 400px;
+$modal-md: 560px;
+$modal-lg: 800px;
+$modal-backdrop-opacity: 0.32;
+
+$dropdown-padding-x: 0.375rem;
+$dropdown-padding-y: 0.375rem;
+$dropdown-item-padding-y: 0.4375rem;
+$dropdown-item-padding-x: 0.75rem;
+$dropdown-border-color: var(--#{$prefix}border-color);
+$dropdown-link-active-color: var(--#{$prefix}primary-text-emphasis);
+$dropdown-link-active-bg: var(--#{$prefix}primary-bg-subtle);
+
+$nav-pills-link-active-color: var(--#{$prefix}primary-text-emphasis);
+$nav-pills-link-active-bg: var(--#{$prefix}primary-bg-subtle);
+$nav-link-padding-y: 0.5rem;
+$nav-link-padding-x: 0.75rem;
+
+$tooltip-font-size: $font-size-sm;
+$tooltip-padding-y: 0.375rem;
+$tooltip-padding-x: 0.625rem;
+$tooltip-opacity: 0.95;
+
+$toast-max-width: 380px;
+$toast-padding-x: 1rem;
+$toast-padding-y: 0.75rem;
+$toast-font-size: $font-size-base;
+
+$badge-font-weight: $font-weight-medium;
+$badge-font-size: 0.75rem;
+$badge-padding-y: 0.3em;
+$badge-padding-x: 0.7em;
+
+$alert-padding-y: 0.75rem;
+$alert-padding-x: 1rem;
+
+$pagination-padding-y: 0.3125rem;
+$pagination-padding-x: 0.625rem;
+$pagination-font-size: $font-size-sm;
+
+$list-group-item-padding-y: 0.625rem;
+$list-group-item-padding-x: 1rem;
+
+$offcanvas-horizontal-width: 280px;
+$offcanvas-padding-x: 0.75rem;
+$offcanvas-padding-y: 0.75rem;
+
+$breadcrumb-font-size: $font-size-sm;
+$breadcrumb-divider: quote('›');
+$breadcrumb-margin-bottom: 0.5rem;
+$breadcrumb-divider-color: var(--#{$prefix}secondary-color);
+$breadcrumb-active-color: var(--#{$prefix}body-color);
+
+$placeholder-opacity-max: 0.45;
+$placeholder-opacity-min: 0.2;
+
+$progress-height: 0.25rem;
+$spinner-border-width-sm: 0.15em;
+
+$kbd-padding-y: 0.0625rem;
+$kbd-padding-x: 0.375rem;
+$kbd-font-size: 0.75rem;
+$kbd-color: var(--#{$prefix}body-color);
+$kbd-bg: var(--#{$prefix}secondary-bg);

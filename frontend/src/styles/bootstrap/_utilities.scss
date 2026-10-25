@@ -1,0 +1,43 @@
+// =============================================================================
+// Bootstrap 5.3 — API de utilitários (documentada em "Utilities → Utility API"). Importado depois
+// de `bootstrap/scss/utilities` e antes de `bootstrap/scss/utilities/api`.
+//
+// Para reduzir o CSS inicial, só os utilitários de leiaute usados em telas responsivas mantêm
+// variantes por breakpoint (`d-md-none`, `flex-lg-row`, `gap-sm-3`, `mb-md-0`, `p-lg-4`…).
+// Os demais continuam disponíveis, mas sem sufixo de breakpoint. Para devolver o sufixo a um
+// utilitário, remova-o da lista abaixo.
+// =============================================================================
+
+$app-non-responsive-utilities: (
+  'float',
+  'object-fit',
+  'flex-grow',
+  'flex-shrink',
+  'align-content',
+  'align-self',
+  'order',
+  'margin-x',
+  'margin-y',
+  'margin-top',
+  'margin-end',
+  'margin-start',
+  'padding-x',
+  'padding-y',
+  'padding-top',
+  'padding-end',
+  'padding-bottom',
+  'padding-start',
+  'row-gap',
+  'column-gap'
+);
+
+@each $name in $app-non-responsive-utilities {
+  @if map-has-key($utilities, $name) {
+    $utilities: map-merge(
+      $utilities,
+      (
+        $name: map-merge(map-get($utilities, $name), (responsive: false)),
+      )
+    );
+  }
+}

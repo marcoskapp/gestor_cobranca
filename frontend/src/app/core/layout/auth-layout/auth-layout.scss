@@ -9,25 +9,27 @@
   box-sizing: border-box;
   padding: 24px 16px;
   background:
-    radial-gradient(circle at 15% 10%, light-dark(rgb(29 78 137 / 10%), rgb(167 200 255 / 6%)), transparent 45%),
-    var(--app-auth-bg);
+    radial-gradient(circle at 15% 10%, rgba(var(--bs-primary-rgb), 0.1), transparent 45%),
+    var(--bs-tertiary-bg);
 }
 
 .app-auth__theme {
+  --bs-btn-padding-x: 0.5rem;
+  --bs-btn-padding-y: 0.375rem;
+  --bs-btn-font-size: 1.125rem;
+  --bs-btn-border-radius: var(--bs-border-radius-pill);
+  --bs-btn-hover-bg: var(--bs-secondary-bg);
   position: absolute;
   top: 12px;
   right: 12px;
 }
 
+// cartão do Bootstrap ($card-border-radius = 1rem; padding pelas variáveis documentadas)
 .app-auth__panel {
-  box-sizing: border-box;
+  --bs-card-spacer-y: 1.75rem;
+  --bs-card-spacer-x: 1.75rem;
   width: 100%;
   max-width: 440px;
-  padding: 28px 28px 24px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-surface);
-  box-shadow: var(--app-elevation-2);
 }
 
 .app-auth__brand {
@@ -36,9 +38,8 @@
   gap: 10px;
   margin: 0 0 20px;
   font-size: 15px;
-  font-weight: 600;
   letter-spacing: 0.01em;
-  color: var(--mat-sys-primary);
+  color: var(--bs-primary-text-emphasis);
 }
 
 .app-auth__logo {
@@ -51,11 +52,12 @@
   max-width: 440px;
   text-align: center;
   font-size: 12px;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 @media (max-width: 599.98px) {
   .app-auth__panel {
-    padding: 24px 20px 20px;
+    --bs-card-spacer-y: 1.5rem;
+    --bs-card-spacer-x: 1.25rem;
   }
 }

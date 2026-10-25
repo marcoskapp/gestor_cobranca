@@ -1,0 +1,52 @@
+// =============================================================================
+// Densidade compacta (`html[data-density="compact"]`, aplicada pelo ThemeService).
+//
+// Só com ponteiro fino (mouse/trackpad): em telas de toque a densidade é ignorada para manter
+// alvos ≥ 24px (WCAG 2.5.8). Usa apenas as CSS custom properties que o Bootstrap expõe em
+// cada componente (`--bs-btn-*`, `--bs-dropdown-*`…); os componentes sem variáveis (tabela,
+// campos) usam os modificadores documentados `.table-sm`, `.form-control-sm` e
+// `.form-select-sm`, ligados pelos componentes compartilhados via `DensityService`.
+// =============================================================================
+
+@media (pointer: fine) {
+  :where(html[data-density='compact']) {
+    --app-content-padding: 12px 16px 24px;
+    --app-card-padding: 12px 16px;
+    --app-gap: 12px;
+    --app-table-cell-y: 6px;
+    --app-topbar-height: 48px;
+
+    .btn:not(.btn-sm, .btn-lg) {
+      --bs-btn-padding-y: 0.25rem;
+      --bs-btn-padding-x: 0.75rem;
+    }
+
+    .dropdown-menu {
+      --bs-dropdown-item-padding-y: 0.25rem;
+      --bs-dropdown-padding-y: 0.25rem;
+    }
+
+    .nav {
+      --bs-nav-link-padding-y: 0.3125rem;
+    }
+
+    .list-group {
+      --bs-list-group-item-padding-y: 0.375rem;
+    }
+
+    .card {
+      --bs-card-spacer-y: 0.75rem;
+      --bs-card-spacer-x: 1rem;
+    }
+
+    .modal {
+      --bs-modal-padding: 1rem;
+      --bs-modal-header-padding: 1rem 1.25rem;
+    }
+
+    .pagination {
+      --bs-pagination-padding-y: 0.1875rem;
+      --bs-pagination-padding-x: 0.5rem;
+    }
+  }
+}

@@ -39,6 +39,9 @@ export function errorMessage(errors: ValidationErrors | null | undefined): strin
     case 'matDatepickerMin':
     case 'matDatepickerMax':
       return 'Data fora do intervalo permitido.';
+    // NgbInputDatepicker (ng-bootstrap): { invalid } para texto não reconhecido, { minDate | maxDate } fora do intervalo
+    case 'ngbDate':
+      return info['minDate'] || info['maxDate'] ? 'Data fora do intervalo permitido.' : 'Data inválida. Use o formato dd/mm/aaaa.';
     case 'server':
       return String(value);
     default:

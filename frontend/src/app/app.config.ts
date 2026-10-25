@@ -16,8 +16,8 @@ import {
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthService } from './core/auth/auth.service';
-import { provideLocale } from './core/config/locale.config';
-import { provideMaterialDefaults } from './core/config/material.config';
+import { provideBootstrapDefaults } from './core/config/bootstrap.config';
+import { provideAppLocale } from './core/config/app-locale';
 import { PageTitleStrategy } from './core/config/page-title.strategy';
 import { isPortalPath } from './core/config/api';
 import { errorInterceptor } from './core/http/error.interceptor';
@@ -37,8 +37,9 @@ export const appConfig: ApplicationConfig = {
     // ordem: authInterceptor trata o 401 (renovação) antes de o errorInterceptor notificar
     // portalInterceptor só age em /api/portal/v1/me (token do devedor); authInterceptor ignora /api/portal/
     provideHttpClient(withFetch(), withInterceptors([errorInterceptor, authInterceptor, portalInterceptor])),
-    provideLocale(),
-    provideMaterialDefaults(),
+    provideAppLocale(),
+    provideBootstrapDefaults(),
+    // padrões do Angular Material (transitório) ficam nas rotas do shell e do portal
     { provide: TitleStrategy, useClass: PageTitleStrategy },
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     // restaura a sessão (cookie de refresh) antes da primeira navegação

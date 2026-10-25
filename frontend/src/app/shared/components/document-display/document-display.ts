@@ -1,7 +1,6 @@
 import { Component, computed, input, output } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../icon/icon';
 import { documentType, formatDocument, maskDocument, onlyDigits } from '../../validation/document';
 
 /**
@@ -12,7 +11,7 @@ import { documentType, formatDocument, maskDocument, onlyDigits } from '../../va
  */
 @Component({
   selector: 'app-document',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [Icon, NgbTooltip],
   host: { class: 'app-document' },
   template: `
     <span class="app-numeric">
@@ -23,14 +22,13 @@ import { documentType, formatDocument, maskDocument, onlyDigits } from '../../va
     </span>
     @if (revealable() && masked()) {
       <button
-        mat-icon-button
         type="button"
-        class="app-document__reveal"
+        class="btn btn-sm btn-link app-document__reveal"
         (click)="reveal.emit()"
         [attr.aria-label]="'Exibir ' + (kind() ?? 'documento') + ' completo (acesso registrado)'"
-        matTooltip="Exibir completo (acesso registrado)"
+        ngbTooltip="Exibir completo (acesso registrado)"
       >
-        <mat-icon aria-hidden="true">visibility</mat-icon>
+        <app-icon name="eye" />
       </button>
     }
   `,
@@ -43,14 +41,14 @@ import { documentType, formatDocument, maskDocument, onlyDigits } from '../../va
     .app-document__kind {
       margin-right: 4px;
       font-size: var(--app-text-xs);
-      font-weight: 600;
-      color: var(--mat-sys-on-surface-variant);
+      font-weight: var(--bs-body-font-weight);
+      color: var(--bs-secondary-color);
     }
     .app-document__reveal {
-      --mat-icon-button-state-layer-size: 28px;
-      width: 28px;
-      height: 28px;
-      padding: 2px;
+      --bs-btn-padding-x: 0.25rem;
+      --bs-btn-padding-y: 0.125rem;
+      min-width: 28px;
+      min-height: 28px;
     }
   `,
 })

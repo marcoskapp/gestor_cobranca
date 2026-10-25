@@ -1,10 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
+import { Icon } from '../../../shared/components/icon/icon';
 import { ChecklistEntry, OnboardingService } from '../onboarding.service';
 
 /**
@@ -13,7 +10,7 @@ import { ChecklistEntry, OnboardingService } from '../onboarding.service';
  */
 @Component({
   selector: 'app-getting-started',
-  imports: [RouterLink, MatButtonModule, MatCheckboxModule, MatIconModule, MatProgressBarModule, MatTooltipModule],
+  imports: [RouterLink, NgbTooltip, Icon],
   template: `
     @if (onboarding.checklist(); as summary) {
       <section class="gs app-card" data-tour="getting-started" aria-labelledby="primeiros-passos">
@@ -23,33 +20,40 @@ import { ChecklistEntry, OnboardingService } from '../onboarding.service';
             <p class="gs__progress-text app-muted">{{ summary.done }} de {{ summary.total }} concluídos</p>
           </div>
           <button
-            mat-icon-button
             type="button"
+            class="btn-close gs__close"
             aria-label="Ocultar primeiros passos"
-            matTooltip="Ocultar (reabra pela Ajuda)"
+            ngbTooltip="Ocultar (reabra pela Ajuda)"
             (click)="onboarding.setChecklistDismissed(true)"
-          >
-            <mat-icon aria-hidden="true">close</mat-icon>
-          </button>
+          ></button>
         </header>
-        <mat-progress-bar
-          mode="determinate"
-          [value]="percent()"
+        <div
+          class="progress"
+          role="progressbar"
+          [attr.aria-valuenow]="percent()"
+          aria-valuemin="0"
+          aria-valuemax="100"
           [attr.aria-label]="'Progresso dos primeiros passos: ' + percent() + '%'"
-        />
+        >
+          <div class="progress-bar" [style.width.%]="percent()"></div>
+        </div>
         <ol class="gs__list">
           @for (entry of summary.entries; track entry.item.id) {
             <li class="gs__item" [class.gs__item--done]="entry.done">
               @if (entry.item.completion.kind === 'manual') {
-                <mat-checkbox
+                <input
+                  class="form-check-input gs__check"
+                  type="checkbox"
                   [checked]="entry.done"
-                  (change)="onboarding.setChecklistItem(entry.item.id, $event.checked)"
-                  [aria-label]="'Marcar como concluído: ' + entry.item.label"
+                  (change)="toggle(entry, $event)"
+                  [attr.aria-label]="'Marcar como concluído: ' + entry.item.label"
                 />
               } @else {
-                <mat-icon class="gs__state" [attr.aria-label]="entry.done ? 'Concluído' : 'Pendente'" aria-hidden="false">
-                  {{ entry.done ? 'check_circle' : 'radio_button_unchecked' }}
-                </mat-icon>
+                <app-icon
+                  class="gs__state"
+                  [name]="entry.done ? 'check-circle' : 'circle'"
+                  [label]="entry.done ? 'Concluído' : 'Pendente'"
+                />
               }
               <div class="gs__text">
                 <span class="gs__label">{{ entry.item.label }}</span>
@@ -57,9 +61,9 @@ import { ChecklistEntry, OnboardingService } from '../onboarding.service';
               </div>
               @if (!entry.done) {
                 @if (entry.item.tourId) {
-                  <button mat-stroked-button type="button" (click)="start(entry)">Iniciar</button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="start(entry)">Iniciar</button>
                 } @else if (entry.item.route) {
-                  <a mat-stroked-button [routerLink]="entry.item.route">Abrir</a>
+                  <a class="btn btn-sm btn-outline-primary" [routerLink]="entry.item.route">Abrir</a>
                 }
               }
             </li>
@@ -78,7 +82,7 @@ import { ChecklistEntry, OnboardingService } from '../onboarding.service';
     .gs__title {
       margin: 0;
       font-size: var(--app-text-lg);
-      font-weight: 600;
+      font-weight: 400;
     }
     .gs__progress-text {
       margin: 2px 0 10px;
@@ -95,21 +99,31 @@ import { ChecklistEntry, OnboardingService } from '../onboarding.service';
       gap: 12px;
       min-height: 48px;
       padding: 6px 0;
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: var(--bs-border-width) solid var(--bs-border-color);
     }
     .gs__item:last-child {
       border-bottom: 0;
     }
+    .gs__close {
+      font-size: 0.75rem;
+    }
+    .gs__check {
+      flex: none;
+      width: 1.25em;
+      height: 1.25em;
+      margin: 0 6px;
+    }
     .gs__state {
-      margin: 0 8px;
-      color: var(--mat-sys-on-surface-variant);
+      margin: 0 4px;
+      font-size: 1.25rem;
+      color: var(--bs-secondary-color);
     }
     .gs__item--done .gs__state {
       color: var(--app-success-fg);
     }
     .gs__item--done .gs__label {
       text-decoration: line-through;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .gs__text {
       display: flex;
@@ -118,7 +132,7 @@ import { ChecklistEntry, OnboardingService } from '../onboarding.service';
       min-width: 0;
     }
     .gs__label {
-      font-weight: 500;
+      font-weight: 400;
     }
     .gs__description {
       font-size: var(--app-text-sm);
@@ -131,6 +145,10 @@ export class GettingStarted {
     const s = this.onboarding.checklist();
     return s && s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
   });
+
+  protected toggle(entry: ChecklistEntry, event: Event): void {
+    this.onboarding.setChecklistItem(entry.item.id, (event.target as HTMLInputElement).checked);
+  }
 
   protected start(entry: ChecklistEntry): void {
     if (entry.item.tourId) {

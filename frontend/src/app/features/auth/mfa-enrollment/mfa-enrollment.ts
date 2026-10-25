@@ -1,9 +1,6 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MfaEnrollment as Enrollment } from '../../../core/auth/auth.models';
@@ -13,40 +10,32 @@ import { TotpSetup } from '../../../shared/components/totp-setup/totp-setup';
 import { errorMessage } from '../../../shared/validation/error-messages';
 import { AppValidators } from '../../../shared/validation/validators';
 import { authErrorMessage, isExpiredStep } from '../auth-errors';
+import { FORM_FIELD } from '../../../shared/forms/field';
 
 /** Cadastro obrigatório de MFA durante o login (perfis que exigem MFA). */
 @Component({
   selector: 'app-mfa-enrollment',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatProgressBarModule, TotpSetup],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, TotpSetup],
   template: `
     <h1 class="app-auth-title">Configure a verificação em duas etapas</h1>
     <p class="app-auth-text">Seu perfil exige um segundo fator de autenticação para acessar o sistema.</p>
     @if (error(); as e) {
-      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+      <div class="alert alert-danger" role="alert">{{ e }}</div>
     }
     @if (enrollment(); as en) {
       <app-totp-setup [otpauthUri]="en.otpauthUri" [secret]="en.secret" />
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="app-form-stack">
-        <mat-form-field>
-          <mat-label>Código do aplicativo</mat-label>
-          <input
-            matInput
-            formControlName="code"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            maxlength="6"
-            class="app-otp-input"
-          />
-          @if (code.invalid) {
-            <mat-error>{{ message() }}</mat-error>
-          }
-        </mat-form-field>
-        <button mat-flat-button type="submit" [disabled]="submitting()">Confirmar e entrar</button>
+        <app-field label="Código do aplicativo" [error]="message()">
+          <input appInput formControlName="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="app-otp-input" />
+        </app-field>
+        <button type="submit" class="btn btn-primary mt-2" [disabled]="submitting()">Confirmar e entrar</button>
       </form>
     } @else if (loading()) {
-      <mat-progress-bar mode="indeterminate" aria-label="Preparando cadastro" />
+      <div class="progress mb-3" role="progressbar" aria-label="Preparando cadastro">
+        <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+      </div>
     }
-    <button mat-button type="button" class="app-full-width" (click)="back()">Voltar ao login</button>
+    <button type="button" class="btn btn-link w-100" (click)="back()">Voltar ao login</button>
   `,
 })
 export class MfaEnrollmentPage implements OnInit {
@@ -72,9 +61,11 @@ export class MfaEnrollmentPage implements OnInit {
       });
   }
 
-  protected message(): string {
+  private readonly codeValue = toSignal(this.code.valueChanges, { initialValue: '' });
+  protected readonly message = computed(() => {
+    this.codeValue();
     return this.code.hasError('pattern') ? 'O código tem 6 dígitos.' : errorMessage(this.code.errors);
-  }
+  });
 
   protected submit(): void {
     if (this.code.invalid || this.submitting()) {

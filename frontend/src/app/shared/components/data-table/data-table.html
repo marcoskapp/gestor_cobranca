@@ -1,42 +1,54 @@
 <div class="app-table" [attr.aria-busy]="loading()" data-tour="data-table">
   @if (loading()) {
-    <mat-progress-bar mode="indeterminate" aria-label="Carregando" class="app-table__progress" />
+    <div class="progress app-table__progress" role="progressbar" aria-label="Carregando">
+      <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+    </div>
   }
-  <div class="app-table__scroll">
-    <table mat-table [dataSource]="rows()" [trackBy]="trackRow" [attr.aria-label]="caption()">
-      @for (column of columns(); track column.key) {
-        <ng-container [matColumnDef]="column.key">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            scope="col"
-            [class.app-table__cell--end]="column.align === 'end' || column.actions"
-            [class.app-table__cell--center]="column.align === 'center'"
-          >
-            @if (column.actions) {
-              <span class="cdk-visually-hidden">{{ column.header }}</span>
-            } @else {
-              {{ column.header }}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" [class.table-sm]="density.compact()" [attr.aria-label]="caption()">
+      <thead class="app-table__head">
+        <tr>
+          @for (column of columns(); track column.key) {
+            <th
+              scope="col"
+              [class.text-end]="column.align === 'end' || column.actions"
+              [class.text-center]="column.align === 'center'"
+              [attr.aria-sort]="ariaSort(column)"
+            >
+              @if (column.actions) {
+                <span class="visually-hidden">{{ column.header }}</span>
+              } @else if (column.sortable) {
+                <button type="button" class="app-table__sort" (click)="toggleSort(column)">
+                  {{ column.header }}
+                  <app-icon class="app-table__sort-icon" [name]="sortIcon(column)" />
+                </button>
+              } @else {
+                {{ column.header }}
+              }
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track trackRow(row)) {
+          <tr>
+            @for (column of columns(); track column.key) {
+              <td
+                [class.text-end]="column.align === 'end' || column.actions"
+                [class.text-center]="column.align === 'center'"
+                [class.app-table__cell--actions]="column.actions"
+              >
+                @let template = templates().get(column.key);
+                @if (template) {
+                  <ng-container *ngTemplateOutlet="template; context: { $implicit: row }" />
+                } @else {
+                  {{ text(row, column.key) }}
+                }
+              </td>
             }
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let row"
-            [class.app-table__cell--end]="column.align === 'end' || column.actions"
-            [class.app-table__cell--center]="column.align === 'center'"
-            [class.app-table__cell--actions]="column.actions"
-          >
-            @let template = templates().get(column.key);
-            @if (template) {
-              <ng-container *ngTemplateOutlet="template; context: { $implicit: row }" />
-            } @else {
-              {{ text(row, column.key) }}
-            }
-          </td>
-        </ng-container>
-      }
-      <tr mat-header-row *matHeaderRowDef="columnKeys(); sticky: true"></tr>
-      <tr mat-row *matRowDef="let row; columns: columnKeys()"></tr>
+          </tr>
+        }
+      </tbody>
     </table>
   </div>
 
@@ -44,13 +56,13 @@
     <app-skeleton variant="table" [rows]="5" [columns]="skeletonColumns()" />
   } @else if (!loading() && failed()) {
     <app-empty-state
-      icon="cloud_off"
+      icon="cloud-slash"
       tone="error"
       title="Não foi possível carregar os dados."
       message="Verifique a conexão e tente novamente. Se persistir, avise o suporte."
       [compact]="true"
     >
-      <button mat-stroked-button type="button" (click)="retry.emit()">Tentar novamente</button>
+      <button type="button" class="btn btn-outline-primary" (click)="retry.emit()">Tentar novamente</button>
     </app-empty-state>
   } @else if (!loading() && rows().length === 0) {
     <app-empty-state [icon]="emptyIcon()" [title]="emptyMessage()" [message]="emptyHint()" [compact]="true">
@@ -59,15 +71,25 @@
   }
 
   @if (page(); as p) {
-    <mat-paginator
-      [length]="p.total"
-      [pageIndex]="p.index"
-      [pageSize]="p.size"
-      [pageSizeOptions]="pageSizeOptions"
-      [showFirstLastButtons]="true"
-      [disabled]="loading()"
-      (page)="onPage($event)"
-      aria-label="Paginação"
-    />
+    <div class="app-table__footer">
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-body-secondary text-nowrap" [for]="sizeId">Itens por página</label>
+        <select class="form-select form-select-sm w-auto" [id]="sizeId" [disabled]="loading()" (change)="onSize($event)">
+          @for (size of pageSizeOptions; track size) {
+            <option [value]="size" [selected]="size === p.size">{{ size }}</option>
+          }
+        </select>
+      </div>
+      <span class="small text-body-secondary app-numeric" aria-live="polite">{{ range(p) }}</span>
+      <ngb-pagination
+        class="app-table__pagination"
+        [collectionSize]="p.total"
+        [page]="p.index + 1"
+        [pageSize]="p.size"
+        [disabled]="loading()"
+        (pageChange)="onPage($event)"
+        aria-label="Paginação"
+      />
+    </div>
   }
 </div>
