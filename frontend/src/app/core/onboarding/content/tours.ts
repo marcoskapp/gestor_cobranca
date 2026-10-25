@@ -20,6 +20,49 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'scoring.models',
+    version: 1,
+    title: 'Modelos do score',
+    summary: 'Campeão em uso, desafiante, treino e scorecards.',
+    steps: [
+      { anchor: 'scoring-champion', title: 'Campeão e desafiante', body: 'O campeão calcula o score das filas. O desafiante é calculado em sombra até alguém decidir.' },
+      { anchor: 'scoring-train', title: 'Pedir treino', body: 'Treina a regressão no histórico da assessoria, só com dados suficientes. Aprovado, vira desafiante.' },
+      { anchor: 'scoring-scorecard', title: 'Criar scorecard', body: 'Regras transparentes por faixa, com as variáveis permitidas. Também entra como desafiante.' },
+      { anchor: 'data-table', title: 'Versões', body: 'Abra uma versão para ver métricas de validação, definição e a decisão de promover ou rejeitar.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'scoring.model',
+    version: 1,
+    title: 'Modelo do score',
+    summary: 'Validação, comparação com o campeão e decisão manual.',
+    steps: [
+      { anchor: 'scoring-validation', title: 'Validação fora do tempo', body: 'AUC, KS e Brier no período posterior ao treino, comparados com o campeão nas mesmas observações.' },
+      { anchor: 'scoring-definition', title: 'Definição', body: 'Regras do scorecard ou coeficientes da regressão: o que faz o score subir ou descer.' },
+      { anchor: 'page-actions', title: 'Promover ou rejeitar', body: 'Decisão manual, com justificativa registrada. Quem pediu o treino não promove o próprio modelo.' },
+    ],
+  },
+  {
+    id: 'scoring.monitoring',
+    version: 1,
+    title: 'Monitoramento do score',
+    summary: 'Deriva, calibração e recuperado × esperado.',
+    steps: [
+      { anchor: 'scoring-monitoring-tabs', title: 'Duas visões', body: 'Estabilidade e calibração do modelo; recuperado × esperado por credor, carteira ou responsável.' },
+      { anchor: 'scoring-drift', title: 'Deriva', body: 'PSI compara a população atual com a do treino. Alertas pedem reavaliar o modelo.' },
+    ],
+  },
+  {
+    id: 'scoring.settings',
+    version: 1,
+    title: 'Parâmetros do score',
+    summary: 'Base legal, faixas, treino e alertas.',
+    steps: [
+      { anchor: 'scoring-legal-basis', title: 'Base legal', body: 'Sem base legal registrada nenhum dado é coletado e nenhum score é calculado.' },
+      { anchor: 'scoring-parameters', title: 'Parâmetros', body: 'Janela de desfecho, cortes das faixas, critério mínimo de treino e limites de PSI da assessoria.' },
+    ],
+  },
+  {
     id: 'app.welcome',
     version: 1,
     title: 'Conheça o Gestor de Cobrança',

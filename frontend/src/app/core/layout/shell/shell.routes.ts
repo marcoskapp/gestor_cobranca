@@ -97,6 +97,11 @@ export const SHELL_ROUTES: Routes = [
           import('../../../features/campaign/campaign.routes').then((m) => m.CAMPAIGN_ROUTES),
       },
       {
+        path: 'score',
+        loadChildren: () =>
+          import('../../../features/scoring/scoring.routes').then((m) => m.SCORING_ROUTES),
+      },
+      {
         path: 'paineis',
         loadChildren: () =>
           import('../../../features/analytics/analytics.routes').then((m) => m.ANALYTICS_ROUTES),

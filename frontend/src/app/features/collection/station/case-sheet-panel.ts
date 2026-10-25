@@ -19,6 +19,7 @@ import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
 import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
+import { CaseScoreCard } from '../../scoring/case/case-score-card';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_ICONS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
@@ -39,7 +40,7 @@ export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e prome
  */
 @Component({
   selector: 'app-case-sheet-panel',
-  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation],
+  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation, CaseScoreCard],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
 })

@@ -1,0 +1,221 @@
+@if (!allCreditors()) {
+  <app-page-header title="Modelo do score" />
+  <app-scoring-scope-notice />
+} @else if (resource.isLoading() && !model()) {
+  <app-skeleton variant="card" [rows]="6" />
+} @else if (resource.status() === 'error') {
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o modelo." message="Verifique a conexão e tente novamente.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+  </app-empty-state>
+} @else if (model(); as m) {
+  @let act = actions()!;
+  <app-page-header [title]="title()" [subtitle]="m.description ?? 'Desfecho: pagamento confirmado em até ' + m.outcomeDays + ' dias'">
+    @if (act.reject) {
+      <button type="button" class="btn btn-outline-danger d-inline-flex align-items-center gap-2" (click)="decide('REJECT')" data-tour="scoring-reject">
+        <app-icon name="x-circle" />
+        Rejeitar
+      </button>
+    }
+    @if (act.promote) {
+      <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2" (click)="decide('PROMOTE')" data-tour="scoring-promote">
+        <app-icon name="patch-check" />
+        Promover a campeão
+      </button>
+    }
+  </app-page-header>
+
+  <div class="pd-status">
+    <app-status-chip domain="scoringModel" [status]="m.status" />
+    <span>{{ kinds[m.kind] }} · desfecho em {{ m.outcomeDays }} dias</span>
+    @if (m.metrics.backtest) {
+      <span class="app-muted">Métricas de retroteste nos últimos {{ m.metrics.backtestDays ?? 180 }} dias de retratos apurados</span>
+    }
+  </div>
+
+  @if (act.blockedReason) {
+    <div class="alert alert-info d-flex gap-2 align-items-start" role="note">
+      <app-icon name="people" />
+      <span>{{ act.blockedReason }}</span>
+    </div>
+  }
+  @if (m.status === 'CHALLENGER') {
+    <div class="alert alert-secondary d-flex gap-2 align-items-start" role="note">
+      <app-icon name="hourglass-split" />
+      <span>Desafiante: calculado em sombra nos retratos semanais, sem afetar as filas. A troca de campeão é sempre manual, com justificativa registrada.</span>
+    </div>
+  } @else if (m.status === 'FAILED_VALIDATION') {
+    <div class="alert alert-danger d-flex gap-2 align-items-start" role="note">
+      <app-icon name="exclamation-circle" />
+      <span>Reprovado na validação técnica: {{ reasons(m.failureReasons) }}. Nunca pode ser promovido.</span>
+    </div>
+  }
+
+  <div class="pd-grid">
+    <div class="pd-main">
+      <section class="app-card" aria-labelledby="md-validation" data-tour="scoring-validation">
+        <h2 class="app-card__title" id="md-validation">Validação</h2>
+        @if (validation(); as v) {
+          <div class="md-kpis">
+            <app-kpi-card label="AUC" [detail]="'Gini ' + metric(v.gini)">{{ metric(v.auc) }}</app-kpi-card>
+            <app-kpi-card label="KS" detail="Separação entre quem paga e quem não paga">{{ metric(v.ks) }}</app-kpi-card>
+            <app-kpi-card label="Brier" detail="Erro da probabilidade (menor é melhor)">{{ brier(v.brier) }}</app-kpi-card>
+            <app-kpi-card label="Chance média prevista" [detail]="'Taxa observada ' + percent(v.observedRate)">{{ percent(v.meanPredicted) }}</app-kpi-card>
+            <app-kpi-card label="Observações" [detail]="int(v.positives) + ' pagaram'">{{ int(v.rows) }}</app-kpi-card>
+          </div>
+          @if (comparison().length) {
+            <div class="pd-scroll">
+              <table class="pd-table" aria-label="Comparação com o campeão nas mesmas observações">
+                <thead>
+                  <tr>
+                    <th scope="col">Métrica</th>
+                    <th scope="col" class="pd-end">Este modelo</th>
+                    <th scope="col" class="pd-end">Campeão (mesmas observações)</th>
+                    <th scope="col">Leitura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of comparison(); track c.key) {
+                    <tr>
+                      <th scope="row" class="fw-normal">{{ c.label }}</th>
+                      <td class="pd-end app-numeric">{{ c.challenger }}</td>
+                      <td class="pd-end app-numeric">{{ c.champion }}</td>
+                      <td>{{ c.verdict ? verdicts[c.verdict] : 'Sem comparação' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        } @else {
+          <app-empty-state
+            icon="bar-chart"
+            [compact]="true"
+            title="Sem métricas de validação."
+            message="O scorecard foi criado sem histórico apurado para o retroteste. As métricas reais aparecem no monitoramento, depois das primeiras safras."
+          />
+        }
+      </section>
+
+      @if (validation(); as v) {
+        <section class="app-card" aria-label="Calibração por faixa">
+          <app-bar-chart
+            title="Calibração por faixa"
+            [summary]="calibrationText()"
+            categoryHeader="Faixa"
+            noteHeader="Casos"
+            [series]="[{ name: 'Chance prevista', color: '--app-chart-1' }, { name: 'Taxa observada', color: '--app-chart-2' }]"
+            [rows]="calibration()"
+          />
+        </section>
+        <section class="app-card" aria-label="Lift por decil">
+          <app-bar-chart
+            title="Lift por decil de score"
+            [summary]="liftText()"
+            categoryHeader="Decil (1 = maior score)"
+            noteHeader="Taxa e captura acumulada"
+            [series]="[{ name: 'Lift', color: '--app-chart-1' }]"
+            [rows]="lift()"
+          />
+        </section>
+      }
+
+      <section class="app-card" aria-labelledby="md-definition" data-tour="scoring-definition">
+        <h2 class="app-card__title" id="md-definition">Definição</h2>
+        @if (scorecard(); as s) {
+          <p class="md-small">Pontos base {{ s.basePoints }} · {{ anchorText() }}.</p>
+          <div class="pd-scroll">
+            <table class="pd-table md-wrap" aria-label="Regras do scorecard">
+              <thead>
+                <tr>
+                  <th scope="col">Variável</th>
+                  <th scope="col">Faixas e pontos</th>
+                  <th scope="col" class="pd-end">Ausente</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of s.rules; track r.feature) {
+                  <tr>
+                    <th scope="row" class="fw-normal">{{ feature(r.feature) }}</th>
+                    <td>
+                      @for (b of r.bins; track $index) {
+                        <div>{{ binText(b) }}: <strong class="app-numeric">{{ signedPoints(b.points) }}</strong></div>
+                      } @empty {
+                        <span class="app-muted">—</span>
+                      }
+                    </td>
+                    <td class="pd-end app-numeric">{{ signedPoints(r.missingPoints) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (logistic(); as l) {
+          <p class="md-small">
+            Regressão logística com penalidade L2{{ m.metrics.lambda !== undefined ? ' (λ ' + decimal2(m.metrics.lambda) + ')' : '' }},
+            {{ m.metrics.iterations ?? '—' }} iterações{{ m.metrics.converged === false ? ', sem convergir' : '' }}. Intercepto {{ decimal2(l.intercept) }}.
+            Coeficientes sobre a variável padronizada (média e desvio do treino), do maior para o menor efeito.
+          </p>
+          <div class="pd-scroll">
+            <table class="pd-table" aria-label="Coeficientes da regressão">
+              <thead>
+                <tr>
+                  <th scope="col">Variável</th>
+                  <th scope="col" class="pd-end">Coeficiente</th>
+                  <th scope="col">Efeito</th>
+                  <th scope="col" class="pd-end">Média</th>
+                  <th scope="col" class="pd-end">Desvio</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (t of l.terms; track t.feature) {
+                  <tr>
+                    <th scope="row" class="fw-normal">{{ feature(t.feature) }}</th>
+                    <td class="pd-end app-numeric">{{ decimal2(t.coefficient) }}</td>
+                    <td>{{ t.coefficient > 0 ? 'aumenta a propensão' : t.coefficient < 0 ? 'reduz a propensão' : 'neutro' }}</td>
+                    <td class="pd-end app-numeric">{{ decimal2(t.mean) }}</td>
+                    <td class="pd-end app-numeric">{{ decimal2(t.std) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="app-muted mb-0">Definição não disponível.</p>
+        }
+      </section>
+    </div>
+
+    <aside class="pd-side">
+      <section class="app-card" aria-labelledby="md-data">
+        <h2 class="app-card__title" id="md-data">Dados do modelo</h2>
+        <dl class="app-definition-list mb-0">
+          <dt>Versão</dt>
+          <dd>v{{ m.modelVersion }}</dd>
+          <dt>{{ m.kind === 'SCORECARD' ? 'Criado por' : 'Treino pedido por' }}</dt>
+          <dd>{{ userName(m.trainedBy) }} · {{ m.trainedAt | appDate }}</dd>
+          @if (m.trainingFrom) {
+            <dt>Período de treino</dt>
+            <dd>{{ m.trainingFrom | appDate: 'date' }} a {{ m.trainingTo | appDate: 'date' }} · {{ int(m.trainingRows) }} obs. ({{ int(m.trainingPositives) }} pagaram)</dd>
+          }
+          @if (m.validationFrom) {
+            <dt>Período de validação</dt>
+            <dd>{{ m.validationFrom | appDate: 'date' }} a {{ m.validationTo | appDate: 'date' }} · {{ int(m.validationRows) }} obs. ({{ int(m.validationPositives) }} pagaram)</dd>
+          }
+          <dt>Cortes das faixas</dt>
+          <dd class="app-numeric">A ≥ {{ m.bandCutoffs[0] }} · B ≥ {{ m.bandCutoffs[1] }} · C ≥ {{ m.bandCutoffs[2] }} · D ≥ {{ m.bandCutoffs[3] }}</dd>
+          <dt>Fração paga típica</dt>
+          <dd>{{ percent(m.paidShare) }} do saldo (recuperado × esperado)</dd>
+          @if (m.promotedAt) {
+            <dt>Promovido</dt>
+            <dd>{{ m.promotedAt | appDate }} · {{ userName(m.promotedBy) }}</dd>
+          }
+          @if (m.endedAt) {
+            <dt>Encerrado</dt>
+            <dd>{{ m.endedAt | appDate }}</dd>
+          }
+        </dl>
+        <p class="mt-3 mb-0"><a routerLink="/score/transparencia">Ver as decisões registradas e as variáveis permitidas</a></p>
+      </section>
+    </aside>
+  </div>
+}
