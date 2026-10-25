@@ -23,6 +23,9 @@ export type StatusDomain =
   | 'retentionRun'
   | 'retentionItem'
   | 'legalBasis'
+  | 'scoringModel'
+  | 'scoringRun'
+  | 'scoringMonitoring'
   | 'collateral'
   | 'case'
   | 'task'
@@ -244,6 +247,28 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     CURRENT: { label: 'Vigente', tone: 'success' },
     FUTURE: { label: 'Futura', tone: 'info' },
     ENDED: { label: 'Encerrada', tone: 'neutral' },
+  },
+  /** `ModelStatus` (scoring). */
+  scoringModel: {
+    CHAMPION: { label: 'Campeão', tone: 'success' },
+    CHALLENGER: { label: 'Desafiante', tone: 'info' },
+    SUPERSEDED: { label: 'Substituído', tone: 'neutral' },
+    RETIRED: { label: 'Aposentado', tone: 'neutral' },
+    REJECTED: { label: 'Rejeitado', tone: 'neutral' },
+    FAILED_VALIDATION: { label: 'Reprovado na validação', tone: 'danger' },
+  },
+  /** `ScoringRun.Status` (scoring). */
+  scoringRun: {
+    RUNNING: { label: 'Em andamento', tone: 'info' },
+    COMPLETED: { label: 'Concluída', tone: 'success' },
+    INSUFFICIENT_DATA: { label: 'Histórico insuficiente', tone: 'warning' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
+  },
+  /** `MonitoringReport.Status` (scoring). */
+  scoringMonitoring: {
+    STABLE: { label: 'Estável', tone: 'success' },
+    WARNING: { label: 'Atenção', tone: 'warning' },
+    ALERT: { label: 'Alerta', tone: 'danger' },
   },
   /** `ProposalStatus` (negotiation). */
   proposal: {

@@ -91,6 +91,8 @@ export class ColumnChart {
   readonly rows = input.required<ChartRow[]>();
   /** Eixo em reais (marcas compactas "R$ 1,2 mil") ou contagem. */
   readonly money = input(true);
+  /** Casas decimais das marcas do eixo de contagem (índices pequenos, como PSI ou AUC, pedem 2). */
+  readonly axisFractionDigits = input(1);
 
   protected readonly id = `cc-${nextId++}`;
   /** Largura real do contêiner (px): o SVG é desenhado em escala 1:1, sem distorcer o texto. */
@@ -107,10 +109,12 @@ export class ColumnChart {
 
   protected readonly ticks = computed(() => {
     const top = this.top();
+    const digits = this.axisFractionDigits();
+    const count = digits === 1 ? AXIS_COUNT : new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: digits });
     return [0, top / 2, top].map((value) => ({
       value,
       y: this.y(value),
-      label: (this.money() ? AXIS_MONEY : AXIS_COUNT).format(value).replace(/\s/g, '\u00a0'),
+      label: (this.money() ? AXIS_MONEY : count).format(value).replace(/\s/g, '\u00a0'),
     }));
   });
 

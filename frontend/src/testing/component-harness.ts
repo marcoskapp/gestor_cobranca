@@ -1,6 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Provider, Type, signal } from '@angular/core';
+import { EnvironmentProviders, Provider, Type, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../app/core/auth/auth.service';
@@ -17,7 +17,7 @@ export interface Harness {
 }
 
 /** TestBed com HTTP de teste, rotas vazias, locale pt-BR, usuário com as permissões e notificações simuladas. */
-export function setup(component: Type<unknown>, permissions: string[], userId = 'u-1', providers: Provider[] = []): Harness {
+export function setup(component: Type<unknown>, permissions: string[], userId = 'u-1', providers: (Provider | EnvironmentProviders)[] = []): Harness {
   const notifications = { success: [] as string[], error: [] as string[], info: [] as string[] };
   const notifier = {
     success: (m: string) => notifications.success.push(m),
