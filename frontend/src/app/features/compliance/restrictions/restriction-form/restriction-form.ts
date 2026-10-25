@@ -1,18 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { EntityPicker } from '../../../../shared/components/entity-picker/entity-picker';
-import { endOfDayInstant, startOfDayInstant } from '../../../../shared/models/dates';
+import { endOfDayInstant, fromLocalDate, startOfDayInstant, toDateStruct, toLocalDate } from '../../../../shared/models/dates';
 import { errorMessage } from '../../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators } from '../../../../shared/validation/validators';
@@ -21,6 +14,11 @@ import { CreditorLookup } from '../../../organization/data/organization.lookups'
 import { RestrictionsApi } from '../../data/compliance.api';
 import { CHANNEL_LABELS, MANUAL_RESTRICTION_SOURCES, RESTRICTION_SOURCE_LABELS, RESTRICTION_TYPE_LABELS } from '../../data/compliance.labels';
 import { ContactChannel, CreateRestrictionRequest, RestrictionType, RestrictionView } from '../../data/compliance.models';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 
 export interface RestrictionFormData {
   /** Devedor já conhecido (ficha); nulo = escolher na busca. */
@@ -36,23 +34,17 @@ const REASON_MAX = 1000;
  */
 @Component({
   selector: 'app-restriction-form',
-  imports: [
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatSlideToggleModule,
-    EntityPicker,
-  ],
+  imports: [ReactiveFormsModule, EntityPicker, Icon, NgbInputDatepicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>Nova restrição de contato</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Nova restrição de contato</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
         @if (data.debtorId) {
           <p class="app-dialog-message">Devedor: <strong>{{ data.debtorName }}</strong></p>
@@ -68,26 +60,21 @@ const REASON_MAX = 1000;
             <p class="app-field-error" role="alert">Escolha o devedor.</p>
           }
         }
-        <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Tipo</mat-label>
-            <mat-select formControlName="type">
+        <div class="app-form-grid gap-3">
+          <app-field label="Tipo" [error]="form.controls.type.invalid ? (message('type')) : undefined">
+            <select appInput formControlName="type">
               @for (t of types; track t.value) {
-                <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                <option [ngValue]="t.value">{{ t.label }}</option>
               }
-            </mat-select>
-            @if (form.controls.type.invalid) {
-              <mat-error>{{ message('type') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Origem do pedido</mat-label>
-            <mat-select formControlName="source">
+            </select>
+          </app-field>
+          <app-field label="Origem do pedido">
+            <select appInput formControlName="source">
               @for (s of sources; track s) {
-                <mat-option [value]="s">{{ sourceLabels[s] }}</mat-option>
+                <option [ngValue]="s">{{ sourceLabels[s] }}</option>
               }
-            </mat-select>
-          </mat-form-field>
+            </select>
+          </app-field>
           <div class="app-span-all">
             <app-entity-picker
               [control]="form.controls.creditor"
@@ -97,60 +84,54 @@ const REASON_MAX = 1000;
               [single]="true"
             />
           </div>
-          <mat-form-field>
-            <mat-label>Canal</mat-label>
-            <mat-select formControlName="channel">
-              <mat-option value="">Todos os canais</mat-option>
+          <app-field label="Canal">
+            <select appInput formControlName="channel">
+              <option value="">Todos os canais</option>
               @for (c of channels; track c.value) {
-                <mat-option [value]="c.value">{{ c.label }}</mat-option>
+                <option [ngValue]="c.value">{{ c.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-slide-toggle formControlName="specific" class="restriction-form__toggle">Somente um telefone ou e-mail</mat-slide-toggle>
+            </select>
+          </app-field>
+          <div class="form-check form-switch restriction-form__toggle">
+            <input class="form-check-input" type="checkbox" role="switch" id="restriction-form-specific" formControlName="specific" />
+            <label class="form-check-label" for="restriction-form-specific">Somente um telefone ou e-mail</label>
+          </div>
           @if (specific()) {
-            <mat-form-field>
-              <mat-label>Tipo do contato</mat-label>
-              <mat-select formControlName="contactType">
-                <mat-option value="PHONE">Telefone</mat-option>
-                <mat-option value="EMAIL">E-mail</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>{{ form.controls.contactType.value === 'EMAIL' ? 'E-mail' : 'Telefone com DDD' }}</mat-label>
-              <input matInput formControlName="contactValue" autocomplete="off" maxlength="254" />
-              @if (form.controls.contactValue.invalid) {
-                <mat-error>{{ message('contactValue') }}</mat-error>
-              }
-            </mat-form-field>
+            <app-field label="Tipo do contato">
+              <select appInput formControlName="contactType">
+                <option value="PHONE">Telefone</option>
+                <option value="EMAIL">E-mail</option>
+              </select>
+            </app-field>
+            <app-field [label]="(form.controls.contactType.value === 'EMAIL' ? 'E-mail' : 'Telefone com DDD')" [error]="form.controls.contactValue.invalid ? (message('contactValue')) : undefined">
+              <input appInput formControlName="contactValue" autocomplete="off" maxlength="254" />
+            </app-field>
           }
-          <mat-form-field>
-            <mat-label>Início</mat-label>
-            <input matInput [matDatepicker]="start" formControlName="startsAt" placeholder="Hoje" />
-            <mat-datepicker-toggle matIconSuffix [for]="start" />
-            <mat-datepicker #start />
-            <mat-hint>Vazio = a partir de agora.</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Fim (restrição temporária)</mat-label>
-            <input matInput [matDatepicker]="end" formControlName="endsAt" [min]="today" />
-            <mat-datepicker-toggle matIconSuffix [for]="end" />
-            <mat-datepicker #end />
-            <mat-hint>Vazio = sem prazo.</mat-hint>
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Motivo</mat-label>
-            <textarea matInput formControlName="reason" rows="3" [maxlength]="maxReason"></textarea>
-            <mat-hint>Descreva o pedido sem copiar dados pessoais. Anexe o comprovante depois de salvar.</mat-hint>
-            @if (form.controls.reason.invalid) {
-              <mat-error>{{ message('reason') }}</mat-error>
-            }
-          </mat-form-field>
+          <app-field label="Início" hint="Vazio = a partir de agora.">
+            <div class="input-group">
+              <input appInput ngbDatepicker #start="ngbDatepicker" formControlName="startsAt" placeholder="dd/mm/aaaa" />
+              <button type="button" class="btn btn-outline-secondary" (click)="start.toggle()" aria-label="Abrir calendário">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field label="Fim (restrição temporária)" hint="Vazio = sem prazo.">
+            <div class="input-group">
+              <input appInput ngbDatepicker #end="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="endsAt" [minDate]="today" />
+              <button type="button" class="btn btn-outline-secondary" (click)="end.toggle()" aria-label="Abrir calendário">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field class="app-span-all" label="Motivo" hint="Descreva o pedido sem copiar dados pessoais. Anexe o comprovante depois de salvar." [error]="form.controls.reason.invalid ? (message('reason')) : undefined">
+            <textarea appInput formControlName="reason" rows="3" [maxlength]="maxReason"></textarea>
+          </app-field>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Registrar restrição</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Registrar restrição</button>
+      </div>
     </form>
   `,
   styles: `
@@ -160,8 +141,8 @@ const REASON_MAX = 1000;
   `,
 })
 export class RestrictionForm {
-  protected readonly data = inject<RestrictionFormData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<RestrictionForm, RestrictionView>>(MatDialogRef);
+  protected readonly data = inject<RestrictionFormData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<RestrictionView>>(DialogRef);
   private readonly api = inject(RestrictionsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly debtorSource = inject(DebtorLookup);
@@ -172,7 +153,8 @@ export class RestrictionForm {
   protected readonly sources = MANUAL_RESTRICTION_SOURCES;
   protected readonly sourceLabels = RESTRICTION_SOURCE_LABELS;
   protected readonly maxReason = REASON_MAX;
-  protected readonly today = new Date();
+  private readonly now = new Date();
+  protected readonly today = toDateStruct(toLocalDate(this.now)!);
   protected readonly saving = signal(false);
   protected readonly generalErrors = signal<string[]>([]);
 
@@ -186,8 +168,9 @@ export class RestrictionForm {
     specific: [false],
     contactType: this.fb.control<'PHONE' | 'EMAIL'>('PHONE'),
     contactValue: [''],
-    startsAt: this.fb.control<Date | null>(null),
-    endsAt: this.fb.control<Date | null>(null),
+    /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+    startsAt: this.fb.control<string | null>(null),
+    endsAt: this.fb.control<string | null>(null),
     reason: ['', [AppValidators.notBlank, Validators.maxLength(REASON_MAX)]],
   });
   protected readonly specific = toSignal(this.form.controls.specific.valueChanges, { initialValue: false });
@@ -228,8 +211,8 @@ export class RestrictionForm {
       reason: v.reason.trim(),
       source: v.source,
       // Hoje (ou antes) = a partir de agora; datas futuras começam à meia-noite do dia escolhido.
-      startsAt: v.startsAt && v.startsAt > this.today ? startOfDayInstant(v.startsAt) : null,
-      endsAt: endOfDayInstant(v.endsAt),
+      startsAt: v.startsAt && fromLocalDate(v.startsAt)! > this.now ? startOfDayInstant(fromLocalDate(v.startsAt)) : null,
+      endsAt: endOfDayInstant(fromLocalDate(v.endsAt)),
     };
     this.saving.set(true);
     this.generalErrors.set([]);

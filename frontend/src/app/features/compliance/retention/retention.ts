@@ -1,9 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -20,6 +16,9 @@ import { RetentionApi } from '../data/compliance.api';
 import { RETENTION_ACTION_LABELS, RETENTION_CATEGORY_LABELS } from '../data/compliance.labels';
 import { RetentionPolicyView, RetentionRunView } from '../data/compliance.models';
 import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /**
  * Retenção e descarte (LGPD): políticas por categoria, simulação (relatório dos elegíveis sem
@@ -27,7 +26,7 @@ import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
  */
 @Component({
   selector: 'app-retention',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, DataTable, CellDef, PageHeader, StatusChip, AppDatePipe],
+  imports: [DataTable, CellDef, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip],
   template: `
     <app-page-header
       title="Retenção de dados"
@@ -44,7 +43,7 @@ import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
         [failed]="policies.status() === 'error'"
         (retry)="policies.reload()"
         [rowKey]="policyKey"
-        emptyIcon="auto_delete"
+        emptyIcon="trash3"
         emptyMessage="Nenhuma política configurada."
       >
         <ng-template appCell="category" [appCellOf]="policyRows()" let-p>
@@ -58,23 +57,23 @@ import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
         <ng-template appCell="enabled" [appCellOf]="policyRows()" let-p><app-status-chip domain="active" [status]="p.enabled" /></ng-template>
         <ng-template appCell="updatedAt" [appCellOf]="policyRows()" let-p>{{ p.updatedAt | appDate }}</ng-template>
         <ng-template appCell="actions" [appCellOf]="policyRows()" let-p>
-          <button mat-icon-button type="button" (click)="configure(p)" [attr.aria-label]="'Configurar ' + categories[p.category]" matTooltip="Configurar">
-            <mat-icon aria-hidden="true">tune</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="configure(p)" [attr.aria-label]="'Configurar ' + categories[p.category]" ngbTooltip="Configurar">
+            <app-icon name="sliders" />
           </button>
           @if (p.executableHere) {
-            <button mat-stroked-button type="button" (click)="simulate(p)" [disabled]="running()" data-tour="retention-dry-run">
-              <mat-icon aria-hidden="true">science</mat-icon>
+            <button class="btn btn-outline-primary" type="button" (click)="simulate(p)" [disabled]="running()" data-tour="retention-dry-run">
+              <app-icon name="eyedropper" />
               Simular
             </button>
             <button
-              mat-flat-button
+             
               type="button"
-              class="app-button-danger"
+              class="btn btn-danger"
               (click)="execute(p)"
               [disabled]="running() || !p.enabled || !canAnonymize()"
-              [matTooltip]="!p.enabled ? 'Habilite a política para executar' : !canAnonymize() ? 'Exige a permissão de atendimento a titulares' : ''"
+              [ngbTooltip]="!p.enabled ? 'Habilite a política para executar' : !canAnonymize() ? 'Exige a permissão de atendimento a titulares' : ''"
             >
-              <mat-icon aria-hidden="true">auto_delete</mat-icon>
+              <app-icon name="trash3" />
               Executar
             </button>
           }
@@ -93,7 +92,7 @@ import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
         [page]="runs.tablePage()"
         (pageChange)="runs.setPage($event)"
         (retry)="runs.reload()"
-        emptyIcon="history"
+        emptyIcon="clock-history"
         emptyMessage="Nenhuma execução registrada."
         emptyHint="Simule antes de executar: a simulação lista os devedores elegíveis sem alterar dados."
       >
@@ -114,8 +113,8 @@ import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
           }
         </ng-template>
         <ng-template appCell="actions" [appCellOf]="runs.rows()" let-r>
-          <button mat-icon-button type="button" (click)="openRun(r)" aria-label="Ver itens da execução" matTooltip="Ver itens">
-            <mat-icon aria-hidden="true">list_alt</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="openRun(r)" aria-label="Ver itens da execução" ngbTooltip="Ver itens">
+            <app-icon name="card-list" />
           </button>
         </ng-template>
       </app-data-table>
@@ -124,7 +123,7 @@ import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
 })
 export class RetentionPage {
   private readonly api = inject(RetentionApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly auth = inject(AuthService);
@@ -161,7 +160,7 @@ export class RetentionPage {
 
   protected configure(p: RetentionPolicyView): void {
     this.dialog
-      .open<RetentionPolicyForm, RetentionPolicyView, RetentionPolicyView>(RetentionPolicyForm, { data: p, width: '520px' })
+      .open<RetentionPolicyForm, RetentionPolicyView, RetentionPolicyView>(RetentionPolicyForm, { data: p })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
@@ -194,7 +193,7 @@ export class RetentionPage {
   }
 
   protected openRun(r: RetentionRunView): void {
-    this.dialog.open<RetentionRunItems, RetentionRunView>(RetentionRunItems, { data: r, width: '880px', maxWidth: '96vw' });
+    this.dialog.open<RetentionRunItems, RetentionRunView>(RetentionRunItems, { data: r, size: 'xl' });
   }
 
   private start(p: RetentionPolicyView, dryRun: boolean): void {

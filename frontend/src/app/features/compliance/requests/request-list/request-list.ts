@@ -1,14 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -28,6 +20,10 @@ import { DataSubjectRequestsApi } from '../../data/compliance.api';
 import { REQUEST_CHANNEL_LABELS, REQUEST_TYPE_LABELS, daysUntil, dueText } from '../../data/compliance.labels';
 import { DataSubjectRequestView } from '../../data/compliance.models';
 import { RequestForm } from '../request-form/request-form';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 /** Filtro da fila; `document` só é usado no corpo de `POST /lookup` (nunca na URL). */
 export interface RequestQueueFilter {
@@ -54,30 +50,13 @@ export function toQueueFilter(v: { status: string; type: string; overdue: boolea
 /** Fila de solicitações de titulares com prazo legal e atraso em destaque. */
 @Component({
   selector: 'app-request-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatSlideToggleModule,
-    MatTooltipModule,
-    DataTable,
-    CellDef,
-    DocumentDisplay,
-    PageHeader,
-    StatusChip,
-    AppDatePipe,
-    DocumentMask,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, DocumentDisplay, PageHeader, StatusChip, AppDatePipe, DocumentMask, Icon, NgbTooltip, ...FORM_FIELD],
   templateUrl: './request-list.html',
   styleUrl: '../../compliance.scss',
 })
 export class RequestList {
   private readonly api = inject(DataSubjectRequestsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
 
@@ -151,7 +130,7 @@ export class RequestList {
 
   protected open(): void {
     this.dialog
-      .open<RequestForm, void, DataSubjectRequestView>(RequestForm, { width: '720px' })
+      .open<RequestForm, void, DataSubjectRequestView>(RequestForm, { size: 'lg' })
       .afterClosed()
       .subscribe((created) => created && void this.router.navigate(['/compliance/solicitacoes-titulares', created.id]));
   }

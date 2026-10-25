@@ -1,10 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -17,6 +12,9 @@ import { QueuesApi } from '../data/collection.api';
 import { ORDERING_LABELS, STRATEGY_LABELS } from '../data/collection.labels';
 import { TeamLookup } from '../data/collection.lookups';
 import { QueueOrdering, QueueRequest, QueueStrategy, QueueView } from '../data/collection.models';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 
 /** Faixas mínimo ≤ máximo nos critérios da fila. */
 export function rangeValidator(min: string, max: string) {
@@ -36,36 +34,31 @@ const num = (v: number | null | string) => (v === null || v === '' || v === unde
  */
 @Component({
   selector: 'app-queue-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, EntityPicker],
+  imports: [ReactiveFormsModule, EntityPicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>{{ data ? 'Editar fila' : 'Nova fila' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data ? 'Editar fila' : 'Nova fila' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
-        <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="120" required />
-            @if (form.controls.name.invalid) {
-              <mat-error>{{ message('name') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" maxlength="40" [readonly]="!!data" />
-            <mat-hint>{{ data ? 'O código não muda.' : 'Vazio = gerado pelo nome.' }}</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Prioridade</mat-label>
-            <input matInput type="number" min="0" formControlName="priority" required />
-            <mat-hint>Menor número = avaliada primeiro.</mat-hint>
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Descrição</mat-label>
-            <input matInput formControlName="description" maxlength="500" />
-          </mat-form-field>
+        <div class="app-form-grid gap-3">
+          <app-field label="Nome" [error]="form.controls.name.invalid ? (message('name')) : undefined">
+            <input appInput formControlName="name" maxlength="120" required />
+          </app-field>
+          <app-field label="Código" [hint]="(data ? 'O código não muda.' : 'Vazio = gerado pelo nome.')">
+            <input appInput formControlName="code" maxlength="40" [readonly]="!!data" />
+          </app-field>
+          <app-field label="Prioridade" hint="Menor número = avaliada primeiro.">
+            <input appInput type="number" min="0" formControlName="priority" required />
+          </app-field>
+          <app-field class="app-span-all" label="Descrição">
+            <input appInput formControlName="description" maxlength="500" />
+          </app-field>
 
           <h3 class="app-section-title app-span-all">Critérios (vazios = qualquer)</h3>
           <div class="app-span-all">
@@ -74,71 +67,61 @@ const num = (v: number | null | string) => (v === null || v === '' || v === unde
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira" [single]="true" />
           </div>
-          <mat-form-field>
-            <mat-label>Atraso mínimo (dias)</mat-label>
-            <input matInput type="number" min="0" formControlName="minDaysOverdue" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Atraso máximo (dias)</mat-label>
-            <input matInput type="number" min="0" formControlName="maxDaysOverdue" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Saldo mínimo (R$)</mat-label>
-            <input matInput type="number" min="0" step="0.01" formControlName="minBalance" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Saldo máximo (R$)</mat-label>
-            <input matInput type="number" min="0" step="0.01" formControlName="maxBalance" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Score mínimo</mat-label>
-            <input matInput type="number" formControlName="minScore" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Score máximo</mat-label>
-            <input matInput type="number" formControlName="maxScore" />
-          </mat-form-field>
+          <app-field label="Atraso mínimo (dias)">
+            <input appInput type="number" min="0" formControlName="minDaysOverdue" />
+          </app-field>
+          <app-field label="Atraso máximo (dias)">
+            <input appInput type="number" min="0" formControlName="maxDaysOverdue" />
+          </app-field>
+          <app-field label="Saldo mínimo (R$)">
+            <input appInput type="number" min="0" step="0.01" formControlName="minBalance" />
+          </app-field>
+          <app-field label="Saldo máximo (R$)">
+            <input appInput type="number" min="0" step="0.01" formControlName="maxBalance" />
+          </app-field>
+          <app-field label="Score mínimo">
+            <input appInput type="number" formControlName="minScore" />
+          </app-field>
+          <app-field label="Score máximo">
+            <input appInput type="number" formControlName="maxScore" />
+          </app-field>
           @if (form.errors?.['range']) {
             <p class="app-field-error app-span-all" role="alert">O mínimo de cada faixa não pode passar do máximo.</p>
           }
 
           <h3 class="app-section-title app-span-all">Entrega e distribuição</h3>
-          <mat-form-field>
-            <mat-label>Ordem de entrega</mat-label>
-            <mat-select formControlName="ordering">
+          <app-field label="Ordem de entrega">
+            <select appInput formControlName="ordering">
               @for (o of orderings; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                <option [ngValue]="o.value">{{ o.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Estratégia</mat-label>
-            <mat-select formControlName="strategy">
+            </select>
+          </app-field>
+          <app-field label="Estratégia">
+            <select appInput formControlName="strategy">
               @for (s of strategies; track s.value) {
-                <mat-option [value]="s.value">{{ s.label }}</mat-option>
+                <option [ngValue]="s.value">{{ s.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Casos por operador</mat-label>
-            <input matInput type="number" min="1" formControlName="maxCasesPerUser" />
-            <mat-hint>Vazio = sem limite.</mat-hint>
-          </mat-form-field>
+            </select>
+          </app-field>
+          <app-field label="Casos por operador" hint="Vazio = sem limite.">
+            <input appInput type="number" min="1" formControlName="maxCasesPerUser" />
+          </app-field>
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.teams" [source]="teams" label="Equipes que atendem" hint="Vazio = qualquer operador." />
           </div>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar fila</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar fila</button>
+      </div>
     </form>
   `,
 })
 export class QueueForm {
-  protected readonly data = inject<QueueView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<QueueForm, QueueView>>(MatDialogRef);
+  protected readonly data = inject<QueueView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<QueueView>>(DialogRef);
   private readonly api = inject(QueuesApi);
   private readonly notifications = inject(NotificationService);
   protected readonly creditors = inject(CreditorLookup);

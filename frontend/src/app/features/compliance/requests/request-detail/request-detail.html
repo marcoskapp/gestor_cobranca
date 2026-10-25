@@ -4,53 +4,53 @@
     <app-skeleton variant="card" [rows]="6" />
   </div>
 } @else if (request.status() === 'error') {
-  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar a solicitação.">
-    <button mat-stroked-button type="button" (click)="request.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/compliance/solicitacoes-titulares">Voltar para a fila</a>
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a solicitação.">
+    <button class="btn btn-outline-primary" type="button" (click)="request.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/compliance/solicitacoes-titulares">Voltar para a fila</a>
   </app-empty-state>
 }
 
 @if (current(); as r) {
   @let a = actions()!;
   <app-page-header [title]="typeLabels[r.type]" [subtitle]="'Solicitação de ' + r.requesterName + ' · recebida em ' + (r.receivedAt | appDate)">
-    <a mat-button routerLink="/compliance/solicitacoes-titulares">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/compliance/solicitacoes-titulares">
+      <app-icon name="arrow-left" />
       Fila
     </a>
     @if (a.assign && canViewUsers()) {
-      <button mat-stroked-button type="button" (click)="assign(r)">
-        <mat-icon aria-hidden="true">person_add</mat-icon>
+      <button class="btn btn-outline-primary" type="button" (click)="assign(r)">
+        <app-icon name="person-plus" />
         Atribuir
       </button>
     }
     @if (a.reject) {
-      <button mat-stroked-button type="button" (click)="reject(r)">
-        <mat-icon aria-hidden="true">do_not_disturb_on</mat-icon>
+      <button class="btn btn-outline-primary" type="button" (click)="reject(r)">
+        <app-icon name="dash-circle" />
         Recusar
       </button>
     }
     <span class="cmp-actions" data-tour="dsr-next-action">
       @if (a.verify) {
-        <button mat-flat-button type="button" (click)="verify(r)">
-          <mat-icon aria-hidden="true">verified_user</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="verify(r)">
+          <app-icon name="shield-check" />
           Confirmar identidade
         </button>
       }
       @if (a.start) {
-        <button mat-flat-button type="button" (click)="start(r)">
-          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="start(r)">
+          <app-icon name="play" />
           Iniciar atendimento
         </button>
       }
       @if (a.execute) {
-        <button mat-flat-button type="button" [class.app-button-danger]="r.type === 'ANONYMIZATION'" (click)="execute(r)">
-          <mat-icon aria-hidden="true">bolt</mat-icon>
+        <button class="btn" type="button" [class.btn-primary]="r.type !== 'ANONYMIZATION'" [class.btn-danger]="r.type === 'ANONYMIZATION'" (click)="execute(r)">
+          <app-icon name="lightning-charge" />
           Executar ação
         </button>
       }
       @if (a.complete && !a.execute) {
-        <button mat-flat-button type="button" (click)="complete(r)" [disabled]="!!a.completeBlocker" [matTooltip]="a.completeBlocker ?? ''">
-          <mat-icon aria-hidden="true">task_alt</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="complete(r)" [disabled]="!!a.completeBlocker" [ngbTooltip]="a.completeBlocker ?? ''">
+          <app-icon name="check2-circle" />
           Concluir
         </button>
       }
@@ -61,31 +61,31 @@
     @for (s of steps; track s.status; let i = $index) {
       @let state = stepState(r, i);
       <li class="cmp-step" [class.cmp-step--done]="state === 'done'" [class.cmp-step--current]="state === 'current'" [attr.aria-current]="state === 'current' ? 'step' : null">
-        <mat-icon aria-hidden="true">{{ state === 'done' ? 'check_circle' : state === 'current' ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
+        <app-icon [name]="state === 'done' ? 'check-circle' : state === 'current' ? 'record-circle' : 'circle'" />
         {{ s.label }}
       </li>
     }
     @if (r.status === 'REJECTED') {
-      <li class="cmp-step cmp-step--current" aria-current="step"><mat-icon aria-hidden="true">block</mat-icon>Recusada</li>
+      <li class="cmp-step cmp-step--current" aria-current="step"><app-icon name="slash-circle" />Recusada</li>
     }
   </ol>
 
   @if (r.overdue && r.status !== 'COMPLETED' && r.status !== 'REJECTED') {
-    <p class="app-alert app-alert--danger" role="alert">
-      <mat-icon aria-hidden="true">alarm</mat-icon>
+    <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
+      <app-icon name="alarm" />
       <span>Prazo legal vencido em {{ r.dueAt | appDate: 'date' }}. Priorize o atendimento e registre a resposta ao titular.</span>
-    </p>
+    </div>
   }
   @if (a.execute && effects[r.type]) {
-    <p class="app-alert app-alert--info" role="note">
-      <mat-icon aria-hidden="true">info</mat-icon>
+    <div class="alert alert-info d-flex gap-2 align-items-start" role="note">
+      <app-icon name="info-circle" />
       <span>Próximo passo: executar a ação do pedido. {{ effects[r.type] }}</span>
-    </p>
+    </div>
   } @else if (a.completeBlocker) {
-    <p class="app-alert app-alert--warning" role="note">
-      <mat-icon aria-hidden="true">info</mat-icon>
+    <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+      <app-icon name="info-circle" />
       <span>{{ a.completeBlocker }}</span>
-    </p>
+    </div>
   }
 
   <section class="app-card" aria-labelledby="dados-solicitacao">
@@ -144,8 +144,8 @@
       @if (r.hasResultFile) {
         <dt>Arquivo do titular</dt>
         <dd>
-          <button mat-stroked-button type="button" (click)="downloadResult(r)">
-            <mat-icon aria-hidden="true">download</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="downloadResult(r)">
+            <app-icon name="download" />
             Baixar dados do titular
           </button>
           @if (r.resultSha256) {

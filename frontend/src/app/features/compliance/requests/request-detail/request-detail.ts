@@ -1,9 +1,5 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { Observable, filter, map, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -37,6 +33,9 @@ import {
 import { DataSubjectRequestView } from '../../data/compliance.models';
 import { EvidenceButtons } from '../../restrictions/evidence/evidence-buttons';
 import { PickDialog, PickDialogData, ResponseDialog, ResponseDialogData } from './request-dialogs';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 /** Próximas ações possíveis no estado atual (espelho de `RequestStatus.allowedTransitions` e das guardas do agregado). */
 export function requestActions(r: DataSubjectRequestView): {
@@ -72,19 +71,7 @@ export function requestActions(r: DataSubjectRequestView): {
 
 @Component({
   selector: 'app-request-detail',
-  imports: [
-    RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatTooltipModule,
-    PageHeader,
-    StatusChip,
-    DocumentDisplay,
-    EmptyState,
-    Skeleton,
-    AppDatePipe,
-    EvidenceButtons,
-  ],
+  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip],
   templateUrl: './request-detail.html',
   styleUrl: '../../compliance.scss',
 })
@@ -94,7 +81,7 @@ export class RequestDetail {
   private readonly api = inject(DataSubjectRequestsApi);
   private readonly restrictionsApi = inject(RestrictionsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
@@ -248,14 +235,14 @@ export class RequestDetail {
 
   private pick(data: PickDialogData): Observable<string | null> {
     return this.dialog
-      .open<PickDialog, PickDialogData, string | null>(PickDialog, { data, width: '520px' })
+      .open<PickDialog, PickDialogData, string | null>(PickDialog, { data })
       .afterClosed()
       .pipe(filter((v): v is string | null => v !== undefined));
   }
 
   private respond(data: ResponseDialogData): Observable<string> {
     return this.dialog
-      .open<ResponseDialog, ResponseDialogData, string>(ResponseDialog, { data, width: '600px' })
+      .open<ResponseDialog, ResponseDialogData, string>(ResponseDialog, { data })
       .afterClosed()
       .pipe(filter((v): v is string => !!v));
   }

@@ -1,13 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
@@ -28,6 +21,10 @@ import { DISPUTE_ORIGIN_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.l
 import { DisputeFilter, DisputeView } from '../data/collection.models';
 import { daysBetween, zonedNow } from '../data/collection.rules';
 import { DisputeDetail, DisputeDetailData } from './dispute-detail';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 export function toDisputeFilter(v: { creditor: string[]; status: string; overdue: boolean }): DisputeFilter {
   return {
@@ -40,22 +37,7 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
 /** Fila de contestações (F21) com prazo de resposta em destaque, evidências e resolução. */
 @Component({
   selector: 'app-dispute-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
-    MatSlideToggleModule,
-    MatTooltipModule,
-    CellDef,
-    DataTable,
-    EntityPicker,
-    PageHeader,
-    StatusChip,
-    AppDatePipe,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
   template: `
     <app-page-header title="Contestações" subtitle="Dívidas contestadas pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução." />
 
@@ -79,17 +61,19 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="PENDING">Pendentes (abertas e em análise)</mat-option>
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="PENDING">Pendentes (abertas e em análise)</option>
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-slide-toggle formControlName="overdue" class="dl-toggle">Somente com prazo vencido</mat-slide-toggle>
+        </select>
+      </app-field>
+      <div class="form-check form-switch dl-toggle">
+        <input class="form-check-input" type="checkbox" role="switch" id="dispute-list-overdue" formControlName="overdue" />
+        <label class="form-check-label" for="dispute-list-overdue">Somente com prazo vencido</label>
+      </div>
     </form>
 
     <app-data-table
@@ -101,14 +85,14 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="gavel"
+      emptyIcon="hammer"
       emptyMessage="Nenhuma contestação encontrada."
     >
       <ng-template appCell="due" [appCellOf]="query.rows()" let-d>
         @if (pending(d)) {
           <span [class.dl-late]="d.overdue || days(d) < 0" [class.dl-soon]="!d.overdue && days(d) >= 0 && days(d) <= 2">
             @if (d.overdue || days(d) < 0) {
-              <mat-icon class="dl-icon" aria-hidden="true">alarm</mat-icon>
+              <app-icon class="dl-icon" name="alarm" />
             }
             {{ due(d) }}
           </span>
@@ -131,8 +115,8 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
       </ng-template>
       <ng-template appCell="evidence" [appCellOf]="query.rows()" let-d><span class="app-numeric">{{ d.evidenceCount }}</span></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-d>
-        <button mat-icon-button type="button" (click)="openDetail(d)" aria-label="Abrir contestação" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="openDetail(d)" aria-label="Abrir contestação" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </button>
       </ng-template>
     </app-data-table>
@@ -157,7 +141,7 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
       text-align: left;
       cursor: pointer;
       &:hover {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--bs-primary);
       }
     }
     .dl-kpi__label {
@@ -165,7 +149,7 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .dl-kpi__value {
       font-size: var(--app-text-lg);
@@ -192,7 +176,7 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
 })
 export class DisputeList {
   private readonly api = inject(DisputesApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   protected readonly creditorSource = inject(CreditorLookup);
 
   protected readonly types = DISPUTE_TYPE_LABELS;
@@ -254,7 +238,7 @@ export class DisputeList {
 
   protected openDetail(d: DisputeView): void {
     this.dialog
-      .open<DisputeDetail, DisputeDetailData, boolean>(DisputeDetail, { data: { dispute: d, debtorName: this.debtors.name(d.debtorId) }, width: '680px' })
+      .open<DisputeDetail, DisputeDetailData, boolean>(DisputeDetail, { data: { dispute: d, debtorName: this.debtors.name(d.debtorId) }, size: 'lg' })
       .afterClosed()
       .subscribe((changed) => {
         if (changed) {

@@ -1,3 +1,4 @@
+import { IconName } from '../../../shared/components/icon/icon-names';
 import {
   AssignmentMode,
   DisputeOrigin,
@@ -22,14 +23,14 @@ export const CHANNEL_LABELS: Record<InteractionChannel, string> = {
   LETTER: 'Carta',
 };
 
-export const CHANNEL_ICONS: Record<InteractionChannel, string> = {
-  PHONE: 'call',
+export const CHANNEL_ICONS: Record<InteractionChannel, IconName> = {
+  PHONE: 'telephone',
   WHATSAPP: 'chat',
-  EMAIL: 'mail',
-  SMS: 'sms',
-  IN_PERSON: 'storefront',
-  PORTAL: 'language',
-  LETTER: 'local_post_office',
+  EMAIL: 'envelope',
+  SMS: 'chat-dots',
+  IN_PERSON: 'shop-window',
+  PORTAL: 'globe',
+  LETTER: 'mailbox',
 };
 
 export const DIRECTION_LABELS: Record<InteractionDirection, string> = {
@@ -119,11 +120,11 @@ export const DISPUTE_OUTCOME_LABELS: Record<DisputeOutcome, string> = {
 
 /** Ações manuais do ciclo de vida do caso, com o texto do diálogo de confirmação. */
 export const CASE_ACTIONS = {
-  suspend: { label: 'Suspender cobrança', icon: 'pause_circle', confirm: 'Suspender', message: 'O caso sai da fila e não recebe contatos até ser retomado.' },
-  resume: { label: 'Retomar cobrança', icon: 'play_circle', confirm: 'Retomar', message: 'O caso volta ao estágio anterior (ou à contestação, se houver uma bloqueante).' },
-  legal: { label: 'Encaminhar ao jurídico', icon: 'gavel', confirm: 'Encaminhar', message: 'O caso sai da operação regular até retornar do jurídico.' },
-  'legal-return': { label: 'Retornar do jurídico', icon: 'undo', confirm: 'Retornar', message: 'O caso volta à operação no estágio guardado.' },
-  close: { label: 'Encerrar caso', icon: 'cancel', confirm: 'Encerrar', message: 'Tarefas em aberto são canceladas. Um título novo na carteira abre outro caso.' },
+  suspend: { label: 'Suspender cobrança', icon: 'pause-circle', confirm: 'Suspender', message: 'O caso sai da fila e não recebe contatos até ser retomado.' },
+  resume: { label: 'Retomar cobrança', icon: 'play-circle', confirm: 'Retomar', message: 'O caso volta ao estágio anterior (ou à contestação, se houver uma bloqueante).' },
+  legal: { label: 'Encaminhar ao jurídico', icon: 'hammer', confirm: 'Encaminhar', message: 'O caso sai da operação regular até retornar do jurídico.' },
+  'legal-return': { label: 'Retornar do jurídico', icon: 'arrow-counterclockwise', confirm: 'Retornar', message: 'O caso volta à operação no estágio guardado.' },
+  close: { label: 'Encerrar caso', icon: 'x-circle', confirm: 'Encerrar', message: 'Tarefas em aberto são canceladas. Um título novo na carteira abre outro caso.' },
 } as const;
 
 export type CaseAction = keyof typeof CASE_ACTIONS;

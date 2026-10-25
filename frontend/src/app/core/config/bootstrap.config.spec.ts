@@ -42,5 +42,7 @@ describe('padrões do ng-bootstrap', () => {
       expect(config.minDate).toEqual({ year: 1900, month: 1, day: 1 });
       expect(config.maxDate).toEqual({ year: 2100, month: 12, day: 31 });
     }
+    // calendário do campo anexado ao body: não é cortado pela rolagem de diálogos e painéis
+    expect(TestBed.inject(NgbInputDatepickerConfig).container).toBe('body');
   });
 });

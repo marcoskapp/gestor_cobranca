@@ -1,17 +1,14 @@
 import { Component, ElementRef, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelect, MatSelectModule } from '@angular/material/select';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { DensityService } from '../../../core/preferences/density.service';
 import { formatAmount } from '../../../shared/components/amount/amount';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { toDateStruct } from '../../../shared/models/dates';
 import { CONTACT_LABEL_LABELS } from '../../debt/data/debt.labels';
 import { InteractionsApi } from '../data/collection.api';
 import { CHANNEL_LABELS, DIRECTION_LABELS } from '../data/collection.labels';
@@ -35,7 +32,7 @@ export function contactsForChannel(contacts: readonly SheetContact[], channel: I
  */
 @Component({
   selector: 'app-interaction-panel',
-  imports: [ReactiveFormsModule, MatButtonModule, MatButtonToggleModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, Icon, ...FORM_FIELD],
   templateUrl: './interaction-panel.html',
   styleUrl: './interaction-panel.scss',
 })
@@ -50,7 +47,8 @@ export class InteractionPanel {
   private readonly api = inject(InteractionsApi);
   private readonly notifications = inject(NotificationService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly tabulationSelect = viewChild<MatSelect>('tabulationSelect');
+  private readonly tabulationSelect = viewChild<ElementRef<HTMLSelectElement>>('tabulationSelect');
+  protected readonly density = inject(DensityService);
 
   protected readonly channels = Object.entries(CHANNEL_LABELS).map(([value, label]) => ({ value: value as InteractionChannel, label }));
   protected readonly directions = Object.entries(DIRECTION_LABELS).map(([value, label]) => ({ value: value as InteractionDirection, label }));
@@ -68,8 +66,9 @@ export class InteractionPanel {
     tabulationId: this.fb.control<string>(''),
     note: ['', [Validators.maxLength(NOTE_MAX)]],
     promiseAmount: this.fb.control<number | null>(null),
-    promiseDate: this.fb.control<Date | null>(null),
-    callbackDate: this.fb.control<Date | null>(null),
+    /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+    promiseDate: this.fb.control<string | null>(null),
+    callbackDate: this.fb.control<string | null>(null),
     callbackTime: [''],
     completesTaskId: [''],
   });
@@ -86,8 +85,8 @@ export class InteractionPanel {
   protected readonly openBalance = computed(() => this.sheet().collectionCase.openBalance);
   protected readonly openTasks = computed(() => this.sheet().openTasks);
   protected readonly today = computed(() => zonedNow().date);
-  protected readonly minDate = computed(() => fromLocalDate(this.today()));
-  protected readonly maxPromiseDate = computed(() => fromLocalDate(addDays(this.today(), this.promiseMaxDays())));
+  protected readonly minDate = computed(() => toDateStruct(this.today()));
+  protected readonly maxPromiseDate = computed(() => toDateStruct(addDays(this.today(), this.promiseMaxDays())));
 
   protected readonly problems = computed(() => {
     const v = this.value();
@@ -96,7 +95,7 @@ export class InteractionPanel {
         tabulation: this.tabulation(),
         note: v.note,
         promiseAmount: v.promiseAmount,
-        promiseDate: toLocalDate(v.promiseDate),
+        promiseDate: v.promiseDate,
         callbackAt: toLocalDateTime(v.callbackDate, v.callbackTime),
       },
       { openBalance: this.openBalance(), today: this.today(), promiseMaxDays: this.promiseMaxDays() },
@@ -105,6 +104,17 @@ export class InteractionPanel {
   });
 
   protected readonly balanceText = computed(() => formatAmount(this.openBalance()));
+
+  protected readonly tabulationHint = computed(() => {
+    const t = this.tabulation();
+    return t ? `${t.effectiveContact ? 'Contato efetivo.' : 'Sem contato efetivo.'}${t.requiresNote ? ' Observação obrigatória.' : ''}` : undefined;
+  });
+
+  /** Texto da opção com as marcas da tabulação (CPC, promessa, retorno). */
+  protected tabulationOption(t: TabulationView): string {
+    const flags = [t.effectiveContact ? 'CPC' : null, t.promise ? 'promessa' : null, t.callback ? 'retorno' : null].filter(Boolean);
+    return flags.length ? `${t.name} · ${flags.join(' · ')}` : t.name;
+  }
 
   constructor() {
     // Troca de caso: formulário limpo (nada de um devedor vaza para outro).
@@ -125,9 +135,14 @@ export class InteractionPanel {
   /** Atalho "registrar interação": leva o foco à tabulação. */
   focus(): void {
     this.host.nativeElement.scrollIntoView({ block: 'nearest' });
-    const select = this.tabulationSelect();
+    const select = this.tabulationSelect()?.nativeElement;
     select?.focus();
-    select?.open();
+    // abre a lista nativa quando o navegador permite (o atalho de teclado é uma ativação do usuário)
+    try {
+      select?.showPicker?.();
+    } catch {
+      // sem ativação do usuário (ex.: chamada programática): o foco no campo basta
+    }
   }
 
   /** Pré-seleciona a primeira tabulação com a flag (atalhos "registrar promessa"). */
@@ -136,7 +151,7 @@ export class InteractionPanel {
     if (t) {
       this.form.controls.tabulationId.setValue(t.id);
     }
-    this.tabulationSelect()?.focus();
+    this.tabulationSelect()?.nativeElement.focus();
   }
 
   protected onKeydown(event: KeyboardEvent): void {
@@ -165,7 +180,7 @@ export class InteractionPanel {
         contactId: v.contactId || null,
         startedAt: started ? started.toISOString() : null,
         endedAt: started ? new Date().toISOString() : null,
-        promise: t.promise && v.promiseAmount && v.promiseDate ? { amount: v.promiseAmount, dueDate: toLocalDate(v.promiseDate)! } : null,
+        promise: t.promise && v.promiseAmount && v.promiseDate ? { amount: v.promiseAmount, dueDate: v.promiseDate } : null,
         callback: t.callback && callbackAt ? { dueAt: callbackAt, assigneeUserId: null, note: null } : null,
         completesTaskId: v.completesTaskId || null,
       })

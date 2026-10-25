@@ -2,17 +2,17 @@
   title="Solicitações de titulares"
   subtitle="Pedidos de acesso, correção, eliminação, portabilidade e oposição (LGPD art. 18), com prazo legal de resposta."
 >
-  <button mat-flat-button type="button" (click)="open()">
-    <mat-icon aria-hidden="true">add_task</mat-icon>
+  <button class="btn btn-primary" type="button" (click)="open()">
+    <app-icon name="calendar-plus" />
     Registrar solicitação
   </button>
 </app-page-header>
 
 @if (!allCreditors()) {
-  <p class="app-alert app-alert--warning" role="note">
-    <mat-icon aria-hidden="true">lock</mat-icon>
+  <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+    <app-icon name="lock" />
     <span>O atendimento a titulares exige acesso a todos os credores: o direito do titular alcança todos os seus dados na assessoria.</span>
-  </p>
+  </div>
 } @else {
   <section class="cmp-kpis" aria-label="Situação da fila" data-tour="dsr-kpis">
     @let c = counters.hasValue() ? counters.value() : null;
@@ -36,32 +36,29 @@
 }
 
 <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar solicitações">
-  <mat-form-field class="app-compact">
-    <mat-label>Situação</mat-label>
-    <mat-select formControlName="status">
-      <mat-option value="">Todas</mat-option>
+  <app-field label="Situação">
+    <select appInput formControlName="status">
+      <option value="">Todas</option>
       @for (s of statuses; track s.value) {
-        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+        <option [ngValue]="s.value">{{ s.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Pedido</mat-label>
-    <mat-select formControlName="type">
-      <mat-option value="">Todos</mat-option>
+    </select>
+  </app-field>
+  <app-field label="Pedido">
+    <select appInput formControlName="type">
+      <option value="">Todos</option>
       @for (t of types; track t.value) {
-        <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        <option [ngValue]="t.value">{{ t.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>CPF/CNPJ do titular</mat-label>
-    <input matInput formControlName="document" appDocumentMask maxlength="18" autocomplete="off" />
-    @if (incomplete()) {
-      <mat-hint>Informe o documento completo e válido.</mat-hint>
-    }
-  </mat-form-field>
-  <mat-slide-toggle formControlName="overdue" class="cmp-toggle">Somente em atraso</mat-slide-toggle>
+    </select>
+  </app-field>
+  <app-field label="CPF/CNPJ do titular" [hint]="incomplete() ? 'Informe o documento completo e válido.' : undefined">
+    <input appInput formControlName="document" appDocumentMask maxlength="18" autocomplete="off" />
+  </app-field>
+  <div class="form-check form-switch cmp-toggle">
+    <input class="form-check-input" type="checkbox" role="switch" id="request-list-overdue" formControlName="overdue" />
+    <label class="form-check-label" for="request-list-overdue">Somente em atraso</label>
+  </div>
 </form>
 
 <app-data-table
@@ -81,7 +78,7 @@
     @if (isOpen(r)) {
       <span [class.cmp-due--late]="r.overdue || days(r) < 0" [class.cmp-due--soon]="!r.overdue && days(r) >= 0 && days(r) <= 3">
         @if (r.overdue || days(r) < 0) {
-          <mat-icon class="cmp-icon" aria-hidden="true">alarm</mat-icon>
+          <app-icon class="cmp-icon" name="alarm" />
         }
         {{ due(r) }}
       </span>
@@ -103,8 +100,8 @@
   <ng-template appCell="channel" [appCellOf]="query.rows()" let-r>{{ channelLabels[r.channel] }}</ng-template>
   <ng-template appCell="status" [appCellOf]="query.rows()" let-r><app-status-chip domain="dataSubjectRequest" [status]="r.status" /></ng-template>
   <ng-template appCell="actions" [appCellOf]="query.rows()" let-r>
-    <a mat-icon-button [routerLink]="['/compliance/solicitacoes-titulares', r.id]" aria-label="Abrir solicitação" matTooltip="Abrir">
-      <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/compliance/solicitacoes-titulares', r.id]" aria-label="Abrir solicitação" ngbTooltip="Abrir">
+      <app-icon name="chevron-right" />
     </a>
   </ng-template>
 </app-data-table>

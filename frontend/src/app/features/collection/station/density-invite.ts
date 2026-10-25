@@ -1,10 +1,9 @@
 import { DOCUMENT } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { OnboardingService } from '../../../core/onboarding/onboarding.service';
 import { ThemeService } from '../../../core/preferences/theme.service';
 import { UiStateStore } from '../../../core/preferences/ui-state.store';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** Registro do convite no estado de interface do servidor (mesmo mecanismo dos tours). */
 export const DENSITY_INVITE_ID = 'collection.compact-density';
@@ -17,14 +16,14 @@ export const DENSITY_INVITE_VERSION = 1;
  */
 @Component({
   selector: 'app-density-invite',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [Icon],
   template: `
     @if (visible()) {
       <aside class="di" role="status" aria-live="polite" aria-label="Sugestão de densidade">
-        <mat-icon aria-hidden="true">density_small</mat-icon>
+        <app-icon class="di__icon" name="list" />
         <p class="di__text"><strong>Mais casos por tela?</strong> A densidade compacta mostra mais linhas e campos sem rolar.</p>
-        <button mat-flat-button type="button" (click)="accept()">Usar compacta</button>
-        <button mat-button type="button" (click)="decline()">Agora não</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="accept()">Usar compacta</button>
+        <button type="button" class="btn btn-link btn-sm" (click)="decline()">Agora não</button>
       </aside>
     }
   `,
@@ -36,13 +35,13 @@ export const DENSITY_INVITE_VERSION = 1;
       gap: 4px 12px;
       margin-bottom: 8px;
       padding: 6px 12px;
-      border: 1px solid var(--app-border);
-      border-left: 4px solid var(--mat-sys-primary);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: var(--bs-border-width) solid var(--bs-border-color);
+      border-left: 4px solid var(--bs-primary);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
     }
-    .di .mat-icon {
-      color: var(--mat-sys-primary);
+    .di__icon {
+      color: var(--bs-primary-text-emphasis);
     }
     .di__text {
       flex: 1 1 280px;

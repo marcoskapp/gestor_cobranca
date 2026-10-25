@@ -2,8 +2,8 @@
   title="Restrições de contato"
   subtitle="Descadastros, pedidos do devedor e do credor, bloqueios jurídicos e operacionais. Restrições ativas bloqueiam contatos na hora."
 >
-  <button mat-flat-button type="button" (click)="create()">
-    <mat-icon aria-hidden="true">block</mat-icon>
+  <button class="btn btn-primary" type="button" (click)="create()">
+    <app-icon name="slash-circle" />
     Registrar restrição
   </button>
 </app-page-header>
@@ -15,33 +15,30 @@
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
   </div>
-  <mat-form-field class="app-compact">
-    <mat-label>Tipo</mat-label>
-    <mat-select formControlName="type">
-      <mat-option value="">Todos</mat-option>
+  <app-field label="Tipo">
+    <select appInput formControlName="type">
+      <option value="">Todos</option>
       @for (t of types; track t.value) {
-        <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        <option [ngValue]="t.value">{{ t.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Canal</mat-label>
-    <mat-select formControlName="channel">
-      <mat-option value="">Todos</mat-option>
+    </select>
+  </app-field>
+  <app-field label="Canal">
+    <select appInput formControlName="channel">
+      <option value="">Todos</option>
       @for (c of channels; track c.value) {
-        <mat-option [value]="c.value">{{ c.label }}</mat-option>
+        <option [ngValue]="c.value">{{ c.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Situação</mat-label>
-    <mat-select formControlName="status">
-      <mat-option value="">Todas</mat-option>
+    </select>
+  </app-field>
+  <app-field label="Situação">
+    <select appInput formControlName="status">
+      <option value="">Todas</option>
       @for (s of statuses; track s.value) {
-        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+        <option [ngValue]="s.value">{{ s.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
+    </select>
+  </app-field>
 </form>
 
 <app-data-table
@@ -80,14 +77,14 @@
       <div class="app-muted">Fora da vigência</div>
     }
     @if (r.status === 'REVOKED' && r.revokedReason) {
-      <div class="app-muted" [matTooltip]="r.revokedReason">{{ r.revokedAt | appDate: 'date' }}</div>
+      <div class="app-muted" [ngbTooltip]="r.revokedReason">{{ r.revokedAt | appDate: 'date' }}</div>
     }
   </ng-template>
   <ng-template appCell="actions" [appCellOf]="query.rows()" let-r>
     <app-evidence-buttons [restriction]="r" [canManage]="true" (updated)="query.reload()" />
     @if (r.status === 'ACTIVE') {
-      <button mat-icon-button type="button" (click)="revoke(r)" aria-label="Revogar restrição" matTooltip="Revogar">
-        <mat-icon aria-hidden="true">undo</mat-icon>
+      <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="revoke(r)" aria-label="Revogar restrição" ngbTooltip="Revogar">
+        <app-icon name="arrow-counterclockwise" />
       </button>
     }
   </ng-template>

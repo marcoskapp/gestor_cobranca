@@ -1,85 +1,75 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { DocumentMask } from '../../../../shared/directives/document-mask';
-import { fromLocalDate, toLocalDate } from '../../../../shared/models/dates';
+import { toDateStruct, toLocalDate } from '../../../../shared/models/dates';
 import { errorMessage } from '../../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits } from '../../../../shared/validation/validators';
 import { DebtorsApi } from '../../data/debt.api';
 import { DebtorView } from '../../data/debt.models';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 
 type Field = 'document' | 'name' | 'birthDate' | 'notes';
 
 /** Cadastro manual (com documento) e edição (sem documento: ele é imutável) do devedor. */
 @Component({
   selector: 'app-debtor-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, DocumentMask],
+  imports: [ReactiveFormsModule, DocumentMask, Icon, NgbInputDatepicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>{{ debtor ? 'Editar devedor' : 'Novo devedor' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ debtor ? 'Editar devedor' : 'Novo devedor' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
-        <div class="app-form-grid">
+        <div class="app-form-grid gap-3">
           @if (!debtor) {
-            <mat-form-field>
-              <mat-label>CPF ou CNPJ</mat-label>
-              <input matInput formControlName="document" appDocumentMask maxlength="18" />
-              @if (form.controls.document.invalid) {
-                <mat-error>{{ message('document') }}</mat-error>
-              }
-            </mat-form-field>
+            <app-field label="CPF ou CNPJ" [error]="form.controls.document.invalid ? (message('document')) : undefined">
+              <input appInput formControlName="document" appDocumentMask maxlength="18" />
+            </app-field>
           }
-          <mat-form-field [class.app-span-all]="!!debtor">
-            <mat-label>Data de nascimento</mat-label>
-            <input matInput [matDatepicker]="birth" formControlName="birthDate" placeholder="dd/mm/aaaa" [max]="today" />
-            <mat-datepicker-toggle matIconSuffix [for]="birth" />
-            <mat-datepicker #birth startView="multi-year" />
-            @if (form.controls.birthDate.invalid) {
-              <mat-error>{{ message('birthDate') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Nome ou razão social</mat-label>
-            <input matInput formControlName="name" [maxlength]="limits.legalName" autocomplete="off" />
-            @if (form.controls.name.invalid) {
-              <mat-error>{{ message('name') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Observações</mat-label>
-            <textarea matInput formControlName="notes" rows="3" [maxlength]="maxNotes"></textarea>
-            <mat-hint>Não registre dados de saúde, religião ou outros dados sensíveis.</mat-hint>
-            @if (form.controls.notes.invalid) {
-              <mat-error>{{ message('notes') }}</mat-error>
-            }
-          </mat-form-field>
+          <app-field [class.app-span-all]="!!debtor" label="Data de nascimento" [error]="form.controls.birthDate.invalid ? (message('birthDate')) : undefined">
+            <div class="input-group">
+              <input appInput ngbDatepicker #birth="ngbDatepicker" formControlName="birthDate" placeholder="dd/mm/aaaa" [maxDate]="today" />
+              <button type="button" class="btn btn-outline-secondary" (click)="birth.toggle()" aria-label="Abrir calendário">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field class="app-span-all" label="Nome ou razão social" [error]="form.controls.name.invalid ? (message('name')) : undefined">
+            <input appInput formControlName="name" [maxlength]="limits.legalName" autocomplete="off" />
+          </app-field>
+          <app-field class="app-span-all" label="Observações" hint="Não registre dados de saúde, religião ou outros dados sensíveis." [error]="form.controls.notes.invalid ? (message('notes')) : undefined">
+            <textarea appInput formControlName="notes" rows="3" [maxlength]="maxNotes"></textarea>
+          </app-field>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ debtor ? 'Salvar' : 'Cadastrar devedor' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ debtor ? 'Salvar' : 'Cadastrar devedor' }}</button>
+      </div>
     </form>
   `,
 })
 export class DebtorForm {
-  protected readonly debtor = inject<DebtorView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<DebtorForm, DebtorView>>(MatDialogRef);
+  protected readonly debtor = inject<DebtorView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<DebtorView>>(DialogRef);
   private readonly api = inject(DebtorsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly limits = Limits;
   protected readonly maxNotes = 2000;
-  protected readonly today = new Date();
+  protected readonly today = toDateStruct(toLocalDate(new Date())!);
   protected readonly saving = signal(false);
   protected readonly generalErrors = signal<string[]>([]);
 
@@ -87,7 +77,8 @@ export class DebtorForm {
   protected readonly form = this.fb.group({
     document: this.fb.nonNullable.control('', this.debtor ? [] : [AppValidators.notBlank, AppValidators.document()]),
     name: this.fb.nonNullable.control(this.debtor?.name ?? '', [AppValidators.notBlank, Validators.maxLength(Limits.legalName)]),
-    birthDate: this.fb.control<Date | null>(fromLocalDate(this.debtor?.birthDate)),
+    /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+    birthDate: this.fb.control<string | null>(this.debtor?.birthDate ?? null),
     notes: this.fb.nonNullable.control(this.debtor?.notes ?? '', [Validators.maxLength(2000)]),
   });
 
@@ -101,7 +92,7 @@ export class DebtorForm {
       return;
     }
     const v = this.form.getRawValue();
-    const common = { name: v.name.trim(), birthDate: toLocalDate(v.birthDate), notes: v.notes.trim() || null };
+    const common = { name: v.name.trim(), birthDate: v.birthDate || null, notes: v.notes.trim() || null };
     this.saving.set(true);
     this.generalErrors.set([]);
     (this.debtor ? this.api.update(this.debtor.id, common) : this.api.register({ ...common, document: v.document }))

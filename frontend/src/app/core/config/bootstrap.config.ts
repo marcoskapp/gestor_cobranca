@@ -52,7 +52,7 @@ export class PtBrDateParserFormatter extends NgbDateParserFormatter {
 
 /**
  * Padrões do ng-bootstrap para toda a aplicação: datas pt-BR com modelo ISO, diálogos
- * acessíveis (Esc fecha, foco devolvido), tooltips e menus anexados ao `body` (não são
+ * acessíveis (Esc fecha, foco devolvido), tooltips, menus e calendários anexados ao `body` (não são
  * cortados por contêineres com `overflow`), paginação com primeira/última página.
  * Os rótulos acessíveis do ng-bootstrap são traduzidos em `ngb-translations.ts`.
  */
@@ -86,6 +86,9 @@ export function provideBootstrapDefaults(): EnvironmentProviders {
         datepicker.minDate = { year: 1900, month: 1, day: 1 };
         datepicker.maxDate = { year: 2100, month: 12, day: 31 };
       }
+      // calendário do campo anexado ao body (como menus e tooltips): não é cortado pela rolagem de
+      // diálogos (`modal-dialog-scrollable`) e painéis com `overflow`
+      inject(NgbInputDatepickerConfig).container = 'body';
 
       inject(NgbTypeaheadConfig).focusFirst = false;
     }),

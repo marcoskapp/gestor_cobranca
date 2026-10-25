@@ -1,7 +1,4 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
@@ -23,17 +20,19 @@ import {
 import { RestrictionView } from '../../data/compliance.models';
 import { EvidenceButtons } from '../evidence/evidence-buttons';
 import { RestrictionActions } from '../restriction-actions';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 /** Restrições e tentativas de contato de um devedor (aba da ficha). */
 @Component({
   selector: 'app-debtor-compliance',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, DataTable, CellDef, StatusChip, AppDatePipe, EvidenceButtons],
+  imports: [DataTable, CellDef, StatusChip, AppDatePipe, EvidenceButtons, Icon, NgbTooltip],
   template: `
     <div class="dc-toolbar">
       <h3 class="app-section-title">Restrições</h3>
       @if (canManage()) {
-        <button mat-stroked-button type="button" (click)="create()">
-          <mat-icon aria-hidden="true">block</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="create()">
+          <app-icon name="slash-circle" />
           Nova restrição
         </button>
       }
@@ -47,7 +46,7 @@ import { RestrictionActions } from '../restriction-actions';
       [page]="restrictions.tablePage()"
       (pageChange)="restrictions.setPage($event)"
       (retry)="restrictions.reload()"
-      emptyIcon="verified_user"
+      emptyIcon="shield-check"
       emptyMessage="Nenhuma restrição de contato registrada."
       emptyHint="O contato segue a política de contato vigente (janela, dias e limites)."
     >
@@ -68,8 +67,8 @@ import { RestrictionActions } from '../restriction-actions';
       <ng-template appCell="actions" [appCellOf]="restrictions.rows()" let-r>
         <app-evidence-buttons [restriction]="r" [canManage]="canManage()" (updated)="restrictions.reload()" />
         @if (canManage() && r.status === 'ACTIVE') {
-          <button mat-icon-button type="button" (click)="revoke(r)" aria-label="Revogar restrição" matTooltip="Revogar">
-            <mat-icon aria-hidden="true">undo</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="revoke(r)" aria-label="Revogar restrição" ngbTooltip="Revogar">
+            <app-icon name="arrow-counterclockwise" />
           </button>
         }
       </ng-template>
@@ -85,14 +84,14 @@ import { RestrictionActions } from '../restriction-actions';
       [page]="attempts.tablePage()"
       (pageChange)="attempts.setPage($event)"
       (retry)="attempts.reload()"
-      emptyIcon="call"
+      emptyIcon="telephone"
       emptyMessage="Nenhuma tentativa de contato registrada."
     >
       <ng-template appCell="attemptedAt" [appCellOf]="attempts.rows()" let-a>{{ a.attemptedAt | appDate }}</ng-template>
       <ng-template appCell="channel" [appCellOf]="attempts.rows()" let-a>{{ channelLabels[a.channel] }}</ng-template>
       <ng-template appCell="creditor" [appCellOf]="attempts.rows()" let-a>{{ creditors.name(a.creditorId) }}</ng-template>
       <ng-template appCell="origin" [appCellOf]="attempts.rows()" let-a>
-        <mat-icon class="dc-icon" aria-hidden="true">{{ originIcons[a.origin] }}</mat-icon> {{ originLabels[a.origin] ?? a.origin }}
+        <app-icon class="dc-icon" [name]="originIcons[a.origin]" /> {{ originLabels[a.origin] ?? a.origin }}
       </ng-template>
     </app-data-table>
   `,

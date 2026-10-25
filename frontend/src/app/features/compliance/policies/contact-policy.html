@@ -2,17 +2,19 @@
   title="Política de contato"
   subtitle="Janela, dias e limites de tentativas por canal. A política do credor prevalece sobre a da assessoria, canal a canal."
 >
-  <button mat-flat-button type="button" (click)="publish()" [disabled]="creditorId() === undefined || problems().length > 0 || publishing()">
-    <mat-icon aria-hidden="true">publish</mat-icon>
+  <button class="btn btn-primary" type="button" (click)="publish()" [disabled]="creditorId() === undefined || problems().length > 0 || publishing()">
+    <app-icon name="upload" />
     Publicar nova versão
   </button>
 </app-page-header>
 
 <div class="app-filters" data-tour="policy-scope">
-  <mat-button-toggle-group [value]="scopeKind()" (change)="setScope($event.value)" aria-label="Política a consultar" hideSingleSelectionIndicator>
-    <mat-button-toggle value="TENANT">Assessoria</mat-button-toggle>
-    <mat-button-toggle value="CREDITOR">Credor</mat-button-toggle>
-  </mat-button-toggle-group>
+  <div class="btn-group" role="group" aria-label="Política a consultar">
+    <input type="radio" class="btn-check" name="cp-scope" id="cp-scope-TENANT" [checked]="scopeKind() === 'TENANT'" (change)="setScope('TENANT')" />
+    <label class="btn btn-outline-primary" for="cp-scope-TENANT">Assessoria</label>
+    <input type="radio" class="btn-check" name="cp-scope" id="cp-scope-CREDITOR" [checked]="scopeKind() === 'CREDITOR'" (change)="setScope('CREDITOR')" />
+    <label class="btn btn-outline-primary" for="cp-scope-CREDITOR">Credor</label>
+  </div>
   @if (scopeKind() === 'CREDITOR') {
     <div class="app-filters__wide">
       <app-entity-picker [control]="creditorControl" [source]="creditorSource" label="Credor" [single]="true" />
@@ -22,7 +24,7 @@
 
 @if (creditorId() === undefined) {
   <section class="app-card">
-    <app-empty-state icon="apartment" title="Escolha o credor." message="A política do credor complementa a da assessoria nos canais em que tiver regra." />
+    <app-empty-state icon="buildings" title="Escolha o credor." message="A política do credor complementa a da assessoria nos canais em que tiver regra." />
   </section>
 } @else {
   <section class="app-card" aria-labelledby="vigentes" data-tour="policy-effective">
@@ -71,7 +73,7 @@
         </p>
       </div>
       @if (dirty()) {
-        <button mat-button type="button" (click)="discard()">Descartar alterações</button>
+        <button class="btn btn-link" type="button" (click)="discard()">Descartar alterações</button>
       }
     </div>
 
@@ -82,42 +84,49 @@
         @for (r of draft(); track r.channel; let i = $index) {
           <fieldset class="cmp-rule" [class.cmp-rule--off]="!r.included">
             <legend class="cmp-rule__legend">
-              <mat-slide-toggle [ngModel]="r.included" (ngModelChange)="patch(i, { included: $event })">{{ channelLabels[r.channel] }}</mat-slide-toggle>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" [id]="'cp-included-' + i" [ngModel]="r.included" (ngModelChange)="patch(i, { included: $event })" />
+                <label class="form-check-label" [for]="'cp-included-' + i">{{ channelLabels[r.channel] }}</label>
+              </div>
             </legend>
             @if (r.included) {
-              <mat-checkbox [ngModel]="r.inheritWindow" (ngModelChange)="patch(i, { inheritWindow: $event })">Usar a janela da assessoria</mat-checkbox>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" [id]="'cp-inherit-' + i" [ngModel]="r.inheritWindow" (ngModelChange)="patch(i, { inheritWindow: $event })" />
+                <label class="form-check-label" [for]="'cp-inherit-' + i">Usar a janela da assessoria</label>
+              </div>
               @if (!r.inheritWindow) {
                 <div class="cmp-rule__row">
-                  <mat-form-field class="app-compact">
-                    <mat-label>Início</mat-label>
-                    <input matInput type="time" [ngModel]="r.windowStart" (ngModelChange)="patch(i, { windowStart: $event })" required />
-                  </mat-form-field>
-                  <mat-form-field class="app-compact">
-                    <mat-label>Fim</mat-label>
-                    <input matInput type="time" [ngModel]="r.windowEnd" (ngModelChange)="patch(i, { windowEnd: $event })" required />
-                  </mat-form-field>
+                  <app-field label="Início">
+                    <input appInput type="time" [ngModel]="r.windowStart" (ngModelChange)="patch(i, { windowStart: $event })" required />
+                  </app-field>
+                  <app-field label="Fim">
+                    <input appInput type="time" [ngModel]="r.windowEnd" (ngModelChange)="patch(i, { windowEnd: $event })" required />
+                  </app-field>
                 </div>
                 <div class="cmp-days" role="group" [attr.aria-label]="'Dias permitidos para ' + channelLabels[r.channel]">
                   @for (d of weekDays; track d.value) {
-                    <mat-checkbox [ngModel]="r.allowedDays.includes(d.value)" (ngModelChange)="toggleDay(i, d.value, $event)" [attr.aria-label]="d.label">{{ d.short }}</mat-checkbox>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" [id]="'cp-day-' + i + '-' + d.value" [ngModel]="r.allowedDays.includes(d.value)" (ngModelChange)="toggleDay(i, d.value, $event)" [attr.aria-label]="d.label" />
+                      <label class="form-check-label" [for]="'cp-day-' + i + '-' + d.value">{{ d.short }}</label>
+                    </div>
                   }
                 </div>
               }
               <div class="cmp-rule__row">
-                <mat-form-field class="app-compact">
-                  <mat-label>Por dia</mat-label>
-                  <input matInput type="number" min="1" max="1000" [ngModel]="r.maxPerDay" (ngModelChange)="patch(i, { maxPerDay: number($event) })" />
-                </mat-form-field>
-                <mat-form-field class="app-compact">
-                  <mat-label>Por semana</mat-label>
-                  <input matInput type="number" min="1" max="1000" [ngModel]="r.maxPerWeek" (ngModelChange)="patch(i, { maxPerWeek: number($event) })" />
-                </mat-form-field>
-                <mat-form-field class="app-compact">
-                  <mat-label>Intervalo (min)</mat-label>
-                  <input matInput type="number" min="1" max="43200" [ngModel]="r.minIntervalMinutes" (ngModelChange)="patch(i, { minIntervalMinutes: number($event) })" />
-                </mat-form-field>
+                <app-field label="Por dia">
+                  <input appInput type="number" min="1" max="1000" [ngModel]="r.maxPerDay" (ngModelChange)="patch(i, { maxPerDay: number($event) })" />
+                </app-field>
+                <app-field label="Por semana">
+                  <input appInput type="number" min="1" max="1000" [ngModel]="r.maxPerWeek" (ngModelChange)="patch(i, { maxPerWeek: number($event) })" />
+                </app-field>
+                <app-field label="Intervalo (min)">
+                  <input appInput type="number" min="1" max="43200" [ngModel]="r.minIntervalMinutes" (ngModelChange)="patch(i, { minIntervalMinutes: number($event) })" />
+                </app-field>
               </div>
-              <mat-checkbox [ngModel]="r.blockOnHolidays" (ngModelChange)="patch(i, { blockOnHolidays: $event })">Bloquear nos feriados cadastrados</mat-checkbox>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" [id]="'cp-holidays-' + i" [ngModel]="r.blockOnHolidays" (ngModelChange)="patch(i, { blockOnHolidays: $event })" />
+                <label class="form-check-label" [for]="'cp-holidays-' + i">Bloquear nos feriados cadastrados</label>
+              </div>
             } @else {
               <p class="app-muted">
                 {{ creditorId() ? 'Segue a política da assessoria.' : 'Somente a janela padrão da assessoria.' }}
@@ -128,28 +137,26 @@
       </div>
 
       <div class="cmp-rule__row cmp-publish">
-        <mat-form-field class="app-compact">
-          <mat-label>Início da vigência</mat-label>
-          <input matInput [matDatepicker]="from" [min]="today" [ngModel]="effectiveDate()" (ngModelChange)="effectiveDate.set($event)" placeholder="Imediata" />
-          <mat-datepicker-toggle matIconSuffix [for]="from" />
-          <mat-datepicker #from />
-          <mat-hint>Vazio = imediata.</mat-hint>
-        </mat-form-field>
+        <app-field label="Início da vigência" hint="Vazio = imediata.">
+          <div class="input-group">
+            <input appInput ngbDatepicker #from="ngbDatepicker" [minDate]="today" [ngModel]="effectiveDate()" (ngModelChange)="effectiveDate.set($event)" placeholder="dd/mm/aaaa" />
+            <button type="button" class="btn btn-outline-secondary" (click)="from.toggle()" aria-label="Abrir calendário">
+              <app-icon name="calendar-event" />
+            </button>
+          </div>
+        </app-field>
         @if (effectiveDate()) {
-          <mat-form-field class="app-compact">
-            <mat-label>Hora</mat-label>
-            <input matInput type="time" [ngModel]="effectiveTime()" (ngModelChange)="effectiveTime.set($event)" />
-          </mat-form-field>
+          <app-field label="Hora">
+            <input appInput type="time" [ngModel]="effectiveTime()" (ngModelChange)="effectiveTime.set($event)" />
+          </app-field>
         }
-        <mat-form-field class="cmp-notes">
-          <mat-label>Observações da versão</mat-label>
-          <input matInput maxlength="1000" [ngModel]="notes()" (ngModelChange)="notes.set($event)" />
-          <mat-hint>Ex.: ajuste ao acordo com o credor, nova orientação jurídica.</mat-hint>
-        </mat-form-field>
+        <app-field class="cmp-notes" label="Observações da versão" hint="Ex.: ajuste ao acordo com o credor, nova orientação jurídica.">
+          <input appInput maxlength="1000" [ngModel]="notes()" (ngModelChange)="notes.set($event)" />
+        </app-field>
       </div>
 
       @for (p of problems(); track p) {
-        <p class="app-alert app-alert--warning" role="status"><mat-icon aria-hidden="true">info</mat-icon><span>{{ p }}</span></p>
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="status"><app-icon name="info-circle" /><span>{{ p }}</span></div>
       }
     }
   </section>
@@ -157,44 +164,52 @@
   <section class="app-card" aria-labelledby="versoes" data-tour="policy-history">
     <h2 class="app-card__title" id="versoes">Versões publicadas</h2>
     @if (history.status() === 'error') {
-      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar as versões." [compact]="true">
-        <button mat-stroked-button type="button" (click)="history.reload()">Tentar novamente</button>
+      <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar as versões." [compact]="true">
+        <button class="btn btn-outline-primary" type="button" (click)="history.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (!history.isLoading() && versions().length === 0) {
-      <app-empty-state icon="history" title="Nenhuma versão publicada." message="Publique o rascunho para criar a versão 1." [compact]="true" />
+      <app-empty-state icon="clock-history" title="Nenhuma versão publicada." message="Publique o rascunho para criar a versão 1." [compact]="true" />
     } @else {
-      <mat-accordion displayMode="flat">
+      <div ngbAccordion [closeOthers]="true">
         @for (v of versions(); track v.id; let first = $first) {
-          <mat-expansion-panel>
-            <mat-expansion-panel-header>
-              <mat-panel-title>Versão {{ v.version }}</mat-panel-title>
-              <mat-panel-description>
-                Vigente a partir de {{ v.effectiveFrom | appDate }}
-                @if (first) {
-                  <span class="app-status app-status--success cmp-gap-left">Mais recente</span>
-                }
-              </mat-panel-description>
-            </mat-expansion-panel-header>
-            @if (v.notes) {
-              <p>{{ v.notes }}</p>
-            }
-            <dl class="app-definition-list">
-              @for (r of v.rules; track r.channel) {
-                <dt>{{ channelLabels[r.channel] }}</dt>
-                <dd>
-                  {{ r.inheritsWindow ? 'Janela da assessoria' : windowText(r.windowStart, r.windowEnd) + ' · ' + weekDaysText(r.allowedDays) }}
-                  · {{ limitsText(r) }} · feriados: {{ r.blockOnHolidays ? 'bloqueia' : 'permite' }}
-                </dd>
-              }
-            </dl>
-            <p class="app-muted">Publicada em {{ v.publishedAt | appDate }}</p>
-            <button mat-stroked-button type="button" (click)="useAsBase(v)">
-              <mat-icon aria-hidden="true">restore</mat-icon>
-              Usar como base do rascunho
-            </button>
-          </mat-expansion-panel>
+          <div ngbAccordionItem>
+            <h3 ngbAccordionHeader>
+              <button ngbAccordionButton type="button" class="d-flex flex-wrap gap-1 column-gap-3">
+                <span class="fw-medium">Versão {{ v.version }}</span>
+                <span class="app-muted">
+                  Vigente a partir de {{ v.effectiveFrom | appDate }}
+                  @if (first) {
+                    <span class="app-status app-status--success cmp-gap-left">Mais recente</span>
+                  }
+                </span>
+              </button>
+            </h3>
+            <div ngbAccordionCollapse>
+              <div ngbAccordionBody>
+                <ng-template>
+                  @if (v.notes) {
+                    <p>{{ v.notes }}</p>
+                  }
+                  <dl class="app-definition-list">
+                    @for (r of v.rules; track r.channel) {
+                      <dt>{{ channelLabels[r.channel] }}</dt>
+                      <dd>
+                        {{ r.inheritsWindow ? 'Janela da assessoria' : windowText(r.windowStart, r.windowEnd) + ' · ' + weekDaysText(r.allowedDays) }}
+                        · {{ limitsText(r) }} · feriados: {{ r.blockOnHolidays ? 'bloqueia' : 'permite' }}
+                      </dd>
+                    }
+                  </dl>
+                  <p class="app-muted">Publicada em {{ v.publishedAt | appDate }}</p>
+                  <button class="btn btn-outline-primary" type="button" (click)="useAsBase(v)">
+                    <app-icon name="arrow-counterclockwise" />
+                    Usar como base do rascunho
+                  </button>
+                </ng-template>
+              </div>
+            </div>
+          </div>
         }
-      </mat-accordion>
+      </div>
     }
   </section>
 }
