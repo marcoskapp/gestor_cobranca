@@ -11,7 +11,7 @@ import { Icon } from '../../shared/components/icon/icon';
   template: `
     <section class="portal-card" aria-labelledby="aviso-titulo">
       <h1 class="portal-title" id="aviso-titulo">Antes de continuar</h1>
-      <p class="portal-subtitle">Leia como seus dados são usados neste portal.</p>
+      <p class="mb-3 text-body-secondary">Leia como seus dados são usados neste portal.</p>
       <div class="portal-notice" tabindex="0" role="document" aria-label="Aviso de privacidade">{{ site()?.privacyNotice }}</div>
       @if (error()) {
         <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>

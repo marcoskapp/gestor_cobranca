@@ -77,7 +77,7 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
     }
     @if (current(); as b) {
       <app-page-header [title]="b.fileName || 'Registros via API'" [subtitle]="creditors.name(b.creditorId) + ' · ' + portfolios.name(b.portfolioId) + ' · ' + modeLabels[b.mode]">
-        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" />Importações</a>
+        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
         @if (b.issuesRecorded) {
           <button class="btn btn-outline-primary" type="button" (click)="report(b)" ngbTooltip="CSV com valores mascarados (exportação registrada)">
             <app-icon name="download" />
@@ -94,16 +94,16 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
           @for (a of actions(); track a) {
             @switch (a) {
               @case ('cancel') {
-                <button class="btn btn-outline-primary" type="button" (click)="cancel(b)"><app-icon name="x-circle" />Cancelar</button>
+                <button class="btn btn-outline-primary" type="button" (click)="cancel(b)"><app-icon name="x-circle" /> Cancelar</button>
               }
               @case ('review') {
-                <a class="btn btn-primary" [routerLink]="['/importacao/conferencias', b.reviewId]"><app-icon name="card-checklist" />Abrir a conferência</a>
+                <a class="btn btn-primary" [routerLink]="['/importacao/conferencias', b.reviewId]"><app-icon name="card-checklist" /> Abrir a conferência</a>
               }
               @case ('import') {
-                <button class="btn btn-primary" type="button" (click)="review(b)"><app-icon name="card-checklist" />Conferir e importar</button>
+                <button class="btn btn-primary" type="button" (click)="review(b)"><app-icon name="card-checklist" /> Conferir e importar</button>
               }
               @case ('reprocess') {
-                <button class="btn btn-outline-primary" type="button" (click)="review(b)"><app-icon name="arrow-counterclockwise" />Conferir e reprocessar</button>
+                <button class="btn btn-outline-primary" type="button" (click)="review(b)"><app-icon name="arrow-counterclockwise" /> Conferir e reprocessar</button>
               }
             }
           }

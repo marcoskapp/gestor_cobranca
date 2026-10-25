@@ -16,7 +16,7 @@ import { FORM_FIELD } from '../../shared/forms/field';
   template: `
     <h1 class="portal-title">Falar com um atendente</h1>
     @if (sent(); as s) {
-      <section class="portal-card portal-center" role="status">
+      <section class="portal-card text-center" role="status">
         <app-icon class="portal-big-icon" name="chat-square-dots" />
         <h2 class="portal-title">Pedido recebido</h2>
         <p>Protocolo <strong>{{ s.protocol }}</strong>. Um atendente vai falar com você pelo {{ channelLabels[s.preferredChannel] }}.</p>
@@ -70,8 +70,8 @@ import { FORM_FIELD } from '../../shared/forms/field';
   styles: `
     .portal-help-title { margin: 8px 0; font-size: 18px; font-weight: 600; }
     .portal-fieldset { margin: 0 0 12px; padding: 0; border: 0; }
-    .portal-fieldset legend { margin-bottom: 4px; font-weight: 600; }
-    .portal-radio { min-height: 44px; margin-bottom: 8px; }
+    .portal-fieldset legend { margin-bottom: 4px; font-size: 1rem; font-weight: 600; }
+    .portal-radio { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 0 4px; }
   `,
 })
 export class PortalHelp {

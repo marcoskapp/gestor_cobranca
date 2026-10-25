@@ -39,7 +39,7 @@ export interface SendDialogData {
       <div class="modal-body">
         <p class="app-dialog-message">O envio é feito fora do sistema (e-mail, portal do credor…). Registre aqui o canal, a referência e quais arquivos foram enviados.</p>
         <app-field class="mb-3" label="Canal">
-          <select appInput formControlName="channel" required>
+          <select appInput ngbAutofocus formControlName="channel" required>
             @for (c of channels; track c[0]) {
               <option [ngValue]="c[0]">{{ c[1] }}</option>
             }
@@ -49,7 +49,7 @@ export interface SendDialogData {
           <input appInput formControlName="reference" maxlength="200" />
         </app-field>
         <fieldset class="sd-files">
-          <legend class="form-label fs-6">Arquivos enviados</legend>
+          <legend class="form-label fs-5">Arquivos enviados</legend>
           @for (x of data.exports; track x.id) {
             <div class="form-check mb-0">
               <input class="form-check-input" type="checkbox" [id]="'sd-file-' + x.id" [checked]="picked().has(x.id)" (change)="toggle(x.id)" />
@@ -159,7 +159,7 @@ export interface AdjustmentDialogData {
       <div class="modal-body">
         <div class="app-form-grid">
           <app-field label="Categoria">
-            <select appInput formControlName="category" required>
+            <select appInput ngbAutofocus formControlName="category" required>
               @for (c of categories; track c[0]) {
                 <option [ngValue]="c[0]">{{ c[1] }}</option>
               }

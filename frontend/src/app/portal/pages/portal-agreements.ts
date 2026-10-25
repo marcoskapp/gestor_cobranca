@@ -15,11 +15,11 @@ import { Icon } from '../../shared/components/icon/icon';
   template: `
     <h1 class="portal-title">Meus acordos</h1>
     @if (list.isLoading() && !list.value()) {
-      <p class="portal-loading" role="status" aria-live="polite">Carregando…</p>
+      <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Carregando…</p>
     } @else if (list.error()) {
       <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
     } @else if ((list.value() ?? []).length === 0) {
-      <section class="portal-card portal-center">
+      <section class="portal-card text-center">
         <p>Você ainda não tem acordos.</p>
         <div class="portal-actions"><a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug(), 'dividas']">Ver minhas dívidas</a></div>
       </section>

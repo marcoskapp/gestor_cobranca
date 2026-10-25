@@ -30,7 +30,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
   template: `
     <app-page-header title="Escritórios parceiros" subtitle="Escritórios que conduzem casos jurídicos e os advogados vinculados a cada um.">
       @if (canManage()) {
-        <button class="btn btn-primary" type="button" (click)="edit(null)"><app-icon name="plus-lg" />Novo escritório</button>
+        <button class="btn btn-primary" type="button" (click)="edit(null)"><app-icon name="plus-lg" /> Novo escritório</button>
       }
     </app-page-header>
 
@@ -68,7 +68,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
         <div class="lf-head">
           <h2 class="app-card__title" id="lf-members-title">Advogados de {{ f.name }}</h2>
           @if (canManage() && f.active) {
-            <button class="btn btn-outline-primary" type="button" (click)="addMember(f)"><app-icon name="person-plus" />Vincular advogado</button>
+            <button class="btn btn-outline-primary" type="button" (click)="addMember(f)"><app-icon name="person-plus" /> Vincular advogado</button>
           }
         </div>
         <ul class="lf-list">

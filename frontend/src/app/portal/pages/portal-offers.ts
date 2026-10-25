@@ -21,10 +21,10 @@ type Step = 'choose' | 'review' | 'done';
   selector: 'app-portal-offers',
   imports: [Icon, FormsModule, RouterLink, Amount, AppDatePipe, PortalPix],
   template: `
-    <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'dividas']"><app-icon name="arrow-left" />Minhas dívidas</a>
+    <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'dividas']"><app-icon name="arrow-left" /> Minhas dívidas</a>
 
     @if (step() === 'done' && result(); as r) {
-      <section class="portal-card portal-center" aria-labelledby="ok-titulo">
+      <section class="portal-card text-center" aria-labelledby="ok-titulo">
         <app-icon class="portal-big-icon" name="patch-check" />
         <h1 class="portal-title" id="ok-titulo" tabindex="-1">Acordo fechado!</h1>
         <p>Pague a {{ r.agreement.installments.length > 1 ? '1ª parcela' : 'parcela única' }} até
@@ -42,14 +42,14 @@ type Step = 'choose' | 'review' | 'done';
         </div>
       </section>
     } @else if (offers.isLoading() && !offers.value()) {
-      <p class="portal-loading" role="status" aria-live="polite">Calculando as condições…</p>
+      <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Calculando as condições…</p>
     } @else if (offers.error()) {
       <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
       <div class="portal-actions"><a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
     } @else if (offers.value(); as o) {
       @if (step() === 'choose') {
         <h1 class="portal-title">Escolha como pagar</h1>
-        <p class="portal-subtitle">Valor atualizado hoje: <strong><app-amount [value]="o.updatedAmount" /></strong></p>
+        <p class="mb-3 text-body-secondary">Valor atualizado hoje: <strong><app-amount [value]="o.updatedAmount" /></strong></p>
         @if (o.offers.length === 0) {
           <p class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" />
             <span>Não há condições disponíveis pelo portal para esta dívida. Um atendente pode ajudar.</span></p>
@@ -125,6 +125,7 @@ type Step = 'choose' | 'review' | 'done';
     .offer__total { color: var(--bs-secondary-color); }
     .portal-option:focus-within { outline: var(--app-focus-ring); outline-offset: 2px; }
     .portal-card-title { margin: 16px 0 4px; font-size: 16px; font-weight: 600; }
+    .portal-radio { display: flex; align-items: center; gap: 8px; min-height: 44px; }
   `,
 })
 export class PortalOffers {

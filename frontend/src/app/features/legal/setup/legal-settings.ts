@@ -59,7 +59,7 @@ export function parseAlertLevels(text: string): number[] | null {
             </select>
           </app-field>
           <fieldset>
-            <legend class="form-label fs-6">Quem pode adiantar custas</legend>
+            <legend class="form-label fs-5">Quem pode adiantar custas</legend>
             @for (o of advancers; track o.value) {
               <div class="form-check">
                 <input
@@ -119,8 +119,8 @@ export function parseAlertLevels(text: string): number[] | null {
           </app-field>
         </div>
         <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" id="legals-yearEndRecess" formControlName="yearEndRecess" />
-          <label class="form-check-label" for="legals-yearEndRecess">Recesso forense de 20/12 a 20/01 nos prazos em dias úteis (CPC art. 220)</label>
+          <input class="form-check-input" type="checkbox" role="switch" id="ls-year-end-recess" formControlName="yearEndRecess" />
+          <label class="form-check-label" for="ls-year-end-recess">Recesso forense de 20/12 a 20/01 nos prazos em dias úteis (CPC art. 220)</label>
         </div>
         @if (canManage()) {
           <div class="app-form-actions">
@@ -133,7 +133,7 @@ export function parseAlertLevels(text: string): number[] | null {
         <div class="ls-head">
           <h2 class="app-card__title" id="ls-suspensions">Suspensões forenses</h2>
           @if (canManage()) {
-            <button class="btn btn-outline-primary" type="button" (click)="addSuspension()"><app-icon name="plus-lg" />Nova suspensão</button>
+            <button class="btn btn-outline-primary" type="button" (click)="addSuspension()"><app-icon name="plus-lg" /> Nova suspensão</button>
           }
         </div>
         <p class="app-muted">Períodos sem expediente além dos feriados (por tribunal ou para todos). Incluir ou remover recalcula os prazos pendentes.</p>

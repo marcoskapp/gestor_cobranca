@@ -57,7 +57,7 @@ import { Icon } from '../../../shared/components/icon/icon';
           <div class="fs-head">
             <h3 class="fs-title" [id]="'fs-' + c.column">{{ label(c.column) }} <span class="app-muted app-mono">{{ c.column }}</span></h3>
             <span class="app-status" [class]="'app-status app-status--' + status(c).tone">
-              <app-icon [name]="c.requiresDecision ? 'question-circle' : 'check-lg'" />{{ status(c).label }}
+              <app-icon [name]="c.requiresDecision ? 'question-circle' : 'check-lg'" /> {{ status(c).label }}
             </span>
           </div>
           <p class="app-muted fs-counts">
@@ -66,7 +66,7 @@ import { Icon } from '../../../shared/components/icon/icon';
             }
           </p>
           @if (c.suggestion && c.requiresDecision) {
-            <p class="fs-suggestion"><app-icon name="lightbulb" />As outras colunas do arquivo usam {{ optionLabel(c.suggestion) }}.</p>
+            <p class="fs-suggestion"><app-icon name="lightbulb" /> As outras colunas do arquivo usam {{ optionLabel(c.suggestion) }}.</p>
           }
           @let editable = canEdit() && (c.requiresDecision || c.options.length > 1);
           <mat-radio-group class="fs-options" [attr.aria-label]="'Leitura de ' + label(c.column)" [value]="chosen()[c.column]" (change)="choose(c.column, $event.value)" [disabled]="!editable">
@@ -75,14 +75,14 @@ import { Icon } from '../../../shared/components/icon/icon';
                 <mat-radio-button [value]="o.option">
                   <strong>{{ optionLabel(o.option) }}</strong>
                   @if (c.recommended === o.option) {
-                    <span class="app-status app-status--info fs-badge"><app-icon name="stars" />indicada pelos dados</span>
+                    <span class="app-status app-status--info fs-badge"><app-icon name="stars" /> indicada pelos dados</span>
                   }
                 </mat-radio-button>
                 <p class="app-muted fs-hint">{{ hint(o.option) }}</p>
                 <p class="fs-total">
                   Soma da coluna: <strong><app-amount [value]="o.total" /></strong>
                   @if (o.invalidCount) {
-                    <span class="fs-invalid"><app-icon name="exclamation-triangle" />{{ o.invalidCount | number }} valor(es) não lidos nesta leitura</span>
+                    <span class="fs-invalid"><app-icon name="exclamation-triangle" /> {{ o.invalidCount | number }} valor(es) não lidos nesta leitura</span>
                   }
                 </p>
                 <table class="fs-examples">
@@ -123,7 +123,7 @@ import { Icon } from '../../../shared/components/icon/icon';
         }
         <div class="fs-actions">
           @if (f.confirmed && !editing()) {
-            <button class="btn btn-outline-primary" type="button" (click)="editing.set(true)"><app-icon name="pencil" />Alterar a leitura</button>
+            <button class="btn btn-outline-primary" type="button" (click)="editing.set(true)"><app-icon name="pencil" /> Alterar a leitura</button>
           } @else {
             <button class="btn btn-primary" type="button" (click)="confirm()" [disabled]="saving() || missing().length > 0" data-tour="review-format-confirm">
               <app-icon name="check-lg" />

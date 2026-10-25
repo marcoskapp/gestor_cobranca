@@ -20,7 +20,7 @@ import { FORM_FIELD } from '../../shared/forms/field';
     <section class="portal-card">
       @if (step(); as s) {
         <h1 class="portal-title">Confirme seus dados</h1>
-        <p class="portal-subtitle">Para sua segurança, informe o dado abaixo.</p>
+        <p class="mb-3 text-body-secondary">Para sua segurança, informe o dado abaixo.</p>
         <form (submit)="$event.preventDefault(); confirm(s)" novalidate>
           <app-field class="portal-field" [label]="knowledge()?.label ?? ''" [hint]="knowledge()?.hint">
             <input appInput class="form-control-lg" [formControl]="answer" autocomplete="off" maxlength="20" />
@@ -40,7 +40,7 @@ import { FORM_FIELD } from '../../shared/forms/field';
           <a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug()]">Entrar com CPF ou CNPJ</a>
         </div>
       } @else {
-        <p class="portal-loading" role="status" aria-live="polite">Verificando o link…</p>
+        <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Verificando o link…</p>
       }
     </section>
   `,

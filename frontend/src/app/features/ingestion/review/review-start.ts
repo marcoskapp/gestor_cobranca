@@ -25,7 +25,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
   imports: [...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, EntityPicker, PageHeader],
   template: `
     <app-page-header title="Nova importação" subtitle="Envie o arquivo do credor. Antes de gravar, você confere formato, totais e alertas.">
-      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" />Importações</a>
+      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
     </app-page-header>
 
     <ol class="rs-steps" aria-label="Etapas da conferência">

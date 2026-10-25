@@ -47,8 +47,8 @@ import { Icon } from '../../../shared/components/icon/icon';
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
       <div class="form-check form-switch ld-toggle">
-        <input class="form-check-input" type="checkbox" role="switch" id="legald-mine" formControlName="mine" />
-        <label class="form-check-label" for="legald-mine">Somente prazos sob minha responsabilidade</label>
+        <input class="form-check-input" type="checkbox" role="switch" id="ld-mine" formControlName="mine" />
+        <label class="form-check-label" for="ld-mine">Somente prazos sob minha responsabilidade</label>
       </div>
     </form>
 

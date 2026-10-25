@@ -35,7 +35,7 @@ import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
           <p class="app-muted ns-small" role="status">Período sugerido pelo fechamento {{ s.settlementDay ? 'do dia ' + s.settlementDay : 'do contrato' }}. Ajuste só se o credor pediu outro ciclo (até 3 meses, sem lacunas).</p>
         }
         <fieldset class="mt-3" aria-describedby="ns-period-hint">
-          <legend class="form-label fs-6 mb-1">Período</legend>
+          <legend class="form-label fs-5 mb-1">Período</legend>
           <div class="row g-2">
             <app-field class="col-sm-6" label="Início">
               <div class="input-group">

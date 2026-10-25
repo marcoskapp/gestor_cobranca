@@ -143,17 +143,17 @@ export function apiValue(field: FormField, raw: unknown): unknown {
           </dl>
         }
         <div class="fd-grid">
-          @for (f of visible(); track f.key) {
+          @for (f of visible(); track f.key; let first = $first) {
             @let c = control(f.key);
             @switch (f.type) {
               @case ('textarea') {
                 <app-field class="fd-wide" [label]="f.label" [hint]="f.hint" [error]="error(f)">
-                  <textarea appInput rows="3" [formControl]="c" [required]="!!f.required" [attr.maxlength]="f.maxLength ?? null"></textarea>
+                  <textarea appInput rows="3" [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required" [attr.maxlength]="f.maxLength ?? null"></textarea>
                 </app-field>
               }
               @case ('select') {
                 <app-field [class.fd-wide]="f.wide" [label]="f.label" [hint]="f.hint" [error]="error(f)">
-                  <select appInput [formControl]="c" [required]="!!f.required">
+                  <select appInput [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required">
                     @if (!f.required) {
                       <option value="">—</option>
                     }
@@ -165,7 +165,7 @@ export function apiValue(field: FormField, raw: unknown): unknown {
               }
               @case ('multiselect') {
                 <fieldset class="fd-wide" [attr.aria-describedby]="f.hint || (c.invalid && c.touched) ? 'fd-' + f.key + '-help' : null">
-                  <legend class="form-label fs-6">{{ f.label }}</legend>
+                  <legend class="form-label fs-5">{{ f.label }}</legend>
                   @for (o of f.options ?? []; track o.value) {
                     <div class="form-check">
                       <input
@@ -195,7 +195,7 @@ export function apiValue(field: FormField, raw: unknown): unknown {
               @case ('date') {
                 <app-field [label]="f.label" [hint]="f.hint" [error]="error(f)">
                   <div class="input-group">
-                    <input appInput ngbDatepicker #picker="ngbDatepicker" [formControl]="c" [required]="!!f.required" placeholder="dd/mm/aaaa" autocomplete="off" />
+                    <input appInput ngbDatepicker #picker="ngbDatepicker" [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required" placeholder="dd/mm/aaaa" autocomplete="off" />
                     <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário" (click)="picker.toggle()">
                       <app-icon name="calendar-event" />
                     </button>
@@ -204,7 +204,7 @@ export function apiValue(field: FormField, raw: unknown): unknown {
               }
               @case ('datetime') {
                 <app-field [label]="f.label" [hint]="f.hint" [error]="error(f)">
-                  <input appInput type="datetime-local" [formControl]="c" [required]="!!f.required" />
+                  <input appInput type="datetime-local" [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required" />
                 </app-field>
               }
               @case ('entity') {
@@ -236,6 +236,7 @@ export function apiValue(field: FormField, raw: unknown): unknown {
                     }
                     <input
                       appInput
+                      [attr.ngbAutofocus]="first ? '' : null"
                       [type]="f.type === 'number' || f.type === 'money' ? 'number' : 'text'"
                       [step]="f.type === 'money' ? '0.01' : '1'"
                       [formControl]="c"

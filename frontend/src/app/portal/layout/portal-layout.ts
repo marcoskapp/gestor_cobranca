@@ -57,13 +57,13 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
       @if (loggedIn()) {
         <nav class="portal__nav" aria-label="Seções do portal">
           <a [routerLink]="['/portal', slug(), 'dividas']" routerLinkActive="portal__nav--active" ariaCurrentWhenActive="page">
-            <app-icon name="receipt" />Minhas dívidas
+            <app-icon name="receipt" /> Minhas dívidas
           </a>
           <a [routerLink]="['/portal', slug(), 'acordos']" routerLinkActive="portal__nav--active" ariaCurrentWhenActive="page">
-            <app-icon name="person-hearts" />Meus acordos
+            <app-icon name="person-hearts" /> Meus acordos
           </a>
           <a [routerLink]="['/portal', slug(), 'atendimento']" routerLinkActive="portal__nav--active" ariaCurrentWhenActive="page">
-            <app-icon name="headset" />Ajuda
+            <app-icon name="headset" /> Ajuda
           </a>
         </nav>
       }
@@ -71,7 +71,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
     <main class="portal__main" id="portal-conteudo" tabindex="-1">
       @if (site.error()) {
-        <section class="portal-card portal-center" role="alert">
+        <section class="portal-card text-center" role="alert">
           <app-icon class="portal-big-icon" name="link" />
           <h1 class="portal-title">Endereço não encontrado</h1>
           <p>Confira o link recebido ou procure a empresa que enviou a cobrança.</p>
@@ -79,7 +79,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
       } @else if (site.value()) {
         <router-outlet />
       } @else {
-        <p class="portal-loading" role="status" aria-live="polite">Carregando…</p>
+        <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Carregando…</p>
       }
     </main>
 

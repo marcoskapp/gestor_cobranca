@@ -39,7 +39,7 @@
     }
     <span>{{ responsibleLabels[m.responsibleType] }}{{ m.responsibleUserId ? ': ' + userName(m.responsibleUserId) : '' }}</span>
     @if (m.collectionHold) {
-      <span class="app-status app-status--neutral"><app-icon class="app-status__icon" name="pause-circle" />Cobrança amigável retida</span>
+      <span class="app-status app-status--neutral"><app-icon class="app-status__icon" name="pause-circle" /> Cobrança amigável retida</span>
     }
     @if (canSeeCase()) {
       <a [routerLink]="['/cobranca/casos', m.collectionCaseId]">Caso de cobrança</a>
@@ -54,9 +54,9 @@
     }
   }
 
-  <ul ngbNav #nav="ngbNav" class="nav-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="matter-tabs">
+  <ul ngbNav #nav="ngbNav" class="nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="matter-tabs">
     <li [ngbNavItem]="0">
-      <button type="button" ngbNavLink>Resumo</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Resumo</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
           <div class="md-kpis">
@@ -179,19 +179,19 @@
     </li>
 
     <li [ngbNavItem]="1">
-      <button type="button" ngbNavLink>Viabilidade</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Viabilidade</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
           <div class="md-tabhead">
             <p class="app-muted">Dívida cobrável, garantias, patrimônio e custas: valor recuperável = mín(dívida, bens) × probabilidade de êxito.</p>
             @if (canManage() && !final()) {
-              <button class="btn btn-primary" type="button" (click)="recordViability()"><app-icon name="calculator" />Nova análise</button>
+              <button class="btn btn-primary" type="button" (click)="recordViability()"><app-icon name="calculator" /> Nova análise</button>
             }
           </div>
           @if (s.viability; as v) {
             <div class="md-status">
               <span class="app-status" [class]="v.viable ? 'app-status--success' : 'app-status--neutral'">
-                <app-icon class="app-status__icon" [name]="v.viable ? 'check-circle' : 'dash-circle'" />{{ v.viable ? 'Viável' : 'Inviável' }}
+                <app-icon class="app-status__icon" [name]="v.viable ? 'check-circle' : 'dash-circle'" /> {{ v.viable ? 'Viável' : 'Inviável' }}
               </span>
               <span class="app-muted">em {{ v.assessedAt | appDate }}</span>
             </div>
@@ -231,7 +231,7 @@
     </li>
 
     <li [ngbNavItem]="2">
-      <button type="button" ngbNavLink>Autorização</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Autorização</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
           <div class="md-tabhead">
@@ -281,13 +281,13 @@
     </li>
 
     <li [ngbNavItem]="3">
-      <button type="button" ngbNavLink>Medidas ({{ s.measures.length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Medidas ({{ s.measures.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
           <div class="md-tabhead">
             <p class="app-muted">Notificação, protesto, negativação e execução extrajudicial da garantia.</p>
             @if (canManage() && !final()) {
-              <button class="btn btn-primary" type="button" (click)="registerMeasure()"><app-icon name="plus-lg" />Nova medida</button>
+              <button class="btn btn-primary" type="button" (click)="registerMeasure()"><app-icon name="plus-lg" /> Nova medida</button>
             }
           </div>
           <ul class="md-cards">
@@ -326,13 +326,13 @@
     </li>
 
     <li [ngbNavItem]="4">
-      <button type="button" ngbNavLink>Processos ({{ s.lawsuits.length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Processos ({{ s.lawsuits.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab" data-tour="matter-lawsuits">
           <div class="md-tabhead">
             <p class="app-muted">Andamentos são lançados manualmente até a captura automática (DataJud) ser habilitada.</p>
             @if (canManage() && !final()) {
-              <button class="btn btn-primary" type="button" (click)="registerLawsuit()"><app-icon name="plus-lg" />Cadastrar processo</button>
+              <button class="btn btn-primary" type="button" (click)="registerLawsuit()"><app-icon name="plus-lg" /> Cadastrar processo</button>
             }
           </div>
           @for (l of s.lawsuits; track l.id) {
@@ -345,13 +345,13 @@
     </li>
 
     <li [ngbNavItem]="5">
-      <button type="button" ngbNavLink>Prazos ({{ deadlines().length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Prazos ({{ deadlines().length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab" data-tour="matter-deadlines">
           <div class="md-tabhead">
             <p class="app-muted">Dias úteis com feriados, suspensões forenses e recesso; alertas em 5, 2 e 0 dias úteis.</p>
             @if (canManage() && !final()) {
-              <button class="btn btn-primary" type="button" (click)="createDeadline()"><app-icon name="plus-lg" />Novo prazo</button>
+              <button class="btn btn-primary" type="button" (click)="createDeadline()"><app-icon name="plus-lg" /> Novo prazo</button>
             }
           </div>
           <ul class="md-cards">
@@ -386,7 +386,7 @@
     </li>
 
     <li [ngbNavItem]="6">
-      <button type="button" ngbNavLink>Custas ({{ s.expenses.length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Custas ({{ s.expenses.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
           <div class="md-tabhead">
@@ -394,7 +394,7 @@
               Orçamento <app-amount [value]="m.authorizedBudget" /> · registrado <app-amount [value]="m.expensesTotal" />
             </p>
             @if (canExpense() && !final()) {
-              <button class="btn btn-primary" type="button" (click)="recordExpense()"><app-icon name="plus-lg" />Registrar despesa</button>
+              <button class="btn btn-primary" type="button" (click)="recordExpense()"><app-icon name="plus-lg" /> Registrar despesa</button>
             }
           </div>
           <div class="md-scroll">
@@ -442,13 +442,13 @@
     </li>
 
     <li [ngbNavItem]="7">
-      <button type="button" ngbNavLink>Documentos ({{ s.documents.length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Documentos ({{ s.documents.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
           <div class="md-tabhead">
             <p class="app-muted">Evidências e peças do caso. Todo download fica registrado.</p>
             @if (canUpload()) {
-              <button class="btn btn-primary" type="button" (click)="upload()"><app-icon name="file-earmark-arrow-up" />Anexar documento</button>
+              <button class="btn btn-primary" type="button" (click)="upload()"><app-icon name="file-earmark-arrow-up" /> Anexar documento</button>
             }
           </div>
           <ul class="md-cards">

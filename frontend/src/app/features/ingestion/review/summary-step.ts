@@ -149,8 +149,8 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
             <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
           }
           <div class="ss-actions">
-            <button class="btn btn-outline-primary" type="button" (click)="reject()" [disabled]="sending()"><app-icon name="slash-circle" />Recusar</button>
-            <button class="btn btn-primary" type="button" (click)="approve()" [disabled]="sending()"><app-icon name="patch-check" />Aprovar e importar</button>
+            <button class="btn btn-outline-primary" type="button" (click)="reject()" [disabled]="sending()"><app-icon name="slash-circle" /> Recusar</button>
+            <button class="btn btn-primary" type="button" (click)="approve()" [disabled]="sending()"><app-icon name="patch-check" /> Aprovar e importar</button>
           </div>
         }
       </section>
@@ -159,7 +159,7 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
         <app-icon name="check2-circle" />
         <span>Importação criada{{ r.commit.decidedAt ? ' com aprovação em ' + (r.commit.decidedAt | appDate) : '' }}. Acompanhe o processamento no lote.</span>
       </div>
-      <a class="btn btn-primary" [routerLink]="['/importacao', r.commit.importBatchId]"><app-icon name="box-arrow-up-right" />Abrir a importação</a>
+      <a class="btn btn-primary" [routerLink]="['/importacao', r.commit.importBatchId]"><app-icon name="box-arrow-up-right" /> Abrir a importação</a>
     } @else if (r.status === 'REJECTED') {
       <div class="alert alert-danger d-flex align-items-start gap-2" role="status"><app-icon name="slash-circle" /><span>Importação recusada: {{ r.commit.decisionNote }}</span></div>
     } @else {

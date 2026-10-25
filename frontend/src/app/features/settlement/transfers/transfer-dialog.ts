@@ -53,7 +53,7 @@ export interface TransferDialogData {
         </dl>
         <div class="app-form-grid">
           <app-field label="Valor (R$)" hint="Parcial permitido, até o saldo" error="Valor entre R$ 0,01 e o saldo.">
-            <input appInput formControlName="amount" inputmode="decimal" required />
+            <input appInput ngbAutofocus formControlName="amount" inputmode="decimal" required />
           </app-field>
           <app-field label="Data da transferência" error="Entre o fim do período e hoje.">
             <div class="input-group">

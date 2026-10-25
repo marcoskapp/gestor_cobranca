@@ -48,7 +48,7 @@ import { Icon } from '../../../shared/components/icon/icon';
           <label class="btn btn-outline-primary" for="vs-severity-warning">Avisos</label>
         </div>
         @if (b.issuesRecorded) {
-          <button class="btn btn-outline-primary" type="button" (click)="report()"><app-icon name="download" />Relatório</button>
+          <button class="btn btn-outline-primary" type="button" (click)="report()"><app-icon name="download" /> Relatório</button>
         }
         <a class="btn btn-link" [routerLink]="['/importacao', b.id]">Abrir a prévia</a>
       </div>

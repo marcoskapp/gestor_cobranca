@@ -15,15 +15,15 @@ import { Icon } from '../../shared/components/icon/icon';
   imports: [Icon, RouterLink, Amount, AppDatePipe],
   template: `
     <h1 class="portal-title">Minhas dívidas</h1>
-    <p class="portal-subtitle">Com {{ debts.value()?.creditorName ?? '…' }}</p>
+    <p class="mb-3 text-body-secondary">Com {{ debts.value()?.creditorName ?? '…' }}</p>
 
     @if (debts.isLoading() && !debts.value()) {
-      <p class="portal-loading" role="status" aria-live="polite">Buscando suas dívidas…</p>
+      <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Buscando suas dívidas…</p>
     } @else if (debts.error()) {
       <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
       <div class="portal-actions"><button class="btn btn-outline-primary portal-btn-outline" type="button" (click)="debts.reload()">Tentar de novo</button></div>
     } @else if ((debts.value()?.portfolios ?? []).length === 0) {
-      <section class="portal-card portal-center">
+      <section class="portal-card text-center">
         <app-icon class="portal-big-icon" name="check2-circle" />
         <h2 class="portal-title">Nenhuma dívida em aberto</h2>
         <p>Não encontramos dívidas em aberto neste portal. Se tiver dúvidas, fale com um atendente.</p>

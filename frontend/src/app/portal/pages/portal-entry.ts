@@ -29,7 +29,7 @@ import { FORM_FIELD } from '../../shared/forms/field';
     <section class="portal-card">
       @if (!challenge()) {
         <h1 class="portal-title" #heading tabindex="-1">Consulte e negocie suas dívidas</h1>
-        <p class="portal-subtitle">Veja o valor atualizado, escolha como pagar e feche o acordo aqui mesmo.</p>
+        <p class="mb-3 text-body-secondary">Veja o valor atualizado, escolha como pagar e feche o acordo aqui mesmo.</p>
         <form (submit)="$event.preventDefault(); requestCode()" novalidate>
           <app-field class="portal-field" label="CPF ou CNPJ" hint="Só os números já bastam" error="Confira o CPF ou CNPJ">
             <input appInput class="form-control-lg" [formControl]="document" inputmode="numeric" autocomplete="off" maxlength="18" (input)="onDocumentInput()" />
@@ -56,7 +56,7 @@ import { FORM_FIELD } from '../../shared/forms/field';
         </form>
       } @else {
         <h1 class="portal-title" #heading tabindex="-1">Digite o código</h1>
-        <p class="portal-subtitle" role="status">
+        <p class="mb-3 text-body-secondary" role="status">
           Se o documento estiver cadastrado, você vai receber um código de {{ challenge()!.codeLength }} números
           pelo {{ channelLabels[challenge()!.channel] }}. Ele vale por alguns minutos.
         </p>
@@ -83,7 +83,7 @@ import { FORM_FIELD } from '../../shared/forms/field';
   `,
   styles: `
     .portal-fieldset { margin: 8px 0 0; padding: 0; border: 0; }
-    .portal-fieldset legend { margin-bottom: 4px; font-weight: 500; }
+    .portal-fieldset legend { margin-bottom: 4px; font-size: 1rem; font-weight: 500; }
     .portal-radio { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; }
   `,
 })

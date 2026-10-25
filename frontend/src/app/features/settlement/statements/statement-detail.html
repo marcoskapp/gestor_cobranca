@@ -156,9 +156,9 @@
     <app-empty-state icon="calculator" title="Ainda não calculado." message="Calcule depois do fim do período para ver recebimentos, comissão e o líquido a repassar." />
   }
 
-  <ul ngbNav #tabs="ngbNav" class="nav-tabs sd-tabs">
+  <ul ngbNav #tabs="ngbNav" class="nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden sd-tabs">
     <li [ngbNavItem]="0">
-      <button type="button" ngbNavLink>Recebimentos ({{ s.totals?.receipts ?? 0 }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Recebimentos ({{ s.totals?.receipts ?? 0 }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab">
           <app-receipt-table [query]="receiptQuery" [showCreditor]="false" emptyMessage="Nenhum recebimento neste demonstrativo." />
@@ -166,7 +166,7 @@
       </ng-template>
     </li>
     <li [ngbNavItem]="1">
-      <button type="button" ngbNavLink>Custas reembolsáveis ({{ expenses().length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Custas reembolsáveis ({{ expenses().length }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-expenses">
           <p class="app-muted st-small">Adiantadas pela assessoria ou por escritório parceiro: deduzidas do repasse (o credor reembolsa). Pagas pelo credor ou não reembolsáveis: só informativas.</p>
@@ -202,9 +202,9 @@
                       <td class="st-end"><app-amount [value]="e.amount" [signed]="e.kind === 'CANCELLATION'" /></td>
                       <td>
                         @if (e.effect === 'DEDUCT') {
-                          <span class="app-status app-status--warning"><app-icon class="app-status__icon" name="dash-circle" />Deduzida</span>
+                          <span class="app-status app-status--warning"><app-icon class="app-status__icon" name="dash-circle" /> Deduzida</span>
                         } @else {
-                          <span class="app-status app-status--neutral"><app-icon class="app-status__icon" name="info-circle" />Informativa</span>
+                          <span class="app-status app-status--neutral"><app-icon class="app-status__icon" name="info-circle" /> Informativa</span>
                         }
                       </td>
                       <td>{{ e.hasReceipt ? 'Sim' : 'Não' }}</td>
@@ -220,7 +220,7 @@
       </ng-template>
     </li>
     <li [ngbNavItem]="2">
-      <button type="button" ngbNavLink>Ajustes ({{ adjustments().length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Ajustes ({{ adjustments().length }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-adjustments">
           <div class="st-head">
@@ -263,7 +263,7 @@
       </ng-template>
     </li>
     <li [ngbNavItem]="3">
-      <button type="button" ngbNavLink>Arquivos ({{ exportRows().length }})</button>
+      <button type="button" class="text-nowrap" ngbNavLink>Arquivos ({{ exportRows().length }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-exports">
           @if (act.export) {
@@ -290,9 +290,9 @@
               <p class="st-small">
                 SHA-256 <span class="st-hash">{{ groupedHash(x.sha256) }}</span>
                 @if (verified().get(x.id) === true) {
-                  <span class="app-status app-status--success"><app-icon class="app-status__icon" name="patch-check" />Conferido no download</span>
+                  <span class="app-status app-status--success"><app-icon class="app-status__icon" name="patch-check" /> Conferido no download</span>
                 } @else if (verified().get(x.id) === false) {
-                  <span class="app-status app-status--danger"><app-icon class="app-status__icon" name="exclamation-circle" />Não confere</span>
+                  <span class="app-status app-status--danger"><app-icon class="app-status__icon" name="exclamation-circle" /> Não confere</span>
                 }
               </p>
               <p class="app-muted st-small">Gerado por {{ userName(x.generatedBy) }} em {{ x.createdAt | appDate }}. O download fica registrado no log de acesso.</p>
@@ -315,7 +315,7 @@
     </li>
     @if (s.approvedAt) {
       <li [ngbNavItem]="4">
-        <button type="button" ngbNavLink>Repasses ({{ transfers().length }})</button>
+        <button type="button" class="text-nowrap" ngbNavLink>Repasses ({{ transfers().length }})</button>
         <ng-template ngbNavContent>
           <div class="sd-tab">
             @for (t of transfers(); track t.id) {

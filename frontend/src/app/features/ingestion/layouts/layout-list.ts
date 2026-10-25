@@ -34,7 +34,7 @@ interface LayoutFilter {
   imports: [NgbTooltip, Icon, ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Layouts de importação" subtitle="Como as colunas do arquivo de cada credor correspondem aos campos do sistema.">
-      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" />Importações</a>
+      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
       @if (canExecute()) {
         <button class="btn btn-primary" type="button" (click)="publish(null)" [disabled]="!fields().length">
           <app-icon name="plus-lg" />
@@ -66,8 +66,8 @@ interface LayoutFilter {
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
       <div class="form-check form-switch ll-toggle">
-        <input class="form-check-input" type="checkbox" role="switch" id="layout-inactive" formControlName="inactive" />
-        <label class="form-check-label" for="layout-inactive">Incluir versões desativadas</label>
+        <input class="form-check-input" type="checkbox" role="switch" id="ll-inactive" formControlName="inactive" />
+        <label class="form-check-label" for="ll-inactive">Incluir versões desativadas</label>
       </div>
     </form>
 

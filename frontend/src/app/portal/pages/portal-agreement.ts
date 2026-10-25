@@ -14,7 +14,7 @@ import { Icon } from '../../shared/components/icon/icon';
   selector: 'app-portal-agreement',
   imports: [Icon, RouterLink, Amount, AppDatePipe, PortalPix],
   template: `
-    <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'acordos']"><app-icon name="arrow-left" />Meus acordos</a>
+    <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'acordos']"><app-icon name="arrow-left" /> Meus acordos</a>
     @if (agreement.error()) {
       <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
     } @else if (agreement.value(); as a) {
@@ -30,7 +30,7 @@ import { Icon } from '../../shared/components/icon/icon';
         @if (a.termAvailable) {
           <div class="portal-actions">
             <button class="btn btn-outline-primary portal-btn-outline" type="button" (click)="downloadTerm(a.id)">
-              <app-icon name="file-earmark-text" />Baixar termo do acordo (PDF)
+              <app-icon name="file-earmark-text" /> Baixar termo do acordo (PDF)
             </button>
           </div>
         }
@@ -48,7 +48,7 @@ import { Icon } from '../../shared/components/icon/icon';
           } @else if (open(i) && ['FORMALIZED', 'IN_PAYMENT'].includes(a.status)) {
             <div class="portal-actions">
               <button class="btn btn-primary portal-btn" type="button" (click)="loadPix(a.id, i)" [disabled]="loading() === i.id">
-                <app-icon name="qr-code" />{{ loading() === i.id ? 'Gerando…' : 'Pagar com Pix' }}
+                <app-icon name="qr-code" /> {{ loading() === i.id ? 'Gerando…' : 'Pagar com Pix' }}
               </button>
             </div>
           }
@@ -58,7 +58,7 @@ import { Icon } from '../../shared/components/icon/icon';
         <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
       }
     } @else {
-      <p class="portal-loading" role="status" aria-live="polite">Carregando…</p>
+      <p class="py-4 text-center text-body-secondary" role="status" aria-live="polite">Carregando…</p>
     }
   `,
   styles: `

@@ -120,10 +120,9 @@
 
 // ----------------------------------------------------------------- marca nos componentes do Bootstrap
 
-// botão principal (`.btn.btn-primary.portal-btn`)
-.portal .portal-btn {
-  --bs-btn-color: var(--portal-on-ink);
-  --bs-btn-bg: var(--portal-ink);
+// botões principal (`.btn.btn-primary.portal-btn`) e secundário (`.btn.btn-outline-primary.portal-btn-outline`)
+.portal .portal-btn,
+.portal .portal-btn-outline {
   --bs-btn-border-color: var(--portal-ink);
   --bs-btn-hover-color: var(--portal-on-ink);
   --bs-btn-hover-bg: var(--portal-ink-hover);
@@ -131,23 +130,19 @@
   --bs-btn-active-color: var(--portal-on-ink);
   --bs-btn-active-bg: var(--portal-ink-active);
   --bs-btn-active-border-color: var(--portal-ink-active);
-  --bs-btn-disabled-color: var(--portal-on-ink);
-  --bs-btn-disabled-bg: var(--portal-ink);
   --bs-btn-disabled-border-color: var(--portal-ink);
 }
 
-// botão secundário (`.btn.btn-outline-primary.portal-btn-outline`)
+.portal .portal-btn {
+  --bs-btn-color: var(--portal-on-ink);
+  --bs-btn-bg: var(--portal-ink);
+  --bs-btn-disabled-color: var(--portal-on-ink);
+  --bs-btn-disabled-bg: var(--portal-ink);
+}
+
 .portal .portal-btn-outline {
   --bs-btn-color: var(--portal-ink);
-  --bs-btn-border-color: var(--portal-ink);
-  --bs-btn-hover-color: var(--portal-on-ink);
-  --bs-btn-hover-bg: var(--portal-ink);
-  --bs-btn-hover-border-color: var(--portal-ink);
-  --bs-btn-active-color: var(--portal-on-ink);
-  --bs-btn-active-bg: var(--portal-ink-active);
-  --bs-btn-active-border-color: var(--portal-ink-active);
   --bs-btn-disabled-color: var(--portal-ink);
-  --bs-btn-disabled-border-color: var(--portal-ink);
 }
 
 // botão de texto (`.btn.btn-link.portal-btn-link`)
@@ -184,15 +179,6 @@
   font-size: 22px;
   line-height: 1.3;
   font-weight: 600;
-}
-
-.portal-subtitle {
-  margin: 0 0 16px;
-  color: var(--bs-secondary-color);
-}
-
-.portal-center {
-  text-align: center;
 }
 
 app-icon.portal-big-icon {
@@ -257,12 +243,6 @@ app-icon.portal-big-icon {
   &.portal-option--selected {
     border-color: var(--portal-ink);
   }
-}
-
-.portal-loading {
-  padding: 32px 0;
-  text-align: center;
-  color: var(--bs-secondary-color);
 }
 
 @media (min-width: 600px) {

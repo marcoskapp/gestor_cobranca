@@ -36,7 +36,7 @@ const toNumber = (v: string | number | null): number | null => (v === null || v 
       <div class="modal-body">
         <div class="app-form-grid">
           <app-field label="Código" hint="Aparece na memória de cálculo e no arquivo do credor">
-            <input appInput formControlName="code" maxlength="40" required (input)="upper()" />
+            <input appInput ngbAutofocus formControlName="code" maxlength="40" required (input)="upper()" />
           </app-field>
           <app-field label="Percentual (%)">
             <input appInput formControlName="rate" inputmode="decimal" required />

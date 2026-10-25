@@ -55,9 +55,9 @@ import { Icon } from '../../../shared/components/icon/icon';
                 <app-icon name="three-dots-vertical" />
               </button>
               <div ngbDropdownMenu class="shadow app-menu">
-                <button ngbDropdownItem type="button" (click)="scheduleHearing(null)"><app-icon class="me-2" name="calendar-event" />Agendar audiência</button>
+                <button ngbDropdownItem type="button" (click)="scheduleHearing(null)"><app-icon class="me-2" name="calendar-event" /> Agendar audiência</button>
                 @if (nextStatuses().length) {
-                  <button ngbDropdownItem type="button" (click)="changeStatus()"><app-icon class="me-2" name="arrow-left-right" />Alterar situação</button>
+                  <button ngbDropdownItem type="button" (click)="changeStatus()"><app-icon class="me-2" name="arrow-left-right" /> Alterar situação</button>
                 }
               </div>
             </div>

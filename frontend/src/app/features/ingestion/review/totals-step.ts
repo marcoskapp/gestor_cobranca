@@ -51,11 +51,11 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
             @let group = form.controls[f.key];
             <div class="ts-field" [formGroup]="group">
               <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="totals-use" formControlName="use" />
-                <label class="form-check-label" for="totals-use">{{ f.label }}</label>
+                <input class="form-check-input" type="checkbox" [id]="'totals-use-' + f.key" formControlName="use" />
+                <label class="form-check-label" [for]="'totals-use-' + f.key">{{ f.label }}</label>
               </div>
               @if (group.controls.use.value) {
-                <app-field class="ts-input" [label]="(f.key === 'rows' ? 'Linhas na planilha' : 'Total na planilha (R$)')" [hint]="(preview(f.key))">
+                <app-field class="ts-input" [label]="f.key === 'rows' ? 'Linhas na planilha' : 'Total na planilha (R$)'" [hint]="preview(f.key)">
                   <input appInput [formControl]="group.controls.value" [attr.inputmode]="f.key === 'rows' ? 'numeric' : 'decimal'" autocomplete="off" [placeholder]="f.key === 'rows' ? '1.250' : '1.234.567,89'" />
                 </app-field>
               }
@@ -65,7 +65,7 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
             <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
           }
           <div class="ts-actions">
-            <button class="btn btn-primary" type="submit" [disabled]="saving() || !request()"><app-icon name="card-checklist" />Conferir</button>
+            <button class="btn btn-primary" type="submit" [disabled]="saving() || !request()"><app-icon name="card-checklist" /> Conferir</button>
           </div>
         </form>
       }
@@ -73,9 +73,9 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
         <section class="app-card ts-result" aria-labelledby="ts-result" aria-live="polite">
           <h3 class="ts-title" id="ts-result">
             @if (r.matched) {
-              <span class="app-status app-status--success"><app-icon name="check2-circle" />Os totais conferem</span>
+              <span class="app-status app-status--success"><app-icon name="check2-circle" /> Os totais conferem</span>
             } @else {
-              <span class="app-status app-status--danger"><app-icon name="exclamation-circle" />Os totais não conferem: a importação fica bloqueada</span>
+              <span class="app-status app-status--danger"><app-icon name="exclamation-circle" /> Os totais não conferem: a importação fica bloqueada</span>
             }
           </h3>
           <div class="ts-table-wrap">
@@ -93,9 +93,9 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
                     <td class="num">{{ value(m, m.difference, true) }}</td>
                     <td>
                       @if (m.matches) {
-                        <span class="app-status app-status--success"><app-icon name="check-lg" />Confere</span>
+                        <span class="app-status app-status--success"><app-icon name="check-lg" /> Confere</span>
                       } @else {
-                        <span class="app-status app-status--danger"><app-icon name="x-lg" />Diverge</span>
+                        <span class="app-status app-status--danger"><app-icon name="x-lg" /> Diverge</span>
                         @if (m.scaleExponent !== null) {
                           <div class="ts-note">{{ scale(m.scaleExponent) }}</div>
                         }
@@ -115,7 +115,7 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
             }
           }
           @if (needsFormat(r)) {
-            <button class="btn btn-outline-primary" type="button" (click)="goTo.emit(2)"><app-icon name="arrow-left" />Rever o formato dos valores</button>
+            <button class="btn btn-outline-primary" type="button" (click)="goTo.emit(2)"><app-icon name="arrow-left" /> Rever o formato dos valores</button>
           }
           @if (!r.matched && r.suspectRows.length) {
             <h4 class="ts-sub">Linhas para conferir primeiro</h4>

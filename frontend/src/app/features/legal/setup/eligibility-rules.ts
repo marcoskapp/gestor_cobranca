@@ -40,7 +40,7 @@ export function ruleCriteria(r: Pick<RuleView, 'minDaysOverdue' | 'minOpenBalanc
   template: `
     <app-page-header title="Regras de elegibilidade" subtitle="Quando um caso de cobrança é indicado ao jurídico. Critérios combinam por “e”; regras somam-se por “ou”.">
       @if (canManage()) {
-        <button class="btn btn-primary" type="button" (click)="edit(null)"><app-icon name="plus-lg" />Nova regra</button>
+        <button class="btn btn-primary" type="button" (click)="edit(null)"><app-icon name="plus-lg" /> Nova regra</button>
       }
     </app-page-header>
     <app-data-table

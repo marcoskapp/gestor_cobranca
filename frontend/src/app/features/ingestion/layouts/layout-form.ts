@@ -103,8 +103,8 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
             </app-field>
           }
           <div class="form-check align-self-end">
-            <input class="form-check-input" type="checkbox" id="layout-hasHeader" formControlName="hasHeader" />
-            <label class="form-check-label" for="layout-hasHeader">Primeira linha é cabeçalho</label>
+            <input class="form-check-input" type="checkbox" id="lf-has-header" formControlName="hasHeader" />
+            <label class="form-check-label" for="lf-has-header">Primeira linha é cabeçalho</label>
           </div>
         </div>
 
@@ -134,7 +134,7 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
             </div>
           }
         </div>
-        <button class="btn btn-link" type="button" (click)="add()" [disabled]="columns.length >= 60"><app-icon name="plus-lg" />Coluna</button>
+        <button class="btn btn-link" type="button" (click)="add()" [disabled]="columns.length >= 60"><app-icon name="plus-lg" /> Coluna</button>
         @for (p of problems(); track p) {
           <div class="invalid-feedback d-block" role="alert">{{ p }}</div>
         }

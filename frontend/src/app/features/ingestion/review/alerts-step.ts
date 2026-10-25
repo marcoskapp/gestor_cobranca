@@ -84,11 +84,11 @@ export function referenceSummary(references: Record<string, unknown>): string | 
           @if (canEdit()) {
             <span class="as-spacer"></span>
             @if (status() === 'OPEN') {
-              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('CONFIRM', false)"><app-icon name="check-lg" />Confirmo que está correto</button>
-              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('EXCLUDE', false)"><app-icon name="dash-circle" />Excluir do lote</button>
+              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('CONFIRM', false)"><app-icon name="check-lg" /> Confirmo que está correto</button>
+              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('EXCLUDE', false)"><app-icon name="dash-circle" /> Excluir do lote</button>
               <button class="btn btn-link" type="button" [disabled]="!openInFilter()" (click)="decide('CONFIRM', true)">Confirmar todos os abertos{{ type() ? ' deste tipo' : '' }}</button>
             } @else if (status()) {
-              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('REOPEN', false)"><app-icon name="arrow-counterclockwise" />Reabrir</button>
+              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('REOPEN', false)"><app-icon name="arrow-counterclockwise" /> Reabrir</button>
             }
           }
         </div>
@@ -122,7 +122,7 @@ export function referenceSummary(references: Record<string, unknown>): string | 
               [class.bg-warning-subtle]="!x.scale"
               [class.text-warning-emphasis]="!x.scale"
             >
-              <app-icon [name]="x.scale ? 'exclamation-lg' : 'info-circle'" />{{ typeLabel(x.type) }}
+              <app-icon [name]="x.scale ? 'exclamation-lg' : 'info-circle'" /> {{ typeLabel(x.type) }}
             </span>
           </ng-template>
           <ng-template appCell="amount" [appCellOf]="alerts.rows()" let-x>
@@ -167,6 +167,7 @@ export function referenceSummary(references: Record<string, unknown>): string | 
       color: inherit;
       font: inherit;
       font-size: var(--app-text-sm);
+      text-align: start;
       cursor: pointer;
     }
     .as-chip--active {

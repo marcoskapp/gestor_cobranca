@@ -59,7 +59,7 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
         <h3 class="app-section-title">Premissas</h3>
         <div class="vd-grid">
           <app-field label="Outros bens localizados (R$)">
-            <input appInput type="number" min="0" step="0.01" formControlName="otherAssetsValue" />
+            <input appInput ngbAutofocus type="number" min="0" step="0.01" formControlName="otherAssetsValue" />
           </app-field>
           <app-field label="Taxa de realização (%)" hint="Padrão 70%">
             <input appInput type="number" min="0" max="100" formControlName="realizationRate" />
@@ -119,7 +119,7 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
           </app-field>
           @if (form.controls.viable.value) {
             <fieldset class="mb-3">
-              <legend class="form-label fs-6">Vias recomendadas</legend>
+              <legend class="form-label fs-5">Vias recomendadas</legend>
               @for (rt of r.availableRoutes; track rt) {
                 <div class="form-check">
                   <input
@@ -154,7 +154,7 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
   styles: `
     .vd-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 12px;
     }
     .vd-result {

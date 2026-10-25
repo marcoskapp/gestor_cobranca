@@ -57,9 +57,9 @@ import { Icon } from '../../../shared/components/icon/icon';
     }
     @if (current(); as r) {
       <app-page-header title="Conferência da importação" [subtitle]="(r.batch.fileName || 'Registros') + ' · ' + creditors.name(r.creditorId) + ' · ' + portfolios.name(r.portfolioId)">
-        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" />Importações</a>
+        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
         @if (canExecute() && (r.status === 'OPEN' || r.status === 'AWAITING_APPROVAL')) {
-          <button class="btn btn-outline-primary" type="button" (click)="cancel(r)"><app-icon name="x-circle" />Cancelar conferência</button>
+          <button class="btn btn-outline-primary" type="button" (click)="cancel(r)"><app-icon name="x-circle" /> Cancelar conferência</button>
         }
       </app-page-header>
 
@@ -123,7 +123,7 @@ import { Icon } from '../../../shared/components/icon/icon';
                 <dd class="app-mono rw-break">{{ r.batch.fileSha256 }}</dd>
               </dl>
               <p class="app-muted rw-small">Nada é gravado na carteira até você confirmar a importação no último passo. Arquivo errado? Cancele e envie outro.</p>
-              <a class="btn btn-outline-primary" routerLink="/importacao/nova" [queryParams]="{ carteira: r.portfolioId }"><app-icon name="file-earmark-arrow-up" />Enviar outro arquivo</a>
+              <a class="btn btn-outline-primary" routerLink="/importacao/nova" [queryParams]="{ carteira: r.portfolioId }"><app-icon name="file-earmark-arrow-up" /> Enviar outro arquivo</a>
             }
             @case (2) {
               <app-format-step [review]="r" [canExecute]="canExecute()" (changed)="replace($event)" />
@@ -144,12 +144,12 @@ import { Icon } from '../../../shared/components/icon/icon';
         }
         <div class="rw-nav">
           @if (s.step > 1) {
-            <button class="btn btn-link" type="button" (click)="go(s.step - 1)"><app-icon name="chevron-left" />Voltar</button>
+            <button class="btn btn-link" type="button" (click)="go(s.step - 1)"><app-icon name="chevron-left" /> Voltar</button>
           }
           <span class="rw-nav__spacer"></span>
           @if (s.step < 6) {
             <button class="btn btn-outline-primary" type="button" (click)="go(s.step + 1)" [disabled]="!reachable().includes(s.step + 1)">
-              Avançar<app-icon name="chevron-right" />
+              Avançar <app-icon name="chevron-right" />
             </button>
           }
         </div>
