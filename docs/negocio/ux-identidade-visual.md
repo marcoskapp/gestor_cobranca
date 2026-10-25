@@ -22,7 +22,8 @@ Uma interface **leve e fácil de operar** durante turnos longos, que funcione no
 - **Cores**: azul institucional como cor principal, cinzas frios nas superfícies. Cores de estado (verde, amarelo, vermelho, azul, cinza) **sempre acompanhadas de texto e ícone**, para quem tem daltonismo e para leitura rápida.
 - **Tema claro e escuro**: segue o sistema operacional por padrão; cada pessoa pode fixar claro ou escuro. O escuro reduz o brilho em jornadas longas e ambientes com pouca luz.
 - **Densidade**: *confortável* (padrão) ou *compacta*, que mostra mais linhas por tela para quem trabalha com alto volume. Em telas de toque a densidade compacta é ignorada para manter os alvos grandes.
-- **Tipografia**: Inter, fonte de código aberto projetada para telas, servida pela própria aplicação (sem serviços externos). Números alinhados em colunas para facilitar a conferência de valores.
+- **Tipografia**: Inter, fonte de código aberto projetada para telas, servida pela própria aplicação (sem serviços externos), em traço fino e delicado. Números alinhados em colunas para facilitar a conferência de valores.
+- **Forma**: componentes arredondados (botões, campos, cartões e diálogos com cantos suaves), construídos com o **Bootstrap 5.3**, ajustado só pelos parâmetros oficiais do framework para facilitar a atualização para versões futuras.
 - **Preferências que acompanham a pessoa**: tema, densidade e menu recolhido ficam salvos na conta e valem em qualquer computador ou celular.
 
 ## Navegação
@@ -74,7 +75,7 @@ Seguimos as diretrizes **WCAG 2.2 nível AA**: contraste alto em ambos os temas,
 
 | # | Decisão | Alternativa considerada | Motivo |
 | --- | --- | --- | --- |
-| 1 | Manter Material 3 com tokens próprios | Biblioteca de componentes diferente | Já adotado no projeto, acessível e com suporte a temas |
+| 1 | ~~Manter Material 3 com tokens próprios~~ — **substituído** por decisão do responsável: Bootstrap 5.3 + ng-bootstrap, migração em ondas (decisões 220+ em `decisoes-autonomas.md`) | Biblioteca de componentes diferente | Decisão do responsável (componentes arredondados, fonte fina, parametrização oficial do Bootstrap) |
 | 2 | Tema do sistema como padrão, com claro/escuro opcional | Só tema claro | Conforto em turnos longos; preferência por pessoa |
 | 3 | Densidade confortável como padrão, compacta opcional | Compacta para todos | Legibilidade para iniciantes; volume para experientes |
 | 4 | Fonte Inter servida pela aplicação | Fonte do sistema ou CDN do Google | Legibilidade uniforme; sem serviço externo (segurança e privacidade) |
