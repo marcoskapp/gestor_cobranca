@@ -20,6 +20,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -79,6 +80,14 @@ class CommissionPlanController {
         return plans.updateDraft(id, request.toCommand());
     }
 
+    @DeleteMapping("/plans/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('COMMISSION_PLAN_MANAGE')")
+    @Operation(summary = "Descarta um rascunho (versões publicadas ou aposentadas não podem ser removidas)")
+    void discard(@PathVariable UUID id) {
+        plans.discardDraft(id);
+    }
+
     @PostMapping("/plans/{id}/versions")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('COMMISSION_PLAN_MANAGE')")
@@ -118,6 +127,14 @@ class CommissionPlanController {
     @Operation(summary = "Define a meta de um negociador ou equipe no período")
     GoalView setGoal(@Valid @RequestBody GoalRequest request) {
         return plans.setGoal(new GoalCommand(request.period(), request.subjectType(), request.subjectId(), request.target()));
+    }
+
+    @DeleteMapping("/goals/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('COMMISSION_PLAN_MANAGE')")
+    @Operation(summary = "Remove a meta de um período aberto (volta a valer a meta padrão do plano)")
+    void removeGoal(@PathVariable UUID id) {
+        plans.removeGoal(id);
     }
 
     record PlanRequest(@NotBlank @Pattern(regexp = "[A-Z0-9_]{2,40}") String code,

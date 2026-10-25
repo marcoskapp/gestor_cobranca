@@ -24,9 +24,16 @@ public interface CommissionPlanRepository {
 
     boolean existsByCode(String code);
 
+    /** Remove um rascunho (o banco recusa a remoção de versão publicada). */
+    void delete(CommissionPlan plan);
+
     GoalTarget saveGoal(GoalTarget goal);
 
     Optional<GoalTarget> findGoal(LocalDate periodStart, GoalTarget.SubjectType type, UUID subjectId);
 
     List<GoalTarget> findGoals(LocalDate periodStart);
+
+    Optional<GoalTarget> findGoalById(UUID id);
+
+    void deleteGoal(GoalTarget goal);
 }

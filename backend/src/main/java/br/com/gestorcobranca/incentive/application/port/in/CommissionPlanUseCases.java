@@ -16,6 +16,9 @@ public interface CommissionPlanUseCases {
 
     PlanView updateDraft(UUID planId, PlanCommand command);
 
+    /** Descarta (remove) um rascunho; versões publicadas ou aposentadas não podem ser removidas. */
+    void discardDraft(UUID planId);
+
     /** Nova versão em rascunho a partir da versão informada (copia regras); um rascunho por código. */
     PlanView newVersion(UUID planId);
 
@@ -39,6 +42,9 @@ public interface CommissionPlanUseCases {
     GoalView setGoal(GoalCommand command);
 
     List<GoalView> goals(YearMonth period);
+
+    /** Remove a meta de um período ainda aberto (passa a valer a meta padrão do plano, se houver). */
+    void removeGoal(UUID goalId);
 
     /**
      * @param code     identificador estável do plano (ex.: PADRAO_MERCADO); ignorado em updateDraft

@@ -161,6 +161,11 @@ public class CommissionPlan extends TenantScopedEntity {
                 && (effectiveTo == null || !date.isAfter(effectiveTo));
     }
 
+    /** Rascunho pode ser descartado (removido); versões publicadas ou aposentadas, não. */
+    public void requireDiscardable() {
+        requireDraft();
+    }
+
     private void requireDraft() {
         Guard.requireState(status == null || status == PlanStatus.DRAFT, "plan.not_draft",
                 "Versão publicada é imutável: crie uma nova versão");
