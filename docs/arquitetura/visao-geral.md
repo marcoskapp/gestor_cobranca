@@ -178,6 +178,8 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V1700–V1799 | legal |
 | V1800–V1899 | incentive |
 
+Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
+
 * Nome: `V0301__debt_create_debtor.sql`. Arquivos em `backend/src/main/resources/db/migration/<modulo>/`.
 * Exceção: o contrato de leitura do `analytics` é a migration repetível `analytics/R__analytics_contract.sql` (views sobre tabelas de vários módulos, executada após todas as versionadas). Migration de outro módulo que altere coluna usada por ela deve remover a view afetada e o mesmo pull request ajusta o arquivo.
 * Toda tabela de tenant: `tenant_id`, RLS habilitado e forçado, política `tenant_isolation`, `GRANT` para `app_runtime`. Use a função auxiliar `shared.enable_tenant_rls('<schema>.<tabela>')` criada em `V0002`.

@@ -1,12 +1,9 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { map } from 'rxjs';
 import { valueOr } from '../../../shared/data/resource-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppValidators } from '../../../shared/validation/validators';
 import { SegmentsApi } from '../data/campaign.api';
 import { PURPOSE_HINTS, PURPOSE_LABELS } from '../data/campaign.labels';
@@ -14,6 +11,7 @@ import { CampaignPurpose, CampaignSettings, CampaignView } from '../data/campaig
 
 const GROUP = /^[A-Z][A-Z0-9_]{0,59}$/;
 const PURPOSES = Object.keys(PURPOSE_LABELS) as CampaignPurpose[];
+let nextId = 0;
 
 /** Formulário dos parâmetros da campanha (`SettingsRequest`), com os limites de `Campaign.apply`. */
 export function settingsForm(fb: FormBuilder) {
@@ -78,118 +76,81 @@ export function toSettings(form: SettingsForm): CampaignSettings {
  */
 @Component({
   selector: 'app-campaign-settings-fields',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
+  imports: [ReactiveFormsModule, ...FORM_FIELD],
   template: `
     @let f = form();
-    <div [formGroup]="f" class="sf">
-      <div class="sf-row">
-        <mat-form-field class="sf-grow">
-          <mat-label>Nome</mat-label>
-          <input matInput formControlName="name" maxlength="120" required />
-        </mat-form-field>
-        <mat-form-field subscriptSizing="dynamic" class="sf-grow">
-          <mat-label>Segmento</mat-label>
-          <mat-select formControlName="segmentId" required>
-            @for (s of segments(); track s.id) {
-              <mat-option [value]="s.id">{{ s.name }}{{ s.creditorId ? '' : ' (assessoria)' }}{{ s.active ? '' : ' — inativo' }}</mat-option>
-            } @empty {
-              <mat-option disabled>{{ creditorId() ? 'Nenhum segmento ativo para o credor' : 'Escolha o credor' }}</mat-option>
+    <div [formGroup]="f" class="row g-3">
+      <app-field class="col-md-6" label="Nome">
+        <input appInput formControlName="name" maxlength="120" required />
+      </app-field>
+      <app-field class="col-md-6" label="Segmento" [hint]="segmentLocked() ? 'Pause a campanha para trocar o segmento.' : 'Segmentos ativos do credor ou da assessoria.'">
+        <select appInput formControlName="segmentId" required>
+          @for (s of segments(); track s.id; let first = $first) {
+            @if (first) {
+              <option value="" disabled>Selecione</option>
             }
-          </mat-select>
-          @if (segmentLocked()) {
-            <mat-hint>Pause a campanha para trocar o segmento.</mat-hint>
-          } @else {
-            <mat-hint>Segmentos ativos do credor ou da assessoria.</mat-hint>
+            <option [value]="s.id">{{ s.name }}{{ s.creditorId ? '' : ' (assessoria)' }}{{ s.active ? '' : ' — inativo' }}</option>
+          } @empty {
+            <option value="" disabled>{{ creditorId() ? 'Nenhum segmento ativo para o credor' : 'Escolha o credor' }}</option>
           }
-        </mat-form-field>
-      </div>
-      <mat-form-field class="app-full-width">
-        <mat-label>Descrição</mat-label>
-        <textarea matInput formControlName="description" rows="2" maxlength="500"></textarea>
-      </mat-form-field>
+        </select>
+      </app-field>
+      <app-field class="col-12" label="Descrição">
+        <textarea appInput formControlName="description" rows="2" maxlength="500"></textarea>
+      </app-field>
 
-      <p class="app-section-title">Finalidade e concorrência</p>
-      <div class="sf-row">
-        <mat-form-field subscriptSizing="dynamic" class="sf-grow">
-          <mat-label>Finalidade</mat-label>
-          <mat-select formControlName="purpose">
-            @for (p of purposes; track p) {
-              <mat-option [value]="p">{{ purposeLabels[p] }}</mat-option>
-            }
-          </mat-select>
-          <mat-hint>{{ purposeHints[f.controls.purpose.value] }}</mat-hint>
-        </mat-form-field>
-        <mat-form-field subscriptSizing="dynamic" class="sf-num">
-          <mat-label>Prioridade</mat-label>
-          <input matInput type="number" formControlName="priority" min="0" max="1000" step="1" required />
-          <mat-hint>0 a 1000; maior vence no grupo.</mat-hint>
-        </mat-form-field>
-        <mat-form-field subscriptSizing="dynamic" class="sf-grow">
-          <mat-label>Grupo de exclusividade</mat-label>
-          <input matInput formControlName="exclusivityGroup" maxlength="60" spellcheck="false" autocomplete="off" placeholder="Ex.: COBRANCA_ATIVA" />
-          <mat-hint>Campanhas do mesmo grupo não alcançam o mesmo devedor ao mesmo tempo. Vazio = convive com todas.</mat-hint>
-          @if (f.controls.exclusivityGroup.invalid) {
-            <mat-error>Letras maiúsculas, dígitos e _, começando por letra.</mat-error>
+      <p class="app-section-title col-12 mb-0">Finalidade e concorrência</p>
+      <app-field class="col-md-6 col-lg-4" label="Finalidade" [hint]="purposeHints[f.controls.purpose.value]">
+        <select appInput formControlName="purpose">
+          @for (p of purposes; track p) {
+            <option [ngValue]="p">{{ purposeLabels[p] }}</option>
           }
-        </mat-form-field>
-      </div>
+        </select>
+      </app-field>
+      <app-field class="col-md-6 col-lg-3" label="Prioridade" hint="0 a 1000; maior vence no grupo.">
+        <input appInput type="number" formControlName="priority" min="0" max="1000" step="1" required />
+      </app-field>
+      <app-field
+        class="col-lg-5"
+        label="Grupo de exclusividade"
+        hint="Campanhas do mesmo grupo não alcançam o mesmo devedor ao mesmo tempo. Vazio = convive com todas."
+        error="Letras maiúsculas, dígitos e _, começando por letra."
+      >
+        <input appInput formControlName="exclusivityGroup" maxlength="60" spellcheck="false" autocomplete="off" placeholder="Ex.: COBRANCA_ATIVA" />
+      </app-field>
 
-      <p class="app-section-title">Inscrição, pausa e atribuição</p>
-      <div class="sf-row sf-toggles">
-        <mat-slide-toggle formControlName="exitWhenOutOfSegment">Encerrar a inscrição quando o caso sair do segmento</mat-slide-toggle>
-        <mat-slide-toggle formControlName="reenroll">Reinscrever o caso depois de um tempo</mat-slide-toggle>
-        <mat-slide-toggle formControlName="paymentResume">Retomar sozinha após pagamento confirmado</mat-slide-toggle>
+      <p class="app-section-title col-12 mb-0">Inscrição, pausa e atribuição</p>
+      <div class="col-12 d-grid gap-2">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" [id]="ids + '-exit'" formControlName="exitWhenOutOfSegment" />
+          <label class="form-check-label" [for]="ids + '-exit'">Encerrar a inscrição quando o caso sair do segmento</label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" [id]="ids + '-reenroll'" formControlName="reenroll" />
+          <label class="form-check-label" [for]="ids + '-reenroll'">Reinscrever o caso depois de um tempo</label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" [id]="ids + '-resume'" formControlName="paymentResume" />
+          <label class="form-check-label" [for]="ids + '-resume'">Retomar sozinha após pagamento confirmado</label>
+        </div>
       </div>
-      <div class="sf-row">
-        @if (f.controls.reenroll.value) {
-          <mat-form-field subscriptSizing="dynamic" class="sf-num">
-            <mat-label>Reinscrever após (dias)</mat-label>
-            <input matInput type="number" formControlName="reenrollAfterDays" min="1" max="3650" step="1" />
-            <mat-hint>Desde o fim da inscrição anterior.</mat-hint>
-          </mat-form-field>
-        }
-        @if (f.controls.paymentResume.value) {
-          <mat-form-field subscriptSizing="dynamic" class="sf-num">
-            <mat-label>Retomar após (dias)</mat-label>
-            <input matInput type="number" formControlName="paymentPauseDays" min="1" max="180" step="1" />
-            <mat-hint>Sem retomada automática, só manual.</mat-hint>
-          </mat-form-field>
-        }
-        <mat-form-field subscriptSizing="dynamic" class="sf-num">
-          <mat-label>Janela de atribuição (dias)</mat-label>
-          <input matInput type="number" formControlName="attributionWindowDays" min="0" max="90" step="1" required />
-          <mat-hint>Resultados após o fim da inscrição que ainda contam.</mat-hint>
-        </mat-form-field>
-        <mat-form-field subscriptSizing="dynamic" class="sf-num">
-          <mat-label>Adiamento máximo (horas)</mat-label>
-          <input matInput type="number" formControlName="maxDeferralHours" min="0" max="168" step="1" required />
-          <mat-hint>Fora do horário ou acima do limite, a etapa espera até aqui; depois é pulada.</mat-hint>
-        </mat-form-field>
-      </div>
+      @if (f.controls.reenroll.value) {
+        <app-field class="col-sm-6 col-lg-3" label="Reinscrever após (dias)" hint="Desde o fim da inscrição anterior.">
+          <input appInput type="number" formControlName="reenrollAfterDays" min="1" max="3650" step="1" />
+        </app-field>
+      }
+      @if (f.controls.paymentResume.value) {
+        <app-field class="col-sm-6 col-lg-3" label="Retomar após (dias)" hint="Sem retomada automática, só manual.">
+          <input appInput type="number" formControlName="paymentPauseDays" min="1" max="180" step="1" />
+        </app-field>
+      }
+      <app-field class="col-sm-6 col-lg-3" label="Janela de atribuição (dias)" hint="Resultados após o fim da inscrição que ainda contam.">
+        <input appInput type="number" formControlName="attributionWindowDays" min="0" max="90" step="1" required />
+      </app-field>
+      <app-field class="col-sm-6 col-lg-3" label="Adiamento máximo (horas)" hint="Fora do horário ou acima do limite, a etapa espera até aqui; depois é pulada.">
+        <input appInput type="number" formControlName="maxDeferralHours" min="0" max="168" step="1" required />
+      </app-field>
     </div>
-  `,
-  styles: `
-    .sf-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 12px;
-    }
-    .sf-grow {
-      flex: 1 1 240px;
-      min-width: 0;
-    }
-    .sf-num {
-      flex: 0 1 220px;
-      min-width: 160px;
-    }
-    .sf-toggles {
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    mat-form-field {
-      margin-bottom: 8px;
-    }
   `,
 })
 export class CampaignSettingsFields {
@@ -199,6 +160,8 @@ export class CampaignSettingsFields {
   readonly currentSegmentId = input<string | null>(null);
   readonly segmentLocked = input(false);
 
+  /** Prefixo dos ids das chaves (o formulário aparece no diálogo de criação e na visão geral). */
+  protected readonly ids = `sf-${++nextId}`;
   protected readonly purposes = PURPOSES;
   protected readonly purposeLabels = PURPOSE_LABELS;
   protected readonly purposeHints = PURPOSE_HINTS;

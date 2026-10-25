@@ -1,13 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -17,10 +11,15 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { describeStatus } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
@@ -38,35 +37,38 @@ export interface AgentDialogData {
 /** Habilita o usuário na telefonia com o ramal (ou usuário SIP/identidade WebRTC) do provedor. */
 @Component({
   selector: 'app-agent-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title>{{ data.agent ? 'Ramal de ' + data.userName : 'Habilitar operador na telefonia' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.agent ? 'Ramal de ' + data.userName : 'Habilitar operador na telefonia' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body d-grid gap-3">
         @if (!data.agent) {
           <app-entity-picker [control]="form.controls.user" [source]="users" label="Usuário" [single]="true" />
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Ramal ou usuário SIP</mat-label>
-          <input matInput formControlName="extension" maxlength="64" required autocomplete="off" />
-          <mat-hint>O provedor chama este ramal antes de discar para o devedor</mat-hint>
-          <mat-error>Informe o ramal.</mat-error>
-        </mat-form-field>
-        <mat-checkbox formControlName="active">Habilitado (pode entrar na telefonia)</mat-checkbox>
+        <app-field label="Ramal ou usuário SIP" hint="O provedor chama este ramal antes de discar para o devedor" error="Informe o ramal.">
+          <input appInput formControlName="extension" maxlength="64" required autocomplete="off" />
+        </app-field>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="ag-active" formControlName="active" />
+          <label class="form-check-label" for="ag-active">Habilitado (pode entrar na telefonia)</label>
+        </div>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <p class="alert alert-danger d-flex gap-2 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving() || (!data.agent && !form.controls.user.value.length)">Salvar</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving() || (!data.agent && !form.controls.user.value.length)">Salvar</button>
+      </div>
     </form>
   `,
 })
 export class AgentDialog {
-  protected readonly data = inject<AgentDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<AgentDialog, AgentView>>(MatDialogRef);
+  protected readonly data = inject<AgentDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<AgentView>>(DialogRef);
   private readonly api = inject(AgentsApi);
   protected readonly users = inject(UserLookup);
   protected readonly saving = signal(false);
@@ -103,12 +105,12 @@ export class AgentDialog {
 /** Operadores habilitados na telefonia: ramal, presença ao vivo, campanha e saída forçada. */
 @Component({
   selector: 'app-agent-list',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [NgbTooltip, Icon, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
   template: `
     <app-page-header title="Operadores e ramais" subtitle="Quem está na telefonia agora, em que estado e há quanto tempo; ramais do provedor por usuário.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="configure(null)">
-          <mat-icon aria-hidden="true">person_add</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="configure(null)">
+          <app-icon name="person-plus" />
           Habilitar operador
         </button>
       }
@@ -120,46 +122,41 @@ export class AgentDialog {
       [loading]="list.isLoading()"
       [failed]="list.status() === 'error'"
       (retry)="list.reload()"
-      emptyIcon="headset_mic"
+      emptyIcon="headset"
       emptyMessage="Nenhum operador habilitado na telefonia."
       emptyHint="Habilite os usuários com o ramal do provedor para usar o clique para ligar e o discador."
     >
       <ng-template appCell="user" [appCellOf]="rows()" let-a>
         {{ users.name(a.userId) }}
-        <div class="app-muted al-small">ramal {{ a.extension }}{{ a.active ? '' : ' · desabilitado' }}</div>
+        <div class="app-muted small">ramal {{ a.extension }}{{ a.active ? '' : ' · desabilitado' }}</div>
       </ng-template>
       <ng-template appCell="status" [appCellOf]="rows()" let-a>
         <app-status-chip domain="agentPresence" [status]="a.status" />
         @if (a.pauseReason) {
-          <div class="app-muted al-small">{{ pauses[a.pauseReason] }}</div>
+          <div class="app-muted small">{{ pauses[a.pauseReason] }}</div>
         }
       </ng-template>
       <ng-template appCell="since" [appCellOf]="rows()" let-a>
         <span class="app-numeric">{{ a.status === 'OFFLINE' ? '—' : since(a.statusSince) }}</span>
-        <div class="app-muted al-small">sinal {{ a.lastHeartbeatAt | appDate: 'time' }}</div>
+        <div class="app-muted small">sinal {{ a.lastHeartbeatAt | appDate: 'time' }}</div>
       </ng-template>
       <ng-template appCell="campaign" [appCellOf]="rows()" let-a>{{ a.campaignId ? campaignName(a.campaignId) : 'clique para ligar' }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-a>
         @if (canManage()) {
-          <button mat-icon-button type="button" (click)="configure(a)" [attr.aria-label]="'Editar ramal de ' + users.name(a.userId)" matTooltip="Editar ramal"><mat-icon aria-hidden="true">edit</mat-icon></button>
+          <button class="btn btn-link" type="button" (click)="configure(a)" [attr.aria-label]="'Editar ramal de ' + users.name(a.userId)" ngbTooltip="Editar ramal"><app-icon name="pencil" /></button>
         }
         @if (a.status !== 'OFFLINE') {
-          <button mat-icon-button type="button" (click)="forceLogout(a)" [attr.aria-label]="'Tirar ' + users.name(a.userId) + ' da telefonia'" matTooltip="Tirar da telefonia (auditado)"><mat-icon aria-hidden="true">logout</mat-icon></button>
+          <button class="btn btn-link" type="button" (click)="forceLogout(a)" [attr.aria-label]="'Tirar ' + users.name(a.userId) + ' da telefonia'" ngbTooltip="Tirar da telefonia (auditado)"><app-icon name="box-arrow-right" /></button>
         }
       </ng-template>
     </app-data-table>
-  `,
-  styles: `
-    .al-small {
-      font-size: var(--app-text-xs);
-    }
   `,
 })
 export class AgentList {
   private readonly api = inject(AgentsApi);
   private readonly campaignsApi = inject(DialerCampaignsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly pauses = PAUSE_REASON_LABELS;
@@ -201,7 +198,7 @@ export class AgentList {
 
   protected configure(agent: AgentView | null): void {
     this.dialog
-      .open<AgentDialog, AgentDialogData, AgentView>(AgentDialog, { data: { agent, userName: agent ? this.users.name(agent.userId) : null }, width: '520px', maxWidth: '96vw' })
+      .open<AgentDialog, AgentDialogData, AgentView>(AgentDialog, { data: { agent, userName: agent ? this.users.name(agent.userId) : null } })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

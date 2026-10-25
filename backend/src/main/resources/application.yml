@@ -33,7 +33,11 @@ spring:
     default-schema: shared
     create-schemas: true
     validate-on-migrate: true
-    out-of-order: false
+    # Cada módulo tem a sua faixa de versões (docs/arquitetura/visao-geral.md): uma migration nova de
+    # um módulo de faixa baixa (ex.: identity V02xx) chega depois de versões maiores já aplicadas
+    # (ex.: incentive V18xx). out-of-order permite aplicá-la; a validação continua barrando migration
+    # alterada ou removida.
+    out-of-order: true
     clean-disabled: true
 
   jpa:

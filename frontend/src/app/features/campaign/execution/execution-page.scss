@@ -28,10 +28,10 @@ p.ex-small {
 
 .ex-kpi__label {
   font-size: var(--app-text-xs);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .ex-kpi__value {
@@ -39,12 +39,12 @@ p.ex-small {
   align-items: center;
   gap: 4px;
   font-size: var(--app-text-xl);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .ex-kpi__hint {
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 
 .ex-kpi--late .ex-kpi__value {
@@ -101,7 +101,7 @@ p.ex-small {
   height: 100%;
   min-width: 2px;
   border-radius: inherit;
-  background: var(--mat-sys-primary);
+  background: var(--bs-primary);
 }
 
 .ex-bar--warning .ex-bar__fill {
@@ -129,44 +129,17 @@ p.ex-small {
 
   dt {
     font-size: var(--app-text-xs);
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--bs-secondary-color);
   }
 
   dd {
     margin: 0;
-    font-weight: 600;
+    font-weight: 500;
   }
-}
-
-.ex-scroll {
-  overflow-x: auto;
-}
-
-.ex-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--app-text-sm);
-
-  th,
-  td {
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--app-border);
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  thead th {
-    font-size: var(--app-text-xs);
-    color: var(--mat-sys-on-surface-variant);
-  }
-}
-
-.ex-end {
-  text-align: right !important;
 }
 
 .ex-bad {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--app-danger-fg);
 }
 

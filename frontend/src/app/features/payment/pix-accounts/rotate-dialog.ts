@@ -1,10 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { PixAccountsApi } from '../data/payment.api';
 import { PAYMENT_ERROR_LABELS } from '../data/payment.labels';
@@ -23,14 +23,17 @@ export interface RotateDialogData {
  */
 @Component({
   selector: 'app-rotate-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule, AppDatePipe, CredentialFields],
+  imports: [Icon, ...DIALOG_DIRECTIVES, AppDatePipe, CredentialFields],
   template: `
-    <h2 mat-dialog-title>Rotacionar credenciais · {{ data.account.name }}</h2>
-    <mat-dialog-content>
-      <p class="app-alert app-alert--warning" role="note">
-        <mat-icon aria-hidden="true">sync_lock</mat-icon>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0" tabindex="-1" ngbAutofocus>Rotacionar credenciais · {{ data.account.name }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+        <app-icon name="shield-lock" />
         <span>A rotação <strong>substitui todos os segredos</strong>: informe de novo o client_id, o client_secret{{ data.account.webhookAuth === 'HMAC' ? ' e o segredo HMAC' : '' }}. Sem um novo arquivo, o certificado atual é mantido.</span>
-      </p>
+      </div>
       @if (data.account.certificateSha256) {
         <dl class="app-definition-list rt-current">
           <dt>Certificado atual</dt>
@@ -40,14 +43,14 @@ export interface RotateDialogData {
         </dl>
       }
       @if (error()) {
-        <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+        <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
       }
       <app-credential-fields [form]="form" [hmac]="data.account.webhookAuth === 'HMAC'" certificateHint="Opcional: envie só para trocar o certificado" (certificate)="certificate.set($event)" />
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Cancelar</button>
-      <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">Rotacionar</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">Rotacionar</button>
+    </div>
   `,
   styles: `
     .rt-current {
@@ -59,8 +62,8 @@ export interface RotateDialogData {
   `,
 })
 export class RotateDialog {
-  protected readonly data = inject<RotateDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<RotateDialog, PixAccountView>>(MatDialogRef);
+  protected readonly data = inject<RotateDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<PixAccountView>>(DialogRef);
   private readonly api = inject(PixAccountsApi);
   protected readonly form = credentialsForm(inject(FormBuilder));
   protected readonly certificate = signal<string | null>(null);

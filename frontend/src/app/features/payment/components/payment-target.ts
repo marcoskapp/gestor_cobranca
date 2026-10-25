@@ -1,17 +1,13 @@
 import { Component, computed, effect, inject, input, model, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatRadioModule } from '@angular/material/radio';
-import { MatSelectModule } from '@angular/material/select';
 import { catchError, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { Amount } from '../../../shared/components/amount/amount';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { TitlesApi } from '../../debt/data/debt.api';
 import { TitleView } from '../../debt/data/debt.models';
@@ -31,6 +27,8 @@ export type TargetSelection =
 
 const ACTIVE_AGREEMENTS = ['FORMALIZED', 'IN_PAYMENT'];
 
+let nextId = 0;
+
 interface Installment extends InstallmentView {
   balance: number;
 }
@@ -44,142 +42,103 @@ interface Installment extends InstallmentView {
  */
 @Component({
   selector: 'app-payment-target',
-  imports: [FormsModule, MatButtonToggleModule, MatCheckboxModule, MatFormFieldModule, MatRadioModule, MatSelectModule, Amount, AppDatePipe],
+  imports: [FormsModule, ...FORM_FIELD, Amount, AppDatePipe],
   template: `
-    <div class="pt" data-tour="payment-target">
-      <mat-button-toggle-group [value]="kind()" (change)="setKind($event.value)" aria-label="Tipo de destino" class="pt__kind">
-        <mat-button-toggle value="AGREEMENT">Parcela de acordo</mat-button-toggle>
-        <mat-button-toggle value="TITLES">{{ mode() === 'single' ? 'Título avulso' : 'Títulos avulsos' }}</mat-button-toggle>
-      </mat-button-toggle-group>
+    <div class="d-flex flex-column gap-2 mb-2" data-tour="payment-target">
+      <div class="btn-group align-self-start" role="group" aria-label="Tipo de destino">
+        <input type="radio" class="btn-check" [name]="uid + '-kind'" [id]="uid + '-kind-a'" [checked]="kind() === 'AGREEMENT'" (change)="setKind('AGREEMENT')" />
+        <label class="btn btn-outline-primary" [for]="uid + '-kind-a'">Parcela de acordo</label>
+        <input type="radio" class="btn-check" [name]="uid + '-kind'" [id]="uid + '-kind-t'" [checked]="kind() === 'TITLES'" (change)="setKind('TITLES')" />
+        <label class="btn btn-outline-primary" [for]="uid + '-kind-t'">{{ mode() === 'single' ? 'Título avulso' : 'Títulos avulsos' }}</label>
+      </div>
 
       @if (kind() === 'AGREEMENT') {
         @if (!canReadAgreements()) {
-          <p class="app-muted">Seu perfil não consulta acordos.</p>
+          <p class="app-muted mb-0">Seu perfil não consulta acordos.</p>
         } @else if (agreements.isLoading()) {
-          <p class="app-muted" role="status">Carregando acordos…</p>
+          <p class="app-muted mb-0" role="status">Carregando acordos…</p>
         } @else if (!activeAgreements().length) {
-          <p class="app-muted">Nenhum acordo em vigor para este devedor.</p>
+          <p class="app-muted mb-0">Nenhum acordo em vigor para este devedor.</p>
         } @else {
           @for (a of activeAgreements(); track a.id) {
-            <fieldset class="pt__group">
-              <legend>
+            <fieldset class="border rounded px-3 py-2 m-0">
+              <legend class="float-none w-auto px-1 mb-1 fs-6 fw-medium">
                 @if (mode() === 'allocation') {
-                  <mat-radio-button name="pt-agreement" [checked]="agreementId() === a.id" (change)="pickAgreement(a)">
-                    Acordo de {{ a.formalizedAt | appDate: 'date' }} · {{ creditors.name(a.creditorId) }}
-                  </mat-radio-button>
+                  <span class="form-check d-inline-block mb-0">
+                    <input class="form-check-input" type="radio" [name]="uid + '-agreement'" [id]="uid + '-ag-' + a.id" [checked]="agreementId() === a.id" (change)="pickAgreement(a)" />
+                    <label class="form-check-label" [for]="uid + '-ag-' + a.id">Acordo de {{ a.formalizedAt | appDate: 'date' }} · {{ creditors.name(a.creditorId) }}</label>
+                  </span>
                 } @else {
                   Acordo de {{ a.formalizedAt | appDate: 'date' }} · {{ creditors.name(a.creditorId) }}
                 }
               </legend>
-              <ul class="pt__list">
+              <ul class="list-unstyled m-0 overflow-auto pt__list">
                 @for (i of openInstallments(a); track i.id) {
-                  <li>
+                  <li class="form-check">
                     @if (mode() === 'single') {
-                      <mat-radio-button name="pt-item" [checked]="installmentId() === i.id" (change)="pickInstallment(a, i)">
-                        <span class="pt__item">
-                          <span>{{ i.number }}ª parcela · vence {{ i.dueDate | appDate: 'date' }}</span>
-                          <app-amount [value]="i.balance" />
-                        </span>
-                      </mat-radio-button>
+                      <input class="form-check-input" type="radio" [name]="uid + '-item'" [id]="uid + '-i-' + i.id" [checked]="installmentId() === i.id" (change)="pickInstallment(a, i)" />
                     } @else {
-                      <mat-checkbox [checked]="itemIds().includes(i.id)" [disabled]="agreementId() !== a.id" (change)="toggleItem(i.id)">
-                        <span class="pt__item">
-                          <span>{{ i.number }}ª parcela · vence {{ i.dueDate | appDate: 'date' }}</span>
-                          <app-amount [value]="i.balance" />
-                        </span>
-                      </mat-checkbox>
+                      <input class="form-check-input" type="checkbox" [id]="uid + '-i-' + i.id" [checked]="itemIds().includes(i.id)" [disabled]="agreementId() !== a.id" (change)="toggleItem(i.id)" />
                     }
+                    <label class="form-check-label d-inline-flex flex-wrap column-gap-3 small" [for]="uid + '-i-' + i.id">
+                      <span>{{ i.number }}ª parcela · vence {{ i.dueDate | appDate: 'date' }}</span>
+                      <app-amount [value]="i.balance" />
+                    </label>
                   </li>
                 } @empty {
                   <li class="app-muted">Sem parcelas em aberto.</li>
                 }
               </ul>
               @if (mode() === 'allocation' && agreementId() === a.id) {
-                <p class="app-muted pt__hint">{{ itemIds().length ? 'As parcelas marcadas recebem primeiro; o excedente vai às seguintes.' : 'Sem parcelas marcadas: o valor vai às parcelas em aberto, pela ordem.' }}</p>
+                <p class="form-text mt-1 mb-0">{{ itemIds().length ? 'As parcelas marcadas recebem primeiro; o excedente vai às seguintes.' : 'Sem parcelas marcadas: o valor vai às parcelas em aberto, pela ordem.' }}</p>
               }
             </fieldset>
           }
         }
       } @else {
         @if (titles.isLoading()) {
-          <p class="app-muted" role="status">Carregando títulos…</p>
+          <p class="app-muted mb-0" role="status">Carregando títulos…</p>
         } @else if (!payableTitles().length) {
-          <p class="app-muted">Nenhum título em aberto fora de acordo para este devedor.</p>
+          <p class="app-muted mb-0">Nenhum título em aberto fora de acordo para este devedor.</p>
         } @else {
-          <ul class="pt__list">
+          <ul class="list-unstyled m-0 overflow-auto pt__list">
             @for (t of payableTitles(); track t.id) {
-              <li>
+              <li class="form-check">
                 @if (mode() === 'single') {
-                  <mat-radio-button name="pt-item" [checked]="titleId() === t.id" (change)="pickTitle(t)">
-                    <span class="pt__item">
-                      <span>{{ titleLabel(t) }} · vence {{ t.dueDate | appDate: 'date' }} · {{ creditors.name(t.creditorId) }}</span>
-                      <app-amount [value]="t.openBalance" />
-                    </span>
-                  </mat-radio-button>
+                  <input class="form-check-input" type="radio" [name]="uid + '-item'" [id]="uid + '-t-' + t.id" [checked]="titleId() === t.id" (change)="pickTitle(t)" />
                 } @else {
-                  <mat-checkbox [checked]="itemIds().includes(t.id)" [disabled]="!!titleCreditor() && titleCreditor() !== t.creditorId" (change)="toggleTitle(t)">
-                    <span class="pt__item">
-                      <span>{{ titleLabel(t) }} · vence {{ t.dueDate | appDate: 'date' }} · {{ creditors.name(t.creditorId) }}</span>
-                      <app-amount [value]="t.openBalance" />
-                    </span>
-                  </mat-checkbox>
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    [id]="uid + '-t-' + t.id"
+                    [checked]="itemIds().includes(t.id)"
+                    [disabled]="!!titleCreditor() && titleCreditor() !== t.creditorId"
+                    (change)="toggleTitle(t)"
+                  />
                 }
+                <label class="form-check-label d-inline-flex flex-wrap column-gap-3 small" [for]="uid + '-t-' + t.id">
+                  <span>{{ titleLabel(t) }} · vence {{ t.dueDate | appDate: 'date' }} · {{ creditors.name(t.creditorId) }}</span>
+                  <app-amount [value]="t.openBalance" />
+                </label>
               </li>
             }
           </ul>
           @if (mode() === 'allocation') {
-            <mat-form-field class="pt__strategy" subscriptSizing="dynamic">
-              <mat-label>Distribuição entre os títulos</mat-label>
-              <mat-select [ngModel]="strategy()" (ngModelChange)="setStrategy($event)">
+            <app-field class="pt__strategy" label="Distribuição entre os títulos" hint="Vencidos primeiro segue o Código Civil (art. 355).">
+              <select appInput [ngModel]="strategy()" (ngModelChange)="setStrategy($event)">
                 @for (s of strategies; track s[0]) {
-                  <mat-option [value]="s[0]">{{ s[1] }}</mat-option>
+                  <option [ngValue]="s[0]">{{ s[1] }}</option>
                 }
-              </mat-select>
-              <mat-hint>Vencidos primeiro segue o Código Civil (art. 355).</mat-hint>
-            </mat-form-field>
+              </select>
+            </app-field>
           }
         }
       }
     </div>
   `,
   styles: `
-    .pt {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .pt__kind {
-      align-self: flex-start;
-      flex-wrap: wrap;
-    }
-    .pt__group {
-      margin: 0;
-      padding: 8px 12px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      min-width: 0;
-    }
-    legend {
-      padding: 0 4px;
-      font-size: var(--app-text-sm);
-      font-weight: 600;
-    }
     .pt__list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
       max-height: 240px;
-      overflow: auto;
-    }
-    .pt__item {
-      display: inline-flex;
-      flex-wrap: wrap;
-      gap: 4px 12px;
-      font-size: var(--app-text-sm);
-    }
-    .pt__hint {
-      margin: 4px 0 0;
-      font-size: var(--app-text-xs);
     }
     .pt__strategy {
       max-width: 320px;
@@ -187,6 +146,7 @@ interface Installment extends InstallmentView {
   `,
 })
 export class PaymentTarget {
+  protected readonly uid = `app-pt-${++nextId}`;
   readonly debtorId = input.required<string>();
   /** Restringe ao credor (pagamento já existente: realocação só dentro do mesmo credor). */
   readonly creditorId = input<string | null>(null);

@@ -1,7 +1,9 @@
+import type { IconName } from '../../../shared/components/icon/icon-names';
 import { ChannelType, HandoffKind, ProviderType, SenderType, TemplatePurpose, VariableType } from './communication.models';
 
 export const CHANNEL_LABELS: Record<ChannelType, string> = { WHATSAPP: 'WhatsApp', EMAIL: 'E-mail', SMS: 'SMS' };
-export const CHANNEL_ICONS: Record<ChannelType, string> = { WHATSAPP: 'chat', EMAIL: 'mail', SMS: 'sms' };
+/** Ícone do canal (Bootstrap Icons); sempre acompanhado do nome do canal. */
+export const CHANNEL_ICONS: Record<ChannelType, IconName> = { WHATSAPP: 'chat', EMAIL: 'envelope', SMS: 'chat-dots' };
 
 export const PROVIDER_LABELS: Record<ProviderType, string> = {
   WHATSAPP_CLOUD: 'WhatsApp Cloud API (Meta)',

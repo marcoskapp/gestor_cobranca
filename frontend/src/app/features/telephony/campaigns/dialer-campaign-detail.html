@@ -1,34 +1,34 @@
 @if (resource.isLoading() && !campaign()) {
   <app-skeleton variant="card" [rows]="6" />
 } @else if (resource.status() === 'error') {
-  <app-empty-state icon="phone_forwarded" tone="error" title="Não foi possível abrir a campanha." message="Ela pode não existir ou estar fora do seu escopo de credores.">
-    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/telefonia/campanhas">Voltar para campanhas</a>
+  <app-empty-state icon="telephone-forward" tone="error" title="Não foi possível abrir a campanha." message="Ela pode não existir ou estar fora do seu escopo de credores.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/telefonia/campanhas">Voltar para campanhas</a>
   </app-empty-state>
 }
 
 @if (campaign(); as c) {
   <app-page-header [title]="c.name" [subtitle]="c.code + ' · fila ' + queues.name(c.queueId) + (c.creditorId ? ' · ' + creditors.name(c.creditorId) : '')">
-    <a mat-button routerLink="/telefonia/campanhas">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/telefonia/campanhas">
+      <app-icon name="arrow-left" />
       Campanhas
     </a>
     @if (canSupervise() && c.status !== 'FINISHED') {
-      <button mat-stroked-button type="button" (click)="finish()" [disabled]="busy()">Encerrar</button>
+      <button class="btn btn-outline-primary" type="button" (click)="finish()" [disabled]="busy()">Encerrar</button>
       @if (c.status === 'ACTIVE' || c.status === 'PAUSED') {
-        <button mat-stroked-button type="button" (click)="reload()" [disabled]="busy()" matTooltip="Acrescenta os casos que entraram na fila desde a última carga">
-          <mat-icon aria-hidden="true">playlist_add</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="reload()" [disabled]="busy()" ngbTooltip="Acrescenta os casos que entraram na fila desde a última carga">
+          <app-icon name="list-check" />
           Recarregar lista
         </button>
       }
       @if (c.status === 'ACTIVE') {
-        <button mat-flat-button type="button" (click)="pause()" [disabled]="busy()" data-tour="dialer-pause">
-          <mat-icon aria-hidden="true">pause</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="pause()" [disabled]="busy()" data-tour="dialer-pause">
+          <app-icon name="pause" />
           Pausar
         </button>
       } @else {
-        <button mat-flat-button type="button" (click)="activate()" [disabled]="busy()" data-tour="dialer-activate">
-          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="activate()" [disabled]="busy()" data-tour="dialer-activate">
+          <app-icon name="play" />
           {{ c.status === 'PAUSED' ? 'Retomar' : 'Ativar' }}
         </button>
       }
@@ -47,7 +47,7 @@
   </div>
 
   @if (actionError()) {
-    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ actionError() }}</span></p>
+    <p class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ actionError() }}</span></p>
   }
 
   <div class="tl-grid">
@@ -73,9 +73,9 @@
               </div>
               <span class="tl-kpi__hint">
                 @if (abandon() === 'limit') {
-                  <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>No máximo</span>
+                  <span class="badge rounded-pill border bg-danger-subtle text-danger-emphasis border-danger-subtle fw-normal"><app-icon name="exclamation-circle" />No máximo</span>
                 } @else if (abandon() === 'near') {
-                  <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">warning_amber</mat-icon>Perto do máximo</span>
+                  <span class="badge rounded-pill border bg-warning-subtle text-warning-emphasis border-warning-subtle fw-normal"><app-icon name="exclamation-triangle" />Perto do máximo</span>
                 } @else {
                   máximo {{ percent(s.maxAbandonRate) }} · {{ s.abandoned }} de {{ s.live }} por pessoa
                 }
@@ -118,15 +118,14 @@
       <section class="app-card" aria-labelledby="dc-entries">
         <div class="tl-head">
           <h2 class="app-card__title" id="dc-entries">Itens da lista</h2>
-          <mat-form-field class="app-compact" subscriptSizing="dynamic">
-            <mat-label>Situação</mat-label>
-            <mat-select [ngModel]="entryStatus()" (ngModelChange)="entryStatus.set($event)">
-              <mat-option value="">Todas</mat-option>
+          <app-field class="tl-filter" label="Situação">
+            <select appInput [ngModel]="entryStatus()" (ngModelChange)="entryStatus.set($event)">
+              <option value="">Todas</option>
               @for (o of entryStatuses; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                <option [value]="o.value">{{ o.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
+            </select>
+          </app-field>
         </div>
         <app-data-table
           caption="Itens da lista de discagem"
@@ -137,7 +136,7 @@
           [page]="entries.tablePage()"
           (pageChange)="entries.setPage($event)"
           (retry)="entries.reload()"
-          emptyIcon="playlist_remove"
+          emptyIcon="list-task"
           emptyMessage="Nenhum item com esta situação."
           emptyHint="A lista é montada a partir da fila quando a campanha é ativada."
         >
@@ -182,7 +181,7 @@
         <div class="tl-head">
           <h2 class="app-card__title" id="dc-settings">Parâmetros</h2>
           @if (canManage() && c.status !== 'ACTIVE' && c.status !== 'FINISHED') {
-            <button mat-stroked-button type="button" (click)="edit()">Editar</button>
+            <button class="btn btn-sm btn-outline-primary" type="button" (click)="edit()">Editar</button>
           }
         </div>
         <dl class="app-definition-list">

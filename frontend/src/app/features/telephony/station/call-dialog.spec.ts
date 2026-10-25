@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { button, render, setup, text } from '../../../../testing/component-harness';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { SheetContact } from '../../collection/data/collection.models';
 import { CallDialog } from './call-dialog';
 import { TelephonySession } from './telephony-session';
@@ -18,8 +18,8 @@ describe('CallDialog (clique para ligar)', () => {
 
   function create() {
     return setup(CallDialog, ['TELEPHONY_USE'], 'u-1', [
-      { provide: MAT_DIALOG_DATA, useValue: { caseId: 'k-1', debtorName: 'Ana Paula Ribeiro', contacts } },
-      { provide: MatDialogRef, useValue: { close } },
+      { provide: DIALOG_DATA, useValue: { caseId: 'k-1', debtorName: 'Ana Paula Ribeiro', contacts } },
+      { provide: DialogRef, useValue: { close } },
       { provide: TelephonySession, useValue: session },
     ]);
   }
@@ -58,7 +58,7 @@ describe('CallDialog (clique para ligar)', () => {
     const fixture = await render(CallDialog, http, gate(true));
     expect(text(fixture)).toContain('Você está em pausa');
     expect(button(fixture, 'Ficar disponível')).toBeTruthy();
-    expect([...fixture.nativeElement.querySelectorAll('mat-dialog-actions button')].at(-1).disabled).toBe(true);
+    expect([...fixture.nativeElement.querySelectorAll('.modal-footer button')].at(-1).disabled).toBe(true);
     session.agent.set(agentView({ status: 'AVAILABLE' }));
   });
 });

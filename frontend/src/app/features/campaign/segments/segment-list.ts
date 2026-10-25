@@ -1,11 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -15,11 +11,13 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { SegmentsApi } from '../data/campaign.api';
@@ -29,18 +27,18 @@ import { criteriaSummary } from '../data/campaign.rules';
 /** Segmentos salvos por credor (ou da assessoria), com resumo dos filtros. */
 @Component({
   selector: 'app-segment-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
+  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Segmentos" subtitle="Públicos salvos com filtros combinados sobre os casos de cobrança, usados pelas campanhas.">
       @if (canRebuild()) {
-        <button mat-stroked-button type="button" (click)="rebuild()" matTooltip="Recalcula a audiência a partir dos casos (necessário só para casos anteriores ao módulo)">
-          <mat-icon aria-hidden="true">sync</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="rebuild()" ngbTooltip="Recalcula a audiência a partir dos casos (necessário só para casos anteriores ao módulo)">
+          <app-icon name="arrow-repeat" />
           Atualizar audiência
         </button>
       }
       @if (canManage()) {
-        <a mat-flat-button routerLink="/campanhas/segmentos/novo">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2" routerLink="/campanhas/segmentos/novo">
+          <app-icon name="plus-lg" />
           Novo segmento
         </a>
       }
@@ -49,14 +47,13 @@ import { criteriaSummary } from '../data/campaign.rules';
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" hint="Vazio: todos, inclusive os da assessoria." />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="active">
-          <mat-option value="">Todos</mat-option>
-          <mat-option value="true">Ativos</mat-option>
-          <mat-option value="false">Inativos</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <app-field label="Situação">
+        <select appInput formControlName="active">
+          <option value="">Todos</option>
+          <option value="true">Ativos</option>
+          <option value="false">Inativos</option>
+        </select>
+      </app-field>
     </form>
     <app-data-table
       caption="Segmentos"
@@ -67,16 +64,16 @@ import { criteriaSummary } from '../data/campaign.rules';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="filter_alt"
+      emptyIcon="funnel"
       emptyMessage="Nenhum segmento encontrado."
       emptyHint="Crie um segmento para definir quem cada campanha alcança."
     >
       @if (canManage()) {
-        <a mat-stroked-button appEmptyAction routerLink="/campanhas/segmentos/novo">Novo segmento</a>
+        <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" appEmptyAction routerLink="/campanhas/segmentos/novo">Novo segmento</a>
       }
       <ng-template appCell="name" [appCellOf]="query.rows()" let-s>
         <a [routerLink]="['/campanhas/segmentos', s.id]">{{ s.name }}</a>
-        <div class="app-muted sl-small">{{ s.code }}</div>
+        <div class="app-muted small">{{ s.code }}</div>
       </ng-template>
       <ng-template appCell="creditor" [appCellOf]="query.rows()" let-s>{{ s.creditorId ? creditors.name(s.creditorId) : 'Assessoria (todos)' }}</ng-template>
       <ng-template appCell="filters" [appCellOf]="query.rows()" let-s><span class="sl-filters">{{ summary(s) }}</span></ng-template>
@@ -84,20 +81,17 @@ import { criteriaSummary } from '../data/campaign.rules';
       <ng-template appCell="updated" [appCellOf]="query.rows()" let-s>{{ (s.updatedAt ?? s.createdAt) | appDate: 'date' }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-s>
         @if (canManage()) {
-          <a mat-icon-button [routerLink]="['/campanhas/segmentos/novo']" [queryParams]="{ copiar: s.id }" [attr.aria-label]="'Duplicar ' + s.name" matTooltip="Duplicar">
-            <mat-icon aria-hidden="true">content_copy</mat-icon>
+          <a class="btn btn-link" [routerLink]="['/campanhas/segmentos/novo']" [queryParams]="{ copiar: s.id }" [attr.aria-label]="'Duplicar ' + s.name" ngbTooltip="Duplicar">
+            <app-icon name="copy" />
           </a>
         }
-        <a mat-icon-button [routerLink]="['/campanhas/segmentos', s.id]" [attr.aria-label]="'Abrir ' + s.name" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-link" [routerLink]="['/campanhas/segmentos', s.id]" [attr.aria-label]="'Abrir ' + s.name" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
   `,
   styles: `
-    .sl-small {
-      font-size: var(--app-text-xs);
-    }
     .sl-filters {
       display: inline-block;
       max-width: 520px;

@@ -1,12 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Router, RouterLink } from '@angular/router';
 import { EMPTY, debounceTime, finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -18,12 +13,14 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { sameValue } from '../../../shared/data/same-value';
 import { valueOr } from '../../../shared/data/resource-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorLookup, CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { SegmentsApi } from '../data/campaign.api';
@@ -38,7 +35,7 @@ import { CriteriaEditor } from './criteria-editor';
  */
 @Component({
   selector: 'app-segment-editor',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressBarModule, MatTooltipModule, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CriteriaEditor],
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CriteriaEditor],
   templateUrl: './segment-editor.html',
   styleUrl: './segment-editor.scss',
 })

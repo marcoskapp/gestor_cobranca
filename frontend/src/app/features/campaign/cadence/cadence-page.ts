@@ -1,11 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { catchError, finalize, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -15,11 +11,13 @@ import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { TeamLookup } from '../../collection/data/collection.lookups';
@@ -56,7 +54,7 @@ const REPLIES = Object.keys(REPLY_LABELS) as ReplyTransition[];
  */
 @Component({
   selector: 'app-cadence-page',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs, StepEditor],
+  imports: [FormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs, StepEditor],
   templateUrl: './cadence-page.html',
   styleUrl: './cadence-page.scss',
 })

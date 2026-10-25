@@ -1,13 +1,10 @@
 import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { catchError, finalize, map, of } from 'rxjs';
+import { Icon } from '../../../shared/components/icon/icon';
 import { valueOr } from '../../../shared/data/resource-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { MessagesApi, TemplatesApi } from '../data/communication.api';
 import { VARIABLE_TYPE_LABELS } from '../data/communication.labels';
 import { ConversationView, MessageView, TemplateView } from '../data/communication.models';
@@ -34,49 +31,47 @@ export function applicableTemplates(list: readonly TemplateView[], creditorId: s
  */
 @Component({
   selector: 'app-composer',
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [FormsModule, ...FORM_FIELD, Icon],
   template: `
     @let c = conversation();
-    <p class="cp-window" [class.cp-window--open]="mode() === 'free-text'">
-      <mat-icon aria-hidden="true">{{ mode() === 'free-text' ? 'lock_open' : 'lock_clock' }}</mat-icon>
+    <p class="d-flex align-items-center gap-2 mb-2 small" [class]="mode() === 'free-text' ? 'text-success-emphasis' : 'text-body-secondary'">
+      <app-icon [name]="mode() === 'free-text' ? 'unlock' : 'shield-lock'" />
       <span>{{ window() }}</span>
     </p>
     @if (mode() === 'free-text') {
-      <mat-form-field class="app-full-width" subscriptSizing="dynamic">
-        <mat-label>Mensagem</mat-label>
-        <textarea matInput rows="3" [ngModel]="text()" (ngModelChange)="text.set($event)" [maxlength]="count().limit" (keydown.control.enter)="send()"></textarea>
-        <mat-hint align="end">{{ count().chars }} / {{ count().limit }}</mat-hint>
-      </mat-form-field>
+      <app-field label="Mensagem" [hintEnd]="count().chars + ' / ' + count().limit">
+        <textarea appInput rows="3" [ngModel]="text()" (ngModelChange)="text.set($event)" [maxlength]="count().limit" (keydown.control.enter)="send()"></textarea>
+      </app-field>
     } @else {
-      <mat-form-field class="app-full-width" subscriptSizing="dynamic">
-        <mat-label>Template</mat-label>
-        <mat-select [ngModel]="templateId()" (ngModelChange)="templateId.set($event)">
-          @for (t of templates(); track t.id) {
-            <mat-option [value]="t.id">{{ t.name }}{{ t.creditorId ? '' : ' (assessoria)' }}</mat-option>
+      <app-field class="mb-2" label="Template">
+        <select appInput [ngModel]="templateId()" (ngModelChange)="templateId.set($event)">
+          @for (t of templates(); track t.id; let first = $first) {
+            @if (first) {
+              <option value="" disabled>Selecione</option>
+            }
+            <option [value]="t.id">{{ t.name }}{{ t.creditorId ? '' : ' (assessoria)' }}</option>
           } @empty {
-            <mat-option disabled value="">Nenhum template publicado para este canal</mat-option>
+            <option disabled value="">Nenhum template publicado para este canal</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
       @if (template(); as t) {
-        <div class="cp-vars">
+        <div class="row g-2 mb-2">
           @for (v of t.variables; track v.name) {
-            <mat-form-field class="app-compact" subscriptSizing="dynamic">
-              <mat-label>{{ v.name }}{{ v.required ? '' : ' (opcional)' }}</mat-label>
-              <input matInput [ngModel]="values()[v.name] ?? ''" (ngModelChange)="setValue(v.name, $event)" [attr.maxlength]="v.maxLength" />
-              <mat-hint>{{ typeLabels[v.type] }}</mat-hint>
-            </mat-form-field>
+            <app-field class="col-sm-6 col-lg-4" [label]="v.name + (v.required ? '' : ' (opcional)')" [hint]="typeLabels[v.type]">
+              <input appInput [ngModel]="values()[v.name] ?? ''" (ngModelChange)="setValue(v.name, $event)" [attr.maxlength]="v.maxLength" />
+            </app-field>
           }
         </div>
-        <p class="cp-preview" aria-label="Prévia da mensagem">{{ preview() ?? t.body }}</p>
+        <p class="cp-preview mb-2 ps-3 py-2 small border-start border-3" aria-label="Prévia da mensagem">{{ preview() ?? t.body }}</p>
       }
     }
-    <div class="cp-actions">
+    <div class="d-flex justify-content-end gap-2 mt-2">
       @if (mode() === 'template' && template()) {
-        <button mat-button type="button" (click)="refreshPreview()">Ver prévia</button>
+        <button class="btn btn-link" type="button" (click)="refreshPreview()">Ver prévia</button>
       }
-      <button mat-flat-button type="button" (click)="send()" [disabled]="!ready() || sending() || c.status !== 'OPEN'">
-        <mat-icon aria-hidden="true">send</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="send()" [disabled]="!ready() || sending() || c.status !== 'OPEN'">
+        <app-icon name="send" />
         Enviar
       </button>
     </div>
@@ -85,40 +80,8 @@ export function applicableTemplates(list: readonly TemplateView[], creditorId: s
     :host {
       display: block;
     }
-    .cp-window {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin: 0 0 8px;
-      font-size: var(--app-text-sm);
-      color: var(--mat-sys-on-surface-variant);
-      mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-      }
-    }
-    .cp-window--open {
-      color: var(--app-success-fg);
-    }
-    .cp-vars {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 8px;
-      margin-bottom: 8px;
-    }
     .cp-preview {
-      margin: 0 0 8px;
-      padding: 8px 12px;
-      border-left: 3px solid var(--app-border);
       white-space: pre-wrap;
-      font-size: var(--app-text-sm);
-    }
-    .cp-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 8px;
     }
   `,
 })

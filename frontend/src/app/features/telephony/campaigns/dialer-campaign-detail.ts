@@ -1,12 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -18,12 +13,15 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
@@ -46,7 +44,7 @@ import { CampaignDialog, CampaignDialogData } from './campaign-dialog';
  */
 @Component({
   selector: 'app-dialer-campaign-detail',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip],
+  imports: [FormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip],
   templateUrl: './dialer-campaign-detail.html',
   styleUrl: '../telephony.scss',
 })
@@ -56,7 +54,7 @@ export class DialerCampaignDetail {
   private readonly api = inject(DialerCampaignsApi);
   private readonly agentsApi = inject(AgentsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
@@ -149,7 +147,7 @@ export class DialerCampaignDetail {
       return;
     }
     this.dialog
-      .open<CampaignDialog, CampaignDialogData, CampaignView>(CampaignDialog, { data: { campaign: c }, width: '720px', maxWidth: '96vw' })
+      .open<CampaignDialog, CampaignDialogData, CampaignView>(CampaignDialog, { data: { campaign: c }, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

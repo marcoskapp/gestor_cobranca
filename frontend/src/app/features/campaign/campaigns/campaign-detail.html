@@ -4,9 +4,9 @@
     <app-skeleton class="cd-gap" variant="card" [rows]="6" />
   </div>
 } @else if (campaign.status() === 'error') {
-  <app-empty-state icon="campaign" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="campaign.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/campanhas">Voltar para campanhas</a>
+  <app-empty-state icon="megaphone" tone="error" title="Não foi possível abrir a campanha." message="A campanha pode não existir ou o credor estar fora do seu escopo.">
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="campaign.reload()">Tentar novamente</button>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas">Voltar para campanhas</a>
   </app-empty-state>
 }
 
@@ -15,25 +15,25 @@
     @if (canExecute()) {
       @if (c.status === 'DRAFT' || c.status === 'PAUSED') {
         <button
-          mat-flat-button
+          class="btn btn-primary d-inline-flex align-items-center gap-2"
           type="button"
           (click)="activate()"
           [disabled]="busy() || !c.publishedCadenceId"
-          [matTooltip]="c.publishedCadenceId ? 'Mostra quantos devedores serão alcançados antes de confirmar' : 'Publique a régua antes de ativar'"
+          [ngbTooltip]="c.publishedCadenceId ? 'Mostra quantos devedores serão alcançados antes de confirmar' : 'Publique a régua antes de ativar'"
         >
-          <mat-icon aria-hidden="true">play_arrow</mat-icon>
+          <app-icon name="play" />
           {{ c.status === 'PAUSED' ? 'Reativar' : 'Ativar' }}
         </button>
       }
       @if (c.status === 'ACTIVE') {
-        <button mat-stroked-button type="button" (click)="pause()" [disabled]="busy()">
-          <mat-icon aria-hidden="true">pause</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="pause()" [disabled]="busy()">
+          <app-icon name="pause" />
           Pausar
         </button>
       }
       @if (c.status !== 'FINISHED') {
-        <button mat-stroked-button type="button" (click)="finish()" [disabled]="busy()">
-          <mat-icon aria-hidden="true">stop_circle</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="finish()" [disabled]="busy()">
+          <app-icon name="stop-circle" />
           Encerrar
         </button>
       }
@@ -77,8 +77,8 @@
             <p class="cd-big app-numeric" aria-live="polite">{{ count(a.debtors) }} <span class="cd-unit">devedores</span></p>
             <p class="app-muted cd-small">{{ count(a.cases) }} casos no credor{{ c.portfolioId ? ' e na carteira' : '' }} · calculado em {{ a.evaluatedAt | appDate }}</p>
           } @else {
-            <button mat-stroked-button type="button" (click)="countAudience()" [disabled]="counting()">
-              <mat-icon aria-hidden="true">groups</mat-icon>
+            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="countAudience()" [disabled]="counting()">
+              <app-icon name="people-fill" />
               Contar público
             </button>
           }
@@ -90,13 +90,13 @@
           @if (c.publishedCadenceVersion) {
             <p class="cd-line"><app-status-chip domain="cadence" status="PUBLISHED" /> versão {{ c.publishedCadenceVersion }} usada nas novas inscrições</p>
           } @else {
-            <p class="cd-line"><span class="app-status app-status--warning">Sem régua publicada</span> a campanha não pode ser ativada</p>
+            <p class="cd-line"><span class="badge rounded-pill border bg-warning-subtle text-warning-emphasis border-warning-subtle fw-normal">Sem régua publicada</span> a campanha não pode ser ativada</p>
           }
           @if (c.hasDraft) {
             <p class="app-muted cd-small">Há um rascunho da próxima versão em edição.</p>
           }
-          <a mat-stroked-button [routerLink]="['/campanhas', c.id, 'regua']">
-            <mat-icon aria-hidden="true">format_list_numbered</mat-icon>
+          <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" [routerLink]="['/campanhas', c.id, 'regua']">
+            <app-icon name="list-ol" />
             {{ c.publishedCadenceVersion || c.hasDraft ? 'Abrir régua' : 'Montar régua' }}
           </a>
         </section>
@@ -105,14 +105,14 @@
       <section class="app-card" aria-labelledby="cd-settings" data-tour="campaign-settings">
         <h2 class="app-card__title" id="cd-settings">Parâmetros</h2>
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <p class="alert alert-danger d-flex gap-2" role="alert">{{ e }}</p>
         }
         <form (ngSubmit)="save()" novalidate>
           <app-campaign-settings-fields [form]="form" [creditorId]="c.creditorId" [currentSegmentId]="c.segmentId" [segmentLocked]="c.status === 'ACTIVE'" />
           @if (editable()) {
             <div class="app-form-actions">
-              <button mat-flat-button type="submit" [disabled]="saving() || form.pristine">
-                <mat-icon aria-hidden="true">save</mat-icon>
+              <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="submit" [disabled]="saving() || form.pristine">
+                <app-icon name="floppy" />
                 Salvar parâmetros
               </button>
             </div>
@@ -124,8 +124,8 @@
     <aside class="app-card cd-rules" aria-labelledby="cd-rules" data-tour="campaign-pause-rules">
       <h2 class="app-card__title" id="cd-rules">Pausa e retomada automáticas</h2>
       <p class="app-muted cd-small">A inscrição do caso pausa sozinha nestas situações e retoma quando a causa termina. Reavaliado também antes de cada etapa.</p>
-      <table class="cd-table">
-        <caption class="cdk-visually-hidden">Regras de pausa e retomada</caption>
+      <table class="table table-sm small mb-2">
+        <caption class="visually-hidden">Regras de pausa e retomada</caption>
         <thead>
           <tr>
             <th scope="col">Quando</th>
@@ -142,8 +142,8 @@
         </tbody>
       </table>
       @if (c.purpose === 'AGREEMENT_FOLLOW_UP') {
-        <p class="app-alert app-alert--info cd-small" role="note">
-          <mat-icon aria-hidden="true">info</mat-icon>
+        <p class="alert alert-info d-flex gap-2 cd-small" role="note">
+          <app-icon name="info-circle" />
           <span>Acompanhamento de acordo não pausa por acordo nem por pagamento: é justamente esse o público.</span>
         </p>
       }

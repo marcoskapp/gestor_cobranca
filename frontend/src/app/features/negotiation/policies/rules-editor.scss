@@ -2,12 +2,17 @@
   min-width: 0;
   margin: 0 0 12px;
   padding: 8px 12px 4px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
 
+  // a legenda do reboot do Bootstrap ocupa a linha inteira em tamanho de título; aqui ela fica no contorno
   legend {
+    float: none;
+    width: auto;
+    margin: 0;
     padding: 0 4px;
-    font-weight: 600;
+    font-size: var(--app-text-md);
+    font-weight: 500;
   }
 }
 
@@ -17,9 +22,10 @@
   align-items: flex-start;
   gap: 0 8px;
 
-  mat-form-field {
+  app-field {
     flex: 1 1 170px;
     min-width: 0;
+    margin-bottom: 8px;
   }
 
   .re-wide {
@@ -36,7 +42,7 @@
 .re-sub {
   margin: 4px 0;
   font-size: var(--app-text-sm);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .re-small {
@@ -45,6 +51,8 @@
 }
 
 .re-scroll {
+  // contém o `.visually-hidden` (posição absoluta) do cabeçalho: sem isso ele fica fora da rolagem e alarga a página
+  position: relative;
   overflow-x: auto;
 }
 
@@ -62,7 +70,7 @@
   th {
     font-size: var(--app-text-xs);
     font-weight: 600;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--bs-secondary-color);
   }
 }
 
@@ -70,9 +78,9 @@
   box-sizing: border-box;
   width: 76px;
   padding: 6px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-sm);
-  background: var(--app-surface);
+  border: var(--bs-border-width) solid var(--app-control-border);
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-body-bg);
   color: inherit;
   font: inherit;
   font-variant-numeric: tabular-nums;

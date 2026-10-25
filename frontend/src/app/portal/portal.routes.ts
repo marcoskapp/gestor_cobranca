@@ -1,6 +1,5 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
-import { provideDatepickerDefaults } from '../core/config/datepicker.config';
 import { provideMaterialDefaults } from '../core/config/material.config';
 import { PortalSession } from './data/portal-session';
 
@@ -20,7 +19,7 @@ export const PORTAL_ROUTES: Routes = [
     path: ':slug',
     loadComponent: () => import('./layout/portal-layout').then((m) => m.PortalLayout),
     // TRANSITÓRIO: o portal ainda usa Angular Material (fora do bundle inicial)
-    providers: [provideDatepickerDefaults(), provideMaterialDefaults()],
+    providers: [provideMaterialDefaults()],
     children: [
       {
         path: '',

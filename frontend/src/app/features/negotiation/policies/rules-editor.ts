@@ -1,11 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import {
   COMPONENT_LABELS,
   FEE_TYPE_LABELS,
@@ -26,7 +22,7 @@ const options = <T extends string>(labels: Record<T, string>) => Object.entries(
  */
 @Component({
   selector: 'app-rules-editor',
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatTooltipModule],
+  imports: [Icon, ...FORM_FIELD, FormsModule],
   templateUrl: './rules-editor.html',
   styleUrl: './rules-editor.scss',
 })

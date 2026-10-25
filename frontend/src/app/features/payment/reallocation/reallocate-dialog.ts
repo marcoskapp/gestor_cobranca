@@ -1,16 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppValidators } from '../../../shared/validation/validators';
 import { PaymentTarget, TargetSelection } from '../components/payment-target';
 import { PaymentsApi } from '../data/payment.api';
@@ -30,82 +27,74 @@ export interface ReallocateDialogData {
  */
 @Component({
   selector: 'app-reallocate-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatIconModule, MatInputModule, MatRadioModule, Amount, PaymentTarget],
+  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, Amount, PaymentTarget],
   template: `
-    <h2 mat-dialog-title>Realocar valor · {{ data.debtorName }}</h2>
-    <form [formGroup]="form" (ngSubmit)="send()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Realocar valor · {{ data.debtorName }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="send()" novalidate>
+      <div class="modal-body">
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
         <h3 class="app-section-title">De onde sai o valor</h3>
-        <mat-radio-group formControlName="source" class="rd-sources" aria-label="Origem do valor">
+        <fieldset class="mb-2">
+          <legend class="visually-hidden">Origem do valor</legend>
           @for (s of sources; track s.allocationId; let i = $index) {
-            <mat-radio-button [value]="i">
-              {{ s.label }} · <app-amount [value]="s.available" />
-            </mat-radio-button>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" formControlName="source" [value]="i" [id]="'rd-source-' + i" [attr.ngbAutofocus]="i === 0 ? '' : null" />
+              <label class="form-check-label" [for]="'rd-source-' + i">{{ s.label }} · <app-amount [value]="s.available" /></label>
+            </div>
           }
-        </mat-radio-group>
+        </fieldset>
 
         <h3 class="app-section-title">Para onde vai</h3>
-        <mat-button-toggle-group formControlName="mode" aria-label="Destino" class="rd-mode">
-          <mat-button-toggle value="TARGET">Outro destino</mat-button-toggle>
-          <mat-button-toggle value="REFUND">Devolver ao pagador</mat-button-toggle>
-        </mat-button-toggle-group>
+        <div class="btn-group mb-2" role="group" aria-label="Destino">
+          <input type="radio" class="btn-check" formControlName="mode" value="TARGET" id="rd-mode-target" />
+          <label class="btn btn-outline-primary" for="rd-mode-target">Outro destino</label>
+          <input type="radio" class="btn-check" formControlName="mode" value="REFUND" id="rd-mode-refund" />
+          <label class="btn btn-outline-primary" for="rd-mode-refund">Devolver ao pagador</label>
+        </div>
         @if (form.controls.mode.value === 'TARGET') {
           <app-payment-target [debtorId]="data.payment.debtorId" [creditorId]="data.payment.creditorId" mode="allocation" [(selection)]="target" />
           @if (submitted() && !target()) {
-            <p class="app-field-error" role="alert">Escolha o acordo ou os títulos que recebem o valor.</p>
+            <div class="invalid-feedback d-block" role="alert">Escolha o acordo ou os títulos que recebem o valor.</div>
           }
         } @else {
           <p class="app-muted rd-small">Faça a transferência ao pagador pelo banco e registre aqui o identificador (E2E do Pix, número do DOC/TED).</p>
-          <mat-form-field class="app-full-width">
-            <mat-label>Referência da devolução</mat-label>
-            <input matInput formControlName="refundReference" maxlength="100" autocomplete="off" spellcheck="false" />
-            <mat-error>Informe a referência da transferência de devolução.</mat-error>
-          </mat-form-field>
+          <app-field class="mb-3" label="Referência da devolução" error="Informe a referência da transferência de devolução.">
+            <input appInput formControlName="refundReference" maxlength="100" autocomplete="off" spellcheck="false" />
+          </app-field>
         }
 
-        <div class="app-form-grid">
-          <mat-form-field floatLabel="always">
-            <mat-label>Valor</mat-label>
-            <span matTextPrefix>R$&nbsp;</span>
-            <input matInput formControlName="amount" inputmode="decimal" autocomplete="off" required />
-            <mat-hint>Disponível: {{ money(available()) }}</mat-hint>
-            <mat-error>Informe um valor até o disponível.</mat-error>
-          </mat-form-field>
+        <div class="app-form-grid mb-3">
+          <app-field label="Valor" hint="Disponível: {{ money(available()) }}" error="Informe um valor até o disponível.">
+            <div class="input-group">
+              <span class="input-group-text">R$</span>
+              <input appInput formControlName="amount" inputmode="decimal" autocomplete="off" required />
+            </div>
+          </app-field>
         </div>
-        <mat-form-field class="app-full-width">
-          <mat-label>Justificativa</mat-label>
-          <textarea matInput formControlName="note" rows="2" maxlength="1000" required></textarea>
-          <mat-hint>Registrada na auditoria.</mat-hint>
-          <mat-error>Explique a realocação.</mat-error>
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="sending() || !sources.length">{{ form.controls.mode.value === 'REFUND' ? 'Registrar devolução' : 'Realocar' }}</button>
-      </mat-dialog-actions>
+        <app-field class="mb-3" label="Justificativa" hint="Registrada na auditoria." error="Explique a realocação.">
+          <textarea appInput formControlName="note" rows="2" maxlength="1000" required></textarea>
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="sending() || !sources.length">{{ form.controls.mode.value === 'REFUND' ? 'Registrar devolução' : 'Realocar' }}</button>
+      </div>
     </form>
   `,
   styles: `
-    .rd-sources {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 8px;
-    }
-    .rd-mode {
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
     .rd-small {
       font-size: var(--app-text-sm);
     }
   `,
 })
 export class ReallocateDialog {
-  protected readonly data = inject<ReallocateDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ReallocateDialog, PaymentView>>(MatDialogRef);
+  protected readonly data = inject<ReallocateDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<PaymentView>>(DialogRef);
   private readonly api = inject(PaymentsApi);
   protected readonly sources: ReallocationSource[] = reallocationSources(this.data.payment);
   protected readonly money = formatAmount;

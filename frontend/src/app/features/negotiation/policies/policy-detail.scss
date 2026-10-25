@@ -61,9 +61,9 @@
   flex-direction: column;
   align-items: flex-start;
   padding: 6px 12px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-body-bg);
   color: inherit;
   font: inherit;
   font-size: var(--app-text-sm);
@@ -75,8 +75,8 @@
 }
 
 .pd-tab--on {
-  border-color: var(--mat-sys-primary);
-  background: var(--app-info-bg);
+  border-color: var(--bs-primary);
+  background: var(--bs-info-bg-subtle);
   font-weight: 600;
 }
 
@@ -104,12 +104,12 @@
     align-items: center;
     gap: 4px 8px;
     padding-left: 8px;
-    border-left: 3px solid var(--app-border);
+    border-left: 3px solid var(--bs-border-color);
   }
 }
 
 .pd-version--current {
-  border-left-color: var(--mat-sys-primary) !important;
+  border-left-color: var(--bs-primary) !important;
   font-weight: 600;
 }
 

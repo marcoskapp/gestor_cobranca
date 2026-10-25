@@ -1,51 +1,51 @@
 @if (resource.isLoading() && !proposal()) {
   <app-skeleton variant="card" [rows]="6" />
 } @else if (resource.status() === 'error') {
-  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar a proposta." message="Verifique a conexão e tente novamente.">
-    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a proposta." message="Verifique a conexão e tente novamente.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
   </app-empty-state>
 } @else if (proposal(); as p) {
   @let a = actions()!;
   <app-page-header [title]="'Proposta · ' + (debtorName() ?? creditors.name(p.creditorId))" [subtitle]="'Criada em ' + (p.createdAt | appDate) + ' por ' + actorName(p.actor.type, p.actor.id)">
     @if (a.term) {
-      <button mat-button type="button" (click)="downloadTerm()">
-        <mat-icon aria-hidden="true">picture_as_pdf</mat-icon>
+      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="downloadTerm()">
+        <app-icon name="file-earmark-pdf" />
         Baixar termo
       </button>
     }
     @if (p.agreementId && canViewAgreement()) {
-      <a mat-stroked-button [routerLink]="['/negociacao/acordos', p.agreementId]">
-        <mat-icon aria-hidden="true">handshake</mat-icon>
+      <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" [routerLink]="['/negociacao/acordos', p.agreementId]">
+        <app-icon name="person-hearts" />
         Ver acordo
       </a>
     }
     @if (a.reject) {
-      <button mat-stroked-button type="button" (click)="reject()" [disabled]="busy()">Reprovar</button>
+      <button class="btn btn-outline-primary" type="button" (click)="reject()" [disabled]="busy()">Reprovar</button>
     }
     @if (a.approve) {
-      <button mat-flat-button type="button" (click)="approve()" [disabled]="busy()" data-tour="proposal-decide">
-        <mat-icon aria-hidden="true">verified</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="approve()" [disabled]="busy()" data-tour="proposal-decide">
+        <app-icon name="patch-check" />
         Aprovar
       </button>
     }
     @if (a.accept) {
-      <button mat-flat-button type="button" (click)="accept()" [disabled]="busy()" data-tour="proposal-accept">
-        <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="accept()" [disabled]="busy()" data-tour="proposal-accept">
+        <app-icon name="person-check" />
         Registrar aceite
       </button>
     }
     @if (a.formalize) {
-      <button mat-flat-button type="button" (click)="formalize()" [disabled]="busy()" data-tour="proposal-formalize">
-        <mat-icon aria-hidden="true">handshake</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="formalize()" [disabled]="busy()" data-tour="proposal-formalize">
+        <app-icon name="person-hearts" />
         Formalizar acordo
       </button>
     }
     @if (a.adopt) {
       @if (canSimulate()) {
-        <button mat-stroked-button type="button" (click)="negotiateOther()">Negociar outras condições</button>
+        <button class="btn btn-outline-primary" type="button" (click)="negotiateOther()">Negociar outras condições</button>
       }
-      <button mat-flat-button type="button" (click)="adopt()" [disabled]="busy()" data-tour="proposal-adopt">
-        <mat-icon aria-hidden="true">smart_toy</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="adopt()" [disabled]="busy()" data-tour="proposal-adopt">
+        <app-icon name="robot" />
         Assumir sugestão
       </button>
     }
@@ -57,42 +57,42 @@
       <span [class.pd-late]="lapsed()">{{ lapsed() ? 'Validade vencida em' : 'Válida até' }} {{ p.validUntil | appDate: 'date' }}</span>
     }
     @if (p.renegotiationNumber > 0) {
-      <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">autorenew</mat-icon>Renegociação {{ p.renegotiationNumber }}</span>
+      <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-info-subtle text-info-emphasis border-info-subtle"><app-icon name="arrow-repeat" />Renegociação {{ p.renegotiationNumber }}</span>
     }
     @if (p.copilot) {
-      <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">smart_toy</mat-icon>Com sugestão do assistente</span>
+      <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-info-subtle text-info-emphasis border-info-subtle"><app-icon name="robot" />Com sugestão do assistente</span>
     }
   </div>
 
   @switch (p.status) {
     @case ('HANDED_OFF') {
-      <p class="app-alert app-alert--warning" role="note">
-        <mat-icon aria-hidden="true">smart_toy</mat-icon>
+      <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+        <app-icon name="robot" />
         <span>O assistente sugeriu estas condições, mas elas passam da alçada dele. Assuma a sugestão (mesmas condições, revalidadas com a sua alçada) ou negocie outras.</span>
-      </p>
+      </div>
     }
     @case ('PENDING_APPROVAL') {
-      <p class="app-alert app-alert--warning" role="note">
-        <mat-icon aria-hidden="true">hourglass_top</mat-icon>
+      <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+        <app-icon name="hourglass-top" />
         <span>
           Aguardando quem tem alçada para estas condições.
           @if (!a.approve && actorName(p.actor.type, p.actor.id) === 'Você') {
             Você não pode decidir a própria proposta.
           }
         </span>
-      </p>
+      </div>
     }
     @case ('REJECTED') {
-      <p class="app-alert app-alert--error" role="note">
-        <mat-icon aria-hidden="true">block</mat-icon>
+      <div class="alert alert-danger d-flex gap-2 align-items-start" role="note">
+        <app-icon name="slash-circle" />
         <span>Reprovada{{ p.decision?.note ? ': ' + p.decision.note : '.' }} Simule outras condições para o devedor.</span>
-      </p>
+      </div>
     }
     @case ('EXPIRED') {
-      <p class="app-alert app-alert--neutral" role="note">
-        <mat-icon aria-hidden="true">event_busy</mat-icon>
+      <div class="alert alert-secondary d-flex gap-2 align-items-start" role="note">
+        <app-icon name="calendar-x" />
         <span>A validade terminou antes do acordo. Simule de novo: os valores são recalculados para a nova data.</span>
-      </p>
+      </div>
     }
   }
 
@@ -159,8 +159,8 @@
       <section class="app-card" aria-labelledby="pd-memory" data-tour="proposal-memory">
         <div class="pd-head">
           <h2 class="app-card__title" id="pd-memory">Memória de cálculo</h2>
-          <button mat-button type="button" (click)="showMemory.set(!showMemory())" [attr.aria-expanded]="showMemory()">
-            <mat-icon aria-hidden="true">{{ showMemory() ? 'expand_less' : 'receipt_long' }}</mat-icon>
+          <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="showMemory.set(!showMemory())" [attr.aria-expanded]="showMemory()">
+            <app-icon [name]="showMemory() ? 'chevron-up' : 'receipt'" />
             {{ showMemory() ? 'Ocultar' : 'Ver memória' }}
           </button>
         </div>
@@ -239,8 +239,8 @@
           <app-document [value]="d.maskedDocument" />
           <p class="app-muted">{{ creditors.name(p.creditorId) }}</p>
           @if (p.caseId) {
-            <a mat-button [routerLink]="['/cobranca/casos', p.caseId]">
-              <mat-icon aria-hidden="true">open_in_new</mat-icon>
+            <a class="btn btn-link d-inline-flex align-items-center gap-2" [routerLink]="['/cobranca/casos', p.caseId]">
+              <app-icon name="box-arrow-up-right" />
               Abrir caso
             </a>
           }
@@ -268,7 +268,7 @@
         <ol class="pd-timeline">
           @for (e of timeline(); track $index) {
             <li>
-              <mat-icon aria-hidden="true">{{ e.icon }}</mat-icon>
+              <app-icon [name]="e.icon" />
               <div>
                 <strong>{{ e.title }}</strong>
                 <div class="app-muted">{{ e.at | appDate }}{{ e.detail ? ' · ' + e.detail : '' }}</div>

@@ -6,7 +6,6 @@ import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
-import { provideDatepickerDefaults } from '../../../core/config/datepicker.config';
 import { provideLocale } from '../../../core/config/locale.config';
 import { KeyboardShortcuts } from '../../../core/keyboard/keyboard-shortcuts.service';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -121,7 +120,6 @@ describe('CollectionStation', () => {
         ...LEGACY_DIALOG_LAUNCHERS,
         provideLocale(),
         provideBootstrapDefaults(),
-        provideDatepickerDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

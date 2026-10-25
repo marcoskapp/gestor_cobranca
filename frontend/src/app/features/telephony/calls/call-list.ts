@@ -1,14 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -18,12 +11,15 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
-import { endOfDayInstant, startOfDayInstant } from '../../../shared/models/dates';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { endOfDayInstant, fromLocalDate, startOfDayInstant } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { DebtorNames } from '../../debt/data/debt.lookups';
@@ -41,42 +37,43 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
  */
 @Component({
   selector: 'app-call-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatTooltipModule, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [ReactiveFormsModule, RouterLink, NgbInputDatepicker, NgbTooltip, ...FORM_FIELD, Icon, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Chamadas e gravações" subtitle="Clique para ligar, discador e chamadas recebidas do seu escopo, com o resultado, a tabulação e a gravação." />
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar chamadas">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Resultado</mat-label>
-        <mat-select formControlName="result">
-          <mat-option value="">Todos</mat-option>
+      <app-field label="Resultado">
+        <select appInput formControlName="result">
+          <option value="">Todos</option>
           @for (r of results; track r[0]) {
-            <mat-option [value]="r[0]">{{ r[1] }}</mat-option>
+            <option [value]="r[0]">{{ r[1] }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Direção</mat-label>
-        <mat-select formControlName="direction">
-          <mat-option value="">Todas</mat-option>
-          <mat-option value="OUTBOUND">Feitas</mat-option>
-          <mat-option value="INBOUND">Recebidas</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Período</mat-label>
-        <mat-date-range-input [rangePicker]="period">
-          <input matStartDate formControlName="from" placeholder="De" />
-          <input matEndDate formControlName="to" placeholder="Até" />
-        </mat-date-range-input>
-        <mat-datepicker-toggle matIconSuffix [for]="period" />
-        <mat-date-range-picker #period />
-      </mat-form-field>
+        </select>
+      </app-field>
+      <app-field label="Direção">
+        <select appInput formControlName="direction">
+          <option value="">Todas</option>
+          <option value="OUTBOUND">Feitas</option>
+          <option value="INBOUND">Recebidas</option>
+        </select>
+      </app-field>
+      <app-field label="De">
+        <div class="input-group">
+          <input appInput formControlName="from" ngbDatepicker #from="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <button class="btn btn-outline-secondary" type="button" (click)="from.toggle()" aria-label="Abrir calendário da data inicial"><app-icon name="calendar-event" /></button>
+        </div>
+      </app-field>
+      <app-field label="Até">
+        <div class="input-group">
+          <input appInput formControlName="to" ngbDatepicker #to="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <button class="btn btn-outline-secondary" type="button" (click)="to.toggle()" aria-label="Abrir calendário da data final"><app-icon name="calendar-event" /></button>
+        </div>
+      </app-field>
     </form>
     @if (!canListen()) {
-      <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">lock</mat-icon><span>Seu perfil não ouve gravações (permissão própria, com finalidade declarada e registro de acesso).</span></p>
+      <p class="alert alert-secondary d-flex gap-2" role="note"><app-icon name="lock" /><span>Seu perfil não ouve gravações (permissão própria, com finalidade declarada e registro de acesso).</span></p>
     }
     <app-data-table
       caption="Chamadas"
@@ -87,12 +84,12 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="call"
+      emptyIcon="telephone"
       emptyMessage="Nenhuma chamada encontrada."
     >
       <ng-template appCell="when" [appCellOf]="query.rows()" let-c>
         {{ (c.answeredAt ?? c.dialStartedAt ?? c.queuedAt) | appDate }}
-        <div class="app-muted cl-small">{{ c.direction === 'INBOUND' ? 'recebida' : c.origin === 'DIALER' ? 'discador' : 'clique para ligar' }}</div>
+        <div class="app-muted small">{{ c.direction === 'INBOUND' ? 'recebida' : c.origin === 'DIALER' ? 'discador' : 'clique para ligar' }}</div>
       </ng-template>
       <ng-template appCell="debtor" [appCellOf]="query.rows()" let-c>
         @if (c.caseId) {
@@ -100,7 +97,7 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
         } @else {
           <span class="app-muted">Não identificado</span>
         }
-        <div class="app-muted cl-small">{{ c.numberMasked ?? '—' }}@if (c.creditorId) { · {{ creditors.name(c.creditorId) }}}</div>
+        <div class="app-muted small">{{ c.numberMasked ?? '—' }}@if (c.creditorId) { · {{ creditors.name(c.creditorId) }}}</div>
       </ng-template>
       <ng-template appCell="operator" [appCellOf]="query.rows()" let-c>{{ c.operatorId ? users.name(c.operatorId) : '—' }}</ng-template>
       <ng-template appCell="result" [appCellOf]="query.rows()" let-c>
@@ -109,7 +106,7 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
         } @else {
           <app-status-chip domain="call" [status]="c.status" />
         }
-        <div class="app-muted cl-small">conversa {{ duration(c.talkSeconds) }}{{ c.hangupSide ? ' · desligou: ' + (hangups[c.hangupSide] || c.hangupSide) : '' }}</div>
+        <div class="app-muted small">conversa {{ duration(c.talkSeconds) }}{{ c.hangupSide ? ' · desligou: ' + (hangups[c.hangupSide] || c.hangupSide) : '' }}</div>
       </ng-template>
       <ng-template appCell="tabulation" [appCellOf]="query.rows()" let-c>
         {{ c.tabulationCode ?? (c.interactionState === 'AWAITING_TABULATION' ? 'aguardando operador' : '—') }}
@@ -117,31 +114,26 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-c>
         @if (c.recording; as r) {
           @if (r.status === 'STORED' && canListen()) {
-            <button mat-icon-button type="button" (click)="listen(c)" aria-label="Ouvir gravação" matTooltip="Ouvir gravação (acesso registrado)" data-tour="recording-listen">
-              <mat-icon aria-hidden="true">play_circle</mat-icon>
+            <button class="btn btn-link" type="button" (click)="listen(c)" aria-label="Ouvir gravação" ngbTooltip="Ouvir gravação (acesso registrado)" data-tour="recording-listen">
+              <app-icon name="play-circle" />
             </button>
           } @else if (r.status !== 'STORED') {
             <app-status-chip domain="recording" [status]="r.status" />
           }
         }
         @if (active(c)) {
-          <button mat-icon-button type="button" (click)="hangup(c)" aria-label="Encerrar chamada" matTooltip="Encerrar chamada (auditado)">
-            <mat-icon aria-hidden="true">call_end</mat-icon>
+          <button class="btn btn-link" type="button" (click)="hangup(c)" aria-label="Encerrar chamada" ngbTooltip="Encerrar chamada (auditado)">
+            <app-icon name="telephone-x" />
           </button>
         }
       </ng-template>
     </app-data-table>
   `,
-  styles: `
-    .cl-small {
-      font-size: var(--app-text-xs);
-    }
-  `,
 })
 export class CallList {
   private readonly api = inject(CallsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -156,8 +148,8 @@ export class CallList {
     creditor: this.fb.control<string[]>([]),
     result: [''],
     direction: [''],
-    from: this.fb.control<Date | null>(null),
-    to: this.fb.control<Date | null>(null),
+    from: this.fb.control<string | null>(null),
+    to: this.fb.control<string | null>(null),
   });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -188,8 +180,6 @@ export class CallList {
   protected listen(c: CallView): void {
     this.dialog.open<RecordingDialog, RecordingDialogData>(RecordingDialog, {
       data: { call: c, debtorName: c.debtorId ? this.debtors.name(c.debtorId) : 'Não identificado' },
-      width: '560px',
-      maxWidth: '96vw',
     });
   }
 
@@ -219,8 +209,9 @@ export class CallList {
       creditorId: v.creditor[0] ?? null,
       result: v.result || null,
       direction: v.direction || null,
-      from: startOfDayInstant(v.from),
-      to: endOfDayInstant(v.to),
+      // data digitada incompleta ou inválida (erro do datepicker) não filtra
+      from: this.filters.controls.from.valid ? startOfDayInstant(fromLocalDate(v.from)) : null,
+      to: this.filters.controls.to.valid ? endOfDayInstant(fromLocalDate(v.to)) : null,
     };
   }
 }
