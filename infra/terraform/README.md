@@ -50,9 +50,11 @@ Nenhum segredo fica em código, `tfvars`, state ou saída do Terraform. Os valor
 | `app/jwt-private-key`, `app/jwt-public-key` | `/etc/gestor-cobranca/jwt-*.pem` | PEM PKCS#8 / X.509 (RSA 2048) |
 | `app/smtp-username`, `app/smtp-password` | `SMTP_USERNAME`, `SMTP_PASSWORD` | do provedor SMTP |
 
-**Com `use_ssm_parameters = true`** — SecureStrings em `/gestor-cobranca/<env>/<nome>`, cifradas pela chave KMS do ambiente; o papel da instância só tem `ssm:GetParameter(s)` nesse prefixo e `kms:Decrypt` nessa chave (via SSM).
+**Com `use_ssm_parameters = true`** — SecureStrings em `/gestor-cobranca/<env>/<nome>`, cifradas pela chave KMS do ambiente; o papel da instância só tem `ssm:GetParameter(s)` em `.../app/*` e `kms:Decrypt` nessa chave (via SSM).
 
-**Com `use_ssm_parameters = false`** (padrão, sem aprovação) — bucket `gestor-cobranca-<env>-secrets-<conta>`, em `s3://…/<env>/<nome>`: SSE, versionamento, TLS obrigatório, sem acesso público e política que **nega** leitura a qualquer principal que não seja o papel das instâncias ou os administradores de `secrets_admin_principal_arns`, e nega escrita a todos exceto esses administradores — inclusive outros usuários da conta com permissões amplas de S3. Os logs de acesso do S3 registram cada leitura.
+**Runtime × migração** — o papel das instâncias lê somente `app/*`. `migration/*` (senha do dono do schema) fica legível apenas: (a) durante `scripts/deploy/migrate.sh`, pela política inline temporária `migration-window`, restrita à instância da migração (`ec2:SourceInstanceARN`) e a 75 minutos (`aws:CurrentTime`), removida ao fim da execução; ou (b) com `db_admin_access = true`, para `db-admin.sh`. O pipeline/operador que executa `migrate.sh` precisa de `iam:PutRolePolicy` e `iam:DeleteRolePolicy` no papel das instâncias (saída `instance_role_name`).
+
+**Com `use_ssm_parameters = false`** (padrão, sem aprovação) — bucket `gestor-cobranca-<env>-secrets-<conta>`, em `s3://…/<env>/<nome>` (o papel das instâncias lê só `<env>/app/*`; `migration/*` como acima): SSE, versionamento, TLS obrigatório, sem acesso público e política que **nega** leitura a qualquer principal que não seja o papel das instâncias ou os administradores de `secrets_admin_principal_arns`, e nega escrita a todos exceto esses administradores — inclusive outros usuários da conta com permissões amplas de S3. Os logs de acesso do S3 registram cada leitura.
 
 Nas instâncias, o user-data grava os PEM em `/etc/gestor-cobranca/` (0600, dono `gestor`) e as variáveis sensíveis em `/etc/gestor-cobranca/secrets.env` (0600, `root`), lido pelo systemd antes de trocar para o usuário do serviço. As variáveis não sensíveis ficam em `app.env`.
 

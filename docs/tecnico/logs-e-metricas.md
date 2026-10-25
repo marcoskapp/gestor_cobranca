@@ -223,7 +223,7 @@ Ids, enums e valores apenas — nunca documento, nome, observação, descrição
 | Evento | Quando | Atributos |
 | --- | --- | --- |
 | `payment_instruction.created` | instrução criada | `type`, `targetKind`, `agreementId`, `installmentNumber`, `dueDate`, `expiresInMinutes`; `channel`; `amount` |
-| `payment.informed` | pagamento externo registrado | `origin`, `reviewRequired`, `targetKind`, `hasEvidence`, `informedBy`, `daysSincePayment`; `amount` |
+| `payment.informed` | pagamento externo registrado | `origin`, `reviewRequired`, `reviewReason` (`AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE`; ausente se confirmado sem revisão), `targetKind`, `hasEvidence`, `informedBy`, `daysSincePayment`; `amount` |
 | `payment.confirmed` | confirmado (provedor, extrato, baixo risco ou aprovação) | `trigger` (`provider`, `statement`, `auto_low_risk`, `review`), `reviewMode`, `allocations`, `allocatedAmount`, `unallocatedAmount`, `leftoverReason`, `targetKind`, `agreementId`, `instructionType`, `delayMinutes`; `channel` da instrução; `amount`; `durationMs` do pagamento à confirmação |
 | `payment.rejected` | informado recusado na revisão | `origin`, `reviewedBy`; `durationMs` na fila |
 | `payment.reconciled` | conciliado | `mode` (`PROVIDER_API`, `STATEMENT`, `MANUAL`), `statementImportId`, `daysFromPayment` |
@@ -322,6 +322,8 @@ Sem documento, contato, nome ou IP: só ids, canal `PORTAL`, valores e códigos.
 | `portal.service_requested` | pedido de atendimento humano | `reason` (`TALK_TO_AGENT`, `DISPUTE`, `CANNOT_AFFORD`, `OTHER`), `preferredChannel`, `withNote` |
 | `portal.configuration_changed` | configuração do portal criada/alterada | `operation`, `enabled`, `portfolios`, `knowledgeChallenge`, `privacyNoticeVersion`, `noticeChanged` |
 
+Log de acesso (segurança): `INTEGRATION_ENDPOINT_CHANGED` (`action` `created`/`changed`, `pixAccountId`, hosts atual e anterior, `webhookAuth`, `active`) a cada criação ou troca de endereços de conta Pix; `MFA_RESET` traz `targetIsAdmin`; `ACCESS_DENIED` traz `reason` `target_outranks_actor`/`role_outranks_actor` (com `operation` e `missingPermissions`), `reserved_role_code`, `admin_role_reduction_requires_admin`, `admin_mfa_reset_requires_other_admin`. Eventos gravados com IP de cliente inválido trazem `clientIpInvalid=true` e `client_ip` nulo.
+
 Log de acesso: `PORTAL_CODE_REQUESTED` (inclusive para documento inexistente, com `match` só no log), `PORTAL_LOGIN_SUCCESS`, `PORTAL_LOGIN_FAILURE` (`reason`: `wrong_code`, `wrong_knowledge`, `no_match`, `challenge_closed`, `unknown_link`, `link_unusable`…), `PORTAL_LOCKED` (`key` `DOCUMENT`/`IP`, `until`), `PORTAL_LINK_ISSUED`, `PORTAL_LOGOUT`, `PORTAL_SESSION_REVOKED`, `PORTAL_PRIVACY_ACKNOWLEDGED`; documento sempre mascarado.
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
@@ -373,9 +375,12 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `hikaricp.*`, `jvm.*`, `process.*` | saúde do pool e da JVM |
 | `business.events{type}` | volume de fatos de negócio |
 | `access.events{type,success}`, `access.log.write_failures` | segurança e integridade do log de acesso |
+| `http.forwarded.invalid_client_ip` | proxy confiável informou IP de cliente que não é IP literal (evento gravado sem IP, `clientIpInvalid=true`); deve ser zero |
+| `crypto.legacy_format_reads` | leituras de campos cifrados no formato anterior ao v2 (sem vínculo com a assessoria); tende a zero conforme os registros são regravados |
 | `jobs.pending`, `jobs.dead`, `jobs.duration{type,outcome}`, `jobs.executed`, `jobs.recovered` | fila de trabalho |
 | `events.publications.incomplete`, `executor.*{name=events}` | eventos de integração (consumidores repetem conflitos de concorrência transitórios até 4 vezes) |
 | `executor.*{name=mail}` | envio de e-mail (executor próprio, não ocupa as threads de eventos) |
+| `executor.*{name=portal_code_dispatch}` | envio do código de acesso do portal fora da requisição (fila cheia = códigos não enviados) |
 | `audit.sealed`, `audit.seal.failures` | selagem da auditoria |
 | `storage.operation{operation,category,outcome}` | S3 |
 | `mail.sent{type,outcome}` | e-mail |
@@ -422,6 +427,8 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `payment.payments{source,method,status}`, `payment.confirmation.latency{source}` (p50/p95/p99) | transições de pagamento e tempo do pagamento à confirmação |
 | `payment.allocations{kind,origin,outcome}`, `payment.leftovers{reason}`, `payment.agreement.outcomes{outcome}` | alocações (`allocated`, `leftover`, `released`, `reversed`), sobras (`no_target`, `agreement_closed`, `title_unavailable`, `excess`) e resultado da baixa no negotiation (UNAPPLIED contínuo = fila de realocação crescendo) |
 | `payment.review.decisions{decision}`, `payment.review.wait{decision}` | revisão por segunda pessoa e espera na fila |
+| `payment.external.review_decisions{decision}` | pagamento externo: `AUTO`, `AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE` (crescimento dos acumulados = possível fracionamento) |
+| `payment.pix.endpoint_refused{reason}`, `payment.pix_account.endpoint_changes{action}` | chamada a PSP recusada (`host_not_allowed`, `internal_address`, `invalid` — alarme) e criação/troca de endereços de conta Pix (`created`, `changed`; alerta de segurança) |
 | `payment.reversals{reason,source}` | estornos |
 | `payment.webhook.requests{provider,outcome}` | `ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `UNAUTHENTICATED` (alarme), `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED` |
 | `payment.webhook.events{outcome}`, `payment.pix.sync{outcome}` | itens do webhook (`scheduled`, `stale`, `invalid`) e confirmação por consulta (`confirmed`, `linked`, `duplicate_payment`, `unidentified`, `refund`, `unchanged`, `not_found`) |
