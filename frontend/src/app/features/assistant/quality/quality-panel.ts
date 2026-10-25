@@ -1,11 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
@@ -13,7 +9,8 @@ import { EntityPicker } from '../../../shared/components/entity-picker/entity-pi
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { sameValue } from '../../../shared/data/same-value';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { addDays, zonedNow } from '../../collection/data/collection.rules';
 import { AGREEMENT_ORIGIN_LABELS } from '../../negotiation/data/agreement.labels';
@@ -22,6 +19,9 @@ import { BarChart } from '../components/bar-chart';
 import { AssistantReviewApi } from '../data/assistant.api';
 import { AGREEMENT_GROUP_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, PIX_DENIAL_LABELS } from '../data/assistant.labels';
 import { Bar, bars, fractionText } from '../data/assistant.rules';
+
+/** Data digitada ainda não reconhecida (o campo mostra o erro) não entra no filtro. */
+const isoDate = (value: string | null): string | null => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
 
 interface QualityFilter {
   from: string | null;
@@ -37,19 +37,26 @@ interface QualityFilter {
  */
 @Component({
   selector: 'app-quality-panel',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, AppDatePipe, BarChart, EmptyState, EntityPicker, PageHeader, Skeleton],
+  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, NgbInputDatepicker, Icon, AppDatePipe, BarChart, EmptyState, EntityPicker, PageHeader, Skeleton],
   template: `
     <app-page-header title="Qualidade do assistente" subtitle="Resultado do assistente comparado aos humanos, para decidir carteira a carteira quando avançar de fase ou ampliar a alçada." />
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar qualidade">
-      <mat-form-field class="app-compact qp-period">
-        <mat-label>Período</mat-label>
-        <mat-date-range-input [rangePicker]="period">
-          <input matStartDate formControlName="from" placeholder="De" />
-          <input matEndDate formControlName="to" placeholder="Até" />
-        </mat-date-range-input>
-        <mat-datepicker-toggle matIconSuffix [for]="period" />
-        <mat-date-range-picker #period />
-      </mat-form-field>
+      <app-field class="qp-date" label="De">
+        <div class="input-group">
+          <input appInput formControlName="from" ngbDatepicker #fromPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <button class="btn btn-outline-secondary" type="button" (click)="fromPicker.toggle()" aria-label="Abrir calendário da data inicial">
+            <app-icon name="calendar-event" />
+          </button>
+        </div>
+      </app-field>
+      <app-field class="qp-date" label="Até">
+        <div class="input-group">
+          <input appInput formControlName="to" ngbDatepicker #toPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <button class="btn btn-outline-secondary" type="button" (click)="toPicker.toggle()" aria-label="Abrir calendário da data final">
+            <app-icon name="calendar-event" />
+          </button>
+        </div>
+      </app-field>
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
@@ -63,8 +70,8 @@ interface QualityFilter {
     @if (quality.isLoading() && !q()) {
       <app-skeleton variant="card" [rows]="6" />
     } @else if (quality.status() === 'error') {
-      <app-empty-state icon="insights" tone="error" title="Não foi possível carregar a qualidade." message="Confira o período (até 1 ano) e tente novamente.">
-        <button mat-stroked-button type="button" (click)="quality.reload()">Tentar novamente</button>
+      <app-empty-state icon="graph-up" tone="error" title="Não foi possível carregar a qualidade." message="Confira o período (até 1 ano) e tente novamente.">
+        <button class="btn btn-outline-primary" type="button" (click)="quality.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (q(); as v) {
       <p class="app-muted qp-small">{{ v.from | appDate: 'date' }} a {{ v.to | appDate: 'date' }} · {{ num(v.conversations) }} conversa(s), {{ num(v.turns) }} turno(s)</p>
@@ -105,8 +112,13 @@ interface QualityFilter {
     .qp-small {
       font-size: var(--app-text-xs);
     }
-    .qp-period {
-      min-width: 250px;
+    .qp-date {
+      width: 170px !important;
+    }
+    @media (max-width: 599.98px) {
+      .qp-date {
+        width: calc(50% - 6px) !important;
+      }
     }
     .qp-kpis {
       display: grid;
@@ -119,16 +131,16 @@ interface QualityFilter {
       flex-direction: column;
       gap: 2px;
       padding: 10px 12px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
     }
     .qp-kpi__label {
       font-size: var(--app-text-xs);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .qp-kpi__value {
       font-size: var(--app-text-xl);
@@ -136,7 +148,7 @@ interface QualityFilter {
     }
     .qp-kpi__hint {
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .qp-grid {
       display: grid;
@@ -161,8 +173,9 @@ export class QualityPanel {
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly today = zonedNow().date;
   protected readonly filters = this.fb.group({
-    from: this.fb.control<Date | null>(fromLocalDate(addDays(this.today, -29))),
-    to: this.fb.control<Date | null>(fromLocalDate(this.today)),
+    // modelo ISO (yyyy-MM-dd) do ngbDatepicker
+    from: this.fb.control<string | null>(addDays(this.today, -29)),
+    to: this.fb.control<string | null>(this.today),
     creditor: this.fb.control<string[]>([]),
     portfolio: this.fb.control<string[]>([]),
   });
@@ -173,7 +186,7 @@ export class QualityPanel {
       debounceTime(250),
       map((): QualityFilter => {
         const v = this.filters.getRawValue();
-        return { from: toLocalDate(v.from), to: toLocalDate(v.to), creditorId: v.creditor[0] ?? null, portfolioId: v.creditor[0] ? (v.portfolio[0] ?? null) : null };
+        return { from: isoDate(v.from), to: isoDate(v.to), creditorId: v.creditor[0] ?? null, portfolioId: v.creditor[0] ? (v.portfolio[0] ?? null) : null };
       }),
     ),
     { initialValue: { from: addDays(this.today, -29), to: this.today, creditorId: null, portfolioId: null } as QualityFilter, equal: sameValue },

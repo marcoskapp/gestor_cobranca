@@ -1,19 +1,18 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
-import { fromLocalDate, toLocalDate } from '../../../../shared/models/dates';
 import { errorMessage } from '../../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits } from '../../../../shared/validation/validators';
 import { ContractsApi } from '../../data/organization.api';
 import { ContractTermsRequest, ContractView } from '../../data/organization.models';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 export interface ContractFormData {
   creditorId: string;
@@ -25,79 +24,61 @@ type Field = 'number' | 'startDate' | 'endDate' | 'returnAfterDays' | 'settlemen
 /** Novo contrato de prestação de serviço ou alteração dos termos de um contrato vigente. */
 @Component({
   selector: 'app-contract-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, NgbInputDatepicker, Icon],
   template: `
-    <h2 mat-dialog-title>{{ data.contract ? 'Termos do contrato ' + data.contract.number : 'Novo contrato' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.contract ? 'Termos do contrato ' + data.contract.number : 'Novo contrato' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
-        <div class="app-form-grid">
-          <mat-form-field class="app-span-all">
-            <mat-label>Número do contrato</mat-label>
-            <input matInput formControlName="number" [maxlength]="limits.contractNumber" />
-            @if (form.controls.number.invalid) {
-              <mat-error>{{ message('number') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Início da vigência</mat-label>
-            <input matInput [matDatepicker]="start" formControlName="startDate" placeholder="dd/mm/aaaa" />
-            <mat-datepicker-toggle matIconSuffix [for]="start" />
-            <mat-datepicker #start />
-            @if (form.controls.startDate.invalid) {
-              <mat-error>{{ message('startDate') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Fim da vigência</mat-label>
-            <input matInput [matDatepicker]="end" formControlName="endDate" placeholder="dd/mm/aaaa" />
-            <mat-datepicker-toggle matIconSuffix [for]="end" />
-            <mat-datepicker #end />
-            <mat-hint>Opcional (prazo indeterminado)</mat-hint>
-            @if (form.controls.endDate.invalid) {
-              <mat-error>{{ message('endDate') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Devolução após (dias)</mat-label>
-            <input matInput type="number" formControlName="returnAfterDays" min="1" />
-            <mat-hint>Prazo para devolver títulos não recuperados</mat-hint>
-            @if (form.controls.returnAfterDays.invalid) {
-              <mat-error>{{ message('returnAfterDays') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Dia do repasse</mat-label>
-            <input matInput type="number" formControlName="settlementDay" min="1" max="28" />
-            <mat-hint>Dia do mês (1 a 28)</mat-hint>
-            @if (form.controls.settlementDay.invalid) {
-              <mat-error>{{ message('settlementDay') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Observações</mat-label>
-            <textarea matInput formControlName="notes" rows="3" [maxlength]="limits.contractNotes"></textarea>
-            @if (form.controls.notes.invalid) {
-              <mat-error>{{ message('notes') }}</mat-error>
-            }
-          </mat-form-field>
+        <div class="app-form-grid row-gap-3">
+          <app-field class="app-span-all" label="Número do contrato" [error]="message('number')">
+            <input appInput formControlName="number" [maxlength]="limits.contractNumber" />
+          </app-field>
+          <app-field label="Início da vigência" [error]="message('startDate')">
+            <div class="input-group">
+              <input appInput formControlName="startDate" ngbDatepicker #start="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <button class="btn btn-outline-secondary" type="button" (click)="start.toggle()" aria-label="Abrir calendário: Início da vigência">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field label="Fim da vigência" hint="Opcional (prazo indeterminado)" [error]="message('endDate')">
+            <div class="input-group">
+              <input appInput formControlName="endDate" ngbDatepicker #end="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <button class="btn btn-outline-secondary" type="button" (click)="end.toggle()" aria-label="Abrir calendário: Fim da vigência">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field label="Devolução após (dias)" hint="Prazo para devolver títulos não recuperados" [error]="message('returnAfterDays')">
+            <input appInput type="number" formControlName="returnAfterDays" min="1" />
+          </app-field>
+          <app-field label="Dia do repasse" hint="Dia do mês (1 a 28)" [error]="message('settlementDay')">
+            <input appInput type="number" formControlName="settlementDay" min="1" max="28" />
+          </app-field>
+          <app-field class="app-span-all" label="Observações" [error]="message('notes')">
+            <textarea appInput formControlName="notes" rows="3" [maxlength]="limits.contractNotes"></textarea>
+          </app-field>
         </div>
         @if (form.hasError('dateRange')) {
-          <p class="app-field-error" role="alert">O fim da vigência não pode ser anterior ao início.</p>
+          <div class="invalid-feedback d-block mt-2" role="alert">O fim da vigência não pode ser anterior ao início.</div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar</button>
+      </div>
     </form>
   `,
 })
 export class ContractForm {
-  protected readonly data = inject<ContractFormData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ContractForm, ContractView>>(MatDialogRef);
+  protected readonly data = inject<ContractFormData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<ContractView>>(DialogRef);
   private readonly api = inject(ContractsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly limits = Limits;
@@ -110,8 +91,9 @@ export class ContractForm {
         { value: this.data.contract?.number ?? '', disabled: this.data.contract !== null },
         [AppValidators.notBlank, Validators.maxLength(Limits.contractNumber)],
       ],
-      startDate: [fromLocalDate(this.data.contract?.startDate), [Validators.required]],
-      endDate: [fromLocalDate(this.data.contract?.endDate)],
+      // modelo ISO (yyyy-MM-dd) do ngbDatepicker
+      startDate: [this.data.contract?.startDate ?? null, [Validators.required]],
+      endDate: [this.data.contract?.endDate ?? null],
       returnAfterDays: [this.data.contract?.returnAfterDays ?? null, [Validators.min(1)]],
       settlementDay: [this.data.contract?.settlementDay ?? 10, [Validators.required, Validators.min(1), Validators.max(28)]],
       notes: [this.data.contract?.notes ?? '', [Validators.maxLength(Limits.contractNotes)]],
@@ -130,8 +112,8 @@ export class ContractForm {
     }
     const v = this.form.getRawValue();
     const terms: ContractTermsRequest = {
-      startDate: toLocalDate(v.startDate) as string,
-      endDate: toLocalDate(v.endDate),
+      startDate: v.startDate as string,
+      endDate: v.endDate || null,
       returnAfterDays: v.returnAfterDays ?? null,
       settlementDay: Number(v.settlementDay),
       notes: v.notes?.trim() || null,

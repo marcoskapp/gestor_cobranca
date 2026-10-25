@@ -1,15 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -34,6 +25,10 @@ import { ASSISTANT_ERROR_LABELS, DAY_LABELS, DEFAULT_PROFILES, HANDOFF_REASON_LA
 import { AssistantMode, DayOfWeek, PixInConversation, PolicySettings, PolicyView } from '../data/assistant.models';
 import { cloneSettings, scopeOf, settingsProblems } from '../data/assistant.rules';
 import { DisablePortfolioData, DisablePortfolioDialog } from './policy-dialogs';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 const DAYS: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 
@@ -48,14 +43,9 @@ const DAYS: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY
   imports: [
     FormsModule,
     RouterLink,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
+    ...FORM_FIELD,
+    NgbTooltip,
+    Icon,
     AppDatePipe,
     EmptyState,
     PageHeader,
@@ -71,7 +61,7 @@ export class AssistantPolicyDetail {
   private readonly api = inject(AssistantPoliciesApi);
   private readonly authorityApi = inject(AuthorityApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
@@ -127,6 +117,10 @@ export class AssistantPolicyDetail {
   protected readonly selectedProfile = computed(() => {
     this.revision();
     return this.profiles().find((p) => p.id === this.draft()?.authorityProfileId) ?? null;
+  });
+  protected readonly profileHint = computed(() => {
+    const sp = this.selectedProfile();
+    return sp ? `até ${sp.maxInstallments} parcelas · ${sp.canFormalize ? 'formaliza' : 'não formaliza'}` : '';
   });
 
   constructor() {
@@ -229,6 +223,11 @@ export class AssistantPolicyDetail {
       d.serviceHours.splice(i, 1);
       this.edited();
     }
+  }
+
+  protected toggleWindowDay(i: number, day: DayOfWeek, checked: boolean): void {
+    const days = this.draft()?.serviceHours?.[i]?.days ?? [];
+    this.setWindowDays(i, checked ? [...days, day] : days.filter((d) => d !== day));
   }
 
   protected setWindowDays(i: number, days: DayOfWeek[]): void {
@@ -375,7 +374,7 @@ export class AssistantPolicyDetail {
   protected disablePortfolio(): void {
     const p = this.policy();
     this.dialog
-      .open<DisablePortfolioDialog, DisablePortfolioData, PolicyView>(DisablePortfolioDialog, { data: { creditorId: p?.creditorId ?? null, portfolioId: p?.portfolioId ?? null }, width: '600px', maxWidth: '96vw' })
+      .open<DisablePortfolioDialog, DisablePortfolioData, PolicyView>(DisablePortfolioDialog, { data: { creditorId: p?.creditorId ?? null, portfolioId: p?.portfolioId ?? null } })
       .afterClosed()
       .subscribe((off) => {
         if (off) {

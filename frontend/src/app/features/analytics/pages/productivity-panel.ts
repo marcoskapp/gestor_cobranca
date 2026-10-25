@@ -1,6 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
@@ -25,7 +24,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
  */
 @Component({
   selector: 'app-productivity-panel',
-  imports: [MatButtonModule, Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
   template: `
     <app-panel-frame [title]="ownOnly() ? 'Meu desempenho' : 'Produtividade da equipe'"
                      subtitle="Esforço, contato, tempo de atendimento e resultado por pessoa (negociadores humanos)."
@@ -34,8 +33,8 @@ const GROUPS = ['OPERATOR', 'TEAM'];
                              [options]="{ period: true, creditor: true, portfolio: true, people: !ownOnly(), channel: true, groupBy: ownOnly() ? [] : groups }"
                              (changed)="state.update($event)" />
       @if (data.error()) {
-        <app-empty-state tone="error" icon="error" title="Não foi possível carregar a produtividade" message="Verifique os filtros e tente novamente.">
-          <button mat-flat-button type="button" (click)="data.reload()">Tentar novamente</button>
+        <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar a produtividade" message="Verifique os filtros e tente novamente.">
+          <button class="btn btn-primary" type="button" (click)="data.reload()">Tentar novamente</button>
         </app-empty-state>
       } @else if (!report()) {
         <app-skeleton variant="card" [rows]="4" />

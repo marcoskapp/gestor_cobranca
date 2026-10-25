@@ -1,68 +1,72 @@
 @if (user.isLoading() && !user.hasValue()) {
-  <mat-progress-bar mode="indeterminate" aria-label="Carregando usuário" />
+  <div class="progress" role="progressbar" aria-label="Carregando usuário">
+    <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+  </div>
 }
 @if (user.status() === 'error') {
-  <p class="app-alert app-alert--error" role="alert">Não foi possível carregar o usuário.</p>
-  <a mat-button routerLink="/admin/usuarios">Voltar para usuários</a>
+  <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>Não foi possível carregar o usuário.</span></div>
+  <a class="btn btn-link" routerLink="/admin/usuarios">Voltar para usuários</a>
 }
 
 @if (current(); as u) {
   <app-page-header [title]="u.name" [subtitle]="u.email">
-    <a mat-button routerLink="/admin/usuarios">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/admin/usuarios">
+      <app-icon name="arrow-left" />
       Usuários
     </a>
     @if (canManage()) {
-      <button mat-stroked-button type="button" (click)="edit(u)">
-        <mat-icon aria-hidden="true">edit</mat-icon>
+      <button class="btn btn-outline-primary" type="button" (click)="edit(u)">
+        <app-icon name="pencil" />
         Editar
       </button>
-      <button mat-flat-button type="button" [matMenuTriggerFor]="actions">
-        Ações
-        <mat-icon iconPositionEnd aria-hidden="true">expand_more</mat-icon>
-      </button>
-      <mat-menu #actions="matMenu" xPosition="before">
-        <button mat-menu-item type="button" (click)="editRoles(u)">
-          <mat-icon aria-hidden="true">badge</mat-icon>
+      <div ngbDropdown class="d-inline-flex" placement="bottom-end">
+        <button class="btn btn-primary" type="button" ngbDropdownToggle>
+          Ações
+          <app-icon name="chevron-down" />
+        </button>
+        <div ngbDropdownMenu class="shadow app-menu" aria-label="Ações do usuário">
+        <button ngbDropdownItem type="button" (click)="editRoles(u)">
+          <app-icon name="person-vcard" />
           <span>Alterar perfis</span>
         </button>
-        <button mat-menu-item type="button" (click)="editScope(u)">
-          <mat-icon aria-hidden="true">apartment</mat-icon>
+        <button ngbDropdownItem type="button" (click)="editScope(u)">
+          <app-icon name="buildings" />
           <span>Alterar escopo de credores</span>
         </button>
-        <button mat-menu-item type="button" (click)="sendLink(u)" [disabled]="u.status === 'DISABLED'">
-          <mat-icon aria-hidden="true">forward_to_inbox</mat-icon>
+        <button ngbDropdownItem type="button" (click)="sendLink(u)" [disabled]="u.status === 'DISABLED'">
+          <app-icon name="forward" />
           <span>{{ u.status === 'PENDING_ACTIVATION' ? 'Reenviar link de ativação' : 'Enviar link de redefinição' }}</span>
         </button>
         @if (u.locked) {
-          <button mat-menu-item type="button" (click)="unlock(u)">
-            <mat-icon aria-hidden="true">lock_open</mat-icon>
+          <button ngbDropdownItem type="button" (click)="unlock(u)">
+            <app-icon name="unlock" />
             <span>Desbloquear</span>
           </button>
         }
         @if (u.mfaEnabled) {
-          <button mat-menu-item type="button" (click)="resetMfa(u)">
-            <mat-icon aria-hidden="true">phonelink_erase</mat-icon>
+          <button ngbDropdownItem type="button" (click)="resetMfa(u)">
+            <app-icon name="phone" />
             <span>Redefinir MFA</span>
           </button>
         }
-        <button mat-menu-item type="button" (click)="revokeSessions(u)">
-          <mat-icon aria-hidden="true">logout</mat-icon>
+        <button ngbDropdownItem type="button" (click)="revokeSessions(u)">
+          <app-icon name="box-arrow-right" />
           <span>Encerrar todas as sessões</span>
         </button>
-        <mat-divider />
+        <div class="dropdown-divider" role="separator"></div>
         @if (u.status === 'DISABLED') {
-          <button mat-menu-item type="button" (click)="enable(u)">
-            <mat-icon aria-hidden="true">person_check</mat-icon>
+          <button ngbDropdownItem type="button" (click)="enable(u)">
+            <app-icon name="person-check" />
             <span>Reativar</span>
           </button>
         } @else {
-          <button mat-menu-item type="button" (click)="disable(u)" [disabled]="isSelf()">
-            <mat-icon aria-hidden="true">person_off</mat-icon>
+          <button ngbDropdownItem type="button" (click)="disable(u)" [disabled]="isSelf()">
+            <app-icon name="person-slash" />
             <span>Desativar</span>
           </button>
         }
-      </mat-menu>
+        </div>
+      </div>
     }
   </app-page-header>
 

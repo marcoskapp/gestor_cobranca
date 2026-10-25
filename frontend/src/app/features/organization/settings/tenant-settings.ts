@@ -1,11 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -19,17 +14,14 @@ import { errorMessage } from '../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators, Limits } from '../../../shared/validation/validators';
 import { TenantSettingsApi } from '../data/organization.api';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** Configurações gerais da assessoria e janela de contato permitida (regras de comunicação). */
 @Component({
   selector: 'app-tenant-settings',
-  imports: [
+  imports: [Icon, ...FORM_FIELD,
     ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatCheckboxModule,
-    MatButtonModule,
-    MatProgressBarModule,
     PageHeader,
     StatusChip,
     DocumentPipe,

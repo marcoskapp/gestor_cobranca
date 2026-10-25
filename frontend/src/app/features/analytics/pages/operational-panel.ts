@@ -1,6 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
 import { of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -27,7 +26,7 @@ import { urlFilter } from '../data/url-filter';
  */
 @Component({
   selector: 'app-operational-panel',
-  imports: [MatButtonModule, Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Painel operacional" subtitle="Carteira, saldos, casos e fila de trabalho da operação."
                      report="portfolio" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()"
@@ -35,8 +34,8 @@ import { urlFilter } from '../data/url-filter';
       <app-analytics-filters panel-filters [filter]="state.filter()" [options]="{ period: canRecovery(), creditor: true, portfolio: true }"
                              (changed)="state.update($event)" />
       @if (data.error()) {
-        <app-empty-state tone="error" icon="error" title="Não foi possível carregar o painel" message="Verifique a conexão e tente novamente.">
-          <button mat-flat-button type="button" (click)="reload()">Tentar novamente</button>
+        <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar o painel" message="Verifique a conexão e tente novamente.">
+          <button class="btn btn-primary" type="button" (click)="reload()">Tentar novamente</button>
         </app-empty-state>
       } @else if (!report()) {
         <app-skeleton variant="card" [rows]="4" />

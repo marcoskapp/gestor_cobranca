@@ -1,12 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { catchError, finalize, of, startWith, switchMap } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
@@ -14,6 +8,10 @@ import { CreditorLookup, PortfolioLookup } from '../../organization/data/organiz
 import { AssistantPoliciesApi } from '../data/assistant.api';
 import { ASSISTANT_ERROR_LABELS, MODE_HINTS, MODE_LABELS } from '../data/assistant.labels';
 import { AssistantMode, PolicyView } from '../data/assistant.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 const errorText = (err: unknown) => {
   const e = toApiError(err);
@@ -26,51 +24,48 @@ const errorText = (err: unknown) => {
  */
 @Component({
   selector: 'app-new-policy-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title>Nova política do assistente</h2>
-    <form [formGroup]="form" (ngSubmit)="create()" novalidate>
-      <mat-dialog-content>
-        <app-entity-picker [control]="form.controls.creditor" [source]="creditorSource" label="Credor (vazio = toda a assessoria)" [single]="true" />
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Nova política do assistente</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="create()" novalidate>
+      <div class="modal-body">
+        <app-entity-picker [control]="form.controls.creditor" [source]="creditorSource" label="Credor (vazio = toda a assessoria)" [single]="true" class="mb-3" />
         @if (form.controls.creditor.value.length) {
-          <app-entity-picker [control]="form.controls.portfolio" [source]="portfolioSource" label="Carteira (opcional)" [single]="true" />
+          <app-entity-picker [control]="form.controls.portfolio" [source]="portfolioSource" label="Carteira (opcional)" [single]="true" class="mb-3" />
         }
-        <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" maxlength="40" required />
-            <mat-hint>minúsculas, dígitos e hífen</mat-hint>
-            <mat-error>2 a 40: minúsculas, dígitos e hífen.</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="120" required />
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Modo inicial</mat-label>
-            <mat-select formControlName="mode">
+        <div class="app-form-grid row-gap-3">
+          <app-field label="Código" hint="minúsculas, dígitos e hífen" error="2 a 40: minúsculas, dígitos e hífen.">
+            <input appInput formControlName="code" maxlength="40" required />
+          </app-field>
+          <app-field label="Nome">
+            <input appInput formControlName="name" maxlength="120" required />
+          </app-field>
+          <app-field class="app-span-all" label="Modo inicial" [hint]="(hints[value().mode])">
+            <select appInput formControlName="mode">
               @for (m of modes; track m[0]) {
-                <mat-option [value]="m[0]">{{ m[1] }}</mat-option>
+                <option [ngValue]="m[0]">{{ m[1] }}</option>
               }
-            </mat-select>
-            <mat-hint>{{ hints[value().mode] }}</mat-hint>
-          </mat-form-field>
+            </select>
+          </app-field>
         </div>
-        <p class="app-alert app-alert--info" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>Implantação recomendada: comece em Sombra, depois Autônomo com aprovação e só então Autônomo, carteira a carteira.</span></p>
+        <div class="alert alert-info d-flex align-items-start gap-2 mt-3" role="note"><app-icon name="info-circle" /><span>Implantação recomendada: comece em Sombra, depois Autônomo com aprovação e só então Autônomo, carteira a carteira.</span></div>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="sending()">Criar rascunho</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="sending()">Criar rascunho</button>
+      </div>
     </form>
   `,
 })
 export class NewPolicyDialog {
   private readonly api = inject(AssistantPoliciesApi);
-  private readonly ref = inject<MatDialogRef<NewPolicyDialog, PolicyView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<PolicyView>>(DialogRef);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly modes = Object.entries(MODE_LABELS) as [AssistantMode, string][];
   protected readonly hints = MODE_HINTS;
@@ -126,17 +121,20 @@ export interface DisablePortfolioData {
  */
 @Component({
   selector: 'app-disable-portfolio-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title class="dp-title"><mat-icon aria-hidden="true">power_settings_new</mat-icon>Desligar o assistente numa carteira</h2>
-    <form [formGroup]="form" (ngSubmit)="disable()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0 d-flex align-items-center gap-2"><app-icon name="power" />Desligar o assistente numa carteira</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="disable()" novalidate>
+      <div class="modal-body vstack gap-3">
         <app-entity-picker [control]="form.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
         <app-entity-picker [control]="form.controls.portfolio" [source]="portfolioSource" label="Carteira" [single]="true" />
         @if (effective.isLoading()) {
-          <p class="app-muted" role="status">Consultando a política vigente…</p>
+          <p class="app-muted mb-0" role="status">Consultando a política vigente…</p>
         } @else if (form.controls.portfolio.value.length) {
-          <dl class="app-definition-list dp-impact" aria-label="Impacto do desligamento" data-tour="disable-impact">
+          <dl class="app-definition-list dp-impact mb-0" aria-label="Impacto do desligamento" data-tour="disable-impact">
             <dt>Política vigente hoje</dt>
             <dd>{{ current() ? current()!.name + ' · v' + current()!.policyVersion + ' · ' + modes[current()!.mode] : 'nenhuma (o assistente já não atua)' }}</dd>
             <dt>Efeito</dt>
@@ -145,44 +143,35 @@ export interface DisablePortfolioData {
             <dd>As que o assistente conduz nesta carteira são transferidas para a fila humana (motivo "assistente desligado").</dd>
           </dl>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Motivo</mat-label>
-          <textarea matInput formControlName="reason" rows="2" maxlength="300" required></textarea>
-          <mat-hint>Registrado na auditoria</mat-hint>
-        </mat-form-field>
-        <p class="app-alert app-alert--warning" role="note"><mat-icon aria-hidden="true">warning_amber</mat-icon><span>Para religar, publique uma nova versão da política da carteira.</span></p>
-        <mat-form-field class="app-full-width">
-          <mat-label>Digite {{ word }} para confirmar</mat-label>
-          <input matInput formControlName="confirmation" autocomplete="off" />
-        </mat-form-field>
+        <app-field label="Motivo" hint="Registrado na auditoria">
+          <textarea appInput formControlName="reason" rows="2" maxlength="300" required></textarea>
+        </app-field>
+        <div class="alert alert-warning d-flex align-items-start gap-2 mb-0" role="note"><app-icon name="exclamation-triangle" /><span>Para religar, publique uma nova versão da política da carteira.</span></div>
+        <app-field [label]="'Digite ' + (word) + ' para confirmar'">
+          <input appInput formControlName="confirmation" autocomplete="off" />
+        </app-field>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close cdkFocusInitial>Cancelar</button>
-        <button mat-flat-button type="submit" class="app-button-danger" [disabled]="!confirmed() || sending()">Desligar agora</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose ngbAutofocus>Cancelar</button>
+        <button type="submit" class="btn btn-danger" [disabled]="!confirmed() || sending()">Desligar agora</button>
+      </div>
     </form>
   `,
   styles: `
-    .dp-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
     .dp-impact {
-      margin: 8px 0 16px;
       padding: 12px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
     }
   `,
 })
 export class DisablePortfolioDialog {
-  private readonly data = inject<DisablePortfolioData>(MAT_DIALOG_DATA);
+  private readonly data = inject<DisablePortfolioData>(DIALOG_DATA);
   private readonly api = inject(AssistantPoliciesApi);
-  private readonly ref = inject<MatDialogRef<DisablePortfolioDialog, PolicyView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<PolicyView>>(DialogRef);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly modes = MODE_LABELS;
   protected readonly word = DISABLE_WORD;

@@ -1,8 +1,5 @@
 import { Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
@@ -14,14 +11,16 @@ import { DocumentPipe } from '../../../../shared/pipes/document.pipe';
 import { TenantView } from '../../../organization/data/organization.models';
 import { PlatformTenantsApi, ProvisionedTenant } from '../../data/platform.api';
 import { TenantProvision } from '../tenant-provision/tenant-provision';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 @Component({
   selector: 'app-tenant-list',
-  imports: [MatButtonModule, MatIconModule, DataTable, CellDef, PageHeader, StatusChip, DocumentPipe],
+  imports: [Icon, DataTable, CellDef, PageHeader, StatusChip, DocumentPipe],
   template: `
     <app-page-header title="Assessorias" subtitle="Clientes da plataforma (tenants), com dados isolados entre si.">
-      <button mat-flat-button type="button" (click)="provision()">
-        <mat-icon aria-hidden="true">domain_add</mat-icon>
+      <button class="btn btn-primary" type="button" (click)="provision()">
+        <app-icon name="building-add" />
         Provisionar assessoria
       </button>
     </app-page-header>
@@ -46,9 +45,9 @@ import { TenantProvision } from '../tenant-provision/tenant-provision';
       <ng-template appCell="actions" [appCellOf]="rows()" let-t>
         @if (!t.platform) {
           @if (t.status === 'ACTIVE') {
-            <button mat-button type="button" (click)="suspend(t)">Suspender</button>
+            <button class="btn btn-link" type="button" (click)="suspend(t)">Suspender</button>
           } @else {
-            <button mat-button type="button" (click)="reactivate(t)">Reativar</button>
+            <button class="btn btn-link" type="button" (click)="reactivate(t)">Reativar</button>
           }
         }
       </ng-template>
@@ -57,7 +56,7 @@ import { TenantProvision } from '../tenant-provision/tenant-provision';
 })
 export class TenantList {
   private readonly api = inject(PlatformTenantsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -73,7 +72,7 @@ export class TenantList {
 
   protected provision(): void {
     this.dialog
-      .open<TenantProvision, void, ProvisionedTenant>(TenantProvision, { width: '640px' })
+      .open<TenantProvision, void, ProvisionedTenant>(TenantProvision, { size: 'lg' })
       .afterClosed()
       .subscribe((result) => result && this.tenants.reload());
   }

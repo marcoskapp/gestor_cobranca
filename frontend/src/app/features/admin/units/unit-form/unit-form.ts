@@ -1,10 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -13,47 +8,46 @@ import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits, Patterns } from '../../../../shared/validation/validators';
 import { BusinessUnitsApi } from '../../../organization/data/organization.api';
 import { BusinessUnitView } from '../../../organization/data/organization.models';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-unit-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule],
+  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule, ...DIALOG_DIRECTIVES],
   template: `
-    <h2 mat-dialog-title>{{ unit ? 'Editar unidade' : 'Nova unidade' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ unit ? 'Editar unidade' : 'Nova unidade' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
-        <div class="app-form-stack">
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" autocomplete="off" [maxlength]="limits.unitCode" class="app-mono" />
-            @if (form.controls.code.invalid) {
-              <mat-error>{{ message('code') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" autocomplete="off" [maxlength]="limits.unitName" />
-            @if (form.controls.name.invalid) {
-              <mat-error>{{ message('name') }}</mat-error>
-            }
-          </mat-form-field>
+        <div class="vstack gap-3">
+          <app-field label="Código" [error]="message('code')">
+            <input appInput formControlName="code" autocomplete="off" [maxlength]="limits.unitCode" class="app-mono" />
+          </app-field>
+          <app-field label="Nome" [error]="message('name')">
+            <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.unitName" />
+          </app-field>
           @if (unit) {
-            <mat-slide-toggle formControlName="active">Unidade ativa</mat-slide-toggle>
+            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="unitfo-active" formControlName="active"  /><label class="form-check-label" for="unitfo-active">Unidade ativa</label></div>
           }
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ unit ? 'Salvar' : 'Criar unidade' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ unit ? 'Salvar' : 'Criar unidade' }}</button>
+      </div>
     </form>
   `,
 })
 export class UnitForm {
-  protected readonly unit = inject<BusinessUnitView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<UnitForm, BusinessUnitView>>(MatDialogRef);
+  protected readonly unit = inject<BusinessUnitView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<BusinessUnitView>>(DialogRef);
   private readonly api = inject(BusinessUnitsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly limits = Limits;

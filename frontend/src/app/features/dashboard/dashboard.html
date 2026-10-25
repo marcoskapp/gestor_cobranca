@@ -6,13 +6,13 @@
 </header>
 
 @if (mfaPending()) {
-  <p class="app-alert app-alert--warning" role="status">
+  <div class="alert alert-warning d-flex align-items-start gap-2" role="status">
     <app-icon name="shield" />
     <span>
       Sua conta ainda não usa verificação em duas etapas.
       <a routerLink="/conta/mfa">Ativar agora</a>
     </span>
-  </p>
+  </div>
 }
 
 @if (showKpis()) {

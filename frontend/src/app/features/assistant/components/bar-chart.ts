@@ -54,19 +54,19 @@ import { Bar } from '../data/assistant.rules';
     }
     .bc__track {
       height: 10px;
-      border-radius: var(--app-radius-pill);
-      background: var(--app-border);
+      border-radius: var(--bs-border-radius-pill);
+      background: var(--bs-border-color);
       overflow: hidden;
     }
     .bc__bar {
       display: block;
       height: 100%;
       min-width: 2px;
-      border-radius: var(--app-radius-pill);
-      background: var(--mat-sys-primary);
+      border-radius: var(--bs-border-radius-pill);
+      background: var(--bs-primary);
     }
     .bc__bar--alt {
-      background: var(--app-warning-fg);
+      background: var(--bs-warning-text-emphasis);
     }
     .bc__value {
       min-width: 56px;

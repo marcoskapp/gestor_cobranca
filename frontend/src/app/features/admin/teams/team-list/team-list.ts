@@ -1,9 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
@@ -16,14 +12,17 @@ import { TeamView } from '../../data/admin.models';
 import { TeamsApi } from '../../data/teams.api';
 import { UserLookup } from '../../data/user.lookup';
 import { TeamForm } from '../team-form/team-form';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 @Component({
   selector: 'app-team-list',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, DataTable, CellDef, PageHeader, StatusChip],
+  imports: [NgbTooltip, Icon, DataTable, CellDef, PageHeader, StatusChip],
   template: `
     <app-page-header title="Equipes" subtitle="Agrupamento de operadores com supervisor, usado na distribuição de casos.">
-      <button mat-flat-button type="button" (click)="open(null)">
-        <mat-icon aria-hidden="true">group_add</mat-icon>
+      <button class="btn btn-primary" type="button" (click)="open(null)">
+        <app-icon name="person-plus" />
         Nova equipe
       </button>
     </app-page-header>
@@ -40,17 +39,16 @@ import { TeamForm } from '../team-form/team-form';
       <ng-template appCell="supervisor" [appCellOf]="rows()" let-t>{{ userName(t.supervisorId) }}</ng-template>
       <ng-template appCell="active" [appCellOf]="rows()" let-t><app-status-chip domain="active" [status]="t.active" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-t>
-        <button mat-icon-button type="button" (click)="open(t)" [attr.aria-label]="'Editar ' + t.name" matTooltip="Editar">
-          <mat-icon aria-hidden="true">edit</mat-icon>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="open(t)" [attr.aria-label]="'Editar ' + t.name" ngbTooltip="Editar">
+          <app-icon name="pencil" />
         </button>
-        <button
-          mat-icon-button
+        <button class="btn btn-sm btn-outline-secondary border-0"
           type="button"
           (click)="setActive(t, !t.active)"
           [attr.aria-label]="(t.active ? 'Desativar ' : 'Ativar ') + t.name"
-          [matTooltip]="t.active ? 'Desativar' : 'Ativar'"
+          [ngbTooltip]="t.active ? 'Desativar' : 'Ativar'"
         >
-          <mat-icon aria-hidden="true">{{ t.active ? 'block' : 'check_circle' }}</mat-icon>
+          <app-icon [name]="t.active ? 'slash-circle' : 'check-circle'" />
         </button>
       </ng-template>
     </app-data-table>
@@ -59,7 +57,7 @@ import { TeamForm } from '../team-form/team-form';
 export class TeamList {
   private readonly api = inject(TeamsApi);
   private readonly unitsApi = inject(BusinessUnitsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -96,7 +94,7 @@ export class TeamList {
 
   protected open(team: TeamView | null): void {
     this.dialog
-      .open<TeamForm, TeamView | null, TeamView>(TeamForm, { data: team, width: '640px' })
+      .open<TeamForm, TeamView | null, TeamView>(TeamForm, { data: team })
       .afterClosed()
       .subscribe((saved) => saved && this.teams.reload());
   }

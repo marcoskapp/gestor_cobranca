@@ -1,13 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { map, of, startWith } from 'rxjs';
 import { toApiError } from '../../core/http/problem';
@@ -24,6 +17,8 @@ import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { applyServerErrors } from '../../shared/validation/server-errors';
 import { CreditorLookup, PortfolioLookup } from '../organization/data/organization.lookups';
 import { KnowledgeChallenge, PortalAdminApi, PortalConfigurationRequest, PortalSessionSummary, contrastWithWhite } from './data/portal-admin.api';
+import { Icon } from '../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../shared/forms/field';
 
 const DEFAULT_NOTICE =
   'Este portal é operado pela assessoria de cobrança contratada pelo credor. Usamos seu CPF/CNPJ, seus contatos ' +
@@ -34,9 +29,8 @@ const DEFAULT_NOTICE =
 /** Configuração do portal de um credor, com prévia da marca, funil e sessões. */
 @Component({
   selector: 'app-portal-config-edit',
-  imports: [
-    ReactiveFormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule,
-    MatSelectModule, MatSlideToggleModule, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, AppDatePipe,
+  imports: [...FORM_FIELD, Icon,
+    ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, AppDatePipe,
   ],
   templateUrl: './portal-config-edit.html',
   styleUrl: './portal-config-edit.scss',
@@ -58,6 +52,11 @@ export class PortalConfigEdit {
     stream: ({ params }) => (params ? this.api.get(params) : of(undefined)),
   });
   protected readonly current = valueOr(this.config, undefined);
+  protected readonly privacyHint = computed(() => {
+    const version = this.current()?.privacyNoticeVersion;
+    const base = 'Alterar o texto cria nova versão; os devedores confirmam de novo.';
+    return version !== undefined ? `${base} Versão atual: ${version}.` : base;
+  });
   protected readonly saving = signal(false);
   protected readonly errors = signal<string[]>([]);
   protected readonly logoPreview = signal<string | null>(null);

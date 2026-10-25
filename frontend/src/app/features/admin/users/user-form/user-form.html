@@ -1,57 +1,65 @@
-<h2 mat-dialog-title>{{ editing ? 'Editar usuário' : 'Novo usuário' }}</h2>
-<form [formGroup]="form" (ngSubmit)="save()" novalidate>
-  <mat-dialog-content>
+<div class="modal-header">
+  <h2 appDialogTitle class="h5 mb-0">{{ editing ? 'Editar usuário' : 'Novo usuário' }}</h2>
+  <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+</div>
+<form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="modal-body">
     @for (e of generalErrors(); track e) {
-      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+        <app-icon name="exclamation-circle" /><span>{{ e }}</span>
+      </div>
     }
-    <div class="app-form-grid">
-      <mat-form-field class="app-span-all">
-        <mat-label>Nome</mat-label>
-        <input matInput formControlName="name" autocomplete="off" [maxlength]="limits.personName" />
-        @if (form.controls.name.invalid) {
-          <mat-error>{{ message('name') }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field class="app-span-all">
-        <mat-label>E-mail</mat-label>
-        <input matInput type="email" formControlName="email" autocomplete="off" [maxlength]="limits.email" />
-        @if (editing) {
-          <mat-hint>O e-mail é o identificador de acesso e não pode ser alterado.</mat-hint>
-        } @else {
-          <mat-hint>O link de ativação será enviado para este e-mail.</mat-hint>
-        }
-        @if (form.controls.email.invalid) {
-          <mat-error>{{ message('email') }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field class="app-span-all">
-        <mat-label>Unidade</mat-label>
-        <mat-select formControlName="businessUnitId">
-          <mat-option value="">Nenhuma</mat-option>
+    <div class="row g-3">
+      <app-field class="col-12" label="Nome" [error]="message('name')">
+        <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.personName" ngbAutofocus />
+      </app-field>
+      <app-field
+        class="col-12"
+        label="E-mail"
+        [hint]="editing ? 'O e-mail é o identificador de acesso e não pode ser alterado.' : 'O link de ativação será enviado para este e-mail.'"
+        [error]="message('email')"
+      >
+        <input appInput type="email" formControlName="email" autocomplete="off" [maxlength]="limits.email" />
+      </app-field>
+      <app-field class="col-12" label="Unidade">
+        <select appInput formControlName="businessUnitId">
+          <option value="">Nenhuma</option>
           @for (u of units(); track u.id) {
-            <mat-option [value]="u.id" [disabled]="!u.active">{{ u.code }} — {{ u.name }}</mat-option>
+            <option [ngValue]="u.id" [disabled]="!u.active">{{ u.code }} — {{ u.name }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
 
       @if (!editing) {
-        <mat-form-field class="app-span-all">
-          <mat-label>Perfis</mat-label>
-          <mat-select formControlName="roleIds" multiple>
-            @for (r of roles(); track r.id) {
-              <mat-option [value]="r.id">{{ r.name }}</mat-option>
-            }
-          </mat-select>
-          @if (form.controls.roleIds.invalid) {
-            <mat-error>Selecione ao menos um perfil.</mat-error>
+        <fieldset class="col-12" aria-describedby="user-form-roles-error">
+          <legend class="form-label fs-6">Perfis</legend>
+          @for (r of roles(); track r.id) {
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                [id]="'user-form-role-' + r.id"
+                [class.is-invalid]="rolesInvalid()"
+                [checked]="hasRole(r.id)"
+                #cb
+                (change)="toggleRole(r.id, cb.checked)"
+              />
+              <label class="form-check-label" [for]="'user-form-role-' + r.id">{{ r.name }}</label>
+            </div>
           }
-        </mat-form-field>
+          @if (rolesInvalid()) {
+            <div class="invalid-feedback d-block" id="user-form-roles-error" aria-live="polite">Selecione ao menos um perfil.</div>
+          }
+        </fieldset>
 
-        <div class="app-span-all">
-          <mat-checkbox formControlName="allCreditors">Acesso a todos os credores</mat-checkbox>
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="user-form-allCreditors" formControlName="allCreditors" />
+            <label class="form-check-label" for="user-form-allCreditors">Acesso a todos os credores</label>
+          </div>
         </div>
         @if (!form.controls.allCreditors.value) {
-          <div class="app-span-all">
+          <div class="col-12">
             <app-entity-picker
               [control]="form.controls.creditorIds"
               [source]="creditorSource"
@@ -62,9 +70,9 @@
         }
       }
     </div>
-  </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button type="button" mat-dialog-close>Cancelar</button>
-    <button mat-flat-button type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Criar usuário' }}</button>
-  </mat-dialog-actions>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+    <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Criar usuário' }}</button>
+  </div>
 </form>

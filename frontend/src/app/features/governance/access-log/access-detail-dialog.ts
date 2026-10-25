@@ -1,16 +1,19 @@
 import { Component, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { JsonView } from '../../../shared/components/detail-dialog/json-view';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { ACCESS_EVENT_LABELS, AccessLogEntry } from '../data/governance.models';
+import { DIALOG_DATA } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 @Component({
   selector: 'app-access-detail-dialog',
-  imports: [MatDialogModule, MatButtonModule, JsonView, AppDatePipe],
+  imports: [...DIALOG_DIRECTIVES, JsonView, AppDatePipe],
   template: `
-    <h2 mat-dialog-title>{{ label }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ label }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <dl class="app-definition-list">
         <dt>Data/hora</dt>
         <dd>{{ e.occurredAt | appDate }}</dd>
@@ -31,15 +34,15 @@ import { ACCESS_EVENT_LABELS, AccessLogEntry } from '../data/governance.models';
         <dt>Código da requisição</dt>
         <dd class="app-mono">{{ e.requestId ?? '—' }}</dd>
       </dl>
-      <h3 class="app-card__title">Detalhes</h3>
+      <h3 class="app-section-title mt-3">Detalhes</h3>
       <app-json-view [value]="e.details" />
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Fechar</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" type="button" ngbAutofocus appDialogClose>Fechar</button>
+    </div>
   `,
 })
 export class AccessDetailDialog {
-  protected readonly e = inject<AccessLogEntry>(MAT_DIALOG_DATA);
+  protected readonly e = inject<AccessLogEntry>(DIALOG_DATA);
   protected readonly label = ACCESS_EVENT_LABELS[this.e.eventType] ?? this.e.eventType;
 }

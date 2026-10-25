@@ -1,9 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { valueOr } from '../../../../shared/data/resource-value';
@@ -11,40 +8,56 @@ import { AppValidators } from '../../../../shared/validation/validators';
 import { UserView } from '../../data/admin.models';
 import { RolesApi } from '../../data/roles.api';
 import { UsersApi } from '../../data/users.api';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
 
 @Component({
   selector: 'app-user-roles-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES],
   template: `
-    <h2 mat-dialog-title>Perfis de {{ user.name }}</h2>
-    <mat-dialog-content>
-      <fieldset class="app-checkbox-list">
-        <legend class="cdk-visually-hidden">Perfis</legend>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Perfis de {{ user.name }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
+      <fieldset>
+        <legend class="visually-hidden">Perfis</legend>
         @for (role of roles(); track role.id) {
-          <mat-checkbox [checked]="isSelected(role.id)" (change)="toggle(role.id, $event.checked)" [disabled]="!role.active && !isSelected(role.id)">
-            <strong>{{ role.name }}</strong>
-            @if (!role.active) {
-              <span class="app-muted"> (inativo)</span>
-            }
-            @if (role.description) {
-              <span class="app-muted"> — {{ role.description }}</span>
-            }
-          </mat-checkbox>
+          <div class="form-check mb-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              [id]="'user-role-' + role.id"
+              [checked]="isSelected(role.id)"
+              #cb
+              (change)="toggle(role.id, cb.checked)"
+              [disabled]="!role.active && !isSelected(role.id)"
+            />
+            <label class="form-check-label" [for]="'user-role-' + role.id">
+              <strong class="fw-medium">{{ role.name }}</strong>
+              @if (!role.active) {
+                <span class="app-muted"> (inativo)</span>
+              }
+              @if (role.description) {
+                <span class="app-muted"> — {{ role.description }}</span>
+              }
+            </label>
+          </div>
         }
       </fieldset>
       @if (selection.invalid && selection.touched) {
-        <p class="app-field-error" role="alert">Selecione ao menos um perfil.</p>
+        <div class="invalid-feedback d-block" role="alert">Selecione ao menos um perfil.</div>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Cancelar</button>
-      <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">Salvar perfis</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">Salvar perfis</button>
+    </div>
   `,
 })
 export class UserRolesDialog {
-  protected readonly user = inject<UserView>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<UserRolesDialog, UserView>>(MatDialogRef);
+  protected readonly user = inject<UserView>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<UserView>>(DialogRef);
   private readonly api = inject(UsersApi);
   private readonly notifications = inject(NotificationService);
   private readonly rolesApi = inject(RolesApi);

@@ -1,12 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -23,6 +17,8 @@ import { AssistantPoliciesApi, AssistantReviewApi } from '../data/assistant.api'
 import { ASSISTANT_ERROR_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, MODE_LABELS, PIX_CRITERION_LABELS, PIX_DECISION_LABELS, PIX_DELIVERY_LABELS, PIX_DENIAL_LABELS, REVIEW_TAG_LABELS, TOOL_LABELS, TRIGGER_SOURCE_LABELS, VERDICT_LABELS } from '../data/assistant.labels';
 import { ReviewVerdict } from '../data/assistant.models';
 import { prettyJson, reviewBlocked, reviewProblems } from '../data/assistant.rules';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 
 /**
  * Detalhe de um turno do assistente: entrada do devedor e resposta (mascaradas), contexto
@@ -32,7 +28,7 @@ import { prettyJson, reviewBlocked, reviewProblems } from '../data/assistant.rul
  */
 @Component({
   selector: 'app-turn-detail',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatButtonToggleModule, MatChipsModule, MatFormFieldModule, MatIconModule, MatInputModule, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip],
+  imports: [FormsModule, RouterLink, ...FORM_FIELD, Icon, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip],
   templateUrl: './turn-detail.html',
   styleUrl: '../assistant.scss',
 })

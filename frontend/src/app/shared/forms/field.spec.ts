@@ -10,6 +10,9 @@ import { FORM_FIELD } from './field';
       <app-field label="E-mail" hint="Usado para entrar">
         <input appInput formControlName="email" />
       </app-field>
+      <app-field label="Cor" hint="Contraste 2,1:1" hintClass="text-danger-emphasis">
+        <input appInput formControlName="color" />
+      </app-field>
       <app-field label="Situação">
         <select appInput formControlName="status"><option value="A">Ativo</option></select>
       </app-field>
@@ -20,6 +23,7 @@ import { FORM_FIELD } from './field';
 class Host {
   readonly form = new FormGroup({
     email: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    color: new FormControl('#fff', { nonNullable: true }),
     status: new FormControl('A', { nonNullable: true }),
   });
 }
@@ -60,5 +64,12 @@ describe('app-field + appInput', () => {
     fixture.detectChanges();
     expect(input.classList).not.toContain('is-invalid');
     expect(el.querySelector('.invalid-feedback')).toBeNull();
+  });
+
+  it('classes extras na ajuda (destaque de alerta), sem perder o padrão do Bootstrap', () => {
+    const { el } = render();
+    const hint = [...el.querySelectorAll('.form-text span')].find((s) => s.textContent?.includes('Contraste'))!;
+    expect(hint.classList).toContain('text-danger-emphasis');
+    expect(hint.classList).toContain('flex-grow-1');
   });
 });

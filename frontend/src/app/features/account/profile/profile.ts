@@ -1,13 +1,12 @@
 import { Component, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { Icon } from '../../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-profile',
-  imports: [RouterLink, MatButtonModule, MatIconModule, PageHeader],
+  imports: [Icon, RouterLink, PageHeader],
   template: `
     <app-page-header title="Meu perfil" />
     @if (user(); as u) {
@@ -37,18 +36,18 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
       <section class="app-card" aria-labelledby="seguranca-perfil">
         <h2 class="app-card__title" id="seguranca-perfil">Segurança</h2>
         <div class="app-page-header__actions">
-          <a mat-stroked-button routerLink="/conta/senha">
-            <mat-icon aria-hidden="true">password</mat-icon>
+          <a class="btn btn-outline-primary" routerLink="/conta/senha">
+            <app-icon name="asterisk" />
             Trocar senha
           </a>
           @if (!u.mfaEnabled) {
-            <a mat-stroked-button routerLink="/conta/mfa">
-              <mat-icon aria-hidden="true">phonelink_lock</mat-icon>
+            <a class="btn btn-outline-primary" routerLink="/conta/mfa">
+              <app-icon name="phone-vibrate" />
               Ativar verificação em duas etapas
             </a>
           }
-          <a mat-stroked-button routerLink="/conta/sessoes">
-            <mat-icon aria-hidden="true">devices</mat-icon>
+          <a class="btn btn-outline-primary" routerLink="/conta/sessoes">
+            <app-icon name="laptop" />
             Minhas sessões
           </a>
         </div>

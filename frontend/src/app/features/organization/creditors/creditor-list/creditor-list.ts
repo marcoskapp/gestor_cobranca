@@ -1,13 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, map } from 'rxjs';
 import { Permission } from '../../../../core/auth/permission';
@@ -22,6 +15,10 @@ import { statusOptions } from '../../../../shared/status/status';
 import { CreditorsApi } from '../../data/organization.api';
 import { CreditorView } from '../../data/organization.models';
 import { CreditorForm } from '../creditor-form/creditor-form';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 interface CreditorFilter {
   q: string | null;
@@ -30,15 +27,9 @@ interface CreditorFilter {
 
 @Component({
   selector: 'app-creditor-list',
-  imports: [
+  imports: [NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatTooltipModule,
     DataTable,
     CellDef,
     PageHeader,
@@ -48,27 +39,27 @@ interface CreditorFilter {
   ],
   template: `
     <app-page-header title="Credores" subtitle="Empresas contratantes cujas carteiras a assessoria administra.">
-      <button mat-flat-button type="button" *appHasPermission="permission.CREDITOR_MANAGE" (click)="create()">
-        <mat-icon aria-hidden="true">add_business</mat-icon>
+      <button class="btn btn-primary" type="button" *appHasPermission="permission.CREDITOR_MANAGE" (click)="create()">
+        <app-icon name="shop" />
         Novo credor
       </button>
     </app-page-header>
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar credores" (ngSubmit)="query.reload()">
-      <mat-form-field class="app-filters__wide app-compact">
-        <mat-label>Nome, documento ou código</mat-label>
-        <input matInput formControlName="q" type="search" />
-        <mat-icon matSuffix aria-hidden="true">search</mat-icon>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field class="app-filters__wide" label="Nome, documento ou código">
+  <div class="input-group">
+    <input appInput formControlName="q" type="search" />
+    <span class="input-group-text" aria-hidden="true"><app-icon name="search" /></span>
+  </div>
+      </app-field>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
 
     <app-data-table
@@ -91,8 +82,8 @@ interface CreditorFilter {
       <ng-template appCell="document" [appCellOf]="query.rows()" let-c>{{ c.document | document }}</ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-c><app-status-chip domain="creditor" [status]="c.status" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-c>
-        <a mat-icon-button [routerLink]="['/organizacao/credores', c.id]" [attr.aria-label]="'Abrir ' + c.legalName" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/organizacao/credores', c.id]" [attr.aria-label]="'Abrir ' + c.legalName" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -100,7 +91,7 @@ interface CreditorFilter {
 })
 export class CreditorList {
   private readonly api = inject(CreditorsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
 
   protected readonly permission = Permission;
@@ -129,7 +120,7 @@ export class CreditorList {
 
   protected create(): void {
     this.dialog
-      .open<CreditorForm, CreditorView | null, CreditorView>(CreditorForm, { data: null, width: '640px' })
+      .open<CreditorForm, CreditorView | null, CreditorView>(CreditorForm, { data: null, size: 'lg' })
       .afterClosed()
       .subscribe((created) => created && void this.router.navigate(['/organizacao/credores', created.id]));
   }

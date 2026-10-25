@@ -1,10 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { toLocalDate } from '../../../../shared/models/dates';
@@ -12,50 +8,53 @@ import { errorMessage } from '../../../../shared/validation/error-messages';
 import { AppValidators, Limits } from '../../../../shared/validation/validators';
 import { ContractsApi } from '../../data/organization.api';
 import { ContractView } from '../../data/organization.models';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-contract-terminate',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, NgbInputDatepicker, Icon],
   template: `
-    <h2 mat-dialog-title>Encerrar contrato {{ contract.number }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Encerrar contrato {{ contract.number }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <p class="app-muted">O encerramento é definitivo e fica registrado na trilha de auditoria.</p>
-        <div class="app-form-stack">
-          <mat-form-field>
-            <mat-label>Data de encerramento</mat-label>
-            <input matInput [matDatepicker]="end" formControlName="endDate" placeholder="dd/mm/aaaa" />
-            <mat-datepicker-toggle matIconSuffix [for]="end" />
-            <mat-datepicker #end />
-            @if (form.controls.endDate.invalid) {
-              <mat-error>{{ message('endDate') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Motivo</mat-label>
-            <textarea matInput formControlName="reason" rows="3" [maxlength]="maxReason"></textarea>
-            @if (form.controls.reason.invalid) {
-              <mat-error>{{ message('reason') }}</mat-error>
-            }
-          </mat-form-field>
+        <div class="vstack gap-3">
+          <app-field label="Data de encerramento" [error]="message('endDate')">
+            <div class="input-group">
+              <input appInput formControlName="endDate" ngbAutofocus ngbDatepicker #end="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <button class="btn btn-outline-secondary" type="button" (click)="end.toggle()" aria-label="Abrir calendário: Data de encerramento">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field label="Motivo" [error]="message('reason')">
+            <textarea appInput formControlName="reason" rows="3" [maxlength]="maxReason"></textarea>
+          </app-field>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" class="app-button-danger" [disabled]="saving()">Encerrar contrato</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button type="submit" class="btn btn-danger" [disabled]="saving()">Encerrar contrato</button>
+      </div>
     </form>
   `,
 })
 export class ContractTerminate {
-  protected readonly contract = inject<ContractView>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ContractTerminate, ContractView>>(MatDialogRef);
+  protected readonly contract = inject<ContractView>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<ContractView>>(DialogRef);
   private readonly api = inject(ContractsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly maxReason = Limits.reason;
   protected readonly saving = signal(false);
   protected readonly form = inject(FormBuilder).group({
-    endDate: [new Date() as Date | null, [Validators.required]],
+    // modelo ISO (yyyy-MM-dd) do ngbDatepicker
+    endDate: [toLocalDate(new Date()), [Validators.required]],
     reason: ['', [AppValidators.notBlank, Validators.maxLength(Limits.reason)]],
   });
 
@@ -71,7 +70,7 @@ export class ContractTerminate {
     const v = this.form.getRawValue();
     this.saving.set(true);
     this.api
-      .terminate(this.contract.id, toLocalDate(v.endDate) as string, (v.reason ?? '').trim())
+      .terminate(this.contract.id, v.endDate as string, (v.reason ?? '').trim())
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe((updated) => {
         this.notifications.success('Contrato encerrado.');

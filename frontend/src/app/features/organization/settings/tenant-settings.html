@@ -1,10 +1,12 @@
 <app-page-header title="Configurações da assessoria" subtitle="Dados cadastrais e janela de contato com devedores." />
 
 @if (tenant.isLoading() && !current()) {
-  <mat-progress-bar mode="indeterminate" aria-label="Carregando configurações" />
+  <div class="progress" role="progressbar" aria-label="Carregando configurações">
+    <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+  </div>
 }
 @if (tenant.status() === 'error') {
-  <p class="app-alert app-alert--error" role="alert">Não foi possível carregar as configurações.</p>
+  <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>Não foi possível carregar as configurações.</span></div>
 }
 
 @if (current(); as t) {
@@ -23,42 +25,32 @@
   <form class="app-card" [formGroup]="form" (ngSubmit)="save()" novalidate aria-labelledby="dados-gerais">
     <h2 class="app-card__title" id="dados-gerais">Dados gerais e janela de contato</h2>
     @for (e of generalErrors(); track e) {
-      <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
     }
-    <div class="app-form-grid">
-      <mat-form-field>
-        <mat-label>Razão social</mat-label>
-        <input matInput formControlName="legalName" [maxlength]="limits.legalName" />
-        @if (form.controls.legalName.invalid) {
-          <mat-error>{{ message('legalName') }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Nome fantasia</mat-label>
-        <input matInput formControlName="tradeName" [maxlength]="limits.legalName" />
-        @if (form.controls.tradeName.invalid) {
-          <mat-error>{{ message('tradeName') }}</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Início da janela de contato</mat-label>
-        <input matInput type="time" formControlName="contactWindowStart" step="60" />
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Fim da janela de contato</mat-label>
-        <input matInput type="time" formControlName="contactWindowEnd" step="60" />
-      </mat-form-field>
+    <div class="app-form-grid row-gap-3">
+      <app-field label="Razão social" [error]="message('legalName')">
+        <input appInput formControlName="legalName" [maxlength]="limits.legalName" />
+      </app-field>
+      <app-field label="Nome fantasia" [error]="message('tradeName')">
+        <input appInput formControlName="tradeName" [maxlength]="limits.legalName" />
+      </app-field>
+      <app-field label="Início da janela de contato">
+        <input appInput type="time" formControlName="contactWindowStart" step="60" />
+      </app-field>
+      <app-field label="Fim da janela de contato">
+        <input appInput type="time" formControlName="contactWindowEnd" step="60" />
+      </app-field>
       <div class="app-span-all">
-        <mat-checkbox formControlName="contactOnSaturday">Permitir contato aos sábados</mat-checkbox>
-        <mat-checkbox formControlName="contactOnSunday">Permitir contato aos domingos</mat-checkbox>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="tenant-contactOnSaturday" formControlName="contactOnSaturday"  /><label class="form-check-label" for="tenant-contactOnSaturday">Permitir contato aos sábados</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="tenant-contactOnSunday" formControlName="contactOnSunday"  /><label class="form-check-label" for="tenant-contactOnSunday">Permitir contato aos domingos</label></div>
       </div>
     </div>
     @if (form.hasError('window')) {
-      <p class="app-field-error" role="alert">O fim da janela deve ser posterior ao início.</p>
+      <div class="invalid-feedback d-block" role="alert">O fim da janela deve ser posterior ao início.</div>
     }
     @if (canManage()) {
       <div class="app-form-actions">
-        <button mat-flat-button type="submit" [disabled]="saving() || form.pristine">Salvar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving() || form.pristine">Salvar</button>
       </div>
     }
   </form>

@@ -1,7 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -14,6 +12,7 @@ import { AnalyticsApi } from '../data/analytics.api';
 import { count, percent, ratioDetail } from '../data/analytics.format';
 import { AnalyticsFilter } from '../data/analytics.models';
 import { KpiCard } from './kpi-card';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /**
  * Resumo da operação na página inicial (carregado sob demanda): carteira, saldo vencido, fila
@@ -21,14 +20,14 @@ import { KpiCard } from './kpi-card';
  */
 @Component({
   selector: 'app-home-kpis',
-  imports: [RouterLink, MatButtonModule, MatIconModule, Amount, AppDatePipe, KpiCard],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, KpiCard],
   template: `
     <section class="hk" aria-labelledby="hk-title">
       <div class="hk__head">
         <h2 class="app-section-title" id="hk-title">Operação</h2>
-        <a mat-button routerLink="/paineis">
+        <a class="btn btn-link" routerLink="/paineis">
           Abrir painéis
-          <mat-icon iconPositionEnd aria-hidden="true">arrow_forward</mat-icon>
+          <app-icon name="arrow-right" />
         </a>
       </div>
       @if (portfolio(); as p) {
@@ -54,7 +53,7 @@ import { KpiCard } from './kpi-card';
     .hk { margin-bottom: 24px; }
     .hk__head { display: flex; align-items: center; justify-content: space-between; }
     .hk__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--app-gap); }
-    .hk__fresh { margin: 8px 0 0; font-size: var(--app-text-xs); color: var(--mat-sys-on-surface-variant); }
+    .hk__fresh { margin: 8px 0 0; font-size: var(--app-text-xs); color: var(--bs-secondary-color); }
   `,
 })
 export class HomeKpis {

@@ -1,36 +1,35 @@
 <app-page-header title="Usuários" subtitle="Contas de acesso da assessoria, perfis e escopo de credores.">
-  <button mat-flat-button type="button" *appHasPermission="permission.USER_MANAGE" (click)="create()">
-    <mat-icon aria-hidden="true">person_add</mat-icon>
+  <button class="btn btn-primary" type="button" *appHasPermission="permission.USER_MANAGE" (click)="create()">
+    <app-icon name="person-plus" />
     Novo usuário
   </button>
 </app-page-header>
 
 <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar usuários" (ngSubmit)="query.reload()">
-  <mat-form-field class="app-filters__wide app-compact">
-    <mat-label>Nome ou e-mail</mat-label>
-    <input matInput formControlName="q" type="search" />
-    <mat-icon matSuffix aria-hidden="true">search</mat-icon>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Situação</mat-label>
-    <mat-select formControlName="status">
-      <mat-option value="">Todas</mat-option>
+  <app-field class="app-filters__wide" label="Nome ou e-mail">
+  <div class="input-group">
+    <input appInput formControlName="q" type="search" />
+    <span class="input-group-text" aria-hidden="true"><app-icon name="search" /></span>
+  </div>
+  </app-field>
+  <app-field label="Situação">
+    <select appInput formControlName="status">
+      <option value="">Todas</option>
       @for (s of statuses; track s.value) {
-        <mat-option [value]="s.value">{{ s.label }}</mat-option>
+        <option [ngValue]="s.value">{{ s.label }}</option>
       }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="app-compact">
-    <mat-label>Perfil</mat-label>
-    <mat-select formControlName="roleId">
-      <mat-option value="">Todos</mat-option>
+    </select>
+  </app-field>
+  <app-field label="Perfil">
+    <select appInput formControlName="roleId">
+      <option value="">Todos</option>
       @for (r of roles(); track r.id) {
-        <mat-option [value]="r.id">{{ r.name }}</mat-option>
+        <option [ngValue]="r.id">{{ r.name }}</option>
       }
-    </mat-select>
-  </mat-form-field>
+    </select>
+  </app-field>
   <div class="app-filters__actions">
-    <button mat-button type="button" (click)="clearFilters()">Limpar filtros</button>
+    <button class="btn btn-link" type="button" (click)="clearFilters()">Limpar filtros</button>
   </div>
 </form>
 
@@ -57,15 +56,15 @@
   </ng-template>
   <ng-template appCell="mfa" [appCellOf]="query.rows()" let-u>
     @if (u.mfaEnabled) {
-      <mat-icon aria-hidden="false" aria-label="MFA ativo" matTooltip="MFA ativo">verified_user</mat-icon>
+      <app-icon label="MFA ativo" ngbTooltip="MFA ativo" name="shield-check" />
     } @else {
       <span class="app-muted" aria-label="MFA inativo">—</span>
     }
   </ng-template>
   <ng-template appCell="lastLoginAt" [appCellOf]="query.rows()" let-u>{{ u.lastLoginAt | appDate }}</ng-template>
   <ng-template appCell="actions" [appCellOf]="query.rows()" let-u>
-    <a mat-icon-button [routerLink]="['/admin/usuarios', u.id]" [attr.aria-label]="'Abrir ' + u.name" matTooltip="Abrir">
-      <mat-icon aria-hidden="true">chevron_right</mat-icon>
+    <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/admin/usuarios', u.id]" [attr.aria-label]="'Abrir ' + u.name" ngbTooltip="Abrir">
+      <app-icon name="chevron-right" />
     </a>
   </ng-template>
 </app-data-table>

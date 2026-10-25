@@ -1,11 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -18,56 +13,54 @@ import { BusinessUnitsApi } from '../../../organization/data/organization.api';
 import { TeamView } from '../../data/admin.models';
 import { TeamsApi } from '../../data/teams.api';
 import { UserLookup } from '../../data/user.lookup';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-team-form',
-  imports: [
+  imports: [Icon, ...FORM_FIELD,
     ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
+    ...DIALOG_DIRECTIVES,
     EntityPicker,
   ],
   template: `
-    <h2 mat-dialog-title>{{ team ? 'Editar equipe' : 'Nova equipe' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ team ? 'Editar equipe' : 'Nova equipe' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
-        <div class="app-form-stack">
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" autocomplete="off" [maxlength]="limits.teamName" />
-            @if (form.controls.name.invalid) {
-              <mat-error>{{ nameError() }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Unidade</mat-label>
-            <mat-select formControlName="businessUnitId">
-              <mat-option value="">Nenhuma</mat-option>
+        <div class="vstack gap-3">
+          <app-field label="Nome" [error]="nameError()">
+            <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.teamName" />
+          </app-field>
+          <app-field label="Unidade">
+            <select appInput formControlName="businessUnitId">
+              <option value="">Nenhuma</option>
               @for (u of units(); track u.id) {
-                <mat-option [value]="u.id" [disabled]="!u.active">{{ u.code }} — {{ u.name }}</mat-option>
+                <option [ngValue]="u.id" [disabled]="!u.active">{{ u.code }} — {{ u.name }}</option>
               }
-            </mat-select>
-          </mat-form-field>
+            </select>
+          </app-field>
           <app-entity-picker [control]="form.controls.supervisor" [source]="users" label="Supervisor" [single]="true" />
           <app-entity-picker [control]="form.controls.memberIds" [source]="users" label="Membros" />
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ team ? 'Salvar' : 'Criar equipe' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ team ? 'Salvar' : 'Criar equipe' }}</button>
+      </div>
     </form>
   `,
 })
 export class TeamForm {
-  protected readonly team = inject<TeamView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<TeamForm, TeamView>>(MatDialogRef);
+  protected readonly team = inject<TeamView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<TeamView>>(DialogRef);
   private readonly api = inject(TeamsApi);
   private readonly unitsApi = inject(BusinessUnitsApi);
   private readonly notifications = inject(NotificationService);

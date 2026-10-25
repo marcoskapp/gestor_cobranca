@@ -29,7 +29,7 @@ import { FieldControl } from './field-control';
       <div class="invalid-feedback d-block" [id]="errorId()" aria-live="polite">{{ error() || control()?.message() }}</div>
     } @else if (hint() || hintEnd()) {
       <div class="form-text d-flex gap-2" [id]="hintId()">
-        <span class="flex-grow-1">{{ hint() }}</span>
+        <span class="flex-grow-1" [class]="hintClass()">{{ hint() }}</span>
         @if (hintEnd()) {
           <span class="text-nowrap">{{ hintEnd() }}</span>
         }
@@ -42,6 +42,8 @@ export class Field {
   readonly hint = input<string>();
   /** Texto auxiliar à direita (ex.: contador `12 / 500`). */
   readonly hintEnd = input<string>();
+  /** Classes extras da ajuda (ex.: `text-danger-emphasis fw-semibold` para destacar um alerta na ajuda). */
+  readonly hintClass = input<string>('');
   /** Mensagem de erro própria (substitui a mensagem padrão do validador). */
   readonly error = input<string>();
 

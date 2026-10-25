@@ -1,6 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
@@ -27,7 +26,7 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
  */
 @Component({
   selector: 'app-recovery-panel',
-  imports: [MatButtonModule, Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, ColumnChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, ColumnChart, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Recuperação" subtitle="Valor efetivamente pago (confirmado, líquido de estornos), taxa, tempo e custo."
                      report="recovery" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
@@ -35,8 +34,8 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
                              [options]="{ period: true, creditor: true, portfolio: true, people: true, channel: true, groupBy: groups() }"
                              (changed)="state.update($event)" />
       @if (data.error()) {
-        <app-empty-state tone="error" icon="error" title="Não foi possível carregar a recuperação" message="Verifique os filtros e tente novamente.">
-          <button mat-flat-button type="button" (click)="data.reload()">Tentar novamente</button>
+        <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar a recuperação" message="Verifique os filtros e tente novamente.">
+          <button class="btn btn-primary" type="button" (click)="data.reload()">Tentar novamente</button>
         </app-empty-state>
       } @else if (!report()) {
         <app-skeleton variant="card" [rows]="4" />

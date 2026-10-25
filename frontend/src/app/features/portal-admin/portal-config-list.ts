@@ -1,7 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { CellDef } from '../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../shared/components/data-table/data-table';
@@ -11,14 +9,15 @@ import { nameMap } from '../../shared/data/name-map';
 import { valueOr } from '../../shared/data/resource-value';
 import { CreditorNames } from '../organization/data/organization.lookups';
 import { PortalAdminApi } from './data/portal-admin.api';
+import { Icon } from '../../shared/components/icon/icon';
 
 /** Portais de autonegociação por credor (`PORTAL_MANAGE`). */
 @Component({
   selector: 'app-portal-config-list',
-  imports: [RouterLink, MatButtonModule, MatIconModule, DataTable, CellDef, PageHeader, StatusChip],
+  imports: [Icon, RouterLink, DataTable, CellDef, PageHeader, StatusChip],
   template: `
     <app-page-header title="Portal de autonegociação" subtitle="Endereço, marca, carteiras e segurança do portal de cada credor.">
-      <a mat-flat-button routerLink="novo"><mat-icon aria-hidden="true">add</mat-icon>Configurar portal</a>
+      <a class="btn btn-primary" routerLink="novo"><app-icon name="plus-lg" /> Configurar portal</a>
     </app-page-header>
     <app-data-table
       caption="Portais configurados"
@@ -27,7 +26,7 @@ import { PortalAdminApi } from './data/portal-admin.api';
       [loading]="list.isLoading()"
       [failed]="list.status() === 'error'"
       (retry)="list.reload()"
-      emptyIcon="storefront"
+      emptyIcon="shop-window"
       emptyMessage="Nenhum portal configurado."
       emptyHint="Configure o portal de um credor para que os devedores negociem sozinhos."
     >

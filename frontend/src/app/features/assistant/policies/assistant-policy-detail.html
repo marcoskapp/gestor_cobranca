@@ -1,44 +1,44 @@
 @if (resource.isLoading() && !policy()) {
   <app-skeleton variant="card" [rows]="8" />
 } @else if (resource.status() === 'error') {
-  <app-empty-state icon="smart_toy" tone="error" title="Não foi possível abrir a política." message="Ela pode não existir ou estar fora do seu escopo de credores.">
-    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/assistente/politicas">Voltar para políticas</a>
+  <app-empty-state icon="robot" tone="error" title="Não foi possível abrir a política." message="Ela pode não existir ou estar fora do seu escopo de credores.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/assistente/politicas">Voltar para políticas</a>
   </app-empty-state>
 }
 
 @if (policy(); as p) {
   <app-page-header [title]="p.name + ' · v' + p.policyVersion" [subtitle]="scope() + ' · ' + p.code">
-    <a mat-button routerLink="/assistente/politicas">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/assistente/politicas">
+      <app-icon name="arrow-left" />
       Políticas
     </a>
     @if (canManage()) {
       @if (p.portfolioId) {
-        <button mat-stroked-button type="button" (click)="disablePortfolio()">
-          <mat-icon aria-hidden="true">power_settings_new</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="disablePortfolio()">
+          <app-icon name="power" />
           Desligar carteira
         </button>
       }
       @if (p.status === 'DRAFT') {
         @if (dirty()) {
-          <button mat-stroked-button type="button" (click)="discardChanges()">Descartar alterações</button>
-          <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">
-            <mat-icon aria-hidden="true">save</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="discardChanges()">Descartar alterações</button>
+          <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
+            <app-icon name="floppy" />
             Salvar rascunho
           </button>
         } @else {
-          <button mat-flat-button type="button" (click)="publish()" [disabled]="problems().length > 0" data-tour="assistant-publish">
-            <mat-icon aria-hidden="true">publish</mat-icon>
+          <button class="btn btn-primary" type="button" (click)="publish()" [disabled]="problems().length > 0" data-tour="assistant-publish">
+            <app-icon name="upload" />
             Publicar
           </button>
         }
       } @else {
         @if (p.status === 'PUBLISHED') {
-          <button mat-stroked-button type="button" (click)="retire()">Aposentar</button>
+          <button class="btn btn-outline-primary" type="button" (click)="retire()">Aposentar</button>
         }
-        <button mat-flat-button type="button" (click)="newVersion()" [disabled]="hasDraft()" [matTooltip]="hasDraft() ? 'Já existe um rascunho desta política' : 'Copia os parâmetros para um novo rascunho'">
-          <mat-icon aria-hidden="true">content_copy</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="newVersion()" [disabled]="hasDraft()" [ngbTooltip]="hasDraft() ? 'Já existe um rascunho desta política' : 'Copia os parâmetros para um novo rascunho'">
+          <app-icon name="copy" />
           Nova versão
         </button>
       }
@@ -55,19 +55,19 @@
       <span class="app-muted">· aposentada em {{ p.retiredAt | appDate }}{{ p.retireReason ? ': ' + p.retireReason : '' }}</span>
     }
     @if (dirty()) {
-      <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">edit</mat-icon>Alterações não salvas</span>
+      <span class="app-status app-status--warning"><app-icon class="app-status__icon" name="pencil" />Alterações não salvas</span>
     }
   </div>
 
   @if (actionError()) {
-    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ actionError() }}</span></p>
+    <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ actionError() }}</span></div>
   }
   @if (problems().length && editable()) {
-    <section class="app-alert app-alert--error" role="alert" aria-label="Problemas na política">
-      <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <section class="alert alert-danger d-flex align-items-start gap-2" role="alert" aria-label="Problemas na política">
+      <app-icon name="exclamation-circle" />
       <div>
-        <strong>{{ problems().length }} problema(s) a corrigir:</strong>
-        <ul>
+        <strong class="fw-semibold">{{ problems().length }} problema(s) a corrigir:</strong>
+        <ul class="mb-0 ps-3">
           @for (pr of problems().slice(0, 8); track pr) {
             <li>{{ pr }}</li>
           }
@@ -81,25 +81,22 @@
       <div class="as-main">
         @if (editable()) {
           <section class="app-card">
-            <mat-form-field class="app-full-width">
-              <mat-label>Nome</mat-label>
-              <input matInput [ngModel]="name()" (ngModelChange)="name.set($event); edited()" maxlength="120" />
-            </mat-form-field>
+            <app-field label="Nome">
+              <input appInput [ngModel]="name()" (ngModelChange)="name.set($event); edited()" maxlength="120" />
+            </app-field>
           </section>
         }
 
         <section class="app-card" aria-labelledby="ap-mode" data-tour="assistant-mode">
           <h2 class="app-card__title" id="ap-mode">Modo e canais</h2>
-          <mat-form-field class="app-full-width" subscriptSizing="dynamic">
-            <mat-label>Modo de operação</mat-label>
-            <mat-select [value]="d.mode" (selectionChange)="set('mode', $event.value)" [disabled]="!editable()">
+          <app-field label="Modo de operação" [hint]="(modeHints[d.mode])">
+            <select appInput [ngModel]="d.mode" (ngModelChange)="set('mode', $event)" [disabled]="!editable()">
               @for (m of modes; track m[0]) {
-                <mat-option [value]="m[0]">{{ m[1] }}</mat-option>
+                <option [ngValue]="m[0]">{{ m[1] }}</option>
               }
-            </mat-select>
-            <mat-hint>{{ modeHints[d.mode] }}</mat-hint>
-          </mat-form-field>
-          <mat-checkbox [checked]="true" [disabled]="true">WhatsApp</mat-checkbox>
+            </select>
+          </app-field>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="ap-check-1" [checked]="true" [disabled]="true" /><label class="form-check-label" for="ap-check-1">WhatsApp</label></div>
           <p class="app-muted as-small">E-mail e SMS exigem templates por intenção; o assistente atende hoje só o WhatsApp (texto livre).</p>
         </section>
 
@@ -107,27 +104,34 @@
           <div class="as-head">
             <h2 class="app-card__title" id="ap-hours">Horários de atendimento</h2>
             @if (editable()) {
-              <button mat-stroked-button type="button" (click)="addWindow()"><mat-icon aria-hidden="true">add</mat-icon>Janela</button>
+              <button class="btn btn-outline-primary" type="button" (click)="addWindow()"><app-icon name="plus-lg" /> Janela</button>
             }
           </div>
           <p class="app-muted as-small">Fuso de operação. Fora das janelas, a resposta é adiada para a abertura. Sem janelas = sempre.</p>
           @for (w of d.serviceHours ?? []; track $index; let i = $index) {
             <div class="as-row">
-              <mat-button-toggle-group multiple [value]="w.days" (change)="setWindowDays(i, $event.value)" [disabled]="!editable()" [attr.aria-label]="'Dias da janela ' + (i + 1)">
+              <div class="btn-group btn-group-sm flex-wrap as-days" role="group" [attr.aria-label]="'Dias da janela ' + (i + 1)">
                 @for (day of days; track day) {
-                  <mat-button-toggle [value]="day">{{ dayLabels[day] }}</mat-button-toggle>
+                  <input
+                    class="btn-check"
+                    type="checkbox"
+                    [id]="'ap-window-' + i + '-' + day"
+                    [checked]="w.days.includes(day)"
+                    [disabled]="!editable()"
+                    #dayBox
+                    (change)="toggleWindowDay(i, day, dayBox.checked)"
+                  />
+                  <label class="btn btn-outline-primary" [for]="'ap-window-' + i + '-' + day">{{ dayLabels[day] }}</label>
                 }
-              </mat-button-toggle-group>
-              <mat-form-field class="app-compact as-time" subscriptSizing="dynamic">
-                <mat-label>Início</mat-label>
-                <input matInput type="time" [ngModel]="w.start.slice(0, 5)" (ngModelChange)="setWindowTime(i, 'start', $event)" [readonly]="!editable()" />
-              </mat-form-field>
-              <mat-form-field class="app-compact as-time" subscriptSizing="dynamic">
-                <mat-label>Fim</mat-label>
-                <input matInput type="time" [ngModel]="w.end.slice(0, 5)" (ngModelChange)="setWindowTime(i, 'end', $event)" [readonly]="!editable()" />
-              </mat-form-field>
+              </div>
+              <app-field class="as-time" label="Início">
+                <input appInput type="time" [ngModel]="w.start.slice(0, 5)" (ngModelChange)="setWindowTime(i, 'start', $event)" [readonly]="!editable()" />
+              </app-field>
+              <app-field class="as-time" label="Fim">
+                <input appInput type="time" [ngModel]="w.end.slice(0, 5)" (ngModelChange)="setWindowTime(i, 'end', $event)" [readonly]="!editable()" />
+              </app-field>
               @if (editable()) {
-                <button mat-icon-button type="button" (click)="removeWindow(i)" aria-label="Remover janela" matTooltip="Remover"><mat-icon aria-hidden="true">delete</mat-icon></button>
+                <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="removeWindow(i)" aria-label="Remover janela" ngbTooltip="Remover"><app-icon name="trash3" /></button>
               }
             </div>
           } @empty {
@@ -137,73 +141,58 @@
 
         <section class="app-card" aria-labelledby="ap-conv" data-tour="assistant-authority">
           <h2 class="app-card__title" id="ap-conv">Alçada, prompt e conversa</h2>
-          <div class="app-form-grid">
-            <mat-form-field>
-              <mat-label>Perfil de alçada</mat-label>
-              <mat-select [value]="d.authorityProfileId ?? ''" (selectionChange)="set('authorityProfileId', $event.value || null)" [disabled]="!editable()">
-                <mat-option value="">Padrão (ASSISTENTE_INICIAL)</mat-option>
+          <div class="app-form-grid row-gap-3">
+            <app-field label="Perfil de alçada" [hint]="profileHint()">
+              <select appInput [ngModel]="d.authorityProfileId ?? ''" (ngModelChange)="set('authorityProfileId', $event || null)" [disabled]="!editable()">
+                <option value="">Padrão (ASSISTENTE_INICIAL)</option>
                 @for (pr of profiles(); track pr.id) {
-                  <mat-option [value]="pr.id">{{ pr.name }} ({{ pr.code }})</mat-option>
+                  <option [ngValue]="pr.id">{{ pr.name }} ({{ pr.code }})</option>
                 }
-              </mat-select>
-              @if (selectedProfile(); as sp) {
-                <mat-hint>até {{ sp.maxInstallments }} parcelas · {{ sp.canFormalize ? 'formaliza' : 'não formaliza' }}</mat-hint>
-              }
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Prompt</mat-label>
-              <mat-select [value]="(d.promptCode ?? p.promptCode) + '@' + (d.promptVersion ?? p.promptVersion)" (selectionChange)="setPrompt($event.value)" [disabled]="!editable()">
+              </select>
+            </app-field>
+            <app-field label="Prompt" hint="Versões imutáveis, revisadas no código">
+              <select appInput [ngModel]="(d.promptCode ?? p.promptCode) + '@' + (d.promptVersion ?? p.promptVersion)" (ngModelChange)="setPrompt($event)" [disabled]="!editable()">
                 @for (pr of prompts(); track pr.code + pr.version) {
-                  <mat-option [value]="pr.code + '@' + pr.version">{{ pr.code }} v{{ pr.version }} · {{ pr.description }}</mat-option>
+                  <option [ngValue]="pr.code + '@' + pr.version">{{ pr.code }} v{{ pr.version }} · {{ pr.description }}</option>
                 }
                 @if (!prompts().length) {
-                  <mat-option [value]="p.promptCode + '@' + p.promptVersion">{{ p.promptCode }} v{{ p.promptVersion }}</mat-option>
+                  <option [ngValue]="p.promptCode + '@' + p.promptVersion">{{ p.promptCode }} v{{ p.promptVersion }}</option>
                 }
-              </mat-select>
-              <mat-hint>Versões imutáveis, revisadas no código</mat-hint>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Tom</mat-label>
-              <mat-select [value]="d.tone ?? 'FORMAL'" (selectionChange)="set('tone', $event.value)" [disabled]="!editable()">
-                <mat-option value="FORMAL">Formal</mat-option>
-                <mat-option value="PROXIMO">Próximo</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Turnos antes de oferecer humano</mat-label>
-              <input matInput type="number" min="1" max="50" [ngModel]="d.maxTurns" (ngModelChange)="setNumber('maxTurns', $event)" [readonly]="!editable()" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Falhas de entendimento seguidas</mat-label>
-              <input matInput type="number" min="1" max="5" [ngModel]="d.maxMisunderstandings" (ngModelChange)="setNumber('maxMisunderstandings', $event)" [readonly]="!editable()" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Confiança mínima (%)</mat-label>
-              <input matInput inputmode="decimal" [ngModel]="percentOf(d.minConfidence)" (ngModelChange)="setFraction('minConfidence', $event)" [readonly]="!editable()" />
-            </mat-form-field>
+              </select>
+            </app-field>
+            <app-field label="Tom">
+              <select appInput [ngModel]="d.tone ?? 'FORMAL'" (ngModelChange)="set('tone', $event)" [disabled]="!editable()">
+                <option value="FORMAL">Formal</option>
+                <option value="PROXIMO">Próximo</option>
+              </select>
+            </app-field>
+            <app-field label="Turnos antes de oferecer humano">
+              <input appInput type="number" min="1" max="50" [ngModel]="d.maxTurns" (ngModelChange)="setNumber('maxTurns', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Falhas de entendimento seguidas">
+              <input appInput type="number" min="1" max="5" [ngModel]="d.maxMisunderstandings" (ngModelChange)="setNumber('maxMisunderstandings', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Confiança mínima (%)">
+              <input appInput inputmode="decimal" [ngModel]="percentOf(d.minConfidence)" (ngModelChange)="setFraction('minConfidence', $event)" [readonly]="!editable()" />
+            </app-field>
             <div class="app-span-all">
-              <mat-checkbox [ngModel]="d.requireIdentityVerification ?? true" (ngModelChange)="set('requireIdentityVerification', $event)" [disabled]="!editable()">Confirmar a identidade antes de revelar a dívida (3 dígitos do CPF + nascimento)</mat-checkbox>
+              <div class="form-check"><input class="form-check-input" type="checkbox" id="ap-check-2" [ngModel]="d.requireIdentityVerification ?? true" (ngModelChange)="set('requireIdentityVerification', $event)" [disabled]="!editable()" /><label class="form-check-label" for="ap-check-2">Confirmar a identidade antes de revelar a dívida (3 dígitos do CPF + nascimento)</label></div>
             </div>
-            <mat-form-field>
-              <mat-label>Tentativas de identificação</mat-label>
-              <input matInput type="number" min="1" max="5" [ngModel]="d.maxIdentityAttempts" (ngModelChange)="setNumber('maxIdentityAttempts', $event)" [readonly]="!editable()" />
-            </mat-form-field>
+            <app-field label="Tentativas de identificação">
+              <input appInput type="number" min="1" max="5" [ngModel]="d.maxIdentityAttempts" (ngModelChange)="setNumber('maxIdentityAttempts', $event)" [readonly]="!editable()" />
+            </app-field>
           </div>
         </section>
 
         <section class="app-card" aria-labelledby="ap-topics">
           <h2 class="app-card__title" id="ap-topics">Temas</h2>
-          <div class="app-form-grid">
-            <mat-form-field class="app-span-all">
-              <mat-label>Temas permitidos (separados por vírgula)</mat-label>
-              <input matInput [ngModel]="topicsText(d.allowedTopics)" (ngModelChange)="setTopics('allowedTopics', $event)" [readonly]="!editable()" />
-              <mat-hint>Informados ao modelo</mat-hint>
-            </mat-form-field>
-            <mat-form-field class="app-span-all">
-              <mat-label>Temas proibidos (separados por vírgula)</mat-label>
-              <input matInput [ngModel]="topicsText(d.forbiddenTopics)" (ngModelChange)="setTopics('forbiddenTopics', $event)" [readonly]="!editable()" />
-              <mat-hint>Bloqueiam a resposta (guardrail)</mat-hint>
-            </mat-form-field>
+          <div class="app-form-grid row-gap-3">
+            <app-field class="app-span-all" label="Temas permitidos (separados por vírgula)" hint="Informados ao modelo">
+              <input appInput [ngModel]="topicsText(d.allowedTopics)" (ngModelChange)="setTopics('allowedTopics', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field class="app-span-all" label="Temas proibidos (separados por vírgula)" hint="Bloqueiam a resposta (guardrail)">
+              <input appInput [ngModel]="topicsText(d.forbiddenTopics)" (ngModelChange)="setTopics('forbiddenTopics', $event)" [readonly]="!editable()" />
+            </app-field>
           </div>
         </section>
 
@@ -211,12 +200,12 @@
           <div class="as-head">
             <h2 class="app-card__title" id="ap-triggers">Transferência para humano</h2>
             @if (editable()) {
-              <button mat-stroked-button type="button" (click)="addTrigger()"><mat-icon aria-hidden="true">add</mat-icon>Gatilho adicional</button>
+              <button class="btn btn-outline-primary" type="button" (click)="addTrigger()"><app-icon name="plus-lg" /> Gatilho adicional</button>
             }
           </div>
           <p class="app-muted as-small">Os gatilhos obrigatórios não se desligam; a política troca só o perfil exigido na fila e acrescenta gatilhos.</p>
-          <div class="as-scroll">
-            <table class="as-table" aria-label="Gatilhos obrigatórios e perfil exigido">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2" aria-label="Gatilhos obrigatórios e perfil exigido">
               <thead>
                 <tr>
                   <th scope="col">Motivo obrigatório</th>
@@ -226,9 +215,9 @@
               <tbody>
                 @for (r of mandatory; track r) {
                   <tr>
-                    <td><mat-icon class="as-lock" aria-hidden="true">lock</mat-icon>{{ reasons[r] }}</td>
+                    <td><app-icon class="as-lock" name="lock" />{{ reasons[r] }}</td>
                     <td>
-                      <input class="as-inline-input" [attr.aria-label]="'Perfil exigido para ' + reasons[r]" [ngModel]="profileFor(r)" (ngModelChange)="setProfile(r, $event)" [placeholder]="defaultProfiles[r] ?? 'qualquer operador'" [readonly]="!editable()" maxlength="40" />
+                      <input class="form-control form-control-sm" [attr.aria-label]="'Perfil exigido para ' + reasons[r]" [ngModel]="profileFor(r)" (ngModelChange)="setProfile(r, $event)" [placeholder]="defaultProfiles[r] ?? 'qualquer operador'" [readonly]="!editable()" maxlength="40" />
                     </td>
                   </tr>
                 }
@@ -237,20 +226,18 @@
           </div>
           @for (t of d.extraTriggers ?? []; track $index; let i = $index) {
             <div class="as-row">
-              <mat-form-field class="app-compact as-grow" subscriptSizing="dynamic">
-                <mat-label>Expressão</mat-label>
-                <input matInput [ngModel]="t.keyword" (ngModelChange)="setTrigger(i, 'keyword', $event)" maxlength="60" [readonly]="!editable()" />
-              </mat-form-field>
-              <mat-form-field class="app-compact as-grow" subscriptSizing="dynamic">
-                <mat-label>Motivo</mat-label>
-                <mat-select [value]="t.reasonCode ?? 'POLICY_TRIGGER'" (selectionChange)="setTrigger(i, 'reasonCode', $event.value)" [disabled]="!editable()">
+              <app-field class="as-grow" label="Expressão">
+                <input appInput [ngModel]="t.keyword" (ngModelChange)="setTrigger(i, 'keyword', $event)" maxlength="60" [readonly]="!editable()" />
+              </app-field>
+              <app-field class="as-grow" label="Motivo">
+                <select appInput [ngModel]="t.reasonCode ?? 'POLICY_TRIGGER'" (ngModelChange)="setTrigger(i, 'reasonCode', $event)" [disabled]="!editable()">
                   @for (code of reasonCodes; track code) {
-                    <mat-option [value]="code">{{ reasons[code] }}</mat-option>
+                    <option [ngValue]="code">{{ reasons[code] }}</option>
                   }
-                </mat-select>
-              </mat-form-field>
+                </select>
+              </app-field>
               @if (editable()) {
-                <button mat-icon-button type="button" (click)="removeTrigger(i)" aria-label="Remover gatilho" matTooltip="Remover"><mat-icon aria-hidden="true">delete</mat-icon></button>
+                <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="removeTrigger(i)" aria-label="Remover gatilho" ngbTooltip="Remover"><app-icon name="trash3" /></button>
               }
             </div>
           }
@@ -258,56 +245,43 @@
 
         <section class="app-card" aria-labelledby="ap-messages">
           <h2 class="app-card__title" id="ap-messages">Mensagens</h2>
-          <mat-form-field class="app-full-width">
-            <mat-label>Apresentação (transparência)</mat-label>
-            <textarea matInput rows="2" maxlength="600" [ngModel]="d.identificationMessage" (ngModelChange)="set('identificationMessage', $event)" [readonly]="!editable()"></textarea>
-            <mat-hint>Precisa dizer "assistente virtual" e como pedir atendimento humano</mat-hint>
-          </mat-form-field>
-          <mat-form-field class="app-full-width">
-            <mat-label>Ao transferir para humano</mat-label>
-            <textarea matInput rows="2" maxlength="600" [ngModel]="d.handoffMessage" (ngModelChange)="set('handoffMessage', $event)" [readonly]="!editable()"></textarea>
-          </mat-form-field>
-          <mat-form-field class="app-full-width">
-            <mat-label>Em falha ou resposta bloqueada</mat-label>
-            <textarea matInput rows="2" maxlength="600" [ngModel]="d.fallbackMessage" (ngModelChange)="set('fallbackMessage', $event)" [readonly]="!editable()"></textarea>
-          </mat-form-field>
-          <mat-form-field class="app-full-width">
-            <mat-label>Aceite aguardando formalização humana</mat-label>
-            <textarea matInput rows="2" maxlength="600" [ngModel]="d.approvalMessage" (ngModelChange)="set('approvalMessage', $event)" [readonly]="!editable()"></textarea>
-          </mat-form-field>
+          <app-field label="Apresentação (transparência)" hint="Precisa dizer &quot;assistente virtual&quot; e como pedir atendimento humano">
+            <textarea appInput rows="2" maxlength="600" [ngModel]="d.identificationMessage" (ngModelChange)="set('identificationMessage', $event)" [readonly]="!editable()"></textarea>
+          </app-field>
+          <app-field label="Ao transferir para humano">
+            <textarea appInput rows="2" maxlength="600" [ngModel]="d.handoffMessage" (ngModelChange)="set('handoffMessage', $event)" [readonly]="!editable()"></textarea>
+          </app-field>
+          <app-field label="Em falha ou resposta bloqueada">
+            <textarea appInput rows="2" maxlength="600" [ngModel]="d.fallbackMessage" (ngModelChange)="set('fallbackMessage', $event)" [readonly]="!editable()"></textarea>
+          </app-field>
+          <app-field label="Aceite aguardando formalização humana">
+            <textarea appInput rows="2" maxlength="600" [ngModel]="d.approvalMessage" (ngModelChange)="set('approvalMessage', $event)" [readonly]="!editable()"></textarea>
+          </app-field>
         </section>
 
         <section class="app-card" aria-labelledby="ap-limits" data-tour="assistant-limits">
           <h2 class="app-card__title" id="ap-limits">Limites e avaliação</h2>
-          <div class="app-form-grid">
-            <mat-form-field>
-              <mat-label>Tokens de saída por chamada</mat-label>
-              <input matInput type="number" [ngModel]="d.limits?.maxOutputTokens" (ngModelChange)="setLimit('maxOutputTokens', $event)" [readonly]="!editable()" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Tokens por turno</mat-label>
-              <input matInput type="number" [ngModel]="d.limits?.maxTokensPerTurn" (ngModelChange)="setLimit('maxTokensPerTurn', $event)" [readonly]="!editable()" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Ferramentas por turno</mat-label>
-              <input matInput type="number" [ngModel]="d.limits?.maxToolCallsPerTurn" (ngModelChange)="setLimit('maxToolCallsPerTurn', $event)" [readonly]="!editable()" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Tempo por chamada ao modelo (s)</mat-label>
-              <input matInput type="number" [ngModel]="d.limits?.timeoutSeconds" (ngModelChange)="setLimit('timeoutSeconds', $event)" [readonly]="!editable()" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Custo máximo por conversa</mat-label>
-              <input matInput inputmode="decimal" [ngModel]="d.limits?.maxCostPerConversation" (ngModelChange)="setLimit('maxCostPerConversation', $event)" [readonly]="!editable()" />
-              <mat-hint>Moeda do provedor</mat-hint>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Turnos revisados por amostra (%)</mat-label>
-              <input matInput inputmode="decimal" [ngModel]="percentOf(d.reviewSampleRate)" (ngModelChange)="setFraction('reviewSampleRate', $event)" [readonly]="!editable()" />
-              <mat-hint>Guardrail e falha: sempre revisados</mat-hint>
-            </mat-form-field>
+          <div class="app-form-grid row-gap-3">
+            <app-field label="Tokens de saída por chamada">
+              <input appInput type="number" [ngModel]="d.limits?.maxOutputTokens" (ngModelChange)="setLimit('maxOutputTokens', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Tokens por turno">
+              <input appInput type="number" [ngModel]="d.limits?.maxTokensPerTurn" (ngModelChange)="setLimit('maxTokensPerTurn', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Ferramentas por turno">
+              <input appInput type="number" [ngModel]="d.limits?.maxToolCallsPerTurn" (ngModelChange)="setLimit('maxToolCallsPerTurn', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Tempo por chamada ao modelo (s)">
+              <input appInput type="number" [ngModel]="d.limits?.timeoutSeconds" (ngModelChange)="setLimit('timeoutSeconds', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Custo máximo por conversa" hint="Moeda do provedor">
+              <input appInput inputmode="decimal" [ngModel]="d.limits?.maxCostPerConversation" (ngModelChange)="setLimit('maxCostPerConversation', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Turnos revisados por amostra (%)" hint="Guardrail e falha: sempre revisados">
+              <input appInput inputmode="decimal" [ngModel]="percentOf(d.reviewSampleRate)" (ngModelChange)="setFraction('reviewSampleRate', $event)" [readonly]="!editable()" />
+            </app-field>
             <div class="app-span-all">
-              <mat-checkbox [ngModel]="d.allowCreditBureauMention ?? false" (ngModelChange)="set('allowCreditBureauMention', $event)" [disabled]="!editable()">Pode mencionar negativação (somente com autorização do credor)</mat-checkbox>
+              <div class="form-check"><input class="form-check-input" type="checkbox" id="ap-check-3" [ngModel]="d.allowCreditBureauMention ?? false" (ngModelChange)="set('allowCreditBureauMention', $event)" [disabled]="!editable()" /><label class="form-check-label" for="ap-check-3">Pode mencionar negativação (somente com autorização do credor)</label></div>
             </div>
           </div>
         </section>
@@ -315,29 +289,23 @@
         <section class="app-card" aria-labelledby="ap-pix" data-tour="assistant-pix">
           <h2 class="app-card__title" id="ap-pix">Pix na conversa</h2>
           <p class="app-muted as-small">O assistente gera o Pix imediato da parcela de um acordo formalizado do próprio devedor quando a conversa foi amigável e a conciliação tranquila. O sistema confere os critérios (identidade, acordo, nenhum gatilho de transferência, guardrail ou contestação, pedido explícito de pagar agora, limites); a IA nunca informa o valor. Nos modos sombra e copiloto só sugere ao operador.</p>
-          <div class="app-form-grid">
+          <div class="app-form-grid row-gap-3">
             <div class="app-span-all">
-              <mat-checkbox [ngModel]="d.pixInConversation?.enabled ?? false" (ngModelChange)="setPixEnabled($event)" [disabled]="!editable()">Permitir que o assistente gere o Pix na conversa</mat-checkbox>
+              <div class="form-check"><input class="form-check-input" type="checkbox" id="ap-check-4" [ngModel]="d.pixInConversation?.enabled ?? false" (ngModelChange)="setPixEnabled($event)" [disabled]="!editable()" /><label class="form-check-label" for="ap-check-4">Permitir que o assistente gere o Pix na conversa</label></div>
             </div>
             @if (d.pixInConversation?.enabled && d.pixInConversation; as pix) {
-              <mat-form-field>
-                <mat-label>Valor máximo por Pix (R$)</mat-label>
-                <input matInput inputmode="decimal" [ngModel]="pix.maxAmount" (ngModelChange)="setPix('maxAmount', $event)" [readonly]="!editable()" placeholder="5000,00" />
-                <mat-hint>Padrão R$ 5.000,00; acima disso um atendente gera</mat-hint>
-              </mat-form-field>
-              <mat-form-field>
-                <mat-label>Pix por conversa no dia</mat-label>
-                <input matInput type="number" [ngModel]="pix.maxPerConversationPerDay" (ngModelChange)="setPix('maxPerConversationPerDay', $event)" [readonly]="!editable()" placeholder="3" />
-              </mat-form-field>
-              <mat-form-field>
-                <mat-label>Validade do Pix (minutos)</mat-label>
-                <input matInput type="number" [ngModel]="pix.expirationMinutes" (ngModelChange)="setPix('expirationMinutes', $event)" [readonly]="!editable()" placeholder="60" />
-              </mat-form-field>
-              <mat-form-field>
-                <mat-label>Janela de risco (dias)</mat-label>
-                <input matInput type="number" [ngModel]="pix.riskLookbackDays" (ngModelChange)="setPix('riskLookbackDays', $event)" [readonly]="!editable()" placeholder="30" />
-                <mat-hint>Transferência por conduta ou guardrail na sessão impede o Pix</mat-hint>
-              </mat-form-field>
+              <app-field label="Valor máximo por Pix (R$)" hint="Padrão R$ 5.000,00; acima disso um atendente gera">
+                <input appInput inputmode="decimal" [ngModel]="pix.maxAmount" (ngModelChange)="setPix('maxAmount', $event)" [readonly]="!editable()" placeholder="5000,00" />
+              </app-field>
+              <app-field label="Pix por conversa no dia">
+                <input appInput type="number" [ngModel]="pix.maxPerConversationPerDay" (ngModelChange)="setPix('maxPerConversationPerDay', $event)" [readonly]="!editable()" placeholder="3" />
+              </app-field>
+              <app-field label="Validade do Pix (minutos)">
+                <input appInput type="number" [ngModel]="pix.expirationMinutes" (ngModelChange)="setPix('expirationMinutes', $event)" [readonly]="!editable()" placeholder="60" />
+              </app-field>
+              <app-field label="Janela de risco (dias)" hint="Transferência por conduta ou guardrail na sessão impede o Pix">
+                <input appInput type="number" [ngModel]="pix.riskLookbackDays" (ngModelChange)="setPix('riskLookbackDays', $event)" [readonly]="!editable()" placeholder="30" />
+              </app-field>
             }
           </div>
         </section>

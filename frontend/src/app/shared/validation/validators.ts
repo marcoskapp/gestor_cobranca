@@ -123,14 +123,30 @@ export class AppValidators {
     };
   }
 
-  /** Validador de grupo: data final não pode ser anterior à inicial. */
+  /**
+   * Validador de grupo: data final não pode ser anterior à inicial. Aceita `Date` (datepicker do
+   * Material) e `LocalDate` ISO `yyyy-MM-dd` (modelo do `ngbDatepicker`); texto ainda não
+   * reconhecido como data é ignorado (o próprio campo já mostra o erro `ngbDate`).
+   */
   static dateRange(start: string, end: string): ValidatorFn {
     return (group: AbstractControl): ValidationErrors | null => {
-      const a = group.get(start)?.value as Date | null;
-      const b = group.get(end)?.value as Date | null;
-      return a && b && b.getTime() < a.getTime() ? { dateRange: true } : null;
+      const a = dayOf(group.get(start)?.value);
+      const b = dayOf(group.get(end)?.value);
+      return a !== null && b !== null && b < a ? { dateRange: true } : null;
     };
   }
+}
+
+/** Instante comparável de um `Date` ou de um `LocalDate` ISO; nulo para vazio ou texto inválido. */
+function dayOf(value: unknown): number | null {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d).getTime();
+  }
+  return null;
 }
 
 function normalize(value: string): string {

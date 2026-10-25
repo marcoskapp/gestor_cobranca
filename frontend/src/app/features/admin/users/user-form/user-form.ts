@@ -1,12 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -20,6 +14,10 @@ import { CreditorLookup } from '../../../organization/data/organization.lookups'
 import { UserView } from '../../data/admin.models';
 import { RolesApi } from '../../data/roles.api';
 import { UsersApi } from '../../data/users.api';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
 
 export interface UserFormData {
   /** null = criação */
@@ -32,24 +30,15 @@ export interface UserFormData {
  */
 @Component({
   selector: 'app-user-form',
-  imports: [
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatCheckboxModule,
-    EntityPicker,
-  ],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   templateUrl: './user-form.html',
 })
 export class UserForm {
   private readonly api = inject(UsersApi);
-  private readonly ref = inject<MatDialogRef<UserForm, UserView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<UserView>>(DialogRef);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
-  protected readonly data = inject<UserFormData>(MAT_DIALOG_DATA);
+  protected readonly data = inject<UserFormData>(DIALOG_DATA);
   private readonly unitsApi = inject(BusinessUnitsApi);
   private readonly rolesApi = inject(RolesApi);
 
@@ -73,6 +62,23 @@ export class UserForm {
     allCreditors: [false],
     creditorIds: [[] as string[]],
   });
+
+  /** Erro da lista de perfis (só na criação), exibido depois de tocar ou submeter. */
+  protected rolesInvalid(): boolean {
+    const roles = this.form.controls.roleIds;
+    return roles.invalid && roles.touched;
+  }
+
+  protected hasRole(id: string): boolean {
+    return this.form.controls.roleIds.value.includes(id);
+  }
+
+  protected toggleRole(id: string, checked: boolean): void {
+    const roles = this.form.controls.roleIds;
+    const others = roles.value.filter((value) => value !== id);
+    roles.setValue(checked ? [...others, id] : others);
+    roles.markAsTouched();
+  }
 
   protected message(control: 'name' | 'email' | 'roleIds'): string {
     return errorMessage(this.form.controls[control].errors);

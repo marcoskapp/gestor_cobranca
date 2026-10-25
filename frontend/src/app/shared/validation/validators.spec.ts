@@ -1,4 +1,4 @@
-import { FormControl } from '@angular/forms';
+import { FormControl, FormGroup } from '@angular/forms';
 import { formatDocument, isValidCnpj, isValidCpf, maskDocument } from './document';
 import { AppValidators } from './validators';
 import { safeReturnUrl } from '../../core/auth/return-url';
@@ -79,5 +79,21 @@ describe('tempo de vida do token', () => {
     const now = Date.UTC(2026, 0, 1);
     expect(tokenLifetimeMs('opaco', new Date(now + 120_000).toISOString(), now)).toBe(120_000);
     expect(tokenLifetimeMs('opaco', null, now)).toBe(0);
+  });
+});
+
+describe('intervalo de datas (dateRange)', () => {
+  const range = (from: unknown, to: unknown) =>
+    new FormGroup({ from: new FormControl(from), to: new FormControl(to) }, { validators: AppValidators.dateRange('from', 'to') });
+
+  it('aceita LocalDate ISO (ngbDatepicker) e Date (Material)', () => {
+    expect(range('2026-10-02', '2026-10-01').hasError('dateRange')).toBe(true);
+    expect(range('2026-10-01', '2026-10-01').hasError('dateRange')).toBe(false);
+    expect(range(new Date(2026, 9, 2), new Date(2026, 9, 1)).hasError('dateRange')).toBe(true);
+  });
+
+  it('ignora vazio e texto ainda não reconhecido como data', () => {
+    expect(range('2026-10-02', null).hasError('dateRange')).toBe(false);
+    expect(range('2026-10-02', '01/10').hasError('dateRange')).toBe(false);
   });
 });

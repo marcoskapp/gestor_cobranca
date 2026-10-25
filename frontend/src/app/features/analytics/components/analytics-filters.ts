@@ -1,23 +1,20 @@
 import { Component, DestroyRef, OnInit, computed, effect, inject, input, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { NgbDateStruct, NgbDropdownModule, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { TeamLookup } from '../../collection/data/collection.lookups';
 import { CreditorLookup, PortfolioLookup } from '../../organization/data/organization.lookups';
 import { PeriodPreset, presetOf, presetRange } from '../data/analytics.filters';
 import { CHANNEL_LABELS, GROUP_BY_LABELS } from '../data/analytics.labels';
 import { AnalyticsFilter } from '../data/analytics.models';
+import { DensityService } from '../../../core/preferences/density.service';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 
 /** Quais filtros a tela oferece (todos os painéis compartilham o mesmo estado na URL). */
 export interface FilterOptions {
@@ -39,6 +36,9 @@ const PRESETS: { value: PeriodPreset | 'custom'; label: string }[] = [
   { value: 'custom', label: 'Personalizado' },
 ];
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isoDate = (value: string | null): string | null => (value && ISO_DATE.test(value) ? value : null);
+
 const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
 
 /**
@@ -48,31 +48,34 @@ const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
  */
 @Component({
   selector: 'app-analytics-filters',
-  imports: [ReactiveFormsModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, NgbInputDatepicker, NgbDropdownModule, EntityPicker, Icon],
   template: `
     <form class="app-filters af" data-tour="filters" [formGroup]="form" role="search" aria-label="Filtrar painel">
       @if (options().period !== false) {
-        <mat-form-field>
-          <mat-label>Período</mat-label>
-          <mat-select formControlName="preset">
+        <app-field label="Período">
+          <select appInput formControlName="preset">
             @for (p of presets; track p.value) {
-              <mat-option [value]="p.value">{{ p.label }}</mat-option>
+              <option [ngValue]="p.value">{{ p.label }}</option>
             }
-          </mat-select>
-        </mat-form-field>
+          </select>
+        </app-field>
         @if (form.controls.preset.value === 'custom') {
-          <mat-form-field class="af__date">
-            <mat-label>De</mat-label>
-            <input matInput [matDatepicker]="fromPicker" formControlName="from" [max]="form.controls.to.value" />
-            <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
-            <mat-datepicker #fromPicker />
-          </mat-form-field>
-          <mat-form-field class="af__date">
-            <mat-label>Até</mat-label>
-            <input matInput [matDatepicker]="toPicker" formControlName="to" [min]="form.controls.from.value" />
-            <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
-            <mat-datepicker #toPicker />
-          </mat-form-field>
+          <app-field class="af__date" label="De">
+            <div class="input-group">
+              <input appInput formControlName="from" [maxDate]="bound(form.controls.to.value, maxDate)" ngbDatepicker #fromPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <button class="btn btn-outline-secondary" type="button" (click)="fromPicker.toggle()" aria-label="Abrir calendário da data inicial">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field class="af__date" label="Até">
+            <div class="input-group">
+              <input appInput formControlName="to" [minDate]="bound(form.controls.from.value, minDate)" ngbDatepicker #toPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <button class="btn btn-outline-secondary" type="button" (click)="toPicker.toggle()" aria-label="Abrir calendário da data final">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
         }
       }
       @if (options().creditor && canCreditors()) {
@@ -96,29 +99,49 @@ const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
         </div>
       }
       @if (options().channel) {
-        <mat-form-field>
-          <mat-label>Canal</mat-label>
-          <mat-select formControlName="channels" multiple>
-            @for (c of channels; track c) {
-              <mat-option [value]="c">{{ channelLabels[c] }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        <div class="af__channels">
+          <span class="form-label d-block" id="af-channel-label">Canal</span>
+          <div ngbDropdown autoClose="outside" class="d-block">
+            <button
+              class="form-select text-start text-truncate"
+              [class.form-select-sm]="density.compact()"
+              type="button"
+              ngbDropdownToggle
+              aria-labelledby="af-channel-label af-channel-value"
+            >
+              <span id="af-channel-value">{{ channelSummary() }}</span>
+            </button>
+            <div ngbDropdownMenu class="shadow px-3 py-2" role="group" aria-labelledby="af-channel-label">
+              @for (c of channels; track c) {
+                <div class="form-check my-1">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    [id]="'af-channel-' + c"
+                    [checked]="form.controls.channels.value.includes(c)"
+                    #channelBox
+                    (change)="toggleChannel(c, channelBox.checked)"
+                  />
+                  <label class="form-check-label text-nowrap" [for]="'af-channel-' + c">{{ channelLabels[c] }}</label>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
       }
       @if (groupOptions().length) {
-        <mat-form-field>
-          <mat-label>Agrupar por</mat-label>
-          <mat-select formControlName="groupBy">
+        <app-field label="Agrupar por">
+          <select appInput formControlName="groupBy">
             @for (g of groupOptions(); track g) {
-              <mat-option [value]="g">{{ groupLabels[g] }}</mat-option>
+              <option [ngValue]="g">{{ groupLabels[g] }}</option>
             }
-          </mat-select>
-        </mat-form-field>
+          </select>
+        </app-field>
       }
       @if (hasFilters()) {
         <div class="app-filters__actions">
-          <button mat-button type="button" (click)="clear()">
-            <mat-icon aria-hidden="true">filter_alt_off</mat-icon>
+          <button class="btn btn-link" type="button" (click)="clear()">
+            <app-icon name="funnel" />
             Limpar filtros
           </button>
         </div>
@@ -127,10 +150,12 @@ const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
   `,
   styles: `
     .af__date { width: 170px !important; }
-    .af__picker { width: 220px; }
+    .af__picker,
+    .af__channels { width: 220px; }
     @media (max-width: 599.98px) {
       .af__date { width: calc(50% - 6px) !important; }
-      .af__picker { width: 100%; }
+      .af__picker,
+      .af__channels { width: 100%; }
     }
   `,
 })
@@ -140,6 +165,7 @@ export class AnalyticsFilters implements OnInit {
   readonly changed = output<AnalyticsFilter>();
 
   private readonly auth = inject(AuthService);
+  protected readonly density = inject(DensityService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly userSource = inject(UserLookup);
@@ -162,8 +188,9 @@ export class AnalyticsFilters implements OnInit {
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
     preset: this.fb.control<PeriodPreset | 'custom'>('30d'),
-    from: this.fb.control<Date | null>(null),
-    to: this.fb.control<Date | null>(null),
+    // modelo ISO (yyyy-MM-dd) do ngbDatepicker; texto não reconhecido fica como digitado
+    from: this.fb.control<string | null>(null),
+    to: this.fb.control<string | null>(null),
     creditorIds: this.fb.control<string[]>([]),
     portfolioIds: this.fb.control<string[]>([]),
     operatorIds: this.fb.control<string[]>([]),
@@ -184,8 +211,8 @@ export class AnalyticsFilters implements OnInit {
       this.form.patchValue(
         {
           preset: presetOf(f.from, f.to, new Date()),
-          from: fromLocalDate(f.from),
-          to: fromLocalDate(f.to),
+          from: f.from,
+          to: f.to,
           creditorIds: f.creditorIds,
           portfolioIds: f.portfolioIds,
           operatorIds: f.operatorIds,
@@ -202,10 +229,35 @@ export class AnalyticsFilters implements OnInit {
     this.form.controls.preset.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((preset) => {
       if (preset !== 'custom') {
         const range = presetRange(preset, new Date());
-        this.form.patchValue({ from: fromLocalDate(range.from), to: fromLocalDate(range.to) }, { emitEvent: false });
+        this.form.patchValue({ from: range.from, to: range.to }, { emitEvent: false });
       }
     });
     this.form.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.emit());
+  }
+
+  /** Rótulo do seletor de canais (como o select múltiplo: os escolhidos, ou "Todos"). */
+  protected channelSummary(): string {
+    const selected = this.form.controls.channels.value;
+    return selected.length ? selected.map((c) => this.channelLabels[c] ?? c).join(', ') : 'Todos';
+  }
+
+  /** Limites padrão do calendário quando a outra data do intervalo está vazia ou inválida. */
+  protected readonly minDate: NgbDateStruct = { year: 1900, month: 1, day: 1 };
+  protected readonly maxDate: NgbDateStruct = { year: 2100, month: 12, day: 31 };
+
+  /** Limite do calendário (`NgbDateStruct`) a partir da outra data do intervalo. */
+  protected bound(value: string | null, fallback: NgbDateStruct): NgbDateStruct {
+    const iso = isoDate(value);
+    if (!iso) {
+      return fallback;
+    }
+    const [year, month, day] = iso.split('-').map(Number);
+    return { year, month, day };
+  }
+
+  protected toggleChannel(channel: string, checked: boolean): void {
+    const others = this.form.controls.channels.value.filter((c) => c !== channel);
+    this.form.controls.channels.setValue(checked ? [...others, channel] : others);
   }
 
   protected clear(): void {
@@ -214,8 +266,8 @@ export class AnalyticsFilters implements OnInit {
 
   private emit(): void {
     const v = this.form.getRawValue();
-    const from = toLocalDate(v.from);
-    const to = toLocalDate(v.to);
+    const from = isoDate(v.from);
+    const to = isoDate(v.to);
     if (!from || !to || to < from) {
       return;
     }

@@ -1,11 +1,5 @@
-import { ComponentType } from '@angular/cdk/portal';
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, Type, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
@@ -23,15 +17,14 @@ import { ContractTerminate } from '../../contracts/contract-terminate/contract-t
 import { ContractsApi, CreditorsApi } from '../../data/organization.api';
 import { ContractView, CreditorView } from '../../data/organization.models';
 import { CreditorForm } from '../creditor-form/creditor-form';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 @Component({
   selector: 'app-creditor-detail',
-  imports: [
+  imports: [NgbTooltip, Icon,
     RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressBarModule,
-    MatTooltipModule,
     PageHeader,
     StatusChip,
     DataTable,
@@ -46,7 +39,7 @@ export class CreditorDetail {
 
   private readonly api = inject(CreditorsApi);
   private readonly contractsApi = inject(ContractsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly auth = inject(AuthService);
@@ -75,7 +68,7 @@ export class CreditorDetail {
 
   protected edit(creditor: CreditorView): void {
     this.dialog
-      .open<CreditorForm, CreditorView, CreditorView>(CreditorForm, { data: creditor, width: '640px' })
+      .open<CreditorForm, CreditorView, CreditorView>(CreditorForm, { data: creditor, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => saved && this.creditor.set(saved));
   }
@@ -110,9 +103,9 @@ export class CreditorDetail {
     this.openContractDialog(ContractTerminate, contract);
   }
 
-  private openContractDialog<C, D>(component: ComponentType<C>, data: D): void {
+  private openContractDialog<C, D>(component: Type<C>, data: D): void {
     this.dialog
-      .open<C, D, ContractView>(component, { data, width: '640px' })
+      .open<C, D, ContractView>(component, { data, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => saved && this.contracts.reload());
   }

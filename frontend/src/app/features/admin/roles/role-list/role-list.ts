@@ -1,9 +1,5 @@
 import { Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
@@ -14,14 +10,17 @@ import { valueOr } from '../../../../shared/data/resource-value';
 import { RoleView } from '../../data/admin.models';
 import { RolesApi } from '../../data/roles.api';
 import { RoleForm } from '../role-form/role-form';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 @Component({
   selector: 'app-role-list',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, DataTable, CellDef, PageHeader, StatusChip],
+  imports: [NgbTooltip, Icon, DataTable, CellDef, PageHeader, StatusChip],
   template: `
     <app-page-header title="Perfis" subtitle="Conjuntos de permissões atribuídos aos usuários da assessoria.">
-      <button mat-flat-button type="button" (click)="open(null)">
-        <mat-icon aria-hidden="true">add</mat-icon>
+      <button class="btn btn-primary" type="button" (click)="open(null)">
+        <app-icon name="plus-lg" />
         Novo perfil
       </button>
     </app-page-header>
@@ -47,23 +46,22 @@ import { RoleForm } from '../role-form/role-form';
       <ng-template appCell="permissions" [appCellOf]="rows()" let-r>{{ r.permissions.length }}</ng-template>
       <ng-template appCell="active" [appCellOf]="rows()" let-r><app-status-chip domain="active" [status]="r.active" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-r>
-        <button mat-icon-button type="button" (click)="open(r)" [attr.aria-label]="'Editar ' + r.name" matTooltip="Editar">
-          <mat-icon aria-hidden="true">edit</mat-icon>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="open(r)" [attr.aria-label]="'Editar ' + r.name" ngbTooltip="Editar">
+          <app-icon name="pencil" />
         </button>
         @if (r.active) {
-          <button
-            mat-icon-button
+          <button class="btn btn-sm btn-outline-secondary border-0"
             type="button"
             (click)="setActive(r, false)"
             [disabled]="r.systemRole"
             [attr.aria-label]="'Desativar ' + r.name"
-            [matTooltip]="r.systemRole ? 'Perfis de sistema não podem ser desativados' : 'Desativar'"
+            [ngbTooltip]="r.systemRole ? 'Perfis de sistema não podem ser desativados' : 'Desativar'"
           >
-            <mat-icon aria-hidden="true">block</mat-icon>
+            <app-icon name="slash-circle" />
           </button>
         } @else {
-          <button mat-icon-button type="button" (click)="setActive(r, true)" [attr.aria-label]="'Ativar ' + r.name" matTooltip="Ativar">
-            <mat-icon aria-hidden="true">check_circle</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="setActive(r, true)" [attr.aria-label]="'Ativar ' + r.name" ngbTooltip="Ativar">
+            <app-icon name="check-circle" />
           </button>
         }
       </ng-template>
@@ -72,7 +70,7 @@ import { RoleForm } from '../role-form/role-form';
 })
 export class RoleList {
   private readonly api = inject(RolesApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -88,7 +86,7 @@ export class RoleList {
 
   protected open(role: RoleView | null): void {
     this.dialog
-      .open<RoleForm, RoleView | null, RoleView>(RoleForm, { data: role, width: '880px' })
+      .open<RoleForm, RoleView | null, RoleView>(RoleForm, { data: role, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => saved && this.roles.reload());
   }

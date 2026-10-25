@@ -23,14 +23,14 @@
   th,
   td {
     padding: 8px;
-    border-bottom: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--bs-border-color);
     text-align: left;
     vertical-align: top;
   }
   thead th {
     font-size: var(--app-text-xs);
     font-weight: 600;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--bs-secondary-color);
   }
   .num {
     text-align: right;
@@ -39,7 +39,7 @@
   .sub {
     display: block;
     font-size: var(--app-text-xs);
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--bs-secondary-color);
   }
 }
 @media (max-width: 599.98px) {
@@ -51,5 +51,5 @@
 .pn__hint {
   margin: 4px 0 0;
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }

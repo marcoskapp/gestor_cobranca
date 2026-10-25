@@ -1,9 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -21,6 +17,9 @@ import { AssistantPoliciesApi } from '../data/assistant.api';
 import { PolicyView } from '../data/assistant.models';
 import { scopeOf } from '../data/assistant.rules';
 import { DisablePortfolioData, DisablePortfolioDialog, NewPolicyDialog } from './policy-dialogs';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 const SCOPE_ORDER = { TENANT: 0, CREDITOR: 1, PORTFOLIO: 2 } as const;
 const STATUS_ORDER: Record<string, number> = { PUBLISHED: 0, DRAFT: 1, RETIRED: 2 };
@@ -31,24 +30,24 @@ const STATUS_ORDER: Record<string, number> = { PUBLISHED: 0, DRAFT: 1, RETIRED: 
  */
 @Component({
   selector: 'app-assistant-policy-list',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [NgbTooltip, Icon, RouterLink, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
   template: `
     <app-page-header title="Políticas do assistente" subtitle="Modo, canais, horários, alçada, temas, gatilhos de transferência e limites do assistente de IA, por assessoria, credor ou carteira.">
       @if (canManage()) {
-        <button mat-stroked-button type="button" (click)="disable()" data-tour="assistant-disable">
-          <mat-icon aria-hidden="true">power_settings_new</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="disable()" data-tour="assistant-disable">
+          <app-icon name="power" />
           Desligar numa carteira
         </button>
-        <button mat-flat-button type="button" (click)="create()" data-tour="assistant-new">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="create()" data-tour="assistant-new">
+          <app-icon name="plus-lg" />
           Nova política
         </button>
       }
     </app-page-header>
-    <p class="app-alert app-alert--info" role="note">
-      <mat-icon aria-hidden="true">balance</mat-icon>
+    <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+      <app-icon name="bank2" />
       <span><strong>A IA conversa, o motor decide:</strong> condições vêm sempre da política de cobrança e da alçada; todo contato passa pelo porteiro. A versão publicada mais específica vale na próxima mensagem, inclusive em conversas em andamento.</span>
-    </p>
+    </div>
     <app-data-table
       caption="Políticas do assistente"
       [rows]="rows()"
@@ -56,7 +55,7 @@ const STATUS_ORDER: Record<string, number> = { PUBLISHED: 0, DRAFT: 1, RETIRED: 
       [loading]="list.isLoading()"
       [failed]="list.status() === 'error'"
       (retry)="list.reload()"
-      emptyIcon="smart_toy"
+      emptyIcon="robot"
       emptyMessage="Nenhuma política do assistente."
       emptyHint="Sem política publicada, o assistente não atua: as conversas vão para os humanos."
     >
@@ -80,7 +79,7 @@ const STATUS_ORDER: Record<string, number> = { PUBLISHED: 0, DRAFT: 1, RETIRED: 
         </div>
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-p>
-        <a mat-icon-button [routerLink]="['/assistente/politicas', p.id]" [attr.aria-label]="'Abrir política ' + p.name" matTooltip="Abrir"><mat-icon aria-hidden="true">chevron_right</mat-icon></a>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/assistente/politicas', p.id]" [attr.aria-label]="'Abrir política ' + p.name" ngbTooltip="Abrir"><app-icon name="chevron-right" /></a>
       </ng-template>
     </app-data-table>
   `,
@@ -93,7 +92,7 @@ const STATUS_ORDER: Record<string, number> = { PUBLISHED: 0, DRAFT: 1, RETIRED: 
 export class AssistantPolicyList {
   private readonly api = inject(AssistantPoliciesApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.ASSISTANT_MANAGE));
@@ -130,14 +129,14 @@ export class AssistantPolicyList {
 
   protected create(): void {
     this.dialog
-      .open<NewPolicyDialog, void, PolicyView>(NewPolicyDialog, { width: '600px', maxWidth: '96vw' })
+      .open<NewPolicyDialog, void, PolicyView>(NewPolicyDialog)
       .afterClosed()
       .subscribe((p) => p && void this.router.navigate(['/assistente/politicas', p.id]));
   }
 
   protected disable(): void {
     this.dialog
-      .open<DisablePortfolioDialog, DisablePortfolioData, PolicyView>(DisablePortfolioDialog, { data: { creditorId: null, portfolioId: null }, width: '600px', maxWidth: '96vw' })
+      .open<DisablePortfolioDialog, DisablePortfolioData, PolicyView>(DisablePortfolioDialog, { data: { creditorId: null, portfolioId: null } })
       .afterClosed()
       .subscribe((p) => {
         if (p) {

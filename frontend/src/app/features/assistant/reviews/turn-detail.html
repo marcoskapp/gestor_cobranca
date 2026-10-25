@@ -1,40 +1,40 @@
 @if (resource.isLoading() && !detail()) {
   <app-skeleton variant="card" [rows]="8" />
 } @else if (resource.status() === 'error') {
-  <app-empty-state icon="smart_toy" tone="error" title="Não foi possível abrir o turno." message="Ele pode não existir ou o credor da conversa estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/assistente/revisao">Voltar para a revisão</a>
+  <app-empty-state icon="robot" tone="error" title="Não foi possível abrir o turno." message="Ele pode não existir ou o credor da conversa estar fora do seu escopo.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/assistente/revisao">Voltar para a revisão</a>
   </app-empty-state>
 }
 
 @if (detail(); as d) {
   @let t = d.turn;
   <app-page-header [title]="'Turno ' + t.turnNumber + ' · etapa ' + t.episode" [subtitle]="(t.startedAt | appDate) + ' · ' + modes[t.mode] + (t.policyVersion ? ' · política v' + t.policyVersion : '')">
-    <a mat-button routerLink="/assistente/revisao">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/assistente/revisao">
+      <app-icon name="arrow-left" />
       Revisão
     </a>
-    <a mat-button [routerLink]="['/conversas', t.conversationId]">
-      <mat-icon aria-hidden="true">forum</mat-icon>
+    <a class="btn btn-link" [routerLink]="['/conversas', t.conversationId]">
+      <app-icon name="chat-left-text" />
       Conversa
     </a>
   </app-page-header>
 
-  <p class="app-alert app-alert--warning" role="note" data-tour="turn-access">
-    <mat-icon aria-hidden="true">policy</mat-icon>
+  <div class="alert alert-warning d-flex align-items-start gap-2" role="note" data-tour="turn-access">
+    <app-icon name="shield-check" />
     <span>Conteúdo da conversa com o devedor (já mascarado). <strong>Este acesso foi registrado</strong> no log de acesso; use só para avaliação e auditoria.</span>
-  </p>
+  </div>
 
   <div class="as-status">
     <app-status-chip domain="assistantTurn" [status]="t.outcome" />
     @if (t.handoffReason) {
-      <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">support_agent</mat-icon>{{ reasons[t.handoffReason] || t.handoffReason }}{{ t.triggerSource ? ' (' + (sources[t.triggerSource] || t.triggerSource) + ')' : '' }}</span>
+      <span class="app-status app-status--warning"><app-icon class="app-status__icon" name="headset" />{{ reasons[t.handoffReason] || t.handoffReason }}{{ t.triggerSource ? ' (' + (sources[t.triggerSource] || t.triggerSource) + ')' : '' }}</span>
     }
     @if (t.intent) {
       <span>intenção {{ t.intent }} · confiança {{ percent(t.confidence) }}</span>
     }
     @if (t.errorCode) {
-      <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>{{ t.errorCode }}</span>
+      <span class="app-status app-status--danger"><app-icon class="app-status__icon" name="exclamation-circle" />{{ t.errorCode }}</span>
     }
   </div>
 
@@ -43,11 +43,11 @@
       @if (t.guardrails.length) {
         <section class="app-card" aria-labelledby="td-guard" data-tour="turn-guardrails">
           <h2 class="app-card__title" id="td-guard">Guardrails acionados</h2>
-          <mat-chip-set aria-label="Guardrails acionados">
+          <ul class="list-unstyled d-flex flex-wrap gap-2 mb-2" aria-label="Guardrails acionados">
             @for (g of t.guardrails; track g) {
-              <mat-chip>{{ guardrailLabels[g] || g }}</mat-chip>
+              <li><span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fw-normal">{{ guardrailLabels[g] || g }}</span></li>
             }
-          </mat-chip-set>
+          </ul>
           <p class="app-muted as-small">A resposta foi bloqueada antes do envio; o devedor recebeu a mensagem padrão e a conversa foi para humano.</p>
         </section>
       }
@@ -72,11 +72,11 @@
             <summary>
               <span>{{ c.sequence }}. {{ tools[c.tool] || c.tool }}</span>
               @if (c.outcome === 'OK') {
-                <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>Executada</span>
+                <span class="app-status app-status--success"><app-icon class="app-status__icon" name="check-circle" />Executada</span>
               } @else if (c.outcome === 'REJECTED') {
-                <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">block</mat-icon>Recusada pelo servidor</span>
+                <span class="app-status app-status--warning"><app-icon class="app-status__icon" name="slash-circle" />Recusada pelo servidor</span>
               } @else {
-                <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">error_outline</mat-icon>Erro {{ c.errorCode }}</span>
+                <span class="app-status app-status--danger"><app-icon class="app-status__icon" name="exclamation-circle" />Erro {{ c.errorCode }}</span>
               }
               <span class="app-muted as-small">{{ c.durationMs }} ms</span>
             </summary>
@@ -98,11 +98,11 @@
             <div class="td-pix">
               <p>
                 @if (r.decision === 'ISSUED') {
-                  <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>{{ pixDecisions[r.decision] }}</span>
+                  <span class="app-status app-status--success"><app-icon class="app-status__icon" name="check-circle" />{{ pixDecisions[r.decision] }}</span>
                 } @else if (r.decision === 'SUGGESTED') {
-                  <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">lightbulb</mat-icon>{{ pixDecisions[r.decision] }}</span>
+                  <span class="app-status app-status--info"><app-icon class="app-status__icon" name="lightbulb" />{{ pixDecisions[r.decision] }}</span>
                 } @else {
-                  <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">block</mat-icon>{{ pixDecisions[r.decision] }}: {{ pixDenials[r.denialCode ?? ''] || r.denialCode }}</span>
+                  <span class="app-status app-status--warning"><app-icon class="app-status__icon" name="slash-circle" />{{ pixDecisions[r.decision] }}: {{ pixDenials[r.denialCode ?? ''] || r.denialCode }}</span>
                 }
                 @if (r.installmentNumber !== null) {
                   <span class="as-small"> · parcela {{ r.installmentNumber }}@if (r.amount !== null) { · {{ money(r.amount) }}}</span>
@@ -114,8 +114,8 @@
               <ul class="td-criteria">
                 @for (c of r.criteria; track c.criterion) {
                   <li>
-                    <mat-icon [class]="c.passed ? 'td-ok' : 'td-fail'" aria-hidden="true">{{ c.passed ? 'check' : 'close' }}</mat-icon>
-                    <span class="cdk-visually-hidden">{{ c.passed ? 'Atendido:' : 'Não atendido:' }}</span>
+                    <app-icon [class]="c.passed ? 'td-ok' : 'td-fail'" [name]="c.passed ? 'check-lg' : 'x-lg'" />
+                    <span class="visually-hidden">{{ c.passed ? 'Atendido:' : 'Não atendido:' }}</span>
                     {{ pixCriteria[c.criterion] || c.criterion }}
                     @if (c.detail) {
                       <span class="app-muted as-small"> — {{ c.detail }}</span>
@@ -144,42 +144,43 @@
         <section class="app-card" aria-labelledby="td-review" data-tour="turn-review">
           <h2 class="app-card__title" id="td-review">Avaliação</h2>
           @if (ownPolicy()) {
-            <p class="app-alert app-alert--info" role="note"><mat-icon aria-hidden="true">group</mat-icon><span>Você publicou a política deste turno. A avaliação precisa ser de outra pessoa (quem configura não avalia).</span></p>
+            <div class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="people" /><span>Você publicou a política deste turno. A avaliação precisa ser de outra pessoa (quem configura não avalia).</span></div>
           } @else {
-            <p class="as-small" id="td-score">Nota</p>
-            <mat-button-toggle-group [value]="score()" (change)="score.set($event.value)" aria-labelledby="td-score">
+            <p class="as-small mb-1" id="td-score">Nota</p>
+            <div class="btn-group mb-3" role="radiogroup" aria-labelledby="td-score">
               @for (n of [1, 2, 3, 4, 5]; track n) {
-                <mat-button-toggle [value]="n">{{ n }}</mat-button-toggle>
+                <input class="btn-check" type="radio" name="td-score" [id]="'td-score-' + n" [checked]="score() === n" (change)="score.set(n)" />
+                <label class="btn btn-outline-primary" [for]="'td-score-' + n">{{ n }}</label>
               }
-            </mat-button-toggle-group>
-            <p class="as-small" id="td-verdict">Veredito</p>
-            <mat-button-toggle-group class="as-toggles" [value]="verdict()" (change)="verdict.set($event.value)" aria-labelledby="td-verdict" vertical>
+            </div>
+            <p class="as-small mb-1" id="td-verdict">Veredito</p>
+            <div class="btn-group-vertical w-100 mb-3" role="radiogroup" aria-labelledby="td-verdict">
               @for (v of verdicts; track v[0]) {
-                <mat-button-toggle [value]="v[0]">{{ v[1] }}</mat-button-toggle>
+                <input class="btn-check" type="radio" name="td-verdict" [id]="'td-verdict-' + v[0]" [checked]="verdict() === v[0]" (change)="verdict.set(v[0])" />
+                <label class="btn btn-outline-primary text-start" [for]="'td-verdict-' + v[0]">{{ v[1] }}</label>
               }
-            </mat-button-toggle-group>
-            <p class="as-small">Etiquetas</p>
-            <mat-chip-listbox multiple aria-label="Etiquetas da avaliação">
+            </div>
+            <p class="as-small mb-1" id="td-tags">Etiquetas</p>
+            <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-labelledby="td-tags">
               @for (tag of tags; track tag[0]) {
-                <mat-chip-option [selected]="selectedTags().includes(tag[0])" (selectionChange)="toggleTag(tag[0])">{{ tag[1] }}</mat-chip-option>
+                <input class="btn-check" type="checkbox" [id]="'td-tag-' + tag[0]" [checked]="selectedTags().includes(tag[0])" (change)="toggleTag(tag[0])" />
+                <label class="btn btn-sm btn-outline-secondary rounded-pill" [for]="'td-tag-' + tag[0]">{{ tag[1] }}</label>
               }
-            </mat-chip-listbox>
-            <mat-form-field class="app-full-width td-gap">
-              <mat-label>Comentário{{ verdict() === 'OUT_OF_POLICY' ? '' : ' (opcional)' }}</mat-label>
-              <textarea matInput rows="3" maxlength="2000" [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
-              <mat-hint>Guardado cifrado</mat-hint>
-            </mat-form-field>
+            </div>
+            <app-field class="mb-3" [label]="'Comentário' + (verdict() === 'OUT_OF_POLICY' ? '' : ' (opcional)')" hint="Guardado cifrado">
+              <textarea appInput rows="3" maxlength="2000" [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+            </app-field>
             @if (submitted() && problems().length) {
-              <ul class="app-alert app-alert--error td-problems" role="alert">
+              <ul class="alert alert-danger ps-4" role="alert">
                 @for (p of problems(); track p) {
                   <li>{{ p }}</li>
                 }
               </ul>
             }
             @if (error()) {
-              <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+              <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
             }
-            <button mat-flat-button type="button" (click)="submit()" [disabled]="sending()">Registrar avaliação</button>
+            <button class="btn btn-primary" type="button" (click)="submit()" [disabled]="sending()">Registrar avaliação</button>
           }
         </section>
       }

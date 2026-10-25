@@ -10,9 +10,9 @@ export const ANALYTICS_PERMISSIONS = {
 } as const;
 
 export const ANALYTICS_PANELS: readonly { label: string; icon: string; route: string; permissions: readonly string[] }[] = [
-  { label: 'Operacional', icon: 'space_dashboard', route: '/paineis', permissions: ANALYTICS_PERMISSIONS.operational },
-  { label: 'Recuperação', icon: 'payments', route: '/paineis/recuperacao', permissions: ANALYTICS_PERMISSIONS.recovery },
-  { label: 'Conversão', icon: 'filter_alt', route: '/paineis/conversao', permissions: ANALYTICS_PERMISSIONS.conversion },
-  { label: 'Produtividade', icon: 'groups', route: '/paineis/produtividade', permissions: ANALYTICS_PERMISSIONS.productivity },
-  { label: 'Confiabilidade', icon: 'monitor_heart', route: '/paineis/confiabilidade', permissions: ANALYTICS_PERMISSIONS.reliability },
+  { label: 'Operacional', icon: 'grid-1x2', route: '/paineis', permissions: ANALYTICS_PERMISSIONS.operational },
+  { label: 'Recuperação', icon: 'cash-stack', route: '/paineis/recuperacao', permissions: ANALYTICS_PERMISSIONS.recovery },
+  { label: 'Conversão', icon: 'funnel', route: '/paineis/conversao', permissions: ANALYTICS_PERMISSIONS.conversion },
+  { label: 'Produtividade', icon: 'people-fill', route: '/paineis/produtividade', permissions: ANALYTICS_PERMISSIONS.productivity },
+  { label: 'Confiabilidade', icon: 'activity', route: '/paineis/confiabilidade', permissions: ANALYTICS_PERMISSIONS.reliability },
 ];
