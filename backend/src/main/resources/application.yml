@@ -341,6 +341,15 @@ app:
       max-size-bytes: 10485760
       max-lines: 50000
     expiration-check-interval: PT15M
+    # Controle acumulado de pagamentos externos (sem segunda pessoa só até estes totais na janela).
+    # Fracionar um valor alto em pagamentos abaixo do limite por pagamento não dispensa a revisão.
+    # Limites em múltiplos do limite por pagamento da assessoria; contam só os confirmados sem revisão.
+    external-review:
+      window: PT24H
+      # soma por devedor no credor
+      destination-factor: 1
+      # soma por usuário que informa
+      informer-factor: 4
     # PSP simulado: somente local/teste (recusado no perfil prod)
     sandbox:
       enabled: false

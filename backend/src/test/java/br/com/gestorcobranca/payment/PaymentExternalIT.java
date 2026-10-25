@@ -16,6 +16,7 @@ import br.com.gestorcobranca.shared.domain.DomainException;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.Test;
+import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.ByteArrayInputStream;
@@ -24,8 +25,14 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,6 +47,8 @@ class PaymentExternalIT extends PaymentTestSupport {
 
     @Autowired
     PaymentSettingsUseCases settings;
+    @Autowired
+    PaymentRepository paymentRepository;
 
     private final Instant paidAt = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
 
@@ -154,6 +163,54 @@ class PaymentExternalIT extends PaymentTestSupport {
         String attributes = system(() -> jdbcTemplate.queryForObject("select string_agg(attributes::text, ' ') "
                 + "from shared.business_event where event_type like 'payment%'", String.class));
         assertThat(attributes).doesNotContain("Depósito identificado", "Maria", "529");
+    }
+
+    @Test
+    void splittingBelowTheThresholdStillNeedsASecondPersonForTheAccumulatedTotal() {
+        provision("fracionado");
+
+        // limite R$ 500,00 por pagamento e, por padrão, também para o acumulado do devedor no credor em 24 h
+        PaymentView first = asOperator(() -> payments.registerExternal(toTitleB("450.00", "F-1"), pdf(), null));
+        assertThat(first.status()).isEqualTo("CONFIRMED");
+        PaymentView second = asOperator(() -> payments.registerExternal(toTitleB("450.00", "F-2"), pdf(), null));
+        assertThat(second.status()).isEqualTo("INFORMED");
+        assertThat(second.reviewThresholdExceeded()).isTrue();
+        // o que aguarda revisão não consome o acumulado; o que cabe continua automático
+        PaymentView third = asOperator(() -> payments.registerExternal(toTitleB("40.00", "F-3"), pdf(), null));
+        assertThat(third.status()).isEqualTo("CONFIRMED");
+        assertThat(system(() -> paymentRepository.sumExternalInformedBy(operator, Instant.now().minus(1, ChronoUnit.DAYS)))
+                .amount()).isEqualByComparingTo("490.00");
+        assertThat(count("select count(*) from shared.business_event where event_type = 'payment.informed'"
+                + " and attributes->>'reviewReason' = 'DESTINATION_CUMULATIVE'")).isEqualTo(1);
+        // a segunda pessoa decide; quem informou não
+        assertThatThrownBy(() -> asOperator(() -> payments.approve(second.id(), null)))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThat(asFinance1(() -> payments.approve(second.id(), "Conferido no extrato")).status()).isEqualTo("CONFIRMED");
+    }
+
+    @Test
+    void concurrentSplitRegistrationsCannotBothEscapeReview() throws Exception {
+        provision("concorrente");
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<PaymentView>> results = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                String reference = "C-" + i;
+                results.add(pool.submit(() -> {
+                    start.await();
+                    return asOperator(() -> payments.registerExternal(toTitleB("300.00", reference), pdf(), null));
+                }));
+            }
+            start.countDown();
+            List<String> statuses = new ArrayList<>();
+            for (Future<PaymentView> r : results) {
+                statuses.add(r.get(30, TimeUnit.SECONDS).status());
+            }
+            assertThat(statuses).containsExactlyInAnyOrder("CONFIRMED", "INFORMED");
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test

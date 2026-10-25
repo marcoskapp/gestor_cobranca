@@ -84,10 +84,12 @@ class PaymentRecorder {
                 i.getPaidAt()));
     }
 
-    void informed(Payment p) {
+    /** @param reviewReason motivo da exigência de revisão (AMOUNT, DESTINATION_CUMULATIVE, INFORMER_CUMULATIVE) ou nulo */
+    void informed(Payment p, String reviewReason) {
         metrics.payment(p.getSource().name(), p.getMethod().name(), "INFORMED");
         businessEvents.log(base(BusinessEventTypes.PAYMENT_INFORMED, p, List.of()).amount(p.getAmount())
                 .attr("origin", p.getExternalOrigin()).attr("reviewRequired", p.isReviewRequired())
+                .attr("reviewReason", reviewReason)
                 .attr("targetKind", p.getTargetKind()).attr("hasEvidence", p.getEvidenceSha256() != null)
                 .attr("informedBy", p.getInformedBy() == null ? null : p.getInformedBy().toString())
                 .attr("daysSincePayment", Duration.between(p.getPaidAt(), Instant.now(clock)).toDays()));
@@ -95,7 +97,8 @@ class PaymentRecorder {
                 .creditor(p.getCreditorId()).created("method", p.getMethod()).created("amount", p.getAmount())
                 .created("paidAt", p.getPaidAt()).created("origin", p.getExternalOrigin())
                 .created("reviewRequired", p.isReviewRequired()).created("evidenceSha256", p.getEvidenceSha256())
-                .meta("externalReference", p.getExternalReference()).meta("targetKind", p.getTargetKind()));
+                .meta("externalReference", p.getExternalReference()).meta("targetKind", p.getTargetKind())
+                .meta("reviewReason", reviewReason));
     }
 
     /**

@@ -56,7 +56,7 @@ class BacenPixProviderTest {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
         RestClient client = builder.build();
-        provider = new BacenPixProvider(c -> client, new PaymentProperties(null, null, null, null, null, null, null),
+        provider = new BacenPixProvider(c -> client, new PaymentProperties(null, null, null, null, null, null, null, null),
                 new JsonCodec(JsonMapper.builder().build()), meters, Clock.fixed(Instant.parse("2026-10-23T12:00:00Z"),
                 ZoneOffset.UTC));
     }
@@ -160,7 +160,7 @@ class BacenPixProviderTest {
         SSLContext context = MutualTlsClientFactory.sslContext(p12, "test-only-pass");
         assertThat(context.getProtocol()).isEqualTo("TLS");
         assertThatThrownBy(() -> MutualTlsClientFactory.sslContext(p12, "errada")).isInstanceOf(ProviderException.class);
-        assertThatThrownBy(() -> new MutualTlsClientFactory(new PaymentProperties(null, null, null, null, null, null, null))
+        assertThatThrownBy(() -> new MutualTlsClientFactory(new PaymentProperties(null, null, null, null, null, null, null, null))
                 .client(connection)).isInstanceOf(ProviderException.class);
     }
 }

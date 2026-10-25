@@ -4,6 +4,7 @@ import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.PaymentMethod;
 import br.com.gestorcobranca.payment.domain.model.PaymentSource;
 import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
+import br.com.gestorcobranca.shared.domain.Money;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
@@ -37,6 +40,30 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     @Override
     default Optional<Payment> findByProviderTransactionIdForUpdate(String providerTransactionId) {
         return lockByProviderTransactionId(providerTransactionId);
+    }
+
+    @Query(value = """
+            select coalesce(sum(amount), 0) from payment.payment
+             where source = 'EXTERNAL' and not review_required and status <> 'REJECTED'
+               and creditor_id = :creditorId and debtor_id = :debtorId and informed_at >= :since
+            """, nativeQuery = true)
+    BigDecimal sumExternalForDebtor(@Param("creditorId") UUID creditorId, @Param("debtorId") UUID debtorId,
+                                    @Param("since") Instant since);
+
+    @Query(value = """
+            select coalesce(sum(amount), 0) from payment.payment
+             where source = 'EXTERNAL' and not review_required and status <> 'REJECTED' and informed_by = :informedBy and informed_at >= :since
+            """, nativeQuery = true)
+    BigDecimal sumExternalByInformer(@Param("informedBy") UUID informedBy, @Param("since") Instant since);
+
+    @Override
+    default Money sumExternalInformedForDebtor(UUID creditorId, UUID debtorId, Instant since) {
+        return Money.ofNullable(sumExternalForDebtor(creditorId, debtorId, since));
+    }
+
+    @Override
+    default Money sumExternalInformedBy(UUID informedBy, Instant since) {
+        return Money.ofNullable(sumExternalByInformer(informedBy, since));
     }
 
     @Override
