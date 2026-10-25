@@ -239,7 +239,7 @@ class DebtModuleIT extends IntegrationTest {
         // documento gravado criptografado, nunca em claro
         String stored = system(() -> jdbcTemplate.queryForObject("select document_encrypted from debt.debtor where id = ?",
                 String.class, debtorId));
-        assertThat(stored).doesNotContain("52998224725").startsWith("k1:");
+        assertThat(stored).doesNotContain("52998224725").startsWith("k1v2:");
     }
 
     @Test
