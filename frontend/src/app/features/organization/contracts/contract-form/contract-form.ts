@@ -37,11 +37,11 @@ type Field = 'number' | 'startDate' | 'endDate' | 'returnAfterDays' | 'settlemen
         }
         <div class="app-form-grid row-gap-3">
           <app-field class="app-span-all" label="Número do contrato" [error]="message('number')">
-            <input appInput formControlName="number" [maxlength]="limits.contractNumber" />
+            <input appInput formControlName="number" [maxlength]="limits.contractNumber" [attr.ngbAutofocus]="data.contract ? null : ''" />
           </app-field>
           <app-field label="Início da vigência" [error]="message('startDate')">
             <div class="input-group">
-              <input appInput formControlName="startDate" ngbDatepicker #start="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <input appInput formControlName="startDate" [attr.ngbAutofocus]="data.contract ? '' : null" ngbDatepicker #start="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
               <button class="btn btn-outline-secondary" type="button" (click)="start.toggle()" aria-label="Abrir calendário: Início da vigência">
                 <app-icon name="calendar-event" />
               </button>

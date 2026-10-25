@@ -43,7 +43,7 @@
     <input appInput formControlName="action" placeholder="ex.: user.disabled" maxlength="100" />
   </app-field>
   <app-field class="app-filters__wide" label="Id da entidade" [error]="'Informe um identificador (UUID) válido.'">
-    <input appInput formControlName="entityId" class="app-mono" maxlength="36" />
+    <input appInput formControlName="entityId" class="font-monospace" maxlength="36" />
   </app-field>
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.actor" [source]="users" label="Autor" [single]="true" />

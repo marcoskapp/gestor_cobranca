@@ -41,7 +41,7 @@ const CONSEQUENCES: Record<string, string> = {
             <legend class="visually-hidden">Nova situação</legend>
             @for (t of targets; track t.value) {
               <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" formControlName="status" [id]="'portfolio-status-' + t.value" [value]="t.value" />
+                <input class="form-check-input" type="radio" formControlName="status" [id]="'portfolio-status-' + t.value" [value]="t.value" [attr.ngbAutofocus]="$first ? '' : null" />
                 <label class="form-check-label" [for]="'portfolio-status-' + t.value">
                   <span class="fw-medium">{{ t.label }}</span>
                   <span class="d-block app-muted small">{{ t.consequence }}</span>

@@ -77,7 +77,7 @@
       <dd>
         <app-status-chip domain="user" [status]="u.status" />
         @if (u.locked) {
-          <span class="app-status app-status--danger">Bloqueado até {{ u.lockedUntil | appDate }}</span>
+          <span class="app-status app-status--danger ms-1">Bloqueado até {{ u.lockedUntil | appDate }}</span>
         }
       </dd>
       <dt>Unidade</dt>

@@ -31,7 +31,7 @@
       <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="portal-enabled" formControlName="enabled"  /><label class="form-check-label" for="portal-enabled">Portal ativo para os devedores</label></div>
     </div>
 
-    <h2 class="app-card__title">Marca do credor</h2>
+    <h2 class="app-card__title mt-4">Marca do credor</h2>
     <div class="app-form-grid row-gap-3">
       <app-field label="Nome exibido">
         <input appInput formControlName="displayName" maxlength="80" />
@@ -75,9 +75,9 @@
       </div>
     }
 
-    <h2 class="app-card__title">Acesso do devedor</h2>
+    <h2 class="app-card__title mt-4">Acesso do devedor</h2>
     <fieldset class="channels">
-      <legend>Canais para o código de acesso</legend>
+      <legend class="form-label">Canais para o código de acesso</legend>
       <div class="form-check"><input class="form-check-input" type="checkbox" id="portal-whatsapp" formControlName="whatsapp"  /><label class="form-check-label" for="portal-whatsapp">WhatsApp</label></div>
       <div class="form-check"><input class="form-check-input" type="checkbox" id="portal-sms" formControlName="sms"  /><label class="form-check-label" for="portal-sms">SMS</label></div>
       <div class="form-check"><input class="form-check-input" type="checkbox" id="portal-email" formControlName="email"  /><label class="form-check-label" for="portal-email">E-mail</label></div>

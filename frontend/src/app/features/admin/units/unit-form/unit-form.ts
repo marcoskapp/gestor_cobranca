@@ -28,10 +28,10 @@ import { Icon } from '../../../../shared/components/icon/icon';
         }
         <div class="vstack gap-3">
           <app-field label="Código" [error]="message('code')">
-            <input appInput formControlName="code" autocomplete="off" [maxlength]="limits.unitCode" class="app-mono" />
+            <input appInput formControlName="code" autocomplete="off" [maxlength]="limits.unitCode" class="font-monospace" [attr.ngbAutofocus]="unit ? null : ''" />
           </app-field>
           <app-field label="Nome" [error]="message('name')">
-            <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.unitName" />
+            <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.unitName" [attr.ngbAutofocus]="unit ? '' : null" />
           </app-field>
           @if (unit) {
             <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="unitfo-active" formControlName="active"  /><label class="form-check-label" for="unitfo-active">Unidade ativa</label></div>

@@ -32,7 +32,7 @@ type Field = 'legalName' | 'tradeName' | 'document' | 'externalCode' | 'contactE
         }
         <div class="app-form-grid row-gap-3">
           <app-field class="app-span-all" label="Razão social" [error]="message('legalName')">
-            <input appInput formControlName="legalName" [maxlength]="limits.legalName" />
+            <input appInput formControlName="legalName" [maxlength]="limits.legalName" ngbAutofocus />
           </app-field>
           <app-field class="app-span-all" label="Nome fantasia" [error]="message('tradeName')">
             <input appInput formControlName="tradeName" [maxlength]="limits.legalName" />

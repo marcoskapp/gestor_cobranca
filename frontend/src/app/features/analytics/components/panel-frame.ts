@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { IsActiveMatchOptions, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -62,7 +62,7 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
               [routerLink]="p.route"
               [queryParams]="queryParams()"
               routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: true }"
+              [routerLinkActiveOptions]="activeOptions"
               ariaCurrentWhenActive="page"
             >
               <app-icon [name]="p.icon" />
@@ -136,6 +136,8 @@ export class PanelFrame {
   private readonly auth = inject(AuthService);
   private readonly api = inject(AnalyticsApi);
   private readonly notifications = inject(NotificationService);
+  /** Painel atual pelo caminho (os filtros na URL — período, agrupamento, canais — não mudam o painel). */
+  protected readonly activeOptions: IsActiveMatchOptions = { paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' };
   protected readonly exporting = signal(false);
   protected readonly refreshing = signal(false);
 

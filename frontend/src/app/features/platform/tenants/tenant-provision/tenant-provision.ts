@@ -31,7 +31,7 @@ type Field = 'slug' | 'legalName' | 'tradeName' | 'cnpj' | 'adminName' | 'adminE
         }
         <div class="app-form-grid row-gap-3">
           <app-field class="app-span-all" label="Identificador de acesso" hint="Usado no login. Letras minúsculas, números e hífen (3 a 50)." [error]="message('slug')">
-            <input appInput formControlName="slug" class="app-mono" maxlength="50" autocapitalize="off" spellcheck="false" />
+            <input appInput formControlName="slug" class="font-monospace" ngbAutofocus maxlength="50" autocapitalize="off" spellcheck="false" />
           </app-field>
           <app-field class="app-span-all" label="Razão social" [error]="message('legalName')">
             <input appInput formControlName="legalName" [maxlength]="limits.legalName" />

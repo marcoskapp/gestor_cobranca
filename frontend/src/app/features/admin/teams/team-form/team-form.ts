@@ -37,7 +37,7 @@ import { Icon } from '../../../../shared/components/icon/icon';
         }
         <div class="vstack gap-3">
           <app-field label="Nome" [error]="nameError()">
-            <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.teamName" />
+            <input appInput formControlName="name" autocomplete="off" [maxlength]="limits.teamName" ngbAutofocus />
           </app-field>
           <app-field label="Unidade">
             <select appInput formControlName="businessUnitId">

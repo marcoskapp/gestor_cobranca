@@ -38,7 +38,7 @@ const errorText = (err: unknown) => {
         }
         <div class="app-form-grid row-gap-3">
           <app-field label="Código" hint="minúsculas, dígitos e hífen" error="2 a 40: minúsculas, dígitos e hífen.">
-            <input appInput formControlName="code" maxlength="40" required />
+            <input appInput formControlName="code" maxlength="40" required ngbAutofocus />
           </app-field>
           <app-field label="Nome">
             <input appInput formControlName="name" maxlength="120" required />

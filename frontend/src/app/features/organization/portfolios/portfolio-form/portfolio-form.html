@@ -28,10 +28,10 @@
         </select>
       </app-field>
       <app-field label="Código" [error]="message('code')">
-        <input appInput formControlName="code" class="app-mono" [maxlength]="limits.portfolioCode" />
+        <input appInput formControlName="code" class="font-monospace" [maxlength]="limits.portfolioCode" />
       </app-field>
       <app-field label="Nome" [error]="message('name')">
-        <input appInput formControlName="name" [maxlength]="limits.portfolioName" />
+        <input appInput formControlName="name" [maxlength]="limits.portfolioName" [attr.ngbAutofocus]="editing ? '' : null" />
       </app-field>
       <app-field label="Recebida em" [error]="message('receivedOn')">
         <div class="input-group">
