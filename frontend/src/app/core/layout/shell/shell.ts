@@ -57,7 +57,7 @@ const DENSITIES: readonly Choice<DensityPreference>[] = [
     OnboardingHint,
   ],
   templateUrl: './shell.html',
-  styleUrl: './shell.scss',
+  styleUrls: ['./shell.scss', './shell-nav.scss'],
 })
 export class Shell {
   private readonly auth = inject(AuthService);

@@ -1,0 +1,19 @@
+// =============================================================================
+// Bootstrap 5.3 — ajustes do modo escuro com os MIXINS DOCUMENTADOS `color-mode()` e
+// `button-outline-variant()` (Customize → Color modes; Buttons → Sass mixins).
+//
+// O Bootstrap compila as cores dos botões de contorno a partir de `$theme-colors` (valores fixos);
+// no modo escuro, o texto azul/cinza/vermelho desses botões ficaria abaixo de 4,5:1 sobre a
+// superfície escura. Aqui eles passam a usar os tons "emphasis" do modo escuro
+// (`$theme-colors-text-dark`, ≥ 7:1). Importado depois dos componentes (styles/bootstrap/_index).
+// =============================================================================
+
+@include color-mode(dark) {
+  @each $color, $value in $theme-colors-text-dark {
+    @if map-has-key($theme-colors, $color) {
+      .btn-outline-#{$color} {
+        @include button-outline-variant($value, $color-hover: $black);
+      }
+    }
+  }
+}

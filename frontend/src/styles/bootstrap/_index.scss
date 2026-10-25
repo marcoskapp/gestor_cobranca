@@ -61,6 +61,9 @@
 @import 'bootstrap/scss/offcanvas';
 @import 'bootstrap/scss/placeholders';
 
-// 6. helpers e utilitários (API de utilitários por último)
+// 6. ajustes do modo escuro com mixins documentados
+@import 'color-modes';
+
+// 7. helpers e utilitários (API de utilitários por último)
 @import 'bootstrap/scss/helpers';
 @import 'bootstrap/scss/utilities/api';

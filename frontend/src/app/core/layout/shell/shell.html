@@ -53,12 +53,10 @@
     <app-icon [name]="theme.effectiveTheme() === 'dark' ? 'sun' : 'moon-stars'" />
   </button>
 
-  <div ngbDropdown #helpMenu="ngbDropdown" placement="bottom-end" class="d-inline-flex">
-    <!-- âncora sem a seta de dropdown (botão só com ícone) -->
+  <div ngbDropdown placement="bottom-end" class="d-inline-flex">
     <button
       type="button"
-      ngbDropdownAnchor
-      (click)="helpMenu.toggle()"
+      ngbDropdownToggle
       class="btn app-topbar__btn position-relative"
       data-tour="help"
       [attr.aria-label]="onboarding.unreadReleaseNotes() ? 'Ajuda (há novidades)' : 'Ajuda'"
@@ -112,6 +110,7 @@
       >
         <span class="app-avatar" aria-hidden="true">{{ initials() }}</span>
         <span class="app-topbar__user-name">{{ u.name }}</span>
+        <app-icon class="app-topbar__chevron" name="chevron-down" />
       </button>
       <div ngbDropdownMenu class="shadow app-menu app-user-menu" role="menu" aria-label="Usuário e aparência">
         <div class="app-user-menu__header" role="presentation">

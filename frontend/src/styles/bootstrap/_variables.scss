@@ -16,6 +16,8 @@
 $prefix: bs-;
 $enable-shadows: false; // superfícies planas; elevação explícita com `.shadow-sm`/`.shadow`
 $enable-gradients: false;
+$enable-caret: false; // menus mostram ícone explícito (chevron) quando a seta ajuda; botões só de ícone ficam limpos
+$enable-validation-icons: false; // a mensagem de erro em texto já comunica (o ícone embutido não acompanha o modo escuro)
 $enable-reduced-motion: true; // respeita prefers-reduced-motion
 $enable-smooth-scroll: false; // rolagem instantânea (estação de trabalho, teclado)
 $enable-negative-margins: false;

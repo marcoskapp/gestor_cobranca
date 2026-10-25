@@ -23,11 +23,6 @@
   // borda de controles (campos, caixas de seleção): ≥ 3:1 contra a superfície (WCAG 1.4.11)
   --app-control-border: #8a93a0; // 3.11:1 sobre #fff
 
-  // barra superior: azul institucional no claro, superfície neutra no escuro (menos brilho)
-  --app-topbar-bg: #0f2f57; // texto branco 13.4:1
-  --app-topbar-fg: #ffffff;
-  --app-topbar-subtle: rgb(255 255 255 / 14%);
-
   // foco: anel de 2px sempre ≥ 3:1 contra o fundo
   --app-focus-color: var(--bs-primary);
 
@@ -47,9 +42,6 @@
 
 @include color-mode(dark, true) {
   --app-control-border: #6b7480; // 3.62:1 sobre #171c23
-  --app-topbar-bg: #161b22; // texto 14.6:1
-  --app-topbar-fg: #e6edf3;
-  --app-topbar-subtle: rgb(255 255 255 / 8%);
   --app-focus-color: #a7c8ff;
   --app-chart-1: #3987e5;
   --app-chart-2: #d95926;
@@ -58,6 +50,20 @@
   --app-chart-track: #262b32;
   --app-snack-bg: #e2e2e9;
   --app-snack-fg: #1b1f26;
+}
+
+// barra superior: depende do modo GLOBAL (o próprio cabeçalho usa `data-bs-theme="dark"`, então
+// estes tokens são definidos só no <html>): azul institucional no claro, neutra no escuro.
+:root {
+  --app-topbar-bg: #0f2f57; // texto branco 13.4:1
+  --app-topbar-fg: #ffffff;
+  --app-topbar-subtle: rgb(255 255 255 / 14%);
+}
+
+:root[data-bs-theme='dark'] {
+  --app-topbar-bg: #161b22; // texto 14.6:1
+  --app-topbar-fg: #e6edf3;
+  --app-topbar-subtle: rgb(255 255 255 / 8%);
 }
 
 :root {
