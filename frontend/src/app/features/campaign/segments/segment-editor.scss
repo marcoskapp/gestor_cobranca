@@ -29,21 +29,6 @@
   font-size: var(--app-text-sm);
 }
 
-.se-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 12px;
-}
-
-.se-grow {
-  flex: 1 1 260px;
-  min-width: 0;
-}
-
-.se-code {
-  flex: 0 1 220px;
-}
-
 .se-problems ul {
   margin: 4px 0 0;
   padding-left: 18px;
@@ -52,10 +37,6 @@
 .se-preview {
   position: sticky;
   top: var(--app-gap);
-}
-
-.se-progress {
-  margin: -4px 0 8px;
 }
 
 .se-counts {
@@ -72,16 +53,16 @@
 
   dt {
     font-size: var(--app-text-xs);
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--bs-secondary-color);
   }
 
   dd {
     margin: 0;
     font-size: var(--app-text-2xl);
-    font-weight: 600;
+    font-weight: 400;
     line-height: var(--app-line-tight);
   }
 }
@@ -115,8 +96,8 @@
 .se-and {
   flex: 0 0 14px;
   font-size: var(--app-text-xs);
-  font-weight: 700;
-  color: var(--mat-sys-primary);
+  font-weight: 600;
+  color: var(--bs-primary-text-emphasis);
 }
 
 @media (max-width: 1099.98px) {

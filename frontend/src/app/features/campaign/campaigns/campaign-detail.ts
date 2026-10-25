@@ -1,9 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, finalize, forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -14,6 +12,7 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -46,7 +45,7 @@ const PAUSE_RULES: readonly { fact: string; pause: string; resume: string }[] = 
  */
 @Component({
   selector: 'app-campaign-detail',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs, CampaignSettingsFields],
+  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, Icon, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs, CampaignSettingsFields],
   templateUrl: './campaign-detail.html',
   styleUrl: './campaign-detail.scss',
 })

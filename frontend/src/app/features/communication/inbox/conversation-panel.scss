@@ -18,7 +18,7 @@
 .cv-head__name {
   margin: 0;
   font-size: var(--app-text-lg);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .cv-head__meta,
@@ -35,26 +35,13 @@
   margin-top: 4px;
 }
 
-.cv-channel,
-.cv-sla {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  mat-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-  }
-}
-
 .cv-sla--warning {
-  color: var(--app-warning-fg);
+  color: var(--bs-warning-text-emphasis);
 }
 
 .cv-sla--late {
-  font-weight: 600;
-  color: var(--app-danger-fg);
+  font-weight: 500;
+  color: var(--bs-danger-text-emphasis);
 }
 
 .cv-timeline {
@@ -72,13 +59,7 @@
   gap: 6px;
   margin: 8px 0;
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
-
-  mat-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-  }
+  color: var(--bs-secondary-color);
 }
 
 .cv-msg {
@@ -95,23 +76,16 @@
 }
 
 .cv-msg--assistant {
-  border-left: 3px solid var(--mat-sys-primary);
+  border-left: 3px solid var(--bs-primary);
 }
 
 .cv-msg--failed {
   background: var(--app-danger-bg);
 }
 
-.cv-inline {
-  width: 16px;
-  height: 16px;
-  font-size: 16px;
-  vertical-align: -3px;
-}
-
 .cv-msg__subject {
   margin: 4px 0 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .cv-msg__body {
@@ -121,11 +95,7 @@
 }
 
 .cv-msg__block {
-  display: flex;
-  gap: 4px;
-  margin: 6px 0 0;
-  font-size: var(--app-text-sm);
-  color: var(--app-danger-fg);
+  color: var(--bs-danger-text-emphasis);
 }
 
 .cv-drafts,

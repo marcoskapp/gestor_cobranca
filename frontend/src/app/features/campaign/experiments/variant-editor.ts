@@ -1,12 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { CHANNEL_LABELS, DAY_LABELS, DAYS } from '../data/campaign.labels';
 import { CadenceStep, DayOfWeek, ExperimentVariant, MessageChannel, StepOverride } from '../data/campaign.models';
 import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/campaign.rules';
@@ -17,26 +12,23 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
  */
 @Component({
   selector: 'app-variant-editor',
-  imports: [FormsModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
+  imports: [FormsModule, ...FORM_FIELD, Icon],
   template: `
     @let v = variant();
     @let ro = readonly();
     <div class="ve-row">
-      <mat-form-field class="app-compact ve-code">
-        <mat-label>Código</mat-label>
-        <input matInput [ngModel]="v.code" (ngModelChange)="v.code = upper($event); changed()" maxlength="40" spellcheck="false" autocomplete="off" [disabled]="ro" />
-      </mat-form-field>
-      <mat-form-field class="app-compact ve-grow">
-        <mat-label>Nome</mat-label>
-        <input matInput [(ngModel)]="v.name" (ngModelChange)="changed()" maxlength="120" [disabled]="ro" />
-      </mat-form-field>
-      <mat-form-field class="app-compact ve-weight">
-        <mat-label>Peso</mat-label>
-        <input matInput type="number" min="1" max="100" step="1" [(ngModel)]="v.weight" (ngModelChange)="changed()" [disabled]="ro" />
-      </mat-form-field>
+      <app-field class="ve-code" label="Código">
+        <input appInput [ngModel]="v.code" (ngModelChange)="v.code = upper($event); changed()" maxlength="40" spellcheck="false" autocomplete="off" [disabled]="ro" />
+      </app-field>
+      <app-field class="ve-grow" label="Nome">
+        <input appInput [(ngModel)]="v.name" (ngModelChange)="changed()" maxlength="120" [disabled]="ro" />
+      </app-field>
+      <app-field class="ve-weight" label="Peso">
+        <input appInput type="number" min="1" max="100" step="1" [(ngModel)]="v.weight" (ngModelChange)="changed()" [disabled]="ro" />
+      </app-field>
       @if (!ro) {
-        <button mat-icon-button type="button" (click)="remove.emit()" [attr.aria-label]="'Remover variante ' + (v.code || '')">
-          <mat-icon aria-hidden="true">delete</mat-icon>
+        <button class="btn btn-link" type="button" (click)="remove.emit()" [attr.aria-label]="'Remover variante ' + (v.code || '')">
+          <app-icon name="trash3" />
         </button>
       }
     </div>
@@ -45,85 +37,89 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
       @let step = stepOf(o.stepCode);
       <div class="ve-override">
         <div class="ve-row">
-          <mat-form-field class="app-compact ve-grow">
-            <mat-label>Etapa alterada</mat-label>
-            <mat-select [(ngModel)]="o.stepCode" (ngModelChange)="changed()" [disabled]="ro">
+          <app-field class="ve-grow" label="Etapa alterada">
+            <select appInput [(ngModel)]="o.stepCode" (ngModelChange)="changed()" [disabled]="ro">
               @for (s of steps(); track s.code) {
-                <mat-option [value]="s.code">{{ s.code }} — {{ summary(s) }}</mat-option>
+                <option [ngValue]="s.code">{{ s.code }} — {{ summary(s) }}</option>
               }
-            </mat-select>
-          </mat-form-field>
+            </select>
+          </app-field>
           @if (!ro) {
-            <button mat-icon-button type="button" (click)="removeOverride(j)" aria-label="Remover alteração">
-              <mat-icon aria-hidden="true">close</mat-icon>
+            <button class="btn btn-link" type="button" (click)="removeOverride(j)" aria-label="Remover alteração">
+              <app-icon name="x-lg" />
             </button>
           }
         </div>
         @if (step && sendsMessage(step.action)) {
           <div class="ve-row">
-            <mat-form-field class="app-compact ve-channel">
-              <mat-label>Canal</mat-label>
-              <mat-select [ngModel]="o.channel ?? ''" (ngModelChange)="o.channel = $event || null; changed()" [disabled]="ro">
-                <mat-option value="">Igual à régua ({{ channelLabel(step.action.channel) }})</mat-option>
+            <app-field class="ve-channel" label="Canal">
+              <select appInput [ngModel]="o.channel ?? ''" (ngModelChange)="o.channel = $event || null; changed()" [disabled]="ro">
+                <option value="">Igual à régua ({{ channelLabel(step.action.channel) }})</option>
                 @for (c of channels; track c) {
-                  <mat-option [value]="c">{{ channelLabels[c] }}</mat-option>
+                  <option [ngValue]="c">{{ channelLabels[c] }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
+              </select>
+            </app-field>
             @if (templates(); as list) {
-              <mat-form-field subscriptSizing="dynamic" class="app-compact ve-grow">
-                <mat-label>Template</mat-label>
-                <mat-select [ngModel]="o.templateCode ?? ''" (ngModelChange)="o.templateCode = $event || null; changed()" [disabled]="ro">
-                  <mat-option value="">Igual à régua ({{ step.action.templateCode }})</mat-option>
+              <app-field class="ve-grow" label="Template" hint="As variáveis da etapa precisam servir também a este template.">
+                <select appInput [ngModel]="o.templateCode ?? ''" (ngModelChange)="o.templateCode = $event || null; changed()" [disabled]="ro">
+                  <option value="">Igual à régua ({{ step.action.templateCode }})</option>
                   @for (t of templatesFor(o.channel ?? step.action.channel); track t.code) {
-                    <mat-option [value]="t.code">{{ t.code }} — {{ t.name }}</mat-option>
+                    <option [ngValue]="t.code">{{ t.code }} — {{ t.name }}</option>
                   }
-                </mat-select>
-                <mat-hint>As variáveis da etapa precisam servir também a este template.</mat-hint>
-              </mat-form-field>
+                </select>
+              </app-field>
             } @else {
-              <mat-form-field subscriptSizing="dynamic" class="app-compact ve-grow">
-                <mat-label>Template (código)</mat-label>
-                <input matInput [ngModel]="o.templateCode" (ngModelChange)="o.templateCode = $event ? upper($event) : null; changed()" maxlength="60" [disabled]="ro" />
-                <mat-hint>Vazio = igual à régua. Conferido ao iniciar o teste.</mat-hint>
-              </mat-form-field>
+              <app-field class="ve-grow" label="Template (código)" hint="Vazio = igual à régua. Conferido ao iniciar o teste.">
+                <input appInput [ngModel]="o.templateCode" (ngModelChange)="o.templateCode = $event ? upper($event) : null; changed()" maxlength="60" [disabled]="ro" />
+              </app-field>
             }
           </div>
         }
-        <mat-slide-toggle [ngModel]="!!o.window" (ngModelChange)="setWindow(o, $event)" [disabled]="ro">Outro horário de execução</mat-slide-toggle>
+        <div class="form-check form-switch mt-2">
+          <input class="form-check-input" type="checkbox" role="switch" [id]="uid + '-window-' + j" [ngModel]="!!o.window" (ngModelChange)="setWindow(o, $event)" [disabled]="ro" />
+          <label class="form-check-label" [for]="uid + '-window-' + j">Outro horário de execução</label>
+        </div>
         @if (o.window; as w) {
           <div class="ve-row ve-top">
-            <mat-form-field class="app-compact ve-time">
-              <mat-label>Das</mat-label>
-              <input matInput type="time" [(ngModel)]="w.start" (ngModelChange)="changed()" [disabled]="ro" />
-            </mat-form-field>
-            <mat-form-field class="app-compact ve-time">
-              <mat-label>Até</mat-label>
-              <input matInput type="time" [(ngModel)]="w.end" (ngModelChange)="changed()" [disabled]="ro" />
-            </mat-form-field>
-            <mat-button-toggle-group multiple [ngModel]="w.days ?? []" (ngModelChange)="setDays(o, $event)" aria-label="Dias da semana" [disabled]="ro" class="ve-days">
+            <app-field class="ve-time" label="Das">
+              <input appInput type="time" [(ngModel)]="w.start" (ngModelChange)="changed()" [disabled]="ro" />
+            </app-field>
+            <app-field class="ve-time" label="Até">
+              <input appInput type="time" [(ngModel)]="w.end" (ngModelChange)="changed()" [disabled]="ro" />
+            </app-field>
+            <div class="btn-group btn-group-sm flex-wrap ve-days" role="group" aria-label="Dias da semana">
               @for (d of days; track d) {
-                <mat-button-toggle [value]="d">{{ dayLabels[d] }}</mat-button-toggle>
+                <input class="btn-check" type="checkbox" [id]="uid + '-day-' + j + '-' + d" [checked]="(w.days ?? []).includes(d)" (change)="toggleDay(o, d)" [disabled]="ro" />
+                <label class="btn btn-outline-primary" [for]="uid + '-day-' + j + '-' + d">{{ dayLabels[d] }}</label>
               }
-            </mat-button-toggle-group>
+            </div>
           </div>
         }
         @if (step?.action?.type === 'OFFER') {
-          <mat-slide-toggle [ngModel]="!!o.offer" (ngModelChange)="o.offer = $event ? { installments: 1, concessionLevel: 0, validityDays: 3 } : null; changed()" [disabled]="ro">Outra oferta</mat-slide-toggle>
+          <div class="form-check form-switch mt-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              [id]="uid + '-offer-' + j"
+              [ngModel]="!!o.offer"
+              (ngModelChange)="o.offer = $event ? { installments: 1, concessionLevel: 0, validityDays: 3 } : null; changed()"
+              [disabled]="ro"
+            />
+            <label class="form-check-label" [for]="uid + '-offer-' + j">Outra oferta</label>
+          </div>
           @if (o.offer; as of) {
             <div class="ve-row ve-top">
-              <mat-form-field class="app-compact ve-weight">
-                <mat-label>Pagamentos</mat-label>
-                <input matInput type="number" min="1" max="120" [(ngModel)]="of.installments" (ngModelChange)="changed()" [disabled]="ro" />
-              </mat-form-field>
-              <mat-form-field class="app-compact ve-weight">
-                <mat-label>Nível</mat-label>
-                <input matInput type="number" min="0" max="99" [(ngModel)]="of.concessionLevel" (ngModelChange)="changed()" [disabled]="ro" />
-              </mat-form-field>
-              <mat-form-field class="app-compact ve-weight">
-                <mat-label>Validade (dias)</mat-label>
-                <input matInput type="number" min="1" max="30" [(ngModel)]="of.validityDays" (ngModelChange)="changed()" [disabled]="ro" />
-              </mat-form-field>
+              <app-field class="ve-weight" label="Pagamentos">
+                <input appInput type="number" min="1" max="120" [(ngModel)]="of.installments" (ngModelChange)="changed()" [disabled]="ro" />
+              </app-field>
+              <app-field class="ve-weight" label="Nível">
+                <input appInput type="number" min="0" max="99" [(ngModel)]="of.concessionLevel" (ngModelChange)="changed()" [disabled]="ro" />
+              </app-field>
+              <app-field class="ve-weight" label="Validade (dias)">
+                <input appInput type="number" min="1" max="30" [(ngModel)]="of.validityDays" (ngModelChange)="changed()" [disabled]="ro" />
+              </app-field>
             </div>
           }
         }
@@ -132,7 +128,7 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
       <p class="app-muted ve-small">Sem alterações: esta variante segue a régua publicada.</p>
     }
     @if (!ro && steps().length) {
-      <button mat-button type="button" (click)="addOverride()"><mat-icon aria-hidden="true">add</mat-icon>Alterar uma etapa</button>
+      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="addOverride()"><app-icon name="plus-lg" />Alterar uma etapa</button>
     }
   `,
   styles: `
@@ -162,13 +158,13 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
       flex: 0 1 120px;
     }
     .ve-days {
-      flex-wrap: wrap;
-      margin-bottom: 16px;
+      align-self: flex-end;
+      margin-bottom: 4px;
     }
     .ve-override {
       margin: 0 0 8px;
       padding: 8px;
-      border-left: 3px solid var(--mat-sys-primary);
+      border-left: 3px solid var(--bs-primary);
       border-radius: var(--app-radius-sm);
       background: var(--app-surface-raised);
     }
@@ -187,6 +183,9 @@ export class VariantEditor {
   readonly edited = output<void>();
   readonly remove = output<void>();
 
+  private static seq = 0;
+  /** Prefixo dos ids das chaves e dos dias (várias variantes na mesma tela). */
+  protected readonly uid = `ve-${++VariantEditor.seq}`;
   protected readonly channels: readonly MessageChannel[] = ['WHATSAPP', 'EMAIL', 'SMS'];
   protected readonly channelLabels = CHANNEL_LABELS;
   protected readonly days = DAYS;
@@ -234,6 +233,12 @@ export class VariantEditor {
   protected setWindow(o: StepOverride, on: boolean): void {
     o.window = on ? { start: '09:00', end: '12:00', days: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'] } : null;
     this.changed();
+  }
+
+  /** Marca/desmarca um dia (equivale ao grupo de botões de seleção múltipla anterior). */
+  protected toggleDay(o: StepOverride, day: DayOfWeek): void {
+    const current = o.window?.days ?? [];
+    this.setDays(o, current.includes(day) ? current.filter((d) => d !== day) : [...current, day]);
   }
 
   protected setDays(o: StepOverride, days: DayOfWeek[]): void {

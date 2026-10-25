@@ -1,5 +1,8 @@
 <div class="xr-head">
-  <mat-slide-toggle [ngModel]="mature()" (ngModelChange)="mature.set($event)">Somente devedores com o horizonte completo</mat-slide-toggle>
+  <div class="form-check form-switch mb-0">
+    <input class="form-check-input" type="checkbox" role="switch" id="xr-mature" [ngModel]="mature()" (ngModelChange)="mature.set($event)" />
+    <label class="form-check-label" for="xr-mature">Somente devedores com o horizonte completo</label>
+  </div>
   @if (data(); as r) {
     <span class="app-muted xr-small">Calculado em {{ r.computedAt | appDate }} · horizonte de {{ r.observationDays }} dias · {{ count(totalDebtors()) }} devedores no total</span>
   }
@@ -9,19 +12,21 @@
 </p>
 
 @if (results.isLoading()) {
-  <mat-progress-bar mode="indeterminate" aria-label="Calculando resultados" />
+  <div class="progress mb-2" role="progressbar" aria-label="Calculando resultados">
+    <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+  </div>
 }
 
 @if (results.isLoading() && !data()) {
   <app-skeleton variant="card" [rows]="4" />
 } @else if (results.status() === 'error' && !data()) {
-  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível calcular os resultados." [compact]="true">
-    <button mat-stroked-button type="button" (click)="results.reload()">Tentar novamente</button>
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível calcular os resultados." [compact]="true">
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="results.reload()">Tentar novamente</button>
   </app-empty-state>
 } @else if (data(); as r) {
   @if (generalWarnings().length) {
-    <div class="app-alert app-alert--warning" role="status" data-tour="experiment-warnings">
-      <mat-icon aria-hidden="true">warning_amber</mat-icon>
+    <div class="alert alert-warning d-flex gap-2" role="status" data-tour="experiment-warnings">
+      <app-icon name="exclamation-triangle" />
       <ul class="xr-list">
         @for (w of generalWarnings(); track w) {
           <li>{{ w }}</li>
@@ -51,7 +56,7 @@
       <h3 class="xr-metric__title" [id]="'xr-' + b.metric">
         {{ metricLabels[b.metric] }}
         @if (b.primary) {
-          <span class="app-status app-status--info"><mat-icon aria-hidden="true">star</mat-icon>Métrica principal</span>
+          <span class="badge rounded-pill border bg-info-subtle text-info-emphasis border-info-subtle fw-normal"><app-icon name="star" />Métrica principal</span>
         }
       </h3>
       <p class="app-muted xr-small">{{ metricHints[b.metric] }}</p>
@@ -67,7 +72,7 @@
               <strong>{{ row.label }}</strong>
               <span class="app-muted xr-small">{{ count(row.debtors) }} devedores{{ row.baseline ? ' · referência' : '' }}</span>
               @for (w of row.result.warnings; track w) {
-                <span class="app-status app-status--warning xr-warn"><mat-icon aria-hidden="true">warning_amber</mat-icon>{{ warningText(w) }}</span>
+                <span class="badge rounded-pill border bg-warning-subtle text-warning-emphasis border-warning-subtle fw-normal xr-warn"><app-icon name="exclamation-triangle" />{{ warningText(w) }}</span>
               }
             </div>
             <div class="xr-arm__plot">
@@ -91,13 +96,13 @@
                 <span class="xr-text xr-verdict">
                   @switch (row.verdict) {
                     @case ('better') {
-                      <mat-icon aria-hidden="true">trending_up</mat-icon>
+                      <app-icon name="graph-up-arrow" />
                     }
                     @case ('worse') {
-                      <mat-icon aria-hidden="true">trending_down</mat-icon>
+                      <app-icon name="graph-down-arrow" />
                     }
                     @case ('none') {
-                      <mat-icon aria-hidden="true">drag_handle</mat-icon>
+                      <app-icon name="grip-horizontal" />
                     }
                   }
                   {{ row.diffText }}
@@ -109,6 +114,6 @@
       </ul>
     </section>
   } @empty {
-    <app-empty-state icon="science" title="Ainda não há devedores nos braços." message="Os resultados aparecem conforme os devedores são inscritos e observados." [compact]="true" />
+    <app-empty-state icon="eyedropper" title="Ainda não há devedores nos braços." message="Os resultados aparecem conforme os devedores são inscritos e observados." [compact]="true" />
   }
 }

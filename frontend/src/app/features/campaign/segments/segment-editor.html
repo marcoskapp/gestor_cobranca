@@ -4,43 +4,43 @@
     <app-skeleton class="se-gap" variant="card" [rows]="6" />
   </div>
 } @else if (source.status() === 'error') {
-  <app-empty-state icon="filter_alt" tone="error" title="Não foi possível abrir o segmento." message="O segmento pode não existir ou o credor estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="source.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/campanhas/segmentos">Voltar para segmentos</a>
+  <app-empty-state icon="funnel" tone="error" title="Não foi possível abrir o segmento." message="O segmento pode não existir ou o credor estar fora do seu escopo.">
+    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="source.reload()">Tentar novamente</button>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas/segmentos">Voltar para segmentos</a>
   </app-empty-state>
 } @else {
   <app-page-header
     [title]="isNew() ? (copiar() ? 'Duplicar segmento' : 'Novo segmento') : name() || 'Segmento'"
     [subtitle]="isNew() ? 'Combine filtros sobre os casos de cobrança. A contagem atualiza a cada alteração.' : (segment()?.creditorId ? creditors.name(segment()?.creditorId) : 'Segmento da assessoria (todos os credores)') + ' · ' + segment()?.code"
   >
-    <a mat-button routerLink="/campanhas/segmentos">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas/segmentos">
+      <app-icon name="arrow-left" />
       Segmentos
     </a>
     @if (canManage()) {
       @if (segment(); as s) {
-        <button mat-stroked-button type="button" (click)="duplicate()" matTooltip="Novo segmento com os mesmos filtros">
-          <mat-icon aria-hidden="true">content_copy</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="duplicate()" ngbTooltip="Novo segmento com os mesmos filtros">
+          <app-icon name="copy" />
           Duplicar
         </button>
-        <button mat-stroked-button type="button" (click)="toggleActive()">
-          <mat-icon aria-hidden="true">{{ s.active ? 'toggle_off' : 'toggle_on' }}</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="toggleActive()">
+          <app-icon [name]="s.active ? 'toggle-off' : 'toggle-on'" />
           {{ s.active ? 'Desativar' : 'Ativar' }}
         </button>
         @if (dirty()) {
-          <button mat-stroked-button type="button" (click)="discard()">Descartar alterações</button>
+          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="discard()">Descartar alterações</button>
         }
       }
-      <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || (!dirty() && !isNew()) || problems().length > 0">
-        <mat-icon aria-hidden="true">save</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving() || (!dirty() && !isNew()) || problems().length > 0">
+        <app-icon name="floppy" />
         {{ isNew() ? 'Criar segmento' : 'Salvar' }}
       </button>
     }
   </app-page-header>
 
   @for (e of errors(); track e) {
-    <p class="app-alert app-alert--error" role="alert">
-      <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <p class="alert alert-danger d-flex gap-2" role="alert">
+      <app-icon name="exclamation-circle" />
       <span>{{ e }}</span>
     </p>
   }
@@ -54,13 +54,13 @@
             <app-status-chip domain="active" [status]="s.active" />
             <span class="app-muted">Atualizado em {{ (s.updatedAt ?? s.createdAt) | appDate }}</span>
             @if (dirty()) {
-              <span class="app-status app-status--warning">Alterações não salvas</span>
+              <span class="badge rounded-pill border bg-warning-subtle text-warning-emphasis border-warning-subtle fw-normal">Alterações não salvas</span>
             }
           </p>
         }
-        <div class="se-row">
+        <div class="row g-3 mb-3">
           @if (isNew()) {
-            <div class="se-grow">
+            <div class="col-md-6">
               <app-entity-picker
                 [control]="creditor"
                 [source]="creditorSource"
@@ -70,22 +70,18 @@
               />
             </div>
           }
-          <mat-form-field class="se-grow">
-            <mat-label>Nome</mat-label>
-            <input matInput [ngModel]="name()" (ngModelChange)="setName($event)" maxlength="120" required [disabled]="!editable()" />
-          </mat-form-field>
+          <app-field [class]="isNew() ? 'col-md-6' : 'col-12'" label="Nome">
+            <input appInput [ngModel]="name()" (ngModelChange)="setName($event)" maxlength="120" required [disabled]="!editable()" />
+          </app-field>
           @if (isNew()) {
-            <mat-form-field subscriptSizing="dynamic" class="se-code">
-              <mat-label>Código</mat-label>
-              <input matInput [ngModel]="code()" (ngModelChange)="setCode($event)" maxlength="60" required spellcheck="false" autocomplete="off" />
-              <mat-hint>Maiúsculas, dígitos e _; não muda depois.</mat-hint>
-            </mat-form-field>
+            <app-field class="col-md-6" label="Código" hint="Maiúsculas, dígitos e _; não muda depois.">
+              <input appInput [ngModel]="code()" (ngModelChange)="setCode($event)" maxlength="60" required spellcheck="false" autocomplete="off" />
+            </app-field>
           }
         </div>
-        <mat-form-field class="app-full-width">
-          <mat-label>Descrição</mat-label>
-          <textarea matInput rows="2" [ngModel]="description()" (ngModelChange)="description.set($event); edited()" maxlength="500" [disabled]="!editable()"></textarea>
-        </mat-form-field>
+        <app-field label="Descrição">
+          <textarea appInput rows="2" [ngModel]="description()" (ngModelChange)="description.set($event); edited()" maxlength="500" [disabled]="!editable()"></textarea>
+        </app-field>
       </section>
 
       <section class="app-card" aria-labelledby="se-filters" data-tour="segment-filters">
@@ -94,8 +90,8 @@
       </section>
 
       @if (problems().length && editable()) {
-        <section class="app-alert app-alert--error se-problems" role="alert" aria-label="Problemas no segmento">
-          <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <section class="alert alert-danger d-flex gap-2 se-problems" role="alert" aria-label="Problemas no segmento">
+          <app-icon name="exclamation-circle" />
           <div>
             <strong>{{ problems().length }} problema(s) a corrigir:</strong>
             <ul>
@@ -111,12 +107,14 @@
     <aside class="app-card se-preview" aria-labelledby="se-preview" data-tour="segment-preview">
       <h2 class="app-card__title" id="se-preview">Prévia do público</h2>
       @if (preview.isLoading()) {
-        <mat-progress-bar mode="indeterminate" aria-label="Contando casos" class="se-progress" />
+        <div class="progress mb-2" role="progressbar" aria-label="Contando casos">
+          <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+        </div>
       }
       <div aria-live="polite" [attr.aria-busy]="preview.isLoading()">
         @if (previewError(); as message) {
-          <p class="app-alert app-alert--warning" role="status">
-            <mat-icon aria-hidden="true">info</mat-icon>
+          <p class="alert alert-warning d-flex gap-2" role="status">
+            <app-icon name="info-circle" />
             <span>{{ message }}</span>
           </p>
         } @else if (audience(); as a) {

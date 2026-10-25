@@ -2,13 +2,7 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DOCUMENT, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, debounceTime, filter, finalize, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -16,10 +10,13 @@ import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { DebtorNames } from '../../debt/data/debt.lookups';
@@ -49,12 +46,9 @@ export const TIMELINE_PAGE_SIZE = 100;
   imports: [
     FormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatMenuModule,
-    MatTooltipModule,
+    NgbDropdownModule,
+    ...FORM_FIELD,
+    Icon,
     EmptyState,
     Skeleton,
     StatusChip,
@@ -73,7 +67,7 @@ export class ConversationPanel {
   private readonly stream = inject(InboxStream);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly document = inject(DOCUMENT);
@@ -386,7 +380,7 @@ export class ConversationPanel {
       return;
     }
     this.dialog
-      .open<unknown, ConversationDialogData, ConversationView>(component, { data: { conversation: c }, width: '520px' })
+      .open<unknown, ConversationDialogData, ConversationView>(component, { data: { conversation: c } })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

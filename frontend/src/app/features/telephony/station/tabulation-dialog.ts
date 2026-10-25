@@ -1,18 +1,17 @@
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, finalize, map, of, startWith } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
+import { IsoDateAdapter } from '../../../core/config/bootstrap.config';
 import { Amount } from '../../../shared/components/amount/amount';
+import { Icon } from '../../../shared/components/icon/icon';
 import { valueOr } from '../../../shared/data/resource-value';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { fromLocalDate } from '../../../shared/models/dates';
 import { CaseWorkApi, CasesApi, CollectionSettingsApi, TabulationsApi } from '../../collection/data/collection.api';
 import { interactionProblems, toLocalDateTime, zonedNow } from '../../collection/data/collection.rules';
 import { parseMoney } from '../../payment/data/payment.rules';
@@ -33,140 +32,113 @@ export interface TabulationDialogData {
  */
 @Component({
   selector: 'app-tabulation-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, Amount],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon, Amount],
   template: `
-    <h2 mat-dialog-title class="tb-title">
-      <mat-icon aria-hidden="true">assignment_turned_in</mat-icon>
-      Tabular a chamada
-    </h2>
-    <form [formGroup]="form" (ngSubmit)="save()" (keydown)="onKeydown($event)" novalidate>
-      <mat-dialog-content>
-        <div class="tb-head">
+    <!-- sem botão de fechar: a tabulação é obrigatória (o launcher abre sem Esc e sem clique no fundo) -->
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0 d-flex align-items-center gap-2">
+        <app-icon name="clipboard-check" />
+        Tabular a chamada
+      </h2>
+    </div>
+    <!-- o formulário envolve corpo e rodapé; overflow-hidden mantém a rolagem só no corpo (modal rolável) -->
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" (keydown)="onKeydown($event)" novalidate>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
           <span>{{ call().numberMasked ?? 'Número não identificado' }} · {{ results[call().result ?? 'ANSWERED'] }} · conversa {{ talk() }}</span>
-          <span class="tb-countdown app-numeric" [class.tb-countdown--late]="remainingMs() < 120_000" role="timer" aria-live="off" data-tour="tabulation-countdown">
-            <mat-icon aria-hidden="true">timer</mat-icon>
+          <span
+            class="badge rounded-pill border d-inline-flex align-items-center gap-1 fs-6 fw-semibold app-numeric"
+            [class]="remainingMs() < 120_000 ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 'bg-info-subtle text-info-emphasis border-info-subtle'"
+            role="timer"
+            aria-live="off"
+            data-tour="tabulation-countdown"
+          >
+            <app-icon name="stopwatch" />
             Automática em {{ clock() }}
           </span>
         </div>
-        <p class="app-alert app-alert--info" role="note">
-          <mat-icon aria-hidden="true">info</mat-icon>
+        <p class="alert alert-info d-flex gap-2" role="note">
+          <app-icon name="info-circle" />
           <span>Tabule para ficar disponível de novo. Sem tabulação até o prazo, o sistema registra a sugestão "{{ suggestion() }}" (não conta como contato efetivo).</span>
         </p>
         @if (expired()) {
-          <p class="app-alert app-alert--warning" role="status"><mat-icon aria-hidden="true">hourglass_bottom</mat-icon><span>Prazo vencido: conferindo a tabulação automática…</span></p>
+          <p class="alert alert-warning d-flex gap-2" role="status"><app-icon name="hourglass-bottom" /><span>Prazo vencido: conferindo a tabulação automática…</span></p>
         }
-        @if (!call().caseId) {
-          <mat-form-field class="app-full-width">
-            <mat-label>Caso da chamada recebida</mat-label>
-            <mat-select formControlName="caseId" required>
-              @for (c of myCases(); track c.value) {
-                <mat-option [value]="c.value">{{ c.label }}</mat-option>
+        <div class="d-grid gap-3">
+          @if (!call().caseId) {
+            <app-field label="Caso da chamada recebida" hint="Chamada não identificada: informe o caso do devedor que ligou">
+              <select appInput formControlName="caseId" required>
+                <option value="" disabled>Selecione</option>
+                @for (c of myCases(); track c.value) {
+                  <option [value]="c.value">{{ c.label }}</option>
+                }
+              </select>
+            </app-field>
+          }
+          <app-field label="Tabulação">
+            <select appInput formControlName="tabulationId" required>
+              <option value="" disabled>Selecione</option>
+              @for (t of tabulations(); track t.id) {
+                <option [value]="t.id">{{ t.name }}{{ t.code === call().suggestedTabulation ? ' (sugerida)' : '' }}</option>
               }
-            </mat-select>
-            <mat-hint>Chamada não identificada: informe o caso do devedor que ligou</mat-hint>
-          </mat-form-field>
-        }
-        <mat-form-field class="app-full-width">
-          <mat-label>Tabulação</mat-label>
-          <mat-select formControlName="tabulationId" required>
-            @for (t of tabulations(); track t.id) {
-              <mat-option [value]="t.id">{{ t.name }}{{ t.code === call().suggestedTabulation ? ' (sugerida)' : '' }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-        @if (tabulation()?.promise) {
-          <div class="app-form-grid">
-            <mat-form-field>
-              <mat-label>Valor prometido (R$)</mat-label>
-              <input matInput formControlName="promiseAmount" inputmode="decimal" />
-              @if (balance() !== null) {
-                <mat-hint>Saldo em aberto: <app-amount [value]="balance()" /></mat-hint>
-              }
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Data prometida</mat-label>
-              <input matInput [matDatepicker]="promise" formControlName="promiseDate" [min]="minDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="promise" />
-              <mat-datepicker #promise />
-            </mat-form-field>
-          </div>
-        }
-        @if (tabulation()?.callback) {
-          <div class="app-form-grid">
-            <mat-form-field>
-              <mat-label>Retornar em</mat-label>
-              <input matInput [matDatepicker]="callback" formControlName="callbackDate" [min]="minDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="callback" />
-              <mat-datepicker #callback />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Hora</mat-label>
-              <input matInput type="time" formControlName="callbackTime" />
-            </mat-form-field>
-          </div>
-        }
-        <mat-form-field class="app-full-width">
-          <mat-label>Observação{{ tabulation()?.requiresNote ? '' : ' (opcional)' }}</mat-label>
-          <textarea matInput formControlName="note" rows="3" maxlength="4000"></textarea>
-        </mat-form-field>
+            </select>
+          </app-field>
+          @if (tabulation()?.promise) {
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <app-field label="Valor prometido (R$)">
+                  <input appInput formControlName="promiseAmount" inputmode="decimal" />
+                </app-field>
+                @if (balance() !== null) {
+                  <div class="form-text">Saldo em aberto: <app-amount [value]="balance()" /></div>
+                }
+              </div>
+              <app-field class="col-sm-6" label="Data prometida">
+                <div class="input-group">
+                  <input appInput formControlName="promiseDate" ngbDatepicker #promise="ngbDatepicker" [minDate]="minDate" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+                  <button class="btn btn-outline-secondary" type="button" (click)="promise.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+                </div>
+              </app-field>
+            </div>
+          }
+          @if (tabulation()?.callback) {
+            <div class="row g-3">
+              <app-field class="col-sm-6" label="Retornar em">
+                <div class="input-group">
+                  <input appInput formControlName="callbackDate" ngbDatepicker #callback="ngbDatepicker" [minDate]="minDate" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+                  <button class="btn btn-outline-secondary" type="button" (click)="callback.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+                </div>
+              </app-field>
+              <app-field class="col-sm-6" label="Hora">
+                <input appInput type="time" formControlName="callbackTime" />
+              </app-field>
+            </div>
+          }
+          <app-field [label]="'Observação' + (tabulation()?.requiresNote ? '' : ' (opcional)')">
+            <textarea appInput formControlName="note" rows="3" maxlength="4000"></textarea>
+          </app-field>
+        </div>
         @if (submitted() && problems().length) {
-          <ul class="app-alert app-alert--error tb-problems" role="alert">
+          <ul class="alert alert-danger mt-3 mb-0 ps-4" role="alert">
             @for (p of problems(); track p) {
               <li>{{ p }}</li>
             }
           </ul>
         }
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <p class="alert alert-danger d-flex gap-2 mt-3 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <span class="app-muted tb-hint">Ctrl + Enter registra</span>
-        <button mat-flat-button type="submit" [disabled]="saving() || expired()">Registrar tabulação</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <span class="app-muted small me-auto">Ctrl + Enter registra</span>
+        <button class="btn btn-primary" type="submit" [disabled]="saving() || expired()">Registrar tabulação</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .tb-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .tb-head {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .tb-countdown {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 10px;
-      border-radius: var(--app-radius-pill);
-      background: var(--app-info-bg);
-      color: var(--app-info-fg);
-      font-weight: 600;
-    }
-    .tb-countdown--late {
-      background: var(--app-warning-bg);
-      color: var(--app-warning-fg);
-    }
-    .tb-problems {
-      display: block;
-      padding-left: 28px;
-    }
-    .tb-hint {
-      margin-right: auto;
-      font-size: var(--app-text-xs);
-    }
   `,
 })
 export class TabulationDialog {
-  protected readonly data = inject<TabulationDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<TabulationDialog, CallView>>(MatDialogRef);
+  protected readonly data = inject<TabulationDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<CallView>>(DialogRef);
   private readonly calls = inject(CallsApi);
   private readonly cases = inject(CasesApi);
   private readonly session = inject(TelephonySession);
@@ -195,7 +167,8 @@ export class TabulationDialog {
   });
   protected readonly myCases = valueOr(this.casesList, []);
 
-  protected readonly minDate = fromLocalDate(zonedNow().date);
+  /** Hoje no fuso da operação, no formato do datepicker (o modelo dos campos é ISO `yyyy-MM-dd`). */
+  protected readonly minDate = new IsoDateAdapter().fromModel(zonedNow().date)!;
   protected readonly saving = signal(false);
   protected readonly submitted = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -206,8 +179,8 @@ export class TabulationDialog {
     tabulationId: ['', [Validators.required]],
     note: ['', [Validators.maxLength(4000)]],
     promiseAmount: [''],
-    promiseDate: this.fb.control<Date | null>(null),
-    callbackDate: this.fb.control<Date | null>(null),
+    promiseDate: this.fb.control<string | null>(null),
+    callbackDate: this.fb.control<string | null>(null),
     callbackTime: [''],
   });
   private readonly values = toSignal(this.form.valueChanges.pipe(startWith(null)), { initialValue: null });
@@ -220,7 +193,7 @@ export class TabulationDialog {
     this.values();
     const v = this.form.getRawValue();
     const out = interactionProblems(
-      { tabulation: this.tabulation(), note: v.note, promiseAmount: parseMoney(v.promiseAmount), promiseDate: toLocalDate(v.promiseDate), callbackAt: toLocalDateTime(v.callbackDate, v.callbackTime) },
+      { tabulation: this.tabulation(), note: v.note, promiseAmount: parseMoney(v.promiseAmount), promiseDate: this.date('promiseDate'), callbackAt: toLocalDateTime(fromLocalDate(this.date('callbackDate')), v.callbackTime) },
       { openBalance: this.balance() ?? Number.MAX_SAFE_INTEGER, today: zonedNow().date, promiseMaxDays: this.settings.hasValue() ? (this.settings.value()?.promiseMaxDays ?? 30) : 30 },
       zonedNow(),
     );
@@ -269,13 +242,16 @@ export class TabulationDialog {
   protected save(): void {
     this.submitted.set(true);
     const t = this.tabulation();
-    if (!t || this.problems().length || this.saving()) {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+    }
+    if (!t || this.problems().length || this.form.invalid || this.saving()) {
       return;
     }
     const v = this.form.getRawValue();
-    const callbackAt = toLocalDateTime(v.callbackDate, v.callbackTime);
+    const callbackAt = toLocalDateTime(fromLocalDate(this.date('callbackDate')), v.callbackTime);
     const amount = parseMoney(v.promiseAmount);
-    const due = toLocalDate(v.promiseDate);
+    const due = this.date('promiseDate');
     this.saving.set(true);
     this.error.set(null);
     this.calls
@@ -298,6 +274,12 @@ export class TabulationDialog {
           this.error.set((e.code && TELEPHONY_ERROR_LABELS[e.code]) || userMessage(e));
         },
       });
+  }
+
+  /** Data ISO do datepicker; texto digitado inválido (erro `ngbDate`) conta como não informado. */
+  private date(name: 'promiseDate' | 'callbackDate'): string | null {
+    const control = this.form.controls[name];
+    return control.valid ? control.value : null;
   }
 
   private reloadAfterDeadline(): void {
