@@ -1,14 +1,14 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatIconModule } from '@angular/material/icon';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../../shared/components/data-table/data-table';
-import { TONE_ICONS } from '../../../../shared/components/status-chip/status-chip';
+import { TONE_ICON } from '../../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { OriginContractsApi } from '../../data/debt.api';
 import { INSTRUMENT_TYPE_LABELS, INTERRUPTION_TYPE_LABELS, PRESCRIPTION_CLAIM_LABELS, prescriptionTone } from '../../data/debt.labels';
 import { PrescriptionClaimView, PrescriptionInterruptionView } from '../../data/debt.models';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 /**
  * Prescrição estimada do título por pretensão (cobrança e, para título executivo, execução) e as
@@ -16,17 +16,17 @@ import { PrescriptionClaimView, PrescriptionInterruptionView } from '../../data/
  */
 @Component({
   selector: 'app-title-prescription',
-  imports: [MatIconModule, DataTable, CellDef, AppDatePipe],
+  imports: [DataTable, CellDef, AppDatePipe, Icon],
   template: `
     @if (view(); as p) {
       <p class="app-muted">
         {{ p.instrumentType ? instruments[p.instrumentType] : 'Natureza do contrato não classificada' }}{{ p.executiveTitle ? ' · título executivo' : '' }}
       </p>
       @if (unvalidated()) {
-        <p class="app-alert app-alert--warning" role="note">
-          <mat-icon aria-hidden="true">gavel</mat-icon>
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+          <app-icon name="hammer" />
           <span>A regra de prescrição ainda não foi validada pelo jurídico: use as datas como referência, não como parecer.</span>
-        </p>
+        </div>
       }
     }
     <app-data-table
@@ -37,7 +37,7 @@ import { PrescriptionClaimView, PrescriptionInterruptionView } from '../../data/
       [failed]="prescription.status() === 'error'"
       (retry)="prescription.reload()"
       [rowKey]="claimKey"
-      emptyIcon="hourglass_empty"
+      emptyIcon="hourglass"
       emptyMessage="Sem regra de prescrição aplicável a este título."
     >
       <ng-template appCell="claim" [appCellOf]="claims()" let-c>
@@ -54,7 +54,7 @@ import { PrescriptionClaimView, PrescriptionInterruptionView } from '../../data/
       <ng-template appCell="situation" [appCellOf]="claims()" let-c>
         @let tone = toneOf(c);
         <span class="app-status" [class]="'app-status--' + tone"
-          ><mat-icon class="app-status__icon" aria-hidden="true">{{ icons[tone] }}</mat-icon>{{ situationText(c) }}</span
+          ><app-icon class="app-status__icon" [name]="icons[tone]" />{{ situationText(c) }}</span
         >
       </ng-template>
     </app-data-table>
@@ -85,7 +85,7 @@ export class TitlePrescription {
   protected readonly instruments = INSTRUMENT_TYPE_LABELS;
   protected readonly claimLabels = PRESCRIPTION_CLAIM_LABELS;
   protected readonly interruptionLabels = INTERRUPTION_TYPE_LABELS;
-  protected readonly icons = TONE_ICONS;
+  protected readonly icons = TONE_ICON;
 
   protected readonly prescription = rxResource({ params: () => this.titleId(), stream: ({ params }) => this.api.prescription(params) });
   protected readonly view = valueOr(this.prescription, undefined);

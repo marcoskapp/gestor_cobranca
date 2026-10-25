@@ -121,6 +121,8 @@ printf '%s' "${secrets_content}" | gc_write_file "${GC_CONF_DIR}/secrets.env" ro
 unset secrets_content value
 
 # --- 8. Ambiente não sensível ----------------------------------------------------------
+# Proxies confiáveis (sub-redes do ALB): sem eles a aplicação não sobe no perfil prod.
+[[ "${GC_TRUSTED_PROXY_CIDRS:-}" =~ ^[0-9a-fA-F:./,]+$ ]] || gc_fail "GC_TRUSTED_PROXY_CIDRS ausente ou inválido em instance.conf"
 {
   echo "SPRING_PROFILES_ACTIVE=prod"
   echo "SPRING_FLYWAY_ENABLED=false"
@@ -141,6 +143,7 @@ unset secrets_content value
   echo "LOG_DIR=${GC_LOG_DIR}"
   echo "LOG_LEVEL=${GC_LOG_LEVEL}"
   echo "CORS_ALLOWED_ORIGINS=${GC_CORS_ALLOWED_ORIGINS}"
+  echo "APP_HTTP_TRUSTED_PROXIES=${GC_TRUSTED_PROXY_CIDRS}"
   echo "SMTP_HOST=${GC_SMTP_HOST}"
   echo "SMTP_PORT=${GC_SMTP_PORT}"
   echo "JOBS_CONCURRENCY=${GC_JOBS_CONCURRENCY}"

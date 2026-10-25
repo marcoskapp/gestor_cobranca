@@ -1,10 +1,6 @@
 import { Component, OnInit, computed, inject, input } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { map, startWith } from 'rxjs';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
@@ -22,6 +18,9 @@ import { LEGAL_BASIS_LABELS, PROCESSING_ROLE_LABELS } from '../data/compliance.l
 import { LegalBasisView } from '../data/compliance.models';
 import { LegalBasisEnd } from './legal-basis-end';
 import { LegalBasisForm, LegalBasisFormData } from './legal-basis-form';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Vigência do registro na data (`yyyy-MM-dd`). */
 export function legalBasisPeriod(r: Pick<LegalBasisView, 'validFrom' | 'validUntil'>, today: string): 'CURRENT' | 'FUTURE' | 'ENDED' {
@@ -33,23 +32,11 @@ export function legalBasisPeriod(r: Pick<LegalBasisView, 'validFrom' | 'validUnt
 
 @Component({
   selector: 'app-legal-basis-list',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatIconModule,
-    MatTooltipModule,
-    DataTable,
-    CellDef,
-    EmptyState,
-    EntityPicker,
-    PageHeader,
-    StatusChip,
-    AppDatePipe,
-  ],
+  imports: [ReactiveFormsModule, DataTable, CellDef, EmptyState, EntityPicker, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip],
   template: `
     <app-page-header title="Bases legais" subtitle="Fundamento do tratamento dos dados (LGPD art. 7º) por credor e carteira, com prazo de retenção.">
-      <button mat-flat-button type="button" [disabled]="!creditorId()" (click)="register()">
-        <mat-icon aria-hidden="true">gavel</mat-icon>
+      <button class="btn btn-primary" type="button" [disabled]="!creditorId()" (click)="register()">
+        <app-icon name="hammer" />
         Registrar base legal
       </button>
     </app-page-header>
@@ -62,7 +49,7 @@ export function legalBasisPeriod(r: Pick<LegalBasisView, 'validFrom' | 'validUnt
 
     @if (!creditorId()) {
       <section class="app-card">
-        <app-empty-state icon="apartment" title="Escolha o credor." message="As bases legais são registradas por credor e, se necessário, por carteira." />
+        <app-empty-state icon="buildings" title="Escolha o credor." message="As bases legais são registradas por credor e, se necessário, por carteira." />
       </section>
     } @else {
       <app-data-table
@@ -72,7 +59,7 @@ export function legalBasisPeriod(r: Pick<LegalBasisView, 'validFrom' | 'validUnt
         [loading]="records.isLoading()"
         [failed]="records.status() === 'error'"
         (retry)="records.reload()"
-        emptyIcon="gavel"
+        emptyIcon="hammer"
         emptyMessage="Nenhuma base legal registrada para este credor."
         emptyHint="Sem base legal vigente, a retenção usa apenas a política geral da assessoria."
       >
@@ -91,8 +78,8 @@ export function legalBasisPeriod(r: Pick<LegalBasisView, 'validFrom' | 'validUnt
         <ng-template appCell="status" [appCellOf]="rows()" let-r><app-status-chip domain="legalBasis" [status]="period(r)" /></ng-template>
         <ng-template appCell="actions" [appCellOf]="rows()" let-r>
           @if (period(r) !== 'ENDED') {
-            <button mat-icon-button type="button" (click)="end(r)" aria-label="Encerrar vigência" matTooltip="Encerrar vigência">
-              <mat-icon aria-hidden="true">event_busy</mat-icon>
+            <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="end(r)" aria-label="Encerrar vigência" ngbTooltip="Encerrar vigência">
+              <app-icon name="calendar-x" />
             </button>
           }
         </ng-template>
@@ -105,7 +92,7 @@ export class LegalBasisList implements OnInit {
   readonly credor = input<string>();
 
   private readonly api = inject(LegalBasesApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   protected readonly creditorSource = inject(CreditorLookup);
 
   protected readonly basisLabels = LEGAL_BASIS_LABELS;
@@ -158,7 +145,7 @@ export class LegalBasisList implements OnInit {
     this.dialog
       .open<LegalBasisForm, LegalBasisFormData, LegalBasisView>(LegalBasisForm, {
         data: { creditorId, creditorName: this.creditors.name(creditorId) },
-        width: '720px',
+        size: 'lg',
       })
       .afterClosed()
       .subscribe((saved) => saved && this.records.reload());
@@ -166,7 +153,7 @@ export class LegalBasisList implements OnInit {
 
   protected end(r: LegalBasisView): void {
     this.dialog
-      .open<LegalBasisEnd, LegalBasisView, LegalBasisView>(LegalBasisEnd, { data: r, width: '520px' })
+      .open<LegalBasisEnd, LegalBasisView, LegalBasisView>(LegalBasisEnd, { data: r })
       .afterClosed()
       .subscribe((saved) => saved && this.records.reload());
   }

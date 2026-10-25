@@ -269,9 +269,26 @@ abstract class PortalTestSupport extends IntegrationTest {
 
     /** Código enviado ao devedor (lido da mensagem do communication, como o devedor o receberia). */
     String sentCode(UUID challengeId) {
-        UUID messageId = system(() -> jdbcTemplate.queryForObject(
-                "select message_id from portal.access_challenge where id = ?", UUID.class, challengeId));
-        String content = asAdmin(() -> messages.get(messageId)).content();
+        // o envio é assíncrono (fora da requisição): aguarda a mensagem ser registrada
+        long deadline = System.currentTimeMillis() + 15_000;
+        UUID messageId = null;
+        while (messageId == null && System.currentTimeMillis() < deadline) {
+            messageId = system(() -> jdbcTemplate.queryForObject(
+                    "select message_id from portal.access_challenge where id = ?", UUID.class, challengeId));
+            if (messageId == null) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        if (messageId == null) {
+            fail("código não enviado para o desafio " + challengeId);
+        }
+        UUID sentMessage = messageId;
+        String content = asAdmin(() -> messages.get(sentMessage)).content();
         Matcher m = CODE.matcher(content);
         if (!m.find()) {
             fail("mensagem sem código: " + content);

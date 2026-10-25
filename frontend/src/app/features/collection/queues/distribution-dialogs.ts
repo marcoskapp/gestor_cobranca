@@ -1,11 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
@@ -18,6 +13,10 @@ import { CaseWorkApi, QueuesApi } from '../data/collection.api';
 import { STRATEGY_LABELS } from '../data/collection.labels';
 import { UserNames } from '../data/collection.lookups';
 import { DistributionResult, QueueView } from '../data/collection.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 
 export function distributionText(result: DistributionResult): string {
   const base = result.assigned === 1 ? '1 caso distribuído' : `${result.assigned} casos distribuídos`;
@@ -27,10 +26,13 @@ export function distributionText(result: DistributionResult): string {
 /** Situação da fila (disponíveis, aguardando, carga por operador) e distribuição em lote. */
 @Component({
   selector: 'app-distribute-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, Skeleton],
+  imports: [ReactiveFormsModule, Skeleton, Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
   template: `
-    <h2 mat-dialog-title>Distribuir: {{ data.name }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Distribuir: {{ data.name }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       @if (summary(); as s) {
         <dl class="app-definition-list">
           <dt>Disponíveis agora</dt>
@@ -54,20 +56,18 @@ export function distributionText(result: DistributionResult): string {
         <app-skeleton variant="lines" [rows]="4" />
       }
       <form [formGroup]="form" (ngSubmit)="run()" id="distribute-form" novalidate>
-        <mat-form-field class="app-full-width">
-          <mat-label>Quantidade máxima nesta execução</mat-label>
-          <input matInput type="number" min="1" max="1000" formControlName="limit" required />
-          <mat-hint>1 a 1.000 casos. Respeita escopo de credores e capacidade de cada operador.</mat-hint>
-        </mat-form-field>
+        <app-field class="app-full-width mb-3" label="Quantidade máxima nesta execução" hint="1 a 1.000 casos. Respeita escopo de credores e capacidade de cada operador.">
+          <input appInput type="number" min="1" max="1000" formControlName="limit" required />
+        </app-field>
       </form>
       @if (result(); as r) {
-        <p class="app-alert app-alert--success" role="status"><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ text(r) }}</span></p>
+        <div class="alert alert-success d-flex gap-2 align-items-start" role="status"><app-icon name="check-circle" /><span>{{ text(r) }}</span></div>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="result()">Fechar</button>
-      <button mat-flat-button type="submit" form="distribute-form" [disabled]="running() || !(summary()?.available)">Distribuir</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" [appDialogClose]="result()">Fechar</button>
+      <button class="btn btn-primary" type="submit" form="distribute-form" [disabled]="running() || !(summary()?.available)">Distribuir</button>
+    </div>
   `,
   styles: `
     .dd-loads {
@@ -85,7 +85,7 @@ export function distributionText(result: DistributionResult): string {
   `,
 })
 export class DistributeDialog {
-  protected readonly data = inject<QueueView>(MAT_DIALOG_DATA);
+  protected readonly data = inject<QueueView>(DIALOG_DATA);
   private readonly queuesApi = inject(QueuesApi);
   private readonly workApi = inject(CaseWorkApi);
   private readonly notifications = inject(NotificationService);
@@ -123,11 +123,15 @@ export class DistributeDialog {
 /** Redistribui os casos ativos de um operador (ausência, desligamento) por menor carga, ou devolve às filas. */
 @Component({
   selector: 'app-redistribute-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, EntityPicker],
+  imports: [ReactiveFormsModule, EntityPicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>Redistribuir casos de um operador</h2>
-    <form [formGroup]="form" (ngSubmit)="run()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Redistribuir casos de um operador</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="run()" novalidate>
+      <div class="modal-body">
         <app-entity-picker [control]="form.controls.from" [source]="users" label="Operador de origem" [single]="true" />
         @if (form.controls.from.touched && form.controls.from.invalid) {
           <p class="app-field-error" role="alert">Escolha o operador de origem.</p>
@@ -136,20 +140,19 @@ export class DistributeDialog {
         @if (sameUser()) {
           <p class="app-field-error" role="alert">O operador de origem não pode estar entre os destinos.</p>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Motivo (opcional)</mat-label>
-          <textarea matInput formControlName="reason" rows="2" [maxlength]="maxReason"></textarea>
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="running()">Redistribuir</button>
-      </mat-dialog-actions>
+        <app-field class="app-full-width mb-3" label="Motivo (opcional)">
+          <textarea appInput formControlName="reason" rows="2" [maxlength]="maxReason"></textarea>
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="running()">Redistribuir</button>
+      </div>
     </form>
   `,
 })
 export class RedistributeDialog {
-  private readonly ref = inject<MatDialogRef<RedistributeDialog, DistributionResult>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<DistributionResult>>(DialogRef);
   private readonly api = inject(CaseWorkApi);
   private readonly notifications = inject(NotificationService);
   protected readonly users = inject(UserLookup);

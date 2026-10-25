@@ -1,17 +1,14 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { finalize, of } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ImportReviewsApi } from '../data/ingestion.api';
 import { BreakdownRow, MeasureView, ReviewView, TotalsCheckView, TotalsMeasure, TotalsRequest } from '../data/ingestion.models';
 import { BREAKDOWN_LABELS, DIMENSION_LABELS, MEASURE_LABELS, REVIEW_ERROR_LABELS, parseBrazilianAmount, parseCount, scaleText } from '../data/review.rules';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 
 type Field = 'rows' | 'principal' | 'balance' | 'contract';
 const FIELD_MEASURE: Record<Field, TotalsMeasure> = { rows: 'ROWS', principal: 'PRINCIPAL', balance: 'BALANCE', contract: 'CONTRACT_AMOUNT' };
@@ -39,7 +36,7 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
  */
 @Component({
   selector: 'app-totals-step',
-  imports: [ReactiveFormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, Amount],
+  imports: [...FORM_FIELD, Icon, ReactiveFormsModule, Amount],
   template: `
     @if (review().batch.status !== 'VALIDATED') {
       <p class="app-muted" role="status">Os totais ficam disponíveis quando a validação das linhas terminar.</p>
@@ -53,21 +50,22 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
           @for (f of fields; track f.key) {
             @let group = form.controls[f.key];
             <div class="ts-field" [formGroup]="group">
-              <mat-checkbox formControlName="use">{{ f.label }}</mat-checkbox>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" [id]="'totals-use-' + f.key" formControlName="use" />
+                <label class="form-check-label" [for]="'totals-use-' + f.key">{{ f.label }}</label>
+              </div>
               @if (group.controls.use.value) {
-                <mat-form-field class="ts-input" subscriptSizing="dynamic">
-                  <mat-label>{{ f.key === 'rows' ? 'Linhas na planilha' : 'Total na planilha (R$)' }}</mat-label>
-                  <input matInput [formControl]="group.controls.value" [attr.inputmode]="f.key === 'rows' ? 'numeric' : 'decimal'" autocomplete="off" [placeholder]="f.key === 'rows' ? '1.250' : '1.234.567,89'" />
-                  <mat-hint>{{ preview(f.key) }}</mat-hint>
-                </mat-form-field>
+                <app-field class="ts-input" [label]="f.key === 'rows' ? 'Linhas na planilha' : 'Total na planilha (R$)'" [hint]="preview(f.key)">
+                  <input appInput [formControl]="group.controls.value" [attr.inputmode]="f.key === 'rows' ? 'numeric' : 'decimal'" autocomplete="off" [placeholder]="f.key === 'rows' ? '1.250' : '1.234.567,89'" />
+                </app-field>
               }
             </div>
           }
           @if (error()) {
-            <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+            <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
           }
           <div class="ts-actions">
-            <button mat-flat-button type="submit" [disabled]="saving() || !request()"><mat-icon aria-hidden="true">fact_check</mat-icon>Conferir</button>
+            <button class="btn btn-primary" type="submit" [disabled]="saving() || !request()"><app-icon name="card-checklist" /> Conferir</button>
           </div>
         </form>
       }
@@ -75,14 +73,14 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
         <section class="app-card ts-result" aria-labelledby="ts-result" aria-live="polite">
           <h3 class="ts-title" id="ts-result">
             @if (r.matched) {
-              <span class="app-status app-status--success"><mat-icon aria-hidden="true">task_alt</mat-icon>Os totais conferem</span>
+              <span class="app-status app-status--success"><app-icon name="check2-circle" /> Os totais conferem</span>
             } @else {
-              <span class="app-status app-status--danger"><mat-icon aria-hidden="true">error</mat-icon>Os totais não conferem: a importação fica bloqueada</span>
+              <span class="app-status app-status--danger"><app-icon name="exclamation-circle" /> Os totais não conferem: a importação fica bloqueada</span>
             }
           </h3>
           <div class="ts-table-wrap">
             <table class="ts-table">
-              <caption class="cdk-visually-hidden">Totais informados e calculados</caption>
+              <caption class="visually-hidden">Totais informados e calculados</caption>
               <thead>
                 <tr><th scope="col">Total</th><th scope="col" class="num">Sua planilha</th><th scope="col" class="num">Arquivo convertido</th><th scope="col" class="num">Diferença</th><th scope="col">Situação</th></tr>
               </thead>
@@ -95,9 +93,9 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
                     <td class="num">{{ value(m, m.difference, true) }}</td>
                     <td>
                       @if (m.matches) {
-                        <span class="app-status app-status--success"><mat-icon aria-hidden="true">check</mat-icon>Confere</span>
+                        <span class="app-status app-status--success"><app-icon name="check-lg" /> Confere</span>
                       } @else {
-                        <span class="app-status app-status--danger"><mat-icon aria-hidden="true">close</mat-icon>Diverge</span>
+                        <span class="app-status app-status--danger"><app-icon name="x-lg" /> Diverge</span>
                         @if (m.scaleExponent !== null) {
                           <div class="ts-note">{{ scale(m.scaleExponent) }}</div>
                         }
@@ -110,14 +108,14 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
           </div>
           @for (h of r.hints; track h.code + h.measure) {
             @if (h.code !== 'MATCHED') {
-              <p class="app-alert" [class.app-alert--danger]="h.code === 'SCALE'" [class.app-alert--warning]="h.code !== 'SCALE'" [attr.role]="h.code === 'SCALE' ? 'alert' : 'note'">
-                <mat-icon aria-hidden="true">{{ h.code === 'SCALE' ? 'warning' : h.code === 'ALTERNATIVE_MATCH' ? 'swap_horiz' : 'info' }}</mat-icon>
+              <div class="alert d-flex align-items-start gap-2" [class.alert-danger]="h.code === 'SCALE'" [class.alert-warning]="h.code !== 'SCALE'" [attr.role]="h.code === 'SCALE' ? 'alert' : 'note'">
+                <app-icon [name]="h.code === 'SCALE' ? 'exclamation-triangle' : h.code === 'ALTERNATIVE_MATCH' ? 'arrow-left-right' : 'info-circle'" />
                 <span>{{ h.message }}</span>
-              </p>
+              </div>
             }
           }
           @if (needsFormat(r)) {
-            <button mat-stroked-button type="button" (click)="goTo.emit(2)"><mat-icon aria-hidden="true">arrow_back</mat-icon>Rever o formato dos valores</button>
+            <button class="btn btn-outline-primary" type="button" (click)="goTo.emit(2)"><app-icon name="arrow-left" /> Rever o formato dos valores</button>
           }
           @if (!r.matched && r.suspectRows.length) {
             <h4 class="ts-sub">Linhas para conferir primeiro</h4>
@@ -218,12 +216,12 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
     .ts-table td {
       padding: 4px 8px;
       text-align: left;
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: 1px solid var(--bs-border-color);
       vertical-align: top;
     }
     .ts-table thead th {
       font-weight: 600;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .ts-table .num {
       text-align: right;
@@ -232,7 +230,7 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
     }
     .ts-note {
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .ts-rows {
       display: grid;

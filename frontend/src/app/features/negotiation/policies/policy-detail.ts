@@ -1,13 +1,8 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -15,15 +10,18 @@ import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs'
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
-import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { zonedNow, addDays } from '../../collection/data/collection.rules';
+import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { IndexesApi, PoliciesApi } from '../data/negotiation.api';
 import { OVERRIDE_GROUP_LABELS, overrideScope } from '../data/negotiation.labels';
 import { PolicyOverride, PolicyRules, PolicyTerms, PolicyView } from '../data/negotiation.models';
@@ -38,7 +36,7 @@ import { RulesEditor } from './rules-editor';
  */
 @Component({
   selector: 'app-policy-detail',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatTooltipModule, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, RulesEditor],
+  imports: [Icon, NgbTooltip, ...FORM_FIELD, FormsModule, RouterLink, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, RulesEditor],
   templateUrl: './policy-detail.html',
   styleUrl: './policy-detail.scss',
 })
@@ -48,7 +46,7 @@ export class PolicyDetail {
   private readonly api = inject(PoliciesApi);
   private readonly indexesApi = inject(IndexesApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
@@ -161,7 +159,6 @@ export class PolicyDetail {
     this.dialog
       .open<OverrideDialog, OverrideDialogData, PolicyOverride>(OverrideDialog, {
         data: { creditorId: p.creditorId, base: d.base, override: index === null ? null : d.overrides[index] },
-        width: '600px',
       })
       .afterClosed()
       .subscribe((o) => {
@@ -256,7 +253,6 @@ export class PolicyDetail {
           ],
           warning: 'A publicação não pode ser retroativa.',
         },
-        width: '520px',
       })
       .afterClosed()
       .subscribe((date) => {
@@ -291,7 +287,6 @@ export class PolicyDetail {
           ],
           warning: 'Ontem = retirada imediata.',
         },
-        width: '520px',
       })
       .afterClosed()
       .subscribe((date) => {

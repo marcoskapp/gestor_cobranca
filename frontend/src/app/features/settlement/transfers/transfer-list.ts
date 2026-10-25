@@ -1,10 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -29,6 +25,9 @@ import { TransfersApi } from '../data/settlement.api';
 import { BalanceView, StatementBalance, TransferView } from '../data/settlement.models';
 import { periodText } from '../data/settlement.rules';
 import { TransferDialog, TransferDialogData } from './transfer-dialog';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /**
  * Saldo a repassar (e a receber) por credor, com os demonstrativos aprovados em aberto, e os
@@ -36,7 +35,7 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
  */
 @Component({
   selector: 'app-transfer-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip],
+  imports: [NgbTooltip, Icon, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip],
   template: `
     <app-page-header title="Repasses ao credor" subtitle="Saldo dos demonstrativos aprovados e repasses registrados com o comprovante bancário." />
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar repasses">
@@ -50,7 +49,7 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
       @if (balanceList.isLoading() && !balances().length) {
         <app-skeleton variant="card" [rows]="3" />
       } @else if (!balances().length) {
-        <app-empty-state icon="account_balance" title="Nenhum saldo em aberto." message="Demonstrativos aprovados aparecem aqui até o repasse zerar o saldo." [compact]="true" />
+        <app-empty-state icon="bank" title="Nenhum saldo em aberto." message="Demonstrativos aprovados aparecem aqui até o repasse zerar o saldo." [compact]="true" />
       } @else {
         <div class="tl-cards">
           @for (b of balances(); track b.creditorId) {
@@ -66,7 +65,7 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
                     <a [routerLink]="['/prestacao-de-contas/demonstrativos', s.statementId]">nº {{ s.sequenceNumber }} · {{ period(s) }}</a>
                     <span class="app-numeric">{{ s.outstanding > 0 ? 'repassar' : 'receber' }} <app-amount [value]="abs(s.outstanding)" /></span>
                     @if (canTransfer()) {
-                      <button mat-stroked-button type="button" (click)="register(b, s)">{{ s.outstanding > 0 ? 'Repassar' : 'Receber' }}</button>
+                      <button class="btn btn-outline-primary" type="button" (click)="register(b, s)">{{ s.outstanding > 0 ? 'Repassar' : 'Receber' }}</button>
                     }
                   </li>
                 }
@@ -87,7 +86,7 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="account_balance"
+      emptyIcon="bank"
       emptyMessage="Nenhum repasse registrado."
     >
       <ng-template appCell="date" [appCellOf]="query.rows()" let-t>{{ t.transferredOn | appDate: 'date' }}</ng-template>
@@ -111,10 +110,10 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-t>
         @if (t.evidenceName) {
-          <button mat-icon-button type="button" (click)="evidence(t)" aria-label="Baixar comprovante" matTooltip="Baixar comprovante"><mat-icon aria-hidden="true">attach_file</mat-icon></button>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="evidence(t)" aria-label="Baixar comprovante" ngbTooltip="Baixar comprovante"><app-icon name="paperclip" /></button>
         }
         @if (canTransfer() && t.status === 'REGISTERED') {
-          <button mat-icon-button type="button" (click)="cancel(t)" aria-label="Cancelar repasse" matTooltip="Cancelar repasse"><mat-icon aria-hidden="true">block</mat-icon></button>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="cancel(t)" aria-label="Cancelar repasse" ngbTooltip="Cancelar repasse"><app-icon name="slash-circle" /></button>
         }
       </ng-template>
     </app-data-table>
@@ -140,7 +139,7 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
     }
     .tl-label {
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .tl-value {
       font-size: var(--app-text-lg);
@@ -168,7 +167,7 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
 export class TransferList {
   private readonly api = inject(TransfersApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -209,7 +208,7 @@ export class TransferList {
 
   protected register(b: BalanceView, s: StatementBalance): void {
     this.dialog
-      .open<TransferDialog, TransferDialogData, TransferView>(TransferDialog, { data: { creditorName: this.creditors.name(b.creditorId), statement: s }, width: '600px', maxWidth: '96vw' })
+      .open<TransferDialog, TransferDialogData, TransferView>(TransferDialog, { data: { creditorName: this.creditors.name(b.creditorId), statement: s } })
       .afterClosed()
       .subscribe((t) => {
         if (t) {

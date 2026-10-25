@@ -1,15 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { sizeText } from '../../ingestion/data/ingestion.labels';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
@@ -26,28 +25,30 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
  */
 @Component({
   selector: 'app-statement-upload-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, Amount, AppDatePipe, EntityPicker],
+  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, Amount, AppDatePipe, EntityPicker],
   template: `
-    <h2 mat-dialog-title>Importar extrato</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0" tabindex="-1" ngbAutofocus>Importar extrato</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       <p class="app-dialog-message">CSV genérico com separador ponto e vírgula: <code>data;valor;tipo;id_transacao;referencia;descricao</code>. Importar de novo um período não gera baixa em dobro.</p>
       <div class="su-row">
         <div class="su-grow">
           <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor (opcional)" [single]="true" hint="Vazio = conta da assessoria (todos os credores)." />
         </div>
-        <mat-form-field class="su-format">
-          <mat-label>Formato</mat-label>
-          <mat-select [formControl]="form.controls.format">
-            <mat-option value="CSV_GENERIC">CSV genérico</mat-option>
-            <mat-option value="CNAB_240" disabled>CNAB 240 (em breve)</mat-option>
-            <mat-option value="CNAB_400" disabled>CNAB 400 (em breve)</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <app-field class="su-format" label="Formato">
+          <select appInput [formControl]="form.controls.format">
+            <option value="CSV_GENERIC">CSV genérico</option>
+            <option value="CNAB_240" disabled>CNAB 240 (em breve)</option>
+            <option value="CNAB_400" disabled>CNAB 400 (em breve)</option>
+          </select>
+        </app-field>
       </div>
       <div class="su-file">
         <input #input type="file" [accept]="accept" (change)="pick(input.files); input.value = ''" hidden />
-        <button mat-stroked-button type="button" (click)="input.click()">
-          <mat-icon aria-hidden="true">upload_file</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="input.click()">
+          <app-icon name="file-earmark-arrow-up" />
           Escolher arquivo
         </button>
         @if (file(); as f) {
@@ -57,7 +58,7 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
         }
       </div>
       @if (error()) {
-        <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+        <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
       }
 
       @if (preview(); as p) {
@@ -78,8 +79,8 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
             </p>
           }
           @if (p.issues.length) {
-            <div class="app-alert app-alert--error" role="alert">
-              <mat-icon aria-hidden="true">error_outline</mat-icon>
+            <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
+              <app-icon name="exclamation-circle" />
               <div>
                 <strong>Corrija o arquivo antes de enviar: o servidor recusa o extrato inteiro na primeira linha inválida.</strong>
                 <ul class="su-issues">
@@ -122,11 +123,11 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
           }
         </section>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Cancelar</button>
-      <button mat-flat-button type="button" (click)="send()" [disabled]="sending() || !file() || !preview()?.ok">Importar extrato</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+      <button class="btn btn-primary" type="button" (click)="send()" [disabled]="sending() || !file() || !preview()?.ok">Importar extrato</button>
+    </div>
   `,
   styles: `
     .su-row {
@@ -158,15 +159,15 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
       display: flex;
       flex-direction: column;
       padding: 8px 10px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
     }
     .su-kpi__label {
       font-size: var(--app-text-xs);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .su-kpi__value {
       font-size: var(--app-text-lg);
@@ -189,7 +190,7 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
       th,
       td {
         padding: 4px 8px;
-        border-bottom: 1px solid var(--app-border);
+        border-bottom: 1px solid var(--bs-border-color);
         text-align: left;
         white-space: nowrap;
       }
@@ -200,7 +201,7 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
   `,
 })
 export class StatementUploadDialog {
-  private readonly ref = inject<MatDialogRef<StatementUploadDialog, StatementImportView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<StatementImportView>>(DialogRef);
   private readonly api = inject(ReconciliationApi);
   private readonly notifications = inject(NotificationService);
   protected readonly creditors = inject(CreditorLookup);

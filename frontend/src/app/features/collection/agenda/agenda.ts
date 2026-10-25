@@ -1,15 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -24,7 +15,6 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { TasksApi } from '../data/collection.api';
@@ -32,12 +22,16 @@ import { TASK_TYPE_LABELS } from '../data/collection.labels';
 import { AgendaFilter, TaskView } from '../data/collection.models';
 import { addDays, formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from '../station/schedule-dialog';
+import { NgbTooltip, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 export type AgendaPeriod = 'today' | 'week' | 'late' | 'custom';
 
 /** Filtro da agenda a partir do período rápido (limite do servidor: 92 dias). */
 export function agendaFilter(
-  v: { period: AgendaPeriod; from: Date | null; to: Date | null; status: string; user: string[] },
+  v: { period: AgendaPeriod; from: string | null; to: string | null; status: string; user: string[] },
   today: string,
 ): AgendaFilter {
   const userId = v.user[0] ?? null;
@@ -49,70 +43,63 @@ export function agendaFilter(
     case 'late':
       return { userId, from: addDays(today, -30), to: today, status: 'MISSED' };
     default:
-      return { userId, from: toLocalDate(v.from) ?? today, to: toLocalDate(v.to) ?? toLocalDate(v.from) ?? today, status: v.status || null };
+      return { userId, from: v.from || today, to: v.to || v.from || today, status: v.status || null };
   }
 }
 
 /** Agenda de retornos do operador (ou de outro operador, com `CASE_ASSIGN`), no horário de Brasília. */
 @Component({
   selector: 'app-agenda',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
-    DataTable,
-    CellDef,
-    EntityPicker,
-    PageHeader,
-    StatusChip,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, Icon, NgbTooltip, NgbInputDatepicker, ...FORM_FIELD],
   template: `
     <app-page-header title="Agenda de retornos" subtitle="Retornos e acompanhamentos combinados, no horário de Brasília. Retorno atrasado continua com você e volta como próxima ação.">
-      <a mat-flat-button routerLink="/cobranca/fila">
-        <mat-icon aria-hidden="true">support_agent</mat-icon>
+      <a class="btn btn-primary" routerLink="/cobranca/fila">
+        <app-icon name="headset" />
         Estação de cobrança
       </a>
     </app-page-header>
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar agenda">
-      <mat-button-toggle-group formControlName="period" aria-label="Período" class="ag-period">
-        <mat-button-toggle value="today">Hoje</mat-button-toggle>
-        <mat-button-toggle value="week">7 dias</mat-button-toggle>
-        <mat-button-toggle value="late">Atrasados</mat-button-toggle>
-        <mat-button-toggle value="custom">Período</mat-button-toggle>
-      </mat-button-toggle-group>
+      <div class="ag-period">
+        <span class="form-label d-block" id="ag-period-label">Período</span>
+        <div class="btn-group" role="group" aria-labelledby="ag-period-label">
+          <input type="radio" class="btn-check" id="agenda-period-today" value="today" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-today">Hoje</label>
+          <input type="radio" class="btn-check" id="agenda-period-week" value="week" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-week">7 dias</label>
+          <input type="radio" class="btn-check" id="agenda-period-late" value="late" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-late">Atrasados</label>
+          <input type="radio" class="btn-check" id="agenda-period-custom" value="custom" formControlName="period" />
+          <label class="btn btn-outline-primary" for="agenda-period-custom">Período</label>
+        </div>
+      </div>
       @if (period() === 'custom') {
-        <mat-form-field class="app-compact">
-          <mat-label>De</mat-label>
-          <input matInput [matDatepicker]="fromPicker" formControlName="from" />
-          <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
-          <mat-datepicker #fromPicker />
-        </mat-form-field>
-        <mat-form-field class="app-compact">
-          <mat-label>Até</mat-label>
-          <input matInput [matDatepicker]="toPicker" formControlName="to" />
-          <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
-          <mat-datepicker #toPicker />
-          <mat-hint>Até 92 dias</mat-hint>
-        </mat-form-field>
+        <app-field label="De">
+          <div class="input-group">
+            <input appInput ngbDatepicker #fromPicker="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="from" />
+            <button type="button" class="btn btn-outline-secondary" (click)="fromPicker.toggle()" aria-label="Abrir calendário">
+              <app-icon name="calendar-event" />
+            </button>
+          </div>
+        </app-field>
+        <app-field label="Até" hint="Até 92 dias">
+          <div class="input-group">
+            <input appInput ngbDatepicker #toPicker="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="to" />
+            <button type="button" class="btn btn-outline-secondary" (click)="toPicker.toggle()" aria-label="Abrir calendário">
+              <app-icon name="calendar-event" />
+            </button>
+          </div>
+        </app-field>
       }
       @if (period() !== 'late') {
-        <mat-form-field class="app-compact">
-          <mat-label>Situação</mat-label>
-          <mat-select formControlName="status">
-            <mat-option value="">Em aberto</mat-option>
-            <mat-option value="MISSED">Atrasados</mat-option>
-            <mat-option value="DONE">Concluídos</mat-option>
-            <mat-option value="CANCELLED">Cancelados</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <app-field label="Situação">
+          <select appInput formControlName="status">
+            <option value="">Em aberto</option>
+            <option value="MISSED">Atrasados</option>
+            <option value="DONE">Concluídos</option>
+            <option value="CANCELLED">Cancelados</option>
+          </select>
+        </app-field>
       }
       @if (canSeeOthers()) {
         <div class="app-filters__wide">
@@ -130,7 +117,7 @@ export function agendaFilter(
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="event_available"
+      emptyIcon="calendar-check"
       emptyMessage="Nenhum retorno neste período."
       emptyHint="Retornos são agendados ao registrar uma interação com tabulação de retorno ou pelo botão Agendar retorno."
     >
@@ -155,36 +142,33 @@ export function agendaFilter(
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-t>
         @if (canManage() && (t.status === 'PENDING' || t.status === 'MISSED')) {
-          <button mat-icon-button type="button" (click)="complete(t)" aria-label="Concluir" matTooltip="Concluir">
-            <mat-icon aria-hidden="true">check</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="complete(t)" aria-label="Concluir" ngbTooltip="Concluir">
+            <app-icon name="check-lg" />
           </button>
-          <button mat-icon-button type="button" (click)="reschedule(t)" aria-label="Reagendar" matTooltip="Reagendar">
-            <mat-icon aria-hidden="true">update</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="reschedule(t)" aria-label="Reagendar" ngbTooltip="Reagendar">
+            <app-icon name="arrow-clockwise" />
           </button>
-          <button mat-icon-button type="button" (click)="cancel(t)" aria-label="Cancelar" matTooltip="Cancelar">
-            <mat-icon aria-hidden="true">event_busy</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="cancel(t)" aria-label="Cancelar" ngbTooltip="Cancelar">
+            <app-icon name="calendar-x" />
           </button>
         }
-        <a mat-icon-button [routerLink]="['/cobranca/casos', t.caseId]" aria-label="Abrir caso" matTooltip="Abrir caso">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/cobranca/casos', t.caseId]" aria-label="Abrir caso" ngbTooltip="Abrir caso">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
   `,
   styles: `
-    .ag-period {
-      align-self: center;
-    }
     .ag-late {
-      font-weight: 600;
-      color: var(--app-danger-fg);
+      font-weight: 500;
+      color: var(--bs-danger-text-emphasis);
     }
   `,
 })
 export class AgendaPage {
   private readonly api = inject(TasksApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly users = inject(UserLookup);
@@ -198,8 +182,9 @@ export class AgendaPage {
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly filters = this.fb.group({
     period: this.fb.control<AgendaPeriod>('today'),
-    from: this.fb.control<Date | null>(fromLocalDate(this.today)),
-    to: this.fb.control<Date | null>(fromLocalDate(addDays(this.today, 6))),
+    /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+    from: this.fb.control<string | null>(this.today),
+    to: this.fb.control<string | null>(addDays(this.today, 6)),
     status: [''],
     user: this.fb.control<string[]>([]),
   });
@@ -243,7 +228,7 @@ export class AgendaPage {
 
   protected reschedule(task: TaskView): void {
     this.dialog
-      .open<ScheduleDialog, ScheduleDialogData, TaskView>(ScheduleDialog, { data: { caseId: task.caseId, task }, width: '480px' })
+      .open<ScheduleDialog, ScheduleDialogData, TaskView>(ScheduleDialog, { data: { caseId: task.caseId, task } })
       .afterClosed()
       .subscribe((saved) => saved && this.query.reload());
   }

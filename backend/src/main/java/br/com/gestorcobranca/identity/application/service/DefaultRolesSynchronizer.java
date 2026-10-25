@@ -3,6 +3,8 @@ package br.com.gestorcobranca.identity.application.service;
 import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
 import br.com.gestorcobranca.identity.domain.model.Role;
 import br.com.gestorcobranca.identity.domain.repository.RoleRepository;
+import br.com.gestorcobranca.organization.application.port.in.TenantAdministration;
+import br.com.gestorcobranca.organization.application.port.in.TenantView;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.security.Permission;
@@ -34,7 +36,8 @@ import java.util.stream.Collectors;
  *   <li>nunca remove permissões nem altera perfis criados pela assessoria.</li>
  * </ul>
  * Roda logo após a subida e periodicamente, com ShedLock (uma instância por vez). O tenant da
- * plataforma (perfil {@code PLATFORM_ADMIN}) não recebe perfis de assessoria.
+ * plataforma (atributo {@code platform} do tenant — nunca o código de um perfil, que uma assessoria
+ * poderia imitar) não recebe perfis de assessoria.
  */
 @Component
 public class DefaultRolesSynchronizer {
@@ -43,14 +46,17 @@ public class DefaultRolesSynchronizer {
 
     private final TenantDirectory tenantDirectory;
     private final TenantExecution tenantExecution;
+    private final TenantAdministration tenantAdministration;
     private final RoleRepository roles;
     private final AuditTrail auditTrail;
     private final MeterRegistry meterRegistry;
 
-    DefaultRolesSynchronizer(TenantDirectory tenantDirectory, TenantExecution tenantExecution, RoleRepository roles,
-                             AuditTrail auditTrail, MeterRegistry meterRegistry) {
+    DefaultRolesSynchronizer(TenantDirectory tenantDirectory, TenantExecution tenantExecution,
+                             TenantAdministration tenantAdministration, RoleRepository roles, AuditTrail auditTrail,
+                             MeterRegistry meterRegistry) {
         this.tenantDirectory = tenantDirectory;
         this.tenantExecution = tenantExecution;
+        this.tenantAdministration = tenantAdministration;
         this.roles = roles;
         this.auditTrail = auditTrail;
         this.meterRegistry = meterRegistry;
@@ -78,11 +84,12 @@ public class DefaultRolesSynchronizer {
     /** @return resultado da sincronização da assessoria (vazio para o tenant da plataforma) */
     public SyncResult syncTenant(UUID tenantId) {
         return tenantExecution.callInTenant(tenantId, "identity.default_roles_sync", () -> {
-            Map<String, Role> existing = roles.findAll().stream()
-                    .collect(Collectors.toMap(Role::getCode, Function.identity()));
-            if (existing.containsKey(DefaultRoles.PLATFORM_ADMIN)) {
+            boolean platform = tenantAdministration.findById(tenantId).map(TenantView::platform).orElse(false);
+            if (platform) {
                 return SyncResult.EMPTY;
             }
+            Map<String, Role> existing = roles.findAll().stream()
+                    .collect(Collectors.toMap(Role::getCode, Function.identity()));
             List<String> created = new ArrayList<>();
             List<String> updated = new ArrayList<>();
             for (DefaultRoles.Definition definition : DefaultRoles.forTenant()) {

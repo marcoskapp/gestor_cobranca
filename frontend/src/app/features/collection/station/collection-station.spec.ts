@@ -5,6 +5,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { provideLocale } from '../../../core/config/locale.config';
 import { KeyboardShortcuts } from '../../../core/keyboard/keyboard-shortcuts.service';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -13,6 +14,7 @@ import { ThemeService } from '../../../core/preferences/theme.service';
 import { DEFAULT_UI_STATE, UiState } from '../../../core/preferences/ui-state.models';
 import { UiStateStore } from '../../../core/preferences/ui-state.store';
 import { CaseSheet, CaseView, ContactAvailability, TabulationView } from '../data/collection.models';
+import { addDays, zonedNow } from '../data/collection.rules';
 import { CollectionStation } from './collection-station';
 import { DENSITY_INVITE_ID } from './density-invite';
 import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
@@ -117,6 +119,7 @@ describe('CollectionStation', () => {
       providers: [
         ...LEGACY_DIALOG_LAUNCHERS,
         provideLocale(),
+        provideBootstrapDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -212,6 +215,11 @@ describe('CollectionStation', () => {
     press('3');
     fixture.detectChanges();
     expect(fixture.componentInstance['tab']()).toBe(2);
+    // aba ativa da ficha (ngbNav) acompanha o atalho e mostra o conteúdo do histórico
+    const active = (fixture.nativeElement as HTMLElement).querySelector('[data-tour="case-tabs"] .nav-link.active');
+    expect(active?.textContent).toContain('Histórico');
+    expect(active?.getAttribute('aria-selected')).toBe('true');
+    expect(text(fixture)).toContain('Nenhuma interação registrada.');
     fixture.destroy();
     expect(keys.shortcuts().some((s) => s.group === 'Estação de cobrança')).toBe(false);
   });
@@ -263,6 +271,25 @@ describe('CollectionStation', () => {
     expect(req.request.body.startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     req.flush({ interaction: {}, duplicate: false, promise: null, callback: null, collectionCase: caseView() });
     expect(notifications.success).toHaveBeenCalledWith('Interação registrada.');
+    respond(sheet());
+  });
+
+  it('promessa: valor e data (LocalDate ISO do calendário) vão na interação', async () => {
+    const fixture = await render('k-1');
+    const panel = fixture.debugElement.query((d) => d.name === 'app-interaction-panel').componentInstance as {
+      form: { patchValue(v: object): void };
+    };
+    panel.form.patchValue({ tabulationId: 'tb-2' });
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-interaction-panel input[placeholder="dd/mm/aaaa"]')).not.toBeNull();
+    const due = addDays(zonedNow().date, 3);
+    panel.form.patchValue({ promiseAmount: 300, promiseDate: due });
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('app-interaction-panel button[type="submit"]')!.click();
+    const req = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/collection/cases/k-1/interactions');
+    expect(req.request.body).toMatchObject({ tabulationId: 'tb-2', promise: { amount: 300, dueDate: due } });
+    req.flush({ interaction: {}, duplicate: false, promise: { amount: 300 }, callback: null, collectionCase: caseView() });
     respond(sheet());
   });
 

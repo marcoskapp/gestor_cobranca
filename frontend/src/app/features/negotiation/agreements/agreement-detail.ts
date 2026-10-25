@@ -1,9 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -13,6 +11,7 @@ import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { DocumentDisplay } from '../../../shared/components/document-display/document-display';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -44,7 +43,7 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-agreement-detail',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe],
+  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe],
   templateUrl: './agreement-detail.html',
   styleUrl: '../detail-page.scss',
 })

@@ -34,6 +34,20 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 
 locals {
   log_group_arns = [for arn in values(var.log_group_arns) : "${arn}:*"]
+
+  # Segredos separados por finalidade (revisão de segurança A6):
+  #   app/*        lidos pelas instâncias em execução (runtime);
+  #   migration/*  senha do dono do schema (app_owner): NUNCA legível pelo runtime. Só durante a
+  #                janela de migração (política temporária criada por scripts/deploy/migrate.sh,
+  #                restrita à instância escolhida e com prazo) ou com db_admin_access.
+  ssm_parameter_arn_prefix = "arn:${var.partition}:ssm:${var.region}:${var.account_id}:parameter${var.ssm_parameter_prefix}"
+  app_secret_resources = var.use_ssm_parameters ? ["${local.ssm_parameter_arn_prefix}/app/*"] : [
+    "${var.secrets_bucket_arn}/${var.environment}/app/*"
+  ]
+  migration_secret_resources = var.use_ssm_parameters ? ["${local.ssm_parameter_arn_prefix}/migration/*"] : [
+    "${var.secrets_bucket_arn}/${var.environment}/migration/*"
+  ]
+  secret_read_actions = var.use_ssm_parameters ? ["ssm:GetParameter", "ssm:GetParameters"] : ["s3:GetObject"]
 }
 
 data "aws_iam_policy_document" "instance" {
@@ -114,7 +128,7 @@ data "aws_iam_policy_document" "instance" {
     content {
       sid       = "SecretsRead"
       actions   = ["ssm:GetParameter", "ssm:GetParameters"]
-      resources = ["arn:${var.partition}:ssm:${var.region}:${var.account_id}:parameter${var.ssm_parameter_prefix}/*"]
+      resources = local.app_secret_resources
     }
   }
 
@@ -141,7 +155,7 @@ data "aws_iam_policy_document" "instance" {
     content {
       sid       = "SecretsReadS3"
       actions   = ["s3:GetObject"]
-      resources = ["${var.secrets_bucket_arn}/${var.environment}/*"]
+      resources = local.app_secret_resources
     }
   }
 
@@ -154,6 +168,18 @@ data "aws_iam_policy_document" "instance" {
       sid       = "DbMasterSecretTemporary"
       actions   = ["secretsmanager:GetSecretValue"]
       resources = [var.db_master_secret_arn]
+    }
+  }
+
+  # db-admin.sh cria/rotaciona também a senha de app_owner: com db_admin_access (temporário) o
+  # papel lê migration/*. Fora disso, só a política de janela de migrate.sh concede essa leitura.
+  dynamic "statement" {
+    for_each = var.db_admin_access ? [1] : []
+
+    content {
+      sid       = "MigrationSecretWithDbAdmin"
+      actions   = local.secret_read_actions
+      resources = local.migration_secret_resources
     }
   }
 

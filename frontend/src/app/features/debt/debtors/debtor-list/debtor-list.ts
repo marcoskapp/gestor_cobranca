@@ -2,12 +2,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, debounceTime, map, of, startWith, throwError } from 'rxjs';
 import { Permission } from '../../../../core/auth/permission';
@@ -30,6 +24,10 @@ import { DebtorsApi } from '../../data/debt.api';
 import { PERSON_TYPE_LABELS } from '../../data/debt.labels';
 import { DebtorView } from '../../data/debt.models';
 import { DebtorForm } from '../debtor-form/debtor-form';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 /** Busca por nome (GET com filtros) ou por documento completo (POST, fora da URL). */
 export type DebtorQuery =
@@ -54,42 +52,22 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
 
 @Component({
   selector: 'app-debtor-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
-    MatTooltipModule,
-    DataTable,
-    CellDef,
-    EntityPicker,
-    PageHeader,
-    StatusChip,
-    DocumentDisplay,
-    HasPermission,
-    AppDatePipe,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, DocumentDisplay, HasPermission, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
   template: `
     <app-page-header title="Devedores" subtitle="Pessoas e empresas com títulos em cobrança nas carteiras do seu escopo.">
-      <button mat-flat-button type="button" *appHasPermission="permission.DEBTOR_MANAGE" (click)="create()">
-        <mat-icon aria-hidden="true">person_add</mat-icon>
+      <button class="btn btn-primary" type="button" *appHasPermission="permission.DEBTOR_MANAGE" (click)="create()">
+        <app-icon name="person-plus" />
         Cadastrar devedor
       </button>
     </app-page-header>
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Buscar devedores" (ngSubmit)="query.reload()">
-      <mat-form-field class="app-filters__wide app-compact">
-        <mat-label>Nome, CPF ou CNPJ</mat-label>
-        <input matInput formControlName="q" type="search" autocomplete="off" />
-        <mat-icon matSuffix aria-hidden="true">search</mat-icon>
-        @if (searchMode() === 'incomplete') {
-          <mat-hint class="app-hint-warning">Informe o CPF ou CNPJ completo e válido.</mat-hint>
-        } @else if (searchMode() === 'document') {
-          <mat-hint>Busca exata pelo documento.</mat-hint>
-        }
-      </mat-form-field>
+      <app-field class="app-filters__wide" label="Nome, CPF ou CNPJ" [hint]="searchHint()">
+        <div class="input-group">
+          <input appInput formControlName="q" type="search" autocomplete="off" />
+          <span class="input-group-text" aria-hidden="true"><app-icon name="search" /></span>
+        </div>
+      </app-field>
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
@@ -108,7 +86,7 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
       [emptyMessage]="emptyMessage()"
-      emptyIcon="person_search"
+      emptyIcon="person-bounding-box"
       [emptyHint]="emptyHint()"
     >
       <ng-template appCell="name" [appCellOf]="query.rows()" let-d>
@@ -121,8 +99,8 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
       <ng-template appCell="status" [appCellOf]="query.rows()" let-d><app-status-chip domain="debtor" [status]="d.status" /></ng-template>
       <ng-template appCell="createdAt" [appCellOf]="query.rows()" let-d>{{ d.createdAt | appDate: 'date' }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-d>
-        <a mat-icon-button [routerLink]="['/devedores', d.id]" [attr.aria-label]="'Abrir ficha de ' + d.name" matTooltip="Abrir ficha">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/devedores', d.id]" [attr.aria-label]="'Abrir ficha de ' + d.name" ngbTooltip="Abrir ficha">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -130,7 +108,7 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
 })
 export class DebtorList {
   private readonly api = inject(DebtorsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -158,6 +136,9 @@ export class DebtorList {
     { initialValue: { mode: 'name', q: null, creditorId: null, portfolioId: null } as DebtorQuery, equal: sameValue },
   );
   protected readonly searchMode = computed(() => this.filter().mode);
+  protected readonly searchHint = computed(() =>
+    this.searchMode() === 'incomplete' ? 'Informe o CPF ou CNPJ completo e válido.' : this.searchMode() === 'document' ? 'Busca exata pelo documento.' : undefined,
+  );
   protected readonly query = pagedQuery(this.filter, (filter, page) => this.load(filter, page));
 
   protected readonly emptyMessage = computed(() =>
@@ -183,7 +164,7 @@ export class DebtorList {
 
   protected create(): void {
     this.dialog
-      .open<DebtorForm, DebtorView | null, DebtorView>(DebtorForm, { data: null, width: '640px' })
+      .open<DebtorForm, DebtorView | null, DebtorView>(DebtorForm, { data: null, size: 'lg' })
       .afterClosed()
       .subscribe((created) => created && void this.router.navigate(['/devedores', created.id]));
   }

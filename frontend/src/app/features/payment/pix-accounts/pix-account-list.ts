@@ -1,25 +1,23 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Component, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbDropdown, NgbDropdownItem, NgbDropdownMenu, NgbDropdownToggle, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, finalize } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { PixAccountsApi } from '../data/payment.api';
 import { PixAccountView } from '../data/payment.models';
-import { CREDENTIAL_KEY_LABELS, certificateState, groupedFingerprint } from '../data/payment.rules';
+import { CREDENTIAL_KEY_LABELS, CertificateState, certificateState, groupedFingerprint } from '../data/payment.rules';
 import { PixAccountDialog, PixAccountDialogData } from './pix-account-dialog';
 import { RotateDialog, RotateDialogData } from './rotate-dialog';
 
@@ -30,11 +28,11 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
  */
 @Component({
   selector: 'app-pix-account-list',
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip],
+  imports: [Icon, NgbDropdown, NgbDropdownItem, NgbDropdownMenu, NgbDropdownToggle, NgbTooltip, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip],
   template: `
     <app-page-header title="Contas Pix" subtitle="Conexão com o PSP que gera as cobranças Pix e avisa os pagamentos. Uma conta ativa por credor; a da assessoria vale para os demais.">
-      <button mat-flat-button type="button" (click)="create()">
-        <mat-icon aria-hidden="true">add</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()">
+        <app-icon name="plus-lg" />
         Nova conta Pix
       </button>
     </app-page-header>
@@ -42,12 +40,12 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
     @if (resource.isLoading() && !accounts().length) {
       <app-skeleton variant="card" [rows]="4" />
     } @else if (resource.status() === 'error') {
-      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar as contas." message="Verifique a conexão e tente novamente.">
-        <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+      <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar as contas." message="Verifique a conexão e tente novamente.">
+        <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (!accounts().length) {
-      <app-empty-state icon="account_balance" title="Nenhuma conta Pix cadastrada." message="Sem conta ativa, não é possível gerar Pix para os devedores.">
-        <button mat-flat-button type="button" (click)="create()">Nova conta Pix</button>
+      <app-empty-state icon="bank" title="Nenhuma conta Pix cadastrada." message="Sem conta ativa, não é possível gerar Pix para os devedores.">
+        <button class="btn btn-primary" type="button" (click)="create()">Nova conta Pix</button>
       </app-empty-state>
     } @else {
       <div class="pa-grid" data-tour="pix-accounts">
@@ -72,7 +70,7 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
 
             <h3 class="app-section-title">Certificado e segredos</h3>
             <div class="pa-row">
-              <span class="app-status" [class]="'app-status--' + cert.tone"><mat-icon class="app-status__icon" aria-hidden="true">{{ cert.tone === 'success' ? 'verified' : cert.tone === 'neutral' ? 'remove_circle_outline' : 'warning_amber' }}</mat-icon>{{ cert.text }}</span>
+              <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1" [class]="toneClasses(cert.tone)"><app-icon [name]="cert.tone === 'success' ? 'patch-check' : cert.tone === 'neutral' ? 'dash-circle' : 'exclamation-triangle'" />{{ cert.text }}</span>
               @if (a.certificateExpiresAt) {
                 <span class="app-muted">até {{ a.certificateExpiresAt | appDate }}</span>
               }
@@ -87,41 +85,43 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
             <h3 class="app-section-title">Webhook</h3>
             <div class="pa-row">
               @if (a.webhookRegisteredAt) {
-                <span class="app-status app-status--success"><mat-icon class="app-status__icon" aria-hidden="true">check_circle</mat-icon>Registrado no PSP</span>
+                <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-success-subtle text-success-emphasis border-success-subtle"><app-icon name="check-circle" />Registrado no PSP</span>
                 <span class="app-muted">em {{ a.webhookRegisteredAt | appDate }}</span>
               } @else {
-                <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">warning_amber</mat-icon>Não registrado</span>
+                <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-warning-subtle text-warning-emphasis border-warning-subtle"><app-icon name="exclamation-triangle" />Não registrado</span>
                 <span class="app-muted">pagamentos só chegam pelo extrato</span>
               }
             </div>
             <p class="app-muted pa-small">{{ a.webhookAuth === 'MTLS' ? 'Autenticação mTLS · ' + a.webhookFingerprints.length + ' certificado(s) do PSP fixado(s)' : 'Autenticação por assinatura HMAC' }}</p>
             <div class="pa-url">
               <code class="pa-break">{{ a.webhookUrl }}</code>
-              <button mat-icon-button type="button" (click)="copy(a.webhookUrl)" aria-label="Copiar URL do webhook" matTooltip="Copiar URL">
-                <mat-icon aria-hidden="true">content_copy</mat-icon>
+              <button class="btn btn-sm btn-link" type="button" (click)="copy(a.webhookUrl)" aria-label="Copiar URL do webhook" ngbTooltip="Copiar URL">
+                <app-icon name="copy" />
               </button>
             </div>
 
             <div class="pa-actions">
-              <button mat-stroked-button type="button" (click)="registerWebhook(a)" [disabled]="busy() === a.id">
-                <mat-icon aria-hidden="true">webhook</mat-icon>
+              <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="registerWebhook(a)" [disabled]="busy() === a.id">
+                <app-icon name="plug" />
                 {{ a.webhookRegisteredAt ? 'Registrar de novo' : 'Registrar webhook' }}
               </button>
-              <button mat-stroked-button type="button" (click)="rotate(a)" [disabled]="busy() === a.id" data-tour="pix-rotate">
-                <mat-icon aria-hidden="true">sync_lock</mat-icon>
+              <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="rotate(a)" [disabled]="busy() === a.id" data-tour="pix-rotate">
+                <app-icon name="shield-lock" />
                 Rotacionar credenciais
               </button>
-              <button mat-icon-button type="button" [matMenuTriggerFor]="more" [attr.aria-label]="'Mais ações de ' + a.name">
-                <mat-icon aria-hidden="true">more_vert</mat-icon>
-              </button>
-              <mat-menu #more="matMenu">
-                <button mat-menu-item type="button" (click)="edit(a)"><mat-icon aria-hidden="true">edit</mat-icon>Editar dados</button>
-                @if (a.active) {
-                  <button mat-menu-item type="button" (click)="deactivate(a)"><mat-icon aria-hidden="true">block</mat-icon>Desativar</button>
-                } @else {
-                  <button mat-menu-item type="button" (click)="activate(a)"><mat-icon aria-hidden="true">check_circle</mat-icon>Ativar</button>
-                }
-              </mat-menu>
+              <div ngbDropdown class="d-inline-block" placement="bottom-end">
+                <button class="btn btn-sm btn-link" type="button" ngbDropdownToggle [attr.aria-label]="'Mais ações de ' + a.name">
+                  <app-icon name="three-dots-vertical" />
+                </button>
+                <div ngbDropdownMenu class="shadow app-menu">
+                  <button ngbDropdownItem type="button" (click)="edit(a)"><app-icon name="pencil" />Editar dados</button>
+                  @if (a.active) {
+                    <button ngbDropdownItem type="button" (click)="deactivate(a)"><app-icon name="slash-circle" />Desativar</button>
+                  } @else {
+                    <button ngbDropdownItem type="button" (click)="activate(a)"><app-icon name="check-circle" />Ativar</button>
+                  }
+                </div>
+              </div>
             </div>
           </section>
         }
@@ -133,6 +133,10 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
       gap: var(--app-gap);
+      /* espaçamento pelo gap da grade */
+      .app-card + .app-card {
+        margin-top: 0;
+      }
     }
     .pa-head {
       display: flex;
@@ -168,12 +172,13 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
       gap: 4px;
       margin-top: 6px;
       padding: 4px 4px 4px 10px;
-      border-radius: var(--app-radius-sm);
-      background: var(--app-surface-raised);
+      border-radius: var(--bs-border-radius-sm);
+      background: var(--bs-tertiary-bg);
       font-size: var(--app-text-xs);
       code {
         flex: 1;
         min-width: 0;
+        color: var(--bs-body-color);
       }
     }
     .pa-actions {
@@ -186,7 +191,7 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
 })
 export class PixAccountList {
   private readonly api = inject(PixAccountsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly clipboard = inject(Clipboard);
   private readonly notifications = inject(NotificationService);
@@ -197,6 +202,12 @@ export class PixAccountList {
   protected readonly accounts = valueOr(this.resource, []);
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.accounts().map((a) => a.creditorId));
   protected readonly busy = signal<string | null>(null);
+
+  /** Selo do certificado nas cores "subtle/emphasis" do tom (texto ≥ 7:1 nos dois modos). */
+  protected toneClasses(tone: CertificateState['tone']): string {
+    const color = tone === 'neutral' ? 'secondary' : tone;
+    return `bg-${color}-subtle text-${color}-emphasis border-${color}-subtle`;
+  }
 
   protected keys(a: PixAccountView): string {
     return a.credentialKeys.length ? a.credentialKeys.map((k) => CREDENTIAL_KEY_LABELS[k] ?? k).join(', ') : 'nenhum';
@@ -218,7 +229,7 @@ export class PixAccountList {
 
   protected rotate(a: PixAccountView): void {
     this.dialog
-      .open<RotateDialog, RotateDialogData, PixAccountView>(RotateDialog, { data: { account: a }, width: '640px', maxWidth: '96vw' })
+      .open<RotateDialog, RotateDialogData, PixAccountView>(RotateDialog, { data: { account: a }, size: 'lg' })
       .afterClosed()
       .subscribe((updated) => {
         if (updated) {
@@ -267,7 +278,7 @@ export class PixAccountList {
 
   private open(data: PixAccountDialogData): void {
     this.dialog
-      .open<PixAccountDialog, PixAccountDialogData, PixAccountView>(PixAccountDialog, { data, width: '760px', maxWidth: '96vw' })
+      .open<PixAccountDialog, PixAccountDialogData, PixAccountView>(PixAccountDialog, { data, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

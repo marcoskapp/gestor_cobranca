@@ -1,10 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialogRef } from '@angular/material/dialog';
 import { statementImport } from '../../../../testing/payment-fixtures';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
 import { StatementUploadDialog } from './statement-upload-dialog';
 
 const csv = (text: string, name = 'extrato.csv') => new File([text], name, { type: 'text/csv' });
@@ -18,10 +19,11 @@ describe('StatementUploadDialog', () => {
     TestBed.configureTestingModule({
       imports: [StatementUploadDialog],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DialogRef, useValue: { close } },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
       ],
     });

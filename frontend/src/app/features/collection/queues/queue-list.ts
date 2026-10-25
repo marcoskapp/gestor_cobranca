@@ -1,9 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -22,6 +18,9 @@ import { QueueNames, TeamLookup } from '../data/collection.lookups';
 import { QueueView } from '../data/collection.models';
 import { DistributeDialog, RedistributeDialog } from './distribution-dialogs';
 import { QueueForm } from './queue-form';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Texto dos critérios de faixa ("31 a 90 dias", "a partir de R$ 500,00"). */
 export function rangeText(min: number | null, max: number | null, format: (v: number) => string): string | null {
@@ -50,22 +49,22 @@ export function criteriaText(q: QueueView): string {
  */
 @Component({
   selector: 'app-queue-list',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [CellDef, DataTable, PageHeader, StatusChip, Icon, NgbTooltip],
   template: `
     <app-page-header title="Filas de cobrança" subtitle="Critérios, prioridade, ordem de entrega e distribuição dos casos entre os operadores.">
       @if (canAssign()) {
-        <button mat-stroked-button type="button" (click)="redistribute()">
-          <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="redistribute()">
+          <app-icon name="arrow-left-right" />
           Redistribuir casos
         </button>
       }
       @if (canManage()) {
-        <button mat-stroked-button type="button" (click)="reroute()" matTooltip="Reavalia a fila de todos os casos ativos">
-          <mat-icon aria-hidden="true">alt_route</mat-icon>
+        <button class="btn btn-outline-primary" type="button" (click)="reroute()" ngbTooltip="Reavalia a fila de todos os casos ativos">
+          <app-icon name="signpost-split" />
           Reprocessar roteamento
         </button>
-        <button mat-flat-button type="button" (click)="edit(null)">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="edit(null)">
+          <app-icon name="plus-lg" />
           Nova fila
         </button>
       }
@@ -78,7 +77,7 @@ export function criteriaText(q: QueueView): string {
       [loading]="queues.isLoading()"
       [failed]="queues.status() === 'error'"
       (retry)="queues.reload()"
-      emptyIcon="view_list"
+      emptyIcon="view-list"
       emptyMessage="Nenhuma fila cadastrada."
       emptyHint="Sem filas, os casos ficam sem fila e só chegam aos operadores por atribuição manual."
     >
@@ -101,16 +100,16 @@ export function criteriaText(q: QueueView): string {
       <ng-template appCell="active" [appCellOf]="rows()" let-q><app-status-chip domain="active" [status]="q.active" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-q>
         @if (canAssign() && q.active) {
-          <button mat-icon-button type="button" (click)="distribute(q)" [attr.aria-label]="'Distribuir fila ' + q.name" matTooltip="Situação e distribuição">
-            <mat-icon aria-hidden="true">group_add</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="distribute(q)" [attr.aria-label]="'Distribuir fila ' + q.name" ngbTooltip="Situação e distribuição">
+            <app-icon name="person-plus" />
           </button>
         }
         @if (canManage()) {
-          <button mat-icon-button type="button" (click)="edit(q)" [attr.aria-label]="'Editar fila ' + q.name" matTooltip="Editar">
-            <mat-icon aria-hidden="true">edit</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="edit(q)" [attr.aria-label]="'Editar fila ' + q.name" ngbTooltip="Editar">
+            <app-icon name="pencil" />
           </button>
-          <button mat-icon-button type="button" (click)="toggle(q)" [attr.aria-label]="(q.active ? 'Desativar fila ' : 'Ativar fila ') + q.name" [matTooltip]="q.active ? 'Desativar' : 'Ativar'">
-            <mat-icon aria-hidden="true">{{ q.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="toggle(q)" [attr.aria-label]="(q.active ? 'Desativar fila ' : 'Ativar fila ') + q.name" [ngbTooltip]="q.active ? 'Desativar' : 'Ativar'">
+            <app-icon [name]="q.active ? 'toggle-on' : 'toggle-off'" />
           </button>
         }
       </ng-template>
@@ -120,7 +119,7 @@ export function criteriaText(q: QueueView): string {
 export class QueueList {
   private readonly api = inject(QueuesApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly queueNames = inject(QueueNames);
@@ -154,7 +153,7 @@ export class QueueList {
 
   protected edit(queue: QueueView | null): void {
     this.dialog
-      .open<QueueForm, QueueView | null, QueueView>(QueueForm, { data: queue, width: '760px' })
+      .open<QueueForm, QueueView | null, QueueView>(QueueForm, { data: queue, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => saved && this.changed());
   }
@@ -192,11 +191,11 @@ export class QueueList {
   }
 
   protected distribute(queue: QueueView): void {
-    this.dialog.open(DistributeDialog, { data: queue, width: '560px' });
+    this.dialog.open(DistributeDialog, { data: queue });
   }
 
   protected redistribute(): void {
-    this.dialog.open(RedistributeDialog, { width: '560px' });
+    this.dialog.open(RedistributeDialog);
   }
 
   private changed(): void {

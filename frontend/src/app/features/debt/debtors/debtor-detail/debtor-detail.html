@@ -6,56 +6,59 @@
   </div>
 } @else if (debtor.status() === 'error') {
   <app-empty-state
-    icon="person_off"
+    icon="person-slash"
     tone="error"
     title="Não foi possível abrir a ficha do devedor."
     message="O devedor pode não existir ou não ter títulos nos credores do seu escopo."
   >
-    <button mat-stroked-button type="button" (click)="debtor.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/devedores">Voltar para devedores</a>
+    <button class="btn btn-outline-primary" type="button" (click)="debtor.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/devedores">Voltar para devedores</a>
   </app-empty-state>
 }
 
 @if (current(); as d) {
   <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
-    <a mat-button routerLink="/devedores">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/devedores">
+      <app-icon name="arrow-left" />
       Devedores
     </a>
-    <a mat-stroked-button routerLink="/titulos" [queryParams]="{ devedor: d.id }">
-      <mat-icon aria-hidden="true">request_quote</mat-icon>
+    <a class="btn btn-outline-primary" routerLink="/titulos" [queryParams]="{ devedor: d.id }">
+      <app-icon name="file-earmark-text" />
       Títulos
     </a>
     @if (canExportEvidence()) {
-      <button mat-stroked-button type="button" (click)="exportEvidence(d)" matTooltip="Restrições e tentativas de contato (acesso registrado)">
-        <mat-icon aria-hidden="true">download</mat-icon>
+      <button class="btn btn-outline-primary" type="button" (click)="exportEvidence(d)" ngbTooltip="Restrições e tentativas de contato (acesso registrado)">
+        <app-icon name="download" />
         Dossiê de contato
       </button>
     }
     @if (canSendPortalLink() && active() && portalCreditors().length) {
-      <button mat-stroked-button type="button" [matMenuTriggerFor]="portalMenu" matTooltip="Link de uso único por WhatsApp (passa pelo porteiro de contato)">
-        <mat-icon aria-hidden="true">link</mat-icon>
-        Enviar link do portal
-      </button>
-      <mat-menu #portalMenu="matMenu">
-        @for (c of portalCreditors(); track c) {
-          <button mat-menu-item type="button" (click)="sendPortalLink(d, c)">{{ creditors.name(c) }}</button>
-        }
-      </mat-menu>
+      <div ngbDropdown class="d-inline-block" placement="bottom-end">
+        <button class="btn btn-outline-primary" type="button" ngbDropdownToggle ngbTooltip="Link de uso único por WhatsApp (passa pelo porteiro de contato)">
+          <app-icon name="link" />
+          Enviar link do portal
+          <app-icon name="chevron-down" />
+        </button>
+        <div ngbDropdownMenu class="shadow app-menu">
+          @for (c of portalCreditors(); track c) {
+            <button ngbDropdownItem type="button" (click)="sendPortalLink(d, c)">{{ creditors.name(c) }}</button>
+          }
+        </div>
+      </div>
     }
     @if (canManage() && active()) {
-      <button mat-flat-button type="button" (click)="edit(d)">
-        <mat-icon aria-hidden="true">edit</mat-icon>
+      <button class="btn btn-primary" type="button" (click)="edit(d)">
+        <app-icon name="pencil" />
         Editar dados
       </button>
     }
   </app-page-header>
 
   @if (!active()) {
-    <p class="app-alert app-alert--neutral" role="note">
-      <mat-icon aria-hidden="true">shield</mat-icon>
+    <div class="alert alert-secondary d-flex gap-2 align-items-start" role="note">
+      <app-icon name="shield" />
       <span>Dados pessoais eliminados em {{ d.anonymizedAt | appDate }} (LGPD). Títulos e razão foram preservados.</span>
-    </p>
+    </div>
   }
 
   <section class="debt-kpis" aria-label="Posição do devedor" data-tour="debtor-summary">
@@ -90,7 +93,7 @@
       <dd data-tour="document-reveal">
         @if (revealedDocument(); as full) {
           <app-document [value]="full" [masked]="false" [showKind]="false" />
-          <button mat-button type="button" (click)="revealedDocument.set(null)">Ocultar</button>
+          <button class="btn btn-link" type="button" (click)="revealedDocument.set(null)">Ocultar</button>
         } @else {
           <app-document [value]="d.maskedDocument" [showKind]="false" [revealable]="canReveal() && active()" (reveal)="revealDocument(d)" />
         }
@@ -105,187 +108,197 @@
   </section>
 
   <section class="app-card" aria-label="Títulos, contatos e histórico">
-    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" data-tour="debtor-tabs">
-      <mat-tab label="Títulos ({{ titleRows().length }})">
-        <div class="debt-tab">
-          @if (position()?.creditors?.length) {
-            <div class="debt-positions" aria-label="Posição por credor">
-              @for (c of position()!.creditors; track c.creditorId) {
-                <div class="debt-position">
-                  <strong>{{ creditors.name(c.creditorId) }}</strong>
-                  <span><app-amount [value]="c.openBalance" /> · {{ c.titles.length }} título(s)</span>
-                  <app-overdue-badge [days]="c.maxDaysOverdue" />
-                </div>
+    <ul ngbNav #tabs="ngbNav" class="nav-tabs debt-tabs" data-tour="debtor-tabs">
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Títulos ({{ titleRows().length }})</button>
+        <ng-template ngbNavContent>
+          <div class="debt-tab">
+            @if (position()?.creditors?.length) {
+              <div class="debt-positions" aria-label="Posição por credor">
+                @for (c of position()!.creditors; track c.creditorId) {
+                  <div class="debt-position">
+                    <strong>{{ creditors.name(c.creditorId) }}</strong>
+                    <span><app-amount [value]="c.openBalance" /> · {{ c.titles.length }} título(s)</span>
+                    <app-overdue-badge [days]="c.maxDaysOverdue" />
+                  </div>
+                }
+              </div>
+            }
+            <app-data-table
+              caption="Títulos do devedor"
+              [rows]="titleRows()"
+              [columns]="titleColumns"
+              [loading]="titles.isLoading()"
+              [failed]="titles.status() === 'error'"
+              (retry)="titles.reload()"
+              emptyIcon="file-earmark-text"
+              emptyMessage="Nenhum título nos credores do seu escopo."
+            >
+              <ng-template appCell="title" [appCellOf]="titleRows()" let-t>
+                <a class="app-numeric" [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
+                @if (t.disputeBlocked) {
+                  <span class="debt-flag" ngbTooltip="Em contestação: cobrança bloqueada"><app-icon name="hammer" />Contestação</span>
+                }
+              </ng-template>
+              <ng-template appCell="creditor" [appCellOf]="titleRows()" let-t>{{ creditors.name(t.creditorId) }}</ng-template>
+              <ng-template appCell="portfolio" [appCellOf]="titleRows()" let-t>{{ portfolios.name(t.portfolioId) }}</ng-template>
+              <ng-template appCell="dueDate" [appCellOf]="titleRows()" let-t>{{ t.dueDate | appDate: 'date' }}</ng-template>
+              <ng-template appCell="overdue" [appCellOf]="titleRows()" let-t><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></ng-template>
+              <ng-template appCell="principalAmount" [appCellOf]="titleRows()" let-t><app-amount [value]="t.principalAmount" /></ng-template>
+              <ng-template appCell="openBalance" [appCellOf]="titleRows()" let-t><app-amount [value]="t.openBalance" /></ng-template>
+              <ng-template appCell="status" [appCellOf]="titleRows()" let-t><app-status-chip domain="title" [status]="t.status" /></ng-template>
+            </app-data-table>
+          </div>
+        </ng-template>
+      </li>
+
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Contatos ({{ contactRows().length }})</button>
+        <ng-template ngbNavContent>
+          <div class="debt-tab">
+            <div class="debt-toolbar">
+              <p class="app-muted">
+                Valores exibidos mascarados.
+                @if (canReveal()) {
+                  Exibir o valor completo fica registrado no log de acesso.
+                }
+              </p>
+              @if (canManage() && active()) {
+                <button class="btn btn-outline-primary" type="button" (click)="addContact()">
+                  <app-icon name="plus-lg" />
+                  Novo contato
+                </button>
               }
             </div>
-          }
-          <app-data-table
-            caption="Títulos do devedor"
-            [rows]="titleRows()"
-            [columns]="titleColumns"
-            [loading]="titles.isLoading()"
-            [failed]="titles.status() === 'error'"
-            (retry)="titles.reload()"
-            emptyIcon="request_quote"
-            emptyMessage="Nenhum título nos credores do seu escopo."
-          >
-            <ng-template appCell="title" [appCellOf]="titleRows()" let-t>
-              <a class="app-numeric" [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
-              @if (t.disputeBlocked) {
-                <span class="debt-flag" matTooltip="Em contestação: cobrança bloqueada"><mat-icon aria-hidden="true">gavel</mat-icon>Contestação</span>
-              }
-            </ng-template>
-            <ng-template appCell="creditor" [appCellOf]="titleRows()" let-t>{{ creditors.name(t.creditorId) }}</ng-template>
-            <ng-template appCell="portfolio" [appCellOf]="titleRows()" let-t>{{ portfolios.name(t.portfolioId) }}</ng-template>
-            <ng-template appCell="dueDate" [appCellOf]="titleRows()" let-t>{{ t.dueDate | appDate: 'date' }}</ng-template>
-            <ng-template appCell="overdue" [appCellOf]="titleRows()" let-t><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></ng-template>
-            <ng-template appCell="principalAmount" [appCellOf]="titleRows()" let-t><app-amount [value]="t.principalAmount" /></ng-template>
-            <ng-template appCell="openBalance" [appCellOf]="titleRows()" let-t><app-amount [value]="t.openBalance" /></ng-template>
-            <ng-template appCell="status" [appCellOf]="titleRows()" let-t><app-status-chip domain="title" [status]="t.status" /></ng-template>
-          </app-data-table>
-        </div>
-      </mat-tab>
-
-      <mat-tab label="Contatos ({{ contactRows().length }})">
-        <div class="debt-tab">
-          <div class="debt-toolbar">
-            <p class="app-muted">
-              Valores exibidos mascarados.
-              @if (canReveal()) {
-                Exibir o valor completo fica registrado no log de acesso.
-              }
-            </p>
-            @if (canManage() && active()) {
-              <button mat-stroked-button type="button" (click)="addContact()">
-                <mat-icon aria-hidden="true">add</mat-icon>
-                Novo contato
-              </button>
-            }
+            <app-data-table
+              caption="Contatos do devedor"
+              [rows]="contactRows()"
+              [columns]="contactColumns"
+              [loading]="contacts.isLoading()"
+              [failed]="contacts.status() === 'error'"
+              (retry)="contacts.reload()"
+              emptyIcon="person-lines-fill"
+              emptyMessage="Nenhum contato cadastrado."
+            >
+              <ng-template appCell="type" [appCellOf]="contactRows()" let-c>
+                <span class="app-numeric"><app-icon class="debt-inline-icon" [name]="contactIcons[c.type]" /> {{ contactTypes[c.type] }}</span>
+              </ng-template>
+              <ng-template appCell="value" [appCellOf]="contactRows()" let-c>
+                @let full = revealedContacts().get(c.id);
+                <span class="debt-contact">
+                  <span class="app-numeric">{{ full ?? c.maskedValue }}</span>
+                  @if (c.whatsapp) {
+                    <span class="app-status app-status--info">WhatsApp</span>
+                  }
+                  @if (full) {
+                    <button type="button" class="btn btn-sm btn-outline-secondary border-0" (click)="hideContact(c)" aria-label="Ocultar valor completo" ngbTooltip="Ocultar">
+                      <app-icon name="eye-slash" />
+                    </button>
+                  } @else if (canReveal() && active()) {
+                    <button type="button" class="btn btn-sm btn-outline-secondary border-0" (click)="revealContact(c)" aria-label="Exibir valor completo (acesso registrado)" ngbTooltip="Exibir completo (acesso registrado)">
+                      <app-icon name="eye" />
+                    </button>
+                  }
+                </span>
+              </ng-template>
+              <ng-template appCell="label" [appCellOf]="contactRows()" let-c>{{ contactLabels[c.label] }}</ng-template>
+              <ng-template appCell="source" [appCellOf]="contactRows()" let-c>{{ contactSources[c.source] ?? c.source }}</ng-template>
+              <ng-template appCell="status" [appCellOf]="contactRows()" let-c>
+                <app-status-chip domain="contact" [status]="c.status" />
+                @if (c.invalidReason) {
+                  <span class="app-muted" [ngbTooltip]="c.invalidReason"> {{ c.invalidReason }}</span>
+                }
+              </ng-template>
+              <ng-template appCell="actions" [appCellOf]="contactRows()" let-c>
+                @if (canManage() && active()) {
+                  <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="editContact(c)" [attr.aria-label]="'Editar contato ' + c.maskedValue" ngbTooltip="Editar">
+                    <app-icon name="pencil" />
+                  </button>
+                  @if (c.status !== 'VALID') {
+                    <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="validate(c)" [attr.aria-label]="'Confirmar contato ' + c.maskedValue" ngbTooltip="Confirmar como válido">
+                      <app-icon name="patch-check" />
+                    </button>
+                  }
+                  @if (c.status !== 'INVALID') {
+                    <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="invalidate(c)" [attr.aria-label]="'Marcar contato ' + c.maskedValue + ' como inválido'" ngbTooltip="Marcar como inválido">
+                      <app-icon name="telephone-x" />
+                    </button>
+                  }
+                }
+              </ng-template>
+            </app-data-table>
           </div>
-          <app-data-table
-            caption="Contatos do devedor"
-            [rows]="contactRows()"
-            [columns]="contactColumns"
-            [loading]="contacts.isLoading()"
-            [failed]="contacts.status() === 'error'"
-            (retry)="contacts.reload()"
-            emptyIcon="contact_phone"
-            emptyMessage="Nenhum contato cadastrado."
-          >
-            <ng-template appCell="type" [appCellOf]="contactRows()" let-c>
-              <span class="app-numeric"><mat-icon class="debt-inline-icon" aria-hidden="true">{{ contactIcons[c.type] }}</mat-icon> {{ contactTypes[c.type] }}</span>
-            </ng-template>
-            <ng-template appCell="value" [appCellOf]="contactRows()" let-c>
-              @let full = revealedContacts().get(c.id);
-              <span class="debt-contact">
-                <span class="app-numeric">{{ full ?? c.maskedValue }}</span>
-                @if (c.whatsapp) {
-                  <span class="app-status app-status--info">WhatsApp</span>
-                }
-                @if (full) {
-                  <button mat-icon-button type="button" class="debt-icon-button" (click)="hideContact(c)" aria-label="Ocultar valor completo" matTooltip="Ocultar">
-                    <mat-icon aria-hidden="true">visibility_off</mat-icon>
-                  </button>
-                } @else if (canReveal() && active()) {
-                  <button mat-icon-button type="button" class="debt-icon-button" (click)="revealContact(c)" aria-label="Exibir valor completo (acesso registrado)" matTooltip="Exibir completo (acesso registrado)">
-                    <mat-icon aria-hidden="true">visibility</mat-icon>
-                  </button>
-                }
-              </span>
-            </ng-template>
-            <ng-template appCell="label" [appCellOf]="contactRows()" let-c>{{ contactLabels[c.label] }}</ng-template>
-            <ng-template appCell="source" [appCellOf]="contactRows()" let-c>{{ contactSources[c.source] ?? c.source }}</ng-template>
-            <ng-template appCell="status" [appCellOf]="contactRows()" let-c>
-              <app-status-chip domain="contact" [status]="c.status" />
-              @if (c.invalidReason) {
-                <span class="app-muted" [matTooltip]="c.invalidReason"> {{ c.invalidReason }}</span>
-              }
-            </ng-template>
-            <ng-template appCell="actions" [appCellOf]="contactRows()" let-c>
-              @if (canManage() && active()) {
-                <button mat-icon-button type="button" (click)="editContact(c)" [attr.aria-label]="'Editar contato ' + c.maskedValue" matTooltip="Editar">
-                  <mat-icon aria-hidden="true">edit</mat-icon>
-                </button>
-                @if (c.status !== 'VALID') {
-                  <button mat-icon-button type="button" (click)="validate(c)" [attr.aria-label]="'Confirmar contato ' + c.maskedValue" matTooltip="Confirmar como válido">
-                    <mat-icon aria-hidden="true">verified</mat-icon>
-                  </button>
-                }
-                @if (c.status !== 'INVALID') {
-                  <button mat-icon-button type="button" (click)="invalidate(c)" [attr.aria-label]="'Marcar contato ' + c.maskedValue + ' como inválido'" matTooltip="Marcar como inválido">
-                    <mat-icon aria-hidden="true">phone_disabled</mat-icon>
-                  </button>
-                }
-              }
-            </ng-template>
-          </app-data-table>
-        </div>
-      </mat-tab>
+        </ng-template>
+      </li>
 
-      <mat-tab label="Contratos de origem">
-        <ng-template matTabContent>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Contratos de origem</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab"><app-origin-contracts [titles]="titleRows()" [loading]="titles.isLoading()" /></div>
         </ng-template>
-      </mat-tab>
+      </li>
 
-      <mat-tab label="Garantias e coobrigações">
-        <ng-template matTabContent>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Garantias e coobrigações</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab"><app-debtor-guarantees [summary]="position()" [loading]="summary.isLoading()" /></div>
         </ng-template>
-      </mat-tab>
+      </li>
 
-      <mat-tab label="Razão">
-        <ng-template matTabContent>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Razão</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab">
             @if (selectedTitleId(); as tid) {
               <div class="debt-toolbar">
-                <mat-form-field class="app-compact">
-                  <mat-label>Título</mat-label>
-                  <mat-select [ngModel]="tid" (ngModelChange)="selectTitle($event)">
+                <app-field label="Título">
+                  <select appInput [ngModel]="tid" (ngModelChange)="selectTitle($event)">
                     @for (t of titleRows(); track t.id) {
-                      <mat-option [value]="t.id">{{ titleLabel(t) }} — {{ creditors.name(t.creditorId) }}</mat-option>
+                      <option [ngValue]="t.id">{{ titleLabel(t) }} — {{ creditors.name(t.creditorId) }}</option>
                     }
-                  </mat-select>
-                </mat-form-field>
-                <a mat-button [routerLink]="['/titulos', tid]">Abrir título</a>
+                  </select>
+                </app-field>
+                <a class="btn btn-link" [routerLink]="['/titulos', tid]">Abrir título</a>
               </div>
               <app-title-ledger [titleId]="tid" />
             } @else {
-              <app-empty-state icon="receipt_long" title="Sem títulos para exibir o razão." [compact]="true" />
+              <app-empty-state icon="receipt" title="Sem títulos para exibir o razão." [compact]="true" />
             }
           </div>
         </ng-template>
-      </mat-tab>
+      </li>
 
-      <mat-tab label="Titularidade">
-        <ng-template matTabContent>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Titularidade</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab">
             @if (selectedTitleId(); as tid) {
               <div class="debt-toolbar">
-                <mat-form-field class="app-compact">
-                  <mat-label>Título</mat-label>
-                  <mat-select [ngModel]="tid" (ngModelChange)="selectTitle($event)">
+                <app-field label="Título">
+                  <select appInput [ngModel]="tid" (ngModelChange)="selectTitle($event)">
                     @for (t of titleRows(); track t.id) {
-                      <mat-option [value]="t.id">{{ titleLabel(t) }} — {{ creditors.name(t.creditorId) }}</mat-option>
+                      <option [ngValue]="t.id">{{ titleLabel(t) }} — {{ creditors.name(t.creditorId) }}</option>
                     }
-                  </mat-select>
-                </mat-form-field>
+                  </select>
+                </app-field>
               </div>
               <app-title-ownership [titleId]="tid" />
             } @else {
-              <app-empty-state icon="history" title="Sem títulos para exibir a titularidade." [compact]="true" />
+              <app-empty-state icon="clock-history" title="Sem títulos para exibir a titularidade." [compact]="true" />
             }
           </div>
         </ng-template>
-      </mat-tab>
+      </li>
 
-      <mat-tab label="Restrições de contato">
-        <ng-template matTabContent>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Restrições de contato</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab">
             <app-debtor-compliance [debtorId]="d.id" [debtorName]="d.name" />
           </div>
         </ng-template>
-      </mat-tab>
-    </mat-tab-group>
+      </li>
+    </ul>
+    <div [ngbNavOutlet]="tabs"></div>
   </section>
 }

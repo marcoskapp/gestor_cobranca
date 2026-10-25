@@ -1,11 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -16,6 +10,12 @@ import { AppValidators } from '../../../../shared/validation/validators';
 import { DataSubjectRequestsApi } from '../../data/compliance.api';
 import { REQUEST_CHANNEL_LABELS, REQUEST_TYPE_LABELS } from '../../data/compliance.labels';
 import { DataSubjectRequestView, RequestChannel, RequestType } from '../../data/compliance.models';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { fromLocalDate, toDateStruct, toLocalDate } from '../../../../shared/models/dates';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
+import { DialogRef } from '../../../../shared/dialog/dialog-ref';
 
 type Field = 'type' | 'channel' | 'requesterName' | 'document' | 'requesterContact' | 'details';
 
@@ -25,85 +25,71 @@ type Field = 'type' | 'channel' | 'requesterName' | 'document' | 'requesterConta
  */
 @Component({
   selector: 'app-request-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatInputModule, MatSelectModule, DocumentMask],
+  imports: [ReactiveFormsModule, DocumentMask, Icon, NgbInputDatepicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
-    <h2 mat-dialog-title>Registrar solicitação do titular</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Registrar solicitação do titular</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of generalErrors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
-        <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Tipo de pedido</mat-label>
-            <mat-select formControlName="type">
+        <div class="app-form-grid gap-3">
+          <app-field label="Tipo de pedido" [error]="form.controls.type.invalid ? (message('type')) : undefined">
+            <select appInput formControlName="type">
+              <option value="" disabled>Selecione</option>
               @for (t of types; track t.value) {
-                <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                <option [ngValue]="t.value">{{ t.label }}</option>
               }
-            </mat-select>
-            @if (form.controls.type.invalid) {
-              <mat-error>{{ message('type') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Canal de recebimento</mat-label>
-            <mat-select formControlName="channel">
+            </select>
+          </app-field>
+          <app-field label="Canal de recebimento" [error]="form.controls.channel.invalid ? (message('channel')) : undefined">
+            <select appInput formControlName="channel">
+              <option value="" disabled>Selecione</option>
               @for (c of channels; track c.value) {
-                <mat-option [value]="c.value">{{ c.label }}</mat-option>
+                <option [ngValue]="c.value">{{ c.label }}</option>
               }
-            </mat-select>
-            @if (form.controls.channel.invalid) {
-              <mat-error>{{ message('channel') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Nome do requerente</mat-label>
-            <input matInput formControlName="requesterName" maxlength="200" autocomplete="off" />
-            @if (form.controls.requesterName.invalid) {
-              <mat-error>{{ message('requesterName') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>CPF ou CNPJ do titular</mat-label>
-            <input matInput formControlName="document" appDocumentMask maxlength="18" autocomplete="off" />
-            <mat-hint>Recomendado: localiza o titular na confirmação de identidade.</mat-hint>
-            @if (form.controls.document.invalid) {
-              <mat-error>{{ message('document') }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Contato para resposta</mat-label>
-            <input matInput formControlName="requesterContact" maxlength="254" autocomplete="off" />
-            <mat-hint>E-mail ou telefone informado pelo requerente.</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Recebida em</mat-label>
-            <input matInput [matDatepicker]="received" formControlName="receivedAt" [max]="today" placeholder="Hoje" />
-            <mat-datepicker-toggle matIconSuffix [for]="received" />
-            <mat-datepicker #received />
-            <mat-hint>O prazo legal conta a partir do recebimento.</mat-hint>
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Descrição do pedido</mat-label>
-            <textarea matInput formControlName="details" rows="4" maxlength="4000"></textarea>
-            <mat-hint>Resuma o pedido. Não copie dados de saúde ou outros dados sensíveis.</mat-hint>
-          </mat-form-field>
+            </select>
+          </app-field>
+          <app-field class="app-span-all" label="Nome do requerente" [error]="form.controls.requesterName.invalid ? (message('requesterName')) : undefined">
+            <input appInput formControlName="requesterName" maxlength="200" autocomplete="off" />
+          </app-field>
+          <app-field label="CPF ou CNPJ do titular" hint="Recomendado: localiza o titular na confirmação de identidade." [error]="form.controls.document.invalid ? (message('document')) : undefined">
+            <input appInput formControlName="document" appDocumentMask maxlength="18" autocomplete="off" />
+          </app-field>
+          <app-field label="Contato para resposta" hint="E-mail ou telefone informado pelo requerente.">
+            <input appInput formControlName="requesterContact" maxlength="254" autocomplete="off" />
+          </app-field>
+          <app-field label="Recebida em" hint="Vazio = hoje. O prazo legal conta a partir do recebimento.">
+            <div class="input-group">
+              <input appInput ngbDatepicker #received="ngbDatepicker" formControlName="receivedAt" [maxDate]="today" placeholder="dd/mm/aaaa" />
+              <button type="button" class="btn btn-outline-secondary" (click)="received.toggle()" aria-label="Abrir calendário">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field class="app-span-all" label="Descrição do pedido" hint="Resuma o pedido. Não copie dados de saúde ou outros dados sensíveis.">
+            <textarea appInput formControlName="details" rows="4" maxlength="4000"></textarea>
+          </app-field>
         </div>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Registrar solicitação</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Registrar solicitação</button>
+      </div>
     </form>
   `,
 })
 export class RequestForm {
-  private readonly ref = inject<MatDialogRef<RequestForm, DataSubjectRequestView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<DataSubjectRequestView>>(DialogRef);
   private readonly api = inject(DataSubjectRequestsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly types = Object.entries(REQUEST_TYPE_LABELS).map(([value, label]) => ({ value: value as RequestType, label }));
   protected readonly channels = Object.entries(REQUEST_CHANNEL_LABELS).map(([value, label]) => ({ value: value as RequestChannel, label }));
-  protected readonly today = new Date();
+  protected readonly today = toDateStruct(toLocalDate(new Date())!);
   protected readonly saving = signal(false);
   protected readonly generalErrors = signal<string[]>([]);
 
@@ -115,7 +101,8 @@ export class RequestForm {
     document: ['', [AppValidators.document()]],
     requesterContact: ['', [Validators.maxLength(254)]],
     details: ['', [Validators.maxLength(4000)]],
-    receivedAt: this.fb.control<Date | null>(null),
+    /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
+    receivedAt: this.fb.control<string | null>(null),
   });
 
   protected message(field: Field): string {
@@ -138,7 +125,7 @@ export class RequestForm {
         document: v.document.trim() || null,
         requesterContact: v.requesterContact.trim() || null,
         details: v.details.trim() || null,
-        receivedAt: receivedInstant(v.receivedAt, new Date()),
+        receivedAt: receivedInstant(fromLocalDate(v.receivedAt), new Date()),
       })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({

@@ -1,3 +1,4 @@
+import { IconName } from '../../../shared/components/icon/icon-names';
 import {
   ContactChannel,
   LegalBasisCode,
@@ -190,10 +191,10 @@ export function daysUntil(dueAt: string, now: Date = new Date()): number {
   return Math.round((startOfDay(due) - startOfDay(now)) / 86_400_000);
 }
 
-export const ATTEMPT_ORIGIN_ICONS: Record<string, string> = {
-  OPERATOR: 'support_agent',
-  CAMPAIGN: 'campaign',
-  SYSTEM: 'settings',
+export const ATTEMPT_ORIGIN_ICONS: Record<string, IconName> = {
+  OPERATOR: 'headset',
+  CAMPAIGN: 'megaphone',
+  SYSTEM: 'gear',
 };
 
 /** Tipos que exigem o arquivo de dados antes da conclusão (`RequestType.producesFile`). */

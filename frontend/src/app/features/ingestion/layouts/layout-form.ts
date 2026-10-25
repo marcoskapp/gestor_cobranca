@@ -1,12 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -16,6 +9,10 @@ import { AppValidators } from '../../../shared/validation/validators';
 import { CreditorLookup, PortfolioLookup } from '../../organization/data/organization.lookups';
 import { ImportLayoutsApi } from '../data/ingestion.api';
 import { CanonicalField, ImportLayoutView, LayoutColumn, LayoutFormat, PublishLayoutRequest } from '../data/ingestion.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 export interface LayoutFormData {
   fields: readonly CanonicalField[];
@@ -55,13 +52,16 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
 /** Publica um layout de credor (nova versão quando o código já existe; a anterior é desativada). */
 @Component({
   selector: 'app-layout-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, EntityPicker],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title>{{ data.base ? 'Nova versão do layout ' + data.base.code : 'Novo layout de importação' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.base ? 'Nova versão do layout ' + data.base.code : 'Novo layout de importação' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">{{ e }}</div>
         }
         <div class="app-form-grid">
           <div class="app-span-all">
@@ -70,97 +70,92 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira (opcional)" [single]="true" hint="Vazio = vale para todas as carteiras do credor." />
           </div>
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" maxlength="40" required [readonly]="!!data.base" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="150" required />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Formato</mat-label>
-            <mat-select formControlName="format">
-              <mat-option value="CSV">CSV</mat-option>
-              <mat-option value="XLSX">XLSX</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <app-field label="Código">
+            <input appInput formControlName="code" maxlength="40" required [readonly]="!!data.base" />
+          </app-field>
+          <app-field label="Nome">
+            <input appInput formControlName="name" maxlength="150" required />
+          </app-field>
+          <app-field label="Formato">
+            <select appInput formControlName="format">
+              <option value="CSV">CSV</option>
+              <option value="XLSX">XLSX</option>
+            </select>
+          </app-field>
           @if (form.controls.format.value === 'CSV') {
-            <mat-form-field>
-              <mat-label>Separador</mat-label>
-              <mat-select formControlName="delimiter">
+            <app-field label="Separador">
+              <select appInput formControlName="delimiter">
                 @for (d of delimiters; track d.value) {
-                  <mat-option [value]="d.value">{{ d.label }}</mat-option>
+                  <option [ngValue]="d.value">{{ d.label }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Codificação</mat-label>
-              <mat-select formControlName="encoding">
+              </select>
+            </app-field>
+            <app-field label="Codificação">
+              <select appInput formControlName="encoding">
                 @for (e of encodings; track e) {
-                  <mat-option [value]="e">{{ e }}</mat-option>
+                  <option [ngValue]="e">{{ e }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
+              </select>
+            </app-field>
           } @else {
-            <mat-form-field>
-              <mat-label>Aba</mat-label>
-              <input matInput formControlName="sheetName" maxlength="31" placeholder="Primeira aba" />
-            </mat-form-field>
+            <app-field label="Aba">
+              <input appInput formControlName="sheetName" maxlength="31" placeholder="Primeira aba" />
+            </app-field>
           }
-          <mat-checkbox formControlName="hasHeader">Primeira linha é cabeçalho</mat-checkbox>
+          <div class="form-check align-self-end">
+            <input class="form-check-input" type="checkbox" id="lf-has-header" formControlName="hasHeader" />
+            <label class="form-check-label" for="lf-has-header">Primeira linha é cabeçalho</label>
+          </div>
         </div>
 
         <h3 class="app-section-title">Colunas do arquivo → campos do sistema</h3>
         <div formArrayName="columns" class="lf-columns">
           @for (c of columns.controls; track c; let i = $index) {
             <div class="lf-row" [formGroupName]="i">
-              <mat-form-field class="app-compact">
-                <mat-label>Campo</mat-label>
-                <mat-select formControlName="field">
+              <app-field label="Campo">
+                <select appInput formControlName="field">
                   @for (f of data.fields; track f.field) {
-                    <mat-option [value]="f.field">{{ f.field }}{{ f.required ? ' *' : '' }}</mat-option>
+                    <option [ngValue]="f.field">{{ f.field }}{{ f.required ? ' *' : '' }}</option>
                   }
-                </mat-select>
-              </mat-form-field>
+                </select>
+              </app-field>
               @if (form.controls.hasHeader.value) {
-                <mat-form-field class="app-compact">
-                  <mat-label>Cabeçalho no arquivo</mat-label>
-                  <input matInput formControlName="header" maxlength="120" />
-                </mat-form-field>
+                <app-field label="Cabeçalho no arquivo">
+                  <input appInput formControlName="header" maxlength="120" />
+                </app-field>
               } @else {
-                <mat-form-field class="app-compact">
-                  <mat-label>Posição (1 = primeira coluna)</mat-label>
-                  <input matInput type="number" min="1" formControlName="position" />
-                </mat-form-field>
+                <app-field label="Posição (1 = primeira coluna)">
+                  <input appInput type="number" min="1" formControlName="position" />
+                </app-field>
               }
-              <button mat-icon-button type="button" (click)="remove(i)" [attr.aria-label]="'Remover coluna ' + (i + 1)">
-                <mat-icon aria-hidden="true">delete</mat-icon>
+              <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="remove(i)" [attr.aria-label]="'Remover coluna ' + (i + 1)">
+                <app-icon name="trash3" />
               </button>
             </div>
           }
         </div>
-        <button mat-button type="button" (click)="add()" [disabled]="columns.length >= 60"><mat-icon aria-hidden="true">add</mat-icon>Coluna</button>
+        <button class="btn btn-link" type="button" (click)="add()" [disabled]="columns.length >= 60"><app-icon name="plus-lg" /> Coluna</button>
         @for (p of problems(); track p) {
-          <p class="app-field-error" role="alert">{{ p }}</p>
+          <div class="invalid-feedback d-block" role="alert">{{ p }}</div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Publicar layout</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Publicar layout</button>
+      </div>
     </form>
   `,
   styles: `
     .lf-columns {
       display: grid;
-      gap: 0;
+      gap: 8px;
+      margin-bottom: 8px;
     }
     .lf-row {
       display: flex;
-      align-items: flex-start;
+      align-items: flex-end;
       gap: 8px;
-      mat-form-field {
+      app-field {
         flex: 1 1 200px;
         min-width: 0;
       }
@@ -168,8 +163,8 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
   `,
 })
 export class LayoutForm {
-  protected readonly data = inject<LayoutFormData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<LayoutForm, ImportLayoutView>>(MatDialogRef);
+  protected readonly data = inject<LayoutFormData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<ImportLayoutView>>(DialogRef);
   private readonly api = inject(ImportLayoutsApi);
   private readonly notifications = inject(NotificationService);
   protected readonly creditors = inject(CreditorLookup);

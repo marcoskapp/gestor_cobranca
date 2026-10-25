@@ -58,11 +58,13 @@ class BacenPixProvider implements PixProvider {
     private final JsonCodec json;
     private final MeterRegistry meterRegistry;
     private final Clock clock;
+    private final PixEndpointGuard endpoints;
     private final Map<UUID, Token> tokens = new ConcurrentHashMap<>();
 
     BacenPixProvider(PixHttpClientFactory clients, PaymentProperties properties, JsonCodec json,
-                     MeterRegistry meterRegistry, Clock clock) {
+                     MeterRegistry meterRegistry, Clock clock, PixEndpointGuard endpoints) {
         this.clients = clients;
+        this.endpoints = endpoints;
         this.properties = properties;
         this.json = json;
         this.meterRegistry = meterRegistry;
@@ -187,6 +189,8 @@ class BacenPixProvider implements PixProvider {
     }
 
     private JsonNode call(PixConnection connection, String operation, Supplier<String> request) {
+        // destino conferido a cada chamada (DNS atual), antes de enviar credenciais ou certificado
+        endpoints.requireAllowed("oauth_token".equals(operation) ? connection.tokenUrl() : connection.apiBaseUrl());
         Timer.Sample sample = Timer.start(meterRegistry);
         String outcome = "error";
         try {

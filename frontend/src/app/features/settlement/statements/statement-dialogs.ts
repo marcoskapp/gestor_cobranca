@@ -1,13 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize, startWith } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
@@ -18,6 +11,10 @@ import { StatementsApi } from '../data/settlement.api';
 import { ADJUSTMENT_CATEGORY_LABELS, EXPORT_FORMAT_LABELS, SEND_CHANNEL_LABELS, SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { AdjustmentCategory, AdjustmentView, ExportView, SendChannel, StatementView } from '../data/settlement.models';
 import { ADJUSTMENT_DUAL_APPROVAL_THRESHOLD, ADJUSTMENT_REASON_MIN, needsSecondApproval } from '../data/settlement.rules';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 const errorText = (err: unknown) => {
   const e = toApiError(err);
@@ -32,42 +29,45 @@ export interface SendDialogData {
 /** Registra o envio ao credor: canal, referência e os arquivos enviados (com o SHA-256 de cada um). */
 @Component({
   selector: 'app-send-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, AppDatePipe],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, AppDatePipe, Icon],
   template: `
-    <h2 mat-dialog-title>Registrar envio ao credor</h2>
-    <form [formGroup]="form" (ngSubmit)="send()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Registrar envio ao credor</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="send()" novalidate>
+      <div class="modal-body">
         <p class="app-dialog-message">O envio é feito fora do sistema (e-mail, portal do credor…). Registre aqui o canal, a referência e quais arquivos foram enviados.</p>
-        <mat-form-field class="app-full-width">
-          <mat-label>Canal</mat-label>
-          <mat-select formControlName="channel" required>
+        <app-field class="mb-3" label="Canal">
+          <select appInput ngbAutofocus formControlName="channel" required>
             @for (c of channels; track c[0]) {
-              <mat-option [value]="c[0]">{{ c[1] }}</mat-option>
+              <option [ngValue]="c[0]">{{ c[1] }}</option>
             }
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field class="app-full-width">
-          <mat-label>Referência (opcional)</mat-label>
-          <input matInput formControlName="reference" maxlength="200" />
-          <mat-hint>Ex.: protocolo do e-mail ou número do chamado no credor</mat-hint>
-        </mat-form-field>
+          </select>
+        </app-field>
+        <app-field class="mb-3" label="Referência (opcional)" hint="Ex.: protocolo do e-mail ou número do chamado no credor">
+          <input appInput formControlName="reference" maxlength="200" />
+        </app-field>
         <fieldset class="sd-files">
-          <legend>Arquivos enviados</legend>
+          <legend class="form-label fs-5">Arquivos enviados</legend>
           @for (x of data.exports; track x.id) {
-            <mat-checkbox [checked]="picked().has(x.id)" (change)="toggle(x.id)">
-              {{ formats[x.format] }} · {{ x.fileName }}
-              <span class="app-muted sd-small">gerado em {{ x.createdAt | appDate }}</span>
-            </mat-checkbox>
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" [id]="'sd-file-' + x.id" [checked]="picked().has(x.id)" (change)="toggle(x.id)" />
+              <label class="form-check-label" [for]="'sd-file-' + x.id">
+                {{ formats[x.format] }} · {{ x.fileName }}
+                <span class="app-muted sd-small">gerado em {{ x.createdAt | appDate }}</span>
+              </label>
+            </div>
           }
         </fieldset>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="!picked().size || form.invalid || sending()">Registrar envio</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="!picked().size || form.invalid || sending()">Registrar envio</button>
+      </div>
     </form>
   `,
   styles: `
@@ -76,8 +76,8 @@ export interface SendDialogData {
       gap: 4px;
       margin: 0;
       padding: 8px 12px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
     }
     .sd-small {
       margin-left: 6px;
@@ -86,8 +86,8 @@ export interface SendDialogData {
   `,
 })
 export class SendDialog {
-  protected readonly data = inject<SendDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<SendDialog, StatementView>>(MatDialogRef);
+  protected readonly data = inject<SendDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<StatementView>>(DialogRef);
   private readonly api = inject(StatementsApi);
   protected readonly channels = Object.entries(SEND_CHANNEL_LABELS) as [SendChannel, string][];
   protected readonly formats = EXPORT_FORMAT_LABELS;
@@ -149,71 +149,66 @@ export interface AdjustmentDialogData {
  */
 @Component({
   selector: 'app-adjustment-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, Amount],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Amount, Icon],
   template: `
-    <h2 mat-dialog-title>Pedir ajuste no demonstrativo</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Pedir ajuste no demonstrativo</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Categoria</mat-label>
-            <mat-select formControlName="category" required>
+          <app-field label="Categoria">
+            <select appInput ngbAutofocus formControlName="category" required>
               @for (c of categories; track c[0]) {
-                <mat-option [value]="c[0]">{{ c[1] }}</mat-option>
+                <option [ngValue]="c[0]">{{ c[1] }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Efeito no repasse (R$)</mat-label>
-            <input matInput formControlName="amount" inputmode="decimal" required />
-            <mat-hint>Use − para reduzir o valor a repassar ao credor</mat-hint>
-            <mat-error>Informe um valor diferente de zero.</mat-error>
-          </mat-form-field>
+            </select>
+          </app-field>
+          <app-field label="Efeito no repasse (R$)" hint="Use − para reduzir o valor a repassar ao credor" error="Informe um valor diferente de zero.">
+            <input appInput formControlName="amount" inputmode="decimal" required />
+          </app-field>
           @if (value().category === 'PRIOR_PERIOD_CORRECTION') {
-            <mat-form-field class="app-span-all">
-              <mat-label>Demonstrativo corrigido</mat-label>
-              <mat-select formControlName="related">
+            <app-field class="app-span-all" label="Demonstrativo corrigido">
+              <select appInput formControlName="related">
                 @for (s of data.previous; track s.id) {
-                  <mat-option [value]="s.id">nº {{ s.sequenceNumber }} · {{ s.periodStart.split('-').reverse().join('/') }} a {{ s.periodEnd.split('-').reverse().join('/') }}</mat-option>
+                  <option [ngValue]="s.id">nº {{ s.sequenceNumber }} · {{ s.periodStart.split('-').reverse().join('/') }} a {{ s.periodEnd.split('-').reverse().join('/') }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
+              </select>
+            </app-field>
           }
-          <mat-form-field class="app-span-all">
-            <mat-label>Motivo</mat-label>
-            <textarea matInput formControlName="reason" rows="3" maxlength="2000" required></textarea>
-            <mat-hint>{{ value().reason.trim().length }}/2000 · mínimo {{ minReason }} caracteres; vai para o arquivo do credor</mat-hint>
-            <mat-error>Descreva o motivo (mínimo {{ minReason }} caracteres).</mat-error>
-          </mat-form-field>
+          <app-field class="app-span-all" label="Motivo" [hint]="value().reason.trim().length + '/2000 · mínimo ' + minReason + ' caracteres; vai para o arquivo do credor'" [error]="'Descreva o motivo (mínimo ' + minReason + ' caracteres).'">
+            <textarea appInput formControlName="reason" rows="3" maxlength="2000" required></textarea>
+          </app-field>
         </div>
         @if (amount() !== null) {
           <p class="app-dialog-message">Efeito: <app-amount [value]="amount()" [signed]="true" /> no líquido a repassar.</p>
         }
         @if (dual()) {
-          <p class="app-alert app-alert--warning" role="note" data-tour="adjustment-dual">
-            <mat-icon aria-hidden="true">group</mat-icon>
+          <div class="alert alert-warning d-flex align-items-start gap-2" role="note" data-tour="adjustment-dual">
+            <app-icon name="people" />
             <span>Acima de {{ threshold }}, o ajuste fica <strong>aguardando a segunda aprovação de outra pessoa</strong> com permissão de aprovação. Você não poderá aprová-lo, nem aprovar o demonstrativo depois de pedir ajuste.</span>
-          </p>
+          </div>
         } @else {
-          <p class="app-alert app-alert--neutral" role="note">
-            <mat-icon aria-hidden="true">info</mat-icon>
+          <div class="alert alert-secondary d-flex align-items-start gap-2" role="note">
+            <app-icon name="info-circle" />
             <span>O ajuste é aplicado na hora e o demonstrativo volta a "calculado" (precisa de nova revisão). Quem pede ajuste não aprova o demonstrativo.</span>
-          </p>
+          </div>
         }
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="sending()">{{ dual() ? 'Pedir segunda aprovação' : 'Aplicar ajuste' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="sending()">{{ dual() ? 'Pedir segunda aprovação' : 'Aplicar ajuste' }}</button>
+      </div>
     </form>
   `,
 })
 export class AdjustmentDialog {
-  protected readonly data = inject<AdjustmentDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<AdjustmentDialog, AdjustmentView>>(MatDialogRef);
+  protected readonly data = inject<AdjustmentDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<AdjustmentView>>(DialogRef);
   private readonly api = inject(StatementsApi);
   protected readonly categories = Object.entries(ADJUSTMENT_CATEGORY_LABELS) as [AdjustmentCategory, string][];
   protected readonly minReason = ADJUSTMENT_REASON_MIN;

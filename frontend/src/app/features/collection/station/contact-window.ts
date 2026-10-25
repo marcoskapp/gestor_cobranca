@@ -1,9 +1,9 @@
 import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { silentErrorContext } from '../../../core/http/http-context';
+import { Icon } from '../../../shared/components/icon/icon';
+import { IconName } from '../../../shared/components/icon/icon-names';
 import { valueOr } from '../../../shared/data/resource-value';
 import { CasesApi } from '../data/collection.api';
 import { CHANNEL_ICONS, CHANNEL_LABELS, eligibilityText } from '../data/collection.labels';
@@ -25,11 +25,11 @@ const STATUS_CLASS: Record<AvailabilityState['kind'], string> = {
   suspended: 'app-status--danger',
 };
 
-const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
-  allowed: 'check_circle',
-  wait: 'schedule',
-  blocked: 'block',
-  suspended: 'pause_circle',
+const STATUS_ICON: Record<AvailabilityState['kind'], IconName> = {
+  allowed: 'check-circle',
+  wait: 'clock',
+  blocked: 'slash-circle',
+  suspended: 'pause-circle',
 };
 
 /**
@@ -40,16 +40,16 @@ const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
  */
 @Component({
   selector: 'app-contact-window',
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [NgbTooltip, Icon],
   template: `
     <section class="cw" aria-labelledby="cw-title" data-tour="contact-window" aria-live="polite">
       <h2 class="cw__title" id="cw-title">
-        <mat-icon aria-hidden="true">schedule</mat-icon>
+        <app-icon name="clock" />
         Posso contatar agora?
         <span class="cw__now app-numeric">agora {{ now().time }}</span>
         @if (caseId()) {
-          <button mat-icon-button class="cw__refresh" type="button" (click)="refresh()" aria-label="Consultar de novo" matTooltip="Consultar de novo">
-            <mat-icon aria-hidden="true">refresh</mat-icon>
+          <button type="button" class="btn btn-sm cw__refresh" (click)="refresh()" aria-label="Consultar de novo" ngbTooltip="Consultar de novo">
+            <app-icon name="arrow-clockwise" />
           </button>
         }
       </h2>
@@ -60,19 +60,19 @@ const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
       } @else if (result(); as r) {
         @if (!r.caseEligible) {
           <p class="cw__note">
-            <span class="app-status app-status--danger"><mat-icon class="app-status__icon" aria-hidden="true">pause_circle</mat-icon>Contato suspenso</span>
+            <span class="app-status app-status--danger"><app-icon class="app-status__icon" name="pause-circle" />Contato suspenso</span>
             {{ caseReasonsText() }}
           </p>
         }
         <ul class="cw__list">
           @for (row of rows(); track row.channel) {
             <li class="cw__row">
-              <mat-icon class="cw__channel" aria-hidden="true">{{ icons[row.channel] }}</mat-icon>
+              <app-icon class="cw__channel" [name]="icons[row.channel]" />
               <span class="cw__name">{{ labels[row.channel] }}</span>
-              <span class="app-status" [class]="statusClass[row.state.kind]" [matTooltip]="row.state.text"
-                ><mat-icon class="app-status__icon" aria-hidden="true">{{ statusIcon[row.state.kind] }}</mat-icon>{{ row.state.label }}</span
+              <span class="app-status" [class]="statusClass[row.state.kind]" [ngbTooltip]="row.state.text"
+                ><app-icon class="app-status__icon" [name]="statusIcon[row.state.kind]" />{{ row.state.label }}</span
               >
-              <span class="cw__detail app-muted app-numeric" [matTooltip]="row.state.text">{{ row.state.detail }}</span>
+              <span class="cw__detail app-muted app-numeric" [ngbTooltip]="row.state.text">{{ row.state.detail }}</span>
             </li>
           }
         </ul>
@@ -85,9 +85,9 @@ const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
   styles: `
     .cw {
       padding: 10px 12px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
+      border: var(--bs-border-width) solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
     }
     .cw__title {
       display: flex;
@@ -95,17 +95,12 @@ const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
       gap: 6px;
       margin: 0 0 6px;
       font-size: var(--app-text-sm);
-      font-weight: 600;
-      .mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-      }
+      font-weight: 500;
     }
     .cw__now {
       margin-left: auto;
-      font-weight: 500;
-      color: var(--mat-sys-on-surface-variant);
+      font-weight: var(--bs-body-font-weight);
+      color: var(--bs-secondary-color);
     }
     .cw__list {
       display: grid;
@@ -122,10 +117,8 @@ const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
       font-size: var(--app-text-xs);
     }
     .cw__channel {
-      width: 16px;
-      height: 16px;
-      font-size: 16px;
-      color: var(--mat-sys-on-surface-variant);
+      font-size: 0.875rem;
+      color: var(--bs-secondary-color);
     }
     .cw__detail {
       overflow: hidden;
@@ -137,10 +130,10 @@ const STATUS_ICON: Record<AvailabilityState['kind'], string> = {
       font-size: var(--app-text-xs);
     }
     .cw__refresh {
-      width: 28px;
-      height: 28px;
-      padding: 2px;
-      --mat-icon-button-state-layer-size: 28px;
+      --bs-btn-padding-x: 0.3125rem;
+      --bs-btn-padding-y: 0.125rem;
+      --bs-btn-hover-bg: var(--bs-secondary-bg);
+      --bs-btn-active-bg: var(--bs-secondary-bg);
     }
   `,
 })

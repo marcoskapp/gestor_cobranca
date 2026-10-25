@@ -2,9 +2,10 @@
  * Regras de tela de propostas e acordos (funções puras). Orientam quais ações aparecem; o servidor
  * revalida tudo (guard, alçada, escopo e situação) a cada comando.
  */
-import { ValidationOutcome } from './negotiation.models';
+import type { IconName } from '../../../shared/components/icon/icon-names';
 import { ACCEPTANCE_CHANNEL_LABELS, ACTOR_TYPE_LABELS, AUTHORITY_VIOLATION_LABELS } from './agreement.labels';
 import { AcceptanceChannel, AgreementStatus, AgreementView, InstallmentView, ProposalStatus, ProposalView } from './agreement.models';
+import { ValidationOutcome } from './negotiation.models';
 
 /** Botão de envio conforme o resultado da validação (acima da alçada o botão muda, não some). */
 export type SubmitMode = 'propose' | 'request-approval';
@@ -103,7 +104,7 @@ export function installmentBalance(i: Pick<InstallmentView, 'amount' | 'paidAmou
 
 export interface TimelineEntry {
   at: string;
-  icon: string;
+  icon: IconName;
   title: string;
   detail: string | null;
 }
@@ -113,7 +114,7 @@ export function proposalTimeline(p: ProposalView, name: (actorType: string, id: 
   const entries: TimelineEntry[] = [
     {
       at: p.createdAt,
-      icon: p.actor.type === 'ASSISTANT' ? 'smart_toy' : 'edit_note',
+      icon: p.actor.type === 'ASSISTANT' ? 'robot' : 'pencil-square',
       title: p.handoffProposalId ? 'Proposta criada a partir da sugestão do assistente' : 'Proposta criada',
       detail: `${name(p.actor.type, p.actor.id)}${p.actor.profileCode ? ` · alçada ${p.actor.profileCode}` : ''}`,
     },
@@ -121,7 +122,7 @@ export function proposalTimeline(p: ProposalView, name: (actorType: string, id: 
   if (p.decision) {
     entries.push({
       at: p.decision.decidedAt,
-      icon: p.status === 'REJECTED' ? 'block' : 'verified',
+      icon: p.status === 'REJECTED' ? 'slash-circle' : 'patch-check',
       title: p.status === 'REJECTED' ? 'Reprovada' : 'Aprovada',
       detail: [name('USER', p.decision.decidedBy), p.decision.profileCode ? `alçada ${p.decision.profileCode}` : null, p.decision.note].filter(Boolean).join(' · '),
     });
@@ -130,13 +131,13 @@ export function proposalTimeline(p: ProposalView, name: (actorType: string, id: 
     const channel = ACCEPTANCE_CHANNEL_LABELS[p.acceptance.channel as AcceptanceChannel] ?? p.acceptance.channel;
     entries.push({
       at: p.acceptance.acceptedAt,
-      icon: 'how_to_reg',
+      icon: 'person-check',
       title: 'Aceite do devedor registrado',
       detail: [`por ${channel}`, p.acceptance.reference ? `referência ${p.acceptance.reference}` : null, `registrado por ${name(p.acceptance.actorType, p.acceptance.actorId)}`].filter(Boolean).join(' · '),
     });
   }
   if (p.formalizedAt) {
-    entries.push({ at: p.formalizedAt, icon: 'handshake', title: 'Acordo formalizado', detail: null });
+    entries.push({ at: p.formalizedAt, icon: 'person-hearts', title: 'Acordo formalizado', detail: null });
   }
   return entries.sort((a, b) => a.at.localeCompare(b.at));
 }

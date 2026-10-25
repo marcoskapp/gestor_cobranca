@@ -102,7 +102,7 @@ describe('TitleDetail', () => {
   it('oferece somente as transições manuais da situação atual', async () => {
     permissions.set(['DEBTOR_VIEW', 'DEBT_TITLE_MANAGE']);
     let fixture = await render(base);
-    expect(buttons(fixture).map((b) => b.replace(/^\S+\s/, ''))).toEqual(['Suspender', 'Transferir', 'Devolver ao credor', 'Cancelar']);
+    expect(buttons(fixture)).toEqual(['Suspender', 'Transferir', 'Devolver ao credor', 'Cancelar']);
     fixture.destroy();
     fixture = await render({ ...base, status: 'SETTLED' });
     expect(buttons(fixture)).toEqual([]);

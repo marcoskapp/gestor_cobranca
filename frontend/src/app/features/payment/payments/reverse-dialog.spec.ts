@@ -1,9 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { payment } from '../../../../testing/payment-fixtures';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { ReverseDialog } from './reverse-dialog';
 
 describe('ReverseDialog', () => {
@@ -15,11 +16,12 @@ describe('ReverseDialog', () => {
     TestBed.configureTestingModule({
       imports: [ReverseDialog],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: { payment: payment(), debtorName: 'Ana Paula Ribeiro' } },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DIALOG_DATA, useValue: { payment: payment(), debtorName: 'Ana Paula Ribeiro' } },
+        { provide: DialogRef, useValue: { close } },
       ],
     });
     http = TestBed.inject(HttpTestingController);

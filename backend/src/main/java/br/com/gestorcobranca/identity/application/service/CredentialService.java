@@ -95,8 +95,7 @@ class CredentialService {
         OpaqueToken token = OpaqueToken.generate(user.getTenantId());
         Instant expiresAt = now.plus(purpose == ActionToken.Purpose.ACTIVATION ? ACTIVATION_TTL : RESET_TTL);
         credentials.saveActionToken(new ActionToken(user.getId(), purpose, token.hash(), expiresAt));
-        String path = purpose == ActionToken.Purpose.ACTIVATION ? "/ativar-conta" : "/redefinir-senha";
-        String link = baseUrl + path + "?token=" + token.value();
+        String link = credentialLink(baseUrl, purpose, token.value());
         if (purpose == ActionToken.Purpose.ACTIVATION) {
             mailer.sendActivation(user.getEmail(), user.getName(), tenant.tradeName(), link, expiresAt);
         } else {
@@ -104,6 +103,16 @@ class CredentialService {
         }
         auditTrail.record(AuditEntry.of("user.credential_link_issued", "user", user.getId())
                 .meta("purpose", purpose).meta("expiresAt", expiresAt));
+    }
+
+    /**
+     * Link do e-mail com o token no <strong>fragmento</strong> ({@code #token=}): o navegador não o envia ao
+     * servidor, então ele não aparece nos access logs do ALB, em proxies nem no {@code Referer}. A tela lê o
+     * fragmento e envia o token no corpo do {@code POST /auth/password/reset}.
+     */
+    static String credentialLink(String baseUrl, ActionToken.Purpose purpose, String token) {
+        String path = purpose == ActionToken.Purpose.ACTIVATION ? "/ativar-conta" : "/redefinir-senha";
+        return baseUrl + path + "#token=" + token;
     }
 
     /** Conclui ativação/redefinição: define a senha e encerra todas as sessões existentes. */

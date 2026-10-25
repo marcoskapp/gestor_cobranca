@@ -1,12 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -27,16 +21,20 @@ import { StatementsApi } from '../data/settlement.api';
 import { StatementFilter, StatementView } from '../data/settlement.models';
 import { periodText } from '../data/settlement.rules';
 import { NewStatementDialog } from './new-statement-dialog';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Demonstrativos de prestação de contas por credor, do rascunho à resposta do credor. */
 @Component({
   selector: 'app-statement-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [NgbTooltip, ...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Demonstrativos" subtitle="Prestação de contas ao credor: o que foi recebido, quanto a assessoria fica e o líquido a repassar, por período.">
       @if (canClose()) {
-        <button mat-flat-button type="button" (click)="create()" data-tour="statement-new">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="create()" data-tour="statement-new">
+          <app-icon name="plus-lg" />
           Novo demonstrativo
         </button>
       }
@@ -45,15 +43,14 @@ import { NewStatementDialog } from './new-statement-dialog';
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
     <app-data-table
       caption="Demonstrativos de prestação de contas"
@@ -64,7 +61,7 @@ import { NewStatementDialog } from './new-statement-dialog';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="request_page"
+      emptyIcon="file-earmark-ruled"
       emptyMessage="Nenhum demonstrativo encontrado."
       emptyHint="Crie o demonstrativo do período encerrado; o sistema sugere o ciclo pelo dia de fechamento do contrato."
     >
@@ -93,8 +90,8 @@ import { NewStatementDialog } from './new-statement-dialog';
       </ng-template>
       <ng-template appCell="updated" [appCellOf]="query.rows()" let-s>{{ (s.creditorResponseAt ?? s.sentAt ?? s.approvedAt ?? s.calculatedAt) | appDate }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-s>
-        <a mat-icon-button [routerLink]="['/prestacao-de-contas/demonstrativos', s.id]" aria-label="Abrir demonstrativo" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/prestacao-de-contas/demonstrativos', s.id]" aria-label="Abrir demonstrativo" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -104,7 +101,7 @@ import { NewStatementDialog } from './new-statement-dialog';
       font-size: var(--app-text-xs);
     }
     .sl-warn {
-      color: var(--app-warning-fg);
+      color: var(--bs-warning-text-emphasis);
       font-weight: 600;
     }
   `,
@@ -112,7 +109,7 @@ import { NewStatementDialog } from './new-statement-dialog';
 export class StatementList {
   private readonly api = inject(StatementsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly statuses = statusOptions('settlementStatement');
@@ -150,7 +147,7 @@ export class StatementList {
 
   protected create(): void {
     this.dialog
-      .open<NewStatementDialog, void, StatementView>(NewStatementDialog, { width: '520px', maxWidth: '96vw' })
+      .open<NewStatementDialog, void, StatementView>(NewStatementDialog)
       .afterClosed()
       .subscribe((s) => {
         if (s) {

@@ -5,57 +5,57 @@
   </div>
 } @else if (title.status() === 'error') {
   <app-empty-state
-    icon="cloud_off"
+    icon="cloud-slash"
     tone="error"
     title="Não foi possível carregar o título."
     message="Ele pode não existir ou estar fora dos credores do seu escopo."
   >
-    <button mat-stroked-button type="button" (click)="title.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/titulos">Voltar para títulos</a>
+    <button class="btn btn-outline-primary" type="button" (click)="title.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/titulos">Voltar para títulos</a>
   </app-empty-state>
 }
 
 @if (current(); as t) {
   <app-page-header [title]="'Título ' + titleLabel(t)" [subtitle]="creditors.name(t.creditorId) + ' · ' + portfolios.name(t.portfolioId)">
-    <a mat-button routerLink="/titulos">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/titulos">
+      <app-icon name="arrow-left" />
       Títulos
     </a>
     @if (canOpenDebtor()) {
-      <a mat-stroked-button [routerLink]="['/devedores', t.debtorId]" data-tour="title-debtor">
-        <mat-icon aria-hidden="true">person</mat-icon>
+      <a class="btn btn-outline-primary" [routerLink]="['/devedores', t.debtorId]" data-tour="title-debtor">
+        <app-icon name="person" />
         Ficha do devedor
       </a>
     }
     @if (actions().length) {
       <span class="debt-actions" data-tour="title-actions">
         @if (actions().includes('suspend')) {
-          <button mat-stroked-button type="button" (click)="run('suspend', t)">
-            <mat-icon aria-hidden="true">pause_circle</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="run('suspend', t)">
+            <app-icon name="pause-circle" />
             Suspender
           </button>
         }
         @if (actions().includes('reactivate')) {
-          <button mat-flat-button type="button" (click)="run('reactivate', t)">
-            <mat-icon aria-hidden="true">play_circle</mat-icon>
+          <button class="btn btn-primary" type="button" (click)="run('reactivate', t)">
+            <app-icon name="play-circle" />
             Reativar
           </button>
         }
         @if (canTransfer()) {
-          <button mat-stroked-button type="button" (click)="transfer(t)">
-            <mat-icon aria-hidden="true">drive_file_move</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="transfer(t)">
+            <app-icon name="folder-symlink" />
             Transferir
           </button>
         }
         @if (actions().includes('return')) {
-          <button mat-stroked-button type="button" (click)="run('return', t)">
-            <mat-icon aria-hidden="true">assignment_return</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="run('return', t)">
+            <app-icon name="arrow-return-left" />
             Devolver ao credor
           </button>
         }
         @if (actions().includes('cancel')) {
-          <button mat-stroked-button type="button" class="debt-danger" (click)="run('cancel', t)">
-            <mat-icon aria-hidden="true">block</mat-icon>
+          <button type="button" class="btn btn-outline-danger" (click)="run('cancel', t)">
+            <app-icon name="slash-circle" />
             Cancelar
           </button>
         }
@@ -85,10 +85,10 @@
   <section class="app-card" aria-labelledby="dados-titulo">
     <h2 class="app-card__title" id="dados-titulo">Dados do título</h2>
     @if (t.disputeBlocked) {
-      <p class="app-alert app-alert--warning" role="note">
-        <mat-icon aria-hidden="true">gavel</mat-icon>
+      <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+        <app-icon name="hammer" />
         <span>Título em contestação: a cobrança fica bloqueada até a análise ser concluída.</span>
-      </p>
+      </div>
     }
     <dl class="app-definition-list">
       <dt>Situação</dt>
@@ -132,25 +132,32 @@
   </section>
 
   <section class="app-card" aria-label="Saldo, razão e titularidade">
-    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" data-tour="title-tabs">
-      <mat-tab label="Saldo por componente">
-        <div class="debt-tab"><app-title-balance [titleId]="t.id" /></div>
-      </mat-tab>
-      <mat-tab label="Razão">
-        <ng-template matTabContent>
+    <ul ngbNav #tabs="ngbNav" class="nav-tabs debt-tabs" data-tour="title-tabs">
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Saldo por componente</button>
+        <ng-template ngbNavContent>
+          <div class="debt-tab"><app-title-balance [titleId]="t.id" /></div>
+        </ng-template>
+      </li>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Razão</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-ledger [titleId]="t.id" /></div>
         </ng-template>
-      </mat-tab>
-      <mat-tab label="Prescrição">
-        <ng-template matTabContent>
+      </li>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Prescrição</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-prescription [titleId]="t.id" /></div>
         </ng-template>
-      </mat-tab>
-      <mat-tab label="Titularidade">
-        <ng-template matTabContent>
+      </li>
+      <li ngbNavItem>
+        <button ngbNavLink type="button">Titularidade</button>
+        <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-ownership [titleId]="t.id" /></div>
         </ng-template>
-      </mat-tab>
-    </mat-tab-group>
+      </li>
+    </ul>
+    <div [ngbNavOutlet]="tabs"></div>
   </section>
 }

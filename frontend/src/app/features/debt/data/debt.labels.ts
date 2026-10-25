@@ -1,3 +1,4 @@
+import { IconName } from '../../../shared/components/icon/icon-names';
 import { Option } from '../../../shared/models/lookup';
 import { ContactLabel, ContactSource, ContactType, LedgerComponent, LedgerEntryType, PersonType } from './debt.models';
 
@@ -12,10 +13,10 @@ export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
   ADDRESS: 'Endereço',
 };
 
-export const CONTACT_TYPE_ICONS: Record<ContactType, string> = {
-  PHONE: 'call',
-  EMAIL: 'mail',
-  ADDRESS: 'home',
+export const CONTACT_TYPE_ICONS: Record<ContactType, IconName> = {
+  PHONE: 'telephone',
+  EMAIL: 'envelope',
+  ADDRESS: 'house',
 };
 
 export const CONTACT_LABEL_LABELS: Record<ContactLabel, string> = {

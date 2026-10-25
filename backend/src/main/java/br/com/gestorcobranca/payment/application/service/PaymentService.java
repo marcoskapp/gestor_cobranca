@@ -1,6 +1,8 @@
 package br.com.gestorcobranca.payment.application.service;
 
+import br.com.gestorcobranca.payment.application.PaymentProperties;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases;
+import br.com.gestorcobranca.payment.application.port.out.ExternalPaymentLocks;
 import br.com.gestorcobranca.payment.application.service.AllocationService.Destination;
 import br.com.gestorcobranca.payment.application.service.AllocationService.Result;
 import br.com.gestorcobranca.payment.application.service.TargetResolver.AgreementTarget;
@@ -18,6 +20,7 @@ import br.com.gestorcobranca.payment.domain.model.TitleStrategy;
 import br.com.gestorcobranca.payment.domain.repository.PaymentAllocationRepository;
 import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
 import br.com.gestorcobranca.payment.domain.repository.PaymentReversalRepository;
+import br.com.gestorcobranca.payment.domain.service.ExternalReviewPolicy;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
@@ -82,13 +85,15 @@ class PaymentService implements PaymentUseCases {
     private final PaymentMetrics metrics;
     private final JsonCodec json;
     private final Clock clock;
+    private final ExternalPaymentLocks externalLocks;
+    private final PaymentProperties properties;
 
     PaymentService(PaymentRepository payments, PaymentAllocationRepository allocations, PaymentReversalRepository reversals,
                    TargetResolver resolver, AllocationService allocationService, PaymentConfirmation confirmation,
                    PaymentReversals paymentReversals, PaymentRecorder recorder, EvidenceStore evidenceStore,
                    PaymentSettingsProvider settings, IdempotencyService idempotency, FileStorage fileStorage,
                    AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, PaymentMetrics metrics,
-                   JsonCodec json, Clock clock) {
+                   JsonCodec json, Clock clock, ExternalPaymentLocks externalLocks, PaymentProperties properties) {
         this.payments = payments;
         this.allocations = allocations;
         this.reversals = reversals;
@@ -107,6 +112,8 @@ class PaymentService implements PaymentUseCases {
         this.metrics = metrics;
         this.json = json;
         this.clock = clock;
+        this.externalLocks = externalLocks;
+        this.properties = properties;
     }
 
     @Override
@@ -167,19 +174,38 @@ class PaymentService implements PaymentUseCases {
         UUID id = idempotency.execute("payment.external", idempotencyKey, hash(command), () -> {
             Payment.Evidence stored = evidenceStore.store(evidence);
             Money amount = Money.of(command.amount());
-            boolean reviewRequired = amount.isGreaterThan(settings.current().externalReviewThreshold());
             Instant now = Instant.now(clock);
+            ExternalReviewPolicy.Decision decision = externalReview(command, amount, now);
+            boolean reviewRequired = decision.reviewRequired();
             Payment p = payments.save(Payment.informed(method, command.creditorId(), command.debtorId(), amount,
                     command.paidAt(), origin, command.externalReference(), command.note(),
                     new Payment.Target(destination.kind(), destination.agreementId(), json.toJson(destination.items()),
                             destination.strategy()), stored, currentActor.actorId(), reviewRequired, now));
-            recorder.informed(p);
+            recorder.informed(p, decision.reason() == null ? null : decision.reason().name());
+            metrics.externalReview(decision.reason() == null ? "AUTO" : decision.reason().name());
             if (!reviewRequired) {
                 confirmation.confirmed(p, null, "auto_low_risk");
             }
             return p.getId();
         });
         return view(payments.findById(id).orElseThrow());
+    }
+
+    /**
+     * Limite por pagamento da assessoria e limites acumulados na janela (por devedor/credor e por quem
+     * informa), sob lock para que registros simultâneos não escapem da soma.
+     */
+    private ExternalReviewPolicy.Decision externalReview(ExternalPaymentCommand command, Money amount, Instant now) {
+        UUID informer = currentActor.actorId();
+        externalLocks.lockExternalRegistration(currentActor.tenantId(), informer, command.creditorId(), command.debtorId());
+        PaymentProperties.ExternalReview config = properties.externalReview();
+        Money perPayment = settings.current().externalReviewThreshold();
+        Instant since = now.minus(config.window());
+        return ExternalReviewPolicy.decide(amount,
+                payments.sumExternalInformedForDebtor(command.creditorId(), command.debtorId(), since),
+                payments.sumExternalInformedBy(informer, since),
+                new ExternalReviewPolicy.Limits(perPayment, perPayment.times(config.destinationFactor()),
+                        perPayment.times(config.informerFactor())));
     }
 
     @Override

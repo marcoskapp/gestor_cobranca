@@ -1,10 +1,5 @@
 import { Component, ElementRef, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { PortalApi, portalMessage, retryAfterSeconds } from '../data/portal.api';
 import { CHANNEL_LABELS, KNOWLEDGE_LABELS } from '../data/portal.labels';
@@ -12,6 +7,8 @@ import { ChallengeView, PortalChannel } from '../data/portal.models';
 import { PortalFlow, maskDocument, validDocument } from '../data/portal-flow';
 import { PortalSession } from '../data/portal-session';
 import { PortalSite } from '../layout/portal-site';
+import { Icon } from '../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../shared/forms/field';
 
 /**
  * Entrada do portal: CPF/CNPJ → código no contato cadastrado (e o dado de conhecimento, se o credor
@@ -19,74 +16,66 @@ import { PortalSite } from '../layout/portal-site';
  */
 @Component({
   selector: 'app-portal-entry',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatRadioModule],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, Icon],
   template: `
     @if (session.endedReason() === 'expired') {
-      <p class="portal-note" role="status"><mat-icon aria-hidden="true">schedule</mat-icon>
+      <p class="alert alert-info d-flex align-items-start gap-2" role="status"><app-icon name="clock" />
         <span>Sua sessão terminou por segurança. Entre de novo para continuar.</span></p>
     } @else if (session.endedReason() === 'logout') {
-      <p class="portal-note portal-success" role="status"><mat-icon aria-hidden="true">check_circle</mat-icon>
+      <p class="alert alert-success d-flex align-items-start gap-2" role="status"><app-icon name="check-circle" />
         <span>Você saiu do portal.</span></p>
     }
 
     <section class="portal-card">
       @if (!challenge()) {
         <h1 class="portal-title" #heading tabindex="-1">Consulte e negocie suas dívidas</h1>
-        <p class="portal-subtitle">Veja o valor atualizado, escolha como pagar e feche o acordo aqui mesmo.</p>
+        <p class="mb-3 text-body-secondary">Veja o valor atualizado, escolha como pagar e feche o acordo aqui mesmo.</p>
         <form (submit)="$event.preventDefault(); requestCode()" novalidate>
-          <mat-form-field class="portal-field" appearance="outline">
-            <mat-label>CPF ou CNPJ</mat-label>
-            <input matInput [formControl]="document" inputmode="numeric" autocomplete="off" maxlength="18"
-                   (input)="onDocumentInput()" aria-describedby="doc-hint" />
-            <mat-hint id="doc-hint">Só os números já bastam</mat-hint>
-            @if (document.touched && document.invalid) {
-              <mat-error>Confira o CPF ou CNPJ</mat-error>
-            }
-          </mat-form-field>
+          <app-field class="portal-field" label="CPF ou CNPJ" hint="Só os números já bastam" error="Confira o CPF ou CNPJ">
+            <input appInput class="form-control-lg" [formControl]="document" inputmode="numeric" autocomplete="off" maxlength="18" (input)="onDocumentInput()" />
+          </app-field>
           @if (channels().length > 1) {
             <fieldset class="portal-fieldset">
               <legend>Onde você quer receber o código?</legend>
-              <mat-radio-group [formControl]="channel" aria-label="Canal para receber o código">
-                @for (c of channels(); track c) {
-                  <mat-radio-button [value]="c">{{ channelLabels[c] }}</mat-radio-button>
-                }
-              </mat-radio-group>
+              @for (c of channels(); track c) {
+                <div class="form-check portal-radio">
+                  <input class="form-check-input portal-check" type="radio" name="portal-channel" [id]="'portal-channel-' + c" [value]="c" [formControl]="channel" />
+                  <label class="form-check-label" [for]="'portal-channel-' + c">{{ channelLabels[c] }}</label>
+                </div>
+              }
             </fieldset>
           } @else {
             <p class="portal-label">Vamos enviar um código para o seu {{ channelLabels[channels()[0]] }} cadastrado.</p>
           }
           @if (error()) {
-            <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ error() }}</span></p>
+            <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
           }
           <div class="portal-actions">
-            <button mat-flat-button type="submit" [disabled]="busy()">Receber código</button>
+            <button class="btn btn-primary portal-btn" type="submit" [disabled]="busy()">Receber código</button>
           </div>
         </form>
       } @else {
         <h1 class="portal-title" #heading tabindex="-1">Digite o código</h1>
-        <p class="portal-subtitle" role="status">
+        <p class="mb-3 text-body-secondary" role="status">
           Se o documento estiver cadastrado, você vai receber um código de {{ challenge()!.codeLength }} números
           pelo {{ channelLabels[challenge()!.channel] }}. Ele vale por alguns minutos.
         </p>
         <form (submit)="$event.preventDefault(); verify()" novalidate>
-          <mat-form-field class="portal-field" appearance="outline">
-            <mat-label>Código recebido</mat-label>
-            <input matInput [formControl]="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
-          </mat-form-field>
+          <app-field class="portal-field" label="Código recebido">
+            <input appInput class="form-control-lg" [formControl]="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+          </app-field>
           @if (knowledge(); as k) {
-            <mat-form-field class="portal-field" appearance="outline">
-              <mat-label>{{ k.label }}</mat-label>
-              <input matInput [formControl]="answer" autocomplete="off" maxlength="20" aria-describedby="k-hint" />
-              <mat-hint id="k-hint">{{ k.hint }}</mat-hint>
-            </mat-form-field>
+            <app-field class="portal-field" [label]="k.label" [hint]="k.hint">
+              <input appInput class="form-control-lg" [formControl]="answer" autocomplete="off" maxlength="20" />
+            </app-field>
           }
           @if (error()) {
-            <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ error() }}</span></p>
+            <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
           }
           <div class="portal-actions">
-            <button mat-button type="button" (click)="restart()">Usar outro documento</button>
-            <button mat-stroked-button type="button" (click)="requestCode()" [disabled]="busy()">Reenviar código</button>
-            <button mat-flat-button type="submit" [disabled]="busy()">Entrar</button>
+            <button class="btn btn-link portal-btn-link" type="button" (click)="restart()">Usar outro documento</button>
+            <button class="btn btn-outline-primary portal-btn-outline" type="button" (click)="requestCode()" [disabled]="busy()">Reenviar código</button>
+            <button class="btn btn-primary portal-btn" type="submit" [disabled]="busy()">Entrar</button>
           </div>
         </form>
       }
@@ -94,8 +83,8 @@ import { PortalSite } from '../layout/portal-site';
   `,
   styles: `
     .portal-fieldset { margin: 8px 0 0; padding: 0; border: 0; }
-    .portal-fieldset legend { margin-bottom: 4px; font-weight: 500; }
-    .portal-fieldset mat-radio-button { display: block; min-height: 44px; }
+    .portal-fieldset legend { margin-bottom: 4px; font-size: 1rem; font-weight: 500; }
+    .portal-radio { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; }
   `,
 })
 export class PortalEntry implements OnInit {

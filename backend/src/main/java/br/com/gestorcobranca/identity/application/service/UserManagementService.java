@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.identity.application.service;
 
 import br.com.gestorcobranca.identity.application.port.in.UserManagementUseCases;
+import br.com.gestorcobranca.identity.application.port.out.IdentityMailer;
 import br.com.gestorcobranca.identity.domain.model.ActionToken;
 import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
 import br.com.gestorcobranca.identity.domain.model.Role;
@@ -20,6 +21,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
@@ -43,7 +45,12 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>só é possível atribuir perfis cujas permissões o administrador também possua;</li>
  *   <li>só é possível conceder escopo de credores dentro do próprio escopo;</li>
- *   <li>não é possível desativar a si mesmo nem o último administrador ativo.</li>
+ *   <li>não é possível desativar a si mesmo nem o último administrador ativo;</li>
+ *   <li>só se administra quem se domina: todas as permissões efetivas e todo o escopo de credores do
+ *       alvo ({@link AdministrationHierarchy}) — vale para editar, trocar perfis ou escopo, desativar,
+ *       reativar, desbloquear, redefinir MFA e enviar link; a listagem e a consulta mostram só usuários
+ *       com escopo contido no de quem consulta;</li>
+ *   <li>o MFA de um administrador só é redefinido por outro administrador, e o titular recebe alerta.</li>
  * </ul>
  */
 @Service
@@ -57,6 +64,8 @@ class UserManagementService implements UserManagementUseCases {
     private final CreditorUseCases creditors;
     private final BusinessUnitUseCases businessUnits;
     private final TenantAdministration tenantAdministration;
+    private final AdministrationHierarchy hierarchy;
+    private final IdentityMailer mailer;
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
     private final AccessLogger accessLogger;
@@ -64,7 +73,8 @@ class UserManagementService implements UserManagementUseCases {
 
     UserManagementService(UserRepository users, RoleRepository roles, CredentialService credentialService,
                           SessionManager sessionManager, CreditorUseCases creditors, BusinessUnitUseCases businessUnits,
-                          TenantAdministration tenantAdministration, CurrentActor currentActor, AuditTrail auditTrail,
+                          TenantAdministration tenantAdministration, AdministrationHierarchy hierarchy,
+                          IdentityMailer mailer, CurrentActor currentActor, AuditTrail auditTrail,
                           AccessLogger accessLogger, Clock clock) {
         this.users = users;
         this.roles = roles;
@@ -73,6 +83,8 @@ class UserManagementService implements UserManagementUseCases {
         this.creditors = creditors;
         this.businessUnits = businessUnits;
         this.tenantAdministration = tenantAdministration;
+        this.hierarchy = hierarchy;
+        this.mailer = mailer;
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
         this.accessLogger = accessLogger;
@@ -107,7 +119,7 @@ class UserManagementService implements UserManagementUseCases {
 
     @Override
     public UserView update(UUID userId, UpdateUserCommand command) {
-        User user = load(userId);
+        User user = loadManageable(userId, "update");
         validateBusinessUnit(command.businessUnitId());
         AuditEntry audit = AuditEntry.of("user.updated", "user", userId)
                 .change("name", user.getName(), command.name())
@@ -122,7 +134,7 @@ class UserManagementService implements UserManagementUseCases {
 
     @Override
     public UserView assignRoles(UUID userId, Set<UUID> roleIds) {
-        User user = load(userId);
+        User user = loadManageable(userId, "assign_roles");
         List<Role> assigned = validateRoles(roleIds);
         List<Role> previous = roles.findAllByIdIn(user.getRoleIds());
         boolean losesAdmin = previous.stream().anyMatch(r -> DefaultRoles.ADMIN.equals(r.getCode()))
@@ -142,7 +154,7 @@ class UserManagementService implements UserManagementUseCases {
 
     @Override
     public UserView defineCreditorScope(UUID userId, boolean allCreditors, Set<UUID> creditorIds) {
-        User user = load(userId);
+        User user = loadManageable(userId, "define_scope");
         validateCreditorScope(allCreditors, creditorIds);
         AuditEntry audit = AuditEntry.of("user.scope_changed", "user", userId)
                 .change("allCreditors", user.isAllCreditors(), allCreditors)
@@ -162,7 +174,7 @@ class UserManagementService implements UserManagementUseCases {
         if (userId.equals(actor.id())) {
             throw new BusinessRuleException("user.cannot_disable_self", "Não é possível desativar o próprio usuário");
         }
-        User user = load(userId);
+        User user = loadManageable(userId, "disable");
         if (isAdmin(user)) {
             requireAnotherActiveAdmin(user);
         }
@@ -178,7 +190,7 @@ class UserManagementService implements UserManagementUseCases {
 
     @Override
     public UserView enable(UUID userId) {
-        User user = load(userId);
+        User user = loadManageable(userId, "enable");
         UserStatus previous = user.getStatus();
         user.enable();
         users.save(user);
@@ -189,7 +201,7 @@ class UserManagementService implements UserManagementUseCases {
 
     @Override
     public UserView unlock(UUID userId) {
-        User user = load(userId);
+        User user = loadManageable(userId, "unlock");
         user.unlock();
         users.save(user);
         auditTrail.record(AuditEntry.of("user.unlocked", "user", userId));
@@ -199,18 +211,31 @@ class UserManagementService implements UserManagementUseCases {
 
     @Override
     public UserView resetMfa(UUID userId, String reason) {
-        User user = load(userId);
+        Actor actor = currentActor.get();
+        User user = loadManageable(userId, "reset_mfa");
+        boolean targetIsAdmin = isAdmin(user);
+        if (targetIsAdmin && !actor.isSystem() && (userId.equals(actor.id()) || !hierarchy.actorIsAdministrator(actor))) {
+            accessLogger.log(AccessEvent.of(AccessEventType.ACCESS_DENIED, actor, Map.of("reason", "admin_mfa_reset_requires_other_admin",
+                    "targetUserId", userId.toString())));
+            throw new BusinessRuleException("user.admin_mfa_reset_requires_admin",
+                    "O segundo fator de um administrador só pode ser redefinido por outro administrador");
+        }
         user.resetMfa();
         users.save(user);
         sessionManager.revokeAll(userId, "mfa_reset");
-        auditTrail.record(AuditEntry.of("user.mfa_reset", "user", userId).reason(reason));
-        accessLogger.log(AccessEvent.of(AccessEventType.MFA_RESET, currentActor.get(), Map.of("targetUserId", userId.toString())));
+        auditTrail.record(AuditEntry.of("user.mfa_reset", "user", userId).reason(reason).meta("targetIsAdmin", targetIsAdmin));
+        accessLogger.log(AccessEvent.of(AccessEventType.MFA_RESET, actor, Map.of("targetUserId", userId.toString(),
+                "targetIsAdmin", String.valueOf(targetIsAdmin))));
+        mailer.sendSecurityAlert(user.getEmail(), user.getName(), "Segundo fator de autenticação redefinido",
+                "O segundo fator (MFA) da sua conta foi redefinido por um administrador e suas sessões foram encerradas. "
+                        + "No próximo acesso você cadastrará um novo autenticador. Se não reconhece esta solicitação, "
+                        + "contate imediatamente o responsável pela segurança da assessoria.");
         return view(user);
     }
 
     @Override
     public void sendCredentialLink(UUID userId) {
-        User user = load(userId);
+        User user = loadManageable(userId, "send_credential_link");
         ActionToken.Purpose purpose = switch (user.getStatus()) {
             case PENDING_ACTIVATION -> ActionToken.Purpose.ACTIVATION;
             case ACTIVE -> ActionToken.Purpose.PASSWORD_RESET;
@@ -222,15 +247,23 @@ class UserManagementService implements UserManagementUseCases {
     @Override
     @Transactional(readOnly = true)
     public UserView get(UUID userId) {
-        return view(load(userId));
+        User user = load(userId);
+        if (!AdministrationHierarchy.scopeCovers(currentActor.get().creditorScope(), user)) {
+            // fora do escopo de credores de quem consulta: como inexistente
+            throw ResourceNotFoundException.of("user", userId);
+        }
+        return view(user);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserView> search(String text, String status, UUID roleId, UUID businessUnitId, PageQuery page) {
         UserStatus statusFilter = status == null || status.isBlank() ? null : UserStatus.valueOf(status);
-        return PageResponse.of(users.search(text, statusFilter, roleId, businessUnitId, page.toPageable(Sort.by("name"))),
-                this::view);
+        CreditorScope scope = currentActor.get().creditorScope();
+        // sem todos os credores: só usuários cujo escopo cabe no de quem consulta
+        Set<UUID> within = scope.all() ? null : scope.creditorIds();
+        return PageResponse.of(users.search(text, statusFilter, roleId, businessUnitId, within,
+                page.toPageable(Sort.by("name"))), this::view);
     }
 
     // ------------------------------------------------------------------ validações
@@ -288,6 +321,17 @@ class UserManagementService implements UserManagementUseCases {
         if (userIsActiveAdmin && activeAdmins <= 1) {
             throw new BusinessRuleException("user.last_admin", "A assessoria deve manter ao menos um administrador ativo");
         }
+    }
+
+    /** Usuário que o ator pode administrar (domina permissões e escopo); senão 404/403. */
+    private User loadManageable(UUID userId, String operation) {
+        User user = load(userId);
+        Actor actor = currentActor.get();
+        if (!AdministrationHierarchy.scopeCovers(actor.creditorScope(), user) && !actor.isSystem()) {
+            throw ResourceNotFoundException.of("user", userId);
+        }
+        hierarchy.requireDominates(actor, user, operation);
+        return user;
     }
 
     private User load(UUID userId) {

@@ -1,14 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbDropdownModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -17,12 +10,15 @@ import { KeyboardShortcuts } from '../../../core/keyboard/keyboard-shortcuts.ser
 import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs';
 import { CommandPaletteService } from '../../../core/layout/command-palette/command-palette.service';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { DensityService } from '../../../core/preferences/density.service';
 import { Amount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { valueOr } from '../../../shared/data/resource-value';
 import { Option } from '../../../shared/models/lookup';
 import { DebtorNames } from '../../debt/data/debt.lookups';
@@ -58,13 +54,9 @@ const GROUP = 'Estação de cobrança';
   imports: [
     FormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatMenuModule,
-    MatProgressBarModule,
-    MatSelectModule,
-    MatTooltipModule,
+    NgbDropdownModule,
+    NgbTooltip,
+    Icon,
     Amount,
     EmptyState,
     Skeleton,
@@ -93,7 +85,8 @@ export class CollectionStation {
   private readonly settingsApi = inject(CollectionSettingsApi);
   private readonly queueNames = inject(QueueNames);
   private readonly router = inject(Router);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
+  protected readonly density = inject(DensityService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
@@ -209,9 +202,9 @@ export class CollectionStation {
       ),
     ];
     const palette = inject(CommandPaletteService).register([
-      { id: 'collection.next-case', label: 'Próximo caso', group: 'Ações', icon: 'skip_next', hint: 'Alt + N', keywords: ['fila', 'cobrança'], run: () => this.nextCase() },
-      { id: 'collection.register', label: 'Registrar interação', group: 'Ações', icon: 'task_alt', hint: 'Alt + R', keywords: ['tabulação'], run: () => this.interactionPanel()?.focus() },
-      { id: 'collection.schedule', label: 'Agendar retorno', group: 'Ações', icon: 'event', hint: 'Alt + A', run: () => this.schedule() },
+      { id: 'collection.next-case', label: 'Próximo caso', group: 'Ações', icon: 'skip-forward', hint: 'Alt + N', keywords: ['fila', 'cobrança'], run: () => this.nextCase() },
+      { id: 'collection.register', label: 'Registrar interação', group: 'Ações', icon: 'check2-circle', hint: 'Alt + R', keywords: ['tabulação'], run: () => this.interactionPanel()?.focus() },
+      { id: 'collection.schedule', label: 'Agendar retorno', group: 'Ações', icon: 'calendar-event', hint: 'Alt + A', run: () => this.schedule() },
     ]);
     destroy.onDestroy(() => {
       off.forEach((fn) => fn());
@@ -251,7 +244,6 @@ export class CollectionStation {
     this.dialog
       .open<ScheduleDialog, ScheduleDialogData, TaskView>(ScheduleDialog, {
         data: { caseId: c.id, canChooseAssignee: this.canAssign() },
-        width: '520px',
       })
       .afterClosed()
       .subscribe((task) => task && this.refreshAll());
@@ -269,7 +261,7 @@ export class CollectionStation {
           debtorName: sheet.debtor.name,
           titles: sheet.titles.filter((t) => (t.status === 'OPEN' || t.status === 'SUSPENDED') && !t.disputeBlocked),
         },
-        width: '640px',
+        size: 'lg',
       })
       .afterClosed()
       .subscribe((dispute) => dispute && this.refreshAll());
@@ -320,7 +312,7 @@ export class CollectionStation {
       return;
     }
     this.dialog
-      .open<AssignDialog, AssignDialogData, CaseView>(AssignDialog, { data: { caseView: c, debtorName: this.current()?.debtor.name ?? '' }, width: '520px' })
+      .open<AssignDialog, AssignDialogData, CaseView>(AssignDialog, { data: { caseView: c, debtorName: this.current()?.debtor.name ?? '' } })
       .afterClosed()
       .subscribe((saved) => saved && this.refreshAll());
   }

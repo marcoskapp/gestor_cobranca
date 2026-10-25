@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { TONE_ICONS } from '../../../shared/components/status-chip/status-chip';
+import { TONE_ICON } from '../../../shared/components/status-chip/status-chip';
 import { overdueText, overdueTone } from '../data/debt.labels';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /**
  * Atraso do título (aging) com tom, ícone e texto — o significado nunca depende só da cor.
@@ -9,11 +9,11 @@ import { overdueText, overdueTone } from '../data/debt.labels';
  */
 @Component({
   selector: 'app-overdue-badge',
-  imports: [MatIconModule],
+  imports: [Icon],
   template: `
     @if (active()) {
       <span class="app-status" [class]="'app-status--' + tone()"
-        ><mat-icon class="app-status__icon" aria-hidden="true">{{ icon() }}</mat-icon>{{ text() }}</span
+        ><app-icon class="app-status__icon" [name]="icon()" />{{ text() }}</span
       >
     } @else {
       <span class="app-muted">—</span>
@@ -27,6 +27,6 @@ export class OverdueBadge {
 
   protected readonly active = computed(() => this.status() === 'OPEN' || this.status() === 'SUSPENDED');
   protected readonly tone = computed(() => overdueTone(this.days()));
-  protected readonly icon = computed(() => (this.days() <= 0 ? 'event_available' : TONE_ICONS[this.tone()]));
+  protected readonly icon = computed(() => (this.days() <= 0 ? 'calendar-check' : TONE_ICON[this.tone()]));
   protected readonly text = computed(() => overdueText(this.days()));
 }

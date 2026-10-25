@@ -65,7 +65,9 @@ describe('regras do jurídico', () => {
   });
 
   it('formulário converte valores para o contrato da API', () => {
-    expect(apiValue({ key: 'd', label: 'D', type: 'date' }, new Date(2026, 9, 23))).toBe('2026-10-23');
+    // o ngbDatepicker entrega LocalDate; texto não reconhecido (erro ngbDate) não vai para a API
+    expect(apiValue({ key: 'd', label: 'D', type: 'date' }, '2026-10-23')).toBe('2026-10-23');
+    expect(apiValue({ key: 'd', label: 'D', type: 'date' }, '31/02/2026')).toBeNull();
     expect(apiValue({ key: 'm', label: 'M', type: 'money' }, '12.5')).toBe(12.5);
     expect(apiValue({ key: 'm', label: 'M', type: 'money' }, '')).toBeNull();
     expect(apiValue({ key: 'e', label: 'E', type: 'entity' }, ['c-1'])).toBe('c-1');

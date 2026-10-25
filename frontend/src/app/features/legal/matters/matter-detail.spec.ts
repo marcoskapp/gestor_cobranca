@@ -7,11 +7,10 @@ import { provideRouter } from '@angular/router';
 import { EMPTY } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { FormDialogData, FormDialogService } from '../components/form-dialog';
 import { MatterSheet, MatterView } from '../data/legal.models';
 import { MatterDetail } from './matter-detail';
-import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -94,8 +93,7 @@ describe('MatterDetail', () => {
     TestBed.configureTestingModule({
       imports: [MatterDetail],
       providers: [
-        ...LEGACY_DIALOG_LAUNCHERS,
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

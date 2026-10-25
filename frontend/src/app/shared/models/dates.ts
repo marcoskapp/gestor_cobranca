@@ -40,3 +40,20 @@ export function endOfDayInstant(value: Date | null | undefined): string | null {
 export function toHourMinute(value: string | null | undefined): string {
   return value ? value.slice(0, 5) : '';
 }
+
+/**
+ * `{ year, month, day }` (`NgbDateStruct`) de um `LocalDate` (yyyy-MM-dd), para os limites
+ * `[minDate]`/`[maxDate]` do `ngbDatepicker` (o modelo dos formulários continua ISO).
+ */
+export function toDateStruct(value: string): { year: number; month: number; day: number } {
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  return { year, month, day };
+}
+
+/**
+ * Valor de um `ngbDatepicker` (modelo `LocalDate` `yyyy-MM-dd`) → `LocalDate` ou nulo. Com texto
+ * não reconhecido o ng-bootstrap devolve o próprio texto (e o erro `ngbDate`): aqui vira nulo.
+ */
+export function isoDate(value: unknown): string | null {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}

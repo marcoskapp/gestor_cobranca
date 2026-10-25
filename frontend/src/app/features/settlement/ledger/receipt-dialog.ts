@@ -1,8 +1,5 @@
 import { Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { Amount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
@@ -12,6 +9,9 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CalculationMemory } from '../components/calculation-memory';
 import { CommissionLedgerApi } from '../data/settlement.api';
 import { PAYMENT_TYPE_LABELS, PENDING_REASON_LABELS, RECEIVED_BY_LABELS } from '../data/settlement.labels';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 export interface ReceiptDialogData {
   receiptId: string;
@@ -20,14 +20,17 @@ export interface ReceiptDialogData {
 /** Recebimento do razão com a memória de cálculo do lançamento e os estornos que o compensaram. */
 @Component({
   selector: 'app-receipt-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule, Amount, AppDatePipe, CalculationMemory, EmptyState, Skeleton, StatusChip],
+  imports: [Icon, ...DIALOG_DIRECTIVES, Amount, AppDatePipe, CalculationMemory, EmptyState, Skeleton, StatusChip],
   template: `
-    <h2 mat-dialog-title>Recebimento no razão</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Recebimento no razão</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body">
       @if (resource.isLoading()) {
         <app-skeleton variant="lines" [rows]="6" />
       } @else if (resource.status() === 'error') {
-        <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o recebimento." [compact]="true" />
+        <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o recebimento." [compact]="true" />
       } @else if (detail(); as d) {
         @let r = d.receipt;
         <dl class="app-definition-list rd-dl">
@@ -56,7 +59,7 @@ export interface ReceiptDialogData {
           <h3 class="app-section-title">Lançamento · regra v{{ e.ruleVersion }}</h3>
           <app-calculation-memory [calculation]="e.calculation" />
         } @else {
-          <p class="app-alert app-alert--warning" role="note"><mat-icon aria-hidden="true">hourglass_top</mat-icon><span>Aguardando regra de comissão: será apurado quando a regra vigente na data do pagamento for publicada.</span></p>
+          <div class="alert alert-warning d-flex align-items-start gap-2" role="note"><app-icon name="hourglass-top" /><span>Aguardando regra de comissão: será apurado quando a regra vigente na data do pagamento for publicada.</span></div>
         }
         @if (d.reversals.length) {
           <h3 class="app-section-title">Estornos deste recebimento</h3>
@@ -67,10 +70,10 @@ export interface ReceiptDialogData {
           </ul>
         }
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" mat-dialog-close>Fechar</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-link" type="button" appDialogClose>Fechar</button>
+    </div>
   `,
   styles: `
     .rd-dl {
@@ -83,7 +86,7 @@ export interface ReceiptDialogData {
   `,
 })
 export class ReceiptDialog {
-  protected readonly data = inject<ReceiptDialogData>(MAT_DIALOG_DATA);
+  protected readonly data = inject<ReceiptDialogData>(DIALOG_DATA);
   private readonly api = inject(CommissionLedgerApi);
   protected readonly paymentTypes = PAYMENT_TYPE_LABELS;
   protected readonly received = RECEIVED_BY_LABELS;

@@ -1,17 +1,16 @@
 import { Component, inject, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorNames } from '../../organization/data/organization.lookups';
@@ -28,7 +27,7 @@ import { ReallocateDialog, ReallocateDialogData } from './reallocate-dialog';
  */
 @Component({
   selector: 'app-reallocation-list',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [Icon, NgbTooltip, RouterLink, Amount, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
   template: `
     <app-page-header title="Sobras e realocação" subtitle="Dinheiro que entrou e ainda não abateu nenhuma dívida: realoque ou registre a devolução." />
     <app-data-table
@@ -40,7 +39,7 @@ import { ReallocateDialog, ReallocateDialogData } from './reallocate-dialog';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="savings"
+      emptyIcon="piggy-bank"
       emptyMessage="Nenhum valor aguardando realocação."
       emptyHint="Sobras aparecem aqui quando um pagamento passa do saldo do destino ou o acordo já foi encerrado."
     >
@@ -59,12 +58,12 @@ import { ReallocateDialog, ReallocateDialogData } from './reallocate-dialog';
       </ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-p><app-status-chip domain="payment" [status]="p.status" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
-        <button mat-stroked-button type="button" (click)="reallocate(p)" data-tour="reallocate-action">
-          <mat-icon aria-hidden="true">call_split</mat-icon>
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="reallocate(p)" data-tour="reallocate-action">
+          <app-icon name="signpost-split" />
           Realocar
         </button>
-        <a mat-icon-button [routerLink]="['/pagamentos', p.id]" aria-label="Abrir pagamento" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-link" [routerLink]="['/pagamentos', p.id]" aria-label="Abrir pagamento" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -77,7 +76,7 @@ import { ReallocateDialog, ReallocateDialogData } from './reallocate-dialog';
 })
 export class ReallocationList {
   private readonly api = inject(PaymentsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   protected readonly methods = METHOD_LABELS;
 
@@ -105,8 +104,7 @@ export class ReallocationList {
     this.dialog
       .open<ReallocateDialog, ReallocateDialogData, PaymentView>(ReallocateDialog, {
         data: { payment: p, debtorName: this.debtors.name(p.debtorId) || 'Devedor' },
-        width: '720px',
-        maxWidth: '96vw',
+        size: 'lg',
       })
       .afterClosed()
       .subscribe((updated) => {

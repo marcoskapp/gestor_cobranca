@@ -1,8 +1,6 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, of } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
@@ -22,11 +20,12 @@ import {
 } from '../data/legal.labels';
 import { HearingView, LawsuitView, MovementResult } from '../data/legal.models';
 import { describeStatus } from '../../../shared/status/status';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** Processo com andamentos (linha do tempo), audiências e comandos (andamento, audiência, situação). */
 @Component({
   selector: 'app-lawsuit-card',
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, Amount, StatusChip, AppDatePipe],
+  imports: [NgbDropdownModule, Icon, Amount, StatusChip, AppDatePipe],
   template: `
     @let l = lawsuit();
     <article class="lc" [attr.aria-label]="'Processo ' + l.cnjFormatted">
@@ -47,25 +46,27 @@ import { describeStatus } from '../../../shared/status/status';
         </div>
         @if (canManage()) {
           <div class="lc-actions">
-            <button mat-stroked-button type="button" (click)="addMovement()">
-              <mat-icon aria-hidden="true">add</mat-icon>
+            <button class="btn btn-outline-primary" type="button" (click)="addMovement()">
+              <app-icon name="plus-lg" />
               Andamento
             </button>
-            <button mat-icon-button type="button" [matMenuTriggerFor]="menu" [attr.aria-label]="'Mais ações do processo ' + l.cnjFormatted">
-              <mat-icon aria-hidden="true">more_vert</mat-icon>
-            </button>
-            <mat-menu #menu="matMenu">
-              <button mat-menu-item type="button" (click)="scheduleHearing(null)"><mat-icon aria-hidden="true">event</mat-icon>Agendar audiência</button>
-              @if (nextStatuses().length) {
-                <button mat-menu-item type="button" (click)="changeStatus()"><mat-icon aria-hidden="true">swap_horiz</mat-icon>Alterar situação</button>
-              }
-            </mat-menu>
+            <div ngbDropdown placement="bottom-end">
+              <button class="btn btn-sm btn-outline-secondary border-0" type="button" ngbDropdownToggle [attr.aria-label]="'Mais ações do processo ' + l.cnjFormatted">
+                <app-icon name="three-dots-vertical" />
+              </button>
+              <div ngbDropdownMenu class="shadow app-menu">
+                <button ngbDropdownItem type="button" (click)="scheduleHearing(null)"><app-icon class="me-2" name="calendar-event" /> Agendar audiência</button>
+                @if (nextStatuses().length) {
+                  <button ngbDropdownItem type="button" (click)="changeStatus()"><app-icon class="me-2" name="arrow-left-right" /> Alterar situação</button>
+                }
+              </div>
+            </div>
           </div>
         }
       </header>
 
-      <button mat-button type="button" (click)="expanded.set(!expanded())" [attr.aria-expanded]="expanded()">
-        <mat-icon aria-hidden="true">{{ expanded() ? 'expand_less' : 'timeline' }}</mat-icon>
+      <button class="btn btn-link" type="button" (click)="expanded.set(!expanded())" [attr.aria-expanded]="expanded()">
+        <app-icon [name]="expanded() ? 'chevron-up' : 'graph-up-arrow'" />
         {{ expanded() ? 'Ocultar andamentos e audiências' : 'Ver andamentos e audiências' }}
       </button>
 
@@ -87,9 +88,9 @@ import { describeStatus } from '../../../shared/status/status';
               }
               @if (canManage() && h.status === 'SCHEDULED') {
                 <span class="lc-inline">
-                  <button mat-button type="button" (click)="hearingResult(h)">Registrar resultado</button>
-                  <button mat-button type="button" (click)="scheduleHearing(h)">Remarcar</button>
-                  <button mat-button type="button" (click)="cancelHearing(h)">Cancelar</button>
+                  <button class="btn btn-link" type="button" (click)="hearingResult(h)">Registrar resultado</button>
+                  <button class="btn btn-link" type="button" (click)="scheduleHearing(h)">Remarcar</button>
+                  <button class="btn btn-link" type="button" (click)="cancelHearing(h)">Cancelar</button>
                 </span>
               }
             </li>
@@ -124,7 +125,7 @@ import { describeStatus } from '../../../shared/status/status';
   styles: `
     .lc {
       padding: 12px 0;
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: 1px solid var(--bs-border-color);
     }
     .lc-head {
       display: flex;
@@ -157,7 +158,7 @@ import { describeStatus } from '../../../shared/status/status';
       list-style: none;
       li {
         padding: 6px 0;
-        border-bottom: 1px solid var(--app-border);
+        border-bottom: 1px solid var(--bs-border-color);
       }
     }
     .lc-timeline li {
@@ -168,7 +169,7 @@ import { describeStatus } from '../../../shared/status/status';
     }
     .lc-date {
       font-variant-numeric: tabular-nums;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .lc-desc {
       margin: 4px 0 0;

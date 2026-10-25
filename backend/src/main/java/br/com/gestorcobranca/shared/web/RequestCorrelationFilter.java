@@ -41,7 +41,13 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
             requestId = UUID.randomUUID().toString();
         }
         MDC.put(MdcKeys.REQUEST_ID, requestId);
-        MDC.put(MdcKeys.CLIENT_IP, request.getRemoteAddr());
+        // IP já validado pelo TrustedProxyFilter; ausente = cabeçalho de proxy com valor inválido
+        Object clientIp = request.getAttribute(TrustedProxyFilter.CLIENT_IP_ATTRIBUTE);
+        if (clientIp != null) {
+            MDC.put(MdcKeys.CLIENT_IP, clientIp.toString());
+        } else {
+            MDC.put(MdcKeys.CLIENT_IP_INVALID, "true");
+        }
         String userAgent = request.getHeader("User-Agent");
         if (userAgent != null) {
             MDC.put(MdcKeys.USER_AGENT, userAgent.length() > 512 ? userAgent.substring(0, 512) : userAgent);

@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { TotalsCheckView } from '../data/ingestion.models';
 import { mixedReview, previewBatch } from './review.fixtures';
 import { TotalsStep } from './totals-step';
@@ -25,7 +25,7 @@ describe('TotalsStep', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [TotalsStep], providers: [provideLocale(), provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({ imports: [TotalsStep], providers: [provideAppLocale(), provideHttpClient(), provideHttpClientTesting()] });
     http = TestBed.inject(HttpTestingController);
   });
 

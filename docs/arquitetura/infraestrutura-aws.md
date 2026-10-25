@@ -46,7 +46,7 @@ flowchart TB
 | Componente | Configuração inicial | Por quê |
 | --- | --- | --- |
 | VPC | 2 zonas de disponibilidade; sub-redes públicas, privadas de aplicação e privadas de dados | Separação de camadas; o banco nunca tem rota para a internet |
-| ALB | HTTPS (TLS 1.2+), redireciona 80→443, health check em `/actuator/health/readiness` | Único ponto de entrada; distribui carga e substitui instâncias doentes |
+| ALB | HTTPS (TLS 1.2+), redireciona 80→443, health check em `/actuator/health/readiness`; `X-Forwarded-For` em modo `append` (o IP real fica **à direita**) | Único ponto de entrada; distribui carga e substitui instâncias doentes |
 | EC2 / Auto Scaling Group | `t4g.medium` (2 vCPU, 4 GiB), Amazon Linux 2023, IMDSv2 obrigatório, sem chave SSH | Graviton custa menos por desempenho; o ASG garante substituição automática e crescimento |
 | Acesso às instâncias | AWS Systems Manager Session Manager | Elimina bastion e porta 22 aberta; toda sessão fica auditada |
 | RDS PostgreSQL 16 | `db.t4g.medium`, gp3 50 GiB com autoscaling de armazenamento, criptografia KMS, backups 14 dias, deletion protection, `rds.force_ssl=1` | Banco gerenciado com recuperação ponto-a-ponto |
@@ -66,9 +66,14 @@ flowchart TB
 
 - `s3:GetObject/PutObject/DeleteObject` apenas no bucket da aplicação (prefixo `tenants/*`) e leitura do prefixo de artefatos de deploy (e dos scripts de bootstrap).
 - `logs:CreateLogStream/PutLogEvents` nos três grupos de log e no grupo da saída do Run Command; `cloudwatch:PutMetricData` restrito aos namespaces `GestorCobranca` (aplicação) e `GestorCobranca/Host` (memória e disco, CloudWatch Agent).
-- `ssm:GetParameter(s)` e `kms:Decrypt` somente nos parâmetros `/gestor-cobranca/<ambiente>/*` — ou, enquanto o SSM não for aprovado, `s3:GetObject` no bucket de segredos dedicado do ambiente.
+- `ssm:GetParameter(s)` e `kms:Decrypt` somente nos segredos de **runtime** `/gestor-cobranca/<ambiente>/app/*` — ou, enquanto o SSM não for aprovado, `s3:GetObject` em `s3://<bucket de segredos>/<ambiente>/app/*`.
+- Os segredos de **migração** (`.../migration/*`, senha de `app_owner`, dono do schema) **não** são legíveis pelo papel em execução: uma falha na aplicação não pode virar `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` em todas as assessorias. `scripts/deploy/migrate.sh` (pipeline/operador) cria no papel, só durante a execução, a política inline temporária `migration-window`, que permite ler `migration/*` **apenas** da instância escolhida para a migração (`ec2:SourceInstanceARN`) e **até** o fim da janela (`aws:CurrentTime`, 75 min), e a remove ao terminar. Quem executa o deploy precisa de `iam:PutRolePolicy`/`iam:DeleteRolePolicy` no papel das instâncias. Com `db_admin_access = true` (temporário) o papel também lê `migration/*`, usado por `db-admin.sh` para criar e rotacionar a senha de `app_owner`.
 - `secretsmanager:GetSecretValue` no segredo da senha mestre do RDS **somente** enquanto `db_admin_access = true` (criação de papéis e rotação de senhas; desligado no restante do tempo).
 - `AmazonSSMManagedInstanceCore` para o Session Manager e o Run Command (execução das migrations).
+
+### IP do cliente e proxies confiáveis
+
+A aplicação só interpreta `X-Forwarded-For`/`-Proto`/`-Port` de conexões vindas das sub-redes públicas do ALB (saída `public_subnet_cidrs` do módulo de rede → `APP_HTTP_TRUSTED_PROXIES`; obrigatório no perfil `prod`). O `X-Forwarded-For` é lido da direita para a esquerda e o primeiro salto fora dessas sub-redes é o cliente; valores à esquerda (escritos pelo cliente) e o cabeçalho `Forwarded` são ignorados. O ALB não remove `Forwarded` (não há ação de listener para isso) — a aplicação o descarta. O limite de taxa do WAF agrega pelo **IP de origem da conexão** (`aggregate_key_type = "IP"`), nunca pelo `X-Forwarded-For`, que sem CDN confiável à frente é escolhido pelo cliente.
 
 Nenhuma chave de acesso AWS fica em arquivo ou variável de ambiente: o SDK usa as credenciais temporárias do perfil da instância.
 
@@ -164,7 +169,7 @@ Maiores alavancas de economia, em ordem: Savings Plans/instâncias reservadas na
 1. O pipeline gera o JAR e o pacote do frontend, executa testes e publica no S3 (`artifacts/<versão>/`).
 2. Uma nova versão do *launch template* aponta para o artefato.
 3. *Instance refresh* do ASG substitui as instâncias gradualmente (mínimo 90% saudáveis), com o ALB drenando conexões.
-4. Migrations Flyway são executadas uma única vez, antes do refresh, por um passo dedicado com o papel `app_owner` (o mesmo JAR em modo `migrate`, executado numa instância do ASG via SSM Run Command, sem abrir portas); as instâncias de aplicação conectam com `app_runtime_login`, que não altera schema.
+4. Migrations Flyway são executadas uma única vez, antes do refresh, por um passo dedicado com o papel `app_owner` (o mesmo JAR em modo `migrate`, executado numa instância do ASG via SSM Run Command, sem abrir portas), com a senha de `app_owner` legível só durante a janela de migração e só por essa instância; as instâncias de aplicação conectam com `app_runtime_login`, que não altera schema.
 5. Reversão: voltar o *launch template* à versão anterior (migrations são sempre compatíveis com a versão anterior).
 
 ## 7. Backup e recuperação

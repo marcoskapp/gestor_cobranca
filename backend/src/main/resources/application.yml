@@ -89,8 +89,9 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
-  # O ALB repassa X-Forwarded-For/Proto; as instâncias só aceitam tráfego do ALB (security group)
-  forward-headers-strategy: framework
+  # Cabeçalhos de proxy tratados só pelo TrustedProxyFilter (app.http.trusted-proxies). NÃO use
+  # "framework" (ForwardedHeaderFilter confia em qualquer cliente e lê o valor mais à esquerda).
+  forward-headers-strategy: none
   shutdown: graceful
   compression:
     enabled: true
@@ -148,6 +149,10 @@ springdoc:
 app:
   environment: ${APP_ENV:local}
   base-url: ${APP_BASE_URL:http://localhost:4200}
+  http:
+    # CIDRs dos proxies confiáveis (produção: sub-redes do ALB, vindas do Terraform). Vazio = sem proxy:
+    # X-Forwarded-* é ignorado e o IP é o da conexão. Ver shared/web/TrustedProxyFilter.
+    trusted-proxies: ${APP_HTTP_TRUSTED_PROXIES:}
 
   logging:
     dir: ${LOG_DIR:./var/log}
@@ -330,16 +335,31 @@ app:
       max-clock-skew: PT5M
       # ALB com mutual TLS em modo verify repassa o certificado do PSP neste cabeçalho
       client-certificate-header: X-Amzn-Mtls-Clientcert-Leaf
+      # true SOMENTE quando o listener do ALB tem mutual authentication em modo verify (trust store do PSP);
+      # desligado, contas com webhook MTLS são recusadas (o cabeçalho poderia vir do cliente)
+      mtls-enabled: ${PAYMENT_WEBHOOK_MTLS_ENABLED:false}
     pix:
       connect-timeout: PT3S
       read-timeout: PT10S
       token-refresh-margin: PT60S
+      # hosts de PSP aceitos nas contas Pix (ex.: api-pix.bb.com.br,*.itau.com.br); vazio = qualquer host
+      # público. IPs/nomes internos são sempre recusados e o DNS é conferido a cada chamada.
+      allowed-hosts: ${PAYMENT_PIX_ALLOWED_HOSTS:}
     evidence:
       max-size-bytes: 10485760
     statement:
       max-size-bytes: 10485760
       max-lines: 50000
     expiration-check-interval: PT15M
+    # Controle acumulado de pagamentos externos (sem segunda pessoa só até estes totais na janela).
+    # Fracionar um valor alto em pagamentos abaixo do limite por pagamento não dispensa a revisão.
+    # Limites em múltiplos do limite por pagamento da assessoria; contam só os confirmados sem revisão.
+    external-review:
+      window: PT24H
+      # soma por devedor no credor
+      destination-factor: 1
+      # soma por usuário que informa
+      informer-factor: 4
     # PSP simulado: somente local/teste (recusado no perfil prod)
     sandbox:
       enabled: false

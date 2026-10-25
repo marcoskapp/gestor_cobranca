@@ -1,14 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
@@ -47,6 +39,10 @@ import { ContactForm, ContactFormData } from '../contact-form/contact-form';
 import { DebtorGuarantees } from '../guarantees/debtor-guarantees';
 import { OriginContracts } from '../origin-contracts/origin-contracts';
 import { DebtorForm } from '../debtor-form/debtor-form';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
+import { NgbTooltip, NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 
 /**
  * Ficha do devedor: dados cadastrais (documento mascarado, revelação auditada), posição por
@@ -55,32 +51,7 @@ import { DebtorForm } from '../debtor-form/debtor-form';
  */
 @Component({
   selector: 'app-debtor-detail',
-  imports: [
-    MatMenuModule,
-    FormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
-    MatTabsModule,
-    MatTooltipModule,
-    PageHeader,
-    StatusChip,
-    DocumentDisplay,
-    Skeleton,
-    EmptyState,
-    DataTable,
-    CellDef,
-    Amount,
-    AppDatePipe,
-    OverdueBadge,
-    TitleLedger,
-    TitleOwnership,
-    DebtorCompliance,
-    OriginContracts,
-    DebtorGuarantees,
-  ],
+  imports: [FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -92,7 +63,7 @@ export class DebtorDetail {
   private readonly titlesApi = inject(TitlesApi);
   private readonly restrictionsApi = inject(RestrictionsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
@@ -208,7 +179,7 @@ export class DebtorDetail {
 
   protected edit(debtor: DebtorView): void {
     this.dialog
-      .open<DebtorForm, DebtorView, DebtorView>(DebtorForm, { data: debtor, width: '640px' })
+      .open<DebtorForm, DebtorView, DebtorView>(DebtorForm, { data: debtor, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
@@ -267,7 +238,7 @@ export class DebtorDetail {
 
   private openContact(data: ContactFormData): void {
     this.dialog
-      .open<ContactForm, ContactFormData, ContactView>(ContactForm, { data, width: '560px' })
+      .open<ContactForm, ContactFormData, ContactView>(ContactForm, { data })
       .afterClosed()
       .subscribe((saved) => saved && this.reloadContacts());
   }

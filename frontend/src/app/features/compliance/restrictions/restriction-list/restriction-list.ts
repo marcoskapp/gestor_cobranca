@@ -1,11 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { Observable, debounceTime, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -28,28 +23,16 @@ import { CHANNEL_LABELS, RESTRICTION_SOURCE_LABELS, RESTRICTION_TYPE_LABELS, res
 import { RestrictionFilter, RestrictionView } from '../../data/compliance.models';
 import { EvidenceButtons } from '../evidence/evidence-buttons';
 import { RestrictionActions } from '../restriction-actions';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { Icon } from '../../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../../shared/forms/field';
 
 /** Filtro da tela; `blocked` = o ator não vê todos os credores e não escolheu um devedor. */
 type ListFilter = RestrictionFilter & { blocked: boolean };
 
 @Component({
   selector: 'app-restriction-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
-    MatTooltipModule,
-    DataTable,
-    CellDef,
-    EntityPicker,
-    PageHeader,
-    StatusChip,
-    AppDatePipe,
-    EvidenceButtons,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, ...FORM_FIELD],
   templateUrl: './restriction-list.html',
 })
 export class RestrictionList {

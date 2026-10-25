@@ -50,6 +50,10 @@ run "fase1_sem_aprovacoes" {
     condition     = output.secrets_source == "s3"
     error_message = "sem SSM usa bucket"
   }
+  assert {
+    condition     = endswith(output.migration_secret_resources[0], "/migration/*") && length(output.migration_secret_resources) == 1
+    error_message = "o segredo de migração fica num caminho próprio, fora do alcance do runtime (app/*)"
+  }
 }
 
 run "tudo_aprovado_fase2" {
@@ -77,6 +81,15 @@ run "tudo_aprovado_fase2" {
   assert {
     condition     = output.secrets_source == "ssm"
     error_message = "ssm"
+  }
+  assert {
+    condition = anytrue([for r in aws_wafv2_web_acl.app[0].rule : r.name == "limite-de-taxa-por-ip"
+    && r.statement[0].rate_based_statement[0].aggregate_key_type == "IP"])
+    error_message = "o limite de taxa do WAF agrega pelo IP da conexão, nunca pelo X-Forwarded-For do cliente"
+  }
+  assert {
+    condition     = length(module.network.public_subnet_cidrs) == 2 && module.compute[0].trusted_proxy_cidrs == module.network.public_subnet_cidrs
+    error_message = "a aplicação confia somente nas sub-redes do ALB"
   }
 }
 

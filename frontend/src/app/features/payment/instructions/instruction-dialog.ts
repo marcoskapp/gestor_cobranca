@@ -1,20 +1,15 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbCalendar, NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount } from '../../../shared/components/amount/amount';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
-import { toLocalDate } from '../../../shared/models/dates';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { DebtorLookup } from '../../debt/data/debt.lookups';
 import { PaymentTarget, TargetSelection } from '../components/payment-target';
@@ -47,15 +42,11 @@ export interface InstructionDialogData {
   selector: 'app-instruction-dialog',
   imports: [
     ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
+    NgbTooltip,
+    NgbInputDatepicker,
+    ...DIALOG_DIRECTIVES,
+    ...FORM_FIELD,
+    Icon,
     Amount,
     AppDatePipe,
     EntityPicker,
@@ -63,19 +54,22 @@ export interface InstructionDialogData {
     InstructionPanel,
   ],
   template: `
-    <h2 mat-dialog-title>{{ created() ? 'Instrução de pagamento' : 'Gerar Pix' }}{{ data.debtorName ? ' · ' + data.debtorName : '' }}</h2>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0" tabindex="-1" ngbAutofocus>{{ created() ? 'Instrução de pagamento' : 'Gerar Pix' }}{{ data.debtorName ? ' · ' + data.debtorName : '' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
     @if (created(); as i) {
-      <mat-dialog-content>
+      <div class="modal-body">
         <app-instruction-panel [instruction]="i" (changed)="created.set($event)" />
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-flat-button type="button" [mat-dialog-close]="i">Concluir</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="button" [appDialogClose]="i">Concluir</button>
+      </div>
     } @else {
-      <form [formGroup]="form" (ngSubmit)="send()" novalidate>
-        <mat-dialog-content>
+      <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="send()" novalidate>
+        <div class="modal-body">
           @if (error()) {
-            <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+            <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
           }
           @if (fixedTarget(); as t) {
             <dl class="app-definition-list id-target">
@@ -95,75 +89,68 @@ export interface InstructionDialogData {
             }
           }
 
-          <mat-button-toggle-group formControlName="type" aria-label="Tipo de instrução" class="id-type" data-tour="instruction-type">
-            <mat-button-toggle value="PIX_IMMEDIATE">Pix imediato</mat-button-toggle>
-            <mat-button-toggle value="PIX_DUE">Pix com vencimento</mat-button-toggle>
-            <mat-button-toggle value="BOLETO" disabled matTooltip="Aguardando a definição do provedor de boleto">Boleto</mat-button-toggle>
-          </mat-button-toggle-group>
+          <div class="d-flex flex-wrap gap-2 mt-3" role="group" aria-label="Tipo de instrução" data-tour="instruction-type">
+            <input type="radio" class="btn-check" formControlName="type" value="PIX_IMMEDIATE" id="id-type-immediate" />
+            <label class="btn btn-outline-primary" for="id-type-immediate">Pix imediato</label>
+            <input type="radio" class="btn-check" formControlName="type" value="PIX_DUE" id="id-type-due" />
+            <label class="btn btn-outline-primary" for="id-type-due">Pix com vencimento</label>
+            <input type="radio" class="btn-check" name="type" value="BOLETO" id="id-type-boleto" disabled />
+            <!-- pe-auto: o tooltip explica por que a opção está indisponível -->
+            <label class="btn btn-outline-primary pe-auto" for="id-type-boleto" ngbTooltip="Aguardando a definição do provedor de boleto">Boleto</label>
+          </div>
           <p class="app-muted id-small">
             {{ form.controls.type.value === 'PIX_DUE' ? 'Para pagar na data do vencimento; o QR Code vale até o fim do prazo após o vencimento. O nome e o CPF/CNPJ do devedor vão ao PSP (exigência do Pix com vencimento).' : 'Para pagar agora. Não envia dados do devedor ao PSP.' }}
           </p>
 
           <div class="app-form-grid">
-            <mat-form-field floatLabel="always">
-              <mat-label>Valor</mat-label>
-              <span matTextPrefix>R$&nbsp;</span>
-              <input matInput formControlName="amount" inputmode="decimal" autocomplete="off" [placeholder]="balanceText()" />
-              <mat-hint>Vazio = saldo em aberto.</mat-hint>
-              @if (form.controls.amount.invalid) {
-                <mat-error>Valor inválido.</mat-error>
-              }
-            </mat-form-field>
+            <app-field label="Valor" hint="Vazio = saldo em aberto." error="Valor inválido.">
+              <div class="input-group">
+                <span class="input-group-text">R$</span>
+                <input appInput formControlName="amount" inputmode="decimal" autocomplete="off" [placeholder]="balanceText()" />
+              </div>
+            </app-field>
             @if (form.controls.type.value === 'PIX_DUE') {
-              <mat-form-field>
-                <mat-label>Vencimento</mat-label>
-                <input matInput [matDatepicker]="due" formControlName="dueDate" [min]="today" />
-                <mat-datepicker-toggle matIconSuffix [for]="due" />
-                <mat-datepicker #due />
-                <mat-hint>Vazio = vencimento da parcela (ou hoje, se já venceu).</mat-hint>
-              </mat-form-field>
+              <app-field label="Vencimento" hint="Vazio = vencimento da parcela (ou hoje, se já venceu).">
+                <div class="input-group">
+                  <input appInput ngbDatepicker #due="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="dueDate" [minDate]="today" />
+                  <button type="button" class="btn btn-outline-secondary" (click)="due.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+                </div>
+              </app-field>
             } @else {
-              <mat-form-field>
-                <mat-label>Validade do QR Code</mat-label>
-                <mat-select formControlName="expiresInSeconds">
+              <app-field label="Validade do QR Code">
+                <select appInput formControlName="expiresInSeconds">
                   @for (o of expirations; track o.label) {
-                    <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                    <option [ngValue]="o.value">{{ o.label }}</option>
                   }
-                </mat-select>
-              </mat-form-field>
+                </select>
+              </app-field>
             }
-            <mat-form-field>
-              <mat-label>Enviar por</mat-label>
-              <mat-select formControlName="channel">
-                <mat-option [value]="null">Não informar</mat-option>
+            <app-field label="Enviar por" hint="Só para medir a conversão por canal.">
+              <select appInput formControlName="channel">
+                <option [ngValue]="null">Não informar</option>
                 @for (c of channels; track c.value) {
-                  <mat-option [value]="c.value">{{ c.label }}</mat-option>
+                  <option [ngValue]="c.value">{{ c.label }}</option>
                 }
-              </mat-select>
-              <mat-hint>Só para medir a conversão por canal.</mat-hint>
-            </mat-form-field>
+              </select>
+            </app-field>
           </div>
           @if (amountTooHigh()) {
-            <p class="app-field-error" role="alert">O valor não pode passar do saldo em aberto.</p>
+            <div class="invalid-feedback d-block" role="alert">O valor não pode passar do saldo em aberto.</div>
           }
-        </mat-dialog-content>
-        <mat-dialog-actions align="end">
-          <button mat-button type="button" mat-dialog-close>Cancelar</button>
-          <button mat-flat-button type="submit" [disabled]="sending() || !target()">
-            <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+          <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="submit" [disabled]="sending() || !target()">
+            <app-icon name="qr-code" />
             Gerar Pix
           </button>
-        </mat-dialog-actions>
+        </div>
       </form>
     }
   `,
   styles: `
     .id-target {
       margin: 0 0 12px;
-    }
-    .id-type {
-      margin-top: 12px;
-      flex-wrap: wrap;
     }
     .id-small {
       margin: 6px 0 12px;
@@ -172,12 +159,12 @@ export interface InstructionDialogData {
   `,
 })
 export class InstructionDialog {
-  protected readonly data = inject<InstructionDialogData>(MAT_DIALOG_DATA);
+  protected readonly data = inject<InstructionDialogData>(DIALOG_DATA);
   private readonly api = inject(InstructionsApi);
   protected readonly debtors = inject(DebtorLookup);
   protected readonly expirations = EXPIRATION_OPTIONS;
   protected readonly channels = CHANNEL_OPTIONS;
-  protected readonly today = new Date();
+  protected readonly today = inject(NgbCalendar).getToday();
 
   protected readonly created = signal<InstructionView | null>(null);
   protected readonly sending = signal(false);
@@ -191,7 +178,7 @@ export class InstructionDialog {
     debtor: this.fb.control<string[]>(this.data.debtorId ? [this.data.debtorId] : []),
     type: this.fb.control<InstructionType>('PIX_IMMEDIATE'),
     amount: this.fb.control<string>('', [(c) => (c.value && parseMoney(c.value) === null ? { money: true } : null)]),
-    dueDate: this.fb.control<Date | null>(null),
+    dueDate: this.fb.control<string | null>(null),
     expiresInSeconds: this.fb.control<number | null>(null),
     channel: this.fb.control<string | null>(this.data.channel ?? null),
   });
@@ -242,7 +229,7 @@ export class InstructionDialog {
       installmentId: t.kind === 'INSTALLMENT' ? t.installmentId : null,
       titleId: t.kind === 'TITLE' ? t.titleId : null,
       amount,
-      dueDate: v.type === 'PIX_DUE' ? toLocalDate(v.dueDate) : null,
+      dueDate: v.type === 'PIX_DUE' ? v.dueDate : null,
       expiresInSeconds: v.type === 'PIX_IMMEDIATE' ? v.expiresInSeconds : null,
       channel: v.channel,
     };

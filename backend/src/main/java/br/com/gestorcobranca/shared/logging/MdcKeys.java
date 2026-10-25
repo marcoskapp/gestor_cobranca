@@ -13,8 +13,13 @@ public final class MdcKeys {
     public static final String SESSION_ID = "sessionId";
     /** Nome do job/consumidor quando a execução não é uma requisição HTTP. */
     public static final String PROCESS = "process";
-    /** IP de origem (considera {@code X-Forwarded-For} do ALB). */
+    /**
+     * IP de origem já validado (IP literal): o da conexão ou, atrás do ALB, o primeiro salto não
+     * confiável do {@code X-Forwarded-For} lido da direita ({@code shared.web.TrustedProxyFilter}).
+     */
     public static final String CLIENT_IP = "clientIp";
+    /** {@code "true"} quando o proxy informou um IP de cliente inválido (o evento é gravado sem IP). */
+    public static final String CLIENT_IP_INVALID = "clientIpInvalid";
     public static final String USER_AGENT = "userAgent";
     /** Padrão da rota (ex.: {@code /api/v1/cases/{id}}), sem ids, para agregação de métricas. */
     public static final String ROUTE = "route";

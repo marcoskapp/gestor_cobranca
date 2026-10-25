@@ -50,14 +50,14 @@ import { CalculationView } from '../data/settlement.models';
       th,
       td {
         padding: 6px 8px;
-        border-bottom: 1px solid var(--app-border);
+        border-bottom: 1px solid var(--bs-border-color);
         text-align: left;
         font-weight: 400;
         vertical-align: top;
       }
       thead th {
         font-weight: 600;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--bs-secondary-color);
       }
     }
     .cm-end {
@@ -65,7 +65,7 @@ import { CalculationView } from '../data/settlement.models';
     }
     .cm-total {
       font-weight: 600;
-      background: var(--app-surface-raised);
+      background: var(--bs-tertiary-bg);
     }
     .cm-small {
       font-size: var(--app-text-xs);

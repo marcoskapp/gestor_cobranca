@@ -53,6 +53,27 @@ class AssistantSessionTest {
     }
 
     @Test
+    void reopeningDoesNotGiveNewIdentityAttempts() {
+        AssistantSession s = session();
+        Instant now = Instant.now();
+        s.identityFailed(3);
+        s.identityFailed(3);
+        s.handedOff(HandoffReason.HUMAN_REQUESTED, now);
+        s.reopen(now.plusSeconds(60), true, "{}");
+        assertThat(s.getIdentityAttempts()).isEqualTo(2);
+        assertThat(s.getIdentityStatus()).isEqualTo(IdentityStatus.PENDING);
+        s.identityFailed(3);
+        assertThat(s.getIdentityStatus()).isEqualTo(IdentityStatus.FAILED);
+
+        // devolvida de novo ao assistente (ex.: ação de campanha): continua sem identidade confirmada
+        s.handedOff(HandoffReason.IDENTITY_NOT_CONFIRMED, now);
+        s.reopen(now.plusSeconds(120), true, "{}");
+        assertThat(s.getIdentityStatus()).isEqualTo(IdentityStatus.FAILED);
+        assertThat(s.getIdentityAttempts()).isEqualTo(3);
+        assertThat(s.identityConfirmed()).isFalse();
+    }
+
+    @Test
     void publishedPolicyIsImmutable() {
         AssistantPolicy p = new AssistantPolicy(null, null, "geral", "Geral", PolicySettings.defaults(AssistantMode.SHADOW), "{}");
         p.publish(Instant.now(), UUID.randomUUID(), 1);

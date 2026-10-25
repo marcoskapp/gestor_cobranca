@@ -2,75 +2,68 @@
   <h2 class="ip__title" id="ip-title">Registrar interação <kbd aria-hidden="true">Alt + R</kbd></h2>
 
   <div class="ip__row">
-    <mat-form-field class="app-compact">
-      <mat-label>Canal</mat-label>
-      <mat-select formControlName="channel">
+    <app-field label="Canal">
+      <select appInput formControlName="channel">
         @for (c of channels; track c.value) {
-          <mat-option [value]="c.value">{{ c.label }}</mat-option>
+          <option [ngValue]="c.value">{{ c.label }}</option>
         }
-      </mat-select>
-    </mat-form-field>
-    <mat-button-toggle-group formControlName="direction" aria-label="Sentido do contato" class="ip__direction" hideSingleSelectionIndicator>
-      <mat-button-toggle value="OUTBOUND">Ativo</mat-button-toggle>
-      <mat-button-toggle value="INBOUND">Receptivo</mat-button-toggle>
-    </mat-button-toggle-group>
+      </select>
+    </app-field>
+    <div class="ip__direction">
+      <span class="form-label d-block" id="ip-direction">Sentido do contato</span>
+      <div class="btn-group" role="group" aria-labelledby="ip-direction">
+        <input type="radio" class="btn-check" id="ip-dir-out" value="OUTBOUND" formControlName="direction" />
+        <label class="btn btn-outline-primary" [class.btn-sm]="density.compact()" for="ip-dir-out">Ativo</label>
+        <input type="radio" class="btn-check" id="ip-dir-in" value="INBOUND" formControlName="direction" />
+        <label class="btn btn-outline-primary" [class.btn-sm]="density.compact()" for="ip-dir-in">Receptivo</label>
+      </div>
+    </div>
   </div>
 
   @if (contacts().length) {
-    <mat-form-field class="app-compact app-full-width">
-      <mat-label>Contato usado</mat-label>
-      <mat-select formControlName="contactId">
-        <mat-option value="">Não informado</mat-option>
+    <app-field label="Contato usado">
+      <select appInput formControlName="contactId">
+        <option value="">Não informado</option>
         @for (c of contacts(); track c.contactId) {
-          <mat-option [value]="c.contactId">{{ c.maskedValue }} · {{ contactLabels[c.label] }}</mat-option>
+          <option [value]="c.contactId">{{ c.maskedValue }} · {{ contactLabels[c.label] }}</option>
         }
-      </mat-select>
-    </mat-form-field>
+      </select>
+    </app-field>
   }
 
-  <mat-form-field class="app-compact app-full-width">
-    <mat-label>Tabulação (resultado)</mat-label>
-    <mat-select #tabulationSelect formControlName="tabulationId" required>
-      <mat-select-trigger>{{ tabulation()?.name }}</mat-select-trigger>
+  <app-field label="Tabulação (resultado)" [hint]="tabulationHint()">
+    <select #tabulationSelect appInput formControlName="tabulationId" required>
+      <option value="" disabled>Selecione o resultado</option>
       @for (t of tabulations(); track t.id) {
-        <mat-option [value]="t.id">
-          {{ t.name }}
-          @if (t.effectiveContact) {
-            <span class="ip__flag">CPC</span>
-          }
-          @if (t.promise) {
-            <span class="ip__flag">promessa</span>
-          }
-          @if (t.callback) {
-            <span class="ip__flag">retorno</span>
-          }
-        </mat-option>
+        <option [value]="t.id">{{ tabulationOption(t) }}</option>
       }
-    </mat-select>
-    @if (tabulation(); as t) {
-      <mat-hint>
-        {{ t.effectiveContact ? 'Contato efetivo.' : 'Sem contato efetivo.' }}
-        {{ t.requiresNote ? 'Observação obrigatória.' : '' }}
-      </mat-hint>
-    }
-  </mat-form-field>
+    </select>
+  </app-field>
 
   @if (tabulation()?.promise) {
     <fieldset class="ip__group">
       <legend>Promessa de pagamento</legend>
       <div class="ip__row">
-        <mat-form-field class="app-compact">
-          <mat-label>Valor (R$)</mat-label>
-          <input matInput type="number" min="0.01" step="0.01" formControlName="promiseAmount" required />
-          <mat-hint>Saldo: {{ balanceText() }}</mat-hint>
-        </mat-form-field>
-        <mat-form-field class="app-compact">
-          <mat-label>Data</mat-label>
-          <input matInput [matDatepicker]="promisePicker" formControlName="promiseDate" [min]="minDate()" [max]="maxPromiseDate()" required />
-          <mat-datepicker-toggle matIconSuffix [for]="promisePicker" />
-          <mat-datepicker #promisePicker />
-          <mat-hint>Até {{ promiseMaxDays() }} dias</mat-hint>
-        </mat-form-field>
+        <app-field label="Valor (R$)" [hint]="'Saldo: ' + balanceText()">
+          <input appInput type="number" min="0.01" step="0.01" formControlName="promiseAmount" required />
+        </app-field>
+        <app-field label="Data" [hint]="'Até ' + promiseMaxDays() + ' dias'">
+          <div class="input-group" [class.input-group-sm]="density.compact()">
+            <input
+              appInput
+              ngbDatepicker
+              #promisePicker="ngbDatepicker"
+              formControlName="promiseDate"
+              placeholder="dd/mm/aaaa"
+              [minDate]="minDate()"
+              [maxDate]="maxPromiseDate()"
+              required
+            />
+            <button type="button" class="btn btn-outline-secondary" (click)="promisePicker.toggle()" aria-label="Abrir calendário">
+              <app-icon name="calendar-event" />
+            </button>
+          </div>
+        </app-field>
       </div>
     </fieldset>
   }
@@ -79,50 +72,56 @@
     <fieldset class="ip__group">
       <legend>Retorno combinado</legend>
       <div class="ip__row">
-        <mat-form-field class="app-compact">
-          <mat-label>Data</mat-label>
-          <input matInput [matDatepicker]="callbackPicker" formControlName="callbackDate" [min]="minDate()" required />
-          <mat-datepicker-toggle matIconSuffix [for]="callbackPicker" />
-          <mat-datepicker #callbackPicker />
-        </mat-form-field>
-        <mat-form-field class="app-compact">
-          <mat-label>Hora</mat-label>
-          <input matInput type="time" formControlName="callbackTime" required />
-          <mat-hint>Horário de Brasília</mat-hint>
-        </mat-form-field>
+        <app-field label="Data">
+          <div class="input-group" [class.input-group-sm]="density.compact()">
+            <input appInput ngbDatepicker #callbackPicker="ngbDatepicker" formControlName="callbackDate" placeholder="dd/mm/aaaa" [minDate]="minDate()" required />
+            <button type="button" class="btn btn-outline-secondary" (click)="callbackPicker.toggle()" aria-label="Abrir calendário">
+              <app-icon name="calendar-event" />
+            </button>
+          </div>
+        </app-field>
+        <app-field label="Hora" hint="Horário de Brasília">
+          <input appInput type="time" formControlName="callbackTime" required />
+        </app-field>
       </div>
     </fieldset>
   }
 
-  <mat-form-field class="app-compact app-full-width">
-    <mat-label>Observação{{ tabulation()?.requiresNote ? '' : ' (opcional)' }}</mat-label>
-    <textarea matInput formControlName="note" rows="3" [maxlength]="noteMax" [required]="!!tabulation()?.requiresNote"></textarea>
-    <mat-hint>Guardada criptografada.</mat-hint>
-    <mat-hint align="end">{{ value().note.length }} / {{ noteMax }}</mat-hint>
-  </mat-form-field>
+  <app-field
+    [label]="'Observação' + (tabulation()?.requiresNote ? '' : ' (opcional)')"
+    hint="Guardada criptografada."
+    [hintEnd]="value().note.length + ' / ' + noteMax"
+  >
+    <textarea appInput formControlName="note" rows="3" [maxlength]="noteMax" [required]="!!tabulation()?.requiresNote"></textarea>
+  </app-field>
 
   @if (openTasks().length) {
-    <mat-form-field class="app-compact app-full-width">
-      <mat-label>Conclui o agendamento</mat-label>
-      <mat-select formControlName="completesTaskId">
-        <mat-option value="">Automático (retornos já vencidos)</mat-option>
+    <app-field label="Conclui o agendamento">
+      <select appInput formControlName="completesTaskId">
+        <option value="">Automático (retornos já vencidos)</option>
         @for (task of openTasks(); track task.id) {
-          <mat-option [value]="task.id">{{ formatLocal(task.dueAtLocal) }}{{ task.note ? ' · ' + task.note : '' }}</mat-option>
+          <option [value]="task.id">{{ formatLocal(task.dueAtLocal) }}{{ task.note ? ' · ' + task.note : '' }}</option>
         }
-      </mat-select>
-    </mat-form-field>
+      </select>
+    </app-field>
   }
 
   @if (submitted() && problems().length) {
-    <ul class="app-alert app-alert--error ip__problems" role="alert">
-      @for (p of problems(); track p) {
-        <li>{{ p }}</li>
-      }
-    </ul>
+    <div class="alert alert-danger ip__problems" role="alert">
+      <ul class="mb-0">
+        @for (p of problems(); track p) {
+          <li>{{ p }}</li>
+        }
+      </ul>
+    </div>
   }
 
-  <button mat-flat-button type="submit" class="app-full-width" [disabled]="saving()">
-    <mat-icon aria-hidden="true">task_alt</mat-icon>
+  <button type="submit" class="btn btn-primary w-100" [disabled]="saving()">
+    @if (saving()) {
+      <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    } @else {
+      <app-icon name="check2-circle" />
+    }
     Registrar interação
   </button>
   <p class="ip__tip app-muted"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> registra sem sair do teclado.</p>

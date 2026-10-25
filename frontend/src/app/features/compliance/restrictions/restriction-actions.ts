@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import { Observable, filter, switchMap, tap } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
@@ -7,21 +6,19 @@ import { RestrictionsApi } from '../data/compliance.api';
 import { RESTRICTION_TYPE_LABELS } from '../data/compliance.labels';
 import { RestrictionView } from '../data/compliance.models';
 import { RestrictionForm, RestrictionFormData } from './restriction-form/restriction-form';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Ações sobre restrições compartilhadas pela lista, pela ficha do devedor e pelas solicitações LGPD. */
-// TRANSITÓRIO (migração para Bootstrap): fornecido nas rotas do shell (shell.routes.ts), não na raiz,
-// para usar o MatDialog e os padrões do Material daquele injetor. Volta a `providedIn: 'root'`
-// quando passar a usar o DialogService.
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class RestrictionActions {
   private readonly api = inject(RestrictionsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
   create(data: RestrictionFormData): Observable<RestrictionView> {
     return this.dialog
-      .open<RestrictionForm, RestrictionFormData, RestrictionView>(RestrictionForm, { data, width: '720px' })
+      .open<RestrictionForm, RestrictionFormData, RestrictionView>(RestrictionForm, { data, size: 'lg' })
       .afterClosed()
       .pipe(filter((saved): saved is RestrictionView => !!saved));
   }

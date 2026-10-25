@@ -1,6 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatIconModule } from '@angular/material/icon';
 import { Amount } from '../../../../shared/components/amount/amount';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../../shared/components/data-table/data-table';
@@ -9,6 +8,7 @@ import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { TitlesApi } from '../../data/debt.api';
 import { LEDGER_COMPONENT_LABELS } from '../../data/debt.labels';
 import { ComponentBalanceView } from '../../data/debt.models';
+import { Icon } from '../../../../shared/components/icon/icon';
 
 /**
  * Saldo por componente calculado do razão, com a divergência em relação ao último saldo
@@ -16,17 +16,17 @@ import { ComponentBalanceView } from '../../data/debt.models';
  */
 @Component({
   selector: 'app-title-balance',
-  imports: [MatIconModule, DataTable, CellDef, Amount, AppDatePipe],
+  imports: [DataTable, CellDef, Amount, AppDatePipe, Icon],
   template: `
     @if (current(); as b) {
       @if (b.divergence !== null && b.divergence !== 0) {
-        <p class="app-alert app-alert--warning" role="note">
-          <mat-icon aria-hidden="true">compare_arrows</mat-icon>
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+          <app-icon name="arrow-left-right" />
           <span>
             O saldo do razão difere do último saldo informado pelo credor em
             <app-amount [value]="b.divergence" [signed]="true" />. Confira os lançamentos antes de negociar.
           </span>
-        </p>
+        </div>
       }
     }
     <app-data-table
@@ -37,7 +37,7 @@ import { ComponentBalanceView } from '../../data/debt.models';
       [failed]="balance.status() === 'error'"
       (retry)="balance.reload()"
       [rowKey]="componentKey"
-      emptyIcon="account_balance_wallet"
+      emptyIcon="wallet2"
       emptyMessage="Sem lançamentos para compor o saldo."
     >
       <ng-template appCell="component" [appCellOf]="components()" let-c>{{ labels[c.component] ?? c.component }}</ng-template>

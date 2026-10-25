@@ -1,17 +1,15 @@
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, filter, finalize, map, startWith } from 'rxjs';
 import { EntityPicker, EntitySource } from '../../../shared/components/entity-picker/entity-picker';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { isoDate } from '../../../shared/models/dates';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DialogConfig, DialogService } from '../../../shared/dialog/dialog.service';
 
 export type FieldType = 'text' | 'textarea' | 'number' | 'money' | 'date' | 'datetime' | 'select' | 'multiselect' | 'checkbox' | 'entity' | 'file';
 
@@ -68,7 +66,7 @@ function initial(field: FormField): unknown {
   const v = field.value;
   switch (field.type) {
     case 'date':
-      return typeof v === 'string' ? fromLocalDate(v) : null;
+      return isoDate(v);
     case 'datetime':
       return typeof v === 'string' ? toDatetimeLocal(new Date(v)) : '';
     case 'checkbox':
@@ -97,7 +95,7 @@ export function toDatetimeLocal(d: Date): string {
 export function apiValue(field: FormField, raw: unknown): unknown {
   switch (field.type) {
     case 'date':
-      return toLocalDate(raw as Date | null);
+      return isoDate(raw);
     case 'datetime':
       return raw ? new Date(raw as string).toISOString() : null;
     case 'number':
@@ -125,22 +123,14 @@ export function apiValue(field: FormField, raw: unknown): unknown {
  */
 @Component({
   selector: 'app-form-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatDatepickerModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    EntityPicker,
-  ],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
-    <h2 mat-dialog-title>{{ data.title }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.title }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @if (data.message) {
           <p class="app-dialog-message">{{ data.message }}</p>
         }
@@ -153,71 +143,69 @@ export function apiValue(field: FormField, raw: unknown): unknown {
           </dl>
         }
         <div class="fd-grid">
-          @for (f of visible(); track f.key) {
+          @for (f of visible(); track f.key; let first = $first) {
             @let c = control(f.key);
             @switch (f.type) {
               @case ('textarea') {
-                <mat-form-field class="fd-wide">
-                  <mat-label>{{ f.label }}</mat-label>
-                  <textarea matInput rows="3" [formControl]="c" [required]="!!f.required" [attr.maxlength]="f.maxLength ?? null"></textarea>
-                  @if (f.hint) {
-                    <mat-hint>{{ f.hint }}</mat-hint>
-                  }
-                  <mat-error>{{ error(f) }}</mat-error>
-                </mat-form-field>
+                <app-field class="fd-wide" [label]="f.label" [hint]="f.hint" [error]="error(f)">
+                  <textarea appInput rows="3" [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required" [attr.maxlength]="f.maxLength ?? null"></textarea>
+                </app-field>
               }
               @case ('select') {
-                <mat-form-field [class.fd-wide]="f.wide">
-                  <mat-label>{{ f.label }}</mat-label>
-                  <mat-select [formControl]="c" [required]="!!f.required">
+                <app-field [class.fd-wide]="f.wide" [label]="f.label" [hint]="f.hint" [error]="error(f)">
+                  <select appInput [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required">
                     @if (!f.required) {
-                      <mat-option value="">—</mat-option>
+                      <option value="">—</option>
                     }
                     @for (o of f.options ?? []; track o.value) {
-                      <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                      <option [value]="o.value">{{ o.label }}</option>
                     }
-                  </mat-select>
-                  @if (f.hint) {
-                    <mat-hint>{{ f.hint }}</mat-hint>
-                  }
-                  <mat-error>{{ error(f) }}</mat-error>
-                </mat-form-field>
+                  </select>
+                </app-field>
               }
               @case ('multiselect') {
-                <mat-form-field class="fd-wide">
-                  <mat-label>{{ f.label }}</mat-label>
-                  <mat-select [formControl]="c" multiple [required]="!!f.required">
-                    @for (o of f.options ?? []; track o.value) {
-                      <mat-option [value]="o.value">{{ o.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (f.hint) {
-                    <mat-hint>{{ f.hint }}</mat-hint>
+                <fieldset class="fd-wide" [attr.aria-describedby]="f.hint || (c.invalid && c.touched) ? 'fd-' + f.key + '-help' : null">
+                  <legend class="form-label fs-5">{{ f.label }}</legend>
+                  @for (o of f.options ?? []; track o.value) {
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        [id]="'fd-' + f.key + '-' + o.value"
+                        [checked]="isChecked(c, o.value)"
+                        [class.is-invalid]="c.invalid && c.touched"
+                        (change)="toggle(c, o.value, $event)"
+                      />
+                      <label class="form-check-label" [for]="'fd-' + f.key + '-' + o.value">{{ o.label }}</label>
+                    </div>
                   }
-                  <mat-error>{{ error(f) }}</mat-error>
-                </mat-form-field>
+                  @if (c.invalid && c.touched) {
+                    <div class="invalid-feedback d-block" [id]="'fd-' + f.key + '-help'">{{ error(f) }}</div>
+                  } @else if (f.hint) {
+                    <div class="form-text" [id]="'fd-' + f.key + '-help'">{{ f.hint }}</div>
+                  }
+                </fieldset>
               }
               @case ('checkbox') {
-                <mat-checkbox class="fd-check" [formControl]="c">{{ f.label }}</mat-checkbox>
+                <div class="form-check fd-check">
+                  <input class="form-check-input" type="checkbox" [id]="'fd-' + f.key" [formControl]="c" />
+                  <label class="form-check-label" [for]="'fd-' + f.key">{{ f.label }}</label>
+                </div>
               }
               @case ('date') {
-                <mat-form-field>
-                  <mat-label>{{ f.label }}</mat-label>
-                  <input matInput [matDatepicker]="picker" [formControl]="c" [required]="!!f.required" />
-                  <mat-datepicker-toggle matIconSuffix [for]="picker" />
-                  <mat-datepicker #picker />
-                  @if (f.hint) {
-                    <mat-hint>{{ f.hint }}</mat-hint>
-                  }
-                  <mat-error>{{ error(f) }}</mat-error>
-                </mat-form-field>
+                <app-field [label]="f.label" [hint]="f.hint" [error]="error(f)">
+                  <div class="input-group">
+                    <input appInput ngbDatepicker #picker="ngbDatepicker" [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required" placeholder="dd/mm/aaaa" autocomplete="off" />
+                    <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário" (click)="picker.toggle()">
+                      <app-icon name="calendar-event" />
+                    </button>
+                  </div>
+                </app-field>
               }
               @case ('datetime') {
-                <mat-form-field>
-                  <mat-label>{{ f.label }}</mat-label>
-                  <input matInput type="datetime-local" [formControl]="c" [required]="!!f.required" />
-                  <mat-error>{{ error(f) }}</mat-error>
-                </mat-form-field>
+                <app-field [label]="f.label" [hint]="f.hint" [error]="error(f)">
+                  <input appInput type="datetime-local" [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required" />
+                </app-field>
               }
               @case ('entity') {
                 <div class="fd-wide">
@@ -225,91 +213,88 @@ export function apiValue(field: FormField, raw: unknown): unknown {
                 </div>
               }
               @case ('file') {
-                <div class="fd-wide fd-file">
-                  <label class="fd-file__label" [for]="'fd-' + f.key">{{ f.label }}{{ f.required ? ' *' : '' }}</label>
-                  <input type="file" [id]="'fd-' + f.key" accept="application/pdf,image/png,image/jpeg" (change)="pick(f.key, $event)" />
+                <div class="fd-wide">
+                  <label class="form-label" [for]="'fd-' + f.key">{{ f.label }}{{ f.required ? ' *' : '' }}</label>
+                  <input
+                    class="form-control"
+                    type="file"
+                    [id]="'fd-' + f.key"
+                    accept="application/pdf,image/png,image/jpeg"
+                    [attr.aria-describedby]="f.hint ? 'fd-' + f.key + '-hint' : null"
+                    (change)="pick(f.key, $event)"
+                  />
                   @if (f.hint) {
-                    <span class="app-muted">{{ f.hint }}</span>
+                    <div class="form-text" [id]="'fd-' + f.key + '-hint'">{{ f.hint }}</div>
                   }
                 </div>
               }
               @default {
-                <mat-form-field [class.fd-wide]="f.wide">
-                  <mat-label>{{ f.label }}</mat-label>
-                  <input
-                    matInput
-                    [type]="f.type === 'number' || f.type === 'money' ? 'number' : 'text'"
-                    [step]="f.type === 'money' ? '0.01' : '1'"
-                    [formControl]="c"
-                    [required]="!!f.required"
-                    [attr.maxlength]="f.maxLength ?? null"
-                    [attr.min]="f.min ?? null"
-                    [attr.max]="f.max ?? null"
-                  />
-                  @if (f.type === 'money') {
-                    <span matTextPrefix>R$&nbsp;</span>
-                  }
-                  @if (f.hint) {
-                    <mat-hint>{{ f.hint }}</mat-hint>
-                  }
-                  <mat-error>{{ error(f) }}</mat-error>
-                </mat-form-field>
+                <app-field [class.fd-wide]="f.wide" [label]="f.label" [hint]="f.hint" [error]="error(f)">
+                  <div [class.input-group]="f.type === 'money'">
+                    @if (f.type === 'money') {
+                      <span class="input-group-text" aria-hidden="true">R$</span>
+                    }
+                    <input
+                      appInput
+                      [attr.ngbAutofocus]="first ? '' : null"
+                      [type]="f.type === 'number' || f.type === 'money' ? 'number' : 'text'"
+                      [step]="f.type === 'money' ? '0.01' : '1'"
+                      [formControl]="c"
+                      [required]="!!f.required"
+                      [attr.maxlength]="f.maxLength ?? null"
+                      [attr.min]="f.min ?? null"
+                      [attr.max]="f.max ?? null"
+                    />
+                  </div>
+                </app-field>
               }
             }
           }
         </div>
         @if (data.warning) {
-          <p class="app-alert app-alert--warning" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>{{ data.warning }}</span></p>
+          <div class="alert alert-warning d-flex align-items-start gap-2 mt-3" role="note">
+            <app-icon name="info-circle" />
+            <span>{{ data.warning }}</span>
+          </div>
         }
         @if (data.confirmationText) {
-          <mat-form-field class="app-full-width">
-            <mat-label>Digite {{ data.confirmationText }} para confirmar</mat-label>
-            <input matInput [formControl]="typed" autocomplete="off" spellcheck="false" />
-          </mat-form-field>
+          <app-field class="mt-3" [label]="'Digite ' + data.confirmationText + ' para confirmar'">
+            <input appInput [formControl]="typed" autocomplete="off" spellcheck="false" />
+          </app-field>
         }
         @if (missing()) {
-          <p class="app-field-error" role="alert">Revise os campos destacados: há obrigatórios em branco ou valores inválidos.</p>
+          <div class="invalid-feedback d-block mt-3" role="alert">Revise os campos destacados: há obrigatórios em branco ou valores inválidos.</div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving() || !typedMatches()">{{ data.submitLabel ?? 'Salvar' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving() || !typedMatches()">{{ data.submitLabel ?? 'Salvar' }}</button>
+      </div>
     </form>
   `,
   styles: `
     .fd-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 8px 12px;
+      gap: 12px;
     }
     .fd-wide {
       grid-column: 1 / -1;
     }
     .fd-check {
       align-self: center;
-      margin-bottom: 16px;
     }
     .fd-details {
       margin: 0 0 16px;
-      padding: 12px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
-    }
-    .fd-file {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: 16px;
-    }
-    .fd-file__label {
-      font-weight: 600;
+      padding: 12px 16px;
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
     }
   `,
 })
 export class FormDialog {
-  protected readonly data = inject<FormDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<FormDialog, unknown>>(MatDialogRef);
+  protected readonly data = inject<FormDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<unknown>>(DialogRef);
   protected readonly saving = signal(false);
   protected readonly missing = signal(false);
   protected readonly typed = new FormControl('', { nonNullable: true });
@@ -371,6 +356,25 @@ export class FormDialog {
     return 'Valor inválido.';
   }
 
+  protected isChecked(c: FormControl, value: string): boolean {
+    return ((c.value as string[] | null) ?? []).includes(value);
+  }
+
+  /** Seleção múltipla em caixas de seleção: mantém a ordem das opções. */
+  protected toggle(c: FormControl, value: string, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    const current = new Set((c.value as string[] | null) ?? []);
+    if (checked) {
+      current.add(value);
+    } else {
+      current.delete(value);
+    }
+    const field = this.data.fields.find((f) => this.form.controls[f.key] === c);
+    const order = (field?.options ?? []).map((o) => o.value);
+    c.setValue(order.filter((v) => current.has(v)));
+    c.markAsTouched();
+  }
+
   protected pick(key: string, event: Event): void {
     const input = event.target as HTMLInputElement;
     this.control(key).setValue(input.files?.[0] ?? null);
@@ -413,16 +417,13 @@ export class FormDialog {
 }
 
 /** Abre o formulário em diálogo; emite o resultado do envio somente quando o usuário conclui. */
-// TRANSITÓRIO (migração para Bootstrap): fornecido nas rotas do shell (shell.routes.ts), não na raiz,
-// para usar o MatDialog e os padrões do Material daquele injetor. Volta a `providedIn: 'root'`
-// quando passar a usar o DialogService.
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class FormDialogService {
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
 
-  open<R>(data: FormDialogData<R>, width = '560px'): Observable<R> {
+  open<R>(data: FormDialogData<R>, size: DialogConfig['size'] = 'md'): Observable<R> {
     return this.dialog
-      .open<FormDialog, FormDialogData<R>, R>(FormDialog, { data, width })
+      .open<FormDialog, FormDialogData<R>, R>(FormDialog, { data, size })
       .afterClosed()
       .pipe(filter((r): r is R => r !== undefined && r !== null));
   }
