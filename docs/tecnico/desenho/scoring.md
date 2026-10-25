@@ -209,9 +209,45 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
 | `/runs` | `GET` / `POST` (202) | `SCORING_VIEW` / `SCORING_MANAGE` |
 | `/runs/{id}` · `/monitoring` · `/expected-recovery` | `GET` | `SCORING_VIEW` |
 
-## 12. Pendências
+## 12. Telas (`frontend/src/app/features/scoring`)
 
-* Telas (score na ficha do caso com a explicação, governança de modelos, monitoramento).
+Rotas em `/score` (`scoring.routes.ts`), carregadas sob demanda pelo shell; menu "Score de propensão". Toda tela exige
+`SCORING_VIEW` (guard e menu, espelho do `@PreAuthorize` das consultas); as ações de gestão aparecem só com
+`SCORING_MANAGE`. Modelos, execuções, monitoramento de estabilidade, decisões e alteração de parâmetros exigem todos os
+credores: quem tem escopo restrito vê a explicação (`app-scoring-scope-notice`) e a tela não chama a API (evita 403).
+
+| Tela | Rota | Conteúdo | Ações |
+| --- | --- | --- | --- |
+| Modelos do score | `/score/modelos` | Campeão em uso e desafiante em destaque; versões com tipo, situação e AUC de validação | Pedir treino (confirmação; abre a execução), criar scorecard (diálogo com regras por variável do catálogo, faixas `[de, até)`, pontos para ausente, escala PDO e chance da âncora em %, cópia de um scorecard existente; validação de faixa vazia/sobreposta, variável repetida e limites) |
+| Modelo | `/score/modelos/:id` | Validação (AUC, Gini, KS, Brier, prevista × observada), comparação com o campeão nas mesmas observações, calibração por faixa e lift por decil (`app-bar-chart` do analytics), regras do scorecard ou coeficientes da regressão, períodos e autores | Promover (justificativa 10–1000 e a palavra `PROMOVER`) e rejeitar (justificativa), no `DecisionDialog` com a comparação que fica registrada; quem pediu o treino ou criou o scorecard vê a explicação da segregação e só pode rejeitar |
+| Execuções | `/score/execucoes`, `/score/execucoes/:id` | Escoragens e treinos com resumo (escorados, ignorados, mudanças de faixa; histórico insuficiente com os mínimos; modelo reprovado com os motivos), ficha com contagens, motivos, links para os modelos e para o monitoramento; atualiza a cada 5 s enquanto `RUNNING` | Escorar agora (confirmação; devolve a do dia) |
+| Monitoramento | `/score/monitoramento` | Aba **Estabilidade e calibração**: último retrato (situação, população, PSI do score, alertas em texto), PSI do score por retrato e AUC realizada por safra (`app-column-chart` com marcas de 2 casas), PSI por variável e calibração da última safra apurada, tabela dos relatórios (26 últimos). Aba **Recuperado × esperado** (filtrada pelo escopo; padrão para quem não tem todos os credores): período (até 400 dias, padrão 180), agrupamento por credor/carteira/responsável e credor; indicadores, gráfico esperado × recuperado e tabela | — |
+| Decisões e variáveis | `/score/transparencia` | Finalidade e limites (LGPD art. 20), variáveis permitidas com a transformação da regressão, o que nunca é usado, decisões de promoção/rejeição com quem decidiu, justificativa e a comparação vista (`DetailDialog`) | — |
+| Parâmetros do score | `/score/parametros` | Base legal (situação, referência, quem registrou) e os parâmetros em três grupos (desfecho e faixas com a chance de cada corte; treino; escoragem e monitoramento), com as regras cruzadas do domínio (pagantes ≤ casos, janela de treino ≥ 2× desfecho, PSI de atenção < alerta, cortes decrescentes) | Registrar/alterar a base legal (diálogo); salvar parâmetros com o resumo só do que mudou |
+
+**Ficha do caso** (`app-case-score-card`, em `features/scoring/case`, inserido em `collection/station/case-sheet-panel`
+entre a posição do caso e as abas — única mudança no `collection`): só com `SCORING_VIEW`. Pontos, faixa
+(`app-score-band`: letra + descrição + régua decorativa, em tom neutro — a faixa ordena, não julga), chance em N dias,
+modelo e gatilho do cálculo, os 3 fatores de maior efeito (seta + texto do servidor + pontos ou log-odds) e o aviso de
+finalidade. Sem score (404) o cartão diz que não há score. **Recalcular** (`SCORING_VIEW` + `CASE_WORK`), **Ver
+explicação** (diálogo com todos os fatores, histórico dos retratos com o desfecho e revisões) e **Revisar score**
+(`SCORING_MANAGE`): origem (pedido do titular, da operação ou verificação interna) e, para pedido do titular, a
+solicitação "revisão de decisão automatizada" aberta do devedor no compliance (lista com
+`DATA_SUBJECT_REQUEST_MANAGE`; sem ela, o identificador opcional). Erros de regra (`scoring.legal_basis_missing`,
+`scoring.case_not_scorable`, `scoring.model.self_promotion`…) com texto próprio (`SCORING_ERROR_LABELS`).
+
+Componentes compartilhados reaproveitados: `app-page-header`, `app-data-table`, `app-empty-state`, `app-status-chip`
+(domínios `scoringModel`, `scoringRun`, `scoringMonitoring` em `shared/status`), `app-field`/`appInput`,
+`DialogService`, `ConfirmService`, `DetailDialog`, `app-kpi-card`/`app-bar-chart`/`app-column-chart` do analytics
+(o `app-column-chart` ganhou a entrada opcional `axisFractionDigits`, padrão 1 — retrocompatível). Onboarding: telas
+`scoring.*` em `screens.ts` e tours `scoring.models`, `scoring.model`, `scoring.monitoring`, `scoring.settings`.
+
+## 13. Pendências
+
 * `telephony` publicar `CallCompleted` com `ANSWERED` para alimentar "canal com resposta" por voz (consumidor pronto).
 * Meta de comissão por recuperado × esperado no motor do incentive (hoje só indicador).
 * Alarmes CloudWatch para `scoring.monitoring.alerts{level=ALERT}` e `scoring.jobs.failures` no Terraform.
+* Revogar a base legal (desabilitar o score e parar a coleta de fatos): não há operação no backend; a tela só registra ou
+  substitui. Exige definir o que acontece com scores vigentes e filas "maior score".
+* Nota de versão na central de novidades e novidade na tela da estação (cartão do score) ficaram para a integração na
+  master, para não colidir a numeração com outras frentes em paralelo.
