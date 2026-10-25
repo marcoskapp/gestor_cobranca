@@ -27,6 +27,7 @@ Controles implementados na plataforma, com a localização no código. Mudanças
 | --- | --- |
 | Permissões granulares por perfil configurável; `@PreAuthorize` em todo endpoint | `shared/security/Permission`, `DefaultRoles`, controllers |
 | Prevenção de escalada: não se concede perfil/permissão/escopo que o próprio administrador não tenha; último administrador protegido | `UserManagementService`, `RoleManagementService` |
+| Perfis padrão sincronizados por versão: permissões novas chegam uma única vez aos perfis de sistema (`role_default_baseline`); nada é removido; perfis da assessoria não são tocados; tudo auditado | `DefaultRolesSynchronizer` |
 | Escopo por credor em todos os casos de uso (404 para leitura fora do escopo, 403 para comandos) | `shared/security/AccessScope` |
 | Row Level Security forçado em toda tabela de tenant; aplicação conecta com papel sem BYPASSRLS e sem DDL | migrations, `TenantAwareJpaTransactionManager`, `scripts/db/bootstrap-roles.sql` |
 | Alterações de perfil/escopo revogam as sessões do usuário afetado | `UserManagementService` |

@@ -36,6 +36,22 @@
       Permissões
       <span class="app-muted">({{ selectedSet().size }} selecionadas)</span>
     </h3>
+    @if (notGrantable().length > 0) {
+      <p class="app-alert app-alert--info" role="note">
+        Você só pode conceder permissões que o seu próprio perfil possui. {{ notGrantable().length }}
+        {{ notGrantable().length === 1 ? 'permissão aparece bloqueada' : 'permissões aparecem bloqueadas' }}
+        @if (lockedSelected() > 0) {
+          ({{ lockedSelected() }} já {{ lockedSelected() === 1 ? 'marcada continua' : 'marcadas continuam' }} no perfil)
+        }.
+        Peça a um administrador da assessoria para concedê-las.
+      </p>
+    }
+    <div class="role-form__bulk">
+      <button mat-stroked-button type="button" (click)="selectAllGrantable()" [disabled]="catalogLoading()">
+        {{ notGrantable().length > 0 ? 'Marcar todas que posso conceder' : 'Marcar todas' }}
+      </button>
+      <button mat-button type="button" (click)="clearGrantable()" [disabled]="catalogLoading()">Desmarcar</button>
+    </div>
     @if (form.controls.permissions.invalid && form.controls.permissions.touched) {
       <p class="app-field-error" role="alert">Selecione ao menos uma permissão.</p>
     }
@@ -49,15 +65,23 @@
             <mat-checkbox
               [checked]="groupState(group) === 'all'"
               [indeterminate]="groupState(group) === 'some'"
+              [disabled]="!groupGrantable(group)"
               (change)="toggleGroup(group, $event.checked)"
             >
               <strong>{{ group.label }}</strong>
             </mat-checkbox>
           </legend>
           @for (p of group.permissions; track p.code) {
-            <mat-checkbox [checked]="selectedSet().has(p.code)" (change)="toggle(p.code, $event.checked)">
+            <mat-checkbox
+              [checked]="selectedSet().has(p.code)"
+              [disabled]="!p.grantable"
+              (change)="toggle(p.code, $event.checked)"
+            >
               {{ p.description }}
               <span class="app-mono app-muted">{{ p.code }}</span>
+              @if (!p.grantable) {
+                <span class="app-muted"> — fora do seu perfil</span>
+              }
             </mat-checkbox>
           }
         </fieldset>
