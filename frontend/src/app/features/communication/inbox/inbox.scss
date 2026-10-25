@@ -34,6 +34,15 @@
   overflow-y: auto;
 }
 
+// botão dentro do item da lista: sem o fundo padrão do navegador; realce com as variáveis do list-group
+.ib-item {
+  background-color: transparent;
+
+  &:hover {
+    background-color: var(--bs-list-group-action-hover-bg);
+  }
+}
+
 // conversa aberta: traço à esquerda além do fundo (não depende só da cor)
 .ib-item--on {
   box-shadow: inset 3px 0 0 var(--bs-primary);
