@@ -13,6 +13,7 @@ import { PeriodPreset, presetOf, presetRange } from '../data/analytics.filters';
 import { CHANNEL_LABELS, GROUP_BY_LABELS } from '../data/analytics.labels';
 import { AnalyticsFilter } from '../data/analytics.models';
 import { DensityService } from '../../../core/preferences/density.service';
+import { isoDate, toDateStruct } from '../../../shared/models/dates';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
 
@@ -35,9 +36,6 @@ const PRESETS: { value: PeriodPreset | 'custom'; label: string }[] = [
   { value: 'year', label: 'Ano atual' },
   { value: 'custom', label: 'Personalizado' },
 ];
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const isoDate = (value: string | null): string | null => (value && ISO_DATE.test(value) ? value : null);
 
 const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
 
@@ -62,7 +60,7 @@ const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
         @if (form.controls.preset.value === 'custom') {
           <app-field class="af__date" label="De">
             <div class="input-group">
-              <input appInput formControlName="from" [maxDate]="bound(form.controls.to.value, maxDate)" ngbDatepicker #fromPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <input appInput formControlName="from" [maxDate]="bound(form.controls.to.value, maxDate)" ngbDatepicker #fromPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
               <button class="btn btn-outline-secondary" type="button" (click)="fromPicker.toggle()" aria-label="Abrir calendário da data inicial">
                 <app-icon name="calendar-event" />
               </button>
@@ -70,7 +68,7 @@ const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
           </app-field>
           <app-field class="af__date" label="Até">
             <div class="input-group">
-              <input appInput formControlName="to" [minDate]="bound(form.controls.from.value, minDate)" ngbDatepicker #toPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <input appInput formControlName="to" [minDate]="bound(form.controls.from.value, minDate)" ngbDatepicker #toPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
               <button class="btn btn-outline-secondary" type="button" (click)="toPicker.toggle()" aria-label="Abrir calendário da data final">
                 <app-icon name="calendar-event" />
               </button>
@@ -248,11 +246,7 @@ export class AnalyticsFilters implements OnInit {
   /** Limite do calendário (`NgbDateStruct`) a partir da outra data do intervalo. */
   protected bound(value: string | null, fallback: NgbDateStruct): NgbDateStruct {
     const iso = isoDate(value);
-    if (!iso) {
-      return fallback;
-    }
-    const [year, month, day] = iso.split('-').map(Number);
-    return { year, month, day };
+    return iso ? toDateStruct(iso) : fallback;
   }
 
   protected toggleChannel(channel: string, checked: boolean): void {

@@ -41,7 +41,7 @@ type Field = 'number' | 'startDate' | 'endDate' | 'returnAfterDays' | 'settlemen
           </app-field>
           <app-field label="Início da vigência" [error]="message('startDate')">
             <div class="input-group">
-              <input appInput formControlName="startDate" [attr.ngbAutofocus]="data.contract ? '' : null" ngbDatepicker #start="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <input appInput formControlName="startDate" [attr.ngbAutofocus]="data.contract ? '' : null" ngbDatepicker #start="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
               <button class="btn btn-outline-secondary" type="button" (click)="start.toggle()" aria-label="Abrir calendário: Início da vigência">
                 <app-icon name="calendar-event" />
               </button>
@@ -49,7 +49,7 @@ type Field = 'number' | 'startDate' | 'endDate' | 'returnAfterDays' | 'settlemen
           </app-field>
           <app-field label="Fim da vigência" hint="Opcional (prazo indeterminado)" [error]="message('endDate')">
             <div class="input-group">
-              <input appInput formControlName="endDate" ngbDatepicker #end="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <input appInput formControlName="endDate" ngbDatepicker #end="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
               <button class="btn btn-outline-secondary" type="button" (click)="end.toggle()" aria-label="Abrir calendário: Fim da vigência">
                 <app-icon name="calendar-event" />
               </button>

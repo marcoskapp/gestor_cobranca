@@ -27,7 +27,7 @@ import { Icon } from '../../../../shared/components/icon/icon';
         <div class="vstack gap-3">
           <app-field label="Data de encerramento" [error]="message('endDate')">
             <div class="input-group">
-              <input appInput formControlName="endDate" ngbAutofocus ngbDatepicker #end="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+              <input appInput formControlName="endDate" ngbAutofocus ngbDatepicker #end="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
               <button class="btn btn-outline-secondary" type="button" (click)="end.toggle()" aria-label="Abrir calendário: Data de encerramento">
                 <app-icon name="calendar-event" />
               </button>

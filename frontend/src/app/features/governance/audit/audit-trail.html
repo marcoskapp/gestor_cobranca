@@ -17,7 +17,7 @@
 <form class="app-filters" data-tour="filters" [formGroup]="filters" (ngSubmit)="apply()" role="search" aria-label="Filtrar trilha de auditoria">
   <app-field label="De">
     <div class="input-group">
-      <input appInput formControlName="from" ngbDatepicker #from="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+      <input appInput formControlName="from" ngbDatepicker #from="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
       <button class="btn btn-outline-secondary" type="button" (click)="from.toggle()" aria-label="Abrir calendário: De">
         <app-icon name="calendar-event" />
       </button>
@@ -25,7 +25,7 @@
   </app-field>
   <app-field label="Até">
     <div class="input-group">
-      <input appInput formControlName="to" ngbDatepicker #to="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+      <input appInput formControlName="to" ngbDatepicker #to="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
       <button class="btn btn-outline-secondary" type="button" (click)="to.toggle()" aria-label="Abrir calendário: Até">
         <app-icon name="calendar-event" />
       </button>

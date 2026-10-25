@@ -35,7 +35,7 @@
       </app-field>
       <app-field label="Recebida em" [error]="message('receivedOn')">
         <div class="input-group">
-          <input appInput formControlName="receivedOn" ngbDatepicker #received="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <input appInput formControlName="receivedOn" ngbDatepicker #received="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
           <button class="btn btn-outline-secondary" type="button" (click)="received.toggle()" aria-label="Abrir calendário da data de recebimento">
             <app-icon name="calendar-event" />
           </button>
@@ -43,7 +43,7 @@
       </app-field>
       <app-field label="Válida até" hint="Opcional" [error]="message('validUntil')">
         <div class="input-group">
-          <input appInput formControlName="validUntil" ngbDatepicker #valid="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <input appInput formControlName="validUntil" ngbDatepicker #valid="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
           <button class="btn btn-outline-secondary" type="button" (click)="valid.toggle()" aria-label="Abrir calendário da data de validade">
             <app-icon name="calendar-event" />
           </button>

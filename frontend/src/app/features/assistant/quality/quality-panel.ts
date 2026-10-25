@@ -11,6 +11,7 @@ import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { sameValue } from '../../../shared/data/same-value';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
+import { isoDate } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { addDays, zonedNow } from '../../collection/data/collection.rules';
 import { AGREEMENT_ORIGIN_LABELS } from '../../negotiation/data/agreement.labels';
@@ -19,9 +20,6 @@ import { BarChart } from '../components/bar-chart';
 import { AssistantReviewApi } from '../data/assistant.api';
 import { AGREEMENT_GROUP_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, PIX_DENIAL_LABELS } from '../data/assistant.labels';
 import { Bar, bars, fractionText } from '../data/assistant.rules';
-
-/** Data digitada ainda não reconhecida (o campo mostra o erro) não entra no filtro. */
-const isoDate = (value: string | null): string | null => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
 
 interface QualityFilter {
   from: string | null;
@@ -43,7 +41,7 @@ interface QualityFilter {
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar qualidade">
       <app-field class="qp-date" label="De">
         <div class="input-group">
-          <input appInput formControlName="from" ngbDatepicker #fromPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <input appInput formControlName="from" ngbDatepicker #fromPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
           <button class="btn btn-outline-secondary" type="button" (click)="fromPicker.toggle()" aria-label="Abrir calendário da data inicial">
             <app-icon name="calendar-event" />
           </button>
@@ -51,7 +49,7 @@ interface QualityFilter {
       </app-field>
       <app-field class="qp-date" label="Até">
         <div class="input-group">
-          <input appInput formControlName="to" ngbDatepicker #toPicker="ngbDatepicker" container="body" placeholder="dd/mm/aaaa" autocomplete="off" />
+          <input appInput formControlName="to" ngbDatepicker #toPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
           <button class="btn btn-outline-secondary" type="button" (click)="toPicker.toggle()" aria-label="Abrir calendário da data final">
             <app-icon name="calendar-event" />
           </button>
@@ -186,6 +184,7 @@ export class QualityPanel {
       debounceTime(250),
       map((): QualityFilter => {
         const v = this.filters.getRawValue();
+        // data digitada ainda não reconhecida (o campo mostra o erro) não entra no filtro
         return { from: isoDate(v.from), to: isoDate(v.to), creditorId: v.creditor[0] ?? null, portfolioId: v.creditor[0] ? (v.portfolio[0] ?? null) : null };
       }),
     ),
