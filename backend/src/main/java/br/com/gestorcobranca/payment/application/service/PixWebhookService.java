@@ -119,6 +119,12 @@ class PixWebhookService implements PixWebhookUseCases {
 
     private boolean authenticated(PixAccount account, String signature, String clientCertificate, byte[] body) {
         if (account.getWebhookAuth() == WebhookAuthMode.MTLS) {
+            if (!properties.webhook().mtlsEnabled()) {
+                // sem verificação do certificado no ALB o cabeçalho pode ter vindo do próprio cliente (S1)
+                LOG.atWarn().addKeyValue("provider", PROVIDER).addKeyValue("pixAccountId", account.getId())
+                        .log("Webhook Pix em modo MTLS recusado: mTLS do balanceador desligado neste ambiente");
+                return false;
+            }
             return WebhookAuthentication.validClientCertificate(clientCertificate, account.webhookFingerprints(),
                     Instant.now(clock));
         }

@@ -82,6 +82,13 @@ public class PixAccount extends TenantScopedEntity {
     @Column(name = "webhook_client_fingerprints", length = 1000)
     private String webhookClientFingerprints;
 
+    /** Quem alterou por último URL, token ou autenticação do webhook; nulo depois da reativação por outra pessoa. */
+    @Column(name = "endpoints_changed_by")
+    private UUID endpointsChangedBy;
+
+    @Column(name = "endpoints_changed_at")
+    private Instant endpointsChangedAt;
+
     @Column(name = "webhook_registered_at")
     private Instant webhookRegisteredAt;
 
@@ -160,6 +167,38 @@ public class PixAccount extends TenantScopedEntity {
 
     public void activate() {
         this.active = true;
+    }
+
+    /**
+     * Endereços da conta alterados (URL da API, do token ou autenticação do webhook): a conta fica inativa
+     * até que <strong>outra pessoa</strong> a reative (segunda aprovação da troca de PSP).
+     *
+     * @return se a conta estava ativa e foi desativada
+     */
+    public boolean endpointsChanged(UUID by, Instant now) {
+        Guard.require(by != null, "pix_account.actor_required", "Responsável obrigatório");
+        this.endpointsChangedBy = by;
+        this.endpointsChangedAt = now;
+        boolean wasActive = active;
+        this.active = false;
+        return wasActive;
+    }
+
+    /** Reativação: depois de troca de endereços, só por pessoa diferente de quem trocou. */
+    public void activateBy(UUID by) {
+        Guard.requireState(endpointsChangedBy == null || !endpointsChangedBy.equals(by),
+                "pix_account.activation_requires_second_person",
+                "Os endereços da conta foram alterados por você; a reativação precisa de outra pessoa");
+        this.endpointsChangedBy = null;
+        this.active = true;
+    }
+
+    public UUID getEndpointsChangedBy() {
+        return endpointsChangedBy;
+    }
+
+    public Instant getEndpointsChangedAt() {
+        return endpointsChangedAt;
     }
 
     public void deactivate() {

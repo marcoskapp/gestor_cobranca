@@ -331,10 +331,16 @@ app:
       max-clock-skew: PT5M
       # ALB com mutual TLS em modo verify repassa o certificado do PSP neste cabeçalho
       client-certificate-header: X-Amzn-Mtls-Clientcert-Leaf
+      # true SOMENTE quando o listener do ALB tem mutual authentication em modo verify (trust store do PSP);
+      # desligado, contas com webhook MTLS são recusadas (o cabeçalho poderia vir do cliente)
+      mtls-enabled: ${PAYMENT_WEBHOOK_MTLS_ENABLED:false}
     pix:
       connect-timeout: PT3S
       read-timeout: PT10S
       token-refresh-margin: PT60S
+      # hosts de PSP aceitos nas contas Pix (ex.: api-pix.bb.com.br,*.itau.com.br); vazio = qualquer host
+      # público. IPs/nomes internos são sempre recusados e o DNS é conferido a cada chamada.
+      allowed-hosts: ${PAYMENT_PIX_ALLOWED_HOSTS:}
     evidence:
       max-size-bytes: 10485760
     statement:
