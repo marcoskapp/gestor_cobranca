@@ -1,10 +1,10 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
+import { Icon } from '../../../shared/components/icon/icon';
 import { valueOr } from '../../../shared/data/resource-value';
 import { TitlesApi } from '../../debt/data/debt.api';
 import { AgreementsApi } from '../../negotiation/data/agreement.api';
@@ -18,11 +18,11 @@ import { requestedTargetText } from '../data/payment.rules';
  */
 @Component({
   selector: 'app-requested-target',
-  imports: [MatIconModule, RouterLink],
+  imports: [Icon, RouterLink],
   template: `
     <span class="rt" [class.rt--inline]="inline()">
       @if (!inline()) {
-        <mat-icon class="rt__icon" aria-hidden="true">{{ target().kind === 'AGREEMENT' ? 'handshake' : 'request_quote' }}</mat-icon>
+        <app-icon class="rt__icon" [name]="target().kind === 'AGREEMENT' ? 'person-hearts' : 'file-earmark-text'" />
       }
       @if (target().agreementId && canViewAgreements() && !inline()) {
         <a [routerLink]="['/negociacao/acordos', target().agreementId]">{{ text() }}</a>
@@ -41,10 +41,8 @@ import { requestedTargetText } from '../data/payment.rules';
       display: inline;
     }
     .rt__icon {
-      width: 18px;
-      height: 18px;
-      font-size: 18px;
-      color: var(--mat-sys-on-surface-variant);
+      font-size: 1rem;
+      color: var(--bs-secondary-color);
     }
   `,
 })

@@ -3,13 +3,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { instruction } from '../../../../testing/payment-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { InstructionDialog, InstructionDialogData } from './instruction-dialog';
 import { PENDING_POLL_MS } from './instruction-panel';
 
@@ -34,12 +35,13 @@ describe('InstructionDialog', () => {
     TestBed.configureTestingModule({
       imports: [InstructionDialog],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: data },
-        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        { provide: DIALOG_DATA, useValue: data },
+        { provide: DialogRef, useValue: { close: vi.fn() } },
         { provide: NotificationService, useValue: notifications },
         { provide: Clipboard, useValue: { copy } },
         {
@@ -114,5 +116,21 @@ describe('InstructionDialog', () => {
     req.flush({ code: 'payment_instruction.no_pix_account', detail: 'Nenhuma conta Pix ativa' }, { status: 422, statusText: 'Unprocessable' });
     fixture.detectChanges();
     expect(el(fixture).querySelector('[role="alert"]')?.textContent).toContain('Não há conta Pix ativa');
+  });
+
+  it('Pix com vencimento: escolhido pelo grupo de botões, envia a data digitada em ISO; boleto indisponível', () => {
+    const fixture = setup({ target, debtorId: 'd-1' });
+    expect(el(fixture).querySelector<HTMLInputElement>('#id-type-boleto')!.disabled).toBe(true);
+    el(fixture).querySelector<HTMLInputElement>('#id-type-due')!.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance['form'].controls.type.value).toBe('PIX_DUE');
+    const due = el(fixture).querySelector<HTMLInputElement>('input[formcontrolname="dueDate"]')!;
+    due.value = '15/12/2099';
+    due.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    submit(fixture).click();
+    const req = http.expectOne((r) => r.method === 'POST');
+    expect(req.request.body).toMatchObject({ type: 'PIX_DUE', dueDate: '2099-12-15', expiresInSeconds: null });
+    req.flush(instruction({ type: 'PIX_DUE', dueDate: '2099-12-15' }));
   });
 });

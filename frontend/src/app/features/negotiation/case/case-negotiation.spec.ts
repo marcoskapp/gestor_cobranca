@@ -2,13 +2,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 import { agreement, proposal } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
-import { of } from 'rxjs';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { CaseNegotiation } from './case-negotiation';
-import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const page = <T>(content: T[]) => ({ content, page: 0, size: 50, totalElements: content.length, totalPages: 1 });
@@ -20,8 +20,8 @@ describe('CaseNegotiation (aba da estação)', () => {
     TestBed.configureTestingModule({
       imports: [CaseNegotiation],
       providers: [
-        ...LEGACY_DIALOG_LAUNCHERS,
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

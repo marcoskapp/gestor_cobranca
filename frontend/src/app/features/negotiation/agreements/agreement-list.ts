@@ -1,22 +1,20 @@
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { DebtorNames } from '../../debt/data/debt.lookups';
@@ -34,13 +32,11 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
 @Component({
   selector: 'app-agreement-list',
   imports: [
+    Icon,
+    NgbTooltip,
+    ...FORM_FIELD,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
-    MatTooltipModule,
     Amount,
     CellDef,
     DataTable,
@@ -56,15 +52,14 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
 
     <app-data-table
@@ -76,7 +71,7 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="handshake"
+      emptyIcon="person-hearts"
       emptyMessage="Nenhum acordo encontrado."
       emptyHint="Acordos nascem da formalização de uma proposta aceita pelo devedor."
     >
@@ -108,8 +103,8 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
         }
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-a>
-        <a mat-icon-button [routerLink]="['/negociacao/acordos', a.id]" aria-label="Abrir acordo" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-link" [routerLink]="['/negociacao/acordos', a.id]" aria-label="Abrir acordo" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -117,7 +112,7 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
   styles: `
     .al-late {
       font-weight: 600;
-      color: var(--app-danger-fg);
+      color: var(--bs-danger-text-emphasis);
     }
   `,
 })

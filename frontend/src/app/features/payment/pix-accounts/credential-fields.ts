@@ -1,9 +1,7 @@
 import { Component, input, output, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { sizeText } from '../../ingestion/data/ingestion.labels';
 import { CredentialsRequest } from '../data/payment.models';
 import { CERTIFICATE_ACCEPT, certificateProblem, readAsBase64 } from '../data/payment.rules';
@@ -39,52 +37,46 @@ export function toCredentials(form: FormGroup, certificateBase64: string | null)
  */
 @Component({
   selector: 'app-credential-fields',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule],
   template: `
     <div class="app-form-grid" [formGroup]="form()">
-      <mat-form-field>
-        <mat-label>client_id</mat-label>
-        <input matInput formControlName="clientId" type="password" autocomplete="new-password" spellcheck="false" />
-        <mat-hint>Fornecido pelo PSP.</mat-hint>
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>client_secret</mat-label>
-        <input matInput formControlName="clientSecret" type="password" autocomplete="new-password" spellcheck="false" />
-      </mat-form-field>
+      <app-field label="client_id" hint="Fornecido pelo PSP.">
+        <input appInput formControlName="clientId" type="password" autocomplete="new-password" spellcheck="false" />
+      </app-field>
+      <app-field label="client_secret">
+        <input appInput formControlName="clientSecret" type="password" autocomplete="new-password" spellcheck="false" />
+      </app-field>
       @if (hmac()) {
-        <mat-form-field>
-          <mat-label>Segredo HMAC do webhook</mat-label>
-          <input matInput formControlName="webhookSecret" type="password" autocomplete="new-password" spellcheck="false" />
-          <mat-hint>Ao menos 32 caracteres; o mesmo cadastrado no PSP.</mat-hint>
-        </mat-form-field>
+        <app-field label="Segredo HMAC do webhook" hint="Ao menos 32 caracteres; o mesmo cadastrado no PSP.">
+          <input appInput formControlName="webhookSecret" type="password" autocomplete="new-password" spellcheck="false" />
+        </app-field>
       }
     </div>
     <div class="cf-file" data-tour="pix-certificate">
       <input #input type="file" [accept]="accept" (change)="pick(input.files); input.value = ''" hidden />
-      <button mat-stroked-button type="button" (click)="input.click()">
-        <mat-icon aria-hidden="true">key</mat-icon>
+      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="input.click()">
+        <app-icon name="key" />
         {{ fileName() ? 'Trocar certificado' : 'Escolher certificado (.p12/.pfx)' }}
       </button>
       @if (fileName()) {
         <span><strong>{{ fileName() }}</strong> · {{ fileSize() }}</span>
-        <button mat-button type="button" (click)="clear()">Remover</button>
+        <button class="btn btn-link" type="button" (click)="clear()">Remover</button>
       } @else {
         <span class="app-muted">{{ certificateHint() }}</span>
       }
     </div>
     @if (fileError()) {
-      <p class="app-field-error" role="alert">{{ fileError() }}</p>
+      <div class="invalid-feedback d-block" role="alert">{{ fileError() }}</div>
     }
     @if (fileName()) {
       <div class="app-form-grid" [formGroup]="form()">
-        <mat-form-field>
-          <mat-label>Senha do certificado</mat-label>
-          <input matInput formControlName="certificatePassword" type="password" autocomplete="new-password" />
-        </mat-form-field>
+        <app-field label="Senha do certificado">
+          <input appInput formControlName="certificatePassword" type="password" autocomplete="new-password" />
+        </app-field>
       </div>
     }
     <p class="app-muted cf-small">
-      <mat-icon aria-hidden="true" class="cf-icon">lock</mat-icon>
+      <app-icon class="cf-icon" name="lock" />
       Os segredos são gravados criptografados e nunca são exibidos de novo — só a impressão digital e a validade do certificado.
     </p>
   `,

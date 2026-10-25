@@ -2,15 +2,8 @@ import { LowerCasePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, finalize, of, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -19,14 +12,15 @@ import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { DebtorLookup } from '../../debt/data/debt.lookups';
 import { TitlesApi } from '../../debt/data/debt.api';
 import { titleLabel } from '../../debt/data/debt.labels';
+import { DebtorLookup } from '../../debt/data/debt.lookups';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { AgreementsApi, ProposalsApi } from '../data/agreement.api';
 import { SubmitMode, submitMode } from '../data/agreement.rules';
@@ -59,16 +53,11 @@ import { justificationProblem, offeredLevels, savingShare, sideBySide } from '..
 @Component({
   selector: 'app-simulator',
   imports: [
+    Icon,
+    NgbInputDatepicker,
+    ...FORM_FIELD,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
     Amount,
     EmptyState,
     EntityPicker,
@@ -118,11 +107,12 @@ export class Simulator {
   protected readonly context = this.fb.group({
     creditor: this.fb.control<string[]>([]),
     debtor: this.fb.control<string[]>([]),
-    referenceDate: this.fb.control<Date | null>(null),
+    // datas ISO yyyy-MM-dd (datepicker do ng-bootstrap)
+    referenceDate: this.fb.control<string | null>(null),
     channel: [''],
     installments: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(360)]),
     downPayment: this.fb.control<number | null>(null, [Validators.min(0.01)]),
-    firstDueDate: this.fb.control<Date | null>(null),
+    firstDueDate: this.fb.control<string | null>(null),
   });
   protected readonly escalation = this.fb.group({
     level: this.fb.control<number>(0),
@@ -139,7 +129,7 @@ export class Simulator {
     honorarium: this.fb.control(0),
     installments: this.fb.control(1, [Validators.required, Validators.min(1), Validators.max(360)]),
     downPayment: this.fb.control<number | null>(null),
-    firstDueDate: this.fb.control<Date | null>(null),
+    firstDueDate: this.fb.control<string | null>(null),
   });
 
   private readonly contextValue = toSignal(this.context.valueChanges.pipe(startWith(null)), { initialValue: null });
@@ -257,8 +247,8 @@ export class Simulator {
     const v = this.context.getRawValue();
     const plans: PlanRequest[] = v.installments
       ? [
-          { installments: 1, downPayment: null, firstDueDate: toLocalDate(v.firstDueDate) },
-          { installments: Number(v.installments), downPayment: v.downPayment ? Number(v.downPayment) : null, firstDueDate: toLocalDate(v.firstDueDate) },
+          { installments: 1, downPayment: null, firstDueDate: v.firstDueDate },
+          { installments: Number(v.installments), downPayment: v.downPayment ? Number(v.downPayment) : null, firstDueDate: v.firstDueDate },
         ]
       : [];
     this.running.set(true);
@@ -268,7 +258,7 @@ export class Simulator {
         creditorId,
         debtorId,
         titleIds: this.selectedTitles().size ? [...this.selectedTitles()] : null,
-        referenceDate: toLocalDate(v.referenceDate),
+        referenceDate: v.referenceDate,
         requestedLevel: level,
         justification: level > 0 ? { reason: e.reason as ConcessionReason, note: e.note.trim() || null } : null,
         plans: plans.length ? plans : null,
@@ -297,7 +287,7 @@ export class Simulator {
       ...offer.discountRates,
       installments: offer.installments,
       downPayment: offer.downPayment,
-      firstDueDate: offer.schedule[0] ? fromLocalDate(offer.schedule[0].dueDate) : null,
+      firstDueDate: offer.schedule[0]?.dueDate ?? null,
     });
     this.validation.set(null);
   }
@@ -329,7 +319,7 @@ export class Simulator {
           fees: Number(c.fees) || 0,
           honorarium: Number(c.honorarium) || 0,
         },
-        plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: toLocalDate(c.firstDueDate) },
+        plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: c.firstDueDate },
         channel: r.channel,
       })
       .pipe(finalize(() => this.validating.set(false)))
@@ -379,7 +369,7 @@ export class Simulator {
               fees: Number(c.fees) || 0,
               honorarium: Number(c.honorarium) || 0,
             },
-            plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: toLocalDate(c.firstDueDate) },
+            plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: c.firstDueDate },
             replacedAgreementId: this.renegociar() || null,
             handoffProposalId: this.transferencia() || null,
             copilot: null,

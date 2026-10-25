@@ -1,15 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { formatAmount } from '../../../shared/components/amount/amount';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppValidators } from '../../../shared/validation/validators';
 import { PaymentsApi } from '../data/payment.api';
 import { MANUAL_REVERSAL_REASONS, PAYMENT_ERROR_LABELS, REVERSAL_REASON_LABELS } from '../data/payment.labels';
@@ -30,13 +28,16 @@ export const REVERSE_WORD = 'ESTORNAR';
  */
 @Component({
   selector: 'app-reverse-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule],
   template: `
-    <h2 mat-dialog-title class="app-confirm__title"><mat-icon class="app-confirm__icon" aria-hidden="true">warning_amber</mat-icon>Estornar pagamento</h2>
-    <form [formGroup]="form" (ngSubmit)="send()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0 d-flex align-items-center gap-2"><app-icon class="text-danger-emphasis" name="exclamation-triangle" />Estornar pagamento</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="send()" novalidate>
+      <div class="modal-body">
         <p class="app-dialog-message">O pagamento deixa de abater a dívida: cada destino é revertido e as parcelas ou títulos voltam a ter saldo em aberto.</p>
-        <dl class="app-definition-list app-confirm__details">
+        <dl class="app-definition-list bg-body-tertiary rounded p-3 mb-3">
           <dt>Devedor</dt>
           <dd>{{ data.debtorName }}</dd>
           <dt>Valor</dt>
@@ -45,58 +46,36 @@ export const REVERSE_WORD = 'ESTORNAR';
           <dd>{{ targets }}</dd>
         </dl>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Motivo</mat-label>
-          <mat-select formControlName="reason" required>
+        <app-field class="mb-3" label="Motivo" error="Escolha o motivo.">
+          <select appInput formControlName="reason" required>
             @for (r of reasons; track r) {
-              <mat-option [value]="r">{{ labels[r] }}</mat-option>
+              <option [ngValue]="r">{{ labels[r] }}</option>
             }
-          </mat-select>
-          <mat-error>Escolha o motivo.</mat-error>
-        </mat-form-field>
-        <mat-form-field class="app-full-width">
-          <mat-label>Justificativa</mat-label>
-          <textarea matInput formControlName="note" rows="3" maxlength="1000" required></textarea>
-          <mat-hint>Registrada na auditoria.</mat-hint>
-          <mat-error>Descreva o motivo do estorno.</mat-error>
-        </mat-form-field>
-        <p class="app-alert app-alert--warning" role="note">
-          <mat-icon aria-hidden="true">info</mat-icon>
+          </select>
+        </app-field>
+        <app-field class="mb-3" label="Justificativa" hint="Registrada na auditoria." error="Descreva o motivo do estorno.">
+          <textarea appInput formControlName="note" rows="3" maxlength="1000" required></textarea>
+        </app-field>
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+          <app-icon name="info-circle" />
           <span>O estorno não pode ser desfeito. Se o dinheiro foi para o destino errado, prefira realocar.</span>
-        </p>
-        <mat-form-field class="app-full-width">
-          <mat-label>Digite {{ word }} para confirmar</mat-label>
-          <input matInput formControlName="confirmation" autocomplete="off" spellcheck="false" />
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close cdkFocusInitial>Cancelar</button>
-        <button mat-flat-button type="submit" class="app-button-danger" [disabled]="!confirmed() || sending()">Estornar</button>
-      </mat-dialog-actions>
+        </div>
+        <app-field class="mb-3" label="Digite {{ word }} para confirmar">
+          <input appInput formControlName="confirmation" autocomplete="off" spellcheck="false" />
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose ngbAutofocus>Cancelar</button>
+        <button type="submit" class="btn btn-danger" [disabled]="!confirmed() || sending()">Estornar</button>
+      </div>
     </form>
-  `,
-  styles: `
-    .app-confirm__title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .app-confirm__icon {
-      color: var(--app-danger-fg);
-    }
-    .app-confirm__details {
-      margin: 0 0 16px;
-      padding: 12px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
-    }
   `,
 })
 export class ReverseDialog {
-  protected readonly data = inject<ReverseDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ReverseDialog, PaymentView>>(MatDialogRef);
+  protected readonly data = inject<ReverseDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<PaymentView>>(DialogRef);
   private readonly api = inject(PaymentsApi);
   protected readonly reasons = MANUAL_REVERSAL_REASONS;
   protected readonly labels = REVERSAL_REASON_LABELS;

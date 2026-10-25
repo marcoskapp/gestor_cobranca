@@ -1,6 +1,7 @@
 import { toAmount } from '../../../shared/components/amount/amount';
-import { RECONCILIATION_MODE_LABELS, REVERSAL_REASON_LABELS, REVIEW_MODE_LABELS, STRATEGY_LABELS } from './payment.labels';
+import type { IconName } from '../../../shared/components/icon/icon-names';
 import type { TargetSelection } from '../components/payment-target';
+import { RECONCILIATION_MODE_LABELS, REVERSAL_REASON_LABELS, REVIEW_MODE_LABELS, STRATEGY_LABELS } from './payment.labels';
 import { AllocationView, InstructionView, PaymentView, PixAccountView, RequestedTargetView, StatementImportView, TargetRequest } from './payment.models';
 
 // --------------------------------------------------------------------------- arquivos
@@ -216,7 +217,7 @@ export function paymentActions(p: PaymentView, ctx: PaymentActionContext): Payme
 
 export interface TimelineEntry {
   at: string;
-  icon: string;
+  icon: IconName;
   title: string;
   detail: string | null;
   /** Usuário a resolver o nome (quem informou, revisou ou estornou). */
@@ -233,7 +234,7 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
   if (p.source === 'EXTERNAL' && p.informedAt) {
     entries.push({
       at: p.informedAt,
-      icon: 'edit_note',
+      icon: 'pencil-square',
       title: 'Pagamento informado',
       detail: p.reviewThresholdExceeded ? 'Acima do limite: aguardando aprovação de outra pessoa.' : null,
       userId: p.informedBy,
@@ -244,7 +245,7 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
     const rejected = p.status === 'REJECTED';
     entries.push({
       at: p.reviewedAt,
-      icon: rejected ? 'block' : 'how_to_reg',
+      icon: rejected ? 'slash-circle' : 'person-check',
       title: rejected ? 'Recusado na revisão' : 'Aprovado na revisão',
       detail: p.reviewNote,
       userId: p.reviewedBy,
@@ -254,7 +255,7 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
   if (p.confirmedAt) {
     entries.push({
       at: p.confirmedAt,
-      icon: 'check_circle',
+      icon: 'check-circle',
       title: 'Confirmado',
       detail: p.reviewMode ? REVIEW_MODE_LABELS[p.reviewMode] : null,
       userId: null,
@@ -264,7 +265,7 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
   for (const a of p.allocations.filter((x) => x.origin === 'REALLOCATION')) {
     entries.push({
       at: a.createdAt,
-      icon: a.kind === 'REFUND' ? 'undo' : 'call_split',
+      icon: a.kind === 'REFUND' ? 'arrow-counterclockwise' : 'signpost-split',
       title: a.kind === 'REFUND' ? 'Devolução registrada' : 'Valor realocado',
       detail: a.kind === 'REFUND' && a.refundReference ? `Referência ${a.refundReference}` : null,
       userId: null,
@@ -274,7 +275,7 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
   if (p.reconciledAt) {
     entries.push({
       at: p.reconciledAt,
-      icon: 'fact_check',
+      icon: 'card-checklist',
       title: 'Conciliado',
       detail: p.reconciliationMode ? `Por ${RECONCILIATION_MODE_LABELS[p.reconciliationMode]}` : null,
       userId: null,
@@ -284,7 +285,7 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
   if (p.reversedAt) {
     entries.push({
       at: p.reversedAt,
-      icon: 'replay',
+      icon: 'arrow-counterclockwise',
       title: 'Estornado',
       detail: p.reversal ? [REVERSAL_REASON_LABELS[p.reversal.reason], p.reversal.note].filter(Boolean).join(' · ') : null,
       userId: p.reversal?.reversedBy ?? null,
