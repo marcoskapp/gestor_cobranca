@@ -14,8 +14,9 @@ import { buildNewPasswordForm } from '../new-password-form';
 export type CredentialPurpose = 'activation' | 'reset';
 
 /**
- * Ativação de conta (`/ativar-conta?token=`) e redefinição de senha (`/redefinir-senha?token=`).
- * O token do e-mail é lido uma única vez e removido da barra de endereços (não fica no histórico).
+ * Ativação de conta (`/ativar-conta#token=`) e redefinição de senha (`/redefinir-senha#token=`).
+ * O token vem no fragmento da URL, que o navegador não envia ao servidor (não aparece nos logs do ALB
+ * nem no `Referer`); é lido uma única vez e removido da barra de endereços (não fica no histórico).
  */
 @Component({
   selector: 'app-credential-action',
@@ -56,8 +57,8 @@ export class CredentialAction implements OnInit {
 
   readonly purpose = input.required<CredentialPurpose>();
 
-  /** Lido do query param na criação e mantido apenas em memória. */
-  protected readonly actionToken: string | null = this.route.snapshot.queryParamMap.get('token');
+  /** Lido do fragmento na criação e mantido apenas em memória. */
+  protected readonly actionToken: string | null = credentialToken(this.route);
   protected readonly hint = NEW_PASSWORD_HINT;
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -74,7 +75,7 @@ export class CredentialAction implements OnInit {
   ngOnInit(): void {
     // remove o token da barra de endereços e do histórico do navegador
     if (this.actionToken) {
-      void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+      void this.router.navigate([], { relativeTo: this.route, queryParams: {}, fragment: undefined, replaceUrl: true });
     }
   }
 
@@ -104,4 +105,14 @@ export class CredentialAction implements OnInit {
         },
       });
   }
+}
+
+/**
+ * Token do link do e-mail: `#token=<valor>`. Links emitidos antes da mudança (`?token=`, válidos por até
+ * 72 h) continuam aceitos; o token sai do endereço em seguida.
+ */
+export function credentialToken(route: ActivatedRoute): string | null {
+  const fragment = route.snapshot.fragment ?? '';
+  const fromFragment = new URLSearchParams(fragment).get('token');
+  return fromFragment || route.snapshot.queryParamMap.get('token');
 }
