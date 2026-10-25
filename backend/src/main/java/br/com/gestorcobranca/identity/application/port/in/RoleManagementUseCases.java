@@ -27,6 +27,10 @@ public interface RoleManagementUseCases {
                     Set<String> permissions) {
     }
 
-    record PermissionView(String code, String description) {
+    /**
+     * @param grantable se o usuário atual pode conceder a permissão (só se concede o que se tem;
+     *                  ver {@code RoleManagementService#requireGrantable})
+     */
+    record PermissionView(String code, String description, boolean grantable) {
     }
 }

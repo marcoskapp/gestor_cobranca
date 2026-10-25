@@ -56,6 +56,11 @@ public final class DefaultRoles {
     public static final String AUDITOR = "AUDITOR";
     public static final String JURIDICO = "JURIDICO";
     public static final String ADVOGADO_PARCEIRO = "ADVOGADO_PARCEIRO";
+    public static final String ANALISTA_CARTEIRA = "ANALISTA_CARTEIRA";
+    public static final String ESTRATEGIA = "ESTRATEGIA";
+    public static final String QUALIDADE = "QUALIDADE";
+    public static final String COMPLIANCE = "COMPLIANCE";
+    public static final String INTEGRACAO = "INTEGRACAO";
     public static final String PLATFORM_ADMIN = "PLATFORM_ADMIN";
 
     public record Definition(String code, String name, String description, Set<Permission> permissions) {
@@ -110,6 +115,33 @@ public final class DefaultRoles {
 
         Set<Permission> advogadoParceiro = EnumSet.of(LEGAL_VIEW, LEGAL_MANAGE, LEGAL_EXPENSE_MANAGE);
 
+        // Carga e saneamento de carteiras: importação (sem aprovar a própria carga), títulos e devedores.
+        Set<Permission> analistaCarteira = EnumSet.of(
+                CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, IMPORT_VIEW, IMPORT_EXECUTE,
+                DEBTOR_VIEW, DEBTOR_MANAGE, DEBT_TITLE_MANAGE, COLLATERAL_MANAGE, CASE_VIEW, DASHBOARD_VIEW, REPORT_VIEW);
+
+        // Estratégia de cobrança: segmentos, réguas, testes A/B, templates e score, sem operar casos.
+        Set<Permission> estrategia = EnumSet.of(
+                CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, CASE_VIEW, AGREEMENT_VIEW, PAYMENT_VIEW,
+                SEGMENT_MANAGE, CAMPAIGN_VIEW, CAMPAIGN_MANAGE, CAMPAIGN_EXECUTE, EXPERIMENT_MANAGE, TEMPLATE_MANAGE,
+                SCORING_VIEW, SCORING_MANAGE, DASHBOARD_VIEW, REPORT_VIEW, REPORT_EXPORT, PERFORMANCE_VIEW_ALL);
+
+        // Monitoria e qualidade: avaliações, revisão do assistente e escuta de gravações.
+        Set<Permission> qualidade = EnumSet.of(
+                USER_VIEW, CREDITOR_VIEW, PORTFOLIO_VIEW, CASE_VIEW, DEBTOR_VIEW, AGREEMENT_VIEW, INBOX_VIEW,
+                QUALITY_EVALUATE, ASSISTANT_REVIEW, CALL_RECORDING_LISTEN, PERFORMANCE_VIEW_ALL,
+                DASHBOARD_VIEW, REPORT_VIEW);
+
+        // Compliance / encarregado de dados: restrições de contato, titulares (LGPD), retenção e trilhas.
+        Set<Permission> compliance = EnumSet.of(
+                USER_VIEW, CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, DEBTOR_SENSITIVE_VIEW, CASE_VIEW,
+                CONTACT_RESTRICTION_MANAGE, DATA_SUBJECT_REQUEST_MANAGE, RETENTION_MANAGE,
+                ACCESS_LOG_VIEW, AUDIT_VIEW, INBOX_VIEW, DASHBOARD_VIEW, REPORT_VIEW);
+
+        // Integrações técnicas: canais, provedores e cargas automáticas; sem dados de devedores.
+        Set<Permission> integracao = EnumSet.of(
+                CREDITOR_VIEW, PORTFOLIO_VIEW, INTEGRATION_MANAGE, CHANNEL_MANAGE, IMPORT_VIEW, IMPORT_EXECUTE);
+
         return List.of(
                 new Definition(ADMIN, "Administrador", "Acesso total à assessoria", admin),
                 new Definition(GESTOR, "Gestor", "Gestão de credores, carteiras, estratégias e resultados", gestor),
@@ -121,7 +153,18 @@ public final class DefaultRoles {
                         juridico),
                 new Definition(ADVOGADO_PARCEIRO, "Advogado parceiro",
                         "Advogado de escritório parceiro: somente os casos jurídicos atribuídos ao escritório",
-                        advogadoParceiro));
+                        advogadoParceiro),
+                new Definition(ANALISTA_CARTEIRA, "Analista de carteiras",
+                        "Importação e saneamento de carteiras, títulos, garantias e devedores", analistaCarteira),
+                new Definition(ESTRATEGIA, "Estratégia de cobrança",
+                        "Segmentos, réguas, testes A/B, templates e score de propensão", estrategia),
+                new Definition(QUALIDADE, "Monitoria e qualidade",
+                        "Avaliação de atendimentos, revisão do assistente de IA e escuta de gravações", qualidade),
+                new Definition(COMPLIANCE, "Compliance e privacidade",
+                        "Restrições de contato, solicitações de titulares (LGPD), retenção e trilhas de auditoria",
+                        compliance),
+                new Definition(INTEGRACAO, "Integrações",
+                        "Canais, provedores e cargas automáticas, sem acesso a dados de devedores", integracao));
     }
 
     public static Definition platformAdmin() {

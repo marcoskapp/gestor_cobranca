@@ -64,6 +64,8 @@ export interface RoleRequest {
 export interface PermissionView {
   code: string;
   description: string;
+  /** O usuário atual pode conceder (só se concede o que o próprio perfil possui). */
+  grantable: boolean;
 }
 
 /** `TeamUseCases.TeamView` */
