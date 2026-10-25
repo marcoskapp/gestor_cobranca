@@ -7,7 +7,8 @@ import { fakeUser } from '../../../../testing/auth-fixtures';
 import { marketTemplate } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { PolicyView } from '../data/negotiation.models';
 import { PolicyDetail } from './policy-detail';
 

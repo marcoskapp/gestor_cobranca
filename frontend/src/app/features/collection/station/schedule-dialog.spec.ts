@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NgbConfig } from '@ng-bootstrap/ng-bootstrap';
-import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { TaskView } from '../data/collection.models';

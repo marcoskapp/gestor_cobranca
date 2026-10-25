@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { cnjValid } from '../data/legal.rules';
 import { FormDialog, FormDialogData } from './form-dialog';

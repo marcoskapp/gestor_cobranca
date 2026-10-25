@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
-import { provideBootstrapComponentDefaults } from '../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults } from '../core/config/bootstrap-components.config';
 import { PortalSession } from './data/portal-session';
 
 /** Telas do devedor exigem a sessão do portal deste endereço; sem ela, volta à entrada. */

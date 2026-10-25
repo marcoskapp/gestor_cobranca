@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { payment } from '../../../../testing/payment-fixtures';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { ReverseDialog } from './reverse-dialog';
 

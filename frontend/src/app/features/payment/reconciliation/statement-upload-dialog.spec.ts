@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { statementImport } from '../../../../testing/payment-fixtures';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { DialogRef } from '../../../shared/dialog/dialog-ref';
 import { StatementUploadDialog } from './statement-upload-dialog';

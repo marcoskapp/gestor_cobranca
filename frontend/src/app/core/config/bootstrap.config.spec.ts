@@ -1,7 +1,8 @@
 import { ApplicationInitStatus } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NgbDatepickerConfig, NgbInputDatepickerConfig } from '@ng-bootstrap/ng-bootstrap';
-import { IsoDateAdapter, PtBrDateParserFormatter, provideBootstrapComponentDefaults, provideBootstrapDefaults } from './bootstrap.config';
+import { IsoDateAdapter, PtBrDateParserFormatter, provideBootstrapDefaults } from './bootstrap.config';
+import { provideBootstrapComponentDefaults } from './bootstrap-components.config';
 import { NGB_TRANSLATIONS_PT_BR } from './ngb-translations';
 
 describe('padrões do ng-bootstrap', () => {

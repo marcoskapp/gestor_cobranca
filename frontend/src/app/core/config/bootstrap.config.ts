@@ -1,15 +1,9 @@
-import { EnvironmentProviders, Injectable, inject, makeEnvironmentProviders, provideAppInitializer, provideEnvironmentInitializer } from '@angular/core';
+import { EnvironmentProviders, Injectable, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import {
   NgbDateAdapter,
   NgbDateParserFormatter,
   NgbDateStruct,
-  NgbDatepickerConfig,
-  NgbInputDatepickerConfig,
-  NgbDropdownConfig,
   NgbModalConfig,
-  NgbPaginationConfig,
-  NgbTooltipConfig,
-  NgbTypeaheadConfig,
 } from '@ng-bootstrap/ng-bootstrap';
 
 const pad = (value: number, size = 2) => String(value).padStart(size, '0');
@@ -52,8 +46,9 @@ export class PtBrDateParserFormatter extends NgbDateParserFormatter {
 
 /**
  * Padrões do ng-bootstrap fornecidos na raiz: datas pt-BR com modelo ISO e diálogos acessíveis
- * (Esc fecha, foco devolvido). Ficam aqui só o que a moldura inicial usa (diálogos e avisos), para
- * que o código dos demais componentes do ng-bootstrap fique fora do bundle inicial.
+ * (Esc fecha, foco devolvido). Ficam aqui só o que a moldura inicial usa (diálogos e avisos); os
+ * padrões dos demais componentes estão em `bootstrap-components.config.ts`, arquivo separado para
+ * que o código desses componentes fique fora do bundle inicial.
  * Os rótulos acessíveis do ng-bootstrap são traduzidos em `ngb-translations.ts`.
  */
 export function provideBootstrapDefaults(): EnvironmentProviders {
@@ -65,48 +60,6 @@ export function provideBootstrapDefaults(): EnvironmentProviders {
       modal.backdrop = true;
       modal.keyboard = true;
       modal.scrollable = true;
-    }),
-  ]);
-}
-
-/**
- * Padrões dos componentes de tela do ng-bootstrap (tooltips, menus, paginação, calendários e
- * autocompletar), aplicados quando a área autenticada ou o portal é carregado (providers das rotas
- * `SHELL_ROUTES` e `PORTAL_ROUTES`). As configurações são singletons da raiz (`providedIn: 'root'`):
- * o inicializador do injetor da rota altera a mesma instância que os diálogos abertos pelo
- * `DialogService` (injetor raiz) enxergam. Tooltips, menus e calendários anexados ao `body` não
- * são cortados por contêineres com `overflow`; paginação com primeira/última página.
- */
-export function provideBootstrapComponentDefaults(): EnvironmentProviders {
-  return makeEnvironmentProviders([
-    provideEnvironmentInitializer(() => {
-      const tooltip = inject(NgbTooltipConfig);
-      tooltip.container = 'body';
-      tooltip.openDelay = 300;
-
-      inject(NgbDropdownConfig).container = 'body';
-
-      const pagination = inject(NgbPaginationConfig);
-      pagination.boundaryLinks = true;
-      pagination.maxSize = 5;
-      pagination.rotate = true;
-      pagination.ellipses = false;
-      pagination.size = 'sm';
-
-      // o datepicker em campo (`input[ngbDatepicker]`) tem configuração própria (NgbInputDatepickerConfig,
-      // outra instância): os mesmos padrões valem para os dois
-      for (const datepicker of [inject(NgbDatepickerConfig), inject(NgbInputDatepickerConfig)]) {
-        datepicker.firstDayOfWeek = 7; // domingo, como no calendário brasileiro
-        datepicker.minDate = { year: 1900, month: 1, day: 1 };
-        datepicker.maxDate = { year: 2100, month: 12, day: 31 };
-      }
-      const inputDatepicker = inject(NgbInputDatepickerConfig);
-      // calendário do campo anexado ao body (como menus e tooltips), em posição fixa: não é cortado
-      // pela rolagem de diálogos (`modal-dialog-scrollable`), tabelas e painéis com `overflow`
-      inputDatepicker.container = 'body';
-      inputDatepicker.popperOptions = (options) => ({ ...options, strategy: 'fixed' });
-
-      inject(NgbTypeaheadConfig).focusFirst = false;
     }),
   ]);
 }

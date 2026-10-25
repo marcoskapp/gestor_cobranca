@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { provideBootstrapComponentDefaults } from '../../config/bootstrap.config';
+import { provideBootstrapComponentDefaults } from '../../config/bootstrap-components.config';
 import { Shell } from './shell';
 
 /**
