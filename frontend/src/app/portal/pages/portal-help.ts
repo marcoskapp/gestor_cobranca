@@ -1,61 +1,58 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { PortalApi, portalMessage } from '../data/portal.api';
 import { CHANNEL_LABELS, REASON_LABELS } from '../data/portal.labels';
 import { PortalChannel, ServiceReason, ServiceRequestView } from '../data/portal.models';
 import { PortalSite } from '../layout/portal-site';
+import { Icon } from '../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../shared/forms/field';
 
 /** Falar com atendente: o pedido vira conversa na fila humana; o atendente responde pelo canal escolhido. */
 @Component({
   selector: 'app-portal-help',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatRadioModule, AppDatePipe],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, AppDatePipe, Icon],
   template: `
     <h1 class="portal-title">Falar com um atendente</h1>
     @if (sent(); as s) {
       <section class="portal-card portal-center" role="status">
-        <mat-icon class="portal-big-icon" aria-hidden="true">mark_chat_read</mat-icon>
+        <app-icon class="portal-big-icon" name="chat-square-dots" />
         <h2 class="portal-title">Pedido recebido</h2>
         <p>Protocolo <strong>{{ s.protocol }}</strong>. Um atendente vai falar com você pelo {{ channelLabels[s.preferredChannel] }}.</p>
-        <div class="portal-actions"><button mat-stroked-button type="button" (click)="sent.set(null)">Fazer outro pedido</button></div>
+        <div class="portal-actions"><button class="btn btn-outline-primary portal-btn-outline" type="button" (click)="sent.set(null)">Fazer outro pedido</button></div>
       </section>
     } @else {
       <section class="portal-card">
         <form (submit)="$event.preventDefault(); send()" novalidate>
           <fieldset class="portal-fieldset">
             <legend>Como podemos ajudar?</legend>
-            <mat-radio-group [formControl]="reason" class="portal-radios">
-              @for (r of reasons; track r) {
-                <mat-radio-button [value]="r">
+            @for (r of reasons; track r) {
+              <div class="form-check portal-radio">
+                <input class="form-check-input portal-check" type="radio" name="portal-reason" [id]="'portal-reason-' + r" [value]="r" [formControl]="reason" />
+                <label class="form-check-label" [for]="'portal-reason-' + r">
                   <span>{{ reasonLabels[r].label }}</span><br /><span class="portal-label">{{ reasonLabels[r].hint }}</span>
-                </mat-radio-button>
-              }
-            </mat-radio-group>
+                </label>
+              </div>
+            }
           </fieldset>
-          <mat-form-field class="portal-field" appearance="outline">
-            <mat-label>Mensagem {{ reason.value === 'OTHER' ? '' : '(opcional)' }}</mat-label>
-            <textarea matInput [formControl]="note" rows="3" maxlength="500" aria-describedby="note-hint"></textarea>
-            <mat-hint id="note-hint">Não informe senhas nem dados de cartão. {{ note.value.length }}/500</mat-hint>
-          </mat-form-field>
+          <app-field class="portal-field" [label]="'Mensagem ' + (reason.value === 'OTHER' ? '' : '(opcional)')" [hint]="'Não informe senhas nem dados de cartão. ' + note.value.length + '/500'">
+            <textarea appInput class="form-control-lg" [formControl]="note" rows="3" maxlength="500"></textarea>
+          </app-field>
           <fieldset class="portal-fieldset">
             <legend>Por onde o atendente deve responder?</legend>
-            <mat-radio-group [formControl]="channel" class="portal-radios">
-              @for (c of channels(); track c) {
-                <mat-radio-button [value]="c">{{ channelLabels[c] }}</mat-radio-button>
-              }
-            </mat-radio-group>
+            @for (c of channels(); track c) {
+              <div class="form-check portal-radio">
+                <input class="form-check-input portal-check" type="radio" name="portal-reply" [id]="'portal-reply-' + c" [value]="c" [formControl]="channel" />
+                <label class="form-check-label" [for]="'portal-reply-' + c">{{ channelLabels[c] }}</label>
+              </div>
+            }
           </fieldset>
           @if (error()) {
-            <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ error() }}</span></p>
+            <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
           }
           <div class="portal-actions">
-            <button mat-flat-button type="submit" [disabled]="busy()">Enviar pedido</button>
+            <button class="btn btn-primary portal-btn" type="submit" [disabled]="busy()">Enviar pedido</button>
           </div>
         </form>
       </section>
@@ -74,7 +71,7 @@ import { PortalSite } from '../layout/portal-site';
     .portal-help-title { margin: 8px 0; font-size: 18px; font-weight: 600; }
     .portal-fieldset { margin: 0 0 12px; padding: 0; border: 0; }
     .portal-fieldset legend { margin-bottom: 4px; font-weight: 600; }
-    .portal-radios mat-radio-button { display: block; margin-bottom: 8px; }
+    .portal-radio { min-height: 44px; margin-bottom: 8px; }
   `,
 })
 export class PortalHelp {

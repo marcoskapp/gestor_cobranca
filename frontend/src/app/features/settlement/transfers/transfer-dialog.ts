@@ -1,15 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { NgbDateStruct, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
-import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
+import { isoDate } from '../../../shared/models/dates';
 import { AppValidators } from '../../../shared/validation/validators';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { EVIDENCE_ACCEPT, evidenceProblem, parseMoney } from '../../payment/data/payment.rules';
@@ -17,6 +12,16 @@ import { TransfersApi, newIdempotencyKey } from '../data/settlement.api';
 import { SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { StatementBalance, TransferView } from '../data/settlement.models';
 import { periodText } from '../data/settlement.rules';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+
+/** `yyyy-MM-dd` → limite do ngbDatepicker. */
+function dateStruct(iso: string): NgbDateStruct {
+  const [year, month, day] = iso.split('-').map(Number);
+  return { year, month, day };
+}
 
 export interface TransferDialogData {
   creditorName: string;
@@ -30,11 +35,14 @@ export interface TransferDialogData {
  */
 @Component({
   selector: 'app-transfer-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatInputModule, Amount],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Amount, Icon],
   template: `
-    <h2 mat-dialog-title>{{ toCreditor ? 'Registrar repasse ao credor' : 'Registrar recebimento do credor' }}</h2>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ toCreditor ? 'Registrar repasse ao credor' : 'Registrar recebimento do credor' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
     <form [formGroup]="form" (ngSubmit)="send()" novalidate>
-      <mat-dialog-content>
+      <div class="modal-body">
         <dl class="app-definition-list td-dl">
           <dt>Credor</dt>
           <dd>{{ data.creditorName }}</dd>
@@ -44,34 +52,28 @@ export interface TransferDialogData {
           <dd><app-amount [value]="balance" /></dd>
         </dl>
         <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Valor (R$)</mat-label>
-            <input matInput formControlName="amount" inputmode="decimal" required />
-            <mat-hint>Parcial permitido, até o saldo</mat-hint>
-            <mat-error>Valor entre R$ 0,01 e o saldo.</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Data da transferência</mat-label>
-            <input matInput [matDatepicker]="picker" formControlName="date" [min]="minDate" [max]="maxDate" required />
-            <mat-datepicker-toggle matIconSuffix [for]="picker" />
-            <mat-datepicker #picker />
-            <mat-error>Entre o fim do período e hoje.</mat-error>
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Referência bancária</mat-label>
-            <input matInput formControlName="reference" maxlength="120" required />
-            <mat-hint>Ex.: número da TED ou id fim a fim do Pix</mat-hint>
-            <mat-error>Informe a referência bancária.</mat-error>
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Observação (opcional)</mat-label>
-            <textarea matInput formControlName="note" rows="2" maxlength="1000"></textarea>
-          </mat-form-field>
+          <app-field label="Valor (R$)" hint="Parcial permitido, até o saldo" error="Valor entre R$ 0,01 e o saldo.">
+            <input appInput formControlName="amount" inputmode="decimal" required />
+          </app-field>
+          <app-field label="Data da transferência" error="Entre o fim do período e hoje.">
+            <div class="input-group">
+              <input appInput ngbDatepicker #picker="ngbDatepicker" formControlName="date" [minDate]="minDate" [maxDate]="maxDate" placeholder="dd/mm/aaaa" autocomplete="off" required />
+              <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário" (click)="picker.toggle()">
+                <app-icon name="calendar-event" />
+              </button>
+            </div>
+          </app-field>
+          <app-field class="app-span-all" label="Referência bancária" hint="Ex.: número da TED ou id fim a fim do Pix" error="Informe a referência bancária.">
+            <input appInput formControlName="reference" maxlength="120" required />
+          </app-field>
+          <app-field class="app-span-all" label="Observação (opcional)">
+            <textarea appInput formControlName="note" rows="2" maxlength="1000"></textarea>
+          </app-field>
         </div>
         <div class="td-file" data-tour="transfer-evidence">
           <input #input type="file" [accept]="accept" (change)="pick(input.files); input.value = ''" hidden />
-          <button mat-stroked-button type="button" (click)="input.click()">
-            <mat-icon aria-hidden="true">attach_file</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="input.click()">
+            <app-icon name="paperclip" />
             {{ file() ? 'Trocar comprovante' : 'Anexar comprovante' }}
           </button>
           @if (file(); as f) {
@@ -81,18 +83,18 @@ export interface TransferDialogData {
           }
         </div>
         @if (fileError()) {
-          <p class="app-field-error" role="alert">{{ fileError() }}</p>
+          <div class="invalid-feedback d-block" role="alert">{{ fileError() }}</div>
         } @else if (submitted() && !file()) {
-          <p class="app-field-error" role="alert">Anexe o comprovante bancário.</p>
+          <div class="invalid-feedback d-block" role="alert">Anexe o comprovante bancário.</div>
         }
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="sending()">Registrar</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="sending()">Registrar</button>
+      </div>
     </form>
   `,
   styles: `
@@ -108,8 +110,8 @@ export interface TransferDialogData {
   `,
 })
 export class TransferDialog {
-  protected readonly data = inject<TransferDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<TransferDialog, TransferView>>(MatDialogRef);
+  protected readonly data = inject<TransferDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<TransferView>>(DialogRef);
   private readonly api = inject(TransfersApi);
   /** Uma chave por intenção: repetir o envio depois de uma falha não duplica o repasse. */
   private readonly key = newIdempotencyKey();
@@ -117,8 +119,8 @@ export class TransferDialog {
   protected readonly toCreditor = this.data.statement.outstanding > 0;
   protected readonly balance = Math.abs(this.data.statement.outstanding);
   protected readonly period = periodText(this.data.statement.periodStart, this.data.statement.periodEnd);
-  protected readonly minDate = fromLocalDate(this.data.statement.periodEnd);
-  protected readonly maxDate = fromLocalDate(zonedNow().date);
+  protected readonly minDate = dateStruct(this.data.statement.periodEnd);
+  protected readonly maxDate = dateStruct(zonedNow().date);
   protected readonly file = signal<File | null>(null);
   protected readonly fileError = signal<string | null>(null);
   protected readonly submitted = signal(false);
@@ -134,7 +136,7 @@ export class TransferDialog {
         return v === null || v <= 0 || v > this.balance + 0.001 ? { money: true } : null;
       }],
     ],
-    date: this.fb.control<Date | null>(fromLocalDate(zonedNow().date), [Validators.required]),
+    date: this.fb.control<string | null>(zonedNow().date, [Validators.required]),
     reference: ['', [AppValidators.notBlank, Validators.maxLength(120)]],
     note: ['', [Validators.maxLength(1000)]],
   });
@@ -153,7 +155,7 @@ export class TransferDialog {
     this.submitted.set(true);
     const v = this.form.getRawValue();
     const file = this.file();
-    const date = toLocalDate(v.date);
+    const date = isoDate(v.date);
     if (this.form.invalid || !file || !date || this.sending()) {
       this.form.markAllAsTouched();
       return;

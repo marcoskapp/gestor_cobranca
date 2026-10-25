@@ -1,18 +1,15 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { startWith } from 'rxjs';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { PortfolioLookup } from '../../organization/data/organization.lookups';
 import { PAYMENT_TYPE_LABELS, RECEIVED_BY_LABELS } from '../data/settlement.labels';
 import { PaymentType, RateRule, ReceivedBy } from '../data/settlement.models';
 import { rateRuleProblems } from '../data/settlement.rules';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 export interface RateRuleDialogData {
   creditorId: string;
@@ -29,80 +26,72 @@ const toNumber = (v: string | number | null): number | null => (v === null || v 
  */
 @Component({
   selector: 'app-rate-rule-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, EntityPicker],
+  imports: [...FORM_FIELD, ReactiveFormsModule, ...DIALOG_DIRECTIVES, EntityPicker],
   template: `
-    <h2 mat-dialog-title>{{ data.rule ? 'Editar regra ' + data.rule.code : 'Nova regra específica' }}</h2>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.rule ? 'Editar regra ' + data.rule.code : 'Nova regra específica' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+      <div class="modal-body">
         <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Código</mat-label>
-            <input matInput formControlName="code" maxlength="40" required (input)="upper()" />
-            <mat-hint>Aparece na memória de cálculo e no arquivo do credor</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Percentual (%)</mat-label>
-            <input matInput formControlName="rate" inputmode="decimal" required />
-          </mat-form-field>
-          <mat-form-field class="app-span-all">
-            <mat-label>Descrição</mat-label>
-            <input matInput formControlName="description" maxlength="200" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Prioridade</mat-label>
-            <input matInput type="number" formControlName="priority" min="0" max="1000" />
-            <mat-hint>Maior prioridade vence; no empate, a mais específica</mat-hint>
-          </mat-form-field>
+          <app-field label="Código" hint="Aparece na memória de cálculo e no arquivo do credor">
+            <input appInput formControlName="code" maxlength="40" required (input)="upper()" />
+          </app-field>
+          <app-field label="Percentual (%)">
+            <input appInput formControlName="rate" inputmode="decimal" required />
+          </app-field>
+          <app-field class="app-span-all" label="Descrição">
+            <input appInput formControlName="description" maxlength="200" />
+          </app-field>
+          <app-field label="Prioridade" hint="Maior prioridade vence; no empate, a mais específica">
+            <input appInput type="number" formControlName="priority" min="0" max="1000" />
+          </app-field>
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolioSource" label="Carteira (opcional)" [single]="true" />
           </div>
-          <mat-form-field>
-            <mat-label>Atraso a partir de (dias)</mat-label>
-            <input matInput type="number" formControlName="minDays" min="0" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Atraso até (dias)</mat-label>
-            <input matInput type="number" formControlName="maxDays" min="0" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Forma de pagamento</mat-label>
-            <mat-select formControlName="paymentType">
-              <mat-option value="">Qualquer</mat-option>
+          <app-field label="Atraso a partir de (dias)">
+            <input appInput type="number" formControlName="minDays" min="0" />
+          </app-field>
+          <app-field label="Atraso até (dias)">
+            <input appInput type="number" formControlName="maxDays" min="0" />
+          </app-field>
+          <app-field label="Forma de pagamento">
+            <select appInput formControlName="paymentType">
+              <option value="">Qualquer</option>
               @for (p of paymentTypes; track p[0]) {
-                <mat-option [value]="p[0]">{{ p[1] }}</mat-option>
+                <option [ngValue]="p[0]">{{ p[1] }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Quem recebeu</mat-label>
-            <mat-select formControlName="receivedBy">
-              <mat-option value="">Qualquer</mat-option>
+            </select>
+          </app-field>
+          <app-field label="Quem recebeu">
+            <select appInput formControlName="receivedBy">
+              <option value="">Qualquer</option>
               @for (r of receivers; track r[0]) {
-                <mat-option [value]="r[0]">{{ r[1] }}</mat-option>
+                <option [ngValue]="r[0]">{{ r[1] }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Renegociação</mat-label>
-            <mat-select formControlName="renegotiation">
-              <mat-option value="">Qualquer</mat-option>
-              <mat-option value="true">Somente renegociação</mat-option>
-              <mat-option value="false">Somente primeiro acordo</mat-option>
-            </mat-select>
-          </mat-form-field>
+            </select>
+          </app-field>
+          <app-field label="Renegociação">
+            <select appInput formControlName="renegotiation">
+              <option value="">Qualquer</option>
+              <option value="true">Somente renegociação</option>
+              <option value="false">Somente primeiro acordo</option>
+            </select>
+          </app-field>
         </div>
         @if (problems().length) {
-          <ul class="app-alert app-alert--warning rr-problems" role="status" aria-label="Problemas da regra">
+          <ul class="alert alert-warning rr-problems mb-0" role="status" aria-label="Problemas da regra">
             @for (p of problems(); track p) {
               <li>{{ p }}</li>
             }
           </ul>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="problems().length > 0">Aplicar</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="problems().length > 0">Aplicar</button>
+      </div>
     </form>
   `,
   styles: `
@@ -113,8 +102,8 @@ const toNumber = (v: string | number | null): number | null => (v === null || v 
   `,
 })
 export class RateRuleDialog {
-  protected readonly data = inject<RateRuleDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<RateRuleDialog, RateRule>>(MatDialogRef);
+  protected readonly data = inject<RateRuleDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<RateRule>>(DialogRef);
   protected readonly portfolioSource = inject(PortfolioLookup).source(() => this.data.creditorId);
   protected readonly paymentTypes = Object.entries(PAYMENT_TYPE_LABELS) as [PaymentType, string][];
   protected readonly receivers = Object.entries(RECEIVED_BY_LABELS) as [ReceivedBy, string][];

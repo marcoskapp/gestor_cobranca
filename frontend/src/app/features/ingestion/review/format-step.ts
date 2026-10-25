@@ -1,7 +1,5 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
@@ -12,6 +10,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { ImportReviewsApi } from '../data/ingestion.api';
 import { ColumnFormatView, FormatOption, FormatOptionView, ReviewView } from '../data/ingestion.models';
 import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBLEM_LABELS, REVIEW_ERROR_LABELS, STYLE_LABELS, pendingColumns } from '../data/review.rules';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /**
  * Passo 2: como os valores com vírgula e ponto foram lidos, coluna por coluna, com exemplos reais do arquivo
@@ -19,7 +18,7 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
  */
 @Component({
   selector: 'app-format-step',
-  imports: [DecimalPipe, MatButtonModule, MatIconModule, MatRadioModule, Amount, Skeleton, AppDatePipe],
+  imports: [Icon, DecimalPipe, MatRadioModule, Amount, Skeleton, AppDatePipe],
   template: `
     @if (!review().format.available) {
       <p class="app-muted" role="status">Lendo o arquivo para identificar o formato dos valores…</p>
@@ -40,15 +39,15 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
         }
       </ul>
       @if (f.awaitingDecision) {
-        <p class="app-alert app-alert--warning" role="alert">
-          <mat-icon aria-hidden="true">rule</mat-icon>
+        <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+          <app-icon name="list-check" />
           <span>A validação das linhas está parada: escolha como ler as colunas marcadas para continuar.</span>
-        </p>
+        </div>
       } @else if (f.confirmed && !editing()) {
-        <p class="app-alert app-alert--success" role="status">
-          <mat-icon aria-hidden="true">task_alt</mat-icon>
+        <div class="alert alert-success d-flex align-items-start gap-2" role="status">
+          <app-icon name="check2-circle" />
           <span>Formato confirmado{{ f.confirmedAt ? ' em ' + (f.confirmedAt | appDate) : '' }}.</span>
-        </p>
+        </div>
       }
       @if (!f.columns.length) {
         <p class="app-muted">O arquivo não tem colunas de valor monetário preenchidas.</p>
@@ -58,7 +57,7 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
           <div class="fs-head">
             <h3 class="fs-title" [id]="'fs-' + c.column">{{ label(c.column) }} <span class="app-muted app-mono">{{ c.column }}</span></h3>
             <span class="app-status" [class]="'app-status app-status--' + status(c).tone">
-              <mat-icon aria-hidden="true">{{ c.requiresDecision ? 'help' : 'check' }}</mat-icon>{{ status(c).label }}
+              <app-icon [name]="c.requiresDecision ? 'question-circle' : 'check-lg'" />{{ status(c).label }}
             </span>
           </div>
           <p class="app-muted fs-counts">
@@ -67,7 +66,7 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
             }
           </p>
           @if (c.suggestion && c.requiresDecision) {
-            <p class="fs-suggestion"><mat-icon aria-hidden="true">lightbulb</mat-icon>As outras colunas do arquivo usam {{ optionLabel(c.suggestion) }}.</p>
+            <p class="fs-suggestion"><app-icon name="lightbulb" />As outras colunas do arquivo usam {{ optionLabel(c.suggestion) }}.</p>
           }
           @let editable = canEdit() && (c.requiresDecision || c.options.length > 1);
           <mat-radio-group class="fs-options" [attr.aria-label]="'Leitura de ' + label(c.column)" [value]="chosen()[c.column]" (change)="choose(c.column, $event.value)" [disabled]="!editable">
@@ -76,18 +75,18 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
                 <mat-radio-button [value]="o.option">
                   <strong>{{ optionLabel(o.option) }}</strong>
                   @if (c.recommended === o.option) {
-                    <span class="app-status app-status--info fs-badge"><mat-icon aria-hidden="true">auto_awesome</mat-icon>indicada pelos dados</span>
+                    <span class="app-status app-status--info fs-badge"><app-icon name="stars" />indicada pelos dados</span>
                   }
                 </mat-radio-button>
                 <p class="app-muted fs-hint">{{ hint(o.option) }}</p>
                 <p class="fs-total">
                   Soma da coluna: <strong><app-amount [value]="o.total" /></strong>
                   @if (o.invalidCount) {
-                    <span class="fs-invalid"><mat-icon aria-hidden="true">warning</mat-icon>{{ o.invalidCount | number }} valor(es) não lidos nesta leitura</span>
+                    <span class="fs-invalid"><app-icon name="exclamation-triangle" />{{ o.invalidCount | number }} valor(es) não lidos nesta leitura</span>
                   }
                 </p>
                 <table class="fs-examples">
-                  <caption class="cdk-visually-hidden">Exemplos do arquivo lidos como {{ optionLabel(o.option) }}</caption>
+                  <caption class="visually-hidden">Exemplos do arquivo lidos como {{ optionLabel(o.option) }}</caption>
                   <thead>
                     <tr><th scope="col">Linha</th><th scope="col">No arquivo</th><th scope="col">Lido como</th></tr>
                   </thead>
@@ -113,21 +112,21 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
         </section>
       }
       @if (error()) {
-        <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+        <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
       }
       @if (canEdit()) {
         @if (willRevalidate()) {
-          <p class="app-alert app-alert--info" role="note">
-            <mat-icon aria-hidden="true">refresh</mat-icon>
+          <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+            <app-icon name="arrow-clockwise" />
             <span>A leitura mudou depois da validação: as linhas serão validadas de novo e os totais e alertas, refeitos.</span>
-          </p>
+          </div>
         }
         <div class="fs-actions">
           @if (f.confirmed && !editing()) {
-            <button mat-stroked-button type="button" (click)="editing.set(true)"><mat-icon aria-hidden="true">edit</mat-icon>Alterar a leitura</button>
+            <button class="btn btn-outline-primary" type="button" (click)="editing.set(true)"><app-icon name="pencil" />Alterar a leitura</button>
           } @else {
-            <button mat-flat-button type="button" (click)="confirm()" [disabled]="saving() || missing().length > 0" data-tour="review-format-confirm">
-              <mat-icon aria-hidden="true">done</mat-icon>
+            <button class="btn btn-primary" type="button" (click)="confirm()" [disabled]="saving() || missing().length > 0" data-tour="review-format-confirm">
+              <app-icon name="check-lg" />
               {{ f.awaitingDecision ? 'Confirmar e validar as linhas' : 'Confirmar formato' }}
             </button>
           }
@@ -187,13 +186,13 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
     }
     .fs-option {
       padding: 8px 12px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
     }
     .fs-option--selected {
-      border-color: var(--mat-sys-primary);
-      box-shadow: inset 0 0 0 1px var(--mat-sys-primary);
+      border-color: var(--bs-primary-text-emphasis);
+      box-shadow: inset 0 0 0 1px var(--bs-primary);
     }
     .fs-badge {
       margin-left: 6px;
@@ -211,7 +210,7 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
       align-items: center;
       gap: 4px;
       margin-left: 8px;
-      color: var(--app-danger-fg);
+      color: var(--bs-danger-text-emphasis);
       font-size: var(--app-text-sm);
     }
     .fs-invalid .mat-icon {
@@ -228,11 +227,11 @@ import { COLUMN_LABELS, FORMAT_STATUS_LABELS, OPTION_HINTS, OPTION_LABELS, PROBL
     .fs-examples td {
       padding: 3px 6px;
       text-align: left;
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: 1px solid var(--bs-border-color);
     }
     .fs-examples th {
       font-weight: 600;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .fs-ambiguous td:nth-child(2) {
       font-weight: 700;

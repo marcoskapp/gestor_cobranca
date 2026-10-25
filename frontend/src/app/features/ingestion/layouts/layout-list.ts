@@ -1,11 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -24,6 +19,9 @@ import { CreditorLookup, CreditorNames, PortfolioNames } from '../../organizatio
 import { ImportLayoutsApi } from '../data/ingestion.api';
 import { ImportLayoutView } from '../data/ingestion.models';
 import { DELIMITERS, LayoutForm, LayoutFormData } from './layout-form';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 interface LayoutFilter {
   creditor: string | null;
@@ -33,13 +31,13 @@ interface LayoutFilter {
 /** Layout padrão (colunas canônicas) e layouts próprios dos credores, versionados. */
 @Component({
   selector: 'app-layout-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatIconModule, MatSlideToggleModule, MatTooltipModule, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
+  imports: [NgbTooltip, Icon, ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Layouts de importação" subtitle="Como as colunas do arquivo de cada credor correspondem aos campos do sistema.">
-      <a mat-button routerLink="/importacao"><mat-icon aria-hidden="true">arrow_back</mat-icon>Importações</a>
+      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" />Importações</a>
       @if (canExecute()) {
-        <button mat-flat-button type="button" (click)="publish(null)" [disabled]="!fields().length">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="publish(null)" [disabled]="!fields().length">
+          <app-icon name="plus-lg" />
           Novo layout
         </button>
       }
@@ -56,7 +54,7 @@ interface LayoutFilter {
           <li [class.ll-required]="f.required">
             {{ f.field }}
             @if (f.personal) {
-              <mat-icon class="ll-icon" aria-label="dado pessoal">lock</mat-icon>
+              <app-icon class="ll-icon" label="dado pessoal" name="lock" />
             }
           </li>
         }
@@ -67,7 +65,10 @@ interface LayoutFilter {
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-slide-toggle formControlName="inactive" class="ll-toggle">Incluir versões desativadas</mat-slide-toggle>
+      <div class="form-check form-switch ll-toggle">
+        <input class="form-check-input" type="checkbox" role="switch" id="layout-inactive" formControlName="inactive" />
+        <label class="form-check-label" for="layout-inactive">Incluir versões desativadas</label>
+      </div>
     </form>
 
     <app-data-table
@@ -77,7 +78,7 @@ interface LayoutFilter {
       [loading]="list.isLoading()"
       [failed]="list.status() === 'error'"
       (retry)="list.reload()"
-      emptyIcon="view_column"
+      emptyIcon="layout-three-columns"
       emptyMessage="Nenhum layout próprio."
       emptyHint="Sem layout próprio, os arquivos usam o layout padrão."
     >
@@ -100,11 +101,11 @@ interface LayoutFilter {
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-l>
         @if (canExecute() && l.active) {
-          <button mat-icon-button type="button" (click)="publish(l)" [attr.aria-label]="'Nova versão de ' + l.code" matTooltip="Nova versão">
-            <mat-icon aria-hidden="true">edit_note</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="publish(l)" [attr.aria-label]="'Nova versão de ' + l.code" ngbTooltip="Nova versão">
+            <app-icon name="pencil-square" />
           </button>
-          <button mat-icon-button type="button" (click)="deactivate(l)" [attr.aria-label]="'Desativar ' + l.code" matTooltip="Desativar">
-            <mat-icon aria-hidden="true">toggle_on</mat-icon>
+          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="deactivate(l)" [attr.aria-label]="'Desativar ' + l.code" ngbTooltip="Desativar">
+            <app-icon name="toggle-on" />
           </button>
         }
       </ng-template>
@@ -127,15 +128,15 @@ interface LayoutFilter {
         align-items: center;
         gap: 2px;
         padding: 2px 8px;
-        border-radius: var(--app-radius-pill);
-        background: var(--app-surface-raised);
-        font-family: var(--app-font-mono);
+        border-radius: var(--bs-border-radius-pill);
+        background: var(--bs-tertiary-bg);
+        font-family: var(--bs-font-monospace);
         font-size: var(--app-text-xs);
       }
     }
     .ll-required {
       font-weight: 700;
-      outline: 1px solid var(--mat-sys-primary);
+      outline: 1px solid var(--bs-primary);
     }
     .ll-icon {
       width: 12px;
@@ -153,7 +154,7 @@ interface LayoutFilter {
 export class LayoutList {
   private readonly api = inject(ImportLayoutsApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -196,7 +197,7 @@ export class LayoutList {
 
   protected publish(base: ImportLayoutView | null): void {
     this.dialog
-      .open<LayoutForm, LayoutFormData, ImportLayoutView>(LayoutForm, { data: { fields: this.fields(), base }, width: '720px' })
+      .open<LayoutForm, LayoutFormData, ImportLayoutView>(LayoutForm, { data: { fields: this.fields(), base }, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => saved && this.list.reload());
   }

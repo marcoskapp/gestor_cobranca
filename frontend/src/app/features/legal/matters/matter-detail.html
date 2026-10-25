@@ -1,28 +1,30 @@
 @if (resource.isLoading() && !sheet()) {
   <app-skeleton variant="card" [rows]="6" />
 } @else if (resource.status() === 'error') {
-  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o caso jurídico." message="Verifique a conexão e tente novamente.">
-    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o caso jurídico." message="Verifique a conexão e tente novamente.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
   </app-empty-state>
 } @else if (sheet(); as s) {
   @let m = s.matter;
   <app-page-header [title]="s.debtor?.name ?? 'Caso jurídico'" [subtitle]="creditors.name(m.creditorId) + ' · ' + originLabels[m.origin] + ' em ' + (m.referredAt | appDate: 'date')">
     @if (canManage() && !final()) {
-      <button mat-stroked-button type="button" (click)="assignResponsible()" data-tour="matter-responsible">
-        <mat-icon aria-hidden="true">person</mat-icon>
+      <button class="btn btn-outline-primary" type="button" (click)="assignResponsible()" data-tour="matter-responsible">
+        <app-icon name="person" />
         Responsável
       </button>
     }
     @if (transitions().length) {
-      <button mat-flat-button type="button" [matMenuTriggerFor]="stageMenu" data-tour="matter-stage">
-        Mudar fase
-        <mat-icon iconPositionEnd aria-hidden="true">expand_more</mat-icon>
-      </button>
-      <mat-menu #stageMenu="matMenu">
-        @for (st of transitions(); track st) {
-          <button mat-menu-item type="button" (click)="transition(st)">{{ stageActions[st] }}</button>
-        }
-      </mat-menu>
+      <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+        <button class="btn btn-primary" type="button" ngbDropdownToggle data-tour="matter-stage">
+          Mudar fase
+          <app-icon name="chevron-down" />
+        </button>
+        <div ngbDropdownMenu class="shadow app-menu">
+          @for (st of transitions(); track st) {
+            <button ngbDropdownItem type="button" (click)="transition(st)">{{ stageActions[st] }}</button>
+          }
+        </div>
+      </div>
     }
   </app-page-header>
 
@@ -37,412 +39,437 @@
     }
     <span>{{ responsibleLabels[m.responsibleType] }}{{ m.responsibleUserId ? ': ' + userName(m.responsibleUserId) : '' }}</span>
     @if (m.collectionHold) {
-      <span class="app-status app-status--neutral"><mat-icon class="app-status__icon" aria-hidden="true">pause_circle</mat-icon>Cobrança amigável retida</span>
+      <span class="app-status app-status--neutral"><app-icon class="app-status__icon" name="pause-circle" />Cobrança amigável retida</span>
     }
     @if (canSeeCase()) {
       <a [routerLink]="['/cobranca/casos', m.collectionCaseId]">Caso de cobrança</a>
     }
   </div>
   @if (partner()) {
-    <p class="app-alert app-alert--info" role="note"><mat-icon aria-hidden="true">business</mat-icon><span>Caso atribuído ao seu escritório. Dados de contato do devedor não ficam disponíveis nesta visão.</span></p>
+    <div class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="building" /><span>Caso atribuído ao seu escritório. Dados de contato do devedor não ficam disponíveis nesta visão.</span></div>
   }
   @for (f of m.flags; track f) {
     @if (warn(f)) {
-      <p class="app-alert app-alert--warning" role="note"><mat-icon aria-hidden="true">warning_amber</mat-icon><span>{{ flagLabels[f] ?? f }}</span></p>
+      <div class="alert alert-warning d-flex align-items-start gap-2" role="note"><app-icon name="exclamation-triangle" /><span>{{ flagLabels[f] ?? f }}</span></div>
     }
   }
 
-  <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" [selectedIndex]="tab()" (selectedIndexChange)="tab.set($event)" data-tour="matter-tabs">
-    <mat-tab label="Resumo">
-      <div class="md-tab">
-        <div class="md-kpis">
-          <div class="md-kpi"><span class="md-kpi__label">Dívida</span><span class="md-kpi__value"><app-amount [value]="m.debtAmount" /></span></div>
-          <div class="md-kpi"><span class="md-kpi__label">Recuperável estimado</span><span class="md-kpi__value"><app-amount [value]="m.estimatedRecoverable" /></span></div>
-          <div class="md-kpi"><span class="md-kpi__label">Orçamento autorizado</span><span class="md-kpi__value"><app-amount [value]="m.authorizedBudget" /></span></div>
-          <div class="md-kpi" [class.md-kpi--warn]="(budget() ?? 0) > 100">
-            <span class="md-kpi__label">Custas e despesas</span>
-            <span class="md-kpi__value"><app-amount [value]="m.expensesTotal" /></span>
-            @if (budget() !== null) {
-              <span class="app-muted">{{ budgetText() }} do orçamento</span>
-            }
-          </div>
-          <div class="md-kpi"><span class="md-kpi__label">Recuperado</span><span class="md-kpi__value"><app-amount [value]="m.recoveredAmount" /></span></div>
-        </div>
-        <div class="md-cols">
-          <section aria-labelledby="md-titles">
-            <h2 class="app-section-title" id="md-titles">Títulos ({{ s.titles.length }})</h2>
-            <div class="md-scroll">
-              <table class="md-table" aria-label="Títulos do caso jurídico">
-                <thead>
-                  <tr>
-                    <th scope="col">Título</th>
-                    <th scope="col">Vencimento</th>
-                    <th scope="col" class="md-end">Atraso</th>
-                    <th scope="col" class="md-end">Saldo</th>
-                    <th scope="col">Situação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (t of s.titles; track t.titleId) {
-                    <tr>
-                      <td class="app-numeric">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</td>
-                      <td>{{ t.dueDate | appDate: 'date' }}</td>
-                      <td class="md-end app-numeric">{{ t.daysOverdue }} d</td>
-                      <td class="md-end"><app-amount [value]="t.openBalance" /></td>
-                      <td><app-status-chip domain="title" [status]="t.status" /></td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
+  <ul ngbNav #nav="ngbNav" class="nav-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="matter-tabs">
+    <li [ngbNavItem]="0">
+      <button type="button" ngbNavLink>Resumo</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab">
+          <div class="md-kpis">
+            <div class="md-kpi"><span class="md-kpi__label">Dívida</span><span class="md-kpi__value"><app-amount [value]="m.debtAmount" /></span></div>
+            <div class="md-kpi"><span class="md-kpi__label">Recuperável estimado</span><span class="md-kpi__value"><app-amount [value]="m.estimatedRecoverable" /></span></div>
+            <div class="md-kpi"><span class="md-kpi__label">Orçamento autorizado</span><span class="md-kpi__value"><app-amount [value]="m.authorizedBudget" /></span></div>
+            <div class="md-kpi" [class.md-kpi--warn]="(budget() ?? 0) > 100">
+              <span class="md-kpi__label">Custas e despesas</span>
+              <span class="md-kpi__value"><app-amount [value]="m.expensesTotal" /></span>
+              @if (budget() !== null) {
+                <span class="app-muted">{{ budgetText() }} do orçamento</span>
+              }
             </div>
-            @if (m.referralNote) {
-              <p class="app-muted">Indicação: {{ m.referralNote }}</p>
-            }
-
-            <h2 class="app-section-title" id="md-collaterals">Garantias ({{ s.collaterals.length }})</h2>
-            @if (s.collaterals.length) {
+            <div class="md-kpi"><span class="md-kpi__label">Recuperado</span><span class="md-kpi__value"><app-amount [value]="m.recoveredAmount" /></span></div>
+          </div>
+          <div class="md-cols">
+            <section aria-labelledby="md-titles">
+              <h2 class="app-section-title" id="md-titles">Títulos ({{ s.titles.length }})</h2>
               <div class="md-scroll">
-                <table class="md-table" aria-labelledby="md-collaterals">
+                <table class="md-table" aria-label="Títulos do caso jurídico">
                   <thead>
                     <tr>
-                      <th scope="col">Garantia</th>
-                      <th scope="col">Bem</th>
-                      <th scope="col">Títulos</th>
-                      <th scope="col" class="md-end">Valor estimado</th>
+                      <th scope="col">Título</th>
+                      <th scope="col">Vencimento</th>
+                      <th scope="col" class="md-end">Atraso</th>
+                      <th scope="col" class="md-end">Saldo</th>
                       <th scope="col">Situação</th>
                     </tr>
                   </thead>
                   <tbody>
-                    @for (k of s.collaterals; track k.collateralId) {
+                    @for (t of s.titles; track t.titleId) {
                       <tr>
-                        <td>{{ collateralTypes[k.type] ?? k.type }}</td>
-                        <td>{{ k.assetSummary ?? k.description ?? '—' }}</td>
-                        <td class="app-numeric">{{ k.titleIds.length }} de {{ s.titles.length }}</td>
-                        <td class="md-end">
-                          <app-amount [value]="k.estimatedValue" />
-                          @if (k.lastAppraisalDate) {
-                            <span class="app-muted"> ({{ k.lastAppraisalDate | appDate: 'date' }})</span>
-                          }
-                        </td>
-                        <td><app-status-chip domain="collateral" [status]="k.status" /></td>
+                        <td class="app-numeric">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</td>
+                        <td>{{ t.dueDate | appDate: 'date' }}</td>
+                        <td class="md-end app-numeric">{{ t.daysOverdue }} d</td>
+                        <td class="md-end"><app-amount [value]="t.openBalance" /></td>
+                        <td><app-status-chip domain="title" [status]="t.status" /></td>
                       </tr>
                     }
                   </tbody>
                 </table>
               </div>
-            } @else {
-              <p class="app-muted">Nenhuma garantia cobre os títulos deste caso.</p>
-            }
+              @if (m.referralNote) {
+                <p class="app-muted">Indicação: {{ m.referralNote }}</p>
+              }
 
-            <h2 class="app-section-title" id="md-hearings">Audiências ({{ s.hearings.length }})</h2>
-            @if (s.hearings.length) {
-              <ul class="md-hearings" aria-labelledby="md-hearings">
-                @for (h of s.hearings; track h.id) {
+              <h2 class="app-section-title" id="md-collaterals">Garantias ({{ s.collaterals.length }})</h2>
+              @if (s.collaterals.length) {
+                <div class="md-scroll">
+                  <table class="md-table" aria-labelledby="md-collaterals">
+                    <thead>
+                      <tr>
+                        <th scope="col">Garantia</th>
+                        <th scope="col">Bem</th>
+                        <th scope="col">Títulos</th>
+                        <th scope="col" class="md-end">Valor estimado</th>
+                        <th scope="col">Situação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (k of s.collaterals; track k.collateralId) {
+                        <tr>
+                          <td>{{ collateralTypes[k.type] ?? k.type }}</td>
+                          <td>{{ k.assetSummary ?? k.description ?? '—' }}</td>
+                          <td class="app-numeric">{{ k.titleIds.length }} de {{ s.titles.length }}</td>
+                          <td class="md-end">
+                            <app-amount [value]="k.estimatedValue" />
+                            @if (k.lastAppraisalDate) {
+                              <span class="app-muted"> ({{ k.lastAppraisalDate | appDate: 'date' }})</span>
+                            }
+                          </td>
+                          <td><app-status-chip domain="collateral" [status]="k.status" /></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="app-muted">Nenhuma garantia cobre os títulos deste caso.</p>
+              }
+
+              <h2 class="app-section-title" id="md-hearings">Audiências ({{ s.hearings.length }})</h2>
+              @if (s.hearings.length) {
+                <ul class="md-hearings" aria-labelledby="md-hearings">
+                  @for (h of s.hearings; track h.id) {
+                    <li>
+                      <span class="md-date">{{ h.scheduledAt | appDate }}</span>
+                      <strong>{{ hearingTypes[h.type] ?? h.type }}</strong>
+                      <span class="app-muted">· {{ hearingModes[h.mode] ?? h.mode }}{{ lawsuitNumber(h.lawsuitId) ? ' · ' + lawsuitNumber(h.lawsuitId) : '' }}</span>
+                      <app-status-chip domain="hearing" [status]="h.status" />
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="app-muted">Nenhuma audiência agendada.</p>
+              }
+            </section>
+            <section aria-labelledby="md-history" data-tour="matter-history">
+              <h2 class="app-section-title" id="md-history">Linha do tempo</h2>
+              <ol class="md-timeline">
+                @for (h of history(); track h.id) {
                   <li>
-                    <span class="md-date">{{ h.scheduledAt | appDate }}</span>
-                    <strong>{{ hearingTypes[h.type] ?? h.type }}</strong>
-                    <span class="app-muted">· {{ hearingModes[h.mode] ?? h.mode }}{{ lawsuitNumber(h.lawsuitId) ? ' · ' + lawsuitNumber(h.lawsuitId) : '' }}</span>
-                    <app-status-chip domain="hearing" [status]="h.status" />
+                    <span class="md-date">{{ h.occurredAt | appDate }}</span>
+                    <div>
+                      <strong>{{ stageLabel(h.toStage) }}</strong>
+                      @if (h.fromStage) {
+                        <span class="app-muted"> (antes: {{ stageLabel(h.fromStage) }})</span>
+                      }
+                      <div class="app-muted">
+                        {{ h.actorId ? userName(h.actorId) : 'Sistema' }}{{ h.reason ? ' · ' + h.reason : '' }}{{ h.closureReason ? ' · ' + (closureLabels[h.closureReason] ?? h.closureReason) : '' }}
+                      </div>
+                    </div>
                   </li>
                 }
-              </ul>
-            } @else {
-              <p class="app-muted">Nenhuma audiência agendada.</p>
-            }
-          </section>
-          <section aria-labelledby="md-history" data-tour="matter-history">
-            <h2 class="app-section-title" id="md-history">Linha do tempo</h2>
-            <ol class="md-timeline">
-              @for (h of history(); track h.id) {
-                <li>
-                  <span class="md-date">{{ h.occurredAt | appDate }}</span>
-                  <div>
-                    <strong>{{ stageLabel(h.toStage) }}</strong>
-                    @if (h.fromStage) {
-                      <span class="app-muted"> (antes: {{ stageLabel(h.fromStage) }})</span>
-                    }
-                    <div class="app-muted">
-                      {{ h.actorId ? userName(h.actorId) : 'Sistema' }}{{ h.reason ? ' · ' + h.reason : '' }}{{ h.closureReason ? ' · ' + (closureLabels[h.closureReason] ?? h.closureReason) : '' }}
-                    </div>
-                  </div>
-                </li>
-              }
-            </ol>
-          </section>
-        </div>
-      </div>
-    </mat-tab>
-
-    <mat-tab label="Viabilidade">
-      <div class="md-tab">
-        <div class="md-tabhead">
-          <p class="app-muted">Dívida cobrável, garantias, patrimônio e custas: valor recuperável = mín(dívida, bens) × probabilidade de êxito.</p>
-          @if (canManage() && !final()) {
-            <button mat-flat-button type="button" (click)="recordViability()"><mat-icon aria-hidden="true">calculate</mat-icon>Nova análise</button>
-          }
-        </div>
-        @if (s.viability; as v) {
-          <div class="md-status">
-            <span class="app-status" [class]="v.viable ? 'app-status--success' : 'app-status--neutral'">
-              <mat-icon class="app-status__icon" aria-hidden="true">{{ v.viable ? 'check_circle' : 'remove_circle_outline' }}</mat-icon>{{ v.viable ? 'Viável' : 'Inviável' }}
-            </span>
-            <span class="app-muted">em {{ v.assessedAt | appDate }}</span>
+              </ol>
+            </section>
           </div>
-          <dl class="app-definition-list">
-            <dt>Dívida cobrável</dt>
-            <dd><app-amount [value]="v.collectibleDebt" /> de <app-amount [value]="v.debtAmount" /></dd>
-            <dt>Garantias recuperáveis</dt>
-            <dd><app-amount [value]="v.collateralRecoverable" /></dd>
-            <dt>Recuperável estimado</dt>
-            <dd><app-amount [value]="v.estimatedRecoverable" /> ({{ v.successProbability }}% de êxito)</dd>
-            <dt>Custas previstas</dt>
-            <dd><app-amount [value]="v.expectedCosts" /></dd>
-            <dt>Benefício líquido</dt>
-            <dd><app-amount [value]="v.netBenefit" [signed]="true" /></dd>
-            <dt>Vias recomendadas</dt>
-            <dd>{{ routeText(v.recommendedRoutes) }}</dd>
-            <dt>Vias disponíveis</dt>
-            <dd>{{ routeText(v.availableRoutes) }}</dd>
-          </dl>
-          @if (v.checklist.length) {
-            <h3 class="app-section-title">Checklist documental</h3>
-            <ul class="md-list">
-              @for (c of v.checklist; track c.code) {
-                <li><span>{{ c.label }}{{ c.required ? ' *' : '' }}</span><span [class.md-late]="c.status === 'MISSING'">{{ checklistLabels[c.status] }}</span></li>
-              }
-            </ul>
-          }
-          @if (v.opinion) {
-            <h3 class="app-section-title">Parecer</h3>
-            <p class="md-pre">{{ v.opinion }}</p>
-          }
-        } @else {
-          <app-empty-state icon="calculate" title="Nenhuma análise de viabilidade." message="A análise favorável é exigida antes de pedir a autorização do credor." [compact]="true" />
-        }
-      </div>
-    </mat-tab>
+        </div>
+      </ng-template>
+    </li>
 
-    <mat-tab label="Autorização">
-      <div class="md-tab">
-        <div class="md-tabhead">
-          <p class="app-muted">O credor autoriza formalmente as vias e o orçamento de custas; a concessão exige evidência.</p>
-          @if (canManage() && !pendingAuthorization() && !final() && s.viability?.viable) {
-            <button mat-flat-button type="button" (click)="requestAuthorization()">Pedir autorização</button>
+    <li [ngbNavItem]="1">
+      <button type="button" ngbNavLink>Viabilidade</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab">
+          <div class="md-tabhead">
+            <p class="app-muted">Dívida cobrável, garantias, patrimônio e custas: valor recuperável = mín(dívida, bens) × probabilidade de êxito.</p>
+            @if (canManage() && !final()) {
+              <button class="btn btn-primary" type="button" (click)="recordViability()"><app-icon name="calculator" />Nova análise</button>
+            }
+          </div>
+          @if (s.viability; as v) {
+            <div class="md-status">
+              <span class="app-status" [class]="v.viable ? 'app-status--success' : 'app-status--neutral'">
+                <app-icon class="app-status__icon" [name]="v.viable ? 'check-circle' : 'dash-circle'" />{{ v.viable ? 'Viável' : 'Inviável' }}
+              </span>
+              <span class="app-muted">em {{ v.assessedAt | appDate }}</span>
+            </div>
+            <dl class="app-definition-list">
+              <dt>Dívida cobrável</dt>
+              <dd><app-amount [value]="v.collectibleDebt" /> de <app-amount [value]="v.debtAmount" /></dd>
+              <dt>Garantias recuperáveis</dt>
+              <dd><app-amount [value]="v.collateralRecoverable" /></dd>
+              <dt>Recuperável estimado</dt>
+              <dd><app-amount [value]="v.estimatedRecoverable" /> ({{ v.successProbability }}% de êxito)</dd>
+              <dt>Custas previstas</dt>
+              <dd><app-amount [value]="v.expectedCosts" /></dd>
+              <dt>Benefício líquido</dt>
+              <dd><app-amount [value]="v.netBenefit" [signed]="true" /></dd>
+              <dt>Vias recomendadas</dt>
+              <dd>{{ routeText(v.recommendedRoutes) }}</dd>
+              <dt>Vias disponíveis</dt>
+              <dd>{{ routeText(v.availableRoutes) }}</dd>
+            </dl>
+            @if (v.checklist.length) {
+              <h3 class="app-section-title">Checklist documental</h3>
+              <ul class="md-list">
+                @for (c of v.checklist; track c.code) {
+                  <li><span>{{ c.label }}{{ c.required ? ' *' : '' }}</span><span [class.md-late]="c.status === 'MISSING'">{{ checklistLabels[c.status] }}</span></li>
+                }
+              </ul>
+            }
+            @if (v.opinion) {
+              <h3 class="app-section-title">Parecer</h3>
+              <p class="md-pre">{{ v.opinion }}</p>
+            }
+          } @else {
+            <app-empty-state icon="calculator" title="Nenhuma análise de viabilidade." message="A análise favorável é exigida antes de pedir a autorização do credor." [compact]="true" />
           }
         </div>
-        <ul class="md-cards">
-          @for (a of s.authorizations; track a.id) {
-            <li class="md-card">
-              <div class="md-status">
-                <app-status-chip domain="legalAuthorization" [status]="a.status" />
-                <span class="app-muted">solicitada em {{ a.requestedAt | appDate }}</span>
-              </div>
-              <dl class="app-definition-list">
-                <dt>Vias solicitadas</dt>
-                <dd>{{ routeText(a.requestedRoutes) }} · <app-amount [value]="a.requestedBudget" /></dd>
-                @if (a.decisionDate) {
-                  <dt>Decisão</dt>
-                  <dd>{{ a.decisionDate | appDate: 'date' }} · {{ authChannels[a.channel ?? ''] ?? a.channel }} · {{ a.creditorRepresentative }}</dd>
-                }
-                @if (a.status === 'GRANTED') {
-                  <dt>Autorizado</dt>
-                  <dd>{{ routeText(a.authorizedRoutes) }} · <app-amount [value]="a.approvedBudget" /></dd>
-                }
-                @if (a.evidenceDocumentId) {
-                  <dt>Evidência</dt>
-                  <dd>Documento anexado</dd>
-                }
-              </dl>
-              @if (a.status === 'REQUESTED' && canAuthorize()) {
-                <div class="md-actions">
-                  @if (canUpload()) {
-                    <button mat-button type="button" (click)="upload('AUTHORIZATION_EVIDENCE')">Anexar evidência</button>
-                  }
-                  <button mat-flat-button type="button" (click)="decide(a)">Registrar decisão do credor</button>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="2">
+      <button type="button" ngbNavLink>Autorização</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab">
+          <div class="md-tabhead">
+            <p class="app-muted">O credor autoriza formalmente as vias e o orçamento de custas; a concessão exige evidência.</p>
+            @if (canManage() && !pendingAuthorization() && !final() && s.viability?.viable) {
+              <button class="btn btn-primary" type="button" (click)="requestAuthorization()">Pedir autorização</button>
+            }
+          </div>
+          <ul class="md-cards">
+            @for (a of s.authorizations; track a.id) {
+              <li class="md-card">
+                <div class="md-status">
+                  <app-status-chip domain="legalAuthorization" [status]="a.status" />
+                  <span class="app-muted">solicitada em {{ a.requestedAt | appDate }}</span>
                 </div>
-              }
-            </li>
-          } @empty {
-            <li class="app-muted">Nenhuma solicitação ao credor.</li>
-          }
-        </ul>
-      </div>
-    </mat-tab>
-
-    <mat-tab label="Medidas ({{ s.measures.length }})">
-      <div class="md-tab">
-        <div class="md-tabhead">
-          <p class="app-muted">Notificação, protesto, negativação e execução extrajudicial da garantia.</p>
-          @if (canManage() && !final()) {
-            <button mat-flat-button type="button" (click)="registerMeasure()"><mat-icon aria-hidden="true">add</mat-icon>Nova medida</button>
-          }
-        </div>
-        <ul class="md-cards">
-          @for (me of s.measures; track me.id) {
-            <li class="md-card">
-              <div class="md-status">
-                <strong>{{ measureTypes[me.type] }}</strong>
-                <app-status-chip domain="legalMeasure" [status]="me.status" />
-                @if (me.amount) {
-                  <app-amount [value]="me.amount" />
+                <dl class="app-definition-list">
+                  <dt>Vias solicitadas</dt>
+                  <dd>{{ routeText(a.requestedRoutes) }} · <app-amount [value]="a.requestedBudget" /></dd>
+                  @if (a.decisionDate) {
+                    <dt>Decisão</dt>
+                    <dd>{{ a.decisionDate | appDate: 'date' }} · {{ authChannels[a.channel ?? ''] ?? a.channel }} · {{ a.creditorRepresentative }}</dd>
+                  }
+                  @if (a.status === 'GRANTED') {
+                    <dt>Autorizado</dt>
+                    <dd>{{ routeText(a.authorizedRoutes) }} · <app-amount [value]="a.approvedBudget" /></dd>
+                  }
+                  @if (a.evidenceDocumentId) {
+                    <dt>Evidência</dt>
+                    <dd>Documento anexado</dd>
+                  }
+                </dl>
+                @if (a.status === 'REQUESTED' && canAuthorize()) {
+                  <div class="md-actions">
+                    @if (canUpload()) {
+                      <button class="btn btn-link" type="button" (click)="upload('AUTHORIZATION_EVIDENCE')">Anexar evidência</button>
+                    }
+                    <button class="btn btn-primary" type="button" (click)="decide(a)">Registrar decisão do credor</button>
+                  </div>
                 }
-              </div>
-              <div class="app-muted">
-                {{ me.authority ?? '' }}{{ me.protocol ? ' · protocolo ' + me.protocol : '' }}
-                {{ me.submittedOn ? ' · enviada em ' + (me.submittedOn | appDate: 'date') : '' }}
-                {{ me.effectiveOn ? ' · efetivada em ' + (me.effectiveOn | appDate: 'date') : '' }}
-                {{ me.statusReason ? ' · ' + me.statusReason : '' }}
-              </div>
-              @if (canManage()) {
-                <div class="md-actions">
-                  @if (me.status === 'PLANNED') {
-                    <button mat-button type="button" (click)="submitMeasure(me)">Registrar envio</button>
-                  }
-                  @for (st of measureNext(me); track st) {
-                    <button mat-button type="button" (click)="changeMeasure(me, st)">{{ st === 'EFFECTIVE' ? 'Efetivada' : st === 'FAILED' ? 'Sem sucesso' : st === 'REMOVED' ? 'Registrar baixa' : 'Cancelar' }}</button>
+              </li>
+            } @empty {
+              <li class="app-muted">Nenhuma solicitação ao credor.</li>
+            }
+          </ul>
+        </div>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="3">
+      <button type="button" ngbNavLink>Medidas ({{ s.measures.length }})</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab">
+          <div class="md-tabhead">
+            <p class="app-muted">Notificação, protesto, negativação e execução extrajudicial da garantia.</p>
+            @if (canManage() && !final()) {
+              <button class="btn btn-primary" type="button" (click)="registerMeasure()"><app-icon name="plus-lg" />Nova medida</button>
+            }
+          </div>
+          <ul class="md-cards">
+            @for (me of s.measures; track me.id) {
+              <li class="md-card">
+                <div class="md-status">
+                  <strong>{{ measureTypes[me.type] }}</strong>
+                  <app-status-chip domain="legalMeasure" [status]="me.status" />
+                  @if (me.amount) {
+                    <app-amount [value]="me.amount" />
                   }
                 </div>
-              }
-            </li>
-          } @empty {
-            <li class="app-muted">Nenhuma medida extrajudicial.</li>
-          }
-        </ul>
-      </div>
-    </mat-tab>
-
-    <mat-tab label="Processos ({{ s.lawsuits.length }})">
-      <div class="md-tab" data-tour="matter-lawsuits">
-        <div class="md-tabhead">
-          <p class="app-muted">Andamentos são lançados manualmente até a captura automática (DataJud) ser habilitada.</p>
-          @if (canManage() && !final()) {
-            <button mat-flat-button type="button" (click)="registerLawsuit()"><mat-icon aria-hidden="true">add</mat-icon>Cadastrar processo</button>
-          }
-        </div>
-        @for (l of s.lawsuits; track l.id) {
-          <app-lawsuit-card [lawsuit]="l" [canManage]="canManage()" (changed)="onLawsuitChanged()" />
-        } @empty {
-          <p class="app-muted">Nenhum processo cadastrado.</p>
-        }
-      </div>
-    </mat-tab>
-
-    <mat-tab label="Prazos ({{ deadlines().length }})">
-      <div class="md-tab" data-tour="matter-deadlines">
-        <div class="md-tabhead">
-          <p class="app-muted">Dias úteis com feriados, suspensões forenses e recesso; alertas em 5, 2 e 0 dias úteis.</p>
-          @if (canManage() && !final()) {
-            <button mat-flat-button type="button" (click)="createDeadline()"><mat-icon aria-hidden="true">add</mat-icon>Novo prazo</button>
-          }
-        </div>
-        <ul class="md-cards">
-          @for (d of deadlines(); track d.id) {
-            @let tone = deadlineTone(d);
-            <li class="md-card md-deadline" [class.md-deadline--late]="tone === 'late'" [class.md-deadline--soon]="tone === 'soon'">
-              <div class="md-status">
-                <strong class="app-numeric">{{ d.dueDate | appDate: 'date' }}</strong>
-                <span [class.md-late]="tone === 'late'" [class.md-soon]="tone === 'soon'">
-                  @if (tone === 'late') {
-                    <mat-icon class="md-inline" aria-hidden="true">alarm</mat-icon>
-                  }
-                  {{ deadlineText(d) }}
-                </span>
-                <app-status-chip domain="legalDeadline" [status]="d.status" />
-              </div>
-              <div>{{ deadlineKinds[d.kind] ?? d.kind }} — {{ d.description }}</div>
-              <div class="app-muted">{{ d.termDays ? d.termDays + ' dias · ' : '' }}responsável: {{ userName(d.responsibleUserId) }}</div>
-              @if (canManage() && (d.status === 'PENDING' || d.status === 'MISSED')) {
-                <div class="md-actions">
-                  <button mat-button type="button" (click)="cancelDeadline(d)">Cancelar</button>
-                  <button mat-stroked-button type="button" (click)="completeDeadline(d)">Registrar cumprimento</button>
+                <div class="app-muted">
+                  {{ me.authority ?? '' }}{{ me.protocol ? ' · protocolo ' + me.protocol : '' }}
+                  {{ me.submittedOn ? ' · enviada em ' + (me.submittedOn | appDate: 'date') : '' }}
+                  {{ me.effectiveOn ? ' · efetivada em ' + (me.effectiveOn | appDate: 'date') : '' }}
+                  {{ me.statusReason ? ' · ' + me.statusReason : '' }}
                 </div>
-              }
-            </li>
-          } @empty {
-            <li class="app-muted">Nenhum prazo.</li>
-          }
-        </ul>
-      </div>
-    </mat-tab>
+                @if (canManage()) {
+                  <div class="md-actions">
+                    @if (me.status === 'PLANNED') {
+                      <button class="btn btn-link" type="button" (click)="submitMeasure(me)">Registrar envio</button>
+                    }
+                    @for (st of measureNext(me); track st) {
+                      <button class="btn btn-link" type="button" (click)="changeMeasure(me, st)">{{ st === 'EFFECTIVE' ? 'Efetivada' : st === 'FAILED' ? 'Sem sucesso' : st === 'REMOVED' ? 'Registrar baixa' : 'Cancelar' }}</button>
+                    }
+                  </div>
+                }
+              </li>
+            } @empty {
+              <li class="app-muted">Nenhuma medida extrajudicial.</li>
+            }
+          </ul>
+        </div>
+      </ng-template>
+    </li>
 
-    <mat-tab label="Custas ({{ s.expenses.length }})">
-      <div class="md-tab">
-        <div class="md-tabhead">
-          <p class="app-muted">
-            Orçamento <app-amount [value]="m.authorizedBudget" /> · registrado <app-amount [value]="m.expensesTotal" />
-          </p>
-          @if (canExpense() && !final()) {
-            <button mat-flat-button type="button" (click)="recordExpense()"><mat-icon aria-hidden="true">add</mat-icon>Registrar despesa</button>
+    <li [ngbNavItem]="4">
+      <button type="button" ngbNavLink>Processos ({{ s.lawsuits.length }})</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab" data-tour="matter-lawsuits">
+          <div class="md-tabhead">
+            <p class="app-muted">Andamentos são lançados manualmente até a captura automática (DataJud) ser habilitada.</p>
+            @if (canManage() && !final()) {
+              <button class="btn btn-primary" type="button" (click)="registerLawsuit()"><app-icon name="plus-lg" />Cadastrar processo</button>
+            }
+          </div>
+          @for (l of s.lawsuits; track l.id) {
+            <app-lawsuit-card [lawsuit]="l" [canManage]="canManage()" (changed)="onLawsuitChanged()" />
+          } @empty {
+            <p class="app-muted">Nenhum processo cadastrado.</p>
           }
         </div>
-        <div class="md-scroll">
-          <table class="md-table" aria-label="Custas e despesas">
-            <thead>
-              <tr>
-                <th scope="col">Data</th>
-                <th scope="col">Tipo</th>
-                <th scope="col" class="md-end">Valor</th>
-                <th scope="col">Adiantada por</th>
-                <th scope="col">Situação</th>
-                <th scope="col"><span class="cdk-visually-hidden">Ações</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (e of s.expenses; track e.id) {
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="5">
+      <button type="button" ngbNavLink>Prazos ({{ deadlines().length }})</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab" data-tour="matter-deadlines">
+          <div class="md-tabhead">
+            <p class="app-muted">Dias úteis com feriados, suspensões forenses e recesso; alertas em 5, 2 e 0 dias úteis.</p>
+            @if (canManage() && !final()) {
+              <button class="btn btn-primary" type="button" (click)="createDeadline()"><app-icon name="plus-lg" />Novo prazo</button>
+            }
+          </div>
+          <ul class="md-cards">
+            @for (d of deadlines(); track d.id) {
+              @let tone = deadlineTone(d);
+              <li class="md-card md-deadline" [class.md-deadline--late]="tone === 'late'" [class.md-deadline--soon]="tone === 'soon'">
+                <div class="md-status">
+                  <strong class="app-numeric">{{ d.dueDate | appDate: 'date' }}</strong>
+                  <span [class.md-late]="tone === 'late'" [class.md-soon]="tone === 'soon'">
+                    @if (tone === 'late') {
+                      <app-icon class="md-inline" name="alarm" />
+                    }
+                    {{ deadlineText(d) }}
+                  </span>
+                  <app-status-chip domain="legalDeadline" [status]="d.status" />
+                </div>
+                <div>{{ deadlineKinds[d.kind] ?? d.kind }} — {{ d.description }}</div>
+                <div class="app-muted">{{ d.termDays ? d.termDays + ' dias · ' : '' }}responsável: {{ userName(d.responsibleUserId) }}</div>
+                @if (canManage() && (d.status === 'PENDING' || d.status === 'MISSED')) {
+                  <div class="md-actions">
+                    <button class="btn btn-link" type="button" (click)="cancelDeadline(d)">Cancelar</button>
+                    <button class="btn btn-outline-primary" type="button" (click)="completeDeadline(d)">Registrar cumprimento</button>
+                  </div>
+                }
+              </li>
+            } @empty {
+              <li class="app-muted">Nenhum prazo.</li>
+            }
+          </ul>
+        </div>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="6">
+      <button type="button" ngbNavLink>Custas ({{ s.expenses.length }})</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab">
+          <div class="md-tabhead">
+            <p class="app-muted">
+              Orçamento <app-amount [value]="m.authorizedBudget" /> · registrado <app-amount [value]="m.expensesTotal" />
+            </p>
+            @if (canExpense() && !final()) {
+              <button class="btn btn-primary" type="button" (click)="recordExpense()"><app-icon name="plus-lg" />Registrar despesa</button>
+            }
+          </div>
+          <div class="md-scroll">
+            <table class="md-table" aria-label="Custas e despesas">
+              <thead>
                 <tr>
-                  <td>{{ e.incurredOn | appDate: 'date' }}</td>
-                  <td>
-                    {{ expenseTypes[e.type] ?? e.type }}
-                    @if (e.overBudget) {
-                      <span class="md-late"> · acima do orçamento</span>
-                    }
-                  </td>
-                  <td class="md-end"><app-amount [value]="e.amount" /></td>
-                  <td>{{ advancers[e.advancedBy] ?? e.advancedBy }}{{ e.reimbursable ? ' · reembolsável' : '' }}</td>
-                  <td><app-status-chip domain="legalExpense" [status]="e.status" /></td>
-                  <td class="md-end">
-                    @if (canExpense() && e.status === 'RECORDED') {
-                      @if (e.reimbursable) {
-                        <button mat-button type="button" (click)="reimburse(e)">Reembolso</button>
-                      }
-                      <button mat-button type="button" (click)="cancelExpense(e)">Cancelar</button>
-                    }
-                  </td>
+                  <th scope="col">Data</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col" class="md-end">Valor</th>
+                  <th scope="col">Adiantada por</th>
+                  <th scope="col">Situação</th>
+                  <th scope="col"><span class="visually-hidden">Ações</span></th>
                 </tr>
-              } @empty {
-                <tr><td colspan="6" class="app-muted">Nenhuma despesa registrada.</td></tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                @for (e of s.expenses; track e.id) {
+                  <tr>
+                    <td>{{ e.incurredOn | appDate: 'date' }}</td>
+                    <td>
+                      {{ expenseTypes[e.type] ?? e.type }}
+                      @if (e.overBudget) {
+                        <span class="md-late"> · acima do orçamento</span>
+                      }
+                    </td>
+                    <td class="md-end"><app-amount [value]="e.amount" /></td>
+                    <td>{{ advancers[e.advancedBy] ?? e.advancedBy }}{{ e.reimbursable ? ' · reembolsável' : '' }}</td>
+                    <td><app-status-chip domain="legalExpense" [status]="e.status" /></td>
+                    <td class="md-end">
+                      @if (canExpense() && e.status === 'RECORDED') {
+                        @if (e.reimbursable) {
+                          <button class="btn btn-link" type="button" (click)="reimburse(e)">Reembolso</button>
+                        }
+                        <button class="btn btn-link" type="button" (click)="cancelExpense(e)">Cancelar</button>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" class="app-muted">Nenhuma despesa registrada.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </mat-tab>
+      </ng-template>
+    </li>
 
-    <mat-tab label="Documentos ({{ s.documents.length }})">
-      <div class="md-tab">
-        <div class="md-tabhead">
-          <p class="app-muted">Evidências e peças do caso. Todo download fica registrado.</p>
-          @if (canUpload()) {
-            <button mat-flat-button type="button" (click)="upload()"><mat-icon aria-hidden="true">upload_file</mat-icon>Anexar documento</button>
-          }
+    <li [ngbNavItem]="7">
+      <button type="button" ngbNavLink>Documentos ({{ s.documents.length }})</button>
+      <ng-template ngbNavContent>
+        <div class="md-tab">
+          <div class="md-tabhead">
+            <p class="app-muted">Evidências e peças do caso. Todo download fica registrado.</p>
+            @if (canUpload()) {
+              <button class="btn btn-primary" type="button" (click)="upload()"><app-icon name="file-earmark-arrow-up" />Anexar documento</button>
+            }
+          </div>
+          <ul class="md-cards">
+            @for (d of s.documents; track d.id) {
+              <li class="md-card md-doc">
+                <app-icon [name]="d.contentType === 'application/pdf' ? 'file-earmark-pdf' : 'image'" />
+                <div>
+                  <strong>{{ documentKinds[d.kind] ?? d.kind }}</strong> · {{ d.fileName }}
+                  <div class="app-muted">{{ linkText(d) }} · {{ sizeText(d.size) }} · {{ d.uploadedAt | appDate }}{{ d.description ? ' · ' + d.description : '' }}</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="download(d)" [attr.aria-label]="'Baixar ' + d.fileName" ngbTooltip="Baixar (acesso registrado)">
+                  <app-icon name="download" />
+                </button>
+              </li>
+            } @empty {
+              <li class="app-muted">Nenhum documento anexado.</li>
+            }
+          </ul>
         </div>
-        <ul class="md-cards">
-          @for (d of s.documents; track d.id) {
-            <li class="md-card md-doc">
-              <mat-icon aria-hidden="true">{{ d.contentType === 'application/pdf' ? 'picture_as_pdf' : 'image' }}</mat-icon>
-              <div>
-                <strong>{{ documentKinds[d.kind] ?? d.kind }}</strong> · {{ d.fileName }}
-                <div class="app-muted">{{ linkText(d) }} · {{ sizeText(d.size) }} · {{ d.uploadedAt | appDate }}{{ d.description ? ' · ' + d.description : '' }}</div>
-              </div>
-              <button mat-icon-button type="button" (click)="download(d)" [attr.aria-label]="'Baixar ' + d.fileName" matTooltip="Baixar (acesso registrado)">
-                <mat-icon aria-hidden="true">download</mat-icon>
-              </button>
-            </li>
-          } @empty {
-            <li class="app-muted">Nenhum documento anexado.</li>
-          }
-        </ul>
-      </div>
-    </mat-tab>
-  </mat-tab-group>
+      </ng-template>
+    </li>
+  </ul>
+  <div [ngbNavOutlet]="nav"></div>
 }

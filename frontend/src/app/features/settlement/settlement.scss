@@ -36,11 +36,11 @@
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px;
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface-raised);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
 }
 .st-kpi--total {
-  outline: 2px solid var(--mat-sys-primary);
+  outline: 2px solid var(--bs-primary);
   outline-offset: -2px;
 }
 .st-kpi__label {
@@ -48,7 +48,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--bs-secondary-color);
 }
 .st-kpi__value {
   font-size: var(--app-text-lg);
@@ -67,13 +67,13 @@
   th,
   td {
     padding: 6px 8px;
-    border-bottom: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--bs-border-color);
     text-align: left;
     vertical-align: top;
   }
   th {
     font-weight: 600;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--bs-secondary-color);
   }
   .st-end {
     text-align: right;
@@ -97,25 +97,25 @@
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--bs-border-color);
   border-radius: var(--app-radius-pill, 999px);
   font-size: var(--app-text-xs);
-  color: var(--mat-sys-on-surface-variant);
-  .mat-icon {
+  color: var(--bs-secondary-color);
+  app-icon {
     width: 16px;
     height: 16px;
     font-size: 16px;
   }
 }
 .st-step--done {
-  color: var(--app-success-fg);
-  background: var(--app-success-bg);
+  color: var(--bs-success-text-emphasis);
+  background: var(--bs-success-bg-subtle);
   border-color: transparent;
 }
 .st-step--current {
   font-weight: 600;
-  color: var(--mat-sys-on-primary-container);
-  background: var(--mat-sys-primary-container);
+  color: var(--bs-primary-text-emphasis);
+  background: var(--bs-primary-bg-subtle);
   border-color: transparent;
 }
 .st-row {
@@ -144,11 +144,11 @@
     align-items: center;
     gap: 6px;
     padding: 4px 6px;
-    border-radius: var(--app-radius-sm);
+    border-radius: var(--bs-border-radius-sm);
   }
 }
 .rs-version--current {
-  background: var(--app-surface-raised);
+  background: var(--bs-tertiary-bg);
   font-weight: 600;
 }
 .sd-tabs {
@@ -163,8 +163,8 @@
 .sd-adj,
 .sd-file {
   padding: 10px 12px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
   & + & {
     margin-top: 8px;
   }

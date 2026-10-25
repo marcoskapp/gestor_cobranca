@@ -1,12 +1,5 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
 import { Observable } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -20,6 +13,7 @@ import { pagedQuery } from '../../../shared/data/paged-query';
 import { ImportReviewsApi } from '../data/ingestion.api';
 import { AlertDecision, AlertStatus, AlertType, AlertView, AnalysisView, ReviewView } from '../data/ingestion.models';
 import { ALERT_TYPE_LABELS, REFERENCE_LABELS, REVIEW_ERROR_LABELS } from '../data/review.rules';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** Texto da referência estatística usada (resumo da análise). */
 export function referenceSummary(references: Record<string, unknown>): string | null {
@@ -41,14 +35,14 @@ export function referenceSummary(references: Record<string, unknown>): string | 
  */
 @Component({
   selector: 'app-alerts-step',
-  imports: [DecimalPipe, FormsModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatSelectModule, Amount, CellDef, DataTable, Skeleton, StatusChip],
+  imports: [Icon, DecimalPipe, Amount, CellDef, DataTable, Skeleton, StatusChip],
   template: `
     @let a = review().analysis;
     @if (a.status === 'NOT_STARTED' || a.status === 'PENDING') {
       <p class="app-muted" role="status">Analisando os valores: comparando com o histórico do credor e com o próprio arquivo…</p>
       <app-skeleton variant="table" [rows]="4" />
     } @else if (a.status === 'FAILED') {
-      <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>A análise dos valores falhou. Altere e confirme o formato de novo para refazer a prévia, ou tente mais tarde.</span></p>
+      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>A análise dos valores falhou. Altere e confirme o formato de novo para refazer a prévia, ou tente mais tarde.</span></div>
     } @else {
       <p class="as-intro">
         Valores muito acima ou abaixo do esperado para esta carteira, e outros sinais de erro de digitação ou de separador decimal. Confira cada um na sua planilha.
@@ -57,19 +51,19 @@ export function referenceSummary(references: Record<string, unknown>): string | 
         }
       </p>
       @if (a.total === 0) {
-        <p class="app-alert app-alert--success" role="status"><mat-icon aria-hidden="true">task_alt</mat-icon><span>Nenhum valor fora do esperado.</span></p>
+        <div class="alert alert-success d-flex align-items-start gap-2" role="status"><app-icon name="check2-circle" /><span>Nenhum valor fora do esperado.</span></div>
       } @else {
         @if (a.truncated) {
-          <p class="app-alert app-alert--danger" role="alert"><mat-icon aria-hidden="true">warning</mat-icon><span>Há alertas demais ({{ a.total | number }}): o arquivo parece ter um problema sistemático. Revise o formato dos valores.</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-triangle" /><span>Há alertas demais ({{ a.total | number }}): o arquivo parece ter um problema sistemático. Revise o formato dos valores.</span></div>
         }
         @if (a.openScale) {
-          <p class="app-alert app-alert--warning" role="alert"><mat-icon aria-hidden="true">priority_high</mat-icon><span>{{ a.openScale | number }} alerta(s) de provável separador decimal precisam ser revisados antes de importar.</span></p>
+          <div class="alert alert-warning d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-lg" /><span>{{ a.openScale | number }} alerta(s) de provável separador decimal precisam ser revisados antes de importar.</span></div>
         }
         <ul class="as-summary" aria-label="Alertas por tipo" data-tour="review-alerts">
           @for (t of a.byType; track t.type) {
             <li>
               <button type="button" class="as-chip" [class.as-chip--active]="type() === t.type" (click)="toggleType(t.type)" [attr.aria-pressed]="type() === t.type">
-                <mat-icon aria-hidden="true">{{ t.scale ? 'priority_high' : 'info' }}</mat-icon>
+                <app-icon [name]="t.scale ? 'exclamation-lg' : 'info-circle'" />
                 <span>{{ typeLabel(t.type) }}</span>
                 <span class="as-chip__n app-numeric">{{ t.open | number }} abertos · {{ t.confirmed + t.excluded | number }} revisados</span>
               </button>
@@ -77,25 +71,29 @@ export function referenceSummary(references: Record<string, unknown>): string | 
           }
         </ul>
         <div class="as-tools">
-          <mat-button-toggle-group [ngModel]="status()" (ngModelChange)="setStatus($event)" aria-label="Situação dos alertas" hideSingleSelectionIndicator>
-            <mat-button-toggle value="OPEN">Abertos ({{ a.open | number }})</mat-button-toggle>
-            <mat-button-toggle value="CONFIRMED">Confirmados ({{ a.confirmed | number }})</mat-button-toggle>
-            <mat-button-toggle value="EXCLUDED">Excluídos ({{ a.excluded | number }})</mat-button-toggle>
-            <mat-button-toggle value="">Todos</mat-button-toggle>
-          </mat-button-toggle-group>
+          <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Situação dos alertas">
+            <input type="radio" class="btn-check" name="as-status" id="as-status-open" [checked]="status() === 'OPEN'" (change)="setStatus('OPEN')" />
+            <label class="btn btn-outline-primary" for="as-status-open">Abertos ({{ a.open | number }})</label>
+            <input type="radio" class="btn-check" name="as-status" id="as-status-confirmed" [checked]="status() === 'CONFIRMED'" (change)="setStatus('CONFIRMED')" />
+            <label class="btn btn-outline-primary" for="as-status-confirmed">Confirmados ({{ a.confirmed | number }})</label>
+            <input type="radio" class="btn-check" name="as-status" id="as-status-excluded" [checked]="status() === 'EXCLUDED'" (change)="setStatus('EXCLUDED')" />
+            <label class="btn btn-outline-primary" for="as-status-excluded">Excluídos ({{ a.excluded | number }})</label>
+            <input type="radio" class="btn-check" name="as-status" id="as-status-all" [checked]="status() === ''" (change)="setStatus('')" />
+            <label class="btn btn-outline-primary" for="as-status-all">Todos</label>
+          </div>
           @if (canEdit()) {
             <span class="as-spacer"></span>
             @if (status() === 'OPEN') {
-              <button mat-stroked-button type="button" [disabled]="!selected().length" (click)="decide('CONFIRM', false)"><mat-icon aria-hidden="true">check</mat-icon>Confirmo que está correto</button>
-              <button mat-stroked-button type="button" [disabled]="!selected().length" (click)="decide('EXCLUDE', false)"><mat-icon aria-hidden="true">remove_circle_outline</mat-icon>Excluir do lote</button>
-              <button mat-button type="button" [disabled]="!openInFilter()" (click)="decide('CONFIRM', true)">Confirmar todos os abertos{{ type() ? ' deste tipo' : '' }}</button>
+              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('CONFIRM', false)"><app-icon name="check-lg" />Confirmo que está correto</button>
+              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('EXCLUDE', false)"><app-icon name="dash-circle" />Excluir do lote</button>
+              <button class="btn btn-link" type="button" [disabled]="!openInFilter()" (click)="decide('CONFIRM', true)">Confirmar todos os abertos{{ type() ? ' deste tipo' : '' }}</button>
             } @else if (status()) {
-              <button mat-stroked-button type="button" [disabled]="!selected().length" (click)="decide('REOPEN', false)"><mat-icon aria-hidden="true">undo</mat-icon>Reabrir</button>
+              <button class="btn btn-outline-primary" type="button" [disabled]="!selected().length" (click)="decide('REOPEN', false)"><app-icon name="arrow-counterclockwise" />Reabrir</button>
             }
           }
         </div>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
         <app-data-table
           caption="Alertas de valor"
@@ -106,19 +104,25 @@ export function referenceSummary(references: Record<string, unknown>): string | 
           [page]="alerts.tablePage()"
           (pageChange)="alerts.setPage($event)"
           (retry)="alerts.reload()"
-          emptyIcon="task_alt"
+          emptyIcon="check2-circle"
           emptyMessage="Nenhum alerta nesta situação."
         >
           <ng-template appCell="select" [appCellOf]="alerts.rows()" let-x>
-            <mat-checkbox [checked]="isSelected(x)" (change)="toggle(x)" [aria-label]="'Selecionar alerta da linha ' + x.rowNumber" />
+            <input class="form-check-input" type="checkbox" [checked]="isSelected(x)" (change)="toggle(x)" [attr.aria-label]="'Selecionar alerta da linha ' + x.rowNumber" />
           </ng-template>
           <ng-template appCell="row" [appCellOf]="alerts.rows()" let-x>
             <span class="app-numeric">{{ x.rowNumber || 'Arquivo' }}</span>
             @if (x.externalId) {<div class="app-muted app-mono as-id">{{ x.externalId }}</div>}
           </ng-template>
           <ng-template appCell="type" [appCellOf]="alerts.rows()" let-x>
-            <span class="app-status" [class.app-status--danger]="x.scale" [class.app-status--warning]="!x.scale">
-              <mat-icon aria-hidden="true">{{ x.scale ? 'priority_high' : 'info' }}</mat-icon>{{ typeLabel(x.type) }}
+            <span
+              class="badge rounded-pill d-inline-flex align-items-center gap-1"
+              [class.bg-danger-subtle]="x.scale"
+              [class.text-danger-emphasis]="x.scale"
+              [class.bg-warning-subtle]="!x.scale"
+              [class.text-warning-emphasis]="!x.scale"
+            >
+              <app-icon [name]="x.scale ? 'exclamation-lg' : 'info-circle'" />{{ typeLabel(x.type) }}
             </span>
           </ng-template>
           <ng-template appCell="amount" [appCellOf]="alerts.rows()" let-x>
@@ -157,25 +161,23 @@ export function referenceSummary(references: Record<string, unknown>): string | 
       align-items: center;
       gap: 6px;
       padding: 6px 10px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
       color: inherit;
       font: inherit;
       font-size: var(--app-text-sm);
       cursor: pointer;
     }
     .as-chip--active {
-      border-color: var(--mat-sys-primary);
-      box-shadow: inset 0 0 0 1px var(--mat-sys-primary);
+      border-color: var(--bs-primary-text-emphasis);
+      box-shadow: inset 0 0 0 1px var(--bs-primary);
     }
-    .as-chip .mat-icon {
-      width: 18px;
-      height: 18px;
-      font-size: 18px;
+    .as-chip app-icon {
+      font-size: 1.125rem;
     }
     .as-chip__n {
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .as-tools {
       display: flex;
@@ -192,7 +194,7 @@ export function referenceSummary(references: Record<string, unknown>): string | 
     }
     .as-suggested {
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
   `,
 })

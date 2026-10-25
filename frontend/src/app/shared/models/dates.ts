@@ -40,3 +40,11 @@ export function endOfDayInstant(value: Date | null | undefined): string | null {
 export function toHourMinute(value: string | null | undefined): string {
   return value ? value.slice(0, 5) : '';
 }
+
+/**
+ * Valor de um `ngbDatepicker` (modelo `LocalDate` `yyyy-MM-dd`) → `LocalDate` ou nulo. Com texto
+ * não reconhecido o ng-bootstrap devolve o próprio texto (e o erro `ngbDate`): aqui vira nulo.
+ */
+export function isoDate(value: unknown): string | null {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}

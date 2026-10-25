@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { of } from 'rxjs';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { cnjValid } from '../data/legal.rules';
 import { FormDialog, FormDialogData } from './form-dialog';
 
@@ -15,10 +16,11 @@ describe('FormDialog', () => {
     TestBed.configureTestingModule({
       imports: [FormDialog],
       providers: [
-        provideLocale(),
-        { provide: MatDialogRef, useValue: { close } },
+        provideAppLocale(),
+        provideBootstrapDefaults(),
+        { provide: DialogRef, useValue: { close } },
         {
-          provide: MAT_DIALOG_DATA,
+          provide: DIALOG_DATA,
           useValue: {
             ...data,
             submit: (v: Record<string, unknown>) => {
@@ -80,5 +82,39 @@ describe('FormDialog', () => {
     fixture.detectChanges();
     submit(fixture);
     expect(submitted).toEqual({ reason: 'Pago' });
+  });
+
+  it('data digitada em dd/mm/aaaa vira LocalDate e vias marcadas seguem a ordem das opções', () => {
+    const fixture = render({
+      title: 'Autorizar',
+      fields: [
+        { key: 'date', label: 'Data da decisão', type: 'date', required: true },
+        { key: 'routes', label: 'Vias', type: 'multiselect', required: true, options: [{ value: 'PROTEST', label: 'Protesto' }, { value: 'LAWSUIT', label: 'Ação judicial' }] },
+      ],
+    });
+    const date = el(fixture).querySelector<HTMLInputElement>('input[placeholder="dd/mm/aaaa"]')!;
+    expect(el(fixture).querySelector('label[for="' + date.id + '"]')?.textContent).toContain('Data da decisão');
+    date.value = '23/10/2026';
+    date.dispatchEvent(new Event('input'));
+    date.dispatchEvent(new Event('change'));
+    const boxes = el(fixture).querySelectorAll<HTMLInputElement>('fieldset input[type="checkbox"]');
+    expect(el(fixture).querySelector('fieldset legend')?.textContent).toContain('Vias');
+    boxes[1].click();
+    boxes[0].click();
+    fixture.detectChanges();
+    submit(fixture);
+    expect(submitted).toEqual({ date: '2026-10-23', routes: ['PROTEST', 'LAWSUIT'] });
+  });
+
+  it('data inválida bloqueia o envio com a mensagem do campo', () => {
+    const fixture = render({ title: 'Prazo', fields: [{ key: 'date', label: 'Vencimento', type: 'date', required: true }] });
+    const date = el(fixture).querySelector<HTMLInputElement>('input[placeholder="dd/mm/aaaa"]')!;
+    date.value = '31/02/2026';
+    date.dispatchEvent(new Event('input'));
+    date.dispatchEvent(new Event('change'));
+    submit(fixture);
+    expect(submitted).toBeNull();
+    expect(date.classList).toContain('is-invalid');
+    expect(el(fixture).textContent).toContain('Revise os campos destacados');
   });
 });

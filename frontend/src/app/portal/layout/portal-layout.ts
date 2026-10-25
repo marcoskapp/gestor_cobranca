@@ -1,8 +1,5 @@
 import { Component, ViewEncapsulation, computed, effect, inject, input } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -10,6 +7,8 @@ import { ThemeService } from '../../core/preferences/theme.service';
 import { PortalApi } from '../data/portal.api';
 import { PortalSession } from '../data/portal-session';
 import { PortalSite } from './portal-site';
+import { Icon } from '../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 /**
  * Moldura do portal do devedor: marca do credor (nome, logotipo, cores validadas para contraste AA),
@@ -18,7 +17,7 @@ import { PortalSite } from './portal-site';
  */
 @Component({
   selector: 'app-portal-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [NgbTooltip, Icon, RouterOutlet, RouterLink, RouterLinkActive],
   providers: [PortalSite],
   encapsulation: ViewEncapsulation.None,
   host: {
@@ -40,17 +39,17 @@ import { PortalSite } from './portal-site';
         </a>
         <span class="portal__spacer"></span>
         <button
-          mat-icon-button
+          class="btn btn-outline-secondary border-0 portal__icon-btn"
           type="button"
           (click)="theme.toggleTheme()"
           [attr.aria-label]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
-          [matTooltip]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
+          [ngbTooltip]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
         >
-          <mat-icon aria-hidden="true">{{ theme.effectiveTheme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+          <app-icon [name]="theme.effectiveTheme() === 'dark' ? 'sun' : 'moon-stars'" />
         </button>
         @if (loggedIn()) {
-          <button mat-button type="button" (click)="logout()">
-            <mat-icon aria-hidden="true">logout</mat-icon>
+          <button class="btn btn-link portal-btn-link" type="button" (click)="logout()">
+            <app-icon name="box-arrow-right" />
             Sair
           </button>
         }
@@ -58,13 +57,13 @@ import { PortalSite } from './portal-site';
       @if (loggedIn()) {
         <nav class="portal__nav" aria-label="Seções do portal">
           <a [routerLink]="['/portal', slug(), 'dividas']" routerLinkActive="portal__nav--active" ariaCurrentWhenActive="page">
-            <mat-icon aria-hidden="true">receipt_long</mat-icon>Minhas dívidas
+            <app-icon name="receipt" />Minhas dívidas
           </a>
           <a [routerLink]="['/portal', slug(), 'acordos']" routerLinkActive="portal__nav--active" ariaCurrentWhenActive="page">
-            <mat-icon aria-hidden="true">handshake</mat-icon>Meus acordos
+            <app-icon name="person-hearts" />Meus acordos
           </a>
           <a [routerLink]="['/portal', slug(), 'atendimento']" routerLinkActive="portal__nav--active" ariaCurrentWhenActive="page">
-            <mat-icon aria-hidden="true">support_agent</mat-icon>Ajuda
+            <app-icon name="headset" />Ajuda
           </a>
         </nav>
       }
@@ -73,7 +72,7 @@ import { PortalSite } from './portal-site';
     <main class="portal__main" id="portal-conteudo" tabindex="-1">
       @if (site.error()) {
         <section class="portal-card portal-center" role="alert">
-          <mat-icon class="portal-big-icon" aria-hidden="true">link_off</mat-icon>
+          <app-icon class="portal-big-icon" name="link" />
           <h1 class="portal-title">Endereço não encontrado</h1>
           <p>Confira o link recebido ou procure a empresa que enviou a cobrança.</p>
         </section>

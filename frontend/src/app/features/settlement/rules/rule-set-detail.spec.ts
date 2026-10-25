@@ -1,4 +1,7 @@
+import { EMPTY } from 'rxjs';
+import { TestBed } from '@angular/core/testing';
 import { render, setup, text } from '../../../../testing/component-harness';
+import { FormDialogData, FormDialogService } from '../../legal/components/form-dialog';
 import { ruleSet } from '../../../../testing/settlement-fixtures';
 import { RuleSetDetail } from './rule-set-detail';
 
@@ -35,5 +38,19 @@ describe('RuleSetDetail (regras de comissão)', () => {
     expect(text(fixture)).toContain('Nova versão');
     expect(text(fixture)).toContain('a partir de 01/10/2026');
     expect(publishButton(fixture.nativeElement)).toBeUndefined();
+  });
+
+  it('publicar pede a data de vigência (a partir do início do contrato) com o resumo do impacto', async () => {
+    const { http } = setup(RuleSetDetail, ['COMMISSION_MANAGE'], 'u-9');
+    const fixture = await render(RuleSetDetail, http, respond(), { id: 'rs-1' });
+    const open = vi.spyOn(TestBed.inject(FormDialogService), 'open').mockReturnValue(EMPTY);
+    publishButton(fixture.nativeElement)!.click();
+    const data = open.mock.calls[0][0] as FormDialogData;
+    expect(data.submitLabel).toBe('Publicar');
+    expect(data.details?.map((d) => d.label)).toContain('Versão vigente');
+    const field = data.fields[0];
+    expect(field).toMatchObject({ key: 'effectiveFrom', type: 'date', required: true });
+    expect(field.validate!('2025-12-31')).toContain('01/01/2026');
+    expect(field.validate!('2026-01-01')).toBeNull();
   });
 });

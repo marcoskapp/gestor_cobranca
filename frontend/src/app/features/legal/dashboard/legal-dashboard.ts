@@ -1,9 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { catchError, map, of, startWith } from 'rxjs';
 import { Amount } from '../../../shared/components/amount/amount';
@@ -21,6 +18,7 @@ import { LegalMattersApi, LegalOperationsApi } from '../data/legal.api';
 import { DEADLINE_KIND_LABELS, STAGE_ORDER } from '../data/legal.labels';
 import { DeadlineView } from '../data/legal.models';
 import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /**
  * Painel jurídico: casos por fase com dívida, custas e valor recuperado; prazos que vencem nos
@@ -28,27 +26,30 @@ import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
  */
 @Component({
   selector: 'app-legal-dashboard',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatIconModule, MatSlideToggleModule, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe],
+  imports: [Icon, ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Jurídico" subtitle="Casos por fase, prazos a vencer e perdidos, custas e valores recuperados.">
-      <a mat-flat-button routerLink="/juridico/casos">
-        <mat-icon aria-hidden="true">folder_shared</mat-icon>
+      <a class="btn btn-primary" routerLink="/juridico/casos">
+        <app-icon name="folder-symlink" />
         Casos jurídicos
       </a>
     </app-page-header>
 
     @if (partner()) {
-      <p class="app-alert app-alert--info" role="note">
-        <mat-icon aria-hidden="true">business</mat-icon>
+      <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+        <app-icon name="building" />
         <span>Você vê somente os casos atribuídos ao seu escritório.</span>
-      </p>
+      </div>
     }
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar painel">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-slide-toggle formControlName="mine" class="ld-toggle">Somente prazos sob minha responsabilidade</mat-slide-toggle>
+      <div class="form-check form-switch ld-toggle">
+        <input class="form-check-input" type="checkbox" role="switch" id="legald-mine" formControlName="mine" />
+        <label class="form-check-label" for="legald-mine">Somente prazos sob minha responsabilidade</label>
+      </div>
     </form>
 
     @if (dashboard.isLoading() && !board()) {
@@ -120,21 +121,21 @@ import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
               <li class="ld-item">
                 <span class="ld-due" [class.ld-late]="tone === 'late'" [class.ld-soon]="tone === 'soon'">
                   @if (tone === 'late') {
-                    <mat-icon aria-hidden="true">alarm</mat-icon>
+                    <app-icon name="alarm" />
                   }
                   {{ d.dueDate | appDate: 'date' }} · {{ textOf(d) }}
                 </span>
                 <a [routerLink]="['/juridico/casos', d.matterId]" [queryParams]="{ aba: 'prazos' }">{{ kinds[d.kind] ?? d.kind }} — {{ d.description }}</a>
               </li>
             } @empty {
-              <li><app-empty-state icon="event_available" title="Nenhum prazo perdido ou vencendo nos próximos 10 dias." [compact]="true" /></li>
+              <li><app-empty-state icon="calendar-check" title="Nenhum prazo perdido ou vencendo nos próximos 10 dias." [compact]="true" /></li>
             }
           </ul>
         </section>
       </div>
     } @else {
-      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o painel." message="Verifique a conexão e tente novamente.">
-        <button mat-stroked-button type="button" (click)="dashboard.reload()">Tentar novamente</button>
+      <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o painel." message="Verifique a conexão e tente novamente.">
+        <button class="btn btn-outline-primary" type="button" (click)="dashboard.reload()">Tentar novamente</button>
       </app-empty-state>
     }
   `,
@@ -153,9 +154,9 @@ import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
       flex-direction: column;
       gap: 4px;
       padding: 12px 16px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
       color: inherit;
       text-decoration: none;
     }
@@ -164,22 +165,22 @@ import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .ld-kpi__value {
       font-size: var(--app-text-lg);
       font-weight: 600;
     }
     .ld-kpi--warn .ld-kpi__value {
-      color: var(--app-warning-fg);
+      color: var(--bs-warning-text-emphasis);
     }
     .ld-kpi--late .ld-kpi__value,
     .ld-late {
       font-weight: 600;
-      color: var(--app-danger-fg);
+      color: var(--bs-danger-text-emphasis);
     }
     .ld-soon {
-      color: var(--app-warning-fg);
+      color: var(--bs-warning-text-emphasis);
     }
     .ld-grid {
       display: grid;
@@ -196,7 +197,7 @@ import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
       th,
       td {
         padding: 6px 8px;
-        border-bottom: 1px solid var(--app-border);
+        border-bottom: 1px solid var(--bs-border-color);
         text-align: left;
         white-space: nowrap;
       }
@@ -214,14 +215,14 @@ import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
       flex-direction: column;
       gap: 2px;
       padding: 8px 0;
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: 1px solid var(--bs-border-color);
       font-size: var(--app-text-sm);
     }
     .ld-due {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      mat-icon {
+      app-icon {
         width: 16px;
         height: 16px;
         font-size: 16px;

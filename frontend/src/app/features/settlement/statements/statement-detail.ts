@@ -1,10 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { Observable, finalize, map } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -33,6 +28,9 @@ import { AdjustmentView, ExportFormat, ExportView, StatementView } from '../data
 import { canDecideAdjustment, cycleIndex, groupedHash, isApproved, periodText, receiptsEffect, round2, statementActions } from '../data/settlement.rules';
 import { TransferDialog, TransferDialogData } from '../transfers/transfer-dialog';
 import { AdjustmentDialog, AdjustmentDialogData, SendDialog, SendDialogData } from './statement-dialogs';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /**
  * Demonstrativo do credor: totais (RB08) com a conferência do líquido, ciclo com ações e a
@@ -42,7 +40,7 @@ import { AdjustmentDialog, AdjustmentDialogData, SendDialog, SendDialogData } fr
  */
 @Component({
   selector: 'app-statement-detail',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTabsModule, MatTooltipModule, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip],
+  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip],
   templateUrl: './statement-detail.html',
   styleUrl: '../settlement.scss',
 })
@@ -52,7 +50,7 @@ export class StatementDetail {
   private readonly api = inject(StatementsApi);
   private readonly transfersApi = inject(TransfersApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
@@ -215,7 +213,7 @@ export class StatementDetail {
   protected send(): void {
     const s = this.statement()!;
     this.dialog
-      .open<SendDialog, SendDialogData, StatementView>(SendDialog, { data: { statement: s, exports: this.exportRows() }, width: '560px', maxWidth: '96vw' })
+      .open<SendDialog, SendDialogData, StatementView>(SendDialog, { data: { statement: s, exports: this.exportRows() } })
       .afterClosed()
       .subscribe((saved) => this.applied(saved, 'Envio registrado. Registre a resposta do credor quando ela chegar.'));
   }
@@ -272,7 +270,7 @@ export class StatementDetail {
     const s = this.statement()!;
     const previous = this.previousRaw().filter((x) => x.id !== s.id && isApproved(x));
     this.dialog
-      .open<AdjustmentDialog, AdjustmentDialogData, AdjustmentView>(AdjustmentDialog, { data: { statement: s, previous }, width: '600px', maxWidth: '96vw' })
+      .open<AdjustmentDialog, AdjustmentDialogData, AdjustmentView>(AdjustmentDialog, { data: { statement: s, previous } })
       .afterClosed()
       .subscribe((a) => {
         if (a) {
@@ -345,8 +343,6 @@ export class StatementDetail {
     this.dialog
       .open<TransferDialog, TransferDialogData>(TransferDialog, {
         data: { creditorName: this.creditors.name(s.creditorId), statement: { statementId: s.id, sequenceNumber: s.sequenceNumber, periodStart: s.periodStart, periodEnd: s.periodEnd, outstanding: t.outstanding } },
-        width: '600px',
-        maxWidth: '96vw',
       })
       .afterClosed()
       .subscribe((saved) => {

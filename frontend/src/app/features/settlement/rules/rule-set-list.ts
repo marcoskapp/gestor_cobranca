@@ -1,11 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, finalize, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -28,6 +23,9 @@ import { CommissionRulesApi } from '../data/settlement.api';
 import { SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { RuleSetView } from '../data/settlement.models';
 import { cloneRules, emptyRules, periodText } from '../data/settlement.rules';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 /**
  * Versões das regras de comissão da assessoria por contrato de serviço. O rascunho nasce da
@@ -35,12 +33,12 @@ import { cloneRules, emptyRules, periodText } from '../data/settlement.rules';
  */
 @Component({
   selector: 'app-rule-set-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [NgbTooltip, ...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Regras de comissão" subtitle="Quanto a assessoria recebe do credor: percentuais por carteira, atraso e forma de pagamento, valor fixo e honorários, por contrato de serviço.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="createDraft()" [disabled]="!contractId() || creating() || hasDraft()" [matTooltip]="createHint()" data-tour="rules-new">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="createDraft()" [disabled]="!contractId() || creating() || hasDraft()" [ngbTooltip]="createHint()" data-tour="rules-new">
+          <app-icon name="plus-lg" />
           Novo rascunho
         </button>
       }
@@ -49,20 +47,19 @@ import { cloneRules, emptyRules, periodText } from '../data/settlement.rules';
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Contrato de serviço</mat-label>
-        <mat-select formControlName="contract">
-          <mat-option value="">Todos</mat-option>
+      <app-field label="Contrato de serviço">
+        <select appInput formControlName="contract">
+          <option value="">Todos</option>
           @for (c of contracts(); track c.id) {
-            <mat-option [value]="c.id">{{ contractLabel(c) }}</mat-option>
+            <option [ngValue]="c.id">{{ contractLabel(c) }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
-    <p class="app-alert app-alert--info" role="note" data-tour="rules-segregation">
-      <mat-icon aria-hidden="true">group</mat-icon>
+    <div class="alert alert-info d-flex align-items-start gap-2" role="note" data-tour="rules-segregation">
+      <app-icon name="people" />
       <span>Transcrever um contrato é ponto sensível: <strong>quem editou as regras por último não publica</strong>. Versões publicadas não mudam; recebimentos já apurados nunca trocam de regra.</span>
-    </p>
+    </div>
     <app-data-table
       caption="Versões das regras de comissão"
       [rows]="rows()"
@@ -100,8 +97,8 @@ import { cloneRules, emptyRules, periodText } from '../data/settlement.rules';
         }
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-r>
-        <a mat-icon-button [routerLink]="['/prestacao-de-contas/regras', r.id]" [attr.aria-label]="'Abrir versão ' + r.ruleVersion" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/prestacao-de-contas/regras', r.id]" [attr.aria-label]="'Abrir versão ' + r.ruleVersion" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>

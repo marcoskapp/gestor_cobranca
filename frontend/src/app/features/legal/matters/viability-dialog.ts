@@ -1,17 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { Amount } from '../../../shared/components/amount/amount';
 import { LegalMattersApi } from '../data/legal.api';
 import { CHECKLIST_STATUS_LABELS, FLAG_LABELS, ROUTE_LABELS } from '../data/legal.labels';
 import { AssessmentInput, AssessmentView, ChecklistEntry, LegalRoute, ViabilityResultView } from '../data/legal.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 
 export interface ViabilityDialogData {
   matterId: string;
@@ -51,34 +48,31 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
  */
 @Component({
   selector: 'app-viability-dialog',
-  imports: [ReactiveFormsModule, MatButtonModule, MatCheckboxModule, MatDialogModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, Amount],
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Amount, Icon],
   template: `
-    <h2 mat-dialog-title>Análise de viabilidade</h2>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Análise de viabilidade</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+      <div class="modal-body">
         <h3 class="app-section-title">Premissas</h3>
         <div class="vd-grid">
-          <mat-form-field>
-            <mat-label>Outros bens localizados (R$)</mat-label>
-            <input matInput type="number" min="0" step="0.01" formControlName="otherAssetsValue" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Taxa de realização (%)</mat-label>
-            <input matInput type="number" min="0" max="100" formControlName="realizationRate" />
-            <mat-hint>Padrão 70%</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Probabilidade de êxito (%)</mat-label>
-            <input matInput type="number" min="0" max="100" formControlName="successProbability" />
-            <mat-hint>Padrão 50%</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Custas previstas (R$)</mat-label>
-            <input matInput type="number" min="0" step="0.01" formControlName="expectedCosts" />
-          </mat-form-field>
+          <app-field label="Outros bens localizados (R$)">
+            <input appInput type="number" min="0" step="0.01" formControlName="otherAssetsValue" />
+          </app-field>
+          <app-field label="Taxa de realização (%)" hint="Padrão 70%">
+            <input appInput type="number" min="0" max="100" formControlName="realizationRate" />
+          </app-field>
+          <app-field label="Probabilidade de êxito (%)" hint="Padrão 50%">
+            <input appInput type="number" min="0" max="100" formControlName="successProbability" />
+          </app-field>
+          <app-field label="Custas previstas (R$)">
+            <input appInput type="number" min="0" step="0.01" formControlName="expectedCosts" />
+          </app-field>
         </div>
-        <button mat-stroked-button type="button" (click)="calculate()" [disabled]="calculating()">
-          <mat-icon aria-hidden="true">calculate</mat-icon>
+        <button class="btn btn-outline-primary mt-2" type="button" (click)="calculate()" [disabled]="calculating()">
+          <app-icon name="calculator" />
           Calcular
         </button>
 
@@ -105,67 +99,69 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
             @for (c of checklist(); track c.code; let i = $index) {
               <li>
                 <span>{{ c.label }}{{ c.required ? ' *' : '' }}</span>
-                <mat-form-field class="app-compact" subscriptSizing="dynamic">
-                  <mat-label>Situação</mat-label>
-                  <mat-select [value]="c.status" (selectionChange)="setStatus(i, $event.value)">
+                <app-field label="Situação">
+                  <select appInput (change)="setStatus(i, $event)">
                     @for (s of statusOptions; track s.value) {
-                      <mat-option [value]="s.value">{{ s.label }}</mat-option>
+                      <option [value]="s.value" [selected]="s.value === c.status">{{ s.label }}</option>
                     }
-                  </mat-select>
-                </mat-form-field>
+                  </select>
+                </app-field>
               </li>
             }
           </ul>
 
           <h3 class="app-section-title">Conclusão</h3>
-          <mat-form-field class="app-full-width">
-            <mat-label>Resultado</mat-label>
-            <mat-select formControlName="viable">
-              <mat-option [value]="true">Viável</mat-option>
-              <mat-option [value]="false">Inviável</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <app-field class="app-full-width" label="Resultado">
+            <select appInput formControlName="viable">
+              <option [ngValue]="true">Viável</option>
+              <option [ngValue]="false">Inviável</option>
+            </select>
+          </app-field>
           @if (form.controls.viable.value) {
-            <mat-form-field class="app-full-width">
-              <mat-label>Vias recomendadas</mat-label>
-              <mat-select formControlName="routes" multiple>
-                @for (rt of r.availableRoutes; track rt) {
-                  <mat-option [value]="rt">{{ routeLabels[rt] }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <fieldset class="mb-3">
+              <legend class="form-label fs-6">Vias recomendadas</legend>
+              @for (rt of r.availableRoutes; track rt) {
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    [id]="'vd-route-' + rt"
+                    [checked]="form.controls.routes.value.includes(rt)"
+                    (change)="toggleRoute(rt, $event)"
+                  />
+                  <label class="form-check-label" [for]="'vd-route-' + rt">{{ routeLabels[rt] }}</label>
+                </div>
+              }
+            </fieldset>
           }
-          <mat-form-field class="app-full-width">
-            <mat-label>Pesquisa patrimonial (opcional)</mat-label>
-            <textarea matInput rows="2" formControlName="assetSearchNotes" maxlength="6000"></textarea>
-          </mat-form-field>
-          <mat-form-field class="app-full-width">
-            <mat-label>Parecer</mat-label>
-            <textarea matInput rows="3" formControlName="opinion" maxlength="8000"></textarea>
-            <mat-hint>Guardado criptografado. Obrigatório para inviabilidade ou custo maior que o benefício.</mat-hint>
-          </mat-form-field>
+          <app-field class="app-full-width" label="Pesquisa patrimonial (opcional)">
+            <textarea appInput rows="2" formControlName="assetSearchNotes" maxlength="6000"></textarea>
+          </app-field>
+          <app-field class="app-full-width" label="Parecer" hint="Guardado criptografado. Obrigatório para inviabilidade ou custo maior que o benefício.">
+            <textarea appInput rows="3" formControlName="opinion" maxlength="8000"></textarea>
+          </app-field>
         }
         @for (p of problems(); track p) {
-          <p class="app-field-error" role="alert">{{ p }}</p>
+          <div class="invalid-feedback d-block" role="alert">{{ p }}</div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving() || !result()">Registrar análise</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving() || !result()">Registrar análise</button>
+      </div>
     </form>
   `,
   styles: `
     .vd-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0 12px;
+      gap: 12px;
     }
     .vd-result {
       margin: 16px 0;
       padding: 12px;
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface-raised);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
     }
     .vd-checklist {
       margin: 0 0 12px;
@@ -183,8 +179,8 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
   `,
 })
 export class ViabilityDialog {
-  protected readonly data = inject<ViabilityDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ViabilityDialog, AssessmentView>>(MatDialogRef);
+  protected readonly data = inject<ViabilityDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<AssessmentView>>(DialogRef);
   private readonly api = inject(LegalMattersApi);
   protected readonly routeLabels = ROUTE_LABELS;
   protected readonly statusOptions = Object.entries(CHECKLIST_STATUS_LABELS).map(([value, label]) => ({ value, label }));
@@ -233,8 +229,20 @@ export class ViabilityDialog {
       });
   }
 
-  protected setStatus(index: number, status: ChecklistEntry['status']): void {
+  protected setStatus(index: number, event: Event): void {
+    const status = (event.target as HTMLSelectElement).value as ChecklistEntry['status'];
     this.checklist.update((list) => list.map((c, i) => (i === index ? { ...c, status } : c)));
+  }
+
+  /** Vias recomendadas em caixas de seleção, na ordem das vias disponíveis. */
+  protected toggleRoute(route: LegalRoute, event: Event): void {
+    const chosen = new Set(this.form.controls.routes.value);
+    if ((event.target as HTMLInputElement).checked) {
+      chosen.add(route);
+    } else {
+      chosen.delete(route);
+    }
+    this.form.controls.routes.setValue((this.result()?.availableRoutes ?? []).filter((r) => chosen.has(r)));
   }
 
   protected routeText(routes: readonly LegalRoute[]): string {

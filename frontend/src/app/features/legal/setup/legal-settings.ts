@@ -1,12 +1,6 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -21,6 +15,8 @@ import { FormDialogService } from '../components/form-dialog';
 import { LegalOperationsApi, LegalSetupApi } from '../data/legal.api';
 import { ADVANCER_LABELS, BUDGET_LABELS, CONDUCT_LABELS, HOLD_LABELS, PRESCRIBED_LABELS } from '../data/legal.labels';
 import { LegalSettings, SuspensionView } from '../data/legal.models';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 
 /** "5, 2, 0" → [5, 2, 0] (0 a 30, sem repetição, do maior para o menor). */
 export function parseAlertLevels(text: string): number[] | null {
@@ -37,105 +33,98 @@ export function parseAlertLevels(text: string): number[] | null {
  */
 @Component({
   selector: 'app-legal-settings',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule, EmptyState, PageHeader, Skeleton, AppDatePipe],
+  imports: [...FORM_FIELD, Icon, ReactiveFormsModule, EmptyState, PageHeader, Skeleton, AppDatePipe],
   template: `
     <app-page-header title="Parâmetros do jurídico" subtitle="Quem conduz, quem adianta custas, orçamento, prescrição, retenção da cobrança e prazos." />
 
     @if (settings.isLoading() && !current()) {
       <app-skeleton variant="card" [rows]="6" />
     } @else if (settings.status() === 'error') {
-      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar os parâmetros.">
-        <button mat-stroked-button type="button" (click)="settings.reload()">Tentar novamente</button>
+      <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar os parâmetros.">
+        <button class="btn btn-outline-primary" type="button" (click)="settings.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else {
       <form class="app-card ls-form" [formGroup]="form" (ngSubmit)="save()" novalidate aria-labelledby="ls-title" data-tour="legal-settings">
         <h2 class="app-card__title" id="ls-title">Operação</h2>
-        <p class="app-alert app-alert--warning" role="note">
-          <mat-icon aria-hidden="true">pending_actions</mat-icon>
+        <div class="alert alert-warning d-flex align-items-start gap-2" role="note">
+          <app-icon name="hourglass-split" />
           <span>Condução, adiantamento de custas e títulos prescritos aguardam a decisão do responsável (issue #14); os padrões são conservadores.</span>
-        </p>
+        </div>
         <div class="ls-grid">
-          <mat-form-field>
-            <mat-label>Quem conduz os casos</mat-label>
-            <mat-select formControlName="conductModel">
+          <app-field label="Quem conduz os casos">
+            <select appInput formControlName="conductModel">
               @for (o of conduct; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                <option [ngValue]="o.value">{{ o.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Quem pode adiantar custas</mat-label>
-            <mat-select formControlName="allowedExpenseAdvancers" multiple>
-              @for (o of advancers; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Orçamento de custas</mat-label>
-            <mat-select formControlName="budgetEnforcement">
+            </select>
+          </app-field>
+          <fieldset>
+            <legend class="form-label fs-6">Quem pode adiantar custas</legend>
+            @for (o of advancers; track o.value) {
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  [id]="'ls-advancer-' + o.value"
+                  [checked]="form.controls.allowedExpenseAdvancers.value.includes(o.value)"
+                  [disabled]="form.disabled"
+                  (change)="toggleAdvancer(o.value, $event)"
+                />
+                <label class="form-check-label" [for]="'ls-advancer-' + o.value">{{ o.label }}</label>
+              </div>
+            }
+          </fieldset>
+          <app-field label="Orçamento de custas">
+            <select appInput formControlName="budgetEnforcement">
               @for (o of budget; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                <option [ngValue]="o.value">{{ o.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Títulos com cobrança prescrita</mat-label>
-            <mat-select formControlName="prescribedTitlePolicy">
+            </select>
+          </app-field>
+          <app-field label="Títulos com cobrança prescrita">
+            <select appInput formControlName="prescribedTitlePolicy">
               @for (o of prescribed; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                <option [ngValue]="o.value">{{ o.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Reter a cobrança amigável</mat-label>
-            <mat-select formControlName="collectionHoldStage">
+            </select>
+          </app-field>
+          <app-field label="Reter a cobrança amigável">
+            <select appInput formControlName="collectionHoldStage">
               @for (o of hold; track o.value) {
-                <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                <option [ngValue]="o.value">{{ o.label }}</option>
               }
-            </mat-select>
-          </mat-form-field>
+            </select>
+          </app-field>
         </div>
 
         <h2 class="app-card__title">Prazos</h2>
         <div class="ls-grid">
-          <mat-form-field>
-            <mat-label>Alertas (dias úteis restantes)</mat-label>
-            <input matInput formControlName="alertLevels" />
-            <mat-hint>Separados por vírgula, de 0 a 30. Padrão: 5, 2, 0.</mat-hint>
-            @if (form.controls.alertLevels.invalid) {
-              <mat-error>Informe até 5 números entre 0 e 30.</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Baixa de restrição após pagamento (dias úteis)</mat-label>
-            <input matInput type="number" min="1" max="30" formControlName="removalDeadlineBusinessDays" />
-            <mat-hint>Protesto e negativação; Súmula 548/STJ: 5 dias úteis.</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Homologação do acordo (dias úteis)</mat-label>
-            <input matInput type="number" min="1" max="60" formControlName="homologationDeadlineBusinessDays" />
-            <mat-hint>Prazo para protocolar o acordo judicial.</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Comunicação prévia à negativação (dias)</mat-label>
-            <input matInput type="number" min="1" max="60" formControlName="creditBureauNoticeDays" />
-            <mat-hint>CDC art. 43 §2º; padrão 10.</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Aviso de prescrição (dias antes)</mat-label>
-            <input matInput type="number" min="1" max="1825" formControlName="prescriptionWarningDays" />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Carência para nova indicação (dias)</mat-label>
-            <input matInput type="number" min="0" max="1825" formControlName="referralCooldownDays" />
-            <mat-hint>Após o encerramento, o caso não é indicado de novo automaticamente.</mat-hint>
-          </mat-form-field>
+          <app-field label="Alertas (dias úteis restantes)" hint="Separados por vírgula, de 0 a 30. Padrão: 5, 2, 0." error="Informe até 5 números entre 0 e 30.">
+            <input appInput formControlName="alertLevels" />
+          </app-field>
+          <app-field label="Baixa de restrição após pagamento (dias úteis)" hint="Protesto e negativação; Súmula 548/STJ: 5 dias úteis.">
+            <input appInput type="number" min="1" max="30" formControlName="removalDeadlineBusinessDays" />
+          </app-field>
+          <app-field label="Homologação do acordo (dias úteis)" hint="Prazo para protocolar o acordo judicial.">
+            <input appInput type="number" min="1" max="60" formControlName="homologationDeadlineBusinessDays" />
+          </app-field>
+          <app-field label="Comunicação prévia à negativação (dias)" hint="CDC art. 43 §2º; padrão 10.">
+            <input appInput type="number" min="1" max="60" formControlName="creditBureauNoticeDays" />
+          </app-field>
+          <app-field label="Aviso de prescrição (dias antes)">
+            <input appInput type="number" min="1" max="1825" formControlName="prescriptionWarningDays" />
+          </app-field>
+          <app-field label="Carência para nova indicação (dias)" hint="Após o encerramento, o caso não é indicado de novo automaticamente.">
+            <input appInput type="number" min="0" max="1825" formControlName="referralCooldownDays" />
+          </app-field>
         </div>
-        <mat-slide-toggle formControlName="yearEndRecess">Recesso forense de 20/12 a 20/01 nos prazos em dias úteis (CPC art. 220)</mat-slide-toggle>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="legals-yearEndRecess" formControlName="yearEndRecess" />
+          <label class="form-check-label" for="legals-yearEndRecess">Recesso forense de 20/12 a 20/01 nos prazos em dias úteis (CPC art. 220)</label>
+        </div>
         @if (canManage()) {
           <div class="app-form-actions">
-            <button mat-flat-button type="submit" [disabled]="saving() || form.pristine">Salvar parâmetros</button>
+            <button class="btn btn-primary" type="submit" [disabled]="saving() || form.pristine">Salvar parâmetros</button>
           </div>
         }
       </form>
@@ -144,7 +133,7 @@ export function parseAlertLevels(text: string): number[] | null {
         <div class="ls-head">
           <h2 class="app-card__title" id="ls-suspensions">Suspensões forenses</h2>
           @if (canManage()) {
-            <button mat-stroked-button type="button" (click)="addSuspension()"><mat-icon aria-hidden="true">add</mat-icon>Nova suspensão</button>
+            <button class="btn btn-outline-primary" type="button" (click)="addSuspension()"><app-icon name="plus-lg" />Nova suspensão</button>
           }
         </div>
         <p class="app-muted">Períodos sem expediente além dos feriados (por tribunal ou para todos). Incluir ou remover recalcula os prazos pendentes.</p>
@@ -155,7 +144,7 @@ export function parseAlertLevels(text: string): number[] | null {
               <span>{{ s.courtCode ? 'Tribunal ' + s.courtCode : 'Todos os tribunais' }}</span>
               <span class="app-muted">{{ s.reason }}</span>
               @if (canManage()) {
-                <button mat-button type="button" (click)="removeSuspension(s)">Remover</button>
+                <button class="btn btn-link" type="button" (click)="removeSuspension(s)">Remover</button>
               }
             </li>
           } @empty {
@@ -192,7 +181,7 @@ export function parseAlertLevels(text: string): number[] | null {
         align-items: center;
         gap: 4px 12px;
         padding: 8px 0;
-        border-bottom: 1px solid var(--app-border);
+        border-bottom: 1px solid var(--bs-border-color);
       }
     }
   `,
@@ -278,6 +267,19 @@ export class LegalSettingsPage {
             this.settings.reload();
           });
       });
+  }
+
+  /** Caixas de seleção de "quem pode adiantar custas", na ordem das opções. */
+  protected toggleAdvancer(value: string, event: Event): void {
+    const control = this.form.controls.allowedExpenseAdvancers;
+    const chosen = new Set(control.value);
+    if ((event.target as HTMLInputElement).checked) {
+      chosen.add(value);
+    } else {
+      chosen.delete(value);
+    }
+    control.setValue(this.advancers.map((o) => o.value).filter((v) => chosen.has(v)));
+    control.markAsDirty();
   }
 
   protected addSuspension(): void {

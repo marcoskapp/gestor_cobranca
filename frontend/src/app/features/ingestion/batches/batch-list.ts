@@ -2,13 +2,6 @@ import { DecimalPipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -30,6 +23,9 @@ import { MODE_LABELS, SOURCE_LABELS, isTerminal, progressText } from '../data/in
 import { BatchFilter, ImportBatchView, ReviewSummaryView } from '../data/ingestion.models';
 import { REVIEW_STEPS } from '../data/review.rules';
 import { Amount } from '../../../shared/components/amount/amount';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { NgbDropdownModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 /** Intervalo de atualização enquanto houver lote em andamento na página. */
 export const POLL_MS = 5000;
@@ -44,13 +40,10 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatMenuModule,
-    MatProgressBarModule,
-    MatSelectModule,
-    MatTooltipModule,
+    NgbDropdownModule,
+    NgbTooltip,
+    ...FORM_FIELD,
+    Icon,
     CellDef,
     DataTable,
     EntityPicker,
@@ -62,21 +55,23 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
   ],
   template: `
     <app-page-header title="Importação de carteiras" subtitle="Arquivos e integrações recebidos dos credores, com prévia, progresso e ocorrências por linha.">
-      <button mat-stroked-button type="button" [matMenuTriggerFor]="templates">
-        <mat-icon aria-hidden="true">download</mat-icon>
-        Modelo do layout padrão
-      </button>
-      <mat-menu #templates="matMenu">
-        <button mat-menu-item type="button" (click)="template('xlsx')">Planilha XLSX</button>
-        <button mat-menu-item type="button" (click)="template('csv')">Arquivo CSV</button>
-      </mat-menu>
-      <a mat-stroked-button routerLink="/importacao/layouts">
-        <mat-icon aria-hidden="true">view_column</mat-icon>
+      <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+        <button class="btn btn-outline-primary" type="button" ngbDropdownToggle>
+          <app-icon name="download" />
+          Modelo do layout padrão
+        </button>
+        <div ngbDropdownMenu class="shadow app-menu">
+          <button ngbDropdownItem type="button" (click)="template('xlsx')">Planilha XLSX</button>
+          <button ngbDropdownItem type="button" (click)="template('csv')">Arquivo CSV</button>
+        </div>
+      </div>
+      <a class="btn btn-outline-primary" routerLink="/importacao/layouts">
+        <app-icon name="layout-three-columns" />
         Layouts
       </a>
       @if (canExecute()) {
-        <a mat-flat-button routerLink="/importacao/nova" [queryParams]="newParams()">
-          <mat-icon aria-hidden="true">upload_file</mat-icon>
+        <a class="btn btn-primary" routerLink="/importacao/nova" [queryParams]="newParams()">
+          <app-icon name="file-earmark-arrow-up" />
           Nova importação
         </a>
       }
@@ -107,24 +102,22 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.portfolio" [source]="portfolioSource" label="Carteira" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Origem</mat-label>
-        <mat-select formControlName="source">
-          <mat-option value="">Todas</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Origem">
+        <select appInput formControlName="source">
+          <option value="">Todas</option>
           @for (s of sources; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
 
     <app-data-table
@@ -136,7 +129,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="upload_file"
+      emptyIcon="file-earmark-arrow-up"
       emptyMessage="Nenhum lote encontrado."
       emptyHint="Baixe o modelo do layout padrão, preencha com os títulos do credor e envie primeiro em prévia."
     >
@@ -153,7 +146,9 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
         <app-status-chip domain="importBatch" [status]="b.status" />
         @if (!terminal(b)) {
           @if (b.status !== 'AWAITING_FORMAT') {
-            <mat-progress-bar class="bl-progress" [mode]="b.progressPercent === null ? 'indeterminate' : 'determinate'" [value]="b.progressPercent ?? 0" [attr.aria-label]="progress(b)" />
+            <div class="progress bl-progress" role="progressbar" [attr.aria-label]="progress(b)" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="b.progressPercent">
+              <div class="progress-bar" [class.progress-bar-striped]="b.progressPercent === null" [class.progress-bar-animated]="b.progressPercent === null" [style.width.%]="b.progressPercent ?? 100"></div>
+            </div>
           }
           <div class="app-muted">{{ progress(b) }}</div>
         }
@@ -165,8 +160,8 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
         }
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-b>
-        <a mat-icon-button [routerLink]="['/importacao', b.id]" aria-label="Abrir lote" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/importacao', b.id]" aria-label="Abrir lote" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -195,7 +190,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
     }
     .bl-error {
       font-size: var(--app-text-xs);
-      color: var(--app-danger-fg);
+      color: var(--bs-danger-text-emphasis);
     }
   `,
 })

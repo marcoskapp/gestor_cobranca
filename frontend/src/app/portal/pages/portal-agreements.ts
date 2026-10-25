@@ -1,7 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { tap } from 'rxjs';
 import { Amount } from '../../shared/components/amount/amount';
@@ -9,27 +7,28 @@ import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { PortalApi, portalMessage } from '../data/portal.api';
 import { AGREEMENT_LABELS } from '../data/portal.labels';
 import { PortalFlow } from '../data/portal-flow';
+import { Icon } from '../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-portal-agreements',
-  imports: [RouterLink, MatButtonModule, MatIconModule, Amount, AppDatePipe],
+  imports: [Icon, RouterLink, Amount, AppDatePipe],
   template: `
     <h1 class="portal-title">Meus acordos</h1>
     @if (list.isLoading() && !list.value()) {
       <p class="portal-loading" role="status" aria-live="polite">Carregando…</p>
     } @else if (list.error()) {
-      <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ errorText() }}</span></p>
+      <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
     } @else if ((list.value() ?? []).length === 0) {
       <section class="portal-card portal-center">
         <p>Você ainda não tem acordos.</p>
-        <div class="portal-actions"><a mat-flat-button [routerLink]="['/portal', slug(), 'dividas']">Ver minhas dívidas</a></div>
+        <div class="portal-actions"><a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug(), 'dividas']">Ver minhas dívidas</a></div>
       </section>
     } @else {
       @for (a of list.value()!; track a.id) {
         <a class="portal-card portal-agreement" [routerLink]="['/portal', slug(), 'acordos', a.id]">
           <span class="portal-agreement__head">
             <strong>{{ labels[a.status] ?? a.status }}</strong>
-            <mat-icon aria-hidden="true">chevron_right</mat-icon>
+            <app-icon name="chevron-right" />
           </span>
           <span>Total <app-amount [value]="a.totalAmount" /> em {{ a.installments }} {{ a.installments === 1 ? 'pagamento' : 'parcelas' }}</span>
           <span class="portal-label">Pago até agora: <app-amount [value]="a.paidAmount" /></span>

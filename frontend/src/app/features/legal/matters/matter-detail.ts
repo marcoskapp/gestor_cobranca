@@ -1,11 +1,5 @@
 import { Component, computed, effect, inject, input, linkedSignal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { catchError, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -59,6 +53,9 @@ import { AuthorizationView, DeadlineView, DocumentView, ExpenseView, LegalStage,
 import { budgetUsage, cnjValid, deadlineText, deadlineTone, isFinalStage } from '../data/legal.rules';
 import { LawsuitCard } from './lawsuit-card';
 import { ViabilityDialog, ViabilityDialogData } from './viability-dialog';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbDropdownModule, NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Abas da ficha (o parâmetro `?aba=` abre direto na aba). */
 export const MATTER_TABS = ['resumo', 'viabilidade', 'autorizacao', 'medidas', 'processos', 'prazos', 'custas', 'documentos'] as const;
@@ -74,11 +71,10 @@ const routeOptions = (only?: readonly string[]) => options(ROUTE_LABELS, only);
   selector: 'app-matter-detail',
   imports: [
     RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatMenuModule,
-    MatTabsModule,
-    MatTooltipModule,
+    NgbDropdownModule,
+    NgbNavModule,
+    NgbTooltip,
+    Icon,
     Amount,
     DocumentDisplay,
     EmptyState,
@@ -101,7 +97,7 @@ export class MatterDetail {
   private readonly auth = inject(AuthService);
   private readonly forms = inject(FormDialogService);
   private readonly confirm = inject(ConfirmService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
   private readonly userLookup = inject(UserLookup);
@@ -284,7 +280,7 @@ export class MatterDetail {
   protected recordViability(): void {
     const s = this.sheet()!;
     this.dialog
-      .open<ViabilityDialog, ViabilityDialogData>(ViabilityDialog, { data: { matterId: s.matter.id, previous: s.viability }, width: '720px' })
+      .open<ViabilityDialog, ViabilityDialogData>(ViabilityDialog, { data: { matterId: s.matter.id, previous: s.viability }, size: 'lg' })
       .afterClosed()
       .subscribe((saved) => saved && this.reload('Análise de viabilidade registrada.'));
   }

@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ReviewView } from '../data/ingestion.models';
 import { FormatStep } from './format-step';
@@ -13,7 +13,7 @@ describe('FormatStep', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [FormatStep],
-      providers: [provideLocale(), provideHttpClient(), provideHttpClientTesting(), { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }],
+      providers: [provideAppLocale(), provideHttpClient(), provideHttpClientTesting(), { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }],
     });
     http = TestBed.inject(HttpTestingController);
   });

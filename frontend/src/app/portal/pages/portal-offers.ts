@@ -1,9 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { tap } from 'rxjs';
 import { Amount, formatAmount } from '../../shared/components/amount/amount';
@@ -12,6 +9,7 @@ import { PortalPix } from '../components/portal-pix';
 import { PortalApi, portalMessage } from '../data/portal.api';
 import { AcceptanceResult, OfferSummary, OffersView, PixView } from '../data/portal.models';
 import { PortalFlow } from '../data/portal-flow';
+import { Icon } from '../../shared/components/icon/icon';
 
 type Step = 'choose' | 'review' | 'done';
 
@@ -21,13 +19,13 @@ type Step = 'choose' | 'review' | 'done';
  */
 @Component({
   selector: 'app-portal-offers',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatIconModule, Amount, AppDatePipe, PortalPix],
+  imports: [Icon, FormsModule, RouterLink, Amount, AppDatePipe, PortalPix],
   template: `
-    <a mat-button [routerLink]="['/portal', slug(), 'dividas']"><mat-icon aria-hidden="true">arrow_back</mat-icon>Minhas dívidas</a>
+    <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'dividas']"><app-icon name="arrow-left" />Minhas dívidas</a>
 
     @if (step() === 'done' && result(); as r) {
       <section class="portal-card portal-center" aria-labelledby="ok-titulo">
-        <mat-icon class="portal-big-icon" aria-hidden="true">verified</mat-icon>
+        <app-icon class="portal-big-icon" name="patch-check" />
         <h1 class="portal-title" id="ok-titulo" tabindex="-1">Acordo fechado!</h1>
         <p>Pague a {{ r.agreement.installments.length > 1 ? '1ª parcela' : 'parcela única' }} até
           {{ r.agreement.installments[0].dueDate | appDate: 'date' }} para confirmar o acordo.</p>
@@ -36,37 +34,37 @@ type Step = 'choose' | 'review' | 'done';
         @if (pix(); as p) {
           <app-portal-pix [pix]="p" (refresh)="refreshPix(r)" />
         } @else {
-          <p class="portal-note" role="status"><mat-icon aria-hidden="true">info</mat-icon>
+          <p class="alert alert-info d-flex align-items-start gap-2" role="status"><app-icon name="info-circle" />
             <span>O Pix ainda não está pronto. Gere o código em "Meus acordos".</span></p>
         }
         <div class="portal-actions">
-          <a mat-stroked-button [routerLink]="['/portal', slug(), 'acordos', r.agreement.id]">Ver meu acordo</a>
+          <a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'acordos', r.agreement.id]">Ver meu acordo</a>
         </div>
       </section>
     } @else if (offers.isLoading() && !offers.value()) {
       <p class="portal-loading" role="status" aria-live="polite">Calculando as condições…</p>
     } @else if (offers.error()) {
-      <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ errorText() }}</span></p>
-      <div class="portal-actions"><a mat-stroked-button [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
+      <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ errorText() }}</span></p>
+      <div class="portal-actions"><a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
     } @else if (offers.value(); as o) {
       @if (step() === 'choose') {
         <h1 class="portal-title">Escolha como pagar</h1>
         <p class="portal-subtitle">Valor atualizado hoje: <strong><app-amount [value]="o.updatedAmount" /></strong></p>
         @if (o.offers.length === 0) {
-          <p class="portal-note" role="note"><mat-icon aria-hidden="true">info</mat-icon>
+          <p class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" />
             <span>Não há condições disponíveis pelo portal para esta dívida. Um atendente pode ajudar.</span></p>
-          <div class="portal-actions"><a mat-flat-button [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
+          <div class="portal-actions"><a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
         } @else {
           <fieldset class="portal-options">
-            <legend class="cdk-visually-hidden">Condições disponíveis</legend>
+            <legend class="visually-hidden">Condições disponíveis</legend>
             @for (offer of o.offers; track offer.installments) {
               <label class="portal-option" [class.portal-option--selected]="selected() === offer">
-                <input type="radio" name="oferta" class="cdk-visually-hidden" [checked]="selected() === offer" (change)="selected.set(offer)" />
+                <input type="radio" name="oferta" class="visually-hidden" [checked]="selected() === offer" (change)="selected.set(offer)" />
                 <span class="offer">
                   <span class="offer__title">{{ title(offer) }}</span>
                   <span class="offer__total">Total <app-amount [value]="offer.total" /></span>
                   @if (toNumber(offer.discount) > 0) {
-                    <span class="portal-badge">Desconto de <app-amount [value]="offer.discount" /> ({{ percent(offer.discountPercent) }})</span>
+                    <span class="badge rounded-pill bg-success-subtle text-success-emphasis align-self-start">Desconto de <app-amount [value]="offer.discount" /> ({{ percent(offer.discountPercent) }})</span>
                   }
                   <span class="portal-label">{{ offer.installments === 1 ? 'Pagamento' : '1ª parcela' }} em {{ offer.firstDueDate | appDate: 'date' }}</span>
                 </span>
@@ -75,8 +73,8 @@ type Step = 'choose' | 'review' | 'done';
           </fieldset>
           <p class="portal-label">Prefere outro número de parcelas (até {{ o.maxInstallments }})? Escolha acima; as que aparecem são as disponíveis.</p>
           <div class="portal-actions">
-            <a mat-button [routerLink]="['/portal', slug(), 'atendimento']">Nenhuma condição cabe no meu orçamento</a>
-            <button mat-flat-button type="button" [disabled]="!selected()" (click)="review()">Continuar</button>
+            <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'atendimento']">Nenhuma condição cabe no meu orçamento</a>
+            <button class="btn btn-primary portal-btn" type="button" [disabled]="!selected()" (click)="review()">Continuar</button>
           </div>
         }
       } @else if (selected(); as offer) {
@@ -97,19 +95,22 @@ type Step = 'choose' | 'review' | 'done';
                 <app-amount [value]="s.amount" /></li>
             }
           </ul>
-          <p class="portal-note" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>
+          <p class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" /><span>
             @if (o.breakOverdueInstallments) {
               Se {{ o.breakOverdueInstallments }} {{ o.breakOverdueInstallments === 1 ? 'parcela ficar' : 'parcelas ficarem' }} sem pagamento
               por mais de {{ o.breakToleranceDays }} dias, o acordo é desfeito e o desconto deixa de valer.
             } Ao confirmar, geramos o termo do acordo, que fica disponível para baixar.
           </span></p>
-          <mat-checkbox [(ngModel)]="agreed">Li as condições e aceito fechar este acordo</mat-checkbox>
+          <div class="form-check portal-radio">
+            <input class="form-check-input portal-check" type="checkbox" id="portal-agree" [(ngModel)]="agreed" />
+            <label class="form-check-label" for="portal-agree">Li as condições e aceito fechar este acordo</label>
+          </div>
           @if (error()) {
-            <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon><span>{{ error() }}</span></p>
+            <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></p>
           }
           <div class="portal-actions">
-            <button mat-button type="button" (click)="step.set('choose')">Voltar</button>
-            <button mat-flat-button type="button" [disabled]="!agreed || busy()" (click)="accept(o, offer)">
+            <button class="btn btn-link portal-btn-link" type="button" (click)="step.set('choose')">Voltar</button>
+            <button class="btn btn-primary portal-btn" type="button" [disabled]="!agreed || busy()" (click)="accept(o, offer)">
               {{ busy() ? 'Fechando o acordo…' : 'Fechar acordo de ' + total(offer) }}
             </button>
           </div>
@@ -121,7 +122,7 @@ type Step = 'choose' | 'review' | 'done';
     .portal-options { margin: 0; padding: 0; border: 0; }
     .offer { display: flex; flex-direction: column; gap: 4px; }
     .offer__title { font-size: 18px; font-weight: 600; }
-    .offer__total { color: var(--mat-sys-on-surface-variant); }
+    .offer__total { color: var(--bs-secondary-color); }
     .portal-option:focus-within { outline: var(--app-focus-ring); outline-offset: 2px; }
     .portal-card-title { margin: 16px 0 4px; font-size: 16px; font-weight: 600; }
   `,

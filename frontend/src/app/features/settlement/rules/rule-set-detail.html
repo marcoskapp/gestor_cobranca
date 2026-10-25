@@ -5,42 +5,42 @@
   </div>
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="percent" tone="error" title="Não foi possível abrir a versão." message="A versão pode não existir ou o credor estar fora do seu escopo.">
-    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a mat-button routerLink="/prestacao-de-contas/regras">Voltar para regras</a>
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a class="btn btn-link" routerLink="/prestacao-de-contas/regras">Voltar para regras</a>
   </app-empty-state>
 }
 
 @if (current(); as p) {
   <app-page-header [title]="'Regras de comissão · v' + p.ruleVersion" [subtitle]="creditors.name(p.creditorId) + (contract() ? ' · contrato ' + contract()!.number : '')">
-    <a mat-button routerLink="/prestacao-de-contas/regras">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link" routerLink="/prestacao-de-contas/regras">
+      <app-icon name="arrow-left" />
       Regras
     </a>
     @if (canManage()) {
       @if (p.status === 'DRAFT') {
         @if (dirty()) {
-          <button mat-stroked-button type="button" (click)="discardChanges()">Descartar alterações</button>
-          <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">
-            <mat-icon aria-hidden="true">save</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="discardChanges()">Descartar alterações</button>
+          <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
+            <app-icon name="floppy" />
             Salvar rascunho
           </button>
         } @else {
-          <button mat-stroked-button type="button" (click)="discardDraft()">Descartar rascunho</button>
-          <button
-            mat-flat-button
+          <button class="btn btn-outline-primary" type="button" (click)="discardDraft()">Descartar rascunho</button>
+          <button class="btn btn-primary"
+           
             type="button"
             (click)="publish()"
             [disabled]="problems().length > 0 || ownEdit()"
-            [matTooltip]="ownEdit() ? 'Você editou por último: outra pessoa publica' : 'Publicar com início de vigência'"
+            [ngbTooltip]="ownEdit() ? 'Você editou por último: outra pessoa publica' : 'Publicar com início de vigência'"
             data-tour="rules-publish"
           >
-            <mat-icon aria-hidden="true">publish</mat-icon>
+            <app-icon name="upload" />
             Publicar
           </button>
         }
       } @else if (p.status === 'PUBLISHED') {
-        <button mat-flat-button type="button" (click)="newVersion()" [disabled]="hasDraft()" [matTooltip]="hasDraft() ? 'Já existe um rascunho para este contrato' : 'Copia estas regras para um novo rascunho'">
-          <mat-icon aria-hidden="true">content_copy</mat-icon>
+        <button class="btn btn-primary" type="button" (click)="newVersion()" [disabled]="hasDraft()" [ngbTooltip]="hasDraft() ? 'Já existe um rascunho para este contrato' : 'Copia estas regras para um novo rascunho'">
+          <app-icon name="copy" />
           Nova versão
         </button>
       }
@@ -55,30 +55,30 @@
       <span class="app-muted">· publicado por {{ userName(p.publishedBy) }} em {{ p.publishedAt | appDate }}</span>
     }
     @if (dirty()) {
-      <span class="app-status app-status--warning"><mat-icon class="app-status__icon" aria-hidden="true">edit</mat-icon>Alterações não salvas</span>
+      <span class="app-status app-status--warning"><app-icon class="app-status__icon" name="pencil" />Alterações não salvas</span>
     }
   </div>
 
   @if (actionError()) {
-    <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ actionError() }}</span></p>
+    <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ actionError() }}</span></div>
   }
   @if (ownEdit() && !dirty()) {
-    <p class="app-alert app-alert--info" role="note" data-tour="rules-own">
-      <mat-icon aria-hidden="true">group</mat-icon>
+    <div class="alert alert-info d-flex align-items-start gap-2" role="note" data-tour="rules-own">
+      <app-icon name="people" />
       <span>Você editou estas regras por último. Para evitar erro ou fraude na transcrição do contrato, a <strong>publicação precisa ser feita por outra pessoa</strong> com permissão de gestão de comissão — o sistema recusa inclusive para administradores.</span>
-    </p>
+    </div>
   } @else if (p.status === 'DRAFT' && canManage() && !dirty() && !problems().length) {
-    <p class="app-alert app-alert--neutral" role="note">
-      <mat-icon aria-hidden="true">fact_check</mat-icon>
+    <div class="alert alert-secondary d-flex align-items-start gap-2" role="note">
+      <app-icon name="card-checklist" />
       <span>Confira as regras com o contrato assinado antes de publicar. Editado por {{ userName(p.rulesEditedBy) }}.</span>
-    </p>
+    </div>
   }
 
   <div class="st-grid">
     <div class="st-main">
       @if (problems().length && editable()) {
-        <section class="app-alert app-alert--error" role="alert" aria-label="Problemas nas regras">
-          <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <section class="alert alert-danger d-flex align-items-start gap-2" role="alert" aria-label="Problemas nas regras">
+          <app-icon name="exclamation-circle" />
           <div>
             <strong>{{ problems().length }} problema(s) a corrigir antes de salvar e publicar:</strong>
             <ul>
@@ -94,42 +94,51 @@
         <section class="app-card" aria-labelledby="rs-base" data-tour="rules-base">
           <h2 class="app-card__title" id="rs-base">Regras gerais</h2>
           <div class="app-form-grid">
-            <mat-form-field>
-              <mat-label>Percentual padrão (%)</mat-label>
-              <input matInput inputmode="decimal" [ngModel]="rateText(d.defaultRate)" (ngModelChange)="setNumber('defaultRate', $event)" [readonly]="!editable()" />
-              <mat-hint>Quando nenhuma regra específica casa</mat-hint>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Valor fixo por acordo (R$)</mat-label>
-              <input matInput inputmode="decimal" [ngModel]="feeText(d.fixedFeePerAgreement)" (ngModelChange)="setFixedFee($event)" [readonly]="!editable()" placeholder="sem valor fixo" />
-              <mat-hint>Devido no primeiro recebimento de cada acordo</mat-hint>
-            </mat-form-field>
+            <app-field label="Percentual padrão (%)" hint="Quando nenhuma regra específica casa">
+              <input appInput inputmode="decimal" [ngModel]="rateText(d.defaultRate)" (ngModelChange)="setNumber('defaultRate', $event)" [readonly]="!editable()" />
+            </app-field>
+            <app-field label="Valor fixo por acordo (R$)" hint="Devido no primeiro recebimento de cada acordo">
+              <input appInput inputmode="decimal" [ngModel]="feeText(d.fixedFeePerAgreement)" (ngModelChange)="setFixedFee($event)" [readonly]="!editable()" placeholder="sem valor fixo" />
+            </app-field>
             <div class="app-span-all">
               <p class="app-section-title" id="rs-honorarium">Honorários cobrados do devedor</p>
-              <mat-button-toggle-group [value]="d.honorarium.ownership" (change)="setOwnership($event.value)" [disabled]="!editable()" aria-labelledby="rs-honorarium">
+              <div class="btn-group flex-wrap" role="group" aria-labelledby="rs-honorarium">
                 @for (o of ownerships; track o[0]) {
-                  <mat-button-toggle [value]="o[0]">{{ o[1] }}</mat-button-toggle>
+                  <input
+                    type="radio"
+                    class="btn-check"
+                    name="rs-ownership"
+                    [id]="'rs-ownership-' + o[0]"
+                    [checked]="d.honorarium.ownership === o[0]"
+                    [disabled]="!editable()"
+                    (change)="setOwnership(o[0])"
+                  />
+                  <label class="btn btn-outline-primary" [for]="'rs-ownership-' + o[0]">{{ o[1] }}</label>
                 }
-              </mat-button-toggle-group>
+              </div>
             </div>
             @if (d.honorarium.ownership === 'AGENCY') {
-              <mat-form-field>
-                <mat-label>Fração da assessoria (%)</mat-label>
-                <input matInput inputmode="decimal" [ngModel]="rateText(d.honorarium.agencySharePercent)" (ngModelChange)="setShare($event)" [readonly]="!editable()" />
-                <mat-hint>O restante é repassado ao credor</mat-hint>
-              </mat-form-field>
+              <app-field label="Fração da assessoria (%)" hint="O restante é repassado ao credor">
+                <input appInput inputmode="decimal" [ngModel]="rateText(d.honorarium.agencySharePercent)" (ngModelChange)="setShare($event)" [readonly]="!editable()" />
+              </app-field>
             }
             <div class="app-span-all">
-              <mat-checkbox [ngModel]="d.reconciliationRequired" (ngModelChange)="setReconciliation($event)" [disabled]="!editable()">
-                Exigir conciliação com o extrato para o que entrou na conta da assessoria
-              </mat-checkbox>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="rs-reconciliation"
+                  [ngModel]="d.reconciliationRequired"
+                  (ngModelChange)="setReconciliation($event)"
+                  [disabled]="!editable()"
+                />
+                <label class="form-check-label" for="rs-reconciliation">Exigir conciliação com o extrato para o que entrou na conta da assessoria</label>
+              </div>
               <p class="app-muted st-small">O que foi pago direto ao credor entra sem conciliação.</p>
             </div>
-            <mat-form-field class="app-span-all">
-              <mat-label>Observações</mat-label>
-              <textarea matInput rows="2" maxlength="2000" [ngModel]="notes()" (ngModelChange)="notes.set($event); edited()" [readonly]="!editable()"></textarea>
-              <mat-hint>Ex.: cláusula do contrato transcrita</mat-hint>
-            </mat-form-field>
+            <app-field class="app-span-all" label="Observações" hint="Ex.: cláusula do contrato transcrita">
+              <textarea appInput rows="2" maxlength="2000" [ngModel]="notes()" (ngModelChange)="notes.set($event); edited()" [readonly]="!editable()"></textarea>
+            </app-field>
           </div>
         </section>
 
@@ -137,8 +146,8 @@
           <div class="st-head">
             <h2 class="app-card__title" id="rs-rules">Regras específicas ({{ d.rateRules.length }})</h2>
             @if (editable()) {
-              <button mat-stroked-button type="button" (click)="editRule(null)">
-                <mat-icon aria-hidden="true">add</mat-icon>
+              <button class="btn btn-outline-primary" type="button" (click)="editRule(null)">
+                <app-icon name="plus-lg" />
                 Regra
               </button>
             }
@@ -154,7 +163,7 @@
                     <th scope="col" class="st-end">Prioridade</th>
                     <th scope="col" class="st-end">Percentual</th>
                     @if (editable()) {
-                      <th scope="col"><span class="cdk-visually-hidden">Ações</span></th>
+                      <th scope="col"><span class="visually-hidden">Ações</span></th>
                     }
                   </tr>
                 </thead>
@@ -172,8 +181,8 @@
                       <td class="st-end app-numeric">{{ rateText(r.rate) }}%</td>
                       @if (editable()) {
                         <td class="st-end">
-                          <button mat-icon-button type="button" (click)="editRule(r)" [attr.aria-label]="'Editar regra ' + r.code" matTooltip="Editar"><mat-icon aria-hidden="true">edit</mat-icon></button>
-                          <button mat-icon-button type="button" (click)="removeRule(r)" [attr.aria-label]="'Remover regra ' + r.code" matTooltip="Remover"><mat-icon aria-hidden="true">delete</mat-icon></button>
+                          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="editRule(r)" [attr.aria-label]="'Editar regra ' + r.code" ngbTooltip="Editar"><app-icon name="pencil" /></button>
+                          <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="removeRule(r)" [attr.aria-label]="'Remover regra ' + r.code" ngbTooltip="Remover"><app-icon name="trash3" /></button>
                         </td>
                       }
                     </tr>
@@ -182,7 +191,7 @@
               </table>
             </div>
           } @else {
-            <app-empty-state icon="rule" title="Sem regras específicas." message="Todo recebimento usa o percentual padrão." [compact]="true" />
+            <app-empty-state icon="list-check" title="Sem regras específicas." message="Todo recebimento usa o percentual padrão." [compact]="true" />
           }
         </section>
 
@@ -190,56 +199,56 @@
           <h2 class="app-card__title" id="rs-sim">Simular um recebimento</h2>
           <p class="app-muted st-small">Nada é gravado. {{ dirty() ? 'Usa as regras em edição (não salvas).' : 'Usa as regras desta versão.' }}</p>
           <div class="app-form-grid">
-            <mat-form-field>
-              <mat-label>Valor recebido (R$)</mat-label>
-              <input matInput inputmode="decimal" [ngModel]="sim.amount()" (ngModelChange)="sim.amount.set($event)" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Honorários cobrados (R$)</mat-label>
-              <input matInput inputmode="decimal" [ngModel]="sim.honorarium()" (ngModelChange)="sim.honorarium.set($event)" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Dias de atraso</mat-label>
-              <input matInput type="number" min="0" [ngModel]="sim.daysPastDue()" (ngModelChange)="sim.daysPastDue.set($event)" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Forma de pagamento</mat-label>
-              <mat-select [ngModel]="sim.paymentType()" (ngModelChange)="sim.paymentType.set($event)">
+            <app-field label="Valor recebido (R$)">
+              <input appInput inputmode="decimal" [ngModel]="sim.amount()" (ngModelChange)="sim.amount.set($event)" />
+            </app-field>
+            <app-field label="Honorários cobrados (R$)">
+              <input appInput inputmode="decimal" [ngModel]="sim.honorarium()" (ngModelChange)="sim.honorarium.set($event)" />
+            </app-field>
+            <app-field label="Dias de atraso">
+              <input appInput type="number" min="0" [ngModel]="sim.daysPastDue()" (ngModelChange)="sim.daysPastDue.set($event)" />
+            </app-field>
+            <app-field label="Forma de pagamento">
+              <select appInput [ngModel]="sim.paymentType()" (ngModelChange)="sim.paymentType.set($event)">
                 @for (t of paymentTypes; track t[0]) {
-                  <mat-option [value]="t[0]">{{ t[1] }}</mat-option>
+                  <option [ngValue]="t[0]">{{ t[1] }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Quem recebeu</mat-label>
-              <mat-select [ngModel]="sim.receivedBy()" (ngModelChange)="sim.receivedBy.set($event)">
+              </select>
+            </app-field>
+            <app-field label="Quem recebeu">
+              <select appInput [ngModel]="sim.receivedBy()" (ngModelChange)="sim.receivedBy.set($event)">
                 @for (r of receivers; track r[0]) {
-                  <mat-option [value]="r[0]">{{ r[1] }}</mat-option>
+                  <option [ngValue]="r[0]">{{ r[1] }}</option>
                 }
-              </mat-select>
-            </mat-form-field>
+              </select>
+            </app-field>
             @if (simPortfolios().length) {
-              <mat-form-field>
-                <mat-label>Carteira</mat-label>
-                <mat-select [ngModel]="sim.portfolioId()" (ngModelChange)="sim.portfolioId.set($event)">
-                  <mat-option value="">Outra carteira</mat-option>
+              <app-field label="Carteira">
+                <select appInput [ngModel]="sim.portfolioId()" (ngModelChange)="sim.portfolioId.set($event)">
+                  <option value="">Outra carteira</option>
                   @for (id of simPortfolios(); track id) {
-                    <mat-option [value]="id">{{ portfolios.name(id) }}</mat-option>
+                    <option [ngValue]="id">{{ portfolios.name(id) }}</option>
                   }
-                </mat-select>
-              </mat-form-field>
+                </select>
+              </app-field>
             }
             <div class="st-row app-span-all">
-              <mat-checkbox [ngModel]="sim.renegotiation()" (ngModelChange)="sim.renegotiation.set($event)">Renegociação</mat-checkbox>
-              <mat-checkbox [ngModel]="sim.first()" (ngModelChange)="sim.first.set($event)">Primeiro recebimento do acordo</mat-checkbox>
-              <button mat-stroked-button type="button" (click)="simulate()" [disabled]="simulating()">
-                <mat-icon aria-hidden="true">calculate</mat-icon>
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="rs-sim-renegotiation" [ngModel]="sim.renegotiation()" (ngModelChange)="sim.renegotiation.set($event)" />
+                <label class="form-check-label" for="rs-sim-renegotiation">Renegociação</label>
+              </div>
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="rs-sim-first" [ngModel]="sim.first()" (ngModelChange)="sim.first.set($event)" />
+                <label class="form-check-label" for="rs-sim-first">Primeiro recebimento do acordo</label>
+              </div>
+              <button class="btn btn-outline-primary" type="button" (click)="simulate()" [disabled]="simulating()">
+                <app-icon name="calculator" />
                 Simular
               </button>
             </div>
           </div>
           @if (simulationError()) {
-            <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ simulationError() }}</span></p>
+            <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ simulationError() }}</span></div>
           }
           @if (simulation(); as calc) {
             <div aria-live="polite">

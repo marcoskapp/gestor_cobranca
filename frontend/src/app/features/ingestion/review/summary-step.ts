@@ -1,10 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -15,6 +11,8 @@ import { Limits } from '../../../shared/validation/validators';
 import { ImportReviewsApi } from '../data/ingestion.api';
 import { ImpactView, ReviewView } from '../data/ingestion.models';
 import { BLOCKER_STEPS, COLUMN_LABELS, OPTION_LABELS, REVIEW_ERROR_LABELS } from '../data/review.rules';
+import { Icon } from '../../../shared/components/icon/icon';
+import { FORM_FIELD } from '../../../shared/forms/field';
 
 /** Linhas do resumo de impacto mostradas na confirmação. */
 export function impactDetails(impact: ImpactView): { label: string; value: string }[] {
@@ -42,7 +40,7 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
  */
 @Component({
   selector: 'app-summary-step',
-  imports: [DecimalPipe, FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, Amount, AppDatePipe],
+  imports: [...FORM_FIELD, Icon, DecimalPipe, FormsModule, RouterLink, Amount, AppDatePipe],
   template: `
     @let r = review();
     @if (r.impact; as impact) {
@@ -101,10 +99,10 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
           <ul class="ss-blockers">
             @for (b of r.blockers; track b.code) {
               <li>
-                <mat-icon aria-hidden="true">error</mat-icon>
+                <app-icon name="exclamation-circle" />
                 <span>{{ b.message }}</span>
                 @if (stepOf(b.code); as step) {
-                  <button mat-button type="button" (click)="goTo.emit(step)">Ir ao passo {{ step }}</button>
+                  <button class="btn btn-link" type="button" (click)="goTo.emit(step)">Ir ao passo {{ step }}</button>
                 }
               </li>
             }
@@ -114,27 +112,26 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
         <section class="app-card" aria-labelledby="ss-commit">
           <h3 class="ss-title" id="ss-commit">Importar</h3>
           @if (r.impact?.approvalRequired) {
-            <p class="app-alert app-alert--info" role="note">
-              <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+            <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+              <app-icon name="person-check" />
               <span>A soma passa de <app-amount [value]="r.impact!.approvalThreshold" />: depois de confirmar, outra pessoa com permissão de aprovação precisa aprovar.</span>
-            </p>
+            </div>
           }
           @if (r.impact?.duplicateFile) {
-            <p class="app-alert app-alert--warning" role="note">
-              <mat-icon aria-hidden="true">content_copy</mat-icon>
+            <div class="alert alert-warning d-flex align-items-start gap-2" role="note">
+              <app-icon name="copy" />
               <span>Este arquivo já foi importado com sucesso nesta carteira. Reimportar não duplica títulos, mas exige o motivo (auditado).</span>
-            </p>
-            <mat-form-field class="app-full-width">
-              <mat-label>Motivo da reimportação</mat-label>
-              <textarea matInput rows="2" [ngModel]="forceReason()" (ngModelChange)="forceReason.set($event)" [maxlength]="maxReason"></textarea>
-            </mat-form-field>
+            </div>
+            <app-field class="app-full-width" label="Motivo da reimportação">
+              <textarea appInput rows="2" [ngModel]="forceReason()" (ngModelChange)="forceReason.set($event)" [maxlength]="maxReason"></textarea>
+            </app-field>
           }
           @if (error()) {
-            <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+            <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
           }
           <div class="ss-actions">
-            <button mat-flat-button type="button" (click)="commit()" [disabled]="sending() || (r.impact?.duplicateFile && !forceReason().trim())" data-tour="review-commit">
-              <mat-icon aria-hidden="true">publish</mat-icon>
+            <button class="btn btn-primary" type="button" (click)="commit()" [disabled]="sending() || (r.impact?.duplicateFile && !forceReason().trim())" data-tour="review-commit">
+              <app-icon name="upload" />
               {{ r.impact?.approvalRequired ? 'Pedir aprovação e importar' : 'Importar' }}
             </button>
           </div>
@@ -149,24 +146,24 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
         </p>
         @if (r.canApprove) {
           @if (error()) {
-            <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+            <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
           }
           <div class="ss-actions">
-            <button mat-stroked-button type="button" (click)="reject()" [disabled]="sending()"><mat-icon aria-hidden="true">block</mat-icon>Recusar</button>
-            <button mat-flat-button type="button" (click)="approve()" [disabled]="sending()"><mat-icon aria-hidden="true">verified</mat-icon>Aprovar e importar</button>
+            <button class="btn btn-outline-primary" type="button" (click)="reject()" [disabled]="sending()"><app-icon name="slash-circle" />Recusar</button>
+            <button class="btn btn-primary" type="button" (click)="approve()" [disabled]="sending()"><app-icon name="patch-check" />Aprovar e importar</button>
           </div>
         }
       </section>
     } @else if (r.status === 'COMMITTED') {
-      <p class="app-alert app-alert--success" role="status">
-        <mat-icon aria-hidden="true">task_alt</mat-icon>
+      <div class="alert alert-success d-flex align-items-start gap-2" role="status">
+        <app-icon name="check2-circle" />
         <span>Importação criada{{ r.commit.decidedAt ? ' com aprovação em ' + (r.commit.decidedAt | appDate) : '' }}. Acompanhe o processamento no lote.</span>
-      </p>
-      <a mat-flat-button [routerLink]="['/importacao', r.commit.importBatchId]"><mat-icon aria-hidden="true">open_in_new</mat-icon>Abrir a importação</a>
+      </div>
+      <a class="btn btn-primary" [routerLink]="['/importacao', r.commit.importBatchId]"><app-icon name="box-arrow-up-right" />Abrir a importação</a>
     } @else if (r.status === 'REJECTED') {
-      <p class="app-alert app-alert--error" role="status"><mat-icon aria-hidden="true">block</mat-icon><span>Importação recusada: {{ r.commit.decisionNote }}</span></p>
+      <div class="alert alert-danger d-flex align-items-start gap-2" role="status"><app-icon name="slash-circle" /><span>Importação recusada: {{ r.commit.decisionNote }}</span></div>
     } @else {
-      <p class="app-alert app-alert--neutral" role="status"><mat-icon aria-hidden="true">cancel</mat-icon><span>Conferência cancelada: {{ r.commit.cancelReason }}</span></p>
+      <div class="alert alert-secondary d-flex align-items-start gap-2" role="status"><app-icon name="x-circle" /><span>Conferência cancelada: {{ r.commit.cancelReason }}</span></div>
     }
   `,
   styles: `
@@ -181,14 +178,14 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
       flex-direction: column;
       gap: 2px;
       padding: 10px 14px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
     }
     .ss-kpi__label {
       font-size: var(--app-text-xs);
       font-weight: 600;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .ss-kpi__value {
       font-size: var(--app-text-lg);
@@ -196,7 +193,7 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
     }
     .ss-kpi__note {
       font-size: var(--app-text-xs);
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .ss-title {
       margin: 0 0 8px;
@@ -207,7 +204,7 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
       font-size: var(--app-text-sm);
     }
     .ss-pending {
-      color: var(--app-warning-fg);
+      color: var(--bs-warning-text-emphasis);
       font-weight: 600;
     }
     .ss-blockers {
@@ -223,8 +220,8 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
       align-items: center;
       gap: 6px;
     }
-    .ss-blockers .mat-icon {
-      color: var(--app-danger-fg);
+    .ss-blockers app-icon {
+      color: var(--bs-danger-text-emphasis);
     }
     .ss-actions {
       display: flex;

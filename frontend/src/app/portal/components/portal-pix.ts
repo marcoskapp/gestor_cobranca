@@ -1,10 +1,9 @@
 import { Component, DestroyRef, computed, effect, inject, input, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { toDataURL } from 'qrcode';
 import { Amount } from '../../shared/components/amount/amount';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { PixView } from '../data/portal.models';
+import { Icon } from '../../shared/components/icon/icon';
 
 /**
  * Pagamento por Pix: QR Code (gerado no navegador a partir do "copia e cola") e botão de copiar. O
@@ -13,7 +12,7 @@ import { PixView } from '../data/portal.models';
  */
 @Component({
   selector: 'app-portal-pix',
-  imports: [MatButtonModule, MatIconModule, Amount, AppDatePipe],
+  imports: [Icon, Amount, AppDatePipe],
   template: `
     @if (pix().status === 'ACTIVE' && pix().copyPaste) {
       <div class="pix">
@@ -26,8 +25,8 @@ import { PixView } from '../data/portal.models';
         <p class="portal-label">Ou use o Pix copia e cola:</p>
         <p class="pix__code" id="pix-code">{{ pix().copyPaste }}</p>
         <div class="portal-actions">
-          <button mat-flat-button type="button" (click)="copy()" aria-describedby="pix-code">
-            <mat-icon aria-hidden="true">{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
+          <button class="btn btn-primary portal-btn" type="button" (click)="copy()" aria-describedby="pix-code">
+            <app-icon [name]="copied() ? 'check-lg' : 'copy'" />
             {{ copied() ? 'Código copiado' : 'Copiar código Pix' }}
           </button>
         </div>
@@ -37,22 +36,22 @@ import { PixView } from '../data/portal.models';
         }
       </div>
     } @else if (pix().status === 'PENDING') {
-      <p class="portal-note" role="status"><mat-icon aria-hidden="true">hourglass_top</mat-icon>
+      <p class="alert alert-info d-flex align-items-start gap-2" role="status"><app-icon name="hourglass-top" />
         <span>Estamos gerando o seu Pix. Isso leva poucos segundos.</span></p>
-      <div class="portal-actions"><button mat-stroked-button type="button" (click)="refresh.emit()">Atualizar</button></div>
+      <div class="portal-actions"><button class="btn btn-outline-primary portal-btn-outline" type="button" (click)="refresh.emit()">Atualizar</button></div>
     } @else if (pix().status === 'PAID') {
-      <p class="portal-note portal-success" role="status"><mat-icon aria-hidden="true">check_circle</mat-icon>
+      <p class="alert alert-success d-flex align-items-start gap-2" role="status"><app-icon name="check-circle" />
         <span>Pagamento recebido. Obrigado!</span></p>
     } @else {
-      <p class="portal-alert" role="alert"><mat-icon aria-hidden="true">error</mat-icon>
+      <p class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" />
         <span>Este Pix não está mais disponível. Gere um novo.</span></p>
-      <div class="portal-actions"><button mat-flat-button type="button" (click)="refresh.emit()">Gerar novo Pix</button></div>
+      <div class="portal-actions"><button class="btn btn-primary portal-btn" type="button" (click)="refresh.emit()">Gerar novo Pix</button></div>
     }
   `,
   styles: `
     .pix { text-align: center; }
     .pix__qr { display: block; margin: 12px auto; background: #fff; padding: 8px; border-radius: 8px; }
-    .pix__code { padding: 12px; border: 1px dashed var(--app-border); border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 13px; text-align: left; }
+    .pix__code { padding: 12px; border: 1px dashed var(--bs-border-color); border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 13px; text-align: left; }
   `,
 })
 export class PortalPix {

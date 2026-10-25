@@ -194,10 +194,10 @@ export function stepState(review: ReviewView, step: number): StepState {
 }
 
 export const STEP_STATE_TEXT: Record<StepState, { icon: string; text: string }> = {
-  done: { icon: 'check_circle', text: 'Concluído' },
-  attention: { icon: 'error', text: 'Requer atenção' },
-  pending: { icon: 'radio_button_unchecked', text: 'Pendente' },
-  running: { icon: 'hourglass_top', text: 'Em andamento' },
+  done: { icon: 'check-circle', text: 'Concluído' },
+  attention: { icon: 'exclamation-circle', text: 'Requer atenção' },
+  pending: { icon: 'circle', text: 'Pendente' },
+  running: { icon: 'hourglass-top', text: 'Em andamento' },
 };
 
 /** A tela deve consultar o servidor de novo (processamento ou análise em andamento). */

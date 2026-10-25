@@ -1,11 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -30,6 +24,8 @@ import { OPTION_LABELS } from '../data/review.rules';
 import { MODE_LABELS, SOURCE_LABELS, UPLOAD_ERROR_LABELS, isTerminal, progressText, sizeText } from '../data/ingestion.labels';
 import { ImportBatchView, IssueSeverity } from '../data/ingestion.models';
 import { POLL_MS } from './batch-list';
+import { Icon } from '../../../shared/components/icon/icon';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
 /**
  * Ações disponíveis pela situação do lote. Importar uma prévia ou reprocessar um arquivo passa sempre pela conferência
@@ -58,13 +54,9 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
 @Component({
   selector: 'app-batch-detail',
   imports: [
-    FormsModule,
+    NgbTooltip,
+    Icon,
     RouterLink,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatIconModule,
-    MatProgressBarModule,
-    MatTooltipModule,
     Amount,
     CellDef,
     DataTable,
@@ -78,23 +70,23 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
     @if (batch.isLoading() && !current()) {
       <app-skeleton variant="card" [rows]="5" />
     } @else if (batch.status() === 'error' && !current()) {
-      <app-empty-state icon="upload_file" tone="error" title="Não foi possível abrir o lote." message="O lote pode não existir ou o credor estar fora do seu escopo.">
-        <button mat-stroked-button type="button" (click)="batch.reload()">Tentar novamente</button>
-        <a mat-button routerLink="/importacao">Voltar para importações</a>
+      <app-empty-state icon="file-earmark-arrow-up" tone="error" title="Não foi possível abrir o lote." message="O lote pode não existir ou o credor estar fora do seu escopo.">
+        <button class="btn btn-outline-primary" type="button" (click)="batch.reload()">Tentar novamente</button>
+        <a class="btn btn-link" routerLink="/importacao">Voltar para importações</a>
       </app-empty-state>
     }
     @if (current(); as b) {
       <app-page-header [title]="b.fileName || 'Registros via API'" [subtitle]="creditors.name(b.creditorId) + ' · ' + portfolios.name(b.portfolioId) + ' · ' + modeLabels[b.mode]">
-        <a mat-button routerLink="/importacao"><mat-icon aria-hidden="true">arrow_back</mat-icon>Importações</a>
+        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" />Importações</a>
         @if (b.issuesRecorded) {
-          <button mat-stroked-button type="button" (click)="report(b)" matTooltip="CSV com valores mascarados (exportação registrada)">
-            <mat-icon aria-hidden="true">download</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="report(b)" ngbTooltip="CSV com valores mascarados (exportação registrada)">
+            <app-icon name="download" />
             Relatório de ocorrências
           </button>
         }
         @if (canOriginal() && b.fileName) {
-          <button mat-stroked-button type="button" (click)="original(b)">
-            <mat-icon aria-hidden="true">lock_open</mat-icon>
+          <button class="btn btn-outline-primary" type="button" (click)="original(b)">
+            <app-icon name="unlock" />
             Arquivo original
           </button>
         }
@@ -102,16 +94,16 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
           @for (a of actions(); track a) {
             @switch (a) {
               @case ('cancel') {
-                <button mat-stroked-button type="button" (click)="cancel(b)"><mat-icon aria-hidden="true">cancel</mat-icon>Cancelar</button>
+                <button class="btn btn-outline-primary" type="button" (click)="cancel(b)"><app-icon name="x-circle" />Cancelar</button>
               }
               @case ('review') {
-                <a mat-flat-button [routerLink]="['/importacao/conferencias', b.reviewId]"><mat-icon aria-hidden="true">fact_check</mat-icon>Abrir a conferência</a>
+                <a class="btn btn-primary" [routerLink]="['/importacao/conferencias', b.reviewId]"><app-icon name="card-checklist" />Abrir a conferência</a>
               }
               @case ('import') {
-                <button mat-flat-button type="button" (click)="review(b)"><mat-icon aria-hidden="true">fact_check</mat-icon>Conferir e importar</button>
+                <button class="btn btn-primary" type="button" (click)="review(b)"><app-icon name="card-checklist" />Conferir e importar</button>
               }
               @case ('reprocess') {
-                <button mat-stroked-button type="button" (click)="review(b)"><mat-icon aria-hidden="true">replay</mat-icon>Conferir e reprocessar</button>
+                <button class="btn btn-outline-primary" type="button" (click)="review(b)"><app-icon name="arrow-counterclockwise" />Conferir e reprocessar</button>
               }
             }
           }
@@ -121,7 +113,9 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
       <section class="app-card bd-status" aria-label="Situação do lote" data-tour="batch-status" aria-live="polite">
         <app-status-chip domain="importBatch" [status]="b.status" />
         @if (!terminal(b)) {
-          <mat-progress-bar class="bd-progress" [mode]="b.progressPercent === null ? 'indeterminate' : 'determinate'" [value]="b.progressPercent ?? 0" [attr.aria-label]="progress(b)" />
+          <div class="progress bd-progress" role="progressbar" [attr.aria-label]="progress(b)" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="b.progressPercent">
+            <div class="progress-bar" [class.progress-bar-striped]="b.progressPercent === null" [class.progress-bar-animated]="b.progressPercent === null" [style.width.%]="b.progressPercent ?? 100"></div>
+          </div>
           <span>{{ progress(b) }}</span>
           @if (b.cancelRequestedAt) {
             <span class="app-muted">· cancelamento pedido; para ao fim do bloco corrente</span>
@@ -192,17 +186,20 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
       <section class="app-card" aria-labelledby="bd-issues" data-tour="batch-issues">
         <div class="bd-head">
           <h2 class="app-card__title" id="bd-issues">Ocorrências por linha ({{ b.issuesRecorded }})</h2>
-          <mat-button-toggle-group [ngModel]="severity()" (ngModelChange)="severity.set($event)" aria-label="Filtrar ocorrências" hideSingleSelectionIndicator>
-            <mat-button-toggle value="">Todas</mat-button-toggle>
-            <mat-button-toggle value="ERROR">Erros</mat-button-toggle>
-            <mat-button-toggle value="WARNING">Avisos</mat-button-toggle>
-          </mat-button-toggle-group>
+          <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Filtrar ocorrências">
+            <input type="radio" class="btn-check" name="bd-severity" id="bd-severity-all" [checked]="severity() === ''" (change)="severity.set('')" />
+            <label class="btn btn-outline-primary" for="bd-severity-all">Todas</label>
+            <input type="radio" class="btn-check" name="bd-severity" id="bd-severity-error" [checked]="severity() === 'ERROR'" (change)="severity.set('ERROR')" />
+            <label class="btn btn-outline-primary" for="bd-severity-error">Erros</label>
+            <input type="radio" class="btn-check" name="bd-severity" id="bd-severity-warning" [checked]="severity() === 'WARNING'" (change)="severity.set('WARNING')" />
+            <label class="btn btn-outline-primary" for="bd-severity-warning">Avisos</label>
+          </div>
         </div>
         @if (b.issuesTruncated) {
-          <p class="app-alert app-alert--warning bd-small" role="note">
-            <mat-icon aria-hidden="true">info</mat-icon>
+          <div class="alert alert-warning d-flex align-items-start gap-2 bd-small" role="note">
+            <app-icon name="info-circle" />
             <span>Há mais ocorrências do que as gravadas (limite por lote); os contadores consideram todas.</span>
-          </p>
+          </div>
         }
         <app-data-table
           caption="Ocorrências do lote"
@@ -213,7 +210,7 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
           [page]="issues.tablePage()"
           (pageChange)="issues.setPage($event)"
           (retry)="issues.reload()"
-          emptyIcon="task_alt"
+          emptyIcon="check2-circle"
           emptyMessage="Nenhuma ocorrência."
         >
           <ng-template appCell="row" [appCellOf]="issues.rows()" let-i><span class="app-numeric">{{ i.rowNumber }}</span></ng-template>
@@ -241,7 +238,7 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
     }
     .bd-reason {
       flex-basis: 100%;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .bd-kpis {
       display: grid;
@@ -254,17 +251,17 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
       flex-direction: column;
       gap: 2px;
       padding: 10px 14px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-md);
-      background: var(--app-surface);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
     }
     .bd-kpi--alert .bd-kpi__value {
-      color: var(--app-danger-fg);
+      color: var(--bs-danger-text-emphasis);
     }
     .bd-kpi__label {
       font-size: var(--app-text-xs);
       font-weight: 600;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bs-secondary-color);
     }
     .bd-kpi__value {
       font-size: var(--app-text-lg);
