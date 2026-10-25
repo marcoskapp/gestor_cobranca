@@ -45,7 +45,18 @@ trap cleanup EXIT
 gc_log INFO "baixando artefato ${VERSION} para migrations"
 gc_download_artifact "${VERSION}" "${work_dir}"
 
-owner_password="$(gc_read_secret migration/db-owner-password)" || gc_fail "falha ao ler migration/db-owner-password"
+# migration/* não é legível pelo papel em execução: migrate.sh abre uma janela de leitura só para
+# esta instância (política IAM temporária). A política leva alguns segundos para valer: tenta de novo.
+owner_password=""
+for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  if owner_password="$(gc_read_secret migration/db-owner-password 2>/dev/null)" && [[ -n "${owner_password}" ]]; then
+    break
+  fi
+  owner_password=""
+  gc_log INFO "segredo de migração ainda não legível (tentativa ${attempt}); aguardando a janela de migração"
+  sleep 5
+done
+[[ -n "${owner_password}" ]] || gc_fail "falha ao ler migration/db-owner-password (a janela de migração foi aberta por migrate.sh?)"
 gc_assert_env_safe migration/db-owner-password "${owner_password}"
 gc_assert_db_password_safe migration/db-owner-password "${owner_password}"
 

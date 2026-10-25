@@ -196,6 +196,7 @@ module "compute" {
 
   app_subnet_ids          = module.network.app_subnet_ids
   app_security_group_id   = module.security.app_security_group_id
+  trusted_proxy_cidrs     = module.network.public_subnet_cidrs
   target_group_arn        = module.loadbalancer.target_group_arn
   alb_arn_suffix          = module.loadbalancer.alb_arn_suffix
   target_group_arn_suffix = module.loadbalancer.target_group_arn_suffix

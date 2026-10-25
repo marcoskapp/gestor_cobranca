@@ -10,25 +10,34 @@ import br.com.gestorcobranca.payment.domain.model.PixProviderType;
 import br.com.gestorcobranca.payment.domain.model.WebhookAuthMode;
 import br.com.gestorcobranca.payment.domain.repository.PixAccountRepository;
 import br.com.gestorcobranca.payment.domain.service.ClientCertificates;
+import br.com.gestorcobranca.payment.domain.service.PixEndpointRules;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.logging.access.AccessEvent;
+import br.com.gestorcobranca.shared.logging.access.AccessEventType;
+import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.web.ApiPaths;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -51,11 +60,15 @@ class PixAccountService implements PixAccountUseCases {
     private final AuditTrail auditTrail;
     private final PaymentProperties properties;
     private final Clock clock;
+    private final AccessLogger accessLogger;
+    private final MeterRegistry meterRegistry;
     private final SecureRandom random = new SecureRandom();
+    private static final Logger LOG = LoggerFactory.getLogger(PixAccountService.class);
 
     PixAccountService(PixAccountRepository accounts, WebhookRouteDirectory routes, PixCredentialCodec codec,
                       PixGateway pixGateway, CreditorUseCases creditors, AccessScope accessScope,
-                      CurrentActor currentActor, AuditTrail auditTrail, PaymentProperties properties, Clock clock) {
+                      CurrentActor currentActor, AuditTrail auditTrail, PaymentProperties properties, Clock clock,
+                      AccessLogger accessLogger, MeterRegistry meterRegistry) {
         this.accounts = accounts;
         this.routes = routes;
         this.codec = codec;
@@ -66,6 +79,8 @@ class PixAccountService implements PixAccountUseCases {
         this.auditTrail = auditTrail;
         this.properties = properties;
         this.clock = clock;
+        this.accessLogger = accessLogger;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
@@ -81,6 +96,7 @@ class PixAccountService implements PixAccountUseCases {
         }
         WebhookAuthMode auth = PaymentEnums.parse(WebhookAuthMode.class, command.webhookAuth(),
                 "pix_account.webhook_auth_invalid", "Autenticação do webhook");
+        requireMtlsAvailable(auth);
         requireScope(command.creditorId());
         if (command.creditorId() != null) {
             creditors.get(command.creditorId());
@@ -93,6 +109,7 @@ class PixAccountService implements PixAccountUseCases {
         }
         PixAccount account = new PixAccount(command.creditorId(), command.name(), provider, command.pixKey(),
                 command.apiBaseUrl(), command.tokenUrl(), auth, command.webhookFingerprints(), newRoutingKey());
+        requireAllowedEndpoints(account);
         applyCredentials(account, command.credentials(), true);
         PixAccount saved = accounts.saveAndFlush(account);
         routes.register(saved.getRoutingKey(), currentActor.tenantId(), saved.getId(), provider.name());
@@ -102,6 +119,7 @@ class PixAccountService implements PixAccountUseCases {
                 .meta("credentialKeys", String.join(",", codec.keys(saved.getCredentials())))
                 .meta("certificateSha256", saved.getCertificateSha256())
                 .meta("certificateExpiresAt", saved.getCertificateExpiresAt()));
+        endpointAlert(saved, "created", null, null);
         return view(saved);
     }
 
@@ -117,16 +135,33 @@ class PixAccountService implements PixAccountUseCases {
         List<String> beforeFingerprints = account.webhookFingerprints();
         WebhookAuthMode auth = PaymentEnums.parse(WebhookAuthMode.class, command.webhookAuth(),
                 "pix_account.webhook_auth_invalid", "Autenticação do webhook");
+        requireMtlsAvailable(auth);
         account.describe(command.name(), command.pixKey(), command.apiBaseUrl(), command.tokenUrl());
         account.configureWebhook(auth, command.webhookFingerprints());
+        requireAllowedEndpoints(account);
         requireWebhookSecret(account, codec.decode(account.getCredentials()));
+        boolean endpointsChanged = !Objects.equals(beforeUrl, account.getApiBaseUrl())
+                || !Objects.equals(beforeToken, account.getTokenUrl()) || beforeAuth != account.getWebhookAuth()
+                || !Objects.equals(beforeFingerprints, account.webhookFingerprints());
+        boolean deactivated = false;
+        if (endpointsChanged) {
+            // segunda aprovação: a conta para de gerar cobranças e de aceitar notificações até outra pessoa reativá-la
+            deactivated = account.endpointsChanged(currentActor.actorId(), Instant.now(clock));
+            if (deactivated) {
+                routes.setActive(account.getRoutingKey(), false);
+            }
+        }
         accounts.save(account);
         auditTrail.record(AuditEntry.of("pix_account.updated", RESOURCE, account.getId()).creditor(account.getCreditorId())
                 .change("name", beforeName, account.getName()).change("pixKey", beforeKey, account.getPixKey())
                 .change("apiBaseUrl", beforeUrl, account.getApiBaseUrl()).change("tokenUrl", beforeToken, account.getTokenUrl())
                 .change("webhookAuth", beforeAuth, account.getWebhookAuth())
                 .change("webhookFingerprints", String.join(",", beforeFingerprints),
-                        String.join(",", account.webhookFingerprints())));
+                        String.join(",", account.webhookFingerprints()))
+                .meta("endpointsChanged", endpointsChanged).meta("deactivatedForReview", deactivated));
+        if (endpointsChanged) {
+            endpointAlert(account, "changed", beforeUrl, beforeToken);
+        }
         return view(account);
     }
 
@@ -172,7 +207,7 @@ class PixAccountService implements PixAccountUseCases {
         if (current.isPresent()) {
             throw new ConflictException("pix_account.already_active", "Já existe conta Pix ativa para este credor/assessoria");
         }
-        account.activate();
+        account.activateBy(currentActor.actorId());
         accounts.saveAndFlush(account);
         routes.setActive(account.getRoutingKey(), true);
         auditTrail.record(AuditEntry.of("pix_account.activated", RESOURCE, account.getId()).creditor(account.getCreditorId())
@@ -249,6 +284,57 @@ class PixAccountService implements PixAccountUseCases {
         requireWebhookSecret(account, values);
         account.replaceCredentials(codec.encode(values), certificate, info == null ? null : info.sha256(),
                 info == null ? null : info.notAfter(), Instant.now(clock));
+    }
+
+    /** MTLS só quando o listener do ALB verifica o certificado do cliente (S1); senão o cabeçalho não prova nada. */
+    private void requireMtlsAvailable(WebhookAuthMode auth) {
+        if (auth == WebhookAuthMode.MTLS && !properties.webhook().mtlsEnabled()) {
+            throw new BusinessRuleException("pix_account.mtls_unavailable",
+                    "Webhook com mTLS indisponível neste ambiente (o balanceador não verifica certificados); use HMAC");
+        }
+    }
+
+    /**
+     * Hosts da API Pix e do token: na lista de hosts permitidos (quando configurada) e nunca um IP interno
+     * escrito diretamente. A conferência por resolução DNS é feita a cada chamada pelo adaptador do PSP.
+     */
+    private void requireAllowedEndpoints(PixAccount account) {
+        if (account.getProvider() == PixProviderType.SANDBOX) {
+            return;
+        }
+        for (String url : List.of(account.getApiBaseUrl(), account.getTokenUrl())) {
+            String host = URI.create(url).getHost();
+            if (!PixEndpointRules.hostAllowed(host, properties.pix().allowedHosts())) {
+                throw new BusinessRuleException("pix_account.host_not_allowed",
+                        "Host do PSP fora da lista de hosts permitidos: " + host);
+            }
+            if (PixEndpointRules.isIpLiteral(host) || host.equalsIgnoreCase("localhost") || host.endsWith(".localhost")
+                    || host.endsWith(".internal") || host.endsWith(".local")) {
+                throw new BusinessRuleException("pix_account.host_not_allowed",
+                        "Informe o nome público do PSP (endereços IP e nomes internos não são aceitos)");
+            }
+        }
+    }
+
+    /** Alerta de segurança: endereço de integração financeira criado/alterado (log de acesso, log técnico, métrica). */
+    private void endpointAlert(PixAccount account, String action, String previousUrl, String previousTokenUrl) {
+        Map<String, String> details = new TreeMap<>();
+        details.put("action", action);
+        details.put("pixAccountId", account.getId().toString());
+        details.put("apiHost", URI.create(account.getApiBaseUrl()).getHost());
+        details.put("tokenHost", URI.create(account.getTokenUrl()).getHost());
+        details.put("webhookAuth", account.getWebhookAuth().name());
+        details.put("active", String.valueOf(account.isActive()));
+        if (previousUrl != null) {
+            details.put("previousApiHost", URI.create(previousUrl).getHost());
+        }
+        if (previousTokenUrl != null) {
+            details.put("previousTokenHost", URI.create(previousTokenUrl).getHost());
+        }
+        accessLogger.log(AccessEvent.of(AccessEventType.INTEGRATION_ENDPOINT_CHANGED, currentActor.get(), details));
+        meterRegistry.counter("payment.pix_account.endpoint_changes", "action", action).increment();
+        LOG.atWarn().addKeyValue("pixAccountId", account.getId()).addKeyValue("action", action)
+                .addKeyValue("securityAlert", true).log("Endereços de conta Pix criados ou alterados");
     }
 
     private static void requireWebhookSecret(PixAccount account, Map<String, String> values) {

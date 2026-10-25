@@ -94,7 +94,7 @@ class CommunicationModuleIT extends CommunicationTestSupport {
         assertThat(count("select count(*) from compliance.contact_attempt where reference_type = 'message' "
                 + "and reference_id = ?", queued.id())).isEqualTo(1);
         // conteúdo criptografado no banco
-        assertThat(count("select count(*) from communication.message where id = ? and content_encrypted like 'k1:%' "
+        assertThat(count("select count(*) from communication.message where id = ? and content_encrypted like 'k1v2:%' "
                 + "and content_encrypted not like '%Maria%'", queued.id())).isEqualTo(1);
         // interação registrada no caso pelo port do collection (após o commit, por evento)
         awaitIdle("communication");

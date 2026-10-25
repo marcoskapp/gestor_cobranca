@@ -7,8 +7,9 @@ spring:
     enabled: ${SPRING_FLYWAY_ENABLED:false}
 
 server:
-  # o ALB encerra TLS e repassa X-Forwarded-*; apenas o ALB alcança a porta 8080
-  forward-headers-strategy: framework
+  # o ALB encerra TLS e repassa X-Forwarded-*; só o TrustedProxyFilter os interpreta, e apenas para
+  # conexões vindas das sub-redes do ALB (APP_HTTP_TRUSTED_PROXIES, obrigatório em produção)
+  forward-headers-strategy: none
 
 springdoc:
   api-docs:

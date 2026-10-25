@@ -267,6 +267,16 @@ variable "bootstrap_mode" {
   default     = false
 }
 
+variable "trusted_proxy_cidrs" {
+  description = "CIDRs das sub-redes do ALB. A aplicação só aceita X-Forwarded-For/Proto/Port de conexões vindas daqui (APP_HTTP_TRUSTED_PROXIES); o cliente é o primeiro salto não confiável lido da direita."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.trusted_proxy_cidrs) > 0 && alltrue([for c in var.trusted_proxy_cidrs : can(cidrhost(c, 0))])
+    error_message = "trusted_proxy_cidrs deve ter ao menos um CIDR válido (sub-redes do ALB)."
+  }
+}
+
 variable "db_admin_access" {
   description = "Concede temporariamente ao papel das instâncias a leitura da senha mestre do RDS (bootstrap de papéis, rotação de senhas). Altera somente a política IAM, sem instance refresh."
   type        = bool

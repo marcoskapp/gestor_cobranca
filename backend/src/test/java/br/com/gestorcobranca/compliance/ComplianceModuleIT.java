@@ -380,7 +380,7 @@ class ComplianceModuleIT extends IntegrationTest {
         String storedName = system(() -> jdbcTemplate.queryForObject(
                 "select requester_name_encrypted from compliance.data_subject_request where id = ?", String.class,
                 started.id()));
-        assertThat(storedName).startsWith("k1:").doesNotContain("Maria");
+        assertThat(storedName).startsWith("k1v2:").doesNotContain("Maria");
     }
 
     @Test

@@ -25,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,9 +57,43 @@ class BacenPixProviderTest {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
         RestClient client = builder.build();
-        provider = new BacenPixProvider(c -> client, new PaymentProperties(null, null, null, null, null, null, null),
+        provider = providerResolvingTo(client, "198.51.100.10", List.of());
+    }
+
+    private BacenPixProvider providerResolvingTo(RestClient client, String address, List<String> allowedHosts) {
+        PixEndpointGuard guard = new PixEndpointGuard(allowedHosts,
+                host -> new java.net.InetAddress[]{java.net.InetAddress.getByName(address)}, meters);
+        return new BacenPixProvider(c -> client, new PaymentProperties(null, null, null, null, null, null, null, null),
                 new JsonCodec(JsonMapper.builder().build()), meters, Clock.fixed(Instant.parse("2026-10-23T12:00:00Z"),
-                ZoneOffset.UTC));
+                ZoneOffset.UTC), guard);
+    }
+
+    @Test
+    void pspHostResolvingToAnInternalAddressIsRefusedBeforeAnyRequest() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer none = MockRestServiceServer.bindTo(builder).build();
+        RestClient client = builder.build();
+        for (String internal : List.of("169.254.169.254", "10.0.3.7", "127.0.0.1", "172.16.0.1", "192.168.1.1",
+                "100.64.0.1", "0.0.0.0", "::1", "fd00:ec2::254", "::ffff:10.0.0.1", "fe80::1")) {
+            BacenPixProvider guarded = providerResolvingTo(client, internal, List.of());
+            assertThatThrownBy(() -> guarded.token(connection)).as(internal)
+                    .isInstanceOfSatisfying(ProviderException.class, e -> {
+                        assertThat(e.code()).isEqualTo("PIX_ENDPOINT_FORBIDDEN");
+                        assertThat(e.isTransientFailure()).isFalse();
+                    });
+        }
+        none.verify();
+        assertThat(meters.counter("payment.pix.endpoint_refused", "reason", "internal_address").count()).isEqualTo(11.0);
+    }
+
+    @Test
+    void pspHostOutsideTheAllowListIsRefused() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer none = MockRestServiceServer.bindTo(builder).build();
+        BacenPixProvider guarded = providerResolvingTo(builder.build(), "198.51.100.10", List.of("*.bb.com.br", "api.itau.com.br"));
+        assertThatThrownBy(() -> guarded.token(connection)).isInstanceOfSatisfying(ProviderException.class,
+                e -> assertThat(e.code()).isEqualTo("PIX_ENDPOINT_FORBIDDEN"));
+        none.verify();
     }
 
     private void expectToken() {
@@ -160,7 +195,7 @@ class BacenPixProviderTest {
         SSLContext context = MutualTlsClientFactory.sslContext(p12, "test-only-pass");
         assertThat(context.getProtocol()).isEqualTo("TLS");
         assertThatThrownBy(() -> MutualTlsClientFactory.sslContext(p12, "errada")).isInstanceOf(ProviderException.class);
-        assertThatThrownBy(() -> new MutualTlsClientFactory(new PaymentProperties(null, null, null, null, null, null, null))
+        assertThatThrownBy(() -> new MutualTlsClientFactory(new PaymentProperties(null, null, null, null, null, null, null, null))
                 .client(connection)).isInstanceOf(ProviderException.class);
     }
 }

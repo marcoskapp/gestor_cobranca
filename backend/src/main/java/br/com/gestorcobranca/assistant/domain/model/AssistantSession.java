@@ -133,8 +133,11 @@ public class AssistantSession extends TenantScopedEntity {
     }
 
     /**
-     * Conversa voltou ao assistente depois de transferida: nova etapa com contadores e memória
-     * zerados; identidade confirmada há menos de {@link #IDENTITY_VALIDITY} é mantida.
+     * Conversa voltou ao assistente depois de transferida: nova etapa com contadores de turno e memória
+     * zerados; identidade confirmada há menos de {@link #IDENTITY_VALIDITY} é mantida. As tentativas de
+     * identidade <strong>não</strong> são zeradas (revisão de segurança S2): a devolução ao assistente —
+     * inclusive automática, por ação de campanha — não pode abrir novas rodadas para adivinhar o desafio.
+     * Identidade não confirmada ({@code FAILED}) continua assim e a conversa volta a humanos.
      */
     public void reopen(Instant now, boolean identityRequired, String emptyMemoryJson) {
         Guard.requireState(status == SessionStatus.HANDED_OFF, "assistant_session.active", "Sessão já ativa");
@@ -148,10 +151,15 @@ public class AssistantSession extends TenantScopedEntity {
         this.memory = emptyMemoryJson;
         boolean stillVerified = identityStatus == IdentityStatus.VERIFIED && identityVerifiedAt != null
                 && identityVerifiedAt.plus(IDENTITY_VALIDITY).isAfter(now);
-        if (!stillVerified) {
+        if (identityStatus == IdentityStatus.VERIFIED && !stillVerified) {
+            // confirmada antes e expirada: novo desafio, como no início (houve confirmação legítima)
             this.identityStatus = identityRequired ? IdentityStatus.PENDING : IdentityStatus.NOT_REQUIRED;
             this.identityAttempts = 0;
             this.identityVerifiedAt = null;
+        } else if (identityStatus == IdentityStatus.NOT_REQUIRED && identityRequired) {
+            this.identityStatus = IdentityStatus.PENDING;
+        } else if (identityStatus == IdentityStatus.PENDING && !identityRequired) {
+            this.identityStatus = IdentityStatus.NOT_REQUIRED;
         }
     }
 

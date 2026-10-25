@@ -2,6 +2,7 @@ package br.com.gestorcobranca.payment.domain.repository;
 
 import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.PaymentStatus;
+import br.com.gestorcobranca.shared.domain.Money;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -35,6 +36,12 @@ public interface PaymentRepository {
     List<Payment> findAllByIdIn(Collection<UUID> ids);
 
     Page<Payment> search(Criteria criteria, Pageable pageable);
+
+    /** Soma dos pagamentos externos confirmados sem revisão, do devedor no credor, informados a partir de {@code since}. */
+    Money sumExternalInformedForDebtor(UUID creditorId, UUID debtorId, Instant since);
+
+    /** Soma dos pagamentos externos confirmados sem revisão, informados pelo usuário a partir de {@code since}. */
+    Money sumExternalInformedBy(UUID informedBy, Instant since);
 
     /**
      * Pagamentos confirmados/conciliados com saldo não alocado ou com valor não aplicado pelo

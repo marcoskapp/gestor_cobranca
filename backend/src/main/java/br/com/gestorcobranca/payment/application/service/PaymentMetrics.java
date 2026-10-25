@@ -51,6 +51,11 @@ class PaymentMetrics {
         registry.counter("payment.leftovers", "reason", reason).increment();
     }
 
+    /** Decisão sobre pagamento externo: AUTO, AMOUNT, DESTINATION_CUMULATIVE ou INFORMER_CUMULATIVE. */
+    void externalReview(String decision) {
+        registry.counter("payment.external.review_decisions", "decision", decision).increment();
+    }
+
     void review(String decision, Duration wait) {
         registry.counter("payment.review.decisions", "decision", decision).increment();
         Timer.builder("payment.review.wait").tag("decision", decision).publishPercentiles(0.5, 0.95)

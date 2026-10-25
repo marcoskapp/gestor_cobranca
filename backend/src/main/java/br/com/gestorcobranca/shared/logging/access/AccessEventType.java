@@ -58,5 +58,7 @@ public enum AccessEventType {
     PORTAL_SESSION_REVOKED,
     /** Aviso de privacidade do portal reconhecido pelo devedor. */
     PORTAL_PRIVACY_ACKNOWLEDGED,
-    RATE_LIMITED
+    RATE_LIMITED,
+    /** Endereço de integração financeira (URL do PSP, autenticação do webhook) criado ou alterado — alerta. */
+    INTEGRATION_ENDPOINT_CHANGED
 }

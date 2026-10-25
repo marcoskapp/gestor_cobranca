@@ -32,6 +32,11 @@ public record AccessEvent(
         details = details == null ? Map.of() : Map.copyOf(details);
     }
 
+    /** Mesmo evento com outros detalhes. */
+    public AccessEvent withDetails(Map<String, String> newDetails) {
+        return new AccessEvent(type, success, tenantId, actorType, actorId, sessionId, principal, newDetails);
+    }
+
     public static AccessEvent of(AccessEventType type, Actor actor, Map<String, String> details) {
         return new AccessEvent(type, isSuccess(type), actor.tenantId(), actor.type().name(), actor.id(),
                 actor.sessionId(), null, details);

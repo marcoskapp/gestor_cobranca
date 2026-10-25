@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.MdcKeys;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
+import br.com.gestorcobranca.shared.web.ClientAddresses;
 import org.slf4j.MDC;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -51,7 +52,7 @@ class JdbcAuditTrail implements AuditTrail {
         Instant now = Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
         jdbcTemplate.update(INSERT,
                 Ids.newId(), actor.tenantId(), Timestamp.from(now), actor.type().name(), actor.id(), actor.name(),
-                actor.sessionId(), MDC.get(MdcKeys.REQUEST_ID), MDC.get(MdcKeys.CLIENT_IP),
+                actor.sessionId(), MDC.get(MdcKeys.REQUEST_ID), ClientAddresses.orNull(MDC.get(MdcKeys.CLIENT_IP)),
                 entry.action(), entry.entityType(), entry.entityId(), entry.creditorId(), entry.reason(),
                 json.toJson(entry.before()), json.toJson(entry.after()), json.toJson(entry.metadata()));
     }

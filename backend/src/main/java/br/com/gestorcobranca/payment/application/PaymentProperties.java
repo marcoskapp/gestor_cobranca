@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Parâmetros do módulo payment ({@code app.payment.*}).
@@ -17,19 +18,45 @@ import java.time.Duration;
  * @param statement                 extratos/arquivos de retorno
  * @param expirationCheckInterval   varredura de instruções vencidas
  * @param sandbox                   PSP simulado (local/teste; recusado no perfil prod)
+ * @param externalReview            limites acumulados de pagamentos externos sem segunda pessoa
  */
 @ConfigurationProperties(prefix = "app.payment")
 public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evidence evidence, Statement statement,
-                                Duration expirationCheckInterval, Sandbox sandbox) {
+                                Duration expirationCheckInterval, Sandbox sandbox, ExternalReview externalReview) {
 
     public PaymentProperties {
         defaults = defaults == null ? new Defaults(null, null, null, null) : defaults;
-        webhook = webhook == null ? new Webhook(null, null, null, null, null, null) : webhook;
-        pix = pix == null ? new Pix(null, null, null, null) : pix;
+        webhook = webhook == null ? new Webhook(null, null, null, null, null, null, null) : webhook;
+        pix = pix == null ? new Pix(null, null, null, null, null) : pix;
         evidence = evidence == null ? new Evidence(null) : evidence;
         statement = statement == null ? new Statement(null, null) : statement;
         expirationCheckInterval = expirationCheckInterval == null ? Duration.ofMinutes(15) : expirationCheckInterval;
         sandbox = sandbox == null ? new Sandbox(false) : sandbox;
+        externalReview = externalReview == null ? new ExternalReview(null, null, null) : externalReview;
+    }
+
+    /**
+     * Controle acumulado dos pagamentos externos (revisão de segurança A5): além do limite por pagamento
+     * da assessoria, a soma confirmada <em>sem revisão</em> na janela não passa destes múltiplos dele; acima,
+     * exige aprovação de outra pessoa. Relativos ao limite da assessoria para respeitar a configuração dela.
+     *
+     * @param window            janela de acumulação (padrão 24 h)
+     * @param destinationFactor múltiplo do limite por pagamento para a soma por devedor no credor (padrão 1)
+     * @param informerFactor    múltiplo do limite por pagamento para a soma por usuário que informa (padrão 4)
+     */
+    public record ExternalReview(Duration window, BigDecimal destinationFactor, BigDecimal informerFactor) {
+
+        public ExternalReview {
+            window = window == null ? Duration.ofHours(24) : window;
+            destinationFactor = destinationFactor == null ? BigDecimal.ONE : destinationFactor;
+            informerFactor = informerFactor == null ? new BigDecimal("4") : informerFactor;
+            if (window.isNegative() || window.isZero()) {
+                throw new IllegalArgumentException("app.payment.external-review.window deve ser positiva");
+            }
+            if (destinationFactor.compareTo(BigDecimal.ONE) < 0 || informerFactor.compareTo(BigDecimal.ONE) < 0) {
+                throw new IllegalArgumentException("app.payment.external-review: fatores devem ser >= 1");
+            }
+        }
     }
 
     public record Defaults(BigDecimal externalReviewThreshold, Integer pixExpirationSeconds, Integer pixDueValidityDays,
@@ -55,9 +82,12 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
      * @param maxEventAge             notificações com horário mais antigo são descartadas (replay); prazo dos recibos
      * @param maxClockSkew            tolerância para horário no futuro
      * @param clientCertificateHeader cabeçalho em que o ALB (mTLS em modo verify) repassa o certificado do PSP
+     * @param mtlsEnabled             o listener do ALB exige e verifica o certificado do cliente (mutual
+     *                                authentication em modo verify). Desligado (padrão), contas com webhook
+     *                                MTLS são recusadas: o cabeçalho do certificado não seria prova de nada.
      */
     public record Webhook(String publicBaseUrl, Integer maxBodyBytes, Integer requestsPerMinute, Duration maxEventAge,
-                          Duration maxClockSkew, String clientCertificateHeader) {
+                          Duration maxClockSkew, String clientCertificateHeader, Boolean mtlsEnabled) {
 
         public Webhook {
             publicBaseUrl = publicBaseUrl == null ? "http://localhost:8080" : publicBaseUrl;
@@ -67,20 +97,27 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
             maxClockSkew = maxClockSkew == null ? Duration.ofMinutes(5) : maxClockSkew;
             clientCertificateHeader = clientCertificateHeader == null ? "X-Amzn-Mtls-Clientcert-Leaf"
                     : clientCertificateHeader;
+            mtlsEnabled = mtlsEnabled != null && mtlsEnabled;
         }
     }
 
     /**
      * @param tokenRefreshMargin renova o token OAuth2 quando faltar menos que isso para expirar
      * @param scope              escopos OAuth2 pedidos ao PSP
+     * @param allowedHosts       hosts de PSP permitidos nas contas Pix ({@code api.psp.com.br} ou
+     *                           {@code *.psp.com.br}); vazio = qualquer host público. Endereços internos
+     *                           (loopback, link-local/metadados, RFC 1918, CGNAT, ULA) são sempre recusados.
      */
-    public record Pix(Duration connectTimeout, Duration readTimeout, Duration tokenRefreshMargin, String scope) {
+    public record Pix(Duration connectTimeout, Duration readTimeout, Duration tokenRefreshMargin, String scope,
+                      List<String> allowedHosts) {
 
         public Pix {
             connectTimeout = connectTimeout == null ? Duration.ofSeconds(3) : connectTimeout;
             readTimeout = readTimeout == null ? Duration.ofSeconds(10) : readTimeout;
             tokenRefreshMargin = tokenRefreshMargin == null ? Duration.ofSeconds(60) : tokenRefreshMargin;
             scope = scope == null ? "cob.write cob.read cobv.write cobv.read pix.read webhook.write webhook.read" : scope;
+            allowedHosts = allowedHosts == null ? List.of()
+                    : allowedHosts.stream().filter(h -> h != null && !h.isBlank()).map(h -> h.trim().toLowerCase()).toList();
         }
     }
 
