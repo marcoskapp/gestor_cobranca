@@ -1,17 +1,15 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
 import { catchError, finalize, map, of } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount } from '../../../shared/components/amount/amount';
+import { Icon } from '../../../shared/components/icon/icon';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AppValidators } from '../../../shared/validation/validators';
 import { DebtorNames } from '../../debt/data/debt.lookups';
@@ -34,12 +32,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 @Component({
   selector: 'app-resolve-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatRadioModule, Amount, AppDatePipe],
+  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, Amount, AppDatePipe],
   template: `
     @let d = data.divergence;
-    <h2 mat-dialog-title>Resolver divergência · {{ types[d.type] }}</h2>
-    <form [formGroup]="form" (ngSubmit)="send()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Resolver divergência · {{ types[d.type] }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="send()" novalidate>
+      <div class="modal-body">
         <p class="app-dialog-message">{{ hints[d.type] }}</p>
         <dl class="app-definition-list rv-facts">
           @if (d.occurredOn) {
@@ -62,57 +63,59 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
           }
         </dl>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
-        <mat-radio-group formControlName="resolution" class="rv-options" aria-label="Resolução">
-          <mat-radio-button value="MATCHED_PAYMENT">Vincular a um pagamento (conciliar)</mat-radio-button>
-          <mat-radio-button value="ACCEPTED">Aceitar como está</mat-radio-button>
-          <mat-radio-button value="DISMISSED">Descartar (não é recebimento de cobrança)</mat-radio-button>
-        </mat-radio-group>
+        <fieldset class="mb-2">
+          <legend class="visually-hidden">Resolução</legend>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" formControlName="resolution" value="MATCHED_PAYMENT" id="rv-resolution-matched-payment" ngbAutofocus />
+            <label class="form-check-label" for="rv-resolution-matched-payment">Vincular a um pagamento (conciliar)</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" formControlName="resolution" value="ACCEPTED" id="rv-resolution-accepted" />
+            <label class="form-check-label" for="rv-resolution-accepted">Aceitar como está</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" formControlName="resolution" value="DISMISSED" id="rv-resolution-dismissed" />
+            <label class="form-check-label" for="rv-resolution-dismissed">Descartar (não é recebimento de cobrança)</label>
+          </div>
+        </fieldset>
 
         @if (form.controls.resolution.value === 'MATCHED_PAYMENT') {
           <h3 class="app-section-title">Pagamento</h3>
           @if (candidates.isLoading()) {
             <p class="app-muted" role="status">Procurando pagamentos com o mesmo valor…</p>
           } @else if (candidateList().length) {
-            <mat-radio-group formControlName="paymentId" class="rv-options" aria-label="Pagamentos sugeridos">
+            <fieldset class="mb-2">
+              <legend class="visually-hidden">Pagamentos sugeridos</legend>
               @for (p of candidateList(); track p.id) {
-                <mat-radio-button [value]="p.id">
-                  {{ debtors.name(p.debtorId) }} · <app-amount [value]="p.amount" /> · {{ p.paidAt | appDate: 'date' }} · {{ methods[p.method] }}
-                </mat-radio-button>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" formControlName="paymentId" [value]="p.id" [id]="'rv-paymentId-' + p.id" />
+                  <label class="form-check-label" [for]="'rv-paymentId-' + p.id">{{ debtors.name(p.debtorId) }} · <app-amount [value]="p.amount" /> · {{ p.paidAt | appDate: 'date' }} · {{ methods[p.method] }}</label>
+                </div>
               }
-            </mat-radio-group>
+            </fieldset>
           } @else {
             <p class="app-muted">Nenhum pagamento confirmado com este valor perto da data. Informe o identificador do pagamento (na ficha do pagamento).</p>
           }
-          <mat-form-field class="app-full-width">
-            <mat-label>Identificador do pagamento</mat-label>
-            <input matInput formControlName="paymentId" autocomplete="off" spellcheck="false" />
-            <mat-error>Escolha um pagamento ou cole o identificador.</mat-error>
-          </mat-form-field>
+          <app-field class="mb-3" label="Identificador do pagamento" error="Escolha um pagamento ou cole o identificador.">
+            <input appInput formControlName="paymentId" autocomplete="off" spellcheck="false" />
+          </app-field>
           <p class="app-muted rv-small">Quem informou um pagamento manual não pode conciliá-lo.</p>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Justificativa</mat-label>
-          <textarea matInput formControlName="note" rows="3" maxlength="1000" required></textarea>
-          <mat-hint>Obrigatória; registrada na auditoria.</mat-hint>
-          <mat-error>Explique a decisão.</mat-error>
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="sending()">Resolver</button>
-      </mat-dialog-actions>
+        <app-field class="mb-3" label="Justificativa" hint="Obrigatória; registrada na auditoria." error="Explique a decisão.">
+          <textarea appInput formControlName="note" rows="3" maxlength="1000" required></textarea>
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="sending()">Resolver</button>
+      </div>
     </form>
   `,
   styles: `
     .rv-facts {
       margin: 0 0 12px;
-    }
-    .rv-options {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 8px;
     }
     .rv-small {
       margin: 0 0 8px;
@@ -121,8 +124,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   `,
 })
 export class ResolveDialog {
-  protected readonly data = inject<ResolveDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ResolveDialog, DivergenceView>>(MatDialogRef);
+  protected readonly data = inject<ResolveDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<DivergenceView>>(DialogRef);
   private readonly api = inject(ReconciliationApi);
   private readonly paymentsApi = inject(PaymentsApi);
   protected readonly types = DIVERGENCE_TYPE_LABELS;

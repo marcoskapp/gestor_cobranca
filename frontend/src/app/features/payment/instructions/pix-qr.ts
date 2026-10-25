@@ -1,6 +1,6 @@
 import { Component, effect, input, signal } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
 import { toDataURL } from 'qrcode';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /**
  * QR Code do Pix gerado no navegador a partir do "copia e cola" (BR Code), sem serviço externo.
@@ -9,13 +9,13 @@ import { toDataURL } from 'qrcode';
  */
 @Component({
   selector: 'app-pix-qr',
-  imports: [MatIconModule],
+  imports: [Icon],
   template: `
     <div class="pq" [style.width.px]="size()" [style.height.px]="size()">
       @if (dataUrl(); as url) {
         <img [src]="url" [width]="size()" [height]="size()" [attr.alt]="alt()" />
       } @else if (failed()) {
-        <p class="pq__fail" role="status"><mat-icon aria-hidden="true">qr_code_2</mat-icon>Não foi possível desenhar o QR Code. Use o copia e cola.</p>
+        <p class="pq__fail" role="status"><app-icon class="fs-4" name="qr-code" />Não foi possível desenhar o QR Code. Use o copia e cola.</p>
       } @else {
         <div class="pq__wait" role="status" aria-label="Gerando QR Code"></div>
       }
@@ -26,7 +26,7 @@ import { toDataURL } from 'qrcode';
       display: grid;
       place-items: center;
       max-width: 100%;
-      border-radius: var(--app-radius-md);
+      border-radius: var(--bs-border-radius);
       // fundo branco fixo também no tema escuro: leitores de QR precisam de contraste claro
       background: #fff;
       padding: 8px;
@@ -41,7 +41,7 @@ import { toDataURL } from 'qrcode';
     .pq__wait {
       width: 70%;
       height: 70%;
-      border-radius: var(--app-radius-sm);
+      border-radius: var(--bs-border-radius-sm);
       background: repeating-linear-gradient(45deg, #eceff3 0 8px, #f6f7f9 8px 16px);
     }
     .pq__fail {

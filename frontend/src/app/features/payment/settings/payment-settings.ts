@@ -1,10 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -13,9 +9,11 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { PaymentSettingsApi } from '../data/payment.api';
 import { PaymentSettingsView } from '../data/payment.models';
@@ -28,51 +26,41 @@ import { parseMoney } from '../data/payment.rules';
  */
 @Component({
   selector: 'app-payment-settings',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, AppDatePipe, EmptyState, PageHeader, Skeleton],
+  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule, AppDatePipe, EmptyState, PageHeader, Skeleton],
   template: `
     <app-page-header title="Parâmetros de pagamentos" subtitle="Regras de risco e de validade aplicadas a toda a assessoria." />
     @if (resource.isLoading() && !settings()) {
       <app-skeleton variant="card" [rows]="4" />
     } @else if (resource.status() === 'error') {
-      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar os parâmetros." message="Verifique a conexão e tente novamente.">
-        <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+      <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar os parâmetros." message="Verifique a conexão e tente novamente.">
+        <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (settings(); as s) {
       <form class="app-card ps-card" [formGroup]="form" (ngSubmit)="save()" novalidate data-tour="payment-settings">
         <p class="app-muted ps-small">{{ s.customized ? 'Personalizados' + (s.updatedAt ? ' em ' + (s.updatedAt | appDate) : '') : 'Valem os padrões da plataforma.' }}{{ canEdit() ? '' : ' Somente leitura para o seu perfil.' }}</p>
         @if (error()) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ error() }}</span></p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
         <div class="app-form-grid">
-          <mat-form-field floatLabel="always">
-            <mat-label>Limite para segunda aprovação</mat-label>
-            <span matTextPrefix>R$&nbsp;</span>
-            <input matInput formControlName="threshold" inputmode="decimal" />
-            <mat-hint>Pagamentos informados acima deste valor esperam outra pessoa.</mat-hint>
-            <mat-error>Valor inválido.</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Validade do Pix imediato (horas)</mat-label>
-            <input matInput type="number" formControlName="pixHours" min="1" max="720" step="1" />
-            <mat-hint>De 1 hora a 30 dias (720 h).</mat-hint>
-            <mat-error>Entre 1 e 720 horas.</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Validade após o vencimento (dias)</mat-label>
-            <input matInput type="number" formControlName="dueDays" min="0" max="60" step="1" />
-            <mat-hint>Pix com vencimento: até quando aceita pagamento atrasado.</mat-hint>
-            <mat-error>Entre 0 e 60 dias.</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Tolerância de datas na conciliação (dias)</mat-label>
-            <input matInput type="number" formControlName="toleranceDays" min="0" max="15" step="1" />
-            <mat-hint>Diferença aceita entre o extrato e o pagamento.</mat-hint>
-            <mat-error>Entre 0 e 15 dias.</mat-error>
-          </mat-form-field>
+          <app-field label="Limite para segunda aprovação" hint="Pagamentos informados acima deste valor esperam outra pessoa." error="Valor inválido.">
+            <div class="input-group">
+              <span class="input-group-text">R$</span>
+              <input appInput formControlName="threshold" inputmode="decimal" />
+            </div>
+          </app-field>
+          <app-field label="Validade do Pix imediato (horas)" hint="De 1 hora a 30 dias (720 h)." error="Entre 1 e 720 horas.">
+            <input appInput type="number" formControlName="pixHours" min="1" max="720" step="1" />
+          </app-field>
+          <app-field label="Validade após o vencimento (dias)" hint="Pix com vencimento: até quando aceita pagamento atrasado." error="Entre 0 e 60 dias.">
+            <input appInput type="number" formControlName="dueDays" min="0" max="60" step="1" />
+          </app-field>
+          <app-field label="Tolerância de datas na conciliação (dias)" hint="Diferença aceita entre o extrato e o pagamento." error="Entre 0 e 15 dias.">
+            <input appInput type="number" formControlName="toleranceDays" min="0" max="15" step="1" />
+          </app-field>
         </div>
         @if (canEdit()) {
           <div class="app-form-actions">
-            <button mat-flat-button type="submit" [disabled]="saving() || form.pristine">Salvar parâmetros</button>
+            <button class="btn btn-primary" type="submit" [disabled]="saving() || form.pristine">Salvar parâmetros</button>
           </div>
         }
       </form>

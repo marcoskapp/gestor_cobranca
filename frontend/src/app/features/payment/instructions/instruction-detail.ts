@@ -1,7 +1,5 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -22,13 +20,13 @@ import { InstructionPanel } from './instruction-panel';
 /** Ficha da instrução: QR Code e copia e cola enquanto aberta, destino, identificadores no PSP. */
 @Component({
   selector: 'app-instruction-detail',
-  imports: [RouterLink, MatButtonModule, MatIconModule, AppDatePipe, EmptyState, PageHeader, Skeleton, InstructionPanel],
+  imports: [RouterLink, AppDatePipe, EmptyState, PageHeader, Skeleton, InstructionPanel],
   template: `
     @if (resource.isLoading() && !instruction()) {
       <app-skeleton variant="card" [rows]="6" />
     } @else if (resource.status() === 'error') {
-      <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar a instrução." message="Verifique a conexão e tente novamente.">
-        <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+      <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a instrução." message="Verifique a conexão e tente novamente.">
+        <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (instruction(); as i) {
       <app-page-header [title]="types[i.type] + ' · ' + debtors.name(i.debtorId)" [subtitle]="'Gerada em ' + (i.createdAt | appDate) + ' · ' + creditors.name(i.creditorId)" />
@@ -79,6 +77,10 @@ import { InstructionPanel } from './instruction-panel';
       grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
       gap: var(--app-gap);
       align-items: start;
+      /* espaçamento pelo gap da grade */
+      .app-card + .app-card {
+        margin-top: 0;
+      }
     }
     @media (max-width: 959px) {
       .id-grid {

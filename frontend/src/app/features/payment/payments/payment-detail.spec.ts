@@ -2,16 +2,17 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { agreement } from '../../../../testing/negotiation-fixtures';
 import { payment } from '../../../../testing/payment-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { PaymentView } from '../data/payment.models';
 import { PaymentDetail } from './payment-detail';
 
@@ -29,12 +30,13 @@ describe('PaymentDetail', () => {
     TestBed.configureTestingModule({
       imports: [PaymentDetail],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: ConfirmService, useValue: confirm },
-        { provide: MatDialog, useValue: { open } },
+        { provide: DialogService, useValue: { open } },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
         {
           provide: AuthService,

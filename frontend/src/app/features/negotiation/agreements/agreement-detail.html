@@ -1,31 +1,31 @@
 @if (resource.isLoading() && !agreement()) {
   <app-skeleton variant="card" [rows]="6" />
 } @else if (resource.status() === 'error') {
-  <app-empty-state icon="cloud_off" tone="error" title="Não foi possível carregar o acordo." message="Verifique a conexão e tente novamente.">
-    <button mat-stroked-button type="button" (click)="resource.reload()">Tentar novamente</button>
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o acordo." message="Verifique a conexão e tente novamente.">
+    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
   </app-empty-state>
 } @else if (agreement(); as a) {
   @let act = actions()!;
   @let s = summary()!;
   <app-page-header [title]="'Acordo · ' + (debtorName() ?? creditors.name(a.creditorId))" [subtitle]="'Formalizado em ' + (a.formalizedAt | appDate) + ' · ' + origins[a.origin]">
     @if (a.termAvailable) {
-      <button mat-button type="button" (click)="downloadTerm()" data-tour="agreement-term">
-        <mat-icon aria-hidden="true">picture_as_pdf</mat-icon>
+      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="downloadTerm()" data-tour="agreement-term">
+        <app-icon name="file-earmark-pdf" />
         Baixar termo
       </button>
     }
     @if (canRegisterPayment() && active()) {
-      <button mat-button type="button" (click)="registerPayment()">
-        <mat-icon aria-hidden="true">add_card</mat-icon>
+      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="registerPayment()">
+        <app-icon name="credit-card" />
         Informar pagamento
       </button>
     }
     @if (act.cancel) {
-      <button mat-stroked-button type="button" class="ad-danger" (click)="cancel()" [disabled]="busy()">Cancelar acordo</button>
+      <button type="button" class="btn btn-outline-danger" (click)="cancel()" [disabled]="busy()">Cancelar acordo</button>
     }
     @if (act.renegotiate) {
-      <button mat-flat-button type="button" (click)="renegotiate()" data-tour="agreement-renegotiate">
-        <mat-icon aria-hidden="true">autorenew</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="renegotiate()" data-tour="agreement-renegotiate">
+        <app-icon name="arrow-repeat" />
         Renegociar
       </button>
     }
@@ -35,28 +35,28 @@
     <app-status-chip domain="agreement" [status]="a.status" />
     <span class="app-numeric">{{ s.paid }} de {{ s.total }} parcelas pagas ({{ percent(s.paidShare, 1) }})</span>
     @if (a.renegotiationNumber > 0) {
-      <span class="app-status app-status--info"><mat-icon class="app-status__icon" aria-hidden="true">autorenew</mat-icon>Renegociação {{ a.renegotiationNumber }}</span>
+      <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-info-subtle text-info-emphasis border-info-subtle"><app-icon name="arrow-repeat" />Renegociação {{ a.renegotiationNumber }}</span>
     }
   </div>
 
   @if (a.status === 'BROKEN') {
-    <p class="app-alert app-alert--error" role="note">
-      <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <div class="alert alert-danger d-flex gap-2 align-items-start" role="note">
+      <app-icon name="exclamation-circle" />
       <span>Acordo quebrado{{ a.statusReason ? ': ' + a.statusReason : '' }}. Os títulos voltaram à cobrança; renegocie para oferecer novas condições.</span>
-    </p>
+    </div>
   } @else if (a.status === 'CANCELLED' && a.statusReason) {
-    <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">block</mat-icon><span>Cancelado: {{ a.statusReason }}</span></p>
+    <div class="alert alert-secondary d-flex gap-2 align-items-start" role="note"><app-icon name="slash-circle" /><span>Cancelado: {{ a.statusReason }}</span></div>
   } @else if (s.overdue) {
-    <p class="app-alert app-alert--warning" role="note">
-      <mat-icon aria-hidden="true">warning_amber</mat-icon>
+    <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+      <app-icon name="exclamation-triangle" />
       <span>{{ s.overdue }} parcela(s) vencida(s). O acordo quebra com {{ a.breakRule.overdueInstallments }} parcela(s) vencida(s) há mais de {{ a.breakRule.toleranceDays }} dia(s).</span>
-    </p>
+    </div>
   }
   @if (a.replacedByAgreementId) {
-    <p class="app-alert app-alert--neutral" role="note">
-      <mat-icon aria-hidden="true">autorenew</mat-icon>
+    <div class="alert alert-secondary d-flex gap-2 align-items-start" role="note">
+      <app-icon name="arrow-repeat" />
       <span>Substituído por renegociação. <a [routerLink]="['/negociacao/acordos', a.replacedByAgreementId]">Abrir o acordo atual</a></span>
-    </p>
+    </div>
   }
 
   <div class="pd-grid">
@@ -100,7 +100,7 @@
                 <th scope="col" class="pd-end">Saldo</th>
                 <th scope="col">Situação</th>
                 @if (canPix()) {
-                  <th scope="col" data-tour="agreement-pix"><span class="cdk-visually-hidden">Pix</span></th>
+                  <th scope="col" data-tour="agreement-pix"><span class="visually-hidden">Pix</span></th>
                 }
               </tr>
             </thead>
@@ -121,8 +121,8 @@
                   @if (canPix()) {
                     <td class="pd-end">
                       @if (pixable(i)) {
-                        <button mat-icon-button type="button" (click)="generatePix(i)" [attr.aria-label]="'Gerar Pix da parcela ' + i.number" matTooltip="Gerar Pix">
-                          <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+                        <button class="btn btn-sm btn-link" type="button" (click)="generatePix(i)" [attr.aria-label]="'Gerar Pix da parcela ' + i.number" ngbTooltip="Gerar Pix">
+                          <app-icon name="qr-code" />
                         </button>
                       }
                     </td>
@@ -175,8 +175,8 @@
           <app-document [value]="d.maskedDocument" />
           <p class="app-muted">{{ creditors.name(a.creditorId) }}</p>
           @if (a.caseId) {
-            <a mat-button [routerLink]="['/cobranca/casos', a.caseId]">
-              <mat-icon aria-hidden="true">open_in_new</mat-icon>
+            <a class="btn btn-link d-inline-flex align-items-center gap-2" [routerLink]="['/cobranca/casos', a.caseId]">
+              <app-icon name="box-arrow-up-right" />
               Abrir caso
             </a>
           }
@@ -226,7 +226,7 @@
         <ul class="pd-timeline">
           @for (p of a.participants; track $index) {
             <li>
-              <mat-icon aria-hidden="true">{{ p.actorType === 'ASSISTANT' ? 'smart_toy' : 'person' }}</mat-icon>
+              <app-icon [name]="p.actorType === 'ASSISTANT' ? 'robot' : 'person'" />
               <div>
                 <strong>{{ participantName(p.actorType, p.actorId) }}</strong>
                 <div class="app-muted">{{ roles[p.role] ?? p.role }}</div>

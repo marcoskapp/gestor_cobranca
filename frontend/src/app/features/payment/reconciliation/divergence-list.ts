@@ -1,24 +1,20 @@
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
@@ -31,30 +27,31 @@ import { ResolveDialog, ResolveDialogData } from './resolve-dialog';
 /** Fila de divergências da conciliação por tipo, com resolução auditada (justificativa obrigatória). */
 @Component({
   selector: 'app-divergence-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, Amount, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
   template: `
     <app-page-header title="Divergências de conciliação" subtitle="Créditos que o sistema não conseguiu conciliar sozinho. Cada decisão fica registrada com a justificativa.">
-      <a mat-button routerLink="/pagamentos/conciliacao">
-        <mat-icon aria-hidden="true">account_balance</mat-icon>
+      <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/pagamentos/conciliacao">
+        <app-icon name="bank" />
         Extratos
       </a>
     </app-page-header>
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar divergências">
-      <mat-button-toggle-group formControlName="type" aria-label="Tipo de divergência" class="dl-types">
-        <mat-button-toggle value="">Todas</mat-button-toggle>
+      <div class="d-flex flex-wrap gap-2 align-self-end" role="group" aria-label="Tipo de divergência">
+        <input type="radio" class="btn-check" formControlName="type" value="" id="dl-type-all" />
+        <label class="btn btn-outline-primary" for="dl-type-all">Todas</label>
         @for (t of types; track t[0]) {
-          <mat-button-toggle [value]="t[0]">{{ t[1] }}</mat-button-toggle>
+          <input type="radio" class="btn-check" formControlName="type" [value]="t[0]" [id]="'dl-type-' + t[0]" />
+          <label class="btn btn-outline-primary" [for]="'dl-type-' + t[0]">{{ t[1] }}</label>
         }
-      </mat-button-toggle-group>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      </div>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
     <app-data-table
       caption="Divergências"
@@ -65,7 +62,7 @@ import { ResolveDialog, ResolveDialogData } from './resolve-dialog';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="task_alt"
+      emptyIcon="check2-circle"
       emptyMessage="Nenhuma divergência com estes filtros."
       emptyHint="Divergências surgem na importação de extratos e nas notificações do Pix."
     >
@@ -97,15 +94,12 @@ import { ResolveDialog, ResolveDialogData } from './resolve-dialog';
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-d>
         @if (d.status === 'OPEN') {
-          <button mat-stroked-button type="button" (click)="resolve(d)">Resolver</button>
+          <button class="btn btn-outline-primary" type="button" (click)="resolve(d)">Resolver</button>
         }
       </ng-template>
     </app-data-table>
   `,
   styles: `
-    .dl-types {
-      flex-wrap: wrap;
-    }
     .dl-small {
       font-size: var(--app-text-xs);
     }
@@ -118,7 +112,7 @@ import { ResolveDialog, ResolveDialogData } from './resolve-dialog';
 })
 export class DivergenceList {
   private readonly api = inject(ReconciliationApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   protected readonly types = Object.entries(DIVERGENCE_TYPE_LABELS);
@@ -155,7 +149,7 @@ export class DivergenceList {
 
   protected resolve(d: DivergenceView): void {
     this.dialog
-      .open<ResolveDialog, ResolveDialogData, DivergenceView>(ResolveDialog, { data: { divergence: d }, width: '640px', maxWidth: '96vw' })
+      .open<ResolveDialog, ResolveDialogData, DivergenceView>(ResolveDialog, { data: { divergence: d }, size: 'lg' })
       .afterClosed()
       .subscribe((resolved) => {
         if (resolved) {

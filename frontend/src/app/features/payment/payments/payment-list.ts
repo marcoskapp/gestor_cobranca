@@ -1,15 +1,8 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -17,12 +10,14 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
-import { endOfDayInstant, startOfDayInstant } from '../../../shared/models/dates';
+import { FORM_FIELD } from '../../../shared/forms/field';
+import { endOfDayInstant, fromLocalDate, startOfDayInstant } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
@@ -36,16 +31,12 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
 @Component({
   selector: 'app-payment-list',
   imports: [
+    Icon,
+    NgbInputDatepicker,
+    NgbTooltip,
+    ...FORM_FIELD,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
     Amount,
     AppDatePipe,
     CellDef,
@@ -57,8 +48,8 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
   template: `
     <app-page-header title="Pagamentos" subtitle="Tudo o que entrou: Pix integrado, confirmações por extrato e pagamentos informados com comprovante.">
       @if (canRegister()) {
-        <button mat-flat-button type="button" (click)="register()" data-tour="payment-register">
-          <mat-icon aria-hidden="true">add_card</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="register()" data-tour="payment-register">
+          <app-icon name="credit-card" />
           Informar pagamento
         </button>
       }
@@ -72,45 +63,48 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
           <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor" [single]="true" />
         </div>
       }
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Origem</mat-label>
-        <mat-select formControlName="source">
-          <mat-option value="">Todas</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Origem">
+        <select appInput formControlName="source">
+          <option value="">Todas</option>
           @for (s of sources; track s[0]) {
-            <mat-option [value]="s[0]">{{ s[1] }}</mat-option>
+            <option [ngValue]="s[0]">{{ s[1] }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Meio</mat-label>
-        <mat-select formControlName="method">
-          <mat-option value="">Todos</mat-option>
+        </select>
+      </app-field>
+      <app-field label="Meio">
+        <select appInput formControlName="method">
+          <option value="">Todos</option>
           @for (m of methods; track m[0]) {
-            <mat-option [value]="m[0]">{{ m[1] }}</mat-option>
+            <option [ngValue]="m[0]">{{ m[1] }}</option>
           }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field class="app-compact">
-        <mat-label>Pago entre</mat-label>
-        <mat-date-range-input [rangePicker]="period">
-          <input matStartDate formControlName="from" placeholder="De" />
-          <input matEndDate formControlName="to" placeholder="Até" />
-        </mat-date-range-input>
-        <mat-datepicker-toggle matIconSuffix [for]="period" />
-        <mat-date-range-picker #period />
-      </mat-form-field>
-      <mat-checkbox formControlName="withBalance" class="pl-check">Com saldo a realocar</mat-checkbox>
+        </select>
+      </app-field>
+      <app-field label="Pago de">
+        <div class="input-group">
+          <input appInput ngbDatepicker #from="ngbDatepicker" formControlName="from" placeholder="dd/mm/aaaa" />
+          <button type="button" class="btn btn-outline-secondary" (click)="from.toggle()" aria-label="Abrir calendário de início"><app-icon name="calendar-event" /></button>
+        </div>
+      </app-field>
+      <app-field label="Pago até">
+        <div class="input-group">
+          <input appInput ngbDatepicker #to="ngbDatepicker" formControlName="to" placeholder="dd/mm/aaaa" />
+          <button type="button" class="btn btn-outline-secondary" (click)="to.toggle()" aria-label="Abrir calendário de fim"><app-icon name="calendar-event" /></button>
+        </div>
+      </app-field>
+      <div class="form-check pl-check">
+        <input class="form-check-input" type="checkbox" id="pl-with-balance" formControlName="withBalance" />
+        <label class="form-check-label" for="pl-with-balance">Com saldo a realocar</label>
+      </div>
       <div class="app-filters__actions">
-        <button mat-button type="button" (click)="clear()">Limpar filtros</button>
+        <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
       </div>
     </form>
     <app-data-table
@@ -122,7 +116,7 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="payments"
+      emptyIcon="cash-stack"
       emptyMessage="Nenhum pagamento encontrado."
       emptyHint="Ajuste os filtros. Pagamentos Pix aparecem sozinhos quando o PSP confirma."
     >
@@ -145,8 +139,8 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
         <app-status-chip domain="payment" [status]="p.status" />
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
-        <a mat-icon-button [routerLink]="['/pagamentos', p.id]" aria-label="Abrir pagamento" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-link" [routerLink]="['/pagamentos', p.id]" aria-label="Abrir pagamento" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -156,11 +150,11 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
       font-size: var(--app-text-xs);
     }
     .pl-warn {
-      color: var(--app-warning-fg);
+      color: var(--bs-warning-text-emphasis);
       font-weight: 600;
     }
     .pl-check {
-      padding-top: 12px;
+      padding-top: 2.25rem;
     }
   `,
 })
@@ -187,8 +181,9 @@ export class PaymentList {
     status: [this.params.get('situacao') ?? ''],
     source: [''],
     method: [''],
-    from: this.fb.control<Date | null>(null),
-    to: this.fb.control<Date | null>(null),
+    // datas ISO yyyy-MM-dd (datepicker do ng-bootstrap)
+    from: this.fb.control<string | null>(null),
+    to: this.fb.control<string | null>(null),
     withBalance: [this.params.get('saldo') === '1'],
   });
   private readonly filter = toSignal(
@@ -240,8 +235,8 @@ export class PaymentList {
       status: v.status || null,
       source: v.source || null,
       method: v.method || null,
-      paidFrom: startOfDayInstant(v.from),
-      paidTo: endOfDayInstant(v.to),
+      paidFrom: startOfDayInstant(fromLocalDate(v.from)),
+      paidTo: endOfDayInstant(fromLocalDate(v.to)),
       withBalance: v.withBalance || null,
     };
   }

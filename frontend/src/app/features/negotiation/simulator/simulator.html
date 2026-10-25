@@ -1,21 +1,21 @@
 <app-page-header title="Simulador de negociação" subtitle="Dívida atualizada pela política vigente do credor e ofertas até o limite da sua alçada. Toda simulação fica registrada.">
   @if (canPropose()) {
-    <a mat-button routerLink="/negociacao/propostas">
-      <mat-icon aria-hidden="true">assignment</mat-icon>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/negociacao/propostas">
+      <app-icon name="clipboard" />
       Propostas
     </a>
   }
   @if (caso()) {
-    <a mat-button [routerLink]="['/cobranca/casos', caso()]">
-      <mat-icon aria-hidden="true">arrow_back</mat-icon>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" [routerLink]="['/cobranca/casos', caso()]">
+      <app-icon name="arrow-left" />
       Voltar ao caso
     </a>
   }
 </app-page-header>
 
 @if (renegociar()) {
-  <p class="app-alert app-alert--info" role="note">
-    <mat-icon aria-hidden="true">autorenew</mat-icon>
+  <div class="alert alert-info d-flex gap-2 align-items-start" role="note">
+    <app-icon name="arrow-repeat" />
     <span>
       Renegociação do acordo
       @if (replacedAgreement(); as a) {
@@ -23,13 +23,13 @@
       }
       : a dívida é recalculada com os pagamentos já abatidos e o acordo atual é substituído na formalização.
     </span>
-  </p>
+  </div>
 }
 @if (transferencia()) {
-  <p class="app-alert app-alert--info" role="note">
-    <mat-icon aria-hidden="true">smart_toy</mat-icon>
+  <div class="alert alert-info d-flex gap-2 align-items-start" role="note">
+    <app-icon name="robot" />
     <span>Você está renegociando uma sugestão transferida pelo assistente. Para aceitar as mesmas condições, use "Assumir sugestão" na proposta.</span>
-  </p>
+  </div>
 }
 
 <div class="sim-grid">
@@ -42,54 +42,51 @@
         <fieldset class="sim-titles">
           <legend>Títulos <span class="app-muted">(nenhum marcado = todos em aberto)</span></legend>
           @for (t of titles(); track t.id) {
-            <mat-checkbox [checked]="selectedTitles().has(t.id)" (change)="toggleTitle(t.id, $event.checked)">
-              <span class="app-numeric">{{ titleLabel(t) }}</span> · <app-amount [value]="t.openBalance" />
-            </mat-checkbox>
+            <div class="form-check">
+              <input #check class="form-check-input" type="checkbox" [id]="'sim-title-' + t.id" [checked]="selectedTitles().has(t.id)" (change)="toggleTitle(t.id, check.checked)" />
+              <label class="form-check-label" [for]="'sim-title-' + t.id"><span class="app-numeric">{{ titleLabel(t) }}</span> · <app-amount [value]="t.openBalance" /></label>
+            </div>
           }
         </fieldset>
       }
       <div class="sim-row">
-        <mat-form-field class="app-compact">
-          <mat-label>Data-base</mat-label>
-          <input matInput [matDatepicker]="refPicker" formControlName="referenceDate" placeholder="Hoje" />
-          <mat-datepicker-toggle matIconSuffix [for]="refPicker" />
-          <mat-datepicker #refPicker />
-        </mat-form-field>
-        <mat-form-field class="app-compact">
-          <mat-label>Canal</mat-label>
-          <mat-select formControlName="channel">
-            <mat-option value="">Não informado</mat-option>
-            <mat-option value="PHONE">Telefone</mat-option>
-            <mat-option value="WHATSAPP">WhatsApp</mat-option>
-            <mat-option value="EMAIL">E-mail</mat-option>
-            <mat-option value="SMS">SMS</mat-option>
-            <mat-option value="IN_PERSON">Presencial</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <app-field label="Data-base">
+          <div class="input-group">
+            <input appInput ngbDatepicker #refPicker="ngbDatepicker" formControlName="referenceDate" placeholder="Hoje" />
+            <button type="button" class="btn btn-outline-secondary" (click)="refPicker.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+          </div>
+        </app-field>
+        <app-field label="Canal">
+          <select appInput formControlName="channel">
+            <option value="">Não informado</option>
+            <option value="PHONE">Telefone</option>
+            <option value="WHATSAPP">WhatsApp</option>
+            <option value="EMAIL">E-mail</option>
+            <option value="SMS">SMS</option>
+            <option value="IN_PERSON">Presencial</option>
+          </select>
+        </app-field>
       </div>
       <details class="sim-plan">
         <summary>Parcelamento pedido pelo devedor (opcional)</summary>
         <div class="sim-row">
-          <mat-form-field class="app-compact">
-            <mat-label>Pagamentos</mat-label>
-            <input matInput type="number" min="1" max="360" formControlName="installments" />
-            <mat-hint>Inclui a entrada</mat-hint>
-          </mat-form-field>
-          <mat-form-field class="app-compact">
-            <mat-label>Entrada (R$)</mat-label>
-            <input matInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
-          </mat-form-field>
-          <mat-form-field class="app-compact">
-            <mat-label>1º vencimento</mat-label>
-            <input matInput [matDatepicker]="firstPicker" formControlName="firstDueDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="firstPicker" />
-            <mat-datepicker #firstPicker />
-          </mat-form-field>
+          <app-field label="Pagamentos" hint="Inclui a entrada">
+            <input appInput type="number" min="1" max="360" formControlName="installments" />
+          </app-field>
+          <app-field label="Entrada (R$)">
+            <input appInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
+          </app-field>
+          <app-field label="1º vencimento">
+            <div class="input-group">
+              <input appInput ngbDatepicker #firstPicker="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="firstDueDate" />
+              <button type="button" class="btn btn-outline-secondary" (click)="firstPicker.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+            </div>
+          </app-field>
         </div>
         <p class="app-muted sim-small">Sem parcelamento pedido, o simulador mostra à vista e o maior parcelamento permitido.</p>
       </details>
-      <button mat-flat-button type="submit" class="app-full-width" [disabled]="running() || !creditorId() || !debtorId()">
-        <mat-icon aria-hidden="true">calculate</mat-icon>
+      <button type="submit" class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2" [disabled]="running() || !creditorId() || !debtorId()">
+        <app-icon name="calculator" />
         Simular
       </button>
     </form>
@@ -129,7 +126,7 @@
   <div class="sim-main" [attr.aria-busy]="running()">
     @if (!result()) {
       <app-empty-state
-        icon="calculate"
+        icon="calculator"
         title="Nenhuma simulação ainda."
         message="Escolha o credor e o devedor e clique em Simular. As ofertas começam no nível 0 da escada de concessões."
       />
@@ -158,21 +155,21 @@
           <p class="app-muted sim-small">Já pago nos títulos: <app-amount [value]="r.composition.paidTotal" /></p>
         }
         @for (n of r.notes; track n) {
-          <p class="app-alert app-alert--warning sim-small" role="note"><mat-icon aria-hidden="true">info</mat-icon><span>{{ n }}</span></p>
+          <div class="alert alert-warning d-flex gap-2 align-items-start sim-small" role="note"><app-icon name="info-circle" /><span>{{ n }}</span></div>
         }
         @if (r.excludedTitles.length) {
-          <p class="app-alert app-alert--neutral sim-small" role="note">
-            <mat-icon aria-hidden="true">block</mat-icon>
+          <div class="alert alert-secondary d-flex gap-2 align-items-start sim-small" role="note">
+            <app-icon name="slash-circle" />
             <span>
               {{ r.excludedTitles.length }} título(s) fora da negociação:
               @for (x of r.excludedTitles; track x.titleId; let last = $last) {
                 {{ x.reasons.map(reasonText).join(', ') }}{{ last ? '' : '; ' }}
               }
             </span>
-          </p>
+          </div>
         }
-        <button mat-button type="button" (click)="showMemory.set(!showMemory())" [attr.aria-expanded]="showMemory()" data-tour="sim-memory">
-          <mat-icon aria-hidden="true">{{ showMemory() ? 'expand_less' : 'receipt_long' }}</mat-icon>
+        <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="showMemory.set(!showMemory())" [attr.aria-expanded]="showMemory()" data-tour="sim-memory">
+          <app-icon [name]="showMemory() ? 'chevron-up' : 'receipt'" />
           {{ showMemory() ? 'Ocultar memória de cálculo' : 'Ver memória de cálculo' }}
         </button>
         @if (showMemory()) {
@@ -238,24 +235,24 @@
         <div class="sim-head">
           <h2 class="app-card__title" id="sim-offers">Ofertas</h2>
           <span class="sim-ladder" data-tour="sim-ladder">
-            <mat-icon aria-hidden="true">stairs</mat-icon>
+            <app-icon name="bar-chart-steps" />
             Nível {{ viewLevel() }} de {{ r.limits.maxLevel }} permitido pela sua alçada
           </span>
         </div>
         @if (levels().length > 1) {
           <div class="sim-levels" role="tablist" aria-label="Nível da escada">
             @for (l of levels(); track l) {
-              <button mat-stroked-button type="button" role="tab" [attr.aria-selected]="l === viewLevel()" [class.sim-level--on]="l === viewLevel()" (click)="viewLevel.set(l)">
+              <button class="btn btn-outline-primary" type="button" role="tab" [attr.aria-selected]="l === viewLevel()" [class.sim-level--on]="l === viewLevel()" (click)="viewLevel.set(l)">
                 Nível {{ l }}
               </button>
             }
           </div>
         }
         @if (r.levelCapped) {
-          <p class="app-alert app-alert--warning sim-small" role="note">
-            <mat-icon aria-hidden="true">lock</mat-icon>
+          <div class="alert alert-warning d-flex gap-2 align-items-start sim-small" role="note">
+            <app-icon name="lock" />
             <span>O nível pedido ({{ r.requestedLevel }}) passa da sua alçada; as ofertas vão até o nível {{ r.grantedLevel }}.</span>
-          </p>
+          </div>
         }
         @if (pair(); as p) {
           <p class="sim-levelname">{{ p.levelName }}</p>
@@ -306,7 +303,7 @@
                       }
                     </ul>
                   }
-                  <button mat-stroked-button type="button" (click)="useOffer(o)">Ajustar estas condições</button>
+                  <button class="btn btn-outline-primary" type="button" (click)="useOffer(o)">Ajustar estas condições</button>
                 </article>
               }
             }
@@ -317,33 +314,29 @@
           <form class="sim-escalate" [formGroup]="escalation" (ngSubmit)="escalate()" novalidate data-tour="sim-escalate">
             <h3 class="app-section-title">Subir na escada de concessões</h3>
             <div class="sim-row">
-              <mat-form-field class="app-compact">
-                <mat-label>Nível</mat-label>
-                <mat-select formControlName="level">
+              <app-field label="Nível">
+                <select appInput formControlName="level">
                   @for (l of higherLevels(); track l) {
-                    <mat-option [value]="l">Nível {{ l }}</mat-option>
+                    <option [ngValue]="l">Nível {{ l }}</option>
                   }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field class="app-compact sim-grow">
-                <mat-label>Motivo da concessão</mat-label>
-                <mat-select formControlName="reason" required>
+                </select>
+              </app-field>
+              <app-field class="sim-grow" label="Motivo da concessão">
+                <select appInput formControlName="reason" required>
                   @for (o of reasons; track o.value) {
-                    <mat-option [value]="o.value">{{ o.label }}</mat-option>
+                    <option [ngValue]="o.value">{{ o.label }}</option>
                   }
-                </mat-select>
-              </mat-form-field>
+                </select>
+              </app-field>
             </div>
-            <mat-form-field class="app-compact app-full-width">
-              <mat-label>Observação{{ escalation.controls.reason.value === 'OTHER' ? '' : ' (opcional)' }}</mat-label>
-              <input matInput formControlName="note" maxlength="500" />
-              <mat-hint>O motivo fica registrado na auditoria; a observação, só na simulação.</mat-hint>
-            </mat-form-field>
+            <app-field class="mb-3" [label]="escalation.controls.reason.value === 'OTHER' ? 'Observação' : 'Observação (opcional)'" hint="O motivo fica registrado na auditoria; a observação, só na simulação.">
+              <input appInput formControlName="note" maxlength="500" />
+            </app-field>
             @if (escalationError()) {
-              <p class="app-field-error" role="alert">{{ escalationError() }}</p>
+              <div class="invalid-feedback d-block" role="alert">{{ escalationError() }}</div>
             }
-            <button mat-stroked-button type="submit" [disabled]="running()">
-              <mat-icon aria-hidden="true">trending_up</mat-icon>
+            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="submit" [disabled]="running()">
+              <app-icon name="graph-up-arrow" />
               Simular nível {{ escalation.controls.level.value }}
             </button>
           </form>
@@ -356,33 +349,30 @@
         <form [formGroup]="custom" (ngSubmit)="validate()" novalidate>
           <div class="sim-discounts">
             @for (c of components; track c) {
-              <mat-form-field class="app-compact">
-                <mat-label>Desc. {{ componentLabels[c] }} (%)</mat-label>
-                <input matInput type="number" min="0" max="100" step="0.01" [formControlName]="c" />
-              </mat-form-field>
+              <app-field [label]="'Desc. ' + componentLabels[c] + ' (%)'">
+                <input appInput type="number" min="0" max="100" step="0.01" [formControlName]="c" />
+              </app-field>
             }
           </div>
           <div class="sim-row">
-            <mat-form-field class="app-compact">
-              <mat-label>Pagamentos</mat-label>
-              <input matInput type="number" min="1" max="360" formControlName="installments" required />
-            </mat-form-field>
-            <mat-form-field class="app-compact">
-              <mat-label>Entrada (R$)</mat-label>
-              <input matInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
-            </mat-form-field>
-            <mat-form-field class="app-compact">
-              <mat-label>1º vencimento</mat-label>
-              <input matInput [matDatepicker]="validatePicker" formControlName="firstDueDate" />
-              <mat-datepicker-toggle matIconSuffix [for]="validatePicker" />
-              <mat-datepicker #validatePicker />
-            </mat-form-field>
+            <app-field label="Pagamentos">
+              <input appInput type="number" min="1" max="360" formControlName="installments" required />
+            </app-field>
+            <app-field label="Entrada (R$)">
+              <input appInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
+            </app-field>
+            <app-field label="1º vencimento">
+              <div class="input-group">
+                <input appInput ngbDatepicker #validatePicker="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="firstDueDate" />
+                <button type="button" class="btn btn-outline-secondary" (click)="validatePicker.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+              </div>
+            </app-field>
           </div>
           <p class="sim-small">
             Nível {{ viewLevel() }} · limite da alçada: {{ percent(r.limits.maxDiscountShare) }} do desconto máximo, até {{ r.limits.maxInstallments }} pagamentos@if (r.limits.maxAgreementAmount) {<span>, acordo até <app-amount [value]="r.limits.maxAgreementAmount" /></span>}
           </p>
-          <button mat-flat-button type="submit" [disabled]="validating()">
-            <mat-icon aria-hidden="true">fact_check</mat-icon>
+          <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="submit" [disabled]="validating()">
+            <app-icon name="card-checklist" />
             Validar condições
           </button>
         </form>
@@ -417,8 +407,8 @@
           @if (mode(); as m) {
             <div class="sim-propose" data-tour="sim-propose">
               @if (canPropose()) {
-                <button mat-flat-button type="button" (click)="propose()" [disabled]="proposing()">
-                  <mat-icon aria-hidden="true">{{ m === 'propose' ? 'send' : 'how_to_reg' }}</mat-icon>
+                <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="propose()" [disabled]="proposing()">
+                  <app-icon [name]="m === 'propose' ? 'send' : 'person-check'" />
                   {{ m === 'propose' ? 'Propor' : 'Pedir aprovação' }}
                 </button>
                 <span class="app-muted sim-small">

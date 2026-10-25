@@ -1,12 +1,8 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -14,11 +10,13 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
@@ -41,13 +39,11 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
 @Component({
   selector: 'app-proposal-list',
   imports: [
+    Icon,
+    NgbTooltip,
+    ...FORM_FIELD,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
-    MatTooltipModule,
     Amount,
     CellDef,
     DataTable,
@@ -65,14 +61,14 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
     } @else {
       <app-page-header title="Propostas" subtitle="Condições propostas ao devedor: prontas para aceite, aguardando aprovação, aceitas e formalizadas.">
         @if (canApprove()) {
-          <a mat-stroked-button routerLink="/negociacao/aprovacoes">
-            <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+          <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" routerLink="/negociacao/aprovacoes">
+            <app-icon name="person-check" />
             Fila de aprovação
           </a>
         }
         @if (canSimulate()) {
-          <a mat-flat-button routerLink="/negociacao/simulador">
-            <mat-icon aria-hidden="true">calculate</mat-icon>
+          <a class="btn btn-primary d-inline-flex align-items-center gap-2" routerLink="/negociacao/simulador">
+            <app-icon name="calculator" />
             Nova simulação
           </a>
         }
@@ -82,23 +78,21 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
         <div class="app-filters__wide">
           <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
         </div>
-        <mat-form-field class="app-compact">
-          <mat-label>Situação</mat-label>
-          <mat-select formControlName="status">
-            <mat-option value="">Todas</mat-option>
+        <app-field label="Situação">
+          <select appInput formControlName="status">
+            <option value="">Todas</option>
             @for (s of statuses; track s.value) {
-              <mat-option [value]="s.value">{{ s.label }}</mat-option>
+              <option [ngValue]="s.value">{{ s.label }}</option>
             }
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field class="app-compact">
-          <mat-label>Criada por</mat-label>
-          <mat-select formControlName="actorType">
-            <mat-option value="">Qualquer autor</mat-option>
-            <mat-option value="USER">Operadores</mat-option>
-            <mat-option value="ASSISTANT">Assistente</mat-option>
-          </mat-select>
-        </mat-form-field>
+          </select>
+        </app-field>
+        <app-field label="Criada por">
+          <select appInput formControlName="actorType">
+            <option value="">Qualquer autor</option>
+            <option value="USER">Operadores</option>
+            <option value="ASSISTANT">Assistente</option>
+          </select>
+        </app-field>
       </form>
     }
 
@@ -137,7 +131,7 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
       </ng-template>
       <ng-template appCell="actor" [appCellOf]="query.rows()" let-p>
         @if (p.actor.type === 'ASSISTANT') {
-          <span class="pl-assistant"><mat-icon aria-hidden="true">smart_toy</mat-icon>Assistente</span>
+          <span class="pl-assistant"><app-icon name="robot" />Assistente</span>
         } @else {
           {{ author(p) }}
         }
@@ -149,8 +143,8 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
         <app-status-chip domain="proposal" [status]="p.status" />
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
-        <a mat-icon-button [routerLink]="['/negociacao/propostas', p.id]" aria-label="Abrir proposta" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-link" [routerLink]="['/negociacao/propostas', p.id]" aria-label="Abrir proposta" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -158,16 +152,14 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
   styles: `
     .pl-late {
       font-weight: 600;
-      color: var(--app-danger-fg);
+      color: var(--bs-danger-text-emphasis);
     }
     .pl-assistant {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
+      app-icon {
+        font-size: 1rem;
       }
     }
   `,

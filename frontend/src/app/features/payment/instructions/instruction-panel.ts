@@ -1,8 +1,5 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Component, DestroyRef, computed, effect, inject, input, output, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import { Subscription, finalize, timer } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -10,6 +7,7 @@ import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
+import { Icon } from '../../../shared/components/icon/icon';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { InstructionsApi } from '../data/payment.api';
@@ -30,7 +28,7 @@ const MAX_POLLS = 60;
  */
 @Component({
   selector: 'app-instruction-panel',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, Amount, StatusChip, AppDatePipe, PixQr],
+  imports: [Icon, RouterLink, Amount, StatusChip, AppDatePipe, PixQr],
   template: `
     @let i = current();
     <div class="ip" data-tour="instruction-panel">
@@ -42,31 +40,31 @@ const MAX_POLLS = 60;
 
       @switch (i.status) {
         @case ('PENDING') {
-          <mat-progress-bar mode="indeterminate" aria-label="Registrando no PSP" />
-          <p class="app-muted" role="status">Registrando a cobrança no PSP. O QR Code aparece aqui em instantes.</p>
+          <div class="progress" role="progressbar" aria-label="Registrando no PSP"><div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div></div>
+          <p class="app-muted mb-0" role="status">Registrando a cobrança no PSP. O QR Code aparece aqui em instantes.</p>
         }
         @case ('FAILED') {
-          <p class="app-alert app-alert--error" role="alert">
-            <mat-icon aria-hidden="true">error_outline</mat-icon>
+          <div class="alert alert-danger d-flex gap-2 align-items-start mb-0" role="alert">
+            <app-icon name="exclamation-circle" />
             <span>O PSP recusou a cobrança{{ i.failureCode ? ' (' + i.failureCode + ')' : '' }}. Confira a conta Pix com o administrador e gere outra instrução.</span>
-          </p>
+          </div>
         }
         @case ('PAID') {
-          <p class="app-alert app-alert--success" role="status">
-            <mat-icon aria-hidden="true">check_circle</mat-icon>
+          <div class="alert alert-success d-flex gap-2 align-items-start mb-0" role="status">
+            <app-icon name="check-circle" />
             <span>
               Pago em {{ i.paidAt | appDate }}.
               @if (i.paymentId && canViewPayments()) {
                 <a [routerLink]="['/pagamentos', i.paymentId]">Ver o pagamento</a>
               }
             </span>
-          </p>
+          </div>
         }
         @case ('CANCELLED') {
-          <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">block</mat-icon><span>Cancelada em {{ i.cancelledAt | appDate }}{{ i.cancelReason ? ': ' + i.cancelReason : '' }}.</span></p>
+          <div class="alert alert-secondary d-flex gap-2 align-items-start mb-0" role="note"><app-icon name="slash-circle" /><span>Cancelada em {{ i.cancelledAt | appDate }}{{ i.cancelReason ? ': ' + i.cancelReason : '' }}.</span></div>
         }
         @case ('EXPIRED') {
-          <p class="app-alert app-alert--neutral" role="note"><mat-icon aria-hidden="true">timer_off</mat-icon><span>Expirou em {{ i.expiresAt | appDate }}. Gere uma nova instrução se o devedor ainda for pagar.</span></p>
+          <div class="alert alert-secondary d-flex gap-2 align-items-start mb-0" role="note"><app-icon name="stopwatch" /><span>Expirou em {{ i.expiresAt | appDate }}. Gere uma nova instrução se o devedor ainda for pagar.</span></div>
         }
       }
 
@@ -76,8 +74,8 @@ const MAX_POLLS = 60;
           <div class="ip__copy">
             <span class="app-section-title" id="ip-code-label">Pix copia e cola</span>
             <code class="ip__code" aria-labelledby="ip-code-label">{{ i.pixCopyPaste }}</code>
-            <button mat-flat-button type="button" (click)="copy(i)" data-tour="instruction-copy">
-              <mat-icon aria-hidden="true">content_copy</mat-icon>
+            <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="copy(i)" data-tour="instruction-copy">
+              <app-icon name="copy" />
               Copiar código
             </button>
             <dl class="app-definition-list ip__facts">
@@ -94,8 +92,8 @@ const MAX_POLLS = 60;
 
       @if (open() && canCancel()) {
         <div class="ip__actions">
-          <button mat-button type="button" class="ip__danger" (click)="cancel()" [disabled]="busy()">
-            <mat-icon aria-hidden="true">block</mat-icon>
+          <button type="button" class="btn btn-link ip__danger d-inline-flex align-items-center gap-2" (click)="cancel()" [disabled]="busy()">
+            <app-icon name="slash-circle" />
             Cancelar instrução
           </button>
         </div>
@@ -139,9 +137,10 @@ const MAX_POLLS = 60;
       max-height: 96px;
       overflow: auto;
       padding: 8px 10px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-sm);
-      background: var(--app-surface-raised);
+      border: var(--bs-border-width) solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius-sm);
+      background: var(--bs-tertiary-bg);
+      color: var(--bs-body-color);
       font-size: var(--app-text-xs);
       line-height: 1.5;
       word-break: break-all;
@@ -155,7 +154,10 @@ const MAX_POLLS = 60;
       justify-content: flex-end;
     }
     .ip__danger {
-      color: var(--app-danger-fg);
+      --bs-btn-color: var(--bs-danger-text-emphasis);
+      --bs-btn-hover-color: var(--bs-danger-text-emphasis);
+      --bs-btn-active-color: var(--bs-danger-text-emphasis);
+      --bs-btn-disabled-color: var(--bs-danger-text-emphasis);
     }
   `,
 })

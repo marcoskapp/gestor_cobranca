@@ -1,12 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -15,8 +10,13 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { valueOr } from '../../../shared/data/resource-value';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators } from '../../../shared/validation/validators';
 import { IndexesApi } from '../data/negotiation.api';
@@ -60,39 +60,37 @@ export function ratesFromRows(rows: readonly { competence: string; ratePercent: 
 /** Cadastro do índice (código imutável). */
 @Component({
   selector: 'app-index-form',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule],
   template: `
-    <h2 mat-dialog-title>{{ data ? 'Editar índice' : 'Novo índice' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data ? 'Editar índice' : 'Novo índice' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Código</mat-label>
-          <input matInput formControlName="code" maxlength="20" [readonly]="!!data" required />
-          <mat-hint>Ex.: IPCA, INPC, IGPM (maiúsculas, dígitos e _)</mat-hint>
-        </mat-form-field>
-        <mat-form-field class="app-full-width">
-          <mat-label>Nome</mat-label>
-          <input matInput formControlName="name" maxlength="120" required />
-        </mat-form-field>
-        <mat-form-field class="app-full-width">
-          <mat-label>Fonte</mat-label>
-          <input matInput formControlName="source" maxlength="200" />
-          <mat-hint>Ex.: IBGE — Sistema Nacional de Índices de Preços ao Consumidor</mat-hint>
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Salvar</button>
-      </mat-dialog-actions>
+        <app-field class="mb-3" label="Código" hint="Ex.: IPCA, INPC, IGPM (maiúsculas, dígitos e _)">
+          <input appInput formControlName="code" maxlength="20" [readonly]="!!data" required ngbAutofocus />
+        </app-field>
+        <app-field class="mb-3" label="Nome">
+          <input appInput formControlName="name" maxlength="120" required />
+        </app-field>
+        <app-field class="mb-3" label="Fonte" hint="Ex.: IBGE — Sistema Nacional de Índices de Preços ao Consumidor">
+          <input appInput formControlName="source" maxlength="200" />
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar</button>
+      </div>
     </form>
   `,
 })
 export class IndexForm {
-  protected readonly data = inject<IndexView | null>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<IndexForm, IndexView>>(MatDialogRef);
+  protected readonly data = inject<IndexView | null>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<IndexView>>(DialogRef);
   private readonly api = inject(IndexesApi);
   protected readonly saving = signal(false);
   protected readonly errors = signal<string[]>([]);
@@ -141,12 +139,12 @@ interface RateRow {
  */
 @Component({
   selector: 'app-index-list',
-  imports: [FormsModule, MatButtonModule, MatIconModule, MatTooltipModule, CellDef, DataTable, EmptyState, PageHeader],
+  imports: [Icon, NgbTooltip, FormsModule, CellDef, DataTable, EmptyState, PageHeader],
   template: `
     <app-page-header title="Índices de correção" subtitle="Variações mensais usadas na correção monetária das políticas que a preveem.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="edit(null)">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="edit(null)">
+          <app-icon name="plus-lg" />
           Novo índice
         </button>
       }
@@ -160,24 +158,24 @@ interface RateRow {
         [loading]="list.isLoading()"
         [failed]="list.status() === 'error'"
         (retry)="list.reload()"
-        emptyIcon="trending_up"
+        emptyIcon="graph-up-arrow"
         emptyMessage="Nenhum índice cadastrado."
         emptyHint="Sem índice, as políticas calculam sem correção monetária."
       >
         <ng-template appCell="code" [appCellOf]="rows()" let-i>
-          <button type="button" class="ix-link" (click)="selected.set(i.code)" [attr.aria-pressed]="selected() === i.code">{{ i.code }}</button>
+          <button type="button" class="btn btn-link p-0 align-baseline fw-medium text-decoration-underline" (click)="selected.set(i.code)" [attr.aria-pressed]="selected() === i.code">{{ i.code }}</button>
           <div class="app-muted">{{ i.name }}</div>
         </ng-template>
         <ng-template appCell="last" [appCellOf]="rows()" let-i>{{ competence(i.lastCompetence) }}</ng-template>
         <ng-template appCell="source" [appCellOf]="rows()" let-i>{{ i.source || '—' }}</ng-template>
         <ng-template appCell="actions" [appCellOf]="rows()" let-i>
           @if (canManage()) {
-            <button mat-icon-button type="button" (click)="edit(i)" [attr.aria-label]="'Editar índice ' + i.code" matTooltip="Editar">
-              <mat-icon aria-hidden="true">edit</mat-icon>
+            <button class="btn btn-sm btn-link" type="button" (click)="edit(i)" [attr.aria-label]="'Editar índice ' + i.code" ngbTooltip="Editar">
+              <app-icon name="pencil" />
             </button>
           }
-          <button mat-icon-button type="button" (click)="selected.set(i.code)" [attr.aria-label]="'Ver variações de ' + i.code" matTooltip="Variações">
-            <mat-icon aria-hidden="true">chevron_right</mat-icon>
+          <button class="btn btn-sm btn-link" type="button" (click)="selected.set(i.code)" [attr.aria-label]="'Ver variações de ' + i.code" ngbTooltip="Variações">
+            <app-icon name="chevron-right" />
           </button>
         </ng-template>
       </app-data-table>
@@ -186,7 +184,7 @@ interface RateRow {
         @if (detail(); as d) {
           <h2 class="app-card__title" id="ix-rates-title">{{ d.code }} · variações mensais</h2>
           <div class="ix-scroll">
-            <table class="ix-table">
+            <table class="table table-sm mb-0 ix-table">
               <thead>
                 <tr>
                   <th scope="col">Competência</th>
@@ -198,14 +196,14 @@ interface RateRow {
                   <tr [class.ix-changed]="r.changed">
                     <td>
                       @if (r.changed && canManage()) {
-                        <input class="ix-cell" type="month" [(ngModel)]="r.competence" (ngModelChange)="touch()" aria-label="Competência" />
+                        <input class="form-control form-control-sm ix-cell" type="month" [(ngModel)]="r.competence" (ngModelChange)="touch()" aria-label="Competência" />
                       } @else {
                         {{ competence(r.competence) }}
                       }
                     </td>
                     <td>
                       @if (canManage()) {
-                        <input class="ix-cell" type="number" step="0.0001" [ngModel]="r.ratePercent" (ngModelChange)="r.ratePercent = $event; r.changed = true; touch()" [attr.aria-label]="'Variação de ' + competence(r.competence)" />
+                        <input class="form-control form-control-sm ix-cell" type="number" step="0.0001" [ngModel]="r.ratePercent" (ngModelChange)="r.ratePercent = $event; r.changed = true; touch()" [attr.aria-label]="'Variação de ' + competence(r.competence)" />
                       } @else {
                         <span class="app-numeric">{{ percent(r.ratePercent, 4) }}</span>
                       }
@@ -218,17 +216,17 @@ interface RateRow {
             </table>
           </div>
           @for (p of problems(); track p) {
-            <p class="app-field-error" role="alert">{{ p }}</p>
+            <div class="invalid-feedback d-block" role="alert">{{ p }}</div>
           }
           @if (canManage()) {
             <div class="ix-actions">
-              <button mat-button type="button" (click)="addMonth()"><mat-icon aria-hidden="true">add</mat-icon>Competência</button>
-              <button mat-flat-button type="button" (click)="saveRates()" [disabled]="saving() || !pending()">Salvar variações</button>
+              <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="addMonth()"><app-icon name="plus-lg" />Competência</button>
+              <button class="btn btn-primary" type="button" (click)="saveRates()" [disabled]="saving() || !pending()">Salvar variações</button>
             </div>
             <p class="app-muted ix-small">Variações com sinal (deflação negativa). Correções ficam na trilha de auditoria.</p>
           }
         } @else {
-          <app-empty-state icon="table_chart" title="Escolha um índice." message="As variações mensais aparecem aqui." [compact]="true" />
+          <app-empty-state icon="table" title="Escolha um índice." message="As variações mensais aparecem aqui." [compact]="true" />
         }
       </section>
     </div>
@@ -240,46 +238,24 @@ interface RateRow {
       gap: var(--app-gap);
       align-items: start;
     }
-    .ix-link {
-      padding: 0;
-      border: 0;
-      background: none;
-      color: var(--mat-sys-primary);
-      font: inherit;
-      font-weight: 600;
-      text-decoration: underline;
-      cursor: pointer;
-    }
     .ix-scroll {
       max-height: 420px;
       overflow-y: auto;
     }
     .ix-table {
-      width: 100%;
-      border-collapse: collapse;
       font-size: var(--app-text-sm);
-      th,
-      td {
-        padding: 4px 6px;
-        border-bottom: 1px solid var(--app-border);
-        text-align: left;
-      }
     }
+    /* linha nova ou alterada: fundo pela variável documentada da tabela */
     .ix-changed {
-      background: var(--app-warning-bg);
+      --bs-table-bg: var(--bs-warning-bg-subtle);
     }
     .ix-cell {
       width: 140px;
-      padding: 4px 6px;
-      border: 1px solid var(--app-border);
-      border-radius: var(--app-radius-sm);
-      background: var(--app-surface);
-      color: inherit;
-      font: inherit;
     }
     .ix-actions {
       display: flex;
       justify-content: space-between;
+      gap: 8px;
       margin-top: 8px;
     }
     .ix-small {
@@ -295,7 +271,7 @@ interface RateRow {
 export class IndexList {
   private readonly api = inject(IndexesApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
 
   protected readonly competence = competenceText;
@@ -363,7 +339,7 @@ export class IndexList {
 
   protected edit(index: IndexView | null): void {
     this.dialog
-      .open<IndexForm, IndexView | null, IndexView>(IndexForm, { data: index, width: '520px' })
+      .open<IndexForm, IndexView | null, IndexView>(IndexForm, { data: index })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {

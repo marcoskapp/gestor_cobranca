@@ -4,11 +4,12 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { offer, simulationResult } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { SimulationView } from '../data/negotiation.models';
 import { Simulator } from './simulator';
 
@@ -22,7 +23,8 @@ describe('Simulator', () => {
     TestBed.configureTestingModule({
       imports: [Simulator],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

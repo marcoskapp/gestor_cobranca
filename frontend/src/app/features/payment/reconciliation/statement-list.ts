@@ -1,16 +1,15 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { timer } from 'rxjs';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
+import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { sizeText } from '../../ingestion/data/ingestion.labels';
@@ -25,15 +24,15 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
 /** Extratos e arquivos de retorno importados, com o resultado da conciliação de cada lote. */
 @Component({
   selector: 'app-statement-list',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatTooltipModule, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [Icon, NgbTooltip, RouterLink, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
   template: `
     <app-page-header title="Conciliação" subtitle="Importe o extrato da conta de recebimento: o sistema confere com Pix, pagamentos e parcelas.">
-      <a mat-button routerLink="/pagamentos/divergencias">
-        <mat-icon aria-hidden="true">rule</mat-icon>
+      <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/pagamentos/divergencias">
+        <app-icon name="list-check" />
         Divergências
       </a>
-      <button mat-flat-button type="button" (click)="upload()" data-tour="statement-import">
-        <mat-icon aria-hidden="true">upload_file</mat-icon>
+      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="upload()" data-tour="statement-import">
+        <app-icon name="file-earmark-arrow-up" />
         Importar extrato
       </button>
     </app-page-header>
@@ -46,11 +45,11 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="account_balance"
+      emptyIcon="bank"
       emptyMessage="Nenhum extrato importado ainda."
       emptyHint="Exporte o extrato do banco em CSV no layout genérico e importe aqui."
     >
-      <button mat-stroked-button appEmptyAction type="button" (click)="upload()">Importar extrato</button>
+      <button class="btn btn-outline-primary" appEmptyAction type="button" (click)="upload()">Importar extrato</button>
       <ng-template appCell="createdAt" [appCellOf]="query.rows()" let-s>
         {{ s.createdAt | appDate }}
         <div class="app-muted sl-small">{{ users.name(s.requestedBy) }}</div>
@@ -69,8 +68,8 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
       </ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-s><app-status-chip domain="statementImport" [status]="s.status" /></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-s>
-        <a mat-icon-button [routerLink]="['/pagamentos/conciliacao', s.id]" aria-label="Abrir lote" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-link" [routerLink]="['/pagamentos/conciliacao', s.id]" aria-label="Abrir lote" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -81,13 +80,13 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
     }
     .sl-warn {
       font-weight: 600;
-      color: var(--app-warning-fg);
+      color: var(--bs-warning-text-emphasis);
     }
   `,
 })
 export class StatementList {
   private readonly api = inject(ReconciliationApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   protected readonly size = sizeText;
 
@@ -122,7 +121,7 @@ export class StatementList {
 
   protected upload(): void {
     this.dialog
-      .open<StatementUploadDialog, void, StatementImportView>(StatementUploadDialog, { width: '760px', maxWidth: '96vw' })
+      .open<StatementUploadDialog, void, StatementImportView>(StatementUploadDialog, { size: 'lg' })
       .afterClosed()
       .subscribe((imported) => {
         if (imported) {

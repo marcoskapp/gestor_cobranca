@@ -1,12 +1,11 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { Amount } from '../../../shared/components/amount/amount';
+import { Icon } from '../../../shared/components/icon/icon';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -22,12 +21,12 @@ import { planText } from '../data/negotiation.labels';
  */
 @Component({
   selector: 'app-case-negotiation',
-  imports: [RouterLink, MatButtonModule, MatIconModule, Amount, StatusChip, AppDatePipe],
+  imports: [Icon, RouterLink, Amount, StatusChip, AppDatePipe],
   template: `
     <div class="cn-actions">
       @if (canSimulate()) {
-        <a mat-stroked-button routerLink="/negociacao/simulador" [queryParams]="{ credor: creditorId(), devedor: debtorId(), caso: caseId() }">
-          <mat-icon aria-hidden="true">calculate</mat-icon>
+        <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" routerLink="/negociacao/simulador" [queryParams]="{ credor: creditorId(), devedor: debtorId(), caso: caseId() }">
+          <app-icon name="calculator" />
           Simular
           <kbd class="cn-kbd" aria-hidden="true">Alt S</kbd>
         </a>
@@ -76,8 +75,8 @@ import { planText } from '../data/negotiation.labels';
               <span class="cn-late">{{ s.overdue }} vencida(s)</span>
             }
             @if (canPix() && s.next && active(a)) {
-              <button mat-stroked-button type="button" class="cn-pix" (click)="pix(a, s.next)" data-tour="case-pix">
-                <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+              <button type="button" class="btn btn-outline-primary cn-pix d-inline-flex align-items-center gap-2" (click)="pix(a, s.next)" data-tour="case-pix">
+                <app-icon name="qr-code" />
                 Gerar Pix da {{ s.next.number }}ª parcela
               </button>
             }
@@ -110,14 +109,14 @@ import { planText } from '../data/negotiation.labels';
       align-items: center;
       gap: 4px 12px;
       padding: 8px 0;
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: 1px solid var(--bs-border-color);
     }
     .cn-pix {
       margin-left: auto;
     }
     .cn-late {
       font-weight: 600;
-      color: var(--app-danger-fg);
+      color: var(--bs-danger-text-emphasis);
     }
   `,
 })

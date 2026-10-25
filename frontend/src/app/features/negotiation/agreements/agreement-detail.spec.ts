@@ -7,12 +7,12 @@ import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { agreement } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
+import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementView } from '../data/agreement.models';
 import { AgreementDetail } from './agreement-detail';
-import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -24,8 +24,8 @@ describe('AgreementDetail', () => {
     TestBed.configureTestingModule({
       imports: [AgreementDetail],
       providers: [
-        ...LEGACY_DIALOG_LAUNCHERS,
-        provideLocale(),
+        provideAppLocale(),
+        provideBootstrapDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

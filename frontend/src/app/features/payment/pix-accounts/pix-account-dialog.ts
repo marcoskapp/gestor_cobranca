@@ -1,17 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
+import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppValidators } from '../../../shared/validation/validators';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { PixAccountsApi } from '../data/payment.api';
@@ -43,64 +40,57 @@ const HTTPS = /^https:\/\/[^\s/?#@]+(\/[^\s?#]*)?$/i;
  */
 @Component({
   selector: 'app-pix-account-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, EntityPicker, CredentialFields],
+  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, EntityPicker, CredentialFields],
   template: `
-    <h2 mat-dialog-title>{{ editing ? 'Editar conta Pix' : 'Nova conta Pix' }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0" tabindex="-1" [attr.ngbAutofocus]="editing ? null : ''">{{ editing ? 'Editar conta Pix' : 'Nova conta Pix' }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert"><mat-icon aria-hidden="true">error_outline</mat-icon><span>{{ e }}</span></p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
         }
         @if (!editing) {
           <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" [hint]="allCreditors() ? 'Vazio = conta da assessoria, usada por credores sem conta própria.' : 'Contas da assessoria exigem acesso a todos os credores.'" />
           @if (!allCreditors() && submitted() && !form.controls.creditor.value.length) {
-            <p class="app-field-error" role="alert">Escolha o credor da conta.</p>
+            <div class="invalid-feedback d-block" role="alert">Escolha o credor da conta.</div>
           }
         }
         <div class="app-form-grid">
-          <mat-form-field>
-            <mat-label>Nome</mat-label>
-            <input matInput formControlName="name" maxlength="120" required />
-            <mat-hint>Ex.: Banco X — recebimentos Horizonte</mat-hint>
-          </mat-form-field>
+          <app-field label="Nome" hint="Ex.: Banco X — recebimentos Horizonte">
+            <input appInput formControlName="name" maxlength="120" required ngbAutofocus />
+          </app-field>
           @if (!editing) {
-            <mat-form-field>
-              <mat-label>Provedor</mat-label>
-              <mat-select formControlName="provider">
-                <mat-option value="BACEN_API">API Pix do BACEN (qualquer PSP)</mat-option>
-                <mat-option value="SANDBOX">Simulador (só ambiente de teste)</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <app-field label="Provedor">
+              <select appInput formControlName="provider">
+                <option value="BACEN_API">API Pix do BACEN (qualquer PSP)</option>
+                <option value="SANDBOX">Simulador (só ambiente de teste)</option>
+              </select>
+            </app-field>
           }
-          <mat-form-field>
-            <mat-label>Chave Pix</mat-label>
-            <input matInput formControlName="pixKey" maxlength="77" required spellcheck="false" autocomplete="off" />
-            <mat-hint>Chave da conta que recebe (CNPJ, e-mail, aleatória…).</mat-hint>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>URL da API</mat-label>
-            <input matInput formControlName="apiBaseUrl" maxlength="500" required spellcheck="false" placeholder="https://" />
-            <mat-error>Use HTTPS, sem usuário, senha ou parâmetros.</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>URL do token (OAuth2)</mat-label>
-            <input matInput formControlName="tokenUrl" maxlength="500" required spellcheck="false" placeholder="https://" />
-            <mat-error>Use HTTPS, sem usuário, senha ou parâmetros.</mat-error>
-          </mat-form-field>
+          <app-field label="Chave Pix" hint="Chave da conta que recebe (CNPJ, e-mail, aleatória…).">
+            <input appInput formControlName="pixKey" maxlength="77" required spellcheck="false" autocomplete="off" />
+          </app-field>
+          <app-field label="URL da API" error="Use HTTPS, sem usuário, senha ou parâmetros.">
+            <input appInput formControlName="apiBaseUrl" maxlength="500" required spellcheck="false" placeholder="https://" />
+          </app-field>
+          <app-field label="URL do token (OAuth2)" error="Use HTTPS, sem usuário, senha ou parâmetros.">
+            <input appInput formControlName="tokenUrl" maxlength="500" required spellcheck="false" placeholder="https://" />
+          </app-field>
         </div>
 
         <h3 class="app-section-title">Webhook</h3>
-        <mat-button-toggle-group formControlName="webhookAuth" aria-label="Autenticação do webhook" class="pa-auth">
-          <mat-button-toggle value="MTLS">mTLS (padrão do Pix)</mat-button-toggle>
-          <mat-button-toggle value="HMAC">Assinatura HMAC</mat-button-toggle>
-        </mat-button-toggle-group>
+        <div class="d-flex flex-wrap gap-2 mb-2" role="group" aria-label="Autenticação do webhook">
+          <input type="radio" class="btn-check" formControlName="webhookAuth" value="MTLS" id="pa-webhookAuth-mtls" />
+          <label class="btn btn-outline-primary" for="pa-webhookAuth-mtls">mTLS (padrão do Pix)</label>
+          <input type="radio" class="btn-check" formControlName="webhookAuth" value="HMAC" id="pa-webhookAuth-hmac" />
+          <label class="btn btn-outline-primary" for="pa-webhookAuth-hmac">Assinatura HMAC</label>
+        </div>
         @if (auth() === 'MTLS') {
-          <mat-form-field class="app-full-width">
-            <mat-label>Impressões digitais SHA-256 do certificado do PSP</mat-label>
-            <textarea matInput formControlName="fingerprints" rows="2" spellcheck="false" class="app-mono"></textarea>
-            <mat-hint>Uma por linha (64 hexadecimais; ":" aceito). Até 10. Só chamadas do PSP com esses certificados são aceitas.</mat-hint>
-            <mat-error>Informe ao menos uma impressão digital SHA-256 válida.</mat-error>
-          </mat-form-field>
+          <app-field class="mb-3" label="Impressões digitais SHA-256 do certificado do PSP" hint='Uma por linha (64 hexadecimais; ":" aceito). Até 10. Só chamadas do PSP com esses certificados são aceitas.' error="Informe ao menos uma impressão digital SHA-256 válida.">
+            <textarea appInput formControlName="fingerprints" rows="2" spellcheck="false" class="app-mono"></textarea>
+          </app-field>
         } @else {
           <p class="app-muted pa-small">O PSP assina cada notificação com o segredo HMAC informado nas credenciais.</p>
         }
@@ -109,26 +99,22 @@ const HTTPS = /^https:\/\/[^\s/?#@]+(\/[^\s?#]*)?$/i;
           <h3 class="app-section-title">Credenciais</h3>
           <app-credential-fields [form]="credentials" [hmac]="auth() === 'HMAC'" (certificate)="certificate.set($event)" />
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Cadastrar conta' }}</button>
-      </mat-dialog-actions>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ editing ? 'Salvar' : 'Cadastrar conta' }}</button>
+      </div>
     </form>
   `,
   styles: `
-    .pa-auth {
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
     .pa-small {
       font-size: var(--app-text-sm);
     }
   `,
 })
 export class PixAccountDialog {
-  protected readonly data = inject<PixAccountDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<PixAccountDialog, PixAccountView>>(MatDialogRef);
+  protected readonly data = inject<PixAccountDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<PixAccountView>>(DialogRef);
   private readonly api = inject(PixAccountsApi);
   private readonly authService = inject(AuthService);
   protected readonly creditors = inject(CreditorLookup);

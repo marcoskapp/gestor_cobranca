@@ -4,6 +4,7 @@ import {
   NgbDateParserFormatter,
   NgbDateStruct,
   NgbDatepickerConfig,
+  NgbInputDatepickerConfig,
   NgbDropdownConfig,
   NgbModalConfig,
   NgbPaginationConfig,
@@ -78,10 +79,13 @@ export function provideBootstrapDefaults(): EnvironmentProviders {
       pagination.ellipses = false;
       pagination.size = 'sm';
 
-      const datepicker = inject(NgbDatepickerConfig);
-      datepicker.firstDayOfWeek = 7; // domingo, como no calendário brasileiro
-      datepicker.minDate = { year: 1900, month: 1, day: 1 };
-      datepicker.maxDate = { year: 2100, month: 12, day: 31 };
+      // o datepicker em campo (`input[ngbDatepicker]`) tem configuração própria (NgbInputDatepickerConfig,
+      // outra instância): os mesmos padrões valem para os dois
+      for (const datepicker of [inject(NgbDatepickerConfig), inject(NgbInputDatepickerConfig)]) {
+        datepicker.firstDayOfWeek = 7; // domingo, como no calendário brasileiro
+        datepicker.minDate = { year: 1900, month: 1, day: 1 };
+        datepicker.maxDate = { year: 2100, month: 12, day: 31 };
+      }
 
       inject(NgbTypeaheadConfig).focusFirst = false;
     }),

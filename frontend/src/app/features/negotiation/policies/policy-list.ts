@@ -1,14 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, finalize, map, startWith, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -17,11 +11,16 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { DialogRef } from '../../../shared/dialog/dialog-ref';
+import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
@@ -38,13 +37,16 @@ interface PolicyFilter {
 /** Primeira versão da política do credor, a partir do modelo de mercado. */
 @Component({
   selector: 'app-policy-create',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, EntityPicker],
+  imports: [...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, EntityPicker],
   template: `
-    <h2 mat-dialog-title>Nova política de cobrança</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0" tabindex="-1" ngbAutofocus>Nova política de cobrança</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
         @for (e of errors(); track e) {
-          <p class="app-alert app-alert--error" role="alert">{{ e }}</p>
+          <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">{{ e }}</div>
         }
         <p class="app-dialog-message">
           A política começa como rascunho com o <strong>modelo de mercado</strong> (juros 1% a.m., multa 2%, honorários 10%, até 12 pagamentos,
@@ -52,26 +54,24 @@ interface PolicyFilter {
         </p>
         <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" hint="Cada credor tem uma única linha de versões." />
         @if (form.controls.creditor.touched && form.controls.creditor.invalid) {
-          <p class="app-field-error" role="alert">Escolha o credor.</p>
+          <div class="invalid-feedback d-block" role="alert">Escolha o credor.</div>
         }
-        <mat-form-field class="app-full-width">
-          <mat-label>Nome</mat-label>
-          <input matInput formControlName="name" maxlength="120" required />
-        </mat-form-field>
-        <mat-form-field class="app-full-width">
-          <mat-label>Descrição</mat-label>
-          <textarea matInput formControlName="description" rows="2" maxlength="1000"></textarea>
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">Criar rascunho</button>
-      </mat-dialog-actions>
+        <app-field class="mb-3" label="Nome">
+          <input appInput formControlName="name" maxlength="120" required />
+        </app-field>
+        <app-field class="mb-3" label="Descrição">
+          <textarea appInput formControlName="description" rows="2" maxlength="1000"></textarea>
+        </app-field>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Criar rascunho</button>
+      </div>
     </form>
   `,
 })
 export class PolicyCreate {
-  private readonly ref = inject<MatDialogRef<PolicyCreate, PolicyView>>(MatDialogRef);
+  private readonly ref = inject<DialogRef<PolicyView>>(DialogRef);
   private readonly api = inject(PoliciesApi);
   protected readonly creditors = inject(CreditorLookup);
   protected readonly saving = signal(false);
@@ -107,12 +107,12 @@ export class PolicyCreate {
 /** Políticas de cobrança e negociação por credor, com versões, vigência e situação. */
 @Component({
   selector: 'app-policy-list',
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
+  imports: [Icon, NgbTooltip, ...FORM_FIELD, ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Políticas de cobrança" subtitle="Encargos, descontos máximos, parcelamento e escada de concessões de cada credor, em versões imutáveis após a publicação.">
       @if (canManage()) {
-        <button mat-flat-button type="button" (click)="create()">
-          <mat-icon aria-hidden="true">add</mat-icon>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()">
+          <app-icon name="plus-lg" />
           Nova política
         </button>
       }
@@ -121,15 +121,14 @@ export class PolicyCreate {
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
-      <mat-form-field class="app-compact">
-        <mat-label>Situação</mat-label>
-        <mat-select formControlName="status">
-          <mat-option value="">Todas</mat-option>
+      <app-field label="Situação">
+        <select appInput formControlName="status">
+          <option value="">Todas</option>
           @for (s of statuses; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            <option [ngValue]="s.value">{{ s.label }}</option>
           }
-        </mat-select>
-      </mat-form-field>
+        </select>
+      </app-field>
     </form>
     <app-data-table
       caption="Versões de políticas"
@@ -140,7 +139,7 @@ export class PolicyCreate {
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="policy"
+      emptyIcon="shield-check"
       emptyMessage="Nenhuma política encontrada."
       emptyHint="Sem política publicada, o credor não pode ser negociado (simulações retornam erro)."
     >
@@ -158,8 +157,8 @@ export class PolicyCreate {
       </ng-template>
       <ng-template appCell="overrides" [appCellOf]="query.rows()" let-p><span class="app-numeric">{{ p.terms.overrides.length }}</span></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
-        <a mat-icon-button [routerLink]="['/negociacao/politicas', p.id]" aria-label="Abrir versão" matTooltip="Abrir">
-          <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        <a class="btn btn-sm btn-link" [routerLink]="['/negociacao/politicas', p.id]" aria-label="Abrir versão" ngbTooltip="Abrir">
+          <app-icon name="chevron-right" />
         </a>
       </ng-template>
     </app-data-table>
@@ -168,7 +167,7 @@ export class PolicyCreate {
 export class PolicyList {
   private readonly api = inject(PoliciesApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -202,7 +201,7 @@ export class PolicyList {
 
   protected create(): void {
     this.dialog
-      .open<PolicyCreate, void, PolicyView>(PolicyCreate, { width: '560px' })
+      .open<PolicyCreate, void, PolicyView>(PolicyCreate)
       .afterClosed()
       .subscribe((created) => {
         if (created) {
