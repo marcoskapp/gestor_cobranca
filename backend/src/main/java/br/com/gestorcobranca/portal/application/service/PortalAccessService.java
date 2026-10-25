@@ -33,6 +33,7 @@ import br.com.gestorcobranca.shared.storage.FileStorage;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -42,6 +43,8 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Acesso público ao portal. Cada etapa roda no tenant do portal (resolvido pelo endereço) como
@@ -80,12 +83,14 @@ class PortalAccessService implements PortalAccessUseCases {
     private final PortalProperties properties;
     private final PortalMetrics metrics;
     private final Clock clock;
+    private final Executor dispatchExecutor;
 
     PortalAccessService(PortalSites sites, PortalDebts debts, KnowledgeVerifier knowledge, SessionOpener sessionOpener,
                   AccessChallengeRepository challenges, AccessLinkRepository links, AccessThrottleStore throttle,
                   MessageUseCases messages, FileStorage fileStorage, BlindIndex blindIndex,
                   TenantExecution tenantExecution, AccessLogger accessLogger, PortalProperties properties,
-                  PortalMetrics metrics, Clock clock) {
+                  PortalMetrics metrics, Clock clock,
+                  @Qualifier("portalCodeDispatchExecutor") Executor dispatchExecutor) {
         this.sites = sites;
         this.debts = debts;
         this.knowledge = knowledge;
@@ -101,6 +106,7 @@ class PortalAccessService implements PortalAccessUseCases {
         this.properties = properties;
         this.metrics = metrics;
         this.clock = clock;
+        this.dispatchExecutor = dispatchExecutor;
     }
 
     // ------------------------------------------------------------------ marca pública
@@ -191,13 +197,21 @@ class PortalAccessService implements PortalAccessUseCases {
         if (pending.debtorId() == null) {
             metrics.codeRequested(channel.name(), "DECOY");
         } else {
-            dispatchCode(site, pending);
+            // envio fora da requisição: mesmo trabalho e tempo de resposta para documento existente ou não
+            try {
+                dispatchExecutor.execute(() -> dispatchCode(site, pending));
+            } catch (RejectedExecutionException e) {
+                metrics.codeRequested(pending.channel().name(), "NOT_DELIVERED");
+                LOG.atWarn().addKeyValue("tenantId", site.tenantId()).addKeyValue("challengeId", pending.challengeId())
+                        .log("Fila de envio de códigos do portal cheia: código não enviado");
+            }
         }
         return pending.view();
     }
 
     /**
-     * Envio do código pelo communication como sistema (o porteiro decide), em transação própria: uma
+     * Envio do código pelo communication como sistema (o porteiro decide), em transação própria e em
+     * thread própria (depois da resposta ao pedido): uma
      * recusa (template ausente, sem contato no canal, canal sem conta) não desfaz o desafio e a resposta
      * ao devedor continua a mesma.
      */
