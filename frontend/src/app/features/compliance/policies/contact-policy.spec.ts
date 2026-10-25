@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -66,7 +66,7 @@ describe('ContactPolicyPage', () => {
     TestBed.configureTestingModule({
       imports: [ContactPolicyPage],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),

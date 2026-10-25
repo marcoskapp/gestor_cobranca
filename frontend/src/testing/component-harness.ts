@@ -4,7 +4,7 @@ import { Provider, Type, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../app/core/auth/auth.service';
-import { provideLocale } from '../app/core/config/locale.config';
+import { provideAppLocale } from '../app/core/config/app-locale';
 import { NotificationService } from '../app/core/notification/notification.service';
 import { fakeUser } from './auth-fixtures';
 
@@ -27,7 +27,7 @@ export function setup(component: Type<unknown>, permissions: string[], userId = 
   TestBed.configureTestingModule({
     imports: [component],
     providers: [
-      provideLocale(),
+      provideAppLocale(),
       provideRouter([{ path: '**', children: [] }]),
       provideHttpClient(),
       provideHttpClientTesting(),

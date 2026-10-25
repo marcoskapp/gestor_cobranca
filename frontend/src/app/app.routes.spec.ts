@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
-import { provideLocale } from './core/config/locale.config';
+import { provideAppLocale } from './core/config/app-locale';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -18,7 +18,7 @@ describe('rotas da aplicação', () => {
     user.set(null);
     TestBed.configureTestingModule({
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter(routes, withComponentInputBinding()),
         provideHttpClient(),
         provideHttpClientTesting(),

@@ -57,7 +57,10 @@ Versões fixadas no `backend/pom.xml` e no `frontend/package.json`. Itens marcad
 | --- | --- | --- |
 | Angular | 22.x | Aplicação web (SPA) com componentes standalone e signals |
 | TypeScript | 5.x | Linguagem do frontend |
-| Angular Material / CDK | 22.x | Componentes de interface acessíveis (tabelas, formulários, diálogos) |
+| Bootstrap | 5.3 | Framework de interface (parametrizado só por variáveis documentadas, `frontend/src/styles/bootstrap/`) |
+| ng-bootstrap | 21.x | Componentes Bootstrap nativos do Angular (diálogos, menus, calendários, abas, avisos), sem o JavaScript do Bootstrap |
+| Bootstrap Icons | 1.13 | Ícones em sprite SVG servido pela aplicação |
+| Angular CDK | 22.x | Utilitários sem aparência: área de transferência, anúncios para leitor de tela, pontos de quebra, overlay do tour |
 | RxJS | 7.x | Fluxos assíncronos e integração HTTP |
 | Angular HttpClient + interceptors | 22.x | Autenticação com access token em memória e renovação por cookie HttpOnly |
 

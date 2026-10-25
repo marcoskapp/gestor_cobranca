@@ -17,6 +17,8 @@ import { ThemeService } from '../../preferences/theme.service';
         (click)="theme.toggleTheme()"
         [attr.aria-label]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
         [ngbTooltip]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
+        container="body"
+        [openDelay]="300"
       >
         <app-icon [name]="theme.effectiveTheme() === 'dark' ? 'sun' : 'moon-stars'" />
       </button>

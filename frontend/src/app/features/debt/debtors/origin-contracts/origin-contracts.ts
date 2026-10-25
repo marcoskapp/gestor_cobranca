@@ -64,7 +64,7 @@ interface ContractDetails {
       [columns]="columns"
       [loading]="loading() || details.isLoading()"
       [rowKey]="groupKey"
-      emptyIcon="description"
+      emptyIcon="file-earmark-text"
       emptyMessage="Nenhum contrato de origem informado nas cargas."
     >
       <ng-template appCell="contract" [appCellOf]="groups()" let-g>

@@ -4,14 +4,10 @@
 // 1. Bootstrap 5.3 parametrizado só por variáveis documentadas (styles/bootstrap/).
 // 2. Tokens `--app-*` como aliases das variáveis do Bootstrap e densidade compacta.
 // 3. Classes globais da aplicação (layout de página, estados, onboarding).
-// 4. TRANSITÓRIO: tema Angular Material para as telas ainda não migradas.
 //
 // Tema: `data-bs-theme` (light/dark) aplicado pelo ThemeService; `data-theme` ausente = segue
 // o sistema (o ThemeService resolve o modo efetivo). Densidade: `data-density`.
 // =============================================================================
-
-// o @use precisa vir antes dos @import; emite o tema Material (transitório) primeiro na cascata
-@use 'material-legacy';
 
 @import 'bootstrap/index';
 @import 'tokens';
@@ -227,7 +223,7 @@ body {
 
 // --------------------------------------------------------------------- estados e alertas
 
-// selo de estado (telas ainda em Material o usam com <mat-icon>; o `app-status-chip` usa o badge)
+// selo de estado compacto com ícone (`app-icon.app-status__icon`); o `app-status-chip` usa o badge
 .app-status {
   display: inline-flex;
   align-items: center;

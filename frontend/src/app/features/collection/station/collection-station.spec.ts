@@ -5,8 +5,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { KeyboardShortcuts } from '../../../core/keyboard/keyboard-shortcuts.service';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { OnboardingService } from '../../../core/onboarding/onboarding.service';
@@ -17,7 +17,6 @@ import { CaseSheet, CaseView, ContactAvailability, TabulationView } from '../dat
 import { addDays, zonedNow } from '../data/collection.rules';
 import { CollectionStation } from './collection-station';
 import { DENSITY_INVITE_ID } from './density-invite';
-import { LEGACY_DIALOG_LAUNCHERS } from '../../../core/layout/shell/legacy-dialog-launchers';
 
 export function caseView(overrides: Partial<CaseView> = {}): CaseView {
   return {
@@ -117,9 +116,8 @@ describe('CollectionStation', () => {
     TestBed.configureTestingModule({
       imports: [CollectionStation],
       providers: [
-        ...LEGACY_DIALOG_LAUNCHERS,
-        provideLocale(),
-        provideBootstrapDefaults(),
+                provideAppLocale(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { campaign, flushAll, page, panel, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { EnrollmentView } from '../data/campaign.models';
@@ -67,7 +67,7 @@ describe('ExecutionPage', () => {
     permissions.set(['CAMPAIGN_VIEW', 'CAMPAIGN_EXECUTE']);
     TestBed.configureTestingModule({
       imports: [ExecutionPage],
-      providers: [provideLocale(), provideRouter([{ path: '**', children: [] }]), provideHttpClient(), provideHttpClientTesting(), auth(permissions)],
+      providers: [provideAppLocale(), provideRouter([{ path: '**', children: [] }]), provideHttpClient(), provideHttpClientTesting(), auth(permissions)],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -140,7 +140,7 @@ describe('EnrollmentDialog', () => {
     TestBed.configureTestingModule({
       imports: [EnrollmentDialog],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

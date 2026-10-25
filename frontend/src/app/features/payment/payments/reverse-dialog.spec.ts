@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { payment } from '../../../../testing/payment-fixtures';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { ReverseDialog } from './reverse-dialog';
 
@@ -17,7 +17,7 @@ describe('ReverseDialog', () => {
       imports: [ReverseDialog],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: DIALOG_DATA, useValue: { payment: payment(), debtorName: 'Ana Paula Ribeiro' } },

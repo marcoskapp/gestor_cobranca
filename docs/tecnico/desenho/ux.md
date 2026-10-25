@@ -81,7 +81,6 @@ Desde a onda 1 da migração (decisões 220+), a interface usa **Bootstrap 5.3 +
 - `frontend/src/styles/_tokens.scss` — tokens `--app-*` como **aliases** das variáveis `--bs-*` (as telas e componentes os usam); cores próprias (barra superior, gráficos, borda de controles) por modo.
 - `frontend/src/styles/_density.scss` — densidade compacta.
 - `frontend/src/styles.scss` — classes globais da aplicação (layout de página, estados, onboarding).
-- `frontend/src/styles/_material-legacy.scss` e `_theme-colors.scss` — **transitórios**: tema Material 3 para as telas ainda não migradas.
 
 - **Cor**: primária `#3068b5` (componentes) e navy institucional `#0f2f57`/`#123f73` (barra superior, textos de ênfase); tons `success|warning|danger|info|neutral` = cores "subtle/emphasis" do Bootstrap (`--app-<tom>-bg/fg`); superfícies `--bs-body-bg` (cartões, campos) sobre `--bs-tertiary-bg` (página).
 - **Tipografia**: Inter Variable (OFL) self-hosted via `@fontsource-variable/inter` — sem CDN; peso base **300** (fina e delicada), títulos 400, ênfases moderadas (500/600); 14 px no texto, 13 px em tabelas; `tabular-nums` no corpo.
@@ -244,15 +243,19 @@ Contraste conferido (WCAG 2.2 AA): texto secundário 6,9:1 (claro) e 8,4:1 (escu
 | `DetailDialog` (`openDetail`) | `shared/components/detail-dialog/` | Ficha somente leitura (lista de definições + JSON), para log de acesso/auditoria nas próximas ondas. |
 | `NotificationService` + `app-toasts` | `core/notification/` | Mesma API (`success/info/error`); toasts do ng-bootstrap na raiz; `aria-live` polido/assertivo; erro 10 s, demais 5 s, pausa com ponteiro/foco, sem empilhar repetidos. |
 | `app-entity-picker` | `shared/components/entity-picker/` | Mesma API; `ngbTypeahead` (combobox) + selos removíveis; "Nenhum resultado" anunciado. |
-| `app-status-chip` | `shared/components/status-chip/` | Badge em pílula com ícone (`TONE_ICON`) nas cores subtle/emphasis; `TONE_ICONS` (Material) mantido como **obsoleto** para telas ainda em Material. |
+| `app-status-chip` | `shared/components/status-chip/` | Badge em pílula com ícone (`TONE_ICON`) nas cores subtle/emphasis. |
 | `app-empty-state`, `app-skeleton` (placeholders), `app-page-header`, `app-amount`, `app-document`, `app-password-field`, `app-session-table`, `app-totp-setup` | `shared/components/` | Mesma API, marcação Bootstrap. |
 | `DensityService` | `core/preferences/` | Densidade efetiva para componentes (sem depender do estado do usuário). |
-| `provideBootstrapDefaults()` | `core/config/bootstrap.config.ts` | Datas `dd/MM/aaaa` (`PtBrDateParserFormatter`) com modelo ISO `yyyy-MM-dd` (`IsoDateAdapter`, `LocalDate` sem fuso), domingo como primeiro dia, diálogos roláveis, menus/tooltips/calendário do campo no `body`, paginação com primeira/última. |
+| `provideBootstrapDefaults()` (raiz) e `provideBootstrapComponentDefaults()` (rotas do shell e do portal) | `core/config/bootstrap.config.ts` | Raiz: datas `dd/MM/aaaa` (`PtBrDateParserFormatter`) com modelo ISO `yyyy-MM-dd` (`IsoDateAdapter`, `LocalDate` sem fuso) e diálogos roláveis. Rotas: domingo como primeiro dia, menus/tooltips/calendário do campo no `body` (calendário em posição fixa), paginação com primeira/última, autocompletar sem pré-seleção — ver §12.1. |
 | Shell, trilha, busca rápida, ajuda, atalhos, novidades, onboarding (convite, balão do tour, primeiros passos), páginas 403/404, moldura e telas de autenticação, página inicial | `core/layout`, `core/onboarding`, `features/auth`, `features/dashboard` | Reescritos; âncoras `data-tour` preservadas. O motor do tour continua no CDK Overlay. |
 
-### 12.1 Material fora do bundle inicial (transitório)
+### 12.1 Bundle inicial e padrões do ng-bootstrap
 
-O Angular Material só é necessário para as telas não migradas. Os padrões do Material (`provideMaterialDefaults()`: `MatDialog`, aparência `outline`, datepicker pt-BR, fonte de ícones) foram tirados da raiz e fornecidos no injetor das rotas do shell (`core/layout/shell/shell.routes.ts`, agora carregado sob demanda) e do portal. Os quatro serviços compartilhados que abrem diálogos Material (`TelephonyLauncher`, `RestrictionActions`, `FormDialogService`, `PaymentLauncher`) passaram para esse injetor (`LEGACY_DIALOG_LAUNCHERS`) para usarem o mesmo `MatDialog` (o `RestrictionActions` voltou à raiz na onda 2, já com o `DialogService`). Resultado: bundle inicial de 795 kB → **725 kB** (transferência 186 → 170 kB) mesmo com o CSS do Bootstrap (201 kB brutos, 24 kB comprimidos).
+A migração terminou: o Angular Material, o adaptador de datas do Material, o `date-fns` e a fonte `material-icons` saíram do projeto, junto com o tema Material (`_material-legacy.scss`, `_theme-colors.scss`), os padrões `provideMaterialDefaults()`, a lista `LEGACY_DIALOG_LAUNCHERS` e os aliases de ícones do Material. O `@angular/cdk` continua como biblioteca sem aparência (área de transferência, anúncios para leitor de tela, pontos de quebra e o overlay do tour), recursos que o ng-bootstrap não oferece.
+
+O ng-bootstrap é publicado como um único módulo: configurar um componente na raiz (`provideAppInitializer`) traz o código dele para o bundle inicial. Por isso a raiz só configura o que a moldura inicial usa — adaptador e formatação das datas e diálogos (`provideBootstrapDefaults()`) — e os padrões dos componentes de tela (tooltips, menus, paginação, calendários, autocompletar) são aplicados por `provideBootstrapComponentDefaults()` nos providers das rotas do shell e do portal, que já são carregadas sob demanda. As configurações do ng-bootstrap são singletons da raiz: o inicializador do injetor da rota altera a mesma instância usada pelos diálogos do `DialogService`. A moldura de autenticação (rota inicial) configura o seu único tooltip direto no elemento.
+
+Nomes de ícone literais nos templates são conferidos por `npm run icons:check` (antes do build e dos testes): nome fora do sprite falha.
 
 ## 13. Guia de migração (próximas ondas)
 
@@ -426,7 +429,7 @@ Telas por feature (rótulo das rotas) e estimativa em dias de desenvolvimento (1
 | settlement | Regras de comissão; Versão das regras; Razão de comissão; Demonstrativos; Demonstrativo; Repasses | 13 / 5 / 285 | 5 d |
 | telephony | Campanhas de discagem; Campanha; Chamadas e gravações; Operadores e ramais | 10 / 5 / 196 | 3,5 d |
 | portal (devedor) | Entrar; Entrar pelo link; Aviso de privacidade; Minhas dívidas; Condições; Meus acordos; Meu acordo; Falar com atendente (layout próprio, marca do credor, mobile first) | 10 / 0 / 94 | 2,5 d |
-| Limpeza final | Remover `@angular/material`, `@angular/material-date-fns-adapter`, `material-icons`, `date-fns` (se sem uso), `_material-legacy.scss`, `_theme-colors.scss`, `material.config.ts`, `provideLocale` legado, `material-aliases.ts`, `TONE_ICONS`, `LEGACY_DIALOG_LAUNCHERS`; revisar orçamento do bundle | — | 1 d |
+| Limpeza final (**concluída**) | Remover `@angular/material`, `@angular/material-date-fns-adapter`, `material-icons`, `date-fns` (se sem uso), `_material-legacy.scss`, `_theme-colors.scss`, `material.config.ts`, `provideLocale` legado, `material-aliases.ts`, `TONE_ICONS`, `LEGACY_DIALOG_LAUNCHERS`; revisar orçamento do bundle | — | 1 d |
 
 Total ≈ 77 dias. Sugestão de frentes paralelas (sem arquivos em comum entre frentes, exceto os serviços compartilhados listados):
 

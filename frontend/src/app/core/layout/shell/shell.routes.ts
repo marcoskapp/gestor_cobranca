@@ -1,19 +1,17 @@
 import { Routes } from '@angular/router';
-import { provideMaterialDefaults } from '../../config/material.config';
-import { LEGACY_DIALOG_LAUNCHERS } from './legacy-dialog-launchers';
+import { provideBootstrapComponentDefaults } from '../../config/bootstrap.config';
 import { Shell } from './shell';
 
 /**
  * Área autenticada (carregada sob demanda a partir de app.routes.ts, protegida por `authGuard`):
- * o shell e as telas. Os padrões do Angular Material ficam no injetor desta rota — e não na raiz
- * — para que o Material só seja baixado quando uma tela ainda não migrada para o Bootstrap for
- * aberta (TRANSITÓRIO; remover `provideMaterialDefaults()` ao fim da migração).
+ * o shell e as telas. Os padrões dos componentes de tela do ng-bootstrap são aplicados no injetor
+ * desta rota, e não na raiz, para que o código desses componentes fique fora do bundle inicial.
  */
 export const SHELL_ROUTES: Routes = [
   {
     path: '',
     component: Shell,
-    providers: [provideMaterialDefaults(), ...LEGACY_DIALOG_LAUNCHERS],
+    providers: [provideBootstrapComponentDefaults()],
     children: [
       {
         path: '',

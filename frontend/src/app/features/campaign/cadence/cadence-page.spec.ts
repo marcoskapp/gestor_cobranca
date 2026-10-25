@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { cadence, campaign, flushAll, messageStep, page, templateView, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { CadenceDefinition, CadenceView } from '../data/campaign.models';
 import { CadencePage } from './cadence-page';
@@ -28,7 +28,7 @@ describe('CadencePage', () => {
     TestBed.configureTestingModule({
       imports: [CadencePage],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

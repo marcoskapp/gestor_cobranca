@@ -2,7 +2,6 @@
 
 SPA em Angular 22 (componentes standalone, signals, zoneless, OnPush por padrão) com Bootstrap 5.3 +
 ng-bootstrap (parametrização em `src/styles/bootstrap/`, guia em `docs/tecnico/desenho/ux.md` §11–15).
-As telas ainda não migradas usam Angular Material (transitório, migração em ondas).
 Consome a API REST do backend em `/api/v1`.
 
 ## Pré-requisitos
@@ -33,7 +32,7 @@ src/app/
                layout (shell, menu, trilha, busca rápida, ajuda, moldura de autenticação),
                preferences (tema, densidade, estado de interface no servidor),
                onboarding (tours, convites, novidades, primeiros passos), keyboard (atalhos),
-               config (locale pt-BR, ng-bootstrap, Material transitório, títulos)
+               config (locale pt-BR, padrões do ng-bootstrap, títulos)
   shared/      tabela paginada, estado vazio, esqueleto, valor monetário, CPF/CNPJ mascarado,
                ícones (app-icon), diálogos (DialogService), campos (app-field), seletor de entidades, máscara e validação de CPF/CNPJ, pipes, status
   features/
@@ -70,8 +69,9 @@ sempre do servidor.
 
 ## Identidade visual e onboarding
 
-Tokens de design em `src/styles/_tokens.scss`, tema Material 3 em `src/styles.scss` (claro, escuro
-ou do sistema via `html[data-theme]`; densidade via `html[data-density]`). Tours declarativos em
+Parametrização do Bootstrap em `src/styles/bootstrap/`, tokens `--app-*` em `src/styles/_tokens.scss` e
+classes globais em `src/styles.scss` (tema claro, escuro ou do sistema via `data-bs-theme`; densidade
+via `html[data-density]`). Tours declarativos em
 `core/onboarding/content/` com âncoras `data-tour`. Guia completo e contrato para telas novas:
 [`docs/tecnico/desenho/ux.md`](../docs/tecnico/desenho/ux.md).
 

@@ -8,7 +8,7 @@ import { fakeUser } from '../../../../testing/auth-fixtures';
 import { instruction } from '../../../../testing/payment-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { InstructionDialog, InstructionDialogData } from './instruction-dialog';
@@ -36,7 +36,7 @@ describe('InstructionDialog', () => {
       imports: [InstructionDialog],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),

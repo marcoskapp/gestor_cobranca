@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
+import { provideBootstrapComponentDefaults } from '../core/config/bootstrap.config';
 import { PortalSession } from './data/portal-session';
 
 /** Telas do devedor exigem a sessão do portal deste endereço; sem ela, volta à entrada. */
@@ -16,6 +17,7 @@ export const portalSessionGuard: CanActivateFn = (route) => {
 export const PORTAL_ROUTES: Routes = [
   {
     path: ':slug',
+    providers: [provideBootstrapComponentDefaults()],
     loadComponent: () => import('./layout/portal-layout').then((m) => m.PortalLayout),
     children: [
       {

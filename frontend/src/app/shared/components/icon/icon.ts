@@ -1,23 +1,19 @@
 import { Component, computed, input } from '@angular/core';
 import { APP_ICONS, IconName } from './icon-names';
 import { ICON_SPRITE_URL } from './icon-sprite';
-import { MATERIAL_ICON_ALIASES } from './material-aliases';
 
 const KNOWN = new Set<string>(APP_ICONS);
 
 /**
- * Resolve o nome para o ícone do sprite: nome do Bootstrap Icons ou, durante a migração, nome
- * legado do Material Icons (`MATERIAL_ICON_ALIASES`). Nome desconhecido → `null` (nada é
- * desenhado; o teste de conteúdo garante que os nomes usados existem).
+ * Resolve o nome para o ícone do sprite (nome do Bootstrap Icons listado em `icon-names.ts`).
+ * Nome desconhecido → `null` (nada é desenhado); `npm run icons:check`, que roda antes do build e
+ * dos testes, falha com nomes literais fora do sprite nos templates.
  */
 export function resolveIcon(name: string | null | undefined): IconName | null {
   if (!name) {
     return null;
   }
-  if (KNOWN.has(name)) {
-    return name as IconName;
-  }
-  return MATERIAL_ICON_ALIASES[name] ?? null;
+  return KNOWN.has(name) ? (name as IconName) : null;
 }
 
 /**

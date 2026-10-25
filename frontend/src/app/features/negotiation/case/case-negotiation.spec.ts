@@ -6,7 +6,7 @@ import { of } from 'rxjs';
 import { agreement, proposal } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { CaseNegotiation } from './case-negotiation';
 
@@ -21,7 +21,7 @@ describe('CaseNegotiation (aba da estação)', () => {
       imports: [CaseNegotiation],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

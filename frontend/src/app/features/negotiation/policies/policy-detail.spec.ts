@@ -7,7 +7,7 @@ import { fakeUser } from '../../../../testing/auth-fixtures';
 import { marketTemplate } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { PolicyView } from '../data/negotiation.models';
 import { PolicyDetail } from './policy-detail';
 
@@ -42,7 +42,7 @@ describe('PolicyDetail', () => {
       imports: [PolicyDetail],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

@@ -34,7 +34,6 @@
             ],
             "styles": [
               "node_modules/@fontsource-variable/inter/index.css",
-              "node_modules/material-icons/iconfont/outlined.css",
               "src/styles.scss"
             ],
             "stylePreprocessorOptions": {

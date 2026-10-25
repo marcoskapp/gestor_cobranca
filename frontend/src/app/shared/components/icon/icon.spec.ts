@@ -3,19 +3,13 @@ import { NAVIGATION } from '../../../core/layout/navigation';
 import { Icon, resolveIcon } from './icon';
 import { APP_ICONS } from './icon-names';
 import { ICON_SPRITE_URL } from './icon-sprite';
-import { MATERIAL_ICON_ALIASES } from './material-aliases';
 
 describe('Icon', () => {
-  it('resolve nomes do Bootstrap Icons e, na transição, do Material Icons', () => {
+  it('resolve só nomes do Bootstrap Icons presentes no sprite', () => {
     expect(resolveIcon('search')).toBe('search');
-    expect(resolveIcon('person_search')).toBe('person-bounding-box');
+    expect(resolveIcon('person_search')).toBeNull();
     expect(resolveIcon('nao-existe')).toBeNull();
     expect(resolveIcon(null)).toBeNull();
-  });
-
-  it('todo alias aponta para um ícone do sprite', () => {
-    const known = new Set<string>(APP_ICONS);
-    expect(Object.values(MATERIAL_ICON_ALIASES).filter((name) => !known.has(name))).toEqual([]);
   });
 
   it('o menu usa só ícones do sprite', () => {
@@ -25,7 +19,7 @@ describe('Icon', () => {
 
   it('desenha o símbolo do sprite e é decorativo sem rótulo', () => {
     const fixture = TestBed.createComponent(Icon);
-    fixture.componentRef.setInput('name', 'check_circle');
+    fixture.componentRef.setInput('name', 'check-circle');
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     expect(host.getAttribute('aria-hidden')).toBe('true');

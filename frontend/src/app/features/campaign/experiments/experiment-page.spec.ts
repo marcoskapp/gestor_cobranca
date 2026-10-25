@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { cadence, campaign, experiment, flushAll, page, templateView, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { ExperimentInput, ExperimentResults, ExperimentView } from '../data/campaign.models';
 import { ExperimentPage } from './experiment-page';
@@ -57,7 +57,7 @@ describe('ExperimentResultsView', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [ExperimentResultsView], providers: [provideLocale(), provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({ imports: [ExperimentResultsView], providers: [provideAppLocale(), provideHttpClient(), provideHttpClientTesting()] });
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -104,7 +104,7 @@ describe('ExperimentPage', () => {
     permissions.set(['CAMPAIGN_VIEW', 'EXPERIMENT_MANAGE']);
     TestBed.configureTestingModule({
       imports: [ExperimentPage],
-      providers: [provideLocale(), provideRouter([{ path: '**', children: [] }]), provideHttpClient(), provideHttpClientTesting(), auth(permissions)],
+      providers: [provideAppLocale(), provideRouter([{ path: '**', children: [] }]), provideHttpClient(), provideHttpClientTesting(), auth(permissions)],
     });
     http = TestBed.inject(HttpTestingController);
   });

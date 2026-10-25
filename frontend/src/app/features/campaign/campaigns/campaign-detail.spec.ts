@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { campaign, flushAll, page, panel, segment, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { CampaignView } from '../data/campaign.models';
 import { CampaignDetail } from './campaign-detail';
@@ -23,7 +23,7 @@ describe('CampaignDetail', () => {
     TestBed.configureTestingModule({
       imports: [CampaignDetail],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

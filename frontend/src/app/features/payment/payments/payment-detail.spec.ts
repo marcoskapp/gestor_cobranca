@@ -9,7 +9,7 @@ import { agreement } from '../../../../testing/negotiation-fixtures';
 import { payment } from '../../../../testing/payment-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { DialogService } from '../../../shared/dialog/dialog.service';
@@ -31,7 +31,7 @@ describe('PaymentDetail', () => {
       imports: [PaymentDetail],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

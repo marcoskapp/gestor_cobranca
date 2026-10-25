@@ -7,7 +7,7 @@ import { provideRouter } from '@angular/router';
 import { Subject, of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { ConversationDetail, ConversationView, MessageView } from '../data/communication.models';
 import { InboxEvent, InboxStream } from '../data/inbox-stream';
@@ -101,7 +101,7 @@ describe('ConversationPanel', () => {
     TestBed.configureTestingModule({
       imports: [ConversationPanel],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

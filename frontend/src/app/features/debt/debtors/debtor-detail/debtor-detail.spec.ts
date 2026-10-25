@@ -7,7 +7,6 @@ import { fakeUser } from '../../../../../testing/auth-fixtures';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ContactView, DebtorSummary, DebtorView, TitleView } from '../../data/debt.models';
 import { DebtorDetail } from './debtor-detail';
-import { LEGACY_DIALOG_LAUNCHERS } from '../../../../core/layout/shell/legacy-dialog-launchers';
 
 const debtor: DebtorView = {
   id: 'd-1',
@@ -79,7 +78,6 @@ describe('DebtorDetail', () => {
     TestBed.configureTestingModule({
       imports: [DebtorDetail],
       providers: [
-        ...LEGACY_DIALOG_LAUNCHERS,
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),

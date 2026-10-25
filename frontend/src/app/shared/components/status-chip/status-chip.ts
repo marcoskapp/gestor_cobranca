@@ -12,18 +12,6 @@ export const TONE_ICON: Record<StatusTone, IconName> = {
   neutral: 'dash-circle',
 };
 
-/**
- * @deprecated TRANSITÓRIO — nomes do Material Icons por tom, usados por telas ainda em
- * Angular Material (`<mat-icon>`). Use `TONE_ICON` com `app-icon` nas telas migradas.
- */
-export const TONE_ICONS: Record<StatusTone, string> = {
-  success: 'check_circle',
-  warning: 'warning_amber',
-  danger: 'error_outline',
-  info: 'schedule',
-  neutral: 'remove_circle_outline',
-};
-
 /** Classe de cor do Bootstrap por tom (`neutral` = secondary). */
 const TONE_COLOR: Record<StatusTone, string> = {
   success: 'success',

@@ -6,7 +6,7 @@ import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { flushAll, page, segment, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { SegmentCriteria } from '../data/campaign.models';
 import { SegmentEditor } from './segment-editor';
 
@@ -28,7 +28,7 @@ describe('SegmentEditor', () => {
     TestBed.configureTestingModule({
       imports: [SegmentEditor],
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

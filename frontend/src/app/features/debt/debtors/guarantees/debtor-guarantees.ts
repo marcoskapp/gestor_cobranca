@@ -27,7 +27,7 @@ import { CoObligationSummary, CollateralSummary, DebtorSummary } from '../../dat
       [columns]="coColumns"
       [loading]="loading()"
       [rowKey]="coKey"
-      emptyIcon="handshake"
+      emptyIcon="person-hearts"
       emptyMessage="O devedor não é avalista, fiador nem codevedor em outros contratos."
     >
       <ng-template appCell="contract" [appCellOf]="coObligations()" let-c>

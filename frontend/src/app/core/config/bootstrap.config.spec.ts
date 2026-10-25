@@ -1,7 +1,7 @@
 import { ApplicationInitStatus } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NgbDatepickerConfig, NgbInputDatepickerConfig } from '@ng-bootstrap/ng-bootstrap';
-import { IsoDateAdapter, PtBrDateParserFormatter, provideBootstrapDefaults } from './bootstrap.config';
+import { IsoDateAdapter, PtBrDateParserFormatter, provideBootstrapComponentDefaults, provideBootstrapDefaults } from './bootstrap.config';
 import { NGB_TRANSLATIONS_PT_BR } from './ngb-translations';
 
 describe('padrões do ng-bootstrap', () => {
@@ -35,7 +35,7 @@ describe('padrões do ng-bootstrap', () => {
   });
 
   it('domingo como primeiro dia e faixa 1900–2100 também no datepicker em campo', async () => {
-    TestBed.configureTestingModule({ providers: [provideBootstrapDefaults()] });
+    TestBed.configureTestingModule({ providers: [provideBootstrapDefaults(), provideBootstrapComponentDefaults()] });
     await TestBed.inject(ApplicationInitStatus).donePromise;
     for (const config of [TestBed.inject(NgbDatepickerConfig), TestBed.inject(NgbInputDatepickerConfig)]) {
       expect(config.firstDayOfWeek).toBe(7);

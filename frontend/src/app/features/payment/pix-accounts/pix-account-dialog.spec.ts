@@ -6,7 +6,7 @@ import { fakeUser } from '../../../../testing/auth-fixtures';
 import { pixAccount } from '../../../../testing/payment-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { PixAccountDialog, PixAccountDialogData } from './pix-account-dialog';
 import { RotateDialog } from './rotate-dialog';
@@ -20,7 +20,7 @@ describe('Contas Pix', () => {
       imports: [component],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: DIALOG_DATA, useValue: data },

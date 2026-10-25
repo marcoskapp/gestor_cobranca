@@ -7,7 +7,7 @@ import { BehaviorSubject } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { flushAll, page, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
-import { provideLocale } from '../../../core/config/locale.config';
+import { provideAppLocale } from '../../../core/config/app-locale';
 import { ProductivityReport, Ratio, RecoveryReport, ReportMeta } from '../data/analytics.models';
 import { ProductivityPanel } from './productivity-panel';
 import { RecoveryPanel } from './recovery-panel';
@@ -63,7 +63,7 @@ describe('painéis de analytics', () => {
     query.next(convertToParamMap({ de: '2026-06-01', ate: '2026-06-30', agrupar: 'CREDITOR' }));
     TestBed.configureTestingModule({
       providers: [
-        provideLocale(),
+        provideAppLocale(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

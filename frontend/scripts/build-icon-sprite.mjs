@@ -3,10 +3,11 @@
 // aplicação (sem CDN, compatível com a CSP) e referenciado por `<use href="…#nome">` no `app-icon`.
 //
 // Uso: node scripts/build-icon-sprite.mjs           (gera/atualiza os arquivos)
-//      node scripts/build-icon-sprite.mjs --check   (falha se os arquivos estiverem desatualizados)
+//      node scripts/build-icon-sprite.mjs --check   (falha se os arquivos estiverem desatualizados ou
+//                                                    se um template usar ícone fora do sprite)
 // Requer Node com remoção de tipos habilitada por padrão (>= 22.18), já exigido em `engines`.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { APP_ICONS } from '../src/app/shared/components/icon/icon-names.ts';
@@ -44,9 +45,37 @@ const outdated = [
   [constantPath, constant],
 ].filter(([path, content]) => !existsSync(path) || readFileSync(path, 'utf8') !== content);
 
+// Nomes literais de ícone nos templates (`<app-icon name>`, `icon`, `emptyIcon`, `icon: '…'`): um nome
+// fora do sprite não desenha nada (o `app-icon` não tem fallback), então falha aqui, no build.
+const known = new Set(APP_ICONS);
+const iconUsages = [
+  /<app-icon\b[^>]*?\sname="([^"{}]+)"/g,
+  /<app-icon\b[^>]*?\[name\]="'([^']+)'"/g,
+  /\s(?:icon|emptyIcon)="([^"{}]+)"/g,
+  /\b(?:icon|emptyIcon)\s*:\s*'([^']+)'/g,
+];
+const sourceFiles = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(ts|html)$/.test(entry.name) && !entry.name.endsWith('.spec.ts') ? [path] : [];
+  });
+const unknownIcons = sourceFiles(join(root, 'src')).flatMap((file) => {
+  const text = readFileSync(file, 'utf8');
+  return iconUsages.flatMap((pattern) =>
+    [...text.matchAll(pattern)]
+      .filter((match) => !known.has(match[1]))
+      .map((match) => `${file.slice(root.length + 1)}:${text.slice(0, match.index).split('\n').length}: "${match[1]}"`),
+  );
+});
+
 if (check) {
   if (outdated.length) {
     console.error(`Sprite de ícones desatualizado: rode "npm run icons" (${outdated.map(([p]) => p).join(', ')}).`);
+    process.exit(1);
+  }
+  if (unknownIcons.length) {
+    console.error(`Ícones fora do sprite (inclua em icon-names.ts e rode "npm run icons"):\n${unknownIcons.join('\n')}`);
     process.exit(1);
   }
   console.log(`Sprite de ícones em dia (${symbols.length} ícones).`);

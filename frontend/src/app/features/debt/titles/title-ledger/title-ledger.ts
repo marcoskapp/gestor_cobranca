@@ -25,7 +25,7 @@ import { LEDGER_COMPONENT_LABELS, LEDGER_ENTRY_LABELS, REFERENCE_TYPE_LABELS } f
       [page]="query.tablePage()"
       (pageChange)="query.setPage($event)"
       (retry)="query.reload()"
-      emptyIcon="receipt_long"
+      emptyIcon="receipt"
       emptyMessage="Nenhum lançamento no razão."
     >
       <ng-template appCell="occurredAt" [appCellOf]="query.rows()" let-e>{{ e.occurredAt | appDate }}</ng-template>

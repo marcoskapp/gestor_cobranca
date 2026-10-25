@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { cnjValid } from '../data/legal.rules';
 import { FormDialog, FormDialogData } from './form-dialog';
@@ -17,7 +17,7 @@ describe('FormDialog', () => {
       imports: [FormDialog],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         { provide: DialogRef, useValue: { close } },
         {
           provide: DIALOG_DATA,

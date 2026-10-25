@@ -8,7 +8,7 @@ import { fakeUser } from '../../../../testing/auth-fixtures';
 import { agreement } from '../../../../testing/negotiation-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementView } from '../data/agreement.models';
@@ -25,7 +25,7 @@ describe('AgreementDetail', () => {
       imports: [AgreementDetail],
       providers: [
         provideAppLocale(),
-        provideBootstrapDefaults(),
+        provideBootstrapDefaults(), provideBootstrapComponentDefaults(),
         provideRouter([{ path: '**', children: [] }]),
         provideHttpClient(),
         provideHttpClientTesting(),

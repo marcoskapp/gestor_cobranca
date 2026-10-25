@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NgbConfig } from '@ng-bootstrap/ng-bootstrap';
-import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
+import { provideBootstrapComponentDefaults, provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { TaskView } from '../data/collection.models';
@@ -20,7 +20,7 @@ describe('ScheduleDialog (DialogService + ngbDatepicker)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     TestBed.configureTestingModule({
-      providers: [provideBootstrapDefaults(), provideHttpClient(), provideHttpClientTesting(), { provide: NotificationService, useValue: notifications }],
+      providers: [provideBootstrapDefaults(), provideBootstrapComponentDefaults(), provideHttpClient(), provideHttpClientTesting(), { provide: NotificationService, useValue: notifications }],
     });
     TestBed.inject(NgbConfig).animation = false;
     http = TestBed.inject(HttpTestingController);

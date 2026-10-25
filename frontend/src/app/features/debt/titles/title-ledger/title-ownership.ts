@@ -23,7 +23,7 @@ import { OwnershipView } from '../../data/debt.models';
       [failed]="ownership.status() === 'error'"
       (retry)="ownership.reload()"
       [rowKey]="rowKey"
-      emptyIcon="history"
+      emptyIcon="clock-history"
       emptyMessage="Sem histórico de titularidade."
     >
       <ng-template appCell="creditor" [appCellOf]="rows()" let-o>{{ creditors.name(o.creditorId) }}</ng-template>
