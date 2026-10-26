@@ -4,6 +4,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
+import { reviewItem } from '../../../../testing/payment-review-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
@@ -141,6 +142,8 @@ describe('CollectionStation', () => {
 
   afterEach(() => http.verify());
 
+  let reviewStatus: object = {};
+
   /** Responde a todas as requisições pendentes com fixtures, por URL. */
   function respond(current: CaseSheet | null): void {
     for (let i = 0; i < 4; i++) {
@@ -170,6 +173,8 @@ describe('CollectionStation', () => {
     if (url.startsWith('/api/v1/debtors/')) return req.flush({ id: 'd-1', name: 'Ana Paula Ribeiro', maskedDocument: null });
     if (url.startsWith('/api/v1/creditors/')) return req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
     if (url.startsWith('/api/v1/portfolios/')) return req.flush({ id: 'p-1', name: 'Cartões setembro' });
+    if (url === '/api/v1/payment/review-status/debtors/d-1') return req.flush(reviewStatus);
+    if (url === '/api/v1/users/display-names') return req.flush([{ id: 'u-2', name: 'Carla Operadora' }]);
     throw new Error(`requisição inesperada: ${req.request.method} ${url}`);
   }
 
@@ -204,6 +209,35 @@ describe('CollectionStation', () => {
     expect(panel).toContain('Restrito');
     // tabulação desativada não aparece no formulário
     expect(text(fixture)).toContain('Registrar interação');
+  });
+
+  it('ficha do caso avisa de forma mínima o pagamento informado aguardando aprovação e o recusado', async () => {
+    permissions.update((p) => [...p, 'AGREEMENT_VIEW']);
+    reviewStatus = {
+      creditorId: 'c-1',
+      debtorId: 'd-1',
+      pendingCount: 1,
+      pendingTotal: 1350,
+      pending: [reviewItem()],
+      rejected: [reviewItem({ paymentId: 'pg-3', status: 'REJECTED', reviewedBy: 'u-2', reviewedAt: '2026-10-26T10:00:00Z', reasonRestricted: true })],
+      rejectedSince: '2026-09-26T00:00:00Z',
+    };
+    const fixture = await render('k-1');
+    // o aviso resolve os nomes de quem informou/recusou depois de receber a situação
+    for (let i = 0; i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      respond(sheet());
+      fixture.detectChanges();
+    }
+    const sheetEl = (fixture.nativeElement as HTMLElement).querySelector('[aria-label="Ficha do caso"]')!;
+    const alert = sheetEl.querySelector('app-payment-review-alert')!;
+    const t = alert.textContent!.replace(/\s+/g, ' ');
+    expect(t).toContain('Pagamento de R$ 1.350,00 informado em 25/10/2026');
+    expect(t).toContain('aguardando aprovação de outra pessoa');
+    expect(t).toContain('Só baixa depois da aprovação.');
+    expect(t).toContain('foi recusado em 26/10/2026');
+    expect(alert.querySelector('.pra--compact')).not.toBeNull();
+    expect(alert.querySelector('a[href="/negociacao/acordos/a-1"]')).not.toBeNull();
   });
 
   it('registra os atalhos do grupo "Estação de cobrança" e os remove ao sair', async () => {

@@ -42,7 +42,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.type.TypeReference;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -64,8 +63,6 @@ import java.util.stream.Collectors;
 class PaymentService implements PaymentUseCases {
 
     private static final String RESOURCE = AllocationService.RESOURCE;
-    private static final TypeReference<List<UUID>> TARGET_ITEMS = new TypeReference<>() {
-    };
 
     private final PaymentRepository payments;
     private final PaymentAllocationRepository allocations;
@@ -139,7 +136,7 @@ class PaymentService implements PaymentUseCases {
                 "payment.method_invalid", "Meio de pagamento"));
         Page<Payment> result = payments.search(new PaymentRepository.Criteria(allowedCreditors(), f.creditorId(),
                 f.debtorId(), statuses, source, method, f.paidFrom(), f.paidTo(), Boolean.TRUE.equals(f.withBalance()),
-                null), page.toPageable(Sort.by(Sort.Direction.DESC, "paidAt").and(Sort.by("id"))));
+                null, f.agreementId()), page.toPageable(Sort.by(Sort.Direction.DESC, "paidAt").and(Sort.by("id"))));
         return views(result);
     }
 
@@ -213,7 +210,7 @@ class PaymentService implements PaymentUseCases {
     public PageResponse<PaymentView> reviewQueue(PageQuery page) {
         accessScope.requirePermission(Permission.PAYMENT_REVIEW);
         Page<Payment> result = payments.search(new PaymentRepository.Criteria(allowedCreditors(), null, null,
-                Set.of(PaymentStatus.INFORMED), null, null, null, null, false, currentActor.actorId()),
+                Set.of(PaymentStatus.INFORMED), null, null, null, null, false, currentActor.actorId(), null),
                 page.toPageable(Sort.by("informedAt").and(Sort.by("id"))));
         return views(result);
     }
@@ -383,10 +380,7 @@ class PaymentService implements PaymentUseCases {
 
     /** Ids do destino solicitado (JSON gravado no registro do pagamento externo). */
     private List<UUID> targetItems(Payment p) {
-        if (p.getTargetItems() == null || p.getTargetItems().isBlank()) {
-            return List.of();
-        }
-        return json.fromJson(p.getTargetItems(), TARGET_ITEMS);
+        return PaymentViews.targetItems(p, json);
     }
 
     private String hash(ExternalPaymentCommand c) {

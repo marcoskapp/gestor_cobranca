@@ -85,9 +85,18 @@ public interface PaymentUseCases {
                              String note) {
     }
 
-    /** @param status INFORMED, CONFIRMED, RECONCILED, REJECTED ou REVERSED */
+    /**
+     * @param status      INFORMED, CONFIRMED, RECONCILED, REJECTED ou REVERSED
+     * @param agreementId pagamentos do acordo: destino solicitado do externo (inclusive pendentes e
+     *                    recusados) ou alguma alocação a ele (integrados, realocações)
+     */
     record PaymentFilter(UUID creditorId, UUID debtorId, String status, String source, String method, Instant paidFrom,
-                         Instant paidTo, Boolean withBalance) {
+                         Instant paidTo, Boolean withBalance, UUID agreementId) {
+
+        public PaymentFilter(UUID creditorId, UUID debtorId, String status, String source, String method,
+                             Instant paidFrom, Instant paidTo, Boolean withBalance) {
+            this(creditorId, debtorId, status, source, method, paidFrom, paidTo, withBalance, null);
+        }
     }
 
     record LineView(UUID installmentId, UUID titleId, BigDecimal amount) {

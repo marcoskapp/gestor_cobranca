@@ -1,11 +1,14 @@
 package br.com.gestorcobranca.payment.infrastructure.persistence;
 
 import br.com.gestorcobranca.payment.domain.model.Payment;
+import br.com.gestorcobranca.payment.domain.model.PaymentAllocation;
 import br.com.gestorcobranca.payment.domain.model.PaymentMethod;
 import br.com.gestorcobranca.payment.domain.model.PaymentSource;
 import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
 import br.com.gestorcobranca.shared.domain.Money;
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -18,6 +21,7 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -97,12 +101,70 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
         if (c.withBalance()) {
             spec = spec.and((root, query, cb) -> cb.notEqual(root.get("allocatedAmount"), root.get("amount")));
         }
+        if (c.agreementId() != null) {
+            UUID agreementId = c.agreementId();
+            spec = spec.and((root, query, cb) -> {
+                Subquery<UUID> allocated = query.subquery(UUID.class);
+                Root<PaymentAllocation> a = allocated.from(PaymentAllocation.class);
+                allocated.select(a.get("paymentId")).where(cb.equal(a.get("paymentId"), root.get("id")),
+                        cb.equal(a.get("agreementId"), agreementId));
+                return cb.or(cb.equal(root.get("targetAgreementId"), agreementId), cb.exists(allocated));
+            });
+        }
         if (c.excludeInformedBy() != null) {
             spec = spec.and((root, query, cb) -> cb.or(cb.isNull(root.get("informedBy")),
                     cb.notEqual(root.get("informedBy"), c.excludeInformedBy())));
         }
         return findAll(spec, pageable);
     }
+
+    @Query("""
+            select p from Payment p
+             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+               and p.targetAgreementId in :agreementIds
+               and (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
+                    or (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REJECTED
+                        and p.reviewedAt >= :since))
+             order by p.informedAt, p.id
+            """)
+    List<Payment> reviewStatusByAgreements(@Param("agreementIds") Collection<UUID> agreementIds,
+                                           @Param("since") Instant since);
+
+    @Query("""
+            select p from Payment p
+             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+               and p.targetAgreementId in :agreementIds and p.creditorId in :creditors
+               and (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
+                    or (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REJECTED
+                        and p.reviewedAt >= :since))
+             order by p.informedAt, p.id
+            """)
+    List<Payment> reviewStatusByAgreementsIn(@Param("agreementIds") Collection<UUID> agreementIds,
+                                             @Param("creditors") Collection<UUID> creditors,
+                                             @Param("since") Instant since);
+
+    @Override
+    default List<Payment> findReviewStatusByAgreements(Set<UUID> creditorIds, Collection<UUID> agreementIds,
+                                                       Instant rejectedSince) {
+        if (agreementIds.isEmpty() || (creditorIds != null && creditorIds.isEmpty())) {
+            return List.of();
+        }
+        return creditorIds == null ? reviewStatusByAgreements(agreementIds, rejectedSince)
+                : reviewStatusByAgreementsIn(agreementIds, creditorIds, rejectedSince);
+    }
+
+    @Override
+    @Query("""
+            select p from Payment p
+             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+               and p.creditorId = :creditorId and p.debtorId = :debtorId
+               and (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
+                    or (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REJECTED
+                        and p.reviewedAt >= :since))
+             order by p.informedAt, p.id
+            """)
+    List<Payment> findReviewStatusByDebtor(@Param("creditorId") UUID creditorId, @Param("debtorId") UUID debtorId,
+                                           @Param("since") Instant rejectedSince);
 
     @Query(value = """
             select p.id from payment.payment p
