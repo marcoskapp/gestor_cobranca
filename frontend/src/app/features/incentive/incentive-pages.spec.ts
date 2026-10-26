@@ -54,17 +54,28 @@ describe('Telas do incentive', () => {
     expect(text(fixture)).toContain('Não há extratos aprovados neste período');
   });
 
-  it('metas: remove com confirmação (DELETE)', async () => {
+  it('metas: mostra a unidade e remove com confirmação (DELETE)', async () => {
     const { http } = setup(GoalList, ['COMMISSION_PLAN_MANAGE'], 'u-1', [{ provide: ConfirmService, useValue: confirm }, { provide: DialogService, useValue: dialog }]);
     confirm.confirm.mockReturnValue(of(''));
     const fixture = await render(GoalList, http, (url) => {
-      if (url.endsWith('/incentive/goals')) return [{ id: 'g-1', period: '2026-10', subjectType: 'USER', subjectId: 'u-x', target: 80000 }];
-      if (url.endsWith('/users/display-names')) return [{ id: 'u-x', name: 'Operador X' }];
+      if (url.endsWith('/incentive/goals'))
+        return [
+          { id: 'g-1', period: '2026-10', subjectType: 'USER', subjectId: 'u-x', target: 80000, unit: 'CURRENCY' },
+          { id: 'g-2', period: '2026-10', subjectType: 'USER', subjectId: 'u-y', target: 12.5, unit: 'PERCENT' },
+          { id: 'g-3', period: '2026-10', subjectType: 'USER', subjectId: 'u-z', target: 15, unit: null },
+        ];
+      if (url.endsWith('/users/display-names')) return [{ id: 'u-x', name: 'Operador X' }, { id: 'u-y', name: 'Operador Y' }, { id: 'u-z', name: 'Operador Z' }];
       return undefined;
     });
     expect(text(fixture)).toContain('Operador X');
-    expect(text(fixture)).toContain('80.000');
+    const t = text(fixture);
+    expect(t).toContain('R$\u00a080.000,00');
+    expect(t).toContain('12,5%');
+    expect(t).toContain('Percentual (%)');
+    expect(t).toContain('Não informada');
+    expect(t).toContain('Unidade da métrica do plano');
     (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-label="Remover a meta de Operador X"]')!.click();
+    expect(confirm.confirm).toHaveBeenCalledWith(expect.objectContaining({ details: expect.arrayContaining([{ label: 'Meta', value: 'R$\u00a080.000,00' }]) }));
     http.expectOne((r) => r.method === 'DELETE' && r.url.endsWith('/incentive/goals/g-1')).flush(null);
   });
 

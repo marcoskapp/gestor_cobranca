@@ -329,6 +329,19 @@ grava `incentive.expected_recovery_fact` (`V1805`; uma linha por safra/grupo, re
 O indicador saiu de `unavailableMetrics`. Meta de plano `RECOVERED_VS_EXPECTED` continua recusada: o motor de comissão
 não apura metas por essa métrica (pendência).
 
+### 10.10 Unidade da meta do período (26/10/2026)
+
+A meta por período (`GoalTarget`) guarda a unidade escolhida por quem a cadastra (`unit`: `CURRENCY` = R$, `PERCENT` = %; `V1806`). Cada métrica tem uma única unidade (`GoalMetric.unit()`): "valor recuperado" é em R$, "taxa de recuperação" (e "recuperado × esperado", ainda recusada) é em %. Decisão do responsável (decisão 387); detalhes nas decisões 490–497.
+
+| Regra | Onde |
+| --- | --- |
+| Unidade aceita = a da métrica da meta do plano que vai usar a meta. Negociador: plano vigente de maior prioridade que o cobre, se a meta for individual. Equipe: planos dos membros e do supervisor com meta de equipe. Sem plano que use a meta (`NO_PLAN`, `PLAN_WITHOUT_GOAL`) ou com membros em planos de unidades diferentes (`MIXED`), as duas são aceitas. | `GoalUnitPolicy`; `GET /incentive/goals/unit-options` |
+| `PUT /goals` exige `unit`; recusa a unidade não aceita (`goal.unit_not_allowed`), negociador/equipe inexistente (`goal.subject_not_found`), mais de 2 casas (`goal.target_scale_invalid`) e % fora de 0,01–100 (`goal.percent_out_of_range`). A unidade entra na auditoria (`commission_goal.defined`/`removed`, com `unitBasis`). | `CommissionPlanService.setGoal`, `GoalTarget.define` |
+| No cálculo (fechamento, prévia, simulação), meta em unidade diferente da métrica é desconsiderada: vale a meta padrão do plano, ou nenhuma. A linha "Meta" da memória explica ("meta do período em % desconsiderada: a meta do plano é em R$; vale a meta padrão do plano"). O número nunca é reinterpretado. | `StatementCalculator.goal`, `GoalInput.disregardedUnit`, `CommissionEngine` |
+| Metas anteriores à V1806 recebem a unidade quando todos os planos vigentes no período, com meta do mesmo escopo, concordam (para %, só valor ≤ 100). As demais ficam com unidade nula, que segue a métrica do plano como antes, até serem alteradas. | `V1806__incentive_goal_unit.sql` |
+
+Testes: `GoalTargetTest`, `CommissionEngineTest` (meta desconsiderada com e sem meta padrão), `GoalUnitIT` (plano padrão só R$, plano de taxa da equipe só %, limites, sujeito inexistente, meta em outra unidade desconsiderada na prévia, meta sem unidade segue o plano).
+
 ## 11. Telas (frontend, 25/10/2026)
 
 Feature `frontend/src/app/features/incentive`, rotas em `/remuneracao` (seção "Remuneração variável" do menu). Bootstrap 5.3 + ng-bootstrap com os componentes compartilhados (`app-page-header`, `app-data-table`, `app-field`/`appInput`, `app-status-chip`, `app-amount`, `app-empty-state`, `DialogService`, `ConfirmService`); estados de carregamento, vazio e erro em todas as telas; tours curtos em `core/onboarding/content`. Decisões 340–354 em `docs/negocio/decisoes-autonomas.md`.
@@ -343,7 +356,7 @@ Feature `frontend/src/app/features/incentive`, rotas em `/remuneracao` (seção 
 | Planos de remuneração | `/remuneracao/planos` | `COMMISSION_PLAN_MANAGE` | `GET/POST /plans` |
 | Plano (regras, versões, simular, publicar, nova versão, aposentar, descartar rascunho) | `/remuneracao/planos/:id` | idem | `GET /plans/{id}`, `POST …/simulations`, `…/publish`, `…/versions`, `…/retire`, `DELETE /plans/{id}` |
 | Regras do rascunho | `/remuneracao/planos/:id/regras` | idem | `PUT /plans/{id}` |
-| Metas por período | `/remuneracao/metas` | `COMMISSION_PLAN_MANAGE` | `GET/PUT /goals`, `DELETE /goals/{id}` |
+| Metas por período (unidade R$ ou %) | `/remuneracao/metas` | `COMMISSION_PLAN_MANAGE` | `GET/PUT /goals`, `GET /goals/unit-options`, `DELETE /goals/{id}` |
 | Períodos de apuração | `/remuneracao/periodos` | `COMMISSION_STATEMENT_MANAGE` | `GET /periods`, `POST /periods/{p}/close` |
 | Exportação para a folha | `/remuneracao/exportacao` | `COMMISSION_STATEMENT_APPROVE` | `GET/POST /exports`, `GET /exports/{id}/file` |
 | Monitoria, ocorrências e formulários | `/remuneracao/qualidade/{avaliacoes,ocorrencias,formularios}` | `PERFORMANCE_VIEW_*`, `QUALITY_EVALUATE` (registro); dispensa de ocorrência com `COMMISSION_STATEMENT_MANAGE` | `/quality/forms`, `/quality/evaluations`, `/quality/occurrences` (+ `dismiss`) |
@@ -355,8 +368,9 @@ Regras de tela (o servidor continua decidindo):
 - **Confirmação forte**: aprovar extrato (`APROVAR`), fechar período (`FECHAR`), publicar (`PUBLICAR`) e aposentar (`APOSENTAR`) mostram o impacto antes; motivos com 10 a 2000 caracteres como no servidor.
 - **Vigência**: publicação só no dia 1º do mês corrente em diante; aposentadoria no último dia de um mês, nunca antes da véspera do início. A simulação só oferece meses encerrados.
 - **Editor de regras**: validação espelhada de `PlanRules.validate()` (`data/plan-rules.ts`), normalização (perfis em maiúsculas, faixas ordenadas, vazios como nulos), meta "recuperado × esperado" fora das opções, aviso trabalhista ao habilitar estorno.
+- **Metas**: botões "Valor (R$)" e "Percentual (%)" (`btn-check`) antes do valor; a unidade aceita vem de `/goals/unit-options` (a única aceita vem marcada e a outra desabilitada, com a explicação). Em R$ o campo usa `appMoney`; em %, número de 0,01 a 100 com até 2 casas e "%" ao lado. Trocar a unidade limpa o valor. A lista mostra a unidade e a meta formatada (§10.10).
 - **Exportação**: o arquivo baixado de novo é conferido com o SHA-256 registrado.
 - **Desempenho**: reaproveita `app-kpi-card` e `app-bar-chart` do `analytics` sem alterá-los; taxas sempre com a base; indicadores sem fonte listados (`unavailableMetrics`).
 
-Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição); backend `PlanDraftAndGoalRemovalIT`.
+Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição), `goals/goal-dialog.spec.ts` (unidade da meta); backend `PlanDraftAndGoalRemovalIT`, `GoalUnitIT`.
 

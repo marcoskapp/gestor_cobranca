@@ -180,6 +180,8 @@ export interface SimulationView {
 }
 
 export type GoalSubjectType = 'USER' | 'TEAM';
+/** Unidade da meta do período: valor em reais ou percentual (decisões 387 e 490–495). */
+export type GoalUnit = 'CURRENCY' | 'PERCENT';
 
 export interface GoalView {
   id: string;
@@ -187,6 +189,8 @@ export interface GoalView {
   subjectType: GoalSubjectType;
   subjectId: string;
   target: number;
+  /** Nula só em meta antiga sem unidade dedutível: segue a métrica do plano. */
+  unit: GoalUnit | null;
 }
 
 export interface GoalRequest {
@@ -194,6 +198,19 @@ export interface GoalRequest {
   subjectType: GoalSubjectType;
   subjectId: string;
   target: number;
+  unit: GoalUnit;
+}
+
+/** De onde vem a restrição de unidade: plano que usa a meta, sem plano, plano sem meta desse escopo, planos divergentes. */
+export type GoalUnitBasis = 'PLAN' | 'NO_PLAN' | 'PLAN_WITHOUT_GOAL' | 'MIXED';
+
+export interface GoalUnitOptions {
+  units: GoalUnit[];
+  basis: GoalUnitBasis;
+  metric: GoalMetric | null;
+  planCode: string | null;
+  planVersion: number | null;
+  planName: string | null;
 }
 
 // ------------------------------------------------------------------ períodos, extratos e razão

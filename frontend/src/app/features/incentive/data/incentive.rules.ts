@@ -134,11 +134,6 @@ export function parseDecimal(text: string | number | null | undefined): number |
   return Number(normalized);
 }
 
-/** Número para campo de texto em pt-BR (vírgula decimal, sem milhar). */
-export function decimalInput(value: number | null | undefined): string {
-  return value === null || value === undefined ? '' : String(value).replace('.', ',');
-}
-
 // ------------------------------------------------------------------ planos e versões
 
 export interface PlanGroup {
