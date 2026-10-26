@@ -36,7 +36,7 @@ import { ResolveDialog, ResolveDialogData } from './resolve-dialog';
       </a>
     </app-page-header>
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar divergências">
-      <div class="d-flex flex-wrap gap-2 align-self-end" role="group" aria-label="Tipo de divergência">
+      <div class="d-flex flex-wrap gap-2 app-control-offset" role="group" aria-label="Tipo de divergência">
         <input type="radio" class="btn-check" formControlName="type" value="" id="dl-type-all" />
         <label class="btn btn-outline-primary" for="dl-type-all">Todas</label>
         @for (t of types; track t[0]) {

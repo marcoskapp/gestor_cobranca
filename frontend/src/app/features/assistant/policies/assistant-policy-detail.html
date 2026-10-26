@@ -110,7 +110,7 @@
           <p class="app-muted as-small">Fuso de operação. Fora das janelas, a resposta é adiada para a abertura. Sem janelas = sempre.</p>
           @for (w of d.serviceHours ?? []; track $index; let i = $index) {
             <div class="as-row">
-              <div class="btn-group btn-group-sm flex-wrap as-days" role="group" [attr.aria-label]="'Dias da janela ' + (i + 1)">
+              <div class="btn-group btn-group-sm flex-wrap as-days app-control-offset" role="group" [attr.aria-label]="'Dias da janela ' + (i + 1)">
                 @for (day of days; track day) {
                   <input
                     class="btn-check"
@@ -131,7 +131,7 @@
                 <input appInput type="time" [ngModel]="w.end.slice(0, 5)" (ngModelChange)="setWindowTime(i, 'end', $event)" [readonly]="!editable()" />
               </app-field>
               @if (editable()) {
-                <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="removeWindow(i)" aria-label="Remover janela" ngbTooltip="Remover"><app-icon name="trash3" /></button>
+                <button class="btn btn-sm btn-outline-secondary border-0 app-control-offset" type="button" (click)="removeWindow(i)" aria-label="Remover janela" ngbTooltip="Remover"><app-icon name="trash3" /></button>
               }
             </div>
           } @empty {
@@ -237,7 +237,7 @@
                 </select>
               </app-field>
               @if (editable()) {
-                <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="removeTrigger(i)" aria-label="Remover gatilho" ngbTooltip="Remover"><app-icon name="trash3" /></button>
+                <button class="btn btn-sm btn-outline-secondary border-0 app-control-offset" type="button" (click)="removeTrigger(i)" aria-label="Remover gatilho" ngbTooltip="Remover"><app-icon name="trash3" /></button>
               }
             </div>
           }

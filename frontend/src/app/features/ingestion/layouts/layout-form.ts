@@ -102,9 +102,11 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
               <input appInput formControlName="sheetName" maxlength="31" placeholder="Primeira aba" />
             </app-field>
           }
-          <div class="form-check align-self-end">
-            <input class="form-check-input" type="checkbox" id="lf-has-header" formControlName="hasHeader" />
-            <label class="form-check-label" for="lf-has-header">Primeira linha é cabeçalho</label>
+          <div class="app-control-offset">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="lf-has-header" formControlName="hasHeader" />
+              <label class="form-check-label" for="lf-has-header">Primeira linha é cabeçalho</label>
+            </div>
           </div>
         </div>
 
@@ -128,7 +130,7 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
                   <input appInput type="number" min="1" formControlName="position" />
                 </app-field>
               }
-              <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="remove(i)" [attr.aria-label]="'Remover coluna ' + (i + 1)">
+              <button class="btn btn-sm btn-outline-secondary border-0 app-control-offset" type="button" (click)="remove(i)" [attr.aria-label]="'Remover coluna ' + (i + 1)">
                 <app-icon name="trash3" />
               </button>
             </div>
@@ -153,7 +155,7 @@ export function columnProblems(columns: readonly LayoutColumn[], fields: readonl
     }
     .lf-row {
       display: flex;
-      align-items: flex-end;
+      align-items: flex-start;
       gap: 8px;
       app-field {
         flex: 1 1 200px;

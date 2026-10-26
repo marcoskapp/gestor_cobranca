@@ -8,7 +8,6 @@ export interface NavItem {
   route: string;
   /** Exibido se o usuário tiver ao menos uma das permissões (vazio = todos os autenticados). */
   permissions: readonly string[];
-  exact?: boolean;
 }
 
 export interface NavSection {
@@ -24,12 +23,12 @@ const COMMISSION_STATEMENTS = [...PERFORMANCE, Permission.COMMISSION_STATEMENT_M
 export const NAVIGATION: readonly NavSection[] = [
   {
     label: null,
-    items: [{ label: 'Início', icon: 'house', route: '/', permissions: [], exact: true }],
+    items: [{ label: 'Início', icon: 'house', route: '/', permissions: [] }],
   },
   {
     label: 'Painéis',
     items: [
-      { label: 'Painel operacional', icon: 'grid-1x2', route: '/paineis', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW], exact: true },
+      { label: 'Painel operacional', icon: 'grid-1x2', route: '/paineis', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW] },
       { label: 'Recuperação', icon: 'cash-stack', route: '/paineis/recuperacao', permissions: [Permission.REPORT_VIEW] },
       { label: 'Conversão', icon: 'funnel', route: '/paineis/conversao', permissions: [Permission.REPORT_VIEW] },
       {
@@ -137,14 +136,14 @@ export const NAVIGATION: readonly NavSection[] = [
   {
     label: 'Portal do devedor',
     items: [
-      { label: 'Portal de autonegociação', icon: 'shop-window', route: '/autonegociacao', permissions: [Permission.PORTAL_MANAGE], exact: true },
+      { label: 'Portal de autonegociação', icon: 'shop-window', route: '/autonegociacao', permissions: [Permission.PORTAL_MANAGE] },
       { label: 'Pedidos do portal', icon: 'headset', route: '/autonegociacao/pedidos', permissions: [Permission.INBOX_VIEW] },
     ],
   },
   {
     label: 'Pagamentos',
     items: [
-      { label: 'Pagamentos', icon: 'cash-stack', route: '/pagamentos', permissions: [Permission.PAYMENT_VIEW], exact: true },
+      { label: 'Pagamentos', icon: 'cash-stack', route: '/pagamentos', permissions: [Permission.PAYMENT_VIEW] },
       { label: 'Instruções de pagamento', icon: 'qr-code', route: '/pagamentos/instrucoes', permissions: [Permission.PAYMENT_VIEW] },
       { label: 'Aprovação de pagamentos', icon: 'person-check', route: '/pagamentos/aprovacoes', permissions: [Permission.PAYMENT_REVIEW] },
       { label: 'Sobras e realocação', icon: 'piggy-bank', route: '/pagamentos/sobras', permissions: [Permission.RECONCILIATION_MANAGE] },
@@ -261,3 +260,21 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
 ];
+
+/**
+ * Rota do menu que corresponde ao endereço atual: a mais específica (maior prefixo por segmento).
+ * Assim `/conversas/templates` marca só "Templates", e não também "Caixa de entrada" (`/conversas`),
+ * enquanto telas internas sem item próprio (`/conversas/123`) continuam marcando o item pai.
+ * O início (`/`) só corresponde a ele mesmo.
+ */
+export function activeNavRoute(url: string, routes: readonly string[]): string | null {
+  const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+  let best: string | null = null;
+  for (const route of routes) {
+    const matches = route === '/' ? path === '/' : path === route || path.startsWith(route + '/');
+    if (matches && (best === null || route.length > best.length)) {
+      best = route;
+    }
+  }
+  return best;
+}

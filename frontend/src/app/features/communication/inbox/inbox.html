@@ -38,7 +38,7 @@
         </button>
       }
     </div>
-    <div class="d-flex flex-wrap align-items-end column-gap-3 row-gap-2 px-3 py-2 border-bottom" data-tour="filters">
+    <div class="d-flex flex-wrap align-items-start column-gap-3 row-gap-2 px-3 py-2 border-bottom" data-tour="filters">
       <app-field class="ib-channel" label="Canal">
         <select appInput [ngModel]="channel()" (ngModelChange)="channel.set($event)">
           <option value="">Todos</option>
@@ -47,9 +47,11 @@
           <option value="SMS">SMS</option>
         </select>
       </app-field>
-      <div class="form-check form-switch mb-2">
-        <input class="form-check-input" type="checkbox" role="switch" id="inbox-awaiting" [ngModel]="awaiting()" (ngModelChange)="awaiting.set($event)" />
-        <label class="form-check-label" for="inbox-awaiting">Aguardando resposta</label>
+      <div class="app-control-offset">
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" role="switch" id="inbox-awaiting" [ngModel]="awaiting()" (ngModelChange)="awaiting.set($event)" />
+          <label class="form-check-label" for="inbox-awaiting">Aguardando resposta</label>
+        </div>
       </div>
     </div>
     <div id="inbox-list" class="ib-scroll" role="tabpanel" [attr.aria-busy]="query.loading()" data-tour="inbox-list">
