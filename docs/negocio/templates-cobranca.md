@@ -25,7 +25,8 @@
 * Categoria pretendida: **Utilidade** (lembretes e avisos sobre uma relação existente). Texto promocional ("aproveite",
   "imperdível", "só hoje") faz a Meta reclassificar como **Marketing**, que custa mais e tem mais restrições.
 * Sem encurtador de link; links só do domínio próprio da assessoria (o sistema só aceita `https`).
-* Códigos de acesso usam a categoria **Autenticação**, com formato fixo da Meta (ver §5 e a pendência P3).
+* Códigos de acesso usam a categoria **Autenticação**, com formato fixo da Meta: corpo padrão, um único parâmetro (o
+  código) e botão "copiar código" (ver §5.1). No sistema, a categoria é informada no template (**Categoria na Meta**).
 
 **Do sistema**
 
@@ -34,7 +35,11 @@
 * Código do template: maiúsculas, números e `_` (`COBRANCA_ABERTURA`). Nos templates do portal o sufixo é o canal
   (`_WHATSAPP`, `_SMS`, `_EMAIL`).
 * Nas réguas, cada variável recebe uma **origem**: `DEBTOR_FIRST_NAME`, `OPEN_BALANCE`, `ELIGIBLE_BALANCE`,
-  `OLDEST_DUE_DATE`, `DAYS_OVERDUE`, `CREDITOR_NAME`, `OFFER_AMOUNT`, `OFFER_DUE_DATE`, `PAYMENT_LINK` ou `LITERAL`.
+  `OLDEST_DUE_DATE`, `DAYS_OVERDUE`, `CREDITOR_NAME`, `OFFER_AMOUNT`, `OFFER_DUE_DATE`, `PAYMENT_LINK`,
+  `NEXT_INSTALLMENT_AMOUNT`, `NEXT_INSTALLMENT_DUE_DATE` (próxima parcela em aberto do acordo em vigor do caso),
+  `PORTAL_LINK`, `PORTAL_LINK_HOURS` (link de uso único do portal, gerado no envio, e sua validade) ou `LITERAL`.
+  Sem acordo em vigor, sem parcela em aberto ou sem portal para a carteira do caso, a etapa é **pulada** com o motivo
+  (`NO_ACTIVE_AGREEMENT`, `NO_OPEN_INSTALLMENT`, `PORTAL_UNAVAILABLE`) — nunca sai mensagem com valor vazio.
 * Troque `[NOME DA ASSESSORIA]` pelo nome fantasia antes de submeter (não há variável para o nome da assessoria; o
   template é da assessoria).
 
@@ -47,6 +52,8 @@
 | Sem resposta depois do primeiro contato | Qualquer | `COBRANCA_RETOMADA` |
 | Proposta pronta (etapa de oferta da régua) | Sim | `COBRANCA_PROPOSTA` ou `COBRANCA_PROPOSTA_LINK` |
 | Informar saldo e atraso | Sim | `COBRANCA_SALDO` |
+| Lembrete de parcela do acordo (antes do vencimento) | Sim | `ACORDO_LEMBRETE_PARCELA` |
+| Convite para o portal de autonegociação pela régua | Sim | `COBRANCA_PORTAL_LINK` |
 | Portal de autonegociação (exigidos pelo sistema) | — | `PORTAL_CODIGO_*`, `PORTAL_LINK_*`, `PORTAL_ATENDIMENTO_*` |
 
 ¹ "Confirmado" = o devedor já foi identificado nesse número (contato efetivo anterior ou identidade confirmada numa
@@ -54,6 +61,12 @@ conversa). Na régua, use o filtro de segmento "já houve contato efetivo".
 
 Régua sugerida para começar (WhatsApp): **D0** `COBRANCA_ABERTURA` (ao responder → entregar ao assistente) →
 **D+3** sem resposta `COBRANCA_RETOMADA` → **D+7** sem resposta, tarefa de ligação para a equipe.
+
+Régua de **lembrete de parcela** (campanha com finalidade "acompanhamento de acordo", que não pausa por acordo nem por
+pagamento): segmento com **Acordo em vigor = sim** e **Parcela do acordo vence em (dias)** de 3 a 3 (vence daqui a 3 dias),
+reinscrição após 20 dias (uma inscrição por parcela mensal) e uma etapa `ACORDO_LEMBRETE_PARCELA` no horário comercial.
+A régua lê o valor e o vencimento no momento do envio: parcela paga antes da etapa → o caso sai do segmento e a etapa
+não sai.
 
 ## 3. WhatsApp — abertura e retomada
 
@@ -151,21 +164,70 @@ Categoria: Utilidade · Idioma: pt_BR
 Link em mensagem de cobrança é alvo de golpes: use sempre o domínio próprio e oriente na comunicação institucional que
 a assessoria nunca pede senha nem dados de cartão.
 
+### 4.4 `ACORDO_LEMBRETE_PARCELA` — lembrete de parcela do acordo
+Categoria: Utilidade · Idioma: pt_BR
+
+> Olá, {{nome}}. Aqui é da [NOME DA ASSESSORIA], em nome de {{credor}}.
+> Lembramos que a parcela do seu acordo, no valor de {{valor}}, vence em {{vencimento}}.
+> Se já pagou, desconsidere esta mensagem. Dúvidas? É só responder por aqui.
+>
+> Para não receber mais mensagens, responda SAIR.
+
+| Variável | Tipo | Origem na régua |
+| --- | --- | --- |
+| `nome` | Primeiro nome | `DEBTOR_FIRST_NAME` |
+| `credor` | Texto curto | `CREDITOR_NAME` |
+| `valor` | Valor | `NEXT_INSTALLMENT_AMOUNT` (valor ainda devido da parcela) |
+| `vencimento` | Data | `NEXT_INSTALLMENT_DUE_DATE` |
+
+Tom de lembrete, sem ameaça nem consequência ("evite a quebra do acordo" não entra). O valor é o que falta pagar da
+parcela (parcela paga em parte mostra o saldo dela).
+
+### 4.5 `COBRANCA_PORTAL_LINK` — convite para o portal pela régua
+Categoria: Utilidade · Idioma: pt_BR
+
+> Olá, {{nome}}. Aqui é da [NOME DA ASSESSORIA], em nome de {{credor}}.
+> Você pode consultar suas condições e negociar com segurança pelo nosso portal: {{link}}
+> O link é pessoal, só pode ser usado uma vez e vale por {{horas}} horas.
+>
+> Para não receber mais mensagens, responda SAIR.
+
+| Variável | Tipo | Origem na régua |
+| --- | --- | --- |
+| `nome` | Primeiro nome | `DEBTOR_FIRST_NAME` |
+| `credor` | Texto curto | `CREDITOR_NAME` |
+| `link` | Link | `PORTAL_LINK` |
+| `horas` | Número inteiro | `PORTAL_LINK_HOURS` |
+
+O link é **gerado no envio** pelo portal, com as mesmas regras do link enviado pelo operador: uso único, código de acesso
+no fragmento do endereço (não vai para logs), novo link anula o anterior e o envio fica na trilha de acesso. Só
+funciona para carteiras habilitadas no portal do credor e devedores com dívida nelas; fora disso a etapa é pulada
+(`PORTAL_UNAVAILABLE`). O mesmo par `link`/`horas` pode entrar no lembrete de parcela (§4.4) para o devedor pagar a
+parcela pelo portal.
+
 ## 5. Templates exigidos pelo portal de autonegociação
 
 O portal envia estes templates sozinho; os nomes são fixos (configuração `app.portal.templates`). Cadastre um por canal
 habilitado no portal.
 
 ### 5.1 `PORTAL_CODIGO_WHATSAPP` — código de acesso
-Categoria na Meta: **Autenticação** (ver pendência P3)
+Categoria na Meta: **Autenticação** (no sistema: **Categoria na Meta = Autenticação**)
 
-> {{codigo}} é o seu código de acesso ao portal de negociação. Ele vale por {{minutos}} minutos. Não compartilhe este
-> código com ninguém.
+A Meta fixa o texto do template de autenticação; na criação, escolha o idioma `pt_BR`, marque o aviso de segurança e
+informe a validade do código (10 minutos, a mesma de `app.portal.access.code-ttl`) e o botão **copiar código**. O texto
+fica assim:
+
+> {{codigo}} é seu código de verificação. Para sua segurança, não o compartilhe.
+> Este código expira em 10 minutos. — botão **Copiar código**
 
 | Variável | Tipo |
 | --- | --- |
-| `codigo` | Código (`CODE`) |
-| `minutos` | Número inteiro |
+| `codigo` | Código (`CODE`, até 15 caracteres) |
+
+O template tem **uma única variável**: o sistema recusa template de autenticação com outra variável e envia o código no
+corpo e no botão, como a Meta exige. A validade não é variável (é configuração do template na Meta). Nos canais SMS e
+e-mail (`PORTAL_CODIGO_SMS`, `PORTAL_CODIGO_EMAIL`) `minutos` continua opcional: o portal só o envia quando o template o
+declara.
 
 ### 5.2 `PORTAL_LINK_WHATSAPP` — link de acesso enviado pelo operador
 Categoria: Utilidade
@@ -222,8 +284,10 @@ Limite prático de 160 caracteres, sem acentos se o provedor cobrar SMS com acen
 1. Jurídico revisa e aprova os textos (este documento).
 2. **Conversas → Templates → Novo**: código, canal, idioma `pt_BR`, credor (vazio = vale para todos os credores da
    assessoria; preencha quando o texto citar um credor fixo), texto e variáveis na ordem das tabelas.
-3. WhatsApp: crie o mesmo template no gerenciador da Meta (WhatsApp Manager), com o mesmo nome no provedor e os
-   parâmetros na mesma ordem; quando a Meta aprovar, registre a aprovação no template do sistema e publique.
+3. WhatsApp: escolha a **Categoria na Meta** (Utilidade; Autenticação só para `PORTAL_CODIGO_WHATSAPP`) e crie o mesmo
+   template no gerenciador da Meta (WhatsApp Manager), na mesma categoria, com o mesmo nome no provedor e os
+   parâmetros na mesma ordem; quando a Meta aprovar, registre a aprovação no template do sistema e publique. Se a Meta
+   reclassificar a categoria, ajuste-a no rascunho antes de publicar.
 4. Use **Pré-visualizar** com valores de exemplo antes de publicar.
 5. Nas réguas, escolha o template na etapa "Enviar mensagem" e a origem de cada variável.
 
@@ -231,7 +295,7 @@ Limite prático de 160 caracteres, sem acentos se o provedor cobrar SMS com acen
 
 | # | Pendência | Efeito | Proposta |
 | --- | --- | --- | --- |
-| P1 | Não há origem de variável para **parcela de acordo** (valor e vencimento da próxima parcela) | Não dá para fazer "lembrete de parcela do acordo" pela régua | Novas origens `NEXT_INSTALLMENT_AMOUNT` e `NEXT_INSTALLMENT_DUE_DATE` e o modelo `ACORDO_LEMBRETE_PARCELA` |
-| P2 | Não há origem de variável para o **link do portal** | A régua não envia o link do portal; só o operador, pela ficha | Origem `PORTAL_LINK` (link de uso único gerado no envio, com `horas`) |
-| P3 | Template de **autenticação** da Meta tem corpo fixo e só aceita o código como parâmetro (a validade é configuração do template, com botão "copiar código") | `PORTAL_CODIGO_WHATSAPP` com dois parâmetros (`codigo`, `minutos`) pode ser recusado ou reclassificado | Permitir que o template de código declare só `codigo` e enviar o componente de botão de autenticação no adaptador do WhatsApp |
+| P1 | ~~Não há origem de variável para **parcela de acordo**~~ — **resolvida em 26/10/2026** | — | Origens `NEXT_INSTALLMENT_AMOUNT` e `NEXT_INSTALLMENT_DUE_DATE` (próxima parcela em aberto do acordo em vigor do caso; sem acordo ou parcela, a etapa é pulada), filtro de segmento "parcela do acordo vence em N dias" e o modelo `ACORDO_LEMBRETE_PARCELA` (§4.4) |
+| P2 | ~~Não há origem de variável para o **link do portal**~~ — **resolvida em 26/10/2026** | — | Origens `PORTAL_LINK` e `PORTAL_LINK_HOURS` (link de uso único gerado pelo portal no envio, mesmas regras do link do operador; sem portal para a carteira, a etapa é pulada) e o modelo `COBRANCA_PORTAL_LINK` (§4.5) |
+| P3 | ~~Template de **autenticação** da Meta com dois parâmetros~~ — **resolvida em 26/10/2026** | — | Categoria do template na Meta (`UTILITY`, `MARKETING`, `AUTHENTICATION`) no cadastro; template de autenticação com uma única variável (o código), enviado com corpo e botão "copiar código"; o portal manda `minutos` só se o template o declara (§5.1) |
 | P4 | Não há variável para o nome da assessoria | O nome vai fixo no texto de cada template | Aceitável; se houver marcas diferentes por credor, criar templates por credor |
