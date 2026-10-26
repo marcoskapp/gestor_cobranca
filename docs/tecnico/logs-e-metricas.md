@@ -239,7 +239,8 @@ Ids, enums e valores apenas — nunca documento, nome, observação, descrição
 
 Referência `call` (ou `dialer_campaign`/`telephony_agent`), canal `PHONE`, `creditorId`, `portfolioId`, `debtorId` e
 `caseId` quando identificados, e `direction`, `origin` (`CLICK_TO_CALL`, `DIALER`, `INBOUND`), `operatorId`,
-`campaignId`. Nunca número (nem mascarado), nome, ramal ou credenciais. Ver `docs/tecnico/desenho/telefonia.md`.
+`campaignId`, `provider` (`SANDBOX`, `ALVARIA`, `TARIFANDO`), `accountId` e `fallback` (discada pela conta de
+contingência) — base da comparação de efetividade entre plataformas. Nunca número (nem mascarado), nome, ramal ou credenciais. Ver `docs/tecnico/desenho/telefonia.md`.
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |
@@ -581,6 +582,10 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `telephony.recordings{outcome}`, `telephony.recording.access{purpose}` | gravações (`stored`, `failed`, `too_large`, `purged_retention`, `purged_anonymization`) e acessos por finalidade |
 | `telephony.webhook.requests{provider,outcome}`, `telephony.webhook.events{provider,type,outcome}` | webhooks (`ACCEPTED`, `DUPLICATE`, `UNKNOWN_ROUTE`, `INVALID_SIGNATURE` — alarme —, `MALFORMED`, `TOO_LARGE`, `RATE_LIMITED`) e eventos (`applied`, `duplicate`, `stale`, `unknown_call`, `ignored`) |
 | `telephony.reconciliation{kind}`, `telephony.events.consumed{type}`, `telephony.jobs.failures{job}` | conciliação (`agent_timeout`, `stale_call`), consumo de eventos e falhas de jobs/agendamentos (alarme) |
+| `telephony.provider.calls{provider,origin,result}`, `telephony.provider.talk_time{provider}` (p50/p95/p99) | multiprovedor: chamadas encerradas e conversação **por plataforma** (ASR por provedor = atendidas ÷ discadas); série separada para não mudar as dimensões de `telephony.calls` |
+| `telephony.provider.dial{provider,origin,outcome}` | pedidos à plataforma: `accepted`, `rejected`, `transient` (ambíguo), `transient_not_processed` (não criou a chamada) |
+| `telephony.provider.fallbacks{from,to,origin}` | discagens desviadas para a conta de contingência (alarme sugerido: qualquer valor sustentado por 15 min = plataforma principal fora do ar) |
+| `integration.calls{provider=alvaria,operation,outcome}`, `integration.calls.duration{provider=alvaria,operation}` | API da Alvaria CX (`oauth_token`, `originate`, `dial_batch`, `bridge`, `hangup`, `fetch_recording`, `delete_recording`; `success`, `rejected`, `transient`, `timeout`, `unreachable`) |
 | `portal.funnel{step}` | funil do portal por sessão: `ACCESS`, `SIMULATION`, `ACCEPTANCE`, `PIX_ISSUED`, `PAYMENT_CONFIRMED` (conversão = etapa ÷ anterior) |
 | `portal.access.code_requests{channel,outcome}`, `portal.access.logins{method,outcome}` | pedidos de código (`SENT`, `DECOY` = documento sem cadastro, `NOT_DELIVERED`) e verificações (`SUCCESS`, `INVALID`, `KNOWLEDGE_REQUIRED`); alta de `INVALID`/`DECOY` = varredura |
 | `portal.access.locks{key,event}`, `portal.access.rate_limited` | bloqueios progressivos aplicados/recusados por documento ou IP e limite por IP (alarme sugerido: > 50 em 15 min) |

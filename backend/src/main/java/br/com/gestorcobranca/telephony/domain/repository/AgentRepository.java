@@ -26,13 +26,14 @@ public interface AgentRepository {
     List<Agent> findAllByOrderByStatusAscStatusSinceAsc();
 
     /**
-     * Operadores disponíveis na campanha, livres há mais tempo primeiro, bloqueados com
+     * Operadores disponíveis na campanha que atendem pela conta da chamada (sem ramal "fora desta
+     * plataforma" para ela), livres há mais tempo primeiro, bloqueados com
      * {@code FOR UPDATE SKIP LOCKED} (distribuição concorrente sem disputa).
      */
-    List<UUID> lockAvailableIdsInCampaign(UUID campaignId, int limit);
+    List<UUID> lockAvailableIdsInCampaign(UUID campaignId, UUID accountId, int limit);
 
     /** Operadores disponíveis em qualquer campanha ou fora delas (chamadas recebidas), como acima. */
-    List<UUID> lockAvailableIds(int limit);
+    List<UUID> lockAvailableIds(UUID accountId, int limit);
 
     long countAvailableInCampaign(UUID campaignId);
 

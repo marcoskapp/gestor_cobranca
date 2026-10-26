@@ -713,9 +713,26 @@ O script aceita só token fine-grained (`github_pat_…`). O segredo é **opcion
 | --- | --- | --- |
 | SMS | só a porta `ChannelGateway`; conta SMS só com o simulador | escolha do provedor (issue #12) |
 | Boleto e link de pagamento | portas recusadas até haver provedor; conciliação por CSV genérico; CNAB reconhecido sem leitor | escolha do provedor (issue #12) |
-| Telefonia e discador | porta `TelephonyProvider` e webhook neutros; simulador recusado no `prod` | escolha do provedor (issue #12) |
+| Telefonia e discador | multiprovedor: Alvaria CX (contrato a confirmar, só homologação) e Tarifando (adaptador desligado); simulador recusado no `prod` | contrato e ambiente de testes da Alvaria; documentação da API da Tarifando ([telefonia.md](../desenho/telefonia.md) anexos A e B) |
 
-Nada a configurar na AWS por enquanto. Os simuladores (`sandbox`) são recusados no perfil `prod`: não tente ligá-los em produção.
+Nada a configurar na AWS para SMS e boleto. Os simuladores (`sandbox`) são recusados no perfil `prod`: não tente ligá-los em produção.
+
+**Telefonia — homologação da Alvaria (quando o fornecedor entregar o ambiente de testes).** Só no ambiente `homologacao`:
+
+1. Variáveis de ambiente da aplicação (no `app.env` gerado pelo Terraform do ambiente ou equivalente):
+   `APP_TELEPHONY_HOMOLOGATION_PROVIDERS=ALVARIA` (libera o adaptador com contrato pendente para discar) e
+   `APP_TELEPHONY_ALVARIA_ALLOWED_HOSTS=<domínio da instância, ex. .cliente.alvaria.com>` (allowlist do `apiBaseUrl`,
+   proteção contra SSRF). **Nunca** em `producao`: lá a Alvaria só disca depois que o adaptador virar `READY`.
+2. Saída para a Internet: as instâncias chamam a API da Alvaria por HTTPS (443) pelo NAT; se a Alvaria exigir IP de
+   origem fixo, informe os IPs elásticos do NAT.
+3. Log técnico da subida: `Telefonia: provedores com contrato a confirmar liberados para discar (homologação)`.
+4. Na aplicação (gestor): **Plataformas de telefonia** → nova conta Alvaria com as credenciais (`apiBaseUrl`, `clientId`,
+   `clientSecret`, `webhookSecret`), copie o endereço do webhook da conta para a Alvaria, cadastre os ramais por
+   plataforma e as regras de roteamento. Siga o roteiro do anexo A do desenho.
+5. Acompanhe `integration.calls{provider=alvaria}` (`rejected` = credencial/contrato; `unreachable`/`timeout` = rede),
+   `telephony.provider.fallbacks` e `telephony.webhook.requests{provider=ALVARIA,outcome=INVALID_SIGNATURE}`.
+
+A Tarifando não tem o que configurar: a aplicação recusa contas dela até o adaptador ser implementado (anexo B).
 
 ---
 

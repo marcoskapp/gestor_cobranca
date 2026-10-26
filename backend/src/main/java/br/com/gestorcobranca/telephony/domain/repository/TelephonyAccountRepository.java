@@ -14,9 +14,7 @@ public interface TelephonyAccountRepository {
 
     Optional<TelephonyAccount> findById(UUID id);
 
-    Optional<TelephonyAccount> findActiveDefault();
-
-    Optional<TelephonyAccount> findActiveForCreditor(UUID creditorId);
+    List<TelephonyAccount> findAllByIdIn(java.util.Collection<UUID> ids);
 
     List<TelephonyAccount> findAllByOrderByNameAsc();
 }

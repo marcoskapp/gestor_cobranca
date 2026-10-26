@@ -53,6 +53,14 @@ app:
     sandbox:
       enabled: true
       auto-progress: false
+    # ambiente multiprovedor nos testes: a Alvaria (contrato a confirmar) disca contra um servidor HTTP local
+    homologation:
+      providers: ALVARIA
+    alvaria:
+      allowed-host-suffixes: 127.0.0.1
+      allow-insecure-http: true
+      connect-timeout: PT1S
+      read-timeout: PT2S
   storage:
     provider: filesystem
     local-root: ./target/test-storage

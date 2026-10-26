@@ -30,6 +30,32 @@ class TelephonyMetrics {
         registry.counter("telephony.calls", "direction", direction, "origin", origin, "result", result).increment();
     }
 
+    /**
+     * Comparação entre provedores: chamada encerrada por provedor e resultado (ASR por provedor) e
+     * duração da conversação. Série própria para não mudar as dimensões de {@code telephony.calls}
+     * (painéis e alarmes existentes).
+     */
+    void providerCallEnded(String provider, String origin, String result, Integer talkSeconds) {
+        registry.counter("telephony.provider.calls", "provider", provider, "origin", origin, "result", result)
+                .increment();
+        if (talkSeconds != null && talkSeconds > 0) {
+            Timer.builder("telephony.provider.talk_time").tag("provider", provider)
+                    .publishPercentiles(0.5, 0.95, 0.99).register(registry).record(Duration.ofSeconds(talkSeconds));
+        }
+    }
+
+    /** Pedido ao provedor por resultado: accepted, rejected, transient, transient_not_processed. */
+    void providerDial(String provider, String origin, String outcome) {
+        registry.counter("telephony.provider.dial", "provider", provider, "origin", origin, "outcome", outcome)
+                .increment();
+    }
+
+    /** Discagem desviada para a conta de contingência (de → para), por origem. */
+    void fallback(String fromProvider, String toProvider, String origin, int calls) {
+        registry.counter("telephony.provider.fallbacks", "from", fromProvider, "to", toProvider, "origin", origin)
+                .increment(calls);
+    }
+
     /** Pedido de discagem: accepted, rejected, transient, blocked, account_unavailable, exhausted. */
     void dial(String origin, String outcome) {
         registry.counter("telephony.dial.requests", "origin", origin, "outcome", outcome).increment();

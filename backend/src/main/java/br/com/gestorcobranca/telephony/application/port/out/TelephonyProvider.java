@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Porta de saída para o provedor de telefonia/discador (CPaaS ou PABX/SIP). O provedor ainda não
- * foi escolhido (issue #12); o único adaptador é o simulador ({@code SANDBOX}, recusado no perfil
- * {@code prod}). Contrato neutro, modelado nos padrões comuns de CPaaS (chamada de saída com
+ * Porta de saída para o provedor de telefonia/discador (CPaaS, PABX/SIP ou discador hospedado). Um
+ * adaptador por {@link ProviderType}: simulador ({@code SANDBOX}, recusado no perfil {@code prod}),
+ * Alvaria CX (contrato da API a confirmar, {@link Readiness#CONTRACT_PENDING}) e Tarifando
+ * (esqueleto desligado, {@link Readiness#NOT_IMPLEMENTED}). Contrato neutro, modelado nos padrões
+ * comuns de CPaaS (chamada de saída com
  * {@code statusCallback}, "bridge"/"dial" para o ramal do operador, AMD, gravação por chamada):
  * <ul>
  *   <li>o adaptador traduz para a API do provedor com timeouts explícitos (3 s/10 s) e a métrica
@@ -28,6 +30,23 @@ import java.util.UUID;
 public interface TelephonyProvider {
 
     ProviderType provider();
+
+    /**
+     * Situação do adaptador. Somente {@link Readiness#READY} disca em produção; um adaptador
+     * {@link Readiness#CONTRACT_PENDING} só disca com a homologação ligada para o provedor
+     * ({@code app.telephony.homologation.providers}); {@link Readiness#NOT_IMPLEMENTED} nunca disca e
+     * a conta não pode ser criada nem ativada.
+     */
+    default Readiness readiness() {
+        return Readiness.READY;
+    }
+
+    /**
+     * Validação das credenciais além da presença das chaves (ex.: endereço da API em HTTPS e no
+     * domínio permitido, contra SSRF). Recusa com {@code BusinessRuleException}.
+     */
+    default void validateCredentials(Map<String, String> credentials) {
+    }
 
     /**
      * Clique para ligar: chama primeiro o ramal do operador e, atendido por ele, o devedor
@@ -109,15 +128,64 @@ public interface TelephonyProvider {
     record RecordingMedia(String contentType, long size, InputStream content) {
     }
 
-    /** Falha transitória do provedor: a operação deve ser tentada novamente. */
+    /**
+     * Recusa definitiva do provedor numa operação sobre chamada/gravação existente (ex.: chamada já
+     * encerrada no provedor, gravação inexistente, credencial recusada). Não adianta repetir.
+     */
+    class ProviderRejectedException extends RuntimeException {
+
+        private final String code;
+
+        public ProviderRejectedException(String code, String message) {
+            super(message);
+            this.code = code;
+        }
+
+        public String code() {
+            return code;
+        }
+    }
+
+    enum Readiness {
+        /** Contrato confirmado e testado: disca em qualquer ambiente. */
+        READY,
+        /** Adaptador implementado sobre contrato ainda não confirmado pelo fornecedor: só homologação. */
+        CONTRACT_PENDING,
+        /** Sem adaptador: conta não pode ser criada nem ativada. */
+        NOT_IMPLEMENTED
+    }
+
+    /**
+     * Falha transitória do provedor: a operação deve ser tentada novamente.
+     * {@link #notProcessed()} = o pedido comprovadamente não criou nada no provedor (conexão
+     * recusada, tempo de conexão esgotado, 429 ou 503 com recusa explícita): só então a discagem pode
+     * ir para a conta de contingência sem risco de chamada duplicada. Tempo de leitura esgotado ou
+     * outro 5xx são ambíguos (o provedor pode ter discado) e repetem na mesma conta, com a mesma
+     * referência do cliente.
+     */
     class TransientProviderException extends RuntimeException {
 
+        private final boolean notProcessed;
+
         public TransientProviderException(String message) {
-            super(message);
+            this(message, null, false);
         }
 
         public TransientProviderException(String message, Throwable cause) {
+            this(message, cause, false);
+        }
+
+        public TransientProviderException(String message, Throwable cause, boolean notProcessed) {
             super(message, cause);
+            this.notProcessed = notProcessed;
+        }
+
+        public static TransientProviderException notProcessed(String message, Throwable cause) {
+            return new TransientProviderException(message, cause, true);
+        }
+
+        public boolean notProcessed() {
+            return notProcessed;
         }
     }
 }

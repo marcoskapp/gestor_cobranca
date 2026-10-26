@@ -438,10 +438,23 @@ app:
       max-event-age: P2D
       # tolerância do instante assinado e de eventos no futuro
       max-clock-skew: PT5M
-    # provedor simulado: somente local/teste (recusado no perfil prod); provedor real na issue #12
+    # provedor simulado: somente local/teste (recusado no perfil prod)
     sandbox:
       enabled: false
       auto-progress: true
+    routing:
+      # desvia para a conta de contingência da regra quando a principal falha sem criar a chamada
+      fallback-enabled: true
+    homologation:
+      # provedores com contrato da API a confirmar (CONTRACT_PENDING) liberados para discar — somente no
+      # ambiente de homologação, com o ambiente de testes do fornecedor (ex.: ALVARIA)
+      providers: ${APP_TELEPHONY_HOMOLOGATION_PROVIDERS:}
+    alvaria:
+      connect-timeout: PT3S
+      read-timeout: PT10S
+      # domínios aceitos no apiBaseUrl das contas (proteção contra SSRF); confirmar o domínio da instância
+      allowed-host-suffixes: ${APP_TELEPHONY_ALVARIA_ALLOWED_HOSTS:.alvaria.com}
+      allow-insecure-http: false
 
   assistant:
     # mensagens mais recentes da conversa enviadas ao modelo (texto minimizado)

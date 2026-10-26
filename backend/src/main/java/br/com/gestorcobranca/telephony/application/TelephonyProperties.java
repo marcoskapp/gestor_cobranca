@@ -3,6 +3,10 @@ package br.com.gestorcobranca.telephony.application;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Parâmetros do módulo telephony ({@code app.telephony.*}).
@@ -17,11 +21,15 @@ import java.time.Duration;
  * @param dialer               ritmo do discador
  * @param webhook              proteção dos webhooks
  * @param sandbox              provedor simulado (local/teste)
+ * @param routing              roteamento entre contas (contingência)
+ * @param homologation         provedores com contrato a confirmar liberados para discar (homologação)
+ * @param alvaria              adaptador da Alvaria CX
  */
 @ConfigurationProperties(prefix = "app.telephony")
 public record TelephonyProperties(Integer dialMaxAttempts, Duration tabulationDeadline, Duration presenceTimeout,
                                   Duration staleCallAfter, String retentionCron, Integer retentionBatch,
-                                  Long recordingMaxBytes, Dialer dialer, Webhook webhook, Sandbox sandbox) {
+                                  Long recordingMaxBytes, Dialer dialer, Webhook webhook, Sandbox sandbox,
+                                  Routing routing, Homologation homologation, Alvaria alvaria) {
 
     public TelephonyProperties {
         dialMaxAttempts = dialMaxAttempts == null ? 3 : dialMaxAttempts;
@@ -34,6 +42,56 @@ public record TelephonyProperties(Integer dialMaxAttempts, Duration tabulationDe
         dialer = dialer == null ? new Dialer(null, null, null, null) : dialer;
         webhook = webhook == null ? new Webhook(null, null, null, null) : webhook;
         sandbox = sandbox == null ? new Sandbox(false, null) : sandbox;
+        routing = routing == null ? new Routing(null) : routing;
+        homologation = homologation == null ? new Homologation(null) : homologation;
+        alvaria = alvaria == null ? new Alvaria(null, null, null, false) : alvaria;
+    }
+
+    /**
+     * @param fallbackEnabled desvia a discagem para a conta de contingência da regra quando a principal
+     *                        falha de forma transitória sem ter criado a chamada (uma vez por chamada)
+     */
+    public record Routing(Boolean fallbackEnabled) {
+
+        public Routing {
+            fallbackEnabled = fallbackEnabled == null ? Boolean.TRUE : fallbackEnabled;
+        }
+    }
+
+    /**
+     * @param providers provedores cujo adaptador ainda aguarda a confirmação do contrato
+     *                  ({@code CONTRACT_PENDING}) e que podem discar neste ambiente — somente no
+     *                  ambiente de homologação, com o ambiente de testes do fornecedor
+     */
+    public record Homologation(Set<String> providers) {
+
+        public Homologation {
+            providers = providers == null ? Set.of() : providers.stream().map(p -> p.trim().toUpperCase(Locale.ROOT))
+                    .filter(p -> !p.isEmpty()).collect(Collectors.toUnmodifiableSet());
+        }
+
+        public boolean allows(String provider) {
+            return providers.contains(provider);
+        }
+    }
+
+    /**
+     * @param connectTimeout       tempo de conexão com a API da Alvaria
+     * @param readTimeout          tempo de leitura
+     * @param allowedHostSuffixes  domínios aceitos no {@code apiBaseUrl} das contas (proteção contra
+     *                             SSRF: a assessoria informa o endereço da própria instância)
+     * @param allowInsecureHttp    aceita {@code http://} (somente testes com servidor local; recusado no
+     *                             perfil {@code prod})
+     */
+    public record Alvaria(Duration connectTimeout, Duration readTimeout, List<String> allowedHostSuffixes,
+                          boolean allowInsecureHttp) {
+
+        public Alvaria {
+            connectTimeout = connectTimeout == null ? Duration.ofSeconds(3) : connectTimeout;
+            readTimeout = readTimeout == null ? Duration.ofSeconds(10) : readTimeout;
+            allowedHostSuffixes = allowedHostSuffixes == null || allowedHostSuffixes.isEmpty()
+                    ? List.of(".alvaria.com") : List.copyOf(allowedHostSuffixes);
+        }
     }
 
     /**

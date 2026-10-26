@@ -4,11 +4,14 @@ import br.com.gestorcobranca.shared.web.ApiPaths;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.AgentView;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.ConfigureAgentCommand;
+import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.ConfigureEndpointCommand;
+import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.EndpointView;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +48,27 @@ class AgentController {
     @PreAuthorize("hasAuthority('TELEPHONY_SUPERVISE')")
     List<AgentView> list() {
         return agents.list();
+    }
+
+    @GetMapping("/agents/endpoints")
+    @PreAuthorize("hasAuthority('TELEPHONY_SUPERVISE')")
+    List<EndpointView> endpoints() {
+        return agents.endpoints();
+    }
+
+    @PutMapping("/agents/{userId}/endpoints/{accountId}")
+    @PreAuthorize("hasAuthority('TELEPHONY_MANAGE')")
+    EndpointView configureEndpoint(@PathVariable UUID userId, @PathVariable UUID accountId,
+                                   @Valid @RequestBody EndpointRequest request) {
+        return agents.configureEndpoint(userId, accountId, new ConfigureEndpointCommand(request.extension(),
+                request.active()));
+    }
+
+    @DeleteMapping("/agents/{userId}/endpoints/{accountId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('TELEPHONY_MANAGE')")
+    void removeEndpoint(@PathVariable UUID userId, @PathVariable UUID accountId) {
+        agents.removeEndpoint(userId, accountId);
     }
 
     @PostMapping("/agents/{userId}/logout")
@@ -106,5 +130,8 @@ class AgentController {
     }
 
     record ReasonRequest(@NotBlank @Size(max = 300) String reason) {
+    }
+
+    record EndpointRequest(@Size(max = 64) String extension, boolean active) {
     }
 }

@@ -6,6 +6,7 @@ export const MANUAL: ModuleManual = {
     'A telefonia liga as chamadas ao caso de cobrança. O operador liga pela estação (clique para ligar), o discador liga sozinho sobre uma fila e conecta o operador quando uma pessoa atende, e chamadas recebidas também ficam vinculadas.',
     'Antes de cada ligação, o sistema confere se o contato por telefone é permitido agora. Ao fim, o operador tabula o resultado, que vai para o histórico do caso.',
     'A presença do operador (disponível ou em pausa, com motivo) diz ao discador quem pode receber chamadas.',
+    'A assessoria pode usar mais de uma plataforma de telefonia ao mesmo tempo (por exemplo, Alvaria e Tarifando). Regras de roteamento dizem qual plataforma liga em cada credor, carteira ou campanha, com uma plataforma de contingência se a principal estiver fora do ar.',
   ],
   connections: [
     { module: 'cobranca', text: 'Recebe: filas de casos para o discador e o caso aberto na estação; entrega a interação tabulada.' },
@@ -19,6 +20,10 @@ export const MANUAL: ModuleManual = {
     'Parâmetros da campanha de discagem só mudam com ela pausada.',
     'Ouvir uma gravação exige permissão e a finalidade, e fica no log de acesso.',
     'Ao fim da chamada atendida, a tabulação é obrigatória.',
+    'Vale a regra de roteamento mais específica: campanha, carteira, credor e, por último, o padrão da assessoria.',
+    'A contingência só liga quando a plataforma principal comprovadamente não fez a chamada: a mesma ligação nunca é feita duas vezes.',
+    'O operador só recebe chamadas de uma plataforma em que tem ramal; no clique para ligar, vale a plataforma do ramal dele.',
+    'Plataforma que ainda aguarda a homologação com o fornecedor não liga em produção.',
   ],
   screens: [
     {
@@ -63,12 +68,36 @@ export const MANUAL: ModuleManual = {
     {
       id: 'telephony.agents',
       title: 'Operadores e ramais',
-      objective: 'Quem está na telefonia agora, em que estado e há quanto tempo, e o ramal de cada usuário.',
-      purpose: ['Acompanhe disponibilidade e pausas. Vincule cada usuário ao ramal do provedor para o clique para ligar funcionar.'],
+      objective: 'Quem está na telefonia agora, em que estado e há quanto tempo, e o ramal de cada usuário em cada plataforma.',
+      purpose: [
+        'Acompanhe disponibilidade e pausas. Vincule cada usuário ao ramal do provedor para o clique para ligar funcionar.',
+        'Com mais de uma plataforma, use "Ramais por plataforma": ramal padrão, ramal próprio naquela conta ou "fora desta plataforma".',
+      ],
       profiles: ['SUPERVISOR', 'GESTOR'],
       inputs: ['Presença informada pelos operadores na estação.'],
       outputs: ['Ramais vinculados e visão para redistribuir o trabalho.'],
-      related: [{ screen: 'telephony.campaigns', why: 'Campanhas que dependem dos operadores disponíveis.' }],
+      related: [
+        { screen: 'telephony.campaigns', why: 'Campanhas que dependem dos operadores disponíveis.' },
+        { screen: 'telephony.accounts', why: 'Plataformas em que o operador pode ter ramal.' },
+      ],
+      terms: ['discador'],
+    },
+    {
+      id: 'telephony.accounts',
+      title: 'Plataformas de telefonia',
+      objective: 'Contas de cada plataforma de telefonia, qual delas liga em cada credor, carteira ou campanha, e a comparação de atendimento, falhas e custo entre elas.',
+      purpose: [
+        'Cadastre a conta de cada plataforma com o número de origem, as credenciais recebidas do fornecedor, a gravação e a tarifa por minuto (só para comparar).',
+        'Na aba Roteamento, escolha a conta principal e a de contingência de cada escopo. A primeira conta ativa vira o padrão da assessoria.',
+        'Copie o endereço de notificações de cada conta e cadastre-o na plataforma: cada conta tem o seu.',
+      ],
+      profiles: ['GESTOR', 'ADMIN'],
+      inputs: ['Credenciais e endereço da instância fornecidos pela plataforma de telefonia.'],
+      outputs: ['Contas ativas, regras de roteamento e comparação entre plataformas.'],
+      related: [
+        { screen: 'telephony.agents', why: 'Ramal do operador em cada plataforma.' },
+        { screen: 'telephony.campaigns', why: 'Campanhas que podem ter plataforma própria.' },
+      ],
       terms: ['discador'],
     },
   ],

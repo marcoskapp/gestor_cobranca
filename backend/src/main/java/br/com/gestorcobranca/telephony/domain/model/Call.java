@@ -51,12 +51,17 @@ public class Call extends TenantScopedEntity {
     @Column(name = "result", length = 20)
     private CallResult result;
 
-    @Column(name = "provider_account_id", nullable = false, updatable = false)
+    /** Conta que disca; muda uma única vez, antes da discagem, pela contingência ({@link #switchToFallback}). */
+    @Column(name = "provider_account_id", nullable = false)
     private UUID accountId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "provider", nullable = false, length = 30, updatable = false)
+    @Column(name = "provider", nullable = false, length = 30)
     private ProviderType provider;
+
+    /** Conta principal que falhou quando a chamada foi discada pela contingência. */
+    @Column(name = "fallback_from_account_id")
+    private UUID fallbackFromAccountId;
 
     @Column(name = "provider_call_id", length = 200)
     private String providerCallId;
@@ -151,10 +156,10 @@ public class Call extends TenantScopedEntity {
     @Column(name = "failure_detail", length = 300)
     private String failureDetail;
 
-    @Column(name = "recording_requested", nullable = false, updatable = false)
+    @Column(name = "recording_requested", nullable = false)
     private boolean recordingRequested;
 
-    @Column(name = "recording_announced", nullable = false, updatable = false)
+    @Column(name = "recording_announced", nullable = false)
     private boolean recordingAnnounced;
 
     @Column(name = "tabulation_code", length = 60)
@@ -216,6 +221,26 @@ public class Call extends TenantScopedEntity {
         call.recordingRequested = account.isRecordingEnabled();
         call.recordingAnnounced = account.isRecordingEnabled() && account.isRecordingNotice();
         return call;
+    }
+
+    /**
+     * Contingência: a conta principal falhou de forma transitória <b>sem</b> criar a chamada no
+     * provedor; a mesma chamada (mesmo id, mesma tentativa no compliance) passa a ser discada pela
+     * conta de contingência. Uma única vez por chamada e somente antes da discagem — assim nunca há
+     * duas chamadas para o mesmo pedido.
+     */
+    public void switchToFallback(TelephonyAccount fallback) {
+        Guard.require(fallback != null && !fallback.getId().equals(accountId), "call.fallback_invalid",
+                "Conta de contingência inválida");
+        Guard.requireState(status == CallStatus.QUEUED && providerCallId == null, "call.fallback_not_queued",
+                "A contingência só vale antes da discagem");
+        Guard.requireState(fallbackFromAccountId == null, "call.fallback_already_used",
+                "A chamada já foi desviada para a contingência");
+        this.fallbackFromAccountId = accountId;
+        this.accountId = fallback.getId();
+        this.provider = fallback.getProvider();
+        this.recordingRequested = fallback.isRecordingEnabled();
+        this.recordingAnnounced = fallback.isRecordingEnabled() && fallback.isRecordingNotice();
     }
 
     /** Chamada recebida notificada pelo provedor (nasce tocando, ainda sem devedor identificado). */
@@ -486,6 +511,10 @@ public class Call extends TenantScopedEntity {
 
     public ProviderType getProvider() {
         return provider;
+    }
+
+    public UUID getFallbackFromAccountId() {
+        return fallbackFromAccountId;
     }
 
     public String getProviderCallId() {

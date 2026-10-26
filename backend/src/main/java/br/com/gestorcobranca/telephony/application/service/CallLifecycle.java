@@ -80,6 +80,8 @@ class CallLifecycle {
 
     void dialed(Call call) {
         metrics.dial(call.getOrigin().name(), "accepted");
+        metrics.providerDial(call.getProvider().name().toLowerCase(java.util.Locale.ROOT), call.getOrigin().name(),
+                "accepted");
         businessEvents.log(base(BusinessEventTypes.CALL_DIALED, call)
                 .attr("attemptNumber", call.getAttemptNumber())
                 .attr("recording", call.isRecordingRequested()));
@@ -103,6 +105,8 @@ class CallLifecycle {
         String origin = call.getOrigin().name();
         if (call.wasDialed()) {
             metrics.callEnded(call.getDirection().name(), origin, call.getResult().name());
+            metrics.providerCallEnded(call.getProvider().name().toLowerCase(java.util.Locale.ROOT), origin,
+                    call.getResult().name(), call.getConnectedAt() == null ? null : call.getTalkSeconds());
             metrics.ringTime(origin, call.getRingSeconds());
             if (call.getConnectedAt() != null) {
                 metrics.talkTime(origin, call.getTalkSeconds());
@@ -200,6 +204,9 @@ class CallLifecycle {
                 .attr("direction", call.getDirection())
                 .attr("origin", call.getOrigin())
                 .attr("operatorId", call.getOperatorId())
-                .attr("campaignId", call.getCampaignId());
+                .attr("campaignId", call.getCampaignId())
+                .attr("provider", call.getProvider())
+                .attr("accountId", call.getAccountId())
+                .attr("fallback", call.getFallbackFromAccountId() != null);
     }
 }

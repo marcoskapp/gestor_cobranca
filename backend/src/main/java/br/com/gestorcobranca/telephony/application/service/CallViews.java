@@ -34,7 +34,8 @@ final class CallViews {
                 name(c.getAmdResult()), c.isAbandoned(), name(c.getHangupSide()), c.getFailureCode(),
                 split(c.getDenialReasons()), nextAllowedAt, c.isRecordingAnnounced(), c.getTabulationCode(), suggested,
                 c.getInteractionState().name(), c.getInteractionId(), recording == null ? null : recording(recording),
-                c.getVersion() == null ? 0 : c.getVersion());
+                c.getVersion() == null ? 0 : c.getVersion(), c.getAccountId(), c.getProvider().name(),
+                c.getFallbackFromAccountId());
     }
 
     static RecordingInfo recording(CallRecording r) {

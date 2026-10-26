@@ -19,7 +19,7 @@ class SandboxWebhookAdapterTest {
 
     static final String SECRET = "segredo-webhook";
     final SandboxWebhookAdapter adapter = new SandboxWebhookAdapter(new JsonCodec(JsonMapper.builder().build()),
-            new TelephonyProperties(null, null, null, null, null, null, null, null, null, null));
+            new TelephonyProperties(null, null, null, null, null, null, null, null, null, null, null, null, null));
     final Instant now = Instant.parse("2026-10-23T12:00:00Z");
 
     static String header(String secret, long t, byte[] body) {

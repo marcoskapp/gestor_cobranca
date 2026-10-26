@@ -12,6 +12,7 @@ import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.BridgeRequest;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupReason;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupRequest;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.ProviderRejectedException;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.TransientProviderException;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookReceiptLog;
 import br.com.gestorcobranca.telephony.domain.model.Agent;
@@ -68,6 +69,7 @@ class CallEventProcessor implements ProviderEventUseCases {
     private final CallDistributor distributor;
     private final CallLifecycle lifecycle;
     private final ProviderResolver resolver;
+    private final AgentEndpoints endpoints;
     private final CaseUseCases cases;
     private final DebtorContactUseCases debtorContacts;
     private final JobQueue jobQueue;
@@ -76,7 +78,7 @@ class CallEventProcessor implements ProviderEventUseCases {
 
     CallEventProcessor(TelephonyAccountRepository accounts, CallRepository calls, CallRecordingRepository recordings,
                        DialerCampaignRepository campaigns, WebhookReceiptLog receipts, CallDistributor distributor,
-                       CallLifecycle lifecycle, ProviderResolver resolver, CaseUseCases cases,
+                       CallLifecycle lifecycle, ProviderResolver resolver, AgentEndpoints endpoints, CaseUseCases cases,
                        DebtorContactUseCases debtorContacts, JobQueue jobQueue, TelephonyMetrics metrics, Clock clock) {
         this.accounts = accounts;
         this.calls = calls;
@@ -86,6 +88,7 @@ class CallEventProcessor implements ProviderEventUseCases {
         this.distributor = distributor;
         this.lifecycle = lifecycle;
         this.resolver = resolver;
+        this.endpoints = endpoints;
         this.cases = cases;
         this.debtorContacts = debtorContacts;
         this.jobQueue = jobQueue;
@@ -160,7 +163,7 @@ class CallEventProcessor implements ProviderEventUseCases {
             lifecycle.ended(call);
             return "applied";
         }
-        Optional<Agent> agent = distributor.forCampaign(call.getCampaignId(), call.getId(), now);
+        Optional<Agent> agent = distributor.forCampaign(call.getCampaignId(), account.getId(), call.getId(), now);
         if (agent.isPresent() && bridge(account, call, agent.get())) {
             call.connect(agent.get().getUserId(), now);
             calls.save(call);
@@ -224,7 +227,8 @@ class CallEventProcessor implements ProviderEventUseCases {
         kase.ifPresent(k -> call.identify(k.debtorId(), k.creditorId(), k.portfolioId(), k.id(), null));
         calls.saveAndFlush(call);
         Instant now = Instant.now(clock);
-        Optional<Agent> agent = distributor.forInbound(kase.map(CaseView::assigneeUserId).orElse(null), call.getId(), now);
+        Optional<Agent> agent = distributor.forInbound(kase.map(CaseView::assigneeUserId).orElse(null), account.getId(),
+                call.getId(), now);
         if (agent.isPresent() && bridge(account, call, agent.get())) {
             call.connect(agent.get().getUserId(), now);
             calls.save(call);
@@ -258,15 +262,17 @@ class CallEventProcessor implements ProviderEventUseCases {
 
     private boolean bridge(TelephonyAccount account, Call call, Agent agent) {
         Optional<TelephonyProvider> provider = resolver.provider(account.getProvider());
-        if (provider.isEmpty()) {
+        Optional<String> extension = endpoints.extensionFor(agent, account.getId());
+        if (provider.isEmpty() || extension.isEmpty()) {
             return false;
         }
         try {
             provider.get().bridge(new BridgeRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
-                    agent.getExtension()));
+                    extension.get()));
             return true;
-        } catch (TransientProviderException e) {
-            LOG.atWarn().addKeyValue("callId", call.getId()).log("Falha ao conectar a chamada ao operador");
+        } catch (TransientProviderException | ProviderRejectedException e) {
+            LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("provider", account.getProvider())
+                    .log("Falha ao conectar a chamada ao operador");
             return false;
         }
     }
@@ -275,8 +281,8 @@ class CallEventProcessor implements ProviderEventUseCases {
         resolver.provider(account.getProvider()).ifPresent(p -> {
             try {
                 p.hangup(new HangupRequest(resolver.context(account), call.getId(), call.getProviderCallId(), reason));
-            } catch (TransientProviderException e) {
-                // o provedor encerra a chamada pelo próprio tempo limite; o estado local já é final
+            } catch (TransientProviderException | ProviderRejectedException e) {
+                // o provedor encerra a chamada pelo próprio tempo limite (ou ela já terminou); o estado local já é final
                 LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("reason", reason)
                         .log("Falha ao pedir o encerramento da chamada ao provedor");
             }

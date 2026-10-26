@@ -76,6 +76,11 @@ export interface CallView {
   interactionId: string | null;
   recording: RecordingInfo | null;
   version: number;
+  /** Conta (plataforma) que discou ou recebeu. */
+  accountId: string;
+  provider: TelephonyProvider;
+  /** Conta principal que falhou quando a chamada foi para a contingência. */
+  fallbackFromAccountId: string | null;
 }
 
 export interface CallFilter {
@@ -202,4 +207,113 @@ export interface CampaignStats {
   completed: number;
   exhausted: number;
   excluded: number;
+}
+
+// ----------------------------------------------------------------- multiprovedor
+
+export type TelephonyProvider = 'SANDBOX' | 'ALVARIA' | 'TARIFANDO';
+export type ProviderReadiness = 'READY' | 'CONTRACT_PENDING' | 'NOT_IMPLEMENTED';
+export type RouteScope = 'CAMPAIGN' | 'PORTFOLIO' | 'CREDITOR' | 'DEFAULT';
+
+/** `TelephonyAccountUseCases.AccountView` (credenciais nunca vêm; só os nomes das chaves). */
+export interface TelephonyAccountView {
+  id: string;
+  provider: TelephonyProvider;
+  creditorId: string | null;
+  name: string;
+  callerId: string;
+  recordingEnabled: boolean;
+  recordingNotice: boolean;
+  credentialKeys: string[];
+  credentialsUpdatedAt: string | null;
+  webhookPath: string;
+  active: boolean;
+  createdAt: string | null;
+  version: number;
+  providerLabel: string;
+  readiness: ProviderReadiness;
+  /** O provedor disca neste ambiente (pronto, ou contrato pendente em homologação). */
+  dialable: boolean;
+  ratePerMinute: number | null;
+}
+
+export interface CreateTelephonyAccountRequest {
+  provider: TelephonyProvider;
+  creditorId: string | null;
+  name: string;
+  callerId: string;
+  recordingEnabled: boolean;
+  recordingNotice: boolean;
+  credentials: Record<string, string>;
+  ratePerMinute: number | null;
+}
+
+export interface UpdateTelephonyAccountRequest {
+  name: string;
+  callerId: string;
+  recordingEnabled: boolean;
+  recordingNotice: boolean;
+  ratePerMinute: number | null;
+}
+
+/** `TelephonyAccountUseCases.ProviderView` */
+export interface TelephonyProviderView {
+  provider: TelephonyProvider;
+  label: string;
+  requiredCredentials: string[];
+  readiness: ProviderReadiness;
+  dialable: boolean;
+  /** Aceita conta (falso = integração ainda não disponível). */
+  available: boolean;
+}
+
+/** `TelephonyAccountUseCases.AccountComparison` (taxas de 0 a 1). */
+export interface AccountComparison {
+  accountId: string;
+  provider: TelephonyProvider;
+  name: string;
+  active: boolean;
+  dialed: number;
+  rejected: number;
+  answered: number;
+  connected: number;
+  failed: number;
+  fallbackIn: number;
+  asr: number | null;
+  connectRate: number | null;
+  failureRate: number | null;
+  averageRingSeconds: number | null;
+  averageTalkSeconds: number | null;
+  billableMinutes: number;
+  ratePerMinute: number | null;
+  estimatedCost: number | null;
+}
+
+/** `TelephonyRoutingUseCases.RouteView` */
+export interface RouteView {
+  id: string;
+  scopeType: RouteScope;
+  scopeId: string | null;
+  creditorId: string | null;
+  primaryAccountId: string;
+  fallbackAccountId: string | null;
+  version: number;
+}
+
+export interface SaveRouteRequest {
+  scopeType: RouteScope;
+  scopeId: string | null;
+  primaryAccountId: string;
+  fallbackAccountId: string | null;
+}
+
+/** `AgentUseCases.EndpointView`: ramal do operador numa conta; inativo = fora desta plataforma. */
+export interface EndpointView {
+  id: string;
+  agentId: string;
+  userId: string;
+  accountId: string;
+  extension: string | null;
+  active: boolean;
+  version: number;
 }

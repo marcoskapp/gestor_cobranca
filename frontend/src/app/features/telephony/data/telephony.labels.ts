@@ -1,4 +1,4 @@
-import { CallResult, DialerMode, PauseReason, RecordingPurpose } from './telephony.models';
+import { CallResult, DialerMode, PauseReason, ProviderReadiness, RecordingPurpose, RouteScope, TelephonyProvider } from './telephony.models';
 
 export const PAUSE_REASON_LABELS: Record<PauseReason, string> = {
   BREAK: 'Intervalo',
@@ -101,4 +101,51 @@ export const TELEPHONY_ERROR_LABELS: Record<string, string> = {
   'dialer_campaign.code_taken': 'Já existe campanha de discagem com este código.',
   'dialer_campaign.active': 'Pause a campanha para alterar os parâmetros.',
   'dialer_campaign.not_activatable': 'Somente campanhas em rascunho ou pausadas podem ser ativadas.',
+  'telephony.agent_not_on_account': 'O operador não tem ramal na plataforma de telefonia que atende este caso ou campanha. Peça ao gestor para cadastrar o ramal nessa conta.',
+  'telephony_account.provider_unavailable': 'A integração com este provedor ainda não está disponível.',
+  'telephony_account.provider_not_ready': 'A integração com este provedor aguarda a homologação com o fornecedor.',
+  'telephony_account.sandbox_disabled': 'O provedor simulado só existe em ambiente local ou de teste.',
+  'telephony_account.alvaria_url_insecure': 'O endereço da API da Alvaria precisa usar HTTPS.',
+  'telephony_account.alvaria_host_not_allowed': 'Endereço da API fora dos domínios permitidos para a Alvaria. Confira o endereço da instância.',
+  'telephony_account.alvaria_url_invalid': 'Endereço da API inválido.',
+  'telephony_account.recording_notice_required': 'Com gravação, o aviso ao devedor é obrigatório.',
+  'telephony_account.caller_id_invalid': 'Número de origem inválido (8 a 15 dígitos, com ou sem +).',
+  'telephony_account.rate_invalid': 'Tarifa por minuto inválida (0 a 100, até 4 casas).',
+  'telephony_route.account_other_creditor': 'Esta conta é restrita a outro credor.',
+  'telephony_route.fallback_same': 'A contingência precisa ser outra conta.',
+  'agent_endpoint.extension_required': 'Informe o ramal do operador nesta conta.',
+  'agent.extension_invalid': 'Ramal inválido (2 a 64 caracteres: letras, dígitos e . _ - @ : +).',
 };
+
+export const PROVIDER_LABELS: Record<TelephonyProvider, string> = {
+  SANDBOX: 'Simulador',
+  ALVARIA: 'Alvaria CX (Aspect)',
+  TARIFANDO: 'Tarifando Telecom',
+};
+
+export const READINESS_LABELS: Record<ProviderReadiness, string> = {
+  READY: 'Pronto',
+  CONTRACT_PENDING: 'Aguarda homologação',
+  NOT_IMPLEMENTED: 'Integração indisponível',
+};
+
+export const ROUTE_SCOPE_LABELS: Record<RouteScope, string> = {
+  CAMPAIGN: 'Campanha de discagem',
+  PORTFOLIO: 'Carteira',
+  CREDITOR: 'Credor',
+  DEFAULT: 'Padrão da assessoria',
+};
+
+/** Ordem de aplicação das regras (da mais específica para a mais ampla). */
+export const ROUTE_SCOPE_ORDER: readonly RouteScope[] = ['CAMPAIGN', 'PORTFOLIO', 'CREDITOR', 'DEFAULT'];
+
+export const TELEPHONY_CREDENTIAL_LABELS: Record<string, string> = {
+  webhookSecret: 'Segredo dos eventos (webhook)',
+  apiBaseUrl: 'Endereço da API da instância',
+  clientId: 'Client ID (OAuth)',
+  clientSecret: 'Client secret (OAuth)',
+  apiToken: 'Token da API',
+};
+
+/** Chaves que não são segredo (campo de texto comum em vez de senha). */
+export const PUBLIC_CREDENTIAL_KEYS: readonly string[] = ['apiBaseUrl', 'clientId'];

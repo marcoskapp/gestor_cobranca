@@ -10,13 +10,16 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
  * Conta do provedor de telefonia de uma assessoria: provedor, número de origem (bina) e
- * credenciais. Uma conta ativa por credor; {@code creditorId} nulo é a conta padrão da assessoria.
+ * credenciais. A assessoria pode manter várias contas ativas, de provedores diferentes; qual conta
+ * disca é decidido pelo roteamento ({@link AccountRoute}). {@code creditorId} preenchido restringe a
+ * conta ao credor (bina do credor): só regras desse credor podem usá-la; nulo = conta da assessoria.
  * <p>
  * Credenciais (JSON) criptografadas no banco e nunca devolvidas pela API. {@code routingKey}
  * aleatório (256 bits) identifica a conta nos webhooks. Gravação e aviso de gravação são
@@ -63,18 +66,22 @@ public class TelephonyAccount extends TenantScopedEntity {
     @Column(name = "active", nullable = false)
     private boolean active;
 
+    /** Tarifa por minuto informada pela assessoria (somente para comparar custo estimado). */
+    @Column(name = "rate_per_minute", precision = 10, scale = 4)
+    private BigDecimal ratePerMinute;
+
     protected TelephonyAccount() {
     }
 
     public TelephonyAccount(ProviderType provider, UUID creditorId, String name, String callerId, boolean recordingEnabled,
-                            boolean recordingNotice, String credentials, String routingKey, Instant now) {
+                            boolean recordingNotice, String credentials, String routingKey, boolean active, Instant now) {
         Guard.require(provider != null, "telephony_account.provider_required", "Provedor obrigatório");
         Guard.require(routingKey != null && routingKey.length() >= 32, "telephony_account.routing_key_invalid",
                 "Chave de roteamento inválida");
         this.provider = provider;
         this.creditorId = creditorId;
         this.routingKey = routingKey;
-        this.active = true;
+        this.active = active;
         describe(name, callerId, recordingEnabled, recordingNotice);
         replaceCredentials(credentials, now);
     }
@@ -90,6 +97,18 @@ public class TelephonyAccount extends TenantScopedEntity {
         this.callerId = callerId.trim();
         this.recordingEnabled = recordingEnabled;
         this.recordingNotice = recordingNotice;
+    }
+
+    public void changeRate(BigDecimal ratePerMinute) {
+        Guard.require(ratePerMinute == null || (ratePerMinute.signum() >= 0
+                        && ratePerMinute.compareTo(BigDecimal.valueOf(100)) <= 0 && ratePerMinute.scale() <= 4),
+                "telephony_account.rate_invalid", "Tarifa por minuto inválida (0 a 100, até 4 casas)");
+        this.ratePerMinute = ratePerMinute;
+    }
+
+    /** A conta pode atender um escopo do credor informado (nulo = escopo da assessoria). */
+    public boolean usableFor(UUID scopeCreditorId) {
+        return creditorId == null || creditorId.equals(scopeCreditorId);
     }
 
     public void replaceCredentials(String credentials, Instant now) {
@@ -142,6 +161,10 @@ public class TelephonyAccount extends TenantScopedEntity {
 
     public boolean isRecordingNotice() {
         return recordingNotice;
+    }
+
+    public BigDecimal getRatePerMinute() {
+        return ratePerMinute;
     }
 
     public boolean isActive() {

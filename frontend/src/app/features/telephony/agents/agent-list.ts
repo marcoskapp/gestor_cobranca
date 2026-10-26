@@ -24,7 +24,8 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { describeStatus } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { UserLookup } from '../../admin/data/user.lookup';
-import { AgentsApi, DialerCampaignsApi } from '../data/telephony.api';
+import { AgentsApi, DialerCampaignsApi, TelephonyAccountsApi } from '../data/telephony.api';
+import { AgentEndpointsDialog, AgentEndpointsDialogData } from './agent-endpoints-dialog';
 import { PAUSE_REASON_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
 import { AgentView } from '../data/telephony.models';
 import { SUPERVISION_POLL_MS, clockText } from '../data/telephony.rules';
@@ -48,7 +49,7 @@ export interface AgentDialogData {
         @if (!data.agent) {
           <app-entity-picker [control]="form.controls.user" [source]="users" label="Usuário" [single]="true" />
         }
-        <app-field label="Ramal ou usuário SIP" hint="O provedor chama este ramal antes de discar para o devedor" error="Informe o ramal.">
+        <app-field label="Ramal padrão ou usuário SIP" hint="Vale nas plataformas em que o operador não tem ramal próprio (configure em &quot;Ramais por plataforma&quot;)" error="Informe o ramal.">
           <input appInput formControlName="extension" maxlength="64" required autocomplete="off" />
         </app-field>
         <div class="form-check">
@@ -128,7 +129,7 @@ export class AgentDialog {
     >
       <ng-template appCell="user" [appCellOf]="rows()" let-a>
         {{ users.name(a.userId) }}
-        <div class="app-muted small">ramal {{ a.extension }}{{ a.active ? '' : ' · desabilitado' }}</div>
+        <div class="app-muted small">ramal {{ a.extension }}{{ a.active ? '' : ' · desabilitado' }}{{ platformText(a) }}</div>
       </ng-template>
       <ng-template appCell="status" [appCellOf]="rows()" let-a>
         <app-status-chip domain="agentPresence" [status]="a.status" />
@@ -144,6 +145,9 @@ export class AgentDialog {
       <ng-template appCell="actions" [appCellOf]="rows()" let-a>
         @if (canManage()) {
           <button class="btn btn-link" type="button" (click)="configure(a)" [attr.aria-label]="'Editar ramal de ' + users.name(a.userId)" ngbTooltip="Editar ramal"><app-icon name="pencil" /></button>
+          @if (accountRows().length > 1) {
+            <button class="btn btn-link" type="button" (click)="platforms(a)" [attr.aria-label]="'Ramais por plataforma de ' + users.name(a.userId)" ngbTooltip="Ramais por plataforma"><app-icon name="diagram-3" /></button>
+          }
         }
         @if (a.status !== 'OFFLINE') {
           <button class="btn btn-link" type="button" (click)="forceLogout(a)" [attr.aria-label]="'Tirar ' + users.name(a.userId) + ' da telefonia'" ngbTooltip="Tirar da telefonia (auditado)"><app-icon name="box-arrow-right" /></button>
@@ -166,6 +170,12 @@ export class AgentList {
   private readonly values = valueOr(this.list, []);
   private readonly order: Record<string, number> = { ON_CALL: 0, WRAP_UP: 1, AVAILABLE: 2, PAUSED: 3, OFFLINE: 4 };
   protected readonly rows = computed(() => [...this.values()].sort((a, b) => (this.order[a.status] ?? 9) - (this.order[b.status] ?? 9)));
+  private readonly accountsApi = inject(TelephonyAccountsApi);
+  /** Contas e ramais por plataforma: só para quem gerencia (a supervisão vê a presença). */
+  private readonly accountList = rxResource({ params: () => this.canManage() || undefined, stream: () => this.accountsApi.list() });
+  protected readonly accountRows = valueOr(this.accountList, []);
+  private readonly endpointList = rxResource({ params: () => this.canManage() || undefined, stream: () => this.api.endpoints() });
+  private readonly endpoints = valueOr(this.endpointList, []);
   private readonly campaignList = rxResource({ stream: () => this.campaignsApi.list() });
   private readonly campaigns = valueOr(this.campaignList, []);
   protected readonly users = nameMap(inject(UserNames), () => this.rows().map((a) => a.userId), { batch: USER_NAMES_BATCH });
@@ -194,6 +204,30 @@ export class AgentList {
 
   protected campaignName(id: string): string {
     return this.campaigns().find((c) => c.id === id)?.name ?? 'campanha';
+  }
+
+  protected platformText(a: AgentView): string {
+    const own = this.endpoints().filter((e) => e.userId === a.userId);
+    if (!own.length) {
+      return '';
+    }
+    const on = own.filter((e) => e.active).length;
+    const off = own.length - on;
+    return [on ? ` · ${on} ramal(is) por plataforma` : '', off ? ` · fora de ${off} plataforma(s)` : ''].join('');
+  }
+
+  protected platforms(agent: AgentView): void {
+    this.dialog
+      .open<AgentEndpointsDialog, AgentEndpointsDialogData, boolean>(AgentEndpointsDialog, {
+        data: { agent, userName: this.users.name(agent.userId), accounts: this.accountRows(), endpoints: this.endpoints() },
+      })
+      .afterClosed()
+      .subscribe((changed) => {
+        if (changed) {
+          this.notifications.success('Ramais por plataforma salvos.');
+          this.endpointList.reload();
+        }
+      });
   }
 
   protected configure(agent: AgentView | null): void {

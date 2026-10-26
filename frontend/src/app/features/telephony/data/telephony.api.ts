@@ -6,7 +6,15 @@ import { silentErrorContext } from '../../../core/http/http-context';
 import { toHttpParams } from '../../../core/http/http-params';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
+  AccountComparison,
   AgentView,
+  CreateTelephonyAccountRequest,
+  EndpointView,
+  RouteView,
+  SaveRouteRequest,
+  TelephonyAccountView,
+  TelephonyProviderView,
+  UpdateTelephonyAccountRequest,
   CallFilter,
   CallView,
   CampaignSettings,
@@ -71,6 +79,80 @@ export class AgentsApi {
 
   forceLogout(userId: string, reason: string): Observable<AgentView> {
     return this.http.post<AgentView>(`${BASE}/agents/${userId}/logout`, { reason }, { context: silentErrorContext() });
+  }
+
+  /** Ramais por conta (plataforma) de todos os operadores. */
+  endpoints(): Observable<EndpointView[]> {
+    return this.http.get<EndpointView[]>(`${BASE}/agents/endpoints`);
+  }
+
+  /** `active = false` marca o operador como fora da plataforma da conta. */
+  configureEndpoint(userId: string, accountId: string, extension: string | null, active: boolean): Observable<EndpointView> {
+    return this.http.put<EndpointView>(`${BASE}/agents/${userId}/endpoints/${accountId}`, { extension, active }, { context: silentErrorContext() });
+  }
+
+  /** Volta a usar o ramal padrão do operador nesta conta. */
+  removeEndpoint(userId: string, accountId: string): Observable<void> {
+    return this.http.delete<void>(`${BASE}/agents/${userId}/endpoints/${accountId}`, { context: silentErrorContext() });
+  }
+}
+
+/** Contas de telefonia (várias, de provedores diferentes), catálogo de provedores e comparação. */
+@Injectable({ providedIn: 'root' })
+export class TelephonyAccountsApi {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${BASE}/accounts`;
+
+  list(): Observable<TelephonyAccountView[]> {
+    return this.http.get<TelephonyAccountView[]>(this.base);
+  }
+
+  providers(): Observable<TelephonyProviderView[]> {
+    return this.http.get<TelephonyProviderView[]>(`${this.base}/providers`);
+  }
+
+  create(request: CreateTelephonyAccountRequest): Observable<TelephonyAccountView> {
+    return this.http.post<TelephonyAccountView>(this.base, request, { context: silentErrorContext() });
+  }
+
+  update(id: string, request: UpdateTelephonyAccountRequest): Observable<TelephonyAccountView> {
+    return this.http.put<TelephonyAccountView>(`${this.base}/${id}`, request, { context: silentErrorContext() });
+  }
+
+  rotateCredentials(id: string, credentials: Record<string, string>): Observable<TelephonyAccountView> {
+    return this.http.put<TelephonyAccountView>(`${this.base}/${id}/credentials`, credentials, { context: silentErrorContext() });
+  }
+
+  activate(id: string): Observable<TelephonyAccountView> {
+    return this.http.post<TelephonyAccountView>(`${this.base}/${id}/activate`, null, { context: silentErrorContext() });
+  }
+
+  deactivate(id: string): Observable<TelephonyAccountView> {
+    return this.http.post<TelephonyAccountView>(`${this.base}/${id}/deactivate`, null, { context: silentErrorContext() });
+  }
+
+  /** Datas `AAAA-MM-DD` (dias de operação, inclusive); sem datas, os últimos 30 dias. */
+  comparison(from: string | null, to: string | null): Observable<AccountComparison[]> {
+    return this.http.get<AccountComparison[]>(`${this.base}/comparison`, { params: toHttpParams({ from, to }) });
+  }
+}
+
+/** Roteamento entre contas: uma regra por escopo (campanha, carteira, credor ou padrão). */
+@Injectable({ providedIn: 'root' })
+export class TelephonyRoutingApi {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${BASE}/routes`;
+
+  list(): Observable<RouteView[]> {
+    return this.http.get<RouteView[]>(this.base);
+  }
+
+  save(request: SaveRouteRequest): Observable<RouteView> {
+    return this.http.put<RouteView>(this.base, request, { context: silentErrorContext() });
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${id}`, { context: silentErrorContext() });
   }
 }
 

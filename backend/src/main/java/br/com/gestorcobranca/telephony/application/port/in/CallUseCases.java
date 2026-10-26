@@ -99,7 +99,8 @@ public interface CallUseCases {
                     Integer talkSeconds, Integer wrapUpSeconds, String amdResult, boolean abandoned, String hangupSide,
                     String failureCode, List<String> denialReasons, Instant nextAllowedAt, boolean recordingAnnounced,
                     String tabulationCode, String suggestedTabulation, String interactionState, UUID interactionId,
-                    RecordingInfo recording, long version) {
+                    RecordingInfo recording, long version, UUID accountId, String provider,
+                    UUID fallbackFromAccountId) {
     }
 
     /** @param status PENDING, STORED, FAILED ou PURGED */

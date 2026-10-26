@@ -21,8 +21,10 @@ import java.util.UUID;
  * discagens com ids {@code sbx-call-*} e, com {@code auto-progress}, agenda o toque e o atendimento
  * por pessoa (job {@code telephony.sandbox_progress}); nos testes os eventos são conduzidos por
  * {@code POST /api/v1/telephony/sandbox/calls/{id}/events} ou pelo webhook assinado.
- * Destinos terminados em {@code 0000} simulam número inexistente (recusa) e em {@code 9999}, falha
- * transitória. A gravação devolvida é um WAV de 1 s de silêncio.
+ * Destinos terminados em {@code 0000} simulam número inexistente (recusa); em {@code 9999}, falha
+ * transitória ambígua (o provedor pode ter discado: repete na mesma conta); em {@code 9998}, falha
+ * transitória que comprovadamente não criou a chamada (provedor fora do ar: a contingência pode
+ * assumir). A gravação devolvida é um WAV de 1 s de silêncio.
  */
 @Component
 @ConditionalOnProperty(prefix = "app.telephony.sandbox", name = "enabled", havingValue = "true")
@@ -50,6 +52,10 @@ class SandboxTelephonyProvider implements TelephonyProvider {
 
     @Override
     public List<DialResult> dialBatch(ProviderContext context, List<DialRequest> requests) {
+        if (requests.stream().anyMatch(r -> r.destination() != null && r.destination().endsWith("9998"))) {
+            count("dial_batch", "unreachable");
+            throw TransientProviderException.notProcessed("Provedor indisponível (simulado)", null);
+        }
         if (requests.stream().anyMatch(r -> r.destination() != null && r.destination().endsWith("9999"))) {
             count("dial_batch", "transient");
             throw new TransientProviderException("Falha transitória simulada");
@@ -58,6 +64,10 @@ class SandboxTelephonyProvider implements TelephonyProvider {
     }
 
     private DialResult dial(UUID accountId, UUID callId, String destination, String operation) {
+        if (destination != null && destination.endsWith("9998")) {
+            count(operation, "unreachable");
+            throw TransientProviderException.notProcessed("Provedor indisponível (simulado)", null);
+        }
         if (destination != null && destination.endsWith("9999")) {
             count(operation, "transient");
             throw new TransientProviderException("Falha transitória simulada");
