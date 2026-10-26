@@ -2,6 +2,7 @@ package br.com.gestorcobranca.incentive.web;
 
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.GoalCommand;
+import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.GoalUnitOptions;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.GoalView;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.PlanCommand;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.PlanView;
@@ -124,9 +125,19 @@ class CommissionPlanController {
 
     @PutMapping("/goals")
     @PreAuthorize("hasAuthority('COMMISSION_PLAN_MANAGE')")
-    @Operation(summary = "Define a meta de um negociador ou equipe no período")
+    @Operation(summary = "Define a meta de um negociador ou equipe no período, em R$ (CURRENCY) ou % (PERCENT)")
     GoalView setGoal(@Valid @RequestBody GoalRequest request) {
-        return plans.setGoal(new GoalCommand(request.period(), request.subjectType(), request.subjectId(), request.target()));
+        return plans.setGoal(new GoalCommand(request.period(), request.subjectType(), request.subjectId(), request.target(),
+                request.unit()));
+    }
+
+    @GetMapping("/goals/unit-options")
+    @PreAuthorize("hasAuthority('COMMISSION_PLAN_MANAGE')")
+    @Operation(summary = "Unidades aceitas para a meta do negociador ou equipe no período, pela métrica do plano vigente")
+    GoalUnitOptions goalUnitOptions(@RequestParam YearMonth period,
+                                    @RequestParam @Pattern(regexp = "USER|TEAM") String subjectType,
+                                    @RequestParam UUID subjectId) {
+        return plans.goalUnitOptions(period, subjectType, subjectId);
     }
 
     @DeleteMapping("/goals/{id}")
@@ -155,6 +166,7 @@ class CommissionPlanController {
     }
 
     record GoalRequest(@NotNull YearMonth period, @NotBlank @Pattern(regexp = "USER|TEAM") String subjectType,
-                       @NotNull UUID subjectId, @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal target) {
+                       @NotNull UUID subjectId, @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal target,
+                       @NotBlank @Pattern(regexp = "CURRENCY|PERCENT") String unit) {
     }
 }

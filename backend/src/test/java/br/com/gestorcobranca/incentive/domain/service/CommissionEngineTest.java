@@ -5,6 +5,7 @@ import br.com.gestorcobranca.incentive.domain.model.Segment;
 import br.com.gestorcobranca.incentive.domain.model.plan.AcceleratorMode;
 import br.com.gestorcobranca.incentive.domain.model.plan.GoalMetric;
 import br.com.gestorcobranca.incentive.domain.model.plan.GoalScope;
+import br.com.gestorcobranca.incentive.domain.model.plan.GoalUnit;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules.EarlyBreakDeflator;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules.Eligibility;
@@ -245,6 +246,36 @@ class CommissionEngineTest {
                 List.of(volume(DelayBucket.D0_30, "120000")), goal("30000", "120000"), null);
         assertThat(result.total()).isEqualTo(brl("1860.00"));
         assertThat(result.lines()).anyMatch(l -> l.component() == Component.GOAL_CAP);
+    }
+
+    @Test
+    void disregardedPeriodGoalIsExplainedAndTheDefaultTargetApplies() {
+        // meta do período em % num plano de valor recuperado: o calculador passa a meta padrão (R$ 100.000)
+        CalculationResult result = run(withGoal(base(), AcceleratorMode.TOTAL, "300"),
+                List.of(volume(DelayBucket.D0_30, "120000")),
+                new GoalInput(new BigDecimal("100000"), new BigDecimal("120000"), GoalUnit.PERCENT), null);
+        assertThat(result.total()).isEqualTo(brl("2700.00"));
+        assertThat(result.lines()).filteredOn(l -> l.component() == Component.GOAL).singleElement()
+                .satisfies(l -> assertThat(l.description()).endsWith(
+                        "(meta do período em % desconsiderada: a meta do plano é em R$; vale a meta padrão do plano)"));
+    }
+
+    @Test
+    void disregardedPeriodGoalWithoutDefaultTargetLeavesTheGoalNeutral() {
+        CalculationResult result = run(withGoal(base(), AcceleratorMode.TOTAL, "300"),
+                List.of(volume(DelayBucket.D0_30, "70000")),
+                new GoalInput(null, new BigDecimal("70000"), GoalUnit.PERCENT), null);
+        assertThat(result.total()).isEqualTo(brl("1150.00"));
+        assertThat(result.attainmentPercent()).isNull();
+        assertThat(result.lines()).filteredOn(l -> l.component() == Component.GOAL).singleElement()
+                .satisfies(l -> assertThat(l.description()).isEqualTo("Sem meta definida para o período: fator 1 "
+                        + "(meta do período em % desconsiderada: a meta do plano é em R$; o plano não tem meta padrão)"));
+    }
+
+    @Test
+    void metricUnitsAreFixed() {
+        assertThat(GoalMetric.RECOVERED.unit()).isEqualTo(GoalUnit.CURRENCY);
+        assertThat(GoalMetric.RECOVERY_RATE.unit()).isEqualTo(GoalUnit.PERCENT);
     }
 
     @Test

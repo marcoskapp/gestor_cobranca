@@ -124,7 +124,12 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'incentive.plans', version: 1, path: '/remuneracao/planos', tourId: 'incentive.plans' },
   { key: 'incentive.plan', version: 1, path: '/remuneracao/planos/:id', tourId: 'incentive.plan' },
   { key: 'incentive.plan-rules', version: 1, path: '/remuneracao/planos/:id/regras', tourId: 'incentive.plan-rules' },
-  { key: 'incentive.goals', version: 1, path: '/remuneracao/metas' },
+  {
+    key: 'incentive.goals',
+    version: 2,
+    path: '/remuneracao/metas',
+    changes: [{ version: 2, items: ['A meta agora tem unidade: escolha "Valor (R$)", digitado com centavos pela direita, ou "Percentual (%)". Quando o plano só aceita uma, ela já vem marcada.'] }],
+  },
   { key: 'incentive.periods', version: 1, path: '/remuneracao/periodos' },
   { key: 'incentive.exports', version: 1, path: '/remuneracao/exportacao' },
   { key: 'incentive.evaluations', version: 1, path: '/remuneracao/qualidade/avaliacoes' },
