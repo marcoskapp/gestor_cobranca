@@ -49,14 +49,18 @@ locals {
   ]
   secret_read_actions = var.use_ssm_parameters ? ["ssm:GetParameter", "ssm:GetParameters"] : ["s3:GetObject"]
 
-  # Amazon Bedrock (assistente de IA): somente bedrock:InvokeModel (a Converse API é autorizada por essa ação;
+  # Amazon Bedrock (assistente de IA e chat de suporte): somente bedrock:InvokeModel (a Converse API é autorizada por essa ação;
   # não existe ação IAM "bedrock:Converse") nos modelos configurados. Perfil de inferência de sistema
   # (us./eu./global....): o ARN do perfil na região chamada + o modelo base em cada região de destino, este
   # só por meio do perfil (condição bedrock:InferenceProfileArn). Modelo base sem prefixo: só na região.
   bedrock_profile_pattern = "^(us|eu|apac|au|jp|ca|global)\\."
-  bedrock_model_ids       = var.assistant_bedrock_enabled ? distinct([var.bedrock_standard_model_id, var.bedrock_advanced_model_id]) : []
-  bedrock_profile_ids     = [for id in local.bedrock_model_ids : id if can(regex(local.bedrock_profile_pattern, id))]
-  bedrock_base_ids        = [for id in local.bedrock_model_ids : id if !can(regex(local.bedrock_profile_pattern, id))]
+  bedrock_enabled         = var.assistant_bedrock_enabled || var.helpdesk_bedrock_enabled
+  bedrock_model_ids = distinct(concat(
+    var.assistant_bedrock_enabled ? [var.bedrock_standard_model_id, var.bedrock_advanced_model_id] : [],
+    var.helpdesk_bedrock_enabled ? [var.helpdesk_bedrock_model_id] : [],
+  ))
+  bedrock_profile_ids = [for id in local.bedrock_model_ids : id if can(regex(local.bedrock_profile_pattern, id))]
+  bedrock_base_ids    = [for id in local.bedrock_model_ids : id if !can(regex(local.bedrock_profile_pattern, id))]
   bedrock_profile_arns = [
     for id in local.bedrock_profile_ids : "arn:${var.partition}:bedrock:${var.bedrock_region}:${var.account_id}:inference-profile/${id}"
   ]
@@ -205,7 +209,7 @@ data "aws_iam_policy_document" "instance" {
     }
   }
 
-  # --- Amazon Bedrock: assistente de IA (aprovado — issue #12) ---
+  # --- Amazon Bedrock: assistente de IA (aprovado — issue #12) e chat de suporte (Claude Haiku 5.5) ---
   dynamic "statement" {
     for_each = length(local.bedrock_profile_arns) > 0 ? [1] : []
 
@@ -245,7 +249,7 @@ data "aws_iam_policy_document" "instance" {
   # Sem perfil global configurado, o roteamento global (processamento em qualquer região comercial) é negado
   # explicitamente: trocar para global.* exige mudar esta configuração (decisão de residência de dados).
   dynamic "statement" {
-    for_each = var.assistant_bedrock_enabled && !local.bedrock_uses_global ? [1] : []
+    for_each = local.bedrock_enabled && !local.bedrock_uses_global ? [1] : []
 
     content {
       sid       = "BedrockDenyGlobalRouting"

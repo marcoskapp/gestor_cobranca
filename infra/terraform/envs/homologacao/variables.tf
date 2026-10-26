@@ -378,6 +378,40 @@ variable "bedrock_international_transfer_approved" {
   default     = false
 }
 
+# --- Chat de suporte com IA (módulo helpdesk) — docs/tecnico/desenho/chat-suporte.md ---------
+# Desligado por padrão. Ligar exige bedrock_international_transfer_approved (mesma guarda do assistente).
+# Chamados: segredo app/helpdesk-github-token (token fine-grained, só Issues do repositório).
+
+variable "helpdesk_bedrock_enabled" {
+  description = "Liga o chat de suporte com Amazon Bedrock (Claude Haiku 5.5)."
+  type        = bool
+  default     = false
+}
+
+variable "helpdesk_bedrock_model_id" {
+  description = "Perfil de inferência/modelo do chat de suporte."
+  type        = string
+  default     = "us.anthropic.claude-haiku-5-5"
+}
+
+variable "helpdesk_tickets_enabled" {
+  description = "Lê o segredo app/helpdesk-github-token na inicialização e liga a abertura de chamados no GitHub."
+  type        = bool
+  default     = false
+}
+
+variable "helpdesk_github_repository" {
+  description = "Repositório (dono/nome) das issues de suporte."
+  type        = string
+  default     = "marcoskapp/gestor_cobranca"
+}
+
+variable "helpdesk_github_require_private_repository" {
+  description = "Trava: só abre chamado com o repositório privado (ligar depois da migração do repositório)."
+  type        = bool
+  default     = false
+}
+
 # --- Observabilidade ---------------------------------------------------------------------------
 
 variable "enable_sns_notifications" {

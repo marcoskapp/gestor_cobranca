@@ -99,6 +99,11 @@ declare -A SECRET_ENV=(
   [SMTP_USERNAME]=app/smtp-username
   [SMTP_PASSWORD]=app/smtp-password
 )
+# chat de suporte: token do GitHub (fine-grained, só Issues do repositório) apenas com os chamados ligados;
+# sem ele a abertura de chamados fica indisponível e o chat continua
+if [[ "${GC_HELPDESK_TICKETS_ENABLED:-false}" == "true" ]]; then
+  SECRET_ENV[HELPDESK_GITHUB_TOKEN]=app/helpdesk-github-token
+fi
 # Chaves de criptografia de campo: k1 usa a variável do application.yml; chaves adicionais
 # (rotação) seguem APP_CRYPTO_KEYS_<ID>.
 for key_id in ${GC_CRYPTO_KEY_IDS}; do
@@ -157,6 +162,13 @@ unset secrets_content value
   echo "ASSISTANT_BEDROCK_STANDARD_MODEL_ID=${GC_BEDROCK_STANDARD_MODEL_ID:-us.anthropic.claude-haiku-5-5}"
   echo "ASSISTANT_BEDROCK_ADVANCED_MODEL_ID=${GC_BEDROCK_ADVANCED_MODEL_ID:-us.anthropic.claude-sonnet-5-5}"
   echo "ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=${GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:-false}"
+  # chat de suporte (helpdesk): mesmo endpoint e mesma aprovação de transferência internacional do assistente
+  echo "HELPDESK_BEDROCK_ENABLED=${GC_HELPDESK_BEDROCK_ENABLED:-false}"
+  echo "HELPDESK_BEDROCK_REGION=${GC_BEDROCK_REGION:-us-east-1}"
+  echo "HELPDESK_BEDROCK_MODEL_ID=${GC_HELPDESK_BEDROCK_MODEL_ID:-us.anthropic.claude-haiku-5-5}"
+  echo "HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=${GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:-false}"
+  echo "HELPDESK_GITHUB_REPOSITORY=${GC_HELPDESK_GITHUB_REPOSITORY:-marcoskapp/gestor_cobranca}"
+  echo "HELPDESK_GITHUB_REQUIRE_PRIVATE=${GC_HELPDESK_GITHUB_REQUIRE_PRIVATE:-false}"
   # Pix: hosts de PSP permitidos (decisão 313) e webhook com mTLS só com o ALB verificando o cliente (316)
   echo "PAYMENT_PIX_ALLOWED_HOSTS=${GC_PAYMENT_PIX_ALLOWED_HOSTS:-}"
   echo "PAYMENT_WEBHOOK_MTLS_ENABLED=${GC_PAYMENT_WEBHOOK_MTLS_ENABLED:-false}"

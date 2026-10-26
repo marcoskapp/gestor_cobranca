@@ -93,3 +93,12 @@ payment_webhook_mtls_enabled = false
 # bedrock_region            = "sa-east-1"
 # bedrock_standard_model_id = "global.anthropic.claude-haiku-5-5"
 # bedrock_advanced_model_id = "global.anthropic.claude-sonnet-5-5"
+
+# Chat de suporte com IA (docs/tecnico/desenho/chat-suporte.md): Claude Haiku 5.5, mesma aprovação de
+# transferência internacional acima. Chamados no GitHub: crie antes o segredo app/helpdesk-github-token
+# (token fine-grained, só Issues: read and write neste repositório).
+# helpdesk_bedrock_enabled                   = true
+# helpdesk_bedrock_model_id                  = "us.anthropic.claude-haiku-5-5"
+# helpdesk_tickets_enabled                   = true
+# helpdesk_github_repository                 = "marcoskapp/gestor_cobranca"
+# helpdesk_github_require_private_repository = false   # ligar depois de tornar o repositório privado

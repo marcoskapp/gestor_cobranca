@@ -1,15 +1,18 @@
 package br.com.gestorcobranca.assistant.infrastructure.provider.bedrock;
 
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelMessage;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelRejectedException;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelRequest;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelResponse;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelTimeoutException;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelUnavailableException;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.StopReason;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolCall;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolDefinition;
-import br.com.gestorcobranca.assistant.domain.model.ModelTier;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelMessage;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelRejectedException;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelRequest;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelResponse;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelTimeoutException;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelUnavailableException;
+import br.com.gestorcobranca.shared.ai.LanguageModel.StopReason;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolCall;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolDefinition;
+import br.com.gestorcobranca.shared.ai.ModelTier;
+import br.com.gestorcobranca.shared.ai.bedrock.BedrockModelSettings;
+import br.com.gestorcobranca.shared.ai.bedrock.BedrockPricing;
+import br.com.gestorcobranca.shared.ai.bedrock.ConverseTranslator;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -66,25 +69,25 @@ class BedrockLanguageModelTest {
     private final FakeClient client = new FakeClient();
     private final List<Duration> pauses = new ArrayList<>();
 
-    static BedrockProperties.Pricing haikuPricing() {
-        return new BedrockProperties.Pricing(new BigDecimal("0.10"), new BigDecimal("0.50"), new BigDecimal("0.01"),
+    static BedrockModelSettings.Pricing haikuPricing() {
+        return new BedrockModelSettings.Pricing(new BigDecimal("0.10"), new BigDecimal("0.50"), new BigDecimal("0.01"),
                 new BigDecimal("0.125"), 100_000L, new BigDecimal("0.50"), new BigDecimal("2.50"), new BigDecimal("0.05"),
                 new BigDecimal("0.625"));
     }
 
-    static BedrockProperties.Pricing sonnetPricing() {
-        return new BedrockProperties.Pricing(new BigDecimal("2"), new BigDecimal("10"), new BigDecimal("0.10"),
+    static BedrockModelSettings.Pricing sonnetPricing() {
+        return new BedrockModelSettings.Pricing(new BigDecimal("2"), new BigDecimal("10"), new BigDecimal("0.10"),
                 new BigDecimal("2.50"), null, null, null, null, null);
     }
 
     static BedrockProperties properties(Boolean advancedCaching, Duration backoff) {
         return new BedrockProperties(true, "us-east-1", true, null, null, null, null, backoff, "usd", null,
-                new BedrockProperties.Tier(HAIKU, null, haikuPricing()),
-                new BedrockProperties.Tier(SONNET, advancedCaching, sonnetPricing()));
+                new BedrockModelSettings(HAIKU, null, haikuPricing()),
+                new BedrockModelSettings(SONNET, advancedCaching, sonnetPricing()));
     }
 
     private BedrockLanguageModel model(BedrockProperties properties) {
-        return new BedrockLanguageModel(client, properties, new ConverseTranslator(json), meters, pauses::add);
+        return new BedrockLanguageModel(client, properties, new ConverseTranslator(json, BedrockLanguageModel.CONTEXT_HEADER), meters, pauses::add);
     }
 
     private BedrockLanguageModel model() {
@@ -137,7 +140,7 @@ class BedrockLanguageModelTest {
         assertThat(sent.system()).hasSize(3);
         assertThat(sent.system().get(0).text()).isEqualTo("PROMPT DO ASSISTENTE");
         assertThat(sent.system().get(1).cachePoint()).isNotNull();
-        assertThat(sent.system().get(2).text()).startsWith(ConverseTranslator.CONTEXT_HEADER)
+        assertThat(sent.system().get(2).text()).startsWith(BedrockLanguageModel.CONTEXT_HEADER)
                 .endsWith("{\"identity\":\"VERIFIED\",\"offers\":[]}");
         // o contexto nunca vai nas mensagens; mensagens seguidas do devedor unidas; começa no devedor
         assertThat(sent.messages()).singleElement().satisfies(m -> {
@@ -254,17 +257,17 @@ class BedrockLanguageModelTest {
 
     @Test
     void haikuLongContextPricingStartsAboveOneHundredThousandPromptTokens() {
-        BedrockProperties.Pricing haiku = haikuPricing();
+        BedrockModelSettings.Pricing haiku = haikuPricing();
         // exatamente no limiar: faixa padrão
-        assertThat(BedrockPricing.cost(haiku, new br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort
+        assertThat(BedrockPricing.cost(haiku, new br.com.gestorcobranca.shared.ai.LanguageModel
                 .Usage(100_000, 0, 0, 0))).isEqualByComparingTo("0.010000");
         // 95 mil sem cache + 10 mil lidos do cache = 105 mil de prompt: todos os itens na faixa longa
-        var longUsage = new br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.Usage(95_000, 1_000,
+        var longUsage = new br.com.gestorcobranca.shared.ai.LanguageModel.Usage(95_000, 1_000,
                 10_000, 0);
         assertThat(BedrockPricing.longContext(haiku, longUsage)).isTrue();
         assertThat(BedrockPricing.cost(haiku, longUsage)).isEqualByComparingTo("0.050500");
         // gravação de cache conta para o limiar e usa o preço longo de gravação
-        assertThat(BedrockPricing.cost(haiku, new br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort
+        assertThat(BedrockPricing.cost(haiku, new br.com.gestorcobranca.shared.ai.LanguageModel
                 .Usage(1_000, 0, 0, 100_000))).isEqualByComparingTo("0.063000");
         // Sonnet sem limiar configurado: preço único
         assertThat(BedrockPricing.cost(sonnetPricing(), new br.com.gestorcobranca.assistant.application.port.out

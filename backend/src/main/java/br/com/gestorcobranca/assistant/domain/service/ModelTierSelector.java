@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.assistant.domain.service;
 
 import br.com.gestorcobranca.assistant.domain.model.ModelRouting;
-import br.com.gestorcobranca.assistant.domain.model.ModelTier;
+import br.com.gestorcobranca.shared.ai.ModelTier;
 import br.com.gestorcobranca.assistant.domain.model.PolicySettings;
 import br.com.gestorcobranca.assistant.domain.model.SessionMemory;
 

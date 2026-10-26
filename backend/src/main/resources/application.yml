@@ -494,6 +494,67 @@ app:
           cache-read-per-million: 0.10
           cache-write-per-million: 2.50
 
+  # Chat de suporte com IA para o usuário interno (módulo helpdesk) — docs/tecnico/desenho/chat-suporte.md.
+  helpdesk:
+    limits:
+      max-output-tokens: 800
+      max-tokens-per-turn: 60000
+      max-rounds: 5
+      max-tool-calls: 8
+      call-timeout: PT20S
+      # abaixo do tempo ocioso do ALB (60 s)
+      turn-timeout: PT45S
+      # na moeda do provedor (USD); conferir com o Cost Explorer na homologação
+      max-cost-per-conversation: 0.30
+      max-cost-per-user-per-day: 1.00
+      max-questions-per-user-per-day: 150
+      max-questions-per-minute: 8
+      max-turns-per-conversation: 30
+    # conteúdo das conversas (cifrado) descartado após o prazo; ficam metadados, consumo e avaliações
+    retention-days: 90
+    retention-cron: "0 35 3 * * *"
+    draft-validity: PT24H
+    # modelo simulado determinístico: somente local/teste (recusado no perfil prod); exclusivo com o Bedrock
+    sandbox:
+      enabled: false
+    # Amazon Bedrock com Claude Haiku 5.5 (aprovado para o chat). Mesma guarda de transferência internacional do
+    # assistente (LGPD art. 33): sem a aprovação explícita, a aplicação não sobe com o provedor ligado.
+    bedrock:
+      enabled: ${HELPDESK_BEDROCK_ENABLED:false}
+      region: ${HELPDESK_BEDROCK_REGION:us-east-1}
+      international-transfer-approved: ${HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:false}
+      connect-timeout: PT3S
+      socket-timeout: PT65S
+      max-connections: 20
+      retry-backoff: PT0.4S
+      cache-ttl: 5m
+      currency: USD
+      model:
+        model-id: ${HELPDESK_BEDROCK_MODEL_ID:us.anthropic.claude-haiku-5-5}
+        prompt-caching: true
+        # PREÇOS DE REFERÊNCIA (API Anthropic, US$ por milhão de tokens): CONFERIR NA CONTA AWS
+        pricing:
+          input-per-million: 0.10
+          output-per-million: 0.50
+          cache-read-per-million: 0.01
+          cache-write-per-million: 0.125
+          long-context-threshold: 100000
+          long-input-per-million: 0.50
+          long-output-per-million: 2.50
+          long-cache-read-per-million: 0.05
+          long-cache-write-per-million: 0.625
+    # Chamados como issues no GitHub. Token: segredo app/helpdesk-github-token (fine-grained, só Issues neste
+    # repositório) → HELPDESK_GITHUB_TOKEN pela inicialização da instância. Sem token: abertura indisponível.
+    github:
+      repository: ${HELPDESK_GITHUB_REPOSITORY:marcoskapp/gestor_cobranca}
+      token: ${HELPDESK_GITHUB_TOKEN:}
+      labels: suporte
+      # trava: só abre chamado se o repositório estiver privado. Desligada até a migração do repositório para
+      # privado (o responsável aceitou o repositório público); ligue com HELPDESK_GITHUB_REQUIRE_PRIVATE=true.
+      require-private-repository: ${HELPDESK_GITHUB_REQUIRE_PRIVATE:false}
+      connect-timeout: PT3S
+      read-timeout: PT10S
+
   collection:
     # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)
     defaults:

@@ -29,7 +29,7 @@ Princípio: **a IA conversa, o motor decide.** O modelo entende o devedor e esco
 | `AssistantActors`, `AssistantChannel` | `application.service` | ator `ASSISTANT` por turno; saídas ao communication/compliance |
 | `TurnStore` | `application.service` | gravações do turno em transações próprias |
 | `LanguageModelPort`, `PromptSource`, `ConversationLocks`, `TurnContentStore`, `QualityStatistics`, `PaymentInstructionPort` | `application.port.out` | portas de saída |
-| `BedrockLanguageModel` (+ `ConverseTranslator`, `BedrockPricing`, `BedrockConfiguration`), `SandboxLanguageModel`, `ClasspathPromptSource`, `PostgresConversationLocks`, `Jdbc*`, `PaymentModulePixInstructions` | `infrastructure` | adaptadores (Bedrock §6.5; o último: `PaymentInstructionPort` sobre `PaymentInstructionUseCases`, ADR-0009) |
+| `BedrockLanguageModel` (+ `BedrockConfiguration`, `BedrockProperties`; tradução, preço, prazo, retentativa e erros no cliente do kernel `shared.ai.bedrock` — `BedrockConverseModel`, `ConverseTranslator`, `BedrockPricing` —, compartilhado com o chat de suporte), `SandboxLanguageModel`, `ClasspathPromptSource`, `PostgresConversationLocks`, `Jdbc*`, `PaymentModulePixInstructions` | `infrastructure` | adaptadores (Bedrock §6.5; o último: `PaymentInstructionPort` sobre `PaymentInstructionUseCases`, ADR-0009) |
 | `AssistantProviderGuard` | `infrastructure.config` | um provedor de IA por instância; simulado recusado no `prod` |
 
 ## 2. Política do assistente (versionada)
@@ -219,7 +219,7 @@ Recursos `classpath:assistant/prompts/<código>-v<versão>.txt` (primeira linha 
 
 ### 6.5 Amazon Bedrock (`infrastructure/provider/bedrock`)
 
-`BedrockLanguageModel` sobre a **Converse API** (`bedrock-runtime`, SDK `software.amazon.awssdk:bedrockruntime` pelo BOM), criado por `BedrockConfiguration` quando `app.assistant.bedrock.enabled=true`.
+`BedrockLanguageModel` sobre a **Converse API** (desde 26/10/2026 o cliente fica no kernel, `shared.ai.bedrock.BedrockConverseModel`, e o contrato neutro em `shared.ai.LanguageModel`/`ModelTier`; `LanguageModelPort` estende o contrato — sem mudança de comportamento, métricas `assistant.bedrock.*` mantidas; o chat de suporte usa o mesmo cliente, ver `chat-suporte.md` §6) (`bedrock-runtime`, SDK `software.amazon.awssdk:bedrockruntime` pelo BOM), criado por `BedrockConfiguration` quando `app.assistant.bedrock.enabled=true`.
 
 | Tema | Como |
 | --- | --- |
