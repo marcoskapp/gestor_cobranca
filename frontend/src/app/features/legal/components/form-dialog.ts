@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, filter, finalize, map, startWith } from 'rxjs';
+import { formatAmount } from '../../../shared/components/amount/amount';
 import { EntityPicker, EntitySource } from '../../../shared/components/entity-picker/entity-picker';
 import { isoDate } from '../../../shared/models/dates';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -230,22 +231,25 @@ export function apiValue(field: FormField, raw: unknown): unknown {
               }
               @default {
                 <app-field [class.fd-wide]="f.wide" [label]="f.label" [hint]="f.hint" [error]="error(f)">
-                  <div [class.input-group]="f.type === 'money'">
-                    @if (f.type === 'money') {
+                  @if (f.type === 'money') {
+                    <!-- limites validados no FormControl (Validators.min/max), em reais -->
+                    <div class="input-group">
                       <span class="input-group-text" aria-hidden="true">R$</span>
-                    }
+                      <input appInput appMoney [attr.ngbAutofocus]="first ? '' : null" [formControl]="c" [required]="!!f.required" [allowNegative]="(f.min ?? 0) < 0" />
+                    </div>
+                  } @else {
                     <input
                       appInput
                       [attr.ngbAutofocus]="first ? '' : null"
-                      [type]="f.type === 'number' || f.type === 'money' ? 'number' : 'text'"
-                      [step]="f.type === 'money' ? '0.01' : '1'"
+                      [type]="f.type === 'number' ? 'number' : 'text'"
+                      step="1"
                       [formControl]="c"
                       [required]="!!f.required"
                       [attr.maxlength]="f.maxLength ?? null"
                       [attr.min]="f.min ?? null"
                       [attr.max]="f.max ?? null"
                     />
-                  </div>
+                  }
                 </app-field>
               }
             }
@@ -348,10 +352,10 @@ export class FormDialog {
       return `Até ${f.maxLength} caracteres.`;
     }
     if (e['min']) {
-      return `Mínimo ${f.min}.`;
+      return `Mínimo ${f.type === 'money' ? formatAmount(f.min) : f.min}.`;
     }
     if (e['max']) {
-      return `Máximo ${f.max}.`;
+      return `Máximo ${f.type === 'money' ? formatAmount(f.max) : f.max}.`;
     }
     return 'Valor inválido.';
   }

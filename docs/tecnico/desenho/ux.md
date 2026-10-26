@@ -60,6 +60,7 @@ Tabelas largas rolam horizontalmente dentro do cartão (sem quebrar o layout). T
 
 - pt-BR claro, voz ativa, sem jargão técnico ("Não foi possível carregar os dados" em vez de "Erro 503"); verbos no infinitivo nos botões ("Cadastrar credor").
 - Moeda: `app-amount` (`Intl.NumberFormat('pt-BR', BRL)`), algarismos tabulares, espaço não separável após `R$`, formato compacto com valor exato acessível.
+- Moeda digitada: máscara `appMoney` (centavos pela direita, sem separadores digitados, "R$" no `input-group-text`) — contrato na §13.4.
 - Datas: `appDate` (`dd/MM/yyyy` e `dd/MM/yyyy HH:mm`), `LocalDate` sem conversão de fuso.
 - Documentos: `app-document` mascara por padrão (`***.982.247-**`); revelar emite `reveal` para a tela buscar no servidor, que exige `DEBTOR_SENSITIVE_VIEW` e registra `SENSITIVE_DATA_VIEWED`. O componente nunca desmascara um valor que já possui.
 
@@ -135,7 +136,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 6. Atalhos da tela: `KeyboardShortcuts.register({ group: 'Estação de cobrança', … })` no construtor e remoção no `DestroyRef`; ações na busca rápida: `CommandPaletteService.register([...])`.
 7. **Manual da tela (obrigatório)**: acrescente o `ScreenManual` da tela no arquivo do módulo em `core/onboarding/manual/content/` (`id` = `key` da tela; `objective` de 6 a 25 palavras, que vira o primeiro passo do tour; `purpose`, `profiles`, `inputs`, `outputs`, `related`, `terms`). Prefixo de chave novo → inclua-o em `MODULE_BY_PREFIX` (`manual-index.ts`). O `manual-content.spec.ts` falha se a tela ou a rota do menu ficar sem manual.
 
-### 8.5 Ajuda contextual e manual do usuário (decisões 370–382)
+### 8.5 Ajuda contextual e manual do usuário (decisões 410–422)
 
 | Opção avaliada | Decisão |
 | --- | --- |
@@ -267,6 +268,7 @@ Contraste conferido (WCAG 2.2 AA): texto secundário 6,9:1 (claro) e 8,4:1 (escu
 | `app-icon` | `shared/components/icon/` | Bootstrap Icons (MIT) num **sprite SVG próprio** (`public/icons/app-icons.svg`, ~107 kB, baixado sob demanda e em cache) gerado por `npm run icons` a partir de `icon-names.ts`; `<use href>` com `currentColor`; decorativo (`aria-hidden`) ou `label` → `role="img"`. Sem fonte de ícones, sem CDN, sem `innerHTML`. Aceita, na transição, nomes do Material (`material-aliases.ts`, §14). |
 | `DialogService` + `DialogRef` + `DIALOG_DATA` | `shared/dialog/` | Substituto do `MatDialog` sobre `NgbModal`: `open(Componente, { data, size, disableClose, role })` → `afterClosed()` (resultado ou `undefined`). Diretivas `appDialogTitle` (liga o `aria-labelledby`) e `appDialogClose` (sem valor = cancelamento). Foco preso, Esc, foco devolvido; `ngbAutofocus` marca o foco inicial. |
 | `app-field` + `appInput` | `shared/forms/` | Substituto do `mat-form-field`: rótulo, ajuda (`form-text`), erro (`invalid-feedback` com `errorMessage()`), `is-invalid` + `aria-invalid` + `aria-describedby`; mostra erro após tocar ou submeter; tamanho compacto pela densidade. |
+| `appMoney` (`MoneyInput`) + `div.input-group` (`InputGroupDensity`) | `shared/forms/money-input.ts`, `money.ts`, `input-group.ts` | Máscara monetária por centavos, `ControlValueAccessor` + validador (`[min]`/`[max]`), modelo `number` ou texto decimal, vazio = `null` (§13.4). O `input-group` recebe `.input-group-sm` na densidade compacta. Ambos vêm com `FORM_FIELD`. |
 | `app-data-table` | `shared/components/data-table/` | Mesma API (+ `sortable`/`sort`/`sortChange` opcionais): tabela responsiva do Bootstrap, cabeçalho fixo, `ngb-pagination` + quantidade por página + faixa "1 – 20 de 135", esqueleto/vazio/erro. |
 | `ConfirmService`/`ConfirmDialog` | `shared/components/confirm-dialog/` | Mesma API; `alertdialog` quando destrutivo, foco inicial em "Cancelar", motivo e palavra de confirmação com `app-field`. |
 | `DetailDialog` (`openDetail`) | `shared/components/detail-dialog/` | Ficha somente leitura (lista de definições + JSON), para log de acesso/auditoria nas próximas ondas. |
@@ -326,6 +328,7 @@ Nomes de ícone literais nos templates são conferidos por `npm run icons:check`
 - Grupo de campos: `.app-form-grid` (grade responsiva) ou `row g-3` + `col-md-*`. Ações em `.app-form-actions` (primária à direita).
 - Erro de formulário inteiro (ex.: senhas diferentes): `<div class="invalid-feedback d-block" role="alert">`.
 - Alerta de tela: `.alert.alert-<tom>` com `role="status"` (informativo) ou `role="alert"` (erro).
+- Valor em reais digitado: sempre `appMoney` dentro de `input-group` com `<span class="input-group-text" aria-hidden="true">R$</span>`; nada de `type="number"`, `inputmode="decimal"` ou "(R$)" no rótulo (§13.4).
 
 ### 13.3 Checklist por tela
 
@@ -337,6 +340,54 @@ Nomes de ícone literais nos templates são conferidos por `npm run icons:check`
 6. Testes: atualizar seletores (`tr.mat-mdc-row` → `app-data-table tbody tr`, `mat-dialog-actions` → `.modal-footer`), providers (`MatDialogRef` → `DialogRef`), `NgbConfig.animation = false` em testes de diálogo.
 7. Capturas claro/escuro, desktop/celular; `npm run build`, `npm test`, `npm run lint`.
 8. Atualizar a versão da tela em `onboarding/content/screens.ts` só se o comportamento mudar (troca visual não é novidade para o usuário).
+
+### 13.4 Campos monetários (`appMoney`)
+
+Padrão de mercado (bancos, maquininhas, apps de pagamento): o usuário digita só os algarismos e cada um entra pela direita, como centavos — "1" → 0,01; "12345" → 123,45; "123456789" → 1.234.567,89. Backspace apaga o último algarismo. Ninguém digita vírgula nem ponto, então não há valor ambíguo ("1.234" é mil ou um vírgula dois?).
+
+**Marcação (contrato para telas novas)**
+
+```html
+<app-field label="Valor pago" hint="…">
+  <div class="input-group">
+    <span class="input-group-text" aria-hidden="true">R$</span>
+    <input appInput appMoney formControlName="amount" required [min]="0.01" />
+  </div>
+</app-field>
+```
+
+- Rótulo sem "(R$)"; o símbolo fica no `input-group-text` com `aria-hidden` e a diretiva acrescenta "Valor em reais." à descrição do campo (`aria-describedby`, antes da ajuda e do erro). O texto do campo nunca contém "R$": leitor de tela não soletra símbolo a cada tecla, e copiar o valor dá um número.
+- **Modelo do controle:** `number` (padrão) ou texto decimal canônico (`moneyValue="string"` → `"1234.56"`, o formato do `BigDecimal`). Internamente o valor é um inteiro de centavos (`bigint`); a conversão para `number` acontece uma vez, dividindo o inteiro por 10ⁿ, sem acumular erro de ponto flutuante. Até 15 algarismos significativos (o que o `number` representa sem perda: R$ 9,99 trilhões com 2 casas). Campo vazio = `null` (nunca 0); apagar até o último algarismo esvazia. Digitar "0" vale 0,00.
+- **Validação:** `required` e os validadores do formulário continuam valendo; `[min]`/`[max]` (em reais) são comparados em centavos e geram `moneyMin`/`moneyMax` com mensagem em reais ("O valor mínimo é R$ 0,01."). Limite que depende de outro dado (saldo disponível) pode ficar no `[max]` ou num validador do `FormControl`.
+- **Negativo:** só com `allowNegative` (ajustes de extrato e de demonstrativo). "-" no teclado inverte o sinal e "+" volta a positivo; como o teclado numérico do iPhone não tem "-", o campo vem com um botão "+/−" ao lado: `<input … appMoney #sign="appMoney" allowNegative /> <button class="btn btn-outline-secondary" type="button" (click)="sign.toggleSign()" [attr.aria-pressed]="sign.negative" aria-label="Valor negativo (…)">+/−</button>`.
+- **Casas:** `[decimals]` (0 a 6, padrão 2). Hoje só o custo máximo por conversa do assistente usa 4 casas (moeda do provedor do modelo, `[currency]="null"`, sem "R$" e sem a descrição em reais).
+- **Colar** (Ctrl+V, arrastar, corretor que troca o texto inteiro) interpreta o texto: "1.234,56", "1234.56", "R$ 1.234,56", "1,234.56", "-150,00", "150,00-" e "(150,00)". Com ponto e vírgula, o último é o decimal; só vírgula, uma é decimal; só ponto, "1.234" (exatamente 3 algarismos) é milhar e "10.5"/"1234.56" é decimal; sem separador o número é inteiro ("1234" = 1.234,00). Casas a mais arredondam meio para cima; texto sem número, negativo onde não cabe ou grande demais é ignorado (o valor anterior fica).
+- **Teclado e cursor:** `type="text"` + `inputmode="numeric"` (teclado numérico no celular), sem autocompletar/corretor; o cursor fica sempre no fim (setas, Home/End e clique o devolvem ao fim); selecionar o texto (Shift+setas, Ctrl+A, duplo clique) e digitar substitui o valor; selecionar e apagar esvazia. Teclados de composição (IME, alguns Android) que não deixam cancelar o `beforeinput` caem na releitura dos algarismos do texto.
+- Funciona com `formControlName`, `[formControl]` e `[(ngModel)]` (células de tabela sem `appInput` recebem a descrição direto no `aria-describedby`).
+- Densidade compacta: o `div.input-group` recebe `.input-group-sm` (diretiva `InputGroupDensity`, em `FORM_FIELD`), para o "R$" acompanhar o `.form-control-sm`.
+
+**O que é monetário:** saldo, valor, entrada, parcela, desconto em R$, limites de alçada e de aprovação, metas em R$, faixas de comissão, honorários e custas em R$, limites do Pix, totais da planilha. **Não é:** percentuais, taxas, fatores, pontos, quantidades e prazos — continuam `type="number"` com `step` (sem máscara de percentual; decisão 386).
+
+**Verificação automática:** `npm run money:check` (roda antes do build e dos testes, como o `icons:check`) recusa `appMoney` com `type="number"`/`inputmode`, campo sem `appMoney` com "R$" no rótulo ou no `aria-label`, e campo numérico sem `appMoney` ligado a nome de valor (`amount`, `balance`, `fee`, `cost`, `threshold`, `target`…). Exceção consciente: comentário `not-money: <motivo>` na linha anterior ao campo.
+
+**Campos com a máscara (out/2026)**
+
+| Tela | Campos |
+| --- | --- |
+| Cobrança — fila (`queue-form`) | Saldo mínimo, saldo máximo |
+| Cobrança — estação (`interaction-panel`) e telefonia (`tabulation-dialog`) | Valor da promessa |
+| Campanhas — critérios do segmento (`criteria-editor`, faixa `money-range`) | Saldo em aberto mínimo e máximo |
+| Negociação — simulador | Entrada (parcelamento pedido e validação de condições) |
+| Negociação — alçadas | Valor máximo do acordo |
+| Negociação — regras da política (`rules-editor`) | Encargo de valor fixo, parcela mínima, entrada mínima em R$ |
+| Pagamentos | Valor pago (pagamento informado), valor do Pix/cobrança, valor realocado, limite para segunda aprovação |
+| Repasse (`settlement`) | Valor fixo por acordo, simulação (valor recebido, honorários cobrados), valor da transferência, efeito do ajuste (com sinal) |
+| Remuneração variável (`incentive`) | Faixas de comissão ("a partir de"), valor fixo por acordo, meta padrão (métrica "valor recuperado"), teto por período, ajuste de extrato e ajuste na resolução de contestação (com sinal) |
+| Jurídico | Outros bens e custas previstas (viabilidade); campos `money` do formulário genérico (orçamento de custas, valor da causa, valores de penhora/levantamento, saldo mínimo das regras de elegibilidade) |
+| Assistente virtual | Valor máximo por Pix; custo máximo por conversa (4 casas, moeda do provedor) |
+| Importação — conferência de totais | Total na planilha (principal, saldo, valor do contrato) |
+
+O portal do devedor não tem campo de valor digitado: o devedor escolhe entre as ofertas calculadas. A meta do negociador no período (`goal-list`) fica sem máscara porque vale R$ ou %, conforme a métrica do plano, desconhecida no diálogo (decisão 387).
 
 ## 14. Mapeamento de ícones (Material → Bootstrap Icons)
 

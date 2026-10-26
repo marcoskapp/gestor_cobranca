@@ -1,12 +1,12 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
-import { formatAmount } from '../../../shared/components/amount/amount';
+import { formatAmount, toAmount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -17,7 +17,6 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { PaymentSettingsApi } from '../data/payment.api';
 import { PaymentSettingsView } from '../data/payment.models';
-import { parseMoney } from '../data/payment.rules';
 
 /**
  * Parâmetros de pagamentos da assessoria: limite para segunda aprovação de pagamentos
@@ -42,10 +41,10 @@ import { parseMoney } from '../data/payment.rules';
           <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
         <div class="app-form-grid">
-          <app-field label="Limite para segunda aprovação" hint="Pagamentos informados acima deste valor esperam outra pessoa." error="Valor inválido.">
+          <app-field label="Limite para segunda aprovação" hint="Pagamentos informados acima deste valor esperam outra pessoa.">
             <div class="input-group">
-              <span class="input-group-text">R$</span>
-              <input appInput formControlName="threshold" inputmode="decimal" />
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney formControlName="threshold" required />
             </div>
           </app-field>
           <app-field label="Validade do Pix imediato (horas)" hint="De 1 hora a 30 dias (720 h)." error="Entre 1 e 720 horas.">
@@ -89,7 +88,7 @@ export class PaymentSettings {
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
-    threshold: ['', [(c: AbstractControl) => (parseMoney(c.value as string) === null ? { money: true } : null)]],
+    threshold: this.fb.control<number | null>(null, [Validators.required]),
     pixHours: [24, [Validators.required, Validators.min(1), Validators.max(720)]],
     dueDays: [30, [Validators.required, Validators.min(0), Validators.max(60)]],
     toleranceDays: [3, [Validators.required, Validators.min(0), Validators.max(15)]],
@@ -100,7 +99,7 @@ export class PaymentSettings {
       const s = this.settings();
       if (s) {
         this.form.reset({
-          threshold: Number(s.externalReviewThreshold).toFixed(2).replace('.', ','),
+          threshold: toAmount(s.externalReviewThreshold),
           pixHours: Math.round(s.pixExpirationSeconds / 3600),
           dueDays: s.pixDueValidityDays,
           toleranceDays: s.reconciliationDateToleranceDays,
@@ -120,7 +119,7 @@ export class PaymentSettings {
       return;
     }
     const v = this.form.getRawValue();
-    const threshold = parseMoney(v.threshold)!;
+    const threshold = v.threshold!;
     this.confirm
       .confirm({
         title: 'Salvar parâmetros de pagamentos',

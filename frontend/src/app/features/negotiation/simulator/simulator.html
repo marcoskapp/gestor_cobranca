@@ -73,8 +73,11 @@
           <app-field label="Pagamentos" hint="Inclui a entrada">
             <input appInput type="number" min="1" max="360" formControlName="installments" />
           </app-field>
-          <app-field label="Entrada (R$)">
-            <input appInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
+          <app-field label="Entrada">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney [min]="0.01" formControlName="downPayment" />
+            </div>
           </app-field>
           <app-field label="1º vencimento">
             <div class="input-group">
@@ -358,8 +361,11 @@
             <app-field label="Pagamentos">
               <input appInput type="number" min="1" max="360" formControlName="installments" required />
             </app-field>
-            <app-field label="Entrada (R$)">
-              <input appInput type="number" min="0.01" step="0.01" formControlName="downPayment" />
+            <app-field label="Entrada">
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">R$</span>
+                <input appInput appMoney [min]="0.01" formControlName="downPayment" />
+              </div>
             </app-field>
             <app-field label="1º vencimento">
               <div class="input-group">

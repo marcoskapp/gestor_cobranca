@@ -6,20 +6,25 @@ import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { ImportReviewsApi } from '../data/ingestion.api';
 import { BreakdownRow, MeasureView, ReviewView, TotalsCheckView, TotalsMeasure, TotalsRequest } from '../data/ingestion.models';
-import { BREAKDOWN_LABELS, DIMENSION_LABELS, MEASURE_LABELS, REVIEW_ERROR_LABELS, parseBrazilianAmount, parseCount, scaleText } from '../data/review.rules';
+import { BREAKDOWN_LABELS, DIMENSION_LABELS, MEASURE_LABELS, REVIEW_ERROR_LABELS, parseCount, scaleText } from '../data/review.rules';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
 
 type Field = 'rows' | 'principal' | 'balance' | 'contract';
 const FIELD_MEASURE: Record<Field, TotalsMeasure> = { rows: 'ROWS', principal: 'PRINCIPAL', balance: 'BALANCE', contract: 'CONTRACT_AMOUNT' };
 
-/** Pedido de conferência a partir do formulário (valores no padrão brasileiro); `null` se algo estiver inválido. */
-export function totalsRequest(v: Record<Field, { use: boolean; value: string }>): TotalsRequest | null {
+type MoneyField = Exclude<Field, 'rows'>;
+
+/** Valores do formulário: quantidade digitada em texto ("1.250") e somas em reais (máscara `appMoney`). */
+export type TotalsForm = { rows: { use: boolean; value: string } } & Record<MoneyField, { use: boolean; value: number | null }>;
+
+/** Pedido de conferência a partir do formulário; `null` se algo marcado estiver vazio ou inválido. */
+export function totalsRequest(v: TotalsForm): TotalsRequest | null {
   const request: TotalsRequest = { rows: null, principalTotal: null, balanceTotal: null, contractAmountTotal: null };
   let any = false;
   for (const field of Object.keys(FIELD_MEASURE) as Field[]) {
     if (!v[field].use) continue;
-    const n = field === 'rows' ? parseCount(v[field].value) : parseBrazilianAmount(v[field].value);
+    const n = field === 'rows' ? parseCount(v.rows.value) : v[field].value;
     if (n === null) return null;
     any = true;
     if (field === 'rows') request.rows = n;
@@ -55,9 +60,18 @@ export function totalsRequest(v: Record<Field, { use: boolean; value: string }>)
                 <label class="form-check-label" [for]="'totals-use-' + f.key">{{ f.label }}</label>
               </div>
               @if (group.controls.use.value) {
-                <app-field class="ts-input" [label]="f.key === 'rows' ? 'Linhas na planilha' : 'Total na planilha (R$)'" [hint]="preview(f.key)">
-                  <input appInput [formControl]="group.controls.value" [attr.inputmode]="f.key === 'rows' ? 'numeric' : 'decimal'" autocomplete="off" [placeholder]="f.key === 'rows' ? '1.250' : '1.234.567,89'" />
-                </app-field>
+                @if (f.key === 'rows') {
+                  <app-field class="ts-input" label="Linhas na planilha" [hint]="preview(f.key)">
+                    <input appInput formControlName="value" inputmode="numeric" autocomplete="off" placeholder="1.250" />
+                  </app-field>
+                } @else {
+                  <app-field class="ts-input" label="Total na planilha" [hint]="preview(f.key)">
+                    <div class="input-group">
+                      <span class="input-group-text" aria-hidden="true">R$</span>
+                      <input appInput appMoney formControlName="value" />
+                    </div>
+                  </app-field>
+                }
               }
             </div>
           }
@@ -273,9 +287,9 @@ export class TotalsStep {
   ];
   protected readonly form = this.fb.group({
     rows: this.fb.group({ use: [true], value: [''] }),
-    principal: this.fb.group({ use: [true], value: [''] }),
-    balance: this.fb.group({ use: [false], value: [''] }),
-    contract: this.fb.group({ use: [false], value: [''] }),
+    principal: this.fb.group({ use: [true], value: this.fb.control<number | null>(null) }),
+    balance: this.fb.group({ use: [false], value: this.fb.control<number | null>(null) }),
+    contract: this.fb.group({ use: [false], value: this.fb.control<number | null>(null) }),
   });
   private readonly formValue = signal(this.form.getRawValue());
   protected readonly request = computed(() => totalsRequest(this.formValue()));
@@ -303,15 +317,16 @@ export class TotalsStep {
   }
 
   protected preview(field: Field): string {
-    const raw = this.formValue()[field].value;
-    if (!raw.trim()) {
-      return field === 'rows' ? 'Sem o cabeçalho' : 'Use vírgula para os centavos';
+    const v = this.formValue();
+    if (field !== 'rows') {
+      const amount = v[field].value;
+      return amount === null ? 'Digite só os números: os centavos entram pela direita' : `Você digitou ${formatAmount(amount)}`;
     }
-    const n = field === 'rows' ? parseCount(raw) : parseBrazilianAmount(raw);
-    if (n === null) {
-      return field === 'rows' ? 'Número inválido' : 'Valor inválido: use 1.234,56';
+    if (!v.rows.value.trim()) {
+      return 'Sem o cabeçalho';
     }
-    return field === 'rows' ? `${new Intl.NumberFormat('pt-BR').format(n)} linhas` : `Você digitou ${formatAmount(n)}`;
+    const n = parseCount(v.rows.value);
+    return n === null ? 'Número inválido' : `${new Intl.NumberFormat('pt-BR').format(n)} linhas`;
   }
 
   protected measureLabel(m: MeasureView): string {

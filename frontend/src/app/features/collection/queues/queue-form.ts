@@ -73,11 +73,17 @@ const num = (v: number | null | string) => (v === null || v === '' || v === unde
           <app-field label="Atraso máximo (dias)">
             <input appInput type="number" min="0" formControlName="maxDaysOverdue" />
           </app-field>
-          <app-field label="Saldo mínimo (R$)">
-            <input appInput type="number" min="0" step="0.01" formControlName="minBalance" />
+          <app-field label="Saldo mínimo">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney formControlName="minBalance" />
+            </div>
           </app-field>
-          <app-field label="Saldo máximo (R$)">
-            <input appInput type="number" min="0" step="0.01" formControlName="maxBalance" />
+          <app-field label="Saldo máximo">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney formControlName="maxBalance" />
+            </div>
           </app-field>
           <app-field label="Score mínimo">
             <input appInput type="number" formControlName="minScore" />

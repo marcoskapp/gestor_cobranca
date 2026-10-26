@@ -20,6 +20,10 @@ export function errorMessage(errors: ValidationErrors | null | undefined): strin
       return `Valor mínimo: ${String(info['min'])}.`;
     case 'max':
       return `Valor máximo: ${String(info['max'])}.`;
+    case 'moneyMin':
+      return `O valor mínimo é ${String(info['text'])}.`;
+    case 'moneyMax':
+      return `O valor máximo é ${String(info['text'])}.`;
     case 'pattern':
       return 'Formato inválido.';
     case 'document':

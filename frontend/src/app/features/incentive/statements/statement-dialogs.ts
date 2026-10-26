@@ -11,7 +11,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { CommissionStatementsApi } from '../data/incentive.api';
 import { COMPONENT_LABELS, INCENTIVE_ERROR_LABELS } from '../data/incentive.labels';
 import { AdjustmentView, DisputeView, LedgerEntryView, StatementLine } from '../data/incentive.models';
-import { DUAL_APPROVAL_THRESHOLD, REASON_MAX, REASON_MIN, needsSecondApproval, signedMoney } from '../data/incentive.rules';
+import { DUAL_APPROVAL_THRESHOLD, REASON_MAX, REASON_MIN, needsSecondApproval } from '../data/incentive.rules';
 
 export const incentiveError = (err: unknown) => {
   const e = toApiError(err);
@@ -20,7 +20,8 @@ export const incentiveError = (err: unknown) => {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const minText = (min: number) => (c: { value: unknown }) => (String(c.value ?? '').trim().length < min ? { minlength: { requiredLength: min } } : null);
-const MONEY_ERROR = 'Informe um valor diferente de zero, com até 2 casas (use − para reduzir).';
+const MONEY_ERROR = 'Informe um valor diferente de zero (use − para reduzir).';
+const nonZero = (c: AbstractControl) => (c.value === 0 ? { money: true } : null);
 
 export interface DisputeDialogData {
   statementId: string;
@@ -178,8 +179,12 @@ export interface ResolveDialogData {
           </div>
         </fieldset>
         @if (value().accepted) {
-          <app-field class="mb-3" label="Ajuste no extrato (R$, opcional)" hint="Use − para reduzir. Deixe vazio para aceitar sem ajuste (ex.: depois de recalcular)." [error]="moneyError">
-            <input appInput formControlName="amount" inputmode="decimal" autocomplete="off" />
+          <app-field class="mb-3" label="Ajuste no extrato (opcional)" hint="Digite − ou use +/− para reduzir. Deixe vazio para aceitar sem ajuste (ex.: depois de recalcular)." [error]="moneyError">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney #sign="appMoney" allowNegative formControlName="amount" />
+              <button class="btn btn-outline-secondary" type="button" (click)="sign.toggleSign()" [attr.aria-pressed]="sign.negative" aria-label="Valor negativo (reduz o valor a pagar)">+/−</button>
+            </div>
           </app-field>
           @if (amount() !== null) {
             <p class="app-dialog-message">Efeito: <app-amount [value]="amount()" [signed]="true" /> no valor a pagar.</p>
@@ -218,7 +223,7 @@ export class ResolveDialog {
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
     accepted: [true],
-    amount: ['', [(c: AbstractControl) => (String(c.value ?? '').trim() && !signedMoney(c.value as string) ? { money: true } : null)]],
+    amount: this.fb.control<number | null>(null, [nonZero]),
     resolution: ['', [Validators.required, Validators.maxLength(REASON_MAX), minText(REASON_MIN)]],
   });
   private readonly values = toSignal(this.form.valueChanges.pipe(startWith(null)), { initialValue: null });
@@ -226,13 +231,13 @@ export class ResolveDialog {
     this.values();
     return this.form.getRawValue();
   });
-  protected readonly amount = computed(() => (this.value().accepted ? signedMoney(this.value().amount) : null));
+  protected readonly amount = computed(() => (this.value().accepted ? this.value().amount : null));
   protected readonly dual = computed(() => needsSecondApproval(this.amount()));
 
   protected save(): void {
     const v = this.form.getRawValue();
     if (!v.accepted) {
-      this.form.controls.amount.setValue('');
+      this.form.controls.amount.setValue(null);
     }
     if (this.form.invalid || this.sending()) {
       this.form.markAllAsTouched();
@@ -241,7 +246,7 @@ export class ResolveDialog {
     this.sending.set(true);
     this.error.set(null);
     this.api
-      .resolve(this.data.statementId, this.data.dispute.id, { accepted: v.accepted, resolution: v.resolution.trim(), adjustmentAmount: v.accepted ? signedMoney(v.amount) : null })
+      .resolve(this.data.statementId, this.data.dispute.id, { accepted: v.accepted, resolution: v.resolution.trim(), adjustmentAmount: v.accepted ? v.amount : null })
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe({ next: (d) => this.ref.close(d), error: (err: unknown) => this.error.set(incentiveError(err)) });
   }
@@ -274,8 +279,12 @@ export interface AdjustDialogData {
           <dd><app-amount [value]="data.payable" /></dd>
         </dl>
         <div class="app-form-grid">
-          <app-field label="Valor do ajuste (R$)" hint="Use − para reduzir o valor a pagar" [error]="moneyError">
-            <input appInput ngbAutofocus formControlName="amount" inputmode="decimal" autocomplete="off" />
+          <app-field label="Valor do ajuste" hint="Digite − ou use +/− para reduzir o valor a pagar" [error]="moneyError">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney #sign="appMoney" allowNegative ngbAutofocus formControlName="amount" required />
+              <button class="btn btn-outline-secondary" type="button" (click)="sign.toggleSign()" [attr.aria-pressed]="sign.negative" aria-label="Valor negativo (reduz o valor a pagar)">+/−</button>
+            </div>
           </app-field>
           <app-field class="app-span-all" label="Motivo" [hint]="value().reason.trim().length + '/' + max + ' · mínimo ' + min + ' caracteres; fica na trilha de auditoria'" [error]="'Descreva o motivo (mínimo ' + min + ' caracteres).'">
             <textarea appInput formControlName="reason" rows="3" [attr.maxlength]="max"></textarea>
@@ -318,7 +327,7 @@ export class AdjustDialog {
   protected readonly error = signal<string | null>(null);
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
-    amount: ['', [(c: AbstractControl) => (!signedMoney(c.value as string) ? { money: true } : null)]],
+    amount: this.fb.control<number | null>(null, [Validators.required, nonZero]),
     reason: ['', [Validators.required, Validators.maxLength(REASON_MAX), minText(REASON_MIN)]],
   });
   private readonly values = toSignal(this.form.valueChanges.pipe(startWith(null)), { initialValue: null });
@@ -326,7 +335,7 @@ export class AdjustDialog {
     this.values();
     return this.form.getRawValue();
   });
-  protected readonly amount = computed(() => signedMoney(this.value().amount));
+  protected readonly amount = computed(() => this.value().amount);
   protected readonly dual = computed(() => needsSecondApproval(this.amount()));
 
   protected save(): void {
@@ -338,7 +347,7 @@ export class AdjustDialog {
     this.sending.set(true);
     this.error.set(null);
     this.api
-      .adjust(this.data.statementId, signedMoney(v.amount)!, v.reason.trim())
+      .adjust(this.data.statementId, v.amount!, v.reason.trim())
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe({ next: (a) => this.ref.close(a), error: (err: unknown) => this.error.set(incentiveError(err)) });
   }
