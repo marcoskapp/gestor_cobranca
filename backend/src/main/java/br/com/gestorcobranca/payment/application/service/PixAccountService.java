@@ -246,6 +246,13 @@ class PixAccountService implements PixAccountUseCases {
                 .map(this::view).toList();
     }
 
+    @Override
+    public WebhookOptions webhookOptions() {
+        accessScope.requirePermission(Permission.INTEGRATION_MANAGE);
+        boolean mtls = properties.webhook().mtlsEnabled();
+        return new WebhookOptions(mtls, (mtls ? WebhookAuthMode.MTLS : WebhookAuthMode.HMAC).name());
+    }
+
     /**
      * Valida e grava os segredos. API do BACEN: OAuth2 ({@code clientId}/{@code clientSecret}) e
      * certificado mTLS obrigatórios na criação; HMAC exige segredo de 32+ caracteres. Na rotação, o

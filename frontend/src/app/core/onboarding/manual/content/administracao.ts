@@ -156,7 +156,7 @@ export const MANUAL: ModuleManual = {
       id: 'platform.tenants',
       title: 'Assessorias',
       objective: 'Clientes da plataforma, cada um com os dados isolados dos demais.',
-      purpose: ['Tela da equipe da plataforma para criar e acompanhar assessorias. Perfis e usuários de cada assessoria são criados pelo administrador dela.'],
+      purpose: ['Tela da equipe da plataforma para criar e acompanhar assessorias. Perfis e usuários de cada assessoria são criados pelo administrador dela.', 'Se o administrador inicial perdeu o convite ou o link expirou (72 h), use Reenviar convite: um novo link substitui o anterior. Depois que a assessoria tem um administrador ativo, os reenvios são feitos por ela.'],
       profiles: ['PLATAFORMA'],
       inputs: ['Contratos da plataforma.'],
       outputs: ['Assessorias criadas com os perfis padrão.'],

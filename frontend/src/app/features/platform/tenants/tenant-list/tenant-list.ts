@@ -1,4 +1,5 @@
-import { Component, inject } from '@angular/core';
+import { formatDate } from '@angular/common';
+import { Component, LOCALE_ID, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm.service';
@@ -45,6 +46,7 @@ import { DialogService } from '../../../../shared/dialog/dialog.service';
       <ng-template appCell="actions" [appCellOf]="rows()" let-t>
         @if (!t.platform) {
           @if (t.status === 'ACTIVE') {
+            <button class="btn btn-link" type="button" (click)="resendInvitation(t)">Reenviar convite</button>
             <button class="btn btn-link" type="button" (click)="suspend(t)">Suspender</button>
           } @else {
             <button class="btn btn-link" type="button" (click)="reactivate(t)">Reativar</button>
@@ -59,6 +61,7 @@ export class TenantList {
   private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
+  private readonly locale = inject(LOCALE_ID);
 
   protected readonly tenants = rxResource({ stream: () => this.api.list() });
   protected readonly rows = valueOr(this.tenants, []);
@@ -75,6 +78,27 @@ export class TenantList {
       .open<TenantProvision, void, ProvisionedTenant>(TenantProvision, { size: 'lg' })
       .afterClosed()
       .subscribe((result) => result && this.tenants.reload());
+  }
+
+  /**
+   * Convite do administrador inicial (link de ativação de 72 h, uso único): só enquanto a assessoria não
+   * tem administrador ativo; depois disso o reenvio é feito por ela, em Administração → Usuários.
+   */
+  protected resendInvitation(tenant: TenantView): void {
+    this.confirm
+      .confirm({
+        title: 'Reenviar convite do administrador',
+        message: `Enviar um novo link de ativação ao administrador inicial de ${tenant.tradeName}? O link anterior deixa de valer. Só é possível enquanto a assessoria não tiver administrador ativo.`,
+        confirmLabel: 'Reenviar convite',
+        reason: 'required',
+      })
+      .subscribe((reason) =>
+        this.api.resendAdminInvitation(tenant.id, reason).subscribe((invitation) =>
+          this.notifications.success(
+            `Convite reenviado para ${invitation.maskedEmail}. O link vale até ${formatDate(invitation.expiresAt, 'dd/MM/yyyy HH:mm', this.locale)}.`,
+          ),
+        ),
+      );
   }
 
   protected suspend(tenant: TenantView): void {

@@ -101,7 +101,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.reconciliation', version: 1, path: '/pagamentos/conciliacao', tourId: 'payment.reconciliation' },
   { key: 'payment.statement', version: 1, path: '/pagamentos/conciliacao/:id', tourId: 'payment.statement' },
   { key: 'payment.divergences', version: 1, path: '/pagamentos/divergencias', tourId: 'payment.divergences' },
-  { key: 'payment.pix-accounts', version: 1, path: '/pagamentos/contas-pix', tourId: 'payment.pix-accounts' },
+  {
+    key: 'payment.pix-accounts',
+    version: 2,
+    path: '/pagamentos/contas-pix',
+    tourId: 'payment.pix-accounts',
+    changes: [{ version: 2, items: ['Webhook em HMAC por padrão; o mTLS aparece desabilitado, com a explicação, enquanto o ambiente não verificar o certificado do PSP.'] }],
+  },
   { key: 'payment.settings', version: 1, path: '/pagamentos/parametros' },
   {
     key: 'payment.detail',
@@ -208,7 +214,12 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'account.password', version: 1, path: '/conta/senha' },
   { key: 'account.mfa', version: 1, path: '/conta/mfa' },
   { key: 'account.sessions', version: 1, path: '/conta/sessoes' },
-  { key: 'platform.tenants', version: 1, path: '/plataforma/assessorias' },
+  {
+    key: 'platform.tenants',
+    version: 2,
+    path: '/plataforma/assessorias',
+    changes: [{ version: 2, items: ['Reenviar o convite do administrador inicial enquanto a assessoria não tiver administrador ativo.'] }],
+  },
   { key: 'app.pending-work', version: 1, path: '/pendencias' },
   { key: 'help.center', version: 1, path: '/ajuda' },
   { key: 'help.module', version: 1, path: '/ajuda/:modulo' },

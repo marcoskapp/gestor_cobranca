@@ -197,7 +197,8 @@ app:
       login-per-minute-per-ip: 20
     mfa:
       issuer: Gestor de Cobranca
-      required-for-roles: ADMIN,GESTOR,FINANCEIRO,AUDITOR,JURIDICO,ADVOGADO_PARCEIRO,QUALIDADE,COMPLIANCE,INTEGRACAO
+      # PLATFORM_ADMIN: provisiona assessorias (decisão 501); o cadastro do autenticador é feito no primeiro login
+      required-for-roles: ADMIN,GESTOR,FINANCEIRO,AUDITOR,JURIDICO,ADVOGADO_PARCEIRO,QUALIDADE,COMPLIANCE,INTEGRACAO,PLATFORM_ADMIN
 
   audit:
     seal-interval: PT1M

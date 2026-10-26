@@ -299,6 +299,15 @@ export type PixProvider = 'BACEN_API' | 'SANDBOX';
 export type WebhookAuth = 'MTLS' | 'HMAC';
 
 /**
+ * `PixAccountUseCases.WebhookOptions`: o mTLS só existe quando o balanceador verifica o certificado do
+ * PSP (decisão 316); senão o padrão do cadastro é HMAC.
+ */
+export interface PixWebhookOptions {
+  mtlsAvailable: boolean;
+  defaultAuth: WebhookAuth;
+}
+
+/**
  * Segredos da conta. Vão só na criação e na rotação (substitui o conjunto inteiro); a API nunca os
  * devolve. `certificateBase64` nulo mantém o certificado atual.
  */

@@ -19,7 +19,7 @@ flowchart TB
     R53 --> WAF["AWS WAF<br/>(requer aprovação)"]
     WAF --> ALB
 
-    subgraph VPC["VPC 10.0.0.0/16 — sa-east-1"]
+    subgraph VPC["VPC 10.10.0.0/16 (produção) · 10.20.0.0/16 (homologação) — sa-east-1"]
         subgraph PUB["Sub-redes públicas (2 AZs)"]
             ALB["Application Load Balancer<br/>TLS (ACM) · health check"]
             NAT["NAT Gateway"]
@@ -68,7 +68,7 @@ flowchart TB
 - `s3:GetObject/PutObject/DeleteObject` apenas no bucket da aplicação (prefixo `tenants/*`) e leitura do prefixo de artefatos de deploy (e dos scripts de bootstrap).
 - `logs:CreateLogStream/PutLogEvents` nos três grupos de log e no grupo da saída do Run Command; `cloudwatch:PutMetricData` restrito aos namespaces `GestorCobranca` (aplicação) e `GestorCobranca/Host` (memória e disco, CloudWatch Agent).
 - `ssm:GetParameter(s)` e `kms:Decrypt` somente nos segredos de **runtime** `/gestor-cobranca/<ambiente>/app/*` — ou, enquanto o SSM não for aprovado, `s3:GetObject` em `s3://<bucket de segredos>/<ambiente>/app/*`.
-- Os segredos de **migração** (`.../migration/*`, senha de `app_owner`, dono do schema) **não** são legíveis pelo papel em execução: uma falha na aplicação não pode virar `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` em todas as assessorias. `scripts/deploy/migrate.sh` (pipeline/operador) cria no papel, só durante a execução, a política inline temporária `migration-window`, que permite ler `migration/*` **apenas** da instância escolhida para a migração (`ec2:SourceInstanceARN`) e **até** o fim da janela (`aws:CurrentTime`, 75 min), e a remove ao terminar. Quem executa o deploy precisa de `iam:PutRolePolicy`/`iam:DeleteRolePolicy` no papel das instâncias. Com `db_admin_access = true` (temporário) o papel também lê `migration/*`, usado por `db-admin.sh` para criar e rotacionar a senha de `app_owner`.
+- Os segredos de **migração** (`.../migration/*`, senha de `app_owner`, dono do schema) **não** são legíveis pelo papel em execução: uma falha na aplicação não pode virar `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` em todas as assessorias. `scripts/deploy/migrate.sh` (executado pelo operador; decisão 474) cria no papel, só durante a execução, a política inline temporária `migration-window`, que permite ler `migration/*` **apenas** da instância escolhida para a migração (`ec2:SourceInstanceARN`) e **até** o fim da janela (`aws:CurrentTime`, 75 min), e a remove ao terminar. Quem executa o deploy precisa de `iam:PutRolePolicy`/`iam:DeleteRolePolicy` no papel das instâncias. Com `db_admin_access = true` (temporário) o papel também lê `migration/*`, usado por `db-admin.sh` para criar e rotacionar a senha de `app_owner`.
 - `secretsmanager:GetSecretValue` no segredo da senha mestre do RDS **somente** enquanto `db_admin_access = true` (criação de papéis e rotação de senhas; desligado no restante do tempo).
 - `AmazonSSMManagedInstanceCore` para o Session Manager e o Run Command (execução das migrations).
 - **Assistente de IA (Amazon Bedrock, com `assistant_bedrock_enabled`)**: somente `bedrock:InvokeModel` (a Converse API é autorizada por essa ação; não existe ação IAM `bedrock:Converse`) nos ARNs dos perfis de inferência configurados (`arn:aws:bedrock:<região>:<conta>:inference-profile/us.anthropic.claude-haiku-5-5` e `…sonnet-5-5`) e nos modelos base em cada região de destino **somente por meio desses perfis** (condição `bedrock:InferenceProfileArn`); sem perfil `global.*` configurado, nega explicitamente o roteamento global (`aws:RequestedRegion = unspecified`). Nenhuma permissão de AWS Marketplace no papel (§8).
@@ -153,22 +153,26 @@ Com mínimo de 1 instância, uma falha causa indisponibilidade de alguns minutos
 
 Valores aproximados em US$, on-demand, `sa-east-1`, sem impostos. O único valor confirmado em fonte é o do RDS `db.t4g.medium` ([Bytebase](https://www.bytebase.com/dbcost/rds/instance/db.t4g.medium/)); os demais são estimativas e **devem ser recalculados no [AWS Pricing Calculator](https://calculator.aws/) antes da contratação**.
 
-| Item | Fase 1 | Fase 2 |
-| --- | --- | --- |
-| EC2 `t4g.medium` (1 → 2 instâncias) | 40–55 | 80–110 |
-| Application Load Balancer | 25–35 | 30–50 |
-| NAT Gateway (1 → 2) + tráfego | 50–70 | 100–140 |
-| RDS `db.t4g.medium` Single-AZ → Multi-AZ, gp3 50 GiB | 110–120 | 210–240 |
-| S3 (até ~100 GiB) | 3–5 | 5–15 |
-| CloudWatch (logs, métricas, alarmes) | 15–40 | 40–100 |
-| WAF | — | 15–30 |
-| **Total aproximado** | **~US$ 245–325** | **~US$ 480–685** |
+A tabela é a mesma do [README do Terraform, §7](../../infra/terraform/README.md); ao revisar uma, atualize a outra.
+
+| Item | Fase 1 (produção) | Fase 2 (produção) | Homologação (fase 1, ASG 12 h/dia útil) |
+| --- | --- | --- | --- |
+| EC2 `t4g.medium` (1 → 2) + EBS gp3 30 GiB | 45–60 | 90–120 | 15–25 |
+| ALB | 25–35 | 30–50 | 20–25 |
+| NAT Gateway (1 → 2) + tráfego | 50–70 | 100–140 | 45–55 |
+| RDS `db.t4g.medium` Single-AZ → Multi-AZ, gp3 50 GiB | 110–120 | 210–240 | 110–120 |
+| S3 (app, artefatos, logs) | 3–8 | 8–20 | 1–3 |
+| CloudWatch (logs, métricas da app e do agente, ~20 alarmes, painel) | 20–45 | 45–110 | 10–20 |
+| VPC Flow Logs (REJECT) | 1–5 | 2–10 | 1–3 |
+| WAF (aprovação) | — | 15–30 | — |
+| Endpoints de interface (`enable_interface_endpoints`, 5 × 2 AZs) | — | ~75 (opcional) | — |
+| **Total aproximado** | **~US$ 255–345** | **~US$ 500–720** | **~US$ 200–250** |
 
 Maiores alavancas de economia, em ordem: Savings Plans/instâncias reservadas na fase 2; desligar homologação fora do horário; *lifecycle* do S3 e retenção curta de logs no CloudWatch; tamanho das instâncias ajustado pelas métricas reais após 30 dias de operação.
 
 ## 6. Implantação
 
-1. O pipeline gera o JAR e o pacote do frontend, executa testes e publica no S3 (`artifacts/<versão>/`).
+1. O operador gera, com os scripts (`scripts/deploy/build.sh`; não há pipeline de CI/CD, decisão 474), o JAR com o frontend embutido, executa os testes e publica no S3 (`artifacts/<versão>/`).
 2. Uma nova versão do *launch template* aponta para o artefato.
 3. *Instance refresh* do ASG substitui as instâncias gradualmente (mínimo 90% saudáveis), com o ALB drenando conexões.
 4. Migrations Flyway são executadas uma única vez, antes do refresh, por um passo dedicado com o papel `app_owner` (o mesmo JAR em modo `migrate`, executado numa instância do ASG via SSM Run Command, sem abrir portas), com a senha de `app_owner` legível só durante a janela de migração e só por essa instância; as instâncias de aplicação conectam com `app_runtime_login`, que não altera schema.

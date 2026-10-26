@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.payment;
 
 import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
+import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases;
 import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.AccountView;
 import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.CreateAccountCommand;
 import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.CredentialsCommand;
@@ -9,6 +10,7 @@ import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.security.CreditorScope;
+import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -67,5 +69,10 @@ class PixAccountEndpointIT extends PaymentTestSupport {
                 List.of("a".repeat(64)), new CredentialsCommand("client", "secret", null, null, null)))))
                 .isInstanceOf(BusinessRuleException.class)
                 .satisfies(e -> assertThat(((BusinessRuleException) e).code()).isEqualTo("pix_account.mtls_unavailable"));
+        // a tela sabe que o mTLS está indisponível e sugere HMAC (decisão 502)
+        assertThat(asAdmin(() -> pixAccounts.webhookOptions()))
+                .isEqualTo(new PixAccountUseCases.WebhookOptions(false, "HMAC"));
+        assertThatThrownBy(() -> as(Ids.newId(), DefaultRoles.OPERADOR, CreditorScope.ALL, () -> pixAccounts.webhookOptions()))
+                .isInstanceOf(ScopeAccessDeniedException.class);
     }
 }

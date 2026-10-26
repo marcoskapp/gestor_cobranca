@@ -28,6 +28,12 @@ public interface UserRepository {
 
     long countActiveWithRole(UUID roleId);
 
+    /** Usuários com o perfil, em qualquer situação (inclusive pendentes de ativação e desativados). */
+    long countWithRole(UUID roleId);
+
+    /** Usuários com o perfil e na situação informada, do mais antigo ao mais recente. */
+    List<User> findWithRoleAndStatus(UUID roleId, UserStatus status);
+
     List<User> findActiveByRoleIds(Collection<UUID> roleIds);
 
     /**

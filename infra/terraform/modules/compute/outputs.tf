@@ -57,3 +57,13 @@ output "bedrock_denies_global_routing" {
   description = "O papel nega o roteamento global do Bedrock (nenhum perfil global.* configurado)."
   value       = var.assistant_bedrock_enabled && !local.bedrock_uses_global
 }
+
+output "instance_conf_public" {
+  description = "instance.conf entregue às instâncias, sem o e-mail do administrador da plataforma (dado pessoal)."
+  value       = local.instance_conf_public
+}
+
+output "platform_bootstrap_configured" {
+  description = "O primeiro administrador da plataforma está configurado (e-mail e CNPJ informados)."
+  value       = nonsensitive(var.platform_admin_email != null) && var.platform_cnpj != null
+}

@@ -45,6 +45,14 @@ interface UserJpaRepository extends JpaRepository<User, UUID>, JpaSpecificationE
     long countActiveWithRole(UUID roleId);
 
     @Override
+    @Query("select count(u) from User u join u.roleIds r where r = :roleId")
+    long countWithRole(UUID roleId);
+
+    @Override
+    @Query("select u from User u join u.roleIds r where r = :roleId and u.status = :status order by u.createdAt, u.id")
+    List<User> findWithRoleAndStatus(UUID roleId, UserStatus status);
+
+    @Override
     @Query("""
             select distinct u from User u join u.roleIds r
             where r in :roleIds and u.status = br.com.gestorcobranca.identity.domain.model.UserStatus.ACTIVE

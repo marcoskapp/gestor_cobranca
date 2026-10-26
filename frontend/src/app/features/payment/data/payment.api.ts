@@ -20,6 +20,7 @@ import {
   PaymentSettingsView,
   PaymentView,
   PixAccountView,
+  PixWebhookOptions,
   ReallocateRequest,
   ResolveRequest,
   ReverseRequest,
@@ -175,6 +176,10 @@ export class PixAccountsApi {
 
   get(id: string): Observable<PixAccountView> {
     return this.http.get<PixAccountView>(`${this.base}/${id}`);
+  }
+
+  webhookOptions(): Observable<PixWebhookOptions> {
+    return this.http.get<PixWebhookOptions>(`${this.base}/webhook-options`);
   }
 
   create(request: CreatePixAccountRequest): Observable<PixAccountView> {
