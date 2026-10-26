@@ -1,7 +1,7 @@
 import { DOCUMENT, Component, DestroyRef, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -36,6 +36,11 @@ const TABS: readonly { id: InboxTab; label: string }[] = [
   { id: 'assistant', label: 'Assistente' },
   { id: 'all', label: 'Todas' },
 ];
+
+/** Aba pedida na URL; valor desconhecido ou ausente volta para "Minhas". */
+export function inboxTabParam(value: string | null): InboxTab {
+  return TABS.some((t) => t.id === value) ? (value as InboxTab) : 'mine';
+}
 
 export function inboxFilter(tab: InboxTab, channel: string, awaiting: boolean): InboxFilter {
   return { ...tabFilter(tab), channel: channel || null, awaitingReply: awaiting ? true : null, status: 'OPEN' };
@@ -72,9 +77,11 @@ export class Inbox {
   protected readonly canManageChannels = computed(() => this.auth.hasPermission(Permission.CHANNEL_MANAGE));
   protected readonly canManageTemplates = computed(() => this.auth.hasPermission(Permission.TEMPLATE_MANAGE));
 
-  protected readonly tab = signal<InboxTab>('mine');
+  /** Aba e "aguardando resposta" iniciais pela URL (`?aba=queue&aguardando=true`, ex.: de "Minhas pendências"). */
+  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
+  protected readonly tab = signal<InboxTab>(inboxTabParam(this.params.get('aba')));
   protected readonly channel = signal('');
-  protected readonly awaiting = signal(false);
+  protected readonly awaiting = signal(this.params.get('aguardando') === 'true');
   protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? null);
 
   private readonly filter = computed(() => inboxFilter(this.tab(), this.channel(), this.awaiting()), { equal: sameValue });

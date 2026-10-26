@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -28,6 +28,11 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 
 export type AgendaPeriod = 'today' | 'week' | 'late' | 'custom';
+
+/** Período rápido pedido na URL; valor desconhecido ou ausente volta para "hoje". */
+export function agendaPeriodParam(value: string | null): AgendaPeriod {
+  return value === 'week' || value === 'late' ? value : 'today';
+}
 
 /** Filtro da agenda a partir do período rápido (limite do servidor: 92 dias). */
 export function agendaFilter(
@@ -180,15 +185,17 @@ export class AgendaPage {
   private readonly today = zonedNow().date;
 
   private readonly fb = inject(FormBuilder).nonNullable;
+  /** Período inicial pela URL (`?periodo=late|today|week`, ex.: vindo de "Minhas pendências"). */
+  private readonly initialPeriod = agendaPeriodParam(inject(ActivatedRoute).snapshot.queryParamMap.get('periodo'));
   protected readonly filters = this.fb.group({
-    period: this.fb.control<AgendaPeriod>('today'),
+    period: this.fb.control<AgendaPeriod>(this.initialPeriod),
     /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
     from: this.fb.control<string | null>(this.today),
     to: this.fb.control<string | null>(addDays(this.today, 6)),
     status: [''],
     user: this.fb.control<string[]>([]),
   });
-  protected readonly period = toSignal(this.filters.controls.period.valueChanges, { initialValue: 'today' as AgendaPeriod });
+  protected readonly period = toSignal(this.filters.controls.period.valueChanges, { initialValue: this.initialPeriod });
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(

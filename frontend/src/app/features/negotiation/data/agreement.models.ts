@@ -100,6 +100,8 @@ export interface ProposalFilter {
   caseId?: string | null;
   status: string | null;
   actorType: string | null;
+  /** Só as propostas registradas pelo próprio usuário. */
+  mine?: boolean;
 }
 
 export interface ParticipantView {

@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
@@ -67,7 +67,9 @@ export class RequestList {
   protected readonly allCreditors = computed(() => this.auth.user()?.allCreditors ?? false);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ status: [''], type: [''], overdue: [false], document: [''] });
+  /** `?vencidas=true` abre só as vencidas (ex.: vindo de "Minhas pendências"). */
+  private readonly overdueOnly = inject(ActivatedRoute).snapshot.queryParamMap.get('vencidas') === 'true';
+  protected readonly filters = this.fb.group({ status: [''], type: [''], overdue: [this.overdueOnly], document: [''] });
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -75,7 +77,7 @@ export class RequestList {
       debounceTime(300),
       map(() => toQueueFilter(this.filters.getRawValue())),
     ),
-    { initialValue: toQueueFilter({ status: '', type: '', overdue: false, document: '' }), equal: sameValue },
+    { initialValue: toQueueFilter({ status: '', type: '', overdue: this.overdueOnly, document: '' }), equal: sameValue },
   );
   protected readonly incomplete = computed(() => this.filter().incomplete);
   protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page));

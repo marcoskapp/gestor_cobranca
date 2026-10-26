@@ -21,6 +21,12 @@ export const SHELL_ROUTES: Routes = [
           import('../../../features/dashboard/dashboard').then((m) => m.Dashboard),
       },
       {
+        path: 'pendencias',
+        title: 'Minhas pendências',
+        loadComponent: () =>
+          import('../../../features/pending-work/pending-work-page').then((m) => m.PendingWorkPage),
+      },
+      {
         path: 'conta',
         loadChildren: () =>
           import('../../../features/account/account.routes').then((m) => m.ACCOUNT_ROUTES),

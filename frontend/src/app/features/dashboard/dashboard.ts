@@ -8,14 +8,15 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { Icon } from '../../shared/components/icon/icon';
 import { Permission } from '../../core/auth/permission';
 import { HomeKpis } from '../analytics/components/home-kpis';
+import { PendingWorkPanel } from '../pending-work/pending-work-panel';
 
 /**
- * Página inicial: boas-vindas, resumo da operação (para quem vê painéis, carregado sob demanda),
+ * Página inicial: boas-vindas, "Suas pendências" (o que depende do usuário agora), resumo da operação (para quem vê painéis, carregado sob demanda),
  * atalhos conforme as permissões e "primeiros passos" do perfil.
  */
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, Icon, GettingStarted, EmptyState, HomeKpis],
+  imports: [RouterLink, Icon, GettingStarted, EmptyState, HomeKpis, PendingWorkPanel],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })

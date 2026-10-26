@@ -12,6 +12,7 @@ import { APP_NAME } from '../../config/page-title.strategy';
 import { KeyboardShortcuts, formatKeys } from '../../keyboard/keyboard-shortcuts.service';
 import { OnboardingHint } from '../../onboarding/hint/onboarding-hint';
 import { OnboardingService } from '../../onboarding/onboarding.service';
+import { PendingWorkIndicator } from '../../pending-work/pending-work-indicator';
 import { ThemeService } from '../../preferences/theme.service';
 import { DensityPreference, ThemePreference } from '../../preferences/ui-state.models';
 import { UiStateStore } from '../../preferences/ui-state.store';
@@ -54,6 +55,7 @@ const DENSITIES: readonly Choice<DensityPreference>[] = [
     Icon,
     Breadcrumbs,
     OnboardingHint,
+    PendingWorkIndicator,
   ],
   templateUrl: './shell.html',
   styleUrls: ['./shell.scss', './shell-nav.scss'],

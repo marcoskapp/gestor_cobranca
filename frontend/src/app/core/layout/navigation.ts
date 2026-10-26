@@ -23,7 +23,10 @@ const COMMISSION_STATEMENTS = [...PERFORMANCE, Permission.COMMISSION_STATEMENT_M
 export const NAVIGATION: readonly NavSection[] = [
   {
     label: null,
-    items: [{ label: 'Início', icon: 'house', route: '/', permissions: [] }],
+    items: [
+      { label: 'Início', icon: 'house', route: '/', permissions: [] },
+      { label: 'Minhas pendências', icon: 'inbox', route: '/pendencias', permissions: [] },
+    ],
   },
   {
     label: 'Painéis',
