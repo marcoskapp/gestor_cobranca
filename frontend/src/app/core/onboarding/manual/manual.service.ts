@@ -3,10 +3,7 @@ import { AuthService } from '../../auth/auth.service';
 import { NAVIGATION } from '../../layout/navigation';
 import { SCREENS } from '../content/screens';
 import { GlossaryTerm, ManualModuleId, ModuleManual, RelatedScreen, ScreenManual } from './manual.models';
-import { loadGlossary, loadModuleManual, loadScreenManual, moduleOfScreen } from './manual-index';
-
-/** Rotas abertas a qualquer usuário autenticado (sem item no menu que as proteja). */
-const OPEN_ROUTES: ReadonlySet<string> = new Set(['/', '/conta/perfil', '/conta/senha', '/conta/mfa', '/conta/sessoes', '/ajuda']);
+import { OPEN_ROUTES, loadGlossary, loadModuleManual, loadScreenManual, moduleOfScreen } from './manual-index';
 
 /** Tela relacionada pronta para exibir: título do manual dela e o link, se o usuário tiver acesso. */
 export interface ResolvedRelated {

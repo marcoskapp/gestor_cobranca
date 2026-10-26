@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Suspensão da quebra do acordo enquanto há pagamento externo informado aguardando revisão
--- (decisão do responsável de 26/10/2026, decisões 480–489; negociacao-e-alcadas.md §10.6.1).
+-- (decisão do responsável de 26/10/2026, decisões 494–503; negociacao-e-alcadas.md §10.6.1).
 -- Uma linha por suspensão: começa no job diário quando a regra de quebra é atingida com pagamento
 -- em revisão para o acordo e termina na revisão (aprovado/recusado), no prazo máximo ou no
 -- encerramento do acordo. No máximo uma suspensão em vigor por acordo.

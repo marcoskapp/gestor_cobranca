@@ -1,6 +1,6 @@
 # ADR-0010 — O negotiation declara a porta de pagamentos em revisão e o payment a implementa (`negotiation :: spi`)
 
-**Situação.** Aceita (26/10/2026). Implementa a decisão do responsável que substitui a decisão 437 de `docs/negocio/decisoes-autonomas.md`; decisões 480–489.
+**Situação.** Aceita (26/10/2026). Implementa a decisão do responsável que substitui a decisão 437 de `docs/negocio/decisoes-autonomas.md`; decisões 494–503.
 
 **Contexto.** O responsável pelo produto decidiu: *"A quebra do acordo deve ser suspensa enquanto o pagamento do acordo estiver pendente de revisão."* A quebra é do `negotiation` (job diário, regra fixada na formalização); o pagamento externo informado acima do limite fica `INFORMED` no `payment` até a revisão por outra pessoa. O grafo (`visao-geral.md` §2.1) tem `payment → negotiation` e **proíbe** `negotiation → payment` (ciclo). Até aqui, reações no sentido contrário ao grafo eram feitas só por eventos de integração.
 

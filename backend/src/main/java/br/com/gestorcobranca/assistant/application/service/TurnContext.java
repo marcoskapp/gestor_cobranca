@@ -4,7 +4,7 @@ import br.com.gestorcobranca.assistant.application.port.out.PromptSource.PromptT
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
 import br.com.gestorcobranca.assistant.domain.model.AssistantSession;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
-import br.com.gestorcobranca.assistant.domain.model.ModelTier;
+import br.com.gestorcobranca.shared.ai.ModelTier;
 import br.com.gestorcobranca.assistant.domain.model.PixRequest;
 import br.com.gestorcobranca.assistant.domain.model.SessionMemory;
 import br.com.gestorcobranca.assistant.domain.model.ToolCallOutcome;

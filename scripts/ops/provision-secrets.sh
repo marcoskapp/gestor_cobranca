@@ -23,6 +23,8 @@
 #   app/jwt-private-key            chave RSA 2048 PKCS#8 (PEM)
 #   app/jwt-public-key             chave pública X.509 (PEM)
 #   app/smtp-username, app/smtp-password   credenciais do provedor SMTP (set)
+#   app/helpdesk-github-token      OPCIONAL: token fine-grained do GitHub para os chamados do chat de
+#                                  suporte (set); obrigatório só com helpdesk_tickets_enabled = true
 # =============================================================================
 set -Eeuo pipefail
 umask 077
@@ -66,6 +68,9 @@ fi
 CRYPTO_KEY_IDS="${CRYPTO_KEY_IDS:-k1}"
 
 ALL_NAMES=(app/db-password migration/db-owner-password app/crypto-blind-index-key app/jwt-private-key app/jwt-public-key app/smtp-username app/smtp-password)
+# Opcionais: só exigidos quando a integração correspondente é ligada no Terraform (o user-data os
+# lê somente nesse caso); nunca gerados, só gravados com 'set'.
+OPTIONAL_NAMES=(app/helpdesk-github-token)
 for id in ${CRYPTO_KEY_IDS}; do
   [[ "${id}" =~ ^[a-z][a-z0-9]{0,15}$ ]] || die "id de chave inválido: ${id}"
   ALL_NAMES+=("app/crypto-key-${id}")
@@ -73,7 +78,7 @@ done
 
 valid_name() {
   local n
-  for n in "${ALL_NAMES[@]}"; do [[ "$1" == "${n}" ]] && return 0; done
+  for n in "${ALL_NAMES[@]}" "${OPTIONAL_NAMES[@]}"; do [[ "$1" == "${n}" ]] && return 0; done
   return 1
 }
 
@@ -122,6 +127,10 @@ generate_one() {
       log AVISO "${name} vem do provedor SMTP: use 'set ${name}'"
       return
       ;;
+    app/helpdesk-github-token)
+      log AVISO "${name} é criado no GitHub: use 'set ${name}'"
+      return
+      ;;
     *) die "segredo desconhecido: ${name}" ;;
   esac
   put_secret "${name}" "${file}"
@@ -131,6 +140,9 @@ case "${ACTION}" in
   check)
     for n in "${ALL_NAMES[@]}"; do
       if secret_exists "${n}"; then echo "ok        ${n}"; else echo "AUSENTE   ${n}"; fi
+    done
+    for n in "${OPTIONAL_NAMES[@]}"; do
+      if secret_exists "${n}"; then echo "ok        ${n} (opcional)"; else echo "opcional  ${n} (não cadastrado)"; fi
     done
     ;;
   generate)
@@ -175,6 +187,11 @@ case "${ACTION}" in
       app/db-password|migration/db-owner-password)
         grep -Eq '^[A-Za-z0-9._~+=-]{16,128}$' "${work}/value" \
           || die "${NAME}: senha deve ter 16-128 caracteres [A-Za-z0-9._~+=-] (prefira 'generate')"
+        ;;
+      app/helpdesk-github-token)
+        # Só token fine-grained (escopo de um repositório, validade obrigatória); o clássico dá acesso amplo.
+        grep -Eq '^github_pat_[A-Za-z0-9_]{20,255}$' "${work}/value" \
+          || die "${NAME}: use um token fine-grained do GitHub (começa com github_pat_)"
         ;;
       *) ;;
     esac

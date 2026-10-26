@@ -153,7 +153,7 @@ public interface PaymentUseCases {
 
         /**
          * Com a suspensão da quebra do acordo de destino (pagamento em revisão: destaque na fila quando o
-         * prazo máximo está perto ou já venceu — decisão 486).
+         * prazo máximo está perto ou já venceu — decisão 500).
          */
         public PaymentView withBreakSuspension(BreakSuspensionView suspension) {
             return new PaymentView(id, source, method, status, creditorId, debtorId, amount, paidAt, instructionId,

@@ -44,7 +44,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Suspensão da quebra enquanto há pagamento externo em revisão (decisões 480–489). Sempre com o acordo
+ * Suspensão da quebra enquanto há pagamento externo em revisão (decisões 494–503). Sempre com o acordo
  * bloqueado: o job diário avalia os acordos que atingiram a regra ({@link #evaluate}) e encerra as
  * suspensões cuja situação mudou ({@link #reconcileLocked}); o payment chama {@link #reconcile} na mesma
  * transação da aprovação/recusa. A situação dos pagamentos vem da fonte ({@link PaymentReviewHolds},

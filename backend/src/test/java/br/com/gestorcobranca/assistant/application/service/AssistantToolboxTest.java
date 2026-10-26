@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.assistant.application.service;
 
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolCall;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolDefinition;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolCall;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolDefinition;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
 import br.com.gestorcobranca.assistant.domain.model.AssistantPolicy;
 import br.com.gestorcobranca.assistant.domain.model.AssistantSession;

@@ -57,7 +57,7 @@ public interface PaymentReviewStatusUseCases {
     }
 
     /**
-     * Suspensão da quebra por pagamento em revisão (decisões 480–489), lida do negotiation.
+     * Suspensão da quebra por pagamento em revisão (decisões 494–503), lida do negotiation.
      *
      * @param maxDays     prazo máximo de suspensão em dias (texto "por no máximo N dias")
      * @param graceDays   carência depois da recusa, em dias

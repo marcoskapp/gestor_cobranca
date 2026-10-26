@@ -41,6 +41,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`; `policy.published` com `policyKind = assistant` |
 | Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
+| Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
 
@@ -131,7 +132,7 @@ Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `referenceType`/`
 | `proposal.expired` | validade vencida (job diário) | `previousStatus`, `actorType`, `concessionLevel` |
 | `agreement.formalized` | acordo criado | `actorType` (de quem formalizou), `origin`, `concessionLevel`, `envelopeUsage`, `installments`, `policyVersion`, `daysOverdue`, `renegotiationNumber`, `totalAmount`, `discountAmount`, `incrementalAmount`, `replacedAgreementId`; `amount` = valor do acordo |
 | `agreement.settled` / `agreement.broken` / `agreement.cancelled` / `agreement.renegotiated` | encerramento | mesmos atributos + `previousStatus`, `paidAmount`, `daysSinceFormalization` (safra), `replacedByAgreementId`; `amount` = valor pago |
-| `agreement.break_suspended` | regra de quebra atingida com pagamento externo do acordo em revisão: quebra suspensa (job diário; decisões 480–489) | `suspensionId`, `pendingPayments`, `suspendedUntil`, `maxDays`, `overdueInstallments`, `triggerInstallmentNumber`, `daysOverdue` (da parcela que dispara), `oldestPendingHours` (espera do pendente mais antigo), `remainingAmount`, `origin`, `actorType`; `amount` = total em revisão |
+| `agreement.break_suspended` | regra de quebra atingida com pagamento externo do acordo em revisão: quebra suspensa (job diário; decisões 494–503) | `suspensionId`, `pendingPayments`, `suspendedUntil`, `maxDays`, `overdueInstallments`, `triggerInstallmentNumber`, `daysOverdue` (da parcela que dispara), `oldestPendingHours` (espera do pendente mais antigo), `remainingAmount`, `origin`, `actorType`; `amount` = total em revisão |
 | `agreement.break_suspension_ended` | fim da suspensão (na revisão, no job diário ou pelo prazo) | `suspensionId`, `reason` (APPROVED, REJECTED, DEADLINE, AGREEMENT_ENDED), `durationDays`, `suspendedUntil`, `graceUntil` (recusa), `stillPendingPayments`, `agreementStatus`, `origin`; `amount` = total em revisão no início. Insumos: tempo de revisão × prazo, taxa de recusa que leva à quebra, quantos acordos a suspensão salvou (APPROVED seguido de quitação) |
 | `installment.overdue` | parcela vencida sem pagamento integral (job diário) | `installmentNumber`, `installments`, `dueDate`, `origin`, `actorType`, `previousStatus`; `amount` = saldo da parcela |
 | `installment.paid` | parcela paga integralmente | idem; `amount` = valor da parcela |
@@ -343,6 +344,20 @@ Log de acesso: `PORTAL_CODE_REQUESTED` (inclusive para documento inexistente, co
 
 Consulta sugerida: `filter eventType = "pending_work.observed" | stats count(*), avg(attr.oldestAgeHours), sum(attr.overdue > 0) by attr.itemType, attr.ageBand`.
 
+### 3.12 Atributos dos eventos do chat de suporte (helpdesk)
+
+Nunca o texto da pergunta, da resposta ou do chamado, nome, documento ou contato: só ids, códigos de catálogo, contagens e consumo. Referência `helpdesk_message` (perguntas e avaliações) ou `support_ticket` (chamados); ator = o usuário interno.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `helpdesk.question_answered` / `helpdesk.question_unanswered` | resposta gravada (`ANSWERED` × `UNANSWERED`, `OUT_OF_SCOPE` ou `FAILED`) | `conversationId`, `turn`, `outcome`, `topic` (`HOW_TO`, `DATA_LOOKUP`, `BUSINESS_RULE`, `ACCESS`, `SYSTEM_ERROR`, `OUT_OF_SCOPE`, `OTHER`), `screen` (chave da tela do manual), `module`, `ticketDrafted`, `toolCalls`, `modelCalls`, `inputTokens`, `outputTokens`, `cost`, `costCurrency`, `model`, `promptVersion`, `knowledgeVersion`, `errorCode`; `durationMs` |
+| `helpdesk.feedback_recorded` | avaliação 👍/👎 (inclusive troca) | `conversationId`, `rating` (`UP`/`DOWN`), `reason` (catálogo), `screen`, `topic`, `outcome` |
+| `helpdesk.ticket_drafted` | IA preparou o chamado | `conversationId`, `screen` |
+| `helpdesk.ticket_opened` | issue aberta (ou duplicado de uma aberta) | `conversationId`, `screen`, `duplicate`, `duplicateOf`, `attempts`, `recovered` (encontrada pelo marcador), `minutesToConfirm`, `issueNumber` |
+| `helpdesk.ticket_cancelled` | pessoa decidiu não enviar | `conversationId`, `screen` |
+
+Log de acesso: `SUPPORT_DATA_QUERIED` (`via=helpdesk`, `tool`, `outcome` `ok`/`not_found`, `results`, `resourceIds` — até 20 —, `conversationId`, `screen`) a cada consulta de dados do chat; `ACCESS_DENIED` com `via=helpdesk`, `tool` e `permission` quando a ferramenta exige permissão que a pessoa não tem; `SUPPORT_TICKET_OPENED` (`repository`, `issueNumber`, `ticketId`) na abertura da issue.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -378,6 +393,14 @@ filter eventType = "call.completed" and `attr.origin` = "DIALER"
 # etapas puladas por motivo e campanha (negócio)
 filter eventType = "campaign.step_skipped"
 | stats count(*) by `attr.campaignCode`, `attr.reason`
+
+# chat de suporte: perguntas sem resposta por tela e tema (negócio)
+filter eventType = "helpdesk.question_unanswered"
+| stats count(*) as semResposta by `attr.screen`, `attr.topic`, `attr.outcome` | sort semResposta desc
+
+# chat de suporte: chamados abertos por tela e avaliação das respostas (negócio)
+filter eventType in ["helpdesk.ticket_opened", "helpdesk.feedback_recorded"]
+| stats count(*) by eventType, `attr.screen`, `attr.rating`
 
 # consultas de painel lentas (técnico)
 filter message = "Consulta de painel lenta"
@@ -504,6 +527,17 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `assistant.pix.issued{mode,reused}`, `assistant.pix.denied{reason}`, `assistant.pix.suggested{mode}` | Pix na conversa: gerados (instrução nova ou reutilizada), recusados por critério e sugeridos ao operador |
 | `assistant.pix.deliveries{outcome,code}`, `assistant.pix.delivery.latency` (p50/p95/p99) | entrega do código (`DELIVERED`, `NOT_DELIVERED`, `CANCELLED`) e tempo pedido → entrega (registro no PSP); `NOT_DELIVERED` com `INVALID_PIX_CODE`/`STATIC_PIX_CODE`/`AMOUNT_MISMATCH` = alarme (PSP devolvendo código fora do padrão) |
 | `assistant.pix.paid{within_24h}` | Pix do assistente pagos, dentro ou fora de 24 h do pedido (conversão: ÷ `assistant.pix.issued`) |
+| `helpdesk.turns{provider,outcome}`, `helpdesk.turn.duration{outcome}` (p50/p95/p99) | perguntas ao chat de suporte por resultado (`ANSWERED`, `UNANSWERED`, `OUT_OF_SCOPE`, `FAILED`) e latência total (alarme sugerido: p95 > 20 s) |
+| `helpdesk.model.calls{provider,outcome}`, `helpdesk.model.latency{provider}` | chamadas ao modelo do chat (`ok`, `MODEL_TIMEOUT`, `MODEL_UNAVAILABLE`, `MODEL_REJECTED`) — alarme em taxa de falha |
+| `helpdesk.tokens{provider,direction}`, `helpdesk.cost{provider,currency}` | consumo e custo estimado do chat (direção `input`, `output`, `cache_read`, `cache_write`) |
+| `helpdesk.bedrock.calls{model,tier,outcome,error}`, `helpdesk.bedrock.latency`, `helpdesk.bedrock.retries`, `helpdesk.bedrock.tokens`, `helpdesk.bedrock.cost`, `helpdesk.bedrock.stop_reasons`, `helpdesk.bedrock.long_context` | mesmas métricas do cliente Bedrock do kernel com o prefixo do chat (ver `assistant.bedrock.*`) |
+| `helpdesk.tool.calls{tool,outcome}` | ferramentas pedidas pelo modelo (`OK`, `REJECTED` = argumento inválido, `DENIED` = sem permissão/escopo, `NOT_FOUND`, `ERROR`); `DENIED` crescente = modelo tentando sair do que foi oferecido |
+| `helpdesk.limits.reached{limit}`, `helpdesk.unavailable` | perguntas recusadas por limite (`helpdesk.limit_rate`, `_daily`, `_conversation`) e por chat desligado |
+| `helpdesk.questions{topic,outcome}`, `helpdesk.questions.unanswered{screen}` | negócio: perguntas por tema e resultado; perguntas sem resposta por tela (onde o manual ou a tela precisam melhorar) |
+| `helpdesk.feedback{rating,screen}` | negócio: avaliações 👍/👎 por tela (satisfação = `UP` ÷ total) |
+| `helpdesk.tickets{outcome}`, `helpdesk.tickets.opened{screen}` | chamados (`DRAFTED`, `OPENED`, `DUPLICATE`, `CANCELLED`, `FAILED`, `UNAVAILABLE`, `BLOCKED_PUBLIC_REPOSITORY`) e abertos por tela |
+| `integration.calls{provider=github,operation,outcome}`, `integration.calls.duration{provider=github,operation}` | chamadas ao GitHub (`create_issue`, `find_issue`, `get_repository`; `ok`, `transient`, `rejected`, `timeout`) — alarme em `rejected` (token) |
+| `helpdesk.retention.purged`, `helpdesk.jobs.failures{job}` | descarte do conteúdo das conversas e falhas da retenção (alarme) |
 | `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome}` | recebimentos registrados (`recorded`, `duplicate`) e apuração (`rated`, `pending_no_rules`, `pending_no_contract`, `pending_original_pending`); `pending_*` contínuo = contrato sem regras publicadas |
 | `settlement.events.ignored{type,reason}` | eventos sem efeito (ex.: `agreement_payment_recorded`/`unapplied`, `legal_expense`/`reimbursed_after_statement` — possível reembolso em duplicidade, investigar) |
 | `settlement.expenses{kind,effect}` | custas do jurídico materializadas (`CHARGE`/`CANCELLATION` × `DEDUCT`/`INFORMATIVE`) |

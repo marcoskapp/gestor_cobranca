@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.assistant.domain.model;
 
 /**
- * Como a política escolhe o nível de modelo ({@link ModelTier}) de cada chamada.
+ * Como a política escolhe o nível de modelo ({@link br.com.gestorcobranca.shared.ai.ModelTier}) de cada chamada.
  * <ul>
  *   <li>{@code BY_STAGE} (padrão): {@code ADVANCED} nas etapas de negociação, proposta, aceite e Pix;
  *       {@code STANDARD} no resto (saudação, identificação, saldo, dúvidas);</li>

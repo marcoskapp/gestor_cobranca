@@ -195,7 +195,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 - Aplicação (consumidor, acordo bloqueado `FOR UPDATE`): valor indicado por parcela e, o excedente, às parcelas seguintes em ordem; acima do saldo do acordo → não aplicado. Acordo encerrado (quebrado, cancelado, renegociado, quitado) → registro `UNAPPLIED` (WARN + métrica): cabe ao payment realocar ou devolver.
 - Idempotência: `shared.consumed_event` + único (acordo, pagamento). Estorno sem acordo informado procura o pagamento em todos os acordos.
 
-- **Pagamento informado aguardando aprovação** (externo acima do limite, `INFORMED` no payment): a parcela continua em aberto até a aprovação gerar o `PaymentConfirmed`, mas **a quebra fica suspensa até a revisão**, por no máximo 7 dias (decisão do responsável de 26/10/2026, que substitui a 437 — §10.6.1). A tela do acordo mostra o aviso, a previsão das parcelas cobertas, os recusados recentes e a suspensão lendo `GET /payment/review-status/...` (payment, `AGREEMENT_VIEW`) — ver `pagamentos.md` §5.1–§5.2 e decisões 430–438 e 480–489. O `AgreementView` não muda.
+- **Pagamento informado aguardando aprovação** (externo acima do limite, `INFORMED` no payment): a parcela continua em aberto até a aprovação gerar o `PaymentConfirmed`, mas **a quebra fica suspensa até a revisão**, por no máximo 7 dias (decisão do responsável de 26/10/2026, que substitui a 437 — §10.6.1). A tela do acordo mostra o aviso, a previsão das parcelas cobertas, os recusados recentes e a suspensão lendo `GET /payment/review-status/...` (payment, `AGREEMENT_VIEW`) — ver `pagamentos.md` §5.1–§5.2 e decisões 430–438 e 494–503. O `AgreementView` não muda.
 
 ### 10.5 Lançamentos no razão do título (`DebtLedgerPort`)
 
@@ -210,7 +210,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 - Job diário: parcelas vencidas → `OVERDUE` (`installment.overdue`); acordo com `overdueInstallments` parcelas não pagas vencidas há mais de `toleranceDays` dias → `BROKEN` (parcelas em aberto `CANCELLED`, títulos liberados), **salvo** pagamento em revisão, carência após recusa ou pagamento confirmado em trânsito (§10.6.1). Atraso isolado dentro da tolerância não quebra.
 - Renegociação = proposta com `replacedAgreementId` (acordo em vigor ou quebrado, mesmo devedor e credor), composição recalculada do razão atual (pagamentos já abatidos). `renegotiationNumber` = posição na cadeia; acima de `maxRenegotiations` do perfil → violação de alçada `authority.renegotiations_exceeded` (aprovação de quem tem mais). Ganho incremental `máx(0, novo − (substituído − pago))` em `agreement.incremental_amount` e no `agreement.formalized`; o já recebido nunca é recontado (o `incentive` aplica a mesma regra a partir do `replacedAgreementId`).
 
-#### 10.6.1 Quebra suspensa por pagamento em revisão (decisão do responsável de 26/10/2026; decisões 480–489, ADR-0010)
+#### 10.6.1 Quebra suspensa por pagamento em revisão (decisão do responsável de 26/10/2026; decisões 494–503, ADR-0010)
 
 *"A quebra do acordo deve ser suspensa enquanto o pagamento do acordo estiver pendente de revisão."* O negotiation não depende do payment: ele **declara** a porta `application.port.spi.PaymentReviewHolds` (interface nomeada `spi`) e o payment a implementa. A porta é lida de forma síncrona, com o acordo bloqueado, e devolve os externos `INFORMED` com o acordo como destino, as alocações confirmadas ainda não baixadas aqui (em trânsito) e as revisões concluídas desde o início da suspensão.
 
@@ -299,7 +299,7 @@ Porta pública adicional (23/10/2026, para a prestação de contas — [prestaca
 | 18 | Remoção do PDF do termo na anonimização (hash mantido) | Manter o termo | O termo contém o nome; a anonimização só é aceita sem títulos em cobrança |
 | 19 | Lock consultivo por devedor na formalização + índice único parcial de títulos ativos + `@Version` na proposta | Só lock otimista | Formalizações concorrentes de propostas diferentes sobre os mesmos títulos |
 | 20 | Estorno de acordo quitado reabre `IN_PAYMENT`; pagamento total estornado mantém `IN_PAYMENT` | Voltar a `FORMALIZED` | Estados não regridem além do necessário; a parcela volta a aberta/vencida |
-| 21 | Quebra suspensa enquanto há pagamento externo do acordo em revisão, com prazo máximo (7 dias), carência após recusa (3 dias) e uso único por parcela (§10.6.1) | Quebra contando normalmente (decisão 437) | Decisão do responsável de 26/10/2026; decisões 480–489 |
+| 21 | Quebra suspensa enquanto há pagamento externo do acordo em revisão, com prazo máximo (7 dias), carência após recusa (3 dias) e uso único por parcela (§10.6.1) | Quebra contando normalmente (decisão 437) | Decisão do responsável de 26/10/2026; decisões 494–503 |
 
 ### 10.12 Pendências
 

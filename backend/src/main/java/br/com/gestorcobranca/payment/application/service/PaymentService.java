@@ -268,7 +268,7 @@ class PaymentService implements PaymentUseCases {
 
     /**
      * Revisão concluída: o negotiation encerra, na mesma transação, a suspensão da quebra do acordo se não
-     * restar outro pagamento em revisão (decisões 480–489; idempotente).
+     * restar outro pagamento em revisão (decisões 494–503; idempotente).
      */
     private void reviewClosed(Payment p) {
         if (p.getTargetKind() == TargetKind.AGREEMENT && p.getTargetAgreementId() != null) {
