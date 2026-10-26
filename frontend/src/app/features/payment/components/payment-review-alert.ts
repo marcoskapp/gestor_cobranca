@@ -7,11 +7,21 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { UNRESOLVED_NAME, nameMap } from '../../../shared/data/name-map';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
-import { CoverageView, REJECTED_WINDOW_DAYS, ReviewItem } from '../data/review-status';
+import {
+  BreakSuspensionInfo,
+  CoverageView,
+  REJECTED_WINDOW_DAYS,
+  ReviewItem,
+  formatLocalDate,
+  pendingBreakState,
+  rejectionGraceUntil,
+} from '../data/review-status';
 
 /**
  * Aviso de pagamentos externos informados que aguardam a aprovação de outra pessoa (decisão 75) e dos
  * recusados recentemente, para quem negocia saber que a parcela ainda não baixou ou que precisa agir.
+ * Enquanto há pagamento em revisão, a quebra do acordo fica suspensa até a revisão, por no máximo
+ * `maxDays` dias (decisões 540–549); depois da recusa, volta a valer passada a carência.
  * Usado no detalhe do acordo (completo, com as parcelas cobertas) e na ficha do caso (`compact`,
  * com o atalho para o acordo). Link para o pagamento só com `PAYMENT_VIEW`.
  */
@@ -47,9 +57,7 @@ import { CoverageView, REJECTED_WINDOW_DAYS, ReviewItem } from '../data/review-s
               </li>
             }
           </ul>
-          <p class="pra__hint">
-            {{ compact() ? 'Só baixa depois da aprovação.' : 'A parcela só é baixada depois da aprovação; até lá continua em aberto e, se vencer, conta para a regra de quebra.' }}
-          </p>
+          <p class="pra__hint" data-testid="pending-break-hint">{{ pendingHint() }}</p>
         </div>
       </div>
     }
@@ -83,7 +91,7 @@ import { CoverageView, REJECTED_WINDOW_DAYS, ReviewItem } from '../data/review-s
               </li>
             }
           </ul>
-          <p class="pra__hint">Nada foi baixado. Confirme com o devedor e, se ele pagou, informe de novo com um comprovante válido.</p>
+          <p class="pra__hint" data-testid="rejected-break-hint">{{ rejectedHint() }}</p>
         </div>
       </div>
     }
@@ -150,6 +158,47 @@ export class PaymentReviewAlert {
   readonly installmentLabels = input<ReadonlyMap<string, string>>(new Map());
   /** Ficha do caso: texto curto e atalho para o acordo. */
   readonly compact = input(false);
+  /** Suspensão da quebra (prazo máximo, carência e a suspensão mais recente dos acordos envolvidos). */
+  readonly breakSuspension = input<BreakSuspensionInfo | null>(null);
+
+  protected readonly pendingHint = computed(() => {
+    const state = pendingBreakState(this.breakSuspension(), this.pending().map((p) => p.agreementId));
+    if (this.compact()) {
+      const lead = 'Só baixa depois da aprovação.';
+      switch (state.kind) {
+        case 'suspended':
+          return `${lead} Quebra suspensa até a revisão (no máximo até ${formatLocalDate(state.until)}).`;
+        case 'deadline':
+          return `${lead} O prazo de suspensão da quebra terminou em ${formatLocalDate(state.until)}.`;
+        case 'potential':
+          return `${lead} Se a regra de quebra for atingida, a quebra fica suspensa até a revisão (no máximo ${days(state.maxDays)}).`;
+        default:
+          return lead;
+      }
+    }
+    const lead = 'A parcela só é baixada depois da aprovação.';
+    switch (state.kind) {
+      case 'suspended':
+        return `${lead} Enquanto isso, a quebra do acordo fica suspensa até a revisão, no máximo até ${formatLocalDate(state.until)}.`;
+      case 'deadline':
+        return `${lead} O prazo máximo de suspensão da quebra terminou em ${formatLocalDate(state.until)} e a regra de quebra voltou a valer.`;
+      case 'potential':
+        return `${lead} Se a regra de quebra for atingida antes disso, a quebra fica suspensa até a revisão, por no máximo ${days(state.maxDays)}.`;
+      default:
+        return lead;
+    }
+  });
+
+  protected readonly rejectedHint = computed(() => {
+    const grace = rejectionGraceUntil(this.breakSuspension(), this.rejected().map((p) => p.agreementId));
+    if (!grace) {
+      return this.compact() ? 'Nada foi baixado.' : 'Nada foi baixado. Confirme com o devedor e, se ele pagou, informe de novo com um comprovante válido.';
+    }
+    const lead = `Nada foi baixado. A quebra, suspensa durante a revisão, volta a valer depois de ${formatLocalDate(grace)}.`;
+    return this.compact()
+      ? lead
+      : `${lead} Confirme com o devedor: um novo pagamento informado não suspende a quebra outra vez pela mesma parcela, então a baixa precisa chegar até lá (um Pix baixa na hora).`;
+  });
 
   private readonly auth = inject(AuthService);
   protected readonly windowDays = REJECTED_WINDOW_DAYS;
@@ -194,4 +243,8 @@ export class PaymentReviewAlert {
     }
     return named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} e ${named[named.length - 1]}`;
   }
+}
+
+function days(n: number): string {
+  return n === 1 ? '1 dia' : `${n} dias`;
 }

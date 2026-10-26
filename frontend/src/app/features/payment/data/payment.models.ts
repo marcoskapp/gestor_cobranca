@@ -3,6 +3,8 @@
  * `payment.web`). Valores monetários chegam como número (BigDecimal serializado) e saem como
  * número com duas casas.
  */
+import type { BreakSuspensionView } from './review-status';
+
 
 export type Amount = number;
 
@@ -213,6 +215,8 @@ export interface PaymentView {
   reversal: ReversalView | null;
   /** Destino solicitado do pagamento externo (nulo nos integrados). */
   requestedTarget: RequestedTargetView | null;
+  /** Em revisão com acordo de destino: suspensão da quebra mais recente do acordo (fila e detalhe). */
+  breakSuspension?: BreakSuspensionView | null;
   version: number;
 }
 
@@ -297,6 +301,15 @@ export interface DivergenceView {
 
 export type PixProvider = 'BACEN_API' | 'SANDBOX';
 export type WebhookAuth = 'MTLS' | 'HMAC';
+
+/**
+ * `PixAccountUseCases.WebhookOptions`: o mTLS só existe quando o balanceador verifica o certificado do
+ * PSP (decisão 316); senão o padrão do cadastro é HMAC.
+ */
+export interface PixWebhookOptions {
+  mtlsAvailable: boolean;
+  defaultAuth: WebhookAuth;
+}
 
 /**
  * Segredos da conta. Vão só na criação e na rotação (substitui o conjunto inteiro); a API nunca os

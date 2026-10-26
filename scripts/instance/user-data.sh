@@ -128,6 +128,9 @@ unset secrets_content value
 # --- 8. Ambiente não sensível ----------------------------------------------------------
 # Proxies confiáveis (sub-redes do ALB): sem eles a aplicação não sobe no perfil prod.
 [[ "${GC_TRUSTED_PROXY_CIDRS:-}" =~ ^[0-9a-fA-F:./,]+$ ]] || gc_fail "GC_TRUSTED_PROXY_CIDRS ausente ou inválido em instance.conf"
+# O Terraform já recusa e-mail sem CNPJ; a conferência repetida evita subir com o bootstrap pela metade.
+[[ -z "${GC_PLATFORM_ADMIN_EMAIL:-}" || -n "${GC_PLATFORM_CNPJ:-}" ]] \
+  || gc_fail "GC_PLATFORM_ADMIN_EMAIL sem GC_PLATFORM_CNPJ em instance.conf"
 {
   echo "SPRING_PROFILES_ACTIVE=prod"
   echo "SPRING_FLYWAY_ENABLED=false"
@@ -166,6 +169,18 @@ unset secrets_content value
   echo "HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=${GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:-false}"
   echo "HELPDESK_GITHUB_REPOSITORY=${GC_HELPDESK_GITHUB_REPOSITORY:-marcoskapp/gestor_cobranca}"
   echo "HELPDESK_GITHUB_REQUIRE_PRIVATE=${GC_HELPDESK_GITHUB_REQUIRE_PRIVATE:-false}"
+  # Pix: hosts de PSP permitidos (decisão 313) e webhook com mTLS só com o ALB verificando o cliente (316)
+  echo "PAYMENT_PIX_ALLOWED_HOSTS=${GC_PAYMENT_PIX_ALLOWED_HOSTS:-}"
+  echo "PAYMENT_WEBHOOK_MTLS_ENABLED=${GC_PAYMENT_WEBHOOK_MTLS_ENABLED:-false}"
+  # Primeiro administrador da plataforma (decisão 520): só quando configurado; o PlatformBootstrap é
+  # idempotente e, existindo um administrador da plataforma, ignora estes valores.
+  if [[ -n "${GC_PLATFORM_ADMIN_EMAIL:-}" ]]; then
+    echo "APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL=${GC_PLATFORM_ADMIN_EMAIL}"
+    echo "APP_BOOTSTRAP_PLATFORM_CNPJ=${GC_PLATFORM_CNPJ}"
+    if [[ -n "${GC_PLATFORM_ADMIN_NAME:-}" ]]; then
+      echo "APP_BOOTSTRAP_PLATFORM_ADMIN_NAME='${GC_PLATFORM_ADMIN_NAME}'"
+    fi
+  fi
   echo "JAVA_OPTS='${GC_JAVA_OPTS_EXTRA:-}'"
 } | gc_write_file "${GC_CONF_DIR}/app.env" "root:${GC_SERVICE_USER}" 0640
 

@@ -74,7 +74,7 @@
 }
 
 @if (review(); as r) {
-  <app-payment-review-alert class="sp-alert" [pending]="r.pending" [rejected]="r.rejected" [compact]="true" />
+  <app-payment-review-alert class="sp-alert" [pending]="r.pending" [rejected]="r.rejected" [compact]="true" [breakSuspension]="r.breakSuspension" />
 }
 
 <ul ngbNav #nav="ngbNav" class="nav-tabs sp-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="case-tabs">

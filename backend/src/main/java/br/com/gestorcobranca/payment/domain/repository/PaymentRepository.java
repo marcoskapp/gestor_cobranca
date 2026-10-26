@@ -63,6 +63,12 @@ public interface PaymentRepository {
     /** Como {@link #findReviewStatusByAgreements}, para o devedor no credor (acordos e títulos avulsos). */
     List<Payment> findReviewStatusByDebtor(UUID creditorId, UUID debtorId, Instant rejectedSince);
 
+    /** Externos com o acordo como destino aguardando revisão ({@code INFORMED}), por data do registro (sistema). */
+    List<Payment> findPendingReviewByAgreement(UUID agreementId);
+
+    /** Externos com o acordo como destino revisados por segunda pessoa a partir de {@code since} (sistema). */
+    List<Payment> findReviewedByAgreementSince(UUID agreementId, Instant since);
+
     /**
      * @param creditorIds credores permitidos (nulo = todos)
      * @param statuses    situações (vazio = todas)

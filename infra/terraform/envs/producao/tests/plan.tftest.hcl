@@ -38,6 +38,10 @@ variables {
   db_pool_size                 = 20
   smtp_host                    = "smtp.example"
   business_hours_schedule      = { start_cron = "0 8 * * 1-5", stop_cron = "0 20 * * 1-5", time_zone = "America/Sao_Paulo" }
+  # sem estes, os blocos check do main.tf (avisos no plano) falham os runs
+  platform_admin_email      = "plataforma@gestorcobranca.example"
+  platform_cnpj             = "11.222.333/0001-81"
+  payment_pix_allowed_hosts = ["api-pix.psp.example"]
 }
 
 run "fase1_sem_aprovacoes" {
@@ -88,7 +92,7 @@ run "tudo_aprovado_fase2" {
     error_message = "o limite de taxa do WAF agrega pelo IP da conexão, nunca pelo X-Forwarded-For do cliente"
   }
   assert {
-    condition     = length(module.network.public_subnet_cidrs) == 2 && module.compute[0].trusted_proxy_cidrs == module.network.public_subnet_cidrs
+    condition     = length(module.network.public_subnet_cidrs) == 2 && module.compute[0].trusted_proxy_cidrs == tolist(module.network.public_subnet_cidrs)
     error_message = "a aplicação confia somente nas sub-redes do ALB"
   }
 }
@@ -175,6 +179,67 @@ run "bedrock_perfil_global_em_sao_paulo" {
     condition     = !output.bedrock_denies_global_routing
     error_message = "com perfil global configurado, o roteamento global não é negado"
   }
+}
+
+# --- Primeiro administrador da plataforma (decisão 520) ---------------------------------------
+
+run "primeiro_administrador_da_plataforma" {
+  command = plan
+  variables { platform_admin_name = "Operação da Plataforma" }
+  assert {
+    condition     = module.compute[0].platform_bootstrap_configured
+    error_message = "e-mail e CNPJ informados: o bootstrap da plataforma recebe os valores"
+  }
+  assert {
+    condition = (module.compute[0].instance_conf_public["GC_PLATFORM_CNPJ"] == "11.222.333/0001-81"
+    && module.compute[0].instance_conf_public["GC_PLATFORM_ADMIN_NAME"] == "Operação da Plataforma")
+    error_message = "CNPJ e nome vão ao instance.conf (APP_BOOTSTRAP_PLATFORM_* no app.env)"
+  }
+  assert {
+    condition     = !contains(keys(module.compute[0].instance_conf_public), "GC_PLATFORM_ADMIN_EMAIL")
+    error_message = "o e-mail (dado pessoal) não aparece na parte legível da configuração"
+  }
+}
+
+run "sem_administrador_da_plataforma" {
+  command = plan
+  variables {
+    platform_admin_email = null
+    platform_cnpj        = null
+  }
+  # aviso no plano: a computação sobe sem o primeiro administrador da plataforma
+  expect_failures = [check.primeiro_administrador_da_plataforma]
+  assert {
+    condition     = !module.compute[0].platform_bootstrap_configured && module.compute[0].instance_conf_public["GC_PLATFORM_CNPJ"] == ""
+    error_message = "sem as variáveis, o bootstrap fica desligado (nada vai ao app.env)"
+  }
+}
+
+run "guarda_administrador_sem_email" {
+  command = plan
+  variables { platform_admin_email = null }
+  expect_failures = [terraform_data.guards]
+}
+
+# --- Pix (decisões 313 e 316) -------------------------------------------------------------------
+
+run "pix_hosts_e_webhook" {
+  command = plan
+  variables { payment_pix_allowed_hosts = ["api-pix.bb.com.br", "*.itau.com.br"] }
+  assert {
+    condition     = module.compute[0].instance_conf_public["GC_PAYMENT_PIX_ALLOWED_HOSTS"] == "api-pix.bb.com.br,*.itau.com.br"
+    error_message = "hosts permitidos vão ao app.env (PAYMENT_PIX_ALLOWED_HOSTS)"
+  }
+  assert {
+    condition     = module.compute[0].instance_conf_public["GC_PAYMENT_WEBHOOK_MTLS_ENABLED"] == "false"
+    error_message = "sem mTLS no ALB, o webhook Pix fica em HMAC (PAYMENT_WEBHOOK_MTLS_ENABLED=false)"
+  }
+}
+
+run "pix_mtls_sem_alb_verificando" {
+  command = plan
+  variables { payment_webhook_mtls_enabled = true }
+  expect_failures = [terraform_data.guards]
 }
 
 run "chat_suporte_exige_aprovacao_da_transferencia" {

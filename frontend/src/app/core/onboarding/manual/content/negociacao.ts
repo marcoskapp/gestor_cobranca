@@ -22,6 +22,7 @@ export const MANUAL: ModuleManual = {
     'A proposta vale até a data indicada; depois, simule de novo.',
     'Formalizar exige o aceite do devedor com evidência; o termo em PDF é guardado com código de integridade.',
     'A quebra segue a regra da política fixada na formalização; atraso dentro da tolerância não quebra.',
+    'Com pagamento informado aguardando aprovação, a quebra fica suspensa até a revisão, por no máximo 7 dias. Recusado o pagamento, a quebra volta a valer depois de 3 dias.',
     'Políticas publicadas não mudam: para alterar, crie nova versão. Ninguém atribui a própria alçada.',
     'No portal, o devedor só vê condições do perfil de alçada do portal e só as carteiras habilitadas.',
   ],

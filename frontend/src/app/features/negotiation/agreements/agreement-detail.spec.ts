@@ -6,7 +6,7 @@ import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { agreement } from '../../../../testing/negotiation-fixtures';
-import { reviewItem } from '../../../../testing/payment-review-fixtures';
+import { breakSuspension, breakSuspensionInfo, reviewItem } from '../../../../testing/payment-review-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
 import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
@@ -149,6 +149,7 @@ describe('AgreementDetail', () => {
       rejected: [reviewItem({ paymentId: 'pg-3', status: 'REJECTED', amount: 200, reviewedBy: 'u-3', reviewedAt: '2026-10-26T10:00:00Z', rejectionReason: 'Comprovante de outro devedor' })],
       rejectedSince: '2026-09-26T00:00:00Z',
       expectedCoverage: [{ installmentId: 'i-2', paymentId: 'pg-1', amount: 1350 }],
+      breakSuspension: breakSuspensionInfo([breakSuspension()]),
     };
     try {
       const fixture = await render(agreement());
@@ -157,6 +158,9 @@ describe('AgreementDetail', () => {
       expect(t).toContain('por Carla Operadora aguardando aprovação de outra pessoa');
       expect(t).toContain('Destino previsto: 2ª parcela.');
       expect(t).toContain('A parcela só é baixada depois da aprovação');
+      // a quebra fica suspensa até a revisão, com o prazo máximo (decisão do responsável de 26/10/2026)
+      expect(t).toContain('a quebra do acordo fica suspensa até a revisão, no máximo até 02/11/2026');
+      expect(t).not.toContain('conta para a regra de quebra');
       expect(t).toContain('Motivo: Comprovante de outro devedor');
       // selo só na parcela coberta; sem PAYMENT_VIEW, sem link para o pagamento
       const rows = [...el(fixture).querySelectorAll('table[aria-label="Parcelas do acordo"] tbody tr')];

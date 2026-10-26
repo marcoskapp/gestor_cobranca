@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.identity.web;
 
 import br.com.gestorcobranca.identity.application.port.in.TenantProvisioning;
+import br.com.gestorcobranca.identity.application.port.in.TenantProvisioning.AdminInvitation;
 import br.com.gestorcobranca.identity.application.port.in.TenantProvisioning.ProvisionTenantCommand;
 import br.com.gestorcobranca.identity.application.port.in.TenantProvisioning.ProvisionedTenant;
 import br.com.gestorcobranca.organization.application.port.in.TenantAdministration;
@@ -58,6 +59,15 @@ class PlatformTenantController {
     @PostMapping("/{id}/reactivate")
     TenantView reactivate(@PathVariable UUID id, @Valid @RequestBody ReasonRequest request) {
         return tenantAdministration.changeTenantStatus(id, true, request.reason());
+    }
+
+    /**
+     * Reenvia o convite do administrador inicial enquanto a assessoria não tem administrador ativo
+     * (link de ativação novo, 72 h, uso único; o anterior deixa de valer).
+     */
+    @PostMapping("/{id}/admin-invitation")
+    AdminInvitation resendAdminInvitation(@PathVariable UUID id, @Valid @RequestBody ReasonRequest request) {
+        return provisioning.resendAdminInvitation(id, request.reason());
     }
 
     record ProvisionRequest(@NotBlank @Pattern(regexp = "[a-z0-9][a-z0-9-]{1,48}[a-z0-9]") String slug,

@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "8ac07c17f3fd336a",
+ "contentVersion": "0539164f0d2e5608",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -468,6 +468,7 @@
     "A proposta vale até a data indicada; depois, simule de novo.",
     "Formalizar exige o aceite do devedor com evidência; o termo em PDF é guardado com código de integridade.",
     "A quebra segue a regra da política fixada na formalização; atraso dentro da tolerância não quebra.",
+    "Com pagamento informado aguardando aprovação, a quebra fica suspensa até a revisão, por no máximo 7 dias. Recusado o pagamento, a quebra volta a valer depois de 3 dias.",
     "Políticas publicadas não mudam: para alterar, crie nova versão. Ninguém atribui a própria alçada.",
     "No portal, o devedor só vê condições do perfil de alçada do portal e só as carteiras habilitadas."
    ],
@@ -523,6 +524,7 @@
     "Valor recuperado é só pagamento confirmado, líquido de estornos.",
     "Pagamento informado exige comprovante e destino; acima do limite da assessoria, aprovação de outra pessoa.",
     "Quem informou um pagamento não o aprova nem o concilia.",
+    "Enquanto um pagamento informado aguarda aprovação, a quebra do acordo fica suspensa, por no máximo 7 dias. Depois disso, a quebra volta a valer.",
     "Estorno pede motivo e a palavra de confirmação; o histórico continua visível.",
     "Toda decisão sobre divergência e toda realocação exigem justificativa e ficam registradas.",
     "O Pix usa a conta ativa do credor; sem ela, a conta da assessoria. Segredos da conta nunca voltam à tela."
@@ -3545,7 +3547,8 @@
    "title": "Aprovação de pagamentos",
    "objective": "Pagamentos informados acima do limite da assessoria, aguardando a conferência de uma segunda pessoa.",
    "purpose": [
-    "Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui."
+    "Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui.",
+    "Enquanto o pagamento aguarda, a quebra do acordo fica suspensa. O selo mostra até quando; com o prazo vencido, a quebra já voltou a valer e o pagamento aparece em destaque."
    ],
    "profiles": [
     "FINANCEIRO",
@@ -3725,7 +3728,8 @@
    "title": "Contas Pix",
    "objective": "Conexão com o PSP que gera as cobranças Pix e avisa os pagamentos, por credor ou da assessoria.",
    "purpose": [
-    "Uma conta ativa por credor; a da assessoria vale para os demais. Troque as credenciais antes do vencimento do certificado."
+    "Uma conta ativa por credor; a da assessoria vale para os demais. Troque as credenciais antes do vencimento do certificado.",
+    "Os avisos de pagamento do PSP são conferidos pela assinatura HMAC; o mTLS só fica disponível quando o ambiente verifica o certificado do PSP."
    ],
    "profiles": [
     "INTEGRACAO",
@@ -5989,7 +5993,8 @@
    "title": "Assessorias",
    "objective": "Clientes da plataforma, cada um com os dados isolados dos demais.",
    "purpose": [
-    "Tela da equipe da plataforma para criar e acompanhar assessorias. Perfis e usuários de cada assessoria são criados pelo administrador dela."
+    "Tela da equipe da plataforma para criar e acompanhar assessorias. Perfis e usuários de cada assessoria são criados pelo administrador dela.",
+    "Se o administrador inicial perdeu o convite ou o link expirou (72 h), use Reenviar convite: um novo link substitui o anterior. Depois que a assessoria tem um administrador ativo, os reenvios são feitos por ela."
    ],
    "profiles": [
     "PLATAFORMA"

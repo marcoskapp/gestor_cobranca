@@ -345,6 +345,65 @@ variable "jvm_max_ram_percentage" {
   }
 }
 
+# --- Primeiro administrador da plataforma (PlatformBootstrap; decisão 520) -------------------
+# Entregues como APP_BOOTSTRAP_PLATFORM_* no app.env só quando informados. O bootstrap é
+# idempotente: cria o tenant da plataforma e o primeiro PLATFORM_ADMIN uma única vez; depois os
+# valores são ignorados (podem ser removidos do tfvars).
+
+variable "platform_admin_email" {
+  description = "E-mail do primeiro administrador da plataforma (APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL). Dado pessoal: sensível no plano."
+  type        = string
+  default     = null
+  sensitive   = true
+
+  validation {
+    condition     = var.platform_admin_email == null || can(regex("^[^@\\s'\"]+@[^@\\s'\"]+\\.[^@\\s'\"]+$", var.platform_admin_email))
+    error_message = "platform_admin_email deve ser um e-mail válido (sem espaços nem aspas)."
+  }
+}
+
+variable "platform_admin_name" {
+  description = "Nome do primeiro administrador da plataforma (APP_BOOTSTRAP_PLATFORM_ADMIN_NAME). null usa o padrão da aplicação."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.platform_admin_name == null || can(regex("^[^'\"\\n\\r\\\\$`]{1,150}$", var.platform_admin_name))
+    error_message = "platform_admin_name: até 150 caracteres, sem aspas, barra invertida, cifrão, crase nem quebra de linha."
+  }
+}
+
+variable "platform_cnpj" {
+  description = "CNPJ do tenant da plataforma (APP_BOOTSTRAP_PLATFORM_CNPJ), 14 dígitos, com ou sem pontuação."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.platform_cnpj == null || can(regex("^[0-9]{2}\\.?[0-9]{3}\\.?[0-9]{3}/?[0-9]{4}-?[0-9]{2}$", var.platform_cnpj))
+    error_message = "platform_cnpj deve ter 14 dígitos (ex.: 11.222.333/0001-81)."
+  }
+}
+
+# --- Pix (decisões 313 e 316) -------------------------------------------------------------------
+
+variable "payment_pix_allowed_hosts" {
+  description = "Hosts de PSP aceitos nas contas Pix (PAYMENT_PIX_ALLOWED_HOSTS): api.psp.com.br ou *.psp.com.br. Vazio = qualquer host público."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([for h in var.payment_pix_allowed_hosts :
+    can(regex("^(\\*\\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", h))])
+    error_message = "payment_pix_allowed_hosts: nomes DNS em minúsculas (api.psp.com.br ou *.psp.com.br), sem esquema, porta ou caminho."
+  }
+}
+
+variable "payment_webhook_mtls_enabled" {
+  description = "PAYMENT_WEBHOOK_MTLS_ENABLED: webhook Pix com mTLS. Só com o listener do ALB verificando o certificado do PSP (decisão 316)."
+  type        = bool
+  default     = false
+}
+
 variable "java_opts_extra" {
   description = "Opções adicionais da JVM (sem segredos)."
   type        = string

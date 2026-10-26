@@ -52,7 +52,7 @@ final class PaymentViews {
                 p.getReviewNote(), p.getConfirmedAt(), p.getReconciledAt(), PaymentEnums.name(p.getReconciliationMode()),
                 p.getReversedAt(), p.getAllocatedAmount().amount(), p.unallocated().amount(), pendingReallocation.amount(),
                 p.getEvidenceKey() != null, p.getEvidenceSha256(), allocations.stream().map(PaymentViews::allocation).toList(),
-                reversal.map(PaymentViews::reversal).orElse(null), requestedTarget(p, targetItems),
+                reversal.map(PaymentViews::reversal).orElse(null), requestedTarget(p, targetItems), null,
                 p.getVersion() == null ? 0 : p.getVersion());
     }
 

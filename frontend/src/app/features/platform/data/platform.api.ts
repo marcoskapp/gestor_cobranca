@@ -20,6 +20,14 @@ export interface ProvisionedTenant {
   adminUserId: string;
 }
 
+/** `TenantProvisioning.AdminInvitation`: o e-mail volta mascarado. */
+export interface AdminInvitation {
+  tenantId: string;
+  adminUserId: string;
+  maskedEmail: string;
+  expiresAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PlatformTenantsApi {
   private readonly http = inject(HttpClient);
@@ -39,5 +47,10 @@ export class PlatformTenantsApi {
 
   reactivate(id: string, reason: string): Observable<TenantView> {
     return this.http.post<TenantView>(`${this.base}/${id}/reactivate`, { reason });
+  }
+
+  /** Novo link de ativação do administrador inicial, enquanto a assessoria não tem administrador ativo. */
+  resendAdminInvitation(id: string, reason: string): Observable<AdminInvitation> {
+    return this.http.post<AdminInvitation>(`${this.base}/${id}/admin-invitation`, { reason });
   }
 }

@@ -30,6 +30,20 @@ public interface PixAccountUseCases {
     List<AccountView> list();
 
     /**
+     * Modos de autenticação do webhook disponíveis neste ambiente, para a tela de cadastro: o mTLS só
+     * existe quando o balanceador verifica o certificado do PSP ({@code app.payment.webhook.mtls-enabled},
+     * decisão 316); senão o padrão é HMAC. Não expõe nada além desses dois valores.
+     */
+    WebhookOptions webhookOptions();
+
+    /**
+     * @param mtlsAvailable o listener do ALB verifica o certificado do cliente (mutual TLS em modo verify)
+     * @param defaultAuth   modo sugerido no cadastro: MTLS quando disponível, senão HMAC
+     */
+    record WebhookOptions(boolean mtlsAvailable, String defaultAuth) {
+    }
+
+    /**
      * @param provider            BACEN_API ou SANDBOX
      * @param webhookAuth         MTLS (padrão da API Pix) ou HMAC
      * @param webhookFingerprints SHA-256 (hex) dos certificados do PSP aceitos no webhook com mTLS

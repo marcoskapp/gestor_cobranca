@@ -152,6 +152,7 @@ export const PAYMENT_ERROR_LABELS: Record<string, string> = {
   'pix_account.fingerprint_required': 'Webhook com mTLS exige a impressão digital do certificado do PSP.',
   'pix_account.fingerprint_invalid': 'Impressão digital deve ser SHA-256 em hexadecimal (64 caracteres).',
   'pix_account.webhook_secret_required': 'Webhook com HMAC exige segredo de ao menos 32 caracteres.',
+  'pix_account.mtls_unavailable': 'mTLS indisponível neste ambiente: o balanceador ainda não verifica o certificado do PSP. Use a assinatura HMAC.',
   'pix_account.oauth_required': 'Informe o client_id e o client_secret fornecidos pelo PSP.',
   'pix_account.certificate_required': 'A API Pix exige o certificado de cliente (PKCS#12).',
   'pix_account.provider_unavailable': 'O provedor simulado só existe em ambiente de teste.',

@@ -68,6 +68,19 @@ log_level = "INFO"
 smtp_host = "smtp.provedor-de-email.example"
 smtp_port = 587
 
+# Primeiro administrador da plataforma (decisão 520). Criado uma única vez na primeira subida, com
+# link de ativação por e-mail (72 h); depois os valores são ignorados e podem ser removidos.
+# O e-mail é dado pessoal: a variável é sensível (fora do plano) e fica só no state cifrado; prefira
+# uma caixa funcional da operação.
+platform_admin_email = "plataforma@gestorcobranca.com.br"
+platform_admin_name  = "Operação da Plataforma"
+platform_cnpj        = "<CNPJ_DA_EMPRESA_DA_PLATAFORMA>"
+
+# Pix (decisões 313 e 316): hosts das APIs dos PSPs contratados; webhook em HMAC enquanto o ALB não
+# verificar o certificado do PSP (payment_webhook_mtls_enabled só aceita false).
+payment_pix_allowed_hosts = ["api-pix.psp-contratado.example"]   # troque pelos hosts dos PSPs contratados
+payment_webhook_mtls_enabled = false
+
 # Assistente de IA — Amazon Bedrock (aprovado; issue #12). Antes de ligar: habilitar os modelos na conta
 # (docs/arquitetura/infraestrutura-aws.md §8) e obter a aprovação do responsável para a transferência
 # internacional (nenhum modelo Claude processa no Brasil). [revisar]

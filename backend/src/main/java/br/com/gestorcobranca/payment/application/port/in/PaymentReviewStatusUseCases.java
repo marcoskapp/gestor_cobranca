@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.payment.application.port.in;
 
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases.BreakSuspensionView;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
@@ -13,7 +15,9 @@ import java.util.UUID;
  * referência externa — o detalhe completo continua exigindo {@code PAYMENT_VIEW}.
  * <p>
  * O negotiation não depende do payment (grafo do Spring Modulith); por isso o resumo é servido aqui, a
- * partir da fonte (o próprio pagamento), e a tela do acordo o compõe. Escopo por credor em tudo.
+ * partir da fonte (o próprio pagamento), e a tela do acordo o compõe. Escopo por credor em tudo. Traz
+ * também a suspensão da quebra (lida do negotiation): enquanto houver pendente, a quebra fica suspensa
+ * por até {@code maxDays} dias.
  */
 public interface PaymentReviewStatusUseCases {
 
@@ -53,19 +57,38 @@ public interface PaymentReviewStatusUseCases {
     }
 
     /**
+     * Suspensão da quebra por pagamento em revisão (decisões 540–549), lida do negotiation.
+     *
+     * @param maxDays     prazo máximo de suspensão em dias (texto "por no máximo N dias")
+     * @param graceDays   carência depois da recusa, em dias
+     * @param suspensions suspensão mais recente de cada acordo envolvido (em vigor ou encerrada); vazia se
+     *                    nunca houve ou se quem consulta não tem {@code AGREEMENT_VIEW} no credor
+     */
+    record BreakSuspensionInfo(int maxDays, int graceDays, List<BreakSuspensionView> suspensions) {
+
+        public BreakSuspensionInfo {
+            suspensions = suspensions == null ? List.of() : List.copyOf(suspensions);
+        }
+    }
+
+    /**
      * @param pending          aguardando revisão, do mais antigo ao mais recente
      * @param rejected         recusados desde {@code rejectedSince}, do mais recente ao mais antigo
      * @param expectedCoverage previsão por parcela (vazia se o acordo não estiver em vigor)
+     * @param breakSuspension  suspensão da quebra do acordo (no máximo uma na lista)
      */
     record AgreementReviewStatus(UUID agreementId, int pendingCount, BigDecimal pendingTotal, List<ReviewItem> pending,
-                                 List<ReviewItem> rejected, Instant rejectedSince, List<CoverageView> expectedCoverage) {
+                                 List<ReviewItem> rejected, Instant rejectedSince, List<CoverageView> expectedCoverage,
+                                 BreakSuspensionInfo breakSuspension) {
     }
 
     record AgreementReviewBadge(UUID agreementId, int pendingCount, BigDecimal pendingTotal, Instant lastInformedAt,
                                 int rejectedCount, Instant lastRejectedAt) {
     }
 
+    /** @param breakSuspension suspensões da quebra dos acordos dos pendentes e recusados listados */
     record DebtorReviewStatus(UUID creditorId, UUID debtorId, int pendingCount, BigDecimal pendingTotal,
-                              List<ReviewItem> pending, List<ReviewItem> rejected, Instant rejectedSince) {
+                              List<ReviewItem> pending, List<ReviewItem> rejected, Instant rejectedSince,
+                              BreakSuspensionInfo breakSuspension) {
     }
 }

@@ -5,6 +5,7 @@ import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.Acco
 import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.CreateAccountCommand;
 import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.CredentialsCommand;
 import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.UpdateAccountCommand;
+import br.com.gestorcobranca.payment.application.port.in.PixAccountUseCases.WebhookOptions;
 import br.com.gestorcobranca.shared.web.ApiPaths;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -39,6 +40,12 @@ class PixAccountController {
     @GetMapping
     List<AccountView> list() {
         return accounts.list();
+    }
+
+    /** Modos de autenticação do webhook disponíveis no ambiente (mTLS só com o ALB verificando certificados). */
+    @GetMapping("/webhook-options")
+    WebhookOptions webhookOptions() {
+        return accounts.webhookOptions();
     }
 
     @GetMapping("/{id}")

@@ -60,7 +60,7 @@
   }
 
   @if (review(); as r) {
-    <app-payment-review-alert [pending]="r.pending" [rejected]="r.rejected" [coverage]="r.expectedCoverage" [installmentLabels]="installmentLabels()" />
+    <app-payment-review-alert [pending]="r.pending" [rejected]="r.rejected" [coverage]="r.expectedCoverage" [installmentLabels]="installmentLabels()" [breakSuspension]="r.breakSuspension" />
   }
 
   <div class="pd-grid">

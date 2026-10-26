@@ -60,6 +60,12 @@
   } @else if (p.status === 'REVERSED' && p.reversal) {
     <div class="alert alert-danger d-flex gap-2 align-items-start" role="note"><app-icon name="arrow-counterclockwise" /><span>Estornado em {{ p.reversal.reversedAt | appDate }}. Os destinos voltaram a ter saldo em aberto.</span></div>
   }
+  @if (p.status === 'INFORMED' && holdBadge(p); as badge) {
+    <div class="alert d-flex gap-2 align-items-start" [class.alert-warning]="badge.tone === 'warning'" [class.alert-danger]="badge.tone === 'danger'" role="note" data-testid="break-hold">
+      <app-icon [name]="badge.tone === 'danger' ? 'exclamation-circle' : 'hourglass-split'" />
+      <span>{{ badge.text }}. {{ badge.tone === 'warning' ? 'Enquanto este pagamento aguarda a revisão, o acordo não quebra.' : 'Revise com prioridade: o acordo pode quebrar sem esperar esta revisão.' }}</span>
+    </div>
+  }
   @if (p.pendingReallocation > 0 && p.status !== 'REVERSED') {
     <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
       <app-icon name="piggy-bank" />
