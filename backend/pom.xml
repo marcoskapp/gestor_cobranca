@@ -142,6 +142,16 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>cloudwatch</artifactId>
         </dependency>
+        <!-- assistente de IA: Amazon Bedrock (Converse API, modelos Claude) — issue #12 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>bedrockruntime</artifactId>
+        </dependency>
+        <!-- cliente HTTP síncrono com timeouts explícitos (já vinha transitivo em runtime) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache5-client</artifactId>
+        </dependency>
 
         <!-- Comunicação -->
         <dependency>

@@ -44,6 +44,9 @@ import java.util.UUID;
  * @param reviewSampleRate      fração dos turnos amostrada para revisão humana (0–1)
  * @param allowCreditBureauMention a resposta pode mencionar negativação (só se autorizada pelo credor)
  * @param pixInConversation     Pix gerado pelo assistente na conversa (padrão desligado; ver {@link PixInConversation})
+ * @param modelRouting          nível de modelo por chamada: {@code BY_STAGE} (padrão; avançado em negociação,
+ *                              proposta, aceite e Pix) ou {@code ADVANCED_ONLY} (avançado em tudo, piloto) — ver
+ *                              {@link ModelRouting}; ausente nas políticas gravadas antes da opção
  */
 public record PolicySettings(
         AssistantMode mode,
@@ -69,7 +72,8 @@ public record PolicySettings(
         Limits limits,
         BigDecimal reviewSampleRate,
         Boolean allowCreditBureauMention,
-        PixInConversation pixInConversation) {
+        PixInConversation pixInConversation,
+        ModelRouting modelRouting) {
 
     public static final int SCHEMA_VERSION = 1;
     public static final Set<String> SUPPORTED_CHANNELS = Set.of("WHATSAPP");
@@ -82,6 +86,12 @@ public record PolicySettings(
             + "continuará a conversa por aqui. Obrigado pela paciência.";
     public static final String DEFAULT_FALLBACK = "Desculpe, não consegui concluir sua solicitação. Um de nossos "
             + "atendentes vai continuar o atendimento por aqui.";
+    /**
+     * Tokens (entrada, inclusive lida do cache, + saída) por turno nas políticas novas. Uma chamada a um modelo
+     * real leva prompt + ferramentas + contexto + histórico (~3 a 4 mil tokens); um turno típico tem 3 a 5
+     * chamadas (intenção, simulação/proposta, resposta). As políticas já gravadas mantêm o valor gravado.
+     */
+    public static final int DEFAULT_MAX_TOKENS_PER_TURN = 24000;
     public static final String DEFAULT_APPROVAL = "Seu aceite foi registrado. Um de nossos atendentes vai confirmar a "
             + "formalização do acordo e enviar os próximos passos por aqui.";
 
@@ -98,7 +108,7 @@ public record PolicySettings(
 
     /**
      * @param maxOutputTokens        tokens de saída por chamada ao modelo
-     * @param maxTokensPerTurn       tokens (entrada + saída) somados no turno
+     * @param maxTokensPerTurn       tokens (entrada, inclusive lida/gravada no cache do provedor, + saída) somados no turno
      * @param maxToolCallsPerTurn    chamadas de ferramenta por turno
      * @param timeoutSeconds         tempo máximo de cada chamada ao modelo
      * @param maxCostPerConversation custo acumulado do modelo por conversa (moeda do provedor)
@@ -144,10 +154,25 @@ public record PolicySettings(
         }
     }
 
+    /** Parâmetros sem a escolha de nível de modelo ({@link ModelRouting#BY_STAGE} após {@link #normalized()}). */
+    public PolicySettings(AssistantMode mode, Set<String> channels, List<ServiceWindow> serviceHours,
+                          UUID authorityProfileId, String promptCode, Integer promptVersion, String tone, Integer maxTurns,
+                          Integer maxMisunderstandings, BigDecimal minConfidence, Boolean requireIdentityVerification,
+                          Integer maxIdentityAttempts, List<String> allowedTopics, List<String> forbiddenTopics,
+                          List<ExtraTrigger> extraTriggers, Map<String, String> requiredProfiles,
+                          String identificationMessage, String handoffMessage, String fallbackMessage,
+                          String approvalMessage, Limits limits, BigDecimal reviewSampleRate,
+                          Boolean allowCreditBureauMention, PixInConversation pixInConversation) {
+        this(mode, channels, serviceHours, authorityProfileId, promptCode, promptVersion, tone, maxTurns,
+                maxMisunderstandings, minConfidence, requireIdentityVerification, maxIdentityAttempts, allowedTopics,
+                forbiddenTopics, extraTriggers, requiredProfiles, identificationMessage, handoffMessage, fallbackMessage,
+                approvalMessage, limits, reviewSampleRate, allowCreditBureauMention, pixInConversation, null);
+    }
+
     /** Política mínima usada como modelo de cadastro. */
     public static PolicySettings defaults(AssistantMode mode) {
         return new PolicySettings(mode, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null).normalized();
+                null, null, null, null, null, null, null, null, null, null, null).normalized();
     }
 
     /** Cópia com os padrões aplicados e as regras de segurança validadas. */
@@ -216,7 +241,7 @@ public record PolicySettings(
         String approval = text(approvalMessage, DEFAULT_APPROVAL, "approval");
         Limits l = limits == null ? new Limits(null, null, null, null, null) : limits;
         Limits lim = new Limits(bounded(l.maxOutputTokens(), 600, 50, 4000, "max_output_tokens"),
-                bounded(l.maxTokensPerTurn(), 8000, 500, 64000, "max_tokens_per_turn"),
+                bounded(l.maxTokensPerTurn(), DEFAULT_MAX_TOKENS_PER_TURN, 500, 64000, "max_tokens_per_turn"),
                 bounded(l.maxToolCallsPerTurn(), 6, 1, 12, "max_tool_calls"),
                 bounded(l.timeoutSeconds(), 20, 2, 60, "timeout"),
                 l.maxCostPerConversation() == null ? new BigDecimal("1.00") : l.maxCostPerConversation());
@@ -236,7 +261,8 @@ public record PolicySettings(
         return new PolicySettings(mode, Set.copyOf(ch), List.copyOf(hours), authorityProfileId, prompt, pv, t, turns,
                 misunderstandings, confidence, identity, identityAttempts, allowed, forbidden, List.copyOf(extras),
                 Map.copyOf(profiles), identification, handoff, fallback, approval, lim, sample,
-                allowCreditBureauMention != null && allowCreditBureauMention, pix);
+                allowCreditBureauMention != null && allowCreditBureauMention, pix,
+                modelRouting == null ? ModelRouting.BY_STAGE : modelRouting);
     }
 
     /** Cópia com outro modo (mesmos parâmetros, normalizada). */
@@ -244,13 +270,18 @@ public record PolicySettings(
         return new PolicySettings(newMode, channels, serviceHours, authorityProfileId, promptCode, promptVersion, tone,
                 maxTurns, maxMisunderstandings, minConfidence, requireIdentityVerification, maxIdentityAttempts,
                 allowedTopics, forbiddenTopics, extraTriggers, requiredProfiles, identificationMessage, handoffMessage,
-                fallbackMessage, approvalMessage, limits, reviewSampleRate, allowCreditBureauMention, pixInConversation)
-                .normalized();
+                fallbackMessage, approvalMessage, limits, reviewSampleRate, allowCreditBureauMention, pixInConversation,
+                modelRouting).normalized();
     }
 
     /** Parâmetros do Pix na conversa (desligado quando a política foi gravada antes da opção). */
     public PixInConversation pix() {
         return pixInConversation == null ? PixInConversation.disabled() : pixInConversation;
+    }
+
+    /** Nível de modelo por chamada ({@code BY_STAGE} quando a política foi gravada antes da opção). */
+    public ModelRouting routing() {
+        return modelRouting == null ? ModelRouting.BY_STAGE : modelRouting;
     }
 
     /** Perfil exigido na fila para o motivo (política → padrão do motivo). */

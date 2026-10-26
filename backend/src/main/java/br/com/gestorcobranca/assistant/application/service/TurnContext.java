@@ -4,6 +4,7 @@ import br.com.gestorcobranca.assistant.application.port.out.PromptSource.PromptT
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
 import br.com.gestorcobranca.assistant.domain.model.AssistantSession;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
+import br.com.gestorcobranca.assistant.domain.model.ModelTier;
 import br.com.gestorcobranca.assistant.domain.model.PixRequest;
 import br.com.gestorcobranca.assistant.domain.model.SessionMemory;
 import br.com.gestorcobranca.assistant.domain.model.ToolCallOutcome;
@@ -60,8 +61,14 @@ final class TurnContext {
     String provider;
     String model;
     int modelCalls;
+    /** maior nível de modelo usado no turno (nulo sem chamada ao modelo) e chamadas no nível avançado */
+    ModelTier modelTier;
+    int advancedModelCalls;
+    /** tokens do prompt (com e sem cache) e de saída; os do cache também à parte */
     long inputTokens;
     long outputTokens;
+    long cacheReadTokens;
+    long cacheWriteTokens;
     BigDecimal cost = BigDecimal.ZERO;
     String costCurrency;
     long modelLatencyMs;
@@ -101,6 +108,13 @@ final class TurnContext {
 
     boolean hasPolicy() {
         return policy != null;
+    }
+
+    void countTier(ModelTier tier) {
+        modelTier = tier.max(modelTier);
+        if (tier == ModelTier.ADVANCED) {
+            advancedModelCalls++;
+        }
     }
 
     void end(TurnOutcome outcome, HandoffReason reason, TriggerSource source) {
