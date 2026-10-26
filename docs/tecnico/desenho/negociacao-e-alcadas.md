@@ -1,7 +1,7 @@
 # Desenho — módulo `negotiation` (políticas, cálculo, alçadas, propostas e acordos)
 
 Escopo: M06, F08, F09, F16, RB03, RB04, RB05. Schema `negotiation`, migrations V0700–V0799 (parte 1: V0700–V0749; parte 2: V0750–V0799).
-Dependências: `shared`, `organization`, `identity`, `debt`, `collection` (interfaces `usecases`).
+Dependências: `shared`, `organization`, `identity`, `debt`, `collection` (interfaces `usecases`). Declara a interface `spi` (`PaymentReviewHolds`), implementada pelo payment (ADR-0010).
 
 > **Estado (23/10/2026).** Parte 1 (§1–§4, simulação, `NegotiationGuard`, alçadas — decisões em §9) e parte 2 (propostas e aprovação §5, acordos, parcelas, quebra, renegociação, termo §6, atribuição, elegibilidade sobre o `collection`, LGPD — contratos e decisões em §10) implementadas.
 
@@ -195,7 +195,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 - Aplicação (consumidor, acordo bloqueado `FOR UPDATE`): valor indicado por parcela e, o excedente, às parcelas seguintes em ordem; acima do saldo do acordo → não aplicado. Acordo encerrado (quebrado, cancelado, renegociado, quitado) → registro `UNAPPLIED` (WARN + métrica): cabe ao payment realocar ou devolver.
 - Idempotência: `shared.consumed_event` + único (acordo, pagamento). Estorno sem acordo informado procura o pagamento em todos os acordos.
 
-- **Pagamento informado aguardando aprovação** (externo acima do limite, `INFORMED` no payment): o negotiation não o conhece — a parcela continua em aberto até a aprovação gerar o `PaymentConfirmed` e, se vencer, conta para a quebra. A tela do acordo mostra o aviso, a previsão das parcelas cobertas e os recusados recentes lendo `GET /payment/review-status/...` (payment, `AGREEMENT_VIEW`) — ver `pagamentos.md` §5.1 e decisões 430–438. O `AgreementView` não muda.
+- **Pagamento informado aguardando aprovação** (externo acima do limite, `INFORMED` no payment): a parcela continua em aberto até a aprovação gerar o `PaymentConfirmed`, mas **a quebra fica suspensa até a revisão**, por no máximo 7 dias (decisão do responsável de 26/10/2026, que substitui a 437 — §10.6.1). A tela do acordo mostra o aviso, a previsão das parcelas cobertas, os recusados recentes e a suspensão lendo `GET /payment/review-status/...` (payment, `AGREEMENT_VIEW`) — ver `pagamentos.md` §5.1–§5.2 e decisões 430–438 e 540–549. O `AgreementView` não muda.
 
 ### 10.5 Lançamentos no razão do título (`DebtLedgerPort`)
 
@@ -207,8 +207,36 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 
 ### 10.6 Quebra e renegociação
 
-- Job diário: parcelas vencidas → `OVERDUE` (`installment.overdue`); acordo com `overdueInstallments` parcelas não pagas vencidas há mais de `toleranceDays` dias → `BROKEN` (parcelas em aberto `CANCELLED`, títulos liberados). Atraso isolado dentro da tolerância não quebra.
+- Job diário: parcelas vencidas → `OVERDUE` (`installment.overdue`); acordo com `overdueInstallments` parcelas não pagas vencidas há mais de `toleranceDays` dias → `BROKEN` (parcelas em aberto `CANCELLED`, títulos liberados), **salvo** pagamento em revisão, carência após recusa ou pagamento confirmado em trânsito (§10.6.1). Atraso isolado dentro da tolerância não quebra.
 - Renegociação = proposta com `replacedAgreementId` (acordo em vigor ou quebrado, mesmo devedor e credor), composição recalculada do razão atual (pagamentos já abatidos). `renegotiationNumber` = posição na cadeia; acima de `maxRenegotiations` do perfil → violação de alçada `authority.renegotiations_exceeded` (aprovação de quem tem mais). Ganho incremental `máx(0, novo − (substituído − pago))` em `agreement.incremental_amount` e no `agreement.formalized`; o já recebido nunca é recontado (o `incentive` aplica a mesma regra a partir do `replacedAgreementId`).
+
+#### 10.6.1 Quebra suspensa por pagamento em revisão (decisão do responsável de 26/10/2026; decisões 540–549, ADR-0010)
+
+*"A quebra do acordo deve ser suspensa enquanto o pagamento do acordo estiver pendente de revisão."* O negotiation não depende do payment: ele **declara** a porta `application.port.spi.PaymentReviewHolds` (interface nomeada `spi`) e o payment a implementa. A porta é lida de forma síncrona, com o acordo bloqueado, e devolve os externos `INFORMED` com o acordo como destino, as alocações confirmadas ainda não baixadas aqui (em trânsito) e as revisões concluídas desde o início da suspensão.
+
+| Componente | Onde | Papel |
+| --- | --- | --- |
+| `BreakSuspension` (+ `BreakSuspensionStatus`, `BreakSuspensionEndReason`) | `domain.model.agreement` | uma suspensão: parcela que dispara a quebra, início, último dia (`suspendedUntil`), pendentes e valor no início, fim (motivo, instante, carência, pagamento revisado) |
+| `BreakHoldRules` | `domain.service` | regras puras: decisão sobre o acordo que atingiu a regra e encerramento da suspensão |
+| `BreakSuspensionService` | `application.service` | `AgreementBreakSuspensionUseCases` (`reconcile`, `latest`, `settings`) + avaliação no job; auditoria, log de negócio, métricas |
+| `PaymentReviewHolds` | `application.port.spi` | porta implementada pelo payment |
+| `agreement_break_suspension` | `V0753` | histórico; no máximo uma ativa por acordo (índice único parcial); sem `delete` |
+
+**No job diário** (`negotiation.daily`, antes da varredura): toda suspensão em vigor é conferida (`negotiation.break_suspension_review`). Na varredura, para o acordo que atingiu a regra (`BreakHoldRules.decide`, nesta ordem):
+
+1. suspensão em vigor → encerra se a revisão terminou (sem pendente: `APPROVED` se algum revisado foi aprovado, senão `REJECTED`), se o prazo venceu (`DEADLINE`) ou se o acordo não está mais em vigor (`AGREEMENT_ENDED`); se continua, **não quebra** (`HOLD_SUSPENDED`);
+2. alocação em trânsito (pagamento já confirmado, `PaymentConfirmed` em consumo) → não quebra nesta execução (`DEFER_IN_TRANSIT`);
+3. última suspensão recusada com carência em curso → não quebra (`HOLD_GRACE`);
+4. pagamento em revisão → **suspende** (`SUSPEND`), salvo se a parcela que dispara a quebra (a de menor número em atraso além da tolerância) já teve suspensão encerrada por recusa ou prazo (`BREAK_SUSPENSION_USED` → quebra);
+5. senão → quebra (`BREAK`).
+
+**Na revisão**: o payment chama `reconcile(agreementId)` na mesma transação da aprovação/recusa (encerra se não restar pendente). `reconcile` é idempotente e sem permissão própria: nunca começa suspensão nem quebra; só aplica o que a fonte determina.
+
+**Parâmetros** (`app.negotiation.break-suspension.*`): `max-days` (7; 1–60) — a quebra fica suspensa do dia de início até `início + max-days` (inclusive) e volta a valer no dia seguinte, mesmo com pagamento ainda em revisão (destaque na fila de revisão — `pagamentos.md` §5.2); novos pagamentos não estendem o prazo. `grace-days` (3; 0–30) — depois da recusa, a quebra só volta a valer após `dia da recusa + grace-days` (nunca contado antes do início da suspensão; 0 = próxima execução). Aprovado: sem carência.
+
+**Trilha e eventos**: auditoria `agreement.break_suspended` e `agreement.break_suspension_ended` no acordo; log de negócio `agreement.break_suspended`/`agreement.break_suspension_ended` (`logs-e-metricas.md` §3.4); métricas `negotiation.agreement.break_evaluations{outcome}`, `negotiation.agreement.break_suspensions{event,reason}`, `negotiation.agreement.break_suspension.days{reason}`; WARN técnico no fim pelo prazo.
+
+**Consulta**: `AgreementBreakSuspensionUseCases#latest(ids)` (`AGREEMENT_VIEW`, escopo por credor, até 200) — usada pelo payment nos resumos de revisão, na fila de revisão e em "Minhas pendências". Sem endpoint REST próprio.
 
 ### 10.7 Atribuição do acordo
 
@@ -224,6 +252,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 | `HandoffRequested` (contrato do `communication`, `shared.events.communication`) | proposta do assistente acima da alçada |
 | `AgreementPaymentRecorded` (**novo**, para o payment) | toda baixa de `PaymentConfirmed` com acordo: aplicado, não aplicado (acordo encerrado/excedente) ou ignorado (acordo desconhecido) |
 | consumidos: `PaymentConfirmed`, `PaymentReversed`, `DebtorAnonymized` (**novo**, publicado pelo debt na anonimização), `TenantProvisioned` | — |
+| porta `spi` (síncrona, não é evento): `PaymentReviewHolds`, implementada pelo payment | job de quebra e `reconcile` (§10.6.1) |
 
 ### 10.9 LGPD
 
@@ -270,6 +299,7 @@ Porta pública adicional (23/10/2026, para a prestação de contas — [prestaca
 | 18 | Remoção do PDF do termo na anonimização (hash mantido) | Manter o termo | O termo contém o nome; a anonimização só é aceita sem títulos em cobrança |
 | 19 | Lock consultivo por devedor na formalização + índice único parcial de títulos ativos + `@Version` na proposta | Só lock otimista | Formalizações concorrentes de propostas diferentes sobre os mesmos títulos |
 | 20 | Estorno de acordo quitado reabre `IN_PAYMENT`; pagamento total estornado mantém `IN_PAYMENT` | Voltar a `FORMALIZED` | Estados não regridem além do necessário; a parcela volta a aberta/vencida |
+| 21 | Quebra suspensa enquanto há pagamento externo do acordo em revisão, com prazo máximo (7 dias), carência após recusa (3 dias) e uso único por parcela (§10.6.1) | Quebra contando normalmente (decisão 437) | Decisão do responsável de 26/10/2026; decisões 540–549 |
 
 ### 10.12 Pendências
 

@@ -1,5 +1,5 @@
 import { render, setup, text } from '../../../../testing/component-harness';
-import { reviewItem } from '../../../../testing/payment-review-fixtures';
+import { breakSuspension, breakSuspensionInfo, reviewItem } from '../../../../testing/payment-review-fixtures';
 import { PaymentReviewAlert } from './payment-review-alert';
 
 const names = (url: string) => (url.endsWith('/users/display-names') ? [{ id: 'u-2', name: 'Carla Operadora' }, { id: 'u-3', name: 'Fábio Financeiro' }] : undefined);
@@ -76,6 +76,67 @@ describe('PaymentReviewAlert', () => {
     const links = [...(fixture.nativeElement as HTMLElement).querySelectorAll('a')].map((a) => a.getAttribute('href'));
     expect(links).toEqual(['/negociacao/acordos/a-1']);
     expect((fixture.nativeElement as HTMLElement).querySelector('.pra--compact')).not.toBeNull();
+    http.verify();
+  });
+
+  it('quebra suspensa até a revisão: mostra o prazo máximo e não diz mais que conta para a quebra', async () => {
+    const { http } = setup(PaymentReviewAlert, ['AGREEMENT_VIEW', 'CASE_VIEW']);
+    const fixture = await render(PaymentReviewAlert, http, names, {
+      pending: [reviewItem()],
+      breakSuspension: breakSuspensionInfo([breakSuspension()]),
+    });
+    const hint = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="pending-break-hint"]')!.textContent!.trim();
+    expect(hint).toBe('A parcela só é baixada depois da aprovação. Enquanto isso, a quebra do acordo fica suspensa até a revisão, no máximo até 02/11/2026.');
+    expect(text(fixture)).not.toContain('conta para a regra de quebra');
+    http.verify();
+  });
+
+  it('sem suspensão ainda: avisa que a quebra ficará suspensa por no máximo N dias; prazo vencido: a regra voltou a valer', async () => {
+    const { http } = setup(PaymentReviewAlert, ['AGREEMENT_VIEW', 'CASE_VIEW']);
+    const fixture = await render(PaymentReviewAlert, http, names, { pending: [reviewItem()], breakSuspension: breakSuspensionInfo() });
+    const hint = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="pending-break-hint"]')!.textContent!.trim();
+    expect(hint()).toContain('Se a regra de quebra for atingida antes disso, a quebra fica suspensa até a revisão, por no máximo 7 dias.');
+    // suspensão de outro acordo não conta
+    fixture.componentRef.setInput('breakSuspension', breakSuspensionInfo([breakSuspension({ agreementId: 'a-9' })]));
+    fixture.detectChanges();
+    expect(hint()).toContain('por no máximo 7 dias');
+    fixture.componentRef.setInput(
+      'breakSuspension',
+      breakSuspensionInfo([breakSuspension({ status: 'ENDED', endReason: 'DEADLINE', endedAt: '2026-11-03T03:20:00Z' })]),
+    );
+    fixture.detectChanges();
+    expect(hint()).toContain('O prazo máximo de suspensão da quebra terminou em 02/11/2026 e a regra de quebra voltou a valer.');
+    // resumo indisponível: só o essencial, sem prometer suspensão
+    fixture.componentRef.setInput('breakSuspension', null);
+    fixture.detectChanges();
+    expect(hint()).toBe('A parcela só é baixada depois da aprovação.');
+    http.verify();
+  });
+
+  it('compacto com suspensão em vigor e recusa com carência', async () => {
+    const { http } = setup(PaymentReviewAlert, ['AGREEMENT_VIEW', 'CASE_VIEW']);
+    const fixture = await render(PaymentReviewAlert, http, names, {
+      compact: true,
+      pending: [reviewItem()],
+      breakSuspension: breakSuspensionInfo([breakSuspension()]),
+    });
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="pending-break-hint"]')!.textContent!.trim()).toBe(
+      'Só baixa depois da aprovação. Quebra suspensa até a revisão (no máximo até 02/11/2026).',
+    );
+    fixture.componentRef.setInput('pending', []);
+    // mesmas pessoas já resolvidas (sem nova consulta de nomes)
+    fixture.componentRef.setInput('rejected', [reviewItem({ paymentId: 'pg-3', status: 'REJECTED', reviewedBy: 'u-2', reviewedAt: '2026-10-26T10:00:00Z' })]);
+    fixture.componentRef.setInput(
+      'breakSuspension',
+      breakSuspensionInfo([breakSuspension({ status: 'ENDED', endReason: 'REJECTED', endedAt: '2026-10-26T10:00:00Z', graceUntil: '2999-01-03' })]),
+    );
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="rejected-break-hint"]')!.textContent!.trim()).toBe(
+      'Nada foi baixado. A quebra, suspensa durante a revisão, volta a valer depois de 03/01/2999.',
+    );
+    fixture.componentRef.setInput('compact', false);
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('um novo pagamento informado não suspende a quebra outra vez pela mesma parcela');
     http.verify();
   });
 

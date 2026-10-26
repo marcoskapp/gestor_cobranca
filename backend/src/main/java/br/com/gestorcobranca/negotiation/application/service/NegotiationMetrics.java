@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
@@ -100,6 +101,27 @@ class NegotiationMetrics {
 
     void termRendered(Duration duration) {
         Timer.builder("negotiation.term.render.duration").register(registry).record(duration);
+    }
+
+    /**
+     * Avaliação de acordo que atingiu a regra de quebra: BREAK, BREAK_SUSPENSION_USED, SUSPEND,
+     * HOLD_SUSPENDED, HOLD_GRACE ou DEFER_IN_TRANSIT ({@code BreakHoldRules.Outcome}).
+     */
+    void breakEvaluated(String outcome) {
+        Counter.builder("negotiation.agreement.break_evaluations").tag("outcome", outcome).register(registry).increment();
+    }
+
+    void breakSuspensionStarted() {
+        Counter.builder("negotiation.agreement.break_suspensions").tag("event", "STARTED").tag("reason", "NONE")
+                .register(registry).increment();
+    }
+
+    /** @param reason APPROVED, REJECTED, DEADLINE ou AGREEMENT_ENDED; {@code days} = dias corridos suspensa */
+    void breakSuspensionEnded(String reason, long days) {
+        Counter.builder("negotiation.agreement.break_suspensions").tag("event", "ENDED").tag("reason", reason)
+                .register(registry).increment();
+        DistributionSummary.builder("negotiation.agreement.break_suspension.days").baseUnit("days").tag("reason", reason)
+                .register(registry).record(days);
     }
 
     void installmentOverdue() {

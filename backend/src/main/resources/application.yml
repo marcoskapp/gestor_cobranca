@@ -326,6 +326,13 @@ app:
       reconnect-delay: PT5S
       revalidation: PT1M
 
+  negotiation:
+    # Quebra suspensa enquanto há pagamento externo do acordo em revisão (decisões 540–549, ADR-0010).
+    break-suspension:
+      # prazo máximo, em dias corridos a partir do início; depois dele a quebra volta a valer
+      max-days: 7
+      # carência depois da recusa, em dias corridos a partir do dia da recusa (0 = próxima execução do job)
+      grace-days: 3
   payment:
     # padrões da assessoria enquanto ela não grava os seus (PUT /api/v1/payment/settings)
     defaults:

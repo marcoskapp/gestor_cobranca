@@ -3,6 +3,8 @@
  * `payment.web`). Valores monetários chegam como número (BigDecimal serializado) e saem como
  * número com duas casas.
  */
+import type { BreakSuspensionView } from './review-status';
+
 
 export type Amount = number;
 
@@ -213,6 +215,8 @@ export interface PaymentView {
   reversal: ReversalView | null;
   /** Destino solicitado do pagamento externo (nulo nos integrados). */
   requestedTarget: RequestedTargetView | null;
+  /** Em revisão com acordo de destino: suspensão da quebra mais recente do acordo (fila e detalhe). */
+  breakSuspension?: BreakSuspensionView | null;
   version: number;
 }
 

@@ -34,17 +34,19 @@ class NegotiationMaintenance {
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final NegotiationMetrics metrics;
+    private final BreakSuspensionService breakSuspensions;
     private final Clock clock;
 
     NegotiationMaintenance(ProposalRepository proposals, AgreementRepository agreements, AgreementRecorder recorder,
                            AuditTrail auditTrail, BusinessEventLogger businessEvents, NegotiationMetrics metrics,
-                           Clock clock) {
+                           BreakSuspensionService breakSuspensions, Clock clock) {
         this.proposals = proposals;
         this.agreements = agreements;
         this.recorder = recorder;
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
+        this.breakSuspensions = breakSuspensions;
         this.clock = clock;
     }
 
@@ -76,8 +78,29 @@ class NegotiationMaintenance {
     }
 
     /**
+     * Confere um lote de suspensões da quebra em vigor (acordos com id após {@code afterId}): encerra as
+     * que tiveram a revisão concluída, o prazo vencido ou o acordo encerrado — inclusive de acordos que não
+     * entram na varredura de parcelas vencidas. Devolve o último id do lote (nulo = fim).
+     */
+    UUID reconcileBreakSuspensions(UUID afterId) {
+        return reconcileBreakSuspensions(afterId, today());
+    }
+
+    /** @param today dia de referência no fuso de operação (testes simulam dias futuros) */
+    UUID reconcileBreakSuspensions(UUID afterId, LocalDate today) {
+        Instant now = Instant.now(clock);
+        List<UUID> ids = breakSuspensions.activeAgreementIds(afterId, BATCH);
+        for (UUID id : ids) {
+            agreements.findByIdForUpdate(id).ifPresent(a -> breakSuspensions.reconcileLocked(a, today, now));
+        }
+        return ids.size() < BATCH ? null : ids.getLast();
+    }
+
+    /**
      * Varre um lote de acordos em vigor com parcela vencida (ids após {@code afterId}): marca as
-     * parcelas em atraso e quebra os que atingiram a regra. Devolve o último id do lote (nulo = fim).
+     * parcelas em atraso e quebra os que atingiram a regra — salvo pagamento em revisão (suspensão),
+     * carência após recusa ou pagamento confirmado em trânsito ({@link BreakSuspensionService#evaluate}).
+     * Devolve o último id do lote (nulo = fim).
      */
     UUID sweepAgreements(UUID afterId) {
         return sweepAgreements(afterId, today());
@@ -94,7 +117,7 @@ class NegotiationMaintenance {
             }
             List<Agreement.InstallmentChange> overdue = a.refreshInstallments(today);
             Agreement.Ending ending = null;
-            if (a.breakRuleMet(today)) {
+            if (a.breakRuleMet(today) && breakSuspensions.evaluate(a, today, now).allowsBreak()) {
                 ending = a.breakAgreement("Regra de quebra: " + a.overdueBeyondTolerance(today) + " parcela(s) em atraso há"
                         + " mais de " + a.getBreakToleranceDays() + " dia(s)", today, now);
             }

@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
-import { reviewItem } from '../../../../testing/payment-review-fixtures';
+import { breakSuspensionInfo, reviewItem } from '../../../../testing/payment-review-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
@@ -221,6 +221,7 @@ describe('CollectionStation', () => {
       pending: [reviewItem()],
       rejected: [reviewItem({ paymentId: 'pg-3', status: 'REJECTED', reviewedBy: 'u-2', reviewedAt: '2026-10-26T10:00:00Z', reasonRestricted: true })],
       rejectedSince: '2026-09-26T00:00:00Z',
+      breakSuspension: breakSuspensionInfo(),
     };
     const fixture = await render('k-1');
     // o aviso resolve os nomes de quem informou/recusou depois de receber a situação
@@ -235,6 +236,7 @@ describe('CollectionStation', () => {
     expect(t).toContain('Pagamento de R$ 1.350,00 informado em 25/10/2026');
     expect(t).toContain('aguardando aprovação de outra pessoa');
     expect(t).toContain('Só baixa depois da aprovação.');
+    expect(t).toContain('Se a regra de quebra for atingida, a quebra fica suspensa até a revisão (no máximo 7 dias).');
     expect(t).toContain('foi recusado em 26/10/2026');
     expect(alert.querySelector('.pra--compact')).not.toBeNull();
     expect(alert.querySelector('a[href="/negociacao/acordos/a-1"]')).not.toBeNull();

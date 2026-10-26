@@ -62,7 +62,7 @@ shared ◄── organization ◄── identity
               │       ▲
               ├── negotiation        (→ collection, debt, organization, identity)
               │       ▲
-              ├── payment            (→ negotiation, debt, organization)
+              ├── payment            (→ negotiation [usecases e spi, ADR-0010], debt, organization)
               │       ▲
               ├── settlement         (→ payment, negotiation, organization)
               ├── communication      (→ collection, debt, compliance, organization)
@@ -80,6 +80,8 @@ shared ◄── organization ◄── identity
 
 Todo módulo pode depender de `shared`. A dependência é declarada em `package-info.java` com `@ApplicationModule(allowedDependencies = …)` e verificada por teste (`ModularityTest`).
 
+**Portas declaradas pelo dono da regra** (`<modulo> :: spi`, ADR-0010): quando um módulo precisa, *de forma síncrona*, de um dado que só um módulo acima dele no grafo tem, ele declara a porta em `application.port.spi` (`@NamedInterface("spi")`) e esse módulo — que já depende dele — a implementa. Exemplo: `negotiation.application.port.spi.PaymentReviewHolds`, implementada pelo payment, para suspender a quebra do acordo enquanto há pagamento em revisão.
+
 **Reações no sentido contrário ao grafo** (ex.: `collection` precisa saber que um pagamento foi confirmado) acontecem **somente** por *eventos de integração* definidos em `shared.events` (linguagem publicada). Nunca se cria dependência cíclica para isso.
 
 ### 2.2 Interface pública de um módulo
@@ -87,6 +89,7 @@ Todo módulo pode depender de `shared`. A dependência é declarada em `package-
 Outro módulo só pode usar:
 
 * `<modulo>.application.port.in` — casos de uso (interfaces) e seus DTOs de entrada/saída (records). Marcado com `@NamedInterface("usecases")`.
+* `<modulo>.application.port.spi` — portas que o módulo declara para outro implementar (ADR-0010). Marcado com `@NamedInterface("spi")`; só para módulos que já podem depender dele.
 * Nada mais. Entidades, repositórios e controladores são internos.
 
 ## 3. Camadas dentro de um módulo (arquitetura hexagonal)
@@ -101,6 +104,7 @@ br.com.gestorcobranca.<modulo>
 ├── application/                      orquestração de casos de uso, transações, autorização
 │   ├── port/in/                      interfaces de casos de uso + commands/queries/results (PÚBLICO)
 │   ├── port/out/                     portas para infraestrutura externa (provedores, storage…)
+│   ├── port/spi/                     portas que outro módulo implementa (opcional, ADR-0010)
 │   ├── service/                      implementações dos casos de uso (@Service, @Transactional)
 │   └── listener/                     consumidores de eventos de integração
 ├── infrastructure/                   adaptadores de saída
