@@ -87,8 +87,11 @@
             <p class="re-sub">Faixas (a primeira começa em R$ 0,00)</p>
             @for (tier of t.tiers; track $index; let i = $index) {
               <div class="re-row">
-                <app-field [label]="'A partir de (R$) — faixa ' + (i + 1)">
-                  <input appInput type="number" min="0" step="0.01" [(ngModel)]="tier.fromAmount" (ngModelChange)="touch()" />
+                <app-field [label]="'A partir de — faixa ' + (i + 1)">
+                  <div class="input-group">
+                    <span class="input-group-text" aria-hidden="true">R$</span>
+                    <input appInput appMoney [(ngModel)]="tier.fromAmount" (ngModelChange)="touch()" />
+                  </div>
                 </app-field>
                 <app-field [label]="'Taxa (%) — faixa ' + (i + 1)">
                   <input appInput type="number" min="0" max="100" step="0.01" [(ngModel)]="tier.ratePercent" (ngModelChange)="touch()" />
@@ -119,8 +122,11 @@
       </div>
       @if (r.fixedPerAgreement; as f) {
         <div class="re-row">
-          <app-field label="Valor por acordo (R$)">
-            <input appInput type="number" min="0.01" step="0.01" [(ngModel)]="f.amount" (ngModelChange)="touch()" />
+          <app-field label="Valor por acordo">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney [min]="0.01" [(ngModel)]="f.amount" (ngModelChange)="touch()" />
+            </div>
           </app-field>
         </div>
       }
@@ -148,9 +154,19 @@
               }
             </select>
           </app-field>
-          <app-field label="Meta padrão" hint="Vazio = só quem tiver meta cadastrada no período">
-            <input appInput type="number" min="0" step="0.01" [(ngModel)]="g.defaultTarget" (ngModelChange)="touch()" />
-          </app-field>
+          @if (g.metric === 'RECOVERED') {
+            <app-field label="Meta padrão" hint="Vazio = só quem tiver meta cadastrada no período">
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">R$</span>
+                <input appInput appMoney [(ngModel)]="g.defaultTarget" (ngModelChange)="touch()" />
+              </div>
+            </app-field>
+          } @else {
+            <app-field label="Meta padrão" hint="Vazio = só quem tiver meta cadastrada no período">
+              <!-- not-money: nas demais métricas a meta não é em reais (taxa, recuperado × esperado) -->
+              <input appInput type="number" min="0" step="0.01" [(ngModel)]="g.defaultTarget" (ngModelChange)="touch()" />
+            </app-field>
+          }
           <app-field label="Gatilho (% da meta)">
             <input appInput type="number" min="0" max="1000" step="1" [(ngModel)]="g.triggerPercent" (ngModelChange)="touch()" />
           </app-field>
@@ -326,8 +342,11 @@
     <section class="app-card" aria-labelledby="re-limits">
       <h2 class="app-card__title" id="re-limits">Limites e carência</h2>
       <div class="re-row">
-        <app-field label="Teto por período (R$)" hint="Vazio = sem teto; não há piso">
-          <input appInput type="number" min="0.01" step="0.01" [(ngModel)]="r.limits.periodCap" (ngModelChange)="touch()" />
+        <app-field label="Teto por período" hint="Vazio = sem teto; não há piso">
+          <div class="input-group">
+            <span class="input-group-text" aria-hidden="true">R$</span>
+            <input appInput appMoney [min]="0.01" [(ngModel)]="r.limits.periodCap" (ngModelChange)="touch()" />
+          </div>
         </app-field>
         <app-field label="Carência (dias úteis)" hint="Após a confirmação do pagamento">
           <input appInput type="number" min="0" max="60" step="1" [(ngModel)]="r.clearing.graceBusinessDays" (ngModelChange)="touch()" />

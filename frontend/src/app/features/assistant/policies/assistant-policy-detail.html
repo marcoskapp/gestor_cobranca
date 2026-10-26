@@ -274,8 +274,8 @@
             <app-field label="Tempo por chamada ao modelo (s)">
               <input appInput type="number" [ngModel]="d.limits?.timeoutSeconds" (ngModelChange)="setLimit('timeoutSeconds', $event)" [readonly]="!editable()" />
             </app-field>
-            <app-field label="Custo máximo por conversa" hint="Moeda do provedor">
-              <input appInput inputmode="decimal" [ngModel]="d.limits?.maxCostPerConversation" (ngModelChange)="setLimit('maxCostPerConversation', $event)" [readonly]="!editable()" />
+            <app-field label="Custo máximo por conversa" hint="Na moeda do provedor do modelo, com até 4 casas">
+              <input appInput appMoney [decimals]="4" [currency]="null" [ngModel]="d.limits?.maxCostPerConversation" (ngModelChange)="setLimit('maxCostPerConversation', $event)" [readonly]="!editable()" />
             </app-field>
             <app-field label="Turnos revisados por amostra (%)" hint="Guardrail e falha: sempre revisados">
               <input appInput inputmode="decimal" [ngModel]="percentOf(d.reviewSampleRate)" (ngModelChange)="setFraction('reviewSampleRate', $event)" [readonly]="!editable()" />
@@ -294,8 +294,11 @@
               <div class="form-check"><input class="form-check-input" type="checkbox" id="ap-check-4" [ngModel]="d.pixInConversation?.enabled ?? false" (ngModelChange)="setPixEnabled($event)" [disabled]="!editable()" /><label class="form-check-label" for="ap-check-4">Permitir que o assistente gere o Pix na conversa</label></div>
             </div>
             @if (d.pixInConversation?.enabled && d.pixInConversation; as pix) {
-              <app-field label="Valor máximo por Pix (R$)" hint="Padrão R$ 5.000,00; acima disso um atendente gera">
-                <input appInput inputmode="decimal" [ngModel]="pix.maxAmount" (ngModelChange)="setPix('maxAmount', $event)" [readonly]="!editable()" placeholder="5000,00" />
+              <app-field label="Valor máximo por Pix" hint="Padrão R$ 5.000,00; acima disso um atendente gera">
+                <div class="input-group">
+                  <span class="input-group-text" aria-hidden="true">R$</span>
+                  <input appInput appMoney [ngModel]="pix.maxAmount" (ngModelChange)="setPix('maxAmount', $event)" [readonly]="!editable()" />
+                </div>
               </app-field>
               <app-field label="Pix por conversa no dia">
                 <input appInput type="number" [ngModel]="pix.maxPerConversationPerDay" (ngModelChange)="setPix('maxPerConversationPerDay', $event)" [readonly]="!editable()" placeholder="3" />

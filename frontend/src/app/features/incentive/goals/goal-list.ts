@@ -69,6 +69,7 @@ export interface GoalDialogData {
           }
         }
         <app-field label="Meta" hint="R$ ou %, conforme a métrica do plano" error="Informe um número positivo.">
+          <!-- not-money: a mesma meta vale R$ ou %, conforme a métrica de cada plano (não conhecida aqui) -->
           <input appInput ngbAutofocus formControlName="target" inputmode="decimal" autocomplete="off" />
         </app-field>
         @if (error()) {
