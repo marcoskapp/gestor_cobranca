@@ -274,6 +274,12 @@
             <app-field label="Tempo por chamada ao modelo (s)">
               <input appInput type="number" [ngModel]="d.limits?.timeoutSeconds" (ngModelChange)="setLimit('timeoutSeconds', $event)" [readonly]="!editable()" />
             </app-field>
+            <app-field label="Modelo de IA" hint="Avançado: mais preciso e mais caro">
+              <select appInput [ngModel]="d.modelRouting ?? 'BY_STAGE'" (ngModelChange)="set('modelRouting', $event)" [disabled]="!editable()">
+                <option value="BY_STAGE">Por etapa: avançado só em negociação, proposta, aceite e Pix</option>
+                <option value="ADVANCED_ONLY">Avançado em todas as mensagens (recomendado no piloto)</option>
+              </select>
+            </app-field>
             <app-field label="Custo máximo por conversa" hint="Na moeda do provedor do modelo, com até 4 casas">
               <input appInput appMoney [decimals]="4" [currency]="null" [ngModel]="d.limits?.maxCostPerConversation" (ngModelChange)="setLimit('maxCostPerConversation', $event)" [readonly]="!editable()" />
             </app-field>

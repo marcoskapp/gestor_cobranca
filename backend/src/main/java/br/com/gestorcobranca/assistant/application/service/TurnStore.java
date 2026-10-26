@@ -177,6 +177,10 @@ class TurnStore {
                 .attr("identity", ctx.session.getIdentityStatus())
                 .attr("inputTokens", ctx.inputTokens)
                 .attr("outputTokens", ctx.outputTokens)
+                .attr("cacheReadTokens", ctx.cacheReadTokens)
+                .attr("cacheWriteTokens", ctx.cacheWriteTokens)
+                .attr("modelTier", ctx.modelTier)
+                .attr("advancedModelCalls", ctx.advancedModelCalls)
                 .attr("cost", ctx.cost == null ? BigDecimal.ZERO : ctx.cost)
                 .attr("costCurrency", ctx.costCurrency);
         if (ctx.handoffReason != null) {

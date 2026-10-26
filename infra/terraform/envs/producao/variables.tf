@@ -305,6 +305,41 @@ variable "jvm_max_ram_percentage" {
   default     = 60
 }
 
+# --- Assistente de IA: Amazon Bedrock (aprovado — issue #12) ---------------------------------
+# Padrão conservador: desligado; ao ligar, endpoint us-east-1 com perfis geográficos us.* (o modelo
+# processa só em regiões dos EUA). sa-east-1 só oferece o perfil global.* (qualquer região comercial).
+# [revisar] A transferência internacional (LGPD art. 33) é decisão do responsável.
+
+variable "assistant_bedrock_enabled" {
+  description = "Liga o provedor Amazon Bedrock do assistente (permissão IAM mínima e app.assistant.bedrock.enabled)."
+  type        = bool
+  default     = false
+}
+
+variable "bedrock_region" {
+  description = "Região do endpoint bedrock-runtime (us-east-1 com perfis us.*; ou sa-east-1 com perfis global.*)."
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "bedrock_standard_model_id" {
+  description = "Perfil de inferência/modelo do nível STANDARD (Claude Haiku 5.5)."
+  type        = string
+  default     = "us.anthropic.claude-haiku-5-5"
+}
+
+variable "bedrock_advanced_model_id" {
+  description = "Perfil de inferência/modelo do nível ADVANCED (Claude Sonnet 5.5)."
+  type        = string
+  default     = "us.anthropic.claude-sonnet-5-5"
+}
+
+variable "bedrock_international_transfer_approved" {
+  description = "Aprovação do responsável para a transferência internacional dos dados do turno (LGPD art. 33) à região/perfil configurados."
+  type        = bool
+  default     = false
+}
+
 # --- Observabilidade ---------------------------------------------------------------------------
 
 variable "enable_sns_notifications" {

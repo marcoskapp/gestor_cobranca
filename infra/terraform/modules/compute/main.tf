@@ -69,6 +69,12 @@ locals {
     GC_MIGRATION_TIMEOUT_SECONDS = tostring(var.migration_timeout_seconds)
     GC_DB_MASTER_USERNAME        = var.db_master_username
     GC_DB_MASTER_SECRET_ARN      = var.db_master_secret_arn
+    # assistente de IA: Amazon Bedrock (credenciais pelo papel da instância; preços no application.yml)
+    GC_BEDROCK_ENABLED                         = tostring(var.assistant_bedrock_enabled)
+    GC_BEDROCK_REGION                          = var.bedrock_region
+    GC_BEDROCK_STANDARD_MODEL_ID               = var.bedrock_standard_model_id
+    GC_BEDROCK_ADVANCED_MODEL_ID               = var.bedrock_advanced_model_id
+    GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED = tostring(var.bedrock_international_transfer_approved)
   }
 
   user_data = templatefile("${path.module}/templates/launcher.sh.tftpl", {

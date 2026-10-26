@@ -25,6 +25,7 @@ import br.com.gestorcobranca.assistant.domain.service.HandoffDetector.Detection;
 import br.com.gestorcobranca.assistant.domain.service.HandoffDetector;
 import br.com.gestorcobranca.assistant.domain.service.IdentityChallenge;
 import br.com.gestorcobranca.assistant.domain.service.ModelContext;
+import br.com.gestorcobranca.assistant.domain.service.ModelTierSelector;
 import br.com.gestorcobranca.assistant.domain.service.PersonalDataRedactor;
 import br.com.gestorcobranca.assistant.domain.service.ResponseGuard;
 import br.com.gestorcobranca.assistant.domain.service.ServiceHours;
@@ -67,7 +68,8 @@ import java.util.UUID;
  *   <li>limites (turnos, custo), gatilhos determinísticos de transferência e opt-out, confirmação de
  *       identidade — tudo antes do modelo;</li>
  *   <li>conversa com o modelo pela {@link LanguageModelPort} com contexto minimizado e as ferramentas do
- *       {@link AssistantToolbox} (validação no servidor);</li>
+ *       {@link AssistantToolbox} (validação no servidor); o nível de modelo de cada chamada vem da política e da
+ *       etapa ({@link ModelTierSelector}: negociação, proposta, aceite e Pix no nível avançado);</li>
  *   <li>guardrails de saída e envio pelo communication (porteiro de contato), ou rascunho;</li>
  *   <li>registro append-only do turno ({@link TurnStore}).</li>
  * </ol>
@@ -425,7 +427,7 @@ class TurnOrchestrator {
         LanguageModelPort model = models.getIfAvailable();
         if (model == null) {
             throw new LanguageModelPort.ModelUnavailableException(
-                    "Nenhum provedor de IA configurado (escolha pendente — issue #12)", null);
+                    "Nenhum provedor de IA configurado (app.assistant.provider)", null);
         }
         PolicySettings s = ctx.policy.settings();
         PolicySettings.Limits limits = s.limits();
@@ -442,9 +444,12 @@ class TurnOrchestrator {
                     ctx.caseStage, ctx.conversation.channel(), today, ctx.mode.drafts());
             ctx.lastContext = codec.toJson(context);
             ctx.lastContextHash = AssistantCodec.sha256(ctx.lastContext);
+            // nível pela política e pela etapa: a intenção registrada nesta rodada já vale para a próxima chamada
+            ModelTierSelector.Selection tier = ModelTierSelector.select(s, ctx.intent, ctx.memory);
+            metrics.modelRouting(tier.tier().name(), tier.reason().name());
             ModelRequest request = new ModelRequest(ctx.prompt.text(), ctx.lastContext, conversation,
                     toolbox.available(ctx), limits.maxOutputTokens(), Duration.ofSeconds(limits.timeoutSeconds()),
-                    Map.of("turn", ctx.token.toString(), "tenant", ctx.tenantId.toString()));
+                    Map.of("turn", ctx.token.toString(), "tenant", ctx.tenantId.toString()), tier.tier());
             ModelResponse response = call(ctx, model, request);
             if (!response.toolCalls().isEmpty()) {
                 conversation.add(ModelMessage.assistant(response.text(), response.toolCalls()));
@@ -476,12 +481,18 @@ class TurnOrchestrator {
             Duration latency = response.latency() != null ? response.latency()
                     : Duration.ofNanos(System.nanoTime() - started);
             ctx.modelCalls++;
+            ctx.countTier(request.tier());
             ctx.modelLatencyMs += latency.toMillis();
             ctx.model = response.model();
             if (response.usage() != null) {
-                ctx.inputTokens += response.usage().inputTokens();
-                ctx.outputTokens += response.usage().outputTokens();
-                metrics.tokens(model.provider(), response.usage().inputTokens(), response.usage().outputTokens());
+                LanguageModelPort.Usage usage = response.usage();
+                // entrada do turno = prompt inteiro (com e sem cache): limite por turno e trilha
+                ctx.inputTokens += usage.promptTokens();
+                ctx.outputTokens += usage.outputTokens();
+                ctx.cacheReadTokens += usage.cacheReadInputTokens();
+                ctx.cacheWriteTokens += usage.cacheWriteInputTokens();
+                metrics.tokens(model.provider(), usage.inputTokens(), usage.outputTokens(), usage.cacheReadInputTokens(),
+                        usage.cacheWriteInputTokens());
             }
             if (response.cost() != null && response.cost().amount() != null) {
                 ctx.cost = ctx.cost.add(response.cost().amount());
@@ -492,6 +503,7 @@ class TurnOrchestrator {
             return response;
         } catch (ModelException e) {
             ctx.modelCalls++;
+            ctx.countTier(request.tier());
             metrics.modelCall(model.provider(), e.code(), Duration.ofNanos(System.nanoTime() - started));
             throw e;
         }
