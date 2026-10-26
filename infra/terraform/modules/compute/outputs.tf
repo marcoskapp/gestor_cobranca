@@ -55,5 +55,5 @@ output "bedrock_invoke_resources" {
 
 output "bedrock_denies_global_routing" {
   description = "O papel nega o roteamento global do Bedrock (nenhum perfil global.* configurado)."
-  value       = var.assistant_bedrock_enabled && !local.bedrock_uses_global
+  value       = local.bedrock_enabled && !local.bedrock_uses_global
 }
