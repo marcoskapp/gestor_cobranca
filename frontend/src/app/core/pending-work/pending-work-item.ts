@@ -15,17 +15,19 @@ import { PendingWorkItem } from './pending-work.models';
     <span class="pwi__count" [class]="'pwi__count--' + tone()" aria-hidden="true">{{ count() }}</span>
     <span class="pwi__text">
       <span class="pwi__label"><span class="visually-hidden">{{ item().count }} — </span>{{ item().label }}</span>
-      <span class="pwi__meta">{{ meta() }}</span>
+      <span class="pwi__meta">
+        @if (severity(); as s) {
+          <span [class]="flagClasses()">
+            <app-icon [name]="item().severity === 'OVERDUE' ? 'exclamation-triangle' : 'clock'" />
+            {{ s }}
+          </span>
+        }
+        {{ meta() }}
+      </span>
       @if (showHint() && item().hint) {
         <span class="pwi__hint">{{ item().hint }}</span>
       }
     </span>
-    @if (severity(); as s) {
-      <span class="pwi__flag badge rounded-pill border" [class]="flagClasses()">
-        <app-icon [name]="item().severity === 'OVERDUE' ? 'exclamation-triangle' : 'clock'" />
-        {{ s }}
-      </span>
-    }
   `,
   styles: `
     :host {
@@ -76,18 +78,11 @@ import { PendingWorkItem } from './pending-work.models';
     }
     .pwi__flag {
       display: inline-flex;
-      flex: none;
       align-items: center;
       gap: 4px;
+      margin-right: 6px;
       font-weight: var(--bs-body-font-weight);
-    }
-    @media (max-width: 599.98px) {
-      :host {
-        flex-wrap: wrap;
-      }
-      .pwi__flag {
-        margin-left: 52px;
-      }
+      vertical-align: text-bottom;
     }
   `,
 })

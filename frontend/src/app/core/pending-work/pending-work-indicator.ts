@@ -18,7 +18,7 @@ export const INDICATOR_MAX_ITEMS = 6;
   selector: 'app-pending-work-indicator',
   imports: [NgbDropdownModule, NgbTooltip, RouterLink, Icon, PendingWorkItemView],
   template: `
-    <div ngbDropdown placement="bottom-end" class="d-inline-flex" (openChange)="$event && store.refreshIfStale()">
+    <div ngbDropdown #menu="ngbDropdown" placement="bottom-end" class="d-inline-flex" (openChange)="$event && store.refreshIfStale()">
       <button
         type="button"
         ngbDropdownToggle
@@ -26,6 +26,7 @@ export const INDICATOR_MAX_ITEMS = 6;
         data-tour="pending-work"
         [attr.aria-label]="label()"
         ngbTooltip="Suas pendências"
+        [disableTooltip]="menu.isOpen()"
       >
         <app-icon name="inbox" />
         @if (total() > 0) {
