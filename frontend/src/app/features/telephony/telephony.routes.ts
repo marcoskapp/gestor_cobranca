@@ -10,6 +10,7 @@ export const TELEPHONY_PERMISSIONS = {
   campaigns: [Permission.TELEPHONY_SUPERVISE],
   calls: [Permission.TELEPHONY_SUPERVISE],
   agents: [Permission.TELEPHONY_SUPERVISE],
+  accounts: [Permission.TELEPHONY_MANAGE],
 } as const;
 
 /** `/telefonia`: rotas fixas antes de `:id`. */
@@ -42,5 +43,12 @@ export const TELEPHONY_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: TELEPHONY_PERMISSIONS.agents },
     loadComponent: () => import('./agents/agent-list').then((m) => m.AgentList),
+  },
+  {
+    path: 'plataformas',
+    title: 'Plataformas de telefonia',
+    canActivate: [permissionGuard],
+    data: { permissions: TELEPHONY_PERMISSIONS.accounts },
+    loadComponent: () => import('./accounts/telephony-accounts').then((m) => m.TelephonyAccounts),
   },
 ];

@@ -17,6 +17,7 @@ import { ContactDenialReason } from '../../collection/data/collection.models';
 import { TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
 import { CallView } from '../data/telephony.models';
 import { isDenied } from '../data/telephony.rules';
+import { SOFTPHONE } from './softphone';
 import { TelephonySession } from './telephony-session';
 
 export interface CallDialogData {
@@ -72,6 +73,7 @@ const STATE_ICON: Record<AvailabilityState['kind'], IconName> = {
         </div>
       }
       <p class="app-dialog-message">Escolha o telefone. A decisão do sistema considera restrições, horário, feriados e limites de tentativa.</p>
+      <p class="app-muted small d-flex gap-2"><app-icon name="headset" /><span>{{ softphone.instructions }}</span></p>
       @if (gate.isLoading()) {
         <p class="app-muted" role="status">Consultando o porteiro de contato…</p>
       }
@@ -143,6 +145,7 @@ export class CallDialog {
   private readonly ref = inject<DialogRef<CallView>>(DialogRef);
   private readonly cases = inject(CasesApi);
   protected readonly session = inject(TelephonySession);
+  protected readonly softphone = inject(SOFTPHONE);
   protected readonly labels = CONTACT_LABEL_LABELS;
   protected readonly stateClass = STATE_CLASS;
   protected readonly stateIcon = STATE_ICON;
