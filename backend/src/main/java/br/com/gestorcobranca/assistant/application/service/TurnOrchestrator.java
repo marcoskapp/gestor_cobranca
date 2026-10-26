@@ -2,11 +2,11 @@ package br.com.gestorcobranca.assistant.application.service;
 
 import br.com.gestorcobranca.assistant.application.AssistantProperties;
 import br.com.gestorcobranca.assistant.application.port.out.ConversationLocks;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelException;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelMessage;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelRequest;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelResponse;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolCall;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelException;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelMessage;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelRequest;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelResponse;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolCall;
 import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort;
 import br.com.gestorcobranca.assistant.application.service.AssistantToolbox.Terminal;
 import br.com.gestorcobranca.assistant.application.service.AssistantToolbox.ToolOutcome;

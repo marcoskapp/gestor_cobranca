@@ -75,6 +75,12 @@ locals {
     GC_BEDROCK_STANDARD_MODEL_ID               = var.bedrock_standard_model_id
     GC_BEDROCK_ADVANCED_MODEL_ID               = var.bedrock_advanced_model_id
     GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED = tostring(var.bedrock_international_transfer_approved)
+    # chat de suporte (módulo helpdesk): mesmo endpoint e mesma aprovação de transferência do assistente
+    GC_HELPDESK_BEDROCK_ENABLED          = tostring(var.helpdesk_bedrock_enabled)
+    GC_HELPDESK_BEDROCK_MODEL_ID         = var.helpdesk_bedrock_model_id
+    GC_HELPDESK_TICKETS_ENABLED          = tostring(var.helpdesk_tickets_enabled)
+    GC_HELPDESK_GITHUB_REPOSITORY        = var.helpdesk_github_repository
+    GC_HELPDESK_GITHUB_REQUIRE_PRIVATE   = tostring(var.helpdesk_github_require_private_repository)
   }
 
   user_data = templatefile("${path.module}/templates/launcher.sh.tftpl", {

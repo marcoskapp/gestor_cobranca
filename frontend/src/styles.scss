@@ -416,3 +416,8 @@ body {
 .app-manual-panel {
   --bs-offcanvas-width: min(480px, 100vw);
 }
+
+// chat de suporte (NgbOffcanvas): mesma largura do painel de ajuda; largura total no celular
+.app-chat-panel {
+  --bs-offcanvas-width: min(480px, 100vw);
+}

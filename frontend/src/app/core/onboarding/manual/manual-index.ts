@@ -32,6 +32,9 @@ export const MANUAL_MODULES: readonly (ManualModuleInfo & { icon: IconName })[] 
   { id: 'administracao', title: 'Administração', icon: 'people', summary: 'Credores, carteiras, usuários, perfis, equipes, configurações e rastreabilidade.' },
 ];
 
+/** Rotas abertas a qualquer usuário autenticado (sem item no menu que as proteja). */
+export const OPEN_ROUTES: ReadonlySet<string> = new Set(['/', '/conta/perfil', '/conta/senha', '/conta/mfa', '/conta/sessoes', '/ajuda']);
+
 /** Módulo do manual por prefixo da chave da tela (`collection.queue` → `cobranca`). */
 const MODULE_BY_PREFIX: Readonly<Record<string, ManualModuleId>> = {
   app: 'geral',
@@ -124,7 +127,7 @@ export function loadGlossary(): Promise<readonly GlossaryTerm[]> {
   return glossaryCache;
 }
 
-/** Base de conhecimento completa (todos os módulos e o glossário), para o futuro chat de suporte e os testes. */
+/** Base de conhecimento completa (todos os módulos e o glossário): testes e exportação para o chat de suporte. */
 export interface ManualKnowledgeBase {
   schemaVersion: number;
   modules: readonly (ManualModuleInfo & { manual: ModuleManual })[];
