@@ -16,7 +16,6 @@ import { PaymentTarget, TargetSelection } from '../components/payment-target';
 import { InstructionsApi, newIdempotencyKey } from '../data/payment.api';
 import { CHANNEL_OPTIONS, EXPIRATION_OPTIONS, PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { CreateInstructionRequest, InstructionType, InstructionView } from '../data/payment.models';
-import { parseMoney } from '../data/payment.rules';
 import { InstructionPanel } from './instruction-panel';
 
 /** Parcela ou título já escolhido na tela de origem (acordo, estação de cobrança). */
@@ -103,10 +102,10 @@ export interface InstructionDialogData {
           </p>
 
           <div class="app-form-grid">
-            <app-field label="Valor" hint="Vazio = saldo em aberto." error="Valor inválido.">
+            <app-field label="Valor" hint="Vazio = saldo em aberto.">
               <div class="input-group">
-                <span class="input-group-text">R$</span>
-                <input appInput formControlName="amount" inputmode="decimal" autocomplete="off" [placeholder]="balanceText()" />
+                <span class="input-group-text" aria-hidden="true">R$</span>
+                <input appInput appMoney formControlName="amount" [min]="0.01" [placeholder]="balanceText()" />
               </div>
             </app-field>
             @if (form.controls.type.value === 'PIX_DUE') {
@@ -177,14 +176,14 @@ export class InstructionDialog {
   protected readonly form = this.fb.group({
     debtor: this.fb.control<string[]>(this.data.debtorId ? [this.data.debtorId] : []),
     type: this.fb.control<InstructionType>('PIX_IMMEDIATE'),
-    amount: this.fb.control<string>('', [(c) => (c.value && parseMoney(c.value) === null ? { money: true } : null)]),
+    amount: this.fb.control<number | null>(null),
     dueDate: this.fb.control<string | null>(null),
     expiresInSeconds: this.fb.control<number | null>(null),
     channel: this.fb.control<string | null>(this.data.channel ?? null),
   });
   private readonly debtorValue = toSignal(this.form.controls.debtor.valueChanges, { initialValue: this.form.controls.debtor.value });
   protected readonly debtorId = computed(() => this.debtorValue()[0] ?? null);
-  private readonly amountValue = toSignal(this.form.controls.amount.valueChanges, { initialValue: '' });
+  private readonly amountValue = toSignal(this.form.controls.amount.valueChanges, { initialValue: null });
 
   protected readonly fixedTarget = computed(() => this.data.target ?? null);
   protected readonly target = computed<InstructionTarget | null>(() => {
@@ -201,7 +200,7 @@ export class InstructionDialog {
     return b === null ? '' : b.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   });
   protected readonly amountTooHigh = computed(() => {
-    const amount = parseMoney(this.amountValue());
+    const amount = this.amountValue();
     const b = this.balance();
     return amount !== null && b !== null && amount > b;
   });
@@ -222,7 +221,7 @@ export class InstructionDialog {
       return;
     }
     const v = this.form.getRawValue();
-    const amount = parseMoney(v.amount);
+    const amount = v.amount;
     const request: CreateInstructionRequest = {
       type: v.type,
       agreementId: t.kind === 'INSTALLMENT' ? t.agreementId : null,

@@ -122,3 +122,57 @@ run "guarda_certificado" {
   variables { certificate_arn = null }
   expect_failures = [terraform_data.guards]
 }
+
+run "bedrock_desligado_por_padrao" {
+  command = plan
+  assert {
+    condition     = length(output.bedrock_invoke_resources) == 0 && !output.bedrock_denies_global_routing
+    error_message = "sem o assistente no Bedrock, o papel não chama nenhum modelo"
+  }
+}
+
+run "bedrock_exige_aprovacao_da_transferencia" {
+  command = plan
+  variables { assistant_bedrock_enabled = true }
+  expect_failures = [terraform_data.guards]
+}
+
+run "bedrock_perfis_geograficos_us" {
+  command = plan
+  variables {
+    assistant_bedrock_enabled               = true
+    bedrock_international_transfer_approved = true
+  }
+  assert {
+    condition = toset(output.bedrock_invoke_resources) == toset([
+      "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-haiku-5-5",
+      "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-sonnet-5-5",
+      "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-5-5",
+      "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-5-5",
+    ])
+    error_message = "só os perfis us.* configurados e os modelos base por meio deles"
+  }
+  assert {
+    condition     = output.bedrock_denies_global_routing
+    error_message = "sem perfil global, o roteamento global é negado"
+  }
+}
+
+run "bedrock_perfil_global_em_sao_paulo" {
+  command = plan
+  variables {
+    assistant_bedrock_enabled               = true
+    bedrock_international_transfer_approved = true
+    bedrock_region                          = "sa-east-1"
+    bedrock_standard_model_id               = "global.anthropic.claude-haiku-5-5"
+    bedrock_advanced_model_id               = "global.anthropic.claude-sonnet-5-5"
+  }
+  assert {
+    condition     = contains(output.bedrock_invoke_resources, "arn:aws:bedrock:sa-east-1:123456789012:inference-profile/global.anthropic.claude-sonnet-5-5") && contains(output.bedrock_invoke_resources, "arn:aws:bedrock:::foundation-model/anthropic.claude-haiku-5-5")
+    error_message = "perfil global: ARN do perfil em sa-east-1 e o modelo sem região"
+  }
+  assert {
+    condition     = !output.bedrock_denies_global_routing
+    error_message = "com perfil global configurado, o roteamento global não é negado"
+  }
+}

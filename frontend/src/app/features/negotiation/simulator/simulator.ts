@@ -111,7 +111,7 @@ export class Simulator {
     referenceDate: this.fb.control<string | null>(null),
     channel: [''],
     installments: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(360)]),
-    downPayment: this.fb.control<number | null>(null, [Validators.min(0.01)]),
+    downPayment: this.fb.control<number | null>(null),
     firstDueDate: this.fb.control<string | null>(null),
   });
   protected readonly escalation = this.fb.group({

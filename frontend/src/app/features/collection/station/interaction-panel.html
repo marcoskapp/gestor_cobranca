@@ -44,11 +44,14 @@
     <fieldset class="ip__group">
       <legend>Promessa de pagamento</legend>
       <div class="ip__row">
-        <app-field label="Valor (R$)" [hint]="'Saldo: ' + balanceText()">
-          <input appInput type="number" min="0.01" step="0.01" formControlName="promiseAmount" required />
+        <app-field label="Valor" [hint]="'Saldo: ' + balanceText()">
+          <div class="input-group">
+            <span class="input-group-text" aria-hidden="true">R$</span>
+            <input appInput appMoney [min]="0.01" formControlName="promiseAmount" required />
+          </div>
         </app-field>
         <app-field label="Data" [hint]="'Até ' + promiseMaxDays() + ' dias'">
-          <div class="input-group" [class.input-group-sm]="density.compact()">
+          <div class="input-group">
             <input
               appInput
               ngbDatepicker
@@ -73,7 +76,7 @@
       <legend>Retorno combinado</legend>
       <div class="ip__row">
         <app-field label="Data">
-          <div class="input-group" [class.input-group-sm]="density.compact()">
+          <div class="input-group">
             <input appInput ngbDatepicker #callbackPicker="ngbDatepicker" formControlName="callbackDate" placeholder="dd/mm/aaaa" [minDate]="minDate()" required />
             <button type="button" class="btn btn-outline-secondary" (click)="callbackPicker.toggle()" aria-label="Abrir calendário">
               <app-icon name="calendar-event" />

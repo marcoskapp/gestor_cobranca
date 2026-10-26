@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * Modelo de linguagem <strong>simulado e determinístico</strong> para ambiente local e testes
  * ({@code app.assistant.sandbox.enabled=true}; recusado no perfil {@code prod} por
- * {@code AssistantSandboxGuard}). Nenhuma rede. Segue um roteiro por intenção e palavras-chave, usando
+ * {@code AssistantProviderGuard}). Nenhuma rede. Segue um roteiro por intenção e palavras-chave, usando
  * as ferramentas como um modelo real faria (sempre {@code register_intent} primeiro):
  * <ul>
  *   <li>saldo/quanto devo → {@code get_debt_summary} e responde o saldo do motor;</li>

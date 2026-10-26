@@ -23,7 +23,7 @@ Versões fixadas no `backend/pom.xml` e no `frontend/package.json`. Itens marcad
 | ShedLock | 7.10.1 | Execução única de tarefas agendadas entre várias instâncias EC2 |
 | Micrometer + registry CloudWatch | 1.17 | Métricas técnicas e de negócio publicadas no CloudWatch |
 | Logback + formatter JSON próprio | 1.5 | Três fluxos de log estruturado (técnico, negócio, acesso) com mascaramento de dados pessoais |
-| AWS SDK for Java v2 (S3, CloudWatch) | 2.57.2 | Armazenamento de arquivos no S3 com URLs temporárias assinadas; publicação de métricas |
+| AWS SDK for Java v2 (S3, CloudWatch, Bedrock Runtime; cliente HTTP Apache 5) | 2.57.2 | Armazenamento de arquivos no S3 com URLs temporárias assinadas; publicação de métricas; chamadas ao modelo do assistente (Converse API) |
 | Bouncy Castle | 1.86 | Implementação do Argon2id para hash de senhas |
 | Spring Mail (Jakarta Mail) | — | Envio de e-mails transacionais via SMTP (compatível com Amazon SES) |
 | Apache POI | 6.0.0 | Leitura de carteiras em XLSX e exportação de relatórios |
@@ -79,6 +79,7 @@ Versões fixadas no `backend/pom.xml` e no `frontend/package.json`. Itens marcad
 | Amazon RDS for PostgreSQL | Banco gerenciado com backups automáticos | Autorizado |
 | Amazon S3 | Arquivos e artefatos de deploy | Autorizado |
 | Amazon CloudWatch (Logs, Metrics, Alarms) + CloudWatch Agent | Logs, métricas, painéis e alarmes | Autorizado |
+| Amazon Bedrock (Converse API; Claude Haiku 5.5 e Claude Sonnet 5.5) | Modelo de linguagem do assistente de atendimento e negociação (F24) | Autorizado (25/10/2026, issue #12); residência de dados e transferência internacional a definir pelo responsável **[revisar]** |
 | Terraform (HCL) | Infraestrutura como código | Aprovado |
 | Docker / Docker Compose | Ambiente local (PostgreSQL, SMTP de teste) | Aprovado |
 | Bash | Scripts de bootstrap de instância e deploy | Aprovado |
@@ -97,4 +98,5 @@ Versões fixadas no `backend/pom.xml` e no `frontend/package.json`. Itens marcad
 | WhatsApp | WhatsApp Cloud API (Meta) | Planejado |
 | E-mail | SMTP | Implementado (identidade); planejado (comunicação) |
 | Pix | API Pix padrão do Banco Central (qualquer PSP aderente) | Planejado |
-| SMS, boleto, telefonia/discador, IA | Portas definidas; provedor a escolher | Aguardando definição de provedores |
+| IA do assistente | Amazon Bedrock (Converse API, modelos Claude) pela porta `LanguageModelPort` — SDK `software.amazon.awssdk:bedrockruntime` | Implementado; habilitação por ambiente após a homologação |
+| SMS, boleto, telefonia/discador | Portas definidas; provedor a escolher | Aguardando definição de provedores |

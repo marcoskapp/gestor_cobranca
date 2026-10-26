@@ -48,7 +48,7 @@ describe('TotalsStep', () => {
     expect(el.textContent).not.toContain('Arquivo convertido');
     const goTo: number[] = [];
     fixture.componentInstance.goTo.subscribe((s) => goTo.push(s));
-    fixture.componentInstance['form'].patchValue({ rows: { value: '4' }, principal: { value: '34,79' } });
+    fixture.componentInstance['form'].patchValue({ rows: { value: '4' }, principal: { value: 34.79 } });
     fixture.detectChanges();
     expect(text()).toContain('Você digitou R$ 34,79');
     el.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
@@ -65,12 +65,20 @@ describe('TotalsStep', () => {
     expect(goTo).toEqual([2]);
   });
 
-  it('valor digitado com ponto decimal não é enviado', () => {
+  it('soma digitada com a máscara monetária: os centavos entram pela direita; vazio não é enviado', () => {
     const fixture = render();
-    fixture.componentInstance['form'].patchValue({ rows: { use: false }, principal: { value: '34.79' } });
+    fixture.componentInstance['form'].patchValue({ rows: { use: false } });
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain('Valor inválido: use 1.234,56');
+    const text = () => (el.textContent ?? '').replace(/\u00a0/g, ' ');
+    expect(text()).toContain('os centavos entram pela direita');
     expect(el.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+    const input = el.querySelector<HTMLInputElement>('input[formcontrolname="value"]')!;
+    input.value = '3479';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(input.value).toBe('34,79');
+    expect(text()).toContain('Você digitou R$ 34,79');
+    expect(el.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
   });
 });

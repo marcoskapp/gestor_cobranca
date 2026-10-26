@@ -3,7 +3,7 @@
 Escopo: F24. Especificação de produto: [`docs/negocio/assistente-ia.md`](../../negocio/assistente-ia.md). Schema `assistant`, migrations V1500–V1599 (`V1500` tabelas; `V1501` pedidos de Pix; permissões em `identity/V0205`).
 Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication`, `payment` (interfaces `usecases`; `payment` pelo ADR-0009). Fatos de acordo, situação das instruções de pagamento e anonimização chegam por eventos.
 
-> **Estado (24/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST e **Pix na conversa** (§5.1, ADR-0009). **Provedor de IA não escolhido (issue #12)**: só a porta `LanguageModelPort` e o simulador determinístico para local/teste (§6). Decisões 120–135 e 176–191 em `docs/negocio/decisoes-autonomas.md` (a 135 foi superada pela decisão do responsável sobre o Pix).
+> **Estado (25/10/2026).** Implementado: política versionada, orquestração dos turnos, ferramentas validadas no servidor, guardrails, transferência, modos sombra/copiloto/autônomos, trilha append-only, avaliação e métricas de qualidade, REST e **Pix na conversa** (§5.1, ADR-0009). **Provedor de IA (25/10/2026, issue #12): Amazon Bedrock com Claude Haiku 5.5 (nível padrão) e Claude Sonnet 5.5 (nível avançado: negociação, proposta, aceite e Pix)** — adaptador `BedrockLanguageModel` e nível de modelo por etapa (§6); o simulador continua para local/teste. Decisões 120–135, 176–191 e 360–377 em `docs/negocio/decisoes-autonomas.md` (a 135 foi superada pela decisão do responsável sobre o Pix).
 
 Princípio: **a IA conversa, o motor decide.** O modelo entende o devedor e escolhe o próximo passo; toda condição vem do `negotiation` (mesmo `NegotiationGuard` dos humanos), todo contato passa pelo porteiro do `compliance` e toda ação é um caso de uso do módulo dono, executado como ator `ASSISTANT`.
 
@@ -23,12 +23,14 @@ Princípio: **a IA conversa, o motor decide.** O modelo entende o devedor e esco
 | `IdentityChallenge` | `domain.service` | leitura da resposta à confirmação de identidade |
 | `PolicyResolver`, `ServiceHours`, `ReviewSampler` | `domain.service` | política vigente, janelas de atendimento, amostragem |
 | `TurnOrchestrator`, `AssistantTurnJob` | `application.service` | orquestração do turno (§3) |
+| `ModelTierSelector`, `ModelTier`, `ModelRouting` | `domain.service`/`domain.model` | nível de modelo de cada chamada pela política e pela etapa (§6.2) |
 | `AssistantPix`, `AssistantPixDelivery`, `AssistantPixRecorder` | `application.service` | ferramentas de Pix, entrega do código (job `assistant.pix_delivery`) e fatos/métricas do Pix (§5.1) |
 | `AssistantToolbox`, `ToolSchemas` | `application.service` | ferramentas expostas ao modelo e validação no servidor (§5) |
 | `AssistantActors`, `AssistantChannel` | `application.service` | ator `ASSISTANT` por turno; saídas ao communication/compliance |
 | `TurnStore` | `application.service` | gravações do turno em transações próprias |
 | `LanguageModelPort`, `PromptSource`, `ConversationLocks`, `TurnContentStore`, `QualityStatistics`, `PaymentInstructionPort` | `application.port.out` | portas de saída |
-| `SandboxLanguageModel`, `ClasspathPromptSource`, `PostgresConversationLocks`, `Jdbc*`, `PaymentModulePixInstructions` | `infrastructure` | adaptadores (o último: `PaymentInstructionPort` sobre `PaymentInstructionUseCases`, ADR-0009) |
+| `BedrockLanguageModel` (+ `ConverseTranslator`, `BedrockPricing`, `BedrockConfiguration`), `SandboxLanguageModel`, `ClasspathPromptSource`, `PostgresConversationLocks`, `Jdbc*`, `PaymentModulePixInstructions` | `infrastructure` | adaptadores (Bedrock §6.5; o último: `PaymentInstructionPort` sobre `PaymentInstructionUseCases`, ADR-0009) |
+| `AssistantProviderGuard` | `infrastructure.config` | um provedor de IA por instância; simulado recusado no `prod` |
 
 ## 2. Política do assistente (versionada)
 
@@ -45,7 +47,8 @@ Escopo: assessoria (credor e carteira nulos) → credor → carteira; a **public
 | Temas | `allowedTopics` (informados ao modelo); `forbiddenTopics` (bloqueiam a resposta) |
 | Transferência | gatilhos adicionais (`extraTriggers`: expressão + motivo); perfil exigido por motivo (`requiredProfiles`) — os obrigatórios não se desligam |
 | Transparência | `identificationMessage` obrigatória (precisa dizer "assistente virtual" e como pedir humano), enviada na primeira mensagem de cada etapa; `handoffMessage`, `fallbackMessage`, `approvalMessage` |
-| Limites | tokens de saída por chamada (600), tokens por turno (8.000), ferramentas por turno (6), tempo por chamada (20 s), custo por conversa (1,00 na moeda do provedor) |
+| Limites | tokens de saída por chamada (600), tokens por turno (24.000 nas políticas novas — entrada com e sem cache + saída; antes 8.000), ferramentas por turno (6), tempo por chamada (20 s, inclusive a retentativa), custo por conversa (1,00 na moeda do provedor) |
+| Modelo | `modelRouting`: `BY_STAGE` (padrão; avançado só em negociação, proposta, aceite e Pix) ou `ADVANCED_ONLY` (avançado em tudo, piloto) — §6.2 |
 | Avaliação | `reviewSampleRate` (10%); `allowCreditBureauMention` (negativação só se o credor autorizar) |
 | Pix na conversa | `pixInConversation`: `enabled` (padrão **desligado**; exige `requireIdentityVerification`), `maxAmount` (R$ 5.000,00; até R$ 50.000,00), `maxPerConversationPerDay` (3), `expirationMinutes` (60; 15–1.440), `riskLookbackDays` (30; 1–180) — §5.1 |
 
@@ -189,26 +192,77 @@ QR Code: o communication ainda não envia mídia, então vai só o "copia e cola
 
 ## 6. Provedor de IA (`LanguageModelPort`)
 
+**Provedor aprovado (25/10/2026, issue #12): Amazon Bedrock com modelos Claude.** Um provedor por instância: `app.assistant.bedrock.enabled` (Bedrock) **ou** `app.assistant.sandbox.enabled` (simulado, local/teste) — os dois juntos, o simulado no perfil `prod` ou a configuração do Bedrock inválida impedem a subida (`AssistantProviderGuard`, `BedrockConfiguration`). Sem nenhum, o turno com o assistente termina em `MODEL_UNAVAILABLE` e a conversa vai para humanos.
+
 ### 6.1 Contrato
 
-`complete(ModelRequest) → ModelResponse`: prompt de sistema, contexto (JSON), mensagens (`USER`/`ASSISTANT`/`TOOL`), definições de ferramentas (nome, descrição, JSON Schema), `maxOutputTokens`, `timeout`, metadados opacos (turno, assessoria) → texto, chamadas de ferramenta (`id`, nome, argumentos JSON), motivo de parada (`END_TURN`, `TOOL_USE`, `MAX_TOKENS`, `CONTENT_FILTERED`), uso (tokens), custo (valor, moeda), modelo e latência. Falhas: `ModelTimeoutException`, `ModelUnavailableException` (transitórias) e `ModelRejectedException` (definitiva).
+`complete(ModelRequest) → ModelResponse`: prompt de sistema, contexto (JSON), mensagens (`USER`/`ASSISTANT`/`TOOL`), definições de ferramentas (nome, descrição, JSON Schema), `maxOutputTokens`, `timeout` (tempo total da chamada, inclusive a retentativa), metadados opacos (turno, assessoria) e **nível de modelo** (`ModelTier`: `STANDARD`/`ADVANCED`, §6.2) → texto, chamadas de ferramenta (`id`, nome, argumentos JSON), motivo de parada (`END_TURN`, `TOOL_USE`, `MAX_TOKENS`, `CONTENT_FILTERED`), uso (`Usage`: entrada sem cache, saída, lidos e gravados no cache de prompt), custo (valor, moeda), modelo efetivamente usado e latência. Falhas: `ModelTimeoutException`, `ModelUnavailableException` (transitórias) e `ModelRejectedException` (definitiva). Regras no Javadoc da porta. No turno, a entrada registrada (`input_tokens`, limite `maxTokensPerTurn`) é o prompt inteiro (com e sem cache); os tokens de cache vão à parte nos eventos (`cacheReadTokens`, `cacheWriteTokens`).
 
-### 6.2 Prompts
+### 6.2 Nível de modelo por etapa (`ModelTierSelector`)
+
+O servidor escolhe o nível **a cada chamada** — o modelo não escolhe o próprio nível:
+
+| Política (`modelRouting`) | Nível |
+| --- | --- |
+| `BY_STAGE` (padrão; políticas gravadas antes da opção valem assim) | `ADVANCED` quando a intenção registrada no turno (ou, antes de o modelo registrá-la, a do turno anterior) é `NEGOTIATE`, `ACCEPT` ou `PAYMENT`, ou quando a etapa já tem ofertas, proposta ou parcelas devolvidas pelo motor (negociação, proposta, aceite e Pix); `STANDARD` no resto (saudação, identificação, saldo, dúvidas, promessa, retorno). Uma etapa nova (conversa devolvida ao assistente) zera a memória e volta ao padrão |
+| `ADVANCED_ONLY` | `ADVANCED` em todas as chamadas — padrão de mercado para piloto (decisão 362) |
+
+No Bedrock: `STANDARD` = **Claude Haiku 5.5** e `ADVANCED` = **Claude Sonnet 5.5** (`app.assistant.bedrock.standard|advanced.model-id`). Métrica `assistant.model.routing{tier,reason}`; eventos de turno com `modelTier` (maior nível do turno) e `advancedModelCalls`.
+
+### 6.3 Prompts
 
 Recursos `classpath:assistant/prompts/<código>-v<versão>.txt` (primeira linha `# descrição`), em português, com instruções de transparência, identidade, "a IA conversa, o motor decide", conduta e transferência; sem segredos. Versão nunca editada (nova versão = novo arquivo); o SHA-256 vai para cada turno; a política referencia código e versão e a troca fica na auditoria da publicação. Atual: `negociacao` v2 (v1 + orientação do Pix na conversa; padrão das políticas novas — as publicadas com v1 continuam com ela).
 
-### 6.3 Simulador (local/teste)
+### 6.4 Simulador (local/teste)
 
-`SandboxLanguageModel` (`app.assistant.sandbox.enabled=true`, recusado no `prod` por `AssistantSandboxGuard`): roteiro determinístico por intenção e palavras-chave, usando as ferramentas como um modelo real (sempre `register_intent` primeiro): saldo → `get_debt_summary`; negociar/à vista/"Nx"/desconto → `simulate_options`; aceito (opcional `O2`) → `propose_offer` + `register_acceptance`; Pix/pagar agora → `get_installments` + `generate_payment` (opcional `I2`); identidade pendente → pede os dados. Marcadores de teste: `[sandbox:confuso]`, `[sandbox:sinal:<MOTIVO>]`, `[sandbox:valor-inventado]`, `[sandbox:timeout]`, `[sandbox:indisponivel]`, `[sandbox:transferir]`, `[sandbox:nivel:N]`. Tokens por caracteres/4; custo pelas tarifas simuladas (`app.assistant.sandbox.cost-per-1k-*`). Nenhuma rede.
+`SandboxLanguageModel` (`app.assistant.sandbox.enabled=true`, recusado no `prod` e junto com o Bedrock por `AssistantProviderGuard`): roteiro determinístico por intenção e palavras-chave, usando as ferramentas como um modelo real (sempre `register_intent` primeiro): saldo → `get_debt_summary`; negociar/à vista/"Nx"/desconto → `simulate_options`; aceito (opcional `O2`) → `propose_offer` + `register_acceptance`; Pix/pagar agora → `get_installments` + `generate_payment` (opcional `I2`); identidade pendente → pede os dados. Marcadores de teste: `[sandbox:confuso]`, `[sandbox:sinal:<MOTIVO>]`, `[sandbox:valor-inventado]`, `[sandbox:timeout]`, `[sandbox:indisponivel]`, `[sandbox:transferir]`, `[sandbox:nivel:N]`. Tokens por caracteres/4; custo pelas tarifas simuladas (`app.assistant.sandbox.cost-per-1k-*`). Nenhuma rede. Ignora o nível de modelo.
 
-### 6.4 Como plugar um provedor real (após aprovação da issue #12)
+### 6.5 Amazon Bedrock (`infrastructure/provider/bedrock`)
 
-1. **Aprovar** o provedor, a política de uso de dados (sem retenção e sem treinamento com os dados; região de processamento; DPA/LGPD) e, se for o Amazon Bedrock, o serviço AWS novo (IAM role da instância com `bedrock:InvokeModel` restrito ao modelo; VPC endpoint).
-2. Criar `infrastructure/provider/<provedor>/<Provedor>LanguageModel implements LanguageModelPort`, `@ConditionalOnProperty(prefix = "app.assistant.<provedor>", name = "enabled")`, com `RestClient` (ou SDK AWS) e timeouts explícitos (connect 3 s; leitura = `request.timeout()`), **sem** retentativa além de uma para 429/5xx imediatos.
-3. Traduzir: `systemPrompt` + `contextDocument` → instrução de sistema (o contexto como bloco separado, nunca concatenado ao texto do devedor); mensagens `TOOL` → resultado de ferramenta com o `toolCallId`; `ToolDefinition.parametersSchema` → esquema de função; `maxOutputTokens`; resposta → `ModelResponse` (texto, `toolCalls` com os ids do provedor, `StopReason`, `Usage`, custo calculado pela tabela de preço configurada).
-4. Erros: tempo esgotado → `ModelTimeoutException`; 429/5xx/rede → `ModelUnavailableException`; 4xx de conteúdo, cota ou credencial → `ModelRejectedException`. Métrica `integration.calls{provider,operation=complete,outcome}` além das `assistant.model.*`.
-5. Credenciais por Parameter Store/KMS ou IAM role (nunca `application.yml`); nada de dado pessoal em logs do adaptador.
-6. Testes do adaptador com servidor HTTP local (como `WhatsAppCloudGatewayTest`) e o **conjunto de conversas de referência** (§9) contra o modelo escolhido antes de habilitar em qualquer carteira (fase sombra).
+`BedrockLanguageModel` sobre a **Converse API** (`bedrock-runtime`, SDK `software.amazon.awssdk:bedrockruntime` pelo BOM), criado por `BedrockConfiguration` quando `app.assistant.bedrock.enabled=true`.
+
+| Tema | Como |
+| --- | --- |
+| Nível → modelo | `ModelTier` → `app.assistant.bedrock.standard|advanced.model-id` (perfil de inferência de sistema, ex.: `us.anthropic.claude-haiku-5-5`; os modelos Claude 5.5 não aceitam invocação sob demanda pelo id base) |
+| Tradução (`ConverseTranslator`) | `system` = [prompt, `cachePoint`, cabeçalho fixo + contexto JSON] — o contexto nunca entra nas mensagens do devedor; `toolConfig.tools` = `toolSpec` (nome, descrição, JSON Schema) + `cachePoint`; `USER` → texto; `ASSISTANT` → texto + `toolUse` (id da chamada); `TOOL` → `toolResult` com o `toolUseId` (status `error` quando o resultado traz `error`); mensagens seguidas do mesmo papel unidas (a API exige alternância); mensagens do assistente antes do primeiro texto do devedor ou depois do último (pré-preenchimento, recusado pelos Claude atuais) omitidas; `maxOutputTokens` → `inferenceConfig.maxTokens` (sempre explícito: sem ele o Bedrock reserva cota pelo máximo do modelo); metadados opacos → `requestMetadata` (só os que casam com o padrão aceito; nunca dado pessoal) |
+| Cache de prompt | `cachePoint` depois das ferramentas e do prompt de sistema (prefixo estável); o contexto, que muda a cada chamada, fica depois do ponto. Validade `app.assistant.bedrock.cache-ttl` (`5m` padrão; `1h` exige o preço de gravação correspondente). Haiku 5.5 e Sonnet 5.5: cache explícito, mínimo de 512 tokens por ponto, até 4 pontos; abaixo do mínimo o ponto é ignorado sem erro. Desligável por nível (`prompt-caching: false`) |
+| Prazo | `request.timeout()` (política, 2–60 s) é o prazo **total**: cada tentativa leva `apiCallTimeout`/`apiCallAttemptTimeout` com o prazo restante; conexão 3 s; socket 65 s (teto técnico); SDK sem retentativas próprias (`AwsRetryStrategy.doNotRetry()`) |
+| Retentativa | no máximo **uma**, para `ThrottlingException`, `ServiceUnavailableException`, `InternalServerException`, `ModelNotReadyException` e outros 429/5xx, depois de `retry-backoff` (400 ms) e só se ainda houver prazo |
+| Erros | tempo esgotado (`ApiCallTimeout`/`ApiCallAttemptTimeout`, `ModelTimeoutException` 408, socket) → `ModelTimeoutException`; limite de taxa, 5xx, `ModelErrorException`, rede, saída malformada (`malformed_*`) → `ModelUnavailableException`; `ValidationException`, `AccessDeniedException` (inclusive modelo não habilitado), `ResourceNotFoundException`, `ServiceQuotaExceededException`, outros 4xx e `model_context_window_exceeded` → `ModelRejectedException`; `content_filtered`/`guardrail_intervened` → `StopReason.CONTENT_FILTERED` (o orquestrador transfere com o guardrail `PROVIDER_FILTERED`). Em todos os casos o turno transfere para humanos |
+| Resposta | texto, `toolUse` → `ToolCall` (ids do Bedrock), `Usage` com `cacheReadInputTokens`/`cacheWriteInputTokens`, custo pela tabela (`BedrockPricing`), modelo configurado do nível e latência total (inclusive retentativa) |
+| Custo | `app.assistant.bedrock.<nível>.pricing`: entrada, saída, leitura e gravação de cache por milhão de tokens e, opcionalmente, limiar de contexto longo com os preços da faixa (Haiku 5.5: prompt — entrada com e sem cache — acima de 100 mil tokens cobra todos os itens pela faixa longa). **Os preços do `application.yml` são os da API da Anthropic e precisam ser conferidos na conta** (no Bedrock podem diferir; a Anthropic informa acréscimo de 10% nos perfis regionais/geográficos sobre o global). Moeda `currency` (USD) |
+| Credenciais | cadeia padrão do SDK (`DefaultCredentialsProvider`) = papel IAM da instância EC2; nada em arquivo ou variável |
+| Observabilidade | métricas `assistant.bedrock.*` e `integration.calls{provider=bedrock,operation=converse}` (`logs-e-metricas.md` §5); logs técnicos só com modelo, nível, resultado, código e id da requisição da AWS (a mensagem de erro da AWS vai mascarada e truncada) — nunca conteúdo da conversa |
+
+Configuração (`app.assistant.bedrock.*`, variáveis `ASSISTANT_BEDROCK_*` nas instâncias): `enabled`, `region`, `international-transfer-approved`, `endpoint-override` (VPC endpoint), `connect-timeout`, `socket-timeout`, `max-connections`, `retry-backoff`, `currency`, `cache-ttl`, `standard|advanced.{model-id, prompt-caching, pricing.*}`. Validada na subida (`BedrockProperties#validate`): região, ids, todos os preços (e os da faixa longa quando houver limiar), TTL, moeda e a aprovação da transferência internacional.
+
+### 6.6 Residência de dados **[revisar]**
+
+Pesquisa nos cartões de modelo da AWS e na documentação da Anthropic (25/10/2026): **Claude Haiku 5.5 e Claude Sonnet 5.5 não estão disponíveis em `sa-east-1` nem na própria região nem por perfil geográfico** — São Paulo só tem o perfil **global** (`global.anthropic.claude-*-5-5`). Os perfis geográficos existentes são US, EU, AU e JP (o Haiku também JP). Não há perfil "América do Sul". Portanto **nenhuma opção processa os dados do turno no Brasil**.
+
+| Opção | Configuração | Onde o modelo processa | Observações |
+| --- | --- | --- | --- |
+| A — **padrão configurado (mais conservadora)** | `region: us-east-1`, `us.anthropic.claude-haiku-5-5` / `us.anthropic.claude-sonnet-5-5` | somente regiões dos EUA listadas no perfil (us-east-1, us-east-2, us-west-1, us-west-2…) | jurisdição única e declarável no contrato; o pedido sai do Brasil até o endpoint da Virgínia (pela internet via NAT, HTTPS); a Anthropic informa acréscimo de ~10% sobre o global |
+| B | `region: sa-east-1`, `global.anthropic.claude-*` | **qualquer região comercial** da AWS, escolhida dinamicamente | endpoint e CloudTrail em São Paulo, mas o processamento pode ocorrer em qualquer país; mais barato e com mais capacidade; o IAM só libera o global quando configurado (senão nega `aws:RequestedRegion = unspecified`) |
+| C | perfil `eu.*`, `au.*` ou `jp.*` | regiões do bloco escolhido | sem vantagem para o Brasil; só se um contrato exigir esse bloco |
+
+O que acontece com os dados em qualquer opção: o turno envia ao Bedrock o prompt, o **contexto minimizado** (primeiro nome, situação e valores do motor — nunca documento, contato ou endereço) e o texto do devedor já mascarado (`PersonalDataRedactor`); o tráfego entre regiões fica na rede da AWS, cifrado; o CloudTrail registra a chamada na região de origem com a região que processou (`additionalEventData.inferenceRegion`); os provedores dos modelos não acessam prompts nem respostas (contas de implantação operadas pelo Bedrock); o **registro de invocação do Bedrock deve permanecer desligado** na conta (se ligado, grava prompts e respostas completos em CloudWatch/S3). Processar fora do Brasil é **transferência internacional** (LGPD art. 33): exige base contratual (cláusulas-padrão da ANPD no contrato com a AWS/termos dos modelos de terceiros) e transparência no aviso de privacidade aos devedores e credores. **A escolha entre A e B e a aprovação da transferência são do responsável**: por isso `international-transfer-approved` é falso por padrão e a aplicação recusa subir com o Bedrock até que seja ligado (e o Terraform recusa `assistant_bedrock_enabled` sem `bedrock_international_transfer_approved`).
+
+Fontes: [Claude Haiku 5.5 — Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html), [Claude Sonnet 5.5 — Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-5-5.html), [Claude in Amazon Bedrock (Anthropic)](https://platform.claude.com/docs/build-with-claude/claude-in-amazon-bedrock), [Claude on Amazon Bedrock (Anthropic)](https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock), [Cross-Region inference](https://docs.aws.eu/bedrock/latest/userguide/cross-region-inference.html), [Prerequisites for inference profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-prereq.md), [Data protection — Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/data-protection.html), [Converse API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html).
+
+### 6.7 Roteiro de homologação (quando houver conta)
+
+Pré-requisitos: modelos habilitados na conta (`infraestrutura-aws.md` §8), aprovação da transferência internacional registrada, `terraform apply` de homologação com `assistant_bedrock_enabled = true` e `bedrock_international_transfer_approved = true`, registro de invocação do Bedrock **desligado**.
+
+1. **Subida**: a instância sobe e o log técnico traz `Provedor de IA do assistente: Amazon Bedrock` e `Cliente do Amazon Bedrock configurado` com os dois modelos; sem a aprovação, a subida falha com a mensagem de `international-transfer-approved` (teste negativo).
+2. **Fumaça pela CLI** (Session Manager na instância, mesmo papel): `aws bedrock-runtime converse --region us-east-1 --model-id us.anthropic.claude-haiku-5-5 --messages '[{"role":"user","content":[{"text":"Responda apenas: ok"}]}]' --inference-config '{"maxTokens":20}'` e o mesmo com `us.anthropic.claude-sonnet-5-5`. `AccessDeniedException` = acesso ao modelo não habilitado ou política IAM; `ValidationException … on-demand throughput isn't supported` = id base no lugar do perfil.
+3. **Negação do global** (opção A): a mesma chamada com `global.anthropic.claude-haiku-5-5` deve dar `AccessDeniedException`.
+4. **Política sombra** numa carteira de teste, devedor fictício, com `modelRouting = BY_STAGE`: saudação, confirmação de identidade, "quanto devo?", "quero parcelar em 3x", "aceito O1", "manda o Pix". Conferir no detalhe do turno e nos eventos: `modelTier`/`advancedModelCalls` (saldo no padrão; negociação, aceite e Pix no avançado), ferramentas chamadas na ordem esperada, nenhum valor fora do motor (guardrails), resposta ≤ 600 caracteres.
+5. **Cache**: na segunda chamada do mesmo turno, `assistant.bedrock.tokens{type=cache_read}` > 0 (o prefixo ferramentas + prompt passa de 512 tokens); na primeira de cada 5 min, `cache_write` > 0.
+6. **Custo**: comparar `assistant.cost`/`assistant.bedrock.cost` de um dia com o Cost Explorer (serviço do provedor do modelo no AWS Marketplace) e corrigir `pricing` se divergir.
+7. **Erros**: `limits.timeoutSeconds = 2` e uma pergunta longa → `MODEL_TIMEOUT` e transferência; trocar temporariamente o `advanced.model-id` por um perfil inexistente → `MODEL_REJECTED` (`ResourceNotFoundException`/`ValidationException`) e transferência; nenhum caso deixa o devedor sem resposta.
+8. **Conversas de referência** (§8) com `ADVANCED_ONLY` e depois `BY_STAGE`: nenhuma condição fora da política; comparar qualidade e custo por conversa antes de liberar `BY_STAGE` em produção.
+9. **Logs**: Logs Insights no grupo técnico por `provider = "bedrock"`: só códigos, modelos e ids — nenhum texto de conversa.
 
 ## 7. Trilha e retenção
 
@@ -247,7 +301,7 @@ Escopo por credor em tudo (404 leitura, 403 comando, listagens filtradas); polí
 
 ## 11. Pendências
 
-- **Provedor de IA** e política de uso de dados (issue #12); Amazon Bedrock exige aprovação de serviço AWS novo. Até lá o assistente só funciona com o simulador (local/teste).
+- ~~Provedor de IA~~ (25/10/2026): Amazon Bedrock aprovado e implementado (§6.5). **[revisar]** Pendentes do responsável: escolha da opção de residência e aprovação da transferência internacional (§6.6), conferência dos preços na conta, homologação (§6.7) e, se desejado, VPC endpoint de interface do `bedrock-runtime` (só serve a região da própria VPC, isto é, a opção B).
 - **Pix na conversa**: QR Code como imagem quando o communication enviar mídia (hoje só o "copia e cola"); Pix com vencimento (`cobv`) para parcela futura não é usado pelo assistente (envia dados do pagador ao PSP).
 - **Conversas de referência** versionadas e execução automática por mudança de política/prompt/modelo (§8).
 - `compliance.AttemptOrigin` sem `ASSISTANT` (as tentativas do assistente aparecem como `SYSTEM`; o autor real está na mensagem e na trilha).

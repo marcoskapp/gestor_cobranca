@@ -13,8 +13,10 @@
  * ({@code PixEligibility}); o código sai em mensagem própria quando a cobrança fica ativa no PSP (evento
  * {@code PaymentInstructionStatusChanged}). O payment não depende do assistant: não há ciclo.
  * <p>
- * O provedor de IA ainda não foi escolhido (issue #12): em produção não há adaptador; em local/teste
- * um simulador determinístico ({@code app.assistant.sandbox.enabled}, recusado no perfil {@code prod}).
+ * Provedor de IA (issue #12): Amazon Bedrock com modelos Claude ({@code app.assistant.bedrock.enabled}; nível
+ * de modelo escolhido pelo servidor a cada chamada — padrão na conversa geral, avançado em negociação, proposta,
+ * aceite e Pix); em local/teste, um simulador determinístico ({@code app.assistant.sandbox.enabled}, recusado no
+ * perfil {@code prod}). Um provedor por instância.
  * Ver {@code docs/tecnico/desenho/assistente.md}.
  */
 @ApplicationModule(displayName = "Assistant",

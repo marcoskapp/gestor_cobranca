@@ -2,31 +2,21 @@ import { referenceSummary } from '../review/alerts-step';
 import { mixedReview, previewBatch } from '../review/review.fixtures';
 import { impactDetails } from '../review/summary-step';
 import { totalsRequest } from '../review/totals-step';
-import { needsPolling, parseBrazilianAmount, parseCount, pendingColumns, reachableSteps, scaleText, stepState, suggestedAmount } from './review.rules';
+import { needsPolling, parseCount, pendingColumns, reachableSteps, scaleText, stepState, suggestedAmount } from './review.rules';
 
 describe('regras da conferência da importação', () => {
-  it('valores digitados no padrão brasileiro, sem ambiguidade', () => {
-    expect(parseBrazilianAmount('1.234,56')).toBe(1234.56);
-    expect(parseBrazilianAmount('1234,5')).toBe(1234.5);
-    expect(parseBrazilianAmount('R$ 1.000.000,00')).toBe(1_000_000);
-    expect(parseBrazilianAmount('1.000')).toBe(1000);
-    expect(parseBrazilianAmount('1500')).toBe(1500);
-    // ponto como decimal não é aceito no campo (seria ambíguo)
-    expect(parseBrazilianAmount('1.00')).toBeNull();
-    expect(parseBrazilianAmount('1234.56')).toBeNull();
-    expect(parseBrazilianAmount('1,234')).toBeNull();
-    expect(parseBrazilianAmount('1.23.456')).toBeNull();
-    expect(parseBrazilianAmount('')).toBeNull();
+  it('quantidade digitada no padrão brasileiro', () => {
     expect(parseCount('1.250')).toBe(1250);
     expect(parseCount('1250')).toBe(1250);
     expect(parseCount('12,5')).toBeNull();
   });
 
   it('pedido de totais só com os totais marcados e válidos', () => {
-    const base = { rows: { use: true, value: '1.250' }, principal: { use: true, value: '98.765,43' }, balance: { use: false, value: 'x' }, contract: { use: false, value: '' } };
+    const base = { rows: { use: true, value: '1.250' }, principal: { use: true, value: 98765.43 }, balance: { use: false, value: 12 }, contract: { use: false, value: null } };
     expect(totalsRequest(base)).toEqual({ rows: 1250, principalTotal: 98765.43, balanceTotal: null, contractAmountTotal: null });
-    expect(totalsRequest({ ...base, principal: { use: true, value: '98765.43' } })).toBeNull();
-    expect(totalsRequest({ ...base, rows: { use: false, value: '' }, principal: { use: false, value: '' } })).toBeNull();
+    expect(totalsRequest({ ...base, principal: { use: true, value: null } })).toBeNull();
+    expect(totalsRequest({ ...base, rows: { use: true, value: '12,5' } })).toBeNull();
+    expect(totalsRequest({ ...base, rows: { use: false, value: '' }, principal: { use: false, value: null } })).toBeNull();
   });
 
   it('passos alcançáveis e situação de cada passo', () => {
