@@ -16,7 +16,7 @@ class MessageTemplateTest {
 
     private static MessageTemplate.Content content(String subject, String providerName) {
         return new MessageTemplate.Content("Lembrete", TemplatePurpose.REMINDER, subject, "Olá {{nome}}", "[]", null,
-                providerName);
+                providerName, null);
     }
 
     @Test
@@ -51,5 +51,22 @@ class MessageTemplateTest {
                 .hasFieldOrPropertyWithValue("code", "template.approval_not_applicable");
         email.publish(NOW, UUID.randomUUID());
         assertThat(email.isUsable()).isTrue();
+    }
+
+    @Test
+    void providerCategoryOnlyOnWhatsappDefaultingToUtility() {
+        MessageTemplate whatsapp = new MessageTemplate(null, "LEMBRETE", 1, ChannelType.WHATSAPP, content(null, null));
+        assertThat(whatsapp.getProviderCategory()).isEqualTo(ProviderCategory.UTILITY);
+        assertThat(whatsapp.isAuthentication()).isFalse();
+        MessageTemplate otp = new MessageTemplate(null, "PORTAL_CODIGO_WHATSAPP", 1, ChannelType.WHATSAPP,
+                new MessageTemplate.Content("Código", TemplatePurpose.SERVICE, null, "{{codigo}} é o seu código.", "[]",
+                        null, "portal_codigo", ProviderCategory.AUTHENTICATION));
+        assertThat(otp.isAuthentication()).isTrue();
+        assertThatThrownBy(() -> new MessageTemplate(null, "AVISO", 1, ChannelType.EMAIL,
+                new MessageTemplate.Content("Aviso", TemplatePurpose.REMINDER, "Aviso", "Olá", "[]", null, null,
+                        ProviderCategory.UTILITY)))
+                .hasFieldOrPropertyWithValue("code", "template.category_not_applicable");
+        assertThat(new MessageTemplate(null, "AVISO", 1, ChannelType.EMAIL, content("Aviso", null)).getProviderCategory())
+                .isNull();
     }
 }

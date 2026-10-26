@@ -6,6 +6,7 @@ import br.com.gestorcobranca.campaign.domain.model.StepAction;
 import br.com.gestorcobranca.campaign.domain.model.VariableSource;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
+import br.com.gestorcobranca.portal.application.port.in.PortalLinkUseCases;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import org.springframework.stereotype.Component;
@@ -19,9 +20,10 @@ import java.util.UUID;
 
 /**
  * Valores das variáveis de template de uma etapa, calculados no envio a partir da posição do caso,
- * do cadastro (primeiro nome do devedor, nome do credor) e da oferta. Os valores seguem os formatos
- * do communication (valor {@code 1234.56}, data ISO), que os valida e guarda criptografados; nada é
- * gravado nem registrado em log aqui.
+ * do cadastro (primeiro nome do devedor, nome do credor), da oferta, da próxima parcela do acordo e do
+ * link do portal gerado no envio. Os valores seguem os formatos do communication (valor
+ * {@code 1234.56}, data ISO), que os valida e guarda criptografados; nada é gravado nem registrado em
+ * log aqui (o link do portal é segredo de acesso).
  */
 @Component
 class VariableResolver {
@@ -34,15 +36,27 @@ class VariableResolver {
         this.creditors = creditors;
     }
 
-    Map<String, String> resolve(Map<String, String> spec, UUID debtorId, AudienceSnapshot s, OfferResult offer,
-                                Instant now) {
+    /**
+     * Dados obtidos no envio, além da posição do caso (cada um nulo quando a etapa não usa a origem).
+     *
+     * @param installment próxima parcela em aberto do acordo em vigor do caso
+     * @param portalLink  link do portal gerado para esta mensagem — nunca registrar
+     */
+    record Inputs(OfferResult offer, AgreementInstallments.NextInstallment installment, PortalLinkUseCases.LinkIssue portalLink) {
+
+        static final Inputs NONE = new Inputs(null, null, null);
+    }
+
+    Map<String, String> resolve(Map<String, String> spec, UUID debtorId, AudienceSnapshot s, Inputs inputs, Instant now) {
         Map<String, String> values = new LinkedHashMap<>();
-        spec.forEach((name, source) -> values.put(name, value(StepAction.source(source), source, debtorId, s, offer, now)));
+        Inputs in = inputs == null ? Inputs.NONE : inputs;
+        spec.forEach((name, source) -> values.put(name, value(StepAction.source(source), source, debtorId, s, in, now)));
         return values;
     }
 
-    private String value(VariableSource source, String spec, UUID debtorId, AudienceSnapshot s, OfferResult offer,
+    private String value(VariableSource source, String spec, UUID debtorId, AudienceSnapshot s, Inputs in,
                          Instant now) {
+        OfferResult offer = in.offer();
         return switch (source) {
             case DEBTOR_FIRST_NAME -> firstName(debtors.get(debtorId).name());
             case OPEN_BALANCE -> money(s.openBalance());
@@ -63,6 +77,14 @@ class VariableResolver {
             case OFFER_DUE_DATE -> offer == null || offer.dueDate() == null ? throwUnavailable(source)
                     : offer.dueDate().toString();
             case PAYMENT_LINK -> offer == null || offer.paymentUrl() == null ? throwUnavailable(source) : offer.paymentUrl();
+            case NEXT_INSTALLMENT_AMOUNT -> in.installment() == null ? throwUnavailable(source)
+                    : money(in.installment().amount());
+            case NEXT_INSTALLMENT_DUE_DATE -> in.installment() == null || in.installment().dueDate() == null
+                    ? throwUnavailable(source) : in.installment().dueDate().toString();
+            case PORTAL_LINK -> in.portalLink() == null || !in.portalLink().available() ? throwUnavailable(source)
+                    : in.portalLink().url();
+            case PORTAL_LINK_HOURS -> in.portalLink() == null || !in.portalLink().available() ? throwUnavailable(source)
+                    : String.valueOf(in.portalLink().validityHours());
             case LITERAL -> StepAction.literal(spec);
         };
     }

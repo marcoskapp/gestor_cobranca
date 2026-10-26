@@ -227,7 +227,7 @@ abstract class PortalTestSupport extends IntegrationTest {
     private void template(String code, String body, List<VariableInput> variables) {
         asManager(() -> {
             TemplateView draft = templates.createDraft(new CreateTemplateCommand(null, code, "WHATSAPP",
-                    new TemplateContent("Portal", "SERVICE", null, body, variables, null, null)));
+                    new TemplateContent("Portal", "SERVICE", null, body, variables, null, null, null)));
             templates.registerApproval(draft.id(), new ApprovalCommand("APPROVED", code.toLowerCase(), "meta-1", null, null));
             return templates.publish(draft.id());
         });

@@ -4,11 +4,13 @@ import br.com.gestorcobranca.communication.application.port.in.TemplateUseCases;
 import br.com.gestorcobranca.communication.domain.model.ApprovalStatus;
 import br.com.gestorcobranca.communication.domain.model.ChannelType;
 import br.com.gestorcobranca.communication.domain.model.MessageTemplate;
+import br.com.gestorcobranca.communication.domain.model.ProviderCategory;
 import br.com.gestorcobranca.communication.domain.model.TemplatePurpose;
 import br.com.gestorcobranca.communication.domain.model.TemplateStatus;
 import br.com.gestorcobranca.communication.domain.model.TemplateVariable;
 import br.com.gestorcobranca.communication.domain.model.VariableType;
 import br.com.gestorcobranca.communication.domain.repository.MessageTemplateRepository;
+import br.com.gestorcobranca.communication.domain.service.ProviderTemplateRules;
 import br.com.gestorcobranca.communication.domain.service.TemplateRenderer;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
@@ -31,6 +33,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -76,12 +79,13 @@ class TemplateService implements TemplateUseCases {
                         "O código %s pertence ao canal %s".formatted(code, published.getChannel())));
         int next = templates.maxVersion(command.creditorId(), code) + 1;
         MessageTemplate template = templates.save(new MessageTemplate(command.creditorId(), code, next, channel,
-                content(command.content())));
+                content(command.content(), channel)));
         auditTrail.record(AuditEntry.of("message_template.created", "message_template", template.getId())
                 .creditor(template.getCreditorId())
                 .created("code", code)
                 .created("templateVersion", next)
                 .created("channel", channel)
+                .created("providerCategory", template.getProviderCategory())
                 .created("body", template.getBody())
                 .created("variables", template.getVariables()));
         return view(template);
@@ -94,13 +98,15 @@ class TemplateService implements TemplateUseCases {
         String beforeSubject = template.getSubject();
         String beforeVariables = template.getVariables();
         ApprovalStatus beforeApproval = template.getApprovalStatus();
-        template.edit(content(content));
+        ProviderCategory beforeCategory = template.getProviderCategory();
+        template.edit(content(content, template.getChannel()));
         templates.save(template);
         auditTrail.record(AuditEntry.of("message_template.updated", "message_template", template.getId())
                 .creditor(template.getCreditorId())
                 .change("subject", beforeSubject, template.getSubject())
                 .change("body", beforeBody, template.getBody())
                 .change("variables", beforeVariables, template.getVariables())
+                .change("providerCategory", beforeCategory, template.getProviderCategory())
                 .change("approvalStatus", beforeApproval, template.getApprovalStatus()));
         return view(template);
     }
@@ -198,6 +204,19 @@ class TemplateService implements TemplateUseCases {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<TemplateView> findEffective(UUID creditorId, String code) {
+        Guard.require(code != null && !code.isBlank(), "template.code_invalid", "Código do template obrigatório");
+        if (creditorId != null) {
+            accessScope.requireVisible("creditor", creditorId, creditorId);
+        }
+        String normalized = code.trim().toUpperCase(Locale.ROOT);
+        return templates.findPublished(creditorId, normalized)
+                .or(() -> creditorId == null ? Optional.empty() : templates.findPublished(null, normalized))
+                .map(this::view);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Preview preview(UUID templateId, Map<String, String> values) {
         MessageTemplate template = visible(templateId);
         TemplateRenderer.Rendered rendered = TemplateRenderer.render(template.getSubject(), template.getBody(),
@@ -205,19 +224,25 @@ class TemplateService implements TemplateUseCases {
         return new Preview(rendered.subject(), rendered.body(), rendered.parameters());
     }
 
-    private MessageTemplate.Content content(TemplateContent c) {
+    private MessageTemplate.Content content(TemplateContent c, ChannelType channel) {
         Guard.require(c != null, "template.content_required", "Conteúdo obrigatório");
         List<TemplateVariable> declared = c.variables() == null ? List.of() : c.variables().stream()
                 .map(v -> new TemplateVariable(v.name(), CommunicationEnums.parse(VariableType.class, v.type(),
                         "template.variable_type_invalid", "Tipo da variável"), v.required(), v.maxLength()))
                 .toList();
         TemplateRenderer.validateDefinition(c.subject(), c.body(), declared);
+        ProviderCategory category = CommunicationEnums.parseOptional(ProviderCategory.class, c.providerCategory(),
+                "template.category_invalid", "Categoria no provedor");
+        if (category == null && channel == ChannelType.WHATSAPP) {
+            category = ProviderCategory.UTILITY;
+        }
+        ProviderTemplateRules.validate(channel, category, declared);
         TemplatePurpose purpose = CommunicationEnums.parse(TemplatePurpose.class, c.purpose(), "template.purpose_invalid",
                 "Finalidade");
         String providerName = c.providerTemplateName() == null || c.providerTemplateName().isBlank() ? null
                 : c.providerTemplateName().trim().toLowerCase(Locale.ROOT);
         return new MessageTemplate.Content(c.name(), purpose, c.subject(), c.body(), variables.toJson(declared),
-                c.language(), providerName);
+                c.language(), providerName, category);
     }
 
     private MessageTemplate visible(UUID templateId) {
@@ -249,7 +274,7 @@ class TemplateService implements TemplateUseCases {
                 .toList();
         return new TemplateView(t.getId(), t.getCreditorId(), t.getCode(), t.getTemplateVersion(), t.getChannel().name(),
                 t.getName(), t.getPurpose().name(), t.getSubject(), t.getBody(), vars, t.getLanguage(), t.getStatus().name(),
-                t.getProviderTemplateName(), t.getApprovalStatus().name(), t.getApprovalReference(), t.getApprovalNote(),
+                t.getProviderTemplateName(), CommunicationEnums.name(t.getProviderCategory()), t.getApprovalStatus().name(), t.getApprovalReference(), t.getApprovalNote(),
                 t.getApprovalDecidedAt(), t.getApprovalRegisteredBy(), t.getPublishedAt(), t.getPublishedBy(),
                 t.getRetiredAt(), t.getCreatedAt(), t.getVersion() == null ? 0 : t.getVersion());
     }

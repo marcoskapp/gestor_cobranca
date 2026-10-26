@@ -51,7 +51,7 @@ class SegmentMatcherTest {
         AudienceSnapshot ineligible = snapshot("OPEN", false, "100.00", TODAY.minusDays(40));
         assertThat(unmet(SegmentCriteria.any(), ineligible)).containsExactly("eligibleOnly");
         SegmentCriteria relaxed = new SegmentCriteria(null, null, null, null, null, null, false, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
         assertThat(unmet(relaxed, ineligible)).isEmpty();
     }
 
@@ -70,12 +70,12 @@ class SegmentMatcherTest {
         AudienceSnapshot worked = new AudienceSnapshot(UUID.randomUUID(), UUID.randomUUID(), CampaignFixtures.CREDITOR,
                 CampaignFixtures.PORTFOLIO, "PROMISE", null, true, List.of(), List.of("EMAIL"), new BigDecimal("900.00"),
                 new BigDecimal("900.00"), TODAY.minusDays(60), "USER", 4, 1, NOW.minusSeconds(3 * 86_400),
-                NOW.minusSeconds(20 * 86_400), 640, 2, 3, NOW);
+                NOW.minusSeconds(20 * 86_400), 640, 2, 3, NOW, null);
         SegmentCriteria matching = new SegmentCriteria(null, null, null, null, null, null, null, "EMAIL", 2, 10, true, 2,
-                15, true, false, 1, 600, 700, Set.of("USER"));
+                15, true, false, 1, 600, 700, Set.of("USER"), null, null);
         assertThat(unmet(matching, worked)).isEmpty();
         SegmentCriteria failing = new SegmentCriteria(null, null, null, null, null, null, null, "WHATSAPP", null, 3,
-                false, 5, 30, false, true, 3, 700, null, Set.of("QUEUE"));
+                false, 5, 30, false, true, 3, 700, null, Set.of("QUEUE"), null, null);
         assertThat(unmet(failing, worked)).containsExactly("contactableChannel", "maxInteractions",
                 "everEffectiveContact", "noInteractionDays", "noEffectiveContactDays", "pendingPromise",
                 "activeAgreement", "minBrokenAgreements", "minScore", "ownerTypes");
@@ -84,14 +84,14 @@ class SegmentMatcherTest {
     @Test
     void scoreCriterionExcludesCasesWithoutScore() {
         SegmentCriteria scored = new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, 0, null, null);
+                null, null, null, null, null, 0, null, null, null, null);
         assertThat(unmet(scored, snapshot("OPEN", true, "10.00", TODAY))).containsExactly("minScore");
     }
 
     @Test
     void neverContactedMatchesNoInteractionWindow() {
         SegmentCriteria c = new SegmentCriteria(null, null, null, null, null, null, null, null, null, 0, false, 7, 7, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null, null);
         assertThat(unmet(c, snapshot("OPEN", true, "10.00", TODAY))).isEmpty();
     }
 
@@ -101,5 +101,39 @@ class SegmentMatcherTest {
         assertThatThrownBy(() -> criteria(null, null, "-1", null).validate()).hasMessageContaining("negativo");
         assertThatThrownBy(() -> criteria(null, null, null, Set.of("CLOSED")).validate())
                 .hasMessageContaining("Situações válidas");
+    }
+
+    @Test
+    void installmentDueWithinDaysNeedsAnActiveAgreementWithAnOpenInstallment() {
+        SegmentCriteria dueSoon = new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, true, null, null, null, null, 1, 3);
+        AudienceSnapshot inAgreement = snapshot("AGREEMENT", true, "300.00", TODAY.minusDays(40));
+        assertThat(unmet(dueSoon, inAgreement.withNextInstallmentDueDate(TODAY.plusDays(3)))).isEmpty();
+        assertThat(unmet(dueSoon, inAgreement.withNextInstallmentDueDate(TODAY.plusDays(1)))).isEmpty();
+        assertThat(unmet(dueSoon, inAgreement.withNextInstallmentDueDate(TODAY))).containsExactly("minDaysToInstallment");
+        assertThat(unmet(dueSoon, inAgreement.withNextInstallmentDueDate(TODAY.plusDays(4))))
+                .containsExactly("maxDaysToInstallment");
+        // parcela já vencida não é "vencendo"; sem parcela em aberto não entra
+        assertThat(unmet(dueSoon, inAgreement.withNextInstallmentDueDate(TODAY.minusDays(2))))
+                .containsExactly("minDaysToInstallment", "maxDaysToInstallment");
+        assertThat(unmet(dueSoon, inAgreement)).containsExactly("minDaysToInstallment", "maxDaysToInstallment");
+        SegmentCriteria dueUpTo = new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 5);
+        assertThat(unmet(dueUpTo, inAgreement.withNextInstallmentDueDate(TODAY))).isEmpty();
+        assertThat(unmet(dueUpTo, inAgreement.withNextInstallmentDueDate(TODAY.minusDays(1))))
+                .containsExactly("maxDaysToInstallment");
+    }
+
+    @Test
+    void installmentWindowValidation() {
+        assertThatThrownBy(() -> new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, 5, 2).validate())
+                .hasFieldOrPropertyWithValue("code", "segment.installment_days_invalid");
+        assertThatThrownBy(() -> new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, false, null, null, null, null, null, 2).validate())
+                .hasFieldOrPropertyWithValue("code", "segment.installment_without_agreement");
+        assertThatThrownBy(() -> new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 400).validate())
+                .hasFieldOrPropertyWithValue("code", "segment.installment_days_invalid");
     }
 }

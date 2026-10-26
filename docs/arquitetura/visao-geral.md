@@ -66,7 +66,7 @@ shared ◄── organization ◄── identity
               │       ▲
               ├── settlement         (→ payment, negotiation, organization)
               ├── communication      (→ collection, debt, compliance, organization)
-              ├── campaign           (→ communication, collection, negotiation, debt, compliance, organization)
+              ├── campaign           (→ communication, collection, negotiation, portal [link de acesso], debt, compliance, organization)
               ├── telephony          (→ collection, compliance, debt, organization)
               ├── portal             (→ negotiation, payment, communication, debt, organization)
               ├── scoring            (→ collection, debt, payment, organization)

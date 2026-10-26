@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
@@ -87,9 +88,44 @@ class WhatsAppCloudGatewayTest {
 
     @Test
     void sendsApprovedTemplateWithPositionalParameters() {
-        gateway.send(request(new ProviderTemplate("lembrete_v1", "pt_BR", List.of("Maria", "R$ 10,00"))));
+        gateway.send(request(ProviderTemplate.standard("lembrete_v1", "pt_BR", List.of("Maria", "R$ 10,00"))));
         assertThat(lastBody.get()).contains("\"type\":\"template\"").contains("\"name\":\"lembrete_v1\"")
                 .contains("\"code\":\"pt_BR\"").contains("\"text\":\"Maria\"").contains("\"text\":\"R$ 10,00\"");
+    }
+
+    @Test
+    void standardTemplateHasNoButtonComponent() throws Exception {
+        gateway.send(request(ProviderTemplate.standard("lembrete_v1", "pt_BR", List.of("Maria"))));
+        JsonNode components = JsonMapper.builder().build().readTree(lastBody.get()).path("template").path("components");
+        assertThat(components.size()).isEqualTo(1);
+        assertThat(components.get(0).path("type").asString()).isEqualTo("body");
+    }
+
+    @Test
+    void authenticationTemplateSendsTheCodeInTheBodyAndInTheCopyCodeButton() throws Exception {
+        gateway.send(request(ProviderTemplate.authentication("portal_codigo", "pt_BR", "482913")));
+        JsonNode template = JsonMapper.builder().build().readTree(lastBody.get()).path("template");
+        assertThat(template.path("name").asString()).isEqualTo("portal_codigo");
+        JsonNode components = template.path("components");
+        assertThat(components.size()).isEqualTo(2);
+        JsonNode body = components.get(0);
+        assertThat(body.path("type").asString()).isEqualTo("body");
+        assertThat(body.path("parameters").size()).isEqualTo(1);
+        assertThat(body.path("parameters").get(0).path("type").asString()).isEqualTo("text");
+        assertThat(body.path("parameters").get(0).path("text").asString()).isEqualTo("482913");
+        JsonNode button = components.get(1);
+        assertThat(button.path("type").asString()).isEqualTo("button");
+        assertThat(button.path("sub_type").asString()).isEqualTo("url");
+        // a Meta exige o índice como texto
+        assertThat(button.path("index").isString()).isTrue();
+        assertThat(button.path("index").asString()).isEqualTo("0");
+        assertThat(button.path("parameters").get(0).path("text").asString()).isEqualTo("482913");
+    }
+
+    @Test
+    void authenticationTemplateCarriesExactlyOneParameter() {
+        assertThatThrownBy(() -> new ProviderTemplate("portal_codigo", "pt_BR", List.of("1", "10"), true))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

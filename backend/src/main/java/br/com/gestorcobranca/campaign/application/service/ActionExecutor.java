@@ -20,6 +20,10 @@ import br.com.gestorcobranca.compliance.application.port.in.ContactGate;
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate.ContactDecision;
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate.ContactRequest;
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate.DenialReason;
+import br.com.gestorcobranca.portal.application.port.in.PortalLinkUseCases;
+import br.com.gestorcobranca.portal.application.port.in.PortalLinkUseCases.DispatchCommand;
+import br.com.gestorcobranca.portal.application.port.in.PortalLinkUseCases.IssueLinkCommand;
+import br.com.gestorcobranca.portal.application.port.in.PortalLinkUseCases.LinkIssue;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -28,6 +32,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -37,7 +42,9 @@ import java.util.stream.Collectors;
  * Executa a ação de uma etapa pelos casos de uso públicos dos outros módulos, como ator de sistema:
  * mensagem pelo communication (que passa pelo {@code ContactGate} na verificação prévia e
  * imediatamente antes do envio), tarefa/retorno e dono do atendimento pelo collection, oferta pela
- * porta {@link CampaignOfferPort}. Antes de pedir a mensagem, a campanha consulta o porteiro
+ * porta {@link CampaignOfferPort}, próxima parcela do acordo pelo negotiation ({@link AgreementInstallments})
+ * e link de uso único pelo portal ({@link PortalLinkUseCases}, gerado imediatamente antes do envio, na
+ * mesma transação: se ela for desfeita, o link também é). Antes de pedir a mensagem, a campanha consulta o porteiro
  * ({@code evaluate}, sem registrar tentativa) para adiar negações temporárias (janela, feriado,
  * limites, intervalo) em vez de gastar a etapa.
  */
@@ -45,6 +52,9 @@ import java.util.stream.Collectors;
 class ActionExecutor {
 
     /** Negações que passam com o tempo: a etapa é adiada até o próximo horário permitido. */
+    /** Origem dos links do portal pedidos pela régua (log de acesso e auditoria do portal). */
+    static final String PORTAL_LINK_ORIGIN = "CAMPAIGN";
+
     static final Set<DenialReason> TEMPORAL = EnumSet.of(DenialReason.OUTSIDE_WINDOW, DenialReason.HOLIDAY,
             DenialReason.DAILY_LIMIT, DenialReason.WEEKLY_LIMIT, DenialReason.MIN_INTERVAL);
 
@@ -54,15 +64,20 @@ class ActionExecutor {
     private final CaseWorkUseCases caseWork;
     private final VariableResolver variables;
     private final ObjectProvider<CampaignOfferPort> offers;
+    private final AgreementInstallments installments;
+    private final PortalLinkUseCases portalLinks;
 
     ActionExecutor(ContactGate gate, MessageUseCases messages, TaskUseCases tasks, CaseWorkUseCases caseWork,
-                   VariableResolver variables, ObjectProvider<CampaignOfferPort> offers) {
+                   VariableResolver variables, ObjectProvider<CampaignOfferPort> offers,
+                   AgreementInstallments installments, PortalLinkUseCases portalLinks) {
         this.gate = gate;
         this.messages = messages;
         this.tasks = tasks;
         this.caseWork = caseWork;
         this.variables = variables;
         this.offers = offers;
+        this.installments = installments;
+        this.portalLinks = portalLinks;
     }
 
     sealed interface Result permits Executed, Skipped, Deferred {
@@ -132,13 +147,42 @@ class ActionExecutor {
                 return new Skipped(SkipReason.OFFER_UNAVAILABLE, offer.reason(), null, false);
             }
         }
-        Map<String, String> values = variables.resolve(action.variables(), e.getDebtorId(), snapshot, offer, now);
+        AgreementInstallments.NextInstallment installment = null;
+        if (action.needsInstallment()) {
+            AgreementInstallments.Lookup lookup = installments.next(e.getCaseId(), e.getDebtorId(), e.getCreditorId(),
+                    e.getPortfolioId());
+            if (!lookup.available()) {
+                return new Skipped(lookup.unavailableReason(), lookup.unavailableReason().toLowerCase(Locale.ROOT),
+                        null, false);
+            }
+            installment = lookup.installment();
+        }
+        // o link é gerado por último, imediatamente antes do envio: nenhuma outra verificação o descarta
+        LinkIssue link = null;
+        if (action.needsPortalLink()) {
+            link = portalLinks.issue(new IssueLinkCommand(e.getDebtorId(), e.getCreditorId(), e.getPortfolioId(),
+                    action.channel(), PORTAL_LINK_ORIGIN, reference(e)));
+            if (!link.available()) {
+                return new Skipped(SkipReason.PORTAL_UNAVAILABLE, link.unavailableReason(), null, false);
+            }
+        }
+        Map<String, String> values = variables.resolve(action.variables(), e.getDebtorId(), snapshot,
+                new VariableResolver.Inputs(offer, installment, link), now);
         MessageView sent = messages.send(new SendMessageCommand(null, e.getDebtorId(), e.getCreditorId(), e.getCaseId(),
                 action.channel(), null, action.templateCode(), values, null, e.getId(), idempotencyKey));
+        if (link != null) {
+            // mensagem negada pelo porteiro ou recusada: o portal revoga o link na hora
+            portalLinks.recordDispatch(new DispatchCommand(link.linkId(), sent.id(), sent.status(), PORTAL_LINK_ORIGIN,
+                    reference(e)));
+        }
         if ("FAILED".equals(sent.status()) && "CONTACT_DENIED".equals(sent.failureCode())) {
             return new Skipped(SkipReason.CONTACT_DENIED, sent.failureDetail(), sent.id(), false);
         }
         return new Executed(sent.id(), sent.status(), null);
+    }
+
+    private static String reference(Enrollment e) {
+        return "campaign-enrollment:" + e.getId();
     }
 
     private Result task(Enrollment e, StepAction action, Instant now) {

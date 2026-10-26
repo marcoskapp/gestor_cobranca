@@ -203,7 +203,7 @@ public abstract class CommunicationTestSupport extends IntegrationTest {
                     new TemplateContent("Cobrança", "COLLECTION", "EMAIL".equals(channel) ? "Aviso de débito" : null,
                             "Olá {{nome}}, há um débito de {{valor}}. Responda para negociar.",
                             List.of(new VariableInput("nome", "FIRST_NAME", true, null),
-                                    new VariableInput("valor", "MONEY", true, null)), null, null)));
+                                    new VariableInput("valor", "MONEY", true, null)), null, null, null)));
             if ("WHATSAPP".equals(channel)) {
                 templates.registerApproval(draft.id(), new ApprovalCommand("APPROVED", code.toLowerCase(), "meta-123", null,
                         null));

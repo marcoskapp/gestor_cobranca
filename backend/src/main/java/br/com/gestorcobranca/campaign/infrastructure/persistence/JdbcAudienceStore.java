@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -24,7 +25,8 @@ import java.util.UUID;
  * Read model de audiência em {@code campaign.audience_case}. A consulta dos segmentos reproduz a
  * semântica de {@code SegmentMatcher} (atraso = dias desde o vencimento mais antigo no fuso de
  * operação, nunca negativo; "sem interação há N dias" inclui nunca; score exigido exclui casos sem
- * score). RLS restringe ao tenant da transação.
+ * score; "parcela vencendo em N dias" usa o vencimento da próxima parcela em aberto do acordo em vigor,
+ * gravado à parte por {@link #applyNextInstallment}). RLS restringe ao tenant da transação.
  */
 @Component
 class JdbcAudienceStore implements AudienceStore {
@@ -33,9 +35,12 @@ class JdbcAudienceStore implements AudienceStore {
             a.case_id, a.debtor_id, a.creditor_id, a.portfolio_id, a.status, a.resume_status, a.eligible,
             a.eligibility_reasons, a.contactable_channels, a.open_balance, a.eligible_balance, a.oldest_due_date,
             a.owner_type, a.interaction_count, a.effective_contact_count, a.last_interaction_at,
-            a.last_effective_contact_at, a.score, a.broken_agreements, a.case_version, a.refreshed_at
+            a.last_effective_contact_at, a.score, a.broken_agreements, a.case_version, a.refreshed_at,
+            a.next_installment_due_date
             """;
     private static final String DAYS_OVERDUE = "greatest(0, coalesce(cast(:today as date) - a.oldest_due_date, 0))";
+    /** Dias de hoje (fuso de operação) até a próxima parcela em aberto do acordo; negativo = vencida. */
+    private static final String DAYS_TO_INSTALLMENT = "(a.next_installment_due_date - cast(:today as date))";
 
     private final NamedParameterJdbcTemplate jdbc;
     private final CurrentActor currentActor;
@@ -53,11 +58,11 @@ class JdbcAudienceStore implements AudienceStore {
                   (tenant_id, case_id, debtor_id, creditor_id, portfolio_id, status, resume_status, eligible,
                    eligibility_reasons, contactable_channels, open_balance, eligible_balance, oldest_due_date, owner_type,
                    interaction_count, effective_contact_count, last_interaction_at, last_effective_contact_at, score,
-                   broken_agreements, case_version, refreshed_at)
+                   broken_agreements, case_version, refreshed_at, next_installment_due_date)
                 values (:tenant, :caseId, :debtorId, :creditorId, :portfolioId, :status, :resumeStatus, :eligible,
                         :reasons, :channels, :openBalance, :eligibleBalance, :oldestDueDate, :ownerType,
                         :interactions, :effectiveContacts, :lastInteraction, :lastEffective, :score,
-                        :brokenAgreements, :caseVersion, :refreshedAt)
+                        :brokenAgreements, :caseVersion, :refreshedAt, :nextInstallmentDueDate)
                 on conflict (tenant_id, case_id) do update set
                    status = excluded.status, resume_status = excluded.resume_status, eligible = excluded.eligible,
                    eligibility_reasons = excluded.eligibility_reasons,
@@ -93,7 +98,15 @@ class JdbcAudienceStore implements AudienceStore {
                 .addValue("score", s.score())
                 .addValue("brokenAgreements", s.brokenAgreements())
                 .addValue("caseVersion", s.caseVersion())
-                .addValue("refreshedAt", timestamp(s.refreshedAt())));
+                .addValue("refreshedAt", timestamp(s.refreshedAt()))
+                .addValue("nextInstallmentDueDate", s.nextInstallmentDueDate()));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void applyNextInstallment(UUID caseId, LocalDate dueDate) {
+        jdbc.update("update campaign.audience_case set next_installment_due_date = :dueDate where case_id = :caseId",
+                new MapSqlParameterSource("caseId", caseId).addValue("dueDate", dueDate));
     }
 
     @Override
@@ -252,6 +265,16 @@ class JdbcAudienceStore implements AudienceStore {
             w.append(" and a.owner_type in (:ownerTypes)");
             params.addValue("ownerTypes", c.ownerTypes());
         }
+        if (c.minDaysToInstallment() != null) {
+            w.append(" and a.next_installment_due_date is not null and ").append(DAYS_TO_INSTALLMENT)
+                    .append(" >= :minInstallmentDays");
+            params.addValue("minInstallmentDays", c.minDaysToInstallment());
+        }
+        if (c.maxDaysToInstallment() != null) {
+            w.append(" and a.next_installment_due_date is not null and ").append(DAYS_TO_INSTALLMENT)
+                    .append(" between 0 and :maxInstallmentDays");
+            params.addValue("maxInstallmentDays", c.maxDaysToInstallment());
+        }
         return w.toString();
     }
 
@@ -264,7 +287,7 @@ class JdbcAudienceStore implements AudienceStore {
             rs.getString("owner_type"), rs.getInt("interaction_count"), rs.getInt("effective_contact_count"),
             instant(rs.getTimestamp("last_interaction_at")), instant(rs.getTimestamp("last_effective_contact_at")),
             (Integer) rs.getObject("score"), rs.getInt("broken_agreements"), rs.getLong("case_version"),
-            instant(rs.getTimestamp("refreshed_at")));
+            instant(rs.getTimestamp("refreshed_at")), rs.getObject("next_installment_due_date", java.time.LocalDate.class));
 
     private static List<String> split(String value) {
         return value == null || value.isBlank() ? List.of() : Arrays.stream(value.split(",")).filter(v -> !v.isBlank()).toList();

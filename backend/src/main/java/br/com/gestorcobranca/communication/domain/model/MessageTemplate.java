@@ -75,6 +75,11 @@ public class MessageTemplate extends TenantScopedEntity {
     @Column(name = "provider_template_name", length = 120)
     private String providerTemplateName;
 
+    /** Categoria no provedor (só WhatsApp; nulo nos demais canais). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider_category", length = 20)
+    private ProviderCategory providerCategory;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "approval_status", nullable = false, length = 20)
     private ApprovalStatus approvalStatus;
@@ -123,9 +128,10 @@ public class MessageTemplate extends TenantScopedEntity {
      *
      * @param variablesJson lista de {@link TemplateVariable} em JSON
      * @param language      idioma no provedor (ex.: {@code pt_BR})
+     * @param providerCategory categoria no provedor (WhatsApp; nula = {@code UTILITY}); proibida nos demais canais
      */
     public record Content(String name, TemplatePurpose purpose, String subject, String body, String variablesJson,
-                          String language, String providerTemplateName) {
+                          String language, String providerTemplateName, ProviderCategory providerCategory) {
     }
 
     public void edit(Content content) {
@@ -173,6 +179,13 @@ public class MessageTemplate extends TenantScopedEntity {
         Guard.require(lang.matches("[a-z]{2}(_[A-Z]{2})?"), "template.language_invalid", "Idioma inválido (ex.: pt_BR)");
         this.language = lang;
         this.providerTemplateName = c.providerTemplateName();
+        if (channel == ChannelType.WHATSAPP) {
+            this.providerCategory = c.providerCategory() == null ? ProviderCategory.UTILITY : c.providerCategory();
+        } else {
+            Guard.require(c.providerCategory() == null, "template.category_not_applicable",
+                    "Categoria no provedor só se aplica a templates de WhatsApp");
+            this.providerCategory = null;
+        }
     }
 
     /** Registra a decisão do provedor sobre o template (WhatsApp). */
@@ -269,6 +282,15 @@ public class MessageTemplate extends TenantScopedEntity {
 
     public String getProviderTemplateName() {
         return providerTemplateName;
+    }
+
+    public ProviderCategory getProviderCategory() {
+        return providerCategory;
+    }
+
+    /** Template de autenticação (código de acesso) no provedor: formato fixo da Meta com botão "copiar código". */
+    public boolean isAuthentication() {
+        return providerCategory == ProviderCategory.AUTHENTICATION;
     }
 
     public ApprovalStatus getApprovalStatus() {

@@ -84,13 +84,14 @@ class PortalAccessService implements PortalAccessUseCases {
     private final PortalMetrics metrics;
     private final Clock clock;
     private final Executor dispatchExecutor;
+    private final AccessCodeMessage codeMessage;
 
     PortalAccessService(PortalSites sites, PortalDebts debts, KnowledgeVerifier knowledge, SessionOpener sessionOpener,
                   AccessChallengeRepository challenges, AccessLinkRepository links, AccessThrottleStore throttle,
                   MessageUseCases messages, FileStorage fileStorage, BlindIndex blindIndex,
                   TenantExecution tenantExecution, AccessLogger accessLogger, PortalProperties properties,
                   PortalMetrics metrics, Clock clock,
-                  @Qualifier("portalCodeDispatchExecutor") Executor dispatchExecutor) {
+                  @Qualifier("portalCodeDispatchExecutor") Executor dispatchExecutor, AccessCodeMessage codeMessage) {
         this.sites = sites;
         this.debts = debts;
         this.knowledge = knowledge;
@@ -107,6 +108,7 @@ class PortalAccessService implements PortalAccessUseCases {
         this.metrics = metrics;
         this.clock = clock;
         this.dispatchExecutor = dispatchExecutor;
+        this.codeMessage = codeMessage;
     }
 
     // ------------------------------------------------------------------ marca pública
@@ -219,9 +221,10 @@ class PortalAccessService implements PortalAccessUseCases {
         long minutes = Math.max(1, properties.access().codeTtl().toMinutes());
         try {
             String status = tenantExecution.callInTenant(site.tenantId(), "portal.access_code_send", () -> {
+                String templateCode = template(properties.templates().accessCode(), p.channel());
                 MessageView message = messages.send(new SendMessageCommand(null, p.debtorId(), p.creditorId(), null,
-                        p.channel().name(), null, template(properties.templates().accessCode(), p.channel()),
-                        Map.of("codigo", p.code(), "minutos", String.valueOf(minutes)), null, null,
+                        p.channel().name(), null, templateCode,
+                        codeMessage.variables(p.creditorId(), templateCode, p.code(), minutes), null, null,
                         "portal-code:" + p.challengeId()));
                 challenges.findByIdForUpdate(p.challengeId()).ifPresent(c -> {
                     c.sentAs(message.id());

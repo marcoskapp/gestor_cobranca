@@ -38,6 +38,21 @@ public record StepAction(ActionType type, String channel, String templateCode, M
         taskType = taskType == null || taskType.isBlank() ? null : taskType.trim().toUpperCase(Locale.ROOT);
     }
 
+    /** Origens usadas nas variáveis da etapa. */
+    public Set<VariableSource> sources() {
+        return variables.values().stream().map(StepAction::source).collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /** A etapa precisa da próxima parcela do acordo em vigor do caso. */
+    public boolean needsInstallment() {
+        return sendsMessage() && sources().stream().anyMatch(VariableSource::requiresInstallment);
+    }
+
+    /** A etapa gera um link de uso único do portal no envio. */
+    public boolean needsPortalLink() {
+        return sendsMessage() && sources().contains(VariableSource.PORTAL_LINK);
+    }
+
     public boolean sendsMessage() {
         return type == ActionType.SEND_MESSAGE || type == ActionType.OFFER;
     }
@@ -56,6 +71,9 @@ public record StepAction(ActionType type, String channel, String templateCode, M
                 Guard.require(templateCode != null && TEMPLATE_CODE.matcher(templateCode).matches(),
                         "cadence.template_invalid", "Informe o código do template");
                 variables.forEach(StepAction::validateVariable);
+                Guard.require(!sources().contains(VariableSource.PORTAL_LINK_HOURS)
+                                || sources().contains(VariableSource.PORTAL_LINK), "cadence.portal_hours_without_link",
+                        "A validade do link do portal só vai junto com o link do portal na mesma mensagem");
                 if (type == ActionType.OFFER) {
                     Guard.require(offer != null, "cadence.offer_required", "Informe os parâmetros da oferta");
                     offer.validate();

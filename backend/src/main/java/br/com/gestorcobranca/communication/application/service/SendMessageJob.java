@@ -179,8 +179,11 @@ class SendMessageJob implements JobHandler<SendMessageJob.Payload> {
             if (template.getProviderTemplateName() != null) {
                 TemplateRenderer.Rendered rendered = TemplateRenderer.render(template.getSubject(), template.getBody(),
                         templateVariables.parse(template.getVariables()), templateVariables.parseValues(m.getVariables()));
-                providerTemplate = new ProviderTemplate(template.getProviderTemplateName(), template.getLanguage(),
-                        rendered.parameters());
+                providerTemplate = template.isAuthentication()
+                        ? ProviderTemplate.authentication(template.getProviderTemplateName(), template.getLanguage(),
+                                rendered.parameters().getFirst())
+                        : ProviderTemplate.standard(template.getProviderTemplateName(), template.getLanguage(),
+                                rendered.parameters());
             }
         }
         return new OutboundRequest(account.getId(), credentialCodec.decode(account.getCredentials()),
