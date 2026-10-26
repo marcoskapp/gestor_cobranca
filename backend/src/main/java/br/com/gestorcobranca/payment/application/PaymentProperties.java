@@ -19,10 +19,12 @@ import java.util.List;
  * @param expirationCheckInterval   varredura de instruções vencidas
  * @param sandbox                   PSP simulado (local/teste; recusado no perfil prod)
  * @param externalReview            limites acumulados de pagamentos externos sem segunda pessoa
+ * @param reviewStatus              situação de revisão exibida no acordo e no caso
  */
 @ConfigurationProperties(prefix = "app.payment")
 public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evidence evidence, Statement statement,
-                                Duration expirationCheckInterval, Sandbox sandbox, ExternalReview externalReview) {
+                                Duration expirationCheckInterval, Sandbox sandbox, ExternalReview externalReview,
+                                ReviewStatus reviewStatus) {
 
     public PaymentProperties {
         defaults = defaults == null ? new Defaults(null, null, null, null) : defaults;
@@ -33,6 +35,28 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
         expirationCheckInterval = expirationCheckInterval == null ? Duration.ofMinutes(15) : expirationCheckInterval;
         sandbox = sandbox == null ? new Sandbox(false) : sandbox;
         externalReview = externalReview == null ? new ExternalReview(null, null, null) : externalReview;
+        reviewStatus = reviewStatus == null ? new ReviewStatus(null, null) : reviewStatus;
+    }
+
+    /**
+     * Situação de revisão dos pagamentos externos no acordo e no caso (quem negocia vê o que aguarda
+     * aprovação e o que foi recusado e precisa de ação).
+     *
+     * @param rejectedWindow recusados exibidos por este período após a recusa (padrão 30 dias)
+     * @param maxRejected    recusados exibidos por acordo ou devedor, os mais recentes (padrão 5)
+     */
+    public record ReviewStatus(Duration rejectedWindow, Integer maxRejected) {
+
+        public ReviewStatus {
+            rejectedWindow = rejectedWindow == null ? Duration.ofDays(30) : rejectedWindow;
+            maxRejected = maxRejected == null ? 5 : maxRejected;
+            if (rejectedWindow.isNegative() || rejectedWindow.isZero()) {
+                throw new IllegalArgumentException("app.payment.review-status.rejected-window deve ser positiva");
+            }
+            if (maxRejected < 1) {
+                throw new IllegalArgumentException("app.payment.review-status.max-rejected deve ser >= 1");
+            }
+        }
     }
 
     /**

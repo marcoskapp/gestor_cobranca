@@ -66,10 +66,11 @@ class PaymentController {
                                      @RequestParam(required = false) Instant paidFrom,
                                      @RequestParam(required = false) Instant paidTo,
                                      @RequestParam(required = false) Boolean withBalance,
+                                     @RequestParam(required = false) UUID agreementId,
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size) {
         return payments.search(new PaymentFilter(creditorId, debtorId, status, source, method, paidFrom, paidTo,
-                withBalance), PageQuery.of(page, size));
+                withBalance, agreementId), PageQuery.of(page, size));
     }
 
     @GetMapping("/{id}")
