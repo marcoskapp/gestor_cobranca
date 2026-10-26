@@ -209,6 +209,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'account.mfa', version: 1, path: '/conta/mfa' },
   { key: 'account.sessions', version: 1, path: '/conta/sessoes' },
   { key: 'platform.tenants', version: 1, path: '/plataforma/assessorias' },
+  { key: 'app.pending-work', version: 1, path: '/pendencias' },
   { key: 'help.center', version: 1, path: '/ajuda' },
   { key: 'help.module', version: 1, path: '/ajuda/:modulo' },
 ];
