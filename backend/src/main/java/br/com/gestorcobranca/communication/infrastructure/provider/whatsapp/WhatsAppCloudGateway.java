@@ -2,6 +2,7 @@ package br.com.gestorcobranca.communication.infrastructure.provider.whatsapp;
 
 import br.com.gestorcobranca.communication.application.CommunicationProperties;
 import br.com.gestorcobranca.communication.application.port.out.ChannelGateway;
+import br.com.gestorcobranca.communication.application.port.out.ChannelGateway.ProviderTemplate;
 import br.com.gestorcobranca.communication.domain.model.ProviderType;
 import br.com.gestorcobranca.communication.domain.service.ProviderAddresses;
 import br.com.gestorcobranca.shared.json.JsonCodec;
@@ -26,6 +27,9 @@ import java.util.Map;
 /**
  * Envio pela WhatsApp Cloud API (Meta): {@code POST /{phone-number-id}/messages} com token da conta.
  * Texto livre (dentro da janela de 24 h) ou template aprovado com parâmetros posicionais do corpo.
+ * Template de autenticação (categoria {@code AUTHENTICATION}, código de acesso): o código vai no
+ * componente {@code body} e no botão "copiar código" ({@code type=button}, {@code sub_type=url},
+ * {@code index="0"}), como exige a Meta — o corpo e a validade são fixos no template.
  * <p>
  * Timeouts explícitos (conexão e leitura); 429, 5xx e falhas de rede são transitórios (o job tenta
  * de novo com backoff — não há retentativa dentro da transação do envio); demais 4xx são recusa
@@ -106,13 +110,18 @@ class WhatsAppCloudGateway implements ChannelGateway {
         body.put("recipient_type", "individual");
         body.put("to", ProviderAddresses.toWhatsApp(request.recipient()));
         if (request.template() != null) {
-            List<Map<String, Object>> parameters = request.template().parameters().stream()
-                    .map(p -> Map.<String, Object>of("type", "text", "text", p.isEmpty() ? "-" : p))
+            ProviderTemplate provider = request.template();
+            List<Map<String, Object>> parameters = provider.parameters().stream()
+                    .map(WhatsAppCloudGateway::textParameter)
                     .toList();
             Map<String, Object> template = new LinkedHashMap<>();
-            template.put("name", request.template().name());
-            template.put("language", Map.of("code", request.template().language()));
-            if (!parameters.isEmpty()) {
+            template.put("name", provider.name());
+            template.put("language", Map.of("code", provider.language()));
+            if (provider.authentication()) {
+                template.put("components", List.of(
+                        Map.of("type", "body", "parameters", parameters),
+                        copyCodeButton(parameters.getFirst())));
+            } else if (!parameters.isEmpty()) {
                 template.put("components", List.of(Map.of("type", "body", "parameters", parameters)));
             }
             body.put("type", "template");
@@ -122,6 +131,20 @@ class WhatsAppCloudGateway implements ChannelGateway {
             body.put("text", Map.of("preview_url", false, "body", request.text()));
         }
         return body;
+    }
+
+    private static Map<String, Object> textParameter(String value) {
+        return Map.of("type", "text", "text", value.isEmpty() ? "-" : value);
+    }
+
+    /** Botão "copiar código" do template de autenticação: a Meta o recebe como botão de URL de índice 0. */
+    private static Map<String, Object> copyCodeButton(Map<String, Object> codeParameter) {
+        Map<String, Object> button = new LinkedHashMap<>();
+        button.put("type", "button");
+        button.put("sub_type", "url");
+        button.put("index", "0");
+        button.put("parameters", List.of(codeParameter));
+        return button;
     }
 
     private String errorCode(String responseBody) {

@@ -10,6 +10,8 @@ public interface AccessLinkRepository {
 
     AccessLink save(AccessLink link);
 
+    Optional<AccessLink> findById(UUID id);
+
     /** Com lock: o resgate concorrente do mesmo link é serializado (uso único). */
     Optional<AccessLink> findByTokenHashForUpdate(String tokenHash);
 

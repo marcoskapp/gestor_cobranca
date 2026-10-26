@@ -60,6 +60,8 @@ export const CASE_STATUSES = ['OPEN', 'IN_NEGOTIATION', 'PROMISE', 'AGREEMENT', 
 export const CONTACT_CHANNELS: readonly ContactChannel[] = ['WHATSAPP', 'EMAIL', 'SMS', 'PHONE'];
 export const OWNER_TYPES = ['ASSISTANT', 'QUEUE', 'USER', 'NONE'] as const;
 const MAX_DAYS = 36_500;
+/** Horizonte do filtro de parcela vencendo (`SegmentCriteria.MAX_INSTALLMENT_DAYS`). */
+const MAX_INSTALLMENT_DAYS = 366;
 const CODE = /^[A-Z][A-Z0-9_]{1,59}$/;
 
 export function emptyCriteria(): SegmentCriteria {
@@ -83,6 +85,8 @@ export function emptyCriteria(): SegmentCriteria {
     minScore: null,
     maxScore: null,
     ownerTypes: null,
+    minDaysToInstallment: null,
+    maxDaysToInstallment: null,
   };
 }
 
@@ -114,6 +118,8 @@ export function normalizeCriteria(input: Partial<SegmentCriteria> | null | undef
     minScore: num(c.minScore),
     maxScore: num(c.maxScore),
     ownerTypes: list(c.ownerTypes),
+    minDaysToInstallment: num(c.minDaysToInstallment),
+    maxDaysToInstallment: num(c.maxDaysToInstallment),
   };
 }
 
@@ -148,6 +154,7 @@ export const CRITERIA_FILTERS: readonly CriteriaFilter[] = [
   { key: 'pendingPromise', label: 'Promessa de pagamento', group: 'Negociação', kind: 'yes-no', fields: ['pendingPromise'], yes: 'Com promessa pendente', no: 'Sem promessa pendente' },
   { key: 'activeAgreement', label: 'Acordo em vigor', group: 'Negociação', kind: 'yes-no', fields: ['activeAgreement'], yes: 'Com acordo em vigor', no: 'Sem acordo em vigor' },
   { key: 'minBrokenAgreements', label: 'Acordos quebrados (mínimo)', group: 'Negociação', kind: 'int', fields: ['minBrokenAgreements'], max: MAX_DAYS },
+  { key: 'installmentDue', label: 'Parcela do acordo vence em (dias)', group: 'Negociação', kind: 'int-range', fields: ['minDaysToInstallment', 'maxDaysToInstallment'], hint: 'Próxima parcela em aberto do acordo em vigor; 0 = vence hoje. Casos sem acordo em vigor ficam fora.', max: MAX_INSTALLMENT_DAYS },
   { key: 'score', label: 'Score de propensão', group: 'Score', kind: 'int-range', fields: ['minScore', 'maxScore'], hint: 'De 0 a 1000. Casos sem score ficam fora.', max: 1000 },
 ];
 
@@ -186,13 +193,27 @@ export function criteriaProblems(c: SegmentCriteria): string[] {
     rangeProblem(c.noInteractionDays, null, 'Sem interação', MAX_DAYS),
     rangeProblem(c.noEffectiveContactDays, null, 'Sem contato efetivo', MAX_DAYS),
     rangeProblem(c.minBrokenAgreements, null, 'Acordos quebrados', MAX_DAYS),
+    rangeProblem(c.minDaysToInstallment, c.maxDaysToInstallment, 'Parcela do acordo', MAX_INSTALLMENT_DAYS),
   ];
+  if (c.activeAgreement === false && (c.minDaysToInstallment !== null || c.maxDaysToInstallment !== null)) {
+    problems.push('Parcela do acordo: o filtro exige acordo em vigor.');
+  }
   if ((c.minBalance ?? 0) < 0 || (c.maxBalance ?? 0) < 0) {
     problems.push('Saldo: valores não podem ser negativos.');
   } else if (c.minBalance !== null && c.maxBalance !== null && c.minBalance > c.maxBalance) {
     problems.push('Saldo: o mínimo é maior que o máximo.');
   }
   return problems.filter((p): p is string => !!p);
+}
+
+/** "hoje", "em até 3 dias", "entre 1 e 3 dias", "daqui a 5 dias ou mais". */
+function installmentText(min: number | null, max: number | null, days: (v: number) => string): string {
+  if (min !== null && max !== null) {
+    if (min === max) return min === 0 ? 'hoje' : `em ${days(min)}`;
+    return `entre ${count(min)} e ${days(max)}`;
+  }
+  if (max !== null) return max === 0 ? 'hoje' : `em até ${days(max)}`;
+  return min === 0 ? 'hoje ou depois' : `daqui a ${days(min!)} ou mais`;
 }
 
 function rangeText(min: number | null, max: number | null, unit: (v: number) => string): string {
@@ -246,6 +267,11 @@ export function criteriaSummary(c: SegmentCriteria, portfolioName: (id: string) 
       case 'score':
         if (c.minScore !== null || c.maxScore !== null) items.push(`Score ${rangeText(c.minScore, c.maxScore, count)}`);
         break;
+      case 'installmentDue':
+        if (c.minDaysToInstallment !== null || c.maxDaysToInstallment !== null) {
+          items.push(`Parcela do acordo vence ${installmentText(c.minDaysToInstallment, c.maxDaysToInstallment, days)}`);
+        }
+        break;
       default: {
         const v = c[f.fields[0]] as boolean | null;
         if (v !== null && f.yes && f.no) items.push(v ? f.yes : f.no);
@@ -282,6 +308,10 @@ const MAX_WAIT = 60 * 24 * 60;
 const MAX_TASK_DUE = 30 * 24 * 60;
 export const MESSAGE_ACTIONS: readonly ActionType[] = ['SEND_MESSAGE', 'OFFER'];
 export const OFFER_SOURCES: readonly VariableSource[] = ['OFFER_AMOUNT', 'OFFER_DUE_DATE', 'PAYMENT_LINK'];
+/** Origens calculadas no envio a partir do acordo em vigor do caso (etapa pulada sem acordo ou sem parcela). */
+export const INSTALLMENT_SOURCES: readonly VariableSource[] = ['NEXT_INSTALLMENT_AMOUNT', 'NEXT_INSTALLMENT_DUE_DATE'];
+/** Link de uso único gerado pelo portal no envio (etapa pulada sem portal para o caso). */
+export const PORTAL_SOURCES: readonly VariableSource[] = ['PORTAL_LINK', 'PORTAL_LINK_HOURS'];
 
 export function sendsMessage(a: Pick<StepAction, 'type'>): boolean {
   return MESSAGE_ACTIONS.includes(a.type);
@@ -434,6 +464,10 @@ function variableProblems(prefix: string, a: StepAction): string[] {
     } else if (OFFER_SOURCES.includes(source) && a.type !== 'OFFER') {
       problems.push(`${prefix}a variável ${name} usa dado de oferta, disponível só em etapa de oferta.`);
     }
+  }
+  const sources = Object.values(a.variables ?? {}).map(sourceOf);
+  if (sources.includes('PORTAL_LINK_HOURS') && !sources.includes('PORTAL_LINK')) {
+    problems.push(`${prefix}a validade do link do portal só vai junto com o link do portal na mesma mensagem.`);
   }
   return problems;
 }

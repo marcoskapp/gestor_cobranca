@@ -7,6 +7,7 @@ import { ACTION_HINTS, ACTION_LABELS, CHANNEL_LABELS, DAY_LABELS, DAYS, REPLY_LA
 import { ActionType, CadenceStep, DayOfWeek, MessageChannel, ReplyTransition, VariableSource } from '../data/campaign.models';
 import {
   DurationUnit,
+  INSTALLMENT_SOURCES,
   OFFER_SOURCES,
   TemplateRef,
   UNIT_MINUTES,
@@ -33,6 +34,7 @@ const SUGGESTED: Record<string, VariableSource> = {
   DATE: 'OLDEST_DUE_DATE',
   INTEGER: 'DAYS_OVERDUE',
   TEXT: 'CREDITOR_NAME',
+  URL: 'PORTAL_LINK',
 };
 
 export interface StepMove {
@@ -136,6 +138,19 @@ export class StepEditor {
 
   protected sourceOptions(): VariableSource[] {
     return this.step().action.type === 'OFFER' ? SOURCES : SOURCES.filter((s) => !OFFER_SOURCES.includes(s));
+  }
+
+  /** Alguma variável usa a próxima parcela do acordo. */
+  protected usesInstallment(): boolean {
+    return Object.values(this.step().action.variables ?? {}).some((spec) => {
+      const source = sourceOf(spec);
+      return source !== null && INSTALLMENT_SOURCES.includes(source);
+    });
+  }
+
+  /** Alguma variável usa o link de uso único do portal. */
+  protected usesPortalLink(): boolean {
+    return Object.values(this.step().action.variables ?? {}).some((spec) => sourceOf(spec) === 'PORTAL_LINK');
   }
 
   /** `{{nome}}` como aparece no texto do template. */

@@ -67,6 +67,18 @@ describe('regras de segmento', () => {
     expect(criteriaProblems(criteria({ noInteractionDays: 1.5 }))[0]).toContain('inteiros');
   });
 
+  it('filtro de parcela do acordo vencendo: faixa, exigência de acordo e resumo', () => {
+    expect(criteriaProblems(criteria({ minDaysToInstallment: 1, maxDaysToInstallment: 3 }))).toEqual([]);
+    expect(criteriaProblems(criteria({ minDaysToInstallment: 5, maxDaysToInstallment: 3 }))).toEqual(['Parcela do acordo: o mínimo é maior que o máximo.']);
+    expect(criteriaProblems(criteria({ maxDaysToInstallment: 400 }))[0]).toContain('Parcela do acordo');
+    expect(criteriaProblems(criteria({ activeAgreement: false, maxDaysToInstallment: 3 }))).toEqual(['Parcela do acordo: o filtro exige acordo em vigor.']);
+    expect(criteriaSummary(criteria({ maxDaysToInstallment: 3 }))).toContain('Parcela do acordo vence em até 3 dias');
+    expect(criteriaSummary(criteria({ minDaysToInstallment: 3, maxDaysToInstallment: 3 }))).toContain('Parcela do acordo vence em 3 dias');
+    expect(criteriaSummary(criteria({ minDaysToInstallment: 0, maxDaysToInstallment: 0 }))).toContain('Parcela do acordo vence hoje');
+    expect(criteriaSummary(criteria({ minDaysToInstallment: 1, maxDaysToInstallment: 5 }))).toContain('Parcela do acordo vence entre 1 e 5 dias');
+    expect(activeFilterKeys(criteria({ maxDaysToInstallment: 3 }))).toEqual(['installmentDue']);
+  });
+
   it('resume os filtros combinados em linguagem clara', () => {
     const summary = criteriaSummary(
       criteria({ minDaysOverdue: 30, maxDaysOverdue: 90, caseStatuses: ['OPEN'], contactableChannel: 'WHATSAPP', maxInteractions: 0, activeAgreement: false, minBalance: 100 }),
@@ -124,6 +136,15 @@ describe('regras da régua', () => {
     expect(problems).toContain('Etapa 1 (D0): a variável link usa dado de oferta, disponível só em etapa de oferta.');
     expect(problems).toContain('Etapa 1 (D0): texto fixo da variável obs com 1 a 200 caracteres.');
     expect(cadenceProblems(definition([]))).toEqual(['Inclua ao menos uma etapa.']);
+  });
+
+  it('parcela do acordo e link do portal em etapa de mensagem; validade do link só junto com o link', () => {
+    const ok = cadenceProblems(
+      definition([step({ action: { ...step().action, variables: { valor: 'NEXT_INSTALLMENT_AMOUNT', vencimento: 'NEXT_INSTALLMENT_DUE_DATE', link: 'PORTAL_LINK', horas: 'PORTAL_LINK_HOURS' } } })]),
+    );
+    expect(ok).toEqual([]);
+    const problems = cadenceProblems(definition([step({ action: { ...step().action, variables: { horas: 'PORTAL_LINK_HOURS' } } })]));
+    expect(problems).toContain('Etapa 1 (D0): a validade do link do portal só vai junto com o link do portal na mesma mensagem.');
   });
 
   it('confere a etapa com o template publicado (o do credor prevalece)', () => {

@@ -1,7 +1,7 @@
 # Desenho — módulo `communication` (canais, conversas, inbox)
 
 Escopo: M05, F12, RB07. Schema `communication`, migrations V1000–V1099 (`V1000` tabelas, `V1001` tabulações de
-mensagem no collection para as assessorias existentes).
+mensagem no collection para as assessorias existentes, `V1004` categoria do template no provedor).
 Dependências: `shared`, `organization :: usecases`, `debt :: usecases`, `compliance :: usecases`,
 `collection :: usecases`. Os demais fatos chegam por eventos de integração (`shared.events.*`).
 
@@ -17,7 +17,7 @@ com `FieldEncryptor`, nunca devolvido pela API — a view só lista as chaves co
 
 | Canal | Provedor (`ChannelGateway`) | Observações |
 | --- | --- | --- |
-| WhatsApp | `WHATSAPP_CLOUD` — Cloud API (Meta), `RestClient` com timeouts (3 s/10 s), credenciais `accessToken`, `appSecret`, `verifyToken` | template aprovado para iniciar contato; janela de 24 h após a última mensagem do devedor; webhook com `X-Hub-Signature-256` |
+| WhatsApp | `WHATSAPP_CLOUD` — Cloud API (Meta), `RestClient` com timeouts (3 s/10 s), credenciais `accessToken`, `appSecret`, `verifyToken` | template aprovado para iniciar contato; janela de 24 h após a última mensagem do devedor; webhook com `X-Hub-Signature-256`; template de autenticação enviado com `body` + `button` (`sub_type: url`, `index: "0"`, parâmetro = código) |
 | E-mail | `SMTP` — Spring Mail da plataforma | remetente/resposta da conta; sem notificação de entrega (fica `SENT`); bounces dependem do SES (issue #9) |
 | SMS | somente a porta (`ChannelGateway`); provedor na issue #12 | conta SMS só com o sandbox |
 | todos | `SANDBOX` — simulador local/teste (`app.communication.sandbox.enabled`, recusado no perfil `prod` por `SandboxGuard`) | aceita e agenda entrega/leitura simuladas; `[sandbox:reject]` e `[sandbox:transient]` no texto exercitam falhas; `POST /sandbox/inbound` simula resposta |
@@ -40,6 +40,17 @@ tipo para documento, telefone, e-mail ou endereço; valores `TEXT`/`URL` com CPF
 e-mail ou telefone são recusados (`template.variable_personal_data`), `CODE` recusa documento formatado e e-mail;
 nenhum valor tem quebra de linha. Toda variável usada é declarada e toda declarada é usada. Parâmetros posicionais do
 WhatsApp seguem a ordem das variáveis declaradas.
+
+**Categoria no provedor** (`providerCategory`, só WhatsApp; nula nos demais canais — `check` no banco): `UTILITY`
+(padrão; também a dos templates existentes, `V1004`), `MARKETING` ou `AUTHENTICATION`. O template de **autenticação**
+(código de acesso do portal) segue o formato da Meta: corpo fixo e **uma única variável, o código** (`CODE`,
+obrigatória, até 15 caracteres — `ProviderTemplateRules`); a validade é configuração do template na Meta, não
+variável. No envio (`SendMessageJob` → `ProviderTemplate.authentication`), o adaptador manda o código no componente
+`body` e no botão "copiar código" (`type: button`, `sub_type: url`, `index: "0"` em texto — formato da documentação da
+Meta para *copy code*). Mudar a categoria de um rascunho volta a aprovação para `PENDING`, como qualquer edição. Quem
+envia pode consultar o template que o envio usaria (`TemplateUseCases#findEffective`: o do credor e, sem ele, o da
+assessoria) para montar só as variáveis declaradas — o portal envia `minutos` apenas quando o template de código o
+declara (SMS/e-mail).
 
 **Aprovação do WhatsApp:** rascunho de WhatsApp nasce `PENDING`; `POST /templates/{id}/approval` registra a decisão
 do provedor (`PENDING` submetido, `APPROVED` com nome no provedor, `REJECTED` com motivo), referência, data e quem
@@ -257,6 +268,9 @@ templates sem `DELETE`.
 | 20 | Meta de primeira resposta por assessoria e canal, em minutos corridos, classificada no servidor | por credor; horário comercial | é o parâmetro operacional pedido; horário comercial exigiria calendário por canal (pendência) |
 | 21 | Estouro contado por varredura com cursor no banco (uma vez por conversa) | gauge por instância | gauges ficariam desatualizados nas instâncias sem o lock do ShedLock; o cursor garante contagem única |
 | 22 | Tempo real por SSE + LISTEN/NOTIFY (ADR-0008), aviso só com ids | WebSocket; ElastiCache/SNS | sem serviço novo da AWS; o cliente rebusca pelos endpoints com permissão e escopo |
+| 23 | Categoria do template no provedor como enum (`UTILITY`, `MARKETING`, `AUTHENTICATION`) na versão do template | marcador booleano "é autenticação" | é o conceito da Meta (custo, formato e reclassificação); o formato de envio sai da categoria; existentes = `UTILITY` (decisão 510) |
+| 24 | Template de autenticação: uma variável `CODE` (até 15) enviada no corpo e no botão `url` índice `"0"` | manter `codigo` + `minutos` | a Meta recusa/reclassifica parâmetros extras; validade é do template na Meta (decisão 511) |
+| 25 | `TemplateUseCases#findEffective` para quem envia montar só as variáveis declaradas | variáveis opcionais ignoradas pelo renderizador | o renderizador continua recusando variável não prevista (erro de configuração aparece); o portal decide pelo template (decisão 512) |
 
 ## 9. Pendências
 

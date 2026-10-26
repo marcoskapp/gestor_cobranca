@@ -400,7 +400,7 @@ class CommunicationModuleIT extends CommunicationTestSupport {
                     creditor, "LEMBRETE", "WHATSAPP", new br.com.gestorcobranca.communication.application.port.in
                     .TemplateUseCases.TemplateContent("Lembrete", "REMINDER", null, "Olá {{nome}}",
                     List.of(new br.com.gestorcobranca.communication.application.port.in.TemplateUseCases.VariableInput(
-                            "nome", "FIRST_NAME", true, null)), null, "lembrete"));
+                            "nome", "FIRST_NAME", true, null)), null, "lembrete", null));
         }
     }
 }

@@ -65,6 +65,11 @@ public final class SegmentMatcher {
         check(unmet, "minScore", c.minScore() == null || (s.score() != null && s.score() >= c.minScore()));
         check(unmet, "maxScore", c.maxScore() == null || (s.score() != null && s.score() <= c.maxScore()));
         check(unmet, "ownerTypes", c.ownerTypes().isEmpty() || c.ownerTypes().contains(s.ownerType()));
+        Long toInstallment = s.daysUntilNextInstallment(today);
+        check(unmet, "minDaysToInstallment", c.minDaysToInstallment() == null
+                || (toInstallment != null && toInstallment >= c.minDaysToInstallment()));
+        check(unmet, "maxDaysToInstallment", c.maxDaysToInstallment() == null
+                || (toInstallment != null && toInstallment >= 0 && toInstallment <= c.maxDaysToInstallment()));
         return unmet;
     }
 

@@ -25,6 +25,7 @@ import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
+import br.com.gestorcobranca.shared.events.negotiation.InstallmentStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
 import br.com.gestorcobranca.shared.events.scoring.CaseScoreChanged;
@@ -66,12 +67,14 @@ class CampaignReactions {
     private final CampaignEvents events;
     private final CampaignMetrics metrics;
     private final ContactGate gate;
+    private final AgreementInstallments installments;
     private final Clock clock;
 
     CampaignReactions(EnrollmentRepository enrollments, CampaignRepository campaigns, CadenceRepository cadences,
                       StepExecutionRepository executions, AttributionRepository attributions,
                       AudienceProjection projection, AudienceStore audience, EnrollmentLifecycle lifecycle,
-                      CampaignCodec codec, CampaignEvents events, CampaignMetrics metrics, ContactGate gate, Clock clock) {
+                      CampaignCodec codec, CampaignEvents events, CampaignMetrics metrics, ContactGate gate,
+                      AgreementInstallments installments, Clock clock) {
         this.enrollments = enrollments;
         this.campaigns = campaigns;
         this.cadences = cadences;
@@ -84,6 +87,7 @@ class CampaignReactions {
         this.events = events;
         this.metrics = metrics;
         this.gate = gate;
+        this.installments = installments;
         this.clock = clock;
     }
 
@@ -190,6 +194,14 @@ class CampaignReactions {
             audience.incrementBrokenAgreements(event.caseId());
         }
         caseChanged(event.caseId(), "agreement");
+    }
+
+    /**
+     * Parcela de acordo paga, vencida ou cancelada: atualiza a projeção do caso do acordo (vencimento da
+     * próxima parcela em aberto — filtro "parcela vence em N dias").
+     */
+    void installmentStatusChanged(InstallmentStatusChanged event) {
+        caseChanged(installments.caseOf(event.agreementId()).orElse(null), "installment");
     }
 
     // ------------------------------------------------------------------ restrição de contato

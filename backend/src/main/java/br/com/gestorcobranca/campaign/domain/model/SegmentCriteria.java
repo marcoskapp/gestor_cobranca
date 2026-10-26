@@ -33,6 +33,9 @@ import java.util.UUID;
  * @param minScore              score de propensão mínimo (critério opcional; casos sem score ficam fora)
  * @param maxScore              score máximo (idem)
  * @param ownerTypes            dono do atendimento (ASSISTANT, QUEUE, USER, NONE)
+ * @param minDaysToInstallment  próxima parcela em aberto do acordo em vigor vence em ao menos N dias (0 = hoje);
+ *                              casos sem acordo em vigor com parcela em aberto ficam fora
+ * @param maxDaysToInstallment  idem, vence em até N dias (lembrete de parcela: "vence nos próximos N dias")
  */
 public record SegmentCriteria(
         Set<UUID> portfolioIds,
@@ -53,13 +56,17 @@ public record SegmentCriteria(
         Integer minBrokenAgreements,
         Integer minScore,
         Integer maxScore,
-        Set<String> ownerTypes) {
+        Set<String> ownerTypes,
+        Integer minDaysToInstallment,
+        Integer maxDaysToInstallment) {
 
     public static final Set<String> CASE_STATUSES = Set.of("OPEN", "IN_NEGOTIATION", "PROMISE", "AGREEMENT", "DISPUTED",
             "SUSPENDED", "LEGAL");
     public static final Set<String> CHANNELS = Set.of("WHATSAPP", "EMAIL", "SMS", "PHONE");
     public static final Set<String> OWNER_TYPES = Set.of("ASSISTANT", "QUEUE", "USER", "NONE");
     private static final int MAX_DAYS = 36_500;
+    /** Horizonte do filtro de parcela vencendo (um ano). */
+    public static final int MAX_INSTALLMENT_DAYS = 366;
 
     public SegmentCriteria {
         portfolioIds = portfolioIds == null ? Set.of() : Set.copyOf(portfolioIds);
@@ -73,7 +80,7 @@ public record SegmentCriteria(
     /** Segmento sem filtros além da elegibilidade. */
     public static SegmentCriteria any() {
         return new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     /** Valida faixas e valores; lança {@code BusinessRuleException} com código {@code segment.*}. */
@@ -89,6 +96,15 @@ public record SegmentCriteria(
                 "Canal inválido");
         Guard.require(OWNER_TYPES.containsAll(ownerTypes), "segment.owner_type_invalid", "Dono do atendimento inválido");
         range(minInteractions, maxInteractions, "segment.interactions_invalid", "Faixa de interações inválida");
+        Guard.require(minDaysToInstallment == null || (minDaysToInstallment >= 0 && minDaysToInstallment <= MAX_INSTALLMENT_DAYS),
+                "segment.installment_days_invalid", "Dias até a parcela entre 0 e " + MAX_INSTALLMENT_DAYS);
+        Guard.require(maxDaysToInstallment == null || (maxDaysToInstallment >= 0 && maxDaysToInstallment <= MAX_INSTALLMENT_DAYS),
+                "segment.installment_days_invalid", "Dias até a parcela entre 0 e " + MAX_INSTALLMENT_DAYS);
+        Guard.require(minDaysToInstallment == null || maxDaysToInstallment == null
+                        || minDaysToInstallment <= maxDaysToInstallment, "segment.installment_days_invalid",
+                "Dias até a parcela: mínimo maior que o máximo");
+        Guard.require(!Boolean.FALSE.equals(activeAgreement) || (minDaysToInstallment == null && maxDaysToInstallment == null),
+                "segment.installment_without_agreement", "Parcela vencendo exige acordo em vigor");
         nonNegative(noInteractionDays, "segment.days_invalid");
         nonNegative(noEffectiveContactDays, "segment.days_invalid");
         nonNegative(minBrokenAgreements, "segment.broken_agreements_invalid");
