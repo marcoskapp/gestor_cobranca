@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.helpdesk.application.port.in;
 
+import br.com.gestorcobranca.helpdesk.application.port.in.HelpdeskTicketUseCases.TicketView;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

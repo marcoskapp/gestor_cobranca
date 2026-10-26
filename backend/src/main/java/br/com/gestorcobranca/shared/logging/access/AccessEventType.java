@@ -60,5 +60,12 @@ public enum AccessEventType {
     PORTAL_PRIVACY_ACKNOWLEDGED,
     RATE_LIMITED,
     /** Endereço de integração financeira (URL do PSP, autenticação do webhook) criado ou alterado — alerta. */
-    INTEGRATION_ENDPOINT_CHANGED
+    INTEGRATION_ENDPOINT_CHANGED,
+    /**
+     * Consulta de dados feita pelo chat de suporte em nome do usuário (ferramenta somente leitura), registrada como
+     * se ele tivesse aberto a tela: ferramenta, tipo de registro, ids consultados e conversa — nunca o conteúdo.
+     */
+    SUPPORT_DATA_QUERIED,
+    /** Chamado de suporte aberto num rastreador externo (issue no GitHub) com o e-mail de quem abriu. */
+    SUPPORT_TICKET_OPENED
 }

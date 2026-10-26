@@ -47,7 +47,7 @@ public final class TicketRedactor {
             "como", "onde", "qual", "quais", "que", "ele", "ela", "eles", "elas", "eu", "nós", "você", "vocês", "este",
             "esta", "esse", "essa", "isso", "isto", "aquele", "aquela", "não", "sim", "também", "mas", "porém", "após",
             "antes", "depois", "hoje", "ontem", "amanhã", "usuário", "usuária", "erro", "tela", "botão", "menu",
-            "sistema", "chat", "suporte", "ia", "ao", "abrir", "ver", "tentar", "tentei", "cliquei", "aparece",
+            "sistema", "chat", "suporte", "ia", "abrir", "ver", "tentar", "tentei", "cliquei", "aparece",
             "apareceu", "mensagem", "aviso", "problema", "dúvida", "pedido", "segunda", "terça", "quarta", "quinta",
             "sexta", "sábado", "domingo", "janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
             "setembro", "outubro", "novembro", "dezembro", "pix", "boleto", "whatsapp", "sms", "cpf", "cnpj");

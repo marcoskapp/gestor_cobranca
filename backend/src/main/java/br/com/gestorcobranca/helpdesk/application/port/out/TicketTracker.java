@@ -17,6 +17,9 @@ public interface TicketTracker {
     /** {@code dono/repositório}. */
     String repository();
 
+    /** Rótulos aplicados a toda issue aberta (ex.: {@code suporte}). */
+    List<String> labels();
+
     /** Exige repositório privado antes de abrir (trava {@code require-private-repository}). */
     boolean requiresPrivateRepository();
 

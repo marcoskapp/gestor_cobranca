@@ -12,6 +12,9 @@ public interface ChatConversationRepository {
 
     Optional<ChatConversation> findById(UUID id);
 
+    /** Com bloqueio de linha: perguntas simultâneas na mesma conversa são serializadas. */
+    Optional<ChatConversation> findByIdForUpdate(UUID id);
+
     /** Mais recentes primeiro. */
     List<ChatConversation> findTop20ByUserIdOrderByLastActivityAtDesc(UUID userId);
 }

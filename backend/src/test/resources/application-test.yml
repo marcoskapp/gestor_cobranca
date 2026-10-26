@@ -40,6 +40,9 @@ app:
   assistant:
     sandbox:
       enabled: true
+  helpdesk:
+    sandbox:
+      enabled: true
   telephony:
     # testes conduzem os eventos de chamada explicitamente (sem andamento automático nem rede)
     sandbox:

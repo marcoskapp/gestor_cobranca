@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "da8607669fb8bdb7",
+ "contentVersion": "1daab9bd94b3e07b",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -904,6 +904,53 @@
     "tour"
    ],
    "path": "/",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "app.pending-work",
+   "module": "geral",
+   "title": "Minhas pendências",
+   "objective": "O que espera uma ação sua agora: aprovações, prazos, retornos e conversas, com atalho para a tela onde a ação é feita.",
+   "purpose": [
+    "Reúne, de todos os módulos, as tarefas que você pode executar com o seu perfil e nos credores que você atende. Cada linha leva à tela de trabalho já filtrada.",
+    "Quem precisa de uma segunda pessoa para aprovar não vê o próprio lançamento: por exemplo, quem informou um pagamento não o vê aqui para aprovar."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Filas e prazos de cada módulo: pagamentos, negociação, importação, prestação de contas, remuneração, compliance, cobrança, conversas, jurídico, assistente e score."
+   ],
+   "outputs": [
+    "Atalhos para executar cada pendência; o resumo também aparece no início e no indicador da barra superior."
+   ],
+   "related": [
+    {
+     "screen": "app.home",
+     "why": "O início mostra o mesmo resumo das pendências."
+    },
+    {
+     "screen": "payment.review",
+     "why": "Aprovação de pagamentos informados por outra pessoa."
+    },
+    {
+     "screen": "negotiation.approvals",
+     "why": "Propostas acima da alçada aguardando decisão."
+    },
+    {
+     "screen": "collection.agenda",
+     "why": "Retornos agendados de hoje e vencidos."
+    }
+   ],
+   "terms": [
+    "escopo-de-credores",
+    "perfil-de-acesso",
+    "alcada"
+   ],
+   "path": "/pendencias",
    "access": {
     "kind": "OPEN",
     "permissions": []
