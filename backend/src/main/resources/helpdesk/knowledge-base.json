@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "50a2b219829e3084",
+ "contentVersion": "092e9da62af171dc",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -319,6 +319,8 @@
     "A campanha começa em preparação e só alcança devedores depois de ativada; antes de confirmar, você vê quantos serão alcançados.",
     "Casos inelegíveis ficam fora do segmento por padrão.",
     "Mensagens usam apenas templates publicados, com as variáveis conferidas; a régua tem até 30 etapas.",
+    "Lembrete de parcela: o valor e o vencimento da próxima parcela em aberto vêm do acordo em vigor do caso no envio; sem acordo ou sem parcela em aberto, a etapa é pulada.",
+    "Link do portal na régua: é de uso único, gerado no envio e anula o link anterior do devedor; sem portal habilitado para a carteira do caso, a etapa é pulada.",
     "Pagamento, acordo, contestação, restrição de contato ou jurídico pausam a régua do devedor.",
     "O grupo de controle do teste A/B não recebe ações. Ao iniciar, o teste fica congelado.",
     "Reprocessar falhas não duplica mensagens."
@@ -2008,7 +2010,7 @@
    "objective": "Textos aprovados por canal, com variáveis conferidas, versões e aprovação do WhatsApp.",
    "purpose": [
     "Escreva o texto com variáveis como nome e valor da dívida. Dados pessoais como documento, telefone e e-mail não são aceitos no texto.",
-    "Templates de WhatsApp precisam ser aprovados no provedor antes de publicar."
+    "Templates de WhatsApp precisam ser aprovados no provedor antes de publicar. Informe a categoria na Meta: utilidade para avisos e lembretes; autenticação só para o código de acesso do portal, com uma única variável, o código."
    ],
    "profiles": [
     "GESTOR",
@@ -2174,7 +2176,8 @@
    "title": "Régua",
    "objective": "Etapas em sequência: espera, janela de horário, condição, ação e o que a resposta do devedor faz.",
    "purpose": [
-    "Cada etapa espera um tempo, respeita uma janela de horário, verifica uma condição e executa uma ação. A resposta padrão vale para as etapas sem regra própria."
+    "Cada etapa espera um tempo, respeita uma janela de horário, verifica uma condição e executa uma ação. A resposta padrão vale para as etapas sem regra própria.",
+    "Em cada variável do template, escolha a origem do valor: dados do devedor e da dívida, valor e vencimento da próxima parcela do acordo, ou o link de acesso ao portal com a validade em horas."
    ],
    "profiles": [
     "ESTRATEGIA",
@@ -2370,7 +2373,8 @@
    "title": "Novo segmento",
    "objective": "Monte um público com filtros combinados e veja a contagem prévia antes de salvar.",
    "purpose": [
-    "Todos os filtros precisam ser atendidos ao mesmo tempo. Casos inelegíveis ficam fora por padrão."
+    "Todos os filtros precisam ser atendidos ao mesmo tempo. Casos inelegíveis ficam fora por padrão.",
+    "Para lembrete de parcela, use \"Parcela do acordo vence em (dias)\": entram só os casos com acordo em vigor cuja próxima parcela em aberto vence nesse intervalo."
    ],
    "profiles": [
     "ESTRATEGIA",

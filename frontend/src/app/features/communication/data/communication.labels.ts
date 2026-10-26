@@ -1,5 +1,5 @@
 import type { IconName } from '../../../shared/components/icon/icon-names';
-import { ChannelType, HandoffKind, ProviderType, SenderType, TemplatePurpose, VariableType } from './communication.models';
+import { ChannelType, HandoffKind, ProviderCategory, ProviderType, SenderType, TemplatePurpose, VariableType } from './communication.models';
 
 export const CHANNEL_LABELS: Record<ChannelType, string> = { WHATSAPP: 'WhatsApp', EMAIL: 'E-mail', SMS: 'SMS' };
 /** Ícone do canal (Bootstrap Icons); sempre acompanhado do nome do canal. */
@@ -43,6 +43,13 @@ export const PURPOSE_LABELS: Record<TemplatePurpose, string> = {
   AGREEMENT: 'Acordo',
   PAYMENT: 'Pagamento',
   SERVICE: 'Atendimento',
+};
+
+/** Categoria do template no WhatsApp (Meta). */
+export const PROVIDER_CATEGORY_LABELS: Record<ProviderCategory, string> = {
+  UTILITY: 'Utilidade',
+  MARKETING: 'Marketing',
+  AUTHENTICATION: 'Autenticação (código de acesso)',
 };
 
 export const VARIABLE_TYPE_LABELS: Record<VariableType, string> = {

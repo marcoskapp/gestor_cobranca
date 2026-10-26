@@ -11,9 +11,9 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { fromLocalDate, toLocalDate } from '../../../shared/models/dates';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { TemplatesApi } from '../data/communication.api';
-import { CHANNEL_LABELS, PURPOSE_LABELS, VARIABLE_EXAMPLES, VARIABLE_TYPE_LABELS } from '../data/communication.labels';
-import { ApprovalRequest, ChannelType, TemplatePurpose, TemplateView, VariableType } from '../data/communication.models';
-import { variableProblems } from '../data/communication.rules';
+import { CHANNEL_LABELS, PROVIDER_CATEGORY_LABELS, PURPOSE_LABELS, VARIABLE_EXAMPLES, VARIABLE_TYPE_LABELS } from '../data/communication.labels';
+import { ApprovalRequest, ChannelType, ProviderCategory, TemplatePurpose, TemplateView, VariableType } from '../data/communication.models';
+import { OTP_MAX_LENGTH, categoryProblems, variableProblems } from '../data/communication.rules';
 
 export interface TemplateDialogData {
   /** Rascunho a editar; ou base de uma nova versão (`asNewVersion`). */
@@ -104,9 +104,24 @@ export interface TemplateDialogData {
         </div>
         <button class="btn btn-link d-inline-flex align-items-center gap-2 px-0 mt-1" type="button" (click)="addVariable()"><app-icon name="plus-lg" />Adicionar variável</button>
         @if (channel() === 'WHATSAPP') {
-          <app-field class="d-block mt-3" label="Nome do template no WhatsApp (opcional)" hint="No WhatsApp, os parâmetros seguem a ordem das variáveis declaradas.">
-            <input appInput formControlName="providerTemplateName" maxlength="120" />
-          </app-field>
+          <div class="row g-3 mt-0">
+            <app-field class="col-sm-6" label="Categoria na Meta" hint="Utilidade para avisos e lembretes; autenticação só para o código de acesso.">
+              <select appInput formControlName="providerCategory">
+                @for (c of categories; track c.value) {
+                  <option [ngValue]="c.value">{{ c.label }}</option>
+                }
+              </select>
+            </app-field>
+            <app-field class="col-sm-6" label="Nome do template no WhatsApp (opcional)" hint="No WhatsApp, os parâmetros seguem a ordem das variáveis declaradas.">
+              <input appInput formControlName="providerTemplateName" maxlength="120" />
+            </app-field>
+          </div>
+          @if (category() === 'AUTHENTICATION') {
+            <p class="alert alert-secondary d-flex gap-2 mt-3 mb-0" role="note">
+              <app-icon name="info-circle" />
+              <span>Autenticação: a Meta usa texto fixo e um botão "copiar código". Declare só a variável do código (tipo código, até {{ otpMax }} caracteres); a validade é configurada no template na Meta.</span>
+            </p>
+          }
         }
         @for (p of problems(); track p) {
           <div class="invalid-feedback d-block" role="alert">{{ p }}</div>
@@ -152,12 +167,18 @@ export class TemplateDialog {
       (this.t?.variables ?? []).map((v) => this.variableGroup(v.name, v.type, v.required)),
     ),
     providerTemplateName: [this.t?.providerTemplateName ?? '', Validators.maxLength(120)],
+    providerCategory: this.fb.control<ProviderCategory>(this.t?.providerCategory ?? 'UTILITY'),
   });
   protected readonly channel = toSignal(this.form.controls.channel.valueChanges, { initialValue: this.form.controls.channel.value });
+  protected readonly category = toSignal(this.form.controls.providerCategory.valueChanges, { initialValue: this.form.controls.providerCategory.value });
+  protected readonly categories = (Object.keys(PROVIDER_CATEGORY_LABELS) as ProviderCategory[]).map((value) => ({ value, label: PROVIDER_CATEGORY_LABELS[value] }));
+  protected readonly otpMax = OTP_MAX_LENGTH;
   private readonly value = toSignal(this.form.valueChanges.pipe(startWith(null), map(() => this.form.getRawValue())), { initialValue: this.form.getRawValue() });
   protected readonly problems = computed(() => {
     const v = this.value();
-    return v.body.trim() ? variableProblems(v.body, v.channel === 'EMAIL' ? v.subject : null, v.variables) : [];
+    return v.body.trim()
+      ? [...variableProblems(v.body, v.channel === 'EMAIL' ? v.subject : null, v.variables), ...categoryProblems(v.channel, v.providerCategory, v.variables)]
+      : [];
   });
 
   protected get variables(): FormArray {
@@ -186,6 +207,7 @@ export class TemplateDialog {
       variables: v.variables.map((x) => ({ name: x.name.trim(), type: x.type, required: x.required, maxLength: null })),
       language: 'pt_BR',
       providerTemplateName: v.channel === 'WHATSAPP' ? v.providerTemplateName.trim() || null : null,
+      providerCategory: v.channel === 'WHATSAPP' ? v.providerCategory : null,
     };
     const call =
       this.t && !this.data.asNewVersion

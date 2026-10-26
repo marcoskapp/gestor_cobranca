@@ -54,7 +54,7 @@ class CampaignFlowIT extends CampaignTestSupport {
         debtor = debtor("529.982.247-25");
         kase = loadCase(creditorA, portfolioA, debtor, "500.00", LocalDate.of(2026, 3, 10));
         segmentId = segment(creditorA, "ATRASO_30", new SegmentCriteria(null, 30, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null));
+                null, null, null, null, null, null, null, null, null, null, null, null, null));
     }
 
     @Test

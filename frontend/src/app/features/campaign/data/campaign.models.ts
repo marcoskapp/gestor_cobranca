@@ -26,6 +26,10 @@ export type VariableSource =
   | 'OFFER_AMOUNT'
   | 'OFFER_DUE_DATE'
   | 'PAYMENT_LINK'
+  | 'NEXT_INSTALLMENT_AMOUNT'
+  | 'NEXT_INSTALLMENT_DUE_DATE'
+  | 'PORTAL_LINK'
+  | 'PORTAL_LINK_HOURS'
   | 'LITERAL';
 
 // --------------------------------------------------------------------- segmentos
@@ -52,6 +56,10 @@ export interface SegmentCriteria {
   minScore: number | null;
   maxScore: number | null;
   ownerTypes: string[] | null;
+  /** Próxima parcela em aberto do acordo em vigor vence em ao menos N dias (0 = hoje). */
+  minDaysToInstallment: number | null;
+  /** Idem, vence em até N dias (lembrete de parcela). */
+  maxDaysToInstallment: number | null;
 }
 
 export interface SegmentView {

@@ -12,6 +12,7 @@ import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
 import br.com.gestorcobranca.shared.events.legal.LegalMatterStageChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
+import br.com.gestorcobranca.shared.events.negotiation.InstallmentStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
 import br.com.gestorcobranca.shared.events.scoring.CaseScoreChanged;
@@ -115,6 +116,15 @@ class CampaignEventListeners extends TenantEventListener {
         handleOnce(event, "campaign.agreement-status", () -> {
             reactions.agreementStatusChanged(event);
             metrics.eventConsumed("agreement_status");
+        });
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(InstallmentStatusChanged event) {
+        handleOnce(event, "campaign.installment-status", () -> {
+            reactions.installmentStatusChanged(event);
+            metrics.eventConsumed("installment_status");
         });
     }
 

@@ -58,7 +58,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Textos aprovados por canal, com variáveis conferidas, versões e aprovação do WhatsApp.',
       purpose: [
         'Escreva o texto com variáveis como nome e valor da dívida. Dados pessoais como documento, telefone e e-mail não são aceitos no texto.',
-        'Templates de WhatsApp precisam ser aprovados no provedor antes de publicar.',
+        'Templates de WhatsApp precisam ser aprovados no provedor antes de publicar. Informe a categoria na Meta: utilidade para avisos e lembretes; autenticação só para o código de acesso do portal, com uma única variável, o código.',
       ],
       profiles: ['GESTOR', 'ESTRATEGIA'],
       inputs: ['Textos definidos pela gestão e pela estratégia de cobrança.'],

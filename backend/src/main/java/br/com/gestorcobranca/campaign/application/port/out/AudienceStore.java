@@ -30,6 +30,13 @@ public interface AudienceStore {
      */
     boolean applyScore(UUID caseId, int score, Instant calculatedAt);
 
+    /**
+     * Grava o vencimento da próxima parcela em aberto do acordo em vigor do caso (nulo = sem acordo em
+     * vigor com parcela em aberto), lido do negotiation no momento — independe da versão do caso, porque
+     * a baixa de parcela não muda necessariamente o caso no collection.
+     */
+    void applyNextInstallment(UUID caseId, LocalDate dueDate);
+
     /** Conta mais um acordo quebrado no caso (sem efeito se o caso ainda não está na projeção). */
     void incrementBrokenAgreements(UUID caseId);
 
