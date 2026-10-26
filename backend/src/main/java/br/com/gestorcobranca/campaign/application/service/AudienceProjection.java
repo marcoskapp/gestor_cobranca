@@ -9,23 +9,29 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
  * Mantém o read model de audiência a partir da interface pública do collection
  * ({@code CaseUseCases#get}/{@code search}) — o módulo nunca lê as tabelas de outro módulo. Chamado ao
  * consumir os eventos do caso, antes de cada etapa (posição atual) e pela reconstrução em lotes.
+ * Para casos em acordo, grava também o vencimento da próxima parcela em aberto (negotiation —
+ * {@link AgreementInstallments}).
  */
 @Component
 class AudienceProjection {
 
     private final CaseUseCases cases;
+    private final AgreementInstallments installments;
     private final AudienceStore store;
     private final CampaignMetrics metrics;
     private final Clock clock;
 
-    AudienceProjection(CaseUseCases cases, AudienceStore store, CampaignMetrics metrics, Clock clock) {
+    AudienceProjection(CaseUseCases cases, AgreementInstallments installments, AudienceStore store,
+                       CampaignMetrics metrics, Clock clock) {
         this.cases = cases;
+        this.installments = installments;
         this.store = store;
         this.metrics = metrics;
         this.clock = clock;
@@ -42,7 +48,13 @@ class AudienceProjection {
     AudienceSnapshot apply(CaseView view, String trigger) {
         int broken = store.find(view.id()).map(AudienceSnapshot::brokenAgreements).orElse(0);
         AudienceSnapshot snapshot = snapshot(view, Instant.now(clock)).withBrokenAgreements(broken);
+        // parcela do acordo: só consulta o negotiation quando o caso está (ou estava, numa retenção) em acordo
+        LocalDate nextInstallment = snapshot.activeAgreement() && snapshot.active()
+                ? installments.nextDueDate(view.id(), view.debtorId(), view.creditorId(), view.portfolioId()).orElse(null)
+                : null;
+        snapshot = snapshot.withNextInstallmentDueDate(nextInstallment);
         store.upsert(snapshot);
+        store.applyNextInstallment(snapshot.caseId(), nextInstallment);
         metrics.audienceRefresh(trigger, "CLOSED".equals(view.status()) ? "closed" : "updated");
         return snapshot;
     }
@@ -52,7 +64,7 @@ class AudienceProjection {
                 v.eligible(), v.eligibilityReasons(), v.contactableChannels(), zero(v.openBalance()),
                 zero(v.eligibleBalance()), v.oldestDueDate(), v.ownerType() == null ? "NONE" : v.ownerType(),
                 v.interactionCount(), v.effectiveContactCount(), v.lastInteractionAt(), v.lastEffectiveContactAt(),
-                v.score(), 0, v.version(), now);
+                v.score(), 0, v.version(), now, null);
     }
 
     private static BigDecimal zero(BigDecimal value) {

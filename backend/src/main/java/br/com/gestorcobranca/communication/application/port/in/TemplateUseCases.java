@@ -6,6 +6,7 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -35,6 +36,14 @@ public interface TemplateUseCases {
 
     PageResponse<TemplateView> search(TemplateFilter filter, PageQuery page);
 
+    /**
+     * Template publicado que o envio usaria para o credor e o código: o do credor e, sem ele, o da
+     * assessoria (mesma regra de {@code MessageUseCases#send}). Vazio se não houver publicado.
+     * Permite a quem envia montar só as variáveis que o template declara (ex.: o código de acesso do
+     * portal num template de autenticação, sem a validade).
+     */
+    Optional<TemplateView> findEffective(UUID creditorId, String code);
+
     /** Renderiza com valores de exemplo, aplicando as mesmas validações do envio. */
     Preview preview(UUID templateId, Map<String, String> values);
 
@@ -47,9 +56,11 @@ public interface TemplateUseCases {
      * @param subject obrigatório no e-mail; proibido nos demais canais
      * @param language idioma no provedor (padrão {@code pt_BR})
      * @param providerTemplateName nome do template no provedor (WhatsApp)
+     * @param providerCategory categoria no provedor — UTILITY (padrão), MARKETING ou AUTHENTICATION; só no
+     *                         WhatsApp. AUTHENTICATION: uma única variável, o código (CODE, até 15 caracteres)
      */
     record TemplateContent(String name, String purpose, String subject, String body, List<VariableInput> variables,
-                           String language, String providerTemplateName) {
+                           String language, String providerTemplateName, String providerCategory) {
     }
 
     /** @param channel WHATSAPP, EMAIL ou SMS */
@@ -67,7 +78,7 @@ public interface TemplateUseCases {
 
     record TemplateView(UUID id, UUID creditorId, String code, int templateVersion, String channel, String name,
                         String purpose, String subject, String body, List<VariableInput> variables, String language,
-                        String status, String providerTemplateName, String approvalStatus, String approvalReference,
+                        String status, String providerTemplateName, String providerCategory, String approvalStatus, String approvalReference,
                         String approvalNote, Instant approvalDecidedAt, UUID approvalRegisteredBy, Instant publishedAt,
                         UUID publishedBy, Instant retiredAt, Instant createdAt, long version) {
     }

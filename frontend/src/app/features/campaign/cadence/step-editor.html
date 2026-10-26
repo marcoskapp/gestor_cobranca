@@ -191,6 +191,12 @@
         </div>
       }
       <p class="app-muted se-small">Os valores são calculados no envio e guardados só no módulo de comunicação, criptografados.</p>
+      @if (usesInstallment()) {
+        <p class="app-muted se-small">Parcela do acordo: valor ainda devido e vencimento da próxima parcela em aberto do acordo em vigor do caso. Sem acordo em vigor ou sem parcela em aberto, a etapa é pulada.</p>
+      }
+      @if (usesPortalLink()) {
+        <p class="app-muted se-small">Link do portal: de uso único, gerado no envio e válido pelo prazo configurado no portal; anula o link anterior do devedor. Sem portal habilitado para a carteira do caso, a etapa é pulada.</p>
+      }
     </div>
 
     @if (a.type === 'OFFER' && a.offer) {

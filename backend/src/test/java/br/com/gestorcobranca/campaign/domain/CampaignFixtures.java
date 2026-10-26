@@ -28,12 +28,12 @@ public final class CampaignFixtures {
         return new AudienceSnapshot(UUID.randomUUID(), UUID.randomUUID(), CREDITOR, PORTFOLIO, status, null, eligible,
                 eligible ? List.of() : List.of("PORTFOLIO_NOT_OPERABLE"), List.of("WHATSAPP", "EMAIL"),
                 new BigDecimal(balance), new BigDecimal(balance), oldestDue, "QUEUE", 0, 0, null, null, null, 0, 1,
-                Instant.parse("2026-10-23T12:00:00Z"));
+                Instant.parse("2026-10-23T12:00:00Z"), null);
     }
 
     public static SegmentCriteria criteria(Integer minDays, Integer maxDays, String minBalance, Set<String> statuses) {
         return new SegmentCriteria(null, minDays, maxDays, minBalance == null ? null : new BigDecimal(minBalance), null,
-                statuses, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                statuses, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public static CadenceStep message(String code, int wait, ReplyTransition onReply, String target) {

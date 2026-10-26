@@ -12,6 +12,8 @@ export type TemplateStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
 export type ApprovalStatus = 'NOT_REQUIRED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 export type TemplatePurpose = 'COLLECTION' | 'REMINDER' | 'NOTIFICATION' | 'AGREEMENT' | 'PAYMENT' | 'SERVICE';
 export type VariableType = 'FIRST_NAME' | 'MONEY' | 'DATE' | 'INTEGER' | 'URL' | 'CODE' | 'TEXT';
+/** Categoria do template no provedor (só WhatsApp). `AUTHENTICATION`: código de acesso no formato da Meta. */
+export type ProviderCategory = 'UTILITY' | 'MARKETING' | 'AUTHENTICATION';
 export type HandoffKind = 'ESCALATION' | 'TAKE_OVER' | 'ASSIGNMENT' | 'RELEASE' | 'RETURN_TO_ASSISTANT' | 'CLOSE' | 'REOPEN' | 'CASE_SYNC';
 
 // --------------------------------------------------------------------- contas de canal
@@ -69,6 +71,8 @@ export interface TemplateContent {
   variables: VariableInput[];
   language: string | null;
   providerTemplateName: string | null;
+  /** Só WhatsApp (nulo = `UTILITY`); nulo nos demais canais. */
+  providerCategory: ProviderCategory | null;
 }
 
 export interface CreateTemplateRequest {
@@ -101,6 +105,7 @@ export interface TemplateView {
   language: string | null;
   status: TemplateStatus;
   providerTemplateName: string | null;
+  providerCategory: ProviderCategory | null;
   approvalStatus: ApprovalStatus;
   approvalReference: string | null;
   approvalNote: string | null;

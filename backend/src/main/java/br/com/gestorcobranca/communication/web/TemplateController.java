@@ -106,12 +106,13 @@ class TemplateController {
     record ContentRequest(@NotBlank @Size(max = 120) String name, @NotBlank @Size(max = 30) String purpose,
                           @Size(max = 300) String subject, @NotBlank @Size(max = 8000) String body,
                           @Size(max = 20) List<@Valid VariableRequest> variables, @Size(max = 10) String language,
-                          @Size(max = 120) String providerTemplateName) {
+                          @Size(max = 120) String providerTemplateName, @Size(max = 20) String providerCategory) {
 
         TemplateContent toContent() {
             List<VariableInput> vars = variables == null ? List.of() : variables.stream()
                     .map(v -> new VariableInput(v.name(), v.type(), v.required(), v.maxLength())).toList();
-            return new TemplateContent(name, purpose, subject, body, vars, language, providerTemplateName);
+            return new TemplateContent(name, purpose, subject, body, vars, language, providerTemplateName,
+                    providerCategory);
         }
     }
 

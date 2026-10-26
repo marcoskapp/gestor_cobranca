@@ -3,7 +3,7 @@
  * de novo (janela do WhatsApp, porteiro de contato, dono da conversa, escopo).
  */
 import { CHANNEL_LABELS, DENIAL_REASON_LABELS, FAILURE_LABELS, SENDER_LABELS } from './communication.labels';
-import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, SlaStatus, TemplateView, VariableInput } from './communication.models';
+import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, ProviderCategory, SlaStatus, TemplateView, VariableInput } from './communication.models';
 
 export type InboxTab = 'mine' | 'queue' | 'assistant' | 'all';
 
@@ -190,6 +190,28 @@ export function variableProblems(body: string, subject: string | null, declared:
     problems.push(`A variável ${d} foi declarada mais de uma vez.`);
   }
   return problems;
+}
+
+/** Tamanho máximo do código num template de autenticação da Meta (`ProviderTemplateRules.OTP_MAX_LENGTH`). */
+export const OTP_MAX_LENGTH = 15;
+
+/**
+ * Formato da categoria no provedor (mesmas regras de `ProviderTemplateRules`): o template de
+ * autenticação tem uma única variável, o código (tipo código, obrigatória); a validade é configuração
+ * do template na Meta, não variável.
+ */
+export function categoryProblems(
+  channel: ChannelType,
+  category: ProviderCategory | null,
+  declared: readonly Pick<VariableInput, 'name' | 'type' | 'required'>[],
+): string[] {
+  if (channel !== 'WHATSAPP' || category !== 'AUTHENTICATION') {
+    return [];
+  }
+  if (declared.length !== 1 || declared[0].type !== 'CODE' || !declared[0].required) {
+    return ['Template de autenticação tem uma única variável: o código (tipo código, obrigatória). A validade é configurada no próprio template na Meta.'];
+  }
+  return [];
 }
 
 /** Chave de idempotência do envio (repetir o mesmo envio não duplica a mensagem). */

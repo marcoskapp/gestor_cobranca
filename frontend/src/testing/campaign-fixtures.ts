@@ -123,6 +123,7 @@ export const templateView = (overrides: Record<string, unknown> = {}) => ({
   language: 'pt_BR',
   status: 'PUBLISHED',
   providerTemplateName: null,
+  providerCategory: 'UTILITY',
   approvalStatus: 'APPROVED',
   approvalReference: null,
   approvalNote: null,

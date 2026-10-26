@@ -21,7 +21,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { TemplatesApi } from '../data/communication.api';
-import { CHANNEL_ICONS, CHANNEL_LABELS, PURPOSE_LABELS } from '../data/communication.labels';
+import { CHANNEL_ICONS, CHANNEL_LABELS, PROVIDER_CATEGORY_LABELS, PURPOSE_LABELS } from '../data/communication.labels';
 import { TemplateFilter, TemplateView } from '../data/communication.models';
 import { ApprovalDialog, TemplateDialog, TemplateDialogData, exampleValues } from './template-dialogs';
 
@@ -113,6 +113,9 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
       <ng-template appCell="channel" [appCellOf]="query.rows()" let-t>
         <span class="d-inline-flex align-items-center gap-1"><app-icon [name]="icons[t.channel]" />{{ channels[t.channel] }}</span>
         <div class="app-muted">{{ purposes[t.purpose] }}</div>
+        @if (t.providerCategory) {
+          <div class="app-muted">Meta: {{ categoryLabels[t.providerCategory] }}</div>
+        }
       </ng-template>
       <ng-template appCell="creditor" [appCellOf]="query.rows()" let-t>{{ t.creditorId ? creditors.name(t.creditorId) : 'Assessoria' }}</ng-template>
       <ng-template appCell="variables" [appCellOf]="query.rows()" let-t>{{ t.variables.length }}</ng-template>
@@ -168,6 +171,7 @@ export class TemplateList {
   protected readonly channels = CHANNEL_LABELS;
   protected readonly icons = CHANNEL_ICONS;
   protected readonly purposes = PURPOSE_LABELS;
+  protected readonly categoryLabels = PROVIDER_CATEGORY_LABELS;
   protected readonly channelOptions = Object.entries(CHANNEL_LABELS).map(([value, label]) => ({ value, label }));
   protected readonly statuses = statusOptions('template');
   protected readonly preview = signal<{ name: string; subject: string | null; body: string } | null>(null);

@@ -31,8 +31,29 @@ public interface ChannelGateway {
                            UUID messageId) {
     }
 
-    /** @param parameters valores na ordem das variáveis do template */
-    record ProviderTemplate(String name, String language, List<String> parameters) {
+    /**
+     * @param parameters     valores na ordem das variáveis do template
+     * @param authentication template de autenticação (código de acesso): o único parâmetro é o código,
+     *                       enviado no corpo e no botão "copiar código" (formato da Meta)
+     */
+    record ProviderTemplate(String name, String language, List<String> parameters, boolean authentication) {
+
+        public ProviderTemplate {
+            parameters = parameters == null ? List.of() : List.copyOf(parameters);
+            if (authentication && parameters.size() != 1) {
+                throw new IllegalArgumentException("Template de autenticação tem exatamente um parâmetro (o código)");
+            }
+        }
+
+        /** Template comum: só parâmetros do corpo. */
+        public static ProviderTemplate standard(String name, String language, List<String> parameters) {
+            return new ProviderTemplate(name, language, parameters, false);
+        }
+
+        /** Template de autenticação: o código vai no corpo e no botão "copiar código". */
+        public static ProviderTemplate authentication(String name, String language, String code) {
+            return new ProviderTemplate(name, language, List.of(code), true);
+        }
     }
 
     /**

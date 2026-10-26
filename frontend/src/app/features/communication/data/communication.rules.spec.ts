@@ -2,6 +2,7 @@ import { applicableTemplates } from '../inbox/composer';
 import { HandoffView, MessageView, TemplateView } from './communication.models';
 import {
   blockText,
+  categoryProblems,
   charCount,
   composerMode,
   mergeTimeline,
@@ -130,6 +131,15 @@ describe('regras da caixa de entrada', () => {
       'A variável extra foi declarada mas não aparece no texto.',
     ]);
     expect(variableProblems('{{a}}', 'Assunto {{b}}', [{ name: 'a' }, { name: 'b' }, { name: 'a' }])).toContain('A variável a foi declarada mais de uma vez.');
+  });
+
+  it('template de autenticação da Meta declara só o código', () => {
+    const code = { name: 'codigo', type: 'CODE' as const, required: true };
+    expect(categoryProblems('WHATSAPP', 'AUTHENTICATION', [code])).toEqual([]);
+    expect(categoryProblems('WHATSAPP', 'AUTHENTICATION', [code, { name: 'minutos', type: 'INTEGER', required: true }])[0]).toContain('única variável');
+    expect(categoryProblems('WHATSAPP', 'AUTHENTICATION', [{ ...code, type: 'TEXT' }])).toHaveLength(1);
+    expect(categoryProblems('WHATSAPP', 'UTILITY', [code, { name: 'minutos', type: 'INTEGER', required: true }])).toEqual([]);
+    expect(categoryProblems('SMS', null, [code, { name: 'minutos', type: 'INTEGER', required: true }])).toEqual([]);
   });
 
   it('template do credor tem precedência sobre o da assessoria; de outro credor não aparece', () => {

@@ -72,6 +72,10 @@ export const VARIABLE_SOURCE_LABELS: Record<VariableSource, string> = {
   OFFER_AMOUNT: 'Valor da oferta',
   OFFER_DUE_DATE: 'Vencimento da oferta',
   PAYMENT_LINK: 'Link de pagamento',
+  NEXT_INSTALLMENT_AMOUNT: 'Valor da próxima parcela do acordo',
+  NEXT_INSTALLMENT_DUE_DATE: 'Vencimento da próxima parcela do acordo',
+  PORTAL_LINK: 'Link de acesso ao portal (uso único)',
+  PORTAL_LINK_HOURS: 'Validade do link do portal (horas)',
   LITERAL: 'Texto fixo',
 };
 
@@ -86,6 +90,10 @@ export const SOURCE_VARIABLE_TYPES: Record<VariableSource, readonly string[]> = 
   OFFER_AMOUNT: ['MONEY'],
   OFFER_DUE_DATE: ['DATE'],
   PAYMENT_LINK: ['URL'],
+  NEXT_INSTALLMENT_AMOUNT: ['MONEY'],
+  NEXT_INSTALLMENT_DUE_DATE: ['DATE'],
+  PORTAL_LINK: ['URL'],
+  PORTAL_LINK_HOURS: ['INTEGER'],
   LITERAL: ['TEXT', 'CODE'],
 };
 
@@ -114,6 +122,9 @@ export const SKIP_REASON_LABELS: Record<string, string> = {
   CONTACT_DENIED: 'Bloqueada pela política de contato',
   NO_CONTACT: 'Sem contato utilizável no canal',
   OFFER_UNAVAILABLE: 'Oferta indisponível',
+  NO_ACTIVE_AGREEMENT: 'Sem acordo em vigor',
+  NO_OPEN_INSTALLMENT: 'Acordo sem parcela em aberto',
+  PORTAL_UNAVAILABLE: 'Portal indisponível para o caso',
   NOT_APPLICABLE: 'Sem efeito no estado do caso',
 };
 

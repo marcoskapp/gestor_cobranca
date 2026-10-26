@@ -4,8 +4,8 @@ Escopo: M04, F13 (régua automatizada), F25 (testes A/B), RB07 (resposta redirec
 migrations V1100–V1199 (`V1100` tabelas, RLS, gatilhos e privilégios). Permissões já existentes no catálogo:
 `SEGMENT_MANAGE`, `CAMPAIGN_VIEW`, `CAMPAIGN_MANAGE`, `CAMPAIGN_EXECUTE`, `EXPERIMENT_MANAGE` (gestor: todas; supervisor
 e auditor: `CAMPAIGN_VIEW`) — sem migration de identity.
-Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication`
-(interfaces `usecases`). Os demais fatos chegam por eventos de integração (`shared.events.*`).
+Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `negotiation`, `communication`, `portal`
+(interfaces `usecases`; o portal só para o link de acesso de uso único). Os demais fatos chegam por eventos de integração (`shared.events.*`).
 
 ## 1. Componentes
 
@@ -25,6 +25,7 @@ Dependências: `shared`, `organization`, `debt`, `compliance`, `collection`, `ne
 | `CampaignReactions` + `CampaignEventListeners` | `application.service` | pausas, retomadas, respostas, atribuição |
 | `CampaignMaintenance`, `CampaignJobs`, `FinishCampaignJob`, `AudienceRebuildJob` | `application.service` | varredura, retomadas programadas, fim do controle, reconciliação |
 | `CampaignOfferPort` | `application.port.out` | oferta/link de pagamento — **somente porta** (§3.5) |
+| `AgreementInstallments` | `application.service` | próxima parcela em aberto do acordo em vigor do caso (`AgreementUseCases`) — projeção e envio (§3.6) |
 
 ## 2. Segmentos e read model de audiência
 
@@ -33,16 +34,23 @@ pessoal) de cada caso de cobrança: situação e estágio guardado, elegibilidad
 aberto/elegível, vencimento mais antigo, dono do atendimento, interações, contatos efetivos, últimas datas, score e acordos
 quebrados. É atualizada a partir de `CaseUseCases#get` ao consumir `CaseStatusChanged`, `CaseBalanceChanged`,
 `CaseAssignmentChanged`, `PromiseStatusChanged`, `InteractionRecorded`, `DisputeStatusChanged`, `LegalMatterStageChanged`
-e `AgreementStatusChanged` (este também conta os acordos quebrados), antes de cada etapa (posição atual) e pela
+e `AgreementStatusChanged` (este também conta os acordos quebrados) e `InstallmentStatusChanged` (parcela paga, vencida ou
+cancelada), antes de cada etapa (posição atual) e pela
 reconciliação diária/sob demanda (`AudienceRebuildJob`, páginas de `CaseUseCases#search`). Grava com
-`case_version` crescente: eventos fora de ordem nunca regridem a projeção.
+`case_version` crescente: eventos fora de ordem nunca regridem a projeção. Para casos em acordo (estágio ou estágio
+guardado `AGREEMENT`), a projeção grava também o vencimento da **próxima parcela em aberto do acordo em vigor**
+(`next_installment_due_date`, `V1102`), lido do negotiation no momento (`AgreementInstallments`) e gravado à parte
+(`applyNextInstallment`, sem a guarda de versão: a baixa de parcela nem sempre muda o caso); fora de acordo, nulo sem
+consultar o negotiation.
 
 `SegmentCriteria` (todos por **E**; nulo = sem filtro): carteiras, faixa de atraso (dias desde o vencimento mais antigo,
 fuso de operação, nunca negativo), faixa de saldo em aberto, situações do caso, somente elegíveis (padrão sim — RB02),
 canal contatável, faixa de interações, já houve/nunca houve contato efetivo, sem interação/contato efetivo há N dias
 (inclui nunca), com/sem promessa pendente, com/sem acordo em vigor (estágio ou estágio guardado), acordos quebrados
 mínimos, faixa de score (critério opcional: casos sem score ficam fora; o score vem do módulo `scoring` pelo evento
-`CaseScoreChanged`) e dono do atendimento. A mesma semântica é implementada em SQL (`JdbcAudienceStore.where`, contagem e
+`CaseScoreChanged`), dono do atendimento e **parcela do acordo vencendo** (`minDaysToInstallment`/`maxDaysToInstallment`:
+dias de hoje até o vencimento da próxima parcela em aberto, 0 = hoje, até 366; casos sem acordo em vigor com parcela em
+aberto ficam fora; parcela já vencida não atende ao máximo; incompatível com "sem acordo em vigor"). A mesma semântica é implementada em SQL (`JdbcAudienceStore.where`, contagem e
 seleção em lote) e em memória (`SegmentMatcher`, reavaliação antes de cada etapa) — `SegmentMatcherTest` documenta os
 limites.
 
@@ -80,8 +88,9 @@ PAUSED → FINISHED`.
 * **Condição**: filtros sobre a posição atual do caso, "sem resposta", "sem contato efetivo desde a inscrição", "última
   mensagem não lida". Não atendida → etapa **pulada** (`CONDITION_NOT_MET`) e a régua segue.
 * **Ações**: `SEND_MESSAGE` (template publicado, canal WHATSAPP/EMAIL/SMS, variáveis por origem — `DEBTOR_FIRST_NAME`,
-  `OPEN_BALANCE`, `ELIGIBLE_BALANCE`, `OLDEST_DUE_DATE`, `DAYS_OVERDUE`, `CREDITOR_NAME`, `LITERAL:texto` e, em oferta,
-  `OFFER_AMOUNT`, `OFFER_DUE_DATE`, `PAYMENT_LINK`); `CREATE_TASK` (retorno ou acompanhamento no caso, prazo em minutos);
+  `OPEN_BALANCE`, `ELIGIBLE_BALANCE`, `OLDEST_DUE_DATE`, `DAYS_OVERDUE`, `CREDITOR_NAME`, `NEXT_INSTALLMENT_AMOUNT`,
+  `NEXT_INSTALLMENT_DUE_DATE`, `PORTAL_LINK`, `PORTAL_LINK_HOURS` (só junto com `PORTAL_LINK` — `cadence.portal_hours_without_link`),
+  `LITERAL:texto` e, em oferta, `OFFER_AMOUNT`, `OFFER_DUE_DATE`, `PAYMENT_LINK` — §3.6); `CREATE_TASK` (retorno ou acompanhamento no caso, prazo em minutos);
   `HAND_TO_ASSISTANT` (`CaseWorkUseCases#handToAssistant`); `MOVE_TO_QUEUE` (`assign` à equipe ou `release` para a fila
   do roteamento); `OFFER` (porta §3.5). Entregar ao assistente e mover para a fila encerram a inscrição.
 * **Resposta (RB07)**: `onReply` da última etapa executada ou o `defaultOnReply` (padrão `STOP`): `STOP` (encerra),
@@ -123,6 +132,25 @@ sistema (`authority.actor_not_supported`) e o payment está em desenvolvimento e
 com oferta é recusado e, por defesa, a etapa é pulada com `OFFER_UNAVAILABLE`. Para plugar: implementar a porta em
 `infrastructure`, criar o sujeito de alçada de campanha no negotiation (perfil por credor) e o link no payment; nada muda
 no motor.
+
+### 3.6 Parcela do acordo e link do portal
+
+* **`NEXT_INSTALLMENT_AMOUNT` (MONEY) / `NEXT_INSTALLMENT_DUE_DATE` (DATE)**: no envio, `AgreementInstallments` busca os
+  acordos do devedor no credor (`AgreementUseCases#search`), fica com os em vigor (`FORMALIZED`, `IN_PAYMENT`) do caso
+  (ou, sem caso no acordo, da carteira do caso) e escolhe a parcela `OPEN`/`PARTIALLY_PAID`/`OVERDUE` de vencimento mais
+  próximo; o valor é o ainda devido (valor − pago). Sem acordo em vigor → etapa pulada `NO_ACTIVE_AGREEMENT`; sem
+  parcela em aberto → `NO_OPEN_INSTALLMENT`. Nada é enviado com valor vazio.
+* **`PORTAL_LINK` (URL) / `PORTAL_LINK_HOURS` (INTEGER)**: depois do porteiro, da oferta e da parcela, imediatamente antes
+  do envio, `PortalLinkUseCases#issue` gera o link de uso único (regras do link do operador — `portal.md` §5) para a
+  carteira do caso; indisponível → etapa pulada `PORTAL_UNAVAILABLE` (detalhe = motivo do portal). Depois do
+  `MessageUseCases#send`, `recordDispatch` vincula a mensagem ao link (mensagem `FAILED` revoga o link). Tudo na
+  transação da etapa: erro desfaz também o link. A URL só existe nas variáveis da mensagem (criptografadas pelo
+  communication) — nunca em log, evento, auditoria ou execução da etapa.
+* **Publicação**: as novas origens passam pela mesma conferência de variáveis do template (`TemplateCheck`).
+* **Régua de lembrete de parcela**: campanha `AGREEMENT_FOLLOW_UP` (não pausa por acordo nem por pagamento), segmento
+  "acordo em vigor" + "parcela vence em N dias" (ex.: 3 a 3), reinscrição após ~20 dias (uma inscrição por parcela) e
+  uma etapa `SEND_MESSAGE` com `ACORDO_LEMBRETE_PARCELA` (`negocio/templates-cobranca.md` §4.4). A saída do segmento
+  antes da etapa (parcela paga) encerra a inscrição sem enviar.
 
 ## 4. Execução
 
@@ -227,7 +255,7 @@ inscrição × tipo × referência; estorno (`PaymentReversed`) gera valor negat
 * Publicado: `CadenceExhausted` (§4.5).
 * Consumidos (`campaign.<reação>`): `CaseStatusChanged`, `CaseBalanceChanged`, `CaseAssignmentChanged`,
   `PromiseStatusChanged`, `InteractionRecorded`, `DisputeStatusChanged`, `LegalMatterStageChanged`,
-  `AgreementStatusChanged`, `PaymentConfirmed`, `PaymentReversed`, `ContactRestrictionChanged`, `MessageStatusChanged`.
+  `AgreementStatusChanged`, `InstallmentStatusChanged` (`campaign.installment-status`), `PaymentConfirmed`, `PaymentReversed`, `ContactRestrictionChanged`, `MessageStatusChanged`.
 * Negócio: `campaign.activated`, `campaign.paused` (`scope` campanha ou inscrição, `reason`), `campaign.finished`,
   `campaign.step_executed`, `campaign.step_skipped`, `campaign.replied`, `campaign.cadence_exhausted`,
   `experiment.variant_assigned` — atributos em `logs-e-metricas.md` §3.6. Nunca nome, documento, contato ou conteúdo.
@@ -285,6 +313,9 @@ inscrição × tipo × referência; estorno (`PaymentReversed`) gera valor negat
 | 13 | Campanhas `AGREEMENT_FOLLOW_UP` não pausam por acordo/pagamento | pausar todas | lembrete de parcela tem justamente esse público |
 | 14 | Variáveis calculadas no envio e entregues ao communication; nada pessoal no campaign | guardar valores na execução | minimização; o communication já valida e criptografa |
 | 15 | Permissões existentes do catálogo | permissões novas | já estavam nos perfis padrão; sem migration de identity |
+| 16 | Parcela do acordo lida do negotiation no envio (`AgreementUseCases`), projeção só com o vencimento | guardar valor da parcela na projeção | valor fresco no envio; a projeção só precisa da data para o filtro (decisões 513 e 514) |
+| 17 | Filtro de segmento "parcela vence em N dias" (faixa de dias até a próxima parcela em aberto) | régua com espera fixa desde a formalização | parcelas têm vencimentos próprios; a faixa + reinscrição cobre uma parcela por inscrição (decisão 514) |
+| 18 | Link do portal pelo caso de uso do portal (`PortalLinkUseCases`), gerado por último antes do envio | campaign gerar token/URL | o portal é dono do link e da trilha; nenhuma verificação posterior descarta um link já gerado (decisão 515) |
 
 ## 11. Pendências
 
@@ -293,4 +324,6 @@ inscrição × tipo × referência; estorno (`PaymentReversed`) gera valor negat
 * ~~Score no read model~~: implementado em 24/10/2026 — `campaign.case-score` consome `CaseScoreChanged` e grava o score na
   projeção (`score_calculated_at`, `V1101`; o evento é a fonte depois do primeiro score, ordenado pelo instante do cálculo).
 * Frontend (construtor de segmento e régua, painel, resultados A/B).
+* Lembrete de parcela com o link do portal: o devedor com todos os títulos fora de cobrança aberta não entra no portal
+  (a etapa é pulada `PORTAL_UNAVAILABLE`).
 * Envio por SMS depende do adaptador do communication (issue #12).
