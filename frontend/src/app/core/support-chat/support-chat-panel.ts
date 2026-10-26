@@ -283,6 +283,8 @@ const SUGGESTIONS: readonly string[] = ['Como uso esta tela?', 'Quais são as mi
     }
     .chat__header-actions {
       display: flex;
+      flex-shrink: 0;
+      white-space: nowrap;
       gap: var(--app-space-2);
       align-items: center;
     }
