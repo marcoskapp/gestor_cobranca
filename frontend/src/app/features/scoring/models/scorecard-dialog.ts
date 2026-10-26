@@ -106,7 +106,7 @@ type RuleGroup = FormGroup<{ feature: FormControl<string>; missingPoints: FormCo
                 <app-field label="Pontos se ausente" hint="Ex.: nunca houve contato.">
                   <input appInput type="number" formControlName="missingPoints" step="1" min="-500" max="500" />
                 </app-field>
-                <button type="button" class="btn btn-link text-danger-emphasis sc-rule__remove" (click)="removeRule(ri)" [attr.aria-label]="'Remover a regra ' + (ri + 1) + ' (' + ruleName(ri) + ')'">
+                <button type="button" class="btn btn-link text-danger-emphasis sc-rule__remove app-control-offset" (click)="removeRule(ri)" [attr.aria-label]="'Remover a regra ' + (ri + 1) + ' (' + ruleName(ri) + ')'">
                   <app-icon name="trash3" />
                   Remover regra
                 </button>
@@ -191,7 +191,7 @@ type RuleGroup = FormGroup<{ feature: FormControl<string>; missingPoints: FormCo
       display: grid;
       grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
       gap: 12px;
-      align-items: end;
+      align-items: start;
       margin-bottom: 8px;
     }
     .sc-bins input {

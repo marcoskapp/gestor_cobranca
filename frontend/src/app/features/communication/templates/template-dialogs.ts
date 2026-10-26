@@ -77,7 +77,7 @@ export interface TemplateDialogData {
         <h3 class="app-section-title mt-3">Variáveis</h3>
         <div class="d-grid gap-2" formArrayName="variables">
           @for (v of variables.controls; track v; let i = $index) {
-            <div class="row g-2 align-items-end" [formGroupName]="i">
+            <div class="row g-2 align-items-start" [formGroupName]="i">
               <app-field class="col-6 col-sm-4" label="Nome">
                 <input appInput formControlName="name" maxlength="40" required />
               </app-field>
@@ -88,13 +88,13 @@ export interface TemplateDialogData {
                   }
                 </select>
               </app-field>
-              <div class="col-auto">
-                <div class="form-check mb-2">
+              <div class="col-auto app-control-offset">
+                <div class="form-check mb-0">
                   <input class="form-check-input" type="checkbox" formControlName="required" [id]="'td-var-required-' + i" />
                   <label class="form-check-label" [for]="'td-var-required-' + i">Obrigatória</label>
                 </div>
               </div>
-              <div class="col-auto">
+              <div class="col-auto app-control-offset">
                 <button class="btn btn-link" type="button" (click)="variables.removeAt(i)" aria-label="Remover variável" ngbTooltip="Remover">
                   <app-icon name="trash3" />
                 </button>

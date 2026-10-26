@@ -63,7 +63,7 @@
       <app-field class="se-time" label="Até">
         <input appInput type="time" [(ngModel)]="s.window.end" (ngModelChange)="changed()" [disabled]="ro" />
       </app-field>
-      <div class="btn-group btn-group-sm flex-wrap se-days" role="group" aria-label="Dias da semana">
+      <div class="btn-group btn-group-sm flex-wrap app-control-offset" role="group" aria-label="Dias da semana">
         @for (d of days; track d) {
           <input class="btn-check" type="checkbox" [id]="uid + '-day-' + d" [checked]="(s.window.days ?? []).includes(d)" (change)="toggleDay(d)" [disabled]="ro" />
           <label class="btn btn-outline-primary" [for]="uid + '-day-' + d">{{ dayLabels[d] }}</label>

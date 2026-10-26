@@ -88,7 +88,7 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
             <app-field class="ve-time" label="Até">
               <input appInput type="time" [(ngModel)]="w.end" (ngModelChange)="changed()" [disabled]="ro" />
             </app-field>
-            <div class="btn-group btn-group-sm flex-wrap ve-days" role="group" aria-label="Dias da semana">
+            <div class="btn-group btn-group-sm flex-wrap app-control-offset" role="group" aria-label="Dias da semana">
               @for (d of days; track d) {
                 <input class="btn-check" type="checkbox" [id]="uid + '-day-' + j + '-' + d" [checked]="(w.days ?? []).includes(d)" (change)="toggleDay(o, d)" [disabled]="ro" />
                 <label class="btn btn-outline-primary" [for]="uid + '-day-' + j + '-' + d">{{ dayLabels[d] }}</label>
@@ -156,10 +156,6 @@ import { TemplateRef, pickTemplate, sendsMessage, stepSummary } from '../data/ca
     }
     .ve-time {
       flex: 0 1 120px;
-    }
-    .ve-days {
-      align-self: flex-end;
-      margin-bottom: 4px;
     }
     .ve-override {
       margin: 0 0 8px;

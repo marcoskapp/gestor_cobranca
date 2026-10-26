@@ -193,9 +193,8 @@
             <a
               class="nav-link app-sidenav__link"
               [routerLink]="item.route"
-              routerLinkActive="active"
-              ariaCurrentWhenActive="page"
-              [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+              [class.active]="item.route === activeRoute()"
+              [attr.aria-current]="item.route === activeRoute() ? 'page' : null"
               [ngbTooltip]="item.label"
               placement="end"
               [disableTooltip]="!rail"

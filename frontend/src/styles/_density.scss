@@ -44,6 +44,11 @@
       --bs-modal-header-padding: 1rem 1.25rem;
     }
 
+    // campos usam `.form-control-sm` na densidade compacta
+    .app-control-offset {
+      min-height: $input-height-sm;
+    }
+
     .pagination {
       --bs-pagination-padding-y: 0.1875rem;
       --bs-pagination-padding-x: 0.5rem;

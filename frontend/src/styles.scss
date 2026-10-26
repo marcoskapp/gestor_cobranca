@@ -117,6 +117,17 @@ body {
   font-weight: $font-weight-medium;
 }
 
+// Item que não é campo (caixa de seleção, botão de ícone, grupo de botões) numa linha de campos
+// alinhada ao topo (`align-items-start`): desce a altura do rótulo e centraliza na altura do
+// controle. Assim a linha não desalinha quando um campo mostra ajuda ou mensagem de erro embaixo
+// (alinhar a linha pela base faria o rótulo do campo com erro subir).
+.app-control-offset {
+  display: flex;
+  align-items: center;
+  min-height: $input-height;
+  margin-top: calc(#{$line-height-base} * 1em + #{$form-label-margin-bottom});
+}
+
 .app-filters {
   display: flex;
   flex-wrap: wrap;

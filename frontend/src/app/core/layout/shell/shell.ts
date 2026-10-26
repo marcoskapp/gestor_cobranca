@@ -3,8 +3,8 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NgbDropdownModule, NgbOffcanvas, NgbOffcanvasRef, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { map } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { Icon } from '../../../shared/components/icon/icon';
 import { IconName } from '../../../shared/components/icon/icon-names';
 import { AuthService } from '../../auth/auth.service';
@@ -18,7 +18,7 @@ import { UiStateStore } from '../../preferences/ui-state.store';
 import { Breadcrumbs } from '../breadcrumbs/breadcrumbs';
 import { CommandPaletteService, PaletteCommand } from '../command-palette/command-palette.service';
 import { HelpService } from '../help/help.service';
-import { NAVIGATION, NavSection } from '../navigation';
+import { NAVIGATION, NavSection, activeNavRoute } from '../navigation';
 
 interface Choice<T> {
   value: T;
@@ -48,7 +48,6 @@ const DENSITIES: readonly Choice<DensityPreference>[] = [
   imports: [
     RouterOutlet,
     RouterLink,
-    RouterLinkActive,
     NgTemplateOutlet,
     NgbDropdownModule,
     NgbTooltip,
@@ -97,6 +96,19 @@ export class Shell {
       items: section.items.filter((item) => this.auth.hasAnyPermission(item.permissions)),
     })).filter((section) => section.items.length > 0);
   });
+
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.router.url),
+      startWith(this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+  /** Item do menu marcado: o mais específico para o endereço atual (`activeNavRoute`). */
+  protected readonly activeRoute = computed(() =>
+    activeNavRoute(this.url(), this.sections().flatMap((section) => section.items.map((item) => item.route))),
+  );
 
   protected readonly initials = computed(() => {
     const name = this.user()?.name ?? '';

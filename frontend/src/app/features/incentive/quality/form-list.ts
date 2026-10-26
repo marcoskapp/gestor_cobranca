@@ -45,7 +45,7 @@ import { QualityTabs } from './quality-tabs';
         <fieldset formArrayName="criteria">
           <legend class="form-label">Critérios</legend>
           @for (c of criteria.controls; track c; let i = $index) {
-            <div class="row g-2 align-items-end mb-2" [formGroupName]="i">
+            <div class="row g-2 align-items-start mb-2" [formGroupName]="i">
               <app-field class="col-sm-3" [label]="'Código ' + (i + 1)" error="A–Z, 0–9 e _ (2 a 40).">
                 <input appInput class="font-monospace" formControlName="code" maxlength="40" (input)="upper(i)" />
               </app-field>
@@ -55,7 +55,7 @@ import { QualityTabs } from './quality-tabs';
               <app-field class="col-sm-2" [label]="'Peso ' + (i + 1)" error="De 0 a 100.">
                 <input appInput formControlName="weight" inputmode="decimal" />
               </app-field>
-              <div class="col-sm-2 d-flex align-items-center gap-2 pb-3">
+              <div class="col-sm-2 app-control-offset gap-2">
                 <div class="form-check mb-0">
                   <input class="form-check-input" type="checkbox" [id]="'qf-critical-' + i" formControlName="critical" />
                   <label class="form-check-label" [for]="'qf-critical-' + i">Crítico</label>

@@ -74,7 +74,7 @@ type Optional = 'recoveryRate' | 'fixedPerAgreement' | 'goal' | 'teamPool' | 'ea
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 4px 16px;
-      align-items: end;
+      align-items: start;
     }
     .re-block {
       padding: 10px 12px;
