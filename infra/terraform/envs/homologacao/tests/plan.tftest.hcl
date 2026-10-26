@@ -176,3 +176,28 @@ run "bedrock_perfil_global_em_sao_paulo" {
     error_message = "com perfil global configurado, o roteamento global não é negado"
   }
 }
+
+run "chat_suporte_exige_aprovacao_da_transferencia" {
+  command = plan
+  variables { helpdesk_bedrock_enabled = true }
+  expect_failures = [terraform_data.guards]
+}
+
+run "chat_suporte_so_com_o_haiku" {
+  command = plan
+  variables {
+    helpdesk_bedrock_enabled                = true
+    bedrock_international_transfer_approved = true
+  }
+  assert {
+    condition = toset(output.bedrock_invoke_resources) == toset([
+      "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-haiku-5-5",
+      "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-5-5",
+    ])
+    error_message = "o chat de suporte sozinho libera só o perfil do Haiku (sem o Sonnet do assistente)"
+  }
+  assert {
+    condition     = output.bedrock_denies_global_routing
+    error_message = "sem perfil global, o roteamento global é negado também para o chat"
+  }
+}

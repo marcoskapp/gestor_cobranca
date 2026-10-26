@@ -159,7 +159,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 
 **Conteúdo**: pt-BR para o usuário final, sem códigos internos nem jargão técnico (o teste recusa HTML, identificadores em caixa alta com sublinhado e termos como "API" ou "endpoint"); coerente com os documentos de negócio e com as regras que o sistema aplica. Ao mudar uma regra de negócio que aparece no manual, atualize o texto no mesmo PR.
 
-**Base para o chat de suporte (não implementado)**: identificadores estáveis por tela (`ScreenManual.id` = chave da tela) e por módulo (slug), `schemaVersion` e `loadKnowledgeBase()` com todo o conteúdo estruturado, prontos para indexar.
+**Base do chat de suporte** ([`chat-suporte.md`](chat-suporte.md) §7): `npm run knowledge` exporta o manual (`knowledge-export.ts`: módulos, telas com caminho e acesso pelo menu, glossário, versão) para `backend/src/main/resources/helpdesk/knowledge-base.json`; `knowledge:check` roda antes do build e dos testes e falha com o arquivo desatualizado — **ao mudar o manual, rode `npm run knowledge` e versione o JSON**. O chat (`core/support-chat/`, botão na barra superior, painel `NgbOffcanvas` como "Sobre esta tela") envia só a chave da tela; o texto do manual vem do servidor.
 
 **Testes**: `manual/manual-content.spec.ts` (cobertura de todas as telas e rotas do menu, campos obrigatórios, vínculos, glossário, jargão e o tour com objetivo em todas as telas), `manual/screen-manual-panel.spec.ts` (links por permissão, seções, "Saiba mais", tour), `features/help/help-pages.spec.ts` (central, módulo com âncora e foco, módulo inexistente), além de `onboarding.service.spec.ts` e `tour-engine.service.spec.ts` (objetivo primeiro, tour transitório não gravado).
 
@@ -389,7 +389,7 @@ Padrão de mercado (bancos, maquininhas, apps de pagamento): o usuário digita s
 
 O portal do devedor não tem campo de valor digitado: o devedor escolhe entre as ofertas calculadas.
 
-**Valor que pode ser R$ ou %** (meta do período, decisões 387 e 495): a pessoa escolhe a unidade antes de digitar, com botões `btn-check` num grupo rotulado. Com "Valor (R$)", o campo é `appMoney`; com "Percentual (%)", é `type="number"` com "%" no `input-group-text` (`aria-hidden`) e a faixa aceita na ajuda, que é lida como descrição do campo. Use controles separados para cada unidade (só o da escolhida habilitado), e trocar a unidade limpa o valor, sem converter. Quando a regra de negócio só admite uma unidade, ela vem marcada e a outra fica desabilitada, com a explicação ligada ao grupo por `aria-describedby`.
+**Valor que pode ser R$ ou %** (meta do período, decisões 387 e 505): a pessoa escolhe a unidade antes de digitar, com botões `btn-check` num grupo rotulado. Com "Valor (R$)", o campo é `appMoney`; com "Percentual (%)", é `type="number"` com "%" no `input-group-text` (`aria-hidden`) e a faixa aceita na ajuda, que é lida como descrição do campo. Use controles separados para cada unidade (só o da escolhida habilitado), e trocar a unidade limpa o valor, sem converter. Quando a regra de negócio só admite uma unidade, ela vem marcada e a outra fica desabilitada, com a explicação ligada ao grupo por `aria-describedby`.
 
 ## 14. Mapeamento de ícones (Material → Bootstrap Icons)
 

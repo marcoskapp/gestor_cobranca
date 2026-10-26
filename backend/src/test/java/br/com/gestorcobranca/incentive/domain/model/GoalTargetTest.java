@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Valor e unidade da meta do período (decisões 490 e 492). */
+/** Valor e unidade da meta do período (decisões 500 e 502). */
 class GoalTargetTest {
 
     private static final LocalDate NOVEMBER = LocalDate.of(2026, 11, 1);

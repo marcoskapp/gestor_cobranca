@@ -226,4 +226,12 @@ public final class BusinessEventTypes {
 
     // Minhas pendências (módulo pendingwork): primeira observação do dia por usuário e tipo (envelhecimento)
     public static final String PENDING_WORK_OBSERVED = "pending_work.observed";
+
+    // Chat de suporte (módulo helpdesk) — atributos em docs/tecnico/logs-e-metricas.md §3.11. Sem conteúdo da conversa.
+    public static final String HELPDESK_QUESTION_ANSWERED = "helpdesk.question_answered";
+    public static final String HELPDESK_QUESTION_UNANSWERED = "helpdesk.question_unanswered";
+    public static final String HELPDESK_FEEDBACK_RECORDED = "helpdesk.feedback_recorded";
+    public static final String HELPDESK_TICKET_DRAFTED = "helpdesk.ticket_drafted";
+    public static final String HELPDESK_TICKET_OPENED = "helpdesk.ticket_opened";
+    public static final String HELPDESK_TICKET_CANCELLED = "helpdesk.ticket_cancelled";
 }

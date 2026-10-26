@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Unidade explícita da meta do período (docs/tecnico/desenho/remuneracao-variavel.md
--- §10.10; decisões 387 e 490–497): CURRENCY (R$, métrica "valor recuperado") ou
+-- §10.10; decisões 387 e 500–507): CURRENCY (R$, métrica "valor recuperado") ou
 -- PERCENT (%, métrica "taxa de recuperação"). O servidor aceita só a unidade da
 -- métrica do plano que vai usar a meta; no fechamento, meta em unidade diferente
 -- é desconsiderada (vale a meta padrão do plano), nunca reinterpretada.

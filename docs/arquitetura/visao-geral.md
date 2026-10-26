@@ -27,7 +27,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 
 | Módulo | Escopo funcional | Features |
 | --- | --- | --- |
-| `shared` | Kernel compartilhado (aberto): tipos de valor, tenancy, segurança base, auditoria, logs, eventos de integração, criptografia, armazenamento de arquivos, jobs | transversal |
+| `shared` | Kernel compartilhado (aberto): tipos de valor, tenancy, segurança base, auditoria, logs, eventos de integração, criptografia, armazenamento de arquivos, jobs, cliente de modelo de linguagem (`shared.ai`, Amazon Bedrock) | transversal |
 | `organization` | Tenant (assessoria), unidades, credores, contratos de serviço, carteiras, regras contratuais versionadas | F03 |
 | `identity` | Usuários, perfis, permissões, equipes, escopo por credor/carteira, autenticação, MFA, sessões, log de acesso | F01, F02 |
 | `debt` | Devedor, contatos, contratos de origem, títulos, parcelas, saldos, histórico de titularidade, garantias, partes da obrigação e prescrição | F05 |
@@ -46,6 +46,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `analytics` | Read models e relatórios (painel operacional, recuperação, conversão, produtividade, confiabilidade, exportação) por views `security_invoker` e snapshots por assessoria — ver `docs/tecnico/desenho/analytics.md` | F11, F18 |
 | `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/tecnico/desenho/remuneracao-variavel.md` | remuneração variável |
 | `pendingwork` | "Minhas pendências": agrega o que o usuário da sessão pode fazer agora (aprovações, prazos, filas) a partir das fontes que cada módulo dono implementa (`shared.pendingwork.PendingWorkSource`) — ver `docs/tecnico/desenho/pendencias.md` | pendências |
+| `helpdesk` | Chat de suporte com IA para o usuário interno: manual contextual como base de conhecimento, consultas somente leitura como o próprio usuário (permissão, escopo e trilha de acesso), chamado no GitHub com texto mascarado e confirmação — ver `docs/tecnico/desenho/chat-suporte.md` | suporte |
 | `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/tecnico/desenho/juridico.md` | jurídico |
 
 ### 2.1 Grafo de dependências permitido (acíclico)
@@ -73,7 +74,8 @@ shared ◄── organization ◄── identity
               ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               ├── analytics          (→ organization; lê o banco por views próprias)
-              └── pendingwork        (→ só shared; recebe as fontes de pendência dos módulos por injeção)
+              ├── pendingwork        (→ só shared; recebe as fontes de pendência dos módulos por injeção)
+              └── helpdesk           (→ identity, organization, debt, collection, negotiation, payment, ingestion, settlement, incentive, pendingwork — só leitura)
 ```
 
 Todo módulo pode depender de `shared`. A dependência é declarada em `package-info.java` com `@ApplicationModule(allowedDependencies = …)` e verificada por teste (`ModularityTest`).
@@ -180,6 +182,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V1700–V1799 | legal |
 | V1800–V1899 | incentive |
 | V1900–V1999 | pendingwork |
+| V2000–V2099 | helpdesk |
 
 Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
 

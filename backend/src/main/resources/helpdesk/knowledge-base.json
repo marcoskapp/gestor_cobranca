@@ -1,0 +1,6403 @@
+{
+ "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
+ "contentVersion": "4bc63d90b3cd3994",
+ "schemaVersion": 1,
+ "profiles": {
+  "TODOS": "Todos os usuários",
+  "ADMIN": "Administrador",
+  "GESTOR": "Gestor",
+  "SUPERVISOR": "Supervisor",
+  "OPERADOR": "Operador (negociador)",
+  "FINANCEIRO": "Financeiro",
+  "AUDITOR": "Auditor",
+  "JURIDICO": "Jurídico interno",
+  "ADVOGADO_PARCEIRO": "Advogado parceiro",
+  "ANALISTA_CARTEIRA": "Analista de carteiras",
+  "ESTRATEGIA": "Estratégia de cobrança",
+  "QUALIDADE": "Monitoria e qualidade",
+  "COMPLIANCE": "Compliance e privacidade",
+  "INTEGRACAO": "Integrações",
+  "PLATAFORMA": "Administrador da plataforma"
+ },
+ "modules": [
+  {
+   "id": "geral",
+   "title": "Visão geral",
+   "summary": "Como as partes do sistema se encaixam, a tela inicial, a sua conta e esta ajuda.",
+   "overview": [
+    "O Gestor de Cobrança acompanha a dívida do começo ao fim: o credor envia a carteira, a assessoria contata e negocia com o devedor, o pagamento é confirmado e conciliado, a assessoria presta contas ao credor e remunera quem gerou o resultado.",
+    "Cada módulo cuida de uma parte desse caminho e entrega o resultado ao seguinte. Compliance, score, jurídico, painéis e administração atravessam todo o caminho: definem quando é permitido contatar, por onde começar, quando sair da cobrança amigável, como medir e quem pode fazer o quê.",
+    "Você vê apenas os módulos e credores do seu perfil. Toda ação fica registrada em seu nome."
+   ],
+   "connections": [
+    {
+     "module": "importacao",
+     "text": "O credor envia as dívidas; a importação confere o arquivo e grava devedores e títulos."
+    },
+    {
+     "module": "cobranca",
+     "text": "Os títulos viram casos de cobrança, organizados em filas e atendidos na estação."
+    },
+    {
+     "module": "comunicacao",
+     "text": "Conversas por WhatsApp, e-mail e SMS com cada devedor, numa linha do tempo única."
+    },
+    {
+     "module": "campanhas",
+     "text": "Réguas automáticas alcançam muitos devedores com a mensagem e o momento certos."
+    },
+    {
+     "module": "telefonia",
+     "text": "Ligações pelo clique para ligar ou pelo discador, com o resultado registrado no caso."
+    },
+    {
+     "module": "assistente",
+     "text": "O assistente de IA atende e negocia casos simples, dentro da própria alçada."
+    },
+    {
+     "module": "negociacao",
+     "text": "Condições calculadas pela política do credor e pela alçada de quem negocia viram propostas e acordos."
+    },
+    {
+     "module": "pagamentos",
+     "text": "Pix e pagamentos informados abatem parcelas e títulos e são conciliados com o extrato."
+    },
+    {
+     "module": "prestacao-de-contas",
+     "text": "O que foi recebido gera a comissão da assessoria e o demonstrativo com o repasse ao credor."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "O mesmo recebimento confirmado remunera os negociadores conforme o plano."
+    },
+    {
+     "module": "compliance",
+     "text": "Transversal: restrições, horários, feriados e direitos do titular valem para todo contato."
+    },
+    {
+     "module": "score",
+     "text": "Transversal: a chance de pagamento ordena filas e segmentos, sem mudar condições."
+    },
+    {
+     "module": "juridico",
+     "text": "Transversal: casos que saem da cobrança amigável seguem para medidas extrajudiciais ou judiciais."
+    },
+    {
+     "module": "paineis",
+     "text": "Transversal: indicadores de toda a operação, com a base de cálculo à vista."
+    },
+    {
+     "module": "administracao",
+     "text": "Transversal: credores, carteiras, usuários, perfis e a rastreabilidade de acessos e alterações."
+    }
+   ],
+   "rules": [
+    "Você vê e registra apenas o que está no seu escopo de credores e no seu perfil de acesso.",
+    "Valor recuperado é sempre pagamento confirmado, líquido de estornos. Acordo fechado e não pago não conta.",
+    "Ações financeiras ou irreversíveis mostram o impacto antes de confirmar e, em geral, pedem motivo.",
+    "Quem prepara não aprova: publicações, aprovações e valores altos passam por uma segunda pessoa.",
+    "Documentos e contatos aparecem mascarados; ver o dado completo exige permissão e fica no log de acesso.",
+    "O chat de suporte (botão de balão na barra superior) responde com inteligência artificial pelo manual e consulta dados só com as suas permissões; cada consulta fica no log de acesso.",
+    "Quando o chat não resolve, ele prepara um chamado para a equipe do sistema: você confere o texto, com dados de devedores mascarados, antes de enviar, e o retorno chega por e-mail."
+   ],
+   "terms": [
+    "assessoria",
+    "credor",
+    "escopo-de-credores",
+    "perfil-de-acesso",
+    "recuperado",
+    "quatro-olhos",
+    "log-de-acesso",
+    "trilha-de-auditoria",
+    "chat-de-suporte"
+   ]
+  },
+  {
+   "id": "importacao",
+   "title": "Importação de carteiras",
+   "summary": "Receber os arquivos dos credores, conferir antes de gravar e acompanhar cada lote.",
+   "overview": [
+    "A importação é a porta de entrada das dívidas. O credor envia uma planilha (CSV ou XLSX) no layout padrão ou no layout combinado com ele, ou os registros chegam por integração.",
+    "Antes de gravar, o arquivo passa pela conferência: você confirma como os valores foram lidos, compara os totais com a sua planilha e decide sobre valores fora do comum. Nada é gravado até a confirmação final.",
+    "Gravado o lote, devedores e títulos são criados ou atualizados e os casos de cobrança são abertos automaticamente para os títulos em aberto."
+   ],
+   "connections": [
+    {
+     "module": "administracao",
+     "text": "Recebe: o credor e a carteira que receberão os títulos precisam estar cadastrados."
+    },
+    {
+     "module": "cobranca",
+     "text": "Entrega: devedores, títulos e contatos, que abrem ou atualizam os casos de cobrança."
+    },
+    {
+     "module": "compliance",
+     "text": "Entrega: contatos importados passam pelas restrições e pela política de contato antes de qualquer uso."
+    },
+    {
+     "module": "paineis",
+     "text": "Entrega: falhas e tempo de processamento das importações aparecem no painel de confiabilidade."
+    }
+   ],
+   "rules": [
+    "Nada é gravado até você conferir e confirmar; a conferência fica salva e pode ser retomada.",
+    "Divergência entre os totais informados e os lidos bloqueia a importação.",
+    "Importações de valor alto pedem aprovação de outra pessoa; quem envia não aprova a própria carga.",
+    "Reenviar o mesmo arquivo não duplica títulos; arquivo já importado exige justificativa.",
+    "Ocorrências mostram os dados pessoais mascarados; o relatório pode ser devolvido ao credor."
+   ],
+   "terms": [
+    "lote-de-importacao",
+    "conferencia",
+    "layout",
+    "carteira",
+    "titulo",
+    "devedor"
+   ]
+  },
+  {
+   "id": "cobranca",
+   "title": "Cobrança",
+   "summary": "Devedores, títulos e casos; filas, estação de atendimento, retornos e contestações.",
+   "overview": [
+    "A cobrança organiza o trabalho com cada devedor. Os títulos importados formam casos de cobrança: um caso por devedor em cada carteira, com saldo, atraso, elegibilidade e responsável.",
+    "Os casos entram em filas por critérios como credor, atraso, saldo e score. O negociador pede o próximo caso na estação de cobrança, consulta a ficha, contata o devedor e registra o resultado com uma tabulação.",
+    "Promessas, retornos combinados e contestações ficam no caso e mudam o que acontece a seguir: retornos voltam como próxima ação, promessas aguardam o pagamento e contestações bloqueantes suspendem a cobrança."
+   ],
+   "connections": [
+    {
+     "module": "importacao",
+     "text": "Recebe: devedores, títulos e contatos gravados pela importação."
+    },
+    {
+     "module": "compliance",
+     "text": "Consulta: restrições, política de contato e feriados decidem se o contato é permitido agora."
+    },
+    {
+     "module": "score",
+     "text": "Recebe: a faixa de score ordena filas e pode ser critério de fila."
+    },
+    {
+     "module": "negociacao",
+     "text": "Entrega: a partir do caso o negociador simula, propõe e formaliza acordos."
+    },
+    {
+     "module": "comunicacao",
+     "text": "Entrega e recebe: mensagens trocadas viram interações no histórico do caso."
+    },
+    {
+     "module": "telefonia",
+     "text": "Entrega e recebe: ligações saem da estação e voltam tabuladas para o caso."
+    },
+    {
+     "module": "pagamentos",
+     "text": "Recebe: pagamento confirmado cumpre promessas e atualiza o saldo dos títulos."
+    },
+    {
+     "module": "juridico",
+     "text": "Entrega: casos que atendem às regras de elegibilidade são indicados ao jurídico."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: tentativas, contatos efetivos e retornos cumpridos alimentam o desempenho dos negociadores."
+    }
+   ],
+   "rules": [
+    "Há no máximo um caso ativo por devedor em cada carteira; o sistema abre, atualiza e encerra os casos sozinho.",
+    "Caso inelegível (contestação bloqueante, carteira não operável, jurídico ou todos os canais restritos) não é entregue nas filas e mostra o motivo.",
+    "Horário, feriado e limite de tentativas não tornam o caso inelegível: são verificados a cada contato pelo \"Posso contatar agora?\".",
+    "O caso entra na primeira fila ativa, por prioridade, cujos critérios satisfaz.",
+    "Promessa vale até a data combinada mais a tolerância da assessoria; depois é quebrada automaticamente.",
+    "Contestação tem prazo de resposta; a bloqueante suspende contato e negociação dos títulos contestados.",
+    "Ver o documento completo do devedor exige permissão e fica no log de acesso."
+   ],
+   "terms": [
+    "caso",
+    "elegibilidade",
+    "fila",
+    "proximo-caso",
+    "tabulacao",
+    "contato-efetivo",
+    "promessa",
+    "retorno",
+    "contestacao",
+    "porteiro-de-contato",
+    "devedor",
+    "titulo"
+   ]
+  },
+  {
+   "id": "comunicacao",
+   "title": "Comunicação",
+   "summary": "Conversas com os devedores por WhatsApp, e-mail e SMS, templates e canais.",
+   "overview": [
+    "A comunicação reúne as mensagens com cada devedor por WhatsApp, e-mail e SMS numa linha do tempo única. Cada conversa tem um dono: um operador, a fila ou o assistente de IA.",
+    "Mensagens que iniciam contato usam templates aprovados. No WhatsApp, a resposta livre só é possível dentro de 24 horas após a última mensagem do devedor; fora disso, só por template.",
+    "Antes de cada envio, o sistema confere as restrições e a política de contato. Respostas do devedor podem acionar a régua da campanha, o assistente ou a fila humana."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Recebe e entrega: a conversa pertence ao caso; mensagens viram interações no histórico."
+    },
+    {
+     "module": "compliance",
+     "text": "Consulta: restrições e política de contato decidem se a mensagem pode sair."
+    },
+    {
+     "module": "campanhas",
+     "text": "Recebe: réguas enviam templates; respostas voltam para a régua ou para a fila."
+    },
+    {
+     "module": "assistente",
+     "text": "Entrega e recebe: o assistente atende conversas e transfere para humanos com resumo."
+    },
+    {
+     "module": "negociacao",
+     "text": "Entrega: pedidos do portal e negociações viram conversas na fila."
+    },
+    {
+     "module": "paineis",
+     "text": "Entrega: falhas de envio e prazos de primeira resposta aparecem no painel de confiabilidade."
+    }
+   ],
+   "rules": [
+    "E-mail e SMS só saem por template; no WhatsApp, iniciar contato ou falar fora da janela de 24 horas exige template aprovado pelo provedor.",
+    "Templates não aceitam dados pessoais como documento, telefone ou e-mail; as variáveis são conferidas.",
+    "Publicar um template retira a versão anterior do mesmo código.",
+    "O credor usa a própria conta de envio no canal; sem ela, vale a conta padrão da assessoria.",
+    "Sugestões do assistente só saem depois que um operador revisa e envia."
+   ],
+   "terms": [
+    "conversa",
+    "template",
+    "canal",
+    "transferencia-para-humano",
+    "assistente"
+   ]
+  },
+  {
+   "id": "campanhas",
+   "title": "Campanhas",
+   "summary": "Réguas automáticas de contato sobre segmentos de casos, com testes A/B.",
+   "overview": [
+    "Campanhas alcançam muitos devedores sem depender de um operador por vez. Um segmento define o público; a régua define a sequência de contatos (espera, horário, condição, mensagem ou ligação) e o que fazer com a resposta.",
+    "Cada campanha tem credor, finalidade, prioridade e período. No mesmo grupo de exclusividade, o devedor fica só na campanha de maior prioridade.",
+    "A régua pausa sozinha quando o devedor paga, fecha acordo, contesta, fica com contato restrito ou vai para o jurídico. Testes A/B comparam variantes com um grupo de controle sorteado."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Recebe: os casos de cobrança formam os segmentos; respostas e resultados voltam ao caso."
+    },
+    {
+     "module": "score",
+     "text": "Recebe: a faixa de score pode filtrar o segmento."
+    },
+    {
+     "module": "compliance",
+     "text": "Consulta: cada etapa passa pelas restrições e pela política de contato."
+    },
+    {
+     "module": "comunicacao",
+     "text": "Entrega: as mensagens saem pelos templates publicados e canais configurados."
+    },
+    {
+     "module": "negociacao",
+     "text": "Entrega: ofertas e acordos fechados a partir da campanha são atribuídos a ela."
+    },
+    {
+     "module": "juridico",
+     "text": "Entrega: régua de cobrança extrajudicial esgotada sem resultado pode indicar o caso ao jurídico."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: acordos fechados pela régua seguem a regra de crédito de campanha."
+    }
+   ],
+   "rules": [
+    "A campanha começa em preparação e só alcança devedores depois de ativada; antes de confirmar, você vê quantos serão alcançados.",
+    "Casos inelegíveis ficam fora do segmento por padrão.",
+    "Mensagens usam apenas templates publicados, com as variáveis conferidas; a régua tem até 30 etapas.",
+    "Pagamento, acordo, contestação, restrição de contato ou jurídico pausam a régua do devedor.",
+    "O grupo de controle do teste A/B não recebe ações. Ao iniciar, o teste fica congelado.",
+    "Reprocessar falhas não duplica mensagens."
+   ],
+   "terms": [
+    "campanha",
+    "regua",
+    "segmento",
+    "teste-ab",
+    "template"
+   ]
+  },
+  {
+   "id": "telefonia",
+   "title": "Telefonia",
+   "summary": "Clique para ligar, discador, presença dos operadores e gravações.",
+   "overview": [
+    "A telefonia liga as chamadas ao caso de cobrança. O operador liga pela estação (clique para ligar), o discador liga sozinho sobre uma fila e conecta o operador quando uma pessoa atende, e chamadas recebidas também ficam vinculadas.",
+    "Antes de cada ligação, o sistema confere se o contato por telefone é permitido agora. Ao fim, o operador tabula o resultado, que vai para o histórico do caso.",
+    "A presença do operador (disponível ou em pausa, com motivo) diz ao discador quem pode receber chamadas."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Recebe: filas de casos para o discador e o caso aberto na estação; entrega a interação tabulada."
+    },
+    {
+     "module": "compliance",
+     "text": "Consulta: restrições, horários e limites de tentativas por telefone antes de discar."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: chamadas atendidas e tempos alimentam o desempenho e a monitoria."
+    },
+    {
+     "module": "paineis",
+     "text": "Entrega: chamadas com falha aparecem no painel de confiabilidade."
+    }
+   ],
+   "rules": [
+    "Toda ligação passa pela decisão \"Posso contatar agora?\" para o telefone.",
+    "O abandono é limitado (padrão 3%); perto do máximo o discador reduz o ritmo sozinho.",
+    "Parâmetros da campanha de discagem só mudam com ela pausada.",
+    "Ouvir uma gravação exige permissão e a finalidade, e fica no log de acesso.",
+    "Ao fim da chamada atendida, a tabulação é obrigatória."
+   ],
+   "terms": [
+    "discador",
+    "abandono",
+    "gravacao",
+    "tabulacao"
+   ]
+  },
+  {
+   "id": "assistente",
+   "title": "Assistente de IA",
+   "summary": "Como o assistente conversa e negocia dentro das regras, e como a equipe o acompanha.",
+   "overview": [
+    "O assistente de IA conversa com o devedor, principalmente pelo WhatsApp e pelo portal, e negocia casos simples. A IA conversa, o sistema decide: toda condição é calculada pela política do credor e validada pela alçada do assistente, como acontece com qualquer negociador.",
+    "Antes de falar da dívida, o assistente confirma a identidade do devedor. Contestação, suspeita de fraude, vulnerabilidade, menção a advogado ou processo, pedido de humano e outros motivos obrigatórios transferem a conversa para uma pessoa, com resumo.",
+    "A implantação é gradual e por carteira: começa em sombra (só sugere ao operador), passa por autônomo com aprovação humana do acordo e só então autônomo, quando os resultados forem iguais ou melhores que os dos humanos."
+   ],
+   "connections": [
+    {
+     "module": "comunicacao",
+     "text": "Recebe e entrega: atende conversas e as transfere para a fila ou um operador."
+    },
+    {
+     "module": "negociacao",
+     "text": "Consulta: simula e propõe dentro do próprio perfil de alçada; acima dele, transfere para humano."
+    },
+    {
+     "module": "pagamentos",
+     "text": "Entrega: pode gerar o Pix da parcela de um acordo vigente quando a política permite e a conversa foi tranquila."
+    },
+    {
+     "module": "compliance",
+     "text": "Consulta: restrições, horários e pedidos de não contato valem também para o assistente."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: acordos fechados sozinho pelo assistente vão para o pool da equipe, não para um negociador."
+    }
+   ],
+   "rules": [
+    "O assistente nunca define condições financeiras: o sistema calcula e recusa o que estiver fora da política ou da alçada.",
+    "Gatilhos obrigatórios de transferência para humano não podem ser desligados.",
+    "Desligar o assistente numa carteira transfere na hora as conversas em andamento para humanos.",
+    "Quem publica a política do assistente não avalia os turnos dessa política.",
+    "Casos no jurídico ficam fora do escopo do assistente.",
+    "O Pix na conversa vem desligado por padrão e, ligado, tem valor máximo e limite diário."
+   ],
+   "terms": [
+    "assistente",
+    "modo-do-assistente",
+    "transferencia-para-humano",
+    "turno",
+    "alcada"
+   ]
+  },
+  {
+   "id": "negociacao",
+   "title": "Negociação",
+   "summary": "Políticas do credor, alçadas, simulação, propostas, acordos e o portal do devedor.",
+   "overview": [
+    "A negociação transforma a conversa com o devedor em um acordo justo e dentro das regras. A política de cobrança do credor define encargos, descontos máximos, parcelamento, validade e a escada de concessões.",
+    "Cada pessoa negocia dentro da sua alçada: quanto da política pode conceder sem aprovação. O limite efetivo é sempre o menor entre a política e a alçada. Humanos, o assistente de IA e o portal passam pela mesma validação.",
+    "O caminho é: simular, propor, registrar o aceite do devedor e formalizar o acordo com termo. As parcelas são acompanhadas automaticamente até a quitação ou a quebra."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Recebe: o caso e os títulos em cobrança a negociar."
+    },
+    {
+     "module": "assistente",
+     "text": "Recebe: propostas do assistente; acima da alçada dele, a conversa vai para humano."
+    },
+    {
+     "module": "pagamentos",
+     "text": "Entrega: parcelas para gerar Pix; recebe os pagamentos que baixam as parcelas."
+    },
+    {
+     "module": "prestacao-de-contas",
+     "text": "Entrega: o valor aplicado às parcelas é a base da comissão da assessoria."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: quem gerou o acordo (atribuição de crédito) é registrado na formalização."
+    },
+    {
+     "module": "comunicacao",
+     "text": "Entrega: pedidos do portal viram conversas na fila de atendimento."
+    }
+   ],
+   "rules": [
+    "Toda simulação fica registrada. As condições vêm da política vigente do credor, nunca de quem atende.",
+    "Subir de nível na escada de concessões exige justificativa.",
+    "Proposta acima da sua alçada vai para a fila de aprovação; ninguém aprova a própria proposta.",
+    "A proposta vale até a data indicada; depois, simule de novo.",
+    "Formalizar exige o aceite do devedor com evidência; o termo em PDF é guardado com código de integridade.",
+    "A quebra segue a regra da política fixada na formalização; atraso dentro da tolerância não quebra.",
+    "Políticas publicadas não mudam: para alterar, crie nova versão. Ninguém atribui a própria alçada.",
+    "No portal, o devedor só vê condições do perfil de alçada do portal e só as carteiras habilitadas."
+   ],
+   "terms": [
+    "politica-de-cobranca",
+    "escada-de-concessoes",
+    "alcada",
+    "simulacao",
+    "proposta",
+    "acordo",
+    "quebra",
+    "renegociacao",
+    "termo-de-acordo",
+    "portal"
+   ]
+  },
+  {
+   "id": "pagamentos",
+   "title": "Pagamentos",
+   "summary": "Pix, pagamentos informados, aprovação, conciliação com o extrato e sobras.",
+   "overview": [
+    "Pagamentos registra todo dinheiro que entra e o leva ao destino certo: a parcela de um acordo ou um título avulso. O Pix integrado é confirmado pelo PSP; dinheiro recebido por outro meio é informado com comprovante.",
+    "Pagamento informado acima do limite da assessoria só é confirmado depois que outra pessoa aprova. O extrato bancário importado na conciliação confirma e confere os recebimentos linha a linha.",
+    "O que o sistema não concilia sozinho vira divergência, e o que não abateu dívida vira sobra a realocar ou devolver. Estornos nunca apagam: compensam o lançamento original."
+   ],
+   "connections": [
+    {
+     "module": "negociacao",
+     "text": "Recebe: parcelas de acordos para gerar Pix; entrega o pagamento que baixa as parcelas."
+    },
+    {
+     "module": "cobranca",
+     "text": "Entrega: pagamento de título avulso atualiza o saldo e cumpre promessas."
+    },
+    {
+     "module": "prestacao-de-contas",
+     "text": "Entrega: recebimentos confirmados (e conciliados, quando exigido) entram no demonstrativo do credor."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: pagamento confirmado é o fato que gera comissão do negociador; estorno compensa."
+    },
+    {
+     "module": "campanhas",
+     "text": "Entrega: pagamento confirmado pausa a régua do devedor."
+    },
+    {
+     "module": "paineis",
+     "text": "Entrega: valor recuperado e falhas de instruções e extratos."
+    }
+   ],
+   "rules": [
+    "Valor recuperado é só pagamento confirmado, líquido de estornos.",
+    "Pagamento informado exige comprovante e destino; acima do limite da assessoria, aprovação de outra pessoa.",
+    "Quem informou um pagamento não o aprova nem o concilia.",
+    "Estorno pede motivo e a palavra de confirmação; o histórico continua visível.",
+    "Toda decisão sobre divergência e toda realocação exigem justificativa e ficam registradas.",
+    "O Pix usa a conta ativa do credor; sem ela, a conta da assessoria. Segredos da conta nunca voltam à tela."
+   ],
+   "terms": [
+    "pix",
+    "psp",
+    "pagamento-informado",
+    "pagamento-confirmado",
+    "conciliacao",
+    "divergencia",
+    "sobra",
+    "estorno",
+    "recuperado"
+   ]
+  },
+  {
+   "id": "prestacao-de-contas",
+   "title": "Prestação de contas",
+   "summary": "Comissão da assessoria, demonstrativo ao credor e repasses.",
+   "overview": [
+    "A prestação de contas responde a duas perguntas do credor: quanto a assessoria recebeu em nome dele e quanto deve repassar. Cada recebimento confirmado vira um lançamento no razão de comissão, calculado pela regra do contrato vigente na data do pagamento.",
+    "No fim de cada período, o demonstrativo reúne recebido, comissão, valores fixos, custas reembolsáveis e ajustes até o líquido a repassar. Depois de revisado e aprovado por outra pessoa, ele é exportado, enviado ao credor e o repasse é registrado com comprovante.",
+    "Comissão da assessoria (o que o credor paga à assessoria) não se confunde com a comissão do negociador (o que a assessoria paga à equipe), mas as duas partem do mesmo recebimento confirmado."
+   ],
+   "connections": [
+    {
+     "module": "pagamentos",
+     "text": "Recebe: pagamentos confirmados e, quando o contrato exige, conciliados."
+    },
+    {
+     "module": "negociacao",
+     "text": "Recebe: o valor aplicado às parcelas dos acordos."
+    },
+    {
+     "module": "juridico",
+     "text": "Recebe: custas reembolsáveis adiantadas pela assessoria, deduzidas no demonstrativo."
+    },
+    {
+     "module": "administracao",
+     "text": "Recebe: contratos de serviço com o dia de fechamento."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Compartilha: a mesma base de recebimento confirmado."
+    }
+   ],
+   "rules": [
+    "Regras de comissão são versionadas por contrato; versões publicadas não mudam e recebimento já apurado nunca troca de regra.",
+    "Quem editou as regras por último não publica.",
+    "Um demonstrativo em aberto por credor, com períodos contíguos e sem lacunas; só é calculado depois do fim do período.",
+    "Quem calcula ou pede ajuste não aprova o demonstrativo. Ajustes acima do limite pedem segunda aprovação.",
+    "Demonstrativo aprovado não muda: correções entram no período seguinte como ajuste.",
+    "Repasse exige comprovante; cancelamento pede motivo e nada é apagado."
+   ],
+   "terms": [
+    "comissao-da-assessoria",
+    "demonstrativo",
+    "repasse",
+    "contrato-de-servico",
+    "quatro-olhos",
+    "custas"
+   ]
+  },
+  {
+   "id": "remuneracao-variavel",
+   "title": "Remuneração variável",
+   "summary": "Desempenho e comissão dos negociadores, planos, metas, monitoria e folha.",
+   "overview": [
+    "A remuneração variável paga o negociador pelo dinheiro que entrou, não por promessa. A comissão é prevista no acordo e só é apurada quando o pagamento é confirmado, depois de uma carência que absorve estornos.",
+    "O plano de remuneração define percentuais por segmento, metas, multiplicador de dificuldade da carteira e modificadores de qualidade: quebra precoce, desconto excessivo, nota de monitoria e violações de conduta reduzem ou zeram o variável.",
+    "Quando o assistente, o portal ou uma campanha participam do acordo, a atribuição de crédito define quanto conta para cada pessoa. Todo mês o período é fechado, cada negociador recebe um extrato com memória de cálculo, pode contestar item a item, e o extrato aprovado vai para a folha."
+   ],
+   "connections": [
+    {
+     "module": "negociacao",
+     "text": "Recebe: quem participou de cada acordo, registrado na formalização."
+    },
+    {
+     "module": "pagamentos",
+     "text": "Recebe: pagamentos confirmados geram lançamentos; estornos compensam."
+    },
+    {
+     "module": "cobranca",
+     "text": "Recebe: tentativas, contatos efetivos e retornos cumpridos para os indicadores."
+    },
+    {
+     "module": "telefonia",
+     "text": "Recebe: chamadas atendidas e tempos de atendimento."
+    },
+    {
+     "module": "score",
+     "text": "Recebe: o valor esperado pelo score, para comparar recuperado e esperado."
+    },
+    {
+     "module": "administracao",
+     "text": "Recebe: usuários, perfis e equipes elegíveis aos planos."
+    }
+   ],
+   "rules": [
+    "Só pagamento confirmado remunera; acordo não pago não gera comissão.",
+    "A comissão fica em carência por alguns dias úteis antes de ser liberada.",
+    "O que o assistente fecha sozinho vai para o pool da equipe, não para um negociador; quem usa o assistente como copiloto recebe o crédito integral.",
+    "O negociador vê só o próprio desempenho; o supervisor, o da equipe; a gestão, o de todos.",
+    "Quem fecha o período, ajusta ou resolve contestação não aprova o extrato. Extrato aprovado não muda.",
+    "Planos são publicados a partir do dia 1º do mês e simulados antes sobre um mês encerrado.",
+    "Estorno de comissão já paga só por plano configurado e validado com o jurídico e o RH."
+   ],
+   "terms": [
+    "comissao-do-negociador",
+    "plano-de-remuneracao",
+    "atribuicao-de-credito",
+    "carencia",
+    "extrato-de-comissao",
+    "monitoria"
+   ]
+  },
+  {
+   "id": "score",
+   "title": "Score de propensão",
+   "summary": "Chance de pagamento de cada caso, usada para decidir por onde começar.",
+   "overview": [
+    "O score estima, para cada caso, a chance de o devedor fazer um pagamento confirmado nos próximos dias (padrão 30). Serve para decidir por onde começar: a ordem do \"Próximo caso\" nas filas configuradas por score e o público de campanhas.",
+    "O score muda a ordem, nunca o direito ao atendimento: todo caso continua na fila. Ele não define desconto, parcelas nem medidas contra o devedor, e nunca é mostrado ao devedor.",
+    "Usa só dados da dívida e do relacionamento de cobrança, numa lista fechada. Dados pessoais como idade, gênero, endereço ou renda nunca entram. Cada score mostra os fatores que mais pesaram."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Recebe: posição, contatos e promessas dos casos; entrega a faixa usada nas filas."
+    },
+    {
+     "module": "pagamentos",
+     "text": "Recebe: pagamentos confirmados, que são o desfecho medido."
+    },
+    {
+     "module": "campanhas",
+     "text": "Entrega: faixa de score como filtro de segmento."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: valor esperado para o indicador recuperado × esperado."
+    },
+    {
+     "module": "compliance",
+     "text": "Depende: sem base legal registrada nenhum dado é coletado e nenhum score é calculado."
+    }
+   ],
+   "rules": [
+    "Faixas de A (maior chance) a E (menor), com cortes configuráveis.",
+    "Casos no jurídico, encerrados ou de devedor anonimizado não recebem score.",
+    "Modelo estatístico só é treinado com histórico suficiente; abaixo disso vale o scorecard por pontos.",
+    "A troca de modelo é sempre manual, com justificativa, por pessoa diferente de quem pediu o treino ou criou o scorecard.",
+    "A pedido do titular, do credor ou por verificação interna, um gestor recalcula o score e o sistema registra o anterior e o novo."
+   ],
+   "terms": [
+    "score",
+    "faixa-de-score",
+    "campeao-desafiante",
+    "base-legal"
+   ]
+  },
+  {
+   "id": "juridico",
+   "title": "Jurídico",
+   "summary": "Casos que saem da cobrança amigável: viabilidade, autorização, medidas e processos.",
+   "overview": [
+    "O jurídico acompanha as dívidas que saem da cobrança amigável. Regras de elegibilidade por credor indicam os casos (atraso, valor, garantia, régua esgotada, acordos quebrados, prescrição próxima).",
+    "O caso passa por triagem e viabilidade, autorização do credor com orçamento, medidas extrajudiciais (notificação, protesto, negativação) e, se preciso, ajuizamento, acompanhamento do processo, constrição e acordo judicial, até o encerramento.",
+    "Enquanto o caso está no jurídico, as réguas incompatíveis pausam e o assistente de IA não atua. Custas reembolsáveis entram na prestação de contas do credor."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Recebe: casos indicados pelas regras; o caso fica fora das filas da cobrança amigável."
+    },
+    {
+     "module": "campanhas",
+     "text": "Recebe: régua de cobrança extrajudicial esgotada como critério de indicação."
+    },
+    {
+     "module": "compliance",
+     "text": "Consulta: feriados para a contagem de prazos em dias úteis."
+    },
+    {
+     "module": "negociacao",
+     "text": "Entrega e recebe: acordos judiciais acompanhados como os demais."
+    },
+    {
+     "module": "prestacao-de-contas",
+     "text": "Entrega: custas reembolsáveis deduzidas no demonstrativo do credor."
+    }
+   ],
+   "rules": [
+    "Toda mudança de fase pede motivo e vai para a linha do tempo do caso.",
+    "Medidas jurídicas dependem da autorização do credor, com evidência e orçamento de custas.",
+    "Título com a cobrança prescrita não é indicado ao jurídico e o caso é sinalizado.",
+    "Escritório parceiro vê só os casos atribuídos a ele.",
+    "Por padrão só o credor adianta custas, dentro do orçamento aprovado."
+   ],
+   "terms": [
+    "caso-juridico",
+    "autorizacao-do-credor",
+    "prescricao",
+    "custas"
+   ]
+  },
+  {
+   "id": "compliance",
+   "title": "Compliance",
+   "summary": "Quando e como o devedor pode ser contatado e os direitos do titular dos dados.",
+   "overview": [
+    "O compliance garante que a cobrança respeita a lei e a vontade do devedor. Antes de qualquer contato, por pessoa, régua, discador ou assistente, o sistema responde \"Posso contatar agora?\" para cada canal.",
+    "A resposta considera restrições de contato (pedidos de não contato, bloqueios do credor, contatos inválidos), a política de contato com horários, dias e limites de tentativas, e os feriados.",
+    "O módulo também cuida da LGPD: base legal do tratamento por credor, atendimento aos pedidos dos titulares dentro do prazo legal e retenção com anonimização ao fim do prazo de guarda."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Entrega: casos com todos os canais restritos ficam inelegíveis; a estação mostra a decisão por canal."
+    },
+    {
+     "module": "comunicacao",
+     "text": "Entrega: cada mensagem passa pela decisão de contato."
+    },
+    {
+     "module": "campanhas",
+     "text": "Entrega: etapas da régua são adiadas ou puladas quando o contato não é permitido."
+    },
+    {
+     "module": "telefonia",
+     "text": "Entrega: ligações passam pela decisão antes de discar."
+    },
+    {
+     "module": "score",
+     "text": "Entrega: a base legal é condição para calcular o score."
+    },
+    {
+     "module": "juridico",
+     "text": "Entrega: feriados para a contagem de prazos."
+    }
+   ],
+   "rules": [
+    "Restrição ativa impede o contato na hora, no alcance definido (credor, canal ou contato). Revogar exige motivo.",
+    "A política do credor prevalece canal a canal; canais sem regra seguem a da assessoria. Cada publicação cria uma versão com vigência.",
+    "O prazo legal de um pedido do titular conta a partir do recebimento, por qualquer canal: registre no mesmo dia.",
+    "Eliminação de dados pede confirmação reforçada e não pode ser desfeita.",
+    "Políticas de retenção nascem desabilitadas; simule antes de executar."
+   ],
+   "terms": [
+    "porteiro-de-contato",
+    "restricao-de-contato",
+    "politica-de-contato",
+    "base-legal",
+    "titular",
+    "anonimizacao"
+   ]
+  },
+  {
+   "id": "paineis",
+   "title": "Painéis",
+   "summary": "Indicadores da operação, sempre com a base de cálculo, e exportação.",
+   "overview": [
+    "Os painéis medem a operação com regras públicas: cada indicador tem fórmula e denominador explícitos e mostra a base (\"1.100 de 4.000\"), nunca uma taxa sozinha. Sem base no período, o indicador aparece como indisponível, nunca como 0%.",
+    "Recuperado é sempre pagamento confirmado, líquido de estornos, a mesma base da prestação de contas. O valor acordado aparece separado do valor pago.",
+    "Os números são consolidados periodicamente; o \"Dados até\" mostra a partir de quando valem. Os filtros ficam no endereço da página, para compartilhar exatamente a mesma visão."
+   ],
+   "connections": [
+    {
+     "module": "cobranca",
+     "text": "Recebe: casos, filas, tentativas e contatos efetivos."
+    },
+    {
+     "module": "negociacao",
+     "text": "Recebe: propostas, acordos e quebras."
+    },
+    {
+     "module": "pagamentos",
+     "text": "Recebe: pagamentos confirmados e estornos."
+    },
+    {
+     "module": "comunicacao",
+     "text": "Recebe: mensagens com falha e prazos de primeira resposta."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Compartilha: indicadores por pessoa seguem as mesmas permissões de desempenho."
+    }
+   ],
+   "rules": [
+    "Cada pessoa vê só os credores do seu escopo; dados por pessoa seguem as permissões de desempenho.",
+    "Negociador no indicador é quem formalizou o acordo; acordos do assistente, do portal ou de campanha ficam em \"Sem negociador humano\".",
+    "Período de até 400 dias por consulta, inclusive nas duas pontas, no horário de Brasília.",
+    "Cada exportação fica registrada no log de acesso."
+   ],
+   "terms": [
+    "dados-ate",
+    "base-do-indicador",
+    "recuperado"
+   ]
+  },
+  {
+   "id": "administracao",
+   "title": "Administração",
+   "summary": "Credores, carteiras, usuários, perfis, equipes, configurações e rastreabilidade.",
+   "overview": [
+    "A administração prepara a assessoria para operar e mantém a rastreabilidade. A implantação segue uma ordem: credores e contratos, carteiras, usuários com perfis e escopo de credores, e equipes.",
+    "Cada pessoa tem uma conta própria. O perfil de acesso define o que ela pode fazer e o escopo de credores define o que ela pode ver. Quem gerencia perfis só concede permissões que o próprio perfil tem.",
+    "O log de acesso registra entradas, sessões, acessos negados e visualizações de dados sensíveis; a trilha de auditoria registra cada alteração com autor, motivo e valores antes e depois."
+   ],
+   "connections": [
+    {
+     "module": "importacao",
+     "text": "Entrega: credores e carteiras que recebem os arquivos."
+    },
+    {
+     "module": "cobranca",
+     "text": "Entrega: equipes que atendem as filas e operadores com escopo de credores."
+    },
+    {
+     "module": "prestacao-de-contas",
+     "text": "Entrega: contratos de serviço com as regras de comissão e o dia de fechamento."
+    },
+    {
+     "module": "remuneracao-variavel",
+     "text": "Entrega: usuários, perfis e equipes elegíveis aos planos."
+    },
+    {
+     "module": "compliance",
+     "text": "Compartilha: log de acesso e trilha de auditoria sustentam a prestação de contas à LGPD."
+    }
+   ],
+   "rules": [
+    "Contas não são compartilhadas: todas as ações ficam registradas em nome de quem fez.",
+    "Perfis de sistema são mantidos atualizados a cada versão e não podem ser desativados; ajustes do administrador são respeitados.",
+    "Perfis com acesso a dados sensíveis ou financeiros exigem verificação em duas etapas.",
+    "Suspender ou devolver carteira pede motivo; encerrar é definitivo.",
+    "A trilha de auditoria é encadeada e a verificação de integridade mostra se algum registro foi alterado fora do sistema."
+   ],
+   "terms": [
+    "credor",
+    "contrato-de-servico",
+    "carteira",
+    "perfil-de-acesso",
+    "escopo-de-credores",
+    "equipe",
+    "log-de-acesso",
+    "trilha-de-auditoria"
+   ]
+  }
+ ],
+ "screens": [
+  {
+   "id": "app.home",
+   "module": "geral",
+   "title": "Início",
+   "objective": "Ponto de partida do dia: indicadores da operação, acesso rápido aos módulos do seu perfil e os primeiros passos.",
+   "purpose": [
+    "Mostra um resumo da operação nos credores do seu escopo e atalhos para os módulos que o seu perfil usa.",
+    "Para quem está começando, o checklist \"Primeiros passos\" indica o que configurar ou conhecer primeiro."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Indicadores consolidados dos painéis, quando o seu perfil pode vê-los.",
+    "Seu perfil de acesso, que define os atalhos exibidos."
+   ],
+   "outputs": [
+    "Atalhos para as telas de trabalho e para os painéis completos."
+   ],
+   "related": [
+    {
+     "screen": "analytics.operational",
+     "why": "Indicadores completos, com filtros e exportação."
+    },
+    {
+     "screen": "collection.queue",
+     "why": "Onde o negociador começa o atendimento."
+    },
+    {
+     "screen": "help.center",
+     "why": "Manual do sistema, com cada módulo e o glossário."
+    }
+   ],
+   "terms": [
+    "escopo-de-credores",
+    "recuperado",
+    "tour"
+   ],
+   "path": "/",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "app.pending-work",
+   "module": "geral",
+   "title": "Minhas pendências",
+   "objective": "O que espera uma ação sua agora: aprovações, prazos, retornos e conversas, com atalho para a tela onde a ação é feita.",
+   "purpose": [
+    "Reúne, de todos os módulos, as tarefas que você pode executar com o seu perfil e nos credores que você atende. Cada linha leva à tela de trabalho já filtrada.",
+    "Quem precisa de uma segunda pessoa para aprovar não vê o próprio lançamento: por exemplo, quem informou um pagamento não o vê aqui para aprovar."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Filas e prazos de cada módulo: pagamentos, negociação, importação, prestação de contas, remuneração, compliance, cobrança, conversas, jurídico, assistente e score."
+   ],
+   "outputs": [
+    "Atalhos para executar cada pendência; o resumo também aparece no início e no indicador da barra superior."
+   ],
+   "related": [
+    {
+     "screen": "app.home",
+     "why": "O início mostra o mesmo resumo das pendências."
+    },
+    {
+     "screen": "payment.review",
+     "why": "Aprovação de pagamentos informados por outra pessoa."
+    },
+    {
+     "screen": "negotiation.approvals",
+     "why": "Propostas acima da alçada aguardando decisão."
+    },
+    {
+     "screen": "collection.agenda",
+     "why": "Retornos agendados de hoje e vencidos."
+    }
+   ],
+   "terms": [
+    "escopo-de-credores",
+    "perfil-de-acesso",
+    "alcada"
+   ],
+   "path": "/pendencias",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "account.profile",
+   "module": "geral",
+   "title": "Meu perfil",
+   "objective": "Seus dados de conta, a assessoria, o escopo de credores que você atende e a situação da verificação em duas etapas.",
+   "purpose": [
+    "Confira com quais credores você trabalha e se a sua conta está protegida. Dados de cadastro e perfis são mantidos pelo administrador da assessoria."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Cadastro feito pelo administrador em Usuários."
+   ],
+   "outputs": [
+    "Acesso à troca de senha, à verificação em duas etapas e às suas sessões."
+   ],
+   "related": [
+    {
+     "screen": "account.mfa",
+     "why": "Ativar ou refazer a verificação em duas etapas."
+    },
+    {
+     "screen": "account.password",
+     "why": "Trocar a senha."
+    },
+    {
+     "screen": "account.sessions",
+     "why": "Ver e encerrar sessões abertas em outros dispositivos."
+    }
+   ],
+   "terms": [
+    "escopo-de-credores",
+    "perfil-de-acesso",
+    "verificacao-em-duas-etapas"
+   ],
+   "path": "/conta/perfil",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "account.password",
+   "module": "geral",
+   "title": "Trocar senha",
+   "objective": "Troque a sua senha. As outras sessões abertas são encerradas para proteger a conta.",
+   "purpose": [
+    "Use quando suspeitar que a senha foi vista por outra pessoa ou quando o sistema pedir. A senha é pessoal: nunca compartilhe a sua conta."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "A senha atual e a nova senha, seguindo as regras exibidas."
+   ],
+   "outputs": [
+    "Nova senha válida e as outras sessões encerradas; a troca fica no log de acesso."
+   ],
+   "related": [
+    {
+     "screen": "account.sessions",
+     "why": "Conferir os dispositivos conectados."
+    },
+    {
+     "screen": "account.mfa",
+     "why": "Somar o código do celular à senha."
+    }
+   ],
+   "terms": [
+    "log-de-acesso"
+   ],
+   "path": "/conta/senha",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "account.mfa",
+   "module": "geral",
+   "title": "Verificação em duas etapas",
+   "objective": "Proteja a conta com um código do aplicativo autenticador do celular, pedido além da senha.",
+   "purpose": [
+    "Perfis com acesso a dados sensíveis ou a ações financeiras exigem a verificação em duas etapas. Leia o QR Code no aplicativo autenticador e confirme com o código gerado."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Aplicativo autenticador no seu celular."
+   ],
+   "outputs": [
+    "Conta protegida; o código passa a ser pedido a cada entrada."
+   ],
+   "related": [
+    {
+     "screen": "account.profile",
+     "why": "Ver a situação da verificação na sua conta."
+    }
+   ],
+   "terms": [
+    "verificacao-em-duas-etapas"
+   ],
+   "path": "/conta/mfa",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "account.sessions",
+   "module": "geral",
+   "title": "Minhas sessões",
+   "objective": "Veja onde a sua conta está conectada e encerre as sessões que você não reconhece.",
+   "purpose": [
+    "Cada entrada abre uma sessão com navegador e origem. Encerrar uma sessão desconecta aquele dispositivo na hora."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Entradas feitas com a sua conta."
+   ],
+   "outputs": [
+    "Sessões encerradas, registradas no log de acesso."
+   ],
+   "related": [
+    {
+     "screen": "account.password",
+     "why": "Trocar a senha se houver sessão desconhecida."
+    }
+   ],
+   "terms": [
+    "log-de-acesso"
+   ],
+   "path": "/conta/sessoes",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "help.center",
+   "module": "geral",
+   "title": "Manual do sistema",
+   "objective": "Visão do todo: como os módulos se encaixam, o manual de cada um e o glossário de termos.",
+   "purpose": [
+    "Use para entender de onde vêm os dados e para onde vai o resultado de cada parte do sistema. Cada módulo tem um manual com as telas, as regras e os termos."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Conteúdo do manual mantido junto com o sistema, atualizado a cada versão."
+   ],
+   "outputs": [
+    "Leitura do manual de cada módulo e atalhos para as telas que o seu perfil pode usar."
+   ],
+   "related": [
+    {
+     "screen": "app.home",
+     "why": "Voltar ao início."
+    }
+   ],
+   "terms": [
+    "tour"
+   ],
+   "path": "/ajuda",
+   "access": {
+    "kind": "OPEN",
+    "permissions": []
+   }
+  },
+  {
+   "id": "help.module",
+   "module": "geral",
+   "title": "Manual do módulo",
+   "objective": "Manual aprofundado de um módulo: para que serve, como se encaixa, regras, telas e glossário.",
+   "purpose": [
+    "Cada tela do módulo aparece com o mesmo conteúdo do \"Sobre esta tela\" da ajuda. Links para telas só aparecem quando o seu perfil tem acesso a elas."
+   ],
+   "profiles": [
+    "TODOS"
+   ],
+   "inputs": [
+    "Conteúdo do manual mantido junto com o sistema."
+   ],
+   "outputs": [
+    "Atalhos para as telas do módulo e para os módulos vizinhos."
+   ],
+   "related": [
+    {
+     "screen": "help.center",
+     "why": "Todos os módulos e o glossário completo."
+    }
+   ],
+   "terms": [
+    "tour"
+   ],
+   "path": "/ajuda/:modulo",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": []
+   }
+  },
+  {
+   "id": "ingestion.batches",
+   "module": "importacao",
+   "title": "Importação de carteiras",
+   "objective": "Acompanhe os arquivos recebidos dos credores e comece uma nova importação, que só grava depois da sua conferência.",
+   "purpose": [
+    "Lista os lotes recebidos, com progresso e resultado, e as conferências em andamento ou aguardando aprovação.",
+    "Daqui você baixa o modelo do layout padrão para enviar ao credor e inicia uma nova importação."
+   ],
+   "profiles": [
+    "ANALISTA_CARTEIRA",
+    "GESTOR",
+    "INTEGRACAO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Arquivos enviados pela equipe e registros recebidos por integração.",
+    "Credores e carteiras cadastrados."
+   ],
+   "outputs": [
+    "Lotes gravados, que criam ou atualizam devedores, títulos e casos."
+   ],
+   "related": [
+    {
+     "screen": "ingestion.review-start",
+     "why": "Começar uma nova importação."
+    },
+    {
+     "screen": "ingestion.layouts",
+     "why": "Ajustar como as colunas do credor são lidas."
+    },
+    {
+     "screen": "organization.portfolios",
+     "why": "Conferir a carteira que recebe os títulos."
+    }
+   ],
+   "terms": [
+    "lote-de-importacao",
+    "conferencia",
+    "carteira"
+   ],
+   "path": "/importacao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "IMPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "ingestion.review-start",
+   "module": "importacao",
+   "title": "Nova importação",
+   "objective": "Escolha a carteira, o layout e o arquivo do credor para começar a conferência antes de gravar.",
+   "purpose": [
+    "Primeiro passo da importação. Em seguida a conferência mostra como o arquivo foi lido, sem gravar nada."
+   ],
+   "profiles": [
+    "ANALISTA_CARTEIRA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Arquivo CSV ou XLSX do credor.",
+    "Carteira de destino e layout do credor."
+   ],
+   "outputs": [
+    "Uma conferência em andamento, que você pode retomar depois."
+   ],
+   "related": [
+    {
+     "screen": "ingestion.review",
+     "why": "Os passos da conferência."
+    },
+    {
+     "screen": "ingestion.layouts",
+     "why": "Cadastrar o layout de um credor novo."
+    }
+   ],
+   "terms": [
+    "layout",
+    "conferencia"
+   ],
+   "path": "/importacao/nova",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "IMPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "ingestion.review",
+   "module": "importacao",
+   "title": "Conferência da importação",
+   "objective": "Confira formato dos valores, linhas, totais da planilha e alertas antes de gravar o arquivo.",
+   "purpose": [
+    "Evita erros caros de carga: um valor \"1.000\" lido como um real em vez de mil, linhas faltando ou valores fora do padrão da carteira.",
+    "Você avança e volta entre os passos; o andamento fica salvo. Ao final, confere o impacto e confirma."
+   ],
+   "profiles": [
+    "ANALISTA_CARTEIRA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "O arquivo enviado em \"Nova importação\".",
+    "A soma e a contagem da sua planilha, que você informa."
+   ],
+   "outputs": [
+    "Lote gravado ou enviado para aprovação de outra pessoa, conforme o valor."
+   ],
+   "related": [
+    {
+     "screen": "ingestion.batches",
+     "why": "Acompanhar o lote depois de confirmar."
+    },
+    {
+     "screen": "ingestion.batch-detail",
+     "why": "Ocorrências por linha do lote."
+    }
+   ],
+   "terms": [
+    "conferencia",
+    "quatro-olhos"
+   ],
+   "path": "/importacao/conferencias/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "IMPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "ingestion.batch-detail",
+   "module": "importacao",
+   "title": "Lote de importação",
+   "objective": "Resultado de um lote: contadores, ocorrências por linha e, quando cabe, importar a prévia ou reprocessar.",
+   "purpose": [
+    "Mostra quantas linhas foram lidas, aceitas e recusadas e quantos devedores e títulos foram criados ou atualizados.",
+    "Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção."
+   ],
+   "profiles": [
+    "ANALISTA_CARTEIRA",
+    "GESTOR",
+    "INTEGRACAO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Processamento do arquivo conferido ou do envio por integração."
+   ],
+   "outputs": [
+    "Títulos e devedores gravados; relatório de ocorrências para o credor."
+   ],
+   "related": [
+    {
+     "screen": "ingestion.batches",
+     "why": "Todos os lotes."
+    },
+    {
+     "screen": "debt.titles",
+     "why": "Ver os títulos gravados."
+    }
+   ],
+   "terms": [
+    "lote-de-importacao",
+    "titulo",
+    "devedor"
+   ],
+   "path": "/importacao/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "IMPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "ingestion.layouts",
+   "module": "importacao",
+   "title": "Layouts de importação",
+   "objective": "Defina como as colunas do arquivo de cada credor correspondem aos campos do sistema.",
+   "purpose": [
+    "Quando o credor não usa o layout padrão, um layout próprio evita retrabalho: a correspondência fica salva e é usada nas próximas importações."
+   ],
+   "profiles": [
+    "ANALISTA_CARTEIRA",
+    "GESTOR",
+    "INTEGRACAO"
+   ],
+   "inputs": [
+    "O arquivo de exemplo do credor."
+   ],
+   "outputs": [
+    "Layout disponível em \"Nova importação\"."
+   ],
+   "related": [
+    {
+     "screen": "ingestion.review-start",
+     "why": "Usar o layout numa importação."
+    }
+   ],
+   "terms": [
+    "layout"
+   ],
+   "path": "/importacao/layouts",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "IMPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "collection.queue",
+   "module": "cobranca",
+   "title": "Estação de cobrança",
+   "objective": "Seu posto de atendimento: pegue o próximo caso, veja a ficha, confira se pode contatar e registre o resultado, tudo pelo teclado.",
+   "purpose": [
+    "Reúne em uma tela a fila de casos, a ficha do caso (títulos, contatos, histórico, agenda, contestações e negociação) e o registro da interação.",
+    "O \"Próximo caso\" entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro. Atalhos de teclado aparecem nos botões e na ajuda."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Casos das filas atendidas pela sua equipe e casos atribuídos a você.",
+    "Decisão de contato do compliance por canal.",
+    "Score do caso, quando há modelo em uso."
+   ],
+   "outputs": [
+    "Interações tabuladas, promessas e retornos no histórico do caso.",
+    "Simulações, propostas e Pix a partir da aba Negociação.",
+    "Ligações registradas no caso."
+   ],
+   "related": [
+    {
+     "screen": "collection.agenda",
+     "why": "Retornos combinados por dia."
+    },
+    {
+     "screen": "negotiation.simulator",
+     "why": "Simular condições fora da estação."
+    },
+    {
+     "screen": "communication.inbox",
+     "why": "Conversas por mensagem com os devedores."
+    },
+    {
+     "screen": "collection.disputes",
+     "why": "Acompanhar contestações abertas."
+    }
+   ],
+   "terms": [
+    "caso",
+    "proximo-caso",
+    "tabulacao",
+    "porteiro-de-contato",
+    "promessa",
+    "retorno"
+   ],
+   "path": "/cobranca/fila",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CASE_WORK"
+    ]
+   }
+  },
+  {
+   "id": "collection.case",
+   "module": "cobranca",
+   "title": "Caso de cobrança",
+   "objective": "Atendimento de um caso específico: ficha, decisão de contato e registro da interação, como na estação.",
+   "purpose": [
+    "Abre um caso escolhido em listas, agenda ou ficha do devedor, com as mesmas abas e atalhos da estação de cobrança."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Títulos, contatos e histórico do devedor na carteira do caso."
+   ],
+   "outputs": [
+    "Interações, promessas, retornos, contestações e negociações do caso."
+   ],
+   "related": [
+    {
+     "screen": "collection.cases",
+     "why": "Encontrar outros casos."
+    },
+    {
+     "screen": "debt.debtors",
+     "why": "Ver todos os credores e títulos do devedor."
+    }
+   ],
+   "terms": [
+    "caso",
+    "elegibilidade",
+    "tabulacao",
+    "contestacao"
+   ],
+   "path": "/cobranca/casos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "CASE_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "collection.cases",
+   "module": "cobranca",
+   "title": "Casos de cobrança",
+   "objective": "Consulte casos por credor, situação, fila, responsável e elegibilidade para encontrar exceções e redistribuir.",
+   "purpose": [
+    "Visão de gestão dos casos: quais estão sem responsável, inelegíveis (com o motivo) ou parados. Atribua um caso a um operador ou a uma equipe pela linha."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Casos abertos automaticamente a partir dos títulos importados."
+   ],
+   "outputs": [
+    "Atribuições de casos a operadores ou equipes."
+   ],
+   "related": [
+    {
+     "screen": "collection.queues",
+     "why": "Ajustar critérios e distribuição das filas."
+    },
+    {
+     "screen": "collection.queue",
+     "why": "Atender os casos."
+    }
+   ],
+   "terms": [
+    "caso",
+    "elegibilidade",
+    "fila"
+   ],
+   "path": "/cobranca/casos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CASE_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "collection.agenda",
+   "module": "cobranca",
+   "title": "Agenda de retornos",
+   "objective": "Retornos combinados com os devedores, por dia, com os atrasados em destaque, no horário de Brasília.",
+   "purpose": [
+    "Ajuda a cumprir o que foi combinado. Retorno atrasado continua com você e volta como próxima ação do caso. Supervisores consultam a agenda de outro operador."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Retornos agendados ao registrar interações ou criados no caso."
+   ],
+   "outputs": [
+    "Retornos concluídos, reagendados ou cancelados; o cumprimento conta no desempenho."
+   ],
+   "related": [
+    {
+     "screen": "collection.queue",
+     "why": "Abrir o caso direto na estação."
+    }
+   ],
+   "terms": [
+    "retorno",
+    "caso"
+   ],
+   "path": "/cobranca/agenda",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CASE_WORK",
+     "TASK_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "collection.queues",
+   "module": "cobranca",
+   "title": "Filas e distribuição",
+   "objective": "Defina os critérios e a prioridade das filas e distribua os casos entre os operadores.",
+   "purpose": [
+    "Cada fila tem critérios (credor, carteira, atraso, saldo, score), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz.",
+    "Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Casos elegíveis e equipes cadastradas.",
+    "Faixa de score, quando há modelo em uso."
+   ],
+   "outputs": [
+    "Ordem de entrega do \"Próximo caso\" e casos atribuídos aos operadores."
+   ],
+   "related": [
+    {
+     "screen": "admin.teams",
+     "why": "Montar as equipes que atendem as filas."
+    },
+    {
+     "screen": "collection.cases",
+     "why": "Ver o resultado da distribuição."
+    },
+    {
+     "screen": "telephony.campaigns",
+     "why": "Discar automaticamente sobre uma fila."
+    }
+   ],
+   "terms": [
+    "fila",
+    "proximo-caso",
+    "faixa-de-score",
+    "equipe"
+   ],
+   "path": "/cobranca/filas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "QUEUE_MANAGE",
+     "CASE_ASSIGN"
+    ]
+   }
+  },
+  {
+   "id": "collection.tabulations",
+   "module": "cobranca",
+   "title": "Tabulações",
+   "objective": "Mantenha os resultados de contato que os operadores escolhem e o que cada um exige e provoca.",
+   "purpose": [
+    "Cada tabulação diz se houve contato efetivo e se exige observação, promessa (valor e data) ou retorno (data e hora). Os indicadores de produtividade dependem dessa marcação."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Catálogo padrão criado com a assessoria, ajustável."
+   ],
+   "outputs": [
+    "Opções do registro de interação na estação e ao fim das ligações."
+   ],
+   "related": [
+    {
+     "screen": "collection.queue",
+     "why": "Onde as tabulações são usadas."
+    }
+   ],
+   "terms": [
+    "tabulacao",
+    "contato-efetivo",
+    "promessa",
+    "retorno"
+   ],
+   "path": "/cobranca/tabulacoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TABULATION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "collection.settings",
+   "module": "cobranca",
+   "title": "Parâmetros da operação",
+   "objective": "Tolerâncias de promessas e retornos e o prazo padrão de resposta das contestações da assessoria.",
+   "purpose": [
+    "Esses prazos definem quando uma promessa é quebrada, quando um retorno fica atrasado e quando uma contestação vence."
+   ],
+   "profiles": [
+    "GESTOR",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Decisão da gestão da operação."
+   ],
+   "outputs": [
+    "Prazos aplicados a novas promessas, retornos e contestações."
+   ],
+   "related": [
+    {
+     "screen": "collection.disputes",
+     "why": "Contestações e seus prazos."
+    },
+    {
+     "screen": "collection.agenda",
+     "why": "Retornos e atrasos."
+    }
+   ],
+   "terms": [
+    "promessa",
+    "retorno",
+    "contestacao"
+   ],
+   "path": "/cobranca/parametros",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "QUEUE_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "collection.disputes",
+   "module": "cobranca",
+   "title": "Contestações",
+   "objective": "Acompanhe as dívidas contestadas, com prazo de resposta, evidências e a resolução com parecer.",
+   "purpose": [
+    "A contestação bloqueante tira os títulos de réguas e negociações e suspende o contato até a resolução. Envie para análise, resolva (procedente, improcedente ou parcial) ou registre a desistência.",
+    "Se a contestação for procedente, o ajuste no título é feito em seguida no detalhe do título."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR",
+    "JURIDICO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Contestações abertas na estação, no portal ou pelo jurídico, com evidências anexadas."
+   ],
+   "outputs": [
+    "Títulos liberados ou ajustados e o caso reavaliado; a resolução fica no histórico."
+   ],
+   "related": [
+    {
+     "screen": "debt.titles",
+     "why": "Ajustar ou cancelar títulos após a resolução."
+    },
+    {
+     "screen": "collection.settings",
+     "why": "Prazo padrão de resposta."
+    }
+   ],
+   "terms": [
+    "contestacao",
+    "elegibilidade"
+   ],
+   "path": "/cobranca/contestacoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DISPUTE_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "debt.debtors",
+   "module": "cobranca",
+   "title": "Devedores",
+   "objective": "Encontre um devedor por nome ou documento e abra a ficha com títulos, contatos e histórico.",
+   "purpose": [
+    "Mostra pessoas e empresas com títulos nos credores que você atende. O documento é enviado de forma protegida, fora do endereço da página."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "ANALISTA_CARTEIRA",
+    "AUDITOR",
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Devedores gravados pela importação."
+   ],
+   "outputs": [
+    "Acesso à ficha do devedor."
+   ],
+   "related": [
+    {
+     "screen": "debt.titles",
+     "why": "Consultar títulos com filtros."
+    },
+    {
+     "screen": "collection.cases",
+     "why": "Casos de cobrança do devedor."
+    }
+   ],
+   "terms": [
+    "devedor",
+    "escopo-de-credores"
+   ],
+   "path": "/devedores",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DEBTOR_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "debt.debtor-detail",
+   "module": "cobranca",
+   "title": "Ficha do devedor",
+   "objective": "Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, razão, titularidade e restrições.",
+   "purpose": [
+    "Contatos podem ser confirmados ou marcados como inválidos. Ver o documento completo exige permissão e fica registrado.",
+    "Daqui você envia o link do portal de autonegociação e baixa o dossiê de contato."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "ANALISTA_CARTEIRA",
+    "AUDITOR",
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Importações, interações, pagamentos e restrições do devedor."
+   ],
+   "outputs": [
+    "Contatos atualizados, dados corrigidos e link do portal enviado ao devedor."
+   ],
+   "related": [
+    {
+     "screen": "debt.titles",
+     "why": "Consulta completa dos títulos."
+    },
+    {
+     "screen": "compliance.restrictions",
+     "why": "Restrições de contato do devedor."
+    },
+    {
+     "screen": "portal.configs",
+     "why": "Configuração do portal de autonegociação."
+    }
+   ],
+   "terms": [
+    "devedor",
+    "titulo",
+    "razao-do-titulo",
+    "restricao-de-contato"
+   ],
+   "path": "/devedores/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "DEBTOR_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "debt.titles",
+   "module": "cobranca",
+   "title": "Títulos",
+   "objective": "Consulte as dívidas por credor, carteira, situação, atraso e vencimento, inclusive as já encerradas.",
+   "purpose": [
+    "As faixas de atraso seguem o padrão da cobrança e consideram apenas títulos em cobrança."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "ANALISTA_CARTEIRA",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Títulos gravados pela importação, com pagamentos e ajustes posteriores."
+   ],
+   "outputs": [
+    "Acesso ao detalhe do título e às ações do seu ciclo de vida."
+   ],
+   "related": [
+    {
+     "screen": "debt.debtors",
+     "why": "Buscar pelo devedor."
+    },
+    {
+     "screen": "ingestion.batches",
+     "why": "De qual importação o título veio."
+    }
+   ],
+   "terms": [
+    "titulo",
+    "carteira"
+   ],
+   "path": "/titulos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DEBTOR_VIEW",
+     "CASE_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "debt.title-detail",
+   "module": "cobranca",
+   "title": "Detalhe do título",
+   "objective": "Saldo por componente, razão, titularidade e as ações do ciclo de vida de um título.",
+   "purpose": [
+    "O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque.",
+    "Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR",
+    "ANALISTA_CARTEIRA",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Importação, pagamentos, acordos e descontos aplicados ao título."
+   ],
+   "outputs": [
+    "Mudanças de situação que atualizam o caso e a elegibilidade."
+   ],
+   "related": [
+    {
+     "screen": "debt.titles",
+     "why": "Voltar à consulta."
+    },
+    {
+     "screen": "collection.disputes",
+     "why": "Contestação sobre o título."
+    }
+   ],
+   "terms": [
+    "titulo",
+    "razao-do-titulo",
+    "trilha-de-auditoria"
+   ],
+   "path": "/titulos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "DEBTOR_VIEW",
+     "CASE_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "communication.inbox",
+   "module": "comunicacao",
+   "title": "Caixa de entrada",
+   "objective": "Conversas com os devedores por dono e tempo de espera, para responder, assumir ou transferir.",
+   "purpose": [
+    "Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta.",
+    "Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Mensagens recebidas pelos canais da assessoria.",
+    "Transferências do assistente e pedidos do portal."
+   ],
+   "outputs": [
+    "Respostas enviadas e conversas assumidas, devolvidas ou encerradas.",
+    "Interações registradas no caso."
+   ],
+   "related": [
+    {
+     "screen": "collection.queue",
+     "why": "Atender o caso do devedor."
+    },
+    {
+     "screen": "communication.templates",
+     "why": "Textos aprovados para iniciar contato."
+    },
+    {
+     "screen": "portal.requests",
+     "why": "Pedidos do portal que não viraram conversa."
+    }
+   ],
+   "terms": [
+    "conversa",
+    "template",
+    "transferencia-para-humano",
+    "canal"
+   ],
+   "path": "/conversas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "INBOX_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "communication.conversation",
+   "module": "comunicacao",
+   "title": "Conversa",
+   "objective": "Linha do tempo de uma conversa com o devedor, com as ações de assumir, responder e transferir.",
+   "purpose": [
+    "Mesmo atendimento da caixa de entrada, aberto direto pelo endereço da conversa. Mensagens do assistente aparecem identificadas."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Mensagens de todos os canais do devedor."
+   ],
+   "outputs": [
+    "Respostas e mudanças de dono da conversa."
+   ],
+   "related": [
+    {
+     "screen": "communication.inbox",
+     "why": "Voltar à caixa de entrada."
+    }
+   ],
+   "terms": [
+    "conversa",
+    "assistente"
+   ],
+   "path": "/conversas/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "INBOX_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "communication.templates",
+   "module": "comunicacao",
+   "title": "Templates de mensagem",
+   "objective": "Textos aprovados por canal, com variáveis conferidas, versões e aprovação do WhatsApp.",
+   "purpose": [
+    "Escreva o texto com variáveis como nome e valor da dívida. Dados pessoais como documento, telefone e e-mail não são aceitos no texto.",
+    "Templates de WhatsApp precisam ser aprovados no provedor antes de publicar."
+   ],
+   "profiles": [
+    "GESTOR",
+    "ESTRATEGIA"
+   ],
+   "inputs": [
+    "Textos definidos pela gestão e pela estratégia de cobrança."
+   ],
+   "outputs": [
+    "Templates publicados, usados por réguas, portal e operadores."
+   ],
+   "related": [
+    {
+     "screen": "campaign.list",
+     "why": "Réguas que enviam os templates."
+    },
+    {
+     "screen": "communication.channels",
+     "why": "Contas de envio por canal."
+    }
+   ],
+   "terms": [
+    "template",
+    "canal",
+    "versao-publicada"
+   ],
+   "path": "/conversas/templates",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TEMPLATE_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "communication.channels",
+   "module": "comunicacao",
+   "title": "Canais de comunicação",
+   "objective": "Contas de envio por canal e credor: o credor usa a própria conta ativa; sem ela, a da assessoria.",
+   "purpose": [
+    "Configure remetente e credenciais do provedor. As credenciais nunca voltam à tela depois de salvas."
+   ],
+   "profiles": [
+    "INTEGRACAO",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Contas contratadas nos provedores de WhatsApp, e-mail e SMS."
+   ],
+   "outputs": [
+    "Canais disponíveis para conversas, réguas e portal."
+   ],
+   "related": [
+    {
+     "screen": "communication.templates",
+     "why": "Templates enviados pelos canais."
+    }
+   ],
+   "terms": [
+    "canal"
+   ],
+   "path": "/conversas/canais",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CHANNEL_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "campaign.list",
+   "module": "campanhas",
+   "title": "Campanhas",
+   "objective": "Réguas automáticas por credor: quem alcançar, em que ordem, por qual canal e com que prioridade.",
+   "purpose": [
+    "Lista as campanhas com situação, credor, finalidade e prioridade. Crie uma campanha escolhendo credor, carteira e segmento."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Segmentos salvos e templates publicados."
+   ],
+   "outputs": [
+    "Campanhas em preparação, ativas, pausadas ou encerradas."
+   ],
+   "related": [
+    {
+     "screen": "campaign.segments",
+     "why": "Definir o público."
+    },
+    {
+     "screen": "communication.templates",
+     "why": "Textos usados pela régua."
+    },
+    {
+     "screen": "campaign.experiments",
+     "why": "Testes A/B em andamento."
+    }
+   ],
+   "terms": [
+    "campanha",
+    "regua",
+    "segmento"
+   ],
+   "path": "/campanhas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CAMPAIGN_VIEW",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_EXECUTE"
+    ]
+   }
+  },
+  {
+   "id": "campaign.detail",
+   "module": "campanhas",
+   "title": "Campanha",
+   "objective": "Situação, público, parâmetros e o ciclo de ativar, pausar e encerrar uma campanha.",
+   "purpose": [
+    "Ajuste prioridade, exclusividade, reinscrição e retomada após pagamento. Régua, execução e testes A/B ficam nas abas."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Segmento escolhido e régua publicada."
+   ],
+   "outputs": [
+    "Devedores inscritos e etapas em execução quando a campanha está ativa."
+   ],
+   "related": [
+    {
+     "screen": "campaign.cadence",
+     "why": "Editar as etapas."
+    },
+    {
+     "screen": "campaign.execution",
+     "why": "Acompanhar resultados."
+    }
+   ],
+   "terms": [
+    "campanha",
+    "segmento"
+   ],
+   "path": "/campanhas/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "CAMPAIGN_VIEW",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_EXECUTE"
+    ]
+   }
+  },
+  {
+   "id": "campaign.cadence",
+   "module": "campanhas",
+   "title": "Régua",
+   "objective": "Etapas em sequência: espera, janela de horário, condição, ação e o que a resposta do devedor faz.",
+   "purpose": [
+    "Cada etapa espera um tempo, respeita uma janela de horário, verifica uma condição e executa uma ação. A resposta padrão vale para as etapas sem regra própria."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Templates publicados e canais disponíveis."
+   ],
+   "outputs": [
+    "Régua publicada, usada pela execução da campanha."
+   ],
+   "related": [
+    {
+     "screen": "communication.templates",
+     "why": "Publicar o template antes de usá-lo."
+    },
+    {
+     "screen": "campaign.experiment",
+     "why": "Testar variantes das etapas."
+    }
+   ],
+   "terms": [
+    "regua",
+    "template"
+   ],
+   "path": "/campanhas/:id/regua",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "CAMPAIGN_VIEW",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_EXECUTE"
+    ]
+   }
+  },
+  {
+   "id": "campaign.execution",
+   "module": "campanhas",
+   "title": "Execução da campanha",
+   "objective": "Quem foi inscrito, o que cada etapa fez, por que pulou ou falhou e quais resultados vieram da campanha.",
+   "purpose": [
+    "Os indicadores mostram a base. Corrija a causa das falhas e reprocesse: elas voltam para a mesma etapa sem duplicar mensagens."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Inscrições, envios, respostas, acordos e pagamentos atribuídos à campanha."
+   ],
+   "outputs": [
+    "Falhas reprocessadas e informação para ajustar a régua."
+   ],
+   "related": [
+    {
+     "screen": "analytics.conversion",
+     "why": "Conversão da operação como um todo."
+    }
+   ],
+   "terms": [
+    "campanha",
+    "base-do-indicador",
+    "recuperado"
+   ],
+   "path": "/campanhas/:id/execucao",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "CAMPAIGN_VIEW",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_EXECUTE"
+    ]
+   }
+  },
+  {
+   "id": "campaign.experiment",
+   "module": "campanhas",
+   "title": "Teste A/B da campanha",
+   "objective": "Compare variantes de template, canal, horário ou oferta com um grupo de controle sorteado.",
+   "purpose": [
+    "Defina o grupo de controle, o horizonte e a amostra mínima antes de iniciar. O resultado mostra a estimativa e o intervalo de 95%: é significativo quando o intervalo da diferença não cruza o zero."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Régua publicada da campanha."
+   ],
+   "outputs": [
+    "Decisão registrada sobre a variante vencedora."
+   ],
+   "related": [
+    {
+     "screen": "campaign.experiments",
+     "why": "Todos os testes."
+    }
+   ],
+   "terms": [
+    "teste-ab"
+   ],
+   "path": "/campanhas/:id/testes",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "CAMPAIGN_VIEW",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_EXECUTE"
+    ]
+   }
+  },
+  {
+   "id": "campaign.experiments",
+   "module": "campanhas",
+   "title": "Testes A/B",
+   "objective": "Todos os testes A/B das campanhas, com situação e resultado por braço.",
+   "purpose": [
+    "Visão geral dos experimentos em andamento e encerrados, para acompanhar e decidir."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Testes criados nas campanhas."
+   ],
+   "outputs": [
+    "Acesso ao teste de cada campanha."
+   ],
+   "related": [
+    {
+     "screen": "campaign.list",
+     "why": "Campanhas."
+    }
+   ],
+   "terms": [
+    "teste-ab"
+   ],
+   "path": "/campanhas/testes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "EXPERIMENT_MANAGE",
+     "CAMPAIGN_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "campaign.segments",
+   "module": "campanhas",
+   "title": "Segmentos",
+   "objective": "Públicos salvos com filtros combinados sobre os casos de cobrança, usados pelas campanhas.",
+   "purpose": [
+    "Crie, copie e revise segmentos. Duplique para variar um público sem mexer no segmento de campanhas ativas."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Casos de cobrança, com atraso, saldo, contato, promessa, acordo e score."
+   ],
+   "outputs": [
+    "Público das campanhas."
+   ],
+   "related": [
+    {
+     "screen": "campaign.segment-new",
+     "why": "Criar um segmento."
+    },
+    {
+     "screen": "campaign.list",
+     "why": "Campanhas que usam os segmentos."
+    }
+   ],
+   "terms": [
+    "segmento"
+   ],
+   "path": "/campanhas/segmentos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SEGMENT_MANAGE",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "campaign.segment-new",
+   "module": "campanhas",
+   "title": "Novo segmento",
+   "objective": "Monte um público com filtros combinados e veja a contagem prévia antes de salvar.",
+   "purpose": [
+    "Todos os filtros precisam ser atendidos ao mesmo tempo. Casos inelegíveis ficam fora por padrão."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Casos de cobrança do credor ou da assessoria."
+   ],
+   "outputs": [
+    "Segmento salvo, disponível para campanhas."
+   ],
+   "related": [
+    {
+     "screen": "campaign.segments",
+     "why": "Todos os segmentos."
+    }
+   ],
+   "terms": [
+    "segmento",
+    "elegibilidade",
+    "faixa-de-score"
+   ],
+   "path": "/campanhas/segmentos/novo",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "SEGMENT_MANAGE",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "campaign.segment",
+   "module": "campanhas",
+   "title": "Segmento",
+   "objective": "Revise os filtros de um segmento e a contagem do público; duplique para criar variações.",
+   "purpose": [
+    "Alterar um segmento usado por campanhas ativas muda quem elas alcançam: prefira duplicar."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Casos de cobrança."
+   ],
+   "outputs": [
+    "Público atualizado para as campanhas que o usam."
+   ],
+   "related": [
+    {
+     "screen": "campaign.list",
+     "why": "Campanhas que usam o segmento."
+    }
+   ],
+   "terms": [
+    "segmento",
+    "faixa-de-score"
+   ],
+   "path": "/campanhas/segmentos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "SEGMENT_MANAGE",
+     "CAMPAIGN_MANAGE",
+     "CAMPAIGN_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "telephony.campaigns",
+   "module": "telefonia",
+   "title": "Campanhas de discagem",
+   "objective": "Discador progressivo ou preditivo sobre uma fila de cobrança, com abandono máximo, retentativas e janela própria.",
+   "purpose": [
+    "Crie uma campanha escolhendo a fila, o ritmo, o abandono máximo, as retentativas e a janela de horário."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Filas de cobrança e operadores com presença na telefonia."
+   ],
+   "outputs": [
+    "Listas de discagem e chamadas conectadas aos operadores."
+   ],
+   "related": [
+    {
+     "screen": "collection.queues",
+     "why": "A fila que alimenta a lista."
+    },
+    {
+     "screen": "telephony.agents",
+     "why": "Quem está disponível agora."
+    }
+   ],
+   "terms": [
+    "discador",
+    "abandono",
+    "fila"
+   ],
+   "path": "/telefonia/campanhas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TELEPHONY_SUPERVISE"
+    ]
+   }
+  },
+  {
+   "id": "telephony.campaign",
+   "module": "telefonia",
+   "title": "Painel da campanha de discagem",
+   "objective": "Indicadores do dia, operadores e lista de uma campanha de discagem, com ativar, pausar e encerrar.",
+   "purpose": [
+    "Os números se atualizam enquanto a campanha disca. Abandono é atendidas sem operador sobre atendidas por pessoa."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Chamadas do discador e presença dos operadores."
+   ],
+   "outputs": [
+    "Campanha ativada, pausada, recarregada ou encerrada."
+   ],
+   "related": [
+    {
+     "screen": "telephony.calls",
+     "why": "Detalhe das chamadas."
+    }
+   ],
+   "terms": [
+    "discador",
+    "abandono"
+   ],
+   "path": "/telefonia/campanhas/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "TELEPHONY_SUPERVISE"
+    ]
+   }
+  },
+  {
+   "id": "telephony.calls",
+   "module": "telefonia",
+   "title": "Chamadas e gravações",
+   "objective": "Chamadas do seu escopo com resultado, tabulação e gravação, que só é ouvida com finalidade registrada.",
+   "purpose": [
+    "Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR",
+    "QUALIDADE",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Chamadas registradas pelo provedor de telefonia."
+   ],
+   "outputs": [
+    "Acesso às gravações, registrado no log de acesso."
+   ],
+   "related": [
+    {
+     "screen": "incentive.evaluations",
+     "why": "Avaliar o atendimento."
+    },
+    {
+     "screen": "collection.cases",
+     "why": "Caso da chamada."
+    }
+   ],
+   "terms": [
+    "gravacao",
+    "tabulacao",
+    "log-de-acesso"
+   ],
+   "path": "/telefonia/chamadas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TELEPHONY_SUPERVISE"
+    ]
+   }
+  },
+  {
+   "id": "telephony.agents",
+   "module": "telefonia",
+   "title": "Operadores e ramais",
+   "objective": "Quem está na telefonia agora, em que estado e há quanto tempo, e o ramal de cada usuário.",
+   "purpose": [
+    "Acompanhe disponibilidade e pausas. Vincule cada usuário ao ramal do provedor para o clique para ligar funcionar."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Presença informada pelos operadores na estação."
+   ],
+   "outputs": [
+    "Ramais vinculados e visão para redistribuir o trabalho."
+   ],
+   "related": [
+    {
+     "screen": "telephony.campaigns",
+     "why": "Campanhas que dependem dos operadores disponíveis."
+    }
+   ],
+   "terms": [
+    "discador"
+   ],
+   "path": "/telefonia/operadores",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TELEPHONY_SUPERVISE"
+    ]
+   }
+  },
+  {
+   "id": "assistant.policies",
+   "module": "assistente",
+   "title": "Políticas do assistente",
+   "objective": "Como o assistente de IA atua em cada assessoria, credor ou carteira, com desligamento imediato.",
+   "purpose": [
+    "Cada política define modo, canais, horários, alçada, gatilhos e limites. A mais específica prevalece: carteira, depois credor, depois assessoria."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR",
+    "QUALIDADE"
+   ],
+   "inputs": [
+    "Perfis de alçada cadastrados em Alçadas."
+   ],
+   "outputs": [
+    "Política publicada aplicada às novas conversas do escopo."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.authority",
+     "why": "Perfil de alçada do assistente."
+    },
+    {
+     "screen": "assistant.quality",
+     "why": "Resultados antes de avançar de fase."
+    }
+   ],
+   "terms": [
+    "assistente",
+    "modo-do-assistente",
+    "alcada"
+   ],
+   "path": "/assistente/politicas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ASSISTANT_MANAGE",
+     "ASSISTANT_REVIEW"
+    ]
+   }
+  },
+  {
+   "id": "assistant.policy",
+   "module": "assistente",
+   "title": "Versão da política do assistente",
+   "objective": "Modo, horários, alçada, gatilhos de transferência e limites de uma versão da política do assistente.",
+   "purpose": [
+    "Edite o rascunho e publique. A versão publicada não muda e aposenta a anterior do mesmo escopo."
+   ],
+   "profiles": [
+    "GESTOR"
+   ],
+   "inputs": [
+    "Perfil de alçada e templates dos canais."
+   ],
+   "outputs": [
+    "Regras seguidas pelo assistente em cada conversa."
+   ],
+   "related": [
+    {
+     "screen": "assistant.policies",
+     "why": "Todas as políticas."
+    }
+   ],
+   "terms": [
+    "modo-do-assistente",
+    "transferencia-para-humano",
+    "versao-publicada"
+   ],
+   "path": "/assistente/politicas/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "ASSISTANT_MANAGE",
+     "ASSISTANT_REVIEW"
+    ]
+   }
+  },
+  {
+   "id": "assistant.reviews",
+   "module": "assistente",
+   "title": "Revisão do assistente",
+   "objective": "Turnos amostrados para avaliação humana: nota, veredito, etiquetas e comentário.",
+   "purpose": [
+    "A revisão humana mede se o assistente segue o roteiro e as regras. Turnos de políticas que você publicou aparecem sem a ação de revisar."
+   ],
+   "profiles": [
+    "QUALIDADE",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Amostra de turnos definida na política."
+   ],
+   "outputs": [
+    "Avaliações que entram nos indicadores de qualidade do assistente."
+   ],
+   "related": [
+    {
+     "screen": "assistant.turn",
+     "why": "Detalhe de um turno."
+    },
+    {
+     "screen": "assistant.quality",
+     "why": "Indicadores consolidados."
+    }
+   ],
+   "terms": [
+    "turno",
+    "quatro-olhos"
+   ],
+   "path": "/assistente/revisao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ASSISTANT_REVIEW"
+    ]
+   }
+  },
+  {
+   "id": "assistant.turn",
+   "module": "assistente",
+   "title": "Turno do assistente",
+   "objective": "O que o assistente recebeu, quais ferramentas usou e o que respondeu em um turno da conversa.",
+   "purpose": [
+    "Cada chamada de ferramenta aparece como executada, recusada ou com erro, validada pelo sistema. O conteúdo é mascarado e este acesso fica no log de acesso."
+   ],
+   "profiles": [
+    "QUALIDADE",
+    "SUPERVISOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Conversa com o devedor e decisões do sistema."
+   ],
+   "outputs": [
+    "Avaliação do turno, quando aberto pela revisão."
+   ],
+   "related": [
+    {
+     "screen": "assistant.reviews",
+     "why": "Fila de revisão."
+    }
+   ],
+   "terms": [
+    "turno",
+    "log-de-acesso"
+   ],
+   "path": "/assistente/turnos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": []
+   }
+  },
+  {
+   "id": "assistant.quality",
+   "module": "assistente",
+   "title": "Qualidade do assistente",
+   "objective": "Resultado do assistente comparado aos humanos, para decidir carteira a carteira quando avançar de fase.",
+   "purpose": [
+    "Transferências, reclamações, custo por acordo, quebra precoce e revisões no período. Avance quando a quebra com o assistente for igual ou menor que a dos humanos."
+   ],
+   "profiles": [
+    "GESTOR",
+    "QUALIDADE"
+   ],
+   "inputs": [
+    "Conversas, acordos, pagamentos e revisões humanas."
+   ],
+   "outputs": [
+    "Decisão de mudar o modo ou a alçada na política."
+   ],
+   "related": [
+    {
+     "screen": "assistant.policies",
+     "why": "Mudar o modo da carteira."
+    }
+   ],
+   "terms": [
+    "modo-do-assistente",
+    "quebra",
+    "base-do-indicador"
+   ],
+   "path": "/assistente/qualidade",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ASSISTANT_REVIEW"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.simulator",
+   "module": "negociacao",
+   "title": "Simulador de negociação",
+   "objective": "Calcule a dívida atualizada, compare ofertas e valide condições dentro da sua alçada antes de propor.",
+   "purpose": [
+    "Escolha credor e devedor; sem títulos marcados, entram todos os títulos em aberto no credor. Seu limite aparece antes de simular.",
+    "Validadas as condições, proponha. Acima da sua alçada, o botão vira \"Pedir aprovação\" e a proposta vai para a fila."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Títulos em aberto do devedor no credor.",
+    "Política de cobrança vigente e o seu perfil de alçada."
+   ],
+   "outputs": [
+    "Proposta pronta para aceite ou aguardando aprovação."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.proposals",
+     "why": "Acompanhar as propostas."
+    },
+    {
+     "screen": "negotiation.policies",
+     "why": "Regras do credor usadas no cálculo."
+    },
+    {
+     "screen": "collection.queue",
+     "why": "Simular dentro do atendimento."
+    }
+   ],
+   "terms": [
+    "simulacao",
+    "alcada",
+    "escada-de-concessoes",
+    "politica-de-cobranca"
+   ],
+   "path": "/negociacao/simulador",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "NEGOTIATION_SIMULATE"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.proposals",
+   "module": "negociacao",
+   "title": "Propostas",
+   "objective": "Situação de cada proposta ao devedor, do aceite à formalização ou à aprovação.",
+   "purpose": [
+    "Filtre por credor, situação ou autor. Propostas do assistente aparecem identificadas."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Simulações propostas por pessoas, pelo assistente e pelo portal."
+   ],
+   "outputs": [
+    "Aceites registrados e acordos formalizados."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.approvals",
+     "why": "Propostas que aguardam aprovação."
+    },
+    {
+     "screen": "negotiation.agreements",
+     "why": "Acordos formalizados."
+    }
+   ],
+   "terms": [
+    "proposta",
+    "alcada"
+   ],
+   "path": "/negociacao/propostas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "AGREEMENT_VIEW",
+     "NEGOTIATION_PROPOSE",
+     "NEGOTIATION_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.proposal-detail",
+   "module": "negociacao",
+   "title": "Proposta",
+   "objective": "Condições, memória de cálculo, alçada, aceite do devedor e formalização de uma proposta.",
+   "purpose": [
+    "O próximo passo muda conforme a situação: aprovar, registrar o aceite com evidência ou formalizar o acordo."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Simulação validada e a versão da política usada."
+   ],
+   "outputs": [
+    "Acordo formalizado, com termo e cronograma de parcelas."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.proposals",
+     "why": "Todas as propostas."
+    }
+   ],
+   "terms": [
+    "proposta",
+    "memoria-de-calculo",
+    "termo-de-acordo"
+   ],
+   "path": "/negociacao/propostas/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "AGREEMENT_VIEW",
+     "NEGOTIATION_PROPOSE",
+     "NEGOTIATION_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.approvals",
+   "module": "negociacao",
+   "title": "Aprovações de propostas",
+   "objective": "Propostas acima da alçada de quem negociou e dentro da sua, aguardando a sua decisão.",
+   "purpose": [
+    "Nunca aparecem as suas próprias propostas. Abra para ver condições, justificativa e o motivo de cada concessão."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Propostas enviadas com \"Pedir aprovação\"."
+   ],
+   "outputs": [
+    "Propostas aprovadas, prontas para o aceite, ou rejeitadas com motivo."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.authority",
+     "why": "Quem aprova o quê."
+    }
+   ],
+   "terms": [
+    "alcada",
+    "quatro-olhos",
+    "escada-de-concessoes"
+   ],
+   "path": "/negociacao/aprovacoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "NEGOTIATION_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.agreements",
+   "module": "negociacao",
+   "title": "Acordos",
+   "objective": "Acordos formalizados, com parcelas pagas e em aberto; quebra e quitação são atualizadas sozinhas.",
+   "purpose": [
+    "Acompanhe a carteira de acordos por situação e abra um acordo para ver o cronograma, gerar Pix ou renegociar."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "FINANCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Propostas formalizadas e pagamentos confirmados."
+   ],
+   "outputs": [
+    "Acesso ao acordo e às suas parcelas."
+   ],
+   "related": [
+    {
+     "screen": "payment.instructions",
+     "why": "Pix gerados para as parcelas."
+    },
+    {
+     "screen": "analytics.conversion",
+     "why": "Conversão e quebra dos acordos."
+    }
+   ],
+   "terms": [
+    "acordo",
+    "quebra"
+   ],
+   "path": "/negociacao/acordos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "AGREEMENT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.agreement-detail",
+   "module": "negociacao",
+   "title": "Acordo",
+   "objective": "Cronograma de parcelas, Pix por parcela, pagamentos, termo do acordo e renegociação.",
+   "purpose": [
+    "Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito.",
+    "Renegociar volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "FINANCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Formalização da proposta e pagamentos confirmados."
+   ],
+   "outputs": [
+    "Pix das parcelas, pagamentos informados e renegociações."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.simulator",
+     "why": "Renegociar."
+    },
+    {
+     "screen": "payment.list",
+     "why": "Pagamentos recebidos."
+    }
+   ],
+   "terms": [
+    "acordo",
+    "pix",
+    "termo-de-acordo",
+    "renegociacao",
+    "atribuicao-de-credito"
+   ],
+   "path": "/negociacao/acordos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "AGREEMENT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.policies",
+   "module": "negociacao",
+   "title": "Políticas de cobrança",
+   "objective": "Versões das condições de negociação de cada credor: encargos, descontos, parcelamento e escada.",
+   "purpose": [
+    "Comece pelo modelo de mercado e ajuste às condições do credor. Cada publicação cria uma versão imutável com vigência; a anterior é encerrada no dia anterior."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Condições combinadas com o credor no contrato."
+   ],
+   "outputs": [
+    "Política vigente usada por simulador, assistente e portal."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.indexes",
+     "why": "Índices de correção usados pela política."
+    },
+    {
+     "screen": "negotiation.authority",
+     "why": "Quanto de cada política cada um pode conceder."
+    }
+   ],
+   "terms": [
+    "politica-de-cobranca",
+    "escada-de-concessoes",
+    "versao-publicada"
+   ],
+   "path": "/negociacao/politicas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "POLICY_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.policy-detail",
+   "module": "negociacao",
+   "title": "Versão da política de cobrança",
+   "objective": "Encargos, descontos, parcelamento, escada de concessões e sobreposições de uma versão da política.",
+   "purpose": [
+    "Sobreposições por carteira ou faixa de atraso substituem grupos inteiros das regras base; a mais específica vence. Propostas guardam a versão usada."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Rascunho editado pela gestão."
+   ],
+   "outputs": [
+    "Versão publicada com vigência, aplicada às novas simulações."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.policies",
+     "why": "Todas as versões do credor."
+    }
+   ],
+   "terms": [
+    "politica-de-cobranca",
+    "escada-de-concessoes",
+    "versao-publicada"
+   ],
+   "path": "/negociacao/politicas/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "POLICY_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.indexes",
+   "module": "negociacao",
+   "title": "Índices de correção",
+   "objective": "Variações mensais dos índices usados na correção monetária das políticas que a preveem.",
+   "purpose": [
+    "Mantenha os índices em dia: a dívida atualizada usa a variação de cada mês."
+   ],
+   "profiles": [
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Índices oficiais publicados mensalmente."
+   ],
+   "outputs": [
+    "Correção aplicada nas simulações."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.policies",
+     "why": "Políticas que usam o índice."
+    }
+   ],
+   "terms": [
+    "politica-de-cobranca"
+   ],
+   "path": "/negociacao/indices",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "POLICY_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.authority",
+   "module": "negociacao",
+   "title": "Alçadas de negociação",
+   "objective": "Perfis de alçada e quem usa cada um: pessoas, o assistente de IA e o portal.",
+   "purpose": [
+    "O perfil define nível máximo da escada, fatia do desconto, parcelas, valor do acordo e se pode formalizar ou aprovar. Atribua por usuário, geral ou por credor."
+   ],
+   "profiles": [
+    "GESTOR",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Perfis padrão criados com a assessoria, ajustáveis."
+   ],
+   "outputs": [
+    "Limites aplicados em cada simulação e proposta."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.approvals",
+     "why": "Fila de quem aprova."
+    },
+    {
+     "screen": "assistant.policies",
+     "why": "Alçada do assistente."
+    }
+   ],
+   "terms": [
+    "alcada",
+    "escada-de-concessoes",
+    "quatro-olhos"
+   ],
+   "path": "/negociacao/alcadas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "AUTHORITY_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "portal.configs",
+   "module": "negociacao",
+   "title": "Portal de autonegociação",
+   "objective": "Endereço, marca, carteiras e segurança do portal em que o devedor negocia e paga sozinho.",
+   "purpose": [
+    "Cada credor tem seu portal. O devedor entra por link de uso único ou por documento e código, vê a dívida atualizada, escolhe uma condição autorizada, aceita o termo e paga a primeira parcela por Pix.",
+    "O que foge disso (nenhuma condição cabe, não reconheço a dívida, falar com atendente) vai para a fila humana."
+   ],
+   "profiles": [
+    "GESTOR"
+   ],
+   "inputs": [
+    "Política publicada do credor, conta Pix ativa e templates do portal publicados."
+   ],
+   "outputs": [
+    "Acordos fechados pelo devedor e pedidos de atendimento."
+   ],
+   "related": [
+    {
+     "screen": "portal.requests",
+     "why": "Pedidos que precisam de retorno."
+    },
+    {
+     "screen": "negotiation.authority",
+     "why": "Perfil de alçada do portal."
+    },
+    {
+     "screen": "communication.templates",
+     "why": "Templates do código, do link e do atendimento."
+    }
+   ],
+   "terms": [
+    "portal",
+    "alcada",
+    "pix"
+   ],
+   "path": "/autonegociacao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PORTAL_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "portal.config",
+   "module": "negociacao",
+   "title": "Configuração do portal",
+   "objective": "Configure o portal de um credor: endereço, marca, carteiras habilitadas, canais do código e aviso de privacidade.",
+   "purpose": [
+    "O devedor só vê as carteiras habilitadas e só recebe condições do perfil de alçada do portal. A tela mostra o funil dos últimos 30 dias e as sessões, que podem ser encerradas."
+   ],
+   "profiles": [
+    "GESTOR"
+   ],
+   "inputs": [
+    "Dados do credor, carteiras e templates publicados."
+   ],
+   "outputs": [
+    "Portal ativo no endereço do credor."
+   ],
+   "related": [
+    {
+     "screen": "portal.configs",
+     "why": "Todos os portais."
+    }
+   ],
+   "terms": [
+    "portal",
+    "base-legal"
+   ],
+   "path": "/autonegociacao/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "PORTAL_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "portal.requests",
+   "module": "negociacao",
+   "title": "Pedidos do portal",
+   "objective": "Devedores que pediram atendimento humano no portal e ainda precisam de retorno da operação.",
+   "purpose": [
+    "Os pedidos encaminhados como conversa estão na caixa de entrada. Aqui ficam os que não puderam virar conversa, por exemplo sem contato no canal."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Pedidos de ajuda feitos no portal."
+   ],
+   "outputs": [
+    "Retorno ao devedor pela operação."
+   ],
+   "related": [
+    {
+     "screen": "communication.inbox",
+     "why": "Pedidos que viraram conversa."
+    }
+   ],
+   "terms": [
+    "portal",
+    "conversa"
+   ],
+   "path": "/autonegociacao/pedidos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "INBOX_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "payment.list",
+   "module": "pagamentos",
+   "title": "Pagamentos",
+   "objective": "Tudo o que entrou: Pix integrado, confirmações por extrato e pagamentos informados com comprovante.",
+   "purpose": [
+    "Filtre por situação, origem, meio, credor e período. Informe aqui o dinheiro que entrou fora do Pix integrado."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Avisos do PSP, extratos importados e pagamentos informados pela equipe."
+   ],
+   "outputs": [
+    "Parcelas e títulos baixados; base do recuperado e da prestação de contas."
+   ],
+   "related": [
+    {
+     "screen": "payment.review",
+     "why": "Pagamentos que aguardam aprovação."
+    },
+    {
+     "screen": "payment.reallocation",
+     "why": "Sobras a realocar."
+    },
+    {
+     "screen": "payment.reconciliation",
+     "why": "Conferir com o extrato."
+    }
+   ],
+   "terms": [
+    "pagamento-confirmado",
+    "pagamento-informado",
+    "sobra"
+   ],
+   "path": "/pagamentos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PAYMENT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "payment.detail",
+   "module": "pagamentos",
+   "title": "Pagamento",
+   "objective": "Destinos, linha do tempo, comprovante, aprovação, realocação e estorno de um pagamento.",
+   "purpose": [
+    "Veja quanto foi para cada acordo ou título e se a baixa foi aplicada. Pagamento aguardando aprovação mostra o destino solicitado por quem informou."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Registro do pagamento e suas alocações."
+   ],
+   "outputs": [
+    "Aprovação, recusa, realocação ou estorno, com o efeito nas parcelas e títulos."
+   ],
+   "related": [
+    {
+     "screen": "payment.list",
+     "why": "Todos os pagamentos."
+    }
+   ],
+   "terms": [
+    "pagamento-confirmado",
+    "estorno",
+    "quatro-olhos"
+   ],
+   "path": "/pagamentos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "PAYMENT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "payment.instructions",
+   "module": "pagamentos",
+   "title": "Instruções de pagamento",
+   "objective": "Cobranças Pix enviadas aos devedores: QR Code, validade e se já foram pagas.",
+   "purpose": [
+    "Gere um Pix escolhendo o devedor e a parcela ou o título. Também dá para gerar na ficha do acordo e na estação de cobrança."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "FINANCEIRO",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Parcelas de acordos e títulos em aberto."
+   ],
+   "outputs": [
+    "Cobrança Pix registrada no PSP, enviada ao devedor."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.agreements",
+     "why": "Parcelas dos acordos."
+    },
+    {
+     "screen": "payment.pix-accounts",
+     "why": "Conta usada para gerar o Pix."
+    }
+   ],
+   "terms": [
+    "pix",
+    "psp"
+   ],
+   "path": "/pagamentos/instrucoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PAYMENT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "payment.instruction",
+   "module": "pagamentos",
+   "title": "Pix para o devedor",
+   "objective": "QR Code e \"copia e cola\" de uma cobrança Pix, com validade, situação e cancelamento.",
+   "purpose": [
+    "Copie o código e envie na conversa com o devedor. A tela avisa quando o pagamento chega."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Cobrança registrada no PSP."
+   ],
+   "outputs": [
+    "Pagamento confirmado automaticamente quando o devedor paga."
+   ],
+   "related": [
+    {
+     "screen": "payment.instructions",
+     "why": "Todas as instruções."
+    }
+   ],
+   "terms": [
+    "pix",
+    "psp"
+   ],
+   "path": "/pagamentos/instrucoes/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "PAYMENT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "payment.review",
+   "module": "pagamentos",
+   "title": "Aprovação de pagamentos",
+   "objective": "Pagamentos informados acima do limite da assessoria, aguardando a conferência de uma segunda pessoa.",
+   "purpose": [
+    "Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Pagamentos informados acima do limite definido em Parâmetros de pagamentos."
+   ],
+   "outputs": [
+    "Pagamento confirmado e alocado, ou recusado com motivo."
+   ],
+   "related": [
+    {
+     "screen": "payment.settings",
+     "why": "Limite que exige aprovação."
+    }
+   ],
+   "terms": [
+    "pagamento-informado",
+    "quatro-olhos"
+   ],
+   "path": "/pagamentos/aprovacoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PAYMENT_REVIEW"
+    ]
+   }
+  },
+  {
+   "id": "payment.reallocation",
+   "module": "pagamentos",
+   "title": "Sobras e realocação",
+   "objective": "Dinheiro que entrou e ainda não abateu nenhuma dívida: realoque a outro destino ou registre a devolução.",
+   "purpose": [
+    "Sobras surgem quando o destino já estava quitado, o acordo foi encerrado ou o valor passou do saldo."
+   ],
+   "profiles": [
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Pagamentos com valor não alocado ou não aplicado."
+   ],
+   "outputs": [
+    "Novo destino (acordo ou títulos do devedor) ou devolução registrada com a referência."
+   ],
+   "related": [
+    {
+     "screen": "payment.list",
+     "why": "Filtro \"Com saldo a realocar\"."
+    }
+   ],
+   "terms": [
+    "sobra"
+   ],
+   "path": "/pagamentos/sobras",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "RECONCILIATION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "payment.reconciliation",
+   "module": "pagamentos",
+   "title": "Conciliação",
+   "objective": "Importe o extrato da conta de recebimento para conferir com os Pix, pagamentos e parcelas.",
+   "purpose": [
+    "Envie o arquivo do banco no layout genérico. A prévia aponta linhas com problema antes do envio; cada importação mostra o resultado do lote."
+   ],
+   "profiles": [
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Extrato bancário da conta de recebimento."
+   ],
+   "outputs": [
+    "Pagamentos conciliados ou confirmados pelo extrato; divergências para tratar."
+   ],
+   "related": [
+    {
+     "screen": "payment.divergences",
+     "why": "O que não conciliou sozinho."
+    },
+    {
+     "screen": "settlement.statements",
+     "why": "Recebimentos conciliados entram no demonstrativo."
+    }
+   ],
+   "terms": [
+    "conciliacao",
+    "divergencia"
+   ],
+   "path": "/pagamentos/conciliacao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "RECONCILIATION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "payment.statement",
+   "module": "pagamentos",
+   "title": "Extrato importado",
+   "objective": "Indicadores de um extrato importado e o tratamento de cada linha.",
+   "purpose": [
+    "A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Arquivo enviado em Conciliação."
+   ],
+   "outputs": [
+    "Linhas conciliadas, ignoradas ou em divergência."
+   ],
+   "related": [
+    {
+     "screen": "payment.divergences",
+     "why": "Tratar as divergências do extrato."
+    }
+   ],
+   "terms": [
+    "conciliacao",
+    "divergencia"
+   ],
+   "path": "/pagamentos/conciliacao/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "RECONCILIATION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "payment.divergences",
+   "module": "pagamentos",
+   "title": "Divergências de conciliação",
+   "objective": "Créditos que o sistema não conciliou sozinho, para decidir com justificativa.",
+   "purpose": [
+    "Tipos: valor diferente, duplicidade, sem correspondência, não confirmado e devolução parcial. Concilie com o pagamento certo, aceite ou descarte."
+   ],
+   "profiles": [
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Linhas do extrato sem correspondência exata."
+   ],
+   "outputs": [
+    "Decisões registradas; divergências abertas aparecem no demonstrativo do credor."
+   ],
+   "related": [
+    {
+     "screen": "payment.reconciliation",
+     "why": "Extratos importados."
+    }
+   ],
+   "terms": [
+    "divergencia",
+    "conciliacao"
+   ],
+   "path": "/pagamentos/divergencias",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "RECONCILIATION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "payment.pix-accounts",
+   "module": "pagamentos",
+   "title": "Contas Pix",
+   "objective": "Conexão com o PSP que gera as cobranças Pix e avisa os pagamentos, por credor ou da assessoria.",
+   "purpose": [
+    "Uma conta ativa por credor; a da assessoria vale para os demais. Troque as credenciais antes do vencimento do certificado."
+   ],
+   "profiles": [
+    "INTEGRACAO",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Credenciais e certificado fornecidos pelo PSP."
+   ],
+   "outputs": [
+    "Pix gerados e pagamentos avisados automaticamente."
+   ],
+   "related": [
+    {
+     "screen": "payment.instructions",
+     "why": "Cobranças geradas com a conta."
+    }
+   ],
+   "terms": [
+    "psp",
+    "pix"
+   ],
+   "path": "/pagamentos/contas-pix",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "INTEGRATION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "payment.settings",
+   "module": "pagamentos",
+   "title": "Parâmetros de pagamentos",
+   "objective": "Regras de risco e de validade da assessoria, como o limite que exige aprovação de pagamento informado.",
+   "purpose": [
+    "Esses parâmetros valem para toda a assessoria e afetam os próximos pagamentos e Pix."
+   ],
+   "profiles": [
+    "GESTOR",
+    "FINANCEIRO",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Decisão da gestão financeira."
+   ],
+   "outputs": [
+    "Limites aplicados nos registros e nas aprovações."
+   ],
+   "related": [
+    {
+     "screen": "payment.review",
+     "why": "Fila de aprovação."
+    }
+   ],
+   "terms": [
+    "pagamento-informado",
+    "quatro-olhos"
+   ],
+   "path": "/pagamentos/parametros",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ORG_SETTINGS_MANAGE",
+     "PAYMENT_REVIEW",
+     "RECONCILIATION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "settlement.statements",
+   "module": "prestacao-de-contas",
+   "title": "Demonstrativos",
+   "objective": "Prestação de contas ao credor por período: recebido, quanto a assessoria fica e o líquido a repassar.",
+   "purpose": [
+    "Crie o demonstrativo do período sugerido pelo dia de fechamento do contrato e acompanhe cada um até o aceite do credor."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Lançamentos do razão de comissão e custas do jurídico."
+   ],
+   "outputs": [
+    "Demonstrativos calculados, aprovados e enviados ao credor."
+   ],
+   "related": [
+    {
+     "screen": "settlement.ledger",
+     "why": "Lançamentos que entram no período."
+    },
+    {
+     "screen": "settlement.transfers",
+     "why": "Repasses dos demonstrativos aprovados."
+    }
+   ],
+   "terms": [
+    "demonstrativo",
+    "comissao-da-assessoria"
+   ],
+   "path": "/prestacao-de-contas/demonstrativos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SETTLEMENT_VIEW",
+     "SETTLEMENT_CLOSE",
+     "SETTLEMENT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "settlement.statement",
+   "module": "prestacao-de-contas",
+   "title": "Demonstrativo",
+   "objective": "Totais, ajustes, arquivos, envio ao credor e repasses de um demonstrativo, etapa por etapa.",
+   "purpose": [
+    "Calcule depois do fim do período, revise e aprove. A conferência da soma mostra como se chega ao líquido.",
+    "Aprovado, exporte os arquivos conciliáveis, registre o envio e o aceite ou a contestação do credor."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Recebimentos apurados, pendências de conciliação, custas e ajustes."
+   ],
+   "outputs": [
+    "Demonstrativo aprovado e arquivos para o credor; saldo a repassar."
+   ],
+   "related": [
+    {
+     "screen": "payment.divergences",
+     "why": "Divergências abertas do credor."
+    },
+    {
+     "screen": "settlement.transfers",
+     "why": "Registrar o repasse."
+    }
+   ],
+   "terms": [
+    "demonstrativo",
+    "quatro-olhos",
+    "memoria-de-calculo",
+    "custas"
+   ],
+   "path": "/prestacao-de-contas/demonstrativos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "SETTLEMENT_VIEW",
+     "SETTLEMENT_CLOSE",
+     "SETTLEMENT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "settlement.transfers",
+   "module": "prestacao-de-contas",
+   "title": "Repasses ao credor",
+   "objective": "Saldo dos demonstrativos aprovados por credor e os repasses registrados com comprovante bancário.",
+   "purpose": [
+    "O saldo pode ser a repassar ao credor ou a receber dele, quando custas e ajustes superam o recebido."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Demonstrativos aprovados."
+   ],
+   "outputs": [
+    "Repasses registrados, que zeram o saldo do demonstrativo."
+   ],
+   "related": [
+    {
+     "screen": "settlement.statements",
+     "why": "Demonstrativos."
+    }
+   ],
+   "terms": [
+    "repasse",
+    "demonstrativo"
+   ],
+   "path": "/prestacao-de-contas/repasses",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SETTLEMENT_VIEW",
+     "SETTLEMENT_TRANSFER"
+    ]
+   }
+  },
+  {
+   "id": "settlement.ledger",
+   "module": "prestacao-de-contas",
+   "title": "Razão de comissão",
+   "objective": "Cada recebimento confirmado vira um lançamento com a regra vigente na data do pagamento e a memória de cálculo.",
+   "purpose": [
+    "Lançamentos não mudam: estornos geram lançamentos de compensação. Veja os aguardando regra e os já prestados."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Pagamentos confirmados e regras de comissão publicadas."
+   ],
+   "outputs": [
+    "Base do demonstrativo do período."
+   ],
+   "related": [
+    {
+     "screen": "settlement.rules",
+     "why": "Regras usadas no cálculo."
+    }
+   ],
+   "terms": [
+    "comissao-da-assessoria",
+    "memoria-de-calculo",
+    "estorno"
+   ],
+   "path": "/prestacao-de-contas/razao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COMMISSION_VIEW",
+     "SETTLEMENT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "settlement.rules",
+   "module": "prestacao-de-contas",
+   "title": "Regras de comissão",
+   "objective": "Quanto a assessoria recebe do credor, por contrato de serviço e versão.",
+   "purpose": [
+    "Percentuais por carteira, atraso e forma de pagamento, valor fixo por acordo e honorários. Escolha o contrato para ver as versões."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Condições do contrato de serviço com o credor."
+   ],
+   "outputs": [
+    "Regras publicadas aplicadas aos recebimentos."
+   ],
+   "related": [
+    {
+     "screen": "organization.creditors",
+     "why": "Contratos do credor."
+    },
+    {
+     "screen": "settlement.ledger",
+     "why": "Lançamentos calculados."
+    }
+   ],
+   "terms": [
+    "contrato-de-servico",
+    "comissao-da-assessoria",
+    "versao-publicada"
+   ],
+   "path": "/prestacao-de-contas/regras",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COMMISSION_VIEW",
+     "COMMISSION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "settlement.rule-set",
+   "module": "prestacao-de-contas",
+   "title": "Versão das regras de comissão",
+   "objective": "Percentuais, valor fixo, honorários, simulação e publicação de uma versão das regras de comissão.",
+   "purpose": [
+    "Regras específicas vencem pela maior prioridade. Simule um recebimento antes de publicar; a publicação é de outra pessoa, não de quem editou."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Rascunho criado a partir da última versão publicada ou do modelo inicial."
+   ],
+   "outputs": [
+    "Versão publicada com início de vigência."
+   ],
+   "related": [
+    {
+     "screen": "settlement.rules",
+     "why": "Todas as versões do contrato."
+    }
+   ],
+   "terms": [
+    "quatro-olhos",
+    "versao-publicada"
+   ],
+   "path": "/prestacao-de-contas/regras/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "COMMISSION_VIEW",
+     "COMMISSION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.performance",
+   "module": "remuneracao-variavel",
+   "title": "Desempenho dos negociadores",
+   "objective": "Indicadores do negociador, da equipe ou de todos, conforme o seu perfil, sempre com a base de cálculo.",
+   "purpose": [
+    "Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Fatos de cobrança, negociação, telefonia e pagamento atribuídos a cada pessoa."
+   ],
+   "outputs": [
+    "Visão para metas, feedback e apuração."
+   ],
+   "related": [
+    {
+     "screen": "incentive.statements",
+     "why": "Comissão apurada."
+    },
+    {
+     "screen": "analytics.productivity",
+     "why": "Produtividade da operação."
+    }
+   ],
+   "terms": [
+    "recuperado",
+    "atribuicao-de-credito",
+    "base-do-indicador"
+   ],
+   "path": "/remuneracao/desempenho",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL"
+    ]
+   }
+  },
+  {
+   "id": "incentive.statements",
+   "module": "remuneracao-variavel",
+   "title": "Extratos de comissão",
+   "objective": "Remuneração variável apurada por período, com memória de cálculo, contestação e aprovação.",
+   "purpose": [
+    "O negociador vê os próprios extratos; a gestão vê os de todos. Abra a prévia para acompanhar o mês em curso."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Fechamento do período de apuração."
+   ],
+   "outputs": [
+    "Extratos aprovados, prontos para a folha."
+   ],
+   "related": [
+    {
+     "screen": "incentive.preview",
+     "why": "Mês em curso."
+    },
+    {
+     "screen": "incentive.periods",
+     "why": "Fechar o período."
+    }
+   ],
+   "terms": [
+    "extrato-de-comissao",
+    "comissao-do-negociador"
+   ],
+   "path": "/remuneracao/extratos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL",
+     "COMMISSION_STATEMENT_MANAGE",
+     "COMMISSION_STATEMENT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.preview",
+   "module": "remuneracao-variavel",
+   "title": "Prévia do período",
+   "objective": "Comissão do mês em curso com o que já foi pago: liberado e em carência. Valor informativo até o fechamento.",
+   "purpose": [
+    "Ajuda a acompanhar o mês sem esperar o fechamento. Metas, aceleradores e deflatores só são aplicados no fechamento."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Lançamentos do mês em curso."
+   ],
+   "outputs": [
+    "Apenas informação; o valor oficial é o do extrato."
+   ],
+   "related": [
+    {
+     "screen": "incentive.ledger",
+     "why": "Lançamentos do mês."
+    }
+   ],
+   "terms": [
+    "carencia",
+    "comissao-do-negociador"
+   ],
+   "path": "/remuneracao/extratos/previa",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL",
+     "COMMISSION_STATEMENT_MANAGE",
+     "COMMISSION_STATEMENT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.statement",
+   "module": "remuneracao-variavel",
+   "title": "Extrato de comissão",
+   "objective": "Memória de cálculo do extrato, contestação por linha, ajustes e aprovação.",
+   "purpose": [
+    "A soma das linhas é o valor calculado. O negociador contesta uma linha com justificativa; a gestão resolve e, se preciso, ajusta com motivo.",
+    "Contestação aberta ou ajuste pendente bloqueiam a aprovação, com o motivo escrito."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Lançamentos liberados, metas e regras do plano vigente."
+   ],
+   "outputs": [
+    "Extrato aprovado, que entra na exportação para a folha."
+   ],
+   "related": [
+    {
+     "screen": "incentive.exports",
+     "why": "Gerar o arquivo da folha."
+    }
+   ],
+   "terms": [
+    "extrato-de-comissao",
+    "memoria-de-calculo",
+    "quatro-olhos"
+   ],
+   "path": "/remuneracao/extratos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL",
+     "COMMISSION_STATEMENT_MANAGE",
+     "COMMISSION_STATEMENT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.ledger",
+   "module": "remuneracao-variavel",
+   "title": "Lançamentos de comissão",
+   "objective": "Pagamentos creditados ao negociador, com peso de crédito, carência e período de competência.",
+   "purpose": [
+    "Cada pagamento confirmado gera um lançamento; o estorno gera um lançamento de compensação."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Pagamentos confirmados e a atribuição de crédito dos acordos."
+   ],
+   "outputs": [
+    "Base do fechamento do período."
+   ],
+   "related": [
+    {
+     "screen": "incentive.statements",
+     "why": "Extratos."
+    }
+   ],
+   "terms": [
+    "carencia",
+    "atribuicao-de-credito",
+    "estorno"
+   ],
+   "path": "/remuneracao/lancamentos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL",
+     "COMMISSION_STATEMENT_MANAGE",
+     "COMMISSION_STATEMENT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.attribution",
+   "module": "remuneracao-variavel",
+   "title": "Atribuição de crédito do acordo",
+   "objective": "Quem participou de um acordo (negociador, assistente, portal, campanha, aprovador) e o peso de crédito de cada um.",
+   "purpose": [
+    "Registrada na formalização do acordo e nunca reconstruída depois. Abra pelo detalhe do acordo."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Formalização do acordo."
+   ],
+   "outputs": [
+    "Peso usado nos lançamentos de comissão das parcelas."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.agreements",
+     "why": "Acordos."
+    }
+   ],
+   "terms": [
+    "atribuicao-de-credito"
+   ],
+   "path": "/remuneracao/atribuicoes/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": []
+   }
+  },
+  {
+   "id": "incentive.plans",
+   "module": "remuneracao-variavel",
+   "title": "Planos de remuneração",
+   "objective": "Regras de comissão dos negociadores, versionadas: rascunho, publicação a partir do dia 1º e aposentadoria.",
+   "purpose": [
+    "Crie um plano a partir do modelo de mercado ou de um plano vigente. Os números do modelo são referências e devem ser calibrados pela operação."
+   ],
+   "profiles": [
+    "GESTOR"
+   ],
+   "inputs": [
+    "Decisão da gestão, com apoio do RH e do jurídico."
+   ],
+   "outputs": [
+    "Plano publicado aplicado à apuração dos meses seguintes."
+   ],
+   "related": [
+    {
+     "screen": "incentive.goals",
+     "why": "Metas do mês."
+    },
+    {
+     "screen": "incentive.quality-forms",
+     "why": "Critérios da monitoria."
+    }
+   ],
+   "terms": [
+    "plano-de-remuneracao",
+    "versao-publicada"
+   ],
+   "path": "/remuneracao/planos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COMMISSION_PLAN_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.plan",
+   "module": "remuneracao-variavel",
+   "title": "Plano de remuneração",
+   "objective": "Regras, versões, simulação e publicação de um plano de remuneração dos negociadores.",
+   "purpose": [
+    "Simule sobre um mês encerrado antes de publicar. A aposentadoria vale no último dia de um mês."
+   ],
+   "profiles": [
+    "GESTOR"
+   ],
+   "inputs": [
+    "Rascunho das regras."
+   ],
+   "outputs": [
+    "Versão publicada com vigência."
+   ],
+   "related": [
+    {
+     "screen": "incentive.plans",
+     "why": "Todos os planos."
+    }
+   ],
+   "terms": [
+    "plano-de-remuneracao",
+    "versao-publicada"
+   ],
+   "path": "/remuneracao/planos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "COMMISSION_PLAN_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.plan-rules",
+   "module": "remuneracao-variavel",
+   "title": "Regras do plano",
+   "objective": "Edite o rascunho: elegibilidade, percentuais por segmento, meta, qualidade e atribuição de crédito.",
+   "purpose": [
+    "Nada remunera até a publicação. Problemas aparecem em lista antes de salvar e o sistema valida de novo."
+   ],
+   "profiles": [
+    "GESTOR"
+   ],
+   "inputs": [
+    "Perfis, equipes, credores e o modelo de mercado."
+   ],
+   "outputs": [
+    "Rascunho pronto para simular e publicar."
+   ],
+   "related": [
+    {
+     "screen": "incentive.plan",
+     "why": "Simular e publicar."
+    }
+   ],
+   "terms": [
+    "plano-de-remuneracao",
+    "atribuicao-de-credito",
+    "monitoria"
+   ],
+   "path": "/remuneracao/planos/:id/regras",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "COMMISSION_PLAN_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.goals",
+   "module": "remuneracao-variavel",
+   "title": "Metas por período",
+   "objective": "Meta individual ou da equipe no mês, em valor (R$) ou percentual (%); sem meta cadastrada, vale a meta padrão do plano.",
+   "purpose": [
+    "Abaixo do gatilho da meta o variável é reduzido; acima, o acelerador do plano pode aumentá-lo.",
+    "Escolha a unidade antes de digitar: \"Valor (R$)\" para a métrica \"valor recuperado\" (só algarismos, centavos pela direita) ou \"Percentual (%)\" para \"taxa de recuperação\" (0,01 a 100, até 2 casas). Se o plano vigente só aceita uma, ela já vem marcada e a outra fica desabilitada.",
+    "Trocar a unidade limpa o valor. No fechamento, meta em unidade diferente da métrica do plano é desconsiderada (vale a meta padrão) e a memória de cálculo explica."
+   ],
+   "profiles": [
+    "GESTOR"
+   ],
+   "inputs": [
+    "Planejamento da operação para o mês.",
+    "Unidade da meta (R$ ou %) e o valor."
+   ],
+   "outputs": [
+    "Metas aplicadas no fechamento, na unidade da métrica do plano."
+   ],
+   "related": [
+    {
+     "screen": "incentive.periods",
+     "why": "Fechamento que aplica as metas."
+    }
+   ],
+   "terms": [
+    "plano-de-remuneracao"
+   ],
+   "path": "/remuneracao/metas",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COMMISSION_PLAN_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.periods",
+   "module": "remuneracao-variavel",
+   "title": "Períodos de apuração",
+   "objective": "Fechamento mensal da remuneração variável, que gera os extratos para revisão, contestação e aprovação.",
+   "purpose": [
+    "Feche o mês depois que os lançamentos saírem da carência. O fechamento mostra o impacto antes de confirmar."
+   ],
+   "profiles": [
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Lançamentos liberados, metas e notas de monitoria do mês."
+   ],
+   "outputs": [
+    "Extratos calculados de cada negociador."
+   ],
+   "related": [
+    {
+     "screen": "incentive.statements",
+     "why": "Extratos gerados."
+    }
+   ],
+   "terms": [
+    "extrato-de-comissao",
+    "carencia"
+   ],
+   "path": "/remuneracao/periodos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COMMISSION_STATEMENT_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.exports",
+   "module": "remuneracao-variavel",
+   "title": "Exportação para a folha",
+   "objective": "Arquivo com os extratos aprovados do período, para lançamento na folha de pagamento.",
+   "purpose": [
+    "Ao baixar de novo, o sistema confere que o arquivo é o mesmo que foi registrado."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Extratos aprovados."
+   ],
+   "outputs": [
+    "Arquivo para a folha de pagamento."
+   ],
+   "related": [
+    {
+     "screen": "incentive.statements",
+     "why": "Aprovar os extratos."
+    }
+   ],
+   "terms": [
+    "extrato-de-comissao"
+   ],
+   "path": "/remuneracao/exportacao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COMMISSION_STATEMENT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.evaluations",
+   "module": "remuneracao-variavel",
+   "title": "Monitoria de qualidade",
+   "objective": "Avaliações de atendimento de 0 a 10; a nota média do período pode suspender o variável.",
+   "purpose": [
+    "Registre a avaliação com o formulário de monitoria. O negociador vê as próprias avaliações."
+   ],
+   "profiles": [
+    "QUALIDADE",
+    "SUPERVISOR",
+    "OPERADOR"
+   ],
+   "inputs": [
+    "Atendimentos e gravações."
+   ],
+   "outputs": [
+    "Notas usadas pelo portão de monitoria do plano."
+   ],
+   "related": [
+    {
+     "screen": "telephony.calls",
+     "why": "Ouvir a gravação."
+    },
+    {
+     "screen": "incentive.quality-forms",
+     "why": "Critérios de avaliação."
+    }
+   ],
+   "terms": [
+    "monitoria"
+   ],
+   "path": "/remuneracao/qualidade/avaliacoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL",
+     "QUALITY_EVALUATE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.occurrences",
+   "module": "remuneracao-variavel",
+   "title": "Ocorrências de conduta",
+   "objective": "Violações de compliance, reclamações e contestações procedentes atribuídas aos negociadores.",
+   "purpose": [
+    "Violação grave comprovada pode zerar o variável do período, com direito a contestação. A dispensa de ocorrência pede motivo."
+   ],
+   "profiles": [
+    "QUALIDADE",
+    "GESTOR",
+    "SUPERVISOR",
+    "OPERADOR"
+   ],
+   "inputs": [
+    "Registros da monitoria e da gestão."
+   ],
+   "outputs": [
+    "Modificadores aplicados no fechamento."
+   ],
+   "related": [
+    {
+     "screen": "incentive.evaluations",
+     "why": "Avaliações."
+    }
+   ],
+   "terms": [
+    "monitoria"
+   ],
+   "path": "/remuneracao/qualidade/ocorrencias",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL",
+     "QUALITY_EVALUATE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.quality-forms",
+   "module": "remuneracao-variavel",
+   "title": "Formulários de monitoria",
+   "objective": "Critérios e pesos das avaliações de qualidade de atendimento, com nota de 0 a 10.",
+   "purpose": [
+    "Defina o que é avaliado e quanto cada critério pesa na nota."
+   ],
+   "profiles": [
+    "QUALIDADE",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Roteiro de conduta da assessoria."
+   ],
+   "outputs": [
+    "Formulários usados nas avaliações."
+   ],
+   "related": [
+    {
+     "screen": "incentive.evaluations",
+     "why": "Avaliar com o formulário."
+    }
+   ],
+   "terms": [
+    "monitoria"
+   ],
+   "path": "/remuneracao/qualidade/formularios",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL",
+     "QUALITY_EVALUATE"
+    ]
+   }
+  },
+  {
+   "id": "scoring.models",
+   "module": "score",
+   "title": "Modelos do score",
+   "objective": "Campeão em uso, desafiante em avaliação e o histórico de versões, com as métricas de validação.",
+   "purpose": [
+    "Peça um treino no histórico da assessoria ou crie um scorecard de regras transparentes; os dois entram como desafiante até alguém decidir."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Histórico de casos com desfecho conhecido."
+   ],
+   "outputs": [
+    "Modelo campeão usado na escoragem diária."
+   ],
+   "related": [
+    {
+     "screen": "scoring.monitoring",
+     "why": "Desempenho do modelo em uso."
+    },
+    {
+     "screen": "scoring.transparency",
+     "why": "Variáveis e decisões registradas."
+    }
+   ],
+   "terms": [
+    "score",
+    "campeao-desafiante"
+   ],
+   "path": "/score/modelos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SCORING_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "scoring.model",
+   "module": "score",
+   "title": "Modelo do score",
+   "objective": "Validação fora do tempo, comparação com o campeão e a decisão manual de promover ou rejeitar.",
+   "purpose": [
+    "As métricas são calculadas no período posterior ao treino, comparadas com o campeão nas mesmas observações. A definição mostra o que faz o score subir ou descer."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Treino ou scorecard criado."
+   ],
+   "outputs": [
+    "Decisão registrada com a comparação vista."
+   ],
+   "related": [
+    {
+     "screen": "scoring.models",
+     "why": "Todas as versões."
+    }
+   ],
+   "terms": [
+    "campeao-desafiante",
+    "quatro-olhos"
+   ],
+   "path": "/score/modelos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "SCORING_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "scoring.runs",
+   "module": "score",
+   "title": "Execuções do score",
+   "objective": "Escoragem diária dos casos ativos e treinos do modelo, com o resultado de cada execução.",
+   "purpose": [
+    "O score é recalculado toda madrugada e também após contato efetivo, promessa, acordo ou pagamento. Acompanhe falhas e volumes."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Casos ativos e o modelo campeão."
+   ],
+   "outputs": [
+    "Scores atualizados nas filas e segmentos."
+   ],
+   "related": [
+    {
+     "screen": "scoring.models",
+     "why": "Modelo usado."
+    }
+   ],
+   "terms": [
+    "score"
+   ],
+   "path": "/score/execucoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SCORING_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "scoring.run",
+   "module": "score",
+   "title": "Execução do score",
+   "objective": "Detalhe de uma escoragem ou treino: gatilho, início, volumes e resultado.",
+   "purpose": [
+    "Use para conferir o que aconteceu numa execução específica."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Execução registrada."
+   ],
+   "outputs": [
+    "Informação para acompanhamento."
+   ],
+   "related": [
+    {
+     "screen": "scoring.runs",
+     "why": "Todas as execuções."
+    }
+   ],
+   "terms": [
+    "score"
+   ],
+   "path": "/score/execucoes/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "SCORING_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "scoring.monitoring",
+   "module": "score",
+   "title": "Monitoramento do score",
+   "objective": "Deriva da população, calibração, desempenho real das safras e recuperado × esperado.",
+   "purpose": [
+    "Mudanças fortes na população atual em relação à do treino geram alerta para reavaliar o modelo. Recuperado × esperado compara de forma justa negociadores com carteiras diferentes."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Retratos semanais e pagamentos confirmados."
+   ],
+   "outputs": [
+    "Decisão de treinar ou trocar o modelo."
+   ],
+   "related": [
+    {
+     "screen": "incentive.performance",
+     "why": "Recuperado × esperado por negociador."
+    }
+   ],
+   "terms": [
+    "score",
+    "faixa-de-score"
+   ],
+   "path": "/score/monitoramento",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SCORING_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "scoring.transparency",
+   "module": "score",
+   "title": "Decisões e variáveis do score",
+   "objective": "Para que o score serve, com quais dados é calculado e quem decidiu cada troca de modelo.",
+   "purpose": [
+    "Base para responder ao titular, ao credor e à auditoria. A lista de dados é fixa no sistema."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR",
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Decisões de promoção e a lista fechada de variáveis."
+   ],
+   "outputs": [
+    "Explicação disponível para quem precisa responder."
+   ],
+   "related": [
+    {
+     "screen": "compliance.requests",
+     "why": "Pedidos de titulares."
+    }
+   ],
+   "terms": [
+    "score",
+    "titular"
+   ],
+   "path": "/score/transparencia",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SCORING_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "scoring.settings",
+   "module": "score",
+   "title": "Parâmetros do score",
+   "objective": "Base legal, janela de desfecho, cortes das faixas, critério mínimo de treino e alertas de estabilidade.",
+   "purpose": [
+    "Sem base legal registrada nenhum dado é coletado e nenhum score é calculado."
+   ],
+   "profiles": [
+    "GESTOR",
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Decisão da gestão e do encarregado de dados."
+   ],
+   "outputs": [
+    "Regras aplicadas na escoragem e nos treinos."
+   ],
+   "related": [
+    {
+     "screen": "compliance.legal-bases",
+     "why": "Bases legais por credor."
+    }
+   ],
+   "terms": [
+    "base-legal",
+    "faixa-de-score"
+   ],
+   "path": "/score/parametros",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SCORING_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "legal.dashboard",
+   "module": "juridico",
+   "title": "Painel jurídico",
+   "objective": "Casos por fase, prazos a vencer e perdidos, custas e valores recuperados no jurídico.",
+   "purpose": [
+    "Clique numa fase para ver a lista de casos nela. Prazos próximos ou perdidos merecem ação imediata."
+   ],
+   "profiles": [
+    "JURIDICO",
+    "GESTOR",
+    "ADVOGADO_PARCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Casos jurídicos, prazos e custas lançados."
+   ],
+   "outputs": [
+    "Prioridades do dia para a equipe jurídica."
+   ],
+   "related": [
+    {
+     "screen": "legal.matters",
+     "why": "Lista de casos."
+    }
+   ],
+   "terms": [
+    "caso-juridico",
+    "custas"
+   ],
+   "path": "/juridico",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "LEGAL_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "legal.matters",
+   "module": "juridico",
+   "title": "Casos jurídicos",
+   "objective": "Títulos que saíram da cobrança amigável: triagem, autorização do credor, medidas extrajudiciais e processos.",
+   "purpose": [
+    "Filtre por fase, credor e responsável e abra o caso para conduzir as etapas."
+   ],
+   "profiles": [
+    "JURIDICO",
+    "GESTOR",
+    "ADVOGADO_PARCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Indicações pelas regras de elegibilidade ou manuais."
+   ],
+   "outputs": [
+    "Casos conduzidos até o encerramento."
+   ],
+   "related": [
+    {
+     "screen": "legal.rules",
+     "why": "Quando um caso é indicado."
+    },
+    {
+     "screen": "collection.cases",
+     "why": "Caso de cobrança de origem."
+    }
+   ],
+   "terms": [
+    "caso-juridico",
+    "prescricao"
+   ],
+   "path": "/juridico/casos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "LEGAL_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "legal.matter-detail",
+   "module": "juridico",
+   "title": "Caso jurídico",
+   "objective": "Fases, viabilidade, autorização do credor, medidas, processos, prazos, custas e documentos de um caso.",
+   "purpose": [
+    "Só aparecem as fases possíveis agora. Defina o responsável: jurídico interno ou escritório parceiro."
+   ],
+   "profiles": [
+    "JURIDICO",
+    "ADVOGADO_PARCEIRO",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Títulos, garantias e histórico do caso de cobrança."
+   ],
+   "outputs": [
+    "Medidas, processos, prazos e custas registrados; encerramento com prestação de contas."
+   ],
+   "related": [
+    {
+     "screen": "legal.matters",
+     "why": "Todos os casos."
+    }
+   ],
+   "terms": [
+    "caso-juridico",
+    "autorizacao-do-credor",
+    "custas",
+    "prescricao"
+   ],
+   "path": "/juridico/casos/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "LEGAL_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "legal.rules",
+   "module": "juridico",
+   "title": "Regras de elegibilidade",
+   "objective": "Quando um caso de cobrança é indicado ao jurídico: critérios combinam por \"e\", regras somam-se por \"ou\".",
+   "purpose": [
+    "Crie regras por credor com atraso, valor, garantia, régua esgotada, acordos quebrados e prescrição próxima."
+   ],
+   "profiles": [
+    "JURIDICO",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Política de recuperação combinada com o credor."
+   ],
+   "outputs": [
+    "Indicações automáticas de casos ao jurídico."
+   ],
+   "related": [
+    {
+     "screen": "legal.settings",
+     "why": "Parâmetros gerais do jurídico."
+    }
+   ],
+   "terms": [
+    "caso-juridico",
+    "prescricao"
+   ],
+   "path": "/juridico/regras",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "LEGAL_AUTHORIZE"
+    ]
+   }
+  },
+  {
+   "id": "legal.firms",
+   "module": "juridico",
+   "title": "Escritórios parceiros",
+   "objective": "Escritórios que conduzem casos jurídicos e os advogados vinculados a cada um.",
+   "purpose": [
+    "Escritórios só acessam a plataforma quando habilitados nos parâmetros, e então apenas os casos atribuídos."
+   ],
+   "profiles": [
+    "JURIDICO",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Contratos com os escritórios."
+   ],
+   "outputs": [
+    "Responsáveis disponíveis para os casos."
+   ],
+   "related": [
+    {
+     "screen": "admin.users",
+     "why": "Contas dos advogados parceiros."
+    }
+   ],
+   "terms": [
+    "caso-juridico"
+   ],
+   "path": "/juridico/escritorios",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "LEGAL_AUTHORIZE"
+    ]
+   }
+  },
+  {
+   "id": "legal.settings",
+   "module": "juridico",
+   "title": "Parâmetros do jurídico",
+   "objective": "Quem conduz, quem adianta custas, orçamento, prescrição, retenção da cobrança e prazos.",
+   "purpose": [
+    "Os padrões são conservadores: só jurídico interno e só o credor adianta custas, dentro do orçamento aprovado."
+   ],
+   "profiles": [
+    "JURIDICO",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Decisões da assessoria com os credores."
+   ],
+   "outputs": [
+    "Regras aplicadas em todos os casos jurídicos."
+   ],
+   "related": [
+    {
+     "screen": "legal.firms",
+     "why": "Habilitar escritórios."
+    }
+   ],
+   "terms": [
+    "custas",
+    "prescricao"
+   ],
+   "path": "/juridico/parametros",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "LEGAL_AUTHORIZE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.restrictions",
+   "module": "compliance",
+   "title": "Restrições de contato",
+   "objective": "Pedidos de não contato, bloqueios e contatos inválidos que impedem ligações, mensagens e campanhas.",
+   "purpose": [
+    "Registre a restrição com devedor, tipo, origem e alcance e anexe o comprovante do pedido. Ela vale na hora para todos os canais e ferramentas."
+   ],
+   "profiles": [
+    "COMPLIANCE",
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Pedidos do devedor, do credor, do jurídico ou exigências legais."
+   ],
+   "outputs": [
+    "Contato bloqueado e casos reavaliados."
+   ],
+   "related": [
+    {
+     "screen": "debt.debtors",
+     "why": "Ficha do devedor."
+    },
+    {
+     "screen": "compliance.contact-policy",
+     "why": "Horários e limites."
+    }
+   ],
+   "terms": [
+    "restricao-de-contato",
+    "porteiro-de-contato"
+   ],
+   "path": "/compliance/restricoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CONTACT_RESTRICTION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.contact-policy",
+   "module": "compliance",
+   "title": "Política de contato",
+   "objective": "Janela de horário, dias e limites de tentativas por canal, da assessoria ou do credor, com versões.",
+   "purpose": [
+    "Ajuste o rascunho da próxima versão; nada muda até publicar. A tela mostra a regra vigente em cada canal e de onde ela vem."
+   ],
+   "profiles": [
+    "COMPLIANCE",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Leis, normas de autorregulação e exigências do credor."
+   ],
+   "outputs": [
+    "Regras aplicadas a todo contato."
+   ],
+   "related": [
+    {
+     "screen": "compliance.holidays",
+     "why": "Feriados que bloqueiam contato."
+    }
+   ],
+   "terms": [
+    "politica-de-contato",
+    "versao-publicada"
+   ],
+   "path": "/compliance/politica-de-contato",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CONTACT_RESTRICTION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.holidays",
+   "module": "compliance",
+   "title": "Feriados",
+   "objective": "Feriados cadastrados, em que os canais com bloqueio em feriado não fazem contato com devedores.",
+   "purpose": [
+    "Mantenha o calendário em dia: ele afeta a decisão de contato e a contagem de prazos do jurídico e da remuneração."
+   ],
+   "profiles": [
+    "COMPLIANCE",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Calendário oficial de feriados."
+   ],
+   "outputs": [
+    "Contatos bloqueados nos feriados e prazos em dias úteis."
+   ],
+   "related": [
+    {
+     "screen": "compliance.contact-policy",
+     "why": "Canais com bloqueio em feriado."
+    }
+   ],
+   "terms": [
+    "politica-de-contato"
+   ],
+   "path": "/compliance/feriados",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CONTACT_RESTRICTION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.legal-bases",
+   "module": "compliance",
+   "title": "Bases legais",
+   "objective": "Fundamento do tratamento dos dados (LGPD art. 7º) por credor e carteira, com prazo de retenção.",
+   "purpose": [
+    "Informe a base legal, o contrato, o responsável jurídico e o prazo de guarda. O score depende desse registro."
+   ],
+   "profiles": [
+    "COMPLIANCE",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Contratos com os credores e avaliação jurídica."
+   ],
+   "outputs": [
+    "Prazos de guarda usados pela retenção e condição para o score."
+   ],
+   "related": [
+    {
+     "screen": "compliance.retention",
+     "why": "Prazos de guarda."
+    },
+    {
+     "screen": "scoring.settings",
+     "why": "Base legal do score."
+    }
+   ],
+   "terms": [
+    "base-legal"
+   ],
+   "path": "/compliance/bases-legais",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DATA_SUBJECT_REQUEST_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.requests",
+   "module": "compliance",
+   "title": "Solicitações de titulares",
+   "objective": "Fila de pedidos LGPD dos titulares, com o prazo legal em destaque.",
+   "purpose": [
+    "Pedidos vencidos aparecem em vermelho com ícone; os que vencem em até 3 dias, em amarelo. Clique num indicador para filtrar."
+   ],
+   "profiles": [
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Pedidos recebidos por qualquer canal."
+   ],
+   "outputs": [
+    "Pedidos atendidos no prazo, com resposta e evidência."
+   ],
+   "related": [
+    {
+     "screen": "scoring.transparency",
+     "why": "Explicar o score ao titular."
+    }
+   ],
+   "terms": [
+    "titular"
+   ],
+   "path": "/compliance/solicitacoes-titulares",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DATA_SUBJECT_REQUEST_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.request-detail",
+   "module": "compliance",
+   "title": "Atendimento ao titular",
+   "objective": "Etapas do atendimento de um pedido do titular: identidade, ação, resposta e evidências.",
+   "purpose": [
+    "Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada."
+   ],
+   "profiles": [
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Pedido registrado e documentos do titular."
+   ],
+   "outputs": [
+    "Resposta ao titular; restrições ou anonimização quando o pedido exige."
+   ],
+   "related": [
+    {
+     "screen": "compliance.requests",
+     "why": "Fila de pedidos."
+    }
+   ],
+   "terms": [
+    "titular",
+    "anonimizacao"
+   ],
+   "path": "/compliance/solicitacoes-titulares/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "DATA_SUBJECT_REQUEST_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.retention",
+   "module": "compliance",
+   "title": "Retenção de dados",
+   "objective": "Prazos de guarda por categoria, simulação e anonimização dos dados que já cumpriram o prazo.",
+   "purpose": [
+    "A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados."
+   ],
+   "profiles": [
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Bases legais e prazos de guarda."
+   ],
+   "outputs": [
+    "Dados anonimizados e evidência de cada execução."
+   ],
+   "related": [
+    {
+     "screen": "compliance.legal-bases",
+     "why": "Prazos por credor."
+    }
+   ],
+   "terms": [
+    "anonimizacao",
+    "base-legal"
+   ],
+   "path": "/compliance/retencao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "RETENTION_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "analytics.operational",
+   "module": "paineis",
+   "title": "Painel operacional",
+   "objective": "Posição da carteira agora: valor em cobrança, saldo vencido e elegível, casos por estado e filas pendentes.",
+   "purpose": [
+    "Mostra a carteira na data da última consolidação; o período não se aplica a esta visão."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR",
+    "FINANCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Casos, títulos e filas consolidados."
+   ],
+   "outputs": [
+    "Exportação em planilha ou CSV com os mesmos filtros."
+   ],
+   "related": [
+    {
+     "screen": "analytics.recovery",
+     "why": "Quanto foi recuperado."
+    },
+    {
+     "screen": "collection.queues",
+     "why": "Agir sobre as filas pendentes."
+    }
+   ],
+   "terms": [
+    "dados-ate",
+    "base-do-indicador",
+    "elegibilidade"
+   ],
+   "path": "/paineis",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DASHBOARD_VIEW",
+     "REPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "analytics.recovery",
+   "module": "paineis",
+   "title": "Recuperação",
+   "objective": "Valor recuperado líquido e taxa de recuperação sobre o saldo elegível no início do período.",
+   "purpose": [
+    "Compare credores, carteiras e faixas de atraso. Estornos entram na data do estorno, sem alterar o período do pagamento."
+   ],
+   "profiles": [
+    "GESTOR",
+    "FINANCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Pagamentos confirmados e estornos."
+   ],
+   "outputs": [
+    "Exportação para análise e relatórios ao credor."
+   ],
+   "related": [
+    {
+     "screen": "settlement.statements",
+     "why": "A mesma base na prestação de contas."
+    }
+   ],
+   "terms": [
+    "recuperado",
+    "base-do-indicador"
+   ],
+   "path": "/paineis/recuperacao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "REPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "analytics.conversion",
+   "module": "paineis",
+   "title": "Conversão",
+   "objective": "Do contato ao pagamento: contatos efetivos, propostas, acordos, quebras e primeiro pagamento.",
+   "purpose": [
+    "Mostra onde o funil perde casos, com cada etapa sobre a sua base."
+   ],
+   "profiles": [
+    "GESTOR",
+    "ESTRATEGIA",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Interações, propostas, acordos e pagamentos."
+   ],
+   "outputs": [
+    "Insumo para ajustar filas, campanhas e políticas."
+   ],
+   "related": [
+    {
+     "screen": "campaign.execution",
+     "why": "Resultado de cada campanha."
+    }
+   ],
+   "terms": [
+    "contato-efetivo",
+    "acordo",
+    "quebra"
+   ],
+   "path": "/paineis/conversao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "REPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "analytics.productivity",
+   "module": "paineis",
+   "title": "Produtividade",
+   "objective": "Esforço e resultado por pessoa e equipe: tentativas, contatos efetivos, acordos e recuperado.",
+   "purpose": [
+    "Operador vê só o próprio; supervisor, a si e às equipes que supervisiona; gestão, todos."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR",
+    "OPERADOR"
+   ],
+   "inputs": [
+    "Interações, acordos e pagamentos atribuídos a cada pessoa."
+   ],
+   "outputs": [
+    "Acompanhamento da equipe e feedback."
+   ],
+   "related": [
+    {
+     "screen": "incentive.performance",
+     "why": "Desempenho usado na remuneração."
+    }
+   ],
+   "terms": [
+    "contato-efetivo",
+    "equipe"
+   ],
+   "path": "/paineis/produtividade",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "REPORT_VIEW",
+     "PERFORMANCE_VIEW_OWN",
+     "PERFORMANCE_VIEW_TEAM",
+     "PERFORMANCE_VIEW_ALL"
+    ]
+   }
+  },
+  {
+   "id": "analytics.reliability",
+   "module": "paineis",
+   "title": "Confiabilidade",
+   "objective": "Falhas que afetam a operação: Pix, chamadas, mensagens, extratos, importações e divergências.",
+   "purpose": [
+    "Ajuda a encontrar problemas de integração antes que virem prejuízo. Processamentos sem credor só aparecem para quem vê todos os credores."
+   ],
+   "profiles": [
+    "GESTOR",
+    "INTEGRACAO",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Registros de falha de cada integração."
+   ],
+   "outputs": [
+    "Ações de correção nas telas de origem."
+   ],
+   "related": [
+    {
+     "screen": "payment.divergences",
+     "why": "Divergências de conciliação."
+    },
+    {
+     "screen": "ingestion.batches",
+     "why": "Importações com falha."
+    }
+   ],
+   "terms": [
+    "divergencia",
+    "base-do-indicador"
+   ],
+   "path": "/paineis/confiabilidade",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DASHBOARD_VIEW",
+     "REPORT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "organization.creditors",
+   "module": "administracao",
+   "title": "Credores",
+   "objective": "Empresas que contratam a assessoria, com contratos de serviço e carteiras.",
+   "purpose": [
+    "Comece pelo documento e pelo nome. Contratos e carteiras são cadastrados na ficha do credor."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Contratos comerciais da assessoria."
+   ],
+   "outputs": [
+    "Credores disponíveis para carteiras, políticas, regras de comissão e escopo dos usuários."
+   ],
+   "related": [
+    {
+     "screen": "organization.portfolios",
+     "why": "Carteiras dos credores."
+    },
+    {
+     "screen": "settlement.rules",
+     "why": "Regras de comissão do contrato."
+    }
+   ],
+   "terms": [
+    "credor",
+    "contrato-de-servico"
+   ],
+   "path": "/organizacao/credores",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "CREDITOR_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "organization.creditor-detail",
+   "module": "administracao",
+   "title": "Credor",
+   "objective": "Ficha do credor: dados, contratos vigentes, carteiras e histórico de alterações.",
+   "purpose": [
+    "O contrato de serviço define vigência e o dia de fechamento da prestação de contas."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Cadastro do credor."
+   ],
+   "outputs": [
+    "Contratos e carteiras usados por toda a operação."
+   ],
+   "related": [
+    {
+     "screen": "organization.creditors",
+     "why": "Todos os credores."
+    }
+   ],
+   "terms": [
+    "credor",
+    "contrato-de-servico",
+    "carteira"
+   ],
+   "path": "/organizacao/credores/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "CREDITOR_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "organization.portfolios",
+   "module": "administracao",
+   "title": "Carteiras",
+   "objective": "Lotes de títulos recebidos dos credores, com vigência e ciclo de vida.",
+   "purpose": [
+    "Carteiras em preparação ainda não estão em cobrança; ativas estão em operação; suspensas ou devolvidas não geram contatos."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "ANALISTA_CARTEIRA",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Credores e contratos cadastrados."
+   ],
+   "outputs": [
+    "Destino das importações e base dos casos de cobrança."
+   ],
+   "related": [
+    {
+     "screen": "ingestion.batches",
+     "why": "Importar títulos na carteira."
+    }
+   ],
+   "terms": [
+    "carteira"
+   ],
+   "path": "/organizacao/carteiras",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PORTFOLIO_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "organization.settings",
+   "module": "administracao",
+   "title": "Configurações da assessoria",
+   "objective": "Dados cadastrais da assessoria e a janela padrão de contato com devedores.",
+   "purpose": [
+    "Esses dados aparecem em documentos e valem como padrão quando o credor não tem configuração própria."
+   ],
+   "profiles": [
+    "ADMIN"
+   ],
+   "inputs": [
+    "Cadastro da assessoria."
+   ],
+   "outputs": [
+    "Padrões usados por toda a assessoria."
+   ],
+   "related": [
+    {
+     "screen": "compliance.contact-policy",
+     "why": "Política de contato por canal."
+    }
+   ],
+   "terms": [
+    "assessoria"
+   ],
+   "path": "/organizacao/configuracoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ORG_SETTINGS_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "admin.users",
+   "module": "administracao",
+   "title": "Usuários",
+   "objective": "Contas de acesso da assessoria, com perfis e escopo de credores de cada pessoa.",
+   "purpose": [
+    "Informe nome, e-mail e perfil: a pessoa recebe um link de ativação e define a própria senha."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Quem entra ou sai da equipe."
+   ],
+   "outputs": [
+    "Contas ativas com o acesso certo; bloqueios imediatos quando alguém sai."
+   ],
+   "related": [
+    {
+     "screen": "admin.roles",
+     "why": "O que cada perfil permite."
+    },
+    {
+     "screen": "admin.teams",
+     "why": "Colocar a pessoa numa equipe."
+    }
+   ],
+   "terms": [
+    "perfil-de-acesso",
+    "escopo-de-credores",
+    "verificacao-em-duas-etapas"
+   ],
+   "path": "/admin/usuarios",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "USER_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "admin.user-detail",
+   "module": "administracao",
+   "title": "Usuário",
+   "objective": "Perfis, escopo de credores, situação e verificação em duas etapas de uma conta.",
+   "purpose": [
+    "Ajuste perfis e escopo, bloqueie o acesso ou reenvie o link de ativação. Toda mudança fica na trilha de auditoria."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Cadastro do usuário."
+   ],
+   "outputs": [
+    "Acesso atualizado na próxima ação da pessoa."
+   ],
+   "related": [
+    {
+     "screen": "governance.access-log",
+     "why": "Acessos da pessoa."
+    }
+   ],
+   "terms": [
+    "perfil-de-acesso",
+    "escopo-de-credores"
+   ],
+   "path": "/admin/usuarios/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "USER_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "admin.roles",
+   "module": "administracao",
+   "title": "Perfis",
+   "objective": "Conjuntos de permissões atribuídos aos usuários, do sistema e próprios da assessoria.",
+   "purpose": [
+    "Prefira ajustar perfis a dar permissões caso a caso. Permissões que você não tem aparecem bloqueadas, com o aviso \"fora do seu perfil\"."
+   ],
+   "profiles": [
+    "ADMIN"
+   ],
+   "inputs": [
+    "Perfis padrão criados com a assessoria."
+   ],
+   "outputs": [
+    "Permissões aplicadas a todos os usuários do perfil."
+   ],
+   "related": [
+    {
+     "screen": "admin.users",
+     "why": "Quem usa cada perfil."
+    }
+   ],
+   "terms": [
+    "perfil-de-acesso"
+   ],
+   "path": "/admin/perfis",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ROLE_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "admin.teams",
+   "module": "administracao",
+   "title": "Equipes",
+   "objective": "Grupos de operadores com supervisor, usados na distribuição de casos, nas metas e nos painéis.",
+   "purpose": [
+    "Abra uma equipe para incluir operadores e definir o supervisor responsável."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Usuários cadastrados."
+   ],
+   "outputs": [
+    "Equipes que atendem as filas e recebem metas."
+   ],
+   "related": [
+    {
+     "screen": "collection.queues",
+     "why": "Filas atendidas pela equipe."
+    },
+    {
+     "screen": "incentive.goals",
+     "why": "Metas da equipe."
+    }
+   ],
+   "terms": [
+    "equipe"
+   ],
+   "path": "/admin/equipes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TEAM_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "admin.units",
+   "module": "administracao",
+   "title": "Unidades",
+   "objective": "Filiais ou células operacionais da assessoria.",
+   "purpose": [
+    "Organize a assessoria por unidade para separar a operação."
+   ],
+   "profiles": [
+    "ADMIN"
+   ],
+   "inputs": [
+    "Estrutura da assessoria."
+   ],
+   "outputs": [
+    "Unidades disponíveis no cadastro."
+   ],
+   "related": [
+    {
+     "screen": "admin.teams",
+     "why": "Equipes."
+    }
+   ],
+   "terms": [
+    "assessoria"
+   ],
+   "path": "/admin/unidades",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ORG_SETTINGS_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "governance.access-log",
+   "module": "administracao",
+   "title": "Log de acesso",
+   "objective": "Quem entrou, quando, de onde, o que foi negado e quais dados sensíveis foram vistos ou exportados.",
+   "purpose": [
+    "Combine período, tipo de evento e resultado. Falhas de login repetidas merecem atenção."
+   ],
+   "profiles": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Registro automático de cada acesso."
+   ],
+   "outputs": [
+    "Evidência para investigações e para a LGPD."
+   ],
+   "related": [
+    {
+     "screen": "governance.audit",
+     "why": "Alterações feitas."
+    }
+   ],
+   "terms": [
+    "log-de-acesso"
+   ],
+   "path": "/governanca/log-de-acesso",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "ACCESS_LOG_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "governance.audit",
+   "module": "administracao",
+   "title": "Trilha de auditoria",
+   "objective": "Alterações relevantes com autor, motivo e valores antes e depois, com verificação de integridade.",
+   "purpose": [
+    "Abra um registro para comparar os valores. A verificação mostra se algum registro foi alterado fora do sistema."
+   ],
+   "profiles": [
+    "AUDITOR",
+    "COMPLIANCE",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Registro automático de cada alteração."
+   ],
+   "outputs": [
+    "Evidência para auditorias internas e externas."
+   ],
+   "related": [
+    {
+     "screen": "governance.access-log",
+     "why": "Acessos."
+    }
+   ],
+   "terms": [
+    "trilha-de-auditoria"
+   ],
+   "path": "/governanca/auditoria",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "AUDIT_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "platform.tenants",
+   "module": "administracao",
+   "title": "Assessorias",
+   "objective": "Clientes da plataforma, cada um com os dados isolados dos demais.",
+   "purpose": [
+    "Tela da equipe da plataforma para criar e acompanhar assessorias. Perfis e usuários de cada assessoria são criados pelo administrador dela."
+   ],
+   "profiles": [
+    "PLATAFORMA"
+   ],
+   "inputs": [
+    "Contratos da plataforma."
+   ],
+   "outputs": [
+    "Assessorias criadas com os perfis padrão."
+   ],
+   "related": [
+    {
+     "screen": "admin.users",
+     "why": "Usuários de uma assessoria."
+    }
+   ],
+   "terms": [
+    "assessoria"
+   ],
+   "path": "/plataforma/assessorias",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TENANT_MANAGE"
+    ]
+   }
+  }
+ ],
+ "glossary": [
+  {
+   "id": "assessoria",
+   "term": "Assessoria",
+   "definition": "A empresa de cobrança que usa o sistema. Os dados de cada assessoria ficam isolados das demais."
+  },
+  {
+   "id": "credor",
+   "term": "Credor",
+   "definition": "Empresa que contrata a assessoria para cobrar as dívidas dos seus clientes."
+  },
+  {
+   "id": "contrato-de-servico",
+   "term": "Contrato de serviço",
+   "definition": "Acordo entre a assessoria e o credor: vigência, regras de comissão e dia de fechamento da prestação de contas."
+  },
+  {
+   "id": "carteira",
+   "term": "Carteira",
+   "definition": "Lote de títulos recebido de um credor, com vigência própria. Só carteiras ativas geram cobrança e contato."
+  },
+  {
+   "id": "escopo-de-credores",
+   "term": "Escopo de credores",
+   "definition": "Credores que um usuário pode ver e atender. Listas, painéis e exportações mostram só o que está no seu escopo."
+  },
+  {
+   "id": "devedor",
+   "term": "Devedor",
+   "definition": "Pessoa ou empresa com títulos em cobrança. O documento aparece mascarado; ver completo exige permissão e fica registrado."
+  },
+  {
+   "id": "titulo",
+   "term": "Título",
+   "definition": "Cada dívida do devedor (parcela, boleto, contrato), com vencimento, valor original e saldo em aberto."
+  },
+  {
+   "id": "razao-do-titulo",
+   "term": "Razão do título",
+   "definition": "Lista de todos os lançamentos do título (encargos, pagamentos, descontos). O saldo é a soma desses lançamentos."
+  },
+  {
+   "id": "caso",
+   "term": "Caso de cobrança",
+   "definition": "Reúne os títulos em cobrança de um devedor em uma carteira. É a unidade de trabalho do negociador."
+  },
+  {
+   "id": "elegibilidade",
+   "term": "Elegibilidade",
+   "definition": "Se o caso pode ser cobrado agora. Contestação, carteira suspensa, jurídico ou restrição em todos os canais tornam o caso inelegível, com o motivo."
+  },
+  {
+   "id": "fila",
+   "term": "Fila",
+   "definition": "Conjunto de casos com os mesmos critérios (credor, atraso, saldo, score), entregue aos operadores em uma ordem definida."
+  },
+  {
+   "id": "proximo-caso",
+   "term": "Próximo caso",
+   "definition": "Botão da estação que entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro."
+  },
+  {
+   "id": "tabulacao",
+   "term": "Tabulação",
+   "definition": "Resultado do contato escolhido ao registrar a interação. Define o que é exigido (observação, promessa, retorno) e se houve contato efetivo."
+  },
+  {
+   "id": "contato-efetivo",
+   "term": "Contato efetivo",
+   "definition": "Conversa com a pessoa certa (o próprio devedor). É a base de vários indicadores de produtividade."
+  },
+  {
+   "id": "promessa",
+   "term": "Promessa de pagamento",
+   "definition": "Compromisso do devedor de pagar um valor até uma data, sem acordo formal. É quebrada se o pagamento não chegar na tolerância."
+  },
+  {
+   "id": "retorno",
+   "term": "Retorno",
+   "definition": "Contato combinado com o devedor para data e hora marcadas. Aparece na agenda e volta como próxima ação do caso."
+  },
+  {
+   "id": "contestacao",
+   "term": "Contestação",
+   "definition": "Questionamento da dívida pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução."
+  },
+  {
+   "id": "porteiro-de-contato",
+   "term": "\"Posso contatar agora?\"",
+   "definition": "Decisão do sistema, por canal, antes de cada contato: considera restrições, política de contato, feriados e limites de tentativas."
+  },
+  {
+   "id": "restricao-de-contato",
+   "term": "Restrição de contato",
+   "definition": "Bloqueio de contato com um devedor (todos os canais, um canal ou um contato), por pedido do devedor, do credor ou da lei."
+  },
+  {
+   "id": "politica-de-contato",
+   "term": "Política de contato",
+   "definition": "Horários, dias e limites de tentativas permitidos por canal. A do credor prevalece sobre a da assessoria, canal a canal."
+  },
+  {
+   "id": "base-legal",
+   "term": "Base legal",
+   "definition": "Fundamento da LGPD que autoriza tratar os dados do devedor, registrado por credor com o prazo de guarda."
+  },
+  {
+   "id": "titular",
+   "term": "Titular dos dados",
+   "definition": "A pessoa a quem os dados pessoais se referem. Pode pedir acesso, correção, portabilidade ou eliminação, com prazo legal."
+  },
+  {
+   "id": "anonimizacao",
+   "term": "Anonimização",
+   "definition": "Retirada definitiva dos dados que identificam o devedor, ao fim do prazo de guarda ou por pedido atendido."
+  },
+  {
+   "id": "politica-de-cobranca",
+   "term": "Política de cobrança",
+   "definition": "Condições de negociação do credor: encargos, descontos máximos, parcelamento, validade e escada de concessões. Cada publicação vira uma versão que não muda."
+  },
+  {
+   "id": "escada-de-concessoes",
+   "term": "Escada de concessões",
+   "definition": "Níveis da política que liberam descontos aos poucos. Começa no nível 0; subir de nível exige justificativa."
+  },
+  {
+   "id": "alcada",
+   "term": "Alçada",
+   "definition": "Quanto das condições da política uma pessoa (ou o assistente, ou o portal) pode conceder sem aprovação."
+  },
+  {
+   "id": "simulacao",
+   "term": "Simulação",
+   "definition": "Cálculo da dívida atualizada e das ofertas possíveis dentro da sua alçada. Fica registrada, mas não compromete o devedor."
+  },
+  {
+   "id": "proposta",
+   "term": "Proposta",
+   "definition": "Condições oferecidas ao devedor, com validade. Acima da alçada de quem propôs, vai para a fila de aprovação."
+  },
+  {
+   "id": "acordo",
+   "term": "Acordo",
+   "definition": "Proposta aceita pelo devedor e formalizada com termo. Tem cronograma de parcelas e regra de quebra."
+  },
+  {
+   "id": "quebra",
+   "term": "Quebra de acordo",
+   "definition": "Acordo desfeito pelo atraso de parcelas além da tolerância definida na política do credor."
+  },
+  {
+   "id": "renegociacao",
+   "term": "Renegociação",
+   "definition": "Novo acordo que substitui um acordo existente, com os pagamentos já feitos abatidos."
+  },
+  {
+   "id": "termo-de-acordo",
+   "term": "Termo do acordo",
+   "definition": "Documento em PDF aceito pelo devedor, guardado com um código de integridade que comprova que não foi alterado."
+  },
+  {
+   "id": "portal",
+   "term": "Portal de autonegociação",
+   "definition": "Endereço com a marca do credor onde o devedor consulta a dívida, escolhe uma condição autorizada e paga, sem falar com um negociador."
+  },
+  {
+   "id": "pix",
+   "term": "Pix (instrução de pagamento)",
+   "definition": "Cobrança Pix gerada para uma parcela ou título, com QR Code e \"copia e cola\" e prazo de validade."
+  },
+  {
+   "id": "psp",
+   "term": "PSP",
+   "definition": "Instituição de pagamento que gera as cobranças Pix e avisa quando foram pagas."
+  },
+  {
+   "id": "pagamento-informado",
+   "term": "Pagamento informado",
+   "definition": "Dinheiro recebido fora do Pix integrado, registrado com comprovante e destino. Acima do limite, exige aprovação de outra pessoa."
+  },
+  {
+   "id": "pagamento-confirmado",
+   "term": "Pagamento confirmado",
+   "definition": "Pagamento comprovado pelo provedor, pelo extrato bancário ou por uma segunda pessoa. Só ele conta como valor recuperado."
+  },
+  {
+   "id": "conciliacao",
+   "term": "Conciliação",
+   "definition": "Conferência do extrato bancário com os pagamentos registrados, linha a linha."
+  },
+  {
+   "id": "divergencia",
+   "term": "Divergência",
+   "definition": "Linha do extrato que o sistema não conciliou sozinho (valor diferente, duplicidade, sem correspondência). Exige decisão com justificativa."
+  },
+  {
+   "id": "sobra",
+   "term": "Sobra",
+   "definition": "Valor recebido que ainda não abateu nenhuma dívida. Deve ser realocado ou devolvido."
+  },
+  {
+   "id": "estorno",
+   "term": "Estorno",
+   "definition": "Desfazimento de um pagamento por lançamento compensatório: nada é apagado, o histórico continua visível."
+  },
+  {
+   "id": "recuperado",
+   "term": "Valor recuperado",
+   "definition": "Pagamentos confirmados, líquidos de estornos. Acordo fechado e não pago não é recuperação."
+  },
+  {
+   "id": "comissao-da-assessoria",
+   "term": "Comissão da assessoria",
+   "definition": "O que a assessoria recebe do credor sobre cada recebimento, pelas regras do contrato vigentes na data do pagamento."
+  },
+  {
+   "id": "demonstrativo",
+   "term": "Demonstrativo",
+   "definition": "Prestação de contas ao credor por período: recebido, comissão, custas, ajustes e o líquido a repassar."
+  },
+  {
+   "id": "repasse",
+   "term": "Repasse",
+   "definition": "Transferência do líquido do demonstrativo aprovado ao credor (ou do credor à assessoria), com comprovante."
+  },
+  {
+   "id": "quatro-olhos",
+   "term": "Segregação de funções",
+   "definition": "Quem prepara não aprova: uma segunda pessoa confere publicações, aprovações e valores altos. O sistema recusa a aprovação própria."
+  },
+  {
+   "id": "comissao-do-negociador",
+   "term": "Comissão do negociador",
+   "definition": "Remuneração variável que a assessoria paga ao negociador sobre o que ele recuperou, pelo plano vigente."
+  },
+  {
+   "id": "plano-de-remuneracao",
+   "term": "Plano de remuneração",
+   "definition": "Regras versionadas da comissão dos negociadores: percentuais, metas, qualidade e peso de crédito."
+  },
+  {
+   "id": "atribuicao-de-credito",
+   "term": "Atribuição de crédito",
+   "definition": "Quem gerou o acordo (negociador, assistente, portal ou campanha) e quanto do resultado conta para cada um."
+  },
+  {
+   "id": "carencia",
+   "term": "Carência",
+   "definition": "Dias de espera após a confirmação do pagamento antes de a comissão ser liberada, para absorver estornos."
+  },
+  {
+   "id": "extrato-de-comissao",
+   "term": "Extrato de comissão",
+   "definition": "Resultado da apuração do mês por negociador, com memória de cálculo, contestação e aprovação."
+  },
+  {
+   "id": "monitoria",
+   "term": "Monitoria de qualidade",
+   "definition": "Avaliação de atendimentos com nota de 0 a 10. Nota abaixo do mínimo do plano pode suspender o variável."
+  },
+  {
+   "id": "memoria-de-calculo",
+   "term": "Memória de cálculo",
+   "definition": "Detalhe linha a linha de como um valor foi obtido, para conferir e explicar."
+  },
+  {
+   "id": "score",
+   "term": "Score de propensão",
+   "definition": "Chance estimada de o devedor pagar nos próximos dias. Muda a ordem de atendimento, nunca o direito ao atendimento nem as condições."
+  },
+  {
+   "id": "faixa-de-score",
+   "term": "Faixa de score",
+   "definition": "Agrupamento do score de A (maior chance) a E (menor), usado em filas e segmentos."
+  },
+  {
+   "id": "campeao-desafiante",
+   "term": "Campeão e desafiante",
+   "definition": "O campeão é o modelo de score em uso; o desafiante é calculado em paralelo até alguém decidir trocá-lo."
+  },
+  {
+   "id": "segmento",
+   "term": "Segmento",
+   "definition": "Público salvo com filtros combinados sobre os casos (atraso, saldo, score, contato), usado pelas campanhas."
+  },
+  {
+   "id": "campanha",
+   "term": "Campanha",
+   "definition": "Ação automática sobre um segmento, com régua de contatos, prioridade e período."
+  },
+  {
+   "id": "regua",
+   "term": "Régua",
+   "definition": "Sequência de etapas da campanha: espera, horário, condição, ação (mensagem, ligação) e o que fazer com a resposta."
+  },
+  {
+   "id": "teste-ab",
+   "term": "Teste A/B",
+   "definition": "Comparação de variantes de uma régua com um grupo de controle sorteado, para saber o que funciona melhor."
+  },
+  {
+   "id": "template",
+   "term": "Template",
+   "definition": "Texto de mensagem aprovado, com variáveis. E-mail e SMS só saem por template; no WhatsApp, fora da janela de 24 horas."
+  },
+  {
+   "id": "canal",
+   "term": "Canal",
+   "definition": "Meio de contato: telefone, WhatsApp, e-mail ou SMS."
+  },
+  {
+   "id": "conversa",
+   "term": "Conversa",
+   "definition": "Linha do tempo das mensagens com o devedor, com um dono: operador, fila ou assistente."
+  },
+  {
+   "id": "assistente",
+   "term": "Assistente de IA",
+   "definition": "Ator automático que conversa com o devedor e negocia dentro da própria alçada. Nunca define condições: o sistema calcula e valida."
+  },
+  {
+   "id": "modo-do-assistente",
+   "term": "Modo do assistente",
+   "definition": "Desligado, sombra (só sugere), copiloto, autônomo com aprovação humana do acordo ou autônomo."
+  },
+  {
+   "id": "transferencia-para-humano",
+   "term": "Transferência para humano",
+   "definition": "Passagem da conversa do assistente para uma pessoa, com resumo e motivo. Alguns motivos são obrigatórios e não se desligam."
+  },
+  {
+   "id": "turno",
+   "term": "Turno do assistente",
+   "definition": "Uma rodada da conversa: o que o assistente recebeu, as ferramentas que usou e o que respondeu."
+  },
+  {
+   "id": "discador",
+   "term": "Discador",
+   "definition": "Liga automaticamente para uma lista e conecta o operador quando uma pessoa atende (progressivo ou preditivo)."
+  },
+  {
+   "id": "abandono",
+   "term": "Abandono",
+   "definition": "Ligação atendida pelo devedor sem operador livre para falar. O discador reduz o ritmo para ficar abaixo do máximo."
+  },
+  {
+   "id": "gravacao",
+   "term": "Gravação",
+   "definition": "Áudio da chamada. Ouvir exige permissão, informar a finalidade e fica registrado."
+  },
+  {
+   "id": "caso-juridico",
+   "term": "Caso jurídico",
+   "definition": "Dívida que saiu da cobrança amigável para medidas extrajudiciais ou judiciais, com fases, prazos e custas."
+  },
+  {
+   "id": "autorizacao-do-credor",
+   "term": "Autorização do credor",
+   "definition": "Aprovação formal do credor, com orçamento de custas, antes de medidas jurídicas."
+  },
+  {
+   "id": "prescricao",
+   "term": "Prescrição",
+   "definition": "Prazo legal para cobrar a dívida na Justiça. Título prescrito não é indicado ao jurídico."
+  },
+  {
+   "id": "custas",
+   "term": "Custas e despesas",
+   "definition": "Gastos do jurídico (taxas, cartório, honorários de terceiros). As reembolsáveis entram no demonstrativo do credor."
+  },
+  {
+   "id": "lote-de-importacao",
+   "term": "Lote de importação",
+   "definition": "Um arquivo (ou envio por integração) recebido do credor, com contadores e ocorrências por linha."
+  },
+  {
+   "id": "conferencia",
+   "term": "Conferência da importação",
+   "definition": "Passos antes de gravar um arquivo: formato dos valores, linhas, totais da planilha, alertas e confirmação."
+  },
+  {
+   "id": "layout",
+   "term": "Layout de importação",
+   "definition": "Como as colunas do arquivo de um credor correspondem aos campos do sistema."
+  },
+  {
+   "id": "dados-ate",
+   "term": "\"Dados até\"",
+   "definition": "Instante a partir do qual os números de um painel valem. Os painéis são consolidados periodicamente."
+  },
+  {
+   "id": "base-do-indicador",
+   "term": "Base do indicador",
+   "definition": "Numerador e denominador de cada taxa (\"1.100 de 4.000\"). Sem base no período, o indicador aparece como indisponível, nunca como 0%."
+  },
+  {
+   "id": "perfil-de-acesso",
+   "term": "Perfil de acesso",
+   "definition": "Conjunto de permissões de uma função (operador, supervisor, financeiro…). Define menus e ações disponíveis."
+  },
+  {
+   "id": "equipe",
+   "term": "Equipe",
+   "definition": "Grupo de operadores com um supervisor, usado na distribuição de casos, nas metas e nos painéis."
+  },
+  {
+   "id": "verificacao-em-duas-etapas",
+   "term": "Verificação em duas etapas",
+   "definition": "Código do aplicativo autenticador pedido além da senha. Obrigatória para perfis com acesso a dados sensíveis."
+  },
+  {
+   "id": "log-de-acesso",
+   "term": "Log de acesso",
+   "definition": "Registro de entradas, sessões, acessos negados, exportações e visualizações de dados sensíveis."
+  },
+  {
+   "id": "trilha-de-auditoria",
+   "term": "Trilha de auditoria",
+   "definition": "Registro de cada alteração relevante: quem fez, quando, o motivo e os valores antes e depois."
+  },
+  {
+   "id": "versao-publicada",
+   "term": "Versão publicada",
+   "definition": "Configuração que entrou em vigor e não muda mais. Para alterar, cria-se uma nova versão a partir dela."
+  },
+  {
+   "id": "chat-de-suporte",
+   "term": "Chat de suporte",
+   "definition": "Assistente com inteligência artificial para quem usa o sistema: explica telas e regras, consulta dados com as suas permissões e abre chamados com a sua confirmação."
+  },
+  {
+   "id": "tour",
+   "term": "Tour",
+   "definition": "Passeio curto pelos elementos da tela. Começa pelo objetivo da tela e pode ser refeito pela ajuda."
+  }
+ ]
+}

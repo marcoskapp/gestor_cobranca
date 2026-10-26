@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Unidade explícita da meta do período (decisões 387 e 490–494): o servidor aceita só a unidade da
+ * Unidade explícita da meta do período (decisões 387 e 500–504): o servidor aceita só a unidade da
  * métrica da meta do plano que vai usá-la, valida casas e limites, audita a unidade e, no cálculo,
  * desconsidera (sem reinterpretar) a meta gravada em unidade diferente da métrica.
  */

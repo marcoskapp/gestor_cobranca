@@ -1,6 +1,6 @@
 package br.com.gestorcobranca.assistant.application.service;
 
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolDefinition;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolDefinition;
 
 /** Definições (nome, descrição e JSON Schema) das ferramentas oferecidas ao modelo. */
 final class ToolSchemas {

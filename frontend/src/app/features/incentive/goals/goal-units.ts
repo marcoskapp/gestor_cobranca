@@ -10,7 +10,7 @@ export const GOAL_UNIT_LABELS: Record<GoalUnit, string> = {
   PERCENT: 'Percentual (%)',
 };
 
-/** Limites da meta percentual (decisão 492): 0,01 a 100, até 2 casas. */
+/** Limites da meta percentual (decisão 502): 0,01 a 100, até 2 casas. */
 export const GOAL_PERCENT_MIN = 0.01;
 export const GOAL_PERCENT_MAX = 100;
 

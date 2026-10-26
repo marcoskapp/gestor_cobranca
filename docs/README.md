@@ -6,7 +6,7 @@ Toda a documentação do projeto fica nesta pasta, separada pelo público e pela
 docs/
 ├── negocio/       o QUE o produto faz e POR QUÊ — leitura do responsável pelo produto e da operação
 ├── arquitetura/   COMO a solução está estruturada — visão geral, topologia, stack, AWS e decisões (ADRs)
-└── tecnico/       COMO implementar — convenções, segurança, logs/métricas e desenho detalhado de cada módulo
+└── tecnico/       COMO implementar e operar — convenções, segurança, logs/métricas, desenho de cada módulo e guias de operação
 ```
 
 **Onde colocar um documento novo**
@@ -14,6 +14,7 @@ docs/
 - Decisão estrutural difícil de reverter (tecnologia, padrão transversal) → ADR em `arquitetura/adr/` (numeração sequencial).
 - Desenho de um módulo (agregados, estados, eventos, permissões, migrations) → `tecnico/desenho/<modulo>.md`, com link para o documento de negócio correspondente.
 - Evento de negócio, métrica ou campo de log novo → catálogo em `tecnico/logs-e-metricas.md`.
+- Procedimento de operação (ativação de ambiente, implantação, rotinas, recuperação) → `tecnico/operacao/`.
 
 ## Negócio
 
@@ -29,6 +30,7 @@ docs/
 | [portal-autonegociacao.md](negocio/portal-autonegociacao.md) | Portal de autonegociação do devedor: acesso, condições, perfil `PORTAL`, atendimento e indicadores |
 | [score-propensao.md](negocio/score-propensao.md) | Score de propensão: finalidade e limites de uso, dados permitidos, modelos, explicação e LGPD (telas em `tecnico/desenho/scoring.md` §12) |
 | [perfis-de-acesso.md](negocio/perfis-de-acesso.md) | Perfis de acesso padrão por tipo de usuário e como se mantêm atualizados |
+| [templates-cobranca.md](negocio/templates-cobranca.md) | Modelos iniciais de mensagens de cobrança (WhatsApp, e-mail e SMS) e templates exigidos pelo portal — para revisão do jurídico |
 | [decisoes-autonomas.md](negocio/decisoes-autonomas.md) | Decisões de produto tomadas sem consulta, para revisão |
 
 Regras de negócio que só existem no desenho técnico, por enquanto: remuneração variável dos negociadores ([tecnico/desenho/remuneracao-variavel.md](tecnico/desenho/remuneracao-variavel.md)) e negociação e alçadas ([tecnico/desenho/negociacao-e-alcadas.md](tecnico/desenho/negociacao-e-alcadas.md)).
@@ -50,7 +52,8 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [convencoes.md](tecnico/convencoes.md) | Convenções de código, pacotes, persistência, testes |
 | [seguranca.md](tecnico/seguranca.md) | Controles de segurança, LGPD, segregação de funções |
 | [logs-e-metricas.md](tecnico/logs-e-metricas.md) | Fluxos de log (técnico, negócio, acesso), catálogo de eventos e métricas |
-| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `importacao` (conferência da importação), `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `remuneracao-variavel`, `scoring`, `analytics`, `portal`, `pendencias` (Minhas pendências), `ux` |
+| [operacao/ativacao-aws.md](tecnico/operacao/ativacao-aws.md) | Guia operacional de ativação na AWS: pré-requisitos, Terraform, segredos, banco, implantação, primeiro acesso, integrações, operação e checklists de segurança e go-live |
+| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `importacao` (conferência da importação), `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `chat-suporte`, `remuneracao-variavel`, `scoring`, `analytics`, `portal`, `pendencias` (Minhas pendências), `ux` |
 
 ## Caminhos antigos
 

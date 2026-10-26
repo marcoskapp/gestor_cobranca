@@ -331,7 +331,7 @@ não apura metas por essa métrica (pendência).
 
 ### 10.10 Unidade da meta do período (26/10/2026)
 
-A meta por período (`GoalTarget`) guarda a unidade escolhida por quem a cadastra (`unit`: `CURRENCY` = R$, `PERCENT` = %; `V1806`). Cada métrica tem uma única unidade (`GoalMetric.unit()`): "valor recuperado" é em R$, "taxa de recuperação" (e "recuperado × esperado", ainda recusada) é em %. Decisão do responsável (decisão 387); detalhes nas decisões 490–497.
+A meta por período (`GoalTarget`) guarda a unidade escolhida por quem a cadastra (`unit`: `CURRENCY` = R$, `PERCENT` = %; `V1806`). Cada métrica tem uma única unidade (`GoalMetric.unit()`): "valor recuperado" é em R$, "taxa de recuperação" (e "recuperado × esperado", ainda recusada) é em %. Decisão do responsável (decisão 387); detalhes nas decisões 500–507.
 
 | Regra | Onde |
 | --- | --- |

@@ -180,7 +180,7 @@ export interface SimulationView {
 }
 
 export type GoalSubjectType = 'USER' | 'TEAM';
-/** Unidade da meta do período: valor em reais ou percentual (decisões 387 e 490–495). */
+/** Unidade da meta do período: valor em reais ou percentual (decisões 387 e 500–507). */
 export type GoalUnit = 'CURRENCY' | 'PERCENT';
 
 export interface GoalView {

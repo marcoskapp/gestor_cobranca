@@ -461,3 +461,46 @@ variable "bedrock_international_transfer_approved" {
   type        = bool
   default     = false
 }
+
+# --- Chat de suporte com IA (módulo helpdesk) — docs/tecnico/desenho/chat-suporte.md -------
+# Mesmo endpoint (bedrock_region) e mesma aprovação de transferência internacional do assistente.
+
+variable "helpdesk_bedrock_enabled" {
+  description = "Liga o Amazon Bedrock do chat de suporte (permissão IAM no modelo do chat e app.helpdesk.bedrock.enabled)."
+  type        = bool
+  default     = false
+}
+
+variable "helpdesk_bedrock_model_id" {
+  description = "Modelo ou perfil de inferência do chat de suporte (Claude Haiku 5.5)."
+  type        = string
+  default     = "us.anthropic.claude-haiku-5-5"
+
+  validation {
+    condition     = can(regex("^((us|eu|apac|au|jp|ca|global)\\.)?anthropic\\.[a-z0-9.-]+(:[0-9]+)?$", var.helpdesk_bedrock_model_id))
+    error_message = "helpdesk_bedrock_model_id deve ser um modelo Claude (anthropic.*) ou perfil de inferência de sistema."
+  }
+}
+
+variable "helpdesk_tickets_enabled" {
+  description = "Lê o segredo app/helpdesk-github-token na inicialização e liga a abertura de chamados no GitHub."
+  type        = bool
+  default     = false
+}
+
+variable "helpdesk_github_repository" {
+  description = "Repositório (dono/nome) das issues de suporte."
+  type        = string
+  default     = "marcoskapp/gestor_cobranca"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$", var.helpdesk_github_repository))
+    error_message = "helpdesk_github_repository deve ser dono/repositório."
+  }
+}
+
+variable "helpdesk_github_require_private_repository" {
+  description = "Trava: só abre chamado se o repositório estiver privado. Desligada até a migração do repositório para privado."
+  type        = bool
+  default     = false
+}
