@@ -85,8 +85,12 @@ class CredentialService {
         auditTrail.record(AuditEntry.of("user.password_changed", "user", user.getId()));
     }
 
-    /** Gera link de ativação ou redefinição, invalida os anteriores e envia por e-mail. */
-    void issueCredentialLink(User user, ActionToken.Purpose purpose, TenantView tenant) {
+    /**
+     * Gera link de ativação ou redefinição, invalida os anteriores e envia por e-mail.
+     *
+     * @return quando o novo link expira
+     */
+    Instant issueCredentialLink(User user, ActionToken.Purpose purpose, TenantView tenant) {
         Instant now = Instant.now(clock);
         credentials.findUsableActionTokens(user.getId(), purpose).forEach(previous -> {
             previous.invalidate();
@@ -103,6 +107,7 @@ class CredentialService {
         }
         auditTrail.record(AuditEntry.of("user.credential_link_issued", "user", user.getId())
                 .meta("purpose", purpose).meta("expiresAt", expiresAt));
+        return expiresAt;
     }
 
     /**

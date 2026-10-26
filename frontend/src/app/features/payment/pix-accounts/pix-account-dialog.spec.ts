@@ -44,9 +44,18 @@ describe('Contas Pix', () => {
   const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
   const submit = (f: ComponentFixture<unknown>) => el(f).querySelector<HTMLButtonElement>('button[type="submit"]')!;
 
-  it('cadastra conta da assessoria com credenciais e certificado em Base64; mTLS exige impressão digital', () => {
+  /** Responde aos modos do webhook e espera o recurso e o efeito do diálogo assentarem. */
+  async function options(fixture: ComponentFixture<unknown>, mtlsAvailable: boolean): Promise<void> {
+    http.expectOne('/api/v1/payment/pix-accounts/webhook-options').flush({ mtlsAvailable, defaultAuth: mtlsAvailable ? 'MTLS' : 'HMAC' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('cadastra conta da assessoria com credenciais e certificado em Base64; mTLS exige impressão digital', async () => {
     const fixture = setup(PixAccountDialog, {} satisfies PixAccountDialogData);
     const c = fixture.componentInstance as PixAccountDialog;
+    await options(fixture, true);
+    expect(c['form'].controls.webhookAuth.value).toBe('MTLS');
     c['form'].patchValue({ name: 'Banco X', pixKey: '11222333000181', apiBaseUrl: 'https://pix.bancox.com.br/api/v2', tokenUrl: 'https://pix.bancox.com.br/oauth/token' });
     c['credentials'].patchValue({ clientId: 'id-1', clientSecret: 'segredo', certificatePassword: 'senha' });
     c['certificate'].set('MIIKBASE64==');
@@ -74,6 +83,43 @@ describe('Contas Pix', () => {
     // segredos não ficam no formulário depois do envio
     expect(c['credentials'].getRawValue()).toEqual({ clientId: '', clientSecret: '', webhookSecret: '', certificatePassword: '' });
     expect(close).toHaveBeenCalled();
+  });
+
+  it('sem mTLS no ambiente, o padrão é HMAC e o mTLS aparece desabilitado com a explicação', async () => {
+    const fixture = setup(PixAccountDialog, {} satisfies PixAccountDialogData);
+    const c = fixture.componentInstance as PixAccountDialog;
+    await options(fixture, false);
+    const mtls = el(fixture).querySelector<HTMLInputElement>('#pa-webhookAuth-mtls')!;
+    expect(c['form'].controls.webhookAuth.value).toBe('HMAC');
+    expect(mtls.disabled).toBe(true);
+    expect(mtls.getAttribute('aria-describedby')).toBe('pa-mtls-unavailable');
+    expect(el(fixture).querySelector('#pa-mtls-unavailable')?.textContent).toContain('balanceador ainda não verifica');
+
+    c['form'].patchValue({ name: 'Banco X', pixKey: '11222333000181', apiBaseUrl: 'https://pix.bancox.com.br/api/v2', tokenUrl: 'https://pix.bancox.com.br/oauth/token' });
+    c['credentials'].patchValue({ clientId: 'id-1', clientSecret: 'segredo', webhookSecret: 's'.repeat(32), certificatePassword: 'senha' });
+    c['certificate'].set('MIIKBASE64==');
+    fixture.detectChanges();
+    submit(fixture).click();
+    const req = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/payment/pix-accounts');
+    expect(req.request.body.webhookAuth).toBe('HMAC');
+    expect(req.request.body.webhookFingerprints).toEqual([]);
+    req.flush(pixAccount({ webhookAuth: 'HMAC', webhookFingerprints: [] }));
+  });
+
+  it('conta mTLS num ambiente sem mTLS: avisa e não salva até trocar para HMAC', async () => {
+    const fixture = setup(PixAccountDialog, { account: pixAccount() } satisfies PixAccountDialogData);
+    const c = fixture.componentInstance as PixAccountDialog;
+    await options(fixture, false);
+    expect(el(fixture).querySelector('.alert-warning')?.textContent).toContain('Troque para HMAC');
+    submit(fixture).click();
+    http.expectNone((r) => r.method === 'PUT');
+
+    c['form'].controls.webhookAuth.setValue('HMAC');
+    fixture.detectChanges();
+    submit(fixture).click();
+    const req = http.expectOne((r) => r.method === 'PUT' && r.url === '/api/v1/payment/pix-accounts/pa-1');
+    expect(req.request.body.webhookAuth).toBe('HMAC');
+    req.flush(pixAccount({ webhookAuth: 'HMAC', webhookFingerprints: [] }));
   });
 
   it('URL sem HTTPS é recusada; edição não envia nem mostra segredos', () => {

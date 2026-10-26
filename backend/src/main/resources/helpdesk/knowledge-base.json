@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "3ed521608e05f154",
+ "contentVersion": "bb8e6c11d54cb433",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -3677,7 +3677,8 @@
    "title": "Contas Pix",
    "objective": "Conexão com o PSP que gera as cobranças Pix e avisa os pagamentos, por credor ou da assessoria.",
    "purpose": [
-    "Uma conta ativa por credor; a da assessoria vale para os demais. Troque as credenciais antes do vencimento do certificado."
+    "Uma conta ativa por credor; a da assessoria vale para os demais. Troque as credenciais antes do vencimento do certificado.",
+    "Os avisos de pagamento do PSP são conferidos pela assinatura HMAC; o mTLS só fica disponível quando o ambiente verifica o certificado do PSP."
    ],
    "profiles": [
     "INTEGRACAO",
@@ -5941,7 +5942,8 @@
    "title": "Assessorias",
    "objective": "Clientes da plataforma, cada um com os dados isolados dos demais.",
    "purpose": [
-    "Tela da equipe da plataforma para criar e acompanhar assessorias. Perfis e usuários de cada assessoria são criados pelo administrador dela."
+    "Tela da equipe da plataforma para criar e acompanhar assessorias. Perfis e usuários de cada assessoria são criados pelo administrador dela.",
+    "Se o administrador inicial perdeu o convite ou o link expirou (72 h), use Reenviar convite: um novo link substitui o anterior. Depois que a assessoria tem um administrador ativo, os reenvios são feitos por ela."
    ],
    "profiles": [
     "PLATAFORMA"

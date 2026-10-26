@@ -54,13 +54,13 @@ locals {
   # (us./eu./global....): o ARN do perfil na região chamada + o modelo base em cada região de destino, este
   # só por meio do perfil (condição bedrock:InferenceProfileArn). Modelo base sem prefixo: só na região.
   bedrock_profile_pattern = "^(us|eu|apac|au|jp|ca|global)\\."
-  bedrock_enabled = var.assistant_bedrock_enabled || var.helpdesk_bedrock_enabled
+  bedrock_enabled         = var.assistant_bedrock_enabled || var.helpdesk_bedrock_enabled
   bedrock_model_ids = distinct(concat(
     var.assistant_bedrock_enabled ? [var.bedrock_standard_model_id, var.bedrock_advanced_model_id] : [],
     var.helpdesk_bedrock_enabled ? [var.helpdesk_bedrock_model_id] : [],
   ))
-  bedrock_profile_ids     = [for id in local.bedrock_model_ids : id if can(regex(local.bedrock_profile_pattern, id))]
-  bedrock_base_ids        = [for id in local.bedrock_model_ids : id if !can(regex(local.bedrock_profile_pattern, id))]
+  bedrock_profile_ids = [for id in local.bedrock_model_ids : id if can(regex(local.bedrock_profile_pattern, id))]
+  bedrock_base_ids    = [for id in local.bedrock_model_ids : id if !can(regex(local.bedrock_profile_pattern, id))]
   bedrock_profile_arns = [
     for id in local.bedrock_profile_ids : "arn:${var.partition}:bedrock:${var.bedrock_region}:${var.account_id}:inference-profile/${id}"
   ]

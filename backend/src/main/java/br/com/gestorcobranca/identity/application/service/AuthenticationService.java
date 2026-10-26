@@ -319,16 +319,29 @@ class AuthenticationService implements AuthenticationUseCases {
                     Map.of("result", "ignored_unknown_tenant")));
             return;
         }
-        UUID userId = tenantExecution.callInTenant(tenant.get().id(), "identity.password_reset", () ->
+        // Ativo: link de redefinição. Pendente de ativação (convite perdido ou expirado): novo link de
+        // ativação, que invalida o anterior (decisão 524). Desativado ou inexistente: nada. A resposta é
+        // a mesma em todos os casos (sem enumeração) e o envio ocorre depois do commit, em segundo plano.
+        IssuedLink issued = tenantExecution.callInTenant(tenant.get().id(), "identity.password_reset", () ->
                 users.findByEmail(normalizeEmailSafely(email))
-                        .filter(user -> user.getStatus() == UserStatus.ACTIVE)
-                        .map(user -> {
-                            credentialService.issueCredentialLink(user, ActionToken.Purpose.PASSWORD_RESET, tenant.get());
-                            return user.getId();
+                        .map(user -> switch (user.getStatus()) {
+                            case ACTIVE -> issue(user, ActionToken.Purpose.PASSWORD_RESET, tenant.get());
+                            case PENDING_ACTIVATION -> issue(user, ActionToken.Purpose.ACTIVATION, tenant.get());
+                            case DISABLED -> null;
                         })
                         .orElse(null));
-        accessLogger.log(AccessEvent.forUser(AccessEventType.PASSWORD_RESET_REQUESTED, tenant.get().id(), userId, null,
-                masked, Map.of("result", userId == null ? "ignored_unknown_user" : "sent")));
+        accessLogger.log(AccessEvent.forUser(AccessEventType.PASSWORD_RESET_REQUESTED, tenant.get().id(),
+                issued == null ? null : issued.userId(), null, masked, issued == null
+                        ? Map.of("result", "ignored_unknown_user")
+                        : Map.of("result", "sent", "purpose", issued.purpose().name())));
+    }
+
+    private IssuedLink issue(User user, ActionToken.Purpose purpose, TenantView tenant) {
+        credentialService.issueCredentialLink(user, purpose, tenant);
+        return new IssuedLink(user.getId(), purpose);
+    }
+
+    private record IssuedLink(UUID userId, ActionToken.Purpose purpose) {
     }
 
     @Override

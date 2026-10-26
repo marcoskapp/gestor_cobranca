@@ -8,7 +8,6 @@ Roteiro para colocar o Gestor de Cobrança no ar numa conta AWS, do zero até o 
 - **Conferir:** o que precisa estar verdadeiro antes de seguir. **Se der errado:** causa provável e correção.
 - **[requer aprovação]**: serviço desligado por padrão que só é ligado depois da aprovação registrada no PR (tabela no [README do Terraform](../../../infra/terraform/README.md#serviços-que-requerem-aprovação)).
 - **[pendente de decisão — nº]**: depende de uma decisão ainda aberta em [`decisoes-autonomas.md`](../../negocio/decisoes-autonomas.md).
-- **[pendente de correção]**: o repositório ainda não oferece o meio adequado. O passo fica bloqueado até a correção, sem contorno manual.
 - Nenhum segredo é digitado em arquivo, argumento de comando ou chat. Os valores vão direto ao cofre pelo `scripts/ops/provision-secrets.sh` (§3).
 
 **Ordem geral.** Faça tudo em **homologação** primeiro. Produção só depois do checklist de go-live (§10) aprovado em homologação.
@@ -174,11 +173,13 @@ cp terraform.tfvars.example terraform.tfvars
 ```
 
 - `backend.hcl`: troque `<ID_DA_CONTA>`. A chave já vem por ambiente (`homologacao/terraform.tfstate` ou `producao/terraform.tfstate`).
-- `terraform.tfvars`: `domain_name`, `certificate_arn` (ou `enable_acm_certificate`), `secrets_admin_principal_arns` com o ARN do §1.2, `smtp_host` e `smtp_port`, e as variáveis aprovadas do §1.7.
+- `terraform.tfvars`: `domain_name`, `certificate_arn` (ou `enable_acm_certificate`), `secrets_admin_principal_arns` com o ARN do §1.2, `smtp_host` e `smtp_port`, o primeiro administrador da plataforma (`platform_admin_email`, `platform_cnpj` e, opcional, `platform_admin_name`; §6.2), os hosts dos PSPs (`payment_pix_allowed_hosts`; §7.3) e as variáveis aprovadas do §1.7.
 - **Primeira aplicação:** `enable_compute = false`. Em **produção**, o exemplo vem com `enable_compute = true`: mude para `false` nesta etapa.
-- Nunca coloque segredos no `tfvars`. Os dois arquivos ficam fora do Git: o `.gitignore` cobre `*.tfvars`, mas **não** cobre `backend.hcl`. Não faça `git add` dele (ver §12).
+- Nunca coloque segredos no `tfvars`. Os dois arquivos ficam fora do Git: `*.tfvars` pelo `.gitignore` da raiz e `backend.hcl` pelo `infra/terraform/.gitignore` (decisão 525). Confira com `git check-ignore -v infra/terraform/envs/<env>/backend.hcl infra/terraform/envs/<env>/terraform.tfvars`.
 
-As regras de guarda do `main.tf` recusam o plano quando faltar algo: sem `certificate_arn` nem ACM; `enable_route53` sem `route53_zone_id`; sem SSM e sem `secrets_admin_principal_arns`; Bedrock sem a aprovação da transferência; `crypto_active_key_id` fora de `crypto_key_ids`; `db_pool_size × asg_max_size × 2` acima de 200 (limite de conexões de `app_runtime_login`) ou acima de `db_max_connections − 20`.
+As regras de guarda do `main.tf` recusam o plano quando faltar algo: sem `certificate_arn` nem ACM; `enable_route53` sem `route53_zone_id`; sem SSM e sem `secrets_admin_principal_arns`; Bedrock sem a aprovação da transferência; `crypto_active_key_id` fora de `crypto_key_ids`; `db_pool_size × asg_max_size × 2` acima de 200 (limite de conexões de `app_runtime_login`) ou acima de `db_max_connections − 20`; `platform_admin_email` sem `platform_cnpj` (ou o contrário); `payment_webhook_mtls_enabled = true` (o ALB ainda não verifica certificados de cliente, decisão 316). E-mail, nome e CNPJ do administrador e os hosts de PSP também são validados no formato.
+
+O plano também mostra **avisos** (blocos `check`, que não bloqueiam): computação sem `platform_admin_email`/`platform_cnpj` (ignore se o administrador da plataforma já existe no ambiente) e produção sem `payment_pix_allowed_hosts`.
 
 ### 2.2 Validar antes de aplicar
 
@@ -191,6 +192,18 @@ diff -r infra/terraform/envs/homologacao infra/terraform/envs/producao   # só .
 ```
 
 **Conferir:** `validate` sem erros e `test` com todos os `run` em `pass`.
+
+**Trava do provider (primeira vez e a cada atualização do provider; decisão 527).** O repositório ainda não traz o `.terraform.lock.hcl` dos ambientes: gere-o com acesso ao registro e versione-o no mesmo PR.
+
+```bash
+for e in homologacao producao; do
+  terraform -chdir=infra/terraform/envs/$e providers lock \
+    -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_amd64 -platform=darwin_arm64
+done
+git add infra/terraform/envs/*/.terraform.lock.hcl
+```
+
+Depois disso, `init` usa as versões e hashes travados; `terraform init -lockfile=readonly` recusa divergências. Use sempre a mesma ferramenta (Terraform ou OpenTofu): o lock de cada uma registra um endereço de registro diferente.
 
 ### 2.3 Aplicar a base (sem computação)
 
@@ -328,6 +341,11 @@ enable_compute           = true
 bootstrap_mode           = true   # health check do ASG pelo EC2 enquanto não há schema
 db_admin_access          = true   # instância lê a senha mestre do RDS (só para o §4.3)
 initial_artifact_version = "0.1.0"
+
+# primeiro administrador da plataforma (§6.2, decisão 520)
+platform_admin_email = "plataforma@<domínio da empresa>"   # caixa funcional, de preferência
+platform_admin_name  = "Operação da Plataforma"
+platform_cnpj        = "<CNPJ da empresa que opera a plataforma>"
 ```
 
 ```bash
@@ -482,20 +500,30 @@ As migrations **não** são revertidas: elas são sempre compatíveis com a vers
 
 **Conferir:** `dig +short <domínio>` resolve para os IPs do ALB; `curl -sI https://<domínio>/` devolve 200 com o certificado do domínio (`curl -vI` mostra o `subject` certo); `http://` redireciona para `https://`.
 
-### 6.2 Tenant e administrador da plataforma **[pendente de correção]**
+### 6.2 Tenant e administrador da plataforma
 
-A aplicação cria na inicialização, de forma idempotente, o **tenant da plataforma** (slug `plataforma`), o perfil `PLATFORM_ADMIN` e o **administrador inicial**, que recebe um link de ativação por e-mail (`PlatformBootstrap`). Isso só acontece com as propriedades `app.bootstrap.platform-admin-email` (obrigatória), `app.bootstrap.platform-cnpj` (obrigatória) e `app.bootstrap.platform-admin-name` (opcional).
+A aplicação cria na inicialização o **tenant da plataforma** (slug `plataforma`), o perfil `PLATFORM_ADMIN` e o **primeiro administrador**, que recebe um link de ativação por e-mail (`PlatformBootstrap`, decisão 520). Os valores vêm do `tfvars` (§4.2): `platform_admin_email` e `platform_cnpj` (obrigatórios juntos) e `platform_admin_name` (opcional), entregues às instâncias como `APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL`, `APP_BOOTSTRAP_PLATFORM_CNPJ` e `APP_BOOTSTRAP_PLATFORM_ADMIN_NAME`.
 
-**Bloqueio:** nem o Terraform nem o user-data entregam essas propriedades às instâncias. O `app.env` é gerado só a partir do `instance.conf`, e `java_opts_extra` existe no módulo `compute`, mas não é exposto pelos ambientes. Não há, portanto, meio adequado de criar o primeiro administrador na AWS. Editar o `app.env` à mão numa instância seria um contorno: some no próximo refresh, não fica registrado no Terraform e não deve ser feito.
+- **Uma única vez.** Existindo qualquer usuário com o perfil `PLATFORM_ADMIN`, nada é recriado nem sobrescrito: trocar o e-mail, o nome ou o CNPJ no `tfvars` não cria outro administrador nem altera o existente. Outros administradores da plataforma são criados por ele, em **Administração → Usuários**, com auditoria.
+- **Dado pessoal.** O e-mail é marcado `sensitive` (não aparece no plano nem nas saídas), mas fica no user-data do launch template e, portanto, no state, que está no bucket cifrado e de acesso restrito do §1.8. Use uma caixa funcional da operação. Depois de criado o administrador, as três variáveis podem sair do `tfvars` (o próximo `apply` só gera uma nova versão do launch template).
+- O link usa `APP_BASE_URL`: aponte o DNS (§6.1) em até 72 h depois da primeira subida completa (§4.4), ou renove o link pelo "Esqueci minha senha" (passo 4).
 
-**Correção necessária** (fora do escopo deste guia, decisão 470): variáveis de ambiente no Terraform (por exemplo, `platform_admin_email`, `platform_admin_name` e `platform_cnpj`), levadas ao `instance.conf` e ao `app.env` como `APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL`, `APP_BOOTSTRAP_PLATFORM_ADMIN_NAME` e `APP_BOOTSTRAP_PLATFORM_CNPJ`. O e-mail não é segredo, mas é dado pessoal: deve ficar no `tfvars` (não versionado) e nunca em log.
+**Procedimento:**
 
-**Quando a correção estiver na master, o procedimento será:**
+1. Com as variáveis no `tfvars` desde o §4.2, a criação acontece na primeira subida em que a aplicação fica pronta (logo depois do §4.4).
+2. **Conferir** no log técnico: `Tenant da plataforma criado (slug 'plataforma')` e `Administrador da plataforma <id> criado; link de ativação enviado por e-mail`. Nas subidas seguintes aparece, no máximo, `Bootstrap da plataforma: já existe administrador da plataforma; o e-mail configurado não é usado`.
+   ```bash
+   aws logs filter-log-events --log-group-name /gestor-cobranca/<env>/technical \
+     --filter-pattern '"Administrador da plataforma"' --query 'events[].message' --output text
+   ```
+3. O administrador abre o link (válido por **72 h**, uso único, token no fragmento `#token=`), define a senha (12+ caracteres, 3 classes) e entra em `https://<domínio>/` com a **assessoria `plataforma`**, o e-mail e a senha.
+4. **Link perdido ou expirado:** na tela de login, **Esqueci minha senha** com a assessoria `plataforma` e o e-mail. Enquanto a conta não estiver ativada, chega um **novo link de ativação** (72 h), e o anterior deixa de valer (decisão 524). A tela responde igual para qualquer e-mail.
+5. **MFA obrigatório** (decisão 521): no primeiro login, a própria tela pede o cadastro do autenticador TOTP (QR code ou chave, e o código de 6 dígitos) antes de liberar o acesso. Sem o autenticador, não há acesso.
 
-1. Preencher as três variáveis no `tfvars` e rodar `terraform apply` (nova versão do launch template e refresh).
-2. **Conferir** no log técnico: `Tenant da plataforma criado (slug 'plataforma')` e `Administrador da plataforma <id> criado; link de ativação enviado por e-mail`. Nas subidas seguintes nada é recriado.
-3. O administrador abre o link (válido por **72 h**, uso único, token no fragmento `#token=`; ver §6.3, "Se der errado"), define a senha (12+ caracteres, 3 classes) e entra em `https://<domínio>/` com a **assessoria `plataforma`**, o e-mail e a senha.
-4. **MFA:** o perfil `PLATFORM_ADMIN` **não** está na lista de MFA obrigatório (`app.security.mfa.required-for-roles`). O administrador da plataforma deve cadastrar o MFA **imediatamente**, em *Conta → MFA* (`/conta/mfa`), com um aplicativo TOTP. **[pendente de decisão — 471]** incluir `PLATFORM_ADMIN` na lista obrigatória.
+**Se der errado:**
+- A aplicação não sobe e o log técnico cita `app.bootstrap.platform-cnpj é obrigatório` ou `platform-admin-email está vazio`: configuração incompleta; o Terraform já recusa esse caso, então confira se o `apply` foi feito com o `tfvars` certo.
+- `GC_PLATFORM_ADMIN_EMAIL sem GC_PLATFORM_CNPJ` no `bootstrap.log`: mesmo caso, detectado pelo user-data.
+- Nenhuma mensagem de criação e nenhum usuário: as variáveis estavam vazias na subida (o plano avisou pelo bloco `check`). Preencha e rode `terraform apply`; o refresh recria as instâncias e o bootstrap roda.
 
 ### 6.3 Primeira assessoria e seu administrador
 
@@ -513,7 +541,10 @@ Com o administrador da plataforma autenticado:
 
 **Se der errado:**
 - O e-mail de ativação não chega: verifique o SMTP (§7.1).
-- O link expirou: outro administrador **da mesma assessoria** reenvia em **Administração → Usuários** (`POST /api/v1/users/{id}/credential-link`). O "Esqueci minha senha" só atende usuários já ativos. Para o **único** administrador de uma assessoria recém-criada, ou para o administrador da plataforma, não há hoje quem reenvie o link. Por isso, **ative em até 72 h**. **[pendente de decisão — 475]**
+- O link expirou ou se perdeu:
+  - **Administrador inicial da assessoria** (ainda sem administrador ativo nela): o administrador da plataforma usa **Reenviar convite** em **Plataforma → Assessorias** (`POST /api/v1/platform/tenants/{id}/admin-invitation`, motivo obrigatório). Sai um link novo de 72 h, o anterior deixa de valer e a tela mostra o e-mail de destino mascarado e a validade. A ação fica na trilha de auditoria da plataforma e na da assessoria (decisão 523). Depois que a assessoria tem um administrador ativo, o botão é recusado: os reenvios passam a ser dela.
+  - **Qualquer usuário pendente de ativação:** o próprio usuário usa **Esqueci minha senha** com o slug da assessoria e recebe um novo link de ativação (decisão 524).
+  - **Usuários da assessoria:** um administrador da mesma assessoria reenvia em **Administração → Usuários** (`POST /api/v1/users/{id}/credential-link`).
 
 ---
 
@@ -550,13 +581,13 @@ O que o sistema suporta: adaptador genérico da API Pix do Bacen (`BacenPixProvi
 
 1. **Contrato com o PSP:** credenciais OAuth2, certificado de cliente PKCS#12 e senha, URLs da API e do token, chave Pix da conta (chave CPF é recusada).
 2. **IPs de saída:** se o PSP exigir lista de IPs, informe `terraform output nat_public_ips`. Na fase 1 há um único NAT; com `nat_gateway_mode = "per_az"` são dois IPs.
-3. **Lista de hosts permitidos (decisão 313) [pendente de correção]:** a aplicação aceita `PAYMENT_PIX_ALLOWED_HOSTS` (`app.payment.pix.allowed-hosts`), mas o Terraform e o user-data não a entregam às instâncias. Até a correção, a lista fica **vazia** (qualquer host público). Continuam valendo: só HTTPS, IP ou nome interno recusado no cadastro, DNS conferido a cada chamada (todos os endereços precisam ser públicos) e troca de URL desativando a conta até **outra pessoa** reativá-la (decisão 314). A decisão 313 está marcada **[revisar]**.
-4. **Autenticação do webhook:** o listener do ALB **não** tem *mutual TLS* em modo `verify` (o trust store do PSP não está no Terraform) e `PAYMENT_WEBHOOK_MTLS_ENABLED` não é entregue às instâncias, então `mtls-enabled` fica `false`. **Use HMAC** (`X-Pix-Signature`). A tela sugere `MTLS` como padrão: troque para HMAC no cadastro, senão a conta é recusada. **[pendente de decisão — 316]** mTLS do webhook.
-5. No sistema: **Pagamentos → Contas Pix** → nova conta com URLs, chave, credenciais, certificado e o segredo HMAC → **Registrar webhook** (registra no PSP `APP_BASE_URL/api/v1/webhooks/pix/<routingKey>`).
+3. **Lista de hosts permitidos (decisões 313 e 522):** no `tfvars`, `payment_pix_allowed_hosts` com os hosts das APIs (e do token) dos PSPs contratados, por exemplo `["api-pix.psp.com.br", "*.psp.com.br"]`, e `terraform apply` (nova versão do launch template e refresh; vai ao `app.env` como `PAYMENT_PIX_ALLOWED_HOSTS`). Vazia, a lista aceita qualquer host público; em produção, o plano avisa. Valem sempre: só HTTPS, IP ou nome interno recusado no cadastro, DNS conferido a cada chamada (todos os endereços precisam ser públicos) e troca de URL desativando a conta até **outra pessoa** reativá-la (decisão 314). A decisão 313 segue **[revisar]** até a escolha dos PSPs.
+4. **Autenticação do webhook: HMAC** (`X-Pix-Signature`). O listener do ALB **não** tem *mutual TLS* em modo `verify` (o trust store do PSP não está no Terraform, decisão 316), por isso `payment_webhook_mtls_enabled` só aceita `false` (o plano recusa `true`) e vai ao `app.env` como `PAYMENT_WEBHOOK_MTLS_ENABLED=false`. A tela de contas Pix já abre em **HMAC** e mostra o mTLS desabilitado, com a explicação (decisão 522). Uma conta mTLS antiga recebe aviso e só é salva depois de passar para HMAC.
+5. No sistema: **Pagamentos → Contas Pix** → nova conta com URLs, chave, credenciais, certificado e o segredo HMAC (32+ caracteres, o mesmo configurado no PSP) → **Registrar webhook** (registra no PSP `APP_BASE_URL/api/v1/webhooks/pix/<routingKey>`).
 
 **Conferir:** a conta aparece ativa com a impressão digital e a validade do certificado; uma cobrança de teste de R$ 0,01 é registrada (`ACTIVE`, com Pix copia e cola) e, depois de paga, o pagamento é confirmado.
 
-**Se der errado:** `401` no token → credenciais ou certificado; recusa por host → URL com IP ou nome interno; webhook com `401` → segredo HMAC diferente do configurado no PSP.
+**Se der errado:** `401` no token → credenciais ou certificado; recusa por host → URL com IP ou nome interno, ou host fora de `payment_pix_allowed_hosts`; webhook com `401` → segredo HMAC diferente do configurado no PSP.
 
 ### 7.4 Amazon Bedrock (assistente de IA)
 
@@ -794,14 +825,14 @@ Com `business_hours_schedule`, o ASG de homologação fica zerado fora do horár
 | 3 | Nenhum usuário IAM com chave de acesso de longa duração para operação | `aws iam list-users` e `aws iam list-access-keys --user-name <u>` |
 | 4 | Menor privilégio no papel das instâncias: só `app/*` dos segredos, `tenants/*` no bucket da aplicação, leitura dos artefatos, logs e métricas nos namespaces próprios e, com o assistente, só `bedrock:InvokeModel` nos perfis | `aws iam list-role-policies` e `get-role-policy` no papel `gestor-cobranca-<env>-app-instance`; sem `migration-window` fora de uma migração |
 | 5 | `db_admin_access = false` fora das operações de banco | `tfvars` e `terraform plan` sem mudanças |
-| 6 | MFA obrigatório para os perfis da lista e cadastrado pelo administrador da plataforma (§6.2) | login de teste com cada perfil |
+| 6 | MFA obrigatório para os 10 perfis da lista, inclusive `PLATFORM_ADMIN` (§6.2, decisão 521) | login de teste com cada perfil pede o autenticador |
 | 7 | **WAF** ligado em produção, limite de taxa agregado pelo IP da conexão (`aggregate_key_type = "IP"`, decisão 303) **[requer aprovação]** | §2.4 |
 | 8 | **Proxies confiáveis** (decisões 300–302): `APP_HTTP_TRUSTED_PROXIES` = sub-redes públicas do ALB; `Forwarded`, `X-Forwarded-Host` e `X-Real-IP` ignorados; IP inválido grava o evento sem IP (`clientIpInvalid=true`) | o user-data recusa subir sem os CIDRs; no log de acesso, o `clientIp` de um login de teste é o IP público real, não o do ALB |
 | 9 | `/actuator/**` bloqueado na borda | `curl https://<domínio>/actuator/health` → 404 |
 | 10 | TLS: listener com `ELBSecurityPolicy-TLS13-1-2-Res-2021-06`, 80→443; RDS com `rds.force_ssl` e `sslmode=verify-full` | `aws elbv2 describe-listeners`; parameter group |
 | 11 | Simuladores desligados em produção | a aplicação recusa subir com qualquer `sandbox` no `prod` |
 | 12 | Bedrock: *Model invocation logging* desligado; transferência internacional aprovada | §7.4 |
-| 13 | Pix: webhook em HMAC enquanto o mTLS não existir; lista de hosts quando houver meio de configurar | §7.3 |
+| 13 | Pix: webhook em HMAC enquanto o mTLS não existir; `payment_pix_allowed_hosts` com os PSPs contratados em produção | §7.3; `grep PAYMENT_ /etc/gestor-cobranca/app.env` numa sessão do Session Manager |
 | 14 | **Revisão de acesso trimestral:** cada administrador revisa, com o perfil `AUDITOR` ou `COMPLIANCE`, os usuários ativos, os perfis e o escopo de credores; remove quem saiu; confere o log de acesso (`ACCESS_DENIED`, `SENSITIVE_DATA_VIEWED`, `DATA_EXPORTED`) e roda a verificação de integridade da auditoria (`POST /api/v1/governance/audit/integrity-check`). Na conta AWS, revise as atribuições do Identity Center | registro da revisão |
 | 15 | Trilha da conta AWS: o *CloudTrail Event history* guarda 90 dias de eventos de gerenciamento; uma trilha persistente e o GuardDuty **não** estão no Terraform **[requer aprovação]** | *CloudTrail → Event history* |
 | 16 | Teste de intrusão antes da entrada em produção (`seguranca.md` §8) **[requer aprovação]** | relatório |
@@ -813,7 +844,7 @@ Com `business_hours_schedule`, o ASG de homologação fica zerado fora do horár
 Marque cada item em **homologação** e depois em **produção**.
 
 **Infraestrutura**
-- [ ] `terraform plan` sem mudanças pendentes; `test` verde (§2.2).
+- [ ] `terraform plan` sem mudanças pendentes; `test` verde; `.terraform.lock.hcl` versionado (§2.2).
 - [ ] Produção: `alb_deletion_protection = true`, `db_deletion_protection = true`, `db_backup_retention_days = 14`.
 - [ ] Decisão sobre a fase 2 (Multi-AZ, ASG mínimo 2, NAT por AZ, WAF) registrada.
 - [ ] SNS aprovado e assinaturas confirmadas, ou plantão definido para olhar o console.
@@ -826,13 +857,13 @@ Marque cada item em **homologação** e depois em **produção**.
 
 **Aplicação e acesso**
 - [ ] Domínio com TLS válido; `http` redireciona; `/actuator` responde 404.
-- [ ] Administrador da plataforma ativo, **com MFA** (§6.2; depende da correção de 470).
+- [ ] Administrador da plataforma ativo, **com MFA** (§6.2); `platform_admin_*` removidas do `tfvars`, se a empresa preferir não manter o e-mail no state.
 - [ ] Primeira assessoria provisionada; administrador com MFA; perfis padrão presentes.
 - [ ] E-mail de ativação e de redefinição chegando.
 
 **Integrações**
 - [ ] WhatsApp: webhook validado, mensagem de ida e volta.
-- [ ] Pix: conta ativa em HMAC; cobrança de teste paga e confirmada.
+- [ ] Pix: `payment_pix_allowed_hosts` preenchida (produção); conta ativa em HMAC; cobrança de teste paga e confirmada.
 - [ ] Bedrock (se ligado): aprovação 371 registrada, roteiro do §6.7 do desenho concluído, orçamento criado.
 - [ ] Chat de suporte (se ligado): testes de aceitação do §7.5 concluídos; token com data de rotação anotada; decisão sobre a trava de repositório privado registrada.
 
@@ -865,16 +896,14 @@ Marque cada item em **homologação** e depois em **produção**.
 
 | Pendência | Referência | Efeito na ativação |
 | --- | --- | --- |
-| Primeiro administrador da plataforma sem meio de configuração na AWS | decisão 470; §6.2 | **bloqueia** o primeiro acesso até a correção no Terraform e no user-data |
-| `PLATFORM_ADMIN` fora da lista de MFA obrigatório | decisão 471; §6.2 | cadastro manual do MFA, logo após a ativação |
 | Custódia das chaves de criptografia fora da conta | decisão 472; §3.6 | risco de perda de dados em caso de perda da conta |
 | Substituição do RDS por instância restaurada | decisão 473; §8.4 | recuperação de desastre limitada |
 | Pipeline de CI/CD e papel dedicado | decisão 474; §1.3, §8.3 | scripts e rotinas mensais executados pelo operador |
-| Reenvio do link de ativação do único administrador | decisão 475; §6.3 | ativar em até 72 h; sem reenvio possível depois |
-| Lista de hosts do PSP sem meio de configuração | decisão 313 [revisar]; §7.3 | lista vazia (qualquer host público) |
-| mTLS do webhook Pix | decisão 316; §7.3 | só HMAC |
+| Hosts dos PSPs a definir | decisão 313 [revisar]; §7.3 | preencher `payment_pix_allowed_hosts` quando os PSPs forem contratados |
+| mTLS do webhook Pix | decisão 316; §7.3 | só HMAC (o plano recusa `payment_webhook_mtls_enabled = true`) |
+| `.terraform.lock.hcl` ainda não versionado | decisão 527 [revisar]; §2.2 | gerar e versionar na primeira preparação, com acesso ao registro |
 | Transferência internacional do Bedrock | decisão 371 [revisar]; §7.4 | o assistente não liga sem ela |
 | Segredo de migração (mecanismo) | decisão 311 [revisar]; §3.5 | implementado; revisão pendente |
 | Repositório dos chamados do chat público | decisão 481; §7.5 | trava `helpdesk_github_require_private_repository` desligada até a migração para privado |
 | SMS, boleto, telefonia | issue #12; §7.6 | sem provedor |
-| `backend.hcl` fora do `.gitignore` | §2.1 | cuidado manual para não versionar o ID da conta |
+| CloudTrail persistente, GuardDuty, chaves KMS do cliente, CI/CD | requerem aprovação; §1.7, §9 (15), decisão 474 | fora do Terraform até a aprovação |

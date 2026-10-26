@@ -75,6 +75,16 @@ resource "terraform_data" "guards" {
       error_message = "crypto_active_key_id deve constar de crypto_key_ids."
     }
 
+    precondition {
+      condition     = (var.platform_admin_email == null) == (var.platform_cnpj == null)
+      error_message = "platform_admin_email e platform_cnpj vão juntos: o PlatformBootstrap exige os dois para criar o primeiro administrador da plataforma."
+    }
+
+    precondition {
+      condition     = !var.payment_webhook_mtls_enabled
+      error_message = "payment_webhook_mtls_enabled = true exige o listener do ALB com mutual TLS em modo verify e o trust store do PSP, que ainda não estão no Terraform (decisão 316). Use HMAC no webhook."
+    }
+
     # scripts/db/bootstrap-roles.sql limita app_runtime_login a 200 conexões.
     precondition {
       condition     = var.db_pool_size * var.asg_max_size * 2 <= 200
@@ -245,6 +255,12 @@ module "compute" {
   jobs_concurrency       = var.jobs_concurrency
   jvm_max_ram_percentage = var.jvm_max_ram_percentage
 
+  platform_admin_email         = var.platform_admin_email
+  platform_admin_name          = var.platform_admin_name
+  platform_cnpj                = var.platform_cnpj
+  payment_pix_allowed_hosts    = var.payment_pix_allowed_hosts
+  payment_webhook_mtls_enabled = var.payment_webhook_mtls_enabled
+
   assistant_bedrock_enabled               = var.assistant_bedrock_enabled
   bedrock_region                          = var.bedrock_region
   bedrock_standard_model_id               = var.bedrock_standard_model_id
@@ -266,4 +282,20 @@ module "compute" {
   secrets_bucket_arn   = module.storage.secrets_bucket_arn
 
   depends_on = [terraform_data.guards]
+}
+
+# Avisos no plano (não bloqueiam): ambiente novo sem o primeiro administrador da plataforma e
+# produção aceitando qualquer host de PSP.
+check "primeiro_administrador_da_plataforma" {
+  assert {
+    condition     = !var.enable_compute || var.platform_cnpj != null
+    error_message = "Sem platform_admin_email e platform_cnpj o PlatformBootstrap não cria o primeiro administrador da plataforma. Ignore se ele já existe neste ambiente (docs/tecnico/operacao/ativacao-aws.md §6.2)."
+  }
+}
+
+check "hosts_de_psp_em_producao" {
+  assert {
+    condition     = var.environment != "producao" || length(var.payment_pix_allowed_hosts) > 0
+    error_message = "Produção sem payment_pix_allowed_hosts: as contas Pix aceitam qualquer host público. Preencha com os PSPs contratados (decisão 313)."
+  }
 }

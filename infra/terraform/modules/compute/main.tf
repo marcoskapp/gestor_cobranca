@@ -39,7 +39,9 @@ locals {
   bootstrap_version = substr(sha256(join(",", [for name in sort(keys(local.bootstrap_hashes)) : "${name}=${local.bootstrap_hashes[name]}"])), 0, 16)
   bootstrap_prefix  = "${local.bootstrap_root}/${local.bootstrap_version}"
 
-  instance_conf = {
+  # Configuração não sensível entregue às instâncias. O e-mail do administrador da plataforma
+  # (dado pessoal) entra à parte, para que esta parte continue legível no plano e nas saídas.
+  instance_conf_public = {
     GC_ENVIRONMENT               = var.environment
     GC_REGION                    = var.region
     GC_ARTIFACTS_BUCKET          = var.artifacts_bucket_name
@@ -76,12 +78,22 @@ locals {
     GC_BEDROCK_ADVANCED_MODEL_ID               = var.bedrock_advanced_model_id
     GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED = tostring(var.bedrock_international_transfer_approved)
     # chat de suporte (módulo helpdesk): mesmo endpoint e mesma aprovação de transferência do assistente
-    GC_HELPDESK_BEDROCK_ENABLED          = tostring(var.helpdesk_bedrock_enabled)
-    GC_HELPDESK_BEDROCK_MODEL_ID         = var.helpdesk_bedrock_model_id
-    GC_HELPDESK_TICKETS_ENABLED          = tostring(var.helpdesk_tickets_enabled)
-    GC_HELPDESK_GITHUB_REPOSITORY        = var.helpdesk_github_repository
-    GC_HELPDESK_GITHUB_REQUIRE_PRIVATE   = tostring(var.helpdesk_github_require_private_repository)
+    GC_HELPDESK_BEDROCK_ENABLED        = tostring(var.helpdesk_bedrock_enabled)
+    GC_HELPDESK_BEDROCK_MODEL_ID       = var.helpdesk_bedrock_model_id
+    GC_HELPDESK_TICKETS_ENABLED        = tostring(var.helpdesk_tickets_enabled)
+    GC_HELPDESK_GITHUB_REPOSITORY      = var.helpdesk_github_repository
+    GC_HELPDESK_GITHUB_REQUIRE_PRIVATE = tostring(var.helpdesk_github_require_private_repository)
+    # primeiro administrador da plataforma (decisão 520); vazios = bootstrap desligado
+    GC_PLATFORM_ADMIN_NAME = var.platform_admin_name == null ? "" : var.platform_admin_name
+    GC_PLATFORM_CNPJ       = var.platform_cnpj == null ? "" : var.platform_cnpj
+    # Pix (decisões 313 e 316)
+    GC_PAYMENT_PIX_ALLOWED_HOSTS    = join(",", var.payment_pix_allowed_hosts)
+    GC_PAYMENT_WEBHOOK_MTLS_ENABLED = tostring(var.payment_webhook_mtls_enabled)
   }
+
+  instance_conf = merge(local.instance_conf_public, {
+    GC_PLATFORM_ADMIN_EMAIL = var.platform_admin_email == null ? "" : var.platform_admin_email
+  })
 
   user_data = templatefile("${path.module}/templates/launcher.sh.tftpl", {
     region        = var.region

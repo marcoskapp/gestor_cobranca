@@ -1,5 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -82,11 +82,30 @@ const HTTPS = /^https:\/\/[^\s/?#@]+(\/[^\s?#]*)?$/i;
 
         <h3 class="app-section-title">Webhook</h3>
         <div class="d-flex flex-wrap gap-2 mb-2" role="group" aria-label="Autenticação do webhook">
-          <input type="radio" class="btn-check" formControlName="webhookAuth" value="MTLS" id="pa-webhookAuth-mtls" />
-          <label class="btn btn-outline-primary" for="pa-webhookAuth-mtls">mTLS (padrão do Pix)</label>
           <input type="radio" class="btn-check" formControlName="webhookAuth" value="HMAC" id="pa-webhookAuth-hmac" />
           <label class="btn btn-outline-primary" for="pa-webhookAuth-hmac">Assinatura HMAC</label>
+          <input
+            type="radio"
+            class="btn-check"
+            formControlName="webhookAuth"
+            value="MTLS"
+            id="pa-webhookAuth-mtls"
+            [attr.disabled]="mtlsAvailable() ? null : ''"
+            [attr.aria-describedby]="mtlsAvailable() ? null : 'pa-mtls-unavailable'"
+          />
+          <label class="btn btn-outline-primary" for="pa-webhookAuth-mtls">mTLS</label>
         </div>
+        @if (!mtlsAvailable()) {
+          <p class="app-muted pa-small" id="pa-mtls-unavailable">
+            mTLS indisponível neste ambiente: o balanceador ainda não verifica o certificado do PSP, então só a assinatura HMAC autentica as notificações.
+          </p>
+        }
+        @if (mtlsBlocked()) {
+          <div class="alert alert-warning d-flex gap-2 align-items-start" role="alert">
+            <app-icon name="exclamation-triangle" />
+            <span>Esta conta usa mTLS, que não está disponível neste ambiente. Troque para HMAC; se ainda não houver segredo HMAC, informe-o antes pela rotação de credenciais.</span>
+          </div>
+        }
         @if (auth() === 'MTLS') {
           <app-field class="mb-3" label="Impressões digitais SHA-256 do certificado do PSP" hint='Uma por linha (64 hexadecimais; ":" aceito). Até 10. Só chamadas do PSP com esses certificados são aceitas.' error="Informe ao menos uma impressão digital SHA-256 válida.">
             <textarea appInput formControlName="fingerprints" rows="2" spellcheck="false" class="app-mono"></textarea>
@@ -134,13 +153,26 @@ export class PixAccountDialog {
     pixKey: [this.data.account?.pixKey ?? '', [AppValidators.notBlank, Validators.maxLength(77)]],
     apiBaseUrl: [this.data.account?.apiBaseUrl ?? '', this.url],
     tokenUrl: [this.data.account?.tokenUrl ?? '', this.url],
-    webhookAuth: this.fb.nonNullable.control<WebhookAuth>(this.data.account?.webhookAuth ?? 'MTLS'),
+    // conta nova: HMAC até a API dizer que o mTLS está disponível (decisão 316)
+    webhookAuth: this.fb.nonNullable.control<WebhookAuth>(this.data.account?.webhookAuth ?? 'HMAC'),
     fingerprints: [(this.data.account?.webhookFingerprints ?? []).join('\n')],
   });
   protected readonly credentials = credentialsForm(this.fb);
   protected readonly auth = toSignal(this.form.controls.webhookAuth.valueChanges, { initialValue: this.form.controls.webhookAuth.value });
+  /** Modos do webhook no ambiente; sem resposta (ou com erro), o mTLS fica indisponível. */
+  private readonly webhookOptions = rxResource({ stream: () => this.api.webhookOptions() });
+  protected readonly mtlsAvailable = computed(() => this.webhookOptions.hasValue() && this.webhookOptions.value().mtlsAvailable === true);
+  protected readonly mtlsBlocked = computed(() => this.auth() === 'MTLS' && !this.mtlsAvailable() && this.webhookOptions.status() !== 'loading');
 
   constructor() {
+    // conta nova ainda não alterada pelo usuário: adota o padrão do ambiente
+    effect(() => {
+      const options = this.webhookOptions.hasValue() ? this.webhookOptions.value() : null;
+      const control = this.form.controls.webhookAuth;
+      if (options && !this.editing && control.pristine && options.mtlsAvailable && options.defaultAuth !== control.value) {
+        control.setValue(options.defaultAuth);
+      }
+    });
     this.form.controls.fingerprints.addValidators((c) => {
       if (this.form?.controls.webhookAuth.value !== 'MTLS') {
         return null;
@@ -161,7 +193,7 @@ export class PixAccountDialog {
   protected save(): void {
     this.submitted.set(true);
     const v = this.form.getRawValue();
-    if (this.form.invalid || this.saving() || (!this.editing && !this.allCreditors() && !v.creditor.length)) {
+    if (this.form.invalid || this.saving() || this.mtlsBlocked() || (!this.editing && !this.allCreditors() && !v.creditor.length)) {
       this.form.markAllAsTouched();
       return;
     }

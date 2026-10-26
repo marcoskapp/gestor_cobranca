@@ -305,6 +305,44 @@ variable "jvm_max_ram_percentage" {
   default     = 60
 }
 
+# --- Primeiro administrador da plataforma (decisão 520) -----------------------------------------
+# Lidos pelo PlatformBootstrap na subida (APP_BOOTSTRAP_PLATFORM_*): cria, uma única vez, o tenant
+# "plataforma" e o primeiro PLATFORM_ADMIN, que recebe o link de ativação por e-mail. Depois de criado,
+# os valores são ignorados e podem sair do tfvars (minimização do dado pessoal no state).
+
+variable "platform_admin_email" {
+  description = "E-mail do primeiro administrador da plataforma. Dado pessoal: marcado como sensível (não aparece no plano); fica no state cifrado. Prefira uma caixa funcional."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "platform_admin_name" {
+  description = "Nome do primeiro administrador da plataforma (opcional)."
+  type        = string
+  default     = null
+}
+
+variable "platform_cnpj" {
+  description = "CNPJ do tenant da plataforma (empresa que opera o SaaS). Obrigatório junto com platform_admin_email."
+  type        = string
+  default     = null
+}
+
+# --- Pix (decisões 313 e 316) -----------------------------------------------------------------
+
+variable "payment_pix_allowed_hosts" {
+  description = "Hosts dos PSPs contratados aceitos nas contas Pix (api.psp.com.br ou *.psp.com.br). Vazio = qualquer host público; em produção, preencha (decisão 313)."
+  type        = list(string)
+  default     = []
+}
+
+variable "payment_webhook_mtls_enabled" {
+  description = "Webhook Pix com mTLS. Exige o listener do ALB com mutual TLS em modo verify e o trust store do PSP, ainda não provisionados (decisão 316): por isso só false é aceito."
+  type        = bool
+  default     = false
+}
+
 # --- Assistente de IA: Amazon Bedrock (aprovado — issue #12) ---------------------------------
 # Padrão conservador: desligado; ao ligar, endpoint us-east-1 com perfis geográficos us.* (o modelo
 # processa só em regiões dos EUA). sa-east-1 só oferece o perfil global.* (qualquer região comercial).

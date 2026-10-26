@@ -17,7 +17,7 @@ infra/terraform/
     producao/       idem; parâmetros da fase 2 comentados no tfvars.example
 scripts/
   instance/         executados NA instância (user-data, systemd, CloudWatch Agent, migrations, db-admin)
-  deploy/           build.sh, migrate.sh, release.sh, db-admin.sh (pipeline/operador)
+  deploy/           build.sh, migrate.sh, release.sh, db-admin.sh (executados pelo operador; decisão 474)
   ops/              bootstrap-state.sh, provision-secrets.sh, export-access-logs.sh
   db/               bootstrap-roles.sql
 ```
@@ -54,7 +54,7 @@ Nenhum segredo fica em código, `tfvars`, state ou saída do Terraform. Os valor
 
 **Com `use_ssm_parameters = true`** — SecureStrings em `/gestor-cobranca/<env>/<nome>`, cifradas pela chave KMS do ambiente; o papel da instância só tem `ssm:GetParameter(s)` em `.../app/*` e `kms:Decrypt` nessa chave (via SSM).
 
-**Runtime × migração** — o papel das instâncias lê somente `app/*`. `migration/*` (senha do dono do schema) fica legível apenas: (a) durante `scripts/deploy/migrate.sh`, pela política inline temporária `migration-window`, restrita à instância da migração (`ec2:SourceInstanceARN`) e a 75 minutos (`aws:CurrentTime`), removida ao fim da execução; ou (b) com `db_admin_access = true`, para `db-admin.sh`. O pipeline/operador que executa `migrate.sh` precisa de `iam:PutRolePolicy` e `iam:DeleteRolePolicy` no papel das instâncias (saída `instance_role_name`).
+**Runtime × migração** — o papel das instâncias lê somente `app/*`. `migration/*` (senha do dono do schema) fica legível apenas: (a) durante `scripts/deploy/migrate.sh`, pela política inline temporária `migration-window`, restrita à instância da migração (`ec2:SourceInstanceARN`) e a 75 minutos (`aws:CurrentTime`), removida ao fim da execução; ou (b) com `db_admin_access = true`, para `db-admin.sh`. O operador que executa `migrate.sh` (não há pipeline de CI/CD; decisão 474) precisa de `iam:PutRolePolicy` e `iam:DeleteRolePolicy` no papel das instâncias (saída `instance_role_name`).
 
 **Com `use_ssm_parameters = false`** (padrão, sem aprovação) — bucket `gestor-cobranca-<env>-secrets-<conta>`, em `s3://…/<env>/<nome>` (o papel das instâncias lê só `<env>/app/*`; `migration/*` como acima): SSE, versionamento, TLS obrigatório, sem acesso público e política que **nega** leitura a qualquer principal que não seja o papel das instâncias ou os administradores de `secrets_admin_principal_arns`, e nega escrita a todos exceto esses administradores — inclusive outros usuários da conta com permissões amplas de S3. Os logs de acesso do S3 registram cada leitura.
 
@@ -74,10 +74,22 @@ Nas instâncias, o user-data grava os PEM em `/etc/gestor-cobranca/` (0600, dono
 ```bash
 scripts/ops/bootstrap-state.sh --region sa-east-1
 cd infra/terraform/envs/homologacao
-cp backend.hcl.example backend.hcl          # ajustar o ID da conta (não versionado)
-cp terraform.tfvars.example terraform.tfvars # ajustar (não versionado)
+cp backend.hcl.example backend.hcl          # ajustar o ID da conta (não versionado: infra/terraform/.gitignore)
+cp terraform.tfvars.example terraform.tfvars # ajustar (não versionado: *.tfvars no .gitignore da raiz)
 terraform init -backend-config=backend.hcl
 ```
+
+**Trava das versões do provider** (uma vez, e a cada atualização do provider; decisão 527). O `.terraform.lock.hcl` de cada ambiente é versionado, com os hashes das plataformas de quem executa o Terraform:
+
+```bash
+for e in homologacao producao; do
+  terraform -chdir=infra/terraform/envs/$e providers lock \
+    -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_amd64 -platform=darwin_arm64
+done
+git add infra/terraform/envs/*/.terraform.lock.hcl   # commit no mesmo PR
+```
+
+Depois disso, `terraform init` usa exatamente as versões e os hashes travados (`-lockfile=readonly` recusa qualquer divergência). Com OpenTofu, o arquivo registra `registry.opentofu.org/hashicorp/aws`: use uma única ferramenta por repositório.
 
 O state fica num bucket versionado e criptografado, com trava nativa do S3 (`use_lockfile`, sem DynamoDB). Um bucket serve aos dois ambientes, com chaves distintas.
 
@@ -99,7 +111,7 @@ O state fica num bucket versionado e criptografado, com trava nativa do S3 (`use
    ```bash
    scripts/deploy/build.sh --env homologacao --version 0.1.0
    ```
-4. **Computação em modo bootstrap.** No `terraform.tfvars`: `enable_compute = true`, `bootstrap_mode = true`, `db_admin_access = true` e `initial_artifact_version = "0.1.0"`, depois `terraform apply`. A instância sobe e o serviço inicia, mas ainda não fica *ready*: o banco não tem papéis nem schema e o systemd reinicia a aplicação a cada 10 s. Com `bootstrap_mode`, o ASG usa o health check do EC2, então a instância não é substituída em ciclo.
+4. **Computação em modo bootstrap.** No `terraform.tfvars`: `enable_compute = true`, `bootstrap_mode = true`, `db_admin_access = true`, `initial_artifact_version = "0.1.0"` e o primeiro administrador da plataforma (`platform_admin_email`, `platform_cnpj` e, opcional, `platform_admin_name`; decisão 520), depois `terraform apply`. A instância sobe e o serviço inicia, mas ainda não fica *ready*: o banco não tem papéis nem schema e o systemd reinicia a aplicação a cada 10 s. Com `bootstrap_mode`, o ASG usa o health check do EC2, então a instância não é substituída em ciclo.
 5. **Papéis do banco** (`scripts/db/bootstrap-roles.sql`, executado na instância via SSM com a conta mestre):
    ```bash
    scripts/deploy/db-admin.sh --env homologacao bootstrap-roles
@@ -108,7 +120,7 @@ O state fica num bucket versionado e criptografado, com trava nativa do S3 (`use
    ```bash
    scripts/deploy/migrate.sh --env homologacao --version 0.1.0
    ```
-   Na tentativa seguinte do systemd, a aplicação inicia e o target fica saudável no ALB.
+   Na tentativa seguinte do systemd, a aplicação inicia e o target fica saudável no ALB. Na primeira subida completa, o `PlatformBootstrap` cria o tenant `plataforma` e o primeiro `PLATFORM_ADMIN` e envia o link de ativação (72 h); nas seguintes, nada é recriado nem sobrescrito.
 7. **Modo normal.** Volte `bootstrap_mode = false` e `db_admin_access = false` e rode `terraform apply`. O health check passa a ser o do ALB e a instância perde o acesso à senha mestre.
 8. **DNS.** Aponte o domínio para `alb_dns_name` (CNAME) ou use `enable_route53`.
 
@@ -146,14 +158,16 @@ O rollback cria uma versão nova do launch template com o conteúdo da anterior 
 | Porta | 8080 (`SERVER_PORT` padrão) |
 | Health | `/actuator/health/readiness` (ALB) e `/actuator/health/liveness`; `/actuator/**` é bloqueado na borda (404) e o ALB faz o health check direto na instância |
 | Encerramento | `SIGTERM` → `server.shutdown=graceful`; o systemd espera até 60 s |
-| Frontend | `build.sh` copia `frontend/dist/<projeto>/browser` para `static/` do JAR (servido em `/`) |
+| Frontend | `build.sh` localiza o `index.html` em `frontend/dist/` (hoje `dist/gestor-cobranca-web`, `outputPath.browser` vazio no `angular.json`) e copia a pasta para `static/` do JAR (servido em `/`) |
 | Logs | `${LOG_DIR}` = `/var/log/gestor-cobranca`: `technical.log`, `business.log`, `access.log` (JSON, uma linha por evento, com `env`, `eventType`, `success`) |
 | Métricas | Micrometer → CloudWatch, namespace `GestorCobranca`, tags comuns `application` e `env`. Os alarmes usam `jobs.dead`, `events.publications.incomplete`, `access.log.write_failures`, `audit.seal.failures` e `access.events{type,success}` (com os sufixos `.value` e `.count` do registro CloudWatch) |
 | Runtime | `SPRING_FLYWAY_ENABLED=false`; conecta como `app_runtime_login` |
 | S3 | objetos somente sob `tenants/` (é o que o IAM permite). Arquivos de evidência recebem a tag `retention-class=evidence`, que o lifecycle move para Glacier |
 | **Modo migrate** | `java -jar gestor-cobranca.jar --spring.main.web-application-type=none --app.mode=migrate --app.scheduling.enabled=false`, com o mesmo ambiente das instâncias acrescido de `SPRING_FLYWAY_ENABLED=true`, `DB_MIGRATION_USERNAME=app_owner`, `DB_MIGRATION_PASSWORD`, `LOG_DIR=/var/log/gestor-cobranca/migrate` e `CLOUDWATCH_METRICS_ENABLED=false`. O processo aplica o Flyway e **termina** com código 0, ou ≠ 0 em qualquer falha. Não pode abrir porta, executar jobs nem publicar eventos, e precisa concluir dentro de `migration_timeout_seconds` (padrão 55 min) com heap de 512 MiB |
 
-Variáveis de ambiente entregues às instâncias: `SPRING_PROFILES_ACTIVE=prod`, `SPRING_FLYWAY_ENABLED=false`, `APP_ENV`, `APP_BASE_URL`, `APP_INSTANCE_ID` (IMDSv2), `DB_URL` (`…?sslmode=verify-full&sslrootcert=/etc/gestor-cobranca/rds-ca.pem`, bundle global de CA do RDS baixado no boot), `DB_USERNAME=app_runtime_login`, `DB_PASSWORD`, `DB_POOL_SIZE`, `APP_CRYPTO_KEY_K1` (e `APP_CRYPTO_KEYS_<ID>`), `APP_CRYPTO_ACTIVE_KEY_ID`, `APP_CRYPTO_BLIND_INDEX_KEY`, `JWT_ISSUER`, `APP_SECURITY_JWT_PRIVATE_KEY=file:/etc/gestor-cobranca/jwt-private.pem`, `APP_SECURITY_JWT_PUBLIC_KEY=file:/etc/gestor-cobranca/jwt-public.pem`, `S3_BUCKET`, `S3_KMS_KEY_ID`, `AWS_REGION`, `CLOUDWATCH_METRICS_ENABLED=true`, `LOG_DIR`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `JOBS_CONCURRENCY`, `ASSISTANT_BEDROCK_ENABLED`, `ASSISTANT_BEDROCK_REGION`, `ASSISTANT_BEDROCK_STANDARD_MODEL_ID`, `ASSISTANT_BEDROCK_ADVANCED_MODEL_ID`, `ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_BEDROCK_ENABLED`, `HELPDESK_BEDROCK_REGION`, `HELPDESK_BEDROCK_MODEL_ID`, `HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_GITHUB_REPOSITORY`, `HELPDESK_GITHUB_REQUIRE_PRIVATE` e, com os chamados ligados, `HELPDESK_GITHUB_TOKEN` (segredo) (sem credenciais da AWS: o SDK usa o papel da instância).
+Variáveis de ambiente entregues às instâncias: `SPRING_PROFILES_ACTIVE=prod`, `SPRING_FLYWAY_ENABLED=false`, `APP_ENV`, `APP_BASE_URL`, `APP_INSTANCE_ID` (IMDSv2), `DB_URL` (`…?sslmode=verify-full&sslrootcert=/etc/gestor-cobranca/rds-ca.pem`, bundle global de CA do RDS baixado no boot), `DB_USERNAME=app_runtime_login`, `DB_PASSWORD`, `DB_POOL_SIZE`, `APP_CRYPTO_KEY_K1` (e `APP_CRYPTO_KEYS_<ID>`), `APP_CRYPTO_ACTIVE_KEY_ID`, `APP_CRYPTO_BLIND_INDEX_KEY`, `JWT_ISSUER`, `APP_SECURITY_JWT_PRIVATE_KEY=file:/etc/gestor-cobranca/jwt-private.pem`, `APP_SECURITY_JWT_PUBLIC_KEY=file:/etc/gestor-cobranca/jwt-public.pem`, `S3_BUCKET`, `S3_KMS_KEY_ID`, `AWS_REGION`, `CLOUDWATCH_METRICS_ENABLED=true`, `LOG_DIR`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`, `APP_HTTP_TRUSTED_PROXIES` (sub-redes públicas do ALB; o user-data recusa subir sem elas), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `JOBS_CONCURRENCY`, `JVM_MAX_RAM_PERCENTAGE`, `ASSISTANT_BEDROCK_ENABLED`, `ASSISTANT_BEDROCK_REGION`, `ASSISTANT_BEDROCK_STANDARD_MODEL_ID`, `ASSISTANT_BEDROCK_ADVANCED_MODEL_ID`, `ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_BEDROCK_ENABLED`, `HELPDESK_BEDROCK_REGION`, `HELPDESK_BEDROCK_MODEL_ID`, `HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_GITHUB_REPOSITORY`, `HELPDESK_GITHUB_REQUIRE_PRIVATE`, com os chamados ligados `HELPDESK_GITHUB_TOKEN` (segredo) (sem credenciais da AWS: o SDK usa o papel da instância), `PAYMENT_PIX_ALLOWED_HOSTS` (`payment_pix_allowed_hosts`; decisão 313), `PAYMENT_WEBHOOK_MTLS_ENABLED` (`payment_webhook_mtls_enabled`, hoje sempre `false`; decisão 316), `APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL`, `APP_BOOTSTRAP_PLATFORM_CNPJ` e `APP_BOOTSTRAP_PLATFORM_ADMIN_NAME` (só quando `platform_admin_*`/`platform_cnpj` estão no tfvars; decisão 520) e `JAVA_OPTS` (`java_opts_extra` do módulo `compute`, vazio por padrão).
+
+**Dado pessoal no state:** `platform_admin_email` é marcado `sensitive` (não aparece no plano nem nas saídas), mas vai ao user-data do launch template e, portanto, ao state, que fica no bucket cifrado e de acesso restrito do §1. Use uma caixa funcional da operação e, depois de criado o administrador, as variáveis podem sair do tfvars (decisão 520).
 
 ## 5. Rotação de segredos
 
@@ -173,8 +187,8 @@ Quem rotaciona: um administrador incluído em `secrets_admin_principal_arns` (ou
 
 - **Sessão na instância:** `aws ssm start-session --target <instance-id>` (sem SSH, auditada).
 - **Logs:** grupos `/gestor-cobranca/<env>/{technical,business,access,run-command}`; consultas salvas no Logs Insights (`<prefixo>/tecnico/…`, `/acesso/…`, `/negocio/…`).
-- **Arquivo do log de acesso (5 anos):** `scripts/ops/export-access-logs.sh --env producao` todo mês, pelo pipeline (exporta o mês anterior para `s3://…-logs-…/cloudwatch-export/access/AAAA-MM/`; Glacier após 30 dias, expira em 5 anos).
-- **Snapshot manual mensal do RDS (12 meses):** pelo pipeline, `aws rds create-db-snapshot --db-instance-identifier <db_identifier> --db-snapshot-identifier <db_identifier>-mensal-AAAA-MM`. Os snapshots com mais de 12 meses são apagados pelo mesmo passo.
+- **Arquivo do log de acesso (5 anos):** `scripts/ops/export-access-logs.sh --env producao` todo mês, pelo operador com o script (não há pipeline de CI/CD; decisão 474) (exporta o mês anterior para `s3://…-logs-…/cloudwatch-export/access/AAAA-MM/`; Glacier após 30 dias, expira em 5 anos).
+- **Snapshot manual mensal do RDS (12 meses):** pelo operador (decisão 474), `aws rds create-db-snapshot --db-instance-identifier <db_identifier> --db-snapshot-identifier <db_identifier>-mensal-AAAA-MM`. Os snapshots com mais de 12 meses são apagados pelo mesmo passo.
 - **Homologação fora do horário:** `business_hours_schedule` zera o ASG fora do horário. O RDS continua ligado, porque o agendamento de parada do RDS exigiria um serviço não autorizado.
 - **Agendamento × Terraform:** fora do horário o agendamento zera `min/max` do ASG de homologação; um `terraform apply` nesse período os restaura para os valores do tfvars (sobe instâncias). Aplique em homologação dentro do horário comercial.
 - **Alarme de espaço livre no RDS:** depois de um autoscaling de armazenamento, atualize `db_allocated_storage_gib` para o novo tamanho.

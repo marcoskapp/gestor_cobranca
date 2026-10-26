@@ -18,6 +18,8 @@ Toda assessoria nasce com um perfil para cada tipo de usuário do sistema. Eles 
 | Compliance e privacidade (`COMPLIANCE`) | Encarregado de dados / compliance | Restrições de contato, solicitações de titulares (LGPD), retenção, logs de acesso e auditoria | Obrigatório |
 | Integrações (`INTEGRACAO`) | Equipe técnica | Canais, provedores e cargas automáticas, sem acesso a dados de devedores | Obrigatório |
 
+Além desses, o tenant da plataforma tem o perfil **Administrador da plataforma** (`PLATFORM_ADMIN`), com MFA **obrigatório** (decisão 521): provisiona e suspende assessorias, reenvia o convite do administrador inicial enquanto a assessoria não tem administrador ativo e administra os usuários da própria plataforma. O autenticador é cadastrado no primeiro login, logo depois da ativação. São 10 perfis com MFA obrigatório: os 9 marcados acima e o `PLATFORM_ADMIN` (`app.security.mfa.required-for-roles`).
+
 A lista exata de permissões de cada perfil está em `backend/src/main/java/br/com/gestorcobranca/identity/domain/model/DefaultRoles.java`.
 
 ## Como os perfis se mantêm atualizados
