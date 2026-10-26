@@ -17,10 +17,13 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS } from '../data/payment.labels';
 import { PaymentView } from '../data/payment.models';
+import { breakHoldBadge } from '../data/review-status';
 
 /**
  * Fila de aprovação dos pagamentos informados acima do limite. O servidor já omite os
- * pagamentos que o próprio revisor informou (segregação de funções); a tela explica.
+ * pagamentos que o próprio revisor informou (segregação de funções); a tela explica. Enquanto o
+ * pagamento aguarda, a quebra do acordo de destino fica suspensa: o selo mostra até quando e destaca
+ * o prazo vencido.
  */
 @Component({
   selector: 'app-review-queue',
@@ -63,6 +66,22 @@ import { PaymentView } from '../data/payment.models';
         } @else {
           <span class="app-muted">—</span>
         }
+        @if (holdBadge(p); as badge) {
+          <div>
+            <span
+              class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 rq-hold"
+              [class.bg-warning-subtle]="badge.tone === 'warning'"
+              [class.text-warning-emphasis]="badge.tone === 'warning'"
+              [class.border-warning-subtle]="badge.tone === 'warning'"
+              [class.bg-danger-subtle]="badge.tone === 'danger'"
+              [class.text-danger-emphasis]="badge.tone === 'danger'"
+              [class.border-danger-subtle]="badge.tone === 'danger'"
+              data-testid="break-hold"
+            >
+              <app-icon [name]="badge.tone === 'danger' ? 'exclamation-circle' : 'hourglass-split'" />{{ badge.text }}
+            </span>
+          </div>
+        }
       </ng-template>
       <ng-template appCell="informedBy" [appCellOf]="query.rows()" let-p>{{ users.name(p.informedBy) }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
@@ -78,6 +97,11 @@ import { PaymentView } from '../data/payment.models';
   styles: `
     .rq-small {
       font-size: var(--app-text-xs);
+    }
+    .rq-hold {
+      margin-top: 0.25rem;
+      white-space: normal;
+      text-align: start;
     }
   `,
 })
@@ -102,6 +126,11 @@ export class ReviewQueue {
     { key: 'informedBy', header: 'Informado por' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
+
+  /** Quebra suspensa pelo pagamento (até quando) ou prazo vencido: prioriza a revisão. */
+  protected holdBadge(p: PaymentView) {
+    return breakHoldBadge(p.breakSuspension);
+  }
 
   protected download(p: PaymentView): void {
     this.downloading.set(p.id);

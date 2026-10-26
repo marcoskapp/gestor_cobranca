@@ -30,6 +30,7 @@ import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS } from '../data/payment.labels';
 import { AllocationView, LineView, PaymentView } from '../data/payment.models';
 import { allocationTarget, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
+import { breakHoldBadge } from '../data/review-status';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
 
@@ -116,6 +117,11 @@ export class PaymentDetail {
         ]
       : [],
   );
+
+  /** Quebra do acordo suspensa por este pagamento em revisão (até quando) ou prazo já vencido. */
+  protected holdBadge(p: PaymentView) {
+    return breakHoldBadge(p.breakSuspension);
+  }
 
   /** Destino solicitado em texto (fila de aprovação e resumo do impacto antes de aprovar). */
   protected readonly requestedText = computed(() => {

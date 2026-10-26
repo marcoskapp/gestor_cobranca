@@ -7,6 +7,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -35,6 +37,25 @@ class JdbcPaymentPendingWorkQueries implements PaymentPendingWorkQueries {
                  where status = 'INFORMED' and (informed_by is null or informed_by <> :me)
                 """ + scope(creditorScope, params);
         return jdbc.queryForObject(sql, params, PendingWorkRows.COUNT);
+    }
+
+    @Override
+    public Map<UUID, Long> externalReviewByAgreement(Set<UUID> creditorScope, UUID reviewerId) {
+        if (creditorScope != null && creditorScope.isEmpty()) {
+            return Map.of();
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource("me", reviewerId);
+        String sql = """
+                select target_agreement_id, count(*) as total
+                  from payment.payment
+                 where status = 'INFORMED' and target_agreement_id is not null
+                   and (informed_by is null or informed_by <> :me)
+                """ + scope(creditorScope, params) + " group by target_agreement_id";
+        Map<UUID, Long> result = new LinkedHashMap<>();
+        jdbc.query(sql, params, rs -> {
+            result.put(rs.getObject("target_agreement_id", UUID.class), rs.getLong("total"));
+        });
+        return result;
     }
 
     @Override

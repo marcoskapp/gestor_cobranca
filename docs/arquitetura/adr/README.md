@@ -13,3 +13,4 @@ Cada decisão estrutural fica registrada com contexto, decisão e consequências
 | [0007](0007-frontend-servido-pelo-backend.md) | Frontend Angular servido pelo backend | Aceita |
 | [0008](0008-tempo-real-sse-listen-notify.md) | Tempo real da caixa de entrada: SSE por instância e LISTEN/NOTIFY do PostgreSQL | Aceita |
 | [0009](0009-assistente-gera-pix-pelo-payment.md) | O assistente gera o Pix da conversa pela interface pública do payment (`assistant → payment`) | Aceita |
+| [0010](0010-negotiation-declara-porta-implementada-pelo-payment.md) | O negotiation declara a porta de pagamentos em revisão e o payment a implementa (`negotiation :: spi`) | Aceita |
