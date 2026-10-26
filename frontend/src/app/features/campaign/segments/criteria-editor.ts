@@ -87,12 +87,26 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
                     <input appInput type="number" min="0" [max]="f.max ?? 36500" step="1" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
                   </app-field>
                 }
-                @default {
+                @case ('money-range') {
                   <app-field label="Mínimo">
-                    <input appInput type="number" min="0" [max]="f.max ?? null" [step]="f.kind === 'money-range' ? 0.01 : 1" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
+                    <div class="input-group">
+                      <span class="input-group-text" aria-hidden="true">R$</span>
+                      <input appInput appMoney [max]="f.max ?? null" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
+                    </div>
                   </app-field>
                   <app-field label="Máximo">
-                    <input appInput type="number" min="0" [max]="f.max ?? null" [step]="f.kind === 'money-range' ? 0.01 : 1" [ngModel]="num(f.fields[1])" (ngModelChange)="setNum(f.fields[1], $event)" [disabled]="ro" />
+                    <div class="input-group">
+                      <span class="input-group-text" aria-hidden="true">R$</span>
+                      <input appInput appMoney [max]="f.max ?? null" [ngModel]="num(f.fields[1])" (ngModelChange)="setNum(f.fields[1], $event)" [disabled]="ro" />
+                    </div>
+                  </app-field>
+                }
+                @default {
+                  <app-field label="Mínimo">
+                    <input appInput type="number" min="0" [max]="f.max ?? null" step="1" [ngModel]="num(f.fields[0])" (ngModelChange)="setNum(f.fields[0], $event)" [disabled]="ro" />
+                  </app-field>
+                  <app-field label="Máximo">
+                    <input appInput type="number" min="0" [max]="f.max ?? null" step="1" [ngModel]="num(f.fields[1])" (ngModelChange)="setNum(f.fields[1], $event)" [disabled]="ro" />
                   </app-field>
                 }
               }

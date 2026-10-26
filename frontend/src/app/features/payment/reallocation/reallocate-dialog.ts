@@ -13,7 +13,7 @@ import { PaymentTarget, TargetSelection } from '../components/payment-target';
 import { PaymentsApi } from '../data/payment.api';
 import { PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { PaymentView, ReallocateRequest } from '../data/payment.models';
-import { ReallocationSource, parseMoney, reallocationSources, toTargetRequest } from '../data/payment.rules';
+import { ReallocationSource, reallocationSources, toTargetRequest } from '../data/payment.rules';
 
 export interface ReallocateDialogData {
   payment: PaymentView;
@@ -71,8 +71,8 @@ export interface ReallocateDialogData {
         <div class="app-form-grid mb-3">
           <app-field label="Valor" hint="Disponível: {{ money(available()) }}" error="Informe um valor até o disponível.">
             <div class="input-group">
-              <span class="input-group-text">R$</span>
-              <input appInput formControlName="amount" inputmode="decimal" autocomplete="off" required />
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney formControlName="amount" required />
             </div>
           </app-field>
         </div>
@@ -108,7 +108,7 @@ export class ReallocateDialog {
     source: [0],
     mode: this.fb.control<'TARGET' | 'REFUND'>('TARGET'),
     refundReference: ['', [Validators.maxLength(100)]],
-    amount: [this.sources[0] ? String(this.sources[0].available).replace('.', ',') : '', [AppValidators.notBlank]],
+    amount: this.fb.control<number | null>(this.sources[0]?.available ?? null, [Validators.required]),
     note: ['', [AppValidators.notBlank, Validators.maxLength(1000)]],
   });
   private readonly sourceIndex = toSignal(this.form.controls.source.valueChanges, { initialValue: 0 });
@@ -116,13 +116,13 @@ export class ReallocateDialog {
 
   constructor() {
     this.form.controls.amount.addValidators((c) => {
-      const v = parseMoney(c.value);
+      const v = c.value as number | null;
       return v === null || v <= 0 || v > this.available() ? { money: true } : null;
     });
     this.form.controls.source.valueChanges.subscribe((i) => {
       const s = this.sources[i];
       if (s) {
-        this.form.controls.amount.setValue(String(s.available).replace('.', ','));
+        this.form.controls.amount.setValue(s.available);
       }
     });
   }
@@ -142,7 +142,7 @@ export class ReallocateDialog {
     const source = this.sources[v.source];
     const request: ReallocateRequest = {
       sourceAllocationId: source.allocationId,
-      amount: parseMoney(v.amount)!,
+      amount: v.amount!,
       target: refund ? null : toTargetRequest(target!),
       refundReference: refund ? v.refundReference.trim() : null,
       note: v.note.trim(),

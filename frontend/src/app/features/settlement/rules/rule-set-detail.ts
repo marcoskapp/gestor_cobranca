@@ -8,7 +8,7 @@ import { Permission } from '../../../core/auth/permission';
 import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
-import { Amount, formatAmount } from '../../../shared/components/amount/amount';
+import { Amount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
@@ -22,7 +22,6 @@ import { zonedNow } from '../../collection/data/collection.rules';
 import { ContractsApi } from '../../organization/data/organization.api';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { ContractView } from '../../organization/data/organization.models';
-import { parseMoney } from '../../payment/data/payment.rules';
 import { FormDialogService } from '../../legal/components/form-dialog';
 import { CalculationMemory } from '../components/calculation-memory';
 import { CommissionRulesApi } from '../data/settlement.api';
@@ -123,8 +122,8 @@ export class RuleSetDetail {
 
   // ------------------------------------------------------------------ simulação
   protected readonly sim = {
-    amount: signal('1.100,00'),
-    honorarium: signal('100,00'),
+    amount: signal<number | null>(1100),
+    honorarium: signal<number | null>(100),
     portfolioId: signal(''),
     daysPastDue: signal<number | null>(120),
     paymentType: signal<PaymentType>('INSTALLMENTS'),
@@ -165,10 +164,10 @@ export class RuleSetDetail {
     }
   }
 
-  protected setFixedFee(value: string): void {
+  protected setFixedFee(value: number | null): void {
     const d = this.draft();
     if (d) {
-      d.fixedFeePerAgreement = value.trim() === '' ? null : (parseMoney(value) ?? -1);
+      d.fixedFeePerAgreement = value;
       this.edited();
     }
   }
@@ -199,10 +198,6 @@ export class RuleSetDetail {
 
   protected rateText(value: number | null | undefined): string {
     return value === null || value === undefined || Number.isNaN(value) ? '' : String(value).replace('.', ',');
-  }
-
-  protected feeText(value: number | null): string {
-    return value === null ? '' : formatAmount(value).replace('R$', '').trim();
   }
 
   protected criteria(rule: RateRule): string {
@@ -369,7 +364,7 @@ export class RuleSetDetail {
   protected simulate(): void {
     const d = this.draft();
     const p = this.current();
-    const amount = parseMoney(this.sim.amount());
+    const amount = this.sim.amount();
     if (!d || !p || this.simulating()) {
       return;
     }
@@ -388,7 +383,7 @@ export class RuleSetDetail {
         ruleSetId: this.dirty() || p.status === 'DRAFT' ? null : p.id,
         rules: this.dirty() || p.status === 'DRAFT' ? d : null,
         amount,
-        honorarium: parseMoney(this.sim.honorarium()) ?? 0,
+        honorarium: this.sim.honorarium() ?? 0,
         portfolioId: this.sim.portfolioId() || null,
         daysPastDue: this.sim.daysPastDue(),
         paymentType: this.sim.paymentType(),

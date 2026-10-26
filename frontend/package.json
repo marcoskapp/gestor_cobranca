@@ -4,17 +4,18 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "prebuild": "npm run icons:check && npm run bootstrap:check",
+    "prebuild": "npm run icons:check && npm run bootstrap:check && npm run money:check",
     "build": "ng build",
     "build:dev": "ng build --configuration development",
     "watch": "ng build --watch --configuration development",
-    "pretest": "npm run icons:check && npm run bootstrap:check",
+    "pretest": "npm run icons:check && npm run bootstrap:check && npm run money:check",
     "test": "ng test --watch=false",
     "test:watch": "ng test",
     "lint": "ng lint",
     "icons": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-icon-sprite.mjs",
     "icons:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-icon-sprite.mjs --check",
-    "bootstrap:check": "node scripts/check-bootstrap-variables.mjs"
+    "bootstrap:check": "node scripts/check-bootstrap-variables.mjs",
+    "money:check": "node scripts/check-money-inputs.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.4",

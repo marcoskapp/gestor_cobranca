@@ -53,9 +53,18 @@
             }
           </select>
         </app-field>
-        <app-field label="{{ f.type === 'FIXED' ? 'Valor (R$)' : 'Percentual' }}">
-          <input appInput type="number" min="0" step="0.01" [(ngModel)]="f.value" (ngModelChange)="changed()" [disabled]="ro" />
-        </app-field>
+        @if (f.type === 'FIXED') {
+          <app-field label="Valor">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney [(ngModel)]="f.value" (ngModelChange)="changed()" [disabled]="ro" />
+            </div>
+          </app-field>
+        } @else {
+          <app-field label="Percentual (%)">
+            <input appInput type="number" min="0" step="0.01" [(ngModel)]="f.value" (ngModelChange)="changed()" [disabled]="ro" />
+          </app-field>
+        }
         @if (!ro) {
           <button class="btn btn-link mt-4" type="button" (click)="removeFee(i)" [attr.aria-label]="'Remover encargo ' + (f.code || i + 1)">
             <app-icon name="trash3" />
@@ -122,14 +131,20 @@
       <app-field label="Pagamentos máximos" hint="Inclui a entrada">
         <input appInput type="number" min="1" max="360" [(ngModel)]="r.installments.maxInstallments" (ngModelChange)="changed()" [disabled]="ro" />
       </app-field>
-      <app-field label="Parcela mínima (R$)">
-        <input appInput type="number" min="0" step="0.01" [(ngModel)]="r.installments.minInstallmentAmount" (ngModelChange)="changed()" [disabled]="ro" />
+      <app-field label="Parcela mínima">
+        <div class="input-group">
+          <span class="input-group-text" aria-hidden="true">R$</span>
+          <input appInput appMoney [(ngModel)]="r.installments.minInstallmentAmount" (ngModelChange)="changed()" [disabled]="ro" />
+        </div>
       </app-field>
       <app-field label="Entrada mínima (%)">
         <input appInput type="number" min="0" max="99.99" step="0.01" [(ngModel)]="r.installments.minDownPaymentPercent" (ngModelChange)="changed()" [disabled]="ro" />
       </app-field>
-      <app-field label="Entrada mínima (R$)" hint="Vale o maior entre % e R$">
-        <input appInput type="number" min="0" step="0.01" [(ngModel)]="r.installments.minDownPaymentAmount" (ngModelChange)="changed()" [disabled]="ro" />
+      <app-field label="Entrada mínima" hint="Vale o maior entre % e R$">
+        <div class="input-group">
+          <span class="input-group-text" aria-hidden="true">R$</span>
+          <input appInput appMoney [(ngModel)]="r.installments.minDownPaymentAmount" (ngModelChange)="changed()" [disabled]="ro" />
+        </div>
       </app-field>
       <app-field label="Juros do parcelamento (% a.m.)" hint="Tabela Price; 0 = sem juros">
         <input appInput type="number" min="0" max="20" step="0.01" [(ngModel)]="r.installments.monthlyInterestRate" (ngModelChange)="changed()" [disabled]="ro" />

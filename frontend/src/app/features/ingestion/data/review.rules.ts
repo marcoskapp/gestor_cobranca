@@ -212,24 +212,6 @@ export function needsPolling(review: Pick<ReviewView, 'status' | 'batch' | 'anal
   return s === 'VALIDATED' && (review.analysis.status === 'PENDING' || review.analysis.status === 'NOT_STARTED');
 }
 
-/**
- * Valor digitado no padrão brasileiro (vírgula para os centavos, ponto opcional para milhares). Recusa o que seria
- * ambíguo ("1.234" = mil duzentos e trinta e quatro, mas "1.23" não é aceito): devolve `null` se inválido.
- */
-export function parseBrazilianAmount(text: string | null | undefined): number | null {
-  const value = (text ?? '').replace(/^R\$\s*/i, '').replace(/\s/g, '').trim();
-  if (!value) {
-    return null;
-  }
-  const grouped = /^\d{1,3}(\.\d{3})+(,\d{1,2})?$/;
-  const plain = /^\d+(,\d{1,2})?$/;
-  if (!grouped.test(value) && !plain.test(value)) {
-    return null;
-  }
-  const n = Number(value.replace(/\./g, '').replace(',', '.'));
-  return Number.isFinite(n) ? n : null;
-}
-
 /** Quantidade digitada (só dígitos, pontos de milhar opcionais). */
 export function parseCount(text: string | null | undefined): number | null {
   const value = (text ?? '').replace(/\s/g, '').trim();

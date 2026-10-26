@@ -58,8 +58,11 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
       <div class="modal-body">
         <h3 class="app-section-title">Premissas</h3>
         <div class="vd-grid">
-          <app-field label="Outros bens localizados (R$)">
-            <input appInput ngbAutofocus type="number" min="0" step="0.01" formControlName="otherAssetsValue" />
+          <app-field label="Outros bens localizados">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney ngbAutofocus formControlName="otherAssetsValue" />
+            </div>
           </app-field>
           <app-field label="Taxa de realização (%)" hint="Padrão 70%">
             <input appInput type="number" min="0" max="100" formControlName="realizationRate" />
@@ -67,8 +70,11 @@ export function viabilityProblems(viable: boolean, routes: readonly string[], ch
           <app-field label="Probabilidade de êxito (%)" hint="Padrão 50%">
             <input appInput type="number" min="0" max="100" formControlName="successProbability" />
           </app-field>
-          <app-field label="Custas previstas (R$)">
-            <input appInput type="number" min="0" step="0.01" formControlName="expectedCosts" />
+          <app-field label="Custas previstas">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney formControlName="expectedCosts" />
+            </div>
           </app-field>
         </div>
         <button class="btn btn-outline-primary mt-2" type="button" (click)="calculate()" [disabled]="calculating()">

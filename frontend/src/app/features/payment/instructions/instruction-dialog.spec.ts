@@ -68,7 +68,7 @@ describe('InstructionDialog', () => {
   it('gera Pix da parcela com chave de idempotência, acompanha o registro e mostra o copia e cola', async () => {
     const fixture = setup({ target, debtorId: 'd-1', debtorName: 'Ana Paula Ribeiro', channel: 'WHATSAPP' });
     expect(el(fixture).textContent).toContain('2ª parcela do acordo');
-    fixture.componentInstance['form'].patchValue({ amount: '1.000,00', expiresInSeconds: 3600 });
+    fixture.componentInstance['form'].patchValue({ amount: 1000, expiresInSeconds: 3600 });
     fixture.detectChanges();
     submit(fixture).click();
     const req = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/payment/instructions');
@@ -102,13 +102,13 @@ describe('InstructionDialog', () => {
 
   it('não envia valor acima do saldo e explica a falta de conta Pix', () => {
     const fixture = setup({ target, debtorId: 'd-1' });
-    fixture.componentInstance['form'].patchValue({ amount: '2000' });
+    fixture.componentInstance['form'].patchValue({ amount: 2000 });
     fixture.detectChanges();
     expect(el(fixture).textContent).toContain('não pode passar do saldo');
     submit(fixture).click();
     http.expectNone((r) => r.method === 'POST');
 
-    fixture.componentInstance['form'].patchValue({ amount: '', type: 'PIX_DUE' });
+    fixture.componentInstance['form'].patchValue({ amount: null, type: 'PIX_DUE' });
     fixture.detectChanges();
     submit(fixture).click();
     const req = http.expectOne((r) => r.method === 'POST');

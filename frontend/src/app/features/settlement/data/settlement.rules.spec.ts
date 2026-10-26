@@ -1,5 +1,5 @@
 import { adjustment, rules, statement, totals } from '../../../../testing/settlement-fixtures';
-import { latestByFormat, signedMoney } from '../statements/statement-dialogs';
+import { latestByFormat } from '../statements/statement-dialogs';
 import {
   canDecideAdjustment,
   criteriaText,
@@ -93,15 +93,11 @@ describe('regras da prestação de contas', () => {
     expect(receiptsEffect(t)).toBe(855);
   });
 
-  it('etapa atual, impressão digital e valores com sinal', async () => {
+  it('etapa atual e impressão digital', async () => {
     expect(cycleIndex('DRAFT')).toBe(0);
     expect(cycleIndex('APPROVED')).toBe(3);
     expect(cycleIndex('CONTESTED')).toBe(5);
     expect(groupedHash('a'.repeat(16))).toBe('aaaaaaaa aaaaaaaa');
-    expect(signedMoney('-1.250,00')).toBe(-1250);
-    expect(signedMoney('−10,5')).toBe(-10.5);
-    expect(signedMoney('300')).toBe(300);
-    expect(signedMoney('abc')).toBeNull();
     const hash = await sha256Hex(new TextEncoder().encode('abc').buffer as ArrayBuffer);
     expect(hash).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   });

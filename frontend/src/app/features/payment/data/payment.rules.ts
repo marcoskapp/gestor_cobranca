@@ -93,26 +93,6 @@ export function groupedFingerprint(value: string | null | undefined): string {
 
 // --------------------------------------------------------------------------- valores
 
-/** Converte o texto digitado ("1.234,56", "1234.56") em número com 2 casas; nulo se inválido. */
-export function parseMoney(text: string | number | null | undefined): number | null {
-  if (text === null || text === undefined) {
-    return null;
-  }
-  if (typeof text === 'number') {
-    return Number.isFinite(text) ? Math.round(text * 100) / 100 : null;
-  }
-  const raw = text.replace(/R\$|\s/g, '');
-  if (!raw) {
-    return null;
-  }
-  // vírgula decimal (pt-BR): pontos são separadores de milhar
-  const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
-    return null;
-  }
-  return Math.round(Number(normalized) * 100) / 100;
-}
-
 /** Valor acima do limite exige aprovação de outra pessoa (`externalReviewThreshold`). */
 export function requiresSecondReview(amount: number | null, threshold: number | string | null | undefined): boolean {
   const limit = toAmount(threshold);

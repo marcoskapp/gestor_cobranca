@@ -14,7 +14,6 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { fromLocalDate } from '../../../shared/models/dates';
 import { CaseWorkApi, CasesApi, CollectionSettingsApi, TabulationsApi } from '../../collection/data/collection.api';
 import { interactionProblems, toLocalDateTime, zonedNow } from '../../collection/data/collection.rules';
-import { parseMoney } from '../../payment/data/payment.rules';
 import { CallsApi } from '../data/telephony.api';
 import { AUTO_TABULATION_LABELS, CALL_RESULT_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
 import { CallView } from '../data/telephony.models';
@@ -86,8 +85,11 @@ export interface TabulationDialogData {
           @if (tabulation()?.promise) {
             <div class="row g-3">
               <div class="col-sm-6">
-                <app-field label="Valor prometido (R$)">
-                  <input appInput formControlName="promiseAmount" inputmode="decimal" />
+                <app-field label="Valor prometido">
+                  <div class="input-group">
+                    <span class="input-group-text" aria-hidden="true">R$</span>
+                    <input appInput appMoney formControlName="promiseAmount" />
+                  </div>
                 </app-field>
                 @if (balance() !== null) {
                   <div class="form-text">Saldo em aberto: <app-amount [value]="balance()" /></div>
@@ -178,7 +180,7 @@ export class TabulationDialog {
     caseId: [''],
     tabulationId: ['', [Validators.required]],
     note: ['', [Validators.maxLength(4000)]],
-    promiseAmount: [''],
+    promiseAmount: this.fb.control<number | null>(null),
     promiseDate: this.fb.control<string | null>(null),
     callbackDate: this.fb.control<string | null>(null),
     callbackTime: [''],
@@ -193,7 +195,7 @@ export class TabulationDialog {
     this.values();
     const v = this.form.getRawValue();
     const out = interactionProblems(
-      { tabulation: this.tabulation(), note: v.note, promiseAmount: parseMoney(v.promiseAmount), promiseDate: this.date('promiseDate'), callbackAt: toLocalDateTime(fromLocalDate(this.date('callbackDate')), v.callbackTime) },
+      { tabulation: this.tabulation(), note: v.note, promiseAmount: v.promiseAmount, promiseDate: this.date('promiseDate'), callbackAt: toLocalDateTime(fromLocalDate(this.date('callbackDate')), v.callbackTime) },
       { openBalance: this.balance() ?? Number.MAX_SAFE_INTEGER, today: zonedNow().date, promiseMaxDays: this.settings.hasValue() ? (this.settings.value()?.promiseMaxDays ?? 30) : 30 },
       zonedNow(),
     );
@@ -250,7 +252,7 @@ export class TabulationDialog {
     }
     const v = this.form.getRawValue();
     const callbackAt = toLocalDateTime(fromLocalDate(this.date('callbackDate')), v.callbackTime);
-    const amount = parseMoney(v.promiseAmount);
+    const amount = v.promiseAmount;
     const due = this.date('promiseDate');
     this.saving.set(true);
     this.error.set(null);

@@ -3,11 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbDateStruct, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
-import { Amount, formatAmount } from '../../../shared/components/amount/amount';
+import { Amount } from '../../../shared/components/amount/amount';
 import { isoDate } from '../../../shared/models/dates';
 import { AppValidators } from '../../../shared/validation/validators';
 import { zonedNow } from '../../collection/data/collection.rules';
-import { EVIDENCE_ACCEPT, evidenceProblem, parseMoney } from '../../payment/data/payment.rules';
+import { EVIDENCE_ACCEPT, evidenceProblem } from '../../payment/data/payment.rules';
 import { TransfersApi, newIdempotencyKey } from '../data/settlement.api';
 import { SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { StatementBalance, TransferView } from '../data/settlement.models';
@@ -52,8 +52,11 @@ export interface TransferDialogData {
           <dd><app-amount [value]="balance" /></dd>
         </dl>
         <div class="app-form-grid">
-          <app-field label="Valor (R$)" hint="Parcial permitido, até o saldo" error="Valor entre R$ 0,01 e o saldo.">
-            <input appInput ngbAutofocus formControlName="amount" inputmode="decimal" required />
+          <app-field label="Valor" hint="Parcial permitido, até o saldo" error="Valor entre R$ 0,01 e o saldo.">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney ngbAutofocus formControlName="amount" required [min]="0.01" [max]="balance" />
+            </div>
           </app-field>
           <app-field label="Data da transferência" error="Entre o fim do período e hoje.">
             <div class="input-group">
@@ -129,13 +132,8 @@ export class TransferDialog {
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
-    amount: [
-      formatAmount(this.balance).replace('R$', '').trim(),
-      [AppValidators.notBlank, (c) => {
-        const v = parseMoney(c.value as string);
-        return v === null || v <= 0 || v > this.balance + 0.001 ? { money: true } : null;
-      }],
-    ],
+    // limites (R$ 0,01 até o saldo) no `appMoney`, comparados em centavos inteiros
+    amount: this.fb.control<number | null>(this.balance, [Validators.required]),
     date: this.fb.control<string | null>(zonedNow().date, [Validators.required]),
     reference: ['', [AppValidators.notBlank, Validators.maxLength(120)]],
     note: ['', [Validators.maxLength(1000)]],
@@ -163,7 +161,7 @@ export class TransferDialog {
     this.sending.set(true);
     this.error.set(null);
     this.api
-      .register({ statementId: this.data.statement.statementId, amount: parseMoney(v.amount)!, transferredOn: date, bankReference: v.reference.trim(), note: v.note.trim() || null }, file, this.key)
+      .register({ statementId: this.data.statement.statementId, amount: v.amount!, transferredOn: date, bankReference: v.reference.trim(), note: v.note.trim() || null }, file, this.key)
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe({
         next: (t) => this.ref.close(t),

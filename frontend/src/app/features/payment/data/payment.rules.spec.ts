@@ -8,7 +8,6 @@ import {
   importIndicators,
   isFingerprint,
   paidAtInstant,
-  parseMoney,
   paymentActions,
   paymentTimeline,
   reallocationSources,
@@ -36,15 +35,6 @@ describe('regras de pagamentos', () => {
     expect(certificateProblem({ name: 'cliente.pfx', size: 16_500 })).toBeNull();
     expect(certificateProblem({ name: 'cliente.pfx', size: 16_501 })).toContain('16 KB');
     expect(certificateProblem({ name: 'cliente.pem', size: 100 })).toContain('PKCS#12');
-  });
-
-  it('interpreta valores digitados em pt-BR', () => {
-    expect(parseMoney('1.234,56')).toBe(1234.56);
-    expect(parseMoney('R$ 350')).toBe(350);
-    expect(parseMoney('99.9')).toBe(99.9);
-    expect(parseMoney('12,345')).toBeNull();
-    expect(parseMoney('abc')).toBeNull();
-    expect(parseMoney('')).toBeNull();
   });
 
   it('acima do limite exige segunda pessoa; no limite, não', () => {

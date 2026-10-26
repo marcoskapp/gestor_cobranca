@@ -20,7 +20,7 @@ import { PaymentTarget, TargetSelection } from '../components/payment-target';
 import { PaymentSettingsApi, PaymentsApi, newIdempotencyKey } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { ExternalOrigin, ExternalPaymentRequest, PaymentMethod, PaymentView } from '../data/payment.models';
-import { EVIDENCE_ACCEPT, evidenceProblem, paidAtInstant, parseMoney, requiresSecondReview, toTargetRequest } from '../data/payment.rules';
+import { EVIDENCE_ACCEPT, evidenceProblem, paidAtInstant, requiresSecondReview, toTargetRequest } from '../data/payment.rules';
 
 export interface ExternalDialogData {
   debtorId?: string | null;
@@ -61,10 +61,10 @@ export interface ExternalDialogData {
 
         <h3 class="app-section-title">Pagamento</h3>
         <div class="app-form-grid mb-3">
-          <app-field label="Valor pago" [hint]="target() ? 'Saldo do destino: ' + money(target()!.balance) + '; o excedente vira sobra.' : ''" error="Informe o valor (ex.: 350,00).">
+          <app-field label="Valor pago" [hint]="target() ? 'Saldo do destino: ' + money(target()!.balance) + '; o excedente vira sobra.' : ''" error="Informe o valor pago (maior que zero).">
             <div class="input-group">
-              <span class="input-group-text">R$</span>
-              <input appInput formControlName="amount" inputmode="decimal" autocomplete="off" required />
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney formControlName="amount" required [min]="0.01" />
             </div>
           </app-field>
           <app-field label="Data do pagamento" error="Informe a data (não pode ser futura).">
@@ -167,7 +167,7 @@ export class ExternalDialog {
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
     debtor: this.fb.control<string[]>(this.data.debtorId ? [this.data.debtorId] : [], [AppValidators.notBlank]),
-    amount: this.fb.control('', [AppValidators.notBlank, (c) => (parseMoney(c.value) === null || parseMoney(c.value)! <= 0 ? { money: true } : null)]),
+    amount: this.fb.control<number | null>(null, [Validators.required]),
     // modelo ISO yyyy-MM-dd (datepicker): a comparação de texto equivale à de datas
     paidOn: this.fb.control<string | null>(toLocalDate(new Date()), [Validators.required, (c) => (c.value && (c.value as string) > toLocalDate(new Date())! ? { future: true } : null)]),
     paidTime: this.fb.control(''),
@@ -178,12 +178,12 @@ export class ExternalDialog {
   });
   private readonly debtorValue = toSignal(this.form.controls.debtor.valueChanges, { initialValue: this.form.controls.debtor.value });
   protected readonly debtorId = computed(() => this.debtorValue()[0] ?? null);
-  private readonly amountValue = toSignal(this.form.controls.amount.valueChanges, { initialValue: '' });
+  private readonly amountValue = toSignal(this.form.controls.amount.valueChanges, { initialValue: null });
 
   private readonly settings = rxResource({ stream: () => this.settingsApi.get().pipe(catchError(() => of(undefined))) });
   private readonly settingsValue = valueOr(this.settings, undefined);
   protected readonly threshold = computed(() => this.settingsValue()?.externalReviewThreshold ?? null);
-  protected readonly needsReview = computed(() => requiresSecondReview(parseMoney(this.amountValue()), this.threshold()));
+  protected readonly needsReview = computed(() => requiresSecondReview(this.amountValue(), this.threshold()));
 
   constructor() {
     this.form.controls.debtor.valueChanges.subscribe(() => this.target.set(null));
@@ -219,7 +219,7 @@ export class ExternalDialog {
     const request: ExternalPaymentRequest = {
       creditorId: target.creditorId,
       debtorId,
-      amount: parseMoney(v.amount)!,
+      amount: v.amount!,
       paidAt,
       method: v.method,
       origin: v.origin,

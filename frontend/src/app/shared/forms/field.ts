@@ -1,5 +1,7 @@
 import { Component, computed, contentChild, effect, input } from '@angular/core';
 import { FieldControl } from './field-control';
+import { InputGroupDensity } from './input-group';
+import { MoneyInput } from './money-input';
 
 /**
  * Campo com rótulo, ajuda e mensagem de erro no padrão de formulários do Bootstrap
@@ -13,9 +15,9 @@ import { FieldControl } from './field-control';
  *   <input appInput type="email" formControlName="email" autocomplete="username" />
  * </app-field>
  *
- * <!-- com botão ou texto ao lado: input-group do Bootstrap -->
+ * <!-- com botão ou texto ao lado: input-group do Bootstrap; valor monetário com a máscara `appMoney` -->
  * <app-field label="Valor">
- *   <div class="input-group"><span class="input-group-text">R$</span><input appInput formControlName="valor" /></div>
+ *   <div class="input-group"><span class="input-group-text" aria-hidden="true">R$</span><input appInput appMoney formControlName="valor" /></div>
  * </app-field>
  * ```
  */
@@ -64,5 +66,5 @@ export class Field {
   }
 }
 
-/** Importe junto: `imports: [ReactiveFormsModule, ...FORM_FIELD]`. */
-export const FORM_FIELD = [Field, FieldControl] as const;
+/** Importe junto: `imports: [ReactiveFormsModule, ...FORM_FIELD]` (inclui `appMoney` e a densidade do `input-group`). */
+export const FORM_FIELD = [Field, FieldControl, MoneyInput, InputGroupDensity] as const;

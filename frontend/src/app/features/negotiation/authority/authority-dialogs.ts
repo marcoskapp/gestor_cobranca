@@ -49,8 +49,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
           <app-field label="Pagamentos máximos" hint="Nunca acima da política">
             <input appInput type="number" min="1" max="360" formControlName="maxInstallments" required />
           </app-field>
-          <app-field label="Valor máximo do acordo (R$)" hint="Vazio = sem limite próprio">
-            <input appInput type="number" min="0.01" step="0.01" formControlName="maxAgreementAmount" />
+          <app-field label="Valor máximo do acordo" hint="Vazio = sem limite próprio">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney [min]="0.01" formControlName="maxAgreementAmount" />
+            </div>
           </app-field>
           <app-field label="Entrada mínima (%)" hint="Vale a maior entre política e perfil">
             <input appInput type="number" min="0" max="99.99" step="0.01" formControlName="minDownPaymentShare" required />
@@ -93,7 +96,7 @@ export class ProfileForm {
     maxConcessionLevel: [this.data?.maxConcessionLevel ?? 0, [Validators.required, Validators.min(0), Validators.max(99)]],
     maxDiscountShare: [this.data?.maxDiscountShare ?? 50, [Validators.required, Validators.min(0), Validators.max(100)]],
     maxInstallments: [this.data?.maxInstallments ?? 6, [Validators.required, Validators.min(1), Validators.max(360)]],
-    maxAgreementAmount: this.fb.control<number | null>(this.data?.maxAgreementAmount ?? null, [Validators.min(0.01)]),
+    maxAgreementAmount: this.fb.control<number | null>(this.data?.maxAgreementAmount ?? null),
     minDownPaymentShare: [this.data?.minDownPaymentShare ?? 10, [Validators.required, Validators.min(0), Validators.max(99.99)]],
     canFormalize: [this.data?.canFormalize ?? false],
     canApprove: [this.data?.canApprove ?? false],

@@ -179,7 +179,7 @@ export class AssistantPolicyDetail {
     const d = this.draft();
     if (d) {
       d.pixInConversation = { ...emptyPix(), ...(d.pixInConversation ?? {}) };
-      d.pixInConversation[key] = value === null || value === '' ? null : decimalBr(String(value));
+      d.pixInConversation[key] = value === null || value === '' ? null : typeof value === 'number' ? value : decimalBr(value);
       this.edited();
     }
   }
