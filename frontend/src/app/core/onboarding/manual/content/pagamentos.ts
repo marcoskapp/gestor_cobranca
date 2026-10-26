@@ -137,7 +137,7 @@ export const MANUAL: ModuleManual = {
       id: 'payment.pix-accounts',
       title: 'Contas Pix',
       objective: 'Conexão com o PSP que gera as cobranças Pix e avisa os pagamentos, por credor ou da assessoria.',
-      purpose: ['Uma conta ativa por credor; a da assessoria vale para os demais. Troque as credenciais antes do vencimento do certificado.', 'O webhook usa a assinatura HMAC; o mTLS só fica disponível quando o ambiente verifica o certificado do PSP.'],
+      purpose: ['Uma conta ativa por credor; a da assessoria vale para os demais. Troque as credenciais antes do vencimento do certificado.', 'Os avisos de pagamento do PSP são conferidos pela assinatura HMAC; o mTLS só fica disponível quando o ambiente verifica o certificado do PSP.'],
       profiles: ['INTEGRACAO', 'ADMIN'],
       inputs: ['Credenciais e certificado fornecidos pelo PSP.'],
       outputs: ['Pix gerados e pagamentos avisados automaticamente.'],
