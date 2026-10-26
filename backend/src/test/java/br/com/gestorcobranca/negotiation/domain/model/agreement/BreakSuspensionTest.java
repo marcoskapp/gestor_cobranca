@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Suspensão da quebra por pagamento em revisão (decisões 494–503): prazo máximo, carência depois da
+ * Suspensão da quebra por pagamento em revisão (decisões 540–549): prazo máximo, carência depois da
  * recusa, uso único por parcela e a ordem das regras.
  */
 class BreakSuspensionTest {

@@ -326,7 +326,7 @@ app:
       revalidation: PT1M
 
   negotiation:
-    # Quebra suspensa enquanto há pagamento externo do acordo em revisão (decisões 494–503, ADR-0010).
+    # Quebra suspensa enquanto há pagamento externo do acordo em revisão (decisões 540–549, ADR-0010).
     break-suspension:
       # prazo máximo, em dias corridos a partir do início; depois dele a quebra volta a valer
       max-days: 7

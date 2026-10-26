@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Quebra do acordo suspensa enquanto há pagamento externo em revisão (decisão do responsável de
- * 26/10/2026; decisões 494–503): suspende no job, a aprovação baixa a parcela e encerra a suspensão, a
+ * 26/10/2026; decisões 540–549): suspende no job, a aprovação baixa a parcela e encerra a suspensão, a
  * recusa devolve a quebra depois da carência (e a mesma parcela não suspende de novo), o prazo máximo
  * libera a quebra e destaca a pendência para quem revisa, com isolamento por assessoria e credor.
  * <p>

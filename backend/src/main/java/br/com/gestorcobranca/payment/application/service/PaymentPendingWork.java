@@ -80,7 +80,7 @@ class PaymentPendingWork implements PendingWorkSource {
     }
 
     /**
-     * Destaque pelo prazo da suspensão da quebra (decisão 500): vencido = acordo cuja suspensão terminou pelo
+     * Destaque pelo prazo da suspensão da quebra (decisão 546): vencido = acordo cuja suspensão terminou pelo
      * prazo máximo (ou já passou dele) com pagamento ainda em revisão; vence hoje = último dia da suspensão.
      * Sem {@code AGREEMENT_VIEW}, fica a contagem simples.
      */

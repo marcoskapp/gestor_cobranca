@@ -11,7 +11,7 @@ public enum BreakSuspensionEndReason {
     /** O acordo deixou de estar em vigor (quitado, cancelado, renegociado ou quebrado). */
     AGREEMENT_ENDED;
 
-    /** Depois deste fim, a mesma parcela não suspende a quebra de novo (decisão 498). */
+    /** Depois deste fim, a mesma parcela não suspende a quebra de novo (decisão 544). */
     public boolean blocksNewSuspension() {
         return this == REJECTED || this == DEADLINE;
     }

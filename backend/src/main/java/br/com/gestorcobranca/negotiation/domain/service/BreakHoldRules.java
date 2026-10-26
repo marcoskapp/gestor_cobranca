@@ -3,7 +3,7 @@ package br.com.gestorcobranca.negotiation.domain.service;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.BreakSuspensionEndReason;
 
 /**
- * Regras puras da suspensão da quebra por pagamento em revisão (decisões 494–503). O serviço reúne os
+ * Regras puras da suspensão da quebra por pagamento em revisão (decisões 540–549). O serviço reúne os
  * fatos (suspensão em vigor, pagamentos em revisão e em trânsito na fonte, carência, uso anterior da
  * parcela) e aplica estas decisões com o acordo bloqueado.
  */

@@ -405,7 +405,7 @@ public class Agreement extends TenantScopedEntity {
 
     /**
      * Parcela que dispara a quebra: a de menor número entre as em atraso além da tolerância (a suspensão
-     * da quebra por pagamento em revisão é contada por ela — decisão 498).
+     * da quebra por pagamento em revisão é contada por ela — decisão 544).
      */
     public Optional<AgreementInstallment> breakTriggerInstallment(LocalDate today) {
         return installments.stream().filter(i -> i.overdueBeyond(today, breakToleranceDays))

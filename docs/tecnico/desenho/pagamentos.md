@@ -74,7 +74,7 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 - **Revisão conforme risco**: valor ≤ `externalReviewThreshold` (padrão R$ 500,00, por assessoria) → confirmado no registro (`AUTO_LOW_RISK`); acima → `INFORMED` até aprovação por **outra pessoa** com `PAYMENT_REVIEW` (`DUAL_CONTROL`); a fila de revisão não mostra ao revisor os próprios pagamentos e o domínio recusa `payment.self_review`. Recusa exige motivo (`REJECTED`, sem baixa). A `PaymentView` traz o **destino solicitado** (`requestedTarget`: tipo, acordo, parcelas/títulos em ordem e estratégia) do pagamento externo, para quem aprova ver para onde o valor vai antes de a confirmação gerar as alocações (nulo nos integrados).
 - `Idempotency-Key` (escopo `payment.external`): mesma chave e conteúdo → mesmo pagamento.
 
-### 5.1 Situação de revisão no acordo e no caso (decisões 430–438, 494–503)
+### 5.1 Situação de revisão no acordo e no caso (decisões 430–438, 540–549)
 
 Quem negocia precisa saber que o pagamento que informou (ou que outro informou) ainda aguarda a aprovação de outra pessoa e que a parcela não baixou, ou que ele foi recusado e é preciso agir. Como o negotiation não depende do payment, o resumo é servido aqui (`PaymentReviewStatusUseCases`, `PaymentReviewStatusService`) e o frontend o compõe nas telas de negociação e cobrança.
 
@@ -88,13 +88,13 @@ Quem negocia precisa saber que o pagamento que informou (ou que outro informou) 
 - **Suspensão da quebra** (`breakSuspension` nos resumos do acordo e do devedor): prazo máximo e carência configurados no negotiation e a suspensão mais recente de cada acordo envolvido (lida por `AgreementBreakSuspensionUseCases#latest`, com o escopo de quem consulta). Ver §5.2.
 - **Frontend**: `app-payment-review-alert` (`features/payment/components`) no detalhe do acordo (aviso completo, "Destino previsto" e selo "Em revisão" na parcela; a quebra fica suspensa até a revisão, com a data limite ou o prazo máximo, e a carência depois da recusa), selo "Pagamento em revisão"/"Pagamento recusado" na listagem de acordos (uma consulta por página) e aviso compacto na ficha do caso da estação de cobrança.
 
-### 5.2 Quebra suspensa enquanto há pagamento em revisão (decisão do responsável de 26/10/2026; decisões 494–503, ADR-0010)
+### 5.2 Quebra suspensa enquanto há pagamento em revisão (decisão do responsável de 26/10/2026; decisões 540–549, ADR-0010)
 
 A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra com a fonte e o fim na revisão:
 
 - **Porta implementada aqui** — `PaymentReviewHoldsProvider implements negotiation.application.port.spi.PaymentReviewHolds`: por acordo, os externos `INFORMED` com o acordo como destino (`findPendingReviewByAgreement`), as alocações confirmadas ainda sem retorno do negotiation (`findInFlightByAgreement` — em trânsito) e os externos revisados por segunda pessoa desde um instante (`findReviewedByAgreementSince`). Consulta de sistema, na transação do job de quebra, sob RLS; só ids, instantes e valores.
 - **Fim na revisão** — `approve`/`reject` de externo com destino a acordo chamam `AgreementBreakSuspensionUseCases#reconcile(agreementId)` na mesma transação: sem outro pendente, a suspensão termina como `APPROVED` (a baixa segue pelo `PaymentConfirmed`) ou `REJECTED` (carência). Idempotente.
-- **Destaque para quem revisa** (decisão 500) — `PaymentView.breakSuspension` na fila (`/payments/review-queue`) e no detalhe de pagamento `INFORMED`, para quem tem `AGREEMENT_VIEW`: suspensão mais recente do acordo de destino (uma consulta por página). A tela mostra "Quebra suspensa até dd/mm", "só até hoje" ou "Prazo de suspensão vencido". Em "Minhas pendências", `payment.external_review` passa a ter **vencidos** (pagamentos de acordo cuja suspensão terminou pelo prazo ou já passou dele), **vence hoje** (último dia) e `nextDueDate` (prazo mais próximo).
+- **Destaque para quem revisa** (decisão 546) — `PaymentView.breakSuspension` na fila (`/payments/review-queue`) e no detalhe de pagamento `INFORMED`, para quem tem `AGREEMENT_VIEW`: suspensão mais recente do acordo de destino (uma consulta por página). A tela mostra "Quebra suspensa até dd/mm", "só até hoje" ou "Prazo de suspensão vencido". Em "Minhas pendências", `payment.external_review` passa a ter **vencidos** (pagamentos de acordo cuja suspensão terminou pelo prazo ou já passou dele), **vence hoje** (último dia) e `nextDueDate` (prazo mais próximo).
 
 ## 6. Alocação (RB06)
 
@@ -180,7 +180,7 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 | 13 | `cobv` lê o documento do devedor como sistema (registrado no log de acesso); `cob` sem pagador | Pedir o documento ao operador | Exigência da API; minimização no Pix imediato |
 | 14 | CNAB 240/400 só como formato reconhecido sem leitor | Implementar agora | Layout depende do banco/PSP escolhido (issue #12) |
 | 15 | Situação de revisão servida pelo payment com `AGREEMENT_VIEW`, sem evidência/observação; motivo da recusa só para quem informou ou `PAYMENT_VIEW` | Projeção no negotiation; exigir `PAYMENT_VIEW` | Grafo proíbe negotiation → payment; menor privilégio (decisões 430–438) |
-| 16 | Quebra suspensa enquanto há externo em revisão: o payment implementa a porta `PaymentReviewHolds` do negotiation (`negotiation :: spi`) e encerra a suspensão na mesma transação da revisão | Eventos novos payment → negotiation com projeção | Fonte única, sem atraso nem carga inicial (decisões 494–503, ADR-0010) |
+| 16 | Quebra suspensa enquanto há externo em revisão: o payment implementa a porta `PaymentReviewHolds` do negotiation (`negotiation :: spi`) e encerra a suspensão na mesma transação da revisão | Eventos novos payment → negotiation com projeção | Fonte única, sem atraso nem carga inicial (decisões 540–549, ADR-0010) |
 
 ## 14. Pendências
 

@@ -51,7 +51,7 @@ export interface BreakSuspensionView {
   graceUntil: string | null;
 }
 
-/** Parâmetros e suspensões mais recentes dos acordos envolvidos (decisões 494–503). */
+/** Parâmetros e suspensões mais recentes dos acordos envolvidos (decisões 540–549). */
 export interface BreakSuspensionInfo {
   /** Prazo máximo de suspensão, em dias. */
   maxDays: number;
@@ -203,7 +203,7 @@ export function rejectionGraceUntil(
   return graces.length ? graces[graces.length - 1] : null;
 }
 
-/** Selo da fila de revisão: até quando a quebra fica suspensa ou que o prazo já venceu (decisão 500). */
+/** Selo da fila de revisão: até quando a quebra fica suspensa ou que o prazo já venceu (decisão 546). */
 export interface BreakHoldBadge {
   tone: 'warning' | 'danger';
   text: string;

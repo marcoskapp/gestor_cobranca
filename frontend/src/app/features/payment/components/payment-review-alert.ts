@@ -21,7 +21,7 @@ import {
  * Aviso de pagamentos externos informados que aguardam a aprovação de outra pessoa (decisão 75) e dos
  * recusados recentemente, para quem negocia saber que a parcela ainda não baixou ou que precisa agir.
  * Enquanto há pagamento em revisão, a quebra do acordo fica suspensa até a revisão, por no máximo
- * `maxDays` dias (decisões 494–503); depois da recusa, volta a valer passada a carência.
+ * `maxDays` dias (decisões 540–549); depois da recusa, volta a valer passada a carência.
  * Usado no detalhe do acordo (completo, com as parcelas cobertas) e na ficha do caso (`compact`,
  * com o atalho para o acordo). Link para o pagamento só com `PAYMENT_VIEW`.
  */
