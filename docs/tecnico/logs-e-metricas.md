@@ -41,7 +41,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`; `policy.published` com `policyKind = assistant` |
 | Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
-| Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.11) |
+| Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
 
@@ -342,7 +342,7 @@ Log de acesso: `PORTAL_CODE_REQUESTED` (inclusive para documento inexistente, co
 
 Consulta sugerida: `filter eventType = "pending_work.observed" | stats count(*), avg(attr.oldestAgeHours), sum(attr.overdue > 0) by attr.itemType, attr.ageBand`.
 
-### 3.11 Atributos dos eventos do chat de suporte (helpdesk)
+### 3.12 Atributos dos eventos do chat de suporte (helpdesk)
 
 Nunca o texto da pergunta, da resposta ou do chamado, nome, documento ou contato: só ids, códigos de catálogo, contagens e consumo. Referência `helpdesk_message` (perguntas e avaliações) ou `support_ticket` (chamados); ator = o usuário interno.
 
