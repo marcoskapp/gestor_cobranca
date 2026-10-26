@@ -30,6 +30,7 @@ import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.storage.FileStorage;
 import br.com.gestorcobranca.telephony.application.port.in.CallUseCases;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupReason;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupRequest;
 import br.com.gestorcobranca.telephony.domain.model.Agent;
@@ -64,6 +65,8 @@ import java.util.UUID;
 @Transactional
 class CallService implements CallUseCases {
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CallService.class);
+
     private final CallRepository calls;
     private final CallRecordingRepository recordings;
     private final AgentRepository agents;
@@ -72,6 +75,7 @@ class CallService implements CallUseCases {
     private final DebtorContactUseCases debtorContacts;
     private final ContactGate gate;
     private final ProviderResolver resolver;
+    private final AccountRouter router;
     private final CallLifecycle lifecycle;
     private final CaseInteractions caseInteractions;
     private final PresenceRecorder presence;
@@ -89,7 +93,8 @@ class CallService implements CallUseCases {
 
     CallService(CallRepository calls, CallRecordingRepository recordings, AgentRepository agents,
                 TelephonyAccountRepository accounts, CaseUseCases cases, DebtorContactUseCases debtorContacts,
-                ContactGate gate, ProviderResolver resolver, CallLifecycle lifecycle, CaseInteractions caseInteractions,
+                ContactGate gate, ProviderResolver resolver, AccountRouter router, CallLifecycle lifecycle,
+                CaseInteractions caseInteractions,
                 PresenceRecorder presence, CallAccess callAccess, AccessScope accessScope, CurrentActor currentActor,
                 IdempotencyService idempotency, JobQueue jobQueue, FileStorage storage, AccessLogger accessLogger,
                 AuditTrail auditTrail, BusinessEventLogger businessEvents, TelephonyMetrics metrics, Clock clock) {
@@ -101,6 +106,7 @@ class CallService implements CallUseCases {
         this.debtorContacts = debtorContacts;
         this.gate = gate;
         this.resolver = resolver;
+        this.router = router;
         this.lifecycle = lifecycle;
         this.caseInteractions = caseInteractions;
         this.presence = presence;
@@ -140,7 +146,7 @@ class CallService implements CallUseCases {
                         "Operador sem ramal habilitado na telefonia"));
         ChannelContact phone = phone(kase.debtorId(), command.contactId());
         Optional<ContactFingerprint> fingerprint = debtorContacts.tryFingerprint("PHONE", phone.value());
-        TelephonyAccount account = resolver.accountFor(kase.creditorId());
+        TelephonyAccount account = router.forClickToCall(agent, kase.creditorId(), kase.portfolioId()).primary();
         Instant now = Instant.now(clock);
         Call call = Call.outbound(CallOrigin.CLICK_TO_CALL, account,
                 new Call.Target(kase.creditorId(), kase.portfolioId(), kase.debtorId(), kase.id(), phone.contactId(),
@@ -224,8 +230,16 @@ class CallService implements CallUseCases {
         Instant now = Instant.now(clock);
         if (call.getStatus() != CallStatus.QUEUED) {
             TelephonyAccount account = accounts.findById(call.getAccountId()).orElseThrow();
-            resolver.provider(account.getProvider()).ifPresent(p -> p.hangup(new HangupRequest(resolver.context(account),
-                    call.getId(), call.getProviderCallId(), HangupReason.OPERATOR)));
+            resolver.provider(account.getProvider()).ifPresent(p -> {
+                try {
+                    p.hangup(new HangupRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
+                            HangupReason.OPERATOR));
+                } catch (TelephonyProvider.ProviderRejectedException e) {
+                    // a chamada já terminou no provedor: o encerramento local segue
+                    LOG.atWarn().addKeyValue("callId", call.getId())
+                            .addKeyValue("code", e.code()).log("Provedor recusou o encerramento da chamada");
+                }
+            });
         }
         HangupSide side = callAccess.actorId().equals(call.getOperatorId()) ? HangupSide.OPERATOR : HangupSide.SYSTEM;
         call.end(call.getStatus() == CallStatus.ANSWERED ? CallStatus.COMPLETED : CallStatus.CANCELLED, now, side,

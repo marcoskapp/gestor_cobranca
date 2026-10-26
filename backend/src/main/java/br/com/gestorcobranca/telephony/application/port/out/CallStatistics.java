@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.telephony.application.port.out;
 
+import java.util.List;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -21,6 +23,24 @@ public interface CallStatistics {
      * @param tabulated  tabuladas pelo operador (denominador do pós-atendimento médio)
      */
     Counters campaignCounters(UUID campaignId, Instant since);
+
+    /**
+     * Indicadores por conta de telefonia no período (comparação entre provedores), somente chamadas
+     * de saída que chegaram ao provedor ou falharam nele.
+     *
+     * @param dialed          chamadas aceitas pelo provedor
+     * @param rejected        recusadas pelo provedor antes de discar ({@code FAILED} sem início de discagem e sem porteiro)
+     * @param answered        atendidas (pessoa ou secretária)
+     * @param connected       conectadas a um operador
+     * @param failed          falhas depois de aceitas ({@code FAILED} com início de discagem)
+     * @param fallbackIn      discadas por esta conta como contingência de outra
+     * @param billableSeconds atendimento → fim (base da tarifa por minuto)
+     */
+    List<AccountCounters> accountCounters(Instant from, Instant to);
+
+    record AccountCounters(UUID accountId, long dialed, long rejected, long answered, long connected, long failed,
+                           long fallbackIn, long ringSeconds, long ringEnded, long talkSeconds, long billableSeconds) {
+    }
 
     record Counters(long dialed, long answered, long live, long connected, long abandoned, long machine,
                     long talkSeconds, long ringSeconds, long ended, long wrapUpSeconds, long tabulated) {

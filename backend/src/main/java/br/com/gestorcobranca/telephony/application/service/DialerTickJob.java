@@ -54,9 +54,11 @@ import java.util.UUID;
  *       sem telefone → excluído; telefone escolhido em rodízio pela prioridade dos contatos;</li>
  *   <li>{@code ContactGate#authorizeAndRecord} (origem {@code CAMPAIGN}) para cada item: negação
  *       com próximo instante permitido → adiado sem consumir tentativa; sem fim previsto → excluído;</li>
+ *   <li>conta pelo roteamento ({@link AccountRouter}: campanha → carteira → credor → padrão);</li>
  *   <li>discagem em lote por conta ({@code dialBatch}); recusa do provedor → tentativa com resultado
- *       {@code FAILED} (retentativa pela política). Falha transitória desfaz o ciclo inteiro,
- *       inclusive as tentativas registradas no compliance.</li>
+ *       {@code FAILED} (retentativa pela política). Falha transitória que comprovadamente não criou
+ *       as chamadas → o lote vai, uma vez, para a conta de contingência da regra; outra falha
+ *       transitória desfaz o ciclo inteiro, inclusive as tentativas registradas no compliance.</li>
  * </ol>
  */
 @Component
@@ -75,6 +77,7 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
     private final DebtorContactUseCases debtorContacts;
     private final ContactGate gate;
     private final ProviderResolver resolver;
+    private final AccountRouter router;
     private final CallLifecycle lifecycle;
     private final TelephonyMetrics metrics;
     private final TelephonyProperties properties;
@@ -83,7 +86,8 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
     DialerTickJob(DialerCampaignRepository campaigns, DialerEntryRepository entries, CallRepository calls,
                   AgentRepository agents, CallStatistics statistics, CaseUseCases cases,
                   DebtorContactUseCases debtorContacts, ContactGate gate, ProviderResolver resolver,
-                  CallLifecycle lifecycle, TelephonyMetrics metrics, TelephonyProperties properties, Clock clock) {
+                  AccountRouter router, CallLifecycle lifecycle, TelephonyMetrics metrics, TelephonyProperties properties,
+                  Clock clock) {
         this.campaigns = campaigns;
         this.entries = entries;
         this.calls = calls;
@@ -93,6 +97,7 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
         this.debtorContacts = debtorContacts;
         this.gate = gate;
         this.resolver = resolver;
+        this.router = router;
         this.lifecycle = lifecycle;
         this.metrics = metrics;
         this.properties = properties;
@@ -136,17 +141,19 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
             metrics.pacing(mode, decision.reason(), 0);
             return;
         }
-        Map<UUID, Batch> batches = new LinkedHashMap<>();
+        Map<String, Batch> batches = new LinkedHashMap<>();
+        Map<String, Optional<AccountRouter.Route>> routeCache = new java.util.HashMap<>();
         int prepared = 0;
         List<UUID> due = entries.lockDueIds(campaign.getId(), now, Math.min(decision.callsToPlace() * 3, 500));
         for (DialerEntry entry : sorted(entries.findAllByIdIn(due), due)) {
             if (prepared >= decision.callsToPlace()) {
                 break;
             }
-            Optional<Prepared> call = prepare(campaign, entry, now);
+            Optional<Prepared> call = prepare(campaign, entry, now, routeCache);
             if (call.isPresent()) {
-                batches.computeIfAbsent(call.get().account().getId(), id -> new Batch(call.get().account(), new ArrayList<>()))
-                        .calls().add(call.get().call());
+                AccountRouter.Route route = call.get().route();
+                String key = route.primary().getId() + "|" + route.fallbackAccount().map(a -> a.getId().toString()).orElse("");
+                batches.computeIfAbsent(key, k -> new Batch(route, new ArrayList<>())).calls().add(call.get().call());
                 prepared++;
             }
         }
@@ -167,7 +174,8 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
                 counters.dialed(), properties.dialer().maxPerTick()));
     }
 
-    private Optional<Prepared> prepare(DialerCampaign campaign, DialerEntry entry, Instant now) {
+    private Optional<Prepared> prepare(DialerCampaign campaign, DialerEntry entry, Instant now,
+                                       Map<String, Optional<AccountRouter.Route>> routeCache) {
         CaseView kase = cases.get(entry.getCaseId());
         if ("CLOSED".equals(kase.status())) {
             return exclude(entry, "CASE_CLOSED", now);
@@ -185,8 +193,9 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
         if (phones.isEmpty()) {
             return exclude(entry, "NO_PHONE", now);
         }
-        Optional<TelephonyAccount> account = resolver.findAccountFor(entry.getCreditorId())
-                .filter(a -> resolver.provider(a.getProvider()).isPresent());
+        Optional<AccountRouter.Route> route = routeCache.computeIfAbsent(entry.getCreditorId() + "|" + entry.getPortfolioId(),
+                k -> router.forCampaign(campaign.getId(), entry.getCreditorId(), entry.getPortfolioId()));
+        Optional<TelephonyAccount> account = route.map(AccountRouter.Route::primary);
         if (account.isEmpty()) {
             LOG.atWarn().addKeyValue("campaignId", campaign.getId()).addKeyValue("creditorId", entry.getCreditorId())
                     .log("Campanha de discagem sem conta de telefonia ativa para o credor");
@@ -219,21 +228,34 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
         }
         entry.attemptStarted(call.getId(), now);
         entries.save(entry);
-        return Optional.of(new Prepared(account.get(), new Pending(call, decision.attemptId())));
+        return Optional.of(new Prepared(route.get(), new Pending(call, decision.attemptId())));
     }
 
     private void dial(DialerCampaign campaign, Batch batch) {
-        TelephonyProvider provider = resolver.provider(batch.account().getProvider()).orElseThrow();
-        List<DialRequest> requests = batch.calls().stream()
-                .map(p -> new DialRequest(p.call().getId(), p.call().getNumber(), campaign.getRingTimeoutSeconds(), true,
-                        p.call().isRecordingRequested(), p.call().isRecordingAnnounced()))
-                .toList();
+        TelephonyAccount primary = batch.route().primary();
         List<DialResult> results;
         try {
-            results = provider.dialBatch(resolver.context(batch.account()), requests);
+            results = dialBatch(campaign, primary, batch.calls());
         } catch (TransientProviderException e) {
             metrics.dial(CallOrigin.DIALER.name(), "transient");
-            throw e;
+            metrics.providerDial(name(primary), CallOrigin.DIALER.name(),
+                    e.notProcessed() ? "transient_not_processed" : "transient");
+            Optional<TelephonyAccount> fallback = e.notProcessed() && properties.routing().fallbackEnabled()
+                    ? batch.route().fallbackAccount() : Optional.empty();
+            if (fallback.isEmpty()) {
+                throw e;
+            }
+            batch.calls().forEach(p -> p.call().switchToFallback(fallback.get()));
+            metrics.fallback(name(primary), name(fallback.get()), CallOrigin.DIALER.name(), batch.calls().size());
+            LOG.atWarn().addKeyValue("campaignId", campaign.getId()).addKeyValue("fromAccountId", primary.getId())
+                    .addKeyValue("toAccountId", fallback.get().getId()).addKeyValue("calls", batch.calls().size())
+                    .log("Lote do discador desviado para a conta de contingência");
+            try {
+                results = dialBatch(campaign, fallback.get(), batch.calls());
+            } catch (TransientProviderException again) {
+                metrics.providerDial(name(fallback.get()), CallOrigin.DIALER.name(), "transient");
+                throw again;
+            }
         }
         Instant now = Instant.now(clock);
         Map<UUID, DialResult> byCall = new LinkedHashMap<>();
@@ -247,12 +269,30 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
                 lifecycle.dialed(call);
             } else {
                 metrics.dial(CallOrigin.DIALER.name(), "rejected");
+                metrics.providerDial(name(call), CallOrigin.DIALER.name(), "rejected");
                 call.failBeforeDialing(result == null ? "NO_RESULT" : result.errorCode(),
                         result == null ? "Provedor não devolveu resultado" : result.errorDetail(), now);
                 calls.save(call);
                 lifecycle.ended(call);
             }
         }
+    }
+
+    private List<DialResult> dialBatch(DialerCampaign campaign, TelephonyAccount account, List<Pending> pending) {
+        TelephonyProvider provider = resolver.provider(account.getProvider()).orElseThrow();
+        List<DialRequest> requests = pending.stream()
+                .map(p -> new DialRequest(p.call().getId(), p.call().getNumber(), campaign.getRingTimeoutSeconds(), true,
+                        p.call().isRecordingRequested(), p.call().isRecordingAnnounced()))
+                .toList();
+        return provider.dialBatch(resolver.context(account), requests);
+    }
+
+    private static String name(TelephonyAccount account) {
+        return account.getProvider().name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static String name(Call call) {
+        return call.getProvider().name().toLowerCase(java.util.Locale.ROOT);
     }
 
     private Optional<Prepared> exclude(DialerEntry entry, String reason, Instant now) {
@@ -271,9 +311,9 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
     private record Pending(Call call, UUID attemptId) {
     }
 
-    private record Prepared(TelephonyAccount account, Pending call) {
+    private record Prepared(AccountRouter.Route route, Pending call) {
     }
 
-    private record Batch(TelephonyAccount account, List<Pending> calls) {
+    private record Batch(AccountRouter.Route route, List<Pending> calls) {
     }
 }

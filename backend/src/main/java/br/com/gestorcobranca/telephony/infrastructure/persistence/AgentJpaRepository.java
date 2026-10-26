@@ -24,21 +24,25 @@ interface AgentJpaRepository extends JpaRepository<Agent, UUID>, AgentRepository
 
     @Override
     @Query(value = """
-            select id from telephony.agent
-             where status = 'AVAILABLE' and active and campaign_id = :campaignId
-             order by last_available_at nulls first, id limit :limit
-               for update skip locked
+            select a.id from telephony.agent a
+             where a.status = 'AVAILABLE' and a.active and a.campaign_id = :campaignId
+               and not exists (select 1 from telephony.agent_endpoint e
+                                where e.agent_id = a.id and e.provider_account_id = :accountId and not e.active)
+             order by a.last_available_at nulls first, a.id limit :limit
+               for update of a skip locked
             """, nativeQuery = true)
-    List<UUID> lockAvailableIdsInCampaign(UUID campaignId, int limit);
+    List<UUID> lockAvailableIdsInCampaign(UUID campaignId, UUID accountId, int limit);
 
     @Override
     @Query(value = """
-            select id from telephony.agent
-             where status = 'AVAILABLE' and active
-             order by last_available_at nulls first, id limit :limit
-               for update skip locked
+            select a.id from telephony.agent a
+             where a.status = 'AVAILABLE' and a.active
+               and not exists (select 1 from telephony.agent_endpoint e
+                                where e.agent_id = a.id and e.provider_account_id = :accountId and not e.active)
+             order by a.last_available_at nulls first, a.id limit :limit
+               for update of a skip locked
             """, nativeQuery = true)
-    List<UUID> lockAvailableIds(int limit);
+    List<UUID> lockAvailableIds(UUID accountId, int limit);
 
     @Override
     @Query(value = """

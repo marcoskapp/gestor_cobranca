@@ -39,7 +39,27 @@ public interface AgentUseCases {
     /** Saída forçada pela supervisão (motivo obrigatório, auditada). */
     AgentView forceLogout(UUID userId, String reason);
 
+    /**
+     * Ramais do operador por conta de telefonia (plataforma). Sem registro vale o ramal padrão;
+     * {@code active = false} marca o operador como fora daquela plataforma.
+     */
+    List<EndpointView> endpoints();
+
+    EndpointView configureEndpoint(UUID userId, UUID accountId, ConfigureEndpointCommand command);
+
+    /** Volta a usar o ramal padrão do operador na conta. */
+    void removeEndpoint(UUID userId, UUID accountId);
+
+    /** @param extension ramal padrão: usado nas contas em que o operador não tem ramal próprio */
     record ConfigureAgentCommand(String extension, boolean active) {
+    }
+
+    /** @param extension ramal nesta conta (obrigatório com {@code active}) */
+    record ConfigureEndpointCommand(String extension, boolean active) {
+    }
+
+    record EndpointView(UUID id, UUID agentId, UUID userId, UUID accountId, String extension, boolean active,
+                        long version) {
     }
 
     /**

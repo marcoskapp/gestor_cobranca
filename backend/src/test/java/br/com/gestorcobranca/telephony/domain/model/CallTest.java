@@ -17,7 +17,7 @@ class CallTest {
 
     static TelephonyAccount account(boolean recording) {
         return new TelephonyAccount(ProviderType.SANDBOX, null, "Sandbox", "+551130000000", recording, recording, null,
-                "k".repeat(43), T0);
+                "k".repeat(43), true, T0);
     }
 
     static Call.Target target() {
@@ -173,7 +173,7 @@ class CallTest {
         assertThatThrownBy(() -> Call.outbound(CallOrigin.INBOUND, account(false), target(), OPERATOR, null, null, 1, T0))
                 .isInstanceOf(BusinessRuleException.class);
         assertThatThrownBy(() -> new TelephonyAccount(ProviderType.SANDBOX, null, "x", "+551130000000", true, false,
-                null, "k".repeat(43), T0)).isInstanceOf(BusinessRuleException.class)
+                null, "k".repeat(43), true, T0)).isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("aviso de gravação");
     }
 

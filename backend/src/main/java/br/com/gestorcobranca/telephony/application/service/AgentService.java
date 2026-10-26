@@ -9,6 +9,10 @@ import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases;
 import br.com.gestorcobranca.telephony.domain.model.Agent;
+import br.com.gestorcobranca.telephony.domain.model.AgentEndpoint;
+import br.com.gestorcobranca.telephony.domain.model.TelephonyAccount;
+import br.com.gestorcobranca.telephony.domain.repository.AgentEndpointRepository;
+import br.com.gestorcobranca.telephony.domain.repository.TelephonyAccountRepository;
 import br.com.gestorcobranca.telephony.domain.model.DialerCampaign;
 import br.com.gestorcobranca.telephony.domain.model.PauseReason;
 import br.com.gestorcobranca.telephony.domain.repository.AgentRepository;
@@ -19,17 +23,25 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
- * Operadores e presença. Entrar numa campanha exige a campanha ativa (ou pausada) e o credor dela
- * no escopo do operador — o discador só distribui chamadas de casos que ele pode atender.
+ * Operadores e presença. Entrar numa campanha exige a campanha ativa (ou pausada), o credor dela
+ * no escopo do operador — o discador só distribui chamadas de casos que ele pode atender — e, se a
+ * campanha tem conta própria no roteamento, que o operador seja alcançável por ela.
  */
 @Service
 @Transactional
 class AgentService implements AgentUseCases {
 
     private final AgentRepository agents;
+    private final AgentEndpointRepository endpointRepository;
+    private final AgentEndpoints endpoints;
+    private final TelephonyAccountRepository accounts;
+    private final AccountRouter router;
     private final DialerCampaignRepository campaigns;
     private final PresenceRecorder presence;
     private final DialerTicks ticks;
@@ -38,9 +50,15 @@ class AgentService implements AgentUseCases {
     private final AuditTrail auditTrail;
     private final Clock clock;
 
-    AgentService(AgentRepository agents, DialerCampaignRepository campaigns, PresenceRecorder presence,
-                 DialerTicks ticks, AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail, Clock clock) {
+    AgentService(AgentRepository agents, AgentEndpointRepository endpointRepository, AgentEndpoints endpoints,
+                 TelephonyAccountRepository accounts, AccountRouter router, DialerCampaignRepository campaigns,
+                 PresenceRecorder presence, DialerTicks ticks, AccessScope accessScope, CurrentActor currentActor,
+                 AuditTrail auditTrail, Clock clock) {
         this.agents = agents;
+        this.endpointRepository = endpointRepository;
+        this.endpoints = endpoints;
+        this.accounts = accounts;
+        this.router = router;
         this.campaigns = campaigns;
         this.presence = presence;
         this.ticks = ticks;
@@ -97,7 +115,7 @@ class AgentService implements AgentUseCases {
     public AgentView login(UUID campaignId) {
         Agent agent = mine();
         if (campaignId != null) {
-            requireJoinable(campaignId);
+            requireJoinable(agent, campaignId);
         }
         presence.record(agent.login(campaignId, Instant.now(clock)), "operator");
         return CallViews.agent(agents.save(agent));
@@ -122,7 +140,7 @@ class AgentService implements AgentUseCases {
     public AgentView joinCampaign(UUID campaignId) {
         Agent agent = mine();
         if (campaignId != null) {
-            requireJoinable(campaignId);
+            requireJoinable(agent, campaignId);
         }
         agent.joinCampaign(campaignId);
         agents.save(agent);
@@ -160,6 +178,63 @@ class AgentService implements AgentUseCases {
         return CallViews.agent(agent);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<EndpointView> endpoints() {
+        List<Agent> all = agents.findAllByOrderByStatusAscStatusSinceAsc();
+        Map<UUID, Agent> byId = all.stream().collect(Collectors.toMap(Agent::getId, Function.identity()));
+        return endpointRepository.findAllByAgentIdIn(byId.keySet()).stream()
+                .map(e -> view(e, byId.get(e.getAgentId()))).toList();
+    }
+
+    @Override
+    public EndpointView configureEndpoint(UUID userId, UUID accountId, ConfigureEndpointCommand command) {
+        Guard.require(command != null, "agent_endpoint.required", "Dados do ramal obrigatórios");
+        Agent agent = agents.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> ResourceNotFoundException.of("telephony_agent", userId));
+        TelephonyAccount account = accounts.findById(accountId)
+                .orElseThrow(() -> ResourceNotFoundException.of("telephony_account", accountId));
+        if (account.getCreditorId() != null) {
+            accessScope.requireVisible("telephony_account", account.getId(), account.getCreditorId());
+        }
+        AgentEndpoint endpoint = endpointRepository.findByAgentIdAndAccountId(agent.getId(), accountId).orElse(null);
+        if (endpoint == null) {
+            endpoint = endpointRepository.save(new AgentEndpoint(agent.getId(), account.getId(), command.extension(),
+                    command.active()));
+            auditTrail.record(AuditEntry.of("telephony_agent.endpoint_configured", "telephony_agent", agent.getId())
+                    .created("accountId", accountId).created("provider", account.getProvider())
+                    .created("extension", endpoint.getExtension()).created("active", endpoint.isActive())
+                    .meta("userId", userId));
+            return view(endpoint, agent);
+        }
+        String beforeExtension = endpoint.getExtension();
+        boolean beforeActive = endpoint.isActive();
+        endpoint.change(command.extension(), command.active());
+        endpointRepository.save(endpoint);
+        auditTrail.record(AuditEntry.of("telephony_agent.endpoint_updated", "telephony_agent", agent.getId())
+                .change("extension", beforeExtension, endpoint.getExtension())
+                .change("active", beforeActive, endpoint.isActive())
+                .meta("accountId", accountId).meta("userId", userId));
+        return view(endpoint, agent);
+    }
+
+    @Override
+    public void removeEndpoint(UUID userId, UUID accountId) {
+        Agent agent = agents.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> ResourceNotFoundException.of("telephony_agent", userId));
+        endpointRepository.findByAgentIdAndAccountId(agent.getId(), accountId).ifPresent(e -> {
+            endpointRepository.delete(e);
+            auditTrail.record(AuditEntry.of("telephony_agent.endpoint_removed", "telephony_agent", agent.getId())
+                    .change("extension", e.getExtension(), null).change("active", e.isActive(), null)
+                    .meta("accountId", accountId).meta("userId", userId));
+        });
+    }
+
+    private static EndpointView view(AgentEndpoint e, Agent agent) {
+        return new EndpointView(e.getId(), e.getAgentId(), agent == null ? null : agent.getUserId(), e.getAccountId(),
+                e.getExtension(), e.isActive(), e.getVersion() == null ? 0 : e.getVersion());
+    }
+
     private Agent mine() {
         return agents.findByUserIdForUpdate(currentActor.actorId()).orElseThrow(this::notConfigured);
     }
@@ -168,7 +243,7 @@ class AgentService implements AgentUseCases {
         return new ConflictException("telephony.agent_not_configured", "Operador sem ramal habilitado na telefonia");
     }
 
-    private void requireJoinable(UUID campaignId) {
+    private void requireJoinable(Agent agent, UUID campaignId) {
         DialerCampaign campaign = campaigns.findById(campaignId)
                 .orElseThrow(() -> ResourceNotFoundException.of("dialer_campaign", campaignId));
         if (campaign.getCreditorId() == null) {
@@ -179,5 +254,11 @@ class AgentService implements AgentUseCases {
         Guard.requireState(campaign.getStatus() == br.com.gestorcobranca.telephony.domain.model.DialerCampaignStatus.ACTIVE
                         || campaign.getStatus() == br.com.gestorcobranca.telephony.domain.model.DialerCampaignStatus.PAUSED,
                 "dialer_campaign.not_active", "Campanha não está ativa");
+        router.campaignAccount(campaignId).ifPresent(account -> {
+            if (endpoints.extensionFor(agent, account.getId()).isEmpty()) {
+                throw new ConflictException("telephony.agent_not_on_account",
+                        "O operador não tem ramal na conta de telefonia desta campanha");
+            }
+        });
     }
 }

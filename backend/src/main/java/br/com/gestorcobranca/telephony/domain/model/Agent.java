@@ -77,8 +77,13 @@ public class Agent extends TenantScopedEntity {
         changeExtension(extension);
     }
 
+    /** Formato aceito para ramal, usuário SIP ou identidade do operador no provedor. */
+    public static boolean validExtension(String extension) {
+        return extension != null && EXTENSION.matcher(extension.trim()).matches();
+    }
+
     public void changeExtension(String extension) {
-        Guard.require(extension != null && EXTENSION.matcher(extension.trim()).matches(), "agent.extension_invalid",
+        Guard.require(validExtension(extension), "agent.extension_invalid",
                 "Ramal inválido (2 a 64 caracteres: letras, dígitos e . _ - @ : +)");
         this.extension = extension.trim();
     }

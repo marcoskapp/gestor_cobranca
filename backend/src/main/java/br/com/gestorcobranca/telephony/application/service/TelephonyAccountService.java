@@ -3,8 +3,8 @@ package br.com.gestorcobranca.telephony.application.service;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
-import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.security.AccessScope;
@@ -12,32 +12,47 @@ import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.web.ApiPaths;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases;
+import br.com.gestorcobranca.telephony.application.port.out.CallStatistics;
+import br.com.gestorcobranca.telephony.application.port.out.CallStatistics.AccountCounters;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.Readiness;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookRouteDirectory;
+import br.com.gestorcobranca.telephony.domain.model.AccountRoute;
 import br.com.gestorcobranca.telephony.domain.model.ProviderType;
+import br.com.gestorcobranca.telephony.domain.model.RouteScope;
 import br.com.gestorcobranca.telephony.domain.model.TelephonyAccount;
+import br.com.gestorcobranca.telephony.domain.repository.AccountRouteRepository;
 import br.com.gestorcobranca.telephony.domain.repository.TelephonyAccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
 class TelephonyAccountService implements TelephonyAccountUseCases {
 
     private static final int CREDENTIAL_VALUE_MAX = 1000;
+    private static final int COMPARISON_MAX_DAYS = 366;
 
     private final TelephonyAccountRepository accounts;
-    private final WebhookRouteDirectory routes;
+    private final AccountRouteRepository routes;
+    private final WebhookRouteDirectory webhookRoutes;
     private final TelephonyCredentialCodec credentialCodec;
+    private final ProviderResolver resolver;
+    private final CallStatistics statistics;
     private final CreditorUseCases creditors;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
@@ -46,13 +61,17 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
-    TelephonyAccountService(TelephonyAccountRepository accounts, WebhookRouteDirectory routes,
-                            TelephonyCredentialCodec credentialCodec, CreditorUseCases creditors, AccessScope accessScope,
-                            CurrentActor currentActor, AuditTrail auditTrail, TelephonyProperties properties,
-                            Clock clock) {
+    TelephonyAccountService(TelephonyAccountRepository accounts, AccountRouteRepository routes,
+                            WebhookRouteDirectory webhookRoutes, TelephonyCredentialCodec credentialCodec,
+                            ProviderResolver resolver, CallStatistics statistics, CreditorUseCases creditors,
+                            AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
+                            TelephonyProperties properties, Clock clock) {
         this.accounts = accounts;
         this.routes = routes;
+        this.webhookRoutes = webhookRoutes;
         this.credentialCodec = credentialCodec;
+        this.resolver = resolver;
+        this.statistics = statistics;
         this.creditors = creditors;
         this.accessScope = accessScope;
         this.currentActor = currentActor;
@@ -70,21 +89,25 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
             throw new BusinessRuleException("telephony_account.sandbox_disabled",
                     "O provedor simulado só está disponível em ambiente local ou de teste");
         }
+        if (resolver.readiness(provider) == Readiness.NOT_IMPLEMENTED) {
+            throw new BusinessRuleException("telephony_account.provider_unavailable",
+                    "A integração com %s ainda não está disponível".formatted(provider.label()));
+        }
         requireScope(command.creditorId());
         if (command.creditorId() != null) {
             creditors.get(command.creditorId());
         }
-        Optional<TelephonyAccount> current = command.creditorId() == null ? accounts.findActiveDefault()
-                : accounts.findActiveForCreditor(command.creditorId());
-        if (current.isPresent()) {
-            throw new ConflictException("telephony_account.already_active",
-                    "Já existe conta de telefonia ativa para este credor; desative-a antes");
-        }
         String credentials = validatedCredentials(provider, command.credentials());
-        TelephonyAccount account = accounts.saveAndFlush(new TelephonyAccount(provider, command.creditorId(),
-                command.name(), command.callerId(), command.recordingEnabled(), command.recordingNotice(), credentials,
-                newRoutingKey(), Instant.now(clock)));
-        routes.register(account.getRoutingKey(), currentActor.tenantId(), account.getId(), provider.name());
+        boolean active = resolver.canDial(provider);
+        TelephonyAccount account = new TelephonyAccount(provider, command.creditorId(), command.name(),
+                command.callerId(), command.recordingEnabled(), command.recordingNotice(), credentials, newRoutingKey(),
+                active, Instant.now(clock));
+        account.changeRate(command.ratePerMinute());
+        account = accounts.saveAndFlush(account);
+        webhookRoutes.register(account.getRoutingKey(), currentActor.tenantId(), account.getId(), provider.name());
+        if (!active) {
+            webhookRoutes.setActive(account.getRoutingKey(), false);
+        }
         auditTrail.record(AuditEntry.of("telephony_account.created", "telephony_account", account.getId())
                 .creditor(account.getCreditorId())
                 .created("provider", provider)
@@ -92,7 +115,12 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
                 .created("callerId", account.getCallerId())
                 .created("recordingEnabled", account.isRecordingEnabled())
                 .created("recordingNotice", account.isRecordingNotice())
+                .created("ratePerMinute", account.getRatePerMinute())
+                .created("active", account.isActive())
                 .meta("credentialKeys", String.join(",", credentialCodec.keys(credentials))));
+        if (active) {
+            routeIfScopeEmpty(account);
+        }
         return view(account);
     }
 
@@ -104,14 +132,17 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
         String beforeCaller = account.getCallerId();
         boolean beforeRecording = account.isRecordingEnabled();
         boolean beforeNotice = account.isRecordingNotice();
+        BigDecimal beforeRate = account.getRatePerMinute();
         account.describe(command.name(), command.callerId(), command.recordingEnabled(), command.recordingNotice());
+        account.changeRate(command.ratePerMinute());
         accounts.save(account);
         auditTrail.record(AuditEntry.of("telephony_account.updated", "telephony_account", account.getId())
                 .creditor(account.getCreditorId())
                 .change("name", beforeName, account.getName())
                 .change("callerId", beforeCaller, account.getCallerId())
                 .change("recordingEnabled", beforeRecording, account.isRecordingEnabled())
-                .change("recordingNotice", beforeNotice, account.isRecordingNotice()));
+                .change("recordingNotice", beforeNotice, account.isRecordingNotice())
+                .change("ratePerMinute", beforeRate, account.getRatePerMinute()));
         return view(account);
     }
 
@@ -133,17 +164,18 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
         if (account.isActive()) {
             return view(account);
         }
-        Optional<TelephonyAccount> current = account.getCreditorId() == null ? accounts.findActiveDefault()
-                : accounts.findActiveForCreditor(account.getCreditorId());
-        if (current.isPresent()) {
-            throw new ConflictException("telephony_account.already_active",
-                    "Já existe conta de telefonia ativa para este credor");
+        if (!resolver.canDial(account.getProvider())) {
+            Readiness readiness = resolver.readiness(account.getProvider());
+            throw new BusinessRuleException("telephony_account.provider_not_ready", readiness == Readiness.CONTRACT_PENDING
+                    ? "A integração com %s aguarda a homologação com o fornecedor".formatted(account.getProvider().label())
+                    : "A integração com %s ainda não está disponível".formatted(account.getProvider().label()));
         }
         account.activate();
         accounts.saveAndFlush(account);
-        routes.setActive(account.getRoutingKey(), true);
+        webhookRoutes.setActive(account.getRoutingKey(), true);
         auditTrail.record(AuditEntry.of("telephony_account.activated", "telephony_account", account.getId())
                 .creditor(account.getCreditorId()).change("active", false, true));
+        routeIfScopeEmpty(account);
         return view(account);
     }
 
@@ -155,9 +187,10 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
         }
         account.deactivate();
         accounts.save(account);
-        routes.setActive(account.getRoutingKey(), false);
+        webhookRoutes.setActive(account.getRoutingKey(), false);
         auditTrail.record(AuditEntry.of("telephony_account.deactivated", "telephony_account", account.getId())
-                .creditor(account.getCreditorId()).change("active", true, false));
+                .creditor(account.getCreditorId()).change("active", true, false)
+                .meta("routes", routes.findUsingAccount(account.getId()).size()));
         return view(account);
     }
 
@@ -173,10 +206,75 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
     @Override
     @Transactional(readOnly = true)
     public List<AccountView> list() {
+        return visibleAccounts().stream().map(this::view).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProviderView> providers() {
+        return Arrays.stream(ProviderType.values())
+                .filter(p -> p != ProviderType.SANDBOX || properties.sandbox().enabled())
+                .map(p -> {
+                    Readiness readiness = resolver.readiness(p);
+                    return new ProviderView(p.name(), p.label(), new TreeSet<>(p.requiredCredentials()), readiness.name(),
+                            resolver.canDial(p), readiness != Readiness.NOT_IMPLEMENTED);
+                }).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AccountComparison> comparison(LocalDate from, LocalDate to) {
+        Guard.require(from != null && to != null && !to.isBefore(from), "telephony_comparison.period_invalid",
+                "Período inválido");
+        Guard.require(from.plusDays(COMPARISON_MAX_DAYS).isAfter(to), "telephony_comparison.period_too_long",
+                "Período de até %d dias".formatted(COMPARISON_MAX_DAYS));
+        Instant start = from.atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
+        Instant end = to.plusDays(1).atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
+        Map<UUID, AccountCounters> counters = statistics.accountCounters(start, end).stream()
+                .collect(Collectors.toMap(AccountCounters::accountId, Function.identity()));
+        return visibleAccounts().stream()
+                .filter(a -> a.isActive() || counters.containsKey(a.getId()))
+                .map(a -> comparison(a, counters.getOrDefault(a.getId(),
+                        new AccountCounters(a.getId(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))))
+                .toList();
+    }
+
+    private AccountComparison comparison(TelephonyAccount a, AccountCounters c) {
+        BigDecimal minutes = BigDecimal.valueOf(c.billableSeconds()).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+        BigDecimal cost = a.getRatePerMinute() == null ? null
+                : minutes.multiply(a.getRatePerMinute()).setScale(2, RoundingMode.HALF_UP);
+        return new AccountComparison(a.getId(), a.getProvider().name(), a.getName(), a.isActive(), c.dialed(),
+                c.rejected(), c.answered(), c.connected(), c.failed(), c.fallbackIn(), ratio(c.answered(), c.dialed()),
+                ratio(c.connected(), c.answered()), ratio(c.rejected() + c.failed(), c.dialed() + c.rejected()),
+                ratio(c.ringSeconds(), c.ringEnded()), ratio(c.talkSeconds(), c.connected()), minutes,
+                a.getRatePerMinute(), cost);
+    }
+
+    private static Double ratio(long numerator, long denominator) {
+        return denominator == 0 ? null : (double) numerator / denominator;
+    }
+
+    /** Primeira conta ativa de um escopo sem regra passa a ser a principal dele (padrão ou credor). */
+    private void routeIfScopeEmpty(TelephonyAccount account) {
+        RouteScope scope = account.getCreditorId() == null ? RouteScope.DEFAULT : RouteScope.CREDITOR;
+        if (routes.findByScope(scope, account.getCreditorId()).isPresent()) {
+            return;
+        }
+        AccountRoute route = routes.saveAndFlush(new AccountRoute(scope, account.getCreditorId(), account.getCreditorId(),
+                account, null));
+        auditTrail.record(AuditEntry.of("telephony_route.created", "telephony_route", route.getId())
+                .creditor(route.getCreditorId())
+                .created("scopeType", scope)
+                .created("scopeId", route.getScopeId())
+                .created("primaryAccountId", account.getId())
+                .meta("automatic", true));
+    }
+
+    private List<TelephonyAccount> visibleAccounts() {
         return accounts.findAllByOrderByNameAsc().stream()
                 .filter(a -> a.getCreditorId() == null ? accessScope.hasAllCreditors()
                         : accessScope.canAccessCreditor(a.getCreditorId()))
-                .map(this::view).toList();
+                .toList();
     }
 
     private TelephonyAccount forCommand(UUID accountId) {
@@ -218,6 +316,7 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
             Guard.require(value.length() <= CREDENTIAL_VALUE_MAX, "telephony_account.credential_too_long",
                     "Credencial %s muito longa".formatted(key));
         }
+        resolver.adapter(provider).ifPresent(adapter -> adapter.validateCredentials(values));
         return values.isEmpty() ? null : credentialCodec.encode(values);
     }
 
@@ -231,6 +330,7 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
         return new AccountView(a.getId(), a.getProvider().name(), a.getCreditorId(), a.getName(), a.getCallerId(),
                 a.isRecordingEnabled(), a.isRecordingNotice(), new TreeSet<>(credentialCodec.keys(a.getCredentials())),
                 a.getCredentialsUpdatedAt(), ApiPaths.WEBHOOKS + "/telephony/" + a.getRoutingKey(), a.isActive(),
-                a.getCreatedAt(), a.getVersion() == null ? 0 : a.getVersion());
+                a.getCreatedAt(), a.getVersion() == null ? 0 : a.getVersion(), a.getProvider().label(),
+                resolver.readiness(a.getProvider()).name(), resolver.canDial(a.getProvider()), a.getRatePerMinute());
     }
 }

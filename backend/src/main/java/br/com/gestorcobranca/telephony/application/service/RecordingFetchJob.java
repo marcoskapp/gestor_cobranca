@@ -13,6 +13,7 @@ import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.ProviderContext;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.RecordingMedia;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.ProviderRejectedException;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.TransientProviderException;
 import br.com.gestorcobranca.telephony.domain.model.Call;
 import br.com.gestorcobranca.telephony.domain.model.CallRecording;
@@ -132,6 +133,9 @@ class RecordingFetchJob implements JobHandler<RecordingFetchJob.Payload> {
                 stored = storage.store(FileCategory.CALL_RECORDING, "call-" + call.getId() + extension(contentType),
                         contentType, in, media.size());
             }
+        } catch (ProviderRejectedException e) {
+            markFailed(recording, "PROVIDER_REJECTED");
+            return;
         } catch (TransientProviderException e) {
             if (context.attempt() >= maxAttempts()) {
                 metrics.jobFailure(TYPE);
@@ -159,7 +163,7 @@ class RecordingFetchJob implements JobHandler<RecordingFetchJob.Payload> {
                 .attr("announced", recording.isAnnounced()).attr("sizeBytes", stored.size()));
         try {
             provider.get().deleteRecording(providerContext, recording.getProviderRecordingRef());
-        } catch (TransientProviderException e) {
+        } catch (TransientProviderException | ProviderRejectedException e) {
             LOG.atWarn().addKeyValue("recordingId", recording.getId())
                     .log("Gravação copiada, mas não removida do provedor; remover pela retenção do provedor");
         }
