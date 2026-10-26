@@ -230,6 +230,10 @@ já carregados). `EvidenceView.createdByName` é o nome de quem anexou (diretór
 (`ContactRestrictionUseCases#search`), contestações abertas, promessa pendente, tarefas em aberto, últimas 10 interações e
 demais casos do devedor no escopo.
 
+Na estação, a ficha mostra também um aviso compacto dos pagamentos externos do devedor no credor que aguardam a aprovação
+de outra pessoa ou foram recusados recentemente — lido do payment (`GET /payment/review-status/debtors/{id}`, `AGREEMENT_VIEW`),
+não da ficha, porque o collection não depende do payment (decisão 436).
+
 ### 8.1 "Posso contatar agora?" (operador)
 
 `GET /cases/{id}/contact-availability[?channel=&contactId=]` (`CASE_WORK`), `ContactAvailabilityQueries`. Fica no

@@ -1,5 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { catchError, of } from 'rxjs';
 import { NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -22,7 +23,9 @@ import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
 import { CaseScoreCard } from '../../scoring/case/case-score-card';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_ICONS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
+import { PaymentReviewAlert } from '../../payment/components/payment-review-alert';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
+import { PaymentReviewStatusApi } from '../../payment/data/review-status';
 import { InteractionsApi, PromisesApi, TasksApi } from '../data/collection.api';
 import { CHANNEL_ICONS, CHANNEL_LABELS, DISPUTE_TYPE_LABELS, TASK_TYPE_LABELS, eligibilityText } from '../data/collection.labels';
 import { CaseSheet, PromiseView, SheetContact, SheetTitle, TabulationView, TaskView } from '../data/collection.models';
@@ -40,7 +43,7 @@ export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e prome
  */
 @Component({
   selector: 'app-case-sheet-panel',
-  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation, CaseScoreCard],
+  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation, CaseScoreCard, PaymentReviewAlert],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
 })
@@ -63,6 +66,7 @@ export class CaseSheetPanel {
   private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly paymentLauncher = inject(PaymentLauncher);
+  private readonly reviewApi = inject(PaymentReviewStatusApi);
 
   protected readonly tabs = SHEET_TABS;
   protected readonly channelLabels = CHANNEL_LABELS;
@@ -87,6 +91,17 @@ export class CaseSheetPanel {
   protected readonly debtor = computed(() => this.sheet().debtor);
   protected readonly active = computed(() => this.debtor().status === 'ACTIVE');
   private readonly caseId = computed(() => this.c().id);
+
+  /**
+   * Pagamentos informados do devedor no credor aguardando aprovação e recusados recentes (aviso
+   * mínimo; o detalhe fica no acordo). Só com `AGREEMENT_VIEW`; falha silenciosa.
+   */
+  private readonly reviewResource = rxResource({
+    params: () =>
+      this.auth.hasPermission(Permission.AGREEMENT_VIEW) ? { creditorId: this.c().creditorId, debtorId: this.c().debtorId, caseId: this.c().id } : undefined,
+    stream: ({ params }) => this.reviewApi.debtor(params.creditorId, params.debtorId).pipe(catchError(() => of(undefined))),
+  });
+  protected readonly review = valueOr(this.reviewResource, undefined);
 
   /** Histórico completo sob demanda (a ficha traz as 10 últimas). */
   protected readonly showAllHistory = signal(false);

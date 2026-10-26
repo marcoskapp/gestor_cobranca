@@ -74,6 +74,19 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 - **Revisão conforme risco**: valor ≤ `externalReviewThreshold` (padrão R$ 500,00, por assessoria) → confirmado no registro (`AUTO_LOW_RISK`); acima → `INFORMED` até aprovação por **outra pessoa** com `PAYMENT_REVIEW` (`DUAL_CONTROL`); a fila de revisão não mostra ao revisor os próprios pagamentos e o domínio recusa `payment.self_review`. Recusa exige motivo (`REJECTED`, sem baixa). A `PaymentView` traz o **destino solicitado** (`requestedTarget`: tipo, acordo, parcelas/títulos em ordem e estratégia) do pagamento externo, para quem aprova ver para onde o valor vai antes de a confirmação gerar as alocações (nulo nos integrados).
 - `Idempotency-Key` (escopo `payment.external`): mesma chave e conteúdo → mesmo pagamento.
 
+### 5.1 Situação de revisão no acordo e no caso (decisões 430–438)
+
+Quem negocia precisa saber que o pagamento que informou (ou que outro informou) ainda aguarda a aprovação de outra pessoa e que a parcela não baixou, ou que ele foi recusado e é preciso agir. Como o negotiation não depende do payment, o resumo é servido aqui (`PaymentReviewStatusUseCases`, `PaymentReviewStatusService`) e o frontend o compõe nas telas de negociação e cobrança.
+
+- **Permissão**: `AGREEMENT_VIEW` (menor privilégio; não exige `PAYMENT_VIEW`). Itens com valor, data do pagamento, meio, quem informou e quando, destino (tipo, acordo, parcelas/títulos indicados), quem recusou e quando. **Sem** evidência, observação nem referência externa. Motivo da recusa (`rejectionReason`) só para quem informou ou tem `PAYMENT_VIEW`; os demais recebem `reasonRestricted = true`.
+- **Acordo** (`GET /review-status/agreements/{id}`): lê o acordo pelo caso de uso do negotiation (permissão e escopo, 404 fora dele); pendentes do mais antigo ao mais recente, recusados recentes e `expectedCoverage` — previsão por parcela com o `AllocationPlanner` sobre o saldo atual (descontadas as alocações em trânsito e os pendentes anteriores), só com acordo em vigor. É previsão: a aprovação recalcula.
+- **Lote para listagens** (`GET /review-status/agreements?ids=`, até 200): um resumo por acordo com pendente ou recusa (contagem, total pendente, último registro, último recusado); filtro pelo escopo de credores, sem ler cada acordo (o credor do pagamento é o do acordo).
+- **Devedor no credor** (`GET /review-status/debtors/{debtorId}?creditorId=`): para a ficha do caso; inclui pagamentos a títulos avulsos; credor fora do escopo → 403.
+- **Recusados recentes**: `REJECTED` com `reviewed_at` dentro de `app.payment.review-status.rejected-window` (padrão 30 dias), até `max-rejected` (padrão 5) por acordo/devedor, do mais recente ao mais antigo.
+- Somente leitura: sem auditoria nem log de negócio. Índice parcial `ix_payment_review_agreement` (`V0803`).
+- **Pagamentos de um acordo** (`PAYMENT_VIEW`): filtro `agreementId` em `GET /payments` — destino solicitado do externo ou alguma alocação ao acordo.
+- **Frontend**: `app-payment-review-alert` (`features/payment/components`) no detalhe do acordo (aviso completo, "Destino previsto" e selo "Em revisão" na parcela), selo "Pagamento em revisão"/"Pagamento recusado" na listagem de acordos (uma consulta por página) e aviso compacto na ficha do caso da estação de cobrança.
+
 ## 6. Alocação (RB06)
 
 - Cada alocação a acordo ou títulos publica **um** `PaymentConfirmed` cujo `paymentId` é o **id da alocação** (unidade de baixa). Consumidores (negotiation, collection, incentive) deduplicam por esse id; um pagamento dividido entre destinos, ou realocado, nunca é contado duas vezes, e o estorno é por alocação. `GET /payment/payments/by-allocation/{id}` resolve o pagamento.
@@ -111,6 +124,7 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 | gerar/cancelar instrução | `PAYMENT_INSTRUCTION_CREATE` |
 | informar pagamento externo | `PAYMENT_REGISTER_EXTERNAL` |
 | aprovar/recusar informado | `PAYMENT_REVIEW` (nunca o próprio) |
+| situação de revisão no acordo, na listagem e no caso (§5.1) | `AGREEMENT_VIEW` (motivo da recusa: quem informou ou `PAYMENT_VIEW`) |
 | estornar | `PAYMENT_REVERSE` |
 | importar extrato, resolver divergência, realocar | `RECONCILIATION_MANAGE` |
 | contas Pix, simulador | `INTEGRATION_MANAGE` (contas da assessoria exigem todos os credores) |
@@ -123,7 +137,8 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 | Recurso | Métodos |
 | --- | --- |
 | `/instructions` · `/instructions/{id}` · `/instructions/{id}/cancel` | `POST`, `GET` · `GET` · `POST` |
-| `/payments` · `/payments/{id}` · `/payments/by-allocation/{id}` · `/payments/{id}/evidence` | `GET` |
+| `/payments` (filtros: credor, devedor, situação, origem, meio, período, saldo, `agreementId`) · `/payments/{id}` · `/payments/by-allocation/{id}` · `/payments/{id}/evidence` | `GET` |
+| `/review-status/agreements/{id}` · `/review-status/agreements?ids=` · `/review-status/debtors/{id}?creditorId=` | `GET` (`AGREEMENT_VIEW`) |
 | `/payments/external` (multipart `payment` + `evidence`, `Idempotency-Key`) | `POST` |
 | `/payments/review-queue` · `/payments/{id}/approve` · `/reject` | `GET` · `POST` |
 | `/payments/{id}/reverse` · `/payments/pending-reallocation` · `/payments/{id}/reallocations` | `POST` · `GET` · `POST` |
@@ -134,7 +149,7 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 
 ## 12. Parâmetros (`app.payment.*`)
 
-`defaults.external-review-threshold` (500,00), `defaults.pix-expiration-seconds` (86400), `defaults.pix-due-validity-days` (30), `defaults.reconciliation-date-tolerance-days` (3); `webhook.public-base-url`, `max-body-bytes`, `requests-per-minute`, `max-event-age`, `max-clock-skew`, `client-certificate-header`; `pix.connect-timeout`, `read-timeout`, `token-refresh-margin`, `scope`; `evidence.max-size-bytes`; `statement.max-size-bytes`, `max-lines`; `expiration-check-interval`; `sandbox.enabled` (recusado em `prod`). Testes: sandbox ligado e URL pública local — nenhum teste acessa a rede (o adaptador do BACEN é testado com `MockRestServiceServer`).
+`defaults.external-review-threshold` (500,00), `defaults.pix-expiration-seconds` (86400), `defaults.pix-due-validity-days` (30), `defaults.reconciliation-date-tolerance-days` (3); `webhook.public-base-url`, `max-body-bytes`, `requests-per-minute`, `max-event-age`, `max-clock-skew`, `client-certificate-header`; `pix.connect-timeout`, `read-timeout`, `token-refresh-margin`, `scope`; `evidence.max-size-bytes`; `statement.max-size-bytes`, `max-lines`; `expiration-check-interval`; `review-status.rejected-window` (P30D), `review-status.max-rejected` (5); `sandbox.enabled` (recusado em `prod`). Testes: sandbox ligado e URL pública local — nenhum teste acessa a rede (o adaptador do BACEN é testado com `MockRestServiceServer`).
 
 ## 13. Decisões
 
@@ -154,6 +169,7 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 | 12 | Segundo Pix da mesma instrução é aceito e alocado às parcelas seguintes + divergência | Recusar | O dinheiro entrou; a operação decide devolver/realocar |
 | 13 | `cobv` lê o documento do devedor como sistema (registrado no log de acesso); `cob` sem pagador | Pedir o documento ao operador | Exigência da API; minimização no Pix imediato |
 | 14 | CNAB 240/400 só como formato reconhecido sem leitor | Implementar agora | Layout depende do banco/PSP escolhido (issue #12) |
+| 15 | Situação de revisão servida pelo payment com `AGREEMENT_VIEW`, sem evidência/observação; motivo da recusa só para quem informou ou `PAYMENT_VIEW` | Projeção no negotiation; exigir `PAYMENT_VIEW` | Grafo proíbe negotiation → payment; menor privilégio (decisões 430–438) |
 
 ## 14. Pendências
 
@@ -162,4 +178,5 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 - Devolução Pix iniciada pelo sistema (`PUT /pix/{e2eid}/devolucao/{id}`) para as devoluções de sobra (hoje registro manual da transferência).
 - campaign: adaptador do `CampaignOfferPort` (oferta + instrução/link de pagamento numa etapa de régua) depende de o negotiation ter sujeito de alçada para campanhas; quando existir, ele usará `PaymentInstructionUseCases#create` (o campaign não depende do payment pelo grafo — a ligação fica num adaptador que o grafo permita). O campaign já consome `PaymentConfirmed`/`PaymentReversed` pelo `paymentId` (= alocação), coerente com §6.
 - Frontend: telas de instruções, pagamentos, revisão, conciliação e contas Pix.
+- Suspender a quebra do acordo enquanto houver pagamento informado aguardando aprovação (decisão 437): exigiria evento payment → negotiation e mudar a regra de quebra; a decidir pelo responsável.
 - debt: estorno de reconhecimento de encargo (já listado no negotiation) afeta estornos de acordo.

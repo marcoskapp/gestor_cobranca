@@ -63,7 +63,7 @@ class BacenPixProviderTest {
     private BacenPixProvider providerResolvingTo(RestClient client, String address, List<String> allowedHosts) {
         PixEndpointGuard guard = new PixEndpointGuard(allowedHosts,
                 host -> new java.net.InetAddress[]{java.net.InetAddress.getByName(address)}, meters);
-        return new BacenPixProvider(c -> client, new PaymentProperties(null, null, null, null, null, null, null, null),
+        return new BacenPixProvider(c -> client, new PaymentProperties(null, null, null, null, null, null, null, null, null),
                 new JsonCodec(JsonMapper.builder().build()), meters, Clock.fixed(Instant.parse("2026-10-23T12:00:00Z"),
                 ZoneOffset.UTC), guard);
     }
@@ -195,7 +195,7 @@ class BacenPixProviderTest {
         SSLContext context = MutualTlsClientFactory.sslContext(p12, "test-only-pass");
         assertThat(context.getProtocol()).isEqualTo("TLS");
         assertThatThrownBy(() -> MutualTlsClientFactory.sslContext(p12, "errada")).isInstanceOf(ProviderException.class);
-        assertThatThrownBy(() -> new MutualTlsClientFactory(new PaymentProperties(null, null, null, null, null, null, null, null))
+        assertThatThrownBy(() -> new MutualTlsClientFactory(new PaymentProperties(null, null, null, null, null, null, null, null, null))
                 .client(connection)).isInstanceOf(ProviderException.class);
     }
 }

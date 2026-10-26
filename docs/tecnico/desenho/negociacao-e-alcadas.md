@@ -195,6 +195,8 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 - Aplicação (consumidor, acordo bloqueado `FOR UPDATE`): valor indicado por parcela e, o excedente, às parcelas seguintes em ordem; acima do saldo do acordo → não aplicado. Acordo encerrado (quebrado, cancelado, renegociado, quitado) → registro `UNAPPLIED` (WARN + métrica): cabe ao payment realocar ou devolver.
 - Idempotência: `shared.consumed_event` + único (acordo, pagamento). Estorno sem acordo informado procura o pagamento em todos os acordos.
 
+- **Pagamento informado aguardando aprovação** (externo acima do limite, `INFORMED` no payment): o negotiation não o conhece — a parcela continua em aberto até a aprovação gerar o `PaymentConfirmed` e, se vencer, conta para a quebra. A tela do acordo mostra o aviso, a previsão das parcelas cobertas e os recusados recentes lendo `GET /payment/review-status/...` (payment, `AGREEMENT_VIEW`) — ver `pagamentos.md` §5.1 e decisões 430–438. O `AgreementView` não muda.
+
 ### 10.5 Lançamentos no razão do título (`DebtLedgerPort`)
 
 - Cada pagamento aplicado é distribuído entre os componentes (`AgreementBucket`: título × PRINCIPAL/INTEREST/FINE/FEES/HONORARIUM) proporcionalmente ao saldo de cada um (`ProportionalSplit`, maiores restos — a soma é exata). Correção monetária → `FEES`; juros do parcelamento → `INTEREST` (rateados pelos títulos pelo líquido de cada um).
