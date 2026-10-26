@@ -1,7 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -28,8 +28,18 @@ import { ProposalFilter, ProposalView } from '../data/agreement.models';
 import { actorText, validityLapsed, violationText } from '../data/agreement.rules';
 import { planText } from '../data/negotiation.labels';
 
+/** Valor do filtro "Criada por" que restringe às propostas do próprio usuário (`mine=true` na API). */
+export const MINE = 'MINE';
+
 export function toProposalFilter(v: { creditor: string[]; status: string; actorType: string }): ProposalFilter {
-  return { creditorId: v.creditor[0] ?? null, debtorId: null, status: v.status || null, actorType: v.actorType || null };
+  const mine = v.actorType === MINE;
+  return {
+    creditorId: v.creditor[0] ?? null,
+    debtorId: null,
+    status: v.status || null,
+    actorType: mine ? null : v.actorType || null,
+    ...(mine ? { mine: true } : {}),
+  };
 }
 
 /**
@@ -90,6 +100,7 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
           <select appInput formControlName="actorType">
             <option value="">Qualquer autor</option>
             <option value="USER">Operadores</option>
+            <option [value]="mine">Somente as minhas</option>
             <option value="ASSISTANT">Assistente</option>
           </select>
         </app-field>
@@ -177,7 +188,14 @@ export class ProposalList {
   private readonly today = zonedNow().date;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''], actorType: [''] });
+  /** Filtro inicial pela URL (`?situacao=APPROVED&minhas=true`, ex.: vindo de "Minhas pendências"). */
+  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
+  protected readonly mine = MINE;
+  protected readonly filters = this.fb.group({
+    creditor: this.fb.control<string[]>([]),
+    status: [this.params.get('situacao') ?? ''],
+    actorType: [this.params.get('minhas') === 'true' ? MINE : ''],
+  });
   private readonly formFilter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),

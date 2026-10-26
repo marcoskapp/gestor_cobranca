@@ -73,9 +73,11 @@ class ProposalController {
                                       @RequestParam(required = false) UUID caseId,
                                       @RequestParam(required = false) String status,
                                       @RequestParam(required = false) String actorType,
+                                      @RequestParam(required = false) Boolean mine,
                                       @RequestParam(required = false) Integer page,
                                       @RequestParam(required = false) Integer size) {
-        return proposals.search(new ProposalFilter(creditorId, debtorId, caseId, status, actorType), PageQuery.of(page, size));
+        return proposals.search(new ProposalFilter(creditorId, debtorId, caseId, status, actorType,
+                Boolean.TRUE.equals(mine)), PageQuery.of(page, size));
     }
 
     @GetMapping("/approval-queue")

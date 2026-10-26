@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -172,7 +173,14 @@ export class TemplateList {
   protected readonly preview = signal<{ name: string; subject: string | null; body: string } | null>(null);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), code: [''], channel: [''], status: [''] });
+  /** Situação inicial pela URL (`?situacao=DRAFT`, ex.: vindo de "Minhas pendências"). */
+  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
+  protected readonly filters = this.fb.group({
+    creditor: this.fb.control<string[]>([]),
+    code: [''],
+    channel: [''],
+    status: [this.params.get('situacao') ?? ''],
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),

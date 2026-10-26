@@ -70,7 +70,8 @@ public class AsyncConfig {
         return executor;
     }
 
-    static TaskDecorator mdcPropagation() {
+    /** Propaga o MDC (requestId, tenant, ator) da thread que agenda para a que executa. */
+    public static TaskDecorator mdcPropagation() {
         return runnable -> {
             Map<String, String> context = MDC.getCopyOfContextMap();
             return () -> {

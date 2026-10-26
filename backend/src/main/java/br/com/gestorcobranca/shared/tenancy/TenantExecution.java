@@ -28,10 +28,14 @@ import java.util.function.Supplier;
 public class TenantExecution {
 
     private final TransactionTemplate requiresNew;
+    private final TransactionTemplate requiresNewReadOnly;
 
     public TenantExecution(PlatformTransactionManager transactionManager) {
         this.requiresNew = new TransactionTemplate(transactionManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.requiresNewReadOnly = new TransactionTemplate(transactionManager);
+        this.requiresNewReadOnly.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.requiresNewReadOnly.setReadOnly(true);
     }
 
     /** Executa como ator de sistema do tenant, em nova transação. */
@@ -48,6 +52,18 @@ public class TenantExecution {
 
     /** Executa como um ator específico (ex.: devedor autenticado no portal), em nova transação. */
     public <T> T callAs(Actor actor, Supplier<T> action) {
+        return callAs(actor, requiresNew, action);
+    }
+
+    /**
+     * Executa como um ator específico em nova transação <strong>somente leitura</strong> — consultas
+     * feitas em outra thread em nome do usuário da requisição (ex.: fontes de pendências).
+     */
+    public <T> T callAsReadOnly(Actor actor, Supplier<T> action) {
+        return callAs(actor, requiresNewReadOnly, action);
+    }
+
+    private <T> T callAs(Actor actor, TransactionTemplate template, Supplier<T> action) {
         SecurityContext previous = SecurityContextHolder.getContext();
         String previousTenant = MDC.get(MdcKeys.TENANT_ID);
         String previousActor = MDC.get(MdcKeys.ACTOR_ID);
@@ -57,7 +73,7 @@ public class TenantExecution {
         MDC.put(MdcKeys.TENANT_ID, actor.tenantId().toString());
         MDC.put(MdcKeys.ACTOR_ID, actor.id().toString());
         try {
-            return requiresNew.execute(status -> action.get());
+            return template.execute(status -> action.get());
         } finally {
             SecurityContextHolder.setContext(previous);
             restoreMdc(MdcKeys.TENANT_ID, previousTenant);

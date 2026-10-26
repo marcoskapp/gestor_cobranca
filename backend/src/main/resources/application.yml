@@ -274,6 +274,14 @@ app:
     # consulta de painel acima disto conta em analytics.queries.slow
     slow-query-threshold: PT2S
     export-max-rows: 100000
+  # Minhas pendências (docs/tecnico/desenho/pendencias.md): limite de tempo da consulta inteira (também
+  # statement_timeout de cada fonte), fontes em paralelo por instância, janela de "perto do prazo"
+  pending-work:
+    timeout: PT2S
+    executor-size: 4
+    queue-capacity: 500
+    due-soon-days: 3
+    observation-retention-days: 30
   incentive:
     # ajuste manual de extrato acima deste valor (absoluto) exige segunda aprovação
     dual-approval-threshold: 500.00

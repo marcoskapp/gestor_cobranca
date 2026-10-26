@@ -42,6 +42,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`; `policy.published` com `policyKind = assistant` |
 | Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
+| Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -326,6 +327,20 @@ Log de acesso (segurança): `INTEGRATION_ENDPOINT_CHANGED` (`action` `created`/`
 
 Log de acesso: `PORTAL_CODE_REQUESTED` (inclusive para documento inexistente, com `match` só no log), `PORTAL_LOGIN_SUCCESS`, `PORTAL_LOGIN_FAILURE` (`reason`: `wrong_code`, `wrong_knowledge`, `no_match`, `challenge_closed`, `unknown_link`, `link_unusable`…), `PORTAL_LOCKED` (`key` `DOCUMENT`/`IP`, `until`), `PORTAL_LINK_ISSUED`, `PORTAL_LOGOUT`, `PORTAL_SESSION_REVOKED`, `PORTAL_PRIVACY_ACKNOWLEDGED`; documento sempre mascarado.
 
+### 3.11 Envelhecimento das pendências (pendingwork)
+
+`pending_work.observed`: **primeira** consulta do dia em que um tipo de pendência aparece para o usuário (`GET /api/v1/me/pending-work`, tela inicial ou indicador da barra superior). Único por usuário, tipo e dia (tabela `pendingwork.daily_observation`, retenção 30 dias). Ator = o usuário; sem credor, devedor ou valor. Insumo de gestão: quais pendências envelhecem, para quem e com que frequência ficam vencidas. Desenho em `tecnico/desenho/pendencias.md`.
+
+| Atributo | Conteúdo |
+| --- | --- |
+| `itemType` | código estável da pendência (ex.: `payment.external_review`, `legal.deadlines_due`) |
+| `source` | módulo dono (`payment`, `negotiation`, `ingestion`, `settlement`, `incentive`, `compliance`, `collection`, `communication`, `legal`, `assistant`, `scoring`) |
+| `total`, `overdue`, `dueToday`, `severity` | contagens e destaque (`OVERDUE`, `DUE_TODAY`, `NORMAL`) no momento da observação |
+| `oldestAgeHours`, `ageBand` | idade do item mais antigo e faixa (`<1d`, `1-3d`, `3-7d`, `7-30d`, `30d+`) |
+| `nextDueDate` | prazo mais próximo, quando a pendência tem prazo |
+
+Consulta sugerida: `filter eventType = "pending_work.observed" | stats count(*), avg(attr.oldestAgeHours), sum(attr.overdue > 0) by attr.itemType, attr.ageBand`.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -548,5 +563,9 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `analytics.refresh.duration{dataset,outcome}`, `analytics.refresh.rows{dataset}`, `analytics.refresh.cycle.duration{trigger}`, `analytics.refresh.tenants{trigger,outcome}` | reconstrução dos snapshots dos painéis por conjunto e ciclo agendado (carimbo "dados até") |
 | `analytics.refresh.failures{trigger}` | falha ao atualizar os painéis de uma assessoria (alarme) |
 | `analytics.exports{report,format}`, `analytics.export.rows{report}` | exportações de relatórios (cada uma também em `DATA_EXPORTED` no log de acesso) |
+| `pendingwork.request.duration{outcome}` (p50/p95/p99), `pendingwork.request.sources` | consulta de "Minhas pendências": `complete` × `partial` (alguma fonte indisponível) e fontes consultadas por requisição (depende das permissões) |
+| `pendingwork.source.duration{source,outcome}` (p50/p95/p99) | cada fonte: `ok`, `error`, `timeout` (acima de `app.pending-work.timeout`, também `statement_timeout`), `busy` (executor saturado) — alarme sugerido: `error`+`timeout` > 5% em 15 min |
+| `executor.*{name=pending_work}` | fila e ocupação do executor das fontes (bulkhead de 4 threads por instância) |
+| `pendingwork.observations{outcome}`, `pendingwork.retention.purged`, `pendingwork.jobs.failures{job}` | observações diárias (`recorded`, `already_recorded`, `failed`), retenção e falhas do agendamento (alarme) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

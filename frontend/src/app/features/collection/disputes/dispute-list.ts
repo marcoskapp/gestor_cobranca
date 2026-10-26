@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
@@ -185,7 +185,9 @@ export class DisputeList {
   private readonly today = zonedNow().date;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: ['PENDING'], overdue: [false] });
+  /** `?vencidas=true` abre só as vencidas (ex.: vindo de "Minhas pendências"). */
+  private readonly overdueOnly = inject(ActivatedRoute).snapshot.queryParamMap.get('vencidas') === 'true';
+  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: ['PENDING'], overdue: [this.overdueOnly] });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
