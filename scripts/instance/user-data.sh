@@ -148,6 +148,12 @@ unset secrets_content value
   echo "SMTP_PORT=${GC_SMTP_PORT}"
   echo "JOBS_CONCURRENCY=${GC_JOBS_CONCURRENCY}"
   echo "JVM_MAX_RAM_PERCENTAGE=${GC_JVM_MAX_RAM_PERCENTAGE}"
+  # assistente de IA (Amazon Bedrock): sem credenciais — o SDK usa o papel da instância
+  echo "ASSISTANT_BEDROCK_ENABLED=${GC_BEDROCK_ENABLED:-false}"
+  echo "ASSISTANT_BEDROCK_REGION=${GC_BEDROCK_REGION:-us-east-1}"
+  echo "ASSISTANT_BEDROCK_STANDARD_MODEL_ID=${GC_BEDROCK_STANDARD_MODEL_ID:-us.anthropic.claude-haiku-5-5}"
+  echo "ASSISTANT_BEDROCK_ADVANCED_MODEL_ID=${GC_BEDROCK_ADVANCED_MODEL_ID:-us.anthropic.claude-sonnet-5-5}"
+  echo "ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=${GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:-false}"
   echo "JAVA_OPTS='${GC_JAVA_OPTS_EXTRA:-}'"
 } | gc_write_file "${GC_CONF_DIR}/app.env" "root:${GC_SERVICE_USER}" 0640
 

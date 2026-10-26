@@ -411,3 +411,53 @@ variable "instance_role_name" {
   description = "Nome do papel IAM das instâncias (referenciado na política do bucket de segredos)."
   type        = string
 }
+
+# --- Assistente de IA: Amazon Bedrock (aprovado — issue #12) ---------------------------------
+# Nenhum modelo Claude processa no Brasil: sa-east-1 só chama o perfil global (qualquer região
+# comercial). Padrão conservador: endpoint us-east-1 com perfis geográficos us.* (só regiões dos
+# EUA). Ver docs/tecnico/desenho/assistente.md §6.5 e docs/arquitetura/infraestrutura-aws.md §8.
+
+variable "assistant_bedrock_enabled" {
+  description = "Liga o provedor Amazon Bedrock do assistente (permissão IAM e app.assistant.bedrock.enabled)."
+  type        = bool
+  default     = false
+}
+
+variable "bedrock_region" {
+  description = "Região do endpoint bedrock-runtime chamado pela aplicação (o perfil de inferência decide onde o modelo processa)."
+  type        = string
+  default     = "us-east-1"
+
+  validation {
+    condition     = can(regex("^[a-z]{2}(-gov)?-[a-z]+-[0-9]$", var.bedrock_region))
+    error_message = "bedrock_region deve ser uma região AWS (ex.: us-east-1)."
+  }
+}
+
+variable "bedrock_standard_model_id" {
+  description = "Modelo ou perfil de inferência do nível STANDARD (conversa geral, identificação, intenção)."
+  type        = string
+  default     = "us.anthropic.claude-haiku-5-5"
+
+  validation {
+    condition     = can(regex("^((us|eu|apac|au|jp|ca|global)\\.)?anthropic\\.[a-z0-9.-]+(:[0-9]+)?$", var.bedrock_standard_model_id))
+    error_message = "bedrock_standard_model_id deve ser um modelo Claude (anthropic.*) ou perfil de inferência de sistema (us./eu./apac./au./jp./ca./global.)."
+  }
+}
+
+variable "bedrock_advanced_model_id" {
+  description = "Modelo ou perfil de inferência do nível ADVANCED (negociação, proposta, aceite e Pix)."
+  type        = string
+  default     = "us.anthropic.claude-sonnet-5-5"
+
+  validation {
+    condition     = can(regex("^((us|eu|apac|au|jp|ca|global)\\.)?anthropic\\.[a-z0-9.-]+(:[0-9]+)?$", var.bedrock_advanced_model_id))
+    error_message = "bedrock_advanced_model_id deve ser um modelo Claude (anthropic.*) ou perfil de inferência de sistema (us./eu./apac./au./jp./ca./global.)."
+  }
+}
+
+variable "bedrock_international_transfer_approved" {
+  description = "O responsável aprovou a transferência internacional dos dados do turno (LGPD art. 33) para a região/perfil configurados. Sem isso a aplicação recusa subir com o Bedrock."
+  type        = bool
+  default     = false
+}

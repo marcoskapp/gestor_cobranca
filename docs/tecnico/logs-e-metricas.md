@@ -286,14 +286,14 @@ Eventos de turno levam `creditorId`, `portfolioId`, `debtorId`, `caseId`, `chann
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |
-| `assistant.replied` | resposta enviada ao devedor (passou pelos guardrails e pelo porteiro) | `intent`, `toolCalls`, `modelCalls`, `identity`, `inputTokens`, `outputTokens`, `cost`, `costCurrency`, `proposalId`, `agreementId`; `durationMs` = turno |
+| `assistant.replied` | resposta enviada ao devedor (passou pelos guardrails e pelo porteiro) | `intent`, `toolCalls`, `modelCalls`, `identity`, `inputTokens` (prompt inteiro, com e sem cache), `outputTokens`, `cacheReadTokens`, `cacheWriteTokens`, `modelTier` (maior nível de modelo do turno: `STANDARD`/`ADVANCED`; ausente sem chamada ao modelo), `advancedModelCalls`, `cost`, `costCurrency`, `proposalId`, `agreementId`; `durationMs` = turno |
 | `assistant.handoff_triggered` | o turno decidiu transferir (o communication registra `assistant.handoff` na mudança de dono) | os de `assistant.replied` + `reason` (motivo de `HandoffReason`), `source` (`RULE`, `MODEL`, `GUARDRAIL`, `LIMIT`, `ENGINE`, `POLICY`, `FAILURE`), `requiredProfile` |
 | `assistant.approval_requested` | aceite registrado; formalização por humano (modo com aprovação ou perfil sem `canFormalize`) | os de `assistant.handoff_triggered`; `proposalId` |
 | `assistant.draft_proposed` | rascunho/sugestão para o operador (sombra/copiloto) | os de `assistant.replied` |
 | `assistant.guardrail_blocked` | guardrail recusou a resposta | `codes` (lista), `action` (`FALLBACK_HANDOFF` no autônomo, `DRAFT_SUPPRESSED` no rascunho) |
 | `assistant.reply_blocked` | porteiro de contato negou o envio | `reasons` (motivos do compliance) |
 | `assistant.turn_failed` | falha técnica (provedor, tempo esgotado, turno interrompido) | `errorCode`; transferência registrada à parte |
-| `policy.published` (`policyKind = assistant`) | versão de política do assistente publicada | `code`, `version`, `mode`, `channels`, `promptCode`, `promptVersion`, `customAuthority`, `maxTurns`, `reviewSampleRate`, `extraTriggers`, `pixInConversation`, `pixMaxAmount` |
+| `policy.published` (`policyKind = assistant`) | versão de política do assistente publicada | `code`, `version`, `mode`, `channels`, `promptCode`, `promptVersion`, `customAuthority`, `maxTurns`, `reviewSampleRate`, `extraTriggers`, `pixInConversation`, `pixMaxAmount`, `modelRouting` (`BY_STAGE`/`ADVANCED_ONLY`) |
 | `assistant.policy_retired` | versão aposentada | `code`, `version`, `mode` |
 | `assistant.portfolio_disabled` | desligamento imediato da carteira | `previousMode`, `previousPolicyId` |
 | `assistant.review_recorded` | avaliação humana de turno amostrado | `score`, `verdict`, `sampleReason`, `tags`, `policyId` |
@@ -336,6 +336,14 @@ filter logger = "http.request"
 
 # erros por tenant (técnico)
 filter level = "ERROR" | stats count(*) by tenantId, logger
+
+# falhas do Amazon Bedrock por modelo e código da AWS (técnico — sem conteúdo da conversa)
+filter provider = "bedrock" and level = "WARN"
+| stats count(*) by model, tier, outcome, errorCode
+
+# custo e nível de modelo dos turnos do assistente por credor (negócio)
+filter eventType in ["assistant.replied", "assistant.handoff_triggered", "assistant.draft_proposed"]
+| stats sum(`attr.cost`) as custo, sum(`attr.advancedModelCalls`) as avancadas, sum(`attr.modelCalls`) as chamadas by creditorId, `attr.modelTier`
 
 # funil de negociação por credor (negócio)
 filter eventType in ["proposal.created", "agreement.formalized", "payment.confirmed"]
@@ -436,6 +444,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `payment.ledger.postings{operation,outcome}` | lançamentos no razão de títulos avulsos (`payment`/`reversal`; `failed` = alarme) |
 | `payment.events.consumed{type}`, `payment.jobs.failures{job}` | consumo de eventos e falhas (`pix_sync`, `expiration`, `webhook_receipts`; alarme) |
 | `integration.calls{provider=pix_bacen|pix_sandbox,operation,outcome}` | chamadas à API Pix (`oauth_token`, `create_cob`, `create_cobv`, `cancel_charge`, `find_pix`, `configure_webhook`) |
+| `integration.calls{provider=bedrock,operation=converse,outcome}`, `integration.calls.duration{provider=bedrock,operation=converse}` | chamadas do assistente ao Amazon Bedrock (`ok`, `timeout`, `transient`, `rejected`) |
 | `negotiation.payments{outcome}`, `negotiation.payment.reversals{outcome}` | baixas (APPLIED, PARTIAL = excedente, UNAPPLIED = acordo encerrado, DUPLICATE, IGNORED) e estornos (REVERSED, UNKNOWN, DUPLICATE); UNAPPLIED/PARTIAL contínuos = realocação pendente no payment |
 | `negotiation.ledger.postings{operation,outcome}` | lançamentos no razão do título (PAYMENT inclui a quitação do título; REVERSAL); `FAILED` = job em DEAD (alarme) |
 | `negotiation.anonymized_records` | registros neutralizados na anonimização LGPD do devedor |
@@ -461,7 +470,12 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `legal.events.consumed{type}`, `legal.scan.duration{phase}`, `legal.jobs.failures{job}` | consumo de eventos (inclui `cadence_exhausted` e `cadence_exhausted_ignored` — régua de outra finalidade), duração da varredura diária e falhas (alarme) |
 | `assistant.turns{mode,outcome}`, `assistant.turn.duration{mode,outcome}` (p50/p95/p99) | turnos por resultado (`REPLIED`, `DRAFTED`, `HANDED_OFF`, `APPROVAL_REQUESTED`, `SEND_BLOCKED`, `GUARDRAIL_BLOCKED`, `SKIPPED`, `FAILED`) e latência total do turno |
 | `assistant.model.calls{provider,outcome}`, `assistant.model.latency{provider}` (p50/p95/p99) | chamadas ao modelo (`ok`, `MODEL_TIMEOUT`, `MODEL_UNAVAILABLE`, `MODEL_REJECTED`) — alarme em taxa de falha |
-| `assistant.tokens{provider,direction}`, `assistant.cost{provider,currency}` | consumo de tokens (entrada/saída) e custo estimado do modelo (base do custo por acordo) |
+| `assistant.tokens{provider,direction}`, `assistant.cost{provider,currency}` | consumo de tokens (`input` sem cache, `output`, `cache_read`, `cache_write`) e custo estimado do modelo (base do custo por acordo) |
+| `assistant.model.routing{tier,reason}` | nível de modelo escolhido para cada chamada (`STANDARD`/`ADVANCED`) e motivo (`POLICY` = política `ADVANCED_ONLY`, `INTENT` = negociar/aceitar/pagar, `STAGE` = etapa com ofertas/proposta/parcelas, `DEFAULT`); participação do avançado = `ADVANCED` ÷ total |
+| `assistant.bedrock.calls{model,tier,outcome,error}`, `assistant.bedrock.latency{model,tier}` (p50/p95/p99) | chamadas ao Amazon Bedrock por modelo/perfil e nível: `outcome` = `ok`, `MODEL_TIMEOUT`, `MODEL_UNAVAILABLE`, `MODEL_REJECTED`; `error` = código da AWS (`ThrottlingException`, `ValidationException`, `AccessDeniedException`…), motivo de parada recusado (`model_context_window_exceeded`, `malformed_tool_use`…) ou `none`; latência total (inclusive a retentativa). Alarmes: `MODEL_REJECTED` > 0 (configuração/acesso ao modelo) e taxa de `MODEL_UNAVAILABLE`/`MODEL_TIMEOUT` |
+| `assistant.bedrock.retries{model,reason}` | retentativa única (limite de taxa/5xx); crescente = cota insuficiente (Service Quotas) |
+| `assistant.bedrock.tokens{model,tier,type}`, `assistant.bedrock.cost{model,tier,currency}` | tokens por modelo (`input`, `output`, `cache_read`, `cache_write`) e custo pela tabela configurada; acerto do cache = `cache_read` ÷ (`input` + `cache_read` + `cache_write`) |
+| `assistant.bedrock.stop_reasons{model,reason}`, `assistant.bedrock.long_context{model}` | motivo de parada das respostas (`END_TURN`, `TOOL_USE`, `MAX_TOKENS`, `CONTENT_FILTERED`) e chamadas cobradas pela faixa de contexto longo (prompt acima do limiar configurado — Haiku 5.5: 100 mil tokens) |
 | `assistant.tool.calls{tool,outcome}` | ferramentas pedidas pelo modelo (`OK`, `REJECTED` = validação do servidor recusou, `ERROR` = módulo dono recusou); `REJECTED` crescente = prompt/modelo tentando sair dos limites |
 | `assistant.handoffs{reason,source}`, `assistant.guardrails{code}` | transferências por motivo e origem; guardrails acionados por código |
 | `assistant.drafts{mode}`, `assistant.identity.checks{outcome}`, `debt.identity_checks{outcome}` | rascunhos gerados; confirmações de identidade (`MATCHED`, `NOT_MATCHED`, `UNAVAILABLE`) |

@@ -6,6 +6,7 @@ import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCas
 import br.com.gestorcobranca.assistant.application.port.in.AssistantReviewUseCases;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantTrailUseCases;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
+import br.com.gestorcobranca.assistant.domain.model.ModelRouting;
 import br.com.gestorcobranca.assistant.domain.model.PolicySettings;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.communication.CommunicationTestSupport;
@@ -78,10 +79,15 @@ abstract class AssistantTestSupport extends CommunicationTestSupport {
     }
 
     PolicyView publishPolicy(String code, UUID creditorId, AssistantMode mode, UUID authorityProfileId) {
+        return publishPolicy(code, creditorId, mode, authorityProfileId, null);
+    }
+
+    PolicyView publishPolicy(String code, UUID creditorId, AssistantMode mode, UUID authorityProfileId,
+                             ModelRouting routing) {
         PolicySettings base = PolicySettings.defaults(mode);
         PolicySettings settings = new PolicySettings(mode, null, null, authorityProfileId, null, null, null, null, null,
                 null, null, null, List.of("negociação", "segunda via"), List.of("sorteio"), null, null, null, null,
-                null, null, null, BigDecimal.ONE, null, null);
+                null, null, null, BigDecimal.ONE, null, null, routing);
         assert base.mode() == mode;
         return asAdmin(() -> {
             PolicyView draft = assistantPolicies.createDraft(new CreatePolicyCommand(creditorId, null, code,
@@ -126,6 +132,14 @@ abstract class AssistantTestSupport extends CommunicationTestSupport {
     List<String> outcomes() {
         return system(() -> jdbcTemplate.queryForList("select outcome from assistant.assistant_turn "
                 + "where conversation_id = ? order by started_at", String.class, conversationId));
+    }
+
+    /** Nível de modelo dos turnos com evento de negócio do tipo dado: {@code modelTier/advancedModelCalls/modelCalls}. */
+    List<String> modelTiers(String eventType) {
+        return system(() -> jdbcTemplate.queryForList("select concat_ws('/', attributes ->> 'modelTier', attributes ->> "
+                + "'advancedModelCalls', attributes ->> 'modelCalls') from shared.business_event where event_type = ? "
+                + "and attributes ->> 'conversationId' = ? order by occurred_at", String.class, eventType,
+                conversationId.toString()));
     }
 
     String lastTurnColumn(String column) {

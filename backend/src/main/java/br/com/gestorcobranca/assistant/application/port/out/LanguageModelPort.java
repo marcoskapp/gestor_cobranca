@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.assistant.application.port.out;
 
+import br.com.gestorcobranca.assistant.domain.model.ModelTier;
+
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
@@ -7,22 +9,34 @@ import java.util.Map;
 
 /**
  * Porta de saída para o provedor de modelo de linguagem com <strong>chamada de ferramentas</strong>
- * (function calling). Contrato neutro de provedor: o adaptador traduz para a API escolhida (issue #12;
- * Amazon Bedrock exigiria aprovação de serviço AWS novo) e devolve tokens, custo e latência.
+ * (function calling). Contrato neutro de provedor: o adaptador traduz para a API escolhida e devolve tokens,
+ * custo e latência. Adaptadores: {@code BedrockLanguageModel} (Amazon Bedrock, Converse API, modelos Claude —
+ * aprovado na issue #12) e {@code SandboxLanguageModel} (simulado, local/teste), escolhidos por
+ * {@code app.assistant.provider} ({@code none}, {@code sandbox} ou {@code bedrock}; um só por instância).
  * <p>
  * Regras do contrato (ver docs/tecnico/desenho/assistente.md §6):
  * <ul>
- *   <li>{@link ModelRequest#contextDocument()} é o contexto minimizado (JSON) e deve ser entregue ao
- *       modelo como instrução de sistema, separado das mensagens do devedor;</li>
- *   <li>o adaptador respeita {@code maxOutputTokens} e {@code timeout} (tempo de leitura do cliente
- *       HTTP) e lança {@link ModelTimeoutException}/{@link ModelUnavailableException} em falhas
- *       transitórias e {@link ModelRejectedException} em recusa definitiva (conteúdo, cota, credencial);</li>
- *   <li>nenhuma retentativa dentro do adaptador além de uma para 429/5xx imediatos: o orquestrador
- *       transfere para humano em caso de falha (o devedor não fica sem resposta);</li>
+ *   <li>{@link ModelRequest#systemPrompt()} e {@link ModelRequest#contextDocument()} (contexto minimizado em
+ *       JSON) são entregues ao modelo como instruções de sistema, em blocos separados e nunca concatenados ao
+ *       texto do devedor (que só aparece nas mensagens {@code USER});</li>
+ *   <li>{@link ModelRequest#tier()} é o nível de modelo escolhido pelo servidor ({@link ModelTier}); o adaptador
+ *       o mapeia para o modelo ou perfil de inferência configurado e devolve em {@link ModelResponse#model()} o
+ *       identificador efetivamente usado;</li>
+ *   <li>o adaptador respeita {@code maxOutputTokens} (sempre enviado ao provedor) e {@code timeout} (tempo
+ *       máximo da chamada, inclusive a retentativa) e lança {@link ModelTimeoutException} (tempo esgotado),
+ *       {@link ModelUnavailableException} (limite de taxa, 5xx, rede, saída malformada) ou
+ *       {@link ModelRejectedException} (recusa definitiva: validação, acesso negado, modelo não habilitado,
+ *       cota, janela de contexto); resposta bloqueada pelo filtro de conteúdo do provedor volta como
+ *       {@link StopReason#CONTENT_FILTERED} (o orquestrador trata como guardrail);</li>
+ *   <li>nenhuma retentativa dentro do adaptador além de <strong>uma</strong> para limite de taxa/5xx imediatos:
+ *       o orquestrador transfere para humano em caso de falha (o devedor não fica sem resposta);</li>
+ *   <li>{@link Usage} separa os tokens de entrada não cacheados dos lidos e gravados no cache de prompt do
+ *       provedor; o custo é calculado pelo adaptador com a tabela de preços da configuração (nunca no código);</li>
  *   <li>a requisição não leva identificadores de pessoa: {@code metadata} só com ids opacos de turno e
  *       assessoria para correlação no provedor; o provedor precisa estar contratado sem retenção nem
- *       treinamento com os dados (política de uso de dados — issue #12);</li>
- *   <li>credenciais do provedor nunca em {@code application.yml}: Parameter Store/KMS (pendente de aprovação).</li>
+ *       treinamento com os dados (no Bedrock, o provedor do modelo não acessa prompts nem respostas);</li>
+ *   <li>credenciais do provedor nunca em {@code application.yml}: no Bedrock, cadeia padrão do SDK (papel IAM
+ *       da instância EC2).</li>
  * </ul>
  */
 public interface LanguageModelPort {
@@ -71,20 +85,43 @@ public interface LanguageModelPort {
      * @param systemPrompt    prompt versionado (recurso do módulo)
      * @param contextDocument contexto minimizado (JSON) — ver {@code ModelContext}
      * @param metadata        ids opacos para correlação (turno, assessoria); nunca dado pessoal
+     * @param tier            nível de modelo escolhido pelo servidor (nulo = {@link ModelTier#STANDARD})
      */
     record ModelRequest(String systemPrompt, String contextDocument, List<ModelMessage> messages,
-                        List<ToolDefinition> tools, int maxOutputTokens, Duration timeout, Map<String, String> metadata) {
+                        List<ToolDefinition> tools, int maxOutputTokens, Duration timeout, Map<String, String> metadata,
+                        ModelTier tier) {
 
         public ModelRequest {
             messages = List.copyOf(messages);
             tools = tools == null ? List.of() : List.copyOf(tools);
             metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+            tier = tier == null ? ModelTier.STANDARD : tier;
+        }
+
+        public ModelRequest(String systemPrompt, String contextDocument, List<ModelMessage> messages,
+                            List<ToolDefinition> tools, int maxOutputTokens, Duration timeout, Map<String, String> metadata) {
+            this(systemPrompt, contextDocument, messages, tools, maxOutputTokens, timeout, metadata, ModelTier.STANDARD);
         }
     }
 
     enum StopReason { END_TURN, TOOL_USE, MAX_TOKENS, CONTENT_FILTERED }
 
-    record Usage(long inputTokens, long outputTokens) {
+    /**
+     * @param inputTokens           tokens de entrada processados sem cache
+     * @param outputTokens          tokens gerados
+     * @param cacheReadInputTokens  tokens de entrada lidos do cache de prompt do provedor
+     * @param cacheWriteInputTokens tokens de entrada gravados no cache de prompt do provedor
+     */
+    record Usage(long inputTokens, long outputTokens, long cacheReadInputTokens, long cacheWriteInputTokens) {
+
+        public Usage(long inputTokens, long outputTokens) {
+            this(inputTokens, outputTokens, 0, 0);
+        }
+
+        /** Tokens do prompt (com e sem cache): base dos limites por turno e do limiar de contexto longo. */
+        public long promptTokens() {
+            return inputTokens + cacheReadInputTokens + cacheWriteInputTokens;
+        }
     }
 
     /** @param amount custo estimado da chamada na moeda do contrato com o provedor */
@@ -94,7 +131,8 @@ public interface LanguageModelPort {
     /**
      * @param text      resposta em texto (pode vir junto com chamadas de ferramenta)
      * @param toolCalls ferramentas pedidas
-     * @param model     identificador do modelo efetivamente usado
+     * @param model     identificador do modelo ou perfil de inferência efetivamente usado
+     * @param latency   duração da chamada (inclusive a retentativa)
      */
     record ModelResponse(String text, List<ToolCall> toolCalls, StopReason stopReason, Usage usage, Cost cost,
                          String model, Duration latency) {
