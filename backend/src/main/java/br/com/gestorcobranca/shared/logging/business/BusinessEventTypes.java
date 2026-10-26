@@ -223,4 +223,7 @@ public final class BusinessEventTypes {
     public static final String ASSISTANT_PIX_SUGGESTED = "assistant.pix_suggested";
     public static final String ASSISTANT_PIX_DELIVERY = "assistant.pix_delivery";
     public static final String ASSISTANT_PIX_PAID = "assistant.pix_paid";
+
+    // Minhas pendências (módulo pendingwork): primeira observação do dia por usuário e tipo (envelhecimento)
+    public static final String PENDING_WORK_OBSERVED = "pending_work.observed";
 }

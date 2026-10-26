@@ -12,7 +12,6 @@ import br.com.gestorcobranca.negotiation.application.service.NegotiationGuard.Ou
 import br.com.gestorcobranca.negotiation.application.service.ProposalEvaluator.Result;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AcceptanceEvidence;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
-import br.com.gestorcobranca.negotiation.domain.model.authority.AuthorityLimits;
 import br.com.gestorcobranca.negotiation.domain.model.offer.PlanRequest;
 import br.com.gestorcobranca.negotiation.domain.model.policy.ComponentRates;
 import br.com.gestorcobranca.negotiation.domain.model.policy.PolicyRules.ConcessionLevel;
@@ -64,11 +63,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -80,14 +76,12 @@ class ProposalService implements ProposalUseCases {
     /** Motivo e referência do pedido de transferência ({@code HandoffRequested}, contrato do communication). */
     static final String HANDOFF_REASON = "REQUIRES_APPROVAL";
     static final String RESOURCE_REFERENCE = "proposal";
-    /** Propostas pendentes examinadas por consulta da fila de aprovação (filtradas pela alçada do aprovador). */
-    private static final int QUEUE_SCAN_LIMIT = 1000;
-
     private final ProposalEvaluator evaluator;
     private final ProposalRepository proposals;
     private final SimulationRepository simulations;
     private final AgreementRepository agreements;
     private final AuthorityResolver authorityResolver;
+    private final ProposalApprovalQueue approvalQueue;
     private final AgreementRecorder recorder;
     private final TermIssuer termIssuer;
     private final NegotiationLocks locks;
@@ -104,7 +98,8 @@ class ProposalService implements ProposalUseCases {
     private final Clock clock;
 
     ProposalService(ProposalEvaluator evaluator, ProposalRepository proposals, SimulationRepository simulations,
-                    AgreementRepository agreements, AuthorityResolver authorityResolver, AgreementRecorder recorder,
+                    AgreementRepository agreements, AuthorityResolver authorityResolver,
+                    ProposalApprovalQueue approvalQueue, AgreementRecorder recorder,
                     TermIssuer termIssuer, NegotiationLocks locks, NegotiationViews views, AccessScope accessScope,
                     CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                     AccessLogger accessLogger, ApplicationEventPublisher events, FileStorage fileStorage,
@@ -114,6 +109,7 @@ class ProposalService implements ProposalUseCases {
         this.simulations = simulations;
         this.agreements = agreements;
         this.authorityResolver = authorityResolver;
+        this.approvalQueue = approvalQueue;
         this.recorder = recorder;
         this.termIssuer = termIssuer;
         this.locks = locks;
@@ -331,7 +327,8 @@ class ProposalService implements ProposalUseCases {
                 "proposal.status_invalid");
         return PageResponse.of(proposals.search(allowed, filter.creditorId(),
                 DebtorSelfScope.debtorFilter(actor, filter.debtorId()), filter.caseId(), status,
-                actor.isAssistant() ? actor.type().name() : filter.actorType(), actor.isAssistant() ? actor.id() : null,
+                actor.isAssistant() || filter.mine() ? actor.type().name() : filter.actorType(),
+                actor.isAssistant() || filter.mine() ? actor.id() : null,
                 page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
                 p -> views.proposal(p, minimized(actor)));
     }
@@ -339,38 +336,11 @@ class ProposalService implements ProposalUseCases {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ProposalView> approvalQueue(PageQuery page) {
-        accessScope.requirePermission(Permission.NEGOTIATION_APPROVE);
-        Actor actor = currentActor.get();
-        Guard.require(actor.isUser(), "proposal.approver_must_be_user", "Somente usuários aprovam propostas");
-        Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
-        Map<UUID, Optional<AuthorityLimits>> limitsByCreditor = new HashMap<>();
-        List<Proposal> eligible = new ArrayList<>();
-        for (Proposal p : proposals.findPendingApproval(allowed, QUEUE_SCAN_LIMIT)) {
-            if ("USER".equals(p.getActorType()) && actor.id().equals(p.getActorId())) {
-                continue;
-            }
-            Optional<AuthorityLimits> limits = limitsByCreditor.computeIfAbsent(p.getCreditorId(), c -> limitsOf(actor, c));
-            if (limits.isPresent() && requirement(p).satisfiedBy(limits.get())) {
-                eligible.add(p);
-            }
-        }
+        List<Proposal> eligible = approvalQueue.eligibleFor(currentActor.get());
         int from = Math.min(page.page() * page.size(), eligible.size());
         int to = Math.min(from + page.size(), eligible.size());
         return PageResponse.of(new PageImpl<>(eligible.subList(from, to), PageRequest.of(page.page(), page.size()),
                 eligible.size()), p -> views.proposal(p, false));
-    }
-
-    private Optional<AuthorityLimits> limitsOf(Actor actor, UUID creditorId) {
-        try {
-            return Optional.of(authorityResolver.resolve(actor, creditorId).profile().limits());
-        } catch (BusinessRuleException e) {
-            return Optional.empty();
-        }
-    }
-
-    private static ProposalTerms.AuthorityRequirement requirement(Proposal p) {
-        return new ProposalTerms.AuthorityRequirement(p.getLevel(), p.getRequiredDiscountShare().value(),
-                p.getInstallments(), p.getTotalAmount(), p.getDownPaymentShare().value(), p.getRenegotiationNumber());
     }
 
     // ------------------------------------------------------------------ aprovação (F16)

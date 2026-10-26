@@ -87,7 +87,12 @@ public interface ProposalUseCases {
     }
 
     /** @param caseId propostas de um caso de cobrança (aba Negociação da estação) */
-    record ProposalFilter(UUID creditorId, UUID debtorId, UUID caseId, String status, String actorType) {
+    /** @param mine somente as propostas registradas pelo próprio usuário (ex.: "Minhas pendências") */
+    record ProposalFilter(UUID creditorId, UUID debtorId, UUID caseId, String status, String actorType, boolean mine) {
+
+        public ProposalFilter(UUID creditorId, UUID debtorId, UUID caseId, String status, String actorType) {
+            this(creditorId, debtorId, caseId, status, actorType, false);
+        }
     }
 
     record DecisionView(UUID decidedBy, String profileCode, Instant decidedAt, String note) {
