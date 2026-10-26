@@ -17,6 +17,8 @@ import {
   ExportFormat,
   ExportView,
   GoalRequest,
+  GoalSubjectType,
+  GoalUnitOptions,
   GoalView,
   IndicatorReport,
   LedgerEntryView,
@@ -85,6 +87,11 @@ export class CommissionPlansApi {
 
   goals(period: YearMonth): Observable<GoalView[]> {
     return this.http.get<GoalView[]>(`${BASE}/goals`, { params: toHttpParams({ period }) });
+  }
+
+  /** Unidades aceitas para a meta do negociador/equipe no período, pela métrica do plano vigente. */
+  goalUnitOptions(period: YearMonth, subjectType: GoalSubjectType, subjectId: string): Observable<GoalUnitOptions> {
+    return this.http.get<GoalUnitOptions>(`${BASE}/goals/unit-options`, { params: toHttpParams({ period, subjectType, subjectId }), context: silentErrorContext() });
   }
 
   setGoal(request: GoalRequest): Observable<GoalView> {

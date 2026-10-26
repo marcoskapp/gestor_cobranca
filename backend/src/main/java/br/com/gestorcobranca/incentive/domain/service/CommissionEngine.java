@@ -105,8 +105,10 @@ public final class CommissionEngine {
         Money running = subtotal;
         BigDecimal goalFactor = BigDecimal.ONE;
         if (rules.goal() != null) {
+            String disregarded = disregardedGoal(rules.goal(), in.goal());
             if (goal.attainment() == null) {
-                memory.add(Component.GOAL, "Sem meta definida para o período: fator 1", null, null, null, BigDecimal.ONE, Money.ZERO);
+                memory.add(Component.GOAL, "Sem meta definida para o período: fator 1" + disregarded, null, null, null,
+                        BigDecimal.ONE, Money.ZERO);
             } else {
                 GoalComponent g = rules.goal();
                 Money delta = Money.ZERO;
@@ -128,7 +130,7 @@ public final class CommissionEngine {
                 } else {
                     description = "Meta entre o gatilho e o limiar do acelerador: fator 1";
                 }
-                memory.add(Component.GOAL, description, null, subtotal, goal.attainment(), goalFactor, delta);
+                memory.add(Component.GOAL, description + disregarded, null, subtotal, goal.attainment(), goalFactor, delta);
                 running = running.plus(delta);
             }
         }
@@ -327,6 +329,16 @@ public final class CommissionEngine {
     }
 
     private record GoalEvaluation(BigDecimal attainment) {
+    }
+
+    /** Explicação na memória quando a meta do período estava em unidade diferente da métrica. */
+    private static String disregardedGoal(GoalComponent goal, GoalInput input) {
+        if (input == null || input.disregardedUnit() == null) {
+            return "";
+        }
+        return " (meta do período em %s desconsiderada: a meta do plano é em %s; %s)".formatted(
+                input.disregardedUnit().symbol(), goal.metric().unit().symbol(),
+                input.target() == null ? "o plano não tem meta padrão" : "vale a meta padrão do plano");
     }
 
     private static GoalEvaluation evaluateGoal(GoalComponent goal, GoalInput input) {

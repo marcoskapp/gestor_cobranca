@@ -1,124 +1,27 @@
 import { Component, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
-import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
-import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
-import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../../shared/forms/field';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { TeamLookup } from '../../collection/data/collection.lookups';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { CommissionPlansApi } from '../data/incentive.api';
-import { GoalSubjectType, GoalView, YearMonth } from '../data/incentive.models';
-import { decimalInput, monthLabel, monthOptions, parseDecimal } from '../data/incentive.rules';
+import { GoalView } from '../data/incentive.models';
+import { monthLabel, monthOptions } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
-
-const NUMBER = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 });
-
-export interface GoalDialogData {
-  period: YearMonth;
-  goal?: GoalView;
-  subjectName?: string;
-}
-
-/** Define (ou altera) a meta de um negociador ou equipe no período. */
-@Component({
-  selector: 'app-incentive-goal-dialog',
-  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
-  template: `
-    <div class="modal-header">
-      <h2 appDialogTitle class="h5 mb-0">{{ data.goal ? 'Alterar meta' : 'Definir meta' }} · {{ month }}</h2>
-      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
-    </div>
-    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <div class="modal-body">
-        <p class="app-dialog-message">A meta do período prevalece sobre a meta padrão do plano. A unidade segue a métrica da meta do plano: valor recuperado em reais ou taxa de recuperação em %.</p>
-        @if (data.goal) {
-          <dl class="app-definition-list mb-3">
-            <dt>{{ data.goal.subjectType === 'USER' ? 'Negociador' : 'Equipe' }}</dt>
-            <dd>{{ data.subjectName }}</dd>
-          </dl>
-        } @else {
-          <fieldset class="mb-3">
-            <legend class="form-label">Meta de</legend>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" id="gd-user" value="USER" formControlName="subjectType" />
-              <label class="form-check-label" for="gd-user">Negociador</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" id="gd-team" value="TEAM" formControlName="subjectType" />
-              <label class="form-check-label" for="gd-team">Equipe</label>
-            </div>
-          </fieldset>
-          @if (type() === 'USER') {
-            <app-entity-picker class="d-block mb-3" [control]="form.controls.user" [source]="users" label="Negociador" [single]="true" />
-          } @else {
-            <app-entity-picker class="d-block mb-3" [control]="form.controls.team" [source]="teams" label="Equipe" [single]="true" />
-          }
-        }
-        <app-field label="Meta" hint="R$ ou %, conforme a métrica do plano" error="Informe um número positivo.">
-          <!-- not-money: a mesma meta vale R$ ou %, conforme a métrica de cada plano (não conhecida aqui) -->
-          <input appInput ngbAutofocus formControlName="target" inputmode="decimal" autocomplete="off" />
-        </app-field>
-        @if (error()) {
-          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
-        }
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
-        <button class="btn btn-primary" type="submit" [disabled]="sending()">Salvar meta</button>
-      </div>
-    </form>
-  `,
-})
-export class GoalDialog {
-  protected readonly data = inject<GoalDialogData>(DIALOG_DATA);
-  private readonly ref = inject<DialogRef<GoalView>>(DialogRef);
-  private readonly api = inject(CommissionPlansApi);
-  protected readonly users = inject(UserLookup);
-  protected readonly teams = inject(TeamLookup);
-  protected readonly month = monthLabel(this.data.period);
-  protected readonly sending = signal(false);
-  protected readonly error = signal<string | null>(null);
-  private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly form = this.fb.group({
-    subjectType: this.fb.control<GoalSubjectType>(this.data.goal?.subjectType ?? 'USER'),
-    user: this.fb.control<string[]>([]),
-    team: this.fb.control<string[]>([]),
-    target: [decimalInput(this.data.goal?.target), [Validators.required, (c: AbstractControl) => ((parseDecimal(c.value as string) ?? 0) > 0 ? null : { min: { min: 0 } })]],
-  });
-  protected readonly type = toSignal(this.form.controls.subjectType.valueChanges.pipe(startWith(this.form.controls.subjectType.value)), { initialValue: 'USER' as GoalSubjectType });
-
-  protected save(): void {
-    const v = this.form.getRawValue();
-    const subjectId = this.data.goal?.subjectId ?? (v.subjectType === 'USER' ? v.user[0] : v.team[0]);
-    if (this.form.invalid || !subjectId || this.sending()) {
-      this.form.markAllAsTouched();
-      if (!subjectId) {
-        this.error.set(v.subjectType === 'USER' ? 'Escolha o negociador.' : 'Escolha a equipe.');
-      }
-      return;
-    }
-    this.sending.set(true);
-    this.error.set(null);
-    this.api
-      .setGoal({ period: this.data.period, subjectType: this.data.goal?.subjectType ?? v.subjectType, subjectId, target: parseDecimal(v.target)! })
-      .pipe(finalize(() => this.sending.set(false)))
-      .subscribe({ next: (g) => this.ref.close(g), error: (err: unknown) => this.error.set(incentiveError(err)) });
-  }
-}
+import { GoalDialog, GoalDialogData } from './goal-dialog';
+import { GOAL_UNIT_LABELS, goalTargetText } from './goal-units';
 
 /** Metas por período (individuais e de equipe), que sobrepõem a meta padrão do plano. */
 @Component({
@@ -158,7 +61,13 @@ export class GoalDialog {
         <strong>{{ subject(g) }}</strong>
         <div class="app-muted in-small">{{ g.subjectType === 'USER' ? 'Negociador' : 'Equipe' }}</div>
       </ng-template>
-      <ng-template appCell="target" [appCellOf]="rows()" let-g><span class="app-numeric">{{ number(g.target) }}</span></ng-template>
+      <ng-template appCell="target" [appCellOf]="rows()" let-g>
+        <span class="app-numeric">{{ target(g) }}</span>
+        @if (!g.unit) {
+          <div class="app-muted in-small">Unidade da métrica do plano</div>
+        }
+      </ng-template>
+      <ng-template appCell="unit" [appCellOf]="rows()" let-g>{{ unitLabel(g) }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="rows()" let-g>
         <button type="button" class="btn btn-sm btn-outline-secondary border-0" (click)="edit(g)" [attr.aria-label]="'Alterar a meta de ' + subject(g)" ngbTooltip="Alterar">
           <app-icon name="pencil" />
@@ -190,13 +99,17 @@ export class GoalList {
 
   protected readonly columns: TableColumn[] = [
     { key: 'subject', header: 'Negociador ou equipe' },
+    { key: 'unit', header: 'Unidade' },
     { key: 'target', header: 'Meta', align: 'end' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 
   protected readonly subject = (g: GoalView) => (g.subjectType === 'USER' ? this.users.name(g.subjectId) : this.teams.name(g.subjectId));
-  protected number(v: number): string {
-    return NUMBER.format(v);
+  protected unitLabel(g: GoalView): string {
+    return g.unit ? GOAL_UNIT_LABELS[g.unit] : 'Não informada';
+  }
+  protected target(g: GoalView): string {
+    return goalTargetText(g.target, g.unit);
   }
 
   protected edit(goal?: GoalView): void {
@@ -221,7 +134,7 @@ export class GoalList {
         details: [
           { label: g.subjectType === 'USER' ? 'Negociador' : 'Equipe', value: this.subject(g) },
           { label: 'Período', value: monthLabel(g.period) },
-          { label: 'Meta', value: NUMBER.format(g.target) },
+          { label: 'Meta', value: goalTargetText(g.target, g.unit) },
         ],
       })
       .subscribe(() => {

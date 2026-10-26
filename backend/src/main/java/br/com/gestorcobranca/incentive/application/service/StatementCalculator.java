@@ -11,6 +11,7 @@ import br.com.gestorcobranca.incentive.domain.model.ledger.CommissionLedgerEntry
 import br.com.gestorcobranca.incentive.domain.model.plan.GoalMetric;
 import br.com.gestorcobranca.incentive.domain.model.plan.GoalScope;
 import br.com.gestorcobranca.incentive.domain.model.plan.GoalTarget;
+import br.com.gestorcobranca.incentive.domain.model.plan.GoalUnit;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules;
 import br.com.gestorcobranca.incentive.domain.model.plan.PoolDistribution;
 import br.com.gestorcobranca.incentive.domain.model.quality.ConductOccurrence;
@@ -192,11 +193,16 @@ class StatementCalculator {
         }
         boolean team = rules.goal().scope() == GoalScope.TEAM;
         Optional<TeamStructure> userTeam = team ? teamOf(userId, ctx.teams()) : Optional.empty();
-        BigDecimal target = (team
+        Optional<GoalTarget> periodGoal = team
                 ? userTeam.flatMap(t -> plans.findGoal(ctx.start(), GoalTarget.SubjectType.TEAM, t.id()))
-                : plans.findGoal(ctx.start(), GoalTarget.SubjectType.USER, userId))
-                .map(GoalTarget::getTargetValue).orElse(rules.goal().defaultTarget());
-        if (target == null) {
+                : plans.findGoal(ctx.start(), GoalTarget.SubjectType.USER, userId);
+        // Meta em unidade diferente da métrica do plano não é reinterpretada: vale a meta padrão.
+        // Meta antiga sem unidade (anterior à V1806, não dedutível) segue a métrica do plano.
+        GoalUnit expected = rules.goal().metric().unit();
+        GoalUnit disregarded = periodGoal.map(GoalTarget::getUnit).filter(u -> u != expected).orElse(null);
+        BigDecimal target = periodGoal.filter(g -> disregarded == null).map(GoalTarget::getTargetValue)
+                .orElse(rules.goal().defaultTarget());
+        if (target == null && disregarded == null) {
             return null;
         }
         Set<UUID> people = team && userTeam.isPresent() ? peopleOf(userTeam.get()) : Set.of(userId);
@@ -205,12 +211,12 @@ class StatementCalculator {
                 .map(CommissionLedgerEntry::getCreditedAmount).reduce(Money.ZERO, Money::plus)
                 : volumes.stream().map(SegmentVolume::amount).reduce(Money.ZERO, Money::plus);
         if (rules.goal().metric() == GoalMetric.RECOVERED) {
-            return new GoalInput(target, recovered.amount());
+            return new GoalInput(target, recovered.amount(), disregarded);
         }
         BigDecimal base = facts.eligibleBalanceAt(people, from, rules.eligibility().creditorIds());
         BigDecimal rate = base.signum() == 0 ? BigDecimal.ZERO
                 : recovered.amount().multiply(HUNDRED).divide(base, 4, RoundingMode.HALF_EVEN);
-        return new GoalInput(target, rate);
+        return new GoalInput(target, rate, disregarded);
     }
 
     private QualityInput quality(UUID userId, PlanRules rules, PeriodContext ctx, Instant from, Instant to) {
