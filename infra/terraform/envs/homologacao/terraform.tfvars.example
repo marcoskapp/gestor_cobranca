@@ -63,7 +63,7 @@ log_level = "INFO"
 smtp_host = "smtp.provedor-de-email.example"
 smtp_port = 587
 
-# Primeiro administrador da plataforma (decisão 500). Criado uma única vez na primeira subida, com
+# Primeiro administrador da plataforma (decisão 520). Criado uma única vez na primeira subida, com
 # link de ativação por e-mail (72 h); depois os valores são ignorados e podem ser removidos.
 # O e-mail é dado pessoal: a variável é sensível (fora do plano) e fica só no state cifrado; prefira
 # uma caixa funcional da operação.

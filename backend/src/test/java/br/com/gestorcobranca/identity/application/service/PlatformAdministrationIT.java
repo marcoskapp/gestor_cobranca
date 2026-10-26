@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Administração da plataforma na ativação do ambiente (decisões 500–504): bootstrap idempotente do
+ * Administração da plataforma na ativação do ambiente (decisões 520–524): bootstrap idempotente do
  * primeiro administrador, MFA obrigatório do {@code PLATFORM_ADMIN} com cadastro no primeiro login,
  * reenvio do convite do administrador inicial de uma assessoria pela plataforma e renovação do convite
  * expirado pelo "Esqueci minha senha", sem enumeração.
@@ -88,7 +88,7 @@ class PlatformAdministrationIT extends IntegrationTest {
                 () -> tenantAdministration.ensurePlatformTenant(PLATFORM_CNPJ).tenant());
     }
 
-    // ------------------------------------------------------------------ 500 bootstrap
+    // ------------------------------------------------------------------ 520 bootstrap
 
     @Test
     @Order(1)
@@ -131,7 +131,7 @@ class PlatformAdministrationIT extends IntegrationTest {
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("platform-admin-email");
     }
 
-    // ------------------------------------------------------------------ 501 MFA do PLATFORM_ADMIN
+    // ------------------------------------------------------------------ 521 MFA do PLATFORM_ADMIN
 
     @Test
     @Order(3)
@@ -153,7 +153,7 @@ class PlatformAdministrationIT extends IntegrationTest {
         assertThat(authentication.startMfaEnrollment(login.stepToken()).otpauthUri()).startsWith("otpauth://totp/");
     }
 
-    // ------------------------------------------------------------------ 503 reenvio pela plataforma
+    // ------------------------------------------------------------------ 523 reenvio pela plataforma
 
     @Test
     @Order(4)
@@ -213,7 +213,7 @@ class PlatformAdministrationIT extends IntegrationTest {
                 .satisfies(e -> assertThat(((BusinessRuleException) e).code()).isEqualTo("tenant.admin_already_active"));
     }
 
-    // ------------------------------------------------------------------ 504 "Esqueci minha senha"
+    // ------------------------------------------------------------------ 524 "Esqueci minha senha"
 
     @Test
     @Order(5)

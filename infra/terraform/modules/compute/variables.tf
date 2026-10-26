@@ -345,7 +345,7 @@ variable "jvm_max_ram_percentage" {
   }
 }
 
-# --- Primeiro administrador da plataforma (PlatformBootstrap; decisão 500) -------------------
+# --- Primeiro administrador da plataforma (PlatformBootstrap; decisão 520) -------------------
 # Entregues como APP_BOOTSTRAP_PLATFORM_* no app.env só quando informados. O bootstrap é
 # idempotente: cria o tenant da plataforma e o primeiro PLATFORM_ADMIN uma única vez; depois os
 # valores são ignorados (podem ser removidos do tfvars).

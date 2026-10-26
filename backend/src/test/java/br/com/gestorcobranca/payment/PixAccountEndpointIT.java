@@ -69,7 +69,7 @@ class PixAccountEndpointIT extends PaymentTestSupport {
                 List.of("a".repeat(64)), new CredentialsCommand("client", "secret", null, null, null)))))
                 .isInstanceOf(BusinessRuleException.class)
                 .satisfies(e -> assertThat(((BusinessRuleException) e).code()).isEqualTo("pix_account.mtls_unavailable"));
-        // a tela sabe que o mTLS está indisponível e sugere HMAC (decisão 502)
+        // a tela sabe que o mTLS está indisponível e sugere HMAC (decisão 522)
         assertThat(asAdmin(() -> pixAccounts.webhookOptions()))
                 .isEqualTo(new PixAccountUseCases.WebhookOptions(false, "HMAC"));
         assertThatThrownBy(() -> as(Ids.newId(), DefaultRoles.OPERADOR, CreditorScope.ALL, () -> pixAccounts.webhookOptions()))

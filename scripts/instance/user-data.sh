@@ -172,7 +172,7 @@ unset secrets_content value
   # Pix: hosts de PSP permitidos (decisão 313) e webhook com mTLS só com o ALB verificando o cliente (316)
   echo "PAYMENT_PIX_ALLOWED_HOSTS=${GC_PAYMENT_PIX_ALLOWED_HOSTS:-}"
   echo "PAYMENT_WEBHOOK_MTLS_ENABLED=${GC_PAYMENT_WEBHOOK_MTLS_ENABLED:-false}"
-  # Primeiro administrador da plataforma (decisão 500): só quando configurado; o PlatformBootstrap é
+  # Primeiro administrador da plataforma (decisão 520): só quando configurado; o PlatformBootstrap é
   # idempotente e, existindo um administrador da plataforma, ignora estes valores.
   if [[ -n "${GC_PLATFORM_ADMIN_EMAIL:-}" ]]; then
     echo "APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL=${GC_PLATFORM_ADMIN_EMAIL}"

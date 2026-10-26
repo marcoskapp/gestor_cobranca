@@ -181,7 +181,7 @@ run "bedrock_perfil_global_em_sao_paulo" {
   }
 }
 
-# --- Primeiro administrador da plataforma (decisão 500) ---------------------------------------
+# --- Primeiro administrador da plataforma (decisão 520) ---------------------------------------
 
 run "primeiro_administrador_da_plataforma" {
   command = plan

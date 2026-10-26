@@ -305,7 +305,7 @@ variable "jvm_max_ram_percentage" {
   default     = 60
 }
 
-# --- Primeiro administrador da plataforma (decisão 500) -----------------------------------------
+# --- Primeiro administrador da plataforma (decisão 520) -----------------------------------------
 # Lidos pelo PlatformBootstrap na subida (APP_BOOTSTRAP_PLATFORM_*): cria, uma única vez, o tenant
 # "plataforma" e o primeiro PLATFORM_ADMIN, que recebe o link de ativação por e-mail. Depois de criado,
 # os valores são ignorados e podem sair do tfvars (minimização do dado pessoal no state).

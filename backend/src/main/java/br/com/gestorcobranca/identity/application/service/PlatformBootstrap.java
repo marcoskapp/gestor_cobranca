@@ -24,7 +24,7 @@ import java.util.Set;
  * do <strong>primeiro</strong> administrador da plataforma (que recebe link de ativação por e-mail).
  * Habilitado apenas quando {@code app.bootstrap.platform-admin-email} estiver configurado (nas
  * instâncias da AWS, {@code APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL}, vindo da variável Terraform
- * {@code platform_admin_email}; ver decisão 500).
+ * {@code platform_admin_email}; ver decisão 520).
  * <p>
  * Idempotente e sem sobrescrita: o tenant da plataforma é criado uma única vez (o CNPJ configurado
  * não altera o cadastrado) e o administrador só é criado enquanto o perfil PLATFORM_ADMIN não tem

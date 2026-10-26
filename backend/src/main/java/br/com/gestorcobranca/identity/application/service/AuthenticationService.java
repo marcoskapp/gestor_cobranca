@@ -320,7 +320,7 @@ class AuthenticationService implements AuthenticationUseCases {
             return;
         }
         // Ativo: link de redefinição. Pendente de ativação (convite perdido ou expirado): novo link de
-        // ativação, que invalida o anterior (decisão 504). Desativado ou inexistente: nada. A resposta é
+        // ativação, que invalida o anterior (decisão 524). Desativado ou inexistente: nada. A resposta é
         // a mesma em todos os casos (sem enumeração) e o envio ocorre depois do commit, em segundo plano.
         IssuedLink issued = tenantExecution.callInTenant(tenant.get().id(), "identity.password_reset", () ->
                 users.findByEmail(normalizeEmailSafely(email))

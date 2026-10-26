@@ -83,7 +83,7 @@ locals {
     GC_HELPDESK_TICKETS_ENABLED        = tostring(var.helpdesk_tickets_enabled)
     GC_HELPDESK_GITHUB_REPOSITORY      = var.helpdesk_github_repository
     GC_HELPDESK_GITHUB_REQUIRE_PRIVATE = tostring(var.helpdesk_github_require_private_repository)
-    # primeiro administrador da plataforma (decisão 500); vazios = bootstrap desligado
+    # primeiro administrador da plataforma (decisão 520); vazios = bootstrap desligado
     GC_PLATFORM_ADMIN_NAME = var.platform_admin_name == null ? "" : var.platform_admin_name
     GC_PLATFORM_CNPJ       = var.platform_cnpj == null ? "" : var.platform_cnpj
     # Pix (decisões 313 e 316)
