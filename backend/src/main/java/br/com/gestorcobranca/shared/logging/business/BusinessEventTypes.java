@@ -68,6 +68,10 @@ public final class BusinessEventTypes {
     public static final String AGREEMENT_BROKEN = "agreement.broken";
     public static final String AGREEMENT_RENEGOTIATED = "agreement.renegotiated";
     public static final String AGREEMENT_CANCELLED = "agreement.cancelled";
+    /** Quebra suspensa por pagamento externo em revisão (decisão do responsável de 26/10/2026). */
+    public static final String AGREEMENT_BREAK_SUSPENDED = "agreement.break_suspended";
+    /** Suspensão da quebra encerrada: aprovado, recusado, prazo máximo ou acordo encerrado. */
+    public static final String AGREEMENT_BREAK_SUSPENSION_ENDED = "agreement.break_suspension_ended";
     public static final String INSTALLMENT_OVERDUE = "installment.overdue";
     public static final String INSTALLMENT_PAID = "installment.paid";
 

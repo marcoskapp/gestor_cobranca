@@ -13,9 +13,14 @@
  * Publica {@code shared.events.payment.PaymentConfirmed}/{@code PaymentReversed} (uma vez por alocação);
  * consome {@code shared.events.negotiation.AgreementPaymentRecorded}, {@code AgreementStatusChanged},
  * {@code InstallmentStatusChanged} e {@code shared.events.debt.TitleStatusChanged}.
+ * <p>
+ * Implementa a porta {@code negotiation :: spi} {@code PaymentReviewHolds} (ADR-0010): a quebra do acordo
+ * fica suspensa enquanto houver pagamento externo do acordo em revisão; ao concluir uma revisão, chama
+ * {@code AgreementBreakSuspensionUseCases#reconcile} na mesma transação.
  */
 @ApplicationModule(displayName = "Payment",
-        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "negotiation :: usecases"})
+        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "negotiation :: usecases",
+                "negotiation :: spi"})
 package br.com.gestorcobranca.payment;
 
 import org.springframework.modulith.ApplicationModule;

@@ -38,8 +38,9 @@ class NegotiationJobs {
     }
 
     /**
-     * Diário, logo após a meia-noite no fuso de operação: propostas vencidas → EXPIRED; parcelas
-     * vencidas → OVERDUE; acordos que atingiram a regra de quebra → BROKEN.
+     * Diário, logo após a meia-noite no fuso de operação: propostas vencidas → EXPIRED; suspensões da
+     * quebra com revisão concluída, prazo vencido ou acordo encerrado → encerradas; parcelas vencidas →
+     * OVERDUE; acordos que atingiram a regra de quebra → BROKEN (salvo suspensão por pagamento em revisão).
      */
     @Scheduled(cron = "${app.negotiation.daily-cron:0 20 0 * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
     @SchedulerLock(name = "negotiation.daily", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
@@ -58,6 +59,16 @@ class NegotiationJobs {
             } while (expired == NegotiationMaintenance.BATCH);
         } catch (RuntimeException e) {
             failure("negotiation.proposal_expiry", tenantId, e);
+        }
+        try {
+            UUID cursor = null;
+            do {
+                UUID after = cursor;
+                cursor = tenantExecution.callInTenant(tenantId, "negotiation.break_suspension_review",
+                        () -> maintenance.reconcileBreakSuspensions(after));
+            } while (cursor != null);
+        } catch (RuntimeException e) {
+            failure("negotiation.break_suspension_review", tenantId, e);
         }
         try {
             UUID cursor = null;

@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.payment.application.port.in;
 
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases.BreakSuspensionView;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -137,6 +138,8 @@ public interface PaymentUseCases {
      * @param pendingReallocation      sobra + não aplicado pelo negotiation ainda não realocado
      * @param reviewThresholdExceeded  externo acima do limite: aprovação por segunda pessoa
      * @param requestedTarget          destino solicitado do pagamento externo (nulo nos integrados)
+     * @param breakSuspension          externo em revisão com acordo de destino: suspensão da quebra mais recente do
+     *                                 acordo (só na fila de revisão e no detalhe, para quem tem {@code AGREEMENT_VIEW})
      */
     record PaymentView(UUID id, String source, String method, String status, UUID creditorId, UUID debtorId,
                        BigDecimal amount, Instant paidAt, UUID instructionId, String providerTransactionId,
@@ -146,6 +149,18 @@ public interface PaymentUseCases {
                        Instant reversedAt, BigDecimal allocatedAmount, BigDecimal unallocatedAmount,
                        BigDecimal pendingReallocation, boolean evidenceAvailable, String evidenceSha256,
                        List<AllocationView> allocations, ReversalView reversal, RequestedTargetView requestedTarget,
-                       long version) {
+                       BreakSuspensionView breakSuspension, long version) {
+
+        /**
+         * Com a suspensão da quebra do acordo de destino (pagamento em revisão: destaque na fila quando o
+         * prazo máximo está perto ou já venceu — decisão 486).
+         */
+        public PaymentView withBreakSuspension(BreakSuspensionView suspension) {
+            return new PaymentView(id, source, method, status, creditorId, debtorId, amount, paidAt, instructionId,
+                    providerTransactionId, externalReference, externalOrigin, note, informedBy, informedAt,
+                    reviewThresholdExceeded, reviewMode, reviewedBy, reviewedAt, reviewNote, confirmedAt, reconciledAt,
+                    reconciliationMode, reversedAt, allocatedAmount, unallocatedAmount, pendingReallocation,
+                    evidenceAvailable, evidenceSha256, allocations, reversal, requestedTarget, suspension, version);
+        }
     }
 }

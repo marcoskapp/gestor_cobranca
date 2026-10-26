@@ -166,6 +166,27 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     List<Payment> findReviewStatusByDebtor(@Param("creditorId") UUID creditorId, @Param("debtorId") UUID debtorId,
                                            @Param("since") Instant rejectedSince);
 
+    @Override
+    @Query("""
+            select p from Payment p
+             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+               and p.targetAgreementId = :agreementId
+               and p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
+             order by p.informedAt, p.id
+            """)
+    List<Payment> findPendingReviewByAgreement(@Param("agreementId") UUID agreementId);
+
+    @Override
+    @Query("""
+            select p from Payment p
+             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+               and p.targetAgreementId = :agreementId
+               and p.reviewMode = br.com.gestorcobranca.payment.domain.model.ReviewMode.DUAL_CONTROL
+               and p.reviewedAt >= :since
+             order by p.reviewedAt, p.id
+            """)
+    List<Payment> findReviewedByAgreementSince(@Param("agreementId") UUID agreementId, @Param("since") Instant since);
+
     @Query(value = """
             select p.id from payment.payment p
              where p.status in ('CONFIRMED', 'RECONCILED')

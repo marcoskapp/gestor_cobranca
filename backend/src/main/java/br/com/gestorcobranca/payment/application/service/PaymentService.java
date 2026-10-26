@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.payment.application.service;
 
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases;
 import br.com.gestorcobranca.payment.application.PaymentProperties;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases;
 import br.com.gestorcobranca.payment.application.port.out.ExternalPaymentLocks;
@@ -84,13 +85,15 @@ class PaymentService implements PaymentUseCases {
     private final Clock clock;
     private final ExternalPaymentLocks externalLocks;
     private final PaymentProperties properties;
+    private final AgreementBreakSuspensionUseCases breakSuspensions;
 
     PaymentService(PaymentRepository payments, PaymentAllocationRepository allocations, PaymentReversalRepository reversals,
                    TargetResolver resolver, AllocationService allocationService, PaymentConfirmation confirmation,
                    PaymentReversals paymentReversals, PaymentRecorder recorder, EvidenceStore evidenceStore,
                    PaymentSettingsProvider settings, IdempotencyService idempotency, FileStorage fileStorage,
                    AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, PaymentMetrics metrics,
-                   JsonCodec json, Clock clock, ExternalPaymentLocks externalLocks, PaymentProperties properties) {
+                   JsonCodec json, Clock clock, ExternalPaymentLocks externalLocks, PaymentProperties properties,
+                   AgreementBreakSuspensionUseCases breakSuspensions) {
         this.payments = payments;
         this.allocations = allocations;
         this.reversals = reversals;
@@ -111,13 +114,16 @@ class PaymentService implements PaymentUseCases {
         this.clock = clock;
         this.externalLocks = externalLocks;
         this.properties = properties;
+        this.breakSuspensions = breakSuspensions;
     }
 
     @Override
     @Transactional(readOnly = true)
     public PaymentView get(UUID paymentId) {
         accessScope.requirePermission(Permission.PAYMENT_VIEW);
-        return view(loadVisible(paymentId));
+        Payment p = loadVisible(paymentId);
+        PaymentView view = view(p);
+        return p.getStatus() == PaymentStatus.INFORMED ? withBreakSuspensions(List.of(view)).getFirst() : view;
     }
 
     @Override
@@ -212,7 +218,27 @@ class PaymentService implements PaymentUseCases {
         Page<Payment> result = payments.search(new PaymentRepository.Criteria(allowedCreditors(), null, null,
                 Set.of(PaymentStatus.INFORMED), null, null, null, null, false, currentActor.actorId(), null),
                 page.toPageable(Sort.by("informedAt").and(Sort.by("id"))));
-        return views(result);
+        PageResponse<PaymentView> views = views(result);
+        return new PageResponse<>(withBreakSuspensions(views.content()), views.page(), views.size(),
+                views.totalElements(), views.totalPages());
+    }
+
+    /**
+     * Pagamentos em revisão com acordo de destino recebem a suspensão da quebra mais recente do acordo (uma
+     * consulta por página). Só para quem tem {@code AGREEMENT_VIEW} (o negotiation confere o escopo).
+     */
+    private List<PaymentView> withBreakSuspensions(List<PaymentView> views) {
+        List<UUID> agreementIds = views.stream().filter(v -> PaymentStatus.INFORMED.name().equals(v.status())
+                        && v.requestedTarget() != null && v.requestedTarget().agreementId() != null)
+                .map(v -> v.requestedTarget().agreementId()).distinct().toList();
+        if (agreementIds.isEmpty() || !currentActor.get().has(Permission.AGREEMENT_VIEW)) {
+            return views;
+        }
+        Map<UUID, AgreementBreakSuspensionUseCases.BreakSuspensionView> byAgreement = breakSuspensions.latest(agreementIds)
+                .stream().collect(Collectors.toMap(AgreementBreakSuspensionUseCases.BreakSuspensionView::agreementId,
+                        Function.identity()));
+        return views.stream().map(v -> v.requestedTarget() == null || !PaymentStatus.INFORMED.name().equals(v.status())
+                ? v : v.withBreakSuspension(byAgreement.get(v.requestedTarget().agreementId()))).toList();
     }
 
     @Override
@@ -223,6 +249,7 @@ class PaymentService implements PaymentUseCases {
         p.approve(currentActor.actorId(), note, now);
         metrics.review("APPROVED", Duration.between(p.getInformedAt(), now));
         confirmation.confirmed(p, null, "review");
+        reviewClosed(p);
         return view(p);
     }
 
@@ -235,7 +262,19 @@ class PaymentService implements PaymentUseCases {
         payments.save(p);
         metrics.review("REJECTED", Duration.between(p.getInformedAt(), now));
         recorder.rejected(p);
+        reviewClosed(p);
         return view(p);
+    }
+
+    /**
+     * Revisão concluída: o negotiation encerra, na mesma transação, a suspensão da quebra do acordo se não
+     * restar outro pagamento em revisão (decisões 480–489; idempotente).
+     */
+    private void reviewClosed(Payment p) {
+        if (p.getTargetKind() == TargetKind.AGREEMENT && p.getTargetAgreementId() != null) {
+            payments.save(p);
+            breakSuspensions.reconcile(p.getTargetAgreementId());
+        }
     }
 
     @Override

@@ -18,6 +18,19 @@ public final class NegotiationTestHooks {
         return context.getBean(NegotiationMaintenance.class).expireProposals(today);
     }
 
+    /**
+     * Como o job diário (sem a expiração de propostas): confere as suspensões da quebra em vigor e varre os
+     * acordos com parcela vencida, no dia simulado.
+     */
+    public static void daily(ApplicationContext context, LocalDate today) {
+        NegotiationMaintenance maintenance = context.getBean(NegotiationMaintenance.class);
+        UUID cursor = maintenance.reconcileBreakSuspensions(null, today);
+        while (cursor != null) {
+            cursor = maintenance.reconcileBreakSuspensions(cursor, today);
+        }
+        sweepAgreements(context, today);
+    }
+
     /** Varre todos os lotes; devolve o número de lotes. */
     public static int sweepAgreements(ApplicationContext context, LocalDate today) {
         NegotiationMaintenance maintenance = context.getBean(NegotiationMaintenance.class);

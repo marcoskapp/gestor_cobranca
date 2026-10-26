@@ -403,6 +403,15 @@ public class Agreement extends TenantScopedEntity {
         return installments.stream().filter(i -> i.overdueBeyond(today, breakToleranceDays)).count();
     }
 
+    /**
+     * Parcela que dispara a quebra: a de menor número entre as em atraso além da tolerância (a suspensão
+     * da quebra por pagamento em revisão é contada por ela — decisão 484).
+     */
+    public Optional<AgreementInstallment> breakTriggerInstallment(LocalDate today) {
+        return installments.stream().filter(i -> i.overdueBeyond(today, breakToleranceDays))
+                .min(Comparator.comparingInt(AgreementInstallment::getNumber));
+    }
+
     public Ending breakAgreement(String reason, LocalDate today, Instant at) {
         Guard.requireState(status.isActive(), "agreement.not_active", "Só um acordo em vigor pode ser quebrado");
         return end(AgreementStatus.BROKEN, reason, today, at);
