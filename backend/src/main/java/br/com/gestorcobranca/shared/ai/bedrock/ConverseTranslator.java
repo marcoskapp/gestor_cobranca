@@ -1,10 +1,10 @@
-package br.com.gestorcobranca.assistant.infrastructure.provider.bedrock;
+package br.com.gestorcobranca.shared.ai.bedrock;
 
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelMessage;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ModelRequest;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.Role;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolCall;
-import br.com.gestorcobranca.assistant.application.port.out.LanguageModelPort.ToolDefinition;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelMessage;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ModelRequest;
+import br.com.gestorcobranca.shared.ai.LanguageModel.Role;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolCall;
+import br.com.gestorcobranca.shared.ai.LanguageModel.ToolDefinition;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import software.amazon.awssdk.core.document.Document;
 import software.amazon.awssdk.services.bedrockruntime.model.CachePointBlock;
@@ -33,10 +33,11 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Tradução entre o contrato neutro ({@code LanguageModelPort}) e a Converse API do Amazon Bedrock.
+ * Tradução entre o contrato neutro ({@link br.com.gestorcobranca.shared.ai.LanguageModel}) e a Converse API do
+ * Amazon Bedrock, comum aos produtos de IA.
  * <ul>
  *   <li><strong>Sistema</strong>: dois blocos separados — o prompt versionado e o contexto minimizado (JSON) com
- *       um cabeçalho fixo; o contexto nunca entra nas mensagens do devedor. Com cache, um {@code cachePoint}
+ *       um cabeçalho fixo do produto; o contexto nunca entra nas mensagens da pessoa atendida. Com cache, um {@code cachePoint}
  *       entre os dois: o prefixo estável (ferramentas + prompt) é reaproveitado e o contexto, que muda a cada
  *       chamada, fica fora do cache.</li>
  *   <li><strong>Ferramentas</strong>: {@code toolSpec} com o JSON Schema e, com cache, um {@code cachePoint}
@@ -51,26 +52,30 @@ import java.util.regex.Pattern;
  *       cota pelo máximo do modelo); metadados opacos → {@code requestMetadata} (só registros de invocação).</li>
  * </ul>
  */
-final class ConverseTranslator {
+public final class ConverseTranslator {
 
-    static final String CONTEXT_HEADER = "CONTEXTO DO ATENDIMENTO (JSON gerado pelo sistema nesta chamada; "
-            + "fonte única de valores, datas, ofertas e regras do turno):\n";
     private static final Pattern METADATA = Pattern.compile("[a-zA-Z0-9\\s:_@$#=/+,.-]{1,256}");
     private static final int MAX_METADATA = 16;
 
     private final JsonCodec json;
+    private final String contextHeader;
 
-    ConverseTranslator(JsonCodec json) {
+    /**
+     * @param contextHeader cabeçalho fixo do produto antes do contexto JSON (parte estável do prompt, depois do
+     *                      ponto de cache)
+     */
+    public ConverseTranslator(JsonCodec json, String contextHeader) {
         this.json = json;
+        this.contextHeader = contextHeader;
     }
 
-    ConverseRequest toConverse(ModelRequest request, String modelId, boolean caching, String cacheTtl) {
+    public ConverseRequest toConverse(ModelRequest request, String modelId, boolean caching, String cacheTtl) {
         List<SystemContentBlock> system = new ArrayList<>();
         system.add(SystemContentBlock.fromText(request.systemPrompt()));
         if (caching) {
             system.add(SystemContentBlock.fromCachePoint(cachePoint(cacheTtl)));
         }
-        system.add(SystemContentBlock.fromText(CONTEXT_HEADER + request.contextDocument()));
+        system.add(SystemContentBlock.fromText(contextHeader + request.contextDocument()));
         ConverseRequest.Builder builder = ConverseRequest.builder()
                 .modelId(modelId)
                 .system(system)
@@ -94,8 +99,8 @@ final class ConverseTranslator {
         return builder.build();
     }
 
-    /** Mensagens alternadas, começando pelo devedor e terminando no devedor ou em resultado de ferramenta. */
-    List<Message> messages(List<ModelMessage> source) {
+    /** Mensagens alternadas, começando pela pessoa e terminando nela ou em resultado de ferramenta. */
+    public List<Message> messages(List<ModelMessage> source) {
         List<Message> out = new ArrayList<>();
         ConversationRole role = null;
         List<ContentBlock> blocks = new ArrayList<>();
@@ -171,7 +176,7 @@ final class ConverseTranslator {
     }
 
     /** Argumentos devolvidos pelo modelo em {@code toolUse} → JSON (validados depois pelo servidor). */
-    String toJson(Document input) {
+    public String toJson(Document input) {
         return input == null ? "{}" : json.toJson(plain(input));
     }
 
@@ -194,7 +199,7 @@ final class ConverseTranslator {
         return out;
     }
 
-    static Document document(Object value) {
+    public static Document document(Object value) {
         if (value == null) {
             return Document.fromNull();
         }
@@ -215,7 +220,7 @@ final class ConverseTranslator {
         return Document.fromString(String.valueOf(value));
     }
 
-    static Object plain(Document d) {
+    public static Object plain(Document d) {
         if (d == null || d.isNull()) {
             return null;
         }
