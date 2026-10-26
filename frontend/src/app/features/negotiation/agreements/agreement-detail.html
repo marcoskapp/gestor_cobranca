@@ -59,6 +59,10 @@
     </div>
   }
 
+  @if (review(); as r) {
+    <app-payment-review-alert [pending]="r.pending" [rejected]="r.rejected" [coverage]="r.expectedCoverage" [installmentLabels]="installmentLabels()" />
+  }
+
   <div class="pd-grid">
     <div class="pd-main">
       <section class="app-card" aria-labelledby="ad-values">
@@ -116,6 +120,11 @@
                     <app-status-chip domain="installment" [status]="i.status" />
                     @if (i.paidAt) {
                       <span class="app-muted"> {{ i.paidAt | appDate: 'date' }}</span>
+                    }
+                    @if (pendingOn(i); as onHold) {
+                      <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-warning-subtle text-warning-emphasis border-warning-subtle ad-review">
+                        <app-icon name="hourglass-split" />Em revisão: <app-amount [value]="onHold" /><span class="visually-hidden"> informado, aguardando aprovação</span>
+                      </span>
                     }
                   </td>
                   @if (canPix()) {

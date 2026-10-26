@@ -52,12 +52,26 @@ public interface PaymentRepository {
     Page<UUID> findPendingReallocationIds(Set<UUID> creditorIds, Pageable pageable);
 
     /**
+     * Pagamentos externos destinados aos acordos aguardando revisão ({@code INFORMED}) ou recusados
+     * ({@code REJECTED}) a partir de {@code rejectedSince}, por data do registro.
+     *
+     * @param creditorIds credores permitidos (nulo = todos)
+     */
+    List<Payment> findReviewStatusByAgreements(Set<UUID> creditorIds, Collection<UUID> agreementIds,
+                                               Instant rejectedSince);
+
+    /** Como {@link #findReviewStatusByAgreements}, para o devedor no credor (acordos e títulos avulsos). */
+    List<Payment> findReviewStatusByDebtor(UUID creditorId, UUID debtorId, Instant rejectedSince);
+
+    /**
      * @param creditorIds credores permitidos (nulo = todos)
      * @param statuses    situações (vazio = todas)
      * @param withBalance somente com saldo não alocado
      * @param excludeInformedBy exclui os informados por este usuário (fila de revisão)
+     * @param agreementId       destinados ao acordo (destino solicitado do externo ou alguma alocação a ele)
      */
     record Criteria(Set<UUID> creditorIds, UUID creditorId, UUID debtorId, Set<PaymentStatus> statuses, String source,
-                    String method, Instant paidFrom, Instant paidTo, boolean withBalance, UUID excludeInformedBy) {
+                    String method, Instant paidFrom, Instant paidTo, boolean withBalance, UUID excludeInformedBy,
+                    UUID agreementId) {
     }
 }

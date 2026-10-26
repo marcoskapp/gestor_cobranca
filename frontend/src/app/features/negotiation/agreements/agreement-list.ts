@@ -1,9 +1,11 @@
-import { Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, inject } from '@angular/core';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
-import { debounceTime, map, startWith } from 'rxjs';
+import { catchError, debounceTime, map, of, startWith } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
@@ -19,6 +21,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
+import { AgreementReviewBadge, PaymentReviewStatusApi } from '../../payment/data/review-status';
 import { AgreementsApi } from '../data/agreement.api';
 import { AGREEMENT_ORIGIN_LABELS } from '../data/agreement.labels';
 import { AgreementFilter, AgreementView } from '../data/agreement.models';
@@ -101,6 +104,22 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
         @if (a.renegotiationNumber > 0) {
           <div class="app-muted">renegociação {{ a.renegotiationNumber }}</div>
         }
+        @if (badge(a.id); as b) {
+          <div class="al-review">
+            @if (b.pendingCount) {
+              <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-warning-subtle text-warning-emphasis border-warning-subtle">
+                <app-icon name="hourglass-split" />Pagamento em revisão
+                <span class="visually-hidden">: {{ b.pendingCount }} informado(s), <app-amount [value]="b.pendingTotal" />, aguardando aprovação</span>
+              </span>
+            }
+            @if (b.rejectedCount) {
+              <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-danger-subtle text-danger-emphasis border-danger-subtle">
+                <app-icon name="x-circle" />Pagamento recusado
+                <span class="visually-hidden">: {{ b.rejectedCount }} nos últimos 30 dias</span>
+              </span>
+            }
+          </div>
+        }
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-a>
         <a class="btn btn-sm btn-link" [routerLink]="['/negociacao/acordos', a.id]" aria-label="Abrir acordo" ngbTooltip="Abrir">
@@ -113,6 +132,12 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
     .al-late {
       font-weight: 600;
       color: var(--bs-danger-text-emphasis);
+    }
+    .al-review {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.25rem;
     }
   `,
 })
@@ -135,6 +160,25 @@ export class AgreementList {
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((a) => a.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((a) => a.creditorId));
+
+  private readonly auth = inject(AuthService);
+  private readonly reviewApi = inject(PaymentReviewStatusApi);
+  /** Selo "pagamento em revisão/recusado": uma consulta por página (sem N+1). */
+  private readonly rowIds = computed(() => this.query.rows().map((a) => a.id), {
+    equal: (x, y) => x.length === y.length && x.every((id, i) => id === y[i]),
+  });
+  private readonly badges = rxResource({
+    params: () => (this.auth.hasPermission(Permission.AGREEMENT_VIEW) && this.rowIds().length ? this.rowIds() : undefined),
+    stream: ({ params }) =>
+      this.reviewApi.agreements(params).pipe(
+        map((list) => new Map(list.map((b) => [b.agreementId, b] as const))),
+        catchError(() => of(new Map<string, AgreementReviewBadge>())),
+      ),
+  });
+
+  protected badge(id: string): AgreementReviewBadge | null {
+    return (this.badges.hasValue() ? this.badges.value().get(id) : undefined) ?? null;
+  }
 
   protected readonly columns: TableColumn[] = [
     { key: 'formalizedAt', header: 'Formalizado em' },

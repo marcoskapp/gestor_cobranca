@@ -21,7 +21,9 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { DebtorsApi } from '../../debt/data/debt.api';
 import { CreditorNames } from '../../organization/data/organization.lookups';
+import { PaymentReviewAlert } from '../../payment/components/payment-review-alert';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
+import { PaymentReviewStatusApi, pendingForInstallment } from '../../payment/data/review-status';
 import { AgreementsApi } from '../data/agreement.api';
 import {
   ACCEPTANCE_CHANNEL_LABELS,
@@ -43,7 +45,7 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-agreement-detail',
-  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe],
+  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, PaymentReviewAlert],
   templateUrl: './agreement-detail.html',
   styleUrl: '../detail-page.scss',
 })
@@ -58,6 +60,7 @@ export class AgreementDetail {
   private readonly router = inject(Router);
   private readonly breadcrumbs = inject(BreadcrumbService);
   private readonly paymentLauncher = inject(PaymentLauncher);
+  private readonly reviewApi = inject(PaymentReviewStatusApi);
 
   protected readonly origins = AGREEMENT_ORIGIN_LABELS;
   protected readonly roles = PARTICIPANT_ROLE_LABELS;
@@ -74,6 +77,16 @@ export class AgreementDetail {
     stream: ({ params }) => this.api.payments(params).pipe(catchError(() => of([]))),
   });
   protected readonly payments = valueOr(this.paymentList, []);
+  /** Pagamentos informados aguardando aprovação e recusados recentes (módulo payment, `AGREEMENT_VIEW`). */
+  private readonly reviewResource = rxResource({
+    params: () => (this.auth.hasPermission(Permission.AGREEMENT_VIEW) ? this.agreement()?.id : undefined),
+    stream: ({ params }) => this.reviewApi.agreement(params).pipe(catchError(() => of(undefined))),
+  });
+  protected readonly review = valueOr(this.reviewResource, undefined);
+  /** Rótulo das parcelas para o aviso ("Entrada", "2ª parcela"). */
+  protected readonly installmentLabels = computed(
+    () => new Map((this.agreement()?.installments ?? []).map((i) => [i.id, this.installmentLabel(i)] as const)),
+  );
   protected readonly busy = signal(false);
 
   private readonly debtor = rxResource({
@@ -104,6 +117,15 @@ export class AgreementDetail {
 
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.debtorName()));
+  }
+
+  protected installmentLabel(i: InstallmentView): string {
+    return i.number === 1 && this.agreement()?.downPayment ? 'entrada' : `${i.number}ª parcela`;
+  }
+
+  /** Soma prevista dos pendentes que cobrem a parcela (0 = nenhum). */
+  protected pendingOn(i: InstallmentView): number {
+    return pendingForInstallment(this.review(), i.id).reduce((sum, c) => sum + Number(c.amount), 0);
   }
 
   protected participantName(actorType: string, actorId: string | null): string {
@@ -191,6 +213,7 @@ export class AgreementDetail {
         if (p) {
           this.resource.reload();
           this.paymentList.reload();
+          this.reviewResource.reload();
         }
       });
     }

@@ -17,7 +17,9 @@ import br.com.gestorcobranca.payment.domain.model.PaymentReversal;
 import br.com.gestorcobranca.payment.domain.model.StatementImport;
 import br.com.gestorcobranca.payment.domain.model.BankStatementLine;
 import br.com.gestorcobranca.shared.domain.Money;
+import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.SensitiveDataMasker;
+import tools.jackson.core.type.TypeReference;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,6 +28,9 @@ import java.util.UUID;
 
 /** Conversão de entidades em views (nunca expõem entidades nem segredos). */
 final class PaymentViews {
+
+    private static final TypeReference<List<UUID>> TARGET_ITEMS = new TypeReference<>() {
+    };
 
     private PaymentViews() {
     }
@@ -49,6 +54,14 @@ final class PaymentViews {
                 p.getEvidenceKey() != null, p.getEvidenceSha256(), allocations.stream().map(PaymentViews::allocation).toList(),
                 reversal.map(PaymentViews::reversal).orElse(null), requestedTarget(p, targetItems),
                 p.getVersion() == null ? 0 : p.getVersion());
+    }
+
+    /** Ids do destino solicitado ({@code target_items}, JSON gravado no registro do pagamento externo). */
+    static List<UUID> targetItems(Payment p, JsonCodec json) {
+        if (p.getTargetItems() == null || p.getTargetItems().isBlank()) {
+            return List.of();
+        }
+        return json.fromJson(p.getTargetItems(), TARGET_ITEMS);
     }
 
     static RequestedTargetView requestedTarget(Payment p, List<UUID> targetItems) {

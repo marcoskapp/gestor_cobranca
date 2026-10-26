@@ -368,6 +368,10 @@ app:
       destination-factor: 1
       # soma por usuário que informa
       informer-factor: 4
+    # Situação de revisão no acordo e na ficha do caso: recusados recentes exibidos para o negociador agir.
+    review-status:
+      rejected-window: P30D
+      max-rejected: 5
     # PSP simulado: somente local/teste (recusado no perfil prod)
     sandbox:
       enabled: false
