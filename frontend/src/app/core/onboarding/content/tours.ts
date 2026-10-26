@@ -70,7 +70,7 @@ export const TOURS: readonly TourDefinition[] = [
     steps: [
       {
         title: 'Boas-vindas!',
-        body: 'Em seis passos rápidos você conhece a navegação. Use as setas do teclado para avançar ou Esc para sair a qualquer momento.',
+        body: 'Em poucos passos você conhece a navegação. Use as setas do teclado para avançar ou Esc para sair a qualquer momento.',
       },
       {
         anchor: 'nav',

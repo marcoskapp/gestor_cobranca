@@ -25,6 +25,11 @@ export interface TourDefinition {
   /** Uma frase sobre o que o tour mostra (exibida no convite e na ajuda). */
   summary: string;
   steps: readonly TourStep[];
+  /**
+   * Tour montado na hora (tela sem tour próprio: objetivo + ajuda). Não é oferecido em convite e o
+   * desfecho não é gravado no servidor (o estado guarda no máximo 200 tours por usuário).
+   */
+  transient?: boolean;
 }
 
 /** Mudança relevante de uma tela em uma versão (destaque "novidades nesta tela"). */

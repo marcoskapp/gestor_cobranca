@@ -9,6 +9,8 @@ import { CHECKLISTS } from './content/checklists';
 import { LATEST_RELEASE, RELEASE_NOTES_SCREEN } from './content/release-notes';
 import { findScreen } from './content/screens';
 import { findTour } from './content/tours';
+import { loadScreenManual } from './manual/manual-index';
+import { composeScreenTour } from './manual/screen-tour';
 import { ChecklistItem, ChecklistProfile, ScreenGuide, TourDefinition } from './onboarding.models';
 import { TourEngine } from './tour/tour-engine.service';
 
@@ -66,14 +68,11 @@ export class OnboardingService {
   readonly screen = computed(() => findScreen(this.url()));
   readonly hintsEnabled = computed(() => this.store.state().hintsEnabled);
 
-  /** Tour da tela atual (na tela inicial, o de boas-vindas). */
-  readonly screenTour = computed<TourDefinition | null>(() => {
-    const screen = this.screen();
-    if (screen?.tourId) {
-      return findTour(screen.tourId) ?? null;
-    }
-    return screen?.key === 'app.home' ? (findTour(WELCOME_TOUR) ?? null) : null;
-  });
+  /**
+   * Toda tela registrada tem "tour desta tela" (o primeiro passo é o objetivo da tela, vindo do
+   * manual) e "Sobre esta tela"; o teste de cobertura do manual garante o conteúdo.
+   */
+  readonly hasScreenHelp = computed(() => !!this.screen());
 
   readonly unreadReleaseNotes = computed(
     () => LATEST_RELEASE > (this.store.state().screens[RELEASE_NOTES_SCREEN]?.version ?? 0),
@@ -125,9 +124,10 @@ export class OnboardingService {
   acceptHint(): void {
     const hint = this.currentHint();
     this.currentHint.set(null);
-    const tour = hint?.kind === 'changes' ? hint.tour : hint?.tour;
-    if (tour) {
-      void this.engine.start(tour);
+    if (hint?.kind === 'welcome') {
+      void this.engine.start(hint.tour);
+    } else if (hint?.tour) {
+      void this.startScreenTour(hint.screen);
     }
   }
 
@@ -151,12 +151,19 @@ export class OnboardingService {
     }
   }
 
-  startScreenTour(): void {
-    const tour = this.screenTour();
-    if (tour) {
-      this.currentHint.set(null);
-      void this.engine.start(tour);
+  /**
+   * "Tour desta tela": objetivo da tela (manual, carregado sob demanda) seguido do tour próprio
+   * (na tela inicial, o de boas-vindas). Resolve `false` se a tela não é conhecida.
+   */
+  async startScreenTour(screen: ScreenGuide | undefined = this.screen()): Promise<boolean> {
+    if (!screen) {
+      return false;
     }
+    this.currentHint.set(null);
+    const authored = screen.tourId ? (findTour(screen.tourId) ?? null) : screen.key === 'app.home' ? (findTour(WELCOME_TOUR) ?? null) : null;
+    const manual = await loadScreenManual(screen.key).catch(() => undefined);
+    const tour = composeScreenTour(screen, manual, authored);
+    return tour ? this.engine.start(tour) : false;
   }
 
   startTour(tourId: string): void {

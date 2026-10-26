@@ -1,0 +1,76 @@
+import { ModuleManual } from '../manual.models';
+
+export const MANUAL: ModuleManual = {
+  id: 'telefonia',
+  overview: [
+    'A telefonia liga as chamadas ao caso de cobrança. O operador liga pela estação (clique para ligar), o discador liga sozinho sobre uma fila e conecta o operador quando uma pessoa atende, e chamadas recebidas também ficam vinculadas.',
+    'Antes de cada ligação, o sistema confere se o contato por telefone é permitido agora. Ao fim, o operador tabula o resultado, que vai para o histórico do caso.',
+    'A presença do operador (disponível ou em pausa, com motivo) diz ao discador quem pode receber chamadas.',
+  ],
+  connections: [
+    { module: 'cobranca', text: 'Recebe: filas de casos para o discador e o caso aberto na estação; entrega a interação tabulada.' },
+    { module: 'compliance', text: 'Consulta: restrições, horários e limites de tentativas por telefone antes de discar.' },
+    { module: 'remuneracao-variavel', text: 'Entrega: chamadas atendidas e tempos alimentam o desempenho e a monitoria.' },
+    { module: 'paineis', text: 'Entrega: chamadas com falha aparecem no painel de confiabilidade.' },
+  ],
+  rules: [
+    'Toda ligação passa pela decisão "Posso contatar agora?" para o telefone.',
+    'O abandono é limitado (padrão 3%); perto do máximo o discador reduz o ritmo sozinho.',
+    'Parâmetros da campanha de discagem só mudam com ela pausada.',
+    'Ouvir uma gravação exige permissão e a finalidade, e fica no log de acesso.',
+    'Ao fim da chamada atendida, a tabulação é obrigatória.',
+  ],
+  screens: [
+    {
+      id: 'telephony.campaigns',
+      title: 'Campanhas de discagem',
+      objective: 'Discador progressivo ou preditivo sobre uma fila de cobrança, com abandono máximo, retentativas e janela própria.',
+      purpose: ['Crie uma campanha escolhendo a fila, o ritmo, o abandono máximo, as retentativas e a janela de horário.'],
+      profiles: ['SUPERVISOR', 'GESTOR'],
+      inputs: ['Filas de cobrança e operadores com presença na telefonia.'],
+      outputs: ['Listas de discagem e chamadas conectadas aos operadores.'],
+      related: [
+        { screen: 'collection.queues', why: 'A fila que alimenta a lista.' },
+        { screen: 'telephony.agents', why: 'Quem está disponível agora.' },
+      ],
+      terms: ['discador', 'abandono', 'fila'],
+    },
+    {
+      id: 'telephony.campaign',
+      title: 'Painel da campanha de discagem',
+      objective: 'Indicadores do dia, operadores e lista de uma campanha de discagem, com ativar, pausar e encerrar.',
+      purpose: ['Os números se atualizam enquanto a campanha disca. Abandono é atendidas sem operador sobre atendidas por pessoa.'],
+      profiles: ['SUPERVISOR', 'GESTOR'],
+      inputs: ['Chamadas do discador e presença dos operadores.'],
+      outputs: ['Campanha ativada, pausada, recarregada ou encerrada.'],
+      related: [{ screen: 'telephony.calls', why: 'Detalhe das chamadas.' }],
+      terms: ['discador', 'abandono'],
+    },
+    {
+      id: 'telephony.calls',
+      title: 'Chamadas e gravações',
+      objective: 'Chamadas do seu escopo com resultado, tabulação e gravação, que só é ouvida com finalidade registrada.',
+      purpose: ['Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações.'],
+      profiles: ['SUPERVISOR', 'GESTOR', 'QUALIDADE', 'AUDITOR'],
+      inputs: ['Chamadas registradas pelo provedor de telefonia.'],
+      outputs: ['Acesso às gravações, registrado no log de acesso.'],
+      related: [
+        { screen: 'incentive.evaluations', why: 'Avaliar o atendimento.' },
+        { screen: 'collection.cases', why: 'Caso da chamada.' },
+      ],
+      terms: ['gravacao', 'tabulacao', 'log-de-acesso'],
+    },
+    {
+      id: 'telephony.agents',
+      title: 'Operadores e ramais',
+      objective: 'Quem está na telefonia agora, em que estado e há quanto tempo, e o ramal de cada usuário.',
+      purpose: ['Acompanhe disponibilidade e pausas. Vincule cada usuário ao ramal do provedor para o clique para ligar funcionar.'],
+      profiles: ['SUPERVISOR', 'GESTOR'],
+      inputs: ['Presença informada pelos operadores na estação.'],
+      outputs: ['Ramais vinculados e visão para redistribuir o trabalho.'],
+      related: [{ screen: 'telephony.campaigns', why: 'Campanhas que dependem dos operadores disponíveis.' }],
+      terms: ['discador'],
+    },
+  ],
+  terms: ['discador', 'abandono', 'gravacao', 'tabulacao'],
+};

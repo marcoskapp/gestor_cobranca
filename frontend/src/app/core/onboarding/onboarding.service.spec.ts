@@ -8,6 +8,10 @@ import { DEFAULT_UI_STATE, UiState, UiStatePatch } from '../preferences/ui-state
 import { applyPatch } from '../preferences/ui-state.patch';
 import { UiStateStore } from '../preferences/ui-state.store';
 import { LATEST_RELEASE, RELEASE_NOTES_SCREEN } from './content/release-notes';
+import { findTour } from './content/tours';
+import { loadScreenManual } from './manual/manual-index';
+import { OBJECTIVE_STEP_TITLE } from './manual/screen-tour';
+import { TourDefinition } from './onboarding.models';
 import { OnboardingService, WELCOME_TOUR } from './onboarding.service';
 import { TourEngine } from './tour/tour-engine.service';
 
@@ -157,6 +161,48 @@ describe('OnboardingService', () => {
 
     service.setChecklistItem('admin.users', true);
     expect(service.checklist()?.entries.find((e) => e.item.id === 'admin.users')?.done).toBe(true);
+  });
+
+  it('tour desta tela começa pelo objetivo (passo centralizado) e segue o tour próprio', async () => {
+    returning({});
+    store.ready.set(true);
+    await visit('/admin/usuarios');
+    expect(await service.startScreenTour()).toBe(true);
+    const tour = start.mock.calls.at(-1)![0] as TourDefinition;
+    expect(tour.id).toBe('admin.users');
+    expect(tour.steps[0].anchor).toBeUndefined();
+    expect(tour.steps[0].title).toBe(OBJECTIVE_STEP_TITLE);
+    expect(tour.steps[0].body).toBe((await loadScreenManual('admin.users'))!.objective);
+    expect(tour.steps.slice(1)).toEqual(findTour('admin.users')!.steps);
+  });
+
+  it('tela sem tour próprio: objetivo + onde ler mais, sem gravar no servidor', async () => {
+    returning({});
+    store.ready.set(true);
+    await visit('/admin/unidades');
+    expect(service.hasScreenHelp()).toBe(true);
+    await service.startScreenTour();
+    const tour = start.mock.calls.at(-1)![0] as TourDefinition;
+    expect(tour.transient).toBe(true);
+    expect(tour.steps.map((s) => s.anchor)).toEqual([undefined, 'help']);
+  });
+
+  it('aceitar o convite de tela usa o tour com o objetivo', async () => {
+    returning({});
+    store.ready.set(true);
+    await visit('/admin/perfis');
+    service.acceptHint();
+    await vi.waitFor(() => expect(start).toHaveBeenCalled());
+    const tour = start.mock.calls.at(-1)![0] as TourDefinition;
+    expect(tour.id).toBe('admin.roles');
+    expect(tour.steps[0].title).toBe(OBJECTIVE_STEP_TITLE);
+  });
+
+  it('tela desconhecida não tem tour nem manual', async () => {
+    store.ready.set(true);
+    await visit('/rota-inexistente');
+    expect(service.hasScreenHelp()).toBe(false);
+    expect(await service.startScreenTour()).toBe(false);
   });
 
   it('rever tours volta a oferecer convites já dispensados', async () => {

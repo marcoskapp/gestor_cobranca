@@ -160,7 +160,9 @@ export class TourEngine {
     if (!tour) {
       return;
     }
-    this.store.recordTour(tour.id, tour.version, outcome);
+    if (!tour.transient) {
+      this.store.recordTour(tour.id, tour.version, outcome);
+    }
     this.teardown(true);
   }
 

@@ -147,6 +147,13 @@ describe('TourEngine', () => {
     expect(engine.active()).toBe(false);
   });
 
+  it('tour transitório (tela sem tour próprio) não grava o desfecho no servidor', async () => {
+    await start({ ...TOUR, id: 'screen.test', transient: true });
+    press('Escape');
+    expect(engine.active()).toBe(false);
+    expect(recordTour).not.toHaveBeenCalled();
+  });
+
   it('navegar para outra tela encerra sem registrar desfecho', async () => {
     await start();
     await TestBed.inject(Router).navigateByUrl('/outra');
