@@ -35,8 +35,8 @@ class TicketComposer {
     }
 
     Composed compose(String rawTitle, String rawSummary, TurnState state, Collection<String> knownNames, Instant now) {
-        String title = truncate(oneLine(redactor.redact(rawTitle, knownNames)), MAX_TITLE);
-        String summary = truncate(redactor.redact(rawSummary, knownNames).strip(), MAX_SUMMARY);
+        String title = truncate(oneLine(redactor.redact(placeholders(rawTitle), knownNames)), MAX_TITLE);
+        String summary = truncate(redactor.redact(placeholders(rawSummary), knownNames).strip(), MAX_SUMMARY);
         String screen = state.screen == null ? "não informada"
                 : state.screen.title() + " (`" + state.screen.id() + "`)";
         String email = state.profile.email();
@@ -62,6 +62,11 @@ class TicketComposer {
                 String.join(", ", state.profile.roleLabels()), Formats.dateTime(now), knowledge.contentVersion(),
                 RETURN_NOTICE, email);
         return new Composed("[Suporte] " + title, body.strip() + "\n", sha256(title + "\n" + summary));
+    }
+
+    /** Marcadores de documento que a IA viu ([DOC1]…) também saem como documento mascarado. */
+    private static String placeholders(String s) {
+        return s == null ? "" : s.replaceAll("\\[DOC\\d{1,3}]", "[documento]");
     }
 
     private static String oneLine(String s) {

@@ -17,6 +17,7 @@ import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
 import br.com.gestorcobranca.shared.security.Actor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -26,7 +27,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Gravações do chat em transações curtas: a chamada ao modelo nunca segura transação nem conexão de banco. Os
+ * Gravações do chat em transações curtas e próprias ({@code REQUIRES_NEW}): a chamada ao modelo nunca segura
+ * transação nem bloqueio de linha. Os
  * eventos de negócio da pergunta são gravados com a resposta (mesma transação), sem conteúdo da conversa.
  */
 @Component
@@ -49,7 +51,7 @@ class ChatStore {
     }
 
     /** Conversa do usuário (404 se não for dele) ou uma nova. */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     ChatConversation conversationFor(UUID conversationId, Actor actor, String screen) {
         if (conversationId == null) {
             return conversations.save(new ChatConversation(actor.id(), screen, clock.instant()));
@@ -68,7 +70,7 @@ class ChatStore {
         return messages.findByConversationIdOrderBySequenceAsc(conversationId);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     ChatMessage appendQuestion(UUID conversationId, Actor actor, String text, String screen) {
         ChatConversation c = conversations.findByIdForUpdate(conversationId).filter(x -> x.ownedBy(actor.id()))
                 .orElseThrow(() -> new ResourceNotFoundException(CONVERSATION, conversationId));
@@ -83,7 +85,7 @@ class ChatStore {
      * Resposta, consumo da conversa, livro de referências e o evento de negócio da pergunta
      * ({@code helpdesk.question_answered} ou {@code helpdesk.question_unanswered}).
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     ChatMessage appendAnswer(UUID conversationId, Actor actor, String content, String screen, String module,
                              AnswerOutcome outcome, QuestionTopic topic, AnswerUsage usage, String referencesJson,
                              UUID ticketId, long durationMs) {
@@ -133,7 +135,7 @@ class ChatStore {
         return conversations.findTop20ByUserIdOrderByLastActivityAtDesc(actor.id());
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     ChatMessage feedback(UUID messageId, Actor actor, Feedback rating, String reason) {
         ChatMessage m = messages.findById(messageId).filter(x -> x.getUserId().equals(actor.id()))
                 .orElseThrow(() -> new ResourceNotFoundException(MESSAGE, messageId));

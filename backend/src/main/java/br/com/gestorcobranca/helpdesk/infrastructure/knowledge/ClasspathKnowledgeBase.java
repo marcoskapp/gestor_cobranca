@@ -4,6 +4,7 @@ import br.com.gestorcobranca.helpdesk.application.port.out.KnowledgeBase;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +41,7 @@ class ClasspathKnowledgeBase implements KnowledgeBase {
     private final Map<String, String> profiles;
     private final Set<String> vocabulary;
 
+    @Autowired
     ClasspathKnowledgeBase(JsonCodec json) {
         this(json, read());
     }

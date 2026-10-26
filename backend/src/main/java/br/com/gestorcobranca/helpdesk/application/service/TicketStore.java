@@ -16,6 +16,7 @@ import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
 import br.com.gestorcobranca.shared.security.Actor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -26,8 +27,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Gravações dos chamados em transações curtas e próprias: a chamada ao GitHub acontece fora de qualquer transação,
- * entre {@link #begin} (que marca {@code CREATING} sob bloqueio de linha) e {@link #opened}/{@link #failed}.
+ * Gravações dos chamados em transações curtas e próprias ({@code REQUIRES_NEW}: valem mesmo que quem chama esteja em
+ * outra transação — a falha registrada não é desfeita com a exceção): a chamada ao GitHub acontece fora de qualquer
+ * transação, entre {@link #begin} (que marca {@code CREATING} sob bloqueio de linha) e {@link #opened}/{@link #failed}.
  */
 @Component
 class TicketStore {
@@ -50,7 +52,7 @@ class TicketStore {
         this.clock = clock;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     SupportTicket draft(SupportTicket ticket) {
         SupportTicket saved = tickets.save(ticket);
         businessEvents.log(BusinessEvent.of(BusinessEventTypes.HELPDESK_TICKET_DRAFTED).reference(RESOURCE, saved.getId())
@@ -68,7 +70,7 @@ class TicketStore {
      * @return o chamado em {@code CREATING} e se é uma nova tentativa (procurar o marcador), ou o chamado já
      *         resolvido (aberto, duplicado) sem nada a fazer
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     Begin begin(UUID id, Actor actor) {
         SupportTicket t = tickets.findByIdForUpdate(id).filter(x -> x.ownedBy(actor.id()))
                 .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, id));
@@ -93,7 +95,7 @@ class TicketStore {
     record Begin(SupportTicket ticket, boolean retry, boolean done) {
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     SupportTicket opened(UUID id, CreatedIssue issue, Actor actor, boolean recovered) {
         SupportTicket t = tickets.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException(RESOURCE, id));
         Instant now = clock.instant();
@@ -112,14 +114,14 @@ class TicketStore {
         return saved;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     SupportTicket failed(UUID id, String code) {
         SupportTicket t = tickets.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException(RESOURCE, id));
         t.failed(code);
         return tickets.save(t);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     SupportTicket cancel(UUID id, Actor actor) {
         SupportTicket t = tickets.findByIdForUpdate(id).filter(x -> x.ownedBy(actor.id()))
                 .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, id));

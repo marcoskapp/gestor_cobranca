@@ -87,9 +87,15 @@ public final class TicketRedactor {
             return text;
         }
         List<String> parts = new ArrayList<>();
+        String r0 = text;
         for (String name : names) {
             if (name == null) {
                 continue;
+            }
+            if (name.strip().length() >= 3) {
+                // o nome inteiro primeiro (inclusive com números, ex.: razão social)
+                r0 = Pattern.compile("(?iu)(?<![\\p{L}\\d])" + Pattern.quote(name.strip()) + "(?![\\p{L}\\d])")
+                        .matcher(r0).replaceAll("[nome]");
             }
             Matcher w = WORD.matcher(name);
             while (w.find()) {
@@ -100,11 +106,11 @@ public final class TicketRedactor {
             }
         }
         if (parts.isEmpty()) {
-            return text;
+            return r0;
         }
-        // nome completo e cada parte (sobrenome sozinho também identifica)
+        // cada parte do nome (sobrenome sozinho também identifica)
         Pattern p = Pattern.compile("(?iu)(?<!\\p{L})(" + String.join("|", parts) + ")(?!\\p{L})");
-        String r = p.matcher(text).replaceAll("[nome]");
+        String r = p.matcher(r0).replaceAll("[nome]");
         return r.replaceAll("\\[nome](\\s+\\[nome])+", "[nome]");
     }
 

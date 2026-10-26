@@ -138,7 +138,7 @@ class SandboxHelpdeskModel implements HelpdeskModelPort {
         if (q.contains("acesso") || q.contains("permiss")) {
             return "ACCESS";
         }
-        if (q.contains("devedor") || q.contains("acordo") || q.contains("pagamento") || q.contains("importa")
+        if (q.contains("devedor") || q.contains("caso") || q.contains("acordo") || q.contains("pagamento") || q.contains("importa")
                 || q.contains("pendênc") || q.contains("extrato") || q.contains("demonstrativo") || q.contains("[doc")) {
             return "DATA_LOOKUP";
         }
