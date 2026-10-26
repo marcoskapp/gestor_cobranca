@@ -117,7 +117,7 @@ public final class BedrockConverseModel implements LanguageModel, AutoCloseable 
 
     @Override
     public ModelResponse complete(ModelRequest request) {
-        ModelTier tier = request.tier();
+        ModelTier tier = tiers.containsKey(request.tier()) ? request.tier() : ModelTier.STANDARD;
         BedrockModelSettings config = tier(tier);
         String model = config.modelId().trim();
         ConverseRequest base = translator.toConverse(request, model, config.caching(), settings.cacheTtl());

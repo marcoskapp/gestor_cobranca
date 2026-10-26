@@ -45,9 +45,10 @@ class GitHubTicketTracker implements TicketTracker {
 
     @Autowired
     GitHubTicketTracker(GitHubProperties properties, JsonCodec json, MeterRegistry meters) {
-        this(properties, json, meters, RestClient.builder());
+        this(properties, json, meters, RestClient.builder().requestFactory(requestFactory(properties)));
     }
 
+    /** @param builder cliente HTTP já configurado (timeouts; nos testes, o servidor dublê) */
     GitHubTicketTracker(GitHubProperties properties, JsonCodec json, MeterRegistry meters, RestClient.Builder builder) {
         List<String> problems = properties.validate();
         if (!problems.isEmpty()) {
@@ -56,11 +57,7 @@ class GitHubTicketTracker implements TicketTracker {
         this.properties = properties;
         this.json = json;
         this.meters = meters;
-        HttpClient http = HttpClient.newBuilder().connectTimeout(properties.connectTimeout())
-                .followRedirects(HttpClient.Redirect.NEVER).build();
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
-        factory.setReadTimeout(properties.readTimeout());
-        this.client = builder.requestFactory(factory).baseUrl(properties.apiBaseUrl().toString())
+        this.client = builder.baseUrl(properties.apiBaseUrl().toString())
                 .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github+json")
                 .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
                 .defaultHeader(HttpHeaders.USER_AGENT, "gestor-cobranca-helpdesk")
@@ -70,6 +67,14 @@ class GitHubTicketTracker implements TicketTracker {
                 .addKeyValue("requirePrivateRepository", properties.requirePrivateRepository())
                 .log(properties.configured() ? "Chamados de suporte no GitHub habilitados"
                         : "Chamados de suporte indisponíveis: token do GitHub não configurado");
+    }
+
+    private static JdkClientHttpRequestFactory requestFactory(GitHubProperties properties) {
+        HttpClient http = HttpClient.newBuilder().connectTimeout(properties.connectTimeout())
+                .followRedirects(HttpClient.Redirect.NEVER).build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
+        factory.setReadTimeout(properties.readTimeout());
+        return factory;
     }
 
     @Override

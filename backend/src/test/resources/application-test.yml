@@ -43,6 +43,11 @@ app:
   helpdesk:
     sandbox:
       enabled: true
+    # testes nunca acessam o GitHub: sem token (abertura indisponível) e endereço local sem serviço; os ITs de
+    # chamado substituem o rastreador por um dublê
+    github:
+      token: ""
+      api-base-url: http://127.0.0.1:9
   telephony:
     # testes conduzem os eventos de chamada explicitamente (sem andamento automático nem rede)
     sandbox:
