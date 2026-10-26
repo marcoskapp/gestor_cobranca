@@ -3,14 +3,16 @@
 Escopo: chamadas vinculadas ao caso, clique para ligar da estação de cobrança, campanhas de discagem (progressiva e
 preditiva), presença do operador para o discador, tabulação e registro no caso, gravações e webhooks do provedor.
 Schema `telephony`, migrations V1200–V1299 (`V1200` tabelas, `V1201` permissões novas nos perfis existentes e
-tabulações de chamada no collection).
+tabulações de chamada no collection, `V1202` ambiente multiprovedor: roteamento, ramal por plataforma e contingência).
 Dependências: `shared`, `organization :: usecases`, `debt :: usecases`, `compliance :: usecases`,
 `collection :: usecases`. Reações no sentido contrário chegam por eventos (`DebtorAnonymized`); o encerramento publica
 `CallCompleted` (consumido pelo incentive).
 
-O provedor de telefonia/discador **ainda não foi escolhido** (issue #12). O módulo entrega o domínio completo, a porta de
-saída `TelephonyProvider`, a porta de webhook `TelephonyWebhookAdapter` e o simulador `SANDBOX` (local/teste, recusado
-no perfil `prod`). Como plugar um provedor real: §9.
+Plataformas escolhidas (issue #12): **Alvaria CX** (antiga Aspect; `ALVARIA`) e **Tarifando Telecom** (`TARIFANDO`), usadas
+ao mesmo tempo no **ambiente multiprovedor** (§13). O módulo entrega o domínio completo, a porta de saída
+`TelephonyProvider`, a porta de webhook `TelephonyWebhookAdapter`, o simulador `SANDBOX` (local/teste, recusado no perfil
+`prod`), o adaptador da Alvaria sobre contrato **a confirmar** (anexo A; disca só com a homologação ligada) e o esqueleto
+**desligado** da Tarifando (anexo B). Como plugar um provedor real: §9.
 
 ## 1. Chamada (`Call`, tabela `phone_call`)
 
@@ -203,7 +205,7 @@ discagens sem rede; destino terminado em `0000` → recusa, `9999` → falha tra
 toque e atendimento; nos testes os eventos vêm de `POST /telephony/sandbox/calls/{id}/events` ou do webhook assinado
 (`X-Sandbox-Signature: t=<epoch>,v1=<hmac(webhookSecret, t + "." + corpo)>`); gravação = WAV de 1 s de silêncio.
 
-**Como plugar um provedor real** (após a issue #12):
+**Como plugar um provedor real** (os passos valem para fechar a Alvaria e a Tarifando — anexos A e B):
 
 1. `ProviderType.<NOVO>` com as credenciais exigidas (ex.: `accountSid`/`authToken`, `apiKey`/`apiSecret`,
    `webhookSecret`) e o valor no `check` de `provider_account.provider` (nova migration).
@@ -224,7 +226,11 @@ toque e atendimento; nos testes os eventos vêm de `POST /telephony/sandbox/call
    houver) e conversão dos status para `ProviderCallEvent` (`RINGING`, `ANSWERED` + AMD, `COMPLETED` + quem desligou,
    `NO_ANSWER`, `BUSY`, `FAILED`, `CANCELLED`, `INBOUND`, `RECORDING_AVAILABLE`).
 4. Testes do adaptador com servidor HTTP local (sem rede externa), como `WhatsAppCloudGatewayTest`.
-5. Ramais: `PUT /telephony/agents/{userId}` com o usuário SIP/ramal (ou identidade WebRTC) do provedor.
+5. Ramais: `PUT /telephony/agents/{userId}` (ramal padrão) e, por plataforma,
+   `PUT /telephony/agents/{userId}/endpoints/{accountId}` com o usuário SIP/ramal (ou identidade WebRTC) do provedor.
+6. Situação do adaptador (`TelephonyProvider#readiness`): `READY` disca em qualquer ambiente; `CONTRACT_PENDING` só com o
+   provedor em `app.telephony.homologation.providers` (`APP_TELEPHONY_HOMOLOGATION_PROVIDERS`, somente no ambiente de
+   homologação); `NOT_IMPLEMENTED` recusa criar e ativar conta. Mude para `READY` só depois do roteiro de homologação.
 
 ## 10. Permissões, API e auditoria
 
@@ -239,7 +245,8 @@ REST (`/api/v1/telephony`): `calls` (POST clique para ligar, GET busca com `oper
 `{id}/hangup`, `{id}/tabulation`, `{id}/recording`), `agents` (PUT `{userId}`, GET, POST `{userId}/logout`),
 `presence/me` (GET, `login`, `available`, `pause`, `campaign`, `heartbeat`, `logout`), `dialer-campaigns` (CRUD,
 `activate`, `pause`, `finish`, `reload`, `entries`, `stats`), `accounts` (CRUD, `credentials`, `activate`,
-`deactivate`), `sandbox` (eventos e chamada recebida simulados).
+`deactivate`, `providers`, `comparison`), `routes` (GET, PUT, DELETE), `agents/endpoints` e
+`agents/{userId}/endpoints/{accountId}` (ramal por plataforma), `sandbox` (eventos e chamada recebida simulados).
 
 Auditoria: contas (criação, alteração, rotação de credenciais — só as chaves —, ativação), ramais, campanhas (criação,
 parâmetros antes/depois, ativação, pausa, encerramento, recarga), encerramento de chamada pela supervisão e saída
@@ -259,12 +266,200 @@ pelo ritmo, itens da lista, presença, tabulações, interações, gravações, 
 
 ## 12. Pendências
 
-* Provedor real (issue #12) e conexão de áudio do operador (WebRTC no navegador × ramal SIP) — §9.
+* Fechar o contrato da Alvaria (anexo A) e implementar a Tarifando (anexo B); áudio do operador por ramal SIP/telefone
+  até haver SDK WebRTC de navegador de algum fornecedor (§13.6).
 * ~~Telas~~ (24/10/2026): "Ligar" (Alt + L) na estação/ficha com a decisão do porteiro por telefone, barra de presença
   (sinal a cada 30 s enquanto conectado, na sessão inteira do usuário), tabulação obrigatória com contagem regressiva do
   prazo automático, campanhas com painel de supervisão (5 s), chamadas com player de gravação (finalidade, áudio em
-  `blob:` — CSP `media-src 'self' blob:`) e ramais. Pendente: telas das contas do provedor (`/accounts`).
+  `blob:` — CSP `media-src 'self' blob:`) e ramais. ~~Pendente: telas das contas do provedor~~ (26/10/2026): "Plataformas de telefonia" (`/telefonia/plataformas`) com
+  contas, roteamento e comparação; "Ramais por plataforma" em Operadores e ramais.
 * Incentive: consumir intervalos de presença (tempo logado **disponível**) — hoje usa sessões do identity (decisão 24
   da remuneração variável); evento ou view a definir.
 * Monitoria ao vivo (escuta/sussurro) e transferência de chamada dependem do provedor.
 * Validar com o jurídico o texto do aviso de gravação e a retenção das gravações por credor.
+
+## 13. Ambiente multiprovedor
+
+Padrão de mercado em contact centers de cobrança: várias contas de telefonia por assessoria, cada uma com plataforma,
+credenciais, números (bina), webhook próprio e situação ativa/inativa; regras dizem qual conta disca em cada escopo, com
+contingência.
+
+### 13.1 Contas (`provider_account`)
+
+| Antes (V1200) | Agora (V1202) |
+| --- | --- |
+| uma conta ativa padrão + uma por credor (`uk_tel_account_active`) | **várias contas ativas**, de provedores diferentes |
+| `creditor_id` = conta do credor (escolha da conta) | `creditor_id` = conta **restrita** ao credor (bina dele): só regras desse credor a usam |
+| provedor `SANDBOX` | `SANDBOX`, `ALVARIA`, `TARIFANDO` |
+| — | `rate_per_minute` (opcional): tarifa informada para o custo estimado da comparação |
+
+Criação: provedor `NOT_IMPLEMENTED` → `422 telephony_account.provider_unavailable`; `CONTRACT_PENDING` sem homologação →
+conta criada **inativa** (credenciais guardadas, rota do webhook inativa); ativar exige `canDial`
+(`telephony_account.provider_not_ready`). Credenciais validadas pelo adaptador (`validateCredentials`; ex.: `apiBaseUrl`
+da Alvaria em HTTPS e no domínio permitido — proteção contra SSRF). A **primeira conta ativa** de um escopo sem regra vira a
+principal dele (padrão da assessoria ou do credor), auditado com `automatic=true` — o comportamento de conta única continua
+igual. A V1202 cria as regras a partir das contas ativas existentes.
+
+`GET /telephony/accounts/providers`: provedores, credenciais exigidas, `readiness`, `dialable` e `available`.
+
+### 13.2 Roteamento (`account_route`, decisão 561)
+
+Uma regra por escopo — `CAMPAIGN`, `PORTFOLIO`, `CREDITOR`, `DEFAULT` — com **conta principal** e **contingência**
+opcional. `PUT /telephony/routes` (cria ou substitui a regra do escopo), `GET`, `DELETE /{id}`; auditoria
+`telephony_route.created|updated|deleted`. O credor do escopo vem do escopo (credor, credor da carteira, credor da campanha;
+nulo no padrão e em campanha de fila sem credor) e define quem pode alterar (`AccessScope`) e quais contas servem.
+
+| Discagem | Ordem das regras |
+| --- | --- |
+| discador | campanha → carteira do item → credor do item → padrão |
+| clique para ligar | carteira do caso → credor → padrão, **ajustada pelo operador** (abaixo) |
+| chamada recebida | a conta cujo webhook recebeu |
+
+Numa regra: a principal, se ativa e com provedor que disca neste ambiente; senão a contingência assume como principal;
+sem nenhuma, a regra seguinte. Sem conta → `409 telephony.not_configured` (clique) ou item sem discar com
+`telephony.dialer.entries{outcome=no_account}` (discador). Contas resolvidas uma vez por ciclo do discador por
+(credor, carteira).
+
+**Por operador/ramal.** O ramal pertence a uma plataforma. No clique para ligar, candidatas = principal e contingência da
+regra do caso, depois as contas em que o operador tem ramal próprio ativo (restritas ao credor do caso); vale a primeira
+pela qual o operador é alcançável. Nenhuma → `409 telephony.agent_not_on_account`. No discador, entrar numa campanha com
+regra própria exige ramal na conta dela (mesmo código); a distribuição só escolhe operadores alcançáveis pela conta da
+chamada (`not exists agent_endpoint … and not active`, no mesmo `SKIP LOCKED`).
+
+### 13.3 Ramal por plataforma (`agent_endpoint`)
+
+| Registro para (operador, conta) | Ramal usado nessa conta |
+| --- | --- |
+| nenhum | ramal padrão do operador (`agent.extension`) — p. ex. URI SIP do PABX da assessoria, alcançável por todas |
+| ativo | o ramal próprio da conta |
+| inativo | **fora desta plataforma**: a conta não lhe entrega chamadas nem disca por ele |
+
+`GET /telephony/agents/endpoints` (supervisão), `PUT`/`DELETE /telephony/agents/{userId}/endpoints/{accountId}` (gestão,
+auditado `telephony_agent.endpoint_configured|updated|removed`). `originate` e `bridge` enviam o ramal da conta que disca.
+
+### 13.4 Contingência sem chamada duplicada (decisão 562)
+
+`TransientProviderException.notProcessed()` = o pedido comprovadamente **não criou** a chamada: conexão recusada, tempo de
+conexão esgotado, host não resolvido, 429 ou 503, falha ao obter o token. Só nesses casos, e com
+`app.telephony.routing.fallback-enabled` (padrão `true`):
+
+* clique para ligar (`telephony.dial`): a **mesma chamada** (mesmo id, mesma tentativa no compliance) passa para a conta de
+  contingência da regra (`Call#switchToFallback`, uma única vez, só em `QUEUED` sem id do provedor), com o ramal do
+  operador nela; falha também na contingência → exceção, transação desfeita (inclusive o desvio e a tentativa) e o job
+  tenta de novo pela principal;
+* discador: o lote inteiro vai para a contingência da regra; nova falha desfaz o ciclo.
+
+Tempo de leitura esgotado e outros 5xx são **ambíguos** (o provedor pode ter discado): repetem na mesma conta com a mesma
+referência do cliente e `Idempotency-Key` (deduplicação no fornecedor a confirmar — anexo A). A chamada guarda
+`fallback_from_account_id`; o adaptador da Alvaria, num lote parcial (mais de 50 itens), recusa os restantes em vez de
+relançar (os já aceitos não se repetem). Simulador: destino terminado em `9998` = falha "não processada".
+
+### 13.5 Webhooks, métricas, logs e comparação
+
+* Webhook por conta (`routingKey` próprio, rota ativa só com a conta ativa) e autenticidade **pelo adaptador do provedor
+  da rota**; conta de outro provedor ou outro segredo → `401` (`WEBHOOK_REJECTED`).
+* Métricas novas (série própria para não mudar as dimensões de `telephony.calls`, usadas por painéis/alarmes):
+  `telephony.provider.calls{provider,origin,result}`, `telephony.provider.talk_time{provider}`,
+  `telephony.provider.dial{provider,origin,outcome}` (`accepted`, `rejected`, `transient`, `transient_not_processed`),
+  `telephony.provider.fallbacks{from,to,origin}`; adaptadores: `integration.calls{provider=alvaria,operation,outcome}` e
+  `integration.calls.duration` (operações `oauth_token`, `originate`, `dial_batch`, `bridge`, `hangup`,
+  `fetch_recording`, `delete_recording`; resultados `success`, `rejected`, `transient`, `timeout`, `unreachable`).
+  **ASR por provedor** = `telephony.provider.calls{result ∈ ANSWERED, VOICEMAIL, ABANDONED}` ÷ `telephony.provider.calls`.
+* Eventos de negócio de chamada ganham `provider`, `accountId` e `fallback`.
+* `GET /telephony/accounts/comparison?from&to` (padrão: últimos 30 dias; até 366): por conta — discadas, recusadas,
+  atendidas, conectadas, falhas, discadas pela contingência, ASR, conexão, taxa de falha, toque e conversa médios, minutos
+  tarifáveis (atendimento → fim) e **custo estimado** = minutos × tarifa informada (a fatura do fornecedor é a
+  referência). Aba "Comparação" da tela.
+
+### 13.6 Softphone (decisão 569)
+
+Nenhum dos dois fornecedores publica SDK WebRTC de navegador (anexos). O áudio do operador segue pelo **ramal** (softphone
+instalado, aparelho SIP ou telefone): a plataforma chama o ramal primeiro. O ponto de integração existe na estação
+(`SOFTPHONE`, `features/telephony/station/softphone.ts`, padrão `external`); uma implementação `webrtc` empacota o SDK do
+fornecedor no build (**nunca CDN externa**: a CSP continua `script-src 'self'`), acrescenta a `connect-src`/`media-src`
+só os domínios do fornecedor e usa a identidade WebRTC como ramal da conta.
+
+### 13.7 Testes
+
+`TelephonyMultiProviderIT`: SANDBOX e Alvaria (contrato pendente, homologação ligada no perfil de teste) contra um dublê
+HTTP local ao mesmo tempo — regra por credor, ramal por plataforma no `originate`, evento assinado por conta e recusa com
+segredo de outra, contingência Alvaria (503) → SANDBOX com uma única tentativa no compliance, operador fora da plataforma,
+regra de campanha com lote e `bridge` pela Alvaria, comparação, catálogo, Tarifando recusada, conta restrita a outro credor,
+conta inativa na regra. `AlvariaTelephonyProviderTest` (servidor HTTP local) e `AlvariaWebhookAdapterTest`. Nenhuma chamada
+real.
+
+## Anexo A — Alvaria CX (antiga Aspect)
+
+**Confirmado (fontes públicas, 26/10/2026)**
+
+* A Aspect Software fundiu-se à Noble Systems em 2021 e passou a se chamar **Alvaria**. Em set/2024 o portfólio de
+  **WFM/WEM voltou à marca Aspect** (Aspect Workforce, WorkforceOS); `www.aspect.com` hoje é esse produto ("an Alvaria
+  brand") e **não oferece telefonia nem discador**. Outbound continua **Alvaria**.
+* Alvaria CX: outbound omnichannel com foco em compliance e cobrança — modos de ritmo *precision, preview, automatic,
+  predictive e blaster*; Compliance Hub (consentimento, fuso do devedor, portabilidade, exclusões); implantação em nuvem
+  pública/privada, VPC, on-premises ou híbrida; funciona sobre ACD de terceiros (Zoom Contact Center, Avaya Experience
+  Platform). Listas por Advanced List Management/Advanced Outreach (troca de arquivos com arquivo de resultados).
+* Integrações de CTI de terceiros usam eventos de chamada da plataforma (início, fim, atualização de chamada, login/logout).
+* **A documentação da API não é pública** (acesso por contrato/comunidade de parceiros). Autenticação, formato de eventos,
+  webhooks, AMD por API, gravações, WebRTC e regiões de processamento de dados **não estão publicados**.
+
+**Decisões** (560, 565): tipo `ALVARIA` (é o produto que disca; rótulo "Alvaria CX (Aspect)"); o **discador do Gestor
+comanda** e a Alvaria é a plataforma de voz (origina, detecta secretária, conecta, grava, notifica). Usar as campanhas da
+Alvaria tiraria o porteiro do compliance de cada tentativa, a tabulação e a distribuição do domínio; só seria aceitável se
+a Alvaria chamar a autorização (`ContactGate`) antes de cada discagem — reavaliar com o contrato.
+
+**Implementado sobre o que é confirmável** (`infrastructure/provider/alvaria`): `AlvariaApiContract` isola tudo o que é
+**suposição** (caminhos `/oauth2/token`, `/api/v1/calls/agent-first`, `/calls/batch`, `/calls/{id}/bridge`, `/hangup`,
+`/recordings/{ref}`, nomes de campos, `Idempotency-Key`, lote de 50); `AlvariaTelephonyProvider` — OAuth 2.0 *client
+credentials* com cache por conta (60 s de folga; 401 renova uma vez), HTTPS no domínio permitido
+(`app.telephony.alvaria.allowed-host-suffixes`, padrão `.alvaria.com` — a confirmar), sem redirecionamento, timeouts
+3 s/10 s, classificação de erros (§13.4), códigos `ALVARIA_<código>`; `AlvariaWebhookAdapter` — formato **canônico** do
+Gestor assinado (`X-Gestor-Signature: t=…,v1=HMAC-SHA256(webhookSecret, t.corpo)`), publicado pela Alvaria se permitir
+configurar a notificação, ou por um conector que traduza os eventos de CTI dela. Credenciais: `apiBaseUrl`, `clientId`,
+`clientSecret`, `webhookSecret`. `readiness = CONTRACT_PENDING`.
+
+**Pedir à Alvaria**
+
+1. Documentação da API de CTI/outbound do produto contratado (Alvaria CX/Cloud ou instância on-premises): originar
+   "operador primeiro", discagem em lote com AMD, conexão ao ramal/fila, encerramento com mensagem, gravação (download e
+   remoção), referência do cliente e deduplicação de pedidos (idempotência).
+2. Autenticação (OAuth 2.0? escopos, validade, rotação) e o endereço da instância da assessoria (domínio para o allowlist).
+3. Notificações de chamada: eventos, campos, AMD, quem desligou, gravação disponível, reentrega, **assinatura** (HMAC com
+   instante? token? IPs de origem) — ou orientação para o conector de CTI.
+4. Ambiente de homologação com números de teste e ramais, limites de taxa e janelas de manutenção.
+5. Onde os dados (áudio, números, gravações) são processados e armazenados (região, subprocessadores) e DPA para a LGPD;
+   retenção das gravações no lado deles.
+6. SDK WebRTC de navegador (se houver) e requisitos de CSP.
+7. Se o discador/campanhas da Alvaria for exigido comercialmente: callback de autorização por tentativa.
+
+**Homologação (passo a passo)**
+
+1. Ajustar `AlvariaApiContract` e os testes do adaptador ao contrato recebido; `AlvariaWebhookAdapter` ao formato real.
+2. Homologação AWS: `APP_TELEPHONY_HOMOLOGATION_PROVIDERS=ALVARIA` e `APP_TELEPHONY_ALVARIA_ALLOWED_HOSTS=<domínio>`
+   (só nesse ambiente; [ativação](../operacao/ativacao-aws.md) §7.6).
+3. Cadastrar a conta (Plataformas de telefonia), copiar o webhook para a Alvaria, ramais por plataforma.
+4. Roteiro: clique para ligar (operador primeiro, anúncio de gravação), atendida/não atendida/ocupado/caixa postal,
+   discador progressivo com AMD e abandono, encerramento pelo supervisor, gravação copiada e removida no fornecedor,
+   evento repetido/fora de ordem, assinatura inválida, 429/503 → contingência, timeout ambíguo sem duplicar, rotação de
+   credencial.
+5. Aprovado: `readiness()` → `READY`, remover a variável de homologação; produção.
+
+## Anexo B — Tarifando Telecom (tarifando.com.br)
+
+**Confirmado (site do fornecedor, 26/10/2026)**: Tarifando Franchising Ltda. (CNPJ 18.147.772/0001-16, Palhoça/SC).
+VoIP, PABX IP em nuvem (SaaS, ramais, URA, gravação, indicadores, "integração com CRMs e click to call"), **Call Center**
+por posição com discador *Power, Predictive, Preview e Call Back*, URA reversa, gravador, "classificador de caixa postal",
+perfis administrativo/agente/supervisor e **"APIs e integração via REST"**; números em vários DDDs; plataforma
+omnichannel. Preços públicos por canal/ramal/posição; os pacotes de telefonia "ilimitada" **não podem ser usados com
+discador automático** (o discador exige o plano Call Center). **Não há documentação pública de API**, webhooks, WebRTC nem
+AMD por API.
+
+**Implementado**: `ProviderType.TARIFANDO` (credenciais provisórias `apiBaseUrl`, `apiToken`, `webhookSecret`) e
+`TarifandoTelephonyProvider` **desligado** (`NOT_IMPLEMENTED`): a aplicação recusa criar e ativar conta, nunca disca por
+ele e as operações recusam explicitamente (nada simulado). Sem adaptador de webhook.
+
+**Pedir à Tarifando**: documentação da API REST (click to call operador primeiro, discagem em lote/discador por API,
+conexão ao ramal, encerramento, gravações), autenticação, webhooks/eventos de chamada e assinatura, AMD ("classificador
+de caixa postal") por chamada, plano necessário para discagem automática pela API e tarifas por minuto (fixo/móvel,
+cadência de tarifação), ramais SIP/WebRTC, números (bina por credor), ambiente de testes, onde os dados e as gravações
+ficam e DPA. Homologação: os mesmos passos do anexo A depois de implementar o adaptador.
