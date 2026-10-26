@@ -11,6 +11,7 @@ import br.com.gestorcobranca.incentive.domain.model.ledger.CommissionLedgerEntry
 import br.com.gestorcobranca.incentive.domain.model.ledger.CommissionPeriod;
 import br.com.gestorcobranca.incentive.domain.model.plan.CommissionPlan;
 import br.com.gestorcobranca.incentive.domain.model.plan.GoalTarget;
+import br.com.gestorcobranca.incentive.domain.model.plan.GoalUnit;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanStatus;
 import br.com.gestorcobranca.incentive.domain.model.plan.StandardPlans;
@@ -58,11 +59,13 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
     private final IncentiveAccess access;
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
+    private final GoalUnitPolicy goalUnits;
     private final Clock clock;
 
     CommissionPlanService(CommissionPlanRepository plans, LedgerRepository ledger, StatementRepository statements,
                           PlanRulesCodec codec, StatementCalculator calculator, Workforce workforce,
-                          IncentiveAccess access, AuditTrail auditTrail, BusinessEventLogger businessEvents, Clock clock) {
+                          IncentiveAccess access, AuditTrail auditTrail, BusinessEventLogger businessEvents,
+                          GoalUnitPolicy goalUnits, Clock clock) {
         this.plans = plans;
         this.ledger = ledger;
         this.statements = statements;
@@ -72,6 +75,7 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
         this.access = access;
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
+        this.goalUnits = goalUnits;
         this.clock = clock;
     }
 
@@ -250,17 +254,48 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
         LocalDate start = command.period().atDay(1);
         Guard.requireState(ledger.findPeriod(start).map(p -> !p.isClosed()).orElse(true), "goal.period_closed",
                 "Período já fechado");
-        GoalTarget.SubjectType type = StatementService.enumOf(GoalTarget.SubjectType.class,
-                command.subjectType() == null ? "" : command.subjectType(), "goal.subject_type_invalid");
+        GoalTarget.SubjectType type = subjectType(command.subjectType());
+        Guard.require(command.unit() != null && !command.unit().isBlank(), "goal.unit_required",
+                "Informe se a meta é em valor (R$) ou percentual (%)");
+        GoalUnit unit = StatementService.enumOf(GoalUnit.class, command.unit(), "goal.unit_invalid");
+        GoalUnitPolicy.Resolution allowed = goalUnits.resolve(start, type, command.subjectId());
+        Guard.require(allowed.allowed().contains(unit), "goal.unit_not_allowed", unitRefusal(allowed));
         Optional<GoalTarget> existing = plans.findGoal(start, type, command.subjectId());
         BigDecimal before = existing.map(GoalTarget::getTargetValue).orElse(null);
-        GoalTarget goal = existing.orElseGet(() -> new GoalTarget(start, type, command.subjectId(), command.target()));
-        goal.changeTarget(command.target());
+        GoalUnit unitBefore = existing.map(GoalTarget::getUnit).orElse(null);
+        GoalTarget goal = existing.orElseGet(() -> new GoalTarget(start, type, command.subjectId(), command.target(), unit));
+        goal.define(command.target(), unit);
         plans.saveGoal(goal);
         auditTrail.record(AuditEntry.of("commission_goal.defined", "commission_goal", goal.getId())
-                .change("target", before, goal.getTargetValue()).meta("period", command.period().toString())
-                .meta("subjectType", type).meta("subjectId", command.subjectId()));
+                .change("target", before, goal.getTargetValue()).change("unit", unitBefore, goal.getUnit())
+                .meta("period", command.period().toString())
+                .meta("subjectType", type).meta("subjectId", command.subjectId()).meta("unitBasis", allowed.basis()));
         return goalView(goal);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GoalUnitOptions goalUnitOptions(YearMonth period, String subjectType, UUID subjectId) {
+        access.requirePermission(Permission.COMMISSION_PLAN_MANAGE);
+        Guard.require(period != null, "goal.period_required", "Informe o período");
+        GoalUnitPolicy.Resolution r = goalUnits.resolve(period.atDay(1), subjectType(subjectType), subjectId);
+        return new GoalUnitOptions(r.allowed().stream().map(Enum::name).sorted().toList(), r.basis(),
+                r.metric() == null ? null : r.metric().name(),
+                r.plan() == null ? null : r.plan().plan().getCode(),
+                r.plan() == null ? null : r.plan().plan().getPlanVersion(),
+                r.plan() == null ? null : r.plan().plan().getName());
+    }
+
+    private static GoalTarget.SubjectType subjectType(String value) {
+        return StatementService.enumOf(GoalTarget.SubjectType.class, value == null ? "" : value, "goal.subject_type_invalid");
+    }
+
+    private static String unitRefusal(GoalUnitPolicy.Resolution allowed) {
+        GoalUnit only = allowed.allowed().iterator().next();
+        String plan = allowed.plan() == null ? "do plano vigente"
+                : "do plano %s (versão %d)".formatted(allowed.plan().plan().getName(), allowed.plan().plan().getPlanVersion());
+        return "A meta %s é %s; informe a meta em %s".formatted(plan,
+                only == GoalUnit.CURRENCY ? "por valor recuperado" : "por taxa de recuperação", only.symbol());
     }
 
     @Override
@@ -278,7 +313,7 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
                 "Período já fechado");
         plans.deleteGoal(goal);
         auditTrail.record(AuditEntry.of("commission_goal.removed", "commission_goal", goalId)
-                .change("target", goal.getTargetValue(), null).meta("period", YearMonth.from(goal.getPeriodStart()).toString())
+                .change("target", goal.getTargetValue(), null).change("unit", goal.getUnit(), null).meta("period", YearMonth.from(goal.getPeriodStart()).toString())
                 .meta("subjectType", goal.getSubjectType()).meta("subjectId", goal.getSubjectId()));
     }
 
@@ -315,7 +350,7 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
 
     private static GoalView goalView(GoalTarget g) {
         return new GoalView(g.getId(), YearMonth.from(g.getPeriodStart()), g.getSubjectType().name(), g.getSubjectId(),
-                g.getTargetValue());
+                g.getTargetValue(), g.getUnit() == null ? null : g.getUnit().name());
     }
 
     private static BigDecimal ratio(Money amount, Money base) {

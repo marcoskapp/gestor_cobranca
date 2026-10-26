@@ -88,9 +88,9 @@ class PlanDraftAndGoalRemovalIT extends IncentiveTestSupport {
     @Test
     void goalIsRemovedOnlyWhileThePeriodIsOpen() {
         GoalView goal = as(manager, DefaultRoles.GESTOR, () -> plans.setGoal(new GoalCommand(AUGUST, "USER", operatorX,
-                new BigDecimal("80000"))));
+                new BigDecimal("80000"), "CURRENCY")));
         GoalView other = as(manager, DefaultRoles.GESTOR, () -> plans.setGoal(new GoalCommand(AUGUST, "TEAM", team,
-                new BigDecimal("200000"))));
+                new BigDecimal("200000"), "CURRENCY")));
         as(manager, DefaultRoles.GESTOR, () -> {
             plans.removeGoal(goal.id());
             return null;

@@ -382,12 +382,14 @@ Padrão de mercado (bancos, maquininhas, apps de pagamento): o usuário digita s
 | Negociação — regras da política (`rules-editor`) | Encargo de valor fixo, parcela mínima, entrada mínima em R$ |
 | Pagamentos | Valor pago (pagamento informado), valor do Pix/cobrança, valor realocado, limite para segunda aprovação |
 | Repasse (`settlement`) | Valor fixo por acordo, simulação (valor recebido, honorários cobrados), valor da transferência, efeito do ajuste (com sinal) |
-| Remuneração variável (`incentive`) | Faixas de comissão ("a partir de"), valor fixo por acordo, meta padrão (métrica "valor recuperado"), teto por período, ajuste de extrato e ajuste na resolução de contestação (com sinal) |
+| Remuneração variável (`incentive`) | Faixas de comissão ("a partir de"), valor fixo por acordo, meta padrão (métrica "valor recuperado"), meta do período com a unidade "Valor (R$)", teto por período, ajuste de extrato e ajuste na resolução de contestação (com sinal) |
 | Jurídico | Outros bens e custas previstas (viabilidade); campos `money` do formulário genérico (orçamento de custas, valor da causa, valores de penhora/levantamento, saldo mínimo das regras de elegibilidade) |
 | Assistente virtual | Valor máximo por Pix; custo máximo por conversa (4 casas, moeda do provedor) |
 | Importação — conferência de totais | Total na planilha (principal, saldo, valor do contrato) |
 
-O portal do devedor não tem campo de valor digitado: o devedor escolhe entre as ofertas calculadas. A meta do negociador no período (`goal-list`) fica sem máscara porque vale R$ ou %, conforme a métrica do plano, desconhecida no diálogo (decisão 387).
+O portal do devedor não tem campo de valor digitado: o devedor escolhe entre as ofertas calculadas.
+
+**Valor que pode ser R$ ou %** (meta do período, decisões 387 e 505): a pessoa escolhe a unidade antes de digitar, com botões `btn-check` num grupo rotulado. Com "Valor (R$)", o campo é `appMoney`; com "Percentual (%)", é `type="number"` com "%" no `input-group-text` (`aria-hidden`) e a faixa aceita na ajuda, que é lida como descrição do campo. Use controles separados para cada unidade (só o da escolhida habilitado), e trocar a unidade limpa o valor, sem converter. Quando a regra de negócio só admite uma unidade, ela vem marcada e a outra fica desabilitada, com a explicação ligada ao grupo por `aria-describedby`.
 
 ## 14. Mapeamento de ícones (Material → Bootstrap Icons)
 

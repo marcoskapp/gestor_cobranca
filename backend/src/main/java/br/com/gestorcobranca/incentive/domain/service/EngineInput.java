@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.incentive.domain.service;
 
 import br.com.gestorcobranca.incentive.domain.model.Segment;
+import br.com.gestorcobranca.incentive.domain.model.plan.GoalUnit;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules;
 import br.com.gestorcobranca.shared.domain.Money;
 
@@ -36,10 +37,16 @@ public record EngineInput(PlanRules rules, List<SegmentVolume> volumes, BigDecim
     }
 
     /**
-     * @param target meta (R$ para recuperado; % para taxa de recuperação)
-     * @param actual realizado na mesma unidade (individual ou da equipe, conforme o escopo)
+     * @param target           meta (R$ para recuperado; % para taxa de recuperação); null = sem meta
+     * @param actual           realizado na mesma unidade (individual ou da equipe, conforme o escopo)
+     * @param disregardedUnit  unidade da meta do período desconsiderada por não coincidir com a da
+     *                         métrica do plano (null = nenhuma desconsiderada); vale a meta padrão
      */
-    public record GoalInput(BigDecimal target, BigDecimal actual) {
+    public record GoalInput(BigDecimal target, BigDecimal actual, GoalUnit disregardedUnit) {
+
+        public GoalInput(BigDecimal target, BigDecimal actual) {
+            this(target, actual, null);
+        }
     }
 
     /**

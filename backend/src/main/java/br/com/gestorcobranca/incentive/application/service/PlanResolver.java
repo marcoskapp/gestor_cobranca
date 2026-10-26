@@ -45,7 +45,12 @@ class PlanResolver {
         if (member == null) {
             return Optional.empty();
         }
-        return effectiveOn(date).stream()
+        return covering(effectiveOn(date), member);
+    }
+
+    /** Entre versões já ordenadas por prioridade ({@link #effectiveOn}), a primeira que cobre o negociador. */
+    static Optional<ResolvedPlan> covering(List<ResolvedPlan> effective, WorkforceMember member) {
+        return effective.stream()
                 .filter(p -> p.rules().eligibility().coversMember(member.roleCodes(), member.teamIds())).findFirst();
     }
 
