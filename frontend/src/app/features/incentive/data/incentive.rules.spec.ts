@@ -17,7 +17,6 @@ import {
   publishStartOptions,
   retireEndOptions,
   segmentText,
-  signedMoney,
   statementActions,
   versionState,
 } from './incentive.rules';
@@ -44,9 +43,6 @@ describe('regras do incentive', () => {
     expect(pct(1.5)).toBe('1,5%');
     expect(parseDecimal('1.234,5')).toBe(1234.5);
     expect(parseDecimal('abc')).toBeNull();
-    expect(signedMoney('−150,00')).toBe(-150);
-    expect(signedMoney('10,555')).toBeNull();
-    expect(signedMoney('')).toBeNull();
     expect(needsSecondApproval(-500.01)).toBe(true);
     expect(needsSecondApproval(500)).toBe(false);
     expect(linesTotal(statementDetail().lines)).toBe(2494.8);

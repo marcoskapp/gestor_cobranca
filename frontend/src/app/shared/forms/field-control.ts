@@ -43,7 +43,8 @@ export class FieldControl implements AfterContentInit {
   /** Muda a cada evento do controle (valor, status, toque) ou submissão do formulário. */
   private readonly version = signal(0);
   private readonly ids = signal<string | null>(null);
-  protected readonly describedBy = this.ids.asReadonly();
+  private readonly extraIds = signal<string | null>(null);
+  protected readonly describedBy = computed(() => [this.extraIds(), this.ids()].filter(Boolean).join(' ') || null);
 
   readonly invalid = computed(() => {
     this.version();
@@ -71,6 +72,11 @@ export class FieldControl implements AfterContentInit {
   /** @internal — o `app-field` informa os ids da ajuda/erro. */
   setDescribedBy(ids: string | null): void {
     this.ids.set(ids);
+  }
+
+  /** @internal — descrição própria do controle (ex.: "Valor em reais." do `appMoney`), lida antes da ajuda/erro. */
+  setExtraDescribedBy(id: string | null): void {
+    this.extraIds.set(id);
   }
 
   private submitted(): boolean {

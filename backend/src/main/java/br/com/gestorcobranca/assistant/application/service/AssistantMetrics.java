@@ -35,13 +35,27 @@ class AssistantMetrics {
         }
     }
 
-    void tokens(String provider, long input, long output) {
-        if (input > 0) {
-            registry.counter("assistant.tokens", "provider", provider, "direction", "input").increment(input);
+    /**
+     * @param input      entrada sem cache
+     * @param cacheRead  entrada lida do cache de prompt do provedor
+     * @param cacheWrite entrada gravada no cache de prompt do provedor
+     */
+    void tokens(String provider, long input, long output, long cacheRead, long cacheWrite) {
+        tokens(provider, "input", input);
+        tokens(provider, "output", output);
+        tokens(provider, "cache_read", cacheRead);
+        tokens(provider, "cache_write", cacheWrite);
+    }
+
+    private void tokens(String provider, String direction, long amount) {
+        if (amount > 0) {
+            registry.counter("assistant.tokens", "provider", provider, "direction", direction).increment(amount);
         }
-        if (output > 0) {
-            registry.counter("assistant.tokens", "provider", provider, "direction", "output").increment(output);
-        }
+    }
+
+    /** Nível de modelo escolhido para cada chamada ({@code ModelTierSelector}) e o motivo. */
+    void modelRouting(String tier, String reason) {
+        registry.counter("assistant.model.routing", "tier", tier, "reason", reason).increment();
     }
 
     void cost(String provider, String currency, BigDecimal amount) {

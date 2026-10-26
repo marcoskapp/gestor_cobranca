@@ -48,6 +48,28 @@ locals {
     "${var.secrets_bucket_arn}/${var.environment}/migration/*"
   ]
   secret_read_actions = var.use_ssm_parameters ? ["ssm:GetParameter", "ssm:GetParameters"] : ["s3:GetObject"]
+
+  # Amazon Bedrock (assistente de IA): somente bedrock:InvokeModel (a Converse API é autorizada por essa ação;
+  # não existe ação IAM "bedrock:Converse") nos modelos configurados. Perfil de inferência de sistema
+  # (us./eu./global....): o ARN do perfil na região chamada + o modelo base em cada região de destino, este
+  # só por meio do perfil (condição bedrock:InferenceProfileArn). Modelo base sem prefixo: só na região.
+  bedrock_profile_pattern = "^(us|eu|apac|au|jp|ca|global)\\."
+  bedrock_model_ids       = var.assistant_bedrock_enabled ? distinct([var.bedrock_standard_model_id, var.bedrock_advanced_model_id]) : []
+  bedrock_profile_ids     = [for id in local.bedrock_model_ids : id if can(regex(local.bedrock_profile_pattern, id))]
+  bedrock_base_ids        = [for id in local.bedrock_model_ids : id if !can(regex(local.bedrock_profile_pattern, id))]
+  bedrock_profile_arns = [
+    for id in local.bedrock_profile_ids : "arn:${var.partition}:bedrock:${var.bedrock_region}:${var.account_id}:inference-profile/${id}"
+  ]
+  bedrock_profile_models = distinct([for id in local.bedrock_profile_ids : replace(id, "/^[a-z]+\\./", "")])
+  bedrock_uses_global    = anytrue([for id in local.bedrock_profile_ids : startswith(id, "global.")])
+  bedrock_profile_model_arns = concat(
+    [for m in local.bedrock_profile_models : "arn:${var.partition}:bedrock:*::foundation-model/${m}"],
+    # perfil global: o modelo também é autorizado sem região (roteamento a qualquer região comercial)
+    local.bedrock_uses_global ? [for m in local.bedrock_profile_models : "arn:${var.partition}:bedrock:::foundation-model/${m}"] : [],
+  )
+  bedrock_base_model_arns = [
+    for id in local.bedrock_base_ids : "arn:${var.partition}:bedrock:${var.bedrock_region}::foundation-model/${id}"
+  ]
 }
 
 data "aws_iam_policy_document" "instance" {
@@ -180,6 +202,62 @@ data "aws_iam_policy_document" "instance" {
       sid       = "MigrationSecretWithDbAdmin"
       actions   = local.secret_read_actions
       resources = local.migration_secret_resources
+    }
+  }
+
+  # --- Amazon Bedrock: assistente de IA (aprovado — issue #12) ---
+  dynamic "statement" {
+    for_each = length(local.bedrock_profile_arns) > 0 ? [1] : []
+
+    content {
+      sid       = "BedrockInvokeInferenceProfiles"
+      actions   = ["bedrock:InvokeModel"]
+      resources = local.bedrock_profile_arns
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(local.bedrock_profile_arns) > 0 ? [1] : []
+
+    content {
+      sid       = "BedrockInvokeModelsThroughProfiles"
+      actions   = ["bedrock:InvokeModel"]
+      resources = local.bedrock_profile_model_arns
+
+      condition {
+        test     = "StringLike"
+        variable = "bedrock:InferenceProfileArn"
+        values   = local.bedrock_profile_arns
+      }
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(local.bedrock_base_model_arns) > 0 ? [1] : []
+
+    content {
+      sid       = "BedrockInvokeBaseModels"
+      actions   = ["bedrock:InvokeModel"]
+      resources = local.bedrock_base_model_arns
+    }
+  }
+
+  # Sem perfil global configurado, o roteamento global (processamento em qualquer região comercial) é negado
+  # explicitamente: trocar para global.* exige mudar esta configuração (decisão de residência de dados).
+  dynamic "statement" {
+    for_each = var.assistant_bedrock_enabled && !local.bedrock_uses_global ? [1] : []
+
+    content {
+      sid       = "BedrockDenyGlobalRouting"
+      effect    = "Deny"
+      actions   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+      resources = ["*"]
+
+      condition {
+        test     = "StringEquals"
+        variable = "aws:RequestedRegion"
+        values   = ["unspecified"]
+      }
     }
   }
 

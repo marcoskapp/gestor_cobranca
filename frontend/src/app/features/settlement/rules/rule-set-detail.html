@@ -97,8 +97,11 @@
             <app-field label="Percentual padrão (%)" hint="Quando nenhuma regra específica casa">
               <input appInput inputmode="decimal" [ngModel]="rateText(d.defaultRate)" (ngModelChange)="setNumber('defaultRate', $event)" [readonly]="!editable()" />
             </app-field>
-            <app-field label="Valor fixo por acordo (R$)" hint="Devido no primeiro recebimento de cada acordo">
-              <input appInput inputmode="decimal" [ngModel]="feeText(d.fixedFeePerAgreement)" (ngModelChange)="setFixedFee($event)" [readonly]="!editable()" placeholder="sem valor fixo" />
+            <app-field label="Valor fixo por acordo" hint="Devido no primeiro recebimento de cada acordo; vazio = sem valor fixo">
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">R$</span>
+                <input appInput appMoney [ngModel]="d.fixedFeePerAgreement" (ngModelChange)="setFixedFee($event)" [readonly]="!editable()" />
+              </div>
             </app-field>
             <div class="app-span-all">
               <p class="app-section-title" id="rs-honorarium">Honorários cobrados do devedor</p>
@@ -199,11 +202,17 @@
           <h2 class="app-card__title" id="rs-sim">Simular um recebimento</h2>
           <p class="app-muted st-small">Nada é gravado. {{ dirty() ? 'Usa as regras em edição (não salvas).' : 'Usa as regras desta versão.' }}</p>
           <div class="app-form-grid">
-            <app-field label="Valor recebido (R$)">
-              <input appInput inputmode="decimal" [ngModel]="sim.amount()" (ngModelChange)="sim.amount.set($event)" />
+            <app-field label="Valor recebido">
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">R$</span>
+                <input appInput appMoney [ngModel]="sim.amount()" (ngModelChange)="sim.amount.set($event)" />
+              </div>
             </app-field>
-            <app-field label="Honorários cobrados (R$)">
-              <input appInput inputmode="decimal" [ngModel]="sim.honorarium()" (ngModelChange)="sim.honorarium.set($event)" />
+            <app-field label="Honorários cobrados">
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">R$</span>
+                <input appInput appMoney [ngModel]="sim.honorarium()" (ngModelChange)="sim.honorarium.set($event)" />
+              </div>
             </app-field>
             <app-field label="Dias de atraso">
               <input appInput type="number" min="0" [ngModel]="sim.daysPastDue()" (ngModelChange)="sim.daysPastDue.set($event)" />

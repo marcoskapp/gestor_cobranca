@@ -141,3 +141,13 @@ output "acm_validation_records" {
     }
   ] : []
 }
+
+output "bedrock_invoke_resources" {
+  description = "Recursos em que o papel das instâncias chama bedrock:InvokeModel (vazio com o Bedrock desligado)."
+  value       = var.enable_compute ? module.compute[0].bedrock_invoke_resources : null
+}
+
+output "bedrock_denies_global_routing" {
+  description = "O papel das instâncias nega o roteamento global do Bedrock."
+  value       = var.enable_compute ? module.compute[0].bedrock_denies_global_routing : null
+}

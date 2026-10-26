@@ -249,6 +249,7 @@ class AssistantPolicyService implements AssistantPolicyUseCases {
                 .change("status", PolicyStatus.DRAFT, PolicyStatus.PUBLISHED)
                 .meta("code", saved.getCode()).meta("version", next).meta("mode", settings.mode())
                 .meta("prompt", settings.promptCode() + "@" + settings.promptVersion())
+                .meta("modelRouting", settings.routing())
                 .meta("authorityProfileId", settings.authorityProfileId())
                 .meta("portfolioId", saved.getPortfolioId())
                 .meta("previousPolicyId", previous == null ? null : previous.getId()));
@@ -261,7 +262,8 @@ class AssistantPolicyService implements AssistantPolicyUseCases {
                 .attr("maxTurns", settings.maxTurns()).attr("reviewSampleRate", settings.reviewSampleRate())
                 .attr("extraTriggers", settings.extraTriggers().size())
                 .attr("pixInConversation", settings.pix().on())
-                .attr("pixMaxAmount", settings.pix().on() ? settings.pix().maxAmount() : null));
+                .attr("pixMaxAmount", settings.pix().on() ? settings.pix().maxAmount() : null)
+                .attr("modelRouting", settings.routing()));
         metrics.policy(PolicyStatus.PUBLISHED.name());
         return saved;
     }

@@ -4,9 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, startWith } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
-import { AppValidators } from '../../../shared/validation/validators';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { parseMoney } from '../../payment/data/payment.rules';
 import { StatementsApi } from '../data/settlement.api';
 import { ADJUSTMENT_CATEGORY_LABELS, EXPORT_FORMAT_LABELS, SEND_CHANNEL_LABELS, SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { AdjustmentCategory, AdjustmentView, ExportView, SendChannel, StatementView } from '../data/settlement.models';
@@ -165,8 +163,12 @@ export interface AdjustmentDialogData {
               }
             </select>
           </app-field>
-          <app-field label="Efeito no repasse (R$)" hint="Use − para reduzir o valor a repassar ao credor" error="Informe um valor diferente de zero.">
-            <input appInput formControlName="amount" inputmode="decimal" required />
+          <app-field label="Efeito no repasse" hint="Digite − ou use +/− para reduzir o valor a repassar ao credor" error="Informe um valor diferente de zero.">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney #sign="appMoney" allowNegative formControlName="amount" required />
+              <button class="btn btn-outline-secondary" type="button" (click)="sign.toggleSign()" [attr.aria-pressed]="sign.negative" aria-label="Valor negativo (reduz o repasse)">+/−</button>
+            </div>
           </app-field>
           @if (value().category === 'PRIOR_PERIOD_CORRECTION') {
             <app-field class="app-span-all" label="Demonstrativo corrigido">
@@ -219,7 +221,7 @@ export class AdjustmentDialog {
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
     category: this.fb.control<AdjustmentCategory>('COMMISSION_CORRECTION', [Validators.required]),
-    amount: ['', [AppValidators.notBlank, (c) => (signedMoney(c.value) === null || signedMoney(c.value) === 0 ? { money: true } : null)]],
+    amount: this.fb.control<number | null>(null, [Validators.required, (c) => (c.value === 0 ? { money: true } : null)]),
     reason: ['', [Validators.required, (c) => ((c.value as string).trim().length < ADJUSTMENT_REASON_MIN ? { minlength: true } : null)]],
     related: [''],
   });
@@ -228,7 +230,7 @@ export class AdjustmentDialog {
     this.values();
     return this.form.getRawValue();
   });
-  protected readonly amount = computed(() => signedMoney(this.value().amount));
+  protected readonly amount = computed(() => this.value().amount);
   protected readonly dual = computed(() => needsSecondApproval(this.amount()));
 
   protected save(): void {
@@ -242,19 +244,11 @@ export class AdjustmentDialog {
     this.api
       .requestAdjustment(this.data.statement.id, {
         category: v.category,
-        amount: signedMoney(v.amount)!,
+        amount: v.amount!,
         reason: v.reason.trim(),
         relatedStatementId: v.category === 'PRIOR_PERIOD_CORRECTION' ? v.related || null : null,
       })
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe({ next: (a) => this.ref.close(a), error: (err: unknown) => this.error.set(errorText(err)) });
   }
-}
-
-/** Valor com sinal ("-150,00", "−150,00" ou "150,00"). */
-export function signedMoney(text: string | null | undefined): number | null {
-  const raw = (text ?? '').trim();
-  const negative = /^[-−]/.test(raw);
-  const value = parseMoney(raw.replace(/^[-−+]\s*/, ''));
-  return value === null ? null : negative ? -value : value;
 }

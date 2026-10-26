@@ -44,11 +44,11 @@ describe('ReallocateDialog', () => {
     const c = fixture.componentInstance;
     c['form'].patchValue({ source: 1, mode: 'REFUND' });
     fixture.detectChanges();
-    expect(c['form'].controls.amount.value).toBe('100');
-    c['form'].patchValue({ amount: '120', note: 'Devedor pagou em duplicidade' });
+    expect(c['form'].controls.amount.value).toBe(100);
+    c['form'].patchValue({ amount: 120, note: 'Devedor pagou em duplicidade' });
     submit().click();
     http.expectNone((r) => r.method === 'POST');
-    c['form'].patchValue({ amount: '100', refundReference: 'E2E-DEV-1' });
+    c['form'].patchValue({ amount: 100, refundReference: 'E2E-DEV-1' });
     submit().click();
     const req = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/payment/payments/pg-1/reallocations');
     expect(req.request.body).toEqual({ sourceAllocationId: 'al-1', amount: 100, target: null, refundReference: 'E2E-DEV-1', note: 'Devedor pagou em duplicidade' });

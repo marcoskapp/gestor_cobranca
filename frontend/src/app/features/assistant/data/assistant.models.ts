@@ -1,6 +1,11 @@
 /** Contratos do módulo assistant (`assistant.application.port.in` e records de `assistant.web`). */
 
 export type AssistantMode = 'OFF' | 'SHADOW' | 'COPILOT' | 'AUTONOMOUS_WITH_APPROVAL' | 'AUTONOMOUS';
+/**
+ * `ModelRouting`: `BY_STAGE` usa o modelo avançado só em negociação, proposta, aceite e Pix; `ADVANCED_ONLY`
+ * usa o avançado em todas as chamadas (piloto).
+ */
+export type ModelRouting = 'BY_STAGE' | 'ADVANCED_ONLY';
 export type PolicyStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
@@ -62,6 +67,8 @@ export interface PolicySettings {
   reviewSampleRate: number | null;
   allowCreditBureauMention: boolean | null;
   pixInConversation?: PixInConversation | null;
+  /** Nível de modelo por chamada (`ModelRouting`); ausente nas políticas gravadas antes da opção = `BY_STAGE`. */
+  modelRouting?: ModelRouting | null;
 }
 
 /** `AssistantPolicyUseCases.PolicyView` */

@@ -37,6 +37,7 @@ flowchart TB
     ASG --> RDS
     ASG --> S3E --> S3[("S3<br/>arquivos · artefatos")]
     ASG --> NAT -->|"WhatsApp, Pix, SMTP…"| INTERNET["Internet"]
+    NAT -->|"HTTPS · papel IAM"| BEDROCK["Amazon Bedrock<br/>bedrock-runtime (us-east-1)<br/>assistente de IA — §8"]
     ASG -.-> CW["CloudWatch<br/>Logs · Metrics · Alarms"]
     ASG -.-> SSM["SSM Parameter Store / KMS<br/>segredos (requer aprovação)"]
 ```
@@ -70,6 +71,7 @@ flowchart TB
 - Os segredos de **migração** (`.../migration/*`, senha de `app_owner`, dono do schema) **não** são legíveis pelo papel em execução: uma falha na aplicação não pode virar `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` em todas as assessorias. `scripts/deploy/migrate.sh` (pipeline/operador) cria no papel, só durante a execução, a política inline temporária `migration-window`, que permite ler `migration/*` **apenas** da instância escolhida para a migração (`ec2:SourceInstanceARN`) e **até** o fim da janela (`aws:CurrentTime`, 75 min), e a remove ao terminar. Quem executa o deploy precisa de `iam:PutRolePolicy`/`iam:DeleteRolePolicy` no papel das instâncias. Com `db_admin_access = true` (temporário) o papel também lê `migration/*`, usado por `db-admin.sh` para criar e rotacionar a senha de `app_owner`.
 - `secretsmanager:GetSecretValue` no segredo da senha mestre do RDS **somente** enquanto `db_admin_access = true` (criação de papéis e rotação de senhas; desligado no restante do tempo).
 - `AmazonSSMManagedInstanceCore` para o Session Manager e o Run Command (execução das migrations).
+- **Assistente de IA (Amazon Bedrock, com `assistant_bedrock_enabled`)**: somente `bedrock:InvokeModel` (a Converse API é autorizada por essa ação; não existe ação IAM `bedrock:Converse`) nos ARNs dos perfis de inferência configurados (`arn:aws:bedrock:<região>:<conta>:inference-profile/us.anthropic.claude-haiku-5-5` e `…sonnet-5-5`) e nos modelos base em cada região de destino **somente por meio desses perfis** (condição `bedrock:InferenceProfileArn`); sem perfil `global.*` configurado, nega explicitamente o roteamento global (`aws:RequestedRegion = unspecified`). Nenhuma permissão de AWS Marketplace no papel (§8).
 
 ### IP do cliente e proxies confiáveis
 
@@ -182,3 +184,30 @@ Maiores alavancas de economia, em ordem: Savings Plans/instâncias reservadas na
 | Objetivo inicial | RPO ≤ 5 min (logs de transação do RDS); RTO ≤ 1 h (fase 1) e ≤ 15 min (fase 2, Multi-AZ) |
 
 Implementação em Terraform, scripts de implantação e procedimentos (primeira implantação, rotação de segredos, rollback): [`infra/terraform/README.md`](../../infra/terraform/README.md).
+
+## 8. Amazon Bedrock (assistente de IA)
+
+Aprovado pelo responsável em 25/10/2026 (issue #12): modelos **Claude Haiku 5.5** (nível padrão) e **Claude Sonnet 5.5** (nível avançado: negociação, proposta, aceite e Pix) pela Converse API. Desenho e residência de dados: [`docs/tecnico/desenho/assistente.md`](../tecnico/desenho/assistente.md) §6.5–6.7.
+
+**Região.** Os dois modelos **não estão disponíveis em `sa-east-1`** na própria região nem por perfil geográfico; São Paulo só chama o perfil **global** (processamento em qualquer região comercial). Padrão configurado (mais conservador): endpoint `us-east-1` com os perfis geográficos `us.*` (processamento só em regiões dos EUA). As duas opções são transferência internacional (LGPD art. 33) e dependem da aprovação do responsável **[revisar]**; o Terraform recusa `assistant_bedrock_enabled = true` sem `bedrock_international_transfer_approved = true`, e a aplicação recusa subir sem `ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=true`.
+
+**Rede.** As instâncias chamam o endpoint público `bedrock-runtime.<região>.amazonaws.com` (HTTPS 443) pela saída NAT já liberada no `sg-app`. VPC endpoint de interface (PrivateLink, custo por hora/AZ, requer aprovação) só atende a região da própria VPC, isto é, a opção com endpoint em São Paulo (`app.assistant.bedrock.endpoint-override`).
+
+**Variáveis do Terraform** (ambiente): `assistant_bedrock_enabled` (padrão `false`), `bedrock_region` (`us-east-1`), `bedrock_standard_model_id` (`us.anthropic.claude-haiku-5-5`), `bedrock_advanced_model_id` (`us.anthropic.claude-sonnet-5-5`), `bedrock_international_transfer_approved` (`false`). Chegam à aplicação como `ASSISTANT_BEDROCK_*`; os preços ficam no `application.yml` (`app.assistant.bedrock.<nível>.pricing`) e **precisam ser conferidos na conta**.
+
+### Como habilitar o acesso aos modelos na conta (uma vez por conta, por um administrador)
+
+1. Console da AWS, região do endpoint escolhido (`us-east-1` no padrão) → **Amazon Bedrock** → **Model catalog** → *Anthropic* → **Claude Haiku 5.5** e **Claude Sonnet 5.5**. Os modelos Anthropic exigem o **formulário de caso de uso** uma única vez (pelo console — ex.: ao abrir o modelo no *Playground* — ou pela API `PutUseCaseForModelAccess`; numa organização, enviado pela conta de gerenciamento vale para as contas-membro). Aceitar os termos (EULA) do modelo de terceiros.
+2. Os modelos de terceiros são cobrados pelo **AWS Marketplace**: a assinatura é criada na **primeira invocação** por um principal com `aws-marketplace:Subscribe`. Faça essa primeira chamada **com o usuário administrador** (o *Playground* do console basta), não com o papel das instâncias, que não tem permissão de Marketplace. Erro `INVALID_PAYMENT_INSTRUMENT` = forma de pagamento da conta (cartão como padrão ou perfil de pagamento em USD para o Marketplace).
+3. Confira os perfis: `aws bedrock list-inference-profiles --region us-east-1` deve listar `us.anthropic.claude-haiku-5-5` e `us.anthropic.claude-sonnet-5-5`.
+4. **Registro de invocação do Bedrock** (*Settings → Model invocation logging*): manter **desligado** — se ligado, grava prompts e respostas completos em CloudWatch/S3, fora da retenção e da cifragem da trilha do assistente.
+5. **Cotas**: *Service Quotas → Amazon Bedrock*: conferir tokens e requisições por minuto dos dois perfis na região; o adaptador sempre envia `maxTokens` (a cota é reservada por entrada + `maxTokens`). Pedir aumento antes da produção, se preciso.
+6. **SCP** da organização (se houver): permitir as regiões de destino do perfil (`us-east-1`, `us-east-2`, `us-west-1`, `us-west-2`…) para `bedrock:InvokeModel`; com perfil global, permitir `aws:RequestedRegion = unspecified`.
+7. **Custos**: os modelos aparecem no Cost Explorer sob o provedor do modelo (Marketplace), não sob "Amazon Bedrock". Crie um orçamento (AWS Budgets) para eles.
+
+### Como ligar em homologação
+
+1. Conclua os passos acima e registre a aprovação da transferência internacional e da opção de região.
+2. `envs/homologacao/terraform.tfvars`: `assistant_bedrock_enabled = true`, `bedrock_international_transfer_approved = true` (e, na opção São Paulo, `bedrock_region = "sa-east-1"` com os ids `global.*`). `terraform plan` deve mostrar só a política `app-least-privilege` (novos `BedrockInvoke*`) e uma nova versão do *launch template*; `terraform apply`.
+3. O *instance refresh* recria as instâncias com `ASSISTANT_BEDROCK_*` no `app.env`. Siga o roteiro de homologação do desenho (§6.7): subida, fumaça pela CLI, negação do global, política sombra com o nível por etapa, cache, custo e erros.
+4. Só depois: política `SHADOW` em carteira piloto (decisão 362: `ADVANCED_ONLY` no piloto) e as fases de `docs/negocio/assistente-ia.md` §8.

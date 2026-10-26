@@ -114,7 +114,7 @@ Meta realista: o assistente absorver a maior parte dos casos simples e de baixo 
 
 ## 9. Pendências
 
-- Escolha do provedor de IA e da política de uso de dados (issue #12).
+- ~~Escolha do provedor de IA~~ (25/10/2026, issue #12): **Amazon Bedrock com modelos Claude** — Claude Haiku 5.5 na conversa geral, identificação e intenção; Claude Sonnet 5.5 nas etapas de negociação, proposta, aceite e Pix, onde erro custa dinheiro ou gera problema de compliance (a política pode usar o Sonnet em tudo durante o piloto). Pendente do responsável **[revisar]**: nenhum desses modelos processa no Brasil — escolher entre processamento só nos EUA (padrão configurado) ou em qualquer região (endpoint em São Paulo) e aprovar a transferência internacional (LGPD art. 33); conferir os preços na conta AWS (`docs/tecnico/desenho/assistente.md` §6.5–6.7).
 - Carteiras e segmentos do piloto e alçada inicial.
 - Se o assistente formaliza sozinho desde o início ou apenas com aprovação humana.
 - Validação jurídica do roteiro de conduta, da verificação de identidade e dos gatilhos de transferência.

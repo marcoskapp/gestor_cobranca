@@ -134,17 +134,6 @@ export function parseDecimal(text: string | number | null | undefined): number |
   return Number(normalized);
 }
 
-/** Valor com sinal ("-150,00", "−150,00" ou "150,00") em reais com centavos. */
-export function signedMoney(text: string | null | undefined): number | null {
-  const raw = (text ?? '').trim();
-  const negative = /^[-−]/.test(raw);
-  const value = parseDecimal(raw.replace(/^[-−+]\s*/, ''));
-  if (value === null || value < 0 || Math.round(value * 100) / 100 !== value) {
-    return null;
-  }
-  return negative ? -value : value;
-}
-
 /** Número para campo de texto em pt-BR (vírgula decimal, sem milhar). */
 export function decimalInput(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value).replace('.', ',');

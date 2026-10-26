@@ -6,6 +6,7 @@ import br.com.gestorcobranca.assistant.application.port.in.AssistantReviewUseCas
 import br.com.gestorcobranca.assistant.application.port.in.AssistantReviewUseCases.ReviewCommand;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantTrailUseCases.TurnDetail;
 import br.com.gestorcobranca.assistant.domain.model.AssistantMode;
+import br.com.gestorcobranca.assistant.domain.model.ModelRouting;
 import br.com.gestorcobranca.assistant.domain.model.PolicySettings;
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.ConversationDetail;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.CreateRestrictionCommand;
@@ -71,6 +72,22 @@ class AssistantModuleIT extends AssistantTestSupport {
         assertThat(detail.context()).doesNotContain("529.982").doesNotContain(debtor.toString()).doesNotContain("1985");
         assertThat(count("select count(*) from shared.business_event where event_type = 'assistant.replied' "
                 + "and attributes ->> 'conversationId' = ?", conversationId.toString())).isEqualTo(3);
+        // nível de modelo por etapa (política BY_STAGE): identificação no padrão; a negociação passa ao avançado
+        // assim que o modelo registra a intenção (a 1ª chamada do turno ainda é padrão); com ofertas na etapa, o
+        // aceite inteiro vai ao avançado
+        List<String> tiers = modelTiers("assistant.replied");
+        assertThat(tiers).hasSize(3);
+        assertThat(tiers.get(0)).matches("STANDARD/0/\\d+");
+        assertThat(tiers.get(1)).satisfies(t -> {
+            String[] p = t.split("/");
+            assertThat(p[0]).isEqualTo("ADVANCED");
+            assertThat(Integer.parseInt(p[1])).isEqualTo(Integer.parseInt(p[2]) - 1);
+        });
+        assertThat(tiers.get(2)).satisfies(t -> {
+            String[] p = t.split("/");
+            assertThat(p[0]).isEqualTo("ADVANCED");
+            assertThat(p[1]).isEqualTo(p[2]);
+        });
         assertThat(count("select count(*) from shared.access_log where event_type = 'SENSITIVE_DATA_VIEWED' "
                 + "and details ->> 'resource' = 'assistant_turn'")).isEqualTo(1);
     }
@@ -130,6 +147,22 @@ class AssistantModuleIT extends AssistantTestSupport {
             assertThat(d.mode()).isEqualTo("SHADOW");
             assertThat(d.authorType()).isEqualTo("ASSISTANT");
             assertThat(d.content()).contains("saldo atualizado");
+        });
+    }
+
+    @Test
+    void policyCanForceTheAdvancedModelInEveryCall() {
+        scenario("ast-tier", "800.00");
+        PolicyView policy = publishPolicy("piloto", creditorA, AssistantMode.SHADOW, null, ModelRouting.ADVANCED_ONLY);
+        assertThat(policy.settings().modelRouting()).isEqualTo(ModelRouting.ADVANCED_ONLY);
+        assertThat(count("select count(*) from shared.business_event where event_type = 'policy.published' "
+                + "and attributes ->> 'modelRouting' = 'ADVANCED_ONLY' and reference_id = ?", policy.id())).isEqualTo(1);
+        inbound("quanto devo?");
+        assertThat(outcomes()).containsExactly("DRAFTED");
+        assertThat(modelTiers("assistant.draft_proposed")).singleElement().satisfies(t -> {
+            String[] p = t.split("/");
+            assertThat(p[0]).isEqualTo("ADVANCED");
+            assertThat(p[1]).isEqualTo(p[2]);
         });
     }
 

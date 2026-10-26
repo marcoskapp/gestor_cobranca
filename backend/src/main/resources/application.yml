@@ -439,9 +439,51 @@ app:
     # descarte diário do conteúdo da trilha (política MESSAGE_CONTENT do compliance)
     retention-cron: "0 55 2 * * *"
     retention-batch: 500
-    # modelo simulado determinístico: somente local/teste (recusado no perfil prod); provedor real na issue #12
+    # modelo simulado determinístico: somente local/teste (recusado no perfil prod); exclusivo com o Bedrock
     sandbox:
       enabled: false
+    # Amazon Bedrock (Converse API, modelos Claude) — issue #12; docs/tecnico/desenho/assistente.md §6.4–6.6.
+    # Credenciais: cadeia padrão do SDK (papel IAM da instância). Nenhum modelo Claude processa no Brasil
+    # (sa-east-1 só tem o perfil global): ligar exige a aprovação da transferência internacional (LGPD art. 33).
+    bedrock:
+      enabled: ${ASSISTANT_BEDROCK_ENABLED:false}
+      # [revisar] padrão conservador: endpoint e perfil geográfico dos EUA (processamento só em regiões dos EUA).
+      # Alternativa: região sa-east-1 com perfis global.* (processamento em qualquer região comercial).
+      region: ${ASSISTANT_BEDROCK_REGION:us-east-1}
+      international-transfer-approved: ${ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:false}
+      connect-timeout: PT3S
+      # teto técnico do socket; o prazo de cada chamada vem da política (limits.timeoutSeconds, até 60 s)
+      socket-timeout: PT65S
+      max-connections: 50
+      retry-backoff: PT0.4S
+      cache-ttl: 5m
+      # PREÇOS DE REFERÊNCIA (API Anthropic, US$ por milhão de tokens): CONFERIR NA CONTA AWS antes de usar o custo
+      # (no Bedrock os preços podem diferir; perfis geográficos têm acréscimo sobre o global). Gravação de cache
+      # de 5 min = 1,25 × entrada.
+      currency: USD
+      standard:
+        model-id: ${ASSISTANT_BEDROCK_STANDARD_MODEL_ID:us.anthropic.claude-haiku-5-5}
+        prompt-caching: true
+        pricing:
+          input-per-million: 0.10
+          output-per-million: 0.50
+          cache-read-per-million: 0.01
+          cache-write-per-million: 0.125
+          # Haiku 5.5: prompt acima de 100 mil tokens cobra todos os itens pela faixa de contexto longo
+          # (entrada e saída informadas pela Anthropic; leitura/gravação de cache derivadas na mesma proporção)
+          long-context-threshold: 100000
+          long-input-per-million: 0.50
+          long-output-per-million: 2.50
+          long-cache-read-per-million: 0.05
+          long-cache-write-per-million: 0.625
+      advanced:
+        model-id: ${ASSISTANT_BEDROCK_ADVANCED_MODEL_ID:us.anthropic.claude-sonnet-5-5}
+        prompt-caching: true
+        pricing:
+          input-per-million: 2.00
+          output-per-million: 10.00
+          cache-read-per-million: 0.10
+          cache-write-per-million: 2.50
 
   collection:
     # padrões da operação enquanto a assessoria não grava os seus (PUT /api/v1/collection/settings)

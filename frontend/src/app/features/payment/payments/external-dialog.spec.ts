@@ -70,8 +70,13 @@ describe('ExternalDialog', () => {
 
   it('exige comprovante e destino; avisa a segunda aprovação acima do limite', async () => {
     const fixture = await render();
-    fixture.componentInstance['form'].patchValue({ amount: '800,00' });
+    // digitação por centavos (máscara appMoney): "80000" → 800,00
+    const amount = el(fixture).querySelector<HTMLInputElement>('input[formcontrolname="amount"]')!;
+    amount.value = '80000';
+    amount.dispatchEvent(new Event('input'));
     fixture.detectChanges();
+    expect(amount.value).toBe('800,00');
+    expect(fixture.componentInstance['form'].controls.amount.value).toBe(800);
     expect(el(fixture).textContent).toContain('outra pessoa');
     expect(submit(fixture).textContent).toContain('Enviar para aprovação');
     submit(fixture).click();
@@ -88,7 +93,7 @@ describe('ExternalDialog', () => {
     const fixture = await render();
     // único acordo em vigor: escolhido automaticamente, com as parcelas em aberto na ordem
     expect(fixture.componentInstance['target']()).toMatchObject({ kind: 'AGREEMENT', agreementId: 'a-1', itemIds: [] });
-    fixture.componentInstance['form'].patchValue({ amount: '300', method: 'PIX', externalReference: ' E2E-1 ' });
+    fixture.componentInstance['form'].patchValue({ amount: 300, method: 'PIX', externalReference: ' E2E-1 ' });
     fixture.componentInstance['pick']([pdf] as unknown as FileList);
     fixture.detectChanges();
     expect(submit(fixture).textContent).toContain('Registrar pagamento');
