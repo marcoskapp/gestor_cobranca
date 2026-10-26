@@ -47,3 +47,13 @@ output "secret_read_actions" {
   description = "Ações IAM de leitura de segredo conforme a origem (SSM ou S3)."
   value       = local.secret_read_actions
 }
+
+output "bedrock_invoke_resources" {
+  description = "Recursos em que o papel das instâncias pode chamar bedrock:InvokeModel (perfis de inferência, modelos por meio deles e modelos base); vazio com o Bedrock desligado."
+  value       = concat(local.bedrock_profile_arns, local.bedrock_profile_model_arns, local.bedrock_base_model_arns)
+}
+
+output "bedrock_denies_global_routing" {
+  description = "O papel nega o roteamento global do Bedrock (nenhum perfil global.* configurado)."
+  value       = var.assistant_bedrock_enabled && !local.bedrock_uses_global
+}

@@ -62,3 +62,16 @@ log_level = "INFO"
 # Provedor SMTP externo (Amazon SES não está entre os serviços autorizados).
 smtp_host = "smtp.provedor-de-email.example"
 smtp_port = 587
+
+# Assistente de IA — Amazon Bedrock (aprovado; issue #12). Antes de ligar: habilitar os modelos na conta
+# (docs/arquitetura/infraestrutura-aws.md §8) e obter a aprovação do responsável para a transferência
+# internacional (nenhum modelo Claude processa no Brasil). [revisar]
+# assistant_bedrock_enabled               = true
+# bedrock_international_transfer_approved = true
+# bedrock_region            = "us-east-1"                       # perfis us.* (processa só nos EUA)
+# bedrock_standard_model_id = "us.anthropic.claude-haiku-5-5"
+# bedrock_advanced_model_id = "us.anthropic.claude-sonnet-5-5"
+# Alternativa (endpoint em São Paulo, processamento em qualquer região comercial):
+# bedrock_region            = "sa-east-1"
+# bedrock_standard_model_id = "global.anthropic.claude-haiku-5-5"
+# bedrock_advanced_model_id = "global.anthropic.claude-sonnet-5-5"

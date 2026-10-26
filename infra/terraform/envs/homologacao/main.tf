@@ -62,6 +62,11 @@ resource "terraform_data" "guards" {
     }
 
     precondition {
+      condition     = !var.assistant_bedrock_enabled || var.bedrock_international_transfer_approved
+      error_message = "assistant_bedrock_enabled exige bedrock_international_transfer_approved: nenhum modelo Claude processa no Brasil e a transferência internacional (LGPD art. 33) precisa da aprovação do responsável."
+    }
+
+    precondition {
       condition     = contains(var.crypto_key_ids, var.crypto_active_key_id)
       error_message = "crypto_active_key_id deve constar de crypto_key_ids."
     }
@@ -235,6 +240,12 @@ module "compute" {
   smtp_port              = var.smtp_port
   jobs_concurrency       = var.jobs_concurrency
   jvm_max_ram_percentage = var.jvm_max_ram_percentage
+
+  assistant_bedrock_enabled               = var.assistant_bedrock_enabled
+  bedrock_region                          = var.bedrock_region
+  bedrock_standard_model_id               = var.bedrock_standard_model_id
+  bedrock_advanced_model_id               = var.bedrock_advanced_model_id
+  bedrock_international_transfer_approved = var.bedrock_international_transfer_approved
 
   log_group_arns = module.observability.log_group_arns
 
