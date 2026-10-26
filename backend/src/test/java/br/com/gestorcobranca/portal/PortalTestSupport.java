@@ -225,9 +225,14 @@ abstract class PortalTestSupport extends IntegrationTest {
     }
 
     private void template(String code, String body, List<VariableInput> variables) {
+        publishWhatsAppTemplate(code, body, variables, null);
+    }
+
+    /** Publica (nova versão de) um template de WhatsApp da assessoria aprovado na categoria informada. */
+    void publishWhatsAppTemplate(String code, String body, List<VariableInput> variables, String providerCategory) {
         asManager(() -> {
             TemplateView draft = templates.createDraft(new CreateTemplateCommand(null, code, "WHATSAPP",
-                    new TemplateContent("Portal", "SERVICE", null, body, variables, null, null, null)));
+                    new TemplateContent("Portal", "SERVICE", null, body, variables, null, null, providerCategory)));
             templates.registerApproval(draft.id(), new ApprovalCommand("APPROVED", code.toLowerCase(), "meta-1", null, null));
             return templates.publish(draft.id());
         });
@@ -328,7 +333,12 @@ abstract class PortalTestSupport extends IntegrationTest {
     }
 
     String linkToken(AccessLinkView link) {
-        String content = asAdmin(() -> messages.get(link.messageId())).content();
+        return linkToken(link.messageId());
+    }
+
+    /** Token do link do portal lido da mensagem enviada (como o devedor o receberia). */
+    String linkToken(UUID messageId) {
+        String content = asAdmin(() -> messages.get(messageId)).content();
         Matcher m = LINK_TOKEN.matcher(content);
         if (!m.find()) {
             fail("mensagem sem link: " + content);
