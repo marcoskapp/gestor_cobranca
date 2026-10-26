@@ -139,6 +139,10 @@ export const SHELL_ROUTES: Routes = [
           import('../../../features/platform/platform.routes').then((m) => m.PLATFORM_ROUTES),
       },
       {
+        path: 'ajuda',
+        loadChildren: () => import('../../../features/help/help.routes').then((m) => m.HELP_ROUTES),
+      },
+      {
         path: 'acesso-negado',
         title: 'Acesso negado',
         loadComponent: () => import('../pages/forbidden').then((m) => m.Forbidden),

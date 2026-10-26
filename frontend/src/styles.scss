@@ -409,3 +409,10 @@ body {
   font-size: 12px;
   font-weight: 500;
 }
+
+// --------------------------------------------------------------------- ajuda contextual
+
+// painel "Sobre esta tela" (NgbOffcanvas): largura pela variável documentada do offcanvas
+.app-manual-panel {
+  --bs-offcanvas-width: min(480px, 100vw);
+}

@@ -114,6 +114,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 | Checklist | `getting-started/getting-started.ts` | "Primeiros passos" na tela inicial; reabrível pela ajuda |
 | Novidades | `whats-new/whats-new-dialog.ts` | Central por versão; selo "Novo" na ajuda |
 | Estado | `core/preferences/ui-state.store.ts` | Carga no login, alterações otimistas agrupadas (debounce 800 ms) em um PATCH, reenvio em falha, `flush()` antes do logout |
+| Manual | `core/onboarding/manual/` (`content/*.ts`, `manual-index.ts`, `manual.service.ts`, `screen-tour.ts`, `screen-manual-panel.ts`) e `features/help/` | Manual rápido por tela ("Sobre esta tela"), passo de objetivo do tour e manual de cada módulo em `/ajuda` (§8.5) |
 
 ### 8.3 Regras dos convites
 
@@ -132,6 +133,34 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 4. Ao mudar a tela de forma relevante: `version + 1` e um item em `changes` com a mesma versão; mudança grande no tour: `version + 1` no tour.
 5. Inclua o destino no `NAVIGATION`: os itens de checklist com essa rota (ex.: `/cobranca/fila`, `/devedores`) passam a aparecer automaticamente para os perfis com permissão.
 6. Atalhos da tela: `KeyboardShortcuts.register({ group: 'Estação de cobrança', … })` no construtor e remoção no `DestroyRef`; ações na busca rápida: `CommandPaletteService.register([...])`.
+7. **Manual da tela (obrigatório)**: acrescente o `ScreenManual` da tela no arquivo do módulo em `core/onboarding/manual/content/` (`id` = `key` da tela; `objective` de 6 a 25 palavras, que vira o primeiro passo do tour; `purpose`, `profiles`, `inputs`, `outputs`, `related`, `terms`). Prefixo de chave novo → inclua-o em `MODULE_BY_PREFIX` (`manual-index.ts`). O `manual-content.spec.ts` falha se a tela ou a rota do menu ficar sem manual.
+
+### 8.5 Ajuda contextual e manual do usuário (decisões 370–382)
+
+| Opção avaliada | Decisão |
+| --- | --- |
+| Painel lateral "Sobre esta tela" (`NgbOffcanvas` à direita, 480 px; largura total no celular) | **Adotado** para o manual rápido: não tira o usuário da tela; foco preso, Esc fecha e devolve o foco (ng-bootstrap); fecha ao navegar |
+| Manual dentro do app (`/ajuda`, `/ajuda/:modulo`) | **Adotado** para o "Saiba mais": visão do todo, regras, todas as telas do módulo e glossário; âncora `#<chave da tela>` com foco na seção |
+| Link para `docs/` do repositório | **Descartado**: texto técnico para a equipe, fora da autenticação e do escopo, sem filtro por permissão |
+| Markdown empacotado / JSON em `assets/` | **Descartados**: parser e sanitização (CSP sem `unsafe-inline`) ou conteúdo sem verificação do compilador; o conteúdo é TypeScript só com dados, exibido por interpolação |
+
+**Peças**
+
+- `manual.models.ts` — `ScreenManual` (por tela), `ModuleManual` (por módulo), `GlossaryTerm`, perfis padrão (`PROFILE_LABELS`) e `MANUAL_SCHEMA_VERSION`.
+- `manual-index.ts` — os 16 módulos (`MANUAL_MODULES`: 15 pedidos + "Visão geral"), o módulo de cada tela pelo prefixo da chave (`moduleOfScreen`), carregadores sob demanda com cache (`loadModuleManual`, `loadScreenManual`, `loadGlossary`) e `loadKnowledgeBase()`. Nada do conteúdo entra no bundle inicial: cada arquivo de `content/` é um chunk.
+- `screen-tour.ts` — `composeScreenTour`: "tour desta tela" = passo centralizado com o `objective` + passos do tour próprio (na tela inicial, o de boas-vindas). Sem tour próprio: objetivo + passo ancorado em `help` apontando para "Sobre esta tela", tour `transient` (não oferecido em convite e não gravado no servidor). Sem conteúdo (falha de rede), o tour próprio segue como está.
+- `manual.service.ts` — resolve telas relacionadas (título do manual da tela de destino, que pode estar em outro chunk) e o link: só para rota sem `:param` presente no `NAVIGATION` com a permissão do usuário, ou rotas abertas (`/`, `/conta/*`, `/ajuda`); sem acesso, o texto aparece sem link.
+- `screen-manual-body.ts` — conteúdo do manual rápido (objetivo, para que serve, quem usa, de onde vêm os dados / para onde vai o resultado, telas relacionadas, termos), com títulos de seção em `role=heading` e `aria-level` configurável (3 no painel, 4 no manual do módulo).
+- `screen-manual-panel.ts` — o painel; carregando (`app-skeleton`), erro com "Tentar novamente", tela sem manual; rodapé com "Fazer o tour desta tela" e "Saiba mais no manual: <módulo>".
+- `features/help/` — central (`help-center.ts`: encaixe dos módulos, cartões por módulo, glossário) e manual do módulo (`module-manual.ts`: sumário das telas, visão geral, encaixe, regras, telas, glossário do módulo).
+
+**Acesso**: menu de ajuda ("Tour desta tela", "Sobre esta tela", "Manual do sistema") e busca rápida (`help.about`, `help.manual`). O manual é visível a todos os autenticados; só os links para telas seguem as permissões.
+
+**Conteúdo**: pt-BR para o usuário final, sem códigos internos nem jargão técnico (o teste recusa HTML, identificadores em caixa alta com sublinhado e termos como "API" ou "endpoint"); coerente com os documentos de negócio e com as regras que o sistema aplica. Ao mudar uma regra de negócio que aparece no manual, atualize o texto no mesmo PR.
+
+**Base para o chat de suporte (não implementado)**: identificadores estáveis por tela (`ScreenManual.id` = chave da tela) e por módulo (slug), `schemaVersion` e `loadKnowledgeBase()` com todo o conteúdo estruturado, prontos para indexar.
+
+**Testes**: `manual/manual-content.spec.ts` (cobertura de todas as telas e rotas do menu, campos obrigatórios, vínculos, glossário, jargão e o tour com objetivo em todas as telas), `manual/screen-manual-panel.spec.ts` (links por permissão, seções, "Saiba mais", tour), `features/help/help-pages.spec.ts` (central, módulo com âncora e foco, módulo inexistente), além de `onboarding.service.spec.ts` e `tour-engine.service.spec.ts` (objetivo primeiro, tour transitório não gravado).
 
 ## 9. Estado de interface no servidor (módulo `identity`)
 

@@ -10,7 +10,7 @@ export interface Breadcrumb {
 }
 
 /** Áreas fora do menu principal (menu do usuário). */
-const EXTRA_AREAS: Record<string, string> = { conta: 'Minha conta' };
+const EXTRA_AREAS: Record<string, string> = { conta: 'Minha conta', ajuda: 'Ajuda' };
 
 /**
  * Permite a uma tela de detalhe trocar o último item da trilha pelo nome do registro

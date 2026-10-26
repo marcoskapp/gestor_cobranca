@@ -1,0 +1,85 @@
+import { ModuleManual } from '../manual.models';
+
+export const MANUAL: ModuleManual = {
+  id: 'comunicacao',
+  overview: [
+    'A comunicação reúne as mensagens com cada devedor por WhatsApp, e-mail e SMS numa linha do tempo única. Cada conversa tem um dono: um operador, a fila ou o assistente de IA.',
+    'Mensagens que iniciam contato usam templates aprovados. No WhatsApp, a resposta livre só é possível dentro de 24 horas após a última mensagem do devedor; fora disso, só por template.',
+    'Antes de cada envio, o sistema confere as restrições e a política de contato. Respostas do devedor podem acionar a régua da campanha, o assistente ou a fila humana.',
+  ],
+  connections: [
+    { module: 'cobranca', text: 'Recebe e entrega: a conversa pertence ao caso; mensagens viram interações no histórico.' },
+    { module: 'compliance', text: 'Consulta: restrições e política de contato decidem se a mensagem pode sair.' },
+    { module: 'campanhas', text: 'Recebe: réguas enviam templates; respostas voltam para a régua ou para a fila.' },
+    { module: 'assistente', text: 'Entrega e recebe: o assistente atende conversas e transfere para humanos com resumo.' },
+    { module: 'negociacao', text: 'Entrega: pedidos do portal e negociações viram conversas na fila.' },
+    { module: 'paineis', text: 'Entrega: falhas de envio e prazos de primeira resposta aparecem no painel de confiabilidade.' },
+  ],
+  rules: [
+    'E-mail e SMS só saem por template; no WhatsApp, iniciar contato ou falar fora da janela de 24 horas exige template aprovado pelo provedor.',
+    'Templates não aceitam dados pessoais como documento, telefone ou e-mail; as variáveis são conferidas.',
+    'Publicar um template retira a versão anterior do mesmo código.',
+    'O credor usa a própria conta de envio no canal; sem ela, vale a conta padrão da assessoria.',
+    'Sugestões do assistente só saem depois que um operador revisa e envia.',
+  ],
+  screens: [
+    {
+      id: 'communication.inbox',
+      title: 'Caixa de entrada',
+      objective: 'Conversas com os devedores por dono e tempo de espera, para responder, assumir ou transferir.',
+      purpose: [
+        'Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta.',
+        'Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar.',
+      ],
+      profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR'],
+      inputs: ['Mensagens recebidas pelos canais da assessoria.', 'Transferências do assistente e pedidos do portal.'],
+      outputs: ['Respostas enviadas e conversas assumidas, devolvidas ou encerradas.', 'Interações registradas no caso.'],
+      related: [
+        { screen: 'collection.queue', why: 'Atender o caso do devedor.' },
+        { screen: 'communication.templates', why: 'Textos aprovados para iniciar contato.' },
+        { screen: 'portal.requests', why: 'Pedidos do portal que não viraram conversa.' },
+      ],
+      terms: ['conversa', 'template', 'transferencia-para-humano', 'canal'],
+    },
+    {
+      id: 'communication.conversation',
+      title: 'Conversa',
+      objective: 'Linha do tempo de uma conversa com o devedor, com as ações de assumir, responder e transferir.',
+      purpose: ['Mesmo atendimento da caixa de entrada, aberto direto pelo endereço da conversa. Mensagens do assistente aparecem identificadas.'],
+      profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR'],
+      inputs: ['Mensagens de todos os canais do devedor.'],
+      outputs: ['Respostas e mudanças de dono da conversa.'],
+      related: [{ screen: 'communication.inbox', why: 'Voltar à caixa de entrada.' }],
+      terms: ['conversa', 'assistente'],
+    },
+    {
+      id: 'communication.templates',
+      title: 'Templates de mensagem',
+      objective: 'Textos aprovados por canal, com variáveis conferidas, versões e aprovação do WhatsApp.',
+      purpose: [
+        'Escreva o texto com variáveis como nome e valor da dívida. Dados pessoais como documento, telefone e e-mail não são aceitos no texto.',
+        'Templates de WhatsApp precisam ser aprovados no provedor antes de publicar.',
+      ],
+      profiles: ['GESTOR', 'ESTRATEGIA'],
+      inputs: ['Textos definidos pela gestão e pela estratégia de cobrança.'],
+      outputs: ['Templates publicados, usados por réguas, portal e operadores.'],
+      related: [
+        { screen: 'campaign.list', why: 'Réguas que enviam os templates.' },
+        { screen: 'communication.channels', why: 'Contas de envio por canal.' },
+      ],
+      terms: ['template', 'canal', 'versao-publicada'],
+    },
+    {
+      id: 'communication.channels',
+      title: 'Canais de comunicação',
+      objective: 'Contas de envio por canal e credor: o credor usa a própria conta ativa; sem ela, a da assessoria.',
+      purpose: ['Configure remetente e credenciais do provedor. As credenciais nunca voltam à tela depois de salvas.'],
+      profiles: ['INTEGRACAO', 'ADMIN'],
+      inputs: ['Contas contratadas nos provedores de WhatsApp, e-mail e SMS.'],
+      outputs: ['Canais disponíveis para conversas, réguas e portal.'],
+      related: [{ screen: 'communication.templates', why: 'Templates enviados pelos canais.' }],
+      terms: ['canal'],
+    },
+  ],
+  terms: ['conversa', 'template', 'canal', 'transferencia-para-humano', 'assistente'],
+};

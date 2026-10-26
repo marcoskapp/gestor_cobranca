@@ -68,9 +68,16 @@
       }
     </button>
     <div ngbDropdownMenu class="shadow app-menu" role="menu" aria-label="Ajuda">
-      <button ngbDropdownItem type="button" role="menuitem" [disabled]="!onboarding.screenTour()" (click)="onboarding.startScreenTour()">
+      <button ngbDropdownItem type="button" role="menuitem" [disabled]="!onboarding.hasScreenHelp()" (click)="onboarding.startScreenTour()">
         <app-icon name="signpost" /> Tour desta tela
       </button>
+      <button ngbDropdownItem type="button" role="menuitem" [disabled]="!onboarding.hasScreenHelp()" (click)="help.openScreenManual()">
+        <app-icon name="info-circle" /> Sobre esta tela
+      </button>
+      <a ngbDropdownItem role="menuitem" routerLink="/ajuda">
+        <app-icon name="journal-text" /> Manual do sistema
+      </a>
+      <div class="dropdown-divider" role="separator"></div>
       <button ngbDropdownItem type="button" role="menuitem" (click)="showGettingStarted()">
         <app-icon name="list-check" /> Primeiros passos
       </button>

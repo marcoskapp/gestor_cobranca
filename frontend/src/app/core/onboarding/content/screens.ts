@@ -163,6 +163,9 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'negotiation.policy-detail', version: 1, path: '/negociacao/politicas/:id', tourId: 'negotiation.policy-detail' },
   { key: 'negotiation.indexes', version: 1, path: '/negociacao/indices' },
   { key: 'negotiation.authority', version: 1, path: '/negociacao/alcadas', tourId: 'negotiation.authority' },
+  { key: 'portal.configs', version: 1, path: '/autonegociacao' },
+  { key: 'portal.requests', version: 1, path: '/autonegociacao/pedidos' },
+  { key: 'portal.config', version: 1, path: '/autonegociacao/:id' },
   {
     key: 'ingestion.batches',
     version: 2,
@@ -202,8 +205,12 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'governance.access-log', version: 1, path: '/governanca/log-de-acesso', tourId: 'governance.access-log' },
   { key: 'governance.audit', version: 1, path: '/governanca/auditoria', tourId: 'governance.audit' },
   { key: 'account.profile', version: 1, path: '/conta/perfil' },
+  { key: 'account.password', version: 1, path: '/conta/senha' },
   { key: 'account.mfa', version: 1, path: '/conta/mfa' },
+  { key: 'account.sessions', version: 1, path: '/conta/sessoes' },
   { key: 'platform.tenants', version: 1, path: '/plataforma/assessorias' },
+  { key: 'help.center', version: 1, path: '/ajuda' },
+  { key: 'help.module', version: 1, path: '/ajuda/:modulo' },
 ];
 
 /** Encontra a tela de uma URL (`/admin/usuarios/123?x=1` → `admin.user-detail`). */
