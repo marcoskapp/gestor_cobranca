@@ -90,5 +90,6 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
   { id: 'log-de-acesso', term: 'Log de acesso', definition: 'Registro de entradas, sessões, acessos negados, exportações e visualizações de dados sensíveis.' },
   { id: 'trilha-de-auditoria', term: 'Trilha de auditoria', definition: 'Registro de cada alteração relevante: quem fez, quando, o motivo e os valores antes e depois.' },
   { id: 'versao-publicada', term: 'Versão publicada', definition: 'Configuração que entrou em vigor e não muda mais. Para alterar, cria-se uma nova versão a partir dela.' },
+  { id: 'chat-de-suporte', term: 'Chat de suporte', definition: 'Assistente com inteligência artificial para quem usa o sistema: explica telas e regras, consulta dados com as suas permissões e abre chamados com a sua confirmação.' },
   { id: 'tour', term: 'Tour', definition: 'Passeio curto pelos elementos da tela. Começa pelo objetivo da tela e pode ser refeito pela ajuda.' },
 ];

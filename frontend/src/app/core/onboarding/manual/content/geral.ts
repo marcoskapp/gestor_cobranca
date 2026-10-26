@@ -30,6 +30,8 @@ export const MANUAL: ModuleManual = {
     'Ações financeiras ou irreversíveis mostram o impacto antes de confirmar e, em geral, pedem motivo.',
     'Quem prepara não aprova: publicações, aprovações e valores altos passam por uma segunda pessoa.',
     'Documentos e contatos aparecem mascarados; ver o dado completo exige permissão e fica no log de acesso.',
+    'O chat de suporte (botão de balão na barra superior) responde com inteligência artificial pelo manual e consulta dados só com as suas permissões; cada consulta fica no log de acesso.',
+    'Quando o chat não resolve, ele prepara um chamado para a equipe do sistema: você confere o texto, com dados de devedores mascarados, antes de enviar, e o retorno chega por e-mail.',
   ],
   screens: [
     {
@@ -151,5 +153,5 @@ export const MANUAL: ModuleManual = {
       terms: ['tour'],
     },
   ],
-  terms: ['assessoria', 'credor', 'escopo-de-credores', 'perfil-de-acesso', 'recuperado', 'quatro-olhos', 'log-de-acesso', 'trilha-de-auditoria'],
+  terms: ['assessoria', 'credor', 'escopo-de-credores', 'perfil-de-acesso', 'recuperado', 'quatro-olhos', 'log-de-acesso', 'trilha-de-auditoria', 'chat-de-suporte'],
 };

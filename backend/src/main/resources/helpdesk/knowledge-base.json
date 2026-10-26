@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "1daab9bd94b3e07b",
+ "contentVersion": "ad60ccae65a78972",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -96,7 +96,9 @@
     "Valor recuperado é sempre pagamento confirmado, líquido de estornos. Acordo fechado e não pago não conta.",
     "Ações financeiras ou irreversíveis mostram o impacto antes de confirmar e, em geral, pedem motivo.",
     "Quem prepara não aprova: publicações, aprovações e valores altos passam por uma segunda pessoa.",
-    "Documentos e contatos aparecem mascarados; ver o dado completo exige permissão e fica no log de acesso."
+    "Documentos e contatos aparecem mascarados; ver o dado completo exige permissão e fica no log de acesso.",
+    "O chat de suporte (botão de balão na barra superior) responde com inteligência artificial pelo manual e consulta dados só com as suas permissões; cada consulta fica no log de acesso.",
+    "Quando o chat não resolve, ele prepara um chamado para a equipe do sistema: você confere o texto, com dados de devedores mascarados, antes de enviar, e o retorno chega por e-mail."
    ],
    "terms": [
     "assessoria",
@@ -106,7 +108,8 @@
     "recuperado",
     "quatro-olhos",
     "log-de-acesso",
-    "trilha-de-auditoria"
+    "trilha-de-auditoria",
+    "chat-de-suporte"
    ]
   },
   {
@@ -6382,6 +6385,11 @@
    "id": "versao-publicada",
    "term": "Versão publicada",
    "definition": "Configuração que entrou em vigor e não muda mais. Para alterar, cria-se uma nova versão a partir dela."
+  },
+  {
+   "id": "chat-de-suporte",
+   "term": "Chat de suporte",
+   "definition": "Assistente com inteligência artificial para quem usa o sistema: explica telas e regras, consulta dados com as suas permissões e abre chamados com a sua confirmação."
   },
   {
    "id": "tour",
