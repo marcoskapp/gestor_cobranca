@@ -9,12 +9,14 @@ import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
-import br.com.gestorcobranca.shared.web.ApiPaths;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases;
 import br.com.gestorcobranca.telephony.application.port.out.CallStatistics;
 import br.com.gestorcobranca.telephony.application.port.out.CallStatistics.AccountCounters;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.CredentialCheck;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.Readiness;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookRouteDirectory;
 import br.com.gestorcobranca.telephony.domain.model.AccountRoute;
 import br.com.gestorcobranca.telephony.domain.model.ProviderType;
@@ -59,13 +61,14 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
     private final AuditTrail auditTrail;
     private final TelephonyProperties properties;
     private final Clock clock;
+    private final Map<ProviderType, TelephonyWebhookAdapter> webhookAdapters;
     private final SecureRandom random = new SecureRandom();
 
     TelephonyAccountService(TelephonyAccountRepository accounts, AccountRouteRepository routes,
                             WebhookRouteDirectory webhookRoutes, TelephonyCredentialCodec credentialCodec,
                             ProviderResolver resolver, CallStatistics statistics, CreditorUseCases creditors,
                             AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
-                            TelephonyProperties properties, Clock clock) {
+                            TelephonyProperties properties, List<TelephonyWebhookAdapter> webhookAdapters, Clock clock) {
         this.accounts = accounts;
         this.routes = routes;
         this.webhookRoutes = webhookRoutes;
@@ -78,6 +81,8 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
         this.auditTrail = auditTrail;
         this.properties = properties;
         this.clock = clock;
+        this.webhookAdapters = webhookAdapters.stream()
+                .collect(Collectors.toUnmodifiableMap(TelephonyWebhookAdapter::provider, Function.identity()));
     }
 
     @Override
@@ -89,7 +94,11 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
             throw new BusinessRuleException("telephony_account.sandbox_disabled",
                     "O provedor simulado só está disponível em ambiente local ou de teste");
         }
-        if (resolver.readiness(provider) == Readiness.NOT_IMPLEMENTED) {
+        if (resolver.readiness(provider) == Readiness.DISABLED) {
+            throw new BusinessRuleException("telephony_account.provider_disabled",
+                    "A integração com %s está desligada neste ambiente".formatted(provider.label()));
+        }
+        if (!resolver.available(provider)) {
             throw new BusinessRuleException("telephony_account.provider_unavailable",
                     "A integração com %s ainda não está disponível".formatted(provider.label()));
         }
@@ -166,9 +175,12 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
         }
         if (!resolver.canDial(account.getProvider())) {
             Readiness readiness = resolver.readiness(account.getProvider());
-            throw new BusinessRuleException("telephony_account.provider_not_ready", readiness == Readiness.CONTRACT_PENDING
-                    ? "A integração com %s aguarda a homologação com o fornecedor".formatted(account.getProvider().label())
-                    : "A integração com %s ainda não está disponível".formatted(account.getProvider().label()));
+            throw new BusinessRuleException("telephony_account.provider_not_ready", switch (readiness) {
+                case CONTRACT_PENDING ->
+                        "A integração com %s aguarda a homologação com o fornecedor".formatted(account.getProvider().label());
+                case DISABLED -> "A integração com %s está desligada neste ambiente".formatted(account.getProvider().label());
+                default -> "A integração com %s ainda não está disponível".formatted(account.getProvider().label());
+            });
         }
         account.activate();
         accounts.saveAndFlush(account);
@@ -216,9 +228,25 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
                 .filter(p -> p != ProviderType.SANDBOX || properties.sandbox().enabled())
                 .map(p -> {
                     Readiness readiness = resolver.readiness(p);
+                    boolean verifiable = resolver.adapter(p).map(TelephonyProvider::verifiesCredentials).orElse(false);
                     return new ProviderView(p.name(), p.label(), new TreeSet<>(p.requiredCredentials()), readiness.name(),
-                            resolver.canDial(p), readiness != Readiness.NOT_IMPLEMENTED);
+                            resolver.canDial(p), resolver.available(p), new TreeSet<>(p.optionalCredentials()), verifiable);
                 }).toList();
+    }
+
+    @Override
+    public ConnectionTestView testConnection(UUID accountId) {
+        TelephonyAccount account = forCommand(accountId);
+        CredentialCheck check = resolver.adapter(account.getProvider())
+                .map(a -> a.verifyCredentials(resolver.context(account)))
+                .orElse(CredentialCheck.unsupported());
+        Instant now = Instant.now(clock);
+        auditTrail.record(AuditEntry.of("telephony_account.connection_tested", "telephony_account", account.getId())
+                .creditor(account.getCreditorId())
+                .meta("provider", account.getProvider())
+                .meta("ok", check.ok())
+                .meta("code", check.code()));
+        return new ConnectionTestView(account.getId(), check.supported(), check.ok(), check.code(), now);
     }
 
     @Override
@@ -304,10 +332,21 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
     }
 
     private String validatedCredentials(ProviderType provider, Map<String, String> credentials) {
-        Map<String, String> values = credentials == null ? Map.of() : credentials;
+        Map<String, String> values = new java.util.TreeMap<>();
+        if (credentials != null) {
+            credentials.forEach((k, v) -> {
+                // credencial opcional em branco = não informada
+                if (!(provider.optionalCredentials().contains(k) && (v == null || v.isBlank()))) {
+                    values.put(k, v == null ? null : v.trim());
+                }
+            });
+        }
         for (String key : values.keySet()) {
-            Guard.require(provider.requiredCredentials().contains(key), "telephony_account.credential_unknown",
+            Guard.require(provider.acceptsCredential(key), "telephony_account.credential_unknown",
                     "Credencial não prevista para %s: %s".formatted(provider, key));
+            String value = values.get(key);
+            Guard.require(value == null || value.length() <= CREDENTIAL_VALUE_MAX, "telephony_account.credential_too_long",
+                    "Credencial %s muito longa".formatted(key));
         }
         for (String key : provider.requiredCredentials()) {
             String value = values.get(key);
@@ -327,10 +366,15 @@ class TelephonyAccountService implements TelephonyAccountUseCases {
     }
 
     private AccountView view(TelephonyAccount a) {
+        String webhookUrl = resolver.webhookUrl(a);
+        TelephonyWebhookAdapter adapter = webhookAdapters.get(a.getProvider());
+        List<ConsoleEndpointView> console = adapter == null ? List.of() : adapter.consoleEndpoints().stream()
+                .map(e -> new ConsoleEndpointView(e.purpose(), e.label(), e.method(), webhookUrl + e.suffix())).toList();
         return new AccountView(a.getId(), a.getProvider().name(), a.getCreditorId(), a.getName(), a.getCallerId(),
                 a.isRecordingEnabled(), a.isRecordingNotice(), new TreeSet<>(credentialCodec.keys(a.getCredentials())),
-                a.getCredentialsUpdatedAt(), ApiPaths.WEBHOOKS + "/telephony/" + a.getRoutingKey(), a.isActive(),
+                a.getCredentialsUpdatedAt(), ProviderResolver.webhookPath(a), a.isActive(),
                 a.getCreatedAt(), a.getVersion() == null ? 0 : a.getVersion(), a.getProvider().label(),
-                resolver.readiness(a.getProvider()).name(), resolver.canDial(a.getProvider()), a.getRatePerMinute());
+                resolver.readiness(a.getProvider()).name(), resolver.canDial(a.getProvider()), a.getRatePerMinute(),
+                webhookUrl, console);
     }
 }

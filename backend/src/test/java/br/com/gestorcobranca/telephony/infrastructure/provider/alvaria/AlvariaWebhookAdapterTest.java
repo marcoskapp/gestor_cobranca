@@ -3,6 +3,7 @@ package br.com.gestorcobranca.telephony.infrastructure.provider.alvaria;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter;
 import br.com.gestorcobranca.telephony.infrastructure.provider.TimestampedHmac;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -23,7 +24,7 @@ class AlvariaWebhookAdapterTest {
     private static final Map<String, String> CREDENTIALS = Map.of("webhookSecret", "segredo-alvaria");
 
     private final AlvariaWebhookAdapter adapter = new AlvariaWebhookAdapter(new JsonCodec(JsonMapper.builder().build()),
-            new TelephonyProperties(null, null, null, null, null, null, null, null, null, null, null, null, null));
+            new TelephonyProperties(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     private static byte[] body(UUID reference) {
         return ("{\"events\":[{\"id\":\"ev-1\",\"type\":\"answered\",\"callId\":\"alv-1\",\"reference\":\"" + reference
@@ -38,8 +39,8 @@ class AlvariaWebhookAdapterTest {
         byte[] body = body(reference);
         String header = TimestampedHmac.header("segredo-alvaria", NOW.getEpochSecond() - 10, body);
 
-        assertThat(adapter.validSignature(CREDENTIALS, Map.of("x-gestor-signature", header), body, NOW)).isTrue();
-        List<ProviderCallEvent> events = adapter.parse(body);
+        assertThat(valid(CREDENTIALS, Map.of("x-gestor-signature", header), body, NOW)).isTrue();
+        List<ProviderCallEvent> events = parse(body);
         assertThat(events).extracting(ProviderCallEvent::type)
                 .containsExactly(ProviderCallEvent.Type.ANSWERED, ProviderCallEvent.Type.COMPLETED);
         assertThat(events.getFirst().callReference()).isEqualTo(reference);
@@ -52,20 +53,28 @@ class AlvariaWebhookAdapterTest {
         byte[] body = body(UUID.randomUUID());
         String header = TimestampedHmac.header("segredo-alvaria", NOW.getEpochSecond(), body);
 
-        assertThat(adapter.validSignature(Map.of("webhookSecret", "outro"), Map.of("x-gestor-signature", header), body,
+        assertThat(valid(Map.of("webhookSecret", "outro"), Map.of("x-gestor-signature", header), body,
                 NOW)).isFalse();
-        assertThat(adapter.validSignature(CREDENTIALS, Map.of("x-gestor-signature", header),
+        assertThat(valid(CREDENTIALS, Map.of("x-gestor-signature", header),
                 "{\"events\":[]}".getBytes(StandardCharsets.UTF_8), NOW)).isFalse();
-        assertThat(adapter.validSignature(CREDENTIALS, Map.of("x-gestor-signature",
+        assertThat(valid(CREDENTIALS, Map.of("x-gestor-signature",
                 TimestampedHmac.header("segredo-alvaria", NOW.getEpochSecond() - 3600, body)), body, NOW)).isFalse();
-        assertThat(adapter.validSignature(CREDENTIALS, Map.of(), body, NOW)).isFalse();
+        assertThat(valid(CREDENTIALS, Map.of(), body, NOW)).isFalse();
     }
 
     @Test
     void malformedEventsAreRefused() {
-        assertThatThrownBy(() -> adapter.parse("{\"events\":[{\"id\":\"x\",\"type\":\"TELEPORTED\"}]}"
+        assertThatThrownBy(() -> parse("{\"events\":[{\"id\":\"x\",\"type\":\"TELEPORTED\"}]}"
                 .getBytes(StandardCharsets.UTF_8))).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> adapter.parse("nada".getBytes(StandardCharsets.UTF_8)))
+        assertThatThrownBy(() -> parse("nada".getBytes(StandardCharsets.UTF_8)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private boolean valid(Map<String, String> credentials, Map<String, String> headers, byte[] body, Instant at) {
+        return adapter.validSignature(credentials, TelephonyWebhookAdapter.WebhookRequest.of(headers, body, at), at);
+    }
+
+    private List<ProviderCallEvent> parse(byte[] body) {
+        return adapter.parse(TelephonyWebhookAdapter.WebhookRequest.of(Map.of(), body, Instant.now()));
     }
 }

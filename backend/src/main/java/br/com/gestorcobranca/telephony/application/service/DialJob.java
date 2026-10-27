@@ -162,7 +162,7 @@ class DialJob implements JobHandler<DialJob.Payload> {
 
     private DialResult originate(TelephonyProvider provider, TelephonyAccount account, String extension, Call call) {
         return provider.originate(new OriginateRequest(resolver.context(account), call.getId(), extension,
-                call.getNumber(), 30, call.isRecordingRequested(), call.isRecordingAnnounced()));
+                call.getNumber(), CallInstructions.CLICK_TO_CALL_RING_SECONDS, call.isRecordingRequested(), call.isRecordingAnnounced()));
     }
 
     /** Contingência da regra do caso, se habilitada, ainda não usada e com ramal do operador. */

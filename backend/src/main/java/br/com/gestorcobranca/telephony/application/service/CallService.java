@@ -233,7 +233,7 @@ class CallService implements CallUseCases {
             resolver.provider(account.getProvider()).ifPresent(p -> {
                 try {
                     p.hangup(new HangupRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
-                            HangupReason.OPERATOR));
+                            HangupReason.OPERATOR, call.getProviderLegId()));
                 } catch (TelephonyProvider.ProviderRejectedException e) {
                     // a chamada já terminou no provedor: o encerramento local segue
                     LOG.atWarn().addKeyValue("callId", call.getId())

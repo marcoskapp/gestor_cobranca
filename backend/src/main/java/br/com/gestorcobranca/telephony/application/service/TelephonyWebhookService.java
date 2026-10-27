@@ -7,8 +7,14 @@ import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.in.ProviderEventUseCases;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyWebhookUseCases;
+import br.com.gestorcobranca.telephony.application.port.in.TelephonyWebhookUseCases.Reply;
+import br.com.gestorcobranca.telephony.application.port.in.TelephonyWebhookUseCases.WebhookHttpRequest;
+import br.com.gestorcobranca.telephony.application.port.out.CallInstruction;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter.InstructionRequest;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter.WebhookReply;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter.WebhookRequest;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookReceiptLog;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookRouteDirectory;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookRouteDirectory.Route;
@@ -34,10 +40,11 @@ import java.util.stream.Collectors;
 
 /**
  * Webhooks do provedor de telefonia (mesmo padrão do communication). Ordem de proteção: rota
- * (tenant e conta) → assinatura do corpo bruto com o segredo da conta, antes de qualquer
- * interpretação (o adaptador também recusa assinatura com instante fora da tolerância) → recibo
- * do corpo (reentrega idêntica sem efeito) → eventos fora da janela de replay descartados →
- * aplicação idempotente pelo id do evento. Toda recusa gera {@code WEBHOOK_REJECTED} no log de
+ * (tenant e conta) → assinatura da requisição bruta (corpo e, para Twilio/Plivo, a URL pública com
+ * a consulta) com o segredo da conta, antes de qualquer interpretação (o adaptador também recusa
+ * assinatura com instante fora da tolerância) → recibo do corpo (reentrega idêntica sem efeito) →
+ * eventos fora da janela de replay descartados → aplicação idempotente pelo id do evento → para
+ * pedidos de instruções (TwiML/Plivo XML), a resposta com as instruções decididas pelo domínio. Toda recusa gera {@code WEBHOOK_REJECTED} no log de
  * acesso. Limites de tamanho e de taxa são aplicados antes, no adaptador web.
  */
 @Service
@@ -77,49 +84,66 @@ class TelephonyWebhookService implements TelephonyWebhookUseCases {
     }
 
     @Override
-    public Outcome receive(String routingKey, Map<String, String> headers, byte[] body, String clientIp) {
+    public Reply handle(WebhookHttpRequest http) {
+        String routingKey = http.routingKey();
+        String clientIp = http.clientIp();
         Optional<Route> route = route(routingKey);
         if (route.isEmpty()) {
             reject(null, "unknown", "unknown_route", clientIp);
             metrics.webhookRequest("unknown", Outcome.UNKNOWN_ROUTE.name());
-            return Outcome.UNKNOWN_ROUTE;
+            return Reply.of(Outcome.UNKNOWN_ROUTE);
         }
         ProviderType provider = ProviderType.valueOf(route.get().provider());
         TelephonyWebhookAdapter adapter = adapters.get(provider);
         UUID tenantId = route.get().tenantId();
-        Outcome outcome = tenantExecution.callInTenant(tenantId, "telephony.webhook", () -> {
+        Reply reply = tenantExecution.callInTenant(tenantId, "telephony.webhook", () -> {
             Instant now = Instant.now(clock);
+            WebhookRequest request = new WebhookRequest(http.url(), http.query(), http.headers(), http.body(),
+                    http.contentType(), now);
             Optional<TelephonyAccount> account = accounts.findById(route.get().accountId()).filter(TelephonyAccount::isActive);
             if (account.isEmpty()
-                    || !adapter.validSignature(credentialCodec.decode(account.get().getCredentials()), headers, body, now)) {
-                return Outcome.INVALID_SIGNATURE;
+                    || !adapter.validSignature(credentialCodec.decode(account.get().getCredentials()), request, now)) {
+                return Reply.of(Outcome.INVALID_SIGNATURE);
             }
-            if (!receipts.registerBodyIfFirst(account.get().getId(), sha256(body), now)) {
-                return Outcome.DUPLICATE;
-            }
-            List<ProviderCallEvent> parsed;
-            try {
-                parsed = adapter.parse(body);
-            } catch (IllegalArgumentException e) {
-                LOG.atWarn().addKeyValue("provider", provider).log("Webhook de telefonia assinado com corpo ilegível");
-                return Outcome.MALFORMED;
-            }
-            Instant oldest = now.minus(properties.webhook().maxEventAge());
-            Instant newest = now.plus(properties.webhook().maxClockSkew());
-            for (ProviderCallEvent event : parsed) {
-                if (event.occurredAt() == null || event.occurredAt().isBefore(oldest) || event.occurredAt().isAfter(newest)) {
-                    metrics.webhookEvent(provider.name(), event.type() == null ? "unknown" : event.type().name(), "stale");
-                    continue;
+            UUID accountId = account.get().getId();
+            Optional<InstructionRequest> instruction = adapter.instructionRequest(request);
+            Outcome outcome = Outcome.ACCEPTED;
+            if (!receipts.registerBodyIfFirst(accountId, sha256(request.body()), now)) {
+                // reentrega idêntica: nenhum efeito; um pedido de instruções ainda recebe a resposta (idempotente)
+                outcome = Outcome.DUPLICATE;
+            } else {
+                List<ProviderCallEvent> parsed;
+                try {
+                    parsed = adapter.parse(request);
+                } catch (IllegalArgumentException e) {
+                    LOG.atWarn().addKeyValue("provider", provider).log("Webhook de telefonia assinado com corpo ilegível");
+                    return Reply.of(Outcome.MALFORMED);
                 }
-                events.apply(account.get().getId(), event);
+                Instant oldest = now.minus(properties.webhook().maxEventAge());
+                Instant newest = now.plus(properties.webhook().maxClockSkew());
+                for (ProviderCallEvent event : parsed) {
+                    if (event.occurredAt() == null || event.occurredAt().isBefore(oldest)
+                            || event.occurredAt().isAfter(newest)) {
+                        metrics.webhookEvent(provider.name(), event.type() == null ? "unknown" : event.type().name(),
+                                "stale");
+                        continue;
+                    }
+                    events.apply(accountId, event);
+                }
             }
-            return Outcome.ACCEPTED;
+            if (instruction.isEmpty()) {
+                return Reply.of(outcome);
+            }
+            CallInstruction decided = events.instruction(accountId, instruction.get());
+            metrics.instruction(provider.name(), instruction.get().kind().name(), decided.getClass().getSimpleName());
+            WebhookReply rendered = adapter.render(request, decided);
+            return new Reply(outcome, rendered.contentType(), rendered.body());
         });
-        if (outcome == Outcome.INVALID_SIGNATURE) {
+        if (reply.outcome() == Outcome.INVALID_SIGNATURE) {
             reject(tenantId, provider.name(), "invalid_signature", clientIp);
         }
-        metrics.webhookRequest(provider.name(), outcome.name());
-        return outcome;
+        metrics.webhookRequest(provider.name(), reply.outcome().name());
+        return reply;
     }
 
     private Optional<Route> route(String routingKey) {

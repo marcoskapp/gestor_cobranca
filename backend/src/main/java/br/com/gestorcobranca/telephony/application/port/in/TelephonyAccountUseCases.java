@@ -37,6 +37,12 @@ public interface TelephonyAccountUseCases {
     List<ProviderView> providers();
 
     /**
+     * Teste de conexão: verificação leve e segura das credenciais no provedor (leitura da própria
+     * conta; nunca liga para ninguém). Auditado com o resultado.
+     */
+    ConnectionTestView testConnection(UUID accountId);
+
+    /**
      * Comparação entre contas/provedores no período (dias de operação, inclusive): volume, taxa de
      * atendimento (ASR), conexão, falhas, contingência, tempos médios e custo estimado pela tarifa
      * informada na conta.
@@ -44,7 +50,7 @@ public interface TelephonyAccountUseCases {
     List<AccountComparison> comparison(LocalDate from, LocalDate to);
 
     /**
-     * @param provider         {@code SANDBOX}, {@code ALVARIA} ou {@code TARIFANDO}
+     * @param provider         {@code SANDBOX}, {@code ALVARIA}, {@code TARIFANDO}, {@code TWILIO} ou {@code PLIVO}
      * @param creditorId       nulo = conta da assessoria; preenchido = restrita ao credor
      * @param callerId         número de origem (E.164)
      * @param recordingEnabled grava as chamadas (exige {@code recordingNotice})
@@ -66,19 +72,37 @@ public interface TelephonyAccountUseCases {
     }
 
     /**
-     * @param webhookPath caminho do webhook a cadastrar no provedor
-     * @param readiness   {@code READY}, {@code CONTRACT_PENDING} ou {@code NOT_IMPLEMENTED}
-     * @param dialable    o provedor disca neste ambiente (pronto, ou contrato pendente em homologação)
+     * @param webhookPath      caminho do webhook a cadastrar no provedor
+     * @param readiness        {@code READY}, {@code DISABLED}, {@code CONTRACT_PENDING} ou {@code NOT_IMPLEMENTED}
+     * @param dialable         o provedor disca neste ambiente (pronto, ou contrato pendente em homologação)
+     * @param webhookUrl       endereço público do webhook (base pública configurada + caminho)
+     * @param consoleEndpoints endereços a cadastrar no console do provedor (ex.: URL de voz do número)
      */
     record AccountView(UUID id, String provider, UUID creditorId, String name, String callerId,
                        boolean recordingEnabled, boolean recordingNotice, Set<String> credentialKeys,
                        Instant credentialsUpdatedAt, String webhookPath, boolean active, Instant createdAt,
                        long version, String providerLabel, String readiness, boolean dialable,
-                       BigDecimal ratePerMinute) {
+                       BigDecimal ratePerMinute, String webhookUrl, List<ConsoleEndpointView> consoleEndpoints) {
     }
 
+    /**
+     * @param optionalCredentials credenciais aceitas que podem faltar
+     * @param verifiable          o adaptador oferece teste de conexão
+     */
     record ProviderView(String provider, String label, Set<String> requiredCredentials, String readiness,
-                        boolean dialable, boolean available) {
+                        boolean dialable, boolean available, Set<String> optionalCredentials, boolean verifiable) {
+    }
+
+    /** @param purpose {@code events}, {@code inbound}, {@code inbound_status}, {@code inbound_hangup}… */
+    record ConsoleEndpointView(String purpose, String label, String method, String url) {
+    }
+
+    /**
+     * @param supported o provedor oferece verificação de credenciais
+     * @param ok        credenciais aceitas
+     * @param code      {@code OK}, {@code UNSUPPORTED}, {@code UNREACHABLE} ou código do provedor
+     */
+    record ConnectionTestView(UUID accountId, boolean supported, boolean ok, String code, Instant testedAt) {
     }
 
     /**

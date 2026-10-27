@@ -3,6 +3,7 @@ package br.com.gestorcobranca.telephony.infrastructure.provider.sandbox;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -19,7 +20,7 @@ class SandboxWebhookAdapterTest {
 
     static final String SECRET = "segredo-webhook";
     final SandboxWebhookAdapter adapter = new SandboxWebhookAdapter(new JsonCodec(JsonMapper.builder().build()),
-            new TelephonyProperties(null, null, null, null, null, null, null, null, null, null, null, null, null));
+            new TelephonyProperties(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
     final Instant now = Instant.parse("2026-10-23T12:00:00Z");
 
     static String header(String secret, long t, byte[] body) {
@@ -31,17 +32,17 @@ class SandboxWebhookAdapterTest {
         byte[] body = "{\"events\":[]}".getBytes(StandardCharsets.UTF_8);
         long t = now.getEpochSecond();
         Map<String, String> credentials = Map.of("webhookSecret", SECRET);
-        assertThat(adapter.validSignature(credentials, Map.of("x-sandbox-signature", header(SECRET, t, body)), body, now))
+        assertThat(valid(credentials, Map.of("x-sandbox-signature", header(SECRET, t, body)), body, now))
                 .isTrue();
-        assertThat(adapter.validSignature(credentials, Map.of("x-sandbox-signature", header("outro", t, body)), body, now))
+        assertThat(valid(credentials, Map.of("x-sandbox-signature", header("outro", t, body)), body, now))
                 .isFalse();
         byte[] tampered = "{\"events\":[{}]}".getBytes(StandardCharsets.UTF_8);
-        assertThat(adapter.validSignature(credentials, Map.of("x-sandbox-signature", header(SECRET, t, body)), tampered,
+        assertThat(valid(credentials, Map.of("x-sandbox-signature", header(SECRET, t, body)), tampered,
                 now)).isFalse();
-        assertThat(adapter.validSignature(credentials, Map.of(), body, now)).isFalse();
-        assertThat(adapter.validSignature(Map.of(), Map.of("x-sandbox-signature", header(SECRET, t, body)), body, now))
+        assertThat(valid(credentials, Map.of(), body, now)).isFalse();
+        assertThat(valid(Map.of(), Map.of("x-sandbox-signature", header(SECRET, t, body)), body, now))
                 .isFalse();
-        assertThat(adapter.validSignature(credentials, Map.of("x-sandbox-signature", "t=abc,v1=zz"), body, now)).isFalse();
+        assertThat(valid(credentials, Map.of("x-sandbox-signature", "t=abc,v1=zz"), body, now)).isFalse();
     }
 
     @Test
@@ -50,9 +51,9 @@ class SandboxWebhookAdapterTest {
         Map<String, String> credentials = Map.of("webhookSecret", SECRET);
         long old = now.minusSeconds(6 * 60).getEpochSecond();
         long future = now.plusSeconds(6 * 60).getEpochSecond();
-        assertThat(adapter.validSignature(credentials, Map.of("x-sandbox-signature", header(SECRET, old, body)), body, now))
+        assertThat(valid(credentials, Map.of("x-sandbox-signature", header(SECRET, old, body)), body, now))
                 .isFalse();
-        assertThat(adapter.validSignature(credentials, Map.of("x-sandbox-signature", header(SECRET, future, body)), body,
+        assertThat(valid(credentials, Map.of("x-sandbox-signature", header(SECRET, future, body)), body,
                 now)).isFalse();
     }
 
@@ -64,14 +65,22 @@ class SandboxWebhookAdapterTest {
                  {"id":"e2","type":"RECORDING_AVAILABLE","callId":"sbx-call-1","timestamp":"2026-10-23T12:01:00Z",
                   "recordingRef":"r1","recordingDuration":42}]}
                 """;
-        List<ProviderCallEvent> events = adapter.parse(json.getBytes(StandardCharsets.UTF_8));
+        List<ProviderCallEvent> events = parse(json.getBytes(StandardCharsets.UTF_8));
         assertThat(events).hasSize(2);
         assertThat(events.getFirst().type()).isEqualTo(ProviderCallEvent.Type.ANSWERED);
         assertThat(events.getFirst().amd()).isEqualTo("HUMAN");
         assertThat(events.get(1).recordingDurationSeconds()).isEqualTo(42);
-        assertThatThrownBy(() -> adapter.parse("nada".getBytes(StandardCharsets.UTF_8)))
+        assertThatThrownBy(() -> parse("nada".getBytes(StandardCharsets.UTF_8)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> adapter.parse("{\"events\":[{\"id\":\"e\",\"type\":\"XYZ\"}]}"
+        assertThatThrownBy(() -> parse("{\"events\":[{\"id\":\"e\",\"type\":\"XYZ\"}]}"
                 .getBytes(StandardCharsets.UTF_8))).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private boolean valid(Map<String, String> credentials, Map<String, String> headers, byte[] body, Instant at) {
+        return adapter.validSignature(credentials, TelephonyWebhookAdapter.WebhookRequest.of(headers, body, at), at);
+    }
+
+    private List<ProviderCallEvent> parse(byte[] body) {
+        return adapter.parse(TelephonyWebhookAdapter.WebhookRequest.of(Map.of(), body, Instant.now()));
     }
 }

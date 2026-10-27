@@ -50,9 +50,10 @@ class SandboxWebhookAdapter implements TelephonyWebhookAdapter {
     }
 
     @Override
-    public boolean validSignature(Map<String, String> credentials, Map<String, String> headers, byte[] body, Instant now) {
+    public boolean validSignature(Map<String, String> credentials, WebhookRequest request, Instant now) {
         String secret = credentials.get("webhookSecret");
-        String header = headers == null ? null : headers.get(HEADER);
+        String header = request.headers().get(HEADER);
+        byte[] body = request.body();
         if (secret == null || secret.isBlank() || header == null || body == null) {
             return false;
         }
@@ -95,10 +96,10 @@ class SandboxWebhookAdapter implements TelephonyWebhookAdapter {
     }
 
     @Override
-    public List<ProviderCallEvent> parse(byte[] body) {
+    public List<ProviderCallEvent> parse(WebhookRequest request) {
         Payload payload;
         try {
-            payload = json.fromJson(new String(body, StandardCharsets.UTF_8), Payload.class);
+            payload = json.fromJson(new String(request.body(), StandardCharsets.UTF_8), Payload.class);
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("Corpo do webhook ilegível", e);
         }

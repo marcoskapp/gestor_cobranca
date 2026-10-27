@@ -433,11 +433,14 @@ app:
       max-entries: 50000
     webhook:
       max-body-bytes: 65536
-      requests-per-minute: 1200
+      # por rota e IP de origem, por instância: a Plivo entrega de poucos IPs (NAT) vários eventos por chamada
+      requests-per-minute: 6000
       # janela de replay: eventos mais antigos são descartados; recibos guardados por este prazo
       max-event-age: P2D
       # tolerância do instante assinado e de eventos no futuro
       max-clock-skew: PT5M
+      # endereço público (ALB) dos webhooks entregue à Twilio/Plivo e coberto pelas assinaturas deles
+      public-base-url: ${TELEPHONY_WEBHOOK_PUBLIC_BASE_URL:${APP_BASE_URL:http://localhost:8080}}
     # provedor simulado: somente local/teste (recusado no perfil prod)
     sandbox:
       enabled: false
@@ -455,6 +458,40 @@ app:
       # domínios aceitos no apiBaseUrl das contas (proteção contra SSRF); confirmar o domínio da instância
       allowed-host-suffixes: ${APP_TELEPHONY_ALVARIA_ALLOWED_HOSTS:.alvaria.com}
       allow-insecure-http: false
+    # Twilio Programmable Voice (API pública; anexo C de telefonia.md). Credenciais só na conta (cifradas).
+    twilio:
+      enabled: ${APP_TELEPHONY_TWILIO_ENABLED:true}
+      api-base-url: https://api.twilio.com
+      # hosts aceitos em api-base-url (proteção contra SSRF, conferida na subida)
+      allowed-hosts: ${APP_TELEPHONY_TWILIO_ALLOWED_HOSTS:api.twilio.com}
+      allow-insecure-http: false
+      connect-timeout: PT3S
+      read-timeout: PT10S
+      # MachineDetectionTimeout (3–59 s); esgotado = unknown, tratado como pessoa
+      amd-timeout: PT8S
+      say-voice: Polly.Camila
+      say-language: pt-BR
+      softphone-token-ttl: PT1H
+      # borda do Voice JavaScript SDK (roaming = a mais próxima; sao-paulo…); entra na CSP
+      softphone-edge: ${APP_TELEPHONY_TWILIO_EDGE:roaming}
+    # Plivo Voice (API pública; anexo D de telefonia.md)
+    plivo:
+      enabled: ${APP_TELEPHONY_PLIVO_ENABLED:true}
+      api-base-url: https://api.plivo.com
+      allowed-hosts: ${APP_TELEPHONY_PLIVO_ALLOWED_HOSTS:api.plivo.com}
+      # hosts aceitos no recording_url devolvido pela Plivo (download do áudio)
+      recording-hosts: ${APP_TELEPHONY_PLIVO_RECORDING_HOSTS:media.plivo.com}
+      allow-insecure-http: false
+      connect-timeout: PT3S
+      read-timeout: PT10S
+      # machine_detection_time (2–10 s)
+      amd-time: PT5S
+      speak-voice: WOMAN
+      speak-language: pt-BR
+    # textos falados pela síntese de voz dos provedores (validar com o jurídico antes da produção)
+    messages:
+      recording-notice: "Esta ligação pode ser gravada para sua segurança e para a qualidade do atendimento."
+      abandon-message: "Olá. No momento todos os nossos atendentes estão ocupados. Retornaremos a sua ligação. Obrigado."
 
   assistant:
     # mensagens mais recentes da conversa enviadas ao modelo (texto minimizado)

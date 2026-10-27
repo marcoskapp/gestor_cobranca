@@ -66,6 +66,10 @@ public class Call extends TenantScopedEntity {
     @Column(name = "provider_call_id", length = 200)
     private String providerCallId;
 
+    /** Id da perna no provedor quando difere do id do pedido (ex.: {@code CallUUID} da Plivo). */
+    @Column(name = "provider_leg_id", length = 200)
+    private String providerLegId;
+
     @Column(name = "creditor_id")
     private UUID creditorId;
 
@@ -302,6 +306,21 @@ public class Call extends TenantScopedEntity {
         this.status = CallStatus.DIALING;
     }
 
+    /**
+     * Id da perna da chamada informado pelo provedor depois do pedido (a Plivo devolve o
+     * {@code request_uuid} na discagem e o {@code CallUUID} nos eventos; encerrar e transferir usam
+     * o segundo). Grava só o primeiro informado.
+     *
+     * @return true se gravou
+     */
+    public boolean bindProviderLeg(String legId) {
+        if (legId == null || legId.isBlank() || legId.length() > 200 || providerLegId != null) {
+            return false;
+        }
+        this.providerLegId = legId.trim();
+        return true;
+    }
+
     /** Falha antes de chegar ao provedor (recusa do pedido, conta indisponível, tentativas esgotadas). */
     public void failBeforeDialing(String code, String detail, Instant at) {
         Guard.requireState(status == CallStatus.QUEUED, "call.not_queued", "Chamada já discada");
@@ -519,6 +538,10 @@ public class Call extends TenantScopedEntity {
 
     public String getProviderCallId() {
         return providerCallId;
+    }
+
+    public String getProviderLegId() {
+        return providerLegId;
     }
 
     public UUID getCreditorId() {

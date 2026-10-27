@@ -88,7 +88,7 @@ class AlvariaTelephonyProviderTest {
     private AlvariaTelephonyProvider provider(boolean insecure, List<String> hosts) {
         TelephonyProperties properties = new TelephonyProperties(null, null, null, null, null, null, null, null, null,
                 null, null, null, new TelephonyProperties.Alvaria(Duration.ofMillis(1000), Duration.ofMillis(1500), hosts,
-                insecure));
+                insecure), null, null, null);
         return new AlvariaTelephonyProvider(properties, new JsonCodec(MAPPER), registry, Clock.systemUTC());
     }
 

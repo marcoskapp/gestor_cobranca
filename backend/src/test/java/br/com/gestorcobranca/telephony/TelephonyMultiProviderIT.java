@@ -294,7 +294,8 @@ class TelephonyMultiProviderIT extends TelephonyTestSupport {
     @Test
     void providerCatalogAndRulesRefuseWhatCannotDial() {
         List<ProviderView> providers = asManager(accounts::providers);
-        assertThat(providers).extracting(ProviderView::provider).containsExactly("SANDBOX", "ALVARIA", "TARIFANDO");
+        assertThat(providers).extracting(ProviderView::provider).containsExactly("SANDBOX", "ALVARIA", "TARIFANDO", "TWILIO",
+                "PLIVO");
         assertThat(providers).filteredOn(p -> p.provider().equals("TARIFANDO")).singleElement().satisfies(p -> {
             assertThat(p.readiness()).isEqualTo("NOT_IMPLEMENTED");
             assertThat(p.available()).isFalse();

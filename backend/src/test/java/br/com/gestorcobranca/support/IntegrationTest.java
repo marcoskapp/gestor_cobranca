@@ -71,6 +71,10 @@ public abstract class IntegrationTest {
         registry.add("spring.flyway.url", () -> url);
         registry.add("spring.flyway.user", () -> "app_owner");
         registry.add("spring.flyway.password", () -> OWNER_PASSWORD);
+        // APIs de provedores externos (Twilio, Plivo) dubladas por um servidor HTTP local único da execução
+        String fakeApi = FakeHttpApi.shared().baseUrl();
+        registry.add("app.telephony.twilio.api-base-url", () -> fakeApi + "/twilio");
+        registry.add("app.telephony.plivo.api-base-url", () -> fakeApi + "/plivo");
     }
 
     private static synchronized Server server() {

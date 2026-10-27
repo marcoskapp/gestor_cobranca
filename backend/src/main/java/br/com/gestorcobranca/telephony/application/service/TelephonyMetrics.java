@@ -142,6 +142,22 @@ class TelephonyMetrics {
                 .increment();
     }
 
+    /**
+     * Instruções devolvidas a provedores que as pedem por webhook (TwiML/Plivo XML).
+     *
+     * @param kind        DIAL_DEBTOR, CALL_ANSWERED, CONNECT_OPERATOR, ANNOUNCE, END
+     * @param instruction DialDebtor, Hold, ConnectAgent, Announce, Hangup, None
+     */
+    void instruction(String provider, String kind, String instruction) {
+        registry.counter("telephony.webhook.instructions", "provider", provider, "kind", kind, "instruction",
+                instruction).increment();
+    }
+
+    /** @param outcome issued, no_webrtc_endpoint, failed */
+    void softphoneToken(String provider, String outcome) {
+        registry.counter("telephony.softphone.tokens", "provider", provider, "outcome", outcome).increment();
+    }
+
     void eventConsumed(String type) {
         registry.counter("telephony.events.consumed", "type", type).increment();
     }

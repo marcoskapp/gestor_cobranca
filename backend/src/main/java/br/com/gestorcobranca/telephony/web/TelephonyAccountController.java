@@ -4,6 +4,7 @@ import br.com.gestorcobranca.shared.web.ApiPaths;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases.AccountComparison;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases.AccountView;
+import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases.ConnectionTestView;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases.ProviderView;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases.CreateAccountCommand;
 import br.com.gestorcobranca.telephony.application.port.in.TelephonyAccountUseCases.UpdateAccountCommand;
@@ -72,6 +73,13 @@ class TelephonyAccountController {
     @PreAuthorize("hasAuthority('TELEPHONY_MANAGE')")
     AccountView activate(@PathVariable UUID id) {
         return accounts.activate(id);
+    }
+
+    /** Teste de conexão: verificação leve das credenciais no provedor (não liga para ninguém). */
+    @PostMapping("/{id}/test")
+    @PreAuthorize("hasAuthority('TELEPHONY_MANAGE')")
+    ConnectionTestView test(@PathVariable UUID id) {
+        return accounts.testConnection(id);
     }
 
     @PostMapping("/{id}/deactivate")

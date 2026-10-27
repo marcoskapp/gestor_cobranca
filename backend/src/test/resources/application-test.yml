@@ -61,6 +61,21 @@ app:
       allow-insecure-http: true
       connect-timeout: PT1S
       read-timeout: PT2S
+    # Twilio e Plivo contra o servidor HTTP local da execução (FakeHttpApi; endereço no IntegrationTest)
+    twilio:
+      allowed-hosts: 127.0.0.1
+      allow-insecure-http: true
+      connect-timeout: PT1S
+      read-timeout: PT2S
+    plivo:
+      allowed-hosts: 127.0.0.1
+      recording-hosts: 127.0.0.1
+      allow-insecure-http: true
+      connect-timeout: PT1S
+      read-timeout: PT2S
+    webhook:
+      # endereço público fictício: as assinaturas da Twilio/Plivo nos testes cobrem esta base
+      public-base-url: https://gestor.teste
   storage:
     provider: filesystem
     local-root: ./target/test-storage
