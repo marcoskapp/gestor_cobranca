@@ -6,6 +6,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases.ContactFingerprint;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.telephony.application.port.in.ProviderEventUseCases;
+import br.com.gestorcobranca.telephony.application.port.out.CallInstruction;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent.Type;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
@@ -14,6 +15,7 @@ import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.Ha
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupRequest;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.ProviderRejectedException;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.TransientProviderException;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter.InstructionRequest;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookReceiptLog;
 import br.com.gestorcobranca.telephony.domain.model.Agent;
 import br.com.gestorcobranca.telephony.domain.model.AmdResult;
@@ -74,12 +76,14 @@ class CallEventProcessor implements ProviderEventUseCases {
     private final DebtorContactUseCases debtorContacts;
     private final JobQueue jobQueue;
     private final TelephonyMetrics metrics;
+    private final CallInstructions instructions;
     private final Clock clock;
 
     CallEventProcessor(TelephonyAccountRepository accounts, CallRepository calls, CallRecordingRepository recordings,
                        DialerCampaignRepository campaigns, WebhookReceiptLog receipts, CallDistributor distributor,
                        CallLifecycle lifecycle, ProviderResolver resolver, AgentEndpoints endpoints, CaseUseCases cases,
-                       DebtorContactUseCases debtorContacts, JobQueue jobQueue, TelephonyMetrics metrics, Clock clock) {
+                       DebtorContactUseCases debtorContacts, JobQueue jobQueue, TelephonyMetrics metrics,
+                       CallInstructions instructions, Clock clock) {
         this.accounts = accounts;
         this.calls = calls;
         this.recordings = recordings;
@@ -93,6 +97,7 @@ class CallEventProcessor implements ProviderEventUseCases {
         this.debtorContacts = debtorContacts;
         this.jobQueue = jobQueue;
         this.metrics = metrics;
+        this.instructions = instructions;
         this.clock = clock;
     }
 
@@ -117,6 +122,13 @@ class CallEventProcessor implements ProviderEventUseCases {
         return outcome;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public CallInstruction instruction(UUID accountId, InstructionRequest request) {
+        return accounts.findById(accountId).map(account -> instructions.resolve(account, request))
+                .orElse(new CallInstruction.Hangup(false));
+    }
+
     private String onCall(TelephonyAccount account, ProviderCallEvent e) {
         Optional<Call> found = Optional.empty();
         if (e.providerCallId() != null && !e.providerCallId().isBlank()) {
@@ -131,10 +143,13 @@ class CallEventProcessor implements ProviderEventUseCases {
             return "unknown_call";
         }
         Call call = calls.findByIdForUpdate(found.get().getId()).orElseThrow();
+        if (call.bindProviderLeg(e.providerLegId())) {
+            calls.save(call);
+        }
         Instant at = e.occurredAt() == null ? Instant.now(clock) : e.occurredAt();
         return switch (e.type()) {
             case RINGING -> save(call, call.ringing(at));
-            case ANSWERED -> answered(account, call, at, amd(e.amd()));
+            case ANSWERED -> answered(account, call, at, amd(e.amd()), e.awaitingInstructions());
             case COMPLETED -> end(call, call.getStatus() == CallStatus.ANSWERED ? CallStatus.COMPLETED : CallStatus.NO_ANSWER,
                     at, side(e.hangupBy()), e.cause());
             case NO_ANSWER -> end(call, CallStatus.NO_ANSWER, at, HangupSide.PROVIDER, e.cause());
@@ -146,7 +161,11 @@ class CallEventProcessor implements ProviderEventUseCases {
         };
     }
 
-    private String answered(TelephonyAccount account, Call call, Instant at, AmdResult amd) {
+    /**
+     * @param awaiting o provedor espera, na resposta deste webhook, as instruções da chamada: conexão e
+     *                 encerramento vão na resposta ({@link CallInstructions}), sem chamada à API dele
+     */
+    private String answered(TelephonyAccount account, Call call, Instant at, AmdResult amd, boolean awaiting) {
         if (!call.answered(at, amd)) {
             return "stale";
         }
@@ -158,13 +177,13 @@ class CallEventProcessor implements ProviderEventUseCases {
         String mode = campaigns.findById(call.getCampaignId()).map(DialerCampaign::getMode).map(Enum::name)
                 .orElse("UNKNOWN");
         if (amd == AmdResult.MACHINE) {
-            hangup(account, call, HangupReason.MACHINE);
+            hangup(account, call, HangupReason.MACHINE, awaiting);
             call.end(CallStatus.COMPLETED, now, HangupSide.SYSTEM, null);
             lifecycle.ended(call);
             return "applied";
         }
         Optional<Agent> agent = distributor.forCampaign(call.getCampaignId(), account.getId(), call.getId(), now);
-        if (agent.isPresent() && bridge(account, call, agent.get())) {
+        if (agent.isPresent() && bridge(account, call, agent.get(), awaiting)) {
             call.connect(agent.get().getUserId(), now);
             calls.save(call);
             metrics.live(mode, "connected");
@@ -177,7 +196,7 @@ class CallEventProcessor implements ProviderEventUseCases {
             lifecycle.releaseAfterFailedBridge(agent.get(), call.getId());
         }
         call.markAbandoned();
-        hangup(account, call, HangupReason.ABANDONED);
+        hangup(account, call, HangupReason.ABANDONED, awaiting);
         call.end(CallStatus.COMPLETED, now, HangupSide.SYSTEM, null);
         metrics.live(mode, "abandoned");
         lifecycle.ended(call);
@@ -223,13 +242,15 @@ class CallEventProcessor implements ProviderEventUseCases {
         Call call = Call.inbound(account, e.providerCallId(), e.from(),
                 fingerprint.map(ContactFingerprint::hash).orElse(null),
                 fingerprint.map(ContactFingerprint::maskedValue).orElse("***"), at);
+        call.bindProviderLeg(e.providerLegId());
         Optional<CaseView> kase = fingerprint.flatMap(f -> identify(f.hash()));
         kase.ifPresent(k -> call.identify(k.debtorId(), k.creditorId(), k.portfolioId(), k.id(), null));
         calls.saveAndFlush(call);
         Instant now = Instant.now(clock);
         Optional<Agent> agent = distributor.forInbound(kase.map(CaseView::assigneeUserId).orElse(null), account.getId(),
                 call.getId(), now);
-        if (agent.isPresent() && bridge(account, call, agent.get())) {
+        boolean awaiting = e.awaitingInstructions();
+        if (agent.isPresent() && bridge(account, call, agent.get(), awaiting)) {
             call.connect(agent.get().getUserId(), now);
             calls.save(call);
             return "applied";
@@ -237,8 +258,8 @@ class CallEventProcessor implements ProviderEventUseCases {
         if (agent.isPresent()) {
             lifecycle.releaseAfterFailedBridge(agent.get(), call.getId());
         }
-        hangup(account, call, HangupReason.ABANDONED);
-        call.end(CallStatus.NO_ANSWER, now, HangupSide.SYSTEM, "NO_AGENT");
+        hangup(account, call, HangupReason.ABANDONED, awaiting);
+        call.end(CallStatus.NO_ANSWER, now, HangupSide.SYSTEM, CallInstructions.NO_AGENT);
         lifecycle.ended(call);
         return "applied";
     }
@@ -260,15 +281,19 @@ class CallEventProcessor implements ProviderEventUseCases {
         return last.getPortfolioId() == null ? Optional.empty() : cases.findActive(last.getDebtorId(), last.getPortfolioId());
     }
 
-    private boolean bridge(TelephonyAccount account, Call call, Agent agent) {
+    private boolean bridge(TelephonyAccount account, Call call, Agent agent, boolean awaiting) {
         Optional<TelephonyProvider> provider = resolver.provider(account.getProvider());
         Optional<String> extension = endpoints.extensionFor(agent, account.getId());
         if (provider.isEmpty() || extension.isEmpty()) {
             return false;
         }
+        if (awaiting) {
+            // a conexão vai na resposta do próprio webhook (CallInstructions)
+            return true;
+        }
         try {
             provider.get().bridge(new BridgeRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
-                    extension.get()));
+                    extension.get(), call.getProviderLegId(), agent.getUserId()));
             return true;
         } catch (TransientProviderException | ProviderRejectedException e) {
             LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("provider", account.getProvider())
@@ -277,10 +302,15 @@ class CallEventProcessor implements ProviderEventUseCases {
         }
     }
 
-    private void hangup(TelephonyAccount account, Call call, HangupReason reason) {
+    private void hangup(TelephonyAccount account, Call call, HangupReason reason, boolean awaiting) {
+        if (awaiting) {
+            // o encerramento (com a mensagem de abandono) vai na resposta do próprio webhook
+            return;
+        }
         resolver.provider(account.getProvider()).ifPresent(p -> {
             try {
-                p.hangup(new HangupRequest(resolver.context(account), call.getId(), call.getProviderCallId(), reason));
+                p.hangup(new HangupRequest(resolver.context(account), call.getId(), call.getProviderCallId(), reason,
+                        call.getProviderLegId()));
             } catch (TransientProviderException | ProviderRejectedException e) {
                 // o provedor encerra a chamada pelo próprio tempo limite (ou ela já terminou); o estado local já é final
                 LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("reason", reason)

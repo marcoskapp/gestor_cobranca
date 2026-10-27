@@ -12,6 +12,7 @@ import { CreditorLookup, PortfolioLookup } from '../../organization/data/organiz
 import { TelephonyAccountsApi, TelephonyRoutingApi } from '../data/telephony.api';
 import {
   PROVIDER_LABELS,
+  PROVIDER_SETUP_STEPS,
   PUBLIC_CREDENTIAL_KEYS,
   READINESS_LABELS,
   ROUTE_SCOPE_LABELS,
@@ -96,7 +97,17 @@ export interface TelephonyAccountDialogData {
               <label class="form-check-label" for="ta-notice">Tocar o aviso "esta ligação pode ser gravada" (obrigatório com gravação)</label>
             </div>
           </div>
-          @if (!editing && keys().length) {
+          @if (!editing && steps().length) {
+            <div class="col-12" data-testid="provider-steps">
+              <h3 class="app-section-title">Como ligar {{ labels[provider()] }}</h3>
+              <ol class="small mb-0 ps-3">
+                @for (step of steps(); track $index) {
+                  <li>{{ step }}</li>
+                }
+              </ol>
+            </div>
+          }
+          @if (!editing && (keys().length || optionalKeys().length)) {
             <div class="col-12">
               <h3 class="app-section-title">Credenciais da plataforma</h3>
               <p class="app-muted mb-0">Guardadas criptografadas. Depois de salvas, só os nomes das chaves ficam visíveis.</p>
@@ -104,6 +115,11 @@ export interface TelephonyAccountDialogData {
             @for (k of keys(); track k) {
               <app-field class="col-12" [label]="credentialLabels[k] ?? k">
                 <input appInput [type]="isPublic(k) ? 'text' : 'password'" autocomplete="off" [formControl]="credential(k)" required />
+              </app-field>
+            }
+            @for (k of optionalKeys(); track k) {
+              <app-field class="col-12" [label]="credentialLabels[k] ?? k" hint="Opcional">
+                <input appInput [type]="isPublic(k) ? 'text' : 'password'" autocomplete="off" [formControl]="credential(k)" />
               </app-field>
             }
           }
@@ -143,14 +159,20 @@ export class TelephonyAccountDialog {
     recordingEnabled: [this.account?.recordingEnabled ?? false],
     recordingNotice: [this.account?.recordingNotice ?? false],
   });
+  /** Uma entrada por chave (as plataformas compartilham nomes, ex.: authToken); obrigatoriedade conferida no envio. */
   protected readonly credentials = new FormGroup<Record<string, FormControl<string>>>(
     Object.fromEntries(
-      [...new Set(this.data.providers.flatMap((p) => p.requiredCredentials))].map((k) => [k, new FormControl('', { nonNullable: true, validators: [Validators.required] })]),
+      [...new Set(this.data.providers.flatMap((p) => [...p.requiredCredentials, ...(p.optionalCredentials ?? [])]))].map((k) => [
+        k,
+        new FormControl('', { nonNullable: true }),
+      ]),
     ),
   );
-  private readonly provider = toSignal(this.form.controls.provider.valueChanges, { initialValue: this.form.controls.provider.value });
+  protected readonly provider = toSignal(this.form.controls.provider.valueChanges, { initialValue: this.form.controls.provider.value });
   protected readonly selected = computed(() => this.data.providers.find((p) => p.provider === this.provider()) ?? null);
   protected readonly keys = computed(() => this.selected()?.requiredCredentials ?? []);
+  protected readonly optionalKeys = computed(() => this.selected()?.optionalCredentials ?? []);
+  protected readonly steps = computed(() => PROVIDER_SETUP_STEPS[this.provider()] ?? []);
 
   constructor() {
     this.form.controls.recordingEnabled.valueChanges.subscribe((on) => {
@@ -191,7 +213,9 @@ export class TelephonyAccountDialog {
           ...base,
           provider: v.provider,
           creditorId: v.creditor[0] ?? null,
-          credentials: Object.fromEntries(this.keys().map((k) => [k, this.credential(k).value.trim()])),
+          credentials: Object.fromEntries(
+            [...this.keys(), ...this.optionalKeys().filter((k) => this.credential(k).value.trim())].map((k) => [k, this.credential(k).value.trim()]),
+          ),
         });
     this.saving.set(true);
     this.error.set(null);
@@ -205,6 +229,8 @@ export class TelephonyAccountDialog {
 export interface TelephonyCredentialsDialogData {
   account: TelephonyAccountView;
   keys: string[];
+  /** Chaves que podem ficar em branco (não informadas = removidas). */
+  optionalKeys?: string[];
 }
 
 /** Troca de credenciais: substitui todas as chaves da plataforma (os valores antigos não são exibidos). */
@@ -222,6 +248,11 @@ export interface TelephonyCredentialsDialogData {
         @for (k of data.keys; track k) {
           <app-field [label]="labels[k] ?? k">
             <input appInput [type]="isPublic(k) ? 'text' : 'password'" autocomplete="off" [formControl]="controls[k]" required />
+          </app-field>
+        }
+        @for (k of optional; track k) {
+          <app-field [label]="labels[k] ?? k" hint="Opcional">
+            <input appInput [type]="isPublic(k) ? 'text' : 'password'" autocomplete="off" [formControl]="controls[k]" />
           </app-field>
         }
         @if (error()) {
@@ -242,9 +273,11 @@ export class TelephonyCredentialsDialog {
   private readonly ref = inject<DialogRef<TelephonyAccountView>>(DialogRef);
   private readonly api = inject(TelephonyAccountsApi);
   protected readonly labels = TELEPHONY_CREDENTIAL_LABELS;
-  protected readonly controls: Record<string, FormControl<string>> = Object.fromEntries(
-    this.data.keys.map((k) => [k, new FormControl('', { nonNullable: true, validators: [Validators.required] })]),
-  );
+  protected readonly optional = this.data.optionalKeys ?? [];
+  protected readonly controls: Record<string, FormControl<string>> = Object.fromEntries([
+    ...this.data.keys.map((k) => [k, new FormControl('', { nonNullable: true, validators: [Validators.required] })] as const),
+    ...this.optional.map((k) => [k, new FormControl('', { nonNullable: true })] as const),
+  ]);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -259,7 +292,10 @@ export class TelephonyCredentialsDialog {
     }
     this.saving.set(true);
     this.api
-      .rotateCredentials(this.data.account.id, Object.fromEntries(this.data.keys.map((k) => [k, this.controls[k].value.trim()])))
+      .rotateCredentials(
+        this.data.account.id,
+        Object.fromEntries([...this.data.keys, ...this.optional.filter((k) => this.controls[k].value.trim())].map((k) => [k, this.controls[k].value.trim()])),
+      )
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({ next: (a) => this.ref.close(a), error: (err: unknown) => this.error.set(errorText(err)) });
   }
@@ -394,5 +430,55 @@ export class RouteDialog {
       .save({ scopeType: v.scopeType, scopeId, primaryAccountId: v.primary, fallbackAccountId: v.fallback === v.primary ? null : v.fallback })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({ next: (r) => this.ref.close(r), error: (err: unknown) => this.error.set(errorText(err)) });
+  }
+}
+
+export interface WebhookUrlsDialogData {
+  account: TelephonyAccountView;
+}
+
+/**
+ * Endereços da conta para o console do provedor: o webhook da conta (eventos por chamada, já
+ * enviados pelo sistema em cada pedido) e os que o gestor cadastra no console (ex.: URL de voz do
+ * número para chamadas recebidas). Só ids opacos nas URLs; nada de segredo.
+ */
+@Component({
+  selector: 'app-webhook-urls-dialog',
+  imports: [...DIALOG_DIRECTIVES, Icon],
+  template: `
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">Endereços para o console — {{ data.account.name }}</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
+    </div>
+    <div class="modal-body d-grid gap-3">
+      <p class="app-dialog-message mb-0">Cadastre no console da plataforma, com o método POST. As chamadas feitas pelo sistema já informam os próprios endereços.</p>
+      @for (e of endpoints; track e.purpose) {
+        <div>
+          <div class="fw-semibold small">{{ e.label }} <span class="app-muted">({{ e.method }})</span></div>
+          <div class="d-flex gap-2 align-items-center">
+            <code class="text-break flex-grow-1" data-testid="console-url">{{ e.url }}</code>
+            <button class="btn btn-link" type="button" (click)="copy(e.url)" [attr.aria-label]="'Copiar ' + e.label"><app-icon name="clipboard" /></button>
+          </div>
+        </div>
+      }
+      @if (copied()) {
+        <p class="small text-success-emphasis mb-0" role="status">Endereço copiado.</p>
+      }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" type="button" appDialogClose>Fechar</button>
+    </div>
+  `,
+})
+export class WebhookUrlsDialog {
+  protected readonly data = inject<WebhookUrlsDialogData>(DIALOG_DATA);
+  protected readonly copied = signal(false);
+  protected readonly endpoints = [
+    { purpose: 'events', label: 'Webhook da conta (eventos)', method: 'POST', url: this.data.account.webhookUrl },
+    ...(this.data.account.consoleEndpoints ?? []).filter((e) => e.purpose !== 'events'),
+  ];
+
+  protected copy(url: string): void {
+    void globalThis.navigator?.clipboard?.writeText(url).then(() => this.copied.set(true));
   }
 }

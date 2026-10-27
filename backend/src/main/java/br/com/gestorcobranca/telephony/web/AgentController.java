@@ -6,10 +6,14 @@ import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.AgentVi
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.ConfigureAgentCommand;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.ConfigureEndpointCommand;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.EndpointView;
+import br.com.gestorcobranca.telephony.application.port.in.SoftphoneUseCases;
+import br.com.gestorcobranca.telephony.application.port.in.SoftphoneUseCases.SoftphoneSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,9 +37,11 @@ import java.util.UUID;
 class AgentController {
 
     private final AgentUseCases agents;
+    private final SoftphoneUseCases softphone;
 
-    AgentController(AgentUseCases agents) {
+    AgentController(AgentUseCases agents, SoftphoneUseCases softphone) {
         this.agents = agents;
+        this.softphone = softphone;
     }
 
     @PutMapping("/agents/{userId}")
@@ -118,6 +124,16 @@ class AgentController {
     @PreAuthorize("hasAuthority('TELEPHONY_USE')")
     AgentView logout() {
         return agents.logout();
+    }
+
+    /**
+     * Tokens do softphone de navegador do próprio operador (identidade WebRTC do ramal em cada
+     * plataforma). POST: emite credencial; resposta sem cache.
+     */
+    @PostMapping("/presence/me/softphone")
+    @PreAuthorize("hasAuthority('TELEPHONY_USE')")
+    ResponseEntity<List<SoftphoneSession>> softphone() {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(softphone.sessions());
     }
 
     record ConfigureRequest(@NotBlank @Size(max = 64) String extension, boolean active) {

@@ -43,13 +43,13 @@ class AlvariaWebhookAdapter implements TelephonyWebhookAdapter {
     }
 
     @Override
-    public boolean validSignature(Map<String, String> credentials, Map<String, String> headers, byte[] body, Instant now) {
-        return TimestampedHmac.valid(credentials.get("webhookSecret"), headers == null ? null : headers.get(HEADER), body,
+    public boolean validSignature(Map<String, String> credentials, WebhookRequest request, Instant now) {
+        return TimestampedHmac.valid(credentials.get("webhookSecret"), request.headers().get(HEADER), request.body(),
                 now, tolerance);
     }
 
     @Override
-    public List<ProviderCallEvent> parse(byte[] body) {
-        return CanonicalCallEvents.parse(json, body);
+    public List<ProviderCallEvent> parse(WebhookRequest request) {
+        return CanonicalCallEvents.parse(json, request.body());
     }
 }

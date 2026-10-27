@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.telephony.application.service;
 
+import br.com.gestorcobranca.shared.web.ApiPaths;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.ProviderContext;
@@ -39,6 +40,12 @@ class ProviderResolver {
         return adapter == null ? Readiness.NOT_IMPLEMENTED : adapter.readiness();
     }
 
+    /** Aceita conta neste ambiente (adaptador existente e não desligado). */
+    boolean available(ProviderType type) {
+        Readiness readiness = readiness(type);
+        return readiness != Readiness.NOT_IMPLEMENTED && readiness != Readiness.DISABLED;
+    }
+
     /** O provedor disca neste ambiente (adaptador pronto ou contrato pendente em homologação). */
     boolean canDial(ProviderType type) {
         Readiness readiness = readiness(type);
@@ -63,6 +70,15 @@ class ProviderResolver {
 
     ProviderContext context(TelephonyAccount account) {
         return new ProviderContext(account.getId(), credentialCodec.decode(account.getCredentials()),
-                account.getCallerId());
+                account.getCallerId(), webhookUrl(account));
+    }
+
+    /** Endereço público do webhook da conta (base pública configurada + caminho com a chave de rota). */
+    String webhookUrl(TelephonyAccount account) {
+        return properties.webhook().publicBaseUrl() + webhookPath(account);
+    }
+
+    static String webhookPath(TelephonyAccount account) {
+        return ApiPaths.WEBHOOKS + "/telephony/" + account.getRoutingKey();
     }
 }

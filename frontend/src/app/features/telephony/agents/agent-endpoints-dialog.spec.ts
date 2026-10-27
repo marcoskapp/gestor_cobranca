@@ -6,7 +6,7 @@ import { AgentEndpointsDialog, endpointMode } from './agent-endpoints-dialog';
 
 const account = (id: string, name: string, provider: TelephonyAccountView['provider']): TelephonyAccountView => ({
   id, provider, creditorId: null, name, callerId: '+551130000000', recordingEnabled: false, recordingNotice: false, credentialKeys: [],
-  credentialsUpdatedAt: null, webhookPath: '/w', active: true, createdAt: null, version: 0, providerLabel: name, readiness: 'READY', dialable: true, ratePerMinute: null,
+  credentialsUpdatedAt: null, webhookPath: '/w', active: true, createdAt: null, version: 0, providerLabel: name, readiness: 'READY', dialable: true, ratePerMinute: null, webhookUrl: 'https://a/w', consoleEndpoints: [],
 });
 
 describe('AgentEndpointsDialog (ramais por plataforma)', () => {

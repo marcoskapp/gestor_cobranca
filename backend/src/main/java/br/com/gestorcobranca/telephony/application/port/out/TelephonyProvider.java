@@ -3,15 +3,20 @@ package br.com.gestorcobranca.telephony.application.port.out;
 import br.com.gestorcobranca.telephony.domain.model.ProviderType;
 
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Porta de saída para o provedor de telefonia/discador (CPaaS, PABX/SIP ou discador hospedado). Um
  * adaptador por {@link ProviderType}: simulador ({@code SANDBOX}, recusado no perfil {@code prod}),
- * Alvaria CX (contrato da API a confirmar, {@link Readiness#CONTRACT_PENDING}) e Tarifando
- * (esqueleto desligado, {@link Readiness#NOT_IMPLEMENTED}). Contrato neutro, modelado nos padrões
+ * Alvaria CX (contrato da API a confirmar, {@link Readiness#CONTRACT_PENDING}), Tarifando
+ * (esqueleto desligado, {@link Readiness#NOT_IMPLEMENTED}), Twilio e Plivo (APIs públicas,
+ * {@link Readiness#READY}; {@link Readiness#DISABLED} quando desligados na configuração do
+ * ambiente). Contrato neutro, modelado nos padrões
  * comuns de CPaaS (chamada de saída com
  * {@code statusCallback}, "bridge"/"dial" para o ramal do operador, AMD, gravação por chamada):
  * <ul>
@@ -49,6 +54,44 @@ public interface TelephonyProvider {
     }
 
     /**
+     * Validação do ramal do operador nesta plataforma (formato aceito pelo provedor, ex.:
+     * {@code client:<identidade>}, URI SIP ou E.164). Recusa com {@code BusinessRuleException}.
+     */
+    default void validateEndpoint(String extension) {
+    }
+
+    /**
+     * Verificação leve e segura das credenciais (leitura da própria conta no provedor; nunca disca).
+     * Padrão: o adaptador não oferece verificação.
+     */
+    default CredentialCheck verifyCredentials(ProviderContext context) {
+        return CredentialCheck.unsupported();
+    }
+
+    /** O adaptador oferece {@link #verifyCredentials} (teste de conexão na tela). */
+    default boolean verifiesCredentials() {
+        return false;
+    }
+
+    /**
+     * Identidade do softphone de navegador (WebRTC) contida no ramal, se o ramal for desse tipo e o
+     * adaptador emitir token de acesso para o SDK do provedor.
+     */
+    default Optional<String> softphoneIdentity(String extension) {
+        return Optional.empty();
+    }
+
+    /**
+     * Token de acesso de curta duração para o SDK de voz do navegador, restrito à identidade do
+     * operador (somente receber chamadas, salvo configuração da conta).
+     *
+     * @throws UnsupportedOperationException adaptador sem softphone de navegador
+     */
+    default SoftphoneToken issueSoftphoneToken(ProviderContext context, String identity, Duration ttl) {
+        throw new UnsupportedOperationException("Softphone de navegador indisponível para " + provider());
+    }
+
+    /**
      * Clique para ligar: chama primeiro o ramal do operador e, atendido por ele, o devedor
      * (padrão "agent first"), conectando os dois.
      */
@@ -76,8 +119,14 @@ public interface TelephonyProvider {
     /**
      * @param credentials credenciais da conta (JSON decodificado); nunca registrar em log
      * @param callerId    número de origem (bina) da assessoria/credor
+     * @param webhookUrl  endereço público do webhook da conta (base para os callbacks por chamada dos
+     *                    provedores que os recebem no pedido, como Twilio e Plivo); pode faltar
      */
-    record ProviderContext(UUID accountId, Map<String, String> credentials, String callerId) {
+    record ProviderContext(UUID accountId, Map<String, String> credentials, String callerId, String webhookUrl) {
+
+        public ProviderContext(UUID accountId, Map<String, String> credentials, String callerId) {
+            this(accountId, credentials, callerId, null);
+        }
     }
 
     /**
@@ -92,10 +141,59 @@ public interface TelephonyProvider {
                        boolean announceRecording) {
     }
 
-    record BridgeRequest(ProviderContext context, UUID callId, String providerCallId, String agentEndpoint) {
+    /**
+     * @param providerLegId id da perna da chamada no provedor, quando difere do id do pedido (ex.:
+     *                      {@code CallUUID} da Plivo, cujo pedido devolve {@code request_uuid})
+     * @param operatorId    operador escolhido (referência opaca para o provedor buscar instruções)
+     */
+    record BridgeRequest(ProviderContext context, UUID callId, String providerCallId, String agentEndpoint,
+                         String providerLegId, UUID operatorId) {
+
+        public BridgeRequest(ProviderContext context, UUID callId, String providerCallId, String agentEndpoint) {
+            this(context, callId, providerCallId, agentEndpoint, null, null);
+        }
     }
 
-    record HangupRequest(ProviderContext context, UUID callId, String providerCallId, HangupReason reason) {
+    /** @param providerLegId id da perna no provedor (ver {@link BridgeRequest}); pode faltar */
+    record HangupRequest(ProviderContext context, UUID callId, String providerCallId, HangupReason reason,
+                         String providerLegId) {
+
+        public HangupRequest(ProviderContext context, UUID callId, String providerCallId, HangupReason reason) {
+            this(context, callId, providerCallId, reason, null);
+        }
+    }
+
+    /**
+     * Resultado da verificação de credenciais.
+     *
+     * @param supported o adaptador verifica credenciais
+     * @param ok        credenciais aceitas pelo provedor
+     * @param code      código estável ({@code OK}, {@code <PROVEDOR>_AUTH_FAILED}, {@code UNREACHABLE}…)
+     */
+    record CredentialCheck(boolean supported, boolean ok, String code) {
+
+        public static CredentialCheck unsupported() {
+            return new CredentialCheck(false, false, "UNSUPPORTED");
+        }
+
+        public static CredentialCheck passed() {
+            return new CredentialCheck(true, true, "OK");
+        }
+
+        public static CredentialCheck failed(String code) {
+            return new CredentialCheck(true, false, code);
+        }
+    }
+
+    /**
+     * Token do SDK de voz do navegador.
+     *
+     * @param token     credencial de curta duração (nunca registrar em log)
+     * @param identity  identidade do operador na plataforma
+     * @param expiresAt vencimento
+     * @param options   opções públicas para o SDK (ex.: borda/edge preferida)
+     */
+    record SoftphoneToken(String token, String identity, Instant expiresAt, Map<String, String> options) {
     }
 
     enum HangupReason {
@@ -149,6 +247,8 @@ public interface TelephonyProvider {
     enum Readiness {
         /** Contrato confirmado e testado: disca em qualquer ambiente. */
         READY,
+        /** Adaptador pronto, mas desligado na configuração deste ambiente ({@code app.telephony.<provedor>.enabled}). */
+        DISABLED,
         /** Adaptador implementado sobre contrato ainda não confirmado pelo fornecedor: só homologação. */
         CONTRACT_PENDING,
         /** Sem adaptador: conta não pode ser criada nem ativada. */

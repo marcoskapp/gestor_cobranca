@@ -6,7 +6,7 @@ export const MANUAL: ModuleManual = {
     'A telefonia liga as chamadas ao caso de cobrança. O operador liga pela estação (clique para ligar), o discador liga sozinho sobre uma fila e conecta o operador quando uma pessoa atende, e chamadas recebidas também ficam vinculadas.',
     'Antes de cada ligação, o sistema confere se o contato por telefone é permitido agora. Ao fim, o operador tabula o resultado, que vai para o histórico do caso.',
     'A presença do operador (disponível ou em pausa, com motivo) diz ao discador quem pode receber chamadas.',
-    'A assessoria pode usar mais de uma plataforma de telefonia ao mesmo tempo (por exemplo, Alvaria e Tarifando). Regras de roteamento dizem qual plataforma liga em cada credor, carteira ou campanha, com uma plataforma de contingência se a principal estiver fora do ar.',
+    'A assessoria pode usar mais de uma plataforma de telefonia ao mesmo tempo (por exemplo, Twilio, Plivo e Alvaria). Regras de roteamento dizem qual plataforma liga em cada credor, carteira ou campanha, com uma plataforma de contingência se a principal estiver fora do ar.',
   ],
   connections: [
     { module: 'cobranca', text: 'Recebe: filas de casos para o discador e o caso aberto na estação; entrega a interação tabulada.' },
@@ -23,7 +23,9 @@ export const MANUAL: ModuleManual = {
     'Vale a regra de roteamento mais específica: campanha, carteira, credor e, por último, o padrão da assessoria.',
     'A contingência só liga quando a plataforma principal comprovadamente não fez a chamada: a mesma ligação nunca é feita duas vezes.',
     'O operador só recebe chamadas de uma plataforma em que tem ramal; no clique para ligar, vale a plataforma do ramal dele.',
-    'Plataforma que ainda aguarda a homologação com o fornecedor não liga em produção.',
+    'Plataforma que ainda aguarda a homologação com o fornecedor não liga em produção. Twilio e Plivo estão prontas.',
+    'Com Twilio, o operador pode atender no próprio navegador: o ramal dele na conta é client:identidade (precisa de fone com microfone).',
+    'O teste de conexão só confere as credenciais na plataforma: não liga para ninguém.',
   ],
   screens: [
     {
@@ -72,6 +74,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Acompanhe disponibilidade e pausas. Vincule cada usuário ao ramal do provedor para o clique para ligar funcionar.',
         'Com mais de uma plataforma, use "Ramais por plataforma": ramal padrão, ramal próprio naquela conta ou "fora desta plataforma".',
+        'Formato do ramal: na Twilio, client:identidade (atende no navegador), sip:usuario@dominio ou +55…; na Plivo, sip:usuario@phone.plivo.com ou +55….',
       ],
       profiles: ['SUPERVISOR', 'GESTOR'],
       inputs: ['Presença informada pelos operadores na estação.'],
@@ -87,12 +90,12 @@ export const MANUAL: ModuleManual = {
       title: 'Plataformas de telefonia',
       objective: 'Contas de cada plataforma de telefonia, qual delas liga em cada credor, carteira ou campanha, e a comparação de atendimento, falhas e custo entre elas.',
       purpose: [
-        'Cadastre a conta de cada plataforma com o número de origem, as credenciais recebidas do fornecedor, a gravação e a tarifa por minuto (só para comparar).',
-        'Na aba Roteamento, escolha a conta principal e a de contingência de cada escopo. A primeira conta ativa vira o padrão da assessoria.',
-        'Copie o endereço de notificações de cada conta e cadastre-o na plataforma: cada conta tem o seu.',
+        'Cadastre a conta escolhendo a plataforma (Twilio, Plivo ou outra), com o número de origem, as credenciais, a gravação e a tarifa por minuto. O cadastro mostra o passo a passo de cada plataforma; para números diferentes por credor ou carteira, crie uma conta por número.',
+        'Depois de salvar, abra "Endereços para o console", cadastre-os na plataforma e use "Testar conexão" (só confere as credenciais, sem ligar para ninguém).',
+        'Na aba Roteamento, escolha a conta principal e a de contingência de cada escopo (padrão, credor, carteira ou campanha). A primeira conta ativa vira o padrão da assessoria.',
       ],
       profiles: ['GESTOR', 'ADMIN'],
-      inputs: ['Credenciais e endereço da instância fornecidos pela plataforma de telefonia.'],
+      inputs: ['Credenciais copiadas do console de cada plataforma (Twilio ou Plivo) e o número de origem.'],
       outputs: ['Contas ativas, regras de roteamento e comparação entre plataformas.'],
       related: [
         { screen: 'telephony.agents', why: 'Ramal do operador em cada plataforma.' },

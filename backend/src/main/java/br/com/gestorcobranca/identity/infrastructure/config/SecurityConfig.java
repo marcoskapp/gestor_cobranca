@@ -8,6 +8,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.ActorAuthentication;
 import br.com.gestorcobranca.shared.security.CurrentActor;
+import br.com.gestorcobranca.shared.security.BrowserPolicyContribution;
 import br.com.gestorcobranca.shared.security.PublicEndpoint;
 import br.com.gestorcobranca.shared.security.TokenActorResolver;
 import br.com.gestorcobranca.shared.security.TokenClaims;
@@ -80,6 +81,18 @@ class SecurityConfig {
         return new AuthorizationDecision(allowed);
     };
 
+    private static String sources(List<BrowserPolicyContribution> policies,
+                                  Function<BrowserPolicyContribution, List<String>> field) {
+        return policies.stream().flatMap(p -> field.apply(p).stream()).distinct().sorted()
+                .map(origin -> " " + origin).collect(Collectors.joining());
+    }
+
+    /** Tudo bloqueado, exceto os recursos liberados para a própria origem pelos módulos. */
+    static String permissionsPolicy(List<String> selfFeatures) {
+        return java.util.stream.Stream.of("camera", "microphone", "geolocation", "payment")
+                .map(f -> f + (selfFeatures.contains(f) ? "=(self)" : "=()")).collect(Collectors.joining(", "));
+    }
+
     @Bean
     PasswordEncoder passwordEncoder() {
         // Argon2id: memória 64 MiB, 3 iterações, paralelismo 1 (OWASP Password Storage Cheat Sheet)
@@ -89,9 +102,15 @@ class SecurityConfig {
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http, List<PublicEndpoint> publicEndpoints,
                                     List<TokenActorResolver> resolvers, AccessLogger accessLogger,
-                                    CurrentActor currentActor, IdentityProperties properties) throws Exception {
+                                    CurrentActor currentActor, IdentityProperties properties,
+                                    List<BrowserPolicyContribution> browserPolicies) throws Exception {
         publicEndpoints.forEach(e -> LOG.info("Endpoint público: {} {} — {}",
                 e.method() == null ? "*" : e.method(), e.pattern(), e.reason()));
+        browserPolicies.forEach(p -> LOG.info("Política do navegador ampliada: connect-src {} media-src {} recursos {} — {}",
+                p.connectSrc(), p.mediaSrc(), p.selfFeatures(), p.reason()));
+        String extraConnect = sources(browserPolicies, BrowserPolicyContribution::connectSrc);
+        String extraMedia = sources(browserPolicies, BrowserPolicyContribution::mediaSrc);
+        List<String> selfFeatures = browserPolicies.stream().flatMap(p -> p.selfFeatures().stream()).distinct().toList();
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -110,10 +129,12 @@ class SecurityConfig {
                                 // fontes e ícones são servidos pelo próprio backend (pacotes npm), sem CDN
                                 "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
                                         + "font-src 'self'; img-src 'self' data:; "
-                                        // player das gravações de chamada: áudio obtido com o token e tocado de blob: em memória
-                                        + "media-src 'self' blob:; "
-                                        + "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"))
-                        .permissionsPolicyHeader(p -> p.policy("camera=(), microphone=(), geolocation=(), payment=()")))
+                                        // player das gravações de chamada: áudio obtido com o token e tocado de blob: em memória;
+                                        // origens de fornecedores só por BrowserPolicyContribution (ex.: SDK de voz WebRTC)
+                                        + "media-src 'self' blob:" + extraMedia + "; "
+                                        + "connect-src 'self'" + extraConnect
+                                        + "; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"))
+                        .permissionsPolicyHeader(p -> p.policy(permissionsPolicy(selfFeatures))))
                 .authorizeHttpRequests(auth -> {
                     for (PublicEndpoint endpoint : publicEndpoints) {
                         auth.requestMatchers(matcher(endpoint.method(), endpoint.pattern())).permitAll();

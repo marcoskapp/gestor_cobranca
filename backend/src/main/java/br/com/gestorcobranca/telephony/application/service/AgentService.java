@@ -48,12 +48,13 @@ class AgentService implements AgentUseCases {
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
+    private final ProviderResolver resolver;
     private final Clock clock;
 
     AgentService(AgentRepository agents, AgentEndpointRepository endpointRepository, AgentEndpoints endpoints,
                  TelephonyAccountRepository accounts, AccountRouter router, DialerCampaignRepository campaigns,
                  PresenceRecorder presence, DialerTicks ticks, AccessScope accessScope, CurrentActor currentActor,
-                 AuditTrail auditTrail, Clock clock) {
+                 AuditTrail auditTrail, ProviderResolver resolver, Clock clock) {
         this.agents = agents;
         this.endpointRepository = endpointRepository;
         this.endpoints = endpoints;
@@ -65,6 +66,7 @@ class AgentService implements AgentUseCases {
         this.accessScope = accessScope;
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
+        this.resolver = resolver;
         this.clock = clock;
     }
 
@@ -196,6 +198,9 @@ class AgentService implements AgentUseCases {
                 .orElseThrow(() -> ResourceNotFoundException.of("telephony_account", accountId));
         if (account.getCreditorId() != null) {
             accessScope.requireVisible("telephony_account", account.getId(), account.getCreditorId());
+        }
+        if (command.active() && command.extension() != null && !command.extension().isBlank()) {
+            resolver.adapter(account.getProvider()).ifPresent(a -> a.validateEndpoint(command.extension().trim()));
         }
         AgentEndpoint endpoint = endpointRepository.findByAgentIdAndAccountId(agent.getId(), accountId).orElse(null);
         if (endpoint == null) {

@@ -3,16 +3,19 @@
 Escopo: chamadas vinculadas ao caso, clique para ligar da estação de cobrança, campanhas de discagem (progressiva e
 preditiva), presença do operador para o discador, tabulação e registro no caso, gravações e webhooks do provedor.
 Schema `telephony`, migrations V1200–V1299 (`V1200` tabelas, `V1201` permissões novas nos perfis existentes e
-tabulações de chamada no collection, `V1202` ambiente multiprovedor: roteamento, ramal por plataforma e contingência).
+tabulações de chamada no collection, `V1202` ambiente multiprovedor: roteamento, ramal por plataforma e contingência,
+`V1203` provedores Twilio e Plivo e id da perna da chamada no provedor).
 Dependências: `shared`, `organization :: usecases`, `debt :: usecases`, `compliance :: usecases`,
 `collection :: usecases`. Reações no sentido contrário chegam por eventos (`DebtorAnonymized`); o encerramento publica
 `CallCompleted` (consumido pelo incentive).
 
-Plataformas escolhidas (issue #12): **Alvaria CX** (antiga Aspect; `ALVARIA`) e **Tarifando Telecom** (`TARIFANDO`), usadas
-ao mesmo tempo no **ambiente multiprovedor** (§13). O módulo entrega o domínio completo, a porta de saída
+Plataformas (issue #12): **Alvaria CX** (antiga Aspect; `ALVARIA`), **Tarifando Telecom** (`TARIFANDO`), **Twilio**
+(`TWILIO`) e **Plivo** (`PLIVO`), usadas ao mesmo tempo no **ambiente multiprovedor** (§13); o usuário escolhe a plataforma
+de cada conta e o roteamento decide qual liga em cada escopo. O módulo entrega o domínio completo, a porta de saída
 `TelephonyProvider`, a porta de webhook `TelephonyWebhookAdapter`, o simulador `SANDBOX` (local/teste, recusado no perfil
-`prod`), o adaptador da Alvaria sobre contrato **a confirmar** (anexo A; disca só com a homologação ligada) e o esqueleto
-**desligado** da Tarifando (anexo B). Como plugar um provedor real: §9.
+`prod`), o adaptador da Alvaria sobre contrato **a confirmar** (anexo A; disca só com a homologação ligada), o esqueleto
+**desligado** da Tarifando (anexo B) e os adaptadores **prontos** da Twilio (anexo C) e da Plivo (anexo D), sobre as APIs
+públicas e documentadas. Como plugar um provedor real: §9.
 
 ## 1. Chamada (`Call`, tabela `phone_call`)
 
@@ -192,11 +195,24 @@ provedor (URA/anúncio) — flag `announceRecording` no pedido de discagem — e
 devedor primeiro, AMD), `bridge` (conecta a atendida ao ramal), `hangup` (motivo `OPERATOR`, `ABANDONED` com mensagem,
 `MACHINE`, `CANCELLED`), `fetchRecording`/`deleteRecording`. Falha transitória → `TransientProviderException`; recusa →
 `DialResult.rejected(código)`. O andamento chega **somente por eventos**; o id interno vai como referência do cliente.
+Capacidades opcionais: `validateCredentials`, `validateEndpoint` (formato do ramal na plataforma), `verifyCredentials`
+(teste de conexão, leitura da própria conta), `softphoneIdentity`/`issueSoftphoneToken` (softphone de navegador). O
+`ProviderContext` leva o endereço público do webhook da conta (callbacks por chamada) e `BridgeRequest`/`HangupRequest`
+levam o id da **perna** no provedor (`provider_leg_id`, decisão 586) e o operador escolhido.
+
+**Instruções por webhook** (decisão 581). Provedores que pedem instruções da chamada por webhook (TwiML, Plivo XML)
+declaram `instructionRequest`; o evento do mesmo webhook vem marcado `awaitingInstructions` e o domínio **não** chama a API
+para conectar ou encerrar — `CallInstructions` decide, a partir do estado gravado, `DialDebtor` (operador atendeu: discar
+para o devedor; número só no corpo da resposta), `Hold` (aguardando AMD), `ConnectAgent`, `Announce` (aviso de gravação),
+`Hangup` (com ou sem a mensagem de abandono) e o adaptador traduz (`render`). Reentrega idêntica de um pedido de instruções
+recebe a mesma resposta, sem efeito. URLs de callback geradas pelos adaptadores só levam referências opacas (`k` = tipo,
+`ref` = id interno da chamada, `leg`, `amd`, `op` = id do operador); nunca número, nome ou ramal.
 
 **Webhook** `POST /api/v1/webhooks/telephony/{routingKey}` (`PublicEndpoint`, sem JWT), mesmo padrão do communication:
-limite por rota e IP (429) e de corpo (64 KiB, 413) → rota global `webhook_route` (tenant e conta, chave aleatória de
-256 bits) → assinatura sobre o corpo bruto com o segredo da conta, tempo constante, **cobrindo o instante** (fora de
-±5 min → 401) → recibo do corpo (reentrega idêntica sem efeito) → eventos fora da janela de replay (2 dias) descartados
+limite por rota e IP (429; padrão 6.000/min, decisão 589) e de corpo (64 KiB, 413) → rota global `webhook_route` (tenant e
+conta, chave aleatória de 256 bits) → assinatura sobre o corpo bruto — e, para Twilio e Plivo, sobre a **URL pública**
+(`app.telephony.webhook.public-base-url` + caminho + consulta crua, lida sem consumir o formulário) — com o segredo da
+conta, tempo constante, **cobrindo o instante** quando o provedor assina instante (fora de ±5 min → 401) → recibo do corpo (reentrega idêntica sem efeito) → eventos fora da janela de replay (2 dias) descartados
 → idempotência pelo **id do evento** (`provider_event`) e pelo estado da chamada. Recusa → `WEBHOOK_REJECTED` no log de
 acesso.
 
@@ -266,8 +282,10 @@ pelo ritmo, itens da lista, presença, tabulações, interações, gravações, 
 
 ## 12. Pendências
 
-* Fechar o contrato da Alvaria (anexo A) e implementar a Tarifando (anexo B); áudio do operador por ramal SIP/telefone
-  até haver SDK WebRTC de navegador de algum fornecedor (§13.6).
+* Fechar o contrato da Alvaria (anexo A) e implementar a Tarifando (anexo B). ~~Áudio no navegador~~ (26/10/2026):
+  softphone WebRTC da Twilio (§13.6); Plivo segue pelo ramal SIP (anexo D).
+* Twilio/Plivo: homologação com conta real e número brasileiro (anexos C e D), validação do texto falado
+  (`app.telephony.messages`) com o jurídico e da voz pt-BR escolhida.
 * ~~Telas~~ (24/10/2026): "Ligar" (Alt + L) na estação/ficha com a decisão do porteiro por telefone, barra de presença
   (sinal a cada 30 s enquanto conectado, na sessão inteira do usuário), tabulação obrigatória com contagem regressiva do
   prazo automático, campanhas com painel de supervisão (5 s), chamadas com player de gravação (finalidade, áudio em
@@ -290,17 +308,26 @@ contingência.
 | --- | --- |
 | uma conta ativa padrão + uma por credor (`uk_tel_account_active`) | **várias contas ativas**, de provedores diferentes |
 | `creditor_id` = conta do credor (escolha da conta) | `creditor_id` = conta **restrita** ao credor (bina dele): só regras desse credor a usam |
-| provedor `SANDBOX` | `SANDBOX`, `ALVARIA`, `TARIFANDO` |
+| provedor `SANDBOX` | `SANDBOX`, `ALVARIA`, `TARIFANDO`, `TWILIO`, `PLIVO` (V1203) |
 | — | `rate_per_minute` (opcional): tarifa informada para o custo estimado da comparação |
 
-Criação: provedor `NOT_IMPLEMENTED` → `422 telephony_account.provider_unavailable`; `CONTRACT_PENDING` sem homologação →
+Criação: provedor `NOT_IMPLEMENTED` → `422 telephony_account.provider_unavailable`; `DISABLED` (Twilio/Plivo com
+`app.telephony.<provedor>.enabled=false`) → `telephony_account.provider_disabled`; `CONTRACT_PENDING` sem homologação →
 conta criada **inativa** (credenciais guardadas, rota do webhook inativa); ativar exige `canDial`
 (`telephony_account.provider_not_ready`). Credenciais validadas pelo adaptador (`validateCredentials`; ex.: `apiBaseUrl`
 da Alvaria em HTTPS e no domínio permitido — proteção contra SSRF). A **primeira conta ativa** de um escopo sem regra vira a
 principal dele (padrão da assessoria ou do credor), auditado com `automatic=true` — o comportamento de conta única continua
 igual. A V1202 cria as regras a partir das contas ativas existentes.
 
-`GET /telephony/accounts/providers`: provedores, credenciais exigidas, `readiness`, `dialable` e `available`.
+`GET /telephony/accounts/providers`: provedores, credenciais exigidas e opcionais, `readiness`, `dialable`, `available` e
+`verifiable` (teste de conexão). A conta devolve `webhookUrl` (endereço público) e `consoleEndpoints` (endereços a
+cadastrar no console: URL de voz do número na Twilio, Answer/Hangup URL da Application na Plivo). `POST
+/telephony/accounts/{id}/test`: verificação leve das credenciais (decisão 590), auditada `telephony_account.connection_tested`.
+
+**Números (bina) por credor ou carteira** (decisão 587): a bina é da conta; para números diferentes por credor ou carteira,
+cadastra-se uma conta por número — com as mesmas credenciais da plataforma, se for o caso — e a regra do escopo. Números
+**0303** (telemarketing ativo) são configurados como bina como qualquer outro (a Twilio oferece números nacionais 0303
+com CNPJ e endereço no Brasil, anexo C); a obrigatoriedade do prefixo para cobrança segue a regulação da Anatel (anexo C).
 
 ### 13.2 Roteamento (`account_route`, decisão 561)
 
@@ -353,6 +380,9 @@ Tempo de leitura esgotado e outros 5xx são **ambíguos** (o provedor pode ter d
 referência do cliente e `Idempotency-Key` (deduplicação no fornecedor a confirmar — anexo A). A chamada guarda
 `fallback_from_account_id`; o adaptador da Alvaria, num lote parcial (mais de 50 itens), recusa os restantes em vez de
 relançar (os já aceitos não se repetem). Simulador: destino terminado em `9998` = falha "não processada".
+**Twilio e Plivo não deduplicam pedidos de criação de chamada**: tempo de leitura esgotado ou 5xx (exceto 503) na criação
+vira recusa `TWILIO_UNCONFIRMED`/`PLIVO_UNCONFIRMED` — sem repetir nem desviar, a tentativa no compliance fica registrada
+(decisão 582).
 
 ### 13.5 Webhooks, métricas, logs e comparação
 
@@ -361,9 +391,11 @@ relançar (os já aceitos não se repetem). Simulador: destino terminado em `999
 * Métricas novas (série própria para não mudar as dimensões de `telephony.calls`, usadas por painéis/alarmes):
   `telephony.provider.calls{provider,origin,result}`, `telephony.provider.talk_time{provider}`,
   `telephony.provider.dial{provider,origin,outcome}` (`accepted`, `rejected`, `transient`, `transient_not_processed`),
-  `telephony.provider.fallbacks{from,to,origin}`; adaptadores: `integration.calls{provider=alvaria,operation,outcome}` e
-  `integration.calls.duration` (operações `oauth_token`, `originate`, `dial_batch`, `bridge`, `hangup`,
-  `fetch_recording`, `delete_recording`; resultados `success`, `rejected`, `transient`, `timeout`, `unreachable`).
+  `telephony.provider.fallbacks{from,to,origin}`; adaptadores: `integration.calls{provider=alvaria|twilio|plivo,operation,
+  outcome}` e `integration.calls.duration` (operações `oauth_token`, `originate`, `dial_batch`/`dial`, `bridge`, `hangup`,
+  `fetch_recording`, `fetch_recording_media`, `delete_recording`, `verify_credentials`; resultados `success`, `rejected`,
+  `transient`, `timeout`, `unreachable`); `telephony.webhook.instructions{provider,kind,instruction}` (respostas TwiML/XML)
+  e `telephony.softphone.tokens{provider,outcome}`.
   **ASR por provedor** = `telephony.provider.calls{result ∈ ANSWERED, VOICEMAIL, ABANDONED}` ÷ `telephony.provider.calls`.
 * Eventos de negócio de chamada ganham `provider`, `accountId` e `fallback`.
 * `GET /telephony/accounts/comparison?from&to` (padrão: últimos 30 dias; até 366): por conta — discadas, recusadas,
@@ -371,13 +403,25 @@ relançar (os já aceitos não se repetem). Simulador: destino terminado em `999
   tarifáveis (atendimento → fim) e **custo estimado** = minutos × tarifa informada (a fatura do fornecedor é a
   referência). Aba "Comparação" da tela.
 
-### 13.6 Softphone (decisão 569)
+### 13.6 Softphone (decisões 569, 584 e 585)
 
-Nenhum dos dois fornecedores publica SDK WebRTC de navegador (anexos). O áudio do operador segue pelo **ramal** (softphone
-instalado, aparelho SIP ou telefone): a plataforma chama o ramal primeiro. O ponto de integração existe na estação
-(`SOFTPHONE`, `features/telephony/station/softphone.ts`, padrão `external`); uma implementação `webrtc` empacota o SDK do
-fornecedor no build (**nunca CDN externa**: a CSP continua `script-src 'self'`), acrescenta a `connect-src`/`media-src`
-só os domínios do fornecedor e usa a identidade WebRTC como ramal da conta.
+O áudio do operador segue pelo **ramal** (softphone instalado, aparelho SIP ou telefone) — a plataforma chama o ramal
+primeiro — ou, na **Twilio**, pelo navegador: ramal da conta `client:<identidade>` (letras, dígitos e `_`). Na estação, o
+ponto `SOFTPHONE` (`features/telephony/station/softphone.ts`) liga o `WebrtcSoftphone` quando o operador entra na
+telefonia: `POST /telephony/presence/me/softphone` (`TELEPHONY_USE`, só o próprio usuário, `no-store`) devolve, para cada
+conta ativa em que o ramal dele é de navegador, um **Access Token** de 1 h (Voice Grant só de entrada; saída só com o
+TwiML App opcional da conta), renovado no aviso `tokenWillExpire` do SDK. O **Twilio Voice JavaScript SDK**
+(`@twilio/voice-sdk` 2.18.5, npm, versão fixa) entra no build como pedaço carregado sob demanda (`twilio-voice-device`,
+~180 kB, ~40 kB transferidos), fora do pacote inicial; **nunca CDN** (`script-src 'self'` inalterado). A política do navegador
+é ampliada só com o adaptador ligado, por `BrowserPolicyContribution` (shared, reunida pelo identity): `connect-src
+wss://voice-js.<borda>.twilio.com https://eventgw.twilio.com https://sdk.twilio.com`, `media-src https://sdk.twilio.com`
+(sons do SDK) e `Permissions-Policy: microphone=(self)`. Chamadas entregues ao navegador são **atendidas
+automaticamente** (decisão 591); silenciar fica na barra de presença; encerrar continua pelo backend.
+
+**Plivo** (decisão 585): o Browser SDK (`plivo-browser-sdk`) depende de `wasm-pack`, cujo `postinstall` baixa um binário
+da Internet na instalação, e exige token gerado pela API da Plivo — fora das condições do build (pacote auditável, sem
+downloads na instalação). O operador da Plivo atende pelo endpoint SIP da Plivo (`sip:<usuario>@phone.plivo.com`) num
+softphone instalado. Reavaliar quando o SDK deixar de baixar binários.
 
 ### 13.7 Testes
 
@@ -385,8 +429,15 @@ só os domínios do fornecedor e usa a identidade WebRTC como ramal da conta.
 HTTP local ao mesmo tempo — regra por credor, ramal por plataforma no `originate`, evento assinado por conta e recusa com
 segredo de outra, contingência Alvaria (503) → SANDBOX com uma única tentativa no compliance, operador fora da plataforma,
 regra de campanha com lote e `bridge` pela Alvaria, comparação, catálogo, Tarifando recusada, conta restrita a outro credor,
-conta inativa na regra. `AlvariaTelephonyProviderTest` (servidor HTTP local) e `AlvariaWebhookAdapterTest`. Nenhuma chamada
-real.
+conta inativa na regra. `AlvariaTelephonyProviderTest` (servidor HTTP local) e `AlvariaWebhookAdapterTest`.
+`TelephonyCpaasIT`: Twilio e Plivo dublados ao mesmo tempo por `FakeHttpApi` (servidor HTTP local único da execução, endereço
+injetado pelo `IntegrationTest`), webhooks entregues pela porta HTTP real e assinados como os provedores assinam — clique
+para ligar Twilio com gravação copiada e removida, chamada recebida com TwiML na resposta (operador ou mensagem de abandono),
+discador Plivo com AMD (espera, conexão, secretária encerrada pela API), contingência Twilio (503) → Plivo com uma tentativa
+no compliance, catálogo, endereços do console, teste de conexão, softphone e CSP. Unidade: `TwilioSecurityTest` (vetor oficial
+da assinatura e layout do Access Token), `TwilioWebhookAdapterTest`, `TwilioTelephonyProviderTest`, `PlivoSignatureTest`
+(cadeia do exemplo oficial), `PlivoWebhookAdapterTest`, `PlivoTelephonyProviderTest`. Frontend: cadastro por plataforma
+(`account-dialogs.spec.ts`) e softphone com o SDK dublado (`softphone.spec.ts`). Nenhuma chamada real.
 
 ## Anexo A — Alvaria CX (antiga Aspect)
 
@@ -463,3 +514,147 @@ conexão ao ramal, encerramento, gravações), autenticação, webhooks/eventos 
 de caixa postal") por chamada, plano necessário para discagem automática pela API e tarifas por minuto (fixo/móvel,
 cadência de tarifação), ramais SIP/WebRTC, números (bina por credor), ambiente de testes, onde os dados e as gravações
 ficam e DPA. Homologação: os mesmos passos do anexo A depois de implementar o adaptador.
+
+## Anexo C — Twilio Programmable Voice
+
+**Situação: `READY`** (API pública e documentada). Desligável por ambiente: `app.telephony.twilio.enabled`
+(`APP_TELEPHONY_TWILIO_ENABLED`, padrão `true`; desligada → `DISABLED`, conta recusada).
+
+**Implementado** (`infrastructure/provider/twilio`)
+
+| Operação | Como (API REST `https://api.twilio.com/2010-04-01/Accounts/{AccountSid}/…`) |
+| --- | --- |
+| autenticação | HTTP Basic com a **API Key** (SID `SK…` e segredo); o **Auth Token** só valida webhooks e o teste de conexão (a assinatura da Twilio usa só o Auth Token) |
+| `originate` | `POST Calls.json`: `To` = ramal do operador (`client:<id>`, `sip:…` ou E.164), `From` = bina, `Timeout`, `StatusCallback` (perna do operador, `completed`) e `Twiml` **inline** (≤ 4.000 caracteres): `<Dial callerId timeout record="record-from-answer-dual" recordingStatusCallback><Number statusCallbackEvent="ringing answered completed" statusCallback url="…k=announce">+55…</Number></Dial>` — o `url` do `<Number>` toca o aviso de gravação ao devedor antes de conectar |
+| `dialBatch` | um `POST Calls.json` por item (sem lote na API): `MachineDetection=Enable`, `AsyncAmd=true`, `AsyncAmdStatusCallback`, `MachineDetectionTimeout` (`amd-timeout`, padrão 8 s), `StatusCallbackEvent` ringing/answered/completed, `Record=true` + `RecordingChannels=dual` + `RecordingStatusCallback`, `Twiml` de espera (`<Say>` do aviso + `<Pause>`) |
+| `bridge` | `POST Calls/{Sid}.json` com `Twiml` `<Dial timeout="20" callerId><Client>/<Sip>/<Number></Dial>` |
+| `hangup` | `Status=completed` (encerra também em andamento); abandono: `Twiml` `<Say>` com a mensagem + `<Hangup/>` |
+| gravação | `GET Recordings/{Sid}.wav?RequestedChannels=2` (dois canais: operador e devedor separados; HTTP Basic) e `DELETE Recordings/{Sid}.json` depois da cópia |
+| teste de conexão | `GET Accounts/{Sid}.json` com a API Key e com o Auth Token (só leitura) |
+| softphone | Access Token JWT HS256 (`cty: twilio-fpa;v=1`, `iss` = API Key, `sub` = conta, `grants.identity`, `grants.voice.incoming.allow`, `outgoing.application_sid` só com `twimlAppSid`), 1 h (máx. 24 h) |
+
+**Webhooks** (decisão 581): `X-Twilio-Signature` = Base64(HMAC-SHA1(Auth Token, URL completa com consulta + parâmetros
+do POST ordenados, nome+valor)) — validada contra o **vetor oficial** da documentação. Callbacks por chamada no webhook da
+conta (`k=status|amd|recording|announce`, `ref`, `leg=agent|customer|dialer`, `amd`). Tradução: `ringing` → `RINGING`;
+`in-progress` → `ANSWERED` (perna do devedor; no discador com AMD o atendimento vem do veredito); `completed`, `busy`,
+`no-answer`, `failed` (`SipResponseCode` como causa), `canceled`; `AnsweredBy`: `human` → pessoa, `machine_*`/`fax` →
+máquina, `unknown` → desconhecido (tratado como pessoa). Idempotência: `CallSid` + status (`…:amd`, `RecordingSid` +
+status). Instante: `Timestamp` (RFC 2822, assinado no corpo); veredito AMD = recebimento − `MachineDetectionDuration`.
+Chamada recebida: a **URL de voz do número** (`?k=inbound`) responde com TwiML — `<Dial>` ao operador escolhido (com aviso e
+gravação) ou a mensagem de abandono.
+
+**AMD** (decisão 583): `Enable` (veredito assim que identifica; `DetectMessageEnd` espera o bipe e serve para deixar
+recado, o que não fazemos) e **assíncrono** (a chamada segue enquanto o AMD analisa: o aviso de gravação toca, sem silêncio
+extra para a pessoa).
+
+**Configurar no console da Twilio (passo a passo)**
+
+1. Conta (ou subconta por assessoria): copie **Account SID** e **Auth Token** (Account Info). Crie uma **API Key** padrão
+   (Account → API keys & tokens; `SK…` e segredo, mostrado uma vez).
+2. Número: compre um número **local** brasileiro (exige empresa com CNPJ e comprovante de endereço no Brasil; não é
+   oferecido a pessoa física) ou **nacional 0303** (mesmos documentos), ou porte o seu. Bina da conta = esse número (E.164).
+3. No número (Phone Numbers → Manage → Voice): "A call comes in" = **Webhook** `POST` com o endereço `?k=inbound` da conta e
+   "Call status changes" = `?k=status&leg=inbound` (tela "Endereços para o console").
+4. Softphone no navegador (opcional): ramal do operador na conta `client:<identidade>` (ex.: `client:op_ana`). Para chamadas
+   de saída pelo navegador (não usadas hoje), crie um TwiML App e informe o `twimlAppSid`.
+5. No sistema: Plataformas de telefonia → Nova conta → Twilio → credenciais, bina, gravação e tarifa → **Testar conexão** →
+   ramais → regra de roteamento.
+
+**Homologação** (conta de teste com crédito; números brasileiros): clique para ligar com operador no navegador e por SIP
+(aviso tocado ao devedor; gravação em dois canais copiada e removida na Twilio); discador progressivo com AMD (pessoa,
+secretária, desconhecido) e abandono com mensagem; chamada recebida com e sem operador livre; encerramento pelo supervisor;
+assinatura inválida (401); reentrega do mesmo callback; 503 → contingência; rotação da API Key e do Auth Token.
+
+**Custos de referência** (preços públicos, USD, agosto/2026; a fatura é a referência): saída para fixo (grandes cidades)
+US$ 0,0310/min, fixo a partir de número 0303 US$ 0,0620/min, móvel US$ 0,0663/min; navegador/SIP US$ 0,0040/min; entrada em
+número local US$ 0,0100/min; número local US$ 4,25/mês; AMD US$ 0,0075 por chamada; gravação US$ 0,0025/min + armazenamento
+US$ 0,0005/min/mês (removida após a cópia); síntese de voz: básica grátis, Standard US$ 0,0008 e Neural US$ 0,0032 por 100
+caracteres.
+
+**Limitações**: a Twilio não informa quem desligou nos callbacks de status (lado `PROVIDER`); a API usa a região US1
+(processamento nos EUA — avaliar a transferência internacional na LGPD, art. 33, com o DPA da Twilio); a criação de chamada
+não é deduplicada (decisão 582); a voz `Polly.Camila` (pt-BR) deve ser conferida no console; conexão ao operador que não
+atende em 20 s encerra a chamada.
+
+**Fontes oficiais** (consultadas em 26/10/2026): [Call resource](https://www.twilio.com/docs/voice/api/call-resource),
+[Modificar chamadas em andamento](https://static1.twilio.com/docs/voice/tutorials/how-to-modify-calls-in-progress/csharp),
+[Answering Machine Detection](https://twilio.com/docs/voice/answering-machine-detection),
+[Webhooks security](https://www.twilio.com/docs/usage/webhooks/webhooks-security) e o
+[algoritmo com exemplo](https://static0.twilio.com/docs/security), [Recording](https://www.twilio.com/docs/voice/api/recording.md),
+[TwiML `<Dial>`](https://twilio.com:443/docs/voice/twiml/dial), [`<Number>`](https://www.twilio.com/docs/voice/twiml/number.md),
+[`<Client>`](https://www.twilio.com/docs/voice/twiml/client), [`<Say>`](https://www.twilio.com/pt-br/docs/voice/twiml/say),
+[Access Tokens](https://twilio.com/docs/iam/access-tokens),
+[Requisitos de rede dos SDKs](https://www.twilio.com/docs/voice/sdks/network-connectivity-requirements),
+[`@twilio/voice-sdk`](https://npmjs.com/package/@twilio/voice-sdk),
+[Regulação de números no Brasil](https://www.twilio.com/en-us/guidelines/br/regulatory),
+[Preços Brasil](https://www.twilio.com/en-us/voice/pricing/br). Anatel (prefixo de cobrança):
+[0304 aprovado em 2022](https://www.tnh1.com.br/noticia/nid/anatel-aprova-uso-do-prefixo-0304-para-ligacoes-de-cobranca/),
+[proposta de 2024 de usar o 0303 para cobrança](https://convergenciadigital.com.br/telecom/anatel-vai-ampliar-codigo-0303-para-chamadas-de-cobranca-e-doacoes)
+e [0303 em 2022, com cobrança isenta](https://tecnoblog.net/noticias/prefixo-0303-agora-vale-para-todas-as-ligacoes-de-telemarketing/)
+— a situação atual deve ser confirmada com o jurídico antes da produção.
+
+## Anexo D — Plivo Voice
+
+**Situação: `READY`**. Desligável: `app.telephony.plivo.enabled` (`APP_TELEPHONY_PLIVO_ENABLED`, padrão `true`).
+
+**Implementado** (`infrastructure/provider/plivo`; API `https://api.plivo.com/v1/Account/{auth_id}/…`, HTTP Basic com Auth
+ID e Auth Token, corpo JSON)
+
+| Operação | Como |
+| --- | --- |
+| `originate` | `POST Call/`: `from` = bina (dígitos), `to` = ramal (`sip:<usuario>@phone.plivo.com` ou telefone), `answer_url` (`k=answer&leg=agent`), `hangup_url`, `ring_timeout`. A Plivo exige `answer_url` (não há XML inline): ao atender o operador, a resposta devolve `<Record startOnDialAnswer>` + `<Dial callerId timeout redirect="false" action callbackUrl confirmSound><Number>55…</Number></Dial>` — o número do devedor vem da chamada gravada (cifrada) direto para o corpo; `confirmSound` toca o aviso ao devedor |
+| `dialBatch` | um `POST Call/` por item com `machine_detection=true`, `machine_detection_time` (`amd-time`, padrão 5 s), `machine_detection_url`, `ring_url`, `answer_url` e `hangup_url`. Atendida: `<Record recordSession>` + `<Speak>` do aviso + `<Wait length=amd+1 silence>` + `<Redirect>` (`k=amdwait`) |
+| ids | a criação devolve `request_uuid` (id da chamada no domínio); o `CallUUID` chega em `ring`/`answer`/`amd`/`hangup` e é guardado em `provider_leg_id` (decisão 586) |
+| `bridge` | `POST Call/{call_uuid}/` `legs=aleg`, `aleg_url` = `k=bridge&ref&op=<operador>` → `<Dial><User>…</User></Dial>` |
+| `hangup` | `DELETE Call/{call_uuid}/`; antes do `CallUUID`, `DELETE Request/{request_uuid}/`; abandono: transferência para `k=abandon` (`<Speak>` + `<Hangup/>`). **Nunca** `DELETE Call/` sem id (encerraria todas as chamadas da conta) |
+| gravação | `GET Recording/{id}/` → `recording_url` (HTTPS e host em `recording-hosts`, padrão `media.plivo.com`, anti-SSRF), download com HTTP Basic, `DELETE Recording/{id}/` |
+| teste de conexão | `GET /v1/Account/{auth_id}/` |
+
+**Webhooks**: `X-Plivo-Signature-V3` + `X-Plivo-Signature-V3-Nonce` = Base64(HMAC-SHA256(Auth Token, URL com a consulta
+reordenada + `.` + parâmetros do POST ordenados nome+valor + `.` + nonce)), várias assinaturas separadas por vírgula —
+conforme a documentação e o utilitário oficial `validate_v3_signature` do SDK; testado com a cadeia do exemplo oficial.
+Tradução: `ring` → `RINGING`; `answer` → `ANSWERED` (sem AMD) ou espera (com AMD; operador no clique para ligar → toque do
+devedor); `amd` (`Machine=true`) → máquina; `amdwait` → atendida, desconhecido (tratado como pessoa); `hangup` → `COMPLETED`
+com `AnswerTime`, senão `BUSY`/`FAILED`/`CANCELLED`/`NO_ANSWER` pela causa; `dial` (`DialAction=answer|hangup`) e `dialend`
+(`DialStatus`) → perna do devedor no clique para ligar; `recording` (arquivo pronto, ignora o aviso de início com duração
+−1). Idempotência: `CallUUID` + passo; sem instante assinado (instante = recebimento).
+
+**AMD** (decisão 583): a Plivo detecta só em segundo plano e notifica `machine_detection_url` quando acha máquina; o fim da
+espera sem veredito vale como pessoa (`UNKNOWN`), sem prolongar o silêncio além do tempo de detecção.
+
+**Configurar no console da Plivo (passo a passo)**
+
+1. Copie **Auth ID** e **Auth Token** (Overview; para uma assessoria por subconta, os da subconta).
+2. Alugue um número brasileiro (local, móvel ou 0800); a Plivo não publica a lista de documentos do Brasil — siga o pedido do
+   console/suporte. Bina = esse número.
+3. Crie uma **Application** com Answer URL = endereço `?k=inbound` da conta e Hangup URL = `?k=hangup&leg=inbound` (POST) e
+   ligue o número a ela.
+4. Crie um **Endpoint** por operador (usuário, senha, alias, ligado à Application) e cadastre o ramal
+   `sip:<usuario>@phone.plivo.com` em Operadores e ramais → Ramais por plataforma; o operador registra o endpoint num
+   softphone SIP.
+5. Em Voice → Settings, ligue a autenticação HTTP das gravações.
+6. No sistema: Nova conta → Plivo → **Testar conexão** → ramais → roteamento.
+
+**Homologação**: os mesmos roteiros do anexo C, mais: transferência (`bridge`) com `CallUUID`, cancelamento antes do toque
+(`DELETE Request`), download da gravação com autenticação HTTP ligada e host do `recording_url` (ajuste
+`APP_TELEPHONY_PLIVO_RECORDING_HOSTS` se a Plivo entregar outro host).
+
+**Custos de referência** (USD, página pública): saída fixo grandes cidades US$ 0,0200/min (demais fixos US$ 0,0330), móvel
+US$ 0,0980/min; SIP/navegador US$ 0,0033/min; entrada local US$ 0,0060/min; número local US$ 5,00/mês (móvel US$ 20, 0800
+US$ 30); AMD e gravação sem custo; armazenamento grátis por 90 dias.
+
+**Limitações**: softphone de navegador não adotado (decisão 585); a Plivo não assina instante; a documentação do
+`hangup_url` não lista causa nem lado do desligamento (lidos quando presentes); AMD só notifica máquina; regras de números
+brasileiros não publicadas; processamento fora do Brasil (avaliar transferência internacional e DPA).
+
+**Fontes oficiais** (26/10/2026): [Call API](https://www.plivo.com/docs/voice/api/calls.md),
+[AMD assíncrono](https://www.plivo.com/docs/voice/api/call/asynchronous-machine-detection/) e
+[conceito](https://docs.plivo.com/docs/voice/concepts/machine-detection),
+[Signature validation V3](https://www.plivo.com/docs/voice/concepts/signature-validation.md) (e `plivo/utils/signature_v3.py`
+do SDK oficial plivo-python), [XML `<Dial>`](https://www.plivo.com/docs/voice/xml/dial/),
+[`<Record>`](https://docs.plivo.com/docs/voice/xml/record), [`<Wait>`/`<Redirect>`/`<Hangup>`](https://plivo.com/docs/voice/xml/routing),
+[`<Speak>`](https://www.plivo.com/docs/voice/xml/audio-output.md), [Recordings](https://www.plivo.com/docs/voice/api/recordings.md),
+[Endpoints](https://www.plivo.com/docs/voice/api/endpoints.md),
+[Browser SDK — JWT](https://www.plivo.com/docs/voice/sdk/browser/jwt-authentication.md),
+[Rede e firewall](https://docs.plivo.com/docs/voice/concepts/firewall-network-configuration.md),
+[Preços Brasil](https://www.plivo.com/voice/pricing/br/), [Compliance de números](https://www.plivo.com/docs/numbers/regulatory-compliance.md).

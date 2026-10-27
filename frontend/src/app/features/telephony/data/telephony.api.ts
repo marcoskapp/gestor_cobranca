@@ -8,6 +8,8 @@ import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
   AccountComparison,
   AgentView,
+  ConnectionTestView,
+  SoftphoneSession,
   CreateTelephonyAccountRequest,
   EndpointView,
   RouteView,
@@ -62,6 +64,11 @@ export class PresenceApi {
 
   logout(): Observable<AgentView> {
     return this.http.post<AgentView>(`${BASE}/presence/me/logout`, null, { context: silentErrorContext() });
+  }
+
+  /** Tokens do softphone de navegador do próprio operador (vazio = atende no ramal externo). */
+  softphone(): Observable<SoftphoneSession[]> {
+    return this.http.post<SoftphoneSession[]>(`${BASE}/presence/me/softphone`, null, { context: silentErrorContext() });
   }
 }
 
@@ -129,6 +136,11 @@ export class TelephonyAccountsApi {
 
   deactivate(id: string): Observable<TelephonyAccountView> {
     return this.http.post<TelephonyAccountView>(`${this.base}/${id}/deactivate`, null, { context: silentErrorContext() });
+  }
+
+  /** Verificação leve das credenciais no provedor (não liga para ninguém). */
+  testConnection(id: string): Observable<ConnectionTestView> {
+    return this.http.post<ConnectionTestView>(`${this.base}/${id}/test`, null, { context: silentErrorContext() });
   }
 
   /** Datas `AAAA-MM-DD` (dias de operação, inclusive); sem datas, os últimos 30 dias. */

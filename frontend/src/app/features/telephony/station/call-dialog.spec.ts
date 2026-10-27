@@ -14,7 +14,7 @@ const contacts: SheetContact[] = [
 
 describe('CallDialog (clique para ligar)', () => {
   const close = vi.fn();
-  const session = { agent: signal(agentView({ status: 'AVAILABLE' })), configured: signal(true), busy: signal(false), dial: vi.fn(), login: vi.fn(), available: vi.fn() };
+  const session = { agent: signal(agentView({ status: 'AVAILABLE' })), loggedIn: signal(false), configured: signal(true), busy: signal(false), dial: vi.fn(), login: vi.fn(), available: vi.fn() };
 
   function create() {
     return setup(CallDialog, ['TELEPHONY_USE'], 'u-1', [

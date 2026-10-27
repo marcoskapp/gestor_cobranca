@@ -707,13 +707,13 @@ O script aceita só token fine-grained (`github_pat_…`). O segredo é **opcion
 
 **Se der errado:** `helpdesk.ticket.token_rejected` → token vencido, revogado ou sem *Issues: Read and write*; `helpdesk.ticket.repository_not_found` → token sem acesso ao repositório de `helpdesk_github_repository`; `helpdesk.ticket.repository_not_private` → trava ligada com repositório público; `AccessDeniedException` no Bedrock → §7.4 passos 1–2 ou `helpdesk_bedrock_model_id` diferente do perfil habilitado; a aplicação não sobe e cita `international-transfer-approved` → falta a aprovação na variável.
 
-### 7.6 SMS, boleto e telefonia — aguardam provedor
+### 7.6 SMS, boleto e telefonia
 
 | Integração | Situação no código | O que falta |
 | --- | --- | --- |
 | SMS | só a porta `ChannelGateway`; conta SMS só com o simulador | escolha do provedor (issue #12) |
 | Boleto e link de pagamento | portas recusadas até haver provedor; conciliação por CSV genérico; CNAB reconhecido sem leitor | escolha do provedor (issue #12) |
-| Telefonia e discador | multiprovedor: Alvaria CX (contrato a confirmar, só homologação) e Tarifando (adaptador desligado); simulador recusado no `prod` | contrato e ambiente de testes da Alvaria; documentação da API da Tarifando ([telefonia.md](../desenho/telefonia.md) anexos A e B) |
+| Telefonia e discador | multiprovedor: **Twilio e Plivo prontas**; Alvaria CX (contrato a confirmar, só homologação); Tarifando (adaptador desligado); simulador recusado no `prod` | Twilio/Plivo: conta, número brasileiro e console (abaixo); Alvaria: contrato e ambiente de testes; Tarifando: documentação da API ([telefonia.md](../desenho/telefonia.md) anexos A a D) |
 
 Nada a configurar na AWS para SMS e boleto. Os simuladores (`sandbox`) são recusados no perfil `prod`: não tente ligá-los em produção.
 
@@ -733,6 +733,40 @@ Nada a configurar na AWS para SMS e boleto. Os simuladores (`sandbox`) são recu
    `telephony.provider.fallbacks` e `telephony.webhook.requests{provider=ALVARIA,outcome=INVALID_SIGNATURE}`.
 
 A Tarifando não tem o que configurar: a aplicação recusa contas dela até o adaptador ser implementado (anexo B).
+
+**Telefonia — Twilio e Plivo (prontas).** Nada novo no Terraform: as variáveis abaixo têm padrão seguro e só mudam se
+for preciso (arquivo `app.env` do ambiente ou equivalente). Credenciais **nunca** em arquivo nem em variável: ficam na conta,
+cifradas, cadastradas pela tela.
+
+| Variável | Padrão | Uso |
+| --- | --- | --- |
+| `TELEPHONY_WEBHOOK_PUBLIC_BASE_URL` | `APP_BASE_URL` | endereço público HTTPS (ALB) entregue aos provedores e coberto pelas assinaturas deles; precisa ser exatamente o que a Twilio/Plivo chamam |
+| `APP_TELEPHONY_TWILIO_ENABLED` / `APP_TELEPHONY_PLIVO_ENABLED` | `true` | oferece o provedor no ambiente (`false` → "Desligado neste ambiente"; a CSP do softphone só entra com a Twilio ligada) |
+| `APP_TELEPHONY_TWILIO_ALLOWED_HOSTS` / `APP_TELEPHONY_PLIVO_ALLOWED_HOSTS` | `api.twilio.com` / `api.plivo.com` | allowlist anti-SSRF da URL da API (conferida na subida; a URL não vem da conta) |
+| `APP_TELEPHONY_PLIVO_RECORDING_HOSTS` | `media.plivo.com` | hosts aceitos no `recording_url` das gravações |
+| `APP_TELEPHONY_TWILIO_EDGE` | `roaming` | borda do softphone (ex.: `sao-paulo`); entra na CSP |
+
+1. **Criação da conta no provedor.** Twilio: conta (ou subconta) paga, Account SID e Auth Token (Account Info), uma API Key
+   padrão (`SK…` + segredo). Plivo: conta paga, Auth ID e Auth Token (Overview). Use uma conta de teste na homologação e a
+   de produção só depois do roteiro aprovado.
+2. **Números brasileiros.** Twilio: número **local** (CNPJ e comprovante de endereço no Brasil — extrato do registro
+   comercial, conta de consumo, carnê de imposto ou contrato de aluguel; caixa postal não vale; não disponível a pessoa
+   física) ou **nacional 0303** (mesmos documentos); 0800 exige também documento do CNPJ, identidade e procuração do
+   representante, até cinco por CNPJ. Plivo: número local/móvel/0800 pelo console, com os documentos que o console/suporte
+   pedir (a Plivo não publica a lista do Brasil). A bina de cada conta no sistema é esse número em E.164.
+3. **Saída para a Internet.** As instâncias chamam `api.twilio.com`/`api.plivo.com` (HTTPS 443) pelo NAT; os webhooks
+   chegam pelo ALB (a Twilio não tem faixa fixa de IP; a Plivo publica os IPs de saída por região — não restrinja por IP
+   sem conferir a lista).
+4. **No sistema** (gestor): Plataformas de telefonia → Nova conta → Twilio ou Plivo (o cadastro mostra o passo a passo) →
+   credenciais, bina, gravação e tarifa → **Testar conexão** → "Endereços para o console" e cadastre-os no provedor
+   (Twilio: Voice URL e Status Callback do número; Plivo: Answer URL e Hangup URL da Application ligada ao número) → ramais
+   por plataforma (Twilio `client:<identidade>` para o navegador, `sip:` ou `+55…`; Plivo `sip:<usuario>@phone.plivo.com`) →
+   regras de roteamento (padrão, credor, carteira, campanha, contingência).
+5. **Roteiro** dos anexos C e D (clique para ligar, discador com AMD, chamada recebida, gravação, assinatura inválida,
+   contingência). Texto do aviso e da mensagem de abandono: validar com o jurídico (`app.telephony.messages`).
+6. **Acompanhe** `integration.calls{provider=twilio|plivo}` (`rejected` = credencial/número; `unreachable`/`timeout` = rede),
+   `telephony.webhook.requests{provider=TWILIO|PLIVO,outcome=INVALID_SIGNATURE}` (endereço público diferente do cadastrado
+   ou token trocado), `telephony.webhook.instructions` e `telephony.softphone.tokens{outcome=failed}`.
 
 ---
 

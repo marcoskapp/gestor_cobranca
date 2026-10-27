@@ -24,12 +24,16 @@ import java.util.stream.Collectors;
  * @param routing              roteamento entre contas (contingência)
  * @param homologation         provedores com contrato a confirmar liberados para discar (homologação)
  * @param alvaria              adaptador da Alvaria CX
+ * @param twilio               adaptador da Twilio (API pública)
+ * @param plivo                adaptador da Plivo (API pública)
+ * @param messages             textos falados pelos provedores com síntese de voz (Twilio, Plivo)
  */
 @ConfigurationProperties(prefix = "app.telephony")
 public record TelephonyProperties(Integer dialMaxAttempts, Duration tabulationDeadline, Duration presenceTimeout,
                                   Duration staleCallAfter, String retentionCron, Integer retentionBatch,
                                   Long recordingMaxBytes, Dialer dialer, Webhook webhook, Sandbox sandbox,
-                                  Routing routing, Homologation homologation, Alvaria alvaria) {
+                                  Routing routing, Homologation homologation, Alvaria alvaria, Twilio twilio,
+                                  Plivo plivo, Messages messages) {
 
     public TelephonyProperties {
         dialMaxAttempts = dialMaxAttempts == null ? 3 : dialMaxAttempts;
@@ -40,11 +44,99 @@ public record TelephonyProperties(Integer dialMaxAttempts, Duration tabulationDe
         retentionBatch = retentionBatch == null ? 200 : retentionBatch;
         recordingMaxBytes = recordingMaxBytes == null ? 200L * 1024 * 1024 : recordingMaxBytes;
         dialer = dialer == null ? new Dialer(null, null, null, null) : dialer;
-        webhook = webhook == null ? new Webhook(null, null, null, null) : webhook;
+        webhook = webhook == null ? new Webhook(null, null, null, null, null) : webhook;
         sandbox = sandbox == null ? new Sandbox(false, null) : sandbox;
         routing = routing == null ? new Routing(null) : routing;
         homologation = homologation == null ? new Homologation(null) : homologation;
         alvaria = alvaria == null ? new Alvaria(null, null, null, false) : alvaria;
+        twilio = twilio == null ? new Twilio(null, null, null, false, null, null, null, null, null, null, null) : twilio;
+        plivo = plivo == null ? new Plivo(null, null, null, null, false, null, null, null, null, null) : plivo;
+        messages = messages == null ? new Messages(null, null) : messages;
+    }
+
+    /**
+     * Twilio Programmable Voice. A URL da API é fixa por ambiente (não vem da conta): a lista de
+     * hosts permitidos protege contra SSRF e é conferida na subida.
+     *
+     * @param enabled            oferece o provedor neste ambiente (desligado: contas não são criadas nem ativadas)
+     * @param apiBaseUrl         API REST ({@code https://api.twilio.com})
+     * @param allowedHosts       hosts aceitos em {@code apiBaseUrl}
+     * @param allowInsecureHttp  aceita {@code http://} (somente testes com servidor local; recusado no perfil {@code prod})
+     * @param amdTimeout         {@code MachineDetectionTimeout} (3–59 s; esgotado = {@code unknown}, tratado como pessoa)
+     * @param sayVoice           voz do {@code <Say>} (ex.: {@code Polly.Camila}; conferir no console)
+     * @param sayLanguage        idioma do {@code <Say>}
+     * @param softphoneTokenTtl  validade do token do SDK de voz do navegador (máx. 24 h)
+     * @param softphoneEdge      borda do SDK de voz ({@code roaming} = a mais próxima; {@code sao-paulo}…)
+     */
+    public record Twilio(Boolean enabled, String apiBaseUrl, List<String> allowedHosts, boolean allowInsecureHttp,
+                         Duration connectTimeout, Duration readTimeout, Duration amdTimeout, String sayVoice,
+                         String sayLanguage, Duration softphoneTokenTtl, String softphoneEdge) {
+
+        public Twilio {
+            enabled = enabled == null ? Boolean.TRUE : enabled;
+            apiBaseUrl = apiBaseUrl == null || apiBaseUrl.isBlank() ? "https://api.twilio.com" : stripSlash(apiBaseUrl);
+            allowedHosts = allowedHosts == null || allowedHosts.isEmpty() ? List.of("api.twilio.com") : List.copyOf(allowedHosts);
+            connectTimeout = connectTimeout == null ? Duration.ofSeconds(3) : connectTimeout;
+            readTimeout = readTimeout == null ? Duration.ofSeconds(10) : readTimeout;
+            amdTimeout = amdTimeout == null ? Duration.ofSeconds(8) : amdTimeout;
+            sayVoice = sayVoice == null || sayVoice.isBlank() ? "Polly.Camila" : sayVoice.trim();
+            sayLanguage = sayLanguage == null || sayLanguage.isBlank() ? "pt-BR" : sayLanguage.trim();
+            softphoneTokenTtl = softphoneTokenTtl == null ? Duration.ofHours(1) : softphoneTokenTtl;
+            softphoneEdge = softphoneEdge == null || softphoneEdge.isBlank() ? "roaming" : softphoneEdge.trim();
+        }
+    }
+
+    /**
+     * Plivo Voice. URL da API fixa por ambiente; downloads de gravação só dos hosts permitidos.
+     *
+     * @param enabled           oferece o provedor neste ambiente
+     * @param apiBaseUrl        API REST ({@code https://api.plivo.com})
+     * @param allowedHosts      hosts aceitos em {@code apiBaseUrl}
+     * @param recordingHosts    hosts aceitos no {@code recording_url} devolvido pela Plivo (download do áudio)
+     * @param allowInsecureHttp aceita {@code http://} (somente testes; recusado no perfil {@code prod})
+     * @param amdTime           {@code machine_detection_time} (2–10 s): sem veredito de máquina nesse prazo, a
+     *                          chamada é tratada como atendida por pessoa
+     * @param speakVoice        voz do {@code <Speak>} ({@code WOMAN}/{@code MAN})
+     * @param speakLanguage     idioma do {@code <Speak>}
+     */
+    public record Plivo(Boolean enabled, String apiBaseUrl, List<String> allowedHosts, List<String> recordingHosts,
+                        boolean allowInsecureHttp, Duration connectTimeout, Duration readTimeout, Duration amdTime,
+                        String speakVoice, String speakLanguage) {
+
+        public Plivo {
+            enabled = enabled == null ? Boolean.TRUE : enabled;
+            apiBaseUrl = apiBaseUrl == null || apiBaseUrl.isBlank() ? "https://api.plivo.com" : stripSlash(apiBaseUrl);
+            allowedHosts = allowedHosts == null || allowedHosts.isEmpty() ? List.of("api.plivo.com") : List.copyOf(allowedHosts);
+            recordingHosts = recordingHosts == null || recordingHosts.isEmpty() ? List.of("media.plivo.com")
+                    : List.copyOf(recordingHosts);
+            connectTimeout = connectTimeout == null ? Duration.ofSeconds(3) : connectTimeout;
+            readTimeout = readTimeout == null ? Duration.ofSeconds(10) : readTimeout;
+            amdTime = amdTime == null ? Duration.ofSeconds(5) : amdTime;
+            speakVoice = speakVoice == null || speakVoice.isBlank() ? "WOMAN" : speakVoice.trim();
+            speakLanguage = speakLanguage == null || speakLanguage.isBlank() ? "pt-BR" : speakLanguage.trim();
+        }
+    }
+
+    /**
+     * Textos falados pela síntese de voz do provedor (validar com o jurídico antes da produção).
+     *
+     * @param recordingNotice aviso de gravação ao devedor (LGPD art. 9º)
+     * @param abandonMessage  mensagem informativa quando não há operador livre (abandono)
+     */
+    public record Messages(String recordingNotice, String abandonMessage) {
+
+        public Messages {
+            recordingNotice = recordingNotice == null || recordingNotice.isBlank()
+                    ? "Esta ligação pode ser gravada para sua segurança e para a qualidade do atendimento." : recordingNotice.trim();
+            abandonMessage = abandonMessage == null || abandonMessage.isBlank()
+                    ? "Olá. No momento todos os nossos atendentes estão ocupados. Retornaremos a sua ligação. Obrigado."
+                    : abandonMessage.trim();
+        }
+    }
+
+    private static String stripSlash(String url) {
+        String trimmed = url.trim();
+        return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
     }
 
     /**
@@ -115,12 +207,17 @@ public record TelephonyProperties(Integer dialMaxAttempts, Duration tabulationDe
      * @param requestsPerMinute limite por rota e IP de origem, por instância (429 acima)
      * @param maxEventAge       eventos mais antigos são descartados (replay); também o prazo dos recibos
      * @param maxClockSkew      tolerância para eventos/assinaturas com instante no futuro
+     * @param publicBaseUrl     endereço público da aplicação (ALB) usado nas URLs de webhook entregues aos
+     *                          provedores e na validação das assinaturas que cobrem a URL (Twilio, Plivo)
      */
-    public record Webhook(Integer maxBodyBytes, Integer requestsPerMinute, Duration maxEventAge, Duration maxClockSkew) {
+    public record Webhook(Integer maxBodyBytes, Integer requestsPerMinute, Duration maxEventAge, Duration maxClockSkew,
+                          String publicBaseUrl) {
 
         public Webhook {
             maxBodyBytes = maxBodyBytes == null ? 64 * 1024 : maxBodyBytes;
-            requestsPerMinute = requestsPerMinute == null ? 1200 : requestsPerMinute;
+            requestsPerMinute = requestsPerMinute == null ? 6000 : requestsPerMinute;
+            publicBaseUrl = publicBaseUrl == null || publicBaseUrl.isBlank() ? "http://localhost:8080"
+                    : stripSlash(publicBaseUrl);
             maxEventAge = maxEventAge == null ? Duration.ofDays(2) : maxEventAge;
             maxClockSkew = maxClockSkew == null ? Duration.ofMinutes(5) : maxClockSkew;
         }
