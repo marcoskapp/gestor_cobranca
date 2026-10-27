@@ -18,7 +18,9 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { DialerCampaignsApi, TelephonyAccountsApi, TelephonyRoutingApi } from '../data/telephony.api';
+import { finalize } from 'rxjs';
 import {
+  CONNECTION_TEST_LABELS,
   PROVIDER_LABELS,
   READINESS_LABELS,
   ROUTE_SCOPE_LABELS,
@@ -34,6 +36,8 @@ import {
   TelephonyAccountDialogData,
   TelephonyCredentialsDialog,
   TelephonyCredentialsDialogData,
+  WebhookUrlsDialog,
+  WebhookUrlsDialogData,
 } from './account-dialogs';
 
 type Tab = 'accounts' | 'routes' | 'comparison';
@@ -76,7 +80,7 @@ type Tab = 'accounts' | 'routes' | 'comparison';
             (retry)="accounts.reload()"
             emptyIcon="telephone"
             emptyMessage="Nenhuma conta de telefonia cadastrada."
-            emptyHint="Cadastre a conta de cada plataforma (Alvaria, Tarifando) com as credenciais recebidas do fornecedor."
+            emptyHint="Cadastre a conta de cada plataforma (Twilio, Plivo, Alvaria) com as credenciais da própria plataforma."
           >
             <ng-template appCell="name" [appCellOf]="accountRows()" let-a>
               <strong>{{ a.name }}</strong>
@@ -115,7 +119,10 @@ type Tab = 'accounts' | 'routes' | 'comparison';
                   <div ngbDropdownMenu class="shadow app-menu" [attr.aria-label]="'Ações da conta ' + a.name">
                     <button ngbDropdownItem type="button" (click)="editAccount(a)"><app-icon name="pencil" />Editar</button>
                     <button ngbDropdownItem type="button" (click)="rotate(a)"><app-icon name="key" />Trocar credenciais</button>
-                    <button ngbDropdownItem type="button" (click)="copyWebhook(a)"><app-icon name="link-45deg" />Copiar endereço do webhook</button>
+                    <button ngbDropdownItem type="button" (click)="showUrls(a)"><app-icon name="link-45deg" />Endereços para o console</button>
+                    @if (verifiable(a)) {
+                      <button ngbDropdownItem type="button" (click)="test(a)" [disabled]="testing() === a.id"><app-icon name="plug" />Testar conexão</button>
+                    }
                     <button ngbDropdownItem type="button" (click)="toggle(a)" [disabled]="!a.active && !a.dialable">
                       <app-icon [name]="a.active ? 'pause-circle' : 'play-circle'" />{{ a.active ? 'Desativar' : 'Ativar' }}
                     </button>
@@ -214,6 +221,7 @@ export class TelephonyAccounts {
   protected readonly scopeLabels = ROUTE_SCOPE_LABELS;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.TELEPHONY_MANAGE));
   protected readonly tab = signal<Tab>('accounts');
+  protected readonly testing = signal<string | null>(null);
 
   protected readonly accounts = rxResource({ stream: () => this.api.list() });
   protected readonly accountRows = valueOr(this.accounts, []);
@@ -303,9 +311,13 @@ export class TelephonyAccounts {
   }
 
   protected rotate(account: TelephonyAccountView): void {
-    const keys = this.providers.value()?.find((p) => p.provider === account.provider)?.requiredCredentials ?? account.credentialKeys;
+    const provider = this.providers.value()?.find((p) => p.provider === account.provider);
+    const keys = provider?.requiredCredentials ?? account.credentialKeys;
+    const optionalKeys = provider?.optionalCredentials ?? [];
     this.dialog
-      .open<TelephonyCredentialsDialog, TelephonyCredentialsDialogData, TelephonyAccountView>(TelephonyCredentialsDialog, { data: { account, keys } })
+      .open<TelephonyCredentialsDialog, TelephonyCredentialsDialogData, TelephonyAccountView>(TelephonyCredentialsDialog, {
+        data: { account, keys, optionalKeys },
+      })
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
@@ -342,9 +354,31 @@ export class TelephonyAccounts {
       );
   }
 
-  protected copyWebhook(a: TelephonyAccountView): void {
-    const url = new URL(a.webhookPath, globalThis.location?.origin ?? 'https://localhost').toString();
-    void globalThis.navigator?.clipboard?.writeText(url).then(() => this.notifications.success('Endereço do webhook copiado.'));
+  protected verifiable(a: TelephonyAccountView): boolean {
+    return !!this.providers.value()?.find((p) => p.provider === a.provider)?.verifiable;
+  }
+
+  protected showUrls(account: TelephonyAccountView): void {
+    this.dialog.open<WebhookUrlsDialog, WebhookUrlsDialogData, void>(WebhookUrlsDialog, { data: { account } });
+  }
+
+  /** Teste de conexão: leitura da própria conta no provedor; nunca liga para ninguém. */
+  protected test(a: TelephonyAccountView): void {
+    this.testing.set(a.id);
+    this.api
+      .testConnection(a.id)
+      .pipe(finalize(() => this.testing.set(null)))
+      .subscribe({
+        next: (r) => {
+          const text = CONNECTION_TEST_LABELS[r.code] ?? `A plataforma recusou as credenciais (${r.code}).`;
+          if (r.ok) {
+            this.notifications.success(text);
+          } else {
+            this.notifications.error(text);
+          }
+        },
+        error: (err: unknown) => this.notifications.error(this.errorText(err)),
+      });
   }
 
   protected editRoute(route: RouteView | null): void {

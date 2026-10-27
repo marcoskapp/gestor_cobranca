@@ -6,7 +6,8 @@ import { TelephonyAccounts } from './telephony-accounts';
 const account = (o: Partial<TelephonyAccountView>): TelephonyAccountView => ({
   id: 'acc-1', provider: 'SANDBOX', creditorId: null, name: 'Simulador', callerId: '+551130000000', recordingEnabled: false, recordingNotice: false,
   credentialKeys: ['webhookSecret'], credentialsUpdatedAt: '2026-10-26T12:00:00Z', webhookPath: '/api/v1/webhooks/telephony/abc', active: true,
-  createdAt: '2026-10-26T12:00:00Z', version: 0, providerLabel: 'Simulador', readiness: 'READY', dialable: true, ratePerMinute: null, ...o,
+  createdAt: '2026-10-26T12:00:00Z', version: 0, providerLabel: 'Simulador', readiness: 'READY', dialable: true, ratePerMinute: null,
+  webhookUrl: 'https://app.teste/api/v1/webhooks/telephony/abc', consoleEndpoints: [], ...o,
 });
 
 const accounts = [
@@ -14,8 +15,8 @@ const accounts = [
   account({ id: 'acc-2', provider: 'ALVARIA', name: 'Alvaria CX', providerLabel: 'Alvaria CX (Aspect)', readiness: 'CONTRACT_PENDING', dialable: false, active: false, ratePerMinute: 0.089 }),
 ];
 const providers: TelephonyProviderView[] = [
-  { provider: 'ALVARIA', label: 'Alvaria CX (Aspect)', requiredCredentials: ['apiBaseUrl', 'clientId', 'clientSecret', 'webhookSecret'], readiness: 'CONTRACT_PENDING', dialable: false, available: true },
-  { provider: 'TARIFANDO', label: 'Tarifando Telecom', requiredCredentials: ['apiBaseUrl', 'apiToken', 'webhookSecret'], readiness: 'NOT_IMPLEMENTED', dialable: false, available: false },
+  { provider: 'ALVARIA', label: 'Alvaria CX (Aspect)', requiredCredentials: ['apiBaseUrl', 'clientId', 'clientSecret', 'webhookSecret'], readiness: 'CONTRACT_PENDING', dialable: false, available: true, optionalCredentials: [], verifiable: false },
+  { provider: 'TARIFANDO', label: 'Tarifando Telecom', requiredCredentials: ['apiBaseUrl', 'apiToken', 'webhookSecret'], readiness: 'NOT_IMPLEMENTED', dialable: false, available: false, optionalCredentials: [], verifiable: false },
 ];
 const routes: RouteView[] = [
   { id: 'r-2', scopeType: 'DEFAULT', scopeId: null, creditorId: null, primaryAccountId: 'acc-1', fallbackAccountId: null, version: 0 },

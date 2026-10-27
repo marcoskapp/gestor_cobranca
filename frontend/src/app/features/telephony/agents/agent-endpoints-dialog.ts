@@ -7,7 +7,7 @@ import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AgentsApi } from '../data/telephony.api';
-import { PROVIDER_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
+import { ENDPOINT_HINTS, PROVIDER_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
 import { AgentView, EndpointView, TelephonyAccountView } from '../data/telephony.models';
 
 export type EndpointMode = 'DEFAULT' | 'OWN' | 'OFF';
@@ -61,7 +61,7 @@ export function endpointMode(endpoint: EndpointView | null): EndpointMode {
                 </select>
               </app-field>
               @if (r.selected() === 'OWN') {
-                <app-field class="col-sm-6" label="Ramal ou usuário SIP" error="Informe o ramal.">
+                <app-field class="col-sm-6" label="Ramal ou usuário SIP" error="Informe o ramal." [hint]="hints[r.account.provider] ?? ''">
                   <input appInput [formControl]="r.extension" maxlength="64" autocomplete="off" required />
                 </app-field>
               }
@@ -88,6 +88,7 @@ export class AgentEndpointsDialog {
   private readonly ref = inject<DialogRef<boolean>>(DialogRef);
   private readonly api = inject(AgentsApi);
   protected readonly labels = PROVIDER_LABELS;
+  protected readonly hints = ENDPOINT_HINTS;
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly rows: Row[] = this.data.accounts.map((account) => {

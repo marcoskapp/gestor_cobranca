@@ -211,8 +211,36 @@ export interface CampaignStats {
 
 // ----------------------------------------------------------------- multiprovedor
 
-export type TelephonyProvider = 'SANDBOX' | 'ALVARIA' | 'TARIFANDO';
-export type ProviderReadiness = 'READY' | 'CONTRACT_PENDING' | 'NOT_IMPLEMENTED';
+export type TelephonyProvider = 'SANDBOX' | 'ALVARIA' | 'TARIFANDO' | 'TWILIO' | 'PLIVO';
+export type ProviderReadiness = 'READY' | 'DISABLED' | 'CONTRACT_PENDING' | 'NOT_IMPLEMENTED';
+
+/** Endereço a cadastrar no console do provedor (ex.: URL de voz do número). */
+export interface ConsoleEndpointView {
+  purpose: string;
+  label: string;
+  method: string;
+  url: string;
+}
+
+/** `TelephonyAccountUseCases.ConnectionTestView` */
+export interface ConnectionTestView {
+  accountId: string;
+  supported: boolean;
+  ok: boolean;
+  /** `OK`, `UNSUPPORTED`, `UNREACHABLE` ou código do provedor. */
+  code: string;
+  testedAt: string;
+}
+
+/** `SoftphoneUseCases.SoftphoneSession`: token curto do SDK de voz do navegador do próprio operador. */
+export interface SoftphoneSession {
+  accountId: string;
+  provider: TelephonyProvider;
+  identity: string;
+  token: string;
+  expiresAt: string;
+  options: Record<string, string>;
+}
 export type RouteScope = 'CAMPAIGN' | 'PORTFOLIO' | 'CREDITOR' | 'DEFAULT';
 
 /** `TelephonyAccountUseCases.AccountView` (credenciais nunca vêm; só os nomes das chaves). */
@@ -235,6 +263,9 @@ export interface TelephonyAccountView {
   /** O provedor disca neste ambiente (pronto, ou contrato pendente em homologação). */
   dialable: boolean;
   ratePerMinute: number | null;
+  /** Endereço público completo do webhook da conta. */
+  webhookUrl: string;
+  consoleEndpoints: ConsoleEndpointView[];
 }
 
 export interface CreateTelephonyAccountRequest {
@@ -263,8 +294,12 @@ export interface TelephonyProviderView {
   requiredCredentials: string[];
   readiness: ProviderReadiness;
   dialable: boolean;
-  /** Aceita conta (falso = integração ainda não disponível). */
+  /** Aceita conta (falso = integração indisponível ou desligada neste ambiente). */
   available: boolean;
+  /** Credenciais aceitas que podem ficar em branco. */
+  optionalCredentials: string[];
+  /** Oferece teste de conexão. */
+  verifiable: boolean;
 }
 
 /** `TelephonyAccountUseCases.AccountComparison` (taxas de 0 a 1). */

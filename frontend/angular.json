@@ -51,7 +51,9 @@
             },
             "allowedCommonJsDependencies": [
               "qrcode",
-              "dijkstrajs"
+              "dijkstrajs",
+              "events",
+              "loglevel"
             ],
             "outputPath": {
               "base": "dist/gestor-cobranca-web",

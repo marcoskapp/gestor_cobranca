@@ -103,7 +103,12 @@ export const TELEPHONY_ERROR_LABELS: Record<string, string> = {
   'dialer_campaign.not_activatable': 'Somente campanhas em rascunho ou pausadas podem ser ativadas.',
   'telephony.agent_not_on_account': 'O operador não tem ramal na plataforma de telefonia que atende este caso ou campanha. Peça ao gestor para cadastrar o ramal nessa conta.',
   'telephony_account.provider_unavailable': 'A integração com este provedor ainda não está disponível.',
-  'telephony_account.provider_not_ready': 'A integração com este provedor aguarda a homologação com o fornecedor.',
+  'telephony_account.provider_not_ready': 'A integração com este provedor aguarda a homologação com o fornecedor ou está desligada neste ambiente.',
+  'telephony_account.provider_disabled': 'A integração com este provedor está desligada neste ambiente. Peça ao administrador da plataforma.',
+  'telephony_account.twilio_credentials_invalid': 'Credenciais da Twilio fora do formato: confira o Account SID (AC…), a API Key (SK…), o segredo e o Auth Token.',
+  'telephony_account.plivo_credentials_invalid': 'Credenciais da Plivo fora do formato: confira o Auth ID (MA… ou SA…) e o Auth Token.',
+  'agent_endpoint.twilio_invalid': 'Ramal da Twilio: client:identidade (softphone no navegador), sip:usuario@dominio ou +55….',
+  'agent_endpoint.plivo_invalid': 'Ramal da Plivo: sip:usuario@phone.plivo.com (endpoint da Plivo) ou +55….',
   'telephony_account.sandbox_disabled': 'O provedor simulado só existe em ambiente local ou de teste.',
   'telephony_account.alvaria_url_insecure': 'O endereço da API da Alvaria precisa usar HTTPS.',
   'telephony_account.alvaria_host_not_allowed': 'Endereço da API fora dos domínios permitidos para a Alvaria. Confira o endereço da instância.',
@@ -121,10 +126,13 @@ export const PROVIDER_LABELS: Record<TelephonyProvider, string> = {
   SANDBOX: 'Simulador',
   ALVARIA: 'Alvaria CX (Aspect)',
   TARIFANDO: 'Tarifando Telecom',
+  TWILIO: 'Twilio',
+  PLIVO: 'Plivo',
 };
 
 export const READINESS_LABELS: Record<ProviderReadiness, string> = {
   READY: 'Pronto',
+  DISABLED: 'Desligado neste ambiente',
   CONTRACT_PENDING: 'Aguarda homologação',
   NOT_IMPLEMENTED: 'Integração indisponível',
 };
@@ -145,7 +153,47 @@ export const TELEPHONY_CREDENTIAL_LABELS: Record<string, string> = {
   clientId: 'Client ID (OAuth)',
   clientSecret: 'Client secret (OAuth)',
   apiToken: 'Token da API',
+  accountSid: 'Account SID (AC…)',
+  apiKeySid: 'API Key SID (SK…)',
+  apiKeySecret: 'Segredo da API Key',
+  authToken: 'Auth Token',
+  twimlAppSid: 'TwiML App SID (AP…, opcional: saída pelo navegador)',
+  authId: 'Auth ID (MA… ou SA…)',
 };
 
 /** Chaves que não são segredo (campo de texto comum em vez de senha). */
-export const PUBLIC_CREDENTIAL_KEYS: readonly string[] = ['apiBaseUrl', 'clientId'];
+export const PUBLIC_CREDENTIAL_KEYS: readonly string[] = ['apiBaseUrl', 'clientId', 'accountSid', 'apiKeySid', 'twimlAppSid', 'authId'];
+
+/** Resultado do teste de conexão. */
+export const CONNECTION_TEST_LABELS: Record<string, string> = {
+  OK: 'Conexão confirmada: as credenciais foram aceitas pela plataforma.',
+  UNSUPPORTED: 'Esta plataforma não oferece teste de conexão.',
+  UNREACHABLE: 'Plataforma inacessível agora (rede ou instabilidade). Tente de novo em instantes.',
+  TWILIO_API_KEY_REJECTED: 'A Twilio recusou a API Key (SID ou segredo). Confira no console e troque as credenciais.',
+  TWILIO_AUTH_TOKEN_REJECTED: 'A Twilio recusou o Auth Token: os webhooks não seriam validados. Confira o token principal da conta.',
+  PLIVO_AUTH_REJECTED: 'A Plivo recusou o Auth ID ou o Auth Token. Confira no console e troque as credenciais.',
+};
+
+/** Passo a passo curto por plataforma, mostrado no cadastro da conta. */
+export const PROVIDER_SETUP_STEPS: Partial<Record<TelephonyProvider, readonly string[]>> = {
+  TWILIO: [
+    'No console da Twilio, copie o Account SID e o Auth Token (Account Info) e crie uma API Key padrão (Account → API keys).',
+    'Compre ou porte um número brasileiro (exige CNPJ e endereço no Brasil) e informe-o como bina, em E.164 (+55…).',
+    'Depois de salvar, cadastre no número a URL de voz e a de status mostradas na conta ("Endereços para o console").',
+    'Ramais: client:identidade para atender no navegador (softphone) ou sip:/+55… para ramal externo.',
+    'Use "Testar conexão" e, por fim, a regra de roteamento (padrão, credor, carteira ou campanha).',
+  ],
+  PLIVO: [
+    'No console da Plivo, copie o Auth ID e o Auth Token (Overview).',
+    'Alugue um número brasileiro e crie uma Application com as URLs de atendimento e de fim mostradas na conta depois de salvar.',
+    'Crie um Endpoint por operador e cadastre o ramal sip:usuario@phone.plivo.com num softphone SIP (ou use +55…).',
+    'Em Voice → Settings, ligue a autenticação HTTP das gravações.',
+    'Use "Testar conexão" e defina a regra de roteamento.',
+  ],
+};
+
+/** Formato do ramal por plataforma (dica no cadastro do ramal). */
+export const ENDPOINT_HINTS: Partial<Record<TelephonyProvider, string>> = {
+  TWILIO: 'client:identidade (atende no navegador), sip:usuario@dominio ou +55…',
+  PLIVO: 'sip:usuario@phone.plivo.com (endpoint da Plivo) ou +55…',
+};

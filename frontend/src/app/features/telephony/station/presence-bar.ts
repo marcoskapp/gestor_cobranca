@@ -12,6 +12,7 @@ import { PAUSE_REASON_LABELS, PRODUCTIVE_PAUSES, TELEPHONY_ERROR_LABELS } from '
 import { PauseReason } from '../data/telephony.models';
 import { clockText, isCallActive, presenceActions } from '../data/telephony.rules';
 import { TelephonyLauncher } from './telephony-launcher';
+import { SoftphoneState, WebrtcSoftphone } from './softphone';
 import { TelephonySession } from './telephony-session';
 
 /**
@@ -34,6 +35,16 @@ import { TelephonySession } from './telephony-session';
           }
           @if (a.status !== 'OFFLINE') {
             <span class="small app-numeric app-muted" ngbTooltip="Tempo neste estado">{{ since() }}</span>
+          }
+          @if (softphone.state() !== 'off') {
+            <span class="small d-inline-flex align-items-center gap-1" [class.text-danger-emphasis]="softphone.state() === 'error'" data-testid="softphone-state" aria-live="polite">
+              <app-icon name="headset" />{{ softphoneLabels[softphone.state()] }}
+            </span>
+            @if (softphone.state() === 'in-call') {
+              <button class="btn btn-sm btn-outline-secondary" type="button" (click)="softphone.toggleMute()" [attr.aria-pressed]="softphone.muted()">
+                {{ softphone.muted() ? 'Reativar microfone' : 'Silenciar' }}
+              </button>
+            }
           }
           @if (call(); as c) {
             <span class="d-inline-flex flex-wrap align-items-center gap-2 px-2 py-1 rounded bg-body-tertiary small" aria-live="polite">
@@ -101,6 +112,14 @@ import { TelephonySession } from './telephony-session';
 })
 export class PresenceBar {
   protected readonly session = inject(TelephonySession);
+  protected readonly softphone = inject(WebrtcSoftphone);
+  protected readonly softphoneLabels: Record<SoftphoneState, string> = {
+    off: '',
+    connecting: 'Conectando o softphone…',
+    ready: 'Softphone pronto',
+    'in-call': 'Em ligação no navegador',
+    error: 'Softphone sem conexão',
+  };
   private readonly launcher = inject(TelephonyLauncher);
   private readonly notifications = inject(NotificationService);
   private readonly campaignsApi = inject(DialerCampaignsApi);

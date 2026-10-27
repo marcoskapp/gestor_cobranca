@@ -73,7 +73,7 @@ const STATE_ICON: Record<AvailabilityState['kind'], IconName> = {
         </div>
       }
       <p class="app-dialog-message">Escolha o telefone. A decisão do sistema considera restrições, horário, feriados e limites de tentativa.</p>
-      <p class="app-muted small d-flex gap-2"><app-icon name="headset" /><span>{{ softphone.instructions }}</span></p>
+      <p class="app-muted small d-flex gap-2"><app-icon name="headset" /><span>{{ softphone.instructions() }}</span></p>
       @if (gate.isLoading()) {
         <p class="app-muted" role="status">Consultando o porteiro de contato…</p>
       }
