@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.collection.application.service;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.collection.application.CollectionProperties;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases;
 import br.com.gestorcobranca.collection.domain.model.AssignmentMode;
@@ -302,6 +305,19 @@ class DisputeService implements DisputeUseCases {
     public List<DisputeView> listByCase(UUID caseId) {
         CollectionCase c = access.visible(caseId);
         return views.views(disputes.findByCaseIdOrderByOpenedAtDesc(c.getId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChangePage<DisputeView> changes(UUID creditorId, ChangeQuery query) {
+        Guard.require(creditorId != null, "dispute.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        List<Dispute> rows = disputes.findChanges(creditorId, query);
+        ChangePage<Dispute> page = ChangePage.of(rows, query.limit(), Dispute::getUpdatedAt, Dispute::getId,
+                Dispute::getVersion, d -> d);
+        java.util.Map<UUID, DisputeView> byId = views.views(page.items().stream().map(ChangePage.Entry::value).toList())
+                .stream().collect(java.util.stream.Collectors.toMap(DisputeView::id, v -> v));
+        return page.map(d -> byId.get(d.getId()));
     }
 
     @Override

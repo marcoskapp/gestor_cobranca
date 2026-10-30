@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.collection.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -44,6 +47,9 @@ public interface DisputeUseCases {
     List<DisputeView> listByCase(UUID caseId);
 
     /** @param statuses OPEN, UNDER_REVIEW, RESOLVED, WITHDRAWN (vazio = todos) */
+    /** Sincronização incremental (API pública): contestações do credor alteradas na janela, paginadas por cursor. */
+    ChangePage<DisputeView> changes(UUID creditorId, ChangeQuery query);
+
     PageResponse<DisputeView> search(UUID creditorId, Set<String> statuses, Boolean overdue, PageQuery page);
 
     /**

@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.ingestion.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -48,6 +51,9 @@ public interface ImportBatchUseCases {
     ImportBatchView get(UUID batchId);
 
     PageResponse<ImportBatchView> search(BatchSearch filter, PageQuery page);
+
+    /** Sincronização incremental (API pública): lotes do credor alterados na janela, paginados por cursor. */
+    ChangePage<ImportBatchView> changes(UUID creditorId, ChangeQuery query);
 
     /** @param severity ERROR ou WARNING (opcional) */
     PageResponse<ImportIssueView> issues(UUID batchId, String severity, PageQuery page);

@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.ingestion.application.service;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.ingestion.application.IngestionProperties;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases;
 import br.com.gestorcobranca.ingestion.application.port.out.ImportIssueExport;
@@ -228,6 +231,15 @@ class ImportBatchService implements ImportBatchUseCases {
     @Transactional(readOnly = true)
     public ImportBatchView get(UUID batchId) {
         return ImportViews.batch(loadVisible(batchId), json);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChangePage<ImportBatchView> changes(UUID creditorId, ChangeQuery query) {
+        Guard.require(creditorId != null, "import_batch.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        return ChangePage.of(batches.findChanges(creditorId, query), query.limit(), ImportBatch::getUpdatedAt,
+                ImportBatch::getId, ImportBatch::getVersion, b -> ImportViews.batch(b, json));
     }
 
     @Override

@@ -1,5 +1,10 @@
 package br.com.gestorcobranca.organization.application.service;
 
+import br.com.gestorcobranca.shared.domain.Guard;
+
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.organization.domain.model.Creditor;
 import br.com.gestorcobranca.organization.domain.model.Portfolio;
@@ -171,6 +176,15 @@ class PortfolioService implements PortfolioUseCases {
         PortfolioStatus statusFilter = status == null || status.isBlank() ? null : parseStatus(status);
         return PageResponse.of(portfolios.search(allowed, creditorId, statusFilter, text,
                 page.toPageable(Sort.by(Sort.Direction.DESC, "receivedOn"))), this::view);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChangePage<PortfolioView> changes(UUID creditorId, ChangeQuery query) {
+        Guard.require(creditorId != null, "portfolio.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        return ChangePage.of(portfolios.findChanges(creditorId, query), query.limit(), Portfolio::getUpdatedAt,
+                Portfolio::getId, Portfolio::getVersion, this::view);
     }
 
     private Portfolio loadVisible(UUID portfolioId) {

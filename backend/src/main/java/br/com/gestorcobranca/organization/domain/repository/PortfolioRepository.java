@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.organization.domain.repository;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.organization.domain.model.Portfolio;
 import br.com.gestorcobranca.organization.domain.model.PortfolioStatus;
 import org.springframework.data.domain.Page;
@@ -23,6 +25,9 @@ public interface PortfolioRepository {
     /**
      * @param allowedCreditorIds credores visíveis ao ator; {@code null} = sem restrição
      */
+    /** Leitura incremental: até {@code limit + 1} carteiras do credor alteradas na janela, depois do cursor. */
+    List<Portfolio> findChanges(UUID creditorId, ChangeQuery query);
+
     Page<Portfolio> search(Collection<UUID> allowedCreditorIds, UUID creditorId, PortfolioStatus status, String text,
                            Pageable pageable);
 }

@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.organization.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -43,6 +46,9 @@ public interface PortfolioUseCases {
     List<PortfolioView> getAll(Collection<UUID> portfolioIds);
 
     PageResponse<PortfolioView> search(UUID creditorId, String status, String text, PageQuery page);
+
+    /** Sincronização incremental (API pública): carteiras do credor alteradas na janela, paginadas por cursor. */
+    ChangePage<PortfolioView> changes(UUID creditorId, ChangeQuery query);
 
     record CreatePortfolioCommand(UUID creditorId, UUID contractId, String code, String name, String description,
                                   LocalDate receivedOn, LocalDate validUntil) {

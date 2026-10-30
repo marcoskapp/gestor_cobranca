@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.collection.infrastructure.persistence;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
+
 import br.com.gestorcobranca.collection.domain.model.Dispute;
 import br.com.gestorcobranca.collection.domain.model.DisputeStatus;
 import br.com.gestorcobranca.collection.domain.repository.DisputeRepository;
@@ -41,6 +44,12 @@ interface DisputeJpaRepository extends JpaRepository<Dispute, UUID>, JpaSpecific
              order by d.responseDueDate, d.id
             """)
     List<Dispute> overdueCandidates(LocalDate today, Limit limit);
+
+    @Override
+    default List<Dispute> findChanges(UUID creditorId, ChangeQuery query) {
+        return findAll(ChangeSpecifications.<Dispute>window(query, List.of(creditorId)), ChangeSpecifications.page(query))
+                .getContent();
+    }
 
     @Override
     default Page<Dispute> search(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses,

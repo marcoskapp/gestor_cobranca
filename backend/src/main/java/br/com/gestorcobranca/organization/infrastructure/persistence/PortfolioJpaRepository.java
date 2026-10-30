@@ -1,5 +1,10 @@
 package br.com.gestorcobranca.organization.infrastructure.persistence;
 
+import java.util.List;
+
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
+
 import br.com.gestorcobranca.organization.domain.model.Portfolio;
 import br.com.gestorcobranca.organization.domain.model.PortfolioStatus;
 import br.com.gestorcobranca.organization.domain.repository.PortfolioRepository;
@@ -17,6 +22,12 @@ interface PortfolioJpaRepository extends JpaRepository<Portfolio, UUID>, JpaSpec
 
     @Override
     boolean existsByCreditorIdAndCode(UUID creditorId, String code);
+
+    @Override
+    default List<Portfolio> findChanges(UUID creditorId, ChangeQuery query) {
+        return findAll(ChangeSpecifications.<Portfolio>window(query, List.of(creditorId)), ChangeSpecifications.page(query))
+                .getContent();
+    }
 
     @Override
     default Page<Portfolio> search(Collection<UUID> allowedCreditorIds, UUID creditorId, PortfolioStatus status,

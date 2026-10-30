@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.collection.domain.repository;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.collection.domain.model.Dispute;
 import br.com.gestorcobranca.collection.domain.model.DisputeStatus;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,9 @@ public interface DisputeRepository {
      * @param allowedCreditorIds nulo = sem restrição
      * @param statuses           nulo = todos
      */
+    /** Leitura incremental: até {@code limit + 1} contestações do credor alteradas na janela, depois do cursor. */
+    List<Dispute> findChanges(UUID creditorId, ChangeQuery query);
+
     Page<Dispute> search(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses, Boolean overdue,
                          Pageable pageable);
 }
