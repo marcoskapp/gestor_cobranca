@@ -66,7 +66,7 @@ print_summary() {
   Sandbox do Gestor de Cobrança no ar (dados FICTÍCIOS)
 
   Aplicação ........ ${APP_URL}
-  Swagger (API) .... ${APP_URL}/swagger-ui/index.html  (protegido por token: veja o guia)
+  Swagger (API) .... ${APP_URL}/swagger-ui/index.html  (aberto sem login no sandbox; chamadas pedem token)
   Mailpit (e-mails)  http://localhost:${MAIL_PORT}
   PostgreSQL ....... localhost:${DB_PORT} (banco cobranca; somente para inspeção)
 

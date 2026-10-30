@@ -8,6 +8,111 @@ Toda a documentação está em [`docs/`](docs/README.md), organizada em três vi
 - **Arquitetura** ([`docs/arquitetura/`](docs/arquitetura)): visão geral, topologia, stack, infraestrutura AWS e ADRs.
 - **Técnico** ([`docs/tecnico/`](docs/tecnico)): convenções, segurança, logs e métricas e o desenho de cada módulo.
 
+## Sandbox de demonstração
+
+Ambiente completo do Gestor de Cobrança no Docker, que sobe com **um comando** e já vem com dados **fictícios** em todas as telas principais: 2 assessorias × 3 credores × 4 carteiras, um usuário ativo para cada perfil, casos, acordos, pagamentos, jurídico, réguas e tokens da API pública. Serve para demonstração, treinamento e testes exploratórios.
+
+> **Aviso:** os dados são 100% fictícios (nomes, empresas, CPFs/CNPJs gerados, e-mails no domínio reservado `exemplo.test`) e todos os provedores são simulados: nenhuma mensagem, ligação, Pix ou chamada de IA sai do ambiente. **Não use com dados reais nem em produção** — a aplicação recusa subir o perfil `sandbox` junto com o perfil `prod`.
+
+### 1. Pré-requisitos
+
+| Item | Requisito |
+| --- | --- |
+| Docker | Docker Engine **23.0 ou mais recente** (BuildKit, usado pelo build da imagem) ou Docker Desktop equivalente — testado com o Docker 29.9 |
+| Docker Compose | **v2 ou mais recente**, o plugin `docker compose` (não o antigo `docker-compose`) — testado com o Compose v5.6 |
+| Utilitários | `bash`, `curl` e `git`; `jq` para o `verify.sh` e para os exemplos da API |
+| Memória | **6 GB livres para o Docker** recomendados (mínimo 4 GB; no ar o sandbox usa ~1,5 GB, o build usa mais; no Docker Desktop, *Settings → Resources*) |
+| Disco | **15 GB livres** (imagens: ~3 GB; cache do build: até ~8 GB; volumes do sandbox: ~150 MB) |
+| Portas (só em `127.0.0.1`) | **58080** (aplicação), **58025** (Mailpit) e **55432** (PostgreSQL); trocáveis, veja os problemas comuns |
+
+**Não é preciso JDK, Maven nem Node**: o frontend e o backend são compilados dentro da imagem Docker.
+
+### 2. Passo a passo
+
+```bash
+git clone https://github.com/marcoskapp/gestor_cobranca.git
+cd gestor_cobranca
+./scripts/sandbox/up.sh
+```
+
+O `up.sh` constrói a imagem, sobe PostgreSQL, Mailpit e aplicação e **espera a carga dos dados fictícios terminar**, mostrando as etapas (`carga do sandbox: aurora: usuários de demonstração`…). A primeira subida costuma levar **10 a 20 minutos** (estimativa: depende da rede e da máquina, porque baixa as imagens base e as dependências de Maven e npm e compila tudo); as seguintes usam o cache do build — numa máquina de 2 CPUs e 8 GB, com o cache pronto, o build levou ~1 min. A carga dos dados leva de 2 a 3 minutos.
+
+**Terminou quando** o terminal mostra o quadro `Sandbox do Gestor de Cobrança no ar (dados FICTÍCIOS)` com os endereços e o comando volta ao prompt com sucesso. A qualquer momento, `curl -s http://localhost:58080/actuator/health/readiness` responde `"status":"UP"` só depois da carga concluída.
+
+### 3. Endereços
+
+| O quê | Endereço | Login |
+| --- | --- | --- |
+| Aplicação | http://localhost:58080 | usuário e senha da tabela abaixo |
+| Mailpit (e-mails enviados) | http://localhost:58025 | não |
+| Swagger da API interna | http://localhost:58080/swagger-ui/index.html | **não** no sandbox (as chamadas *Try it out* pedem o `accessToken` de um login em *Authorize*) |
+| Especificações OpenAPI | http://localhost:58080/v3/api-docs/interna e http://localhost:58080/v3/api-docs/public-v1 | **não** no sandbox |
+| Documentação pública da API | http://localhost:58080/public-api/docs | não |
+| Changelog da API pública | http://localhost:58080/public-api/docs/changelog | não |
+
+### 4. Acesso
+
+Senha de **todos** os usuários: `Sandbox@2026!`. No login, o campo **Assessoria** recebe `aurora` (Aurora Cobrança) ou `boreal` (Boreal Crédito); o e-mail segue o padrão `<usuário>@<assessoria>.exemplo.test`.
+
+| Perfil | E-mail na Aurora (`aurora`) | E-mail na Boreal (`boreal`) |
+| --- | --- | --- |
+| Administrador | `admin@aurora.exemplo.test` | `admin@boreal.exemplo.test` |
+| Gestor | `gestor@aurora.exemplo.test` | `gestor@boreal.exemplo.test` |
+| Supervisor | `supervisor@aurora.exemplo.test` | `supervisor@boreal.exemplo.test` |
+| Operador (alçada pleno) | `operador@aurora.exemplo.test` | `operador@boreal.exemplo.test` |
+| Operador (alçada júnior, só o 1º credor) | `operador2@aurora.exemplo.test` | `operador2@boreal.exemplo.test` |
+| Financeiro | `financeiro@aurora.exemplo.test` | `financeiro@boreal.exemplo.test` |
+| Auditor | `auditor@aurora.exemplo.test` | `auditor@boreal.exemplo.test` |
+| Jurídico | `juridico@aurora.exemplo.test` | `juridico@boreal.exemplo.test` |
+| Advogado parceiro (só o 1º credor) | `advogado@aurora.exemplo.test` | `advogado@boreal.exemplo.test` |
+| Analista de carteiras | `analista@aurora.exemplo.test` | `analista@boreal.exemplo.test` |
+| Estratégia de cobrança | `estrategia@aurora.exemplo.test` | `estrategia@boreal.exemplo.test` |
+| Monitoria e qualidade | `qualidade@aurora.exemplo.test` | `qualidade@boreal.exemplo.test` |
+| Compliance e privacidade | `compliance@aurora.exemplo.test` | `compliance@boreal.exemplo.test` |
+| Integrações | `integracao@aurora.exemplo.test` | `integracao@boreal.exemplo.test` |
+
+**Administrador da plataforma** (provisiona e suspende assessorias): assessoria `plataforma`, e-mail `admin@plataforma.exemplo.test`, mesma senha.
+
+Nenhum perfil exige MFA no sandbox (pode ser cadastrado em *Minha conta → Autenticador*). Os limites de segurança continuam valendo: 5 senhas erradas bloqueiam o usuário (o `admin` da assessoria desbloqueia) e são aceitos 20 logins por minuto por IP.
+
+### 5. API pública
+
+A carga emite tokens de demonstração para cada credor (`sandbox-<prefixo>-completo`, com todos os escopos) e um só de leitura no 1º credor de cada assessoria (`sandbox-hzn-leitura`, `sandbox-csr-leitura`). Para ver os tokens:
+
+```bash
+./scripts/sandbox/tokens.sh          # tabela: assessoria, credor, nome, escopos e token
+./scripts/sandbox/tokens.sh --raw    # separado por tabulação, para scripts
+```
+
+Exemplo pronto (carteiras do Banco Horizonte, da assessoria `aurora`):
+
+```bash
+TOKEN=$(./scripts/sandbox/tokens.sh --raw | awk -F'\t' '$4 == "sandbox-hzn-completo" {print $6}')
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:58080/public-api/v1/portfolios | jq '.data[] | {code, status}'
+```
+
+### 6. Comandos do dia a dia
+
+```bash
+./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública e Swagger
+./scripts/sandbox/down.sh            # para o sandbox MANTENDO os dados
+./scripts/sandbox/up.sh --no-build   # sobe de novo sem reconstruir a imagem (os dados continuam)
+./scripts/sandbox/reset.sh           # apaga todos os dados do sandbox e recria do zero (pede confirmação; --yes dispensa)
+docker compose -p gestor-cobranca-sandbox logs -f app   # logs da aplicação (Ctrl+C para sair)
+```
+
+### 7. Problemas comuns
+
+| Sintoma | O que fazer |
+| --- | --- |
+| Porta ocupada (`port is already allocated` / `address already in use`) | escolha outras portas e use-as em todos os comandos: `export SANDBOX_APP_PORT=58081 SANDBOX_MAIL_PORT=58026 SANDBOX_DB_PORT=55433` antes do `up.sh` (e do `verify.sh`/`tokens.sh` na mesma sessão) |
+| Build interrompido ou a aplicação para sozinha (`o contêiner da aplicação parou`, código 137) | Docker sem memória: reserve ao menos 6 GB em *Settings → Resources* (Docker Desktop), feche outros contêineres e rode `./scripts/sandbox/up.sh` de novo |
+| Primeira subida demorada | é o download das imagens base e das dependências (Maven e npm) e o build; as próximas usam o cache. Se passar de 30 min, aumente o limite: `./scripts/sandbox/up.sh --timeout 3600` |
+| Painéis e relatórios vazios ou desatualizados logo após subir | os painéis são atualizados pelo agendamento a cada 15 minutos: aguarde até 15 min |
+| Falha ao baixar imagens (`failed to resolve reference "docker.io/…"`, `Forbidden`, `pull access denied`) | sem acesso ao Docker Hub: aponte as imagens base para um espelho/registro interno com `SANDBOX_NODE_IMAGE`, `SANDBOX_MAVEN_IMAGE`, `SANDBOX_JRE_IMAGE`, `SANDBOX_POSTGRES_IMAGE` e `SANDBOX_MAILPIT_IMAGE` (padrões: `node:22-bookworm-slim`, `maven:3.9-eclipse-temurin-21`, `eclipse-temurin:21-jre-noble`, `postgres:16-alpine`, `axllent/mailpit:v1.27.10`); atrás de proxy local, acrescente `SANDBOX_BUILD_NETWORK=host` |
+
+Guia aprofundado — dados carregados, roteiro de demonstração de 30–40 minutos, API pública e faturamento, como a carga funciona e as proteções contra uso fora do sandbox: [`docs/tecnico/operacao/sandbox.md`](docs/tecnico/operacao/sandbox.md).
+
 ## Estrutura
 
 ```
@@ -16,19 +121,6 @@ frontend/    Angular
 infra/       Terraform (AWS), Docker Compose (local e sandbox) e imagem da aplicação
 scripts/     scripts de banco, deploy e do sandbox de demonstração
 ```
-
-## Sandbox de demonstração (um comando)
-
-Ambiente completo no Docker, já com dados **fictícios** (2 assessorias × 3 credores × 4 carteiras, um usuário por perfil, acordos, pagamentos, jurídico e réguas), sem precisar de JDK nem Node:
-
-```bash
-./scripts/sandbox/up.sh        # app em http://localhost:58080 · Mailpit em http://localhost:58025
-./scripts/sandbox/verify.sh    # logins por perfil, volumes, isolamento entre assessorias e API pública
-./scripts/sandbox/tokens.sh    # tokens de demonstração da API pública (/public-api/v1)
-./scripts/sandbox/down.sh      # para (mantém os dados) · reset.sh recria do zero
-```
-
-Usuários como `gestor@aurora.exemplo.test` ou `operador@boreal.exemplo.test` (assessoria `aurora` ou `boreal` no login), senha `Sandbox@2026!`. Guia completo, lista de usuários e roteiro de demonstração: [`docs/tecnico/operacao/sandbox.md`](docs/tecnico/operacao/sandbox.md).
 
 ## Executar localmente
 

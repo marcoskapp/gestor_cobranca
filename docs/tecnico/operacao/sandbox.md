@@ -6,7 +6,7 @@ Ambiente completo do Gestor de Cobrança que sobe com **um comando**, já com da
 
 ## 1. Subir, parar e recriar
 
-Pré-requisitos: Docker com Compose v2 e `curl` (o `verify.sh` também usa `jq`). Não é preciso JDK, Maven nem Node: o build acontece dentro da imagem.
+Pré-requisitos (detalhes, versões mínimas, memória, disco e portas no [README](../../../README.md#sandbox-de-demonstração)): Docker Engine 23+ com Compose v2+, `bash`, `curl` e `git` (o `verify.sh` também usa `jq`); 6 GB de memória para o Docker recomendados. Não é preciso JDK, Maven nem Node: o build acontece dentro da imagem.
 
 ```bash
 ./scripts/sandbox/up.sh            # constrói a imagem, sobe tudo e espera a carga terminar (1º build: alguns minutos)
@@ -17,7 +17,7 @@ Pré-requisitos: Docker com Compose v2 e `curl` (o `verify.sh` também usa `jq`)
 ./scripts/sandbox/reset.sh         # apaga os volumes do sandbox e recria do zero (pede confirmação; --yes dispensa)
 ```
 
-O `up.sh` só termina quando a aplicação está no ar **e** a carga de dados foi concluída (grupo de prontidão `/actuator/health/readiness`, que inclui `sandboxSeed`). A carga leva cerca de um minuto; o progresso aparece no terminal e em `docker compose -p gestor-cobranca-sandbox logs -f app`.
+O `up.sh` só termina quando a aplicação está no ar **e** a carga de dados foi concluída (grupo de prontidão `/actuator/health/readiness`, que inclui `sandboxSeed`). A carga leva de 2 a 3 minutos; o progresso aparece no terminal e em `docker compose -p gestor-cobranca-sandbox logs -f app`.
 
 | Serviço | Endereço | Observação |
 | --- | --- | --- |
@@ -205,4 +205,6 @@ Etapa `IntegrationTokensSeeder` ("tokens de integração", entre a configuraçã
 | `state: FAILED` na prontidão | veja `docker compose -p gestor-cobranca-sandbox logs app` (linha "Carga do sandbox falhou na etapa …"); corrija e rode `up.sh --no-build` (a carga retoma de onde parou) ou `reset.sh` |
 | Porta em uso | troque `SANDBOX_APP_PORT`/`SANDBOX_MAIL_PORT`/`SANDBOX_DB_PORT` |
 | Login recusado com a senha certa | usuário bloqueado por tentativas erradas (desbloqueie como `admin`) ou senha expirada após 90 dias (`reset.sh`) |
+| Build interrompido ou a aplicação para sozinha (código 137) | Docker sem memória: reserve ao menos 6 GB e rode `up.sh` de novo |
+| Painéis vazios logo após subir | os snapshots do analytics são atualizados pelo agendamento a cada 15 min: aguarde até 15 min |
 | Mensagens da régua "adiadas" | fora da janela da política de contato (8h–20h; SMS 9h–19h) — comportamento esperado |
