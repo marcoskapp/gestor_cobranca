@@ -21,6 +21,7 @@ import java.util.Set;
  * @param ladder        escada de concessões (níveis 0..n, contíguos)
  * @param breakRule     caracterização de quebra de acordo (usada na parte 2)
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record PolicyRules(
         Charges charges,
         List<DiscountTier> discountTiers,

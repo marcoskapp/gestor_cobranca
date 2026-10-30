@@ -1,0 +1,103 @@
+# =============================================================================
+# Sandbox de demonstração: aplicação completa com dados fictícios, subida com um comando.
+#
+#   ./scripts/sandbox/up.sh        (build + subida + espera da carga)   ← use os scripts
+#   ./scripts/sandbox/down.sh      (para, mantém os dados)
+#   ./scripts/sandbox/reset.sh     (apaga os volumes e recria do zero)
+#
+# Projeto Compose próprio (gestor-cobranca-sandbox), volumes próprios e portas que não colidem com o
+# ambiente de desenvolvimento (infra/docker/docker-compose.yml: 5432, 1025, 8025; backend 8080; ng 4200).
+# Portas publicadas só em 127.0.0.1. Senhas abaixo são EXCLUSIVAS do sandbox e não protegem dados reais.
+# Guia: docs/tecnico/operacao/sandbox.md
+# =============================================================================
+name: gestor-cobranca-sandbox
+
+services:
+  postgres:
+    image: ${SANDBOX_POSTGRES_IMAGE:-postgres:16-alpine}
+    environment:
+      POSTGRES_DB: cobranca
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_sandbox
+      SANDBOX_DB_OWNER_PASSWORD: app_owner_sandbox
+      SANDBOX_DB_RUNTIME_PASSWORD: app_runtime_sandbox
+    ports:
+      - "127.0.0.1:${SANDBOX_DB_PORT:-55432}:5432"
+    volumes:
+      - sandbox-pgdata:/var/lib/postgresql/data
+      - ./init/10-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+      - ../../../scripts/db/bootstrap-roles.sql:/bootstrap/bootstrap-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d cobranca"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  mailpit:
+    image: ${SANDBOX_MAILPIT_IMAGE:-axllent/mailpit:v1.27.10}
+    environment:
+      # e-mails preservados entre subidas (down/up); apagados só pelo reset.sh
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - sandbox-mail:/data
+    # SMTP só na rede interna (a aplicação envia para mailpit:1025); a interface web fica publicada
+    ports:
+      - "127.0.0.1:${SANDBOX_MAIL_PORT:-58025}:8025"
+
+  app:
+    # o up.sh constrói a imagem com `docker build` (mesmo Dockerfile e argumentos) e sobe com --no-build
+    build:
+      context: ../../..
+      dockerfile: infra/docker/app/Dockerfile
+      args:
+        NODE_IMAGE: ${SANDBOX_NODE_IMAGE:-node:22-bookworm-slim}
+        MAVEN_IMAGE: ${SANDBOX_MAVEN_IMAGE:-maven:3.9-eclipse-temurin-21}
+        JRE_IMAGE: ${SANDBOX_JRE_IMAGE:-eclipse-temurin:21-jre-noble}
+    image: gestor-cobranca-sandbox/app:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: sandbox
+      APP_ENV: sandbox
+      # carga de dados fictícios: exige também o perfil sandbox (SandboxSeedGuard recusa o perfil prod)
+      SANDBOX_SEED_ENABLED: "true"
+      SANDBOX_DEMO_PASSWORD: ${SANDBOX_DEMO_PASSWORD:-Sandbox@2026!}
+      GC_GENERATE_LOCAL_SECRETS: "true"
+      APP_BASE_URL: http://localhost:${SANDBOX_APP_PORT:-58080}
+      CORS_ALLOWED_ORIGINS: http://localhost:${SANDBOX_APP_PORT:-58080}
+      DB_URL: jdbc:postgresql://postgres:5432/cobranca
+      DB_USERNAME: app_runtime_login
+      DB_PASSWORD: app_runtime_sandbox
+      DB_MIGRATION_USERNAME: app_owner
+      DB_MIGRATION_PASSWORD: app_owner_sandbox
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SANDBOX_MAILPIT_API_URL: http://mailpit:8025
+      # administrador da plataforma criado pelo bootstrap padrão (PlatformBootstrap) e ativado pela carga
+      APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL: admin@plataforma.exemplo.test
+      APP_BOOTSTRAP_PLATFORM_ADMIN_NAME: Administrador da Plataforma (sandbox)
+      APP_BOOTSTRAP_PLATFORM_CNPJ: "11222333000181"
+      JAVA_OPTS: -XX:MaxRAMPercentage=60 -Duser.timezone=UTC
+    ports:
+      - "127.0.0.1:${SANDBOX_APP_PORT:-58080}:8080"
+    volumes:
+      - sandbox-secrets:/var/lib/gestor-cobranca/secrets
+      - sandbox-storage:/var/lib/gestor-cobranca/storage
+      - sandbox-logs:/var/lib/gestor-cobranca/logs
+    healthcheck:
+      # pronto = aplicação no ar E carga do sandbox concluída (grupo readiness inclui sandboxSeed)
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"}$$' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 120
+      start_period: 60s
+
+volumes:
+  sandbox-pgdata:
+  sandbox-secrets:
+  sandbox-storage:
+  sandbox-logs:
+  sandbox-mail:

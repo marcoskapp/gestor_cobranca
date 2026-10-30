@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
  * @param teamId        equipe de destino (mover para a fila); nulo = devolver à fila do roteamento
  * @param offer         parâmetros da oferta (ação {@code OFFER})
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record StepAction(ActionType type, String channel, String templateCode, Map<String, String> variables,
                          String taskType, Integer taskDueInMinutes, String taskNote, UUID teamId, OfferSpec offer) {
 

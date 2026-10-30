@@ -15,7 +15,7 @@ docs/
 - Decisão estrutural difícil de reverter (tecnologia, padrão transversal) → ADR em `arquitetura/adr/` (numeração sequencial).
 - Desenho de um módulo (agregados, estados, eventos, permissões, migrations) → `tecnico/desenho/<modulo>.md`, com link para o documento de negócio correspondente.
 - Evento de negócio, métrica ou campo de log novo → catálogo em `tecnico/logs-e-metricas.md`.
-- Procedimento de operação (ativação de ambiente, implantação, rotinas, recuperação) → `tecnico/operacao/`.
+- Procedimento de operação (ativação de ambiente, implantação, rotinas, recuperação, sandbox de demonstração) → `tecnico/operacao/`.
 - Contrato OpenAPI publicado da API pública → `api/public-api/<versão>/openapi.json` (gerado e conferido por teste; ver `tecnico/operacao/api-publica-publicacao.md`).
 
 ## Negócio
@@ -57,6 +57,7 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [logs-e-metricas.md](tecnico/logs-e-metricas.md) | Fluxos de log (técnico, negócio, acesso), catálogo de eventos e métricas |
 | [operacao/api-publica-publicacao.md](tecnico/operacao/api-publica-publicacao.md) | API pública: fluxo de mudança do contrato, publicação de release com diff (openapi-diff), nova versão e depreciação, segredo do hash dos tokens |
 | [operacao/ativacao-aws.md](tecnico/operacao/ativacao-aws.md) | Guia operacional de ativação na AWS: pré-requisitos, Terraform, segredos, banco, implantação, primeiro acesso, integrações, operação e checklists de segurança e go-live |
+| [operacao/sandbox.md](tecnico/operacao/sandbox.md) | Sandbox de demonstração com dados fictícios subindo com um comando: scripts, URLs, usuários e senhas por perfil, o que vem carregado, roteiro de demonstração e proteções contra ativação em produção |
 | [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `importacao` (conferência da importação), `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `chat-suporte`, `remuneracao-variavel`, `scoring`, `analytics`, `portal`, `pendencias` (Minhas pendências), `ux`, `api-publica` (API pública de integração) |
 
 ## Caminhos antigos

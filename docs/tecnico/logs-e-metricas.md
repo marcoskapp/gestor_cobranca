@@ -635,5 +635,6 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `pendingwork.source.duration{source,outcome}` (p50/p95/p99) | cada fonte: `ok`, `error`, `timeout` (acima de `app.pending-work.timeout`, também `statement_timeout`), `busy` (executor saturado) — alarme sugerido: `error`+`timeout` > 5% em 15 min |
 | `executor.*{name=pending_work}` | fila e ocupação do executor das fontes (bulkhead de 4 threads por instância) |
 | `pendingwork.observations{outcome}`, `pendingwork.retention.purged`, `pendingwork.jobs.failures{job}` | observações diárias (`recorded`, `already_recorded`, `failed`), retenção e falhas do agendamento (alarme) |
+| `sandbox.seed.step{step}`, `sandbox.seed.duration{outcome}` | somente no sandbox de demonstração: duração de cada etapa da carga de dados fictícios e da carga inteira (`completed`/`failed`); avisos e falha também em `/actuator/health/readiness` (`sandboxSeed`) e no log técnico (`docs/tecnico/operacao/sandbox.md`) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |

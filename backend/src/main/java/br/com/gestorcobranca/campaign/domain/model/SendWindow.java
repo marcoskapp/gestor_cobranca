@@ -16,6 +16,7 @@ import java.util.Set;
  * porteiro do compliance (janela legal, feriados, limites), que continua sendo verificado no envio;
  * serve para a estratégia da campanha (ex.: lembrete só de manhã, teste A/B de horário).
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record SendWindow(LocalTime start, LocalTime end, Set<DayOfWeek> days) {
 
     public SendWindow {

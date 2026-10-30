@@ -37,6 +37,7 @@ import java.util.UUID;
  *                              casos sem acordo em vigor com parcela em aberto ficam fora
  * @param maxDaysToInstallment  idem, vence em até N dias (lembrete de parcela: "vence nos próximos N dias")
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record SegmentCriteria(
         Set<UUID> portfolioIds,
         Integer minDaysOverdue,

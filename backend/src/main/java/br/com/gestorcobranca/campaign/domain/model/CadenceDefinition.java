@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
  * @param defaultOnReplyStepCode destino de {@code GOTO_STEP} padrão
  * @param replyTeamId          equipe de destino de {@code MOVE_TO_QUEUE} por resposta (nula = fila do roteamento)
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record CadenceDefinition(ReplyTransition defaultOnReply, String defaultOnReplyStepCode, UUID replyTeamId,
                                 List<CadenceStep> steps) {
 

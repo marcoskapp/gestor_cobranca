@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
  * @param onReply         o que a resposta do devedor a esta etapa faz (nulo = padrão da régua)
  * @param onReplyStepCode etapa de destino quando {@code onReply = GOTO_STEP}
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record CadenceStep(String code, String name, Integer waitMinutes, SendWindow window, StepCondition condition,
                           StepAction action, ReplyTransition onReply, String onReplyStepCode) {
 

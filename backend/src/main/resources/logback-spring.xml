@@ -97,7 +97,7 @@
     <logger name="com.zaxxer.hikari" level="INFO"/>
     <logger name="software.amazon.awssdk" level="WARN"/>
 
-    <springProfile name="local | test">
+    <springProfile name="local | test | sandbox">
         <logger name="BUSINESS" level="INFO" additivity="false">
             <appender-ref ref="CONSOLE_PATTERN"/>
             <appender-ref ref="ASYNC_BUSINESS"/>
@@ -112,7 +112,7 @@
         </root>
     </springProfile>
 
-    <springProfile name="!(local | test)">
+    <springProfile name="!(local | test | sandbox)">
         <logger name="BUSINESS" level="INFO" additivity="false">
             <appender-ref ref="ASYNC_BUSINESS"/>
         </logger>

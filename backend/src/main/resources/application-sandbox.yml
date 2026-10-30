@@ -1,0 +1,69 @@
+# =============================================================================
+# Sandbox de demonstração (infra/docker/sandbox/compose.yml; guia em docs/tecnico/operacao/sandbox.md).
+# Dados FICTÍCIOS, provedores simulados e nenhuma integração real. Nunca combine com o perfil prod: o
+# SandboxSeedGuard e os guardas de cada provedor simulado impedem a aplicação de subir.
+# Chaves de JWT e de criptografia são geradas no contêiner na primeira subida (entrypoint), fora do Git.
+# =============================================================================
+spring:
+  mail:
+    host: ${SMTP_HOST:mailpit}
+    port: ${SMTP_PORT:1025}
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+      mail.smtp.starttls.required: false
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          # pronto = aplicação aceitando tráfego E carga do sandbox concluída (usado pelo up.sh e pelo healthcheck)
+          include: readinessState,sandboxSeed
+          show-details: always
+
+app:
+  environment: ${APP_ENV:sandbox}
+  logging:
+    dir: ${LOG_DIR:/var/lib/gestor-cobranca/logs}
+  storage:
+    provider: filesystem
+    local-root: ${STORAGE_LOCAL_ROOT:/var/lib/gestor-cobranca/storage}
+  security:
+    cookie-secure: false
+    jwt:
+      issuer: ${JWT_ISSUER:http://localhost:58080}
+    mfa:
+      # Sandbox: nenhum perfil com MFA obrigatório, para a demonstração entrar direto com a senha publicada
+      # (decisão 633). O MFA continua disponível (Minha conta → Autenticador) e, depois de cadastrado, é exigido
+      # no login daquele usuário. Produção mantém a lista de application.yml.
+      required-for-roles: ""
+  # provedores simulados (cada guarda recusa o perfil prod)
+  communication:
+    sandbox:
+      enabled: true
+  assistant:
+    sandbox:
+      enabled: true
+  helpdesk:
+    sandbox:
+      enabled: true
+  telephony:
+    sandbox:
+      enabled: true
+  payment:
+    sandbox:
+      enabled: true
+  sandbox:
+    seed:
+      # carga de dados fictícios: só com o perfil sandbox E esta flag (compose: SANDBOX_SEED_ENABLED=true)
+      enabled: ${SANDBOX_SEED_ENABLED:false}
+      demo-password: ${SANDBOX_DEMO_PASSWORD:Sandbox@2026!}
+      mailpit-api-url: ${SANDBOX_MAILPIT_API_URL:http://mailpit:8025}
+      platform-admin-email: ${APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL:admin@plataforma.exemplo.test}
+      activation-timeout: PT2M
+      step-timeout: PT5M
