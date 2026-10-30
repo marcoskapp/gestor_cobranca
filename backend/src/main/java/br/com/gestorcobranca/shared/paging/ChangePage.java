@@ -9,9 +9,10 @@ import java.util.function.Function;
  *
  * @param items registros em ordem crescente de ({@code updatedAt}, {@code id}), cada um com o instante da última
  *              alteração e a versão (lock otimista) — insumo de {@code ETag} e do próximo {@code updatedSince}
- * @param next  cursor para a próxima página; nulo quando não há mais registros na janela consultada
+ * @param next    posição do último registro entregue (continue daí na próxima chamada); nulo se a página veio vazia
+ * @param hasMore há mais registros na janela consultada (chame de novo imediatamente)
  */
-public record ChangePage<T>(List<Entry<T>> items, ChangeCursor next) {
+public record ChangePage<T>(List<Entry<T>> items, ChangeCursor next, boolean hasMore) {
 
     public ChangePage {
         items = List.copyOf(items);
@@ -23,7 +24,7 @@ public record ChangePage<T>(List<Entry<T>> items, ChangeCursor next) {
 
     public <R> ChangePage<R> map(Function<T, R> mapper) {
         return new ChangePage<>(items.stream().map(e -> new Entry<>(mapper.apply(e.value()), e.updatedAt(), e.version()))
-                .toList(), next);
+                .toList(), next, hasMore);
     }
 
     /**
@@ -42,8 +43,7 @@ public record ChangePage<T>(List<Entry<T>> items, ChangeCursor next) {
         List<Entry<T>> entries = page.stream()
                 .map(e -> new Entry<>(view.apply(e), updatedAt.apply(e), version.apply(e) == null ? 0L : version.apply(e)))
                 .toList();
-        ChangeCursor next = rowsPlusOne.size() > limit
-                ? new ChangeCursor(updatedAt.apply(page.getLast()), id.apply(page.getLast())) : null;
-        return new ChangePage<>(entries, next);
+        ChangeCursor next = page.isEmpty() ? null : new ChangeCursor(updatedAt.apply(page.getLast()), id.apply(page.getLast()));
+        return new ChangePage<>(entries, next, rowsPlusOne.size() > limit);
     }
 }

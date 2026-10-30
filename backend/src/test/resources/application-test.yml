@@ -13,6 +13,9 @@ app:
   logging:
     dir: ./target/test-logs
     technical-level: INFO
+  public-api:
+    token-hash-keys:
+      t1: dGVzdC1vbmx5LXB1YmxpYy1hcGktdG9rZW4taGFzaC1rZXkh
   crypto:
     keys:
       k1: dGVzdC1vbmx5LWFlcy1rZXktMzItYnl0ZXMtLS0tLSE=

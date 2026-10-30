@@ -29,6 +29,9 @@
         <commons-csv.version>1.14.1</commons-csv.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <archunit.version>1.5.1</archunit.version>
+        <openapi-diff.version>2.1.7</openapi-diff.version>
+        <!-- contrato publicado anterior para o diff da API pública (perfil public-api-diff) -->
+        <publicapi.previous.contract>${project.basedir}/../docs/api/public-api/v1/openapi.json</publicapi.previous.contract>
     </properties>
 
     <dependencyManagement>
@@ -236,10 +239,31 @@
             </plugin>
             <plugin>
                 <!-- Empacota o build do Angular (frontend/dist) em classpath:/static (ADR-0007).
-                     Sem build do frontend, nada é copiado e o JAR sai apenas com a API. -->
+                     Sem build do frontend, nada é copiado e o JAR sai apenas com a API.
+                     Copia também o contrato publicado da API pública (docs/api/public-api/<versão>/openapi.json,
+                     versionado e conferido pelo PublicApiContractIT) para ser servido em /public-api/<versão>/openapi.json. -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <executions>
+                    <execution>
+                        <id>copy-public-api-contract</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/publicapi/contract</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/../docs/api/public-api</directory>
+                                    <includes>
+                                        <include>v*/openapi.json</include>
+                                    </includes>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>copy-frontend</id>
                         <phase>prepare-package</phase>
@@ -295,4 +319,40 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+          Diff do contrato da API pública contra a versão publicada anterior (docs/tecnico/operacao/api-publica-publicacao.md):
+            mvn -P public-api-diff verify -Dpublicapi.previous.contract=<contrato da release anterior>
+          Gera target/public-api-diff/{changes.md,changes.json} e falha se houver mudança incompatível.
+        -->
+        <profile>
+            <id>public-api-diff</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.openapitools.openapidiff</groupId>
+                        <artifactId>openapi-diff-maven</artifactId>
+                        <version>${openapi-diff.version}</version>
+                        <executions>
+                            <execution>
+                                <id>public-api-diff</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>diff</goal>
+                                </goals>
+                                <configuration>
+                                    <oldSpec>${publicapi.previous.contract}</oldSpec>
+                                    <newSpec>${project.basedir}/../docs/api/public-api/v1/openapi.json</newSpec>
+                                    <failOnIncompatible>true</failOnIncompatible>
+                                    <markdownOutputFileName>${project.build.directory}/public-api-diff/changes.md</markdownOutputFileName>
+                                    <jsonOutputFileName>${project.build.directory}/public-api-diff/changes.json</jsonOutputFileName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

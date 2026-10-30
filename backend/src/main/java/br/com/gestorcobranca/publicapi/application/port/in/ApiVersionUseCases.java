@@ -19,6 +19,12 @@ public interface ApiVersionUseCases {
     List<ChangelogRelease> changelog();
 
     /**
+     * Contrato OpenAPI publicado da versão (JSON), o mesmo arquivo versionado no repositório
+     * ({@code docs/api/public-api/<versão>/openapi.json}); vazio se a versão não tem contrato publicado.
+     */
+    Optional<String> contract(String code);
+
+    /**
      * @param status     CURRENT, DEPRECATED ou RETIRED
      * @param deprecated início da depreciação (cabeçalho {@code Deprecation}, RFC 9745)
      * @param sunset     desligamento previsto (cabeçalho {@code Sunset}, RFC 8594)

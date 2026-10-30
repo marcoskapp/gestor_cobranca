@@ -22,6 +22,9 @@ public interface DebtTitleUseCases {
 
     TitleView get(UUID titleId);
 
+    /** Título pelo identificador do credor ({@code id_titulo} da carga); vazio se inexistente ou fora do escopo. */
+    java.util.Optional<TitleView> findByExternalId(UUID creditorId, String externalId);
+
     /** Títulos do devedor em credores do escopo do ator. */
     List<TitleView> listByDebtor(UUID debtorId);
 

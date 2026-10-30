@@ -93,4 +93,21 @@ class ClasspathApiCatalog implements ApiCatalog {
     public List<ChangelogRelease> changelog() {
         return changelog;
     }
+
+    /**
+     * Contrato copiado de {@code docs/api/public-api/<versão>/openapi.json} para o classpath no build
+     * ({@code publicapi/contract/<versão>/openapi.json}); lido a cada chamada (arquivo pequeno, servido com cache HTTP).
+     */
+    @Override
+    public java.util.Optional<String> contract(String versionCode) {
+        ClassPathResource resource = new ClassPathResource("publicapi/contract/" + versionCode + "/openapi.json");
+        if (!versionCode.matches("v[1-9][0-9]*") || !resource.exists()) {
+            return java.util.Optional.empty();
+        }
+        try (InputStream in = resource.getInputStream()) {
+            return java.util.Optional.of(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Não foi possível ler o contrato " + versionCode, e);
+        }
+    }
 }

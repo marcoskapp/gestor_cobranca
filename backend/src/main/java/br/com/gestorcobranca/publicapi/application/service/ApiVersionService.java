@@ -31,4 +31,9 @@ class ApiVersionService implements ApiVersionUseCases {
     public List<ChangelogRelease> changelog() {
         return catalog.changelog();
     }
+
+    @Override
+    public Optional<String> contract(String code) {
+        return version(code).flatMap(v -> catalog.contract(v.code()));
+    }
 }

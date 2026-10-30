@@ -4,6 +4,7 @@ import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
 import br.com.gestorcobranca.publicapi.application.PublicApiProperties;
 import br.com.gestorcobranca.publicapi.application.port.in.IntegrationTokenUseCases;
 import br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken;
+import br.com.gestorcobranca.publicapi.application.port.out.ClientAddressRules;
 import br.com.gestorcobranca.publicapi.application.port.out.TokenRouteDirectory;
 import br.com.gestorcobranca.publicapi.domain.model.IntegrationToken;
 import br.com.gestorcobranca.publicapi.domain.model.TokenScope;
@@ -54,6 +55,7 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
     private final TokenRouteDirectory routes;
     private final CreditorUseCases creditors;
     private final TokenHashing hashing;
+    private final ClientAddressRules addressRules;
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
@@ -64,13 +66,15 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
     private final Clock clock;
 
     IntegrationTokenService(IntegrationTokenRepository tokens, TokenRouteDirectory routes, CreditorUseCases creditors,
-                            TokenHashing hashing, AccessScope accessScope, CurrentActor currentActor,
+                            TokenHashing hashing, ClientAddressRules addressRules, AccessScope accessScope,
+                            CurrentActor currentActor,
                             AuditTrail auditTrail, AccessLogger accessLogger, BusinessEventLogger businessEvents,
                             MeterRegistry meterRegistry, PublicApiProperties properties, Clock clock) {
         this.tokens = tokens;
         this.routes = routes;
         this.creditors = creditors;
         this.hashing = hashing;
+        this.addressRules = addressRules;
         this.accessScope = accessScope;
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
@@ -92,9 +96,10 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
         creditors.requireActive(command.creditorId());
         Instant now = Instant.now(clock);
         Set<TokenScope> scopes = TokenScope.parse(command.scopes());
+        requireGrantable(scopes);
         int rateLimit = command.rateLimitPerMinute() == null ? properties.defaultRateLimitPerMinute()
                 : command.rateLimitPerMinute();
-        List<String> ips = IpAllowList.normalize(command.allowedIps());
+        List<String> ips = addressRules.normalize(command.allowedIps());
         TokenSecret secret = TokenSecret.generate(hashing.random());
         IntegrationToken token = tokens.save(new IntegrationToken(command.creditorId(), command.name(),
                 command.description(), secret.prefix(), hashing.hasher().hash(secret), hashing.hasher().activeKeyId(),
@@ -165,7 +170,7 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
         accessScope.requirePermission(Permission.PUBLIC_API_TOKEN_MANAGE);
         Guard.require(command != null, "integration_token.required", "Dados obrigatórios");
         IntegrationToken token = loadForCommand(tokenId);
-        List<String> ips = IpAllowList.normalize(command.allowedIps());
+        List<String> ips = addressRules.normalize(command.allowedIps());
         AuditEntry audit = AuditEntry.of("integration_token.updated", "integration_token", tokenId)
                 .creditor(token.getCreditorId())
                 .change("name", token.getName(), command.name() == null ? null : command.name().strip())
@@ -229,6 +234,22 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
     }
 
     // ---------------------------------------------------------------- escopo
+
+    /**
+     * Prevenção de escalada (mesma regra dos perfis): só se concede a um token escopo cujas permissões o próprio
+     * usuário tem. Ex.: o perfil Integrações, sem acesso a devedores, não cria token com {@code debtors:read}.
+     */
+    private void requireGrantable(Set<TokenScope> scopes) {
+        var actor = currentActor.get();
+        var missing = TokenScope.permissionsOf(scopes).stream().filter(p -> !actor.has(p)).map(Enum::name).sorted().toList();
+        if (!missing.isEmpty()) {
+            accessLogger.log(AccessEvent.of(AccessEventType.ACCESS_DENIED, actor,
+                    Map.of("resource", "integration_token", "reason", "scope_outranks_actor",
+                            "missing", String.join(",", missing))));
+            throw new BusinessRuleException("integration_token.scope_not_grantable",
+                    "Você não pode conceder escopos com permissões que seu perfil não tem: " + String.join(", ", missing));
+        }
+    }
 
     private IntegrationToken loadVisible(UUID tokenId) {
         IntegrationToken token = tokens.findById(tokenId)

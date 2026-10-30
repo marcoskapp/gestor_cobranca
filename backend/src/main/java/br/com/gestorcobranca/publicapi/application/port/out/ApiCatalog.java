@@ -11,4 +11,6 @@ public interface ApiCatalog {
     List<ApiVersionView> versions();
 
     List<ChangelogRelease> changelog();
+
+    java.util.Optional<String> contract(String versionCode);
 }

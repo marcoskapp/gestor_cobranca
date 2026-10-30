@@ -16,12 +16,11 @@ import java.util.Map;
  * @param syncStabilizationWindow  atraso da sincronização incremental: só registros alterados antes de
  *                                 {@code agora - janela} são entregues, para não pular alterações de transações ainda
  *                                 não confirmadas (padrão 1 min)
- * @param publicBaseUrl            URL pública usada no contrato OpenAPI ({@code servers})
  */
 @ConfigurationProperties(prefix = "app.public-api")
 public record PublicApiProperties(Map<String, String> tokenHashKeys, String activeTokenHashKeyId,
                                   int defaultRateLimitPerMinute, Duration usageFlushInterval,
-                                  Duration syncStabilizationWindow, String publicBaseUrl) {
+                                  Duration syncStabilizationWindow) {
 
     public PublicApiProperties {
         tokenHashKeys = tokenHashKeys == null ? Map.of() : Map.copyOf(tokenHashKeys);
@@ -31,6 +30,5 @@ public record PublicApiProperties(Map<String, String> tokenHashKeys, String acti
                 ? Duration.ofMinutes(1) : usageFlushInterval;
         syncStabilizationWindow = syncStabilizationWindow == null || syncStabilizationWindow.isNegative()
                 ? Duration.ofMinutes(1) : syncStabilizationWindow;
-        publicBaseUrl = publicBaseUrl == null || publicBaseUrl.isBlank() ? "https://localhost" : publicBaseUrl.strip();
     }
 }

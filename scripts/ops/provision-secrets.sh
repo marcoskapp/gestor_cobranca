@@ -20,6 +20,8 @@
 #   migration/db-owner-password    senha de app_owner (somente migrations)
 #   app/crypto-key-<id>            chave AES-256 de campo (Base64, 32 bytes)
 #   app/crypto-blind-index-key     chave HMAC do blind index (Base64, 32 bytes; NÃO rotacionar sem reindexação)
+#   app/public-api-token-hash-key  chave HMAC do hash dos tokens da API pública (Base64, 32 bytes; rotação: nova chave
+#                                  com outro id, mantendo a anterior até não haver token com hash nela)
 #   app/jwt-private-key            chave RSA 2048 PKCS#8 (PEM)
 #   app/jwt-public-key             chave pública X.509 (PEM)
 #   app/smtp-username, app/smtp-password   credenciais do provedor SMTP (set)
@@ -67,7 +69,7 @@ fi
 # crypto_key_ids não é saída: as chaves AES são geradas para os ids informados.
 CRYPTO_KEY_IDS="${CRYPTO_KEY_IDS:-k1}"
 
-ALL_NAMES=(app/db-password migration/db-owner-password app/crypto-blind-index-key app/jwt-private-key app/jwt-public-key app/smtp-username app/smtp-password)
+ALL_NAMES=(app/db-password migration/db-owner-password app/crypto-blind-index-key app/public-api-token-hash-key app/jwt-private-key app/jwt-public-key app/smtp-username app/smtp-password)
 # Opcionais: só exigidos quando a integração correspondente é ligada no Terraform (o user-data os
 # lê somente nesse caso); nunca gerados, só gravados com 'set'.
 OPTIONAL_NAMES=(app/helpdesk-github-token)
@@ -114,7 +116,7 @@ generate_one() {
   local name="$1" file="${work}/value"
   case "${name}" in
     app/db-password|migration/db-owner-password) gen_password > "${file}" ;;
-    app/crypto-key-*|app/crypto-blind-index-key) gen_key32 > "${file}" ;;
+    app/crypto-key-*|app/crypto-blind-index-key|app/public-api-token-hash-key) gen_key32 > "${file}" ;;
     app/jwt-private-key)
       openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "${work}/jwt-private.pem" 2>/dev/null
       openssl pkey -in "${work}/jwt-private.pem" -pubout -out "${work}/jwt-public.pem"

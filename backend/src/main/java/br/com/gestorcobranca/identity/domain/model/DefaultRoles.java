@@ -45,6 +45,11 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * Assistente de IA (docs/tecnico/desenho/assistente.md): o gestor configura políticas, modos e o
  * desligamento por carteira ({@code ASSISTANT_MANAGE}); supervisor e gestor revisam a trilha dos
  * turnos, avaliam a amostra e acompanham a qualidade ({@code ASSISTANT_REVIEW}).
+ * <p>
+ * API pública (docs/tecnico/desenho/api-publica.md §4): gestor e integrações criam, revogam e rotacionam tokens dos
+ * credores ({@code PUBLIC_API_TOKEN_MANAGE}) — só com escopos cujas permissões o próprio perfil tem; o financeiro e o
+ * gestor mantêm as tabelas de preço e fecham extratos ({@code PUBLIC_API_BILLING_MANAGE}); o auditor consulta tokens
+ * e consumo.
  */
 public final class DefaultRoles {
 
@@ -94,19 +99,21 @@ public final class DefaultRoles {
                 TABULATION_MANAGE,
                 COMMISSION_STATEMENT_MANAGE, AUTHORITY_MANAGE,
                 LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, SETTLEMENT_APPROVE,
-                ASSISTANT_MANAGE, IMPORT_APPROVE));
+                ASSISTANT_MANAGE, IMPORT_APPROVE,
+                PUBLIC_API_TOKEN_VIEW, PUBLIC_API_TOKEN_MANAGE, PUBLIC_API_USAGE_VIEW, PUBLIC_API_BILLING_MANAGE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
                 PAYMENT_VIEW, PAYMENT_REGISTER_EXTERNAL, PAYMENT_REVIEW, PAYMENT_INSTRUCTION_CREATE, PAYMENT_REVERSE,
                 RECONCILIATION_MANAGE, COMMISSION_VIEW, COMMISSION_MANAGE, SETTLEMENT_VIEW, SETTLEMENT_CLOSE,
                 DASHBOARD_VIEW, REPORT_VIEW, REPORT_EXPORT, PERFORMANCE_VIEW_ALL, COMMISSION_STATEMENT_APPROVE,
-                LEGAL_VIEW, LEGAL_EXPENSE_MANAGE, SETTLEMENT_TRANSFER);
+                LEGAL_VIEW, LEGAL_EXPENSE_MANAGE, SETTLEMENT_TRANSFER, PUBLIC_API_USAGE_VIEW, PUBLIC_API_BILLING_MANAGE);
 
         Set<Permission> auditor = EnumSet.of(
                 USER_VIEW, ACCESS_LOG_VIEW, AUDIT_VIEW, CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, IMPORT_VIEW,
                 DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW, PAYMENT_VIEW, COMMISSION_VIEW, SETTLEMENT_VIEW,
-                CAMPAIGN_VIEW, INBOX_VIEW, SCORING_VIEW, DASHBOARD_VIEW, REPORT_VIEW, PERFORMANCE_VIEW_ALL, LEGAL_VIEW);
+                CAMPAIGN_VIEW, INBOX_VIEW, SCORING_VIEW, DASHBOARD_VIEW, REPORT_VIEW, PERFORMANCE_VIEW_ALL, LEGAL_VIEW,
+                PUBLIC_API_TOKEN_VIEW, PUBLIC_API_USAGE_VIEW);
 
         Set<Permission> juridico = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
@@ -140,7 +147,8 @@ public final class DefaultRoles {
 
         // Integrações técnicas: canais, provedores e cargas automáticas; sem dados de devedores.
         Set<Permission> integracao = EnumSet.of(
-                CREDITOR_VIEW, PORTFOLIO_VIEW, INTEGRATION_MANAGE, CHANNEL_MANAGE, IMPORT_VIEW, IMPORT_EXECUTE);
+                CREDITOR_VIEW, PORTFOLIO_VIEW, INTEGRATION_MANAGE, CHANNEL_MANAGE, IMPORT_VIEW, IMPORT_EXECUTE,
+                PUBLIC_API_TOKEN_VIEW, PUBLIC_API_TOKEN_MANAGE, PUBLIC_API_USAGE_VIEW);
 
         return List.of(
                 new Definition(ADMIN, "Administrador", "Acesso total à assessoria", admin),

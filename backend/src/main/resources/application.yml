@@ -687,3 +687,14 @@ app:
       typical-z: 2.0
       sigma-floor: 0.5
       min-sample: 30
+  # API pública de integração dos credores (docs/tecnico/desenho/api-publica.md)
+  public-api:
+    # chave HMAC do servidor para o hash dos segredos dos tokens (Base64, >= 32 bytes; segredo app/public-api-token-hash-key).
+    # Rotação: acrescente t2 e mude active-token-hash-key-id; mantenha t1 enquanto houver token com hash nela.
+    token-hash-keys:
+      t1: ${APP_PUBLIC_API_TOKEN_HASH_KEY:}
+    active-token-hash-key-id: t1
+    default-rate-limit-per-minute: 600
+    usage-flush-interval: PT1M
+    sync-stabilization-window: PT1M
+    statement-cron: "0 40 3 1 * *"

@@ -167,6 +167,17 @@ class DebtTitleService implements DebtTitleUseCases {
 
     @Override
     @Transactional(readOnly = true)
+    public java.util.Optional<TitleView> findByExternalId(UUID creditorId, String externalId) {
+        if (creditorId == null || externalId == null || externalId.isBlank()
+                || !accessScope.canAccessCreditor(creditorId)) {
+            return java.util.Optional.empty();
+        }
+        return titles.findByCreditorIdAndExternalIdIn(creditorId, List.of(externalId.strip())).stream().findFirst()
+                .map(this::view);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ChangePage<TitleView> changes(UUID creditorId, UUID portfolioId, ChangeQuery query) {
         Guard.require(creditorId != null, "title.creditor_required", "Credor obrigatório");
         accessScope.requireVisible("creditor", creditorId, creditorId);

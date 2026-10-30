@@ -1,21 +1,21 @@
-package br.com.gestorcobranca.publicapi.application.service;
+package br.com.gestorcobranca.publicapi.infrastructure.network;
 
+import br.com.gestorcobranca.publicapi.application.port.out.ClientAddressRules;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.web.CidrRange;
 import br.com.gestorcobranca.shared.web.ClientAddresses;
+import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 
-/** Validação e conferência das faixas de IP permitidas de um token. */
-final class IpAllowList {
+/** Faixas CIDR com as mesmas regras de interpretação de IP do restante da plataforma ({@code shared.web}). */
+@Component
+class CidrClientAddressRules implements ClientAddressRules {
 
-    private IpAllowList() {
-    }
-
-    /** Normaliza e valida (CIDR ou IP literal); recusa faixas amplas demais (prefixo menor que /8 ou /32 no IPv6). */
-    static List<String> normalize(Collection<String> values) {
+    @Override
+    public List<String> normalize(Collection<String> values) {
         if (values == null) {
             return List.of();
         }
@@ -34,21 +34,17 @@ final class IpAllowList {
             int bits = range.network().length * 8;
             int minPrefix = bits == 32 ? 8 : 32;
             if (range.prefix() < minPrefix) {
-                throw new BusinessRuleException("integration_token.allowed_ip_too_wide",
-                        "Faixa de IP ampla demais: " + value);
+                throw new BusinessRuleException("integration_token.allowed_ip_too_wide", "Faixa de IP ampla demais: " + value);
             }
             result.add(value.contains("/") ? value : value + "/" + bits);
         }
         return List.copyOf(result);
     }
 
-    /** Sem lista = qualquer origem; com lista, IP ausente ou inválido é recusado. */
-    static boolean allows(Collection<String> allowed, String clientIp) {
+    @Override
+    public boolean allows(Collection<String> allowed, String clientIp) {
         if (allowed == null || allowed.isEmpty()) {
             return true;
-        }
-        if (clientIp == null || !ClientAddresses.isValid(clientIp)) {
-            return false;
         }
         String literal = ClientAddresses.parse(clientIp).orElse(null);
         return literal != null && allowed.stream().anyMatch(c -> CidrRange.parse(c).contains(literal));

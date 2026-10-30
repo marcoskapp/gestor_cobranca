@@ -12,11 +12,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Acumulação em memória do consumo, por (assessoria, credor, token, hora, método, rota): cada requisição só soma
- * contadores ({@link LongAdder}, sem bloqueio entre threads). O {@code UsageFlushJob} drena o acumulado e grava em
- * lote, por soma, a cada minuto e no desligamento da instância. Em queda abrupta da instância perde-se no máximo o
+ * contadores ({@link LongAdder}) sob uma trava de leitura compartilhada — sem contenção entre requisições. O
+ * {@code UsageFlushJob} troca o mapa sob a trava de escrita e grava o acumulado em lote, por soma, a cada minuto e no
+ * desligamento da instância. Em queda abrupta da instância perde-se no máximo o
  * último intervalo (o log de acesso por requisição continua completo e permite reconstituir o consumo).
  */
 @Component
@@ -36,8 +38,10 @@ class UsageAccumulator {
         final LongAdder latencyMs = new LongAdder();
     }
 
-    private volatile Map<Key, Counters> current = new ConcurrentHashMap<>();
-    private volatile Map<UUID, LastUseHolder> lastUses = new ConcurrentHashMap<>();
+    /** Requisições somam sob a trava de leitura (compartilhada); a troca do mapa usa a de escrita. */
+    private final ReentrantReadWriteLock swap = new ReentrantReadWriteLock();
+    private Map<Key, Counters> current = new ConcurrentHashMap<>();
+    private Map<UUID, LastUseHolder> lastUses = new ConcurrentHashMap<>();
 
     private record LastUseHolder(UUID tenantId, Instant at, String ip) {
     }
@@ -46,7 +50,15 @@ class UsageAccumulator {
     void add(UUID tenantId, UUID creditorId, UUID tokenId, Instant at, String method, String route, int status,
              long bytesIn, long bytesOut, long records, long latencyMs) {
         Key key = new Key(tenantId, creditorId, tokenId, at.truncatedTo(ChronoUnit.HOURS), method, route);
-        Counters c = current.computeIfAbsent(key, k -> new Counters());
+        swap.readLock().lock();
+        try {
+            increment(current.computeIfAbsent(key, k -> new Counters()), status, bytesIn, bytesOut, records, latencyMs);
+        } finally {
+            swap.readLock().unlock();
+        }
+    }
+
+    private static void increment(Counters c, int status, long bytesIn, long bytesOut, long records, long latencyMs) {
         if (status > 0) {
             c.requests.increment();
             if (status == 429) {
@@ -65,52 +77,63 @@ class UsageAccumulator {
 
     /** Devolve um delta não gravado (falha na gravação) para a próxima tentativa. */
     void restore(UsageDelta d) {
-        Counters c = current.computeIfAbsent(new Key(d.tenantId(), d.creditorId(), d.tokenId(), d.hourStart(), d.method(),
-                d.route()), k -> new Counters());
-        c.requests.add(d.requests());
-        c.throttled.add(d.throttled());
-        c.clientErrors.add(d.clientErrors());
-        c.serverErrors.add(d.serverErrors());
-        c.bytesIn.add(d.bytesIn());
-        c.bytesOut.add(d.bytesOut());
-        c.records.add(d.records());
-        c.latencyMs.add(d.latencyMsTotal());
+        swap.readLock().lock();
+        try {
+            Counters c = current.computeIfAbsent(new Key(d.tenantId(), d.creditorId(), d.tokenId(), d.hourStart(),
+                    d.method(), d.route()), k -> new Counters());
+            c.requests.add(d.requests());
+            c.throttled.add(d.throttled());
+            c.clientErrors.add(d.clientErrors());
+            c.serverErrors.add(d.serverErrors());
+            c.bytesIn.add(d.bytesIn());
+            c.bytesOut.add(d.bytesOut());
+            c.records.add(d.records());
+            c.latencyMs.add(d.latencyMsTotal());
+        } finally {
+            swap.readLock().unlock();
+        }
     }
 
     void touch(UUID tenantId, UUID tokenId, Instant at, String ip) {
-        lastUses.merge(tokenId, new LastUseHolder(tenantId, at, ip), (a, b) -> b.at().isAfter(a.at()) ? b : a);
+        swap.readLock().lock();
+        try {
+            lastUses.merge(tokenId, new LastUseHolder(tenantId, at, ip), (a, b) -> b.at().isAfter(a.at()) ? b : a);
+        } finally {
+            swap.readLock().unlock();
+        }
     }
 
     /**
-     * Mapa aposentado na troca anterior. Uma requisição que obteve os contadores do mapa corrente logo antes da troca
-     * ainda pode somar neles por alguns instantes; por isso o mapa só é lido no intervalo seguinte, já sem escritores.
+     * Troca os mapas sob a trava de escrita (espera as somas em andamento) e devolve o acumulado: nenhum incremento se
+     * perde entre a leitura e a troca.
      */
-    private volatile Map<Key, Counters> retired = new ConcurrentHashMap<>();
-
-    /**
-     * Drena o mapa aposentado na troca anterior (já sem escritores em andamento) e aposenta o corrente. Assim nenhum
-     * incremento se perde entre a leitura e a troca: o atraso é de um intervalo de gravação.
-     */
-    synchronized Drained drain() {
-        Map<Key, Counters> toWrite = retired;
-        retired = current;
-        current = new ConcurrentHashMap<>();
-        Map<UUID, LastUseHolder> uses = lastUses;
-        lastUses = new ConcurrentHashMap<>();
+    Drained drain() {
+        Map<Key, Counters> toWrite;
+        Map<UUID, LastUseHolder> uses;
+        swap.writeLock().lock();
+        try {
+            toWrite = current;
+            uses = lastUses;
+            current = new ConcurrentHashMap<>();
+            lastUses = new ConcurrentHashMap<>();
+        } finally {
+            swap.writeLock().unlock();
+        }
         return new Drained(toDeltas(toWrite), toLastUses(uses));
     }
 
-    /** Desligamento: drena tudo (aposentado e corrente). */
-    synchronized Drained drainAll() {
-        Drained first = drain();
-        Drained second = drain();
-        List<UsageDelta> deltas = new ArrayList<>(first.deltas());
-        deltas.addAll(second.deltas());
-        return new Drained(deltas, first.lastUses());
+    /** Desligamento: drena tudo. */
+    Drained drainAll() {
+        return drain();
     }
 
     int pendingKeys() {
-        return current.size() + retired.size();
+        swap.readLock().lock();
+        try {
+            return current.size();
+        } finally {
+            swap.readLock().unlock();
+        }
     }
 
     record Drained(List<UsageDelta> deltas, Map<UUID, List<LastUse>> lastUses) {

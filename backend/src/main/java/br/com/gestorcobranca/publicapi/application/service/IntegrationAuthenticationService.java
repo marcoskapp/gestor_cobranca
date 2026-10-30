@@ -3,6 +3,7 @@ package br.com.gestorcobranca.publicapi.application.service;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
 import br.com.gestorcobranca.organization.application.port.in.TenantAdministration;
 import br.com.gestorcobranca.publicapi.application.port.in.gateway.IntegrationAuthentication;
+import br.com.gestorcobranca.publicapi.application.port.out.ClientAddressRules;
 import br.com.gestorcobranca.publicapi.application.port.out.TokenRouteDirectory;
 import br.com.gestorcobranca.publicapi.domain.model.IntegrationToken;
 import br.com.gestorcobranca.publicapi.domain.model.TokenScope;
@@ -39,6 +40,7 @@ class IntegrationAuthenticationService implements IntegrationAuthentication {
     private final TenantAdministration tenants;
     private final CreditorUseCases creditors;
     private final TokenHashing hashing;
+    private final ClientAddressRules addressRules;
     private final TenantExecution tenantExecution;
     private final TokenRateLimiter rateLimiter;
     private final AccessLogger accessLogger;
@@ -47,13 +49,14 @@ class IntegrationAuthenticationService implements IntegrationAuthentication {
 
     IntegrationAuthenticationService(TokenRouteDirectory routes, IntegrationTokenRepository tokens,
                                      TenantAdministration tenants, CreditorUseCases creditors, TokenHashing hashing,
-                                     TenantExecution tenantExecution, TokenRateLimiter rateLimiter,
+                                     ClientAddressRules addressRules, TenantExecution tenantExecution, TokenRateLimiter rateLimiter,
                                      AccessLogger accessLogger, MeterRegistry meterRegistry, Clock clock) {
         this.routes = routes;
         this.tokens = tokens;
         this.tenants = tenants;
         this.creditors = creditors;
         this.hashing = hashing;
+        this.addressRules = addressRules;
         this.tenantExecution = tenantExecution;
         this.rateLimiter = rateLimiter;
         this.accessLogger = accessLogger;
@@ -105,7 +108,7 @@ class IntegrationAuthenticationService implements IntegrationAuthentication {
         } catch (DomainException e) {
             return new Rejected("creditor_inactive", 403, tenantId, secret.displayPrefix());
         }
-        if (!IpAllowList.allows(token.getAllowedIps(), clientIp)) {
+        if (!addressRules.allows(token.getAllowedIps(), clientIp)) {
             return new Rejected("ip_not_allowed", 403, tenantId, secret.displayPrefix());
         }
         Actor actor = new Actor(Actor.ActorType.INTEGRATION, token.getId(), tenantId, null,
