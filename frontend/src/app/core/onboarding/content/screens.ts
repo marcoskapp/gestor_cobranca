@@ -109,6 +109,10 @@ export const SCREENS: readonly ScreenGuide[] = [
     changes: [{ version: 2, items: ['Webhook em HMAC por padrão; o mTLS aparece desabilitado, com a explicação, enquanto o ambiente não verificar o certificado do PSP.'] }],
   },
   { key: 'payment.settings', version: 1, path: '/pagamentos/parametros' },
+  { key: 'publicapi.tokens', version: 1, path: '/integracoes/tokens', tourId: 'publicapi.tokens' },
+  { key: 'publicapi.token', version: 1, path: '/integracoes/tokens/:id', tourId: 'publicapi.token' },
+  { key: 'publicapi.usage', version: 1, path: '/integracoes/consumo', tourId: 'publicapi.usage' },
+  { key: 'publicapi.billing', version: 1, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
   {
     key: 'payment.detail',
     version: 2,

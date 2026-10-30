@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "96c76c57ec99198e",
+ "contentVersion": "8c7a173677136c1e",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -831,7 +831,7 @@
   {
    "id": "administracao",
    "title": "Administração",
-   "summary": "Credores, carteiras, usuários, perfis, equipes, configurações e rastreabilidade.",
+   "summary": "Credores, carteiras, usuários, perfis, equipes, configurações, integração dos credores e rastreabilidade.",
    "overview": [
     "A administração prepara a assessoria para operar e mantém a rastreabilidade. A implantação segue uma ordem: credores e contratos, carteiras, usuários com perfis e escopo de credores, e equipes.",
     "Cada pessoa tem uma conta própria. O perfil de acesso define o que ela pode fazer e o escopo de credores define o que ela pode ver. Quem gerencia perfis só concede permissões que o próprio perfil tem.",
@@ -861,6 +861,7 @@
    ],
    "rules": [
     "Contas não são compartilhadas: todas as ações ficam registradas em nome de quem fez.",
+    "Tokens de integração valem para um único credor; só se concedem escopos que o próprio perfil tem, e o token é exibido uma única vez.",
     "Perfis de sistema são mantidos atualizados a cada versão e não podem ser desativados; ajustes do administrador são respeitados.",
     "Perfis com acesso a dados sensíveis ou financeiros exigem verificação em duas etapas.",
     "Suspender ou devolver carteira pede motivo; encerrar é definitivo.",
@@ -874,7 +875,9 @@
     "escopo-de-credores",
     "equipe",
     "log-de-acesso",
-    "trilha-de-auditoria"
+    "trilha-de-auditoria",
+    "token-de-integracao",
+    "extrato-de-consumo"
    ]
   }
  ],
@@ -6024,6 +6027,163 @@
      "TENANT_MANAGE"
     ]
    }
+  },
+  {
+   "id": "publicapi.tokens",
+   "module": "administracao",
+   "title": "Tokens de integração",
+   "objective": "Credenciais que os sistemas dos credores usam para enviar carteiras e acompanhar a cobrança de forma automática.",
+   "purpose": [
+    "Crie um token para cada sistema do credor, com os escopos estritamente necessários, o limite de chamadas por minuto e, se possível, os endereços de rede do credor.",
+    "O token aparece uma única vez, na criação: copie e entregue ao credor por canal seguro. A lista mostra só o prefixo."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "INTEGRACAO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Pedido do credor que vai integrar o seu sistema."
+   ],
+   "outputs": [
+    "Credencial do credor e trilha de criação, rotação e revogação no log de acesso e na auditoria."
+   ],
+   "related": [
+    {
+     "screen": "publicapi.usage",
+     "why": "Consumo de cada token."
+    },
+    {
+     "screen": "organization.creditors",
+     "why": "Credor dono do token."
+    }
+   ],
+   "terms": [
+    "token-de-integracao",
+    "escopo-do-token"
+   ],
+   "path": "/integracoes/tokens",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PUBLIC_API_TOKEN_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "publicapi.token",
+   "module": "administracao",
+   "title": "Token de integração",
+   "objective": "Identificação, uso, rotação sem parada e revogação imediata de um token de integração.",
+   "purpose": [
+    "Rotacione periodicamente ou quando a equipe do credor mudar: o segredo anterior continua aceito durante a carência. Em caso de vazamento, rotacione sem carência ou revogue.",
+    "A revogação é imediata e definitiva e exige motivo."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "INTEGRACAO"
+   ],
+   "inputs": [
+    "Token criado na lista de tokens."
+   ],
+   "outputs": [
+    "Novo segredo (exibido uma vez) ou token revogado, com registro no log de acesso e na auditoria."
+   ],
+   "related": [
+    {
+     "screen": "publicapi.tokens",
+     "why": "Todos os tokens."
+    }
+   ],
+   "terms": [
+    "token-de-integracao"
+   ],
+   "path": "/integracoes/tokens/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "PUBLIC_API_TOKEN_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "publicapi.usage",
+   "module": "administracao",
+   "title": "Consumo da integração",
+   "objective": "Chamadas, dados trafegados e registros processados pelos tokens dos credores, por dia, por operação e por token.",
+   "purpose": [
+    "Acompanhe o volume de cada credor e de cada sistema. Chamadas recusadas por excesso e falhas da plataforma não são cobradas.",
+    "As últimas chamadas aparecem em até um minuto. A exportação fica registrada no log de acesso."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "FINANCEIRO",
+    "INTEGRACAO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Chamadas feitas pelos sistemas dos credores com os tokens."
+   ],
+   "outputs": [
+    "Base do extrato mensal e planilha de consumo."
+   ],
+   "related": [
+    {
+     "screen": "publicapi.billing",
+     "why": "Extrato mensal do consumo."
+    }
+   ],
+   "terms": [
+    "token-de-integracao",
+    "extrato-de-consumo"
+   ],
+   "path": "/integracoes/consumo",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PUBLIC_API_USAGE_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "publicapi.billing",
+   "module": "administracao",
+   "title": "Extratos da integração",
+   "objective": "Tabela de preços por versão e extrato mensal de consumo de cada credor, pronto para faturar.",
+   "purpose": [
+    "A tabela tem mensalidade, franquias e preço do excedente por chamada, por dados recebidos e enviados e por registro. Publicada, não muda: nova vigência é nova versão.",
+    "O mês anterior fecha sozinho no dia 1. Um novo fechamento do mesmo mês gera revisão com motivo; o extrato guarda uma marca do consumo que prova o cálculo."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Consumo dos tokens e a tabela de preços vigente no mês."
+   ],
+   "outputs": [
+    "Extrato por credor com detalhamento por token e por operação, exportável em planilha."
+   ],
+   "related": [
+    {
+     "screen": "publicapi.usage",
+     "why": "Consumo diário."
+    }
+   ],
+   "terms": [
+    "extrato-de-consumo"
+   ],
+   "path": "/integracoes/extratos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PUBLIC_API_USAGE_VIEW"
+    ]
+   }
   }
  ],
  "glossary": [
@@ -6031,6 +6191,21 @@
    "id": "assessoria",
    "term": "Assessoria",
    "definition": "A empresa de cobrança que usa o sistema. Os dados de cada assessoria ficam isolados das demais."
+  },
+  {
+   "id": "token-de-integracao",
+   "term": "Token de integração",
+   "definition": "Credencial secreta que o sistema de um credor usa para se integrar à assessoria. Vale para um único credor e só para os escopos concedidos; é exibida uma única vez."
+  },
+  {
+   "id": "escopo-do-token",
+   "term": "Escopo do token",
+   "definition": "O que um token de integração pode fazer (consultar títulos, importar carteiras, informar pagamentos…). Conceda só o necessário."
+  },
+  {
+   "id": "extrato-de-consumo",
+   "term": "Extrato de consumo",
+   "definition": "Resumo mensal do uso da integração por um credor: chamadas, dados trafegados e registros processados, com o valor pela tabela de preços vigente."
   },
   {
    "id": "credor",
