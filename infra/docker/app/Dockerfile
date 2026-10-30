@@ -7,6 +7,7 @@
 #   1. frontend  npm ci + ng build (produção) → dist/gestor-cobranca-web
 #   2. backend   mvn package; o pom copia frontend/dist/gestor-cobranca-web para classpath:/static
 #   3. runtime   JRE 21, usuário sem privilégios, entrypoint que só gera segredos locais quando pedido
+#                (/sandbox-data: volume exclusivo do sandbox, vazio e sem uso fora dele)
 #
 # As imagens base são argumentos para permitir espelhos/registros internos (ex.: ambiente sem acesso ao
 # Docker Hub). Os padrões são as imagens oficiais. Os testes não rodam aqui: rodam no CI/`mvn verify`.
@@ -31,11 +32,14 @@ FROM ${MAVEN_IMAGE} AS backend
 WORKDIR /build/backend
 COPY backend/pom.xml ./
 COPY backend/src ./src
+# contrato publicado da API pública: o pom o copia para o classpath (servido em /public-api/v<n>/openapi.json)
+COPY docs/api/public-api /build/docs/api/public-api
 COPY --from=frontend /build/frontend/dist/gestor-cobranca-web /build/frontend/dist/gestor-cobranca-web
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn -B -ntp package -DskipTests \
     && cp target/gestor-cobranca.jar /build/gestor-cobranca.jar \
-    && jar tf /build/gestor-cobranca.jar | grep -q 'BOOT-INF/classes/static/index.html'
+    && jar tf /build/gestor-cobranca.jar | grep -q 'BOOT-INF/classes/static/index.html' \
+    && jar tf /build/gestor-cobranca.jar | grep -q 'BOOT-INF/classes/publicapi/contract/v1/openapi.json'
 
 # ---------------------------------------------------------------------------------------------
 FROM ${JRE_IMAGE} AS runtime
@@ -46,9 +50,9 @@ RUN set -eu; \
     groupadd --system --gid 10001 gestor; \
     useradd --system --uid 10001 --gid gestor --home-dir /var/lib/gestor-cobranca --shell /usr/sbin/nologin gestor; \
     mkdir -p /opt/gestor-cobranca /var/lib/gestor-cobranca/secrets /var/lib/gestor-cobranca/storage \
-             /var/lib/gestor-cobranca/logs; \
-    chown -R gestor:gestor /var/lib/gestor-cobranca; \
-    chmod 700 /var/lib/gestor-cobranca/secrets
+             /var/lib/gestor-cobranca/logs /sandbox-data; \
+    chown -R gestor:gestor /var/lib/gestor-cobranca /sandbox-data; \
+    chmod 700 /var/lib/gestor-cobranca/secrets /sandbox-data
 COPY --from=backend /build/gestor-cobranca.jar /opt/gestor-cobranca/gestor-cobranca.jar
 COPY infra/docker/app/entrypoint.sh /opt/gestor-cobranca/entrypoint.sh
 USER gestor

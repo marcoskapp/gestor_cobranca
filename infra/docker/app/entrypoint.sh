@@ -4,7 +4,7 @@
 #
 # Com GC_GENERATE_LOCAL_SECRETS=true (somente ambientes locais/sandbox), gera na primeira subida, no
 # diretório GC_SECRETS_DIR (volume persistente), o par RSA do JWT e as chaves de criptografia de
-# dados pessoais (AES-256 + blind index). Nada disso é versionado nem embutido na imagem; as chaves
+# dados pessoais (AES-256 + blind index) e a chave HMAC dos tokens da API pública. Nada disso é versionado nem embutido na imagem; as chaves
 # são reaproveitadas nas subidas seguintes (dados cifrados continuam legíveis). Recusado no perfil
 # prod: em produção as chaves vêm do Secrets Manager (scripts/instance/user-data.sh).
 # =============================================================================
@@ -34,6 +34,10 @@ if [[ "${GC_GENERATE_LOCAL_SECRETS:-false}" == "true" ]]; then
       echo "APP_CRYPTO_ACTIVE_KEY_ID=k1"
       echo "APP_CRYPTO_BLIND_INDEX_KEY=$(openssl rand -base64 32)"
     } > "${SECRETS_DIR}/crypto.env"
+  fi
+  # chave HMAC dos segredos dos tokens da API pública (acrescentada também a volumes criados antes dela)
+  if ! grep -q '^APP_PUBLIC_API_TOKEN_HASH_KEY=' "${SECRETS_DIR}/crypto.env"; then
+    echo "APP_PUBLIC_API_TOKEN_HASH_KEY=$(openssl rand -base64 32)" >> "${SECRETS_DIR}/crypto.env"
   fi
   set -a
   # shellcheck disable=SC1091

@@ -4,6 +4,7 @@
 !backend/src/main/**
 !frontend/**
 !infra/docker/app/entrypoint.sh
+!docs/api/public-api/**
 frontend/node_modules
 frontend/dist
 frontend/.angular

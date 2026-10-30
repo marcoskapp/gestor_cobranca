@@ -48,6 +48,12 @@ build_app_image() {
     -t "${APP_IMAGE}" "${REPO_ROOT}"
 }
 
+# Linhas (sem comentários) do arquivo de tokens de demonstração da API pública, lido de dentro do contêiner:
+# token_id, assessoria, credor, nome, escopos, token — separados por tabulação.
+sandbox_tokens() {
+  compose exec -T app cat /sandbox-data/api-tokens.txt 2>/dev/null | grep -v '^#' | grep -v '^$'
+}
+
 # Estado de prontidão (UP só depois da carga de dados fictícios) e detalhes da carga, se publicados.
 readiness_json() {
   # sem -f: em 503 (fora de prontidão) o corpo traz a etapa e a falha da carga
@@ -69,6 +75,7 @@ print_summary() {
             administrador da plataforma: admin@plataforma.exemplo.test
   Senha de demonstração: ${SANDBOX_DEMO_PASSWORD:-Sandbox@2026!}
 
+  API pública: tokens de demonstração em ./scripts/sandbox/tokens.sh · docs em ${APP_URL}/public-api/docs
   Lista completa de usuários e roteiro de demonstração: docs/tecnico/operacao/sandbox.md
 EOF
 }
