@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.payment.infrastructure.persistence;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
+
 import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.PaymentAllocation;
 import br.com.gestorcobranca.payment.domain.model.PaymentMethod;
@@ -68,6 +71,12 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     @Override
     default Money sumExternalInformedBy(UUID informedBy, Instant since) {
         return Money.ofNullable(sumExternalByInformer(informedBy, since));
+    }
+
+    @Override
+    default List<Payment> findChanges(UUID creditorId, ChangeQuery query) {
+        return findAll(ChangeSpecifications.<Payment>window(query, List.of(creditorId)), ChangeSpecifications.page(query))
+                .getContent();
     }
 
     @Override

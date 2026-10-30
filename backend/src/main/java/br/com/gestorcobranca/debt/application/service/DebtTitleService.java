@@ -23,6 +23,9 @@ import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.domain.PreconditionFailedException;
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
@@ -163,34 +166,62 @@ class DebtTitleService implements DebtTitleUseCases {
     // ---------------------------------------------------------------- ciclo de vida
 
     @Override
-    public TitleView suspend(UUID titleId, String reason) {
-        return transition(titleId, t -> t.suspend(reason), "debt_title.suspended");
+    @Transactional(readOnly = true)
+    public ChangePage<TitleView> changes(UUID creditorId, UUID portfolioId, ChangeQuery query) {
+        Guard.require(creditorId != null, "title.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        LocalDate today = DebtViews.today(clock);
+        List<DebtTitle> rows = titles.findChanges(creditorId, portfolioId, query);
+        return ChangePage.of(rows, query.limit(), DebtTitle::getUpdatedAt, DebtTitle::getId, DebtTitle::getVersion,
+                t -> DebtViews.title(t, today));
     }
 
     @Override
-    public TitleView reactivate(UUID titleId) {
-        return transition(titleId, DebtTitle::reactivate, "debt_title.reactivated");
+    public TitleView suspend(UUID titleId, String reason, Long expectedVersion) {
+        return transition(titleId, expectedVersion, t -> t.suspend(reason), "debt_title.suspended");
     }
 
     @Override
-    public TitleView cancel(UUID titleId, String reason) {
-        return transition(titleId, t -> t.cancel(reason), "debt_title.cancelled");
+    public TitleView reactivate(UUID titleId, Long expectedVersion) {
+        return transition(titleId, expectedVersion, DebtTitle::reactivate, "debt_title.reactivated");
+    }
+
+    @Override
+    public TitleView cancel(UUID titleId, String reason, Long expectedVersion) {
+        return transition(titleId, expectedVersion, t -> t.cancel(reason), "debt_title.cancelled");
     }
 
     @Override
     public List<TitleView> returnToCreditor(Collection<UUID> titleIds, String reason) {
         Instant now = Instant.now(clock);
-        return lockAllForCommand(titleIds).stream().map(title -> {
-            TitleStatus previous = title.returnToCreditor(reason);
-            releaseOwnership(title, now, OwnershipReleaseType.RETURN, title.getStatusReason());
-            titles.save(title);
-            auditTrail.record(AuditEntry.of("debt_title.returned", "debt_title", title.getId())
-                    .creditor(title.getCreditorId()).reason(title.getStatusReason())
-                    .change("status", previous, title.getStatus())
-                    .meta("portfolioId", title.getPortfolioId()));
-            notifier.changed(title, previous, title.getOpenBalance(), Trigger.RETURN);
-            return view(title);
-        }).toList();
+        return lockAllForCommand(titleIds).stream().map(title -> returnLocked(title, reason, now)).toList();
+    }
+
+    @Override
+    public TitleView returnToCreditor(UUID titleId, String reason, Long expectedVersion) {
+        DebtTitle title = lockForCommand(titleId);
+        requireVersion(title, expectedVersion);
+        return returnLocked(title, reason, Instant.now(clock));
+    }
+
+    private TitleView returnLocked(DebtTitle title, String reason, Instant now) {
+        TitleStatus previous = title.returnToCreditor(reason);
+        releaseOwnership(title, now, OwnershipReleaseType.RETURN, title.getStatusReason());
+        titles.save(title);
+        auditTrail.record(AuditEntry.of("debt_title.returned", "debt_title", title.getId())
+                .creditor(title.getCreditorId()).reason(title.getStatusReason())
+                .change("status", previous, title.getStatus())
+                .meta("portfolioId", title.getPortfolioId()));
+        notifier.changed(title, previous, title.getOpenBalance(), Trigger.RETURN);
+        return view(title);
+    }
+
+    /** Concorrência otimista da API pública ({@code If-Match}): conferida sob o lock do título. */
+    private static void requireVersion(DebtTitle title, Long expectedVersion) {
+        if (expectedVersion != null && !expectedVersion.equals(title.getVersion())) {
+            throw new PreconditionFailedException("debt_title.version_mismatch",
+                    "O título foi alterado depois da leitura. Consulte-o de novo e repita a operação.");
+        }
     }
 
     @Override
@@ -227,8 +258,10 @@ class DebtTitleService implements DebtTitleUseCases {
         }).toList();
     }
 
-    private TitleView transition(UUID titleId, Function<DebtTitle, TitleStatus> change, String auditAction) {
+    private TitleView transition(UUID titleId, Long expectedVersion, Function<DebtTitle, TitleStatus> change,
+                                 String auditAction) {
         DebtTitle title = lockForCommand(titleId);
+        requireVersion(title, expectedVersion);
         TitleStatus previous = change.apply(title);
         titles.save(title);
         auditTrail.record(AuditEntry.of(auditAction, "debt_title", titleId)

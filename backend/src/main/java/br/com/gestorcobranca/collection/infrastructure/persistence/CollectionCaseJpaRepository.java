@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.collection.infrastructure.persistence;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
+
 import br.com.gestorcobranca.collection.domain.model.CollectionCase;
 import br.com.gestorcobranca.collection.domain.repository.CaseSearchCriteria;
 import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
@@ -183,6 +186,15 @@ interface CollectionCaseJpaRepository extends JpaRepository<CollectionCase, UUID
              order by c.id
             """)
     List<UUID> activeIdsByDebtorAndCreditor(UUID debtorId, UUID creditorId);
+
+    @Override
+    default List<CollectionCase> findChanges(UUID creditorId, UUID portfolioId, ChangeQuery query) {
+        Specification<CollectionCase> spec = ChangeSpecifications.<CollectionCase>window(query, List.of(creditorId));
+        if (portfolioId != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("portfolioId"), portfolioId));
+        }
+        return findAll(spec, ChangeSpecifications.page(query)).getContent();
+    }
 
     @Override
     default Page<CollectionCase> search(CaseSearchCriteria c, Pageable pageable) {

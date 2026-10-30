@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.collection.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -25,6 +28,12 @@ public interface CaseUseCases {
     CaseView get(UUID caseId);
 
     PageResponse<CaseView> search(CaseFilter filter, PageQuery page);
+
+    /**
+     * Sincronização incremental (API pública): casos do credor alterados na janela, em ordem de atualização e id,
+     * paginados por cursor. Exige o credor no escopo (404 fora dele).
+     */
+    ChangePage<CaseView> changes(UUID creditorId, UUID portfolioId, ChangeQuery query);
 
     /** Casos (ativos e encerrados) do devedor nos credores do escopo, do mais recente ao mais antigo. */
     List<CaseView> listByDebtor(UUID debtorId);

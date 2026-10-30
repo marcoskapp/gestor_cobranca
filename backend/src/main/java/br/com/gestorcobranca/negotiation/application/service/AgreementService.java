@@ -1,5 +1,9 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
+import br.com.gestorcobranca.shared.domain.Guard;
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
@@ -79,6 +83,16 @@ class AgreementService implements AgreementUseCases {
     public AgreementView get(UUID agreementId) {
         accessScope.requirePermission(Permission.AGREEMENT_VIEW);
         return views.agreement(loadVisible(agreementId, false));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChangePage<AgreementView> changes(UUID creditorId, ChangeQuery query) {
+        accessScope.requirePermission(Permission.AGREEMENT_VIEW);
+        Guard.require(creditorId != null, "agreement.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        return ChangePage.of(agreements.findChanges(creditorId, query), query.limit(), Agreement::getUpdatedAt,
+                Agreement::getId, Agreement::getVersion, views::agreement);
     }
 
     @Override

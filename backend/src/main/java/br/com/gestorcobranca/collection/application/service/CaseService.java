@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.collection.application.service;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputedTitle;
 import br.com.gestorcobranca.collection.domain.model.AssignmentMode;
@@ -83,6 +86,17 @@ class CaseService implements CaseUseCases {
     @Transactional(readOnly = true)
     public CaseView get(UUID caseId) {
         return CollectionViews.caseView(access.visible(caseId), CollectionViews.today(clock));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChangePage<CaseView> changes(UUID creditorId, UUID portfolioId, ChangeQuery query) {
+        Guard.require(creditorId != null, "case.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        LocalDate today = CollectionViews.today(clock);
+        return ChangePage.of(cases.findChanges(creditorId, portfolioId, query), query.limit(),
+                CollectionCase::getUpdatedAt, CollectionCase::getId, CollectionCase::getVersion,
+                c -> CollectionViews.caseView(c, today));
     }
 
     @Override

@@ -17,7 +17,7 @@ class CaseBalanceCalculationTest {
 
     static TitleView title(String status, String balance, LocalDate due, boolean disputed) {
         return new TitleView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null, "X", 1, due,
-                new BigDecimal(balance), new BigDecimal(balance), BigDecimal.ZERO, status, null, disputed, null, null, 0, null);
+                new BigDecimal(balance), new BigDecimal(balance), BigDecimal.ZERO, status, null, disputed, null, null, 0, null, 0L, null);
     }
 
     @Test

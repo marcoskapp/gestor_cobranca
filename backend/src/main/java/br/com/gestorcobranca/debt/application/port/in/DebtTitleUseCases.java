@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.debt.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -33,14 +35,42 @@ public interface DebtTitleUseCases {
     /** Períodos de titularidade (credor/carteira) do título, do mais antigo ao atual. */
     List<OwnershipView> ownershipHistory(UUID titleId);
 
-    TitleView suspend(UUID titleId, String reason);
+    /**
+     * Sincronização incremental (API pública): títulos dos credores do escopo alterados na janela, em ordem de
+     * atualização e id, paginados por cursor.
+     *
+     * @param creditorId  credor (obrigatório; precisa estar no escopo)
+     * @param portfolioId carteira do credor (opcional)
+     */
+    ChangePage<TitleView> changes(UUID creditorId, UUID portfolioId, ChangeQuery query);
 
-    TitleView reactivate(UUID titleId);
+    default TitleView suspend(UUID titleId, String reason) {
+        return suspend(titleId, reason, null);
+    }
 
-    TitleView cancel(UUID titleId, String reason);
+    /**
+     * @param expectedVersion versão que o chamador leu (concorrência otimista, {@code If-Match}); diferente da atual →
+     *                        {@code PreconditionFailedException}; nulo = sem verificação
+     */
+    TitleView suspend(UUID titleId, String reason, Long expectedVersion);
+
+    default TitleView reactivate(UUID titleId) {
+        return reactivate(titleId, null);
+    }
+
+    TitleView reactivate(UUID titleId, Long expectedVersion);
+
+    default TitleView cancel(UUID titleId, String reason) {
+        return cancel(titleId, reason, null);
+    }
+
+    TitleView cancel(UUID titleId, String reason, Long expectedVersion);
 
     /** Devolve os títulos ao credor e encerra a titularidade. */
     List<TitleView> returnToCreditor(Collection<UUID> titleIds, String reason);
+
+    /** Devolve um título ao credor, com verificação opcional da versão lida ({@code If-Match}). */
+    TitleView returnToCreditor(UUID titleId, String reason, Long expectedVersion);
 
     /** Move os títulos para outra carteira do mesmo credor, encerrando e abrindo titularidade. */
     List<TitleView> transferPortfolio(Collection<UUID> titleIds, UUID targetPortfolioId, String reason);
@@ -66,11 +96,15 @@ public interface DebtTitleUseCases {
                        LocalDate dueTo, Integer minOverdueDays, Integer maxOverdueDays) {
     }
 
+    /**
+     * @param version   versão do registro (lock otimista) — {@code ETag} da API pública
+     * @param updatedAt última alteração do título
+     */
     record TitleView(UUID id, UUID creditorId, UUID portfolioId, UUID debtorId, UUID originContractId,
                      String externalId, Integer installmentNumber, LocalDate dueDate, BigDecimal principalAmount,
                      BigDecimal openBalance, BigDecimal paidTotal, String status, String statusReason,
                      boolean disputeBlocked, UUID disputeId, Instant lastPaymentAt, long daysOverdue,
-                     UUID importBatchId) {
+                     UUID importBatchId, long version, Instant updatedAt) {
     }
 
     /**

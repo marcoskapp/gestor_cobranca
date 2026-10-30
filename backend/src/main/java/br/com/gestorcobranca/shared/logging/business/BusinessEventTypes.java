@@ -177,6 +177,13 @@ public final class BusinessEventTypes {
     public static final String SCORE_DRIFT_DETECTED = "score.drift_detected";
     public static final String SCORE_COHORT_MEASURED = "score.cohort_measured";
     public static final String SCORE_REVIEWED = "score.reviewed";
+    // API pública de integração (módulo publicapi) — atributos em docs/tecnico/logs-e-metricas.md §3.13
+    public static final String PUBLIC_API_TOKEN_CREATED = "public_api.token_created";
+    public static final String PUBLIC_API_TOKEN_REVOKED = "public_api.token_revoked";
+    public static final String PUBLIC_API_TOKEN_ROTATED = "public_api.token_rotated";
+    public static final String PUBLIC_API_PRICE_PLAN_PUBLISHED = "public_api.price_plan_published";
+    public static final String PUBLIC_API_STATEMENT_CLOSED = "public_api.statement_closed";
+    public static final String PUBLIC_API_RECORDS_PROCESSED = "public_api.records_processed";
     public static final String ASSISTANT_REPLIED = "assistant.replied";
     public static final String ASSISTANT_HANDOFF = "assistant.handoff";
 

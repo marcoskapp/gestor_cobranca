@@ -73,6 +73,11 @@ public class GlobalExceptionHandler {
         return domainProblem(HttpStatus.CONFLICT, e);
     }
 
+    @ExceptionHandler(br.com.gestorcobranca.shared.domain.PreconditionFailedException.class)
+    ProblemDetail preconditionFailed(br.com.gestorcobranca.shared.domain.PreconditionFailedException e) {
+        return domainProblem(HttpStatus.PRECONDITION_FAILED, e);
+    }
+
     @ExceptionHandler(DomainException.class)
     ProblemDetail domain(DomainException e) {
         return domainProblem(HttpStatus.UNPROCESSABLE_CONTENT, e);

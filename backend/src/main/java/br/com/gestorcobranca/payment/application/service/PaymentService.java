@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.payment.application.service;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases;
 import br.com.gestorcobranca.payment.application.PaymentProperties;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases;
@@ -124,6 +127,21 @@ class PaymentService implements PaymentUseCases {
         Payment p = loadVisible(paymentId);
         PaymentView view = view(p);
         return p.getStatus() == PaymentStatus.INFORMED ? withBreakSuspensions(List.of(view)).getFirst() : view;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ChangePage<PaymentView> changes(UUID creditorId, ChangeQuery query) {
+        accessScope.requirePermission(Permission.PAYMENT_VIEW);
+        Guard.require(creditorId != null, "payment.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        List<Payment> rows = payments.findChanges(creditorId, query);
+        ChangePage<Payment> page = ChangePage.of(rows, query.limit(), Payment::getUpdatedAt, Payment::getId,
+                Payment::getVersion, p -> p);
+        PageResponse<PaymentView> views = views(new org.springframework.data.domain.PageImpl<>(
+                page.items().stream().map(ChangePage.Entry::value).toList()));
+        Map<UUID, PaymentView> byId = views.content().stream().collect(Collectors.toMap(PaymentView::id, v -> v));
+        return page.map(p -> byId.get(p.getId()));
     }
 
     @Override

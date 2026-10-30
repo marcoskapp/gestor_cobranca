@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.debt.infrastructure.persistence;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
+
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.TitleSearchCriteria;
@@ -126,4 +129,13 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
 
     @Override
     List<DebtTitle> findByCreditorIdAndExternalIdIn(UUID creditorId, Collection<String> externalIds);
+
+    @Override
+    default List<DebtTitle> findChanges(UUID creditorId, UUID portfolioId, ChangeQuery query) {
+        Specification<DebtTitle> spec = ChangeSpecifications.<DebtTitle>window(query, List.of(creditorId));
+        if (portfolioId != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("portfolioId"), portfolioId));
+        }
+        return findAll(spec, ChangeSpecifications.page(query)).getContent();
+    }
 }

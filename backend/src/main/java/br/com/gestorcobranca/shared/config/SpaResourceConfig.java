@@ -56,7 +56,7 @@ class SpaResourceConfig implements WebMvcConfigurer {
         }
 
         private static boolean isBackendPath(String path) {
-            return path.startsWith("api/") || path.startsWith("actuator") || path.startsWith("v3/api-docs")
+            return path.startsWith("api/") || path.startsWith("public-api") || path.startsWith("actuator") || path.startsWith("v3/api-docs")
                     || path.startsWith("swagger-ui");
         }
 

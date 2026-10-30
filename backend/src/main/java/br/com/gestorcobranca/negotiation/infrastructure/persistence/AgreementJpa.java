@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.negotiation.infrastructure.persistence;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
+
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementPayment;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementStatus;
@@ -116,6 +119,12 @@ class JpaAgreementRepository implements AgreementRepository {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("status"), status));
         }
         return agreements.findAll(spec, page);
+    }
+
+    @Override
+    public List<Agreement> findChanges(UUID creditorId, ChangeQuery query) {
+        return agreements.findAll(ChangeSpecifications.<Agreement>window(query, List.of(creditorId)),
+                ChangeSpecifications.page(query)).getContent();
     }
 
     @Override

@@ -14,6 +14,7 @@ import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.shared.domain.PreconditionFailedException;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.events.organization.PortfolioStatusChanged;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
@@ -98,9 +99,10 @@ class PortfolioService implements PortfolioUseCases {
     }
 
     @Override
-    public PortfolioView update(UUID portfolioId, UpdatePortfolioCommand command) {
+    public PortfolioView update(UUID portfolioId, UpdatePortfolioCommand command, Long expectedVersion) {
         Portfolio portfolio = loadVisible(portfolioId);
         accessScope.requireCreditor(portfolio.getCreditorId());
+        requireVersion(portfolio, expectedVersion);
         AuditEntry audit = AuditEntry.of("portfolio.updated", "portfolio", portfolioId)
                 .creditor(portfolio.getCreditorId())
                 .change("name", portfolio.getName(), command.name())
@@ -113,9 +115,10 @@ class PortfolioService implements PortfolioUseCases {
     }
 
     @Override
-    public PortfolioView changeStatus(UUID portfolioId, String targetStatus, String reason) {
+    public PortfolioView changeStatus(UUID portfolioId, String targetStatus, String reason, Long expectedVersion) {
         Portfolio portfolio = loadVisible(portfolioId);
         accessScope.requireCreditor(portfolio.getCreditorId());
+        requireVersion(portfolio, expectedVersion);
         PortfolioStatus target = parseStatus(targetStatus);
         PortfolioStatus previous = portfolio.transitionTo(target, reason);
         portfolios.save(portfolio);
@@ -177,6 +180,17 @@ class PortfolioService implements PortfolioUseCases {
         return portfolio;
     }
 
+    /**
+     * Concorrência otimista da API pública ({@code If-Match}). A gravação continua protegida pelo {@code @Version}: uma
+     * alteração concorrente entre esta conferência e o commit resulta em conflito (409).
+     */
+    private static void requireVersion(Portfolio portfolio, Long expectedVersion) {
+        if (expectedVersion != null && !expectedVersion.equals(portfolio.getVersion())) {
+            throw new PreconditionFailedException("portfolio.version_mismatch",
+                    "A carteira foi alterada depois da leitura. Consulte-a de novo e repita a operação.");
+        }
+    }
+
     private static PortfolioStatus parseStatus(String status) {
         try {
             return PortfolioStatus.valueOf(status);
@@ -192,6 +206,6 @@ class PortfolioService implements PortfolioUseCases {
     private PortfolioView view(Portfolio p) {
         return new PortfolioView(p.getId(), p.getCreditorId(), p.getContractId(), p.getCode(), p.getName(),
                 p.getDescription(), p.getReceivedOn(), p.getValidUntil(), p.getStatus().name(), p.getStatusReason(),
-                p.isOperableOn(today()));
+                p.isOperableOn(today()), p.getVersion() == null ? 0L : p.getVersion(), p.getUpdatedAt());
     }
 }
