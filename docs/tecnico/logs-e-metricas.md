@@ -27,7 +27,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Domínio | Eventos |
 | --- | --- |
 | Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
-| Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled`, `import.format_confirmed`, `import.totals_matched`, `import.totals_mismatch`, `import.alerts_detected`, `import.outliers_reviewed`, `import.review_committed`, `import.review_approved`, `import.review_rejected` |
+| Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled`, `import.format_confirmed`, `import.totals_matched`, `import.totals_mismatch`, `import.alerts_detected`, `import.outliers_reviewed`, `import.review_committed`, `import.review_approved`, `import.review_rejected`, `pdf_import.received`, `pdf_import.map_proposed`, `pdf_import.map_reused`, `pdf_import.map_edited`, `pdf_import.map_approved`, `pdf_import.imported`, `pdf_import.discarded`, `pdf_import.mapping_failed` |
 | Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `agreement.break_suspended`, `agreement.break_suspension_ended`, `installment.overdue`, `installment.paid` |
@@ -90,6 +90,18 @@ Conferência da importação (`docs/tecnico/desenho/importacao.md`): referência
 | `import.outliers_reviewed` | efetivação pedida (resumo da revisão) | `batchId`, `alerts`, `byType` (tipo → situação → quantidade), `rowsExcluded`, `requestedBy` |
 | `import.review_committed` | efetivação pedida | `batchId`, `rows`, `rowsToImport`, `rowsWithError`, `rowsExcluded`, `newTitles`, `existingTitles`, `approvalRequired`, `previews`, `totalsChecks`, `totalsMismatches`, `forced`, `requestedBy`; `amount` = principal a importar |
 | `import.review_approved` / `import.review_rejected` | decisão da segunda pessoa | `batchId`, `requestedBy`, `approvedBy`/`rejectedBy`, `waitMinutes` |
+
+Importação PDF inteligente (`docs/tecnico/desenho/importacao-pdf.md` §9; referência `pdf_import`; nenhum atributo leva valor do devedor):
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `pdf_import.received` | PDF aceito e guardado | `channel` (`SCREEN`/`PUBLIC_API`), `pages`, `textLayer`, `fileSize` |
+| `pdf_import.map_proposed` / `pdf_import.map_reused` | mapa aplicado pela IA (ou leitura visual) / mapa salvo do credor aplicado sem IA | `origin` (`AI`, `VISUAL`, `TEMPLATE`), `revision`, `pages`, `textLayer`, `records`, `debtors`, `totalsMatch`, `blocking`, `templateId`, `aiCalls`, `inputTokens`, `outputTokens`, `aiCost`, `aiCurrency`, `model`; `amount` = principal extraído; `durationMs` |
+| `pdf_import.map_edited` | usuário aplicou um mapa editado | `revision`, `records`, `totalsMatch`, `mapProblems` |
+| `pdf_import.map_approved` | "Concordo, importar" | `origin`, `revision`, `userEdits` (revisões do usuário), `templateId`, `totalsMatch`, `totalsJustified` |
+| `pdf_import.imported` | lote canônico gerado e conferência aberta | `reviewId`, `records`, `excluded`, `debtors`, `balanceTotal`, `pages`, `origin`, `aiCost`, `aiCurrency`, `inputTokens`, `outputTokens`; `amount` = principal a importar; `durationMs` = do recebimento à aprovação |
+| `pdf_import.discarded` | importação descartada | `previousStatus`, `origin`, `revision` |
+| `pdf_import.mapping_failed` | sem mapa (IA desligada, indisponível, proposta inválida) ou sem leitura (PDF sem texto e sem IA) | `code`, `pages`, `textLayer`; `durationMs` |
 
 ### 3.3 Atributos dos eventos de remuneração variável
 
@@ -396,6 +408,10 @@ filter provider = "bedrock" and level = "WARN"
 filter eventType in ["assistant.replied", "assistant.handoff_triggered", "assistant.draft_proposed"]
 | stats sum(`attr.cost`) as custo, sum(`attr.advancedModelCalls`) as avancadas, sum(`attr.modelCalls`) as chamadas by creditorId, `attr.modelTier`
 
+# importação PDF: custo de IA, reaproveitamento de mapas e taxa de edição por credor (negócio)
+filter eventType in ["pdf_import.map_proposed", "pdf_import.map_reused", "pdf_import.map_approved"]
+| stats count(*) as eventos, sum(`attr.aiCost`) as custo_ia, sum(`attr.userEdits`) as edicoes by creditorId, eventType
+
 # funil de negociação por credor (negócio)
 filter eventType in ["proposal.created", "agreement.formalized", "payment.confirmed"]
 | stats count(*) by creditorId, eventType
@@ -478,6 +494,11 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `ingestion.review.alerts{type}`, `ingestion.review.decisions{decision}` | alertas de valor por tipo e decisões (confirmados, excluídos, reabertos) |
 | `ingestion.review.commits{approval}`, `ingestion.review.approvals{decision}`, `ingestion.review.analysis.duration{outcome}` | efetivações (com/sem aprovação), decisões da segunda pessoa e duração da análise de valores |
 | `ingestion.rows{mode,outcome=excluded}` | linhas excluídas na conferência e puladas na importação |
+| `ingestion.pdf.received{channel,layer}`, `ingestion.pdf.pages{layer}`, `ingestion.pdf.rejected{reason}` | PDFs recebidos (com texto × imagem), distribuição de páginas e recusas (`pdf_import.password_protected`, `pdf_import.javascript`, `pdf_import.malformed`, `pdf_import.too_many_pages`…) |
+| `ingestion.pdf.mapping{origin,outcome}`, `ingestion.pdf.mapping.duration{origin,outcome}` | mapas por origem (`AI`, `TEMPLATE`, `VISUAL`, `NONE`) e se os totais do documento conferiram; **taxa de reaproveitamento** = `origin=TEMPLATE` ÷ total |
+| `ingestion.pdf.ai.tokens{purpose,type}`, `ingestion.pdf.ai.cost{purpose,currency}` | tokens e custo estimado (`purpose` = `map` ou `visual`); as chamadas também têm `ingestion.pdf.bedrock.*` (latência, tokens, custo e erros por modelo, do cliente do kernel) e `integration.calls{provider=bedrock}` |
+| `ingestion.pdf.analysis.duration{outcome}` | tempo de leitura do texto + aplicação do mapa + verificações (por consulta da tela) |
+| `ingestion.pdf.map.edits`, `ingestion.pdf.approved{origin,totals}`, `ingestion.pdf.records`, `ingestion.pdf.time_to_approval{origin}`, `ingestion.pdf.discarded`, `ingestion.pdf.templates.saved`, `ingestion.pdf.retention.deleted` | edições do mapa, aprovações (totais conferidos × justificados), títulos por importação, tempo até a aprovação, descartes, mapas salvos e arquivos apagados pela retenção |
 | `incentive.facts.consumed{type}` | fatos consumidos pelo módulo incentive por tipo de evento (`expected_recovery`, `interaction`, `call`, `message`, `case_status`, `case_assignment`, `case_balance`, `callback`, `promise`, `attribution`, `agreement_status`, `installment_status`, `payment_confirmed`, `payment_reversed`) |
 | `incentive.facts.ignored{type,reason}` | evento consumido sem efeito nos fatos (`unknown_status` = situação nova do produtor ainda não tratada; `incomplete` = sem tarefa/horário/promessa). Crescimento contínuo = contrato do produtor mudou |
 | `incentive.facts.out_of_order{type}` | evento de retorno/promessa mais antigo que o último já aplicado ao mesmo compromisso (entrega fora de ordem, tratada sem perda: a situação só avança ou vale o evento mais recente) |

@@ -75,6 +75,7 @@ Sem esperar o fechamento, a tela **Posição do credor** (e a API, com os escopo
 ## 6. Comportamentos importantes para o credor
 
 - **Importação assíncrona**: o envio responde na hora com o lote; o processamento é acompanhado pelo lote. Repetir o envio com a mesma `Idempotency-Key` devolve o mesmo lote.
+- **PDF** (`POST /imports/pdf`): para o credor que só tem PDF. O sistema encontra os títulos e a importação fica **aguardando a validação de uma pessoa da assessoria** na tela "Importação PDF inteligente" — a API nunca importa um PDF sozinha. O credor acompanha a situação por `GET /imports/pdf/{id}` (sem dados do devedor).
 - **Sincronização incremental**: as listas vêm em ordem de atualização com um cursor; o credor guarda o cursor e continua dele na próxima sincronização. Alterações do último minuto aparecem na chamada seguinte.
 - **Alteração concorrente**: carteiras e títulos têm versão (`ETag`). Se o credor enviar a versão lida (`If-Match`) e alguém tiver alterado antes, a alteração é recusada (412) para não sobrescrever.
 - **Baixa de título**: não há "baixar" direto — o credor informa o pagamento com comprovante (regra de baixa com evidência).

@@ -174,6 +174,8 @@ Todos sob `/public-api/v1`, JSON, token obrigatório, escopo indicado. Listas us
 | `POST /imports/files` (CSV/XLSX multipart, Idempotency-Key) | `imports:write` | `ImportBatchUseCases.uploadFile` (+ idempotência por token) |
 | `GET /imports`, `/imports/{id}`, `/imports/{id}/issues`, `/imports/{id}/issues/report` (CSV) | `imports:read` | `changes/get/issues/exportIssues` |
 | `POST /imports/{id}/cancel` | `imports:write` | `cancel` |
+| `POST /imports/pdf` (PDF multipart, Idempotency-Key) | `imports:write` | `PdfImportUseCases.upload` (canal `PUBLIC_API`, chave isolada por token): a importação fica **aguardando validação humana** na tela; nunca é importada pela API |
+| `GET /imports/pdf/{id}` | `imports:read` | `PdfImportUseCases.get` (situação e resumo, sem dados do devedor) |
 | `GET /titles`, `/titles/{id}`, `/titles/by-external-id/{externalId}` (ETag) | `titles:read` | `DebtTitleUseCases.changes/get/findByExternalId` |
 | `POST /titles/{id}/suspend` · `/reactivate` · `/cancel` · `/return` (If-Match) | `titles:write` | `DebtTitleUseCases.suspend/reactivate/cancel/returnToCreditor` |
 | `POST /debtors/search` (documento no corpo), `GET /debtors/{id}`, `/debtors/{id}/contacts` | `debtors:read` | `DebtorUseCases.findByDocument/get`, `DebtorContactUseCases.list` |
