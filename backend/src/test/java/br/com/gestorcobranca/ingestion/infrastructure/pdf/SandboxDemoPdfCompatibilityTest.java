@@ -125,7 +125,7 @@ class SandboxDemoPdfCompatibilityTest {
         Result r = run(table, manual);
         DemoPdf.Table content = (DemoPdf.Table) table.document();
         assertThat(r.records()).hasSize(content.rows().size());
-        assertThat(errors(r.report())).isEmpty();
+        assertThat(r.report().findings()).as("gabarito sem erros nem avisos").isEmpty();
         assertThat(r.report().totals()).hasSize(2).allMatch(TotalsCheck::matches);
     }
 

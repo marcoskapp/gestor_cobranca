@@ -122,7 +122,7 @@ class PdfMapping {
     private void propose(PdfImport pdf, PdfText text, Instant started, boolean lastAttempt) {
         if (!proposer.available()) {
             awaitMap(pdf, "pdf_map.ai_disabled", "Nenhum mapa salvo do credor casou com este layout e a IA está "
-                    + "desligada neste ambiente: descreva o mapa na tela", started);
+                    + "desligada neste ambiente. Descreva o mapa na tela.", started);
             return;
         }
         PdfMapProposer.Proposal proposal;
@@ -182,8 +182,8 @@ class PdfMapping {
         LOG.atWarn().addKeyValue("pdfImportId", pdf.getId()).addKeyValue("outcome", e.code())
                 .log("IA indisponível para a importação PDF; segue sem proposta");
         if (pdf.hasTextLayer()) {
-            awaitMap(pdf, "pdf_map.ai_unavailable", "A IA não respondeu (" + e.code() + "): descreva o mapa na tela "
-                    + "ou peça nova proposta mais tarde", started);
+            awaitMap(pdf, "pdf_map.ai_unavailable", "A IA não respondeu (" + e.code() + "). Descreva o mapa na tela "
+                    + "ou peça nova proposta mais tarde.", started);
         } else {
             pdf.fail("pdf_import.ai_unavailable", "A leitura visual não pôde ser feita (" + e.code() + "). Envie o PDF de novo mais tarde");
             imports.save(pdf);

@@ -94,7 +94,8 @@ public final class DemoPdfLayouts {
                 column("Parcela", 1, "parcela", "id_titulo"),
                 column("Vencimento", 1, "vencimento"),
                 column("Valor", 1, "valor_principal")));
-        return map("Carteira para cobrança", debtor, List.of(field(TABLE_POSITION, "data_saldo", "NONE")), table,
+        // sem coluna de saldo: a data de "Posição em:" não vai para data_saldo (seria ignorada, com aviso)
+        return map("Carteira para cobrança", debtor, List.of(), table,
                 List.of(control(TABLE_TOTAL, null, "valor_principal", "DOCUMENT"),
                         control(TABLE_COUNT, null, "quantidade", "DOCUMENT")));
     }

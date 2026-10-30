@@ -103,7 +103,7 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
           </div>
         }
         @case ('AWAITING_MAP') {
-          <div class="alert alert-warning d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ v.failureMessage || 'Ainda não há mapa para este PDF.' }} Descreva abaixo onde estão os dados: o sistema reaplica o mapa ao texto do PDF.</span></div>
+          <div class="alert alert-warning d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ v.failureMessage || 'Ainda não há mapa para este PDF.' }} O sistema reaplica ao texto do PDF o mapa que você descrever abaixo.</span></div>
         }
       }
 
