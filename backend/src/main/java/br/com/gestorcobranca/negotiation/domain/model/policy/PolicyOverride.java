@@ -18,6 +18,7 @@ import java.util.UUID;
  * @param minDaysOverdue início da faixa de atraso, inclusive (opcional)
  * @param maxDaysOverdue fim da faixa de atraso, inclusive (opcional)
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record PolicyOverride(
         String code,
         UUID portfolioId,

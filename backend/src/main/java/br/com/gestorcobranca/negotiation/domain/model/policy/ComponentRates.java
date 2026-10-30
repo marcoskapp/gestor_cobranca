@@ -10,6 +10,7 @@ import java.math.RoundingMode;
  * Percentual por componente da dívida, de 0 a 100 (ex.: desconto máximo, fatia do envelope).
  * Nulos valem zero. Escala de 4 casas.
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record ComponentRates(BigDecimal principal, BigDecimal correction, BigDecimal interest, BigDecimal fine,
                              BigDecimal fees, BigDecimal honorarium) {
 

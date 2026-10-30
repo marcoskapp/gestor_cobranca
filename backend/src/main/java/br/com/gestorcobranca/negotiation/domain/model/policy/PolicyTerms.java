@@ -13,6 +13,7 @@ import java.util.UUID;
  * carteira/faixa de atraso. Persistido em JSON com {@link #SCHEMA_VERSION}; toda gravação passa
  * por {@link #validate()}.
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record PolicyTerms(PolicyRules base, List<PolicyOverride> overrides) {
 
     /** Versão do esquema JSON. Mudanças incompatíveis exigem nova versão e conversão no codec. */

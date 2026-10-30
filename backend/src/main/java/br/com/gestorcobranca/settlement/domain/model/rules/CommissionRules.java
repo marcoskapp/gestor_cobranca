@@ -26,6 +26,7 @@ import java.util.UUID;
  *       já conciliado (o recebido diretamente pelo credor não depende de conciliação).</li>
  * </ul>
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record CommissionRules(BigDecimal defaultRate, List<RateRule> rateRules, BigDecimal fixedFeePerAgreement,
                               HonorariumPolicy honorarium, boolean reconciliationRequired) {
 

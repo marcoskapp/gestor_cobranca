@@ -5,6 +5,7 @@ package br.com.gestorcobranca.settlement.domain.model.rules;
  * direto ao credor informado pela origem {@code CREDITOR_DIRECT}/{@code CREDITOR_REPORT}): nesse caso o
  * credor deve à assessoria a comissão e os honorários dela.
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public enum ReceivedBy {
     AGENCY,
     CREDITOR

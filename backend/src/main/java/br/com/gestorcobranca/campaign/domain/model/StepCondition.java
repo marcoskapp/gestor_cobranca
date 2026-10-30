@@ -9,6 +9,7 @@ package br.com.gestorcobranca.campaign.domain.model;
  * @param requireNoEffectiveContact        só se não houve contato efetivo desde a inscrição
  * @param requirePreviousMessageUnread     só se a última mensagem enviada pela régua não foi lida
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record StepCondition(SegmentCriteria criteria, Boolean requireNoReply, Boolean requireNoEffectiveContact,
                             Boolean requirePreviousMessageUnread) {
 

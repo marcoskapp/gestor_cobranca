@@ -11,6 +11,7 @@ import br.com.gestorcobranca.shared.domain.Guard;
  * @param concessionLevel nível pedido na escada (0 = sem concessão)
  * @param validityDays    validade do link de pagamento
  */
+@org.springframework.modulith.NamedInterface("usecases")
 public record OfferSpec(Integer installments, Integer concessionLevel, Integer validityDays) {
 
     public OfferSpec {
