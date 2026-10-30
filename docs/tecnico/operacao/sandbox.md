@@ -22,7 +22,8 @@ O `up.sh` só termina quando a aplicação está no ar **e** a carga de dados fo
 | Serviço | Endereço | Observação |
 | --- | --- | --- |
 | Aplicação (frontend + API) | http://localhost:58080 | frontend servido pelo backend (ADR-0007) |
-| Swagger | http://localhost:58080/swagger-ui/index.html | protegido por token (como nos demais ambientes): o navegador precisa enviar `Authorization: Bearer <accessToken>` (extensão que injete o cabeçalho) — ou baixe a especificação com `curl -H "Authorization: Bearer …" http://localhost:58080/v3/api-docs` |
+| Swagger da API interna | http://localhost:58080/swagger-ui/index.html | **aberto sem login no sandbox** (decisão 643): grupos "API interna" e "API pública v1" no seletor do topo. Para executar chamadas (*Try it out*), clique em **Authorize** e cole o `accessToken` de um login (§2a) |
+| Especificações OpenAPI | http://localhost:58080/v3/api-docs/interna · http://localhost:58080/v3/api-docs/public-v1 · http://localhost:58080/v3/api-docs/swagger-config | abertas sem login no sandbox (JSON) |
 | Mailpit (e-mails) | http://localhost:58025 | links de ativação, alertas de segurança e e-mails aos devedores fictícios; preservados entre subidas (volume `sandbox-mail`) |
 | PostgreSQL | `localhost:55432`, banco `cobranca` | só para inspeção; usuário `app_runtime_login` / `app_runtime_sandbox` (sujeito a RLS) |
 
@@ -60,6 +61,18 @@ Exemplo: `gestor@aurora.exemplo.test` / `Sandbox@2026!`, assessoria `aurora`.
 **MFA.** No sandbox nenhum perfil tem MFA obrigatório (`app.security.mfa.required-for-roles` vazio em `application-sandbox.yml`, decisão 633), para a demonstração entrar direto com a senha publicada. Para demonstrar o MFA: entre com qualquer usuário, vá em **Minha conta → Autenticador**, cadastre um aplicativo TOTP e, a partir daí, o login daquele usuário pede o código. O código de produção não muda; em produção a lista de perfis obrigatórios continua a de `application.yml`.
 
 **Limites de segurança continuam valendo:** bloqueio progressivo após 5 senhas erradas (o administrador desbloqueia em Administração → Usuários), 20 logins por minuto por IP, sessão de 30 min de inatividade e senha que expira em 90 dias (se o volume do sandbox ficar mais que isso, use `reset.sh`).
+
+### 2a. Documentação da API interna (Swagger)
+
+No sandbox, a interface do Swagger e as especificações `/v3/api-docs` de **todos os grupos** abrem no navegador **sem login** (decisão 643, aprovada pelo responsável). Só a leitura da documentação é liberada: as chamadas à API continuam exigindo o token de um usuário, com as permissões do perfil dele.
+
+```bash
+# accessToken do gestor da aurora, para o botão Authorize do Swagger (ou para usar no curl)
+curl -s http://localhost:58080/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"tenant":"aurora","email":"gestor@aurora.exemplo.test","password":"Sandbox@2026!"}' | jq -r .accessToken
+```
+
+A liberação existe só com o perfil Spring `sandbox` **e** `app.sandbox.api-docs.public=true` (definida em `application-sandbox.yml`), e a aplicação não sobe se o perfil `sandbox` for combinado com `prod` ou se `app.environment` ≠ `sandbox` (`SandboxProfileGuard`). Nos demais ambientes nada muda: a documentação interna exige login (local/homologação) e fica desligada em produção.
 
 ## 3. O que vem carregado
 
@@ -100,7 +113,7 @@ A carga também deixa e-mails no Mailpit: os links de ativação usados para ati
 9. **Administrador da plataforma** (`admin@plataforma…`, assessoria `plataforma`): lista de assessorias; provisione uma terceira e acompanhe o convite no Mailpit.
 10. **API pública** (terminal + tela): `./scripts/sandbox/tokens.sh` → com o token `sandbox-hzn-completo`, liste carteiras e títulos e importe um lote pelos exemplos da §4a; mostre a recusa (403) do token `sandbox-hzn-leitura` ao importar e o 404 ao tentar a carteira de outro credor; abra a documentação pública e o changelog (`/public-api/docs`, `/public-api/docs/changelog`); depois, como **gestor**, *Integrações → Tokens de integração* (prefixo, escopos, último uso, revogar/rotacionar) e *Consumo da API* (as chamadas aparecem em até ~1 min).
 11. **Faturamento da API** (gestor ou financeiro): ficha do credor → contrato → condições de cobrança das integrações (dia de fechamento, mensalidade, franquias, excedente; cada credor diferente) e *Integrações → Extratos da API* (extratos por ciclo depois do primeiro fechamento).
-12. **Simuladores** (Swagger, com o token do `integracao`): `POST /api/v1/communication/sandbox/inbound` (mensagem de um devedor), `POST /api/v1/payment/sandbox/instructions/{id}/pay` (pagar um Pix), `POST /api/v1/telephony/sandbox/inbound` (ligação recebida).
+12. **Simuladores** (Swagger aberto sem login, §2a; em *Authorize* cole o `accessToken` do `integracao`): `POST /api/v1/communication/sandbox/inbound` (mensagem de um devedor), `POST /api/v1/payment/sandbox/instructions/{id}/pay` (pagar um Pix), `POST /api/v1/telephony/sandbox/inbound` (ligação recebida).
 
 ## 4a. API pública dos credores
 
@@ -151,7 +164,7 @@ curl -s -X POST "$API/imports" -H "Authorization: Bearer $TOKEN" -H 'Content-Typ
 curl -s -H "Authorization: Bearer $TOKEN" "$API/imports/<id do lote>" | jq '{status, counters}'
 ```
 
-Listas usam paginação por cursor e não trazem o último minuto (janela de estabilização da sincronização). O `verify.sh` exercita tudo isso e confere: 200/202 com o token certo; 401 sem token e com token inválido; 404 ao acessar ou importar em carteira de outro credor e de outra assessoria; 403 do token só de leitura num endpoint de escrita; páginas públicas sem token; e o consumo aparecendo em `GET /api/v1/public-api/usage` (gravado em lote a cada minuto).
+Listas usam paginação por cursor e não trazem o último minuto (janela de estabilização da sincronização). O `verify.sh` exercita tudo isso e confere: 200/202 com o token certo; 401 sem token e com token inválido; 404 ao acessar ou importar em carteira de outro credor e de outra assessoria; 403 do token só de leitura num endpoint de escrita; páginas públicas sem token; e o consumo aparecendo em `GET /api/v1/public-api/usage` (gravado em lote a cada minuto). Por fim, confere o Swagger e os `/v3/api-docs` abertos sem login e a API interna ainda protegida (401).
 
 **Faturamento.** O contrato de cada credor tem condições de cobrança das integrações (organization, `ContractIntegrationPricing`, definidas pelo gestor): dia de fechamento do ciclo de consumo variado — HZN 5, EST 15, TVC 31 (último dia), CSR 10, ELT 20, UMC 31 —, mensalidade (R$ 190 a R$ 490 por segmento), franquias de chamadas, MB recebidos/enviados e registros, e preço do excedente. Elas aparecem na ficha do credor (contrato). Como as condições valem a partir do próximo ciclo de consumo (não retroativas) e o extrato só é fechado depois do fim do ciclo (job diário às 02h20), um sandbox recém-criado mostra o consumo do dia em **Consumo da API**, e os extratos aparecem em **Extratos da API** a partir do primeiro fechamento.
 
@@ -175,6 +188,7 @@ A carga é o módulo `sandbox` do backend (`br.com.gestorcobranca.sandbox`). Ela
 | Todos os componentes da carga exigem o perfil `sandbox` **e** `app.sandbox.seed.enabled=true` | `@SandboxSeedComponent` |
 | Com a flag ligada, a aplicação **não sobe** se o perfil `prod` estiver ativo, se o perfil `sandbox` não estiver ativo ou se `app.environment` ≠ `sandbox` | `SandboxSeedGuard` (+ `SandboxSeedGuardTest`) |
 | A flag só é ligada pelo compose do sandbox (`SANDBOX_SEED_ENABLED=true`); o padrão em `application-sandbox.yml` é desligado | `application-sandbox.yml` |
+| Swagger e `/v3/api-docs` abertos sem login só com o perfil `sandbox` **e** `app.sandbox.api-docs.public=true`; com o perfil `sandbox`, a aplicação **não sobe** junto com `prod` nem com `app.environment` ≠ `sandbox` | `SandboxApiDocsAccess`, `SandboxProfileGuard` (+ `SandboxApiDocsAccessTest`, `SandboxProfileGuardTest`, `SandboxApiDocsOpenIT`, `SandboxApiDocsProtectedIT`) |
 | Provedores simulados (mensagens, Pix, telefonia, IA) recusam o perfil `prod` | guardas de cada módulo |
 | O entrypoint recusa gerar chaves locais com o perfil `prod` | `entrypoint.sh` |
 | Produção não usa contêiner: roda o JAR nas instâncias EC2 com `SPRING_PROFILES_ACTIVE=prod` e segredos do Secrets Manager | `scripts/instance/user-data.sh` |

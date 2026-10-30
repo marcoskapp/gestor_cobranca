@@ -9,6 +9,7 @@
 #   5. API pública com os tokens de demonstração: leitura, importação de um lote fixo (Idempotency-Key), 401 sem
 #      token/token inválido, 403/404 em carteira de outro credor e de outra assessoria, 403 do token só de leitura
 #      em escrita, páginas públicas da documentação e consumo aparecendo na tela interna (gravado a cada minuto).
+#   6. Swagger e /v3/api-docs de todos os grupos abertos sem login (só no sandbox) e a API interna ainda protegida.
 #
 #   ./scripts/sandbox/verify.sh
 #
@@ -226,6 +227,15 @@ for _ in $(seq 1 18); do
 done
 (( requests > 0 )) && ok "consumo do 1º credor na tela interna: ${requests} requisições hoje" \
   || fail "consumo da API pública não apareceu em /api/v1/public-api/usage em 3 min"
+
+log INFO "6. documentação da API interna aberta no navegador (só no sandbox, decisão 643)"
+for path in /swagger-ui/index.html /v3/api-docs/swagger-config /v3/api-docs/interna /v3/api-docs/public-v1; do
+  code="$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "${APP_URL}${path}")"
+  [[ "${code}" == 200 ]] && ok "${path} sem login: 200" || fail "${path} sem login: esperado 200, veio ${code}"
+done
+code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "${APP_URL}/api/v1/me")"
+[[ "${code}" == 401 ]] && ok "a API interna continua exigindo login (/api/v1/me: 401)" \
+  || fail "/api/v1/me sem login: esperado 401, veio ${code}"
 
 if (( FAILURES > 0 )); then
   die "${FAILURES} verificação(ões) falharam"

@@ -1,7 +1,7 @@
 # =============================================================================
 # Sandbox de demonstração (infra/docker/sandbox/compose.yml; guia em docs/tecnico/operacao/sandbox.md).
 # Dados FICTÍCIOS, provedores simulados e nenhuma integração real. Nunca combine com o perfil prod: o
-# SandboxSeedGuard e os guardas de cada provedor simulado impedem a aplicação de subir.
+# SandboxProfileGuard, o SandboxSeedGuard e os guardas de cada provedor simulado impedem a aplicação de subir.
 # Chaves de JWT e de criptografia são geradas no contêiner na primeira subida (entrypoint), fora do Git.
 # =============================================================================
 spring:
@@ -59,6 +59,9 @@ app:
     sandbox:
       enabled: true
   sandbox:
+    # Swagger e /v3/api-docs (todos os grupos) abertos no navegador sem login — só no sandbox (decisão 643)
+    api-docs:
+      public: true
     seed:
       # carga de dados fictícios: só com o perfil sandbox E esta flag (compose: SANDBOX_SEED_ENABLED=true)
       enabled: ${SANDBOX_SEED_ENABLED:false}
