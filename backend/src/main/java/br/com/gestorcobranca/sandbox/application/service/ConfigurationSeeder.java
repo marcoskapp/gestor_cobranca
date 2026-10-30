@@ -245,7 +245,7 @@ class ConfigurationSeeder {
         rt.as(gestor, () -> legalSettings.update(new SettingsCommand("BOTH", Set.of("CREDITOR", "LAW_FIRM"), "BLOCK",
                 "EXCLUDE", "AUTHORIZATION", List.of(5, 2, 0), true, 5, 5, 10, 180, 180)));
         String firmCnpj = new FictitiousData(seed.spec.seed() * 13).cnpj();
-        seed.lawFirmId = rt.as(juridico, lawFirms::list).stream().filter(f -> firmCnpj.equals(f.cnpj())).findFirst()
+        seed.lawFirmId = rt.as(juridico, lawFirms::list).stream().filter(f -> f.cnpj() != null && firmCnpj.equals(f.cnpj().replaceAll("\\D", ""))).findFirst()
                 .map(LawFirmUseCases.LawFirmView::id)
                 .orElseGet(() -> rt.as(juridico, () -> lawFirms.create(new LawFirmCommand(
                         "Rocha, Dias & Associados Advocacia (fictício)", firmCnpj, "OAB/SP 00.000 (fictício)",

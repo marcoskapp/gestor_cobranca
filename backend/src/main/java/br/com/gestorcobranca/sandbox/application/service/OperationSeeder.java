@@ -13,6 +13,9 @@ import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.PromiseInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.RecordInteractionCommand;
 import br.com.gestorcobranca.collection.application.port.in.QueueUseCases;
+import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases;
+import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.ConversationView;
+import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.InboxFilter;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
 import br.com.gestorcobranca.communication.application.port.in.SandboxUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases;
@@ -98,6 +101,7 @@ class OperationSeeder {
     private final DataSubjectRequestUseCases dataSubjectRequests;
     private final SandboxUseCases messagingSandbox;
     private final MessageUseCases messages;
+    private final ConversationUseCases conversations;
     private final SettlementStatementUseCases statements;
     private final AnalyticsRefreshUseCases analytics;
     private final SeedRuntime rt;
@@ -107,7 +111,8 @@ class OperationSeeder {
                     NegotiationSimulationUseCases simulations, ProposalUseCases proposals, AgreementUseCases agreements,
                     PaymentInstructionUseCases instructions, PaymentSandboxUseCases pixSandbox, PaymentUseCases payments,
                     ContactRestrictionUseCases restrictions, DataSubjectRequestUseCases dataSubjectRequests,
-                    SandboxUseCases messagingSandbox, MessageUseCases messages, SettlementStatementUseCases statements,
+                    SandboxUseCases messagingSandbox, MessageUseCases messages, ConversationUseCases conversations,
+                    SettlementStatementUseCases statements,
                     AnalyticsRefreshUseCases analytics, SeedRuntime rt) {
         this.debtors = debtors;
         this.cases = cases;
@@ -125,6 +130,7 @@ class OperationSeeder {
         this.dataSubjectRequests = dataSubjectRequests;
         this.messagingSandbox = messagingSandbox;
         this.messages = messages;
+        this.conversations = conversations;
         this.statements = statements;
         this.analytics = analytics;
         this.rt = rt;
@@ -176,7 +182,9 @@ class OperationSeeder {
                 rt.as(financeiro, () -> statements.calculate(id));
             }
         });
-        rt.optional("atualização dos painéis", () -> rt.as(seed.actor("gestor"), analytics::refreshNow));
+        // os painéis também são atualizados pelo agendamento (a cada 15 min); atualização recente dispensa a manual
+        rt.optional("atualização dos painéis", Set.of("analytics.refresh_too_soon"),
+                () -> rt.as(seed.actor("gestor"), analytics::refreshNow));
     }
 
     // -------------------------------------------------------------------------------------------- cenários
@@ -216,13 +224,16 @@ class OperationSeeder {
             return;
         }
         rt.optional("pagamento externo pendente de revisão (" + t.ref() + ")", () -> {
+            if (hasPayments(seed, t)) {
+                return;
+            }
             AgreementView agreement = agreement(seed, t, "operador", 2);
-            InstallmentView first = agreement.installments().getFirst();
-            // acima do limite de revisão (padrão R$ 500,00): aguarda segunda pessoa com PAYMENT_REVIEW
+            // quitação do acordo por transferência: acima do limite de revisão (padrão R$ 500,00), aguarda segunda pessoa
+            // com PAYMENT_REVIEW e suspende a quebra do acordo enquanto isso
             rt.as(seed.actor("operador"), () -> payments.registerExternal(new ExternalPaymentCommand(t.creditorId(),
-                    t.debtorId(), first.amount(), rt.now().minus(Duration.ofHours(5)), "TRANSFER", "AGENCY_ACCOUNT",
+                    t.debtorId(), agreement.remainingAmount(), rt.now().minus(Duration.ofHours(5)), "TRANSFER", "AGENCY_ACCOUNT",
                     "SBX-TED-" + t.ref(), "Comprovante de transferência enviado pelo devedor (fictício)",
-                    new TargetInput("AGREEMENT", agreement.id(), List.of(first.id()), null)), receipt(),
+                    new TargetInput("AGREEMENT", agreement.id(), List.of(), null)), receipt(),
                     "sandbox-" + seed.spec.slug() + "-review-" + t.ref()));
         });
     }
@@ -232,10 +243,13 @@ class OperationSeeder {
             return;
         }
         rt.optional("pagamento estornado (" + t.ref() + ")", () -> {
+            if (hasPayments(seed, t)) {
+                return;
+            }
             PaymentView payment = rt.as(seed.actor("operador"), () -> payments.registerExternal(new ExternalPaymentCommand(
                     t.creditorId(), t.debtorId(), new BigDecimal("300.00"), rt.now().minus(Duration.ofDays(3)), "PIX",
                     "AGENCY_ACCOUNT", "SBX-PIX-" + t.ref(), "Pagamento parcial identificado no extrato (fictício)",
-                    new TargetInput("TITLES", null, List.of(), "OLDEST_FIRST")), receipt(),
+                    new TargetInput("TITLES", null, List.of(firstTitle(seed, t)), "OLDEST_FIRST")), receipt(),
                     "sandbox-" + seed.spec.slug() + "-reversal-" + t.ref()));
             if (Set.of("CONFIRMED", "RECONCILED").contains(payment.status())) {
                 rt.as(seed.actor("financeiro"), () -> payments.reverse(payment.id(), new ReverseCommand("BANK_RETURN",
@@ -349,10 +363,18 @@ class OperationSeeder {
         rt.optional("mensagem recebida no WhatsApp (" + t.ref() + ")", () -> {
             long existing = rt.as(seed.actor("supervisor"), () -> messages.listByDebtor(t.debtorId(), null,
                     PageQuery.of(0, 1))).totalElements();
-            if (existing == 0) {
-                rt.asRun(seed.actor("integracao"), () -> messagingSandbox.simulateInbound(seed.whatsappAccountId,
-                        t.debt().debtor().phone(), text));
+            if (existing > 0) {
+                return;
             }
+            rt.asRun(seed.actor("integracao"), () -> messagingSandbox.simulateInbound(seed.whatsappAccountId,
+                    t.debt().debtor().phone(), text));
+            // contato desconhecido chega sem devedor (por segurança): o supervisor identifica o devedor na caixa de entrada
+            Actor supervisor = seed.actor("supervisor");
+            rt.as(supervisor, () -> conversations.inbox(new InboxFilter(null, null, null, null, "WHATSAPP", null, null,
+                    null, null, null, null), PageQuery.of(0, 50))).content().stream()
+                    .filter(c -> c.debtorId() == null && c.lastInboundAt() != null)
+                    .max(java.util.Comparator.comparing(ConversationView::lastInboundAt))
+                    .ifPresent(c -> rt.as(supervisor, () -> conversations.identify(c.id(), t.debtorId(), t.creditorId())));
         });
     }
 
@@ -378,6 +400,12 @@ class OperationSeeder {
         return rt.system(seed.tenantId, () -> debtors.findByDocument(debt.debtor().document())
                 .flatMap(d -> cases.findActive(d.id(), portfolioId).map(c -> new Target(ref, d.id(), seed.creditorId(creditor),
                         portfolioId, c, debt)))).orElse(null);
+    }
+
+    /** Já há pagamento do devedor no credor (cenário de pagamento feito numa carga anterior). */
+    private boolean hasPayments(TenantSeed seed, Target t) {
+        return rt.as(seed.actor("financeiro"), () -> payments.search(new PaymentUseCases.PaymentFilter(t.creditorId(),
+                t.debtorId(), null, null, null, null, null, null), PageQuery.of(0, 1))).totalElements() > 0;
     }
 
     private UUID firstTitle(TenantSeed seed, Target t) {

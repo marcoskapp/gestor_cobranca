@@ -87,9 +87,22 @@ class SeedRuntime {
      * aviso e a carga continua; qualquer outra falha interrompe a carga.
      */
     void optional(String scenario, Runnable action) {
+        optional(scenario, java.util.Set.of(), action);
+    }
+
+    /**
+     * Como {@link #optional(String, Runnable)}, mas as recusas com os códigos informados são resultado esperado (ex.:
+     * painéis atualizados há pouco pelo agendamento) e não viram aviso.
+     */
+    void optional(String scenario, java.util.Set<String> expectedCodes, Runnable action) {
         try {
             action.run();
         } catch (DomainException e) {
+            if (expectedCodes.contains(e.code())) {
+                LOG.atDebug().addKeyValue("scenario", scenario).addKeyValue("code", e.code())
+                        .log("Cenário do sandbox dispensado");
+                return;
+            }
             String warning = scenario + ": " + e.code();
             status.warn(warning);
             LOG.atWarn().addKeyValue("scenario", scenario).addKeyValue("code", e.code())
