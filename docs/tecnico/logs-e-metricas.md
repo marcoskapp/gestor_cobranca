@@ -44,7 +44,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
-| API pública (publicapi) | `public_api.token_created`, `public_api.token_revoked`, `public_api.token_rotated`, `public_api.price_plan_published`, `public_api.statement_closed`, `public_api.records_processed` (§3.13) |
+| API pública (publicapi) | `public_api.token_created`, `public_api.token_revoked`, `public_api.token_rotated`, `public_api.statement_closed`, `public_api.records_processed` (§3.13) |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -362,20 +362,20 @@ Log de acesso: `SUPPORT_DATA_QUERIED` (`via=helpdesk`, `tool`, `outcome` `ok`/`n
 
 ### 3.13 API pública de integração (publicapi)
 
-Nunca o segredo do token (só o prefixo `gck_…` e o id), nem dados de devedor. Referência `integration_token`, `price_plan`, `usage_statement` ou `import_batch`; ator = usuário (gestão) ou sistema (fechamento automático, atribuição assíncrona).
+Nunca o segredo do token (só o prefixo `gck_…` e o id), nem dados de devedor. Referência `integration_token`, `service_contract`, `usage_statement` ou `import_batch`; ator = usuário (gestão) ou sistema (fechamento automático, atribuição assíncrona).
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |
 | `public_api.token_created` | token criado | `scopes`, `rateLimitPerMinute`, `ipRestricted`, `expires`; `creditorId` |
 | `public_api.token_revoked` | token revogado | `previousState`, `ageDays` |
 | `public_api.token_rotated` | novo segredo | `graceMinutes`, `rotationCount` |
-| `public_api.price_plan_published` | versão de tabela publicada | `code`, `version`, `effectiveFrom`; `amount` = mensalidade |
-| `public_api.statement_closed` | extrato mensal gravado (automático ou manual) | `period`, `revision`, `requests`, `billableRequests`, `bytesIn`, `bytesOut`, `records`, `pricePlanCode`, `pricePlanVersion`; `amount` = total |
+| `contract.integration_pricing_defined` | nova versão das condições de cobrança das integrações no contrato do credor (módulo organization; vale do próximo ciclo) | `version`, `usageClosingDay`, `includedRequests`, `includedMbIn`, `includedMbOut`, `includedRecords`; `amount` = mensalidade; referência `service_contract` |
+| `public_api.statement_closed` | extrato de um ciclo de consumo gravado (automático ou manual) | `periodStart`, `periodEnd`, `closingDay`, `revision`, `requests`, `billableRequests` (2xx/3xx), `clientErrors`, `throttled`, `serverErrors`, `billableMbIn`, `billableMbOut` (MB inteiros de 1.048.576 bytes, por token), `records`, `contractNumber`, `pricingVersion`; `amount` = total |
 | `public_api.records_processed` | fim de lote de importação enviado por token | `tokenId`, `titlesCreated`, `titlesUpdated`, `debtorsAffected`, `records`; `portfolioId` |
 
 Log de acesso: `PUBLIC_API_REQUEST` uma linha por requisição autenticada (`actorType=INTEGRATION`, `actorId` = token, `principal` = prefixo; `detail.tokenPrefix`, `detail.creditorId`, `detail.method`, `detail.status`, `detail.bytesIn`, `detail.bytesOut`, `detail.latencyMs`, `detail.records`; `route`, `clientIp`, `requestId`, `userAgent` do contexto; `success` = status < 400); `INTEGRATION_TOKEN_REJECTED` (`detail.reason`: `missing`, `malformed`, `unknown`, `secret_mismatch`, `revoked`, `expired`, `ip_not_allowed`, `tenant_inactive`, `creditor_inactive`); `INTEGRATION_TOKEN_CREATED`/`ROTATED`/`REVOKED` (`tokenId`, `prefix`); `PERMISSION_CHANGED` (`resource=integration_token`) na edição de limite e IPs; `ACCESS_DENIED` (`reason=scope_outranks_actor`) na tentativa de conceder escopo fora do perfil; `DATA_EXPORTED` nas exportações de consumo e extrato.
 
-Consumo para faturamento: tabela `publicapi.usage_hourly` (soma por credor, token, hora, método e rota, gravada em lote a cada minuto) — não é log, é insumo do extrato.
+Consumo para faturamento: tabela `publicapi.usage_hourly` (soma por credor, token, hora, método e rota, gravada em lote a cada minuto; bytes totais e bytes das requisições cobráveis) — não é log, é insumo do extrato.
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 

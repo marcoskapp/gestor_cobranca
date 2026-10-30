@@ -19,10 +19,12 @@ Fora do escopo desta entrega (fase seguinte, issue a abrir): **webhooks de saíd
 ```
 br.com.gestorcobranca.publicapi
 ├── package-info.java                      @ApplicationModule(allowedDependencies = shared + usecases dos módulos expostos)
-├── domain/model/                          IntegrationToken, TokenSecret, TokenScope, TokenStatus/State, PricePlan, PriceTerms,
-│                                          PricePlanStatus, UsageStatement, UsageTotals, ApiVersionStatus
-├── domain/service/                        TokenHasher (HMAC-SHA256 com chave do servidor), PriceCalculator (função pura)
-├── domain/repository/                     IntegrationTokenRepository, PricePlanRepository, UsageStatementRepository
+├── domain/model/                          IntegrationToken, TokenSecret, TokenScope, TokenStatus/State, PriceTerms (cópia das
+│                                          condições do contrato), BillableUsage (MB inteiros), UsageStatement, UsageTotals,
+│                                          ApiVersionStatus
+├── domain/service/                        TokenHasher (HMAC-SHA256 com chave do servidor), PriceCalculator e BillingCycles
+│                                          (funções puras)
+├── domain/repository/                     IntegrationTokenRepository, UsageStatementRepository
 ├── application/PublicApiProperties        app.public-api.*
 ├── application/port/in/                   (usecases) IssueIntegrationToken, IntegrationTokenUseCases, PublicApiUsageUseCases,
 │                                          PublicApiBillingUseCases, ApiVersionUseCases
@@ -32,7 +34,7 @@ br.com.gestorcobranca.publicapi
 ├── application/service/                   IntegrationTokenService, IntegrationAuthenticationService, TokenRateLimiter,
 │                                          PublicApiMeteringService, UsageAccumulator, UsageFlushJob, UsageReportService,
 │                                          BillingService, StatementClosingJob, ImportRecordsListener, PublicImportService, …
-├── infrastructure/persistence/            JPA (tokens, tabelas, extratos) e JDBC (rota global, consumo por hora, lotes por token)
+├── infrastructure/persistence/            JPA (tokens, extratos) e JDBC (rota global, consumo por hora, lotes por token)
 ├── infrastructure/config/                 PublicApiSecurityConfig (cadeia própria), PublicApiOpenApiConfig (grupo public-v1)
 ├── infrastructure/{catalog,csv,network}/  versões/changelog do classpath, CSV seguro, faixas CIDR
 └── web/
@@ -48,11 +50,12 @@ Alterações mínimas fora do módulo (todas sem regra duplicada):
 | --- | --- |
 | `shared.web.ApiPaths` | `PUBLIC_API = /public-api`, `PUBLIC_API_V1` |
 | `shared.security` | permissões `PUBLIC_API_TOKEN_VIEW/MANAGE`, `PUBLIC_API_USAGE_VIEW`, `PUBLIC_API_BILLING_MANAGE`; `ActorAuthentication.integration(actor, scopes)` gera as authorities `SCOPE_<escopo>` |
-| `shared.logging` | `AccessEventType.PUBLIC_API_REQUEST`, `INTEGRATION_TOKEN_REJECTED/CREATED/REVOKED/ROTATED`; tipos `public_api.*` em `BusinessEventTypes` |
+| `shared.logging` | `AccessEventType.PUBLIC_API_REQUEST`, `INTEGRATION_TOKEN_REJECTED/CREATED/REVOKED/ROTATED`; tipos `public_api.*` e `contract.integration_pricing_defined` em `BusinessEventTypes` |
 | `shared.domain` | `PreconditionFailedException` (412, If-Match) e tratamento no `GlobalExceptionHandler` |
 | `shared.paging` | `ChangeQuery`, `ChangeCursor`, `ChangePage`, `ChangeSpecifications` — paginação por cursor (updated_at, id) |
 | `shared.config` | grupo OpenAPI `interna` separado; interceptor de MDC também em `/public-api/**`; SPA não captura `/public-api` |
 | módulos donos | `changes(credor, ChangeQuery)` em títulos, casos, acordos, pagamentos, carteiras, lotes e contestações; versão e `updatedAt` nas visões de título e carteira; `expectedVersion` (If-Match) opcional nos comandos de título e carteira; `DebtTitleUseCases.findByExternalId` |
+| `organization` | condições de cobrança das integrações no contrato do credor (`ContractIntegrationPricing`, versões append-only, `ContractIntegrationPricingUseCases`, `GET/POST /api/v1/contracts/{id}/integration-pricing`) — §7 |
 | `identity.DefaultRoles` | permissões novas nos perfis padrão (§4.4) |
 
 ## 4. Tokens de integração
@@ -134,16 +137,23 @@ Por requisição autenticada o filtro mede **bytes reais do corpo** (`CountingSt
 
 **Sem gargalo no caminho da requisição** (decisão 606): a requisição só incrementa `LongAdder`s num mapa concorrente, sob a trava de leitura compartilhada de um `ReentrantReadWriteLock` (sem contenção entre requisições). A cada minuto (e no desligamento) cada instância troca o mapa sob a trava de escrita e grava o acumulado **em lote**, uma instrução `insert … on conflict do update set x = x + excluded.x` por assessoria, em ordem estável de chave (sem deadlock entre instâncias). Falha de gravação devolve os deltas ao acumulador. Em queda abrupta perde-se no máximo o último minuto de consumo — o log de acesso por requisição permanece completo e permite reconstituí-lo. `last_used_at`/`last_used_ip` do token são atualizados no mesmo lote (só avançam). Teste de concorrência: `UsageAccumulatorTest` (40.000 somas simultâneas à drenagem, nenhuma perdida).
 
-Requisições contam: `requests` (todas as autenticadas), `throttled` (429), `client_errors` (4xx), `server_errors` (5xx). **Cobráveis** = `requests − throttled − server_errors` (decisão 607). Registros de processamento assíncrono (títulos criados/atualizados pela importação) chegam pelo evento `PortfolioLoaded` (`ImportRecordsListener`, idempotente por evento) e são somados na rota `ASYNC import.records` do token que enviou o lote (`publicapi.api_import_batch`).
+Requisições contam: `requests` (todas as autenticadas), `throttled` (429), `client_errors` (4xx exceto 429), `server_errors` (5xx). **Cobráveis** = requisições com resposta 2xx/3xx = `requests − throttled − client_errors − server_errors` (decisão 607, do responsável). Além de `bytes_in`/`bytes_out` (todo o tráfego, medição técnica), `usage_hourly` guarda `billable_bytes_in`/`billable_bytes_out` — só o tráfego das requisições cobráveis, base da cobrança em MB. Registros de processamento assíncrono (títulos criados/atualizados pela importação) chegam pelo evento `PortfolioLoaded` (`ImportRecordsListener`, idempotente por evento) e são somados na rota `ASYNC import.records` do token que enviou o lote (`publicapi.api_import_batch`).
 
 `usage_hourly` só soma (gatilho recusa diminuir contadores) e não tem `DELETE`.
 
 ## 7. Faturamento
 
-- **Tabela de preços** (`price_plan`): código + versão; padrão da assessoria (`creditor_id` nulo) ou por credor (precedência). Mensalidade, franquias mensais e preço do excedente por requisição cobrável, por MB recebido, por MB enviado e por registro (até 6 casas). Vigência sempre no 1º dia de um mês, nunca anterior ao mês corrente. Rascunho editável; **publicada imutável** (gatilho no banco); nova vigência = nova versão. Gestão exige `PUBLIC_API_BILLING_MANAGE` e todos os credores.
-- **Cálculo** (`PriceCalculator`, função pura): por medida, `cobrável = max(0, consumo − franquia)`, `valor = cobrável × preço` arredondado a centavos (HALF_EVEN); MB decimal (1.000.000 bytes, fração proporcional); total = mensalidade + soma das linhas.
-- **Extrato** (`usage_statement`): por credor e mês (fuso de operação), com a versão da tabela vigente no início do mês, totais, linhas, detalhamento por token e por rota e `usage_hash` = SHA-256 do consumo agregado usado. **Append-only** (privilégio revogado + gatilho); um novo fechamento do mesmo mês exige motivo e gera nova revisão — a anterior permanece. Reprodutível: prévia e revisões sobre o mesmo consumo têm o mesmo hash (testado).
-- **Ciclo mensal**: `StatementClosingJob` no dia 1 às 03h40 (Brasília, ShedLock) fecha o mês anterior de todo credor com consumo e sem extrato. Fechamento manual pela tela (mês encerrado).
+O preço da API fica **no contrato de prestação de serviço do credor** (decisão 608, do responsável); o `publicapi` não tem tabela de preços.
+
+- **Condições de cobrança das integrações** (`organization.contract_integration_pricing`, tabela filha de `service_contract`, migração `organization/V2101`): dia de fechamento do consumo (1–31), mensalidade, franquias por ciclo e preço do excedente por chamada cobrável, por MB recebido, por MB enviado e por registro (até 6 casas; mensalidade com 2). Cada alteração é uma **nova versão append-only** (gatilho `forbid_mutation` + privilégio revogado), com `registered_at` do servidor e motivo opcional, auditada (`contract.integration_pricing_defined`) e com evento de negócio. Editada na ficha do credor (contratos → integrações), com `CONTRACT_MANAGE`. Endpoints internos: `GET/POST /api/v1/contracts/{id}/integration-pricing`.
+- **Não retroatividade**: a versão que vale para um ciclo é a mais recente **registrada antes das 00:00 do primeiro dia do ciclo** (fuso de negócio), no contrato do credor vigente nessa data (havendo mais de um, o de início mais recente). Alteração feita durante um ciclo vale a partir do próximo, por construção — não há data de vigência digitada.
+- **Leitura pelo publicapi**: `ContractIntegrationPricingUseCases.applicable(creditorId, inícioDoCiclo)` (interface `usecases` do organization); o organization não conhece o publicapi.
+- **Ciclo de consumo** (`BillingCycles`, função pura): fecha no fim do dia de fechamento e o seguinte começa às 00:00 do dia seguinte em `TimeConfig.BUSINESS_ZONE`. Meses sem o dia informado fecham no **último dia do mês** (31 → 28/29 em fevereiro, 30 em abril; 30 → 28/29 em fevereiro). Sem condições no contrato: dia 31 (último dia do mês) e extrato com valor zero.
+- **Sequência dos ciclos** (decisão 621): o próximo ciclo começa no dia seguinte ao fim do último ciclo fechado e fecha no primeiro dia de fechamento (das condições que valem no seu início) igual ou posterior. Ciclo encerrado **sem consumo** não gera extrato; o próximo extrato é o do ciclo (no calendário do dia de fechamento) que contém o primeiro consumo posterior, nunca antes do fim do último ciclo. Mudar o dia de fechamento vale do próximo ciclo e pode gerar um ciclo de transição diferente de um mês.
+- **Quantidades faturáveis** (`BillableUsage`, decisão 607): requisições 2xx/3xx; tráfego em **MB binário (1 MB = 1.048.576 bytes)**, inteiro, arredondado para cima, com mínimo de 1 MB quando há tráfego. O arredondamento é feito **no total do ciclo por token e por direção** (recebido/enviado) e a quantidade do credor é a soma dos tokens — não por requisição (inflaria integrações com muitas chamadas pequenas) nem só no total do credor (o detalhamento por token não fecharia com o extrato). Exemplos: 1 byte → 1 MB; 1.048.576 → 1 MB; 1.048.577 → 2 MB. Registros: soma simples.
+- **Cálculo** (`PriceCalculator`, função pura sobre quantidades inteiras): por medida, `cobrável = max(0, quantidade − franquia)`, `valor = cobrável × preço` arredondado a centavos (HALF_EVEN) por linha; total = mensalidade + soma das linhas.
+- **Extrato** (`publicapi.usage_statement`, migração `publicapi/V2102`): por credor e ciclo (`period_start`, `period_end` inclusivos, `usage_closing_day`), com contrato e versão das condições aplicadas (chave estrangeira), quantidades faturáveis inteiras (`billable_requests`, `billable_mb_in`, `billable_mb_out`, `records`), linhas, detalhamento por token (MB arredondados no token) e por rota (chamadas e registros) e `usage_hash` = SHA-256 do consumo agregado. **Append-only** (privilégio revogado + gatilho); novo fechamento do mesmo ciclo exige motivo e gera nova revisão com o mesmo período e as mesmas condições — a anterior permanece. Reprodutível: prévia e revisões sobre o mesmo consumo têm o mesmo hash (testado).
+- **Fechamento**: `StatementClosingJob` roda **todo dia às 02h20** (Brasília, ShedLock) — depois da virada do ciclo às 00:00 e da última gravação em lote — e fecha, em ordem, os ciclos encerrados ainda sem extrato de cada credor com token (`closeEndedCycles`); falha de um credor não interrompe os demais (métrica `publicapi.statements.close_failures`). Substitui o fechamento fixo do dia 1. Fechamento manual pela tela (próximo ciclo encerrado) e revisão com motivo; filtro da listagem pelo mês do fechamento (`period_end`).
 - Não há cobrança: o extrato e a exportação CSV são o insumo para o faturamento (fora do sistema por ora).
 
 ## 8. Endpoints v1
@@ -201,7 +211,7 @@ Desenho proposto (não implementado nesta entrega — issue a abrir): cadastro d
 
 - **Limite de taxa global** entre instâncias e proteção de borda (AWS WAF com regra por cabeçalho/token ou API Gateway com usage plans) — serviço AWS adicional.
 - Endereço público (domínio) da documentação da API e eventual portal de desenvolvedores.
-- Tabela de preços inicial (valores), forma de faturar e comunicação ao credor.
+- Valores iniciais das condições de cobrança em cada contrato, forma de faturar e comunicação ao credor.
 - Webhooks de saída (§11).
 
 ## 13. Testes
@@ -209,10 +219,11 @@ Desenho proposto (não implementado nesta entrega — issue a abrir): cadastro d
 | Teste | Cobre |
 | --- | --- |
 | `TokenSecretAndHasherTest`, `IntegrationTokenTest` | formato, entropia, HMAC com chave versionada, tempo constante, rotação com carência, revogação, expiração, escopos sem permissões sensíveis |
-| `PriceCalculatorTest` | franquias, excedente, exclusão de 429/5xx, MB decimal, reprodutibilidade |
-| `UsageAccumulatorTest` | agregação por hora/rota, classificação de status, concorrência com drenagem, devolução após falha |
+| `PriceCalculatorTest` | franquias, excedente, 4xx/429/5xx não cobrados, MB binário arredondado para cima (1 byte → 1 MB; 1.048.576 → 1 MB; 1.048.577 → 2 MB), arredondamento por token e direção, reprodutibilidade |
+| `BillingCyclesTest` | dia 31 em fevereiro (e anos bissextos) e meses de 30 dias, virada do ciclo às 00:00 no fuso de negócio, dia inválido |
+| `UsageAccumulatorTest` | agregação por hora/rota, classificação de status, tráfego cobrável só de 2xx/3xx, concorrência com drenagem, devolução após falha |
 | `CidrClientAddressRulesTest` | CIDR IPv4/IPv6, faixas amplas recusadas |
 | `PublicApiIT` | HTTP real + PostgreSQL/RLS: segredo uma vez, cadeias separadas, recusas no log, revogação/rotação, isolamento por credor, escopos, If-Match, 429, IPs, escalada, versões, erros RFC 9457, gatilhos |
-| `PublicApiUsageIT` | medição e lote, trilha por requisição, importação idempotente por token e atribuição assíncrona, cursor, tabela/extrato reprodutível e imutável |
+| `PublicApiUsageIT` | medição e lote (4xx sem tráfego cobrável), trilha por requisição, importação idempotente por token e atribuição assíncrona, cursor; condições no contrato versionadas, append-only e não retroativas; extrato por ciclo com preço do contrato, MB por token, 4xx não cobrado, revisão com motivo, imutável; job diário fechando fevereiro com dia 31 em 28/02 e virada à meia-noite |
 | `PublicApiContractIT` | contrato gerado = arquivo versionado |
 | `ArchitectureTest`, `ModularityTest` | camadas e fronteiras do módulo |

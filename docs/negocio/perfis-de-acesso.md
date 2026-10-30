@@ -35,8 +35,8 @@ A lista exata de permissões de cada perfil está em `backend/src/main/java/br/c
 | --- | --- | --- |
 | `PUBLIC_API_TOKEN_VIEW` | Consultar tokens de integração | Administrador, Gestor, Integrações, Auditor |
 | `PUBLIC_API_TOKEN_MANAGE` | Criar, editar, rotacionar e revogar tokens (só com escopos que o próprio perfil tem) | Administrador, Gestor, Integrações |
-| `PUBLIC_API_USAGE_VIEW` | Consumo, tabelas de preço e extratos | Administrador, Gestor, Financeiro, Integrações, Auditor |
-| `PUBLIC_API_BILLING_MANAGE` | Tabelas de preço (exige todos os credores) e fechamento de extratos | Administrador, Gestor, Financeiro |
+| `PUBLIC_API_USAGE_VIEW` | Consumo e extratos por ciclo | Administrador, Gestor, Financeiro, Integrações, Auditor |
+| `PUBLIC_API_BILLING_MANAGE` | Fechamento e revisão de extratos (os preços ficam no contrato do credor, com `CONTRACT_MANAGE`) | Administrador, Gestor, Financeiro |
 
 Exportar consumo ou extrato exige também `REPORT_EXPORT`. Ver [`api-publica.md`](api-publica.md).
 

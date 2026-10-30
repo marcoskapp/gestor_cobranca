@@ -55,9 +55,11 @@ Toda chamada é medida: quantidade, dados recebidos e enviados (tamanho real do 
 
 O modelo de faturamento está pronto, sem cobrança automática:
 
-- **Tabela de preços por versão**: mensalidade, franquias mensais e preço do excedente por chamada, por MB recebido, por MB enviado e por registro. Uma tabela padrão da assessoria e, se quiser, tabelas por credor. Publicada, a versão não muda; nova vigência começa no mês seguinte.
-- **Não são cobradas**: chamadas recusadas por excesso (429) e falhas da plataforma (5xx). Erros do credor (4xx) contam, porque consumiram processamento.
-- **Extrato mensal por credor**: fecha sozinho no dia 1 para o mês anterior, com o detalhamento por token e por operação. Recalcular sobre o mesmo consumo dá sempre o mesmo valor (o extrato guarda uma marca do consumo usado). Um novo fechamento do mesmo mês exige motivo e gera uma revisão; a anterior fica guardada.
+- **Preço no contrato do credor**: a mensalidade, as franquias e o preço do excedente por chamada, por MB recebido, por MB enviado e por registro ficam no **contrato de prestação de serviço** do credor, junto com o **dia de fechamento do consumo** (1 a 31). São editados na ficha do credor (contratos → integrações). Cada alteração fica guardada como uma nova versão e **vale a partir do próximo ciclo**: o ciclo em curso não muda.
+- **Ciclo de consumo**: fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte (horário de Brasília). Em meses sem o dia escolhido (por exemplo, dia 31 em fevereiro), o ciclo fecha no último dia do mês. Sem condições no contrato, o ciclo fecha no último dia do mês e o extrato mostra o consumo com valor zero.
+- **Só se cobra o que deu certo**: chamadas bem-sucedidas (respostas 2xx/3xx). Não são cobradas as recusadas por excesso (429), os erros do credor (4xx) nem as falhas da plataforma (5xx) — nem os dados trafegados nessas chamadas.
+- **Dados em MB inteiros**: 1 MB = 1.048.576 bytes. A conta é feita no total do ciclo de cada token, separadamente para dados recebidos e enviados, e arredondada para cima: 1 byte vira 1 MB; 1.048.576 bytes, 1 MB; 1.048.577 bytes, 2 MB. O total do credor é a soma dos tokens, e o extrato mostra cada token.
+- **Extrato por ciclo**: os ciclos encerrados fecham sozinhos na madrugada seguinte, com o detalhamento por token e por operação. Recalcular sobre o mesmo consumo dá sempre o mesmo valor (o extrato guarda uma marca do consumo usado). Um novo fechamento do mesmo ciclo exige motivo e gera uma revisão; a anterior fica guardada. Ciclo sem nenhum consumo não gera extrato.
 
 ## 6. Comportamentos importantes para o credor
 
@@ -89,5 +91,5 @@ Quando houver uma nova versão, a anterior fica **depreciada** e continua funcio
 
 - Proteção de borda e limite global de chamadas entre servidores (AWS WAF ou API Gateway).
 - Endereço público da documentação para os credores.
-- Valores da tabela de preços e forma de faturar.
+- Valores das condições de cobrança em cada contrato e forma de faturar.
 - Avisos automáticos para o sistema do credor (webhooks: lote processado, acordo formalizado, pagamento conciliado) — próxima fase.
