@@ -71,7 +71,7 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
       <div class="pd-status" role="status" aria-live="polite" data-tour="pdf-status">
         <app-status-chip domain="pdfImport" [status]="v.status" />
         @if (v.mapOrigin) {
-          <span class="badge rounded-pill text-bg-light pd-badge">{{ originLabel(v.mapOrigin) }}{{ v.templateName ? ': ' + v.templateName : '' }}</span>
+          <span class="badge rounded-pill border bg-info-subtle text-info-emphasis border-info-subtle fw-normal pd-badge">{{ originLabel(v.mapOrigin) }}{{ v.templateName ? ': ' + v.templateName : '' }}</span>
         }
         <span class="app-muted">{{ v.pages }} página(s) · {{ size(v.fileSize) }} · {{ v.textLayer ? 'com camada de texto' : 'sem camada de texto (digitalizado)' }} · mapa rev. {{ v.mapRevision }}</span>
         @if (v.usage.calls) {
@@ -294,7 +294,7 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
                       } @else if (r.status === 'WARNING') {
                         <span class="badge text-bg-warning">Aviso</span>
                       } @else {
-                        <span class="badge text-bg-light">OK</span>
+                        <span class="badge bg-success-subtle text-success-emphasis">OK</span>
                       }
                       @if (r.origin === 'VISUAL') {
                         <span class="app-muted pd-small">leitura visual {{ confidence(r.confidence) }}</span>
@@ -388,8 +388,8 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
       font-size: var(--app-text-sm);
     }
     .pd-badge {
-      font-weight: 400;
-      border: 1px solid var(--bs-border-color);
+      white-space: normal;
+      text-align: start;
     }
     .pd-conference,
     .pd-approve {

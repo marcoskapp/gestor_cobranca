@@ -96,7 +96,7 @@ export function infoTarget(header: string): string {
                 <td>
                   <div class="me-targets">
                     @for (t of c.targets; track t) {
-                      <span class="badge rounded-pill text-bg-light me-chip">
+                      <span class="badge rounded-pill bg-body-secondary text-body me-chip">
                         {{ label(t) }}
                         <button type="button" class="btn-close btn-close-sm" [attr.aria-label]="'Remover ' + t + ' de ' + c.header" (click)="removeTarget(c.header, c.line, c.targets, t)"></button>
                       </span>
