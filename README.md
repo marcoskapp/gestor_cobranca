@@ -88,7 +88,7 @@ Nenhum perfil exige MFA no sandbox (pode ser cadastrado em *Minha conta → Aute
 
 ### 5. API pública
 
-A carga emite tokens de demonstração para cada credor (`sandbox-<prefixo>-completo`, com todos os escopos) e um só de leitura no 1º credor de cada assessoria (`sandbox-hzn-leitura`, `sandbox-csr-leitura`). Para ver os tokens:
+A carga emite tokens de demonstração para cada credor (`sandbox-<prefixo>-completo`, com todos os escopos, inclusive a posição do faturamento da API e do repasse: `billing:read` e `settlement:read`) e um só de leitura da carteira no 1º credor de cada assessoria (`sandbox-hzn-leitura`, `sandbox-csr-leitura`; sem escrita e sem os escopos de posição). Para ver os tokens:
 
 ```bash
 ./scripts/sandbox/tokens.sh          # tabela: assessoria, credor, nome, escopos e token
@@ -102,10 +102,19 @@ TOKEN=$(./scripts/sandbox/tokens.sh --raw | awk -F'\t' '$4 == "sandbox-hzn-compl
 curl -s -H "Authorization: Bearer $TOKEN" http://localhost:58080/public-api/v1/portfolios | jq '.data[] | {code, status}'
 ```
 
+Posição do credor, calculada agora sem esperar o fechamento (o token `sandbox-hzn-leitura` recebe 403 nesses endpoints):
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:58080/public-api/v1/billing/position | jq '{periodStart, periodEnd, amountSoFar, currency}'
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:58080/public-api/v1/settlement/position | jq '{periodStart, asOf, direction}'
+```
+
+Na aplicação, a mesma posição aparece na tela **Posição do credor** (menu *Prestação de contas → Posição do credor*, `/posicao-credor`; entre como `financeiro` ou `gestor`): ciclo de consumo da API em andamento e repasse do período em aberto. Tokens criados antes desses escopos existirem não os ganham depois (os escopos não mudam após a emissão): rode `./scripts/sandbox/reset.sh` para recriá-los.
+
 ### 6. Comandos do dia a dia
 
 ```bash
-./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública e Swagger
+./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública, Swagger e posição do credor
 ./scripts/sandbox/down.sh            # para o sandbox MANTENDO os dados
 ./scripts/sandbox/up.sh --no-build   # sobe de novo sem reconstruir a imagem (os dados continuam)
 ./scripts/sandbox/reset.sh           # apaga todos os dados do sandbox e recria do zero (pede confirmação; --yes dispensa)

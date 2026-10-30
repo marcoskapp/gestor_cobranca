@@ -82,6 +82,12 @@ class SeedRuntime {
         }
     }
 
+    /** Aviso da carga (detalhes da prontidão e log técnico) sem interrompê-la. */
+    void warn(String warning) {
+        status.warn(warning);
+        LOG.atWarn().addKeyValue("warning", warning).log("Aviso da carga do sandbox");
+    }
+
     /**
      * Cenário de demonstração não essencial: recusa por regra de negócio (código estável do domínio) é registrada como
      * aviso e a carga continua; qualquer outra falha interrompe a carga.

@@ -10,6 +10,8 @@
 #      token/token inválido, 403/404 em carteira de outro credor e de outra assessoria, 403 do token só de leitura
 #      em escrita, páginas públicas da documentação e consumo aparecendo na tela interna (gravado a cada minuto).
 #   6. Swagger e /v3/api-docs de todos os grupos abertos sem login (só no sandbox) e a API interna ainda protegida.
+#   7. posição do credor: repasse e faturamento da API pelas telas internas (financeiro) e pela API pública (token
+#      completo: 200; token só de leitura, sem billing:read/settlement:read: 403).
 #
 #   ./scripts/sandbox/verify.sh
 #
@@ -234,6 +236,28 @@ done
 code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "${APP_URL}/api/v1/me")"
 [[ "${code}" == 401 ]] && ok "a API interna continua exigindo login (/api/v1/me: 401)" \
   || fail "/api/v1/me sem login: esperado 401, veio ${code}"
+
+log INFO "7. posição do credor (repasse e faturamento da API, calculados agora)"
+financeiro="$(token aurora financeiro)"
+TMP_BODY="$(mktemp "${TMPDIR:-/tmp}/gc-verify.XXXXXX")"
+trap 'rm -f "${TMP_BODY}"' EXIT
+# has_fields <descrição> <filtro jq que precisa dar true> ← corpo em stdin; código HTTP em HTTP_STATUS
+has_fields() {
+  if [[ "${HTTP_STATUS}" == 200 ]] && jq -e "$2" >/dev/null 2>&1; then ok "$1 → HTTP 200 com os campos principais"
+  else fail "$1 → HTTP ${HTTP_STATUS} ou campos principais ausentes"; fi
+}
+get "${financeiro}" "/api/v1/settlement/position?creditorId=${hzn}" > "${TMP_BODY}"
+has_fields "posição do repasse (financeiro, tela interna)" \
+  'has("periodStart") and has("totals") and has("direction") and has("calculatedAt")' < "${TMP_BODY}"
+get "${financeiro}" "/api/v1/public-api/billing/position?creditorId=${hzn}" > "${TMP_BODY}"
+has_fields "posição do faturamento da API (financeiro, tela interna)" \
+  'has("periodStart") and has("periodEnd") and has("amountSoFar") and has("currency")' < "${TMP_BODY}"
+papi GET /settlement/position "${FULL}" > "${TMP_BODY}"
+has_fields "API pública: posição do repasse com o token completo" 'has("periodStart") and has("totals")' < "${TMP_BODY}"
+papi GET /billing/position "${FULL}" > "${TMP_BODY}"
+has_fields "API pública: posição do faturamento com o token completo" 'has("periodStart") and has("amountSoFar")' < "${TMP_BODY}"
+papi GET /settlement/position "${READ}" >/dev/null; expect "token só de leitura (sem settlement:read) na posição do repasse" 403
+papi GET /billing/position "${READ}" >/dev/null; expect "token só de leitura (sem billing:read) na posição do faturamento" 403
 
 if (( FAILURES > 0 )); then
   die "${FAILURES} verificação(ões) falharam"
