@@ -88,7 +88,7 @@ class PdfImportService implements PdfImportUseCases {
     private static final List<PdfImportStatus> ACTIVE = List.of(PdfImportStatus.RECEIVED, PdfImportStatus.MAPPING,
             PdfImportStatus.AWAITING_MAP, PdfImportStatus.AWAITING_VALIDATION, PdfImportStatus.APPROVED);
     private static final int JUSTIFICATION_MIN = 5;
-    private static final int IDEMPOTENCY_MAX = 80;
+    private static final int IDEMPOTENCY_MAX = 160;
     /** Problemas de forma do mapa editado que nem chegam a ser guardados (tamanho, caracteres de controle, esquema). */
     private static final Set<String> REJECTED_MAP_CODES = Set.of("pdf_map.too_many", "pdf_map.text_too_long",
             "pdf_map.text_invalid", "pdf_map.schema_version");
@@ -260,7 +260,7 @@ class PdfImportService implements PdfImportUseCases {
         }
         String key = raw.strip();
         Guard.require(key.length() >= 8 && key.length() <= IDEMPOTENCY_MAX && key.matches("[A-Za-z0-9._:-]+"),
-                "pdf_import.idempotency_key_invalid", "Idempotency-Key deve ter de 8 a 80 caracteres [A-Za-z0-9._:-]");
+                "pdf_import.idempotency_key_invalid", "Chave de idempotência inválida");
         return key;
     }
 

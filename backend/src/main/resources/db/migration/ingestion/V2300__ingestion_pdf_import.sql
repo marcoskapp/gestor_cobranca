@@ -58,7 +58,8 @@ create table ingestion.pdf_import (
     file_deleted_at       timestamptz,
     page_count            integer        not null,
     text_layer            boolean        not null,
-    idempotency_key       varchar(80),
+    -- chave da integração já isolada por token (tok:<token>:<chave do cliente>)
+    idempotency_key       varchar(160),
     map                   jsonb,
     map_origin            varchar(20),
     map_revision          integer        not null,

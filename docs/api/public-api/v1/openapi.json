@@ -1343,6 +1343,68 @@
         },
         "type" : "object"
       },
+      "PdfImport" : {
+        "properties" : {
+          "approvedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "awaitingHumanValidation" : {
+            "description" : "aprovação na tela abre a conferência da importação",
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "failureCode" : {
+            "type" : "string"
+          },
+          "failureMessage" : {
+            "type" : "string"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "fileSha256" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "mapOrigin" : {
+            "description" : "AI, TEMPLATE (mapa salvo do credor), USER ou VISUAL",
+            "type" : "string"
+          },
+          "pages" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "portfolioId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "records" : {
+            "description" : "títulos encontrados com o mapa corrente",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "description" : "RECEIVED, MAPPING, AWAITING_MAP, AWAITING_VALIDATION, APPROVED, DISCARDED ou FAILED",
+            "type" : "string"
+          },
+          "textLayer" : {
+            "description" : "falso = PDF digitalizado, lido visualmente",
+            "type" : "boolean"
+          },
+          "totalsMatch" : {
+            "description" : "os totais impressos no documento conferem com a soma extraída",
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
       "Portfolio" : {
         "description" : "Carteira do credor",
         "properties" : {
@@ -4637,6 +4699,297 @@
           }
         },
         "summary" : "Importar arquivo (CSV ou XLSX)",
+        "tags" : [ "Importação" ]
+      }
+    },
+    "/public-api/v1/imports/pdf" : {
+      "post" : {
+        "description" : "PDF de até 20 MB, sem senha e sem JavaScript, associado a uma carteira do credor. O sistema encontra devedor, títulos e totais e a importação fica aguardando a validação humana na assessoria — nunca é importada só pela API. O mesmo PDF já em andamento ou aprovado na carteira é recusado (409 `pdf_import.duplicate_file`).",
+        "operationId" : "uploadPdfImport",
+        "parameters" : [ {
+          "description" : "8 a 80 caracteres; repetir com o mesmo arquivo devolve a mesma importação",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "example" : "pdf-2026-10-30-001",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "portfolioId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "file" ],
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PdfImport"
+                }
+              }
+            },
+            "description" : "Accepted",
+            "headers" : {
+              "Deprecation" : {
+                "$ref" : "#/components/headers/Deprecation"
+              },
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Sunset" : {
+                "$ref" : "#/components/headers/Sunset"
+              },
+              "X-Request-Id" : {
+                "$ref" : "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Recurso inexistente ou de outro credor (`<recurso>.not_found`)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Conflito de estado ou alteração concorrente (`<recurso>.<motivo>`)"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Regra de negócio violada (`<recurso>.<motivo>`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Limite de requisições do token excedido (`rate_limited`)",
+            "headers" : {
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Retry-After" : {
+                "$ref" : "#/components/headers/Retry-After"
+              }
+            }
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erro interno (`internal_error`); informe o `requestId` ao suporte"
+          }
+        },
+        "summary" : "Enviar PDF (Importação PDF inteligente)",
+        "tags" : [ "Importação" ]
+      }
+    },
+    "/public-api/v1/imports/pdf/{id}" : {
+      "get" : {
+        "description" : "Situação e resumo (títulos encontrados, totais do documento).",
+        "operationId" : "getPdfImport",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PdfImport"
+                }
+              }
+            },
+            "description" : "OK",
+            "headers" : {
+              "Deprecation" : {
+                "$ref" : "#/components/headers/Deprecation"
+              },
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Sunset" : {
+                "$ref" : "#/components/headers/Sunset"
+              },
+              "X-Request-Id" : {
+                "$ref" : "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Recurso inexistente ou de outro credor (`<recurso>.not_found`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Limite de requisições do token excedido (`rate_limited`)",
+            "headers" : {
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Retry-After" : {
+                "$ref" : "#/components/headers/Retry-After"
+              }
+            }
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erro interno (`internal_error`); informe o `requestId` ao suporte"
+          }
+        },
+        "summary" : "Importação PDF",
         "tags" : [ "Importação" ]
       }
     },

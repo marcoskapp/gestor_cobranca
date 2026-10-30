@@ -66,7 +66,7 @@ public class PdfImport extends TenantScopedEntity {
     @Column(name = "text_layer", nullable = false, updatable = false)
     private boolean textLayer;
 
-    @Column(name = "idempotency_key", updatable = false, length = 80)
+    @Column(name = "idempotency_key", updatable = false, length = 160)
     private String idempotencyKey;
 
     @JdbcTypeCode(SqlTypes.JSON)
