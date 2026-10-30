@@ -109,7 +109,7 @@ export interface StatementView {
   ended: boolean;
   revision: number;
   usageClosingDay: number;
-  /** Dias do ciclo e do ciclo regular de referência; diferentes só no ciclo de transição (valores proporcionais). */
+  /** Dias do ciclo e do ciclo regular de referência; diferentes no primeiro e no último ciclo do contrato e no de transição (valores proporcionais). */
   cycleDays: number;
   referenceCycleDays: number;
   contractId: string | null;
@@ -142,6 +142,8 @@ export interface GrowthPoint {
   amount: number;
 }
 
+export type BillingCycleKind = 'REGULAR' | 'CONTRACT_START' | 'CONTRACT_END' | 'TRANSITION' | 'NO_CONTRACT';
+
 /** `PublicApiBillingUseCases.BillingPositionView`: ciclo de consumo em andamento. */
 export interface BillingPositionView {
   creditorId: string;
@@ -150,6 +152,8 @@ export interface BillingPositionView {
   usageClosingDay: number;
   cycleDays: number;
   referenceCycleDays: number;
+  /** Tipo do ciclo (decisão 624): primeiro e último do contrato e de transição são proporcionais. */
+  cycleKind: BillingCycleKind;
   today: string;
   daysElapsed: number;
   daysRemaining: number;
@@ -160,7 +164,7 @@ export interface BillingPositionView {
   billableMbIn: number;
   billableMbOut: number;
   records: number;
-  /** Mensalidade do ciclo (cheia ou proporcional no ciclo de transição) + excedente do consumo até agora. */
+  /** Mensalidade do ciclo (cheia ou proporcional no primeiro, no último e no de transição) + excedente do consumo até agora. */
   amountSoFar: number;
   currency: string;
   lines: StatementLine[];

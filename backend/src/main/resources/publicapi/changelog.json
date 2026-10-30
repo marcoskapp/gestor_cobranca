@@ -15,7 +15,7 @@
         { "type": "ADDED", "description": "Devedores: consulta mascarada, contatos (inclusão e invalidação).", "endpoint": "/public-api/v1/debtors", "breaking": false },
         { "type": "ADDED", "description": "Somente leitura: casos de cobrança, acordos e parcelas, pagamentos (com sincronização incremental).", "endpoint": "/public-api/v1/collection-cases", "breaking": false },
         { "type": "ADDED", "description": "Registro de pagamento recebido diretamente pelo credor e abertura de contestação.", "endpoint": "/public-api/v1/payments", "breaking": false },
-        { "type": "ADDED", "description": "Faturamento da API (escopo billing:read): posição do ciclo de consumo em andamento — consumo faturável, valor até agora, uso das franquias, crescimento diário e projeção — e extratos fechados.", "endpoint": "/public-api/v1/billing", "breaking": false },
+        { "type": "ADDED", "description": "Faturamento da API (escopo billing:read): posição do ciclo de consumo em andamento — tipo do ciclo, consumo faturável, valor até agora, uso das franquias, crescimento diário e projeção — e extratos fechados. Os ciclos começam no início da vigência do contrato; o primeiro e o último (fim da vigência) têm mensalidade e franquias proporcionais aos dias.", "endpoint": "/public-api/v1/billing", "breaking": false },
         { "type": "ADDED", "description": "Prestação de contas (escopo settlement:read): repasse estimado do período em aberto e demonstrativos enviados ao credor.", "endpoint": "/public-api/v1/settlement", "breaking": false }
       ]
     }

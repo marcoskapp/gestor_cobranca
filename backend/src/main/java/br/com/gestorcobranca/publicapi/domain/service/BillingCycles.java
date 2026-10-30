@@ -64,6 +64,38 @@ public final class BillingCycles {
         return new Cycle(start, closingDateOnOrAfter(start, closingDay), closingDay);
     }
 
+    /**
+     * Ciclo que começa em {@code start} e fecha na primeira data de fechamento igual ou posterior, limitado a
+     * {@code lastDay} (fim da vigência do contrato ou véspera do início do contrato seguinte — decisão 624): o último
+     * ciclo de um contrato termina no fim da vigência e fica proporcional ({@link #proration}).
+     *
+     * @param lastDay último dia possível do ciclo, ou {@code null} sem limite
+     */
+    public static Cycle startingAt(LocalDate start, int closingDay, LocalDate lastDay) {
+        LocalDate end = closingDateOnOrAfter(start, closingDay);
+        if (lastDay != null && !lastDay.isBefore(start) && lastDay.isBefore(end)) {
+            end = lastDay;
+        }
+        return new Cycle(start, end, closingDay);
+    }
+
+    /**
+     * Primeiro ciclo do calendário de um contrato (que começa no início da vigência, decisão 624) que termina em
+     * {@code since} ou depois — o fechamento automático não alcança ciclos encerrados antes do registro das condições
+     * de cobrança (sem retroatividade). Se a vigência termina antes de {@code since}, devolve o último ciclo do
+     * contrato, encerrado antes de {@code since} (quem chama o descarta).
+     *
+     * @param lastDay último dia do calendário do contrato, ou {@code null} se a vigência é indeterminada
+     */
+    public static Cycle firstEndingOnOrAfter(LocalDate contractStart, LocalDate lastDay, int closingDay,
+                                             LocalDate since) {
+        Cycle cycle = startingAt(contractStart, closingDay, lastDay);
+        while (cycle.end().isBefore(since) && (lastDay == null || cycle.end().isBefore(lastDay))) {
+            cycle = startingAt(cycle.end().plusDays(1), closingDay, lastDay);
+        }
+        return cycle;
+    }
+
     /** Ciclo (no calendário puro do dia de fechamento) que contém a data. */
     public static Cycle containing(LocalDate day, int closingDay) {
         LocalDate end = closingDateOnOrAfter(day, closingDay);

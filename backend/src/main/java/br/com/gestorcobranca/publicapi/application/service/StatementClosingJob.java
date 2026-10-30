@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.publicapi.application.service;
 
+import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases;
 import br.com.gestorcobranca.publicapi.application.port.in.PublicApiBillingUseCases;
 import br.com.gestorcobranca.publicapi.domain.repository.IntegrationTokenRepository;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -13,14 +14,17 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
  * Fechamento automático dos ciclos de consumo: verificação diária de madrugada (02h20, horário de Brasília — depois
- * da virada do ciclo às 00:00 e da última gravação em lote do dia anterior) que fecha, para cada credor com token de
- * integração em todas as assessorias, os ciclos já encerrados ainda sem extrato (cada credor tem o próprio dia de
- * fechamento, definido no contrato). Ciclo já fechado manualmente é ignorado. Uma instância por vez (ShedLock); a
- * falha de um credor não impede os demais e é contada em métrica.
+ * da virada do ciclo às 00:00 e da última gravação em lote do dia anterior) que fecha os ciclos já encerrados ainda
+ * sem extrato de cada credor com condições de cobrança das integrações no contrato ou com token de integração, em
+ * todas as assessorias — também de quem nunca usou a API, quando há mensalidade (decisão 624). Cada credor tem o
+ * próprio dia de fechamento, definido no contrato. Ciclo já fechado manualmente é ignorado. Uma instância por vez
+ * (ShedLock); a falha de um credor não impede os demais e é contada em métrica.
  */
 @Component
 class StatementClosingJob {
@@ -31,15 +35,18 @@ class StatementClosingJob {
     private final TenantDirectory tenantDirectory;
     private final TenantExecution tenantExecution;
     private final IntegrationTokenRepository tokens;
+    private final ContractIntegrationPricingUseCases contractPricing;
     private final PublicApiBillingUseCases billing;
     private final MeterRegistry meterRegistry;
 
     StatementClosingJob(TenantDirectory tenantDirectory, TenantExecution tenantExecution,
-                        IntegrationTokenRepository tokens, PublicApiBillingUseCases billing,
+                        IntegrationTokenRepository tokens, ContractIntegrationPricingUseCases contractPricing,
+                        PublicApiBillingUseCases billing,
                         MeterRegistry meterRegistry) {
         this.tenantDirectory = tenantDirectory;
         this.tenantExecution = tenantExecution;
         this.tokens = tokens;
+        this.contractPricing = contractPricing;
         this.billing = billing;
         this.meterRegistry = meterRegistry;
     }
@@ -55,7 +62,11 @@ class StatementClosingJob {
         int closed = 0;
         int creditorsChecked = 0;
         for (UUID tenantId : tenantDirectory.activeTenantIds()) {
-            List<UUID> creditors = tenantExecution.callInTenant(tenantId, OPERATION, tokens::findDistinctCreditorIds);
+            List<UUID> creditors = tenantExecution.callInTenant(tenantId, OPERATION, () -> {
+                Set<UUID> ids = new TreeSet<>(contractPricing.creditorsWithIntegrationPricing());
+                ids.addAll(tokens.findDistinctCreditorIds());
+                return List.copyOf(ids);
+            });
             for (UUID creditorId : creditors) {
                 creditorsChecked++;
                 try {

@@ -3,11 +3,13 @@ package br.com.gestorcobranca.publicapi;
 import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases;
 import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases.IntegrationPricingCommand;
 import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases.IntegrationPricingView;
+import br.com.gestorcobranca.organization.application.port.in.ServiceContractUseCases;
 import br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken.IssuedToken;
 import br.com.gestorcobranca.publicapi.application.port.in.PublicApiBillingUseCases;
 import br.com.gestorcobranca.publicapi.application.port.in.PublicApiBillingUseCases.StatementView;
 import br.com.gestorcobranca.publicapi.application.port.in.PublicApiUsageUseCases;
 import br.com.gestorcobranca.publicapi.application.port.in.PublicApiUsageUseCases.UsageReport;
+import br.com.gestorcobranca.publicapi.domain.service.BillingCycles;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
@@ -460,5 +462,156 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         IssuedToken other = issue(creditorA, Set.of("portfolios:read"), null, List.of());
         assertThat(get("/public-api/v1/billing/position", other.token()).statusCode()).isEqualTo(403);
         assertThat(get("/public-api/v1/settlement/position", other.token()).statusCode()).isEqualTo(403);
+    }
+
+    // ------------------------------------------------------------ calendário do contrato (decisão 624)
+
+    void contractPeriod(UUID creditorId, LocalDate start, LocalDate end) {
+        UUID contractId = system(() -> contracts.listByCreditor(creditorId)).getFirst().id();
+        system(() -> contracts.updateTerms(contractId,
+                new ServiceContractUseCases.ContractTermsCommand(start, end, null, 10, null)));
+    }
+
+    void closeAllByJob() throws Exception {
+        Object job = context.getBean(Class.forName("br.com.gestorcobranca.publicapi.application.service.StatementClosingJob"));
+        Method closeAll = job.getClass().getDeclaredMethod("closeAll");
+        closeAll.setAccessible(true);
+        closeAll.invoke(job);
+    }
+
+    List<StatementView> statementsOf(UUID creditorId) {
+        return asManager(() -> billing.statements(creditorId, null,
+                br.com.gestorcobranca.shared.paging.PageQuery.of(0, 100))).content().stream()
+                .sorted(java.util.Comparator.comparing(StatementView::periodStart)).toList();
+    }
+
+    static int days(LocalDate from, LocalDate to) {
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1;
+    }
+
+    static BigDecimal prorated(String fee, int days, int reference) {
+        return new BigDecimal(fee).multiply(BigDecimal.valueOf(days))
+                .divide(BigDecimal.valueOf(reference), 2, java.math.RoundingMode.HALF_EVEN);
+    }
+
+    @Test
+    void cyclesStartAtTheContractStartAndTheMonthlyFeeIsBilledWithoutAnyUseOfTheApi() throws Exception {
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        LocalDate today = LocalDate.now(zone);
+        // contrato do credor B de 20/(m−3) a 20/(m−1), fechamento dia 10, mensalidade 100,00; credor sem token e sem
+        // nenhum consumo: só as condições o tornam candidato ao fechamento automático
+        LocalDate start = today.minusMonths(3).withDayOfMonth(20);
+        LocalDate end = today.minusMonths(1).withDayOfMonth(20);
+        contractPeriod(creditorB, start, end);
+        insertPricing(creditorB, 1, 10, start.minusDays(10).atStartOfDay(zone).toInstant(), new BigDecimal("100.00"));
+        // credor A: condições sem mensalidade e nenhum consumo — nenhum extrato
+        insertPricing(creditorA, 1, 10, Instant.parse("2025-12-01T12:00:00Z"), BigDecimal.ZERO);
+
+        closeAllByJob();
+
+        List<StatementView> all = statementsOf(creditorB);
+        assertThat(all).hasSize(3);
+        // primeiro ciclo: do início do contrato até o primeiro dia 10, proporcional ao ciclo de referência 11–10
+        StatementView first = all.get(0);
+        LocalDate firstEnd = start.plusMonths(1).withDayOfMonth(10);
+        int firstDays = days(start, firstEnd);
+        int firstReference = days(start.withDayOfMonth(11), firstEnd);
+        assertThat(first.periodStart()).isEqualTo(start);
+        assertThat(first.periodEnd()).isEqualTo(firstEnd);
+        assertThat(first.cycleDays()).isEqualTo(firstDays);
+        assertThat(first.referenceCycleDays()).isEqualTo(firstReference);
+        assertThat(first.requests()).isZero();
+        assertThat(first.totalAmount()).isEqualByComparingTo(prorated("100.00", firstDays, firstReference));
+        assertThat(first.lines().get(1).included()).isEqualTo(BigDecimal.valueOf(1000L * firstDays)
+                .divide(BigDecimal.valueOf(firstReference), 0, java.math.RoundingMode.CEILING).longValueExact());
+        // ciclo regular, mensalidade cheia sem nenhum uso
+        StatementView regular = all.get(1);
+        assertThat(regular.periodStart()).isEqualTo(firstEnd.plusDays(1));
+        assertThat(regular.periodEnd()).isEqualTo(start.plusMonths(2).withDayOfMonth(10));
+        assertThat(regular.cycleDays()).isEqualTo(regular.referenceCycleDays());
+        assertThat(regular.totalAmount()).isEqualByComparingTo("100.00");
+        // último ciclo: termina no fim da vigência, proporcional ao ciclo 11–10 que o contém
+        StatementView last = all.get(2);
+        int lastDays = days(end.withDayOfMonth(11), end);
+        int lastReference = days(end.withDayOfMonth(11), end.plusMonths(1).withDayOfMonth(10));
+        assertThat(last.periodStart()).isEqualTo(end.withDayOfMonth(11));
+        assertThat(last.periodEnd()).isEqualTo(end);
+        assertThat(last.cycleDays()).isEqualTo(lastDays);
+        assertThat(last.referenceCycleDays()).isEqualTo(lastReference);
+        assertThat(last.totalAmount()).isEqualByComparingTo(prorated("100.00", lastDays, lastReference));
+
+        // sem mensalidade e sem consumo: nada; nova execução não duplica nem gera ciclos depois da vigência
+        assertThat(statementsOf(creditorA)).isEmpty();
+        closeAllByJob();
+        assertThat(statementsOf(creditorB)).hasSize(3);
+        // posição depois do fim da vigência: sem contrato com condições, valor zero
+        PublicApiBillingUseCases.BillingPositionView p = asManager(() -> billing.position(creditorB));
+        assertThat(p.cycleKind()).isEqualTo("NO_CONTRACT");
+        assertThat(p.pricingVersion()).isNull();
+        assertThat(p.amountSoFar()).isEqualByComparingTo("0.00");
+        assertThat(p.periodStart()).isAfter(end);
+    }
+
+    @Test
+    void automaticClosingNeverReachesCyclesEndedBeforeTheConditionsWereRegistered() throws Exception {
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        LocalDate today = LocalDate.now(zone);
+        IssuedToken token = issue(creditorA, Set.of("portfolios:read"), null, List.of());
+        // contrato de dois anos atrás; consumo de um ano atrás, de antes de qualquer condição de cobrança
+        contractPeriod(creditorA, today.minusYears(2).withDayOfMonth(1), null);
+        insertUsage(creditorA, token.details().id(), today.minusYears(1).atTime(10, 0).atZone(zone).toInstant(),
+                "/public-api/v1/portfolios", 50, 0, 0, 0, 0, 10, 0);
+        // condições registradas agora (dia 5, mensalidade 80,00)
+        UUID contractId = system(() -> contracts.listByCreditor(creditorA)).getFirst().id();
+        asManager(() -> pricing.define(contractId, new IntegrationPricingCommand(5, new BigDecimal("80.00"), 1000,
+                new BigDecimal("0.01"), 0, BigDecimal.ONE, 0, BigDecimal.ONE, 0, BigDecimal.ONE, null)));
+
+        // nenhum dos ~24 ciclos anteriores ao registro é fechado (nem o do consumo antigo)
+        closeAllByJob();
+        assertThat(statementsOf(creditorA)).isEmpty();
+
+        // posição: o ciclo do calendário do contrato (dia 5) que contém hoje; as condições, registradas depois do seu
+        // início, valem só do próximo ciclo (não retroativas)
+        BillingCycles.Cycle current = BillingCycles.containing(today, 5);
+        PublicApiBillingUseCases.BillingPositionView p = asManager(() -> billing.position(creditorA));
+        assertThat(p.periodStart()).isEqualTo(current.start());
+        assertThat(p.periodEnd()).isEqualTo(current.end());
+        assertThat(p.usageClosingDay()).isEqualTo(5);
+        assertThat(p.cycleKind()).isEqualTo("REGULAR");
+        assertThat(p.pricingVersion()).isNull();
+        assertThat(p.amountSoFar()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void positionOfTheFirstCycleRunsFromTheContractStartAndIsProrated() throws Exception {
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        LocalDate today = LocalDate.now(zone);
+        IssuedToken token = issue(creditorA, Set.of("billing:read"), null, List.of());
+        // contrato desde anteontem; fechamento daqui a 5 dias: primeiro ciclo de 8 dias
+        LocalDate start = today.minusDays(2);
+        LocalDate closing = today.plusDays(5);
+        contractPeriod(creditorA, start, null);
+        insertPricing(creditorA, 1, closing.getDayOfMonth(), start.minusDays(10).atStartOfDay(zone).toInstant(),
+                new BigDecimal("100.00"));
+
+        int reference = days(BillingCycles.containing(closing, closing.getDayOfMonth()).start(), closing);
+        PublicApiBillingUseCases.BillingPositionView p = asManager(() -> billing.position(creditorA));
+        assertThat(p.periodStart()).isEqualTo(start);
+        assertThat(p.periodEnd()).isEqualTo(closing);
+        assertThat(p.cycleKind()).isEqualTo("CONTRACT_START");
+        assertThat(p.cycleDays()).isEqualTo(8);
+        assertThat(p.referenceCycleDays()).isEqualTo(reference);
+        assertThat(p.daysElapsed()).isEqualTo(3);
+        assertThat(p.pricingVersion()).isEqualTo(1);
+        // mensalidade proporcional, como o fechamento cobraria (sem consumo)
+        assertThat(p.amountSoFar()).isEqualByComparingTo(prorated("100.00", 8, reference));
+        // o mesmo pela API pública
+        HttpResponse<String> response = get("/public-api/v1/billing/position", token.token());
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        assertThat(body(response).get("cycleKind")).isEqualTo("CONTRACT_START");
+        assertThat(body(response).get("cycleDays")).isEqualTo(8);
+        // nada a fechar: o ciclo está em curso
+        closeAllByJob();
+        assertThat(statementsOf(creditorA)).isEmpty();
     }
 }

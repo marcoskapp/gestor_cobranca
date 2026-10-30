@@ -23,7 +23,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -122,6 +124,30 @@ class ContractIntegrationPricingService implements ContractIntegrationPricingUse
                 .max(Comparator.comparing(ServiceContract::getStartDate).thenComparing(ServiceContract::getNumber))
                 .flatMap(k -> pricings.findFirstByContractIdAndRegisteredAtBeforeOrderByPricingVersionDesc(k.getId(),
                         cycleStart).map(p -> view(p, k)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<IntegrationContractView> integrationContracts(UUID creditorId) {
+        Guard.require(creditorId != null, "contract_pricing.required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        Map<UUID, ContractIntegrationPricing> first = new HashMap<>();
+        for (ContractIntegrationPricing p : pricings.findFirstVersionsByCreditorId(creditorId)) {
+            first.put(p.getContractId(), p);
+        }
+        return contracts.findByCreditorId(creditorId).stream().filter(k -> first.containsKey(k.getId()))
+                .sorted(Comparator.comparing(ServiceContract::getStartDate).thenComparing(ServiceContract::getNumber))
+                .map(k -> new IntegrationContractView(k.getId(), k.getNumber(), k.getStartDate(), k.getEndDate(),
+                        first.get(k.getId()).getRegisteredAt(), first.get(k.getId()).getUsageClosingDay()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> creditorsWithIntegrationPricing() {
+        List<UUID> all = pricings.findDistinctCreditorIds();
+        return accessScope.hasAllCreditors() ? all
+                : all.stream().filter(accessScope::canAccessCreditor).toList();
     }
 
     private ServiceContract loadVisible(UUID contractId) {

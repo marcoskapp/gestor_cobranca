@@ -19,4 +19,10 @@ public interface ContractIntegrationPricingRepository {
             UUID contractId, Instant before);
 
     int maxVersion(UUID contractId);
+
+    /** Primeira versão (a de menor número) de cada contrato do credor que tem condições registradas. */
+    List<ContractIntegrationPricing> findFirstVersionsByCreditorId(UUID creditorId);
+
+    /** Credores com condições registradas em algum contrato. */
+    List<UUID> findDistinctCreditorIds();
 }

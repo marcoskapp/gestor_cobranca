@@ -2,6 +2,7 @@ package br.com.gestorcobranca.organization.application.port.in;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +31,32 @@ public interface ContractIntegrationPricingUseCases {
      * (havendo mais de um, o de início mais recente). Vazio quando não há contrato vigente ou condições registradas.
      */
     Optional<IntegrationPricingView> applicable(UUID creditorId, Instant cycleStart);
+
+    /**
+     * Contratos do credor que têm condições de cobrança das integrações registradas, com a vigência e a primeira
+     * versão (registro e dia de fechamento): base do calendário dos ciclos de consumo, que começa no início de
+     * vigência do contrato (decisão 624). Ordenados pelo início de vigência.
+     */
+    List<IntegrationContractView> integrationContracts(UUID creditorId);
+
+    /**
+     * Credores visíveis com condições de cobrança das integrações registradas em algum contrato: candidatos ao
+     * fechamento automático dos ciclos, mesmo sem nenhum uso da API (decisão 624).
+     */
+    List<UUID> creditorsWithIntegrationPricing();
+
+    /**
+     * Contrato com condições de cobrança das integrações.
+     *
+     * @param endDate              fim da vigência (inclusivo) ou {@code null} se indeterminado
+     * @param firstRegisteredAt    registro da primeira versão das condições: o fechamento automático não alcança
+     *                             ciclos encerrados antes dessa data (sem retroatividade, decisão 624)
+     * @param firstUsageClosingDay dia de fechamento da primeira versão: calendário dos ciclos do contrato antes de
+     *                             haver versão aplicável
+     */
+    record IntegrationContractView(UUID contractId, String contractNumber, LocalDate startDate, LocalDate endDate,
+                                   Instant firstRegisteredAt, int firstUsageClosingDay) {
+    }
 
     /**
      * @param usageClosingDay dia do mês (1–31) em que fecha o ciclo de consumo das integrações; meses sem esse dia

@@ -46,8 +46,9 @@ final class BillingModels {
     @Schema(name = "BillingStatement", description = "Extrato fechado de um ciclo de consumo da API")
     record StatementDto(UUID id, LocalDate periodStart, LocalDate periodEnd, int revision, int usageClosingDay,
                         @Schema(description = "Dias do ciclo") int cycleDays,
-                        @Schema(description = "Dias do ciclo regular de referência; difere de cycleDays só no ciclo "
-                                + "de transição (mensalidade e franquias proporcionais)") int referenceCycleDays,
+                        @Schema(description = "Dias do ciclo regular de referência; difere de cycleDays no primeiro ciclo do "
+                                + "contrato, no último (fim da vigência) e no de transição (mensalidade e franquias "
+                                + "proporcionais)") int referenceCycleDays,
                         String contractNumber, Integer pricingVersion, long requests, long billableRequests,
                         long billableMbIn, long billableMbOut, long records, BigDecimal totalAmount, String currency,
                         List<LineDto> lines, List<BreakdownDto> breakdown, String usageHash, Instant closedAt) {
@@ -67,7 +68,13 @@ final class BillingModels {
 
     @Schema(name = "BillingPosition", description = "Ciclo de consumo em andamento: consumo faturável e valor até agora")
     record BillingPositionDto(LocalDate periodStart, LocalDate periodEnd, int usageClosingDay, int cycleDays,
-                              int referenceCycleDays, int daysElapsed, int daysRemaining, String contractNumber,
+                              int referenceCycleDays, 
+                              @Schema(description = "Tipo do ciclo: REGULAR; CONTRACT_START (primeiro, desde o início do contrato); "
+                                      + "CONTRACT_END (último, até o fim da vigência); TRANSITION (mudança do dia de fechamento); "
+                                      + "NO_CONTRACT (sem condições de cobrança). Em CONTRACT_START, CONTRACT_END e TRANSITION a "
+                                      + "mensalidade e as franquias são proporcionais aos dias (cycleDays ÷ referenceCycleDays)",
+                                      allowableValues = {"REGULAR", "CONTRACT_START", "CONTRACT_END", "TRANSITION", "NO_CONTRACT"})
+                              String cycleKind, int daysElapsed, int daysRemaining, String contractNumber,
                               Integer pricingVersion, long requests, long billableRequests, long billableMbIn,
                               long billableMbOut, long records,
                               @Schema(description = "Mensalidade do ciclo + excedente do consumo até agora")
@@ -80,7 +87,7 @@ final class BillingModels {
                               @Schema(description = "Última gravação do consumo (lotes de ~1 minuto)") Instant updatedAt) {
         static BillingPositionDto of(BillingPositionView p) {
             return new BillingPositionDto(p.periodStart(), p.periodEnd(), p.usageClosingDay(), p.cycleDays(),
-                    p.referenceCycleDays(), p.daysElapsed(), p.daysRemaining(), p.contractNumber(), p.pricingVersion(),
+                    p.referenceCycleDays(), p.cycleKind(), p.daysElapsed(), p.daysRemaining(), p.contractNumber(), p.pricingVersion(),
                     p.requests(), p.billableRequests(), p.billableMbIn(), p.billableMbOut(), p.records(),
                     p.amountSoFar(), p.currency(), p.lines().stream().map(LineDto::of).toList(),
                     p.allowances().stream().map(a -> new AllowanceDto(a.metric(), a.used(), a.included(), a.percent()))

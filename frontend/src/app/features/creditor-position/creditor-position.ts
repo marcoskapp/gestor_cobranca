@@ -15,7 +15,7 @@ import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { KpiCard } from '../analytics/components/kpi-card';
 import { CreditorLookup } from '../organization/data/organization.lookups';
 import { PublicApiUsageApi } from '../public-api/data/public-api.api';
-import { METRIC_LABELS, formatCycle, prorationLabel } from '../public-api/data/public-api.labels';
+import { CYCLE_KIND_LABELS, METRIC_LABELS, formatCycle, prorationLabel } from '../public-api/data/public-api.labels';
 import { BillingPositionView } from '../public-api/data/public-api.models';
 import { TransfersApi } from '../settlement/data/settlement.api';
 import { SettlementPositionView } from '../settlement/data/settlement.models';
@@ -72,9 +72,9 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
             <div class="alert alert-danger" role="alert">Não foi possível carregar o faturamento da API.</div>
           } @else if (billing(); as b) {
             <p class="app-muted cp-small">
-              Ciclo {{ cycle(b.periodStart, b.periodEnd) }} (fecha no dia {{ b.usageClosingDay }}) · dia {{ b.daysElapsed }} de {{ b.cycleDays }}, faltam {{ b.daysRemaining }}
+              Ciclo {{ cycle(b.periodStart, b.periodEnd) }} ({{ b.cycleKind === 'CONTRACT_END' ? 'termina no fim da vigência do contrato' : 'fecha no dia ' + b.usageClosingDay }}) · dia {{ b.daysElapsed }} de {{ b.cycleDays }}, faltam {{ b.daysRemaining }}
               · {{ b.pricingVersion ? 'contrato ' + b.contractNumber + ', condições v' + b.pricingVersion : 'contrato sem condições de cobrança (valor zero)' }}
-              @if (proration(b); as p) { · ciclo de transição: mensalidade e franquias proporcionais a {{ p }} }
+              @if (proration(b); as p) { · {{ cycleKind(b) }}: mensalidade e franquias proporcionais a {{ p }} }
             </p>
             <div class="cp-kpis">
               <app-kpi-card label="Valor até agora" detail="Mensalidade do ciclo + excedente consumido"><app-amount [value]="b.amountSoFar" /></app-kpi-card>
@@ -346,6 +346,10 @@ export class CreditorPosition {
 
   protected proration(b: BillingPositionView): string | null {
     return prorationLabel(b.cycleDays, b.referenceCycleDays);
+  }
+
+  protected cycleKind(b: BillingPositionView): string {
+    return CYCLE_KIND_LABELS[b.cycleKind] ?? CYCLE_KIND_LABELS.REGULAR;
   }
 
   protected direction(s: SettlementPositionView): string {
