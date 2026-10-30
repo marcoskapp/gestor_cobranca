@@ -21,6 +21,7 @@ import { CreditorLookup, CreditorNames, PortfolioLookup, PortfolioNames } from '
 import { ImportBatchesApi, ImportLayoutsApi, ImportReviewsApi } from '../data/ingestion.api';
 import { MODE_LABELS, SOURCE_LABELS, isTerminal, progressText } from '../data/ingestion.labels';
 import { BatchFilter, ImportBatchView, ReviewSummaryView } from '../data/ingestion.models';
+import { PdfImportsApi } from '../data/pdf-import.api';
 import { REVIEW_STEPS } from '../data/review.rules';
 import { Amount } from '../../../shared/components/amount/amount';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -70,6 +71,10 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
         Layouts
       </a>
       @if (canExecute()) {
+        <a class="btn btn-outline-primary" routerLink="/importacao/pdf/nova" [queryParams]="newParams()" data-tour="pdf-entry">
+          <app-icon name="file-earmark-pdf" />
+          Importação PDF inteligente
+        </a>
         <a class="btn btn-primary" routerLink="/importacao/nova" [queryParams]="newParams()">
           <app-icon name="file-earmark-arrow-up" />
           Nova importação
@@ -89,6 +94,21 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
               @if (r.status === 'AWAITING_APPROVAL' && r.principalToImport !== null) {
                 <span class="app-muted">· <app-amount [value]="r.principalToImport" /></span>
               }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (pdfImports.rows().length) {
+      <section class="app-card bl-reviews" aria-labelledby="bl-pdf">
+        <h2 class="app-card__title" id="bl-pdf">Importações PDF em andamento</h2>
+        <ul class="bl-review-list">
+          @for (p of pdfImports.rows(); track p.id) {
+            <li>
+              <a [routerLink]="['/importacao/pdf', p.id]">{{ p.fileName }}</a>
+              <app-status-chip domain="pdfImport" [status]="p.status" />
+              <span class="app-muted">{{ portfolios.name(p.portfolioId) }} · {{ p.pages }} página(s){{ p.records ? ' · ' + p.records + ' título(s)' : '' }} · {{ p.createdAt | appDate }}</span>
             </li>
           }
         </ul>
@@ -198,6 +218,7 @@ export class BatchList {
   private readonly api = inject(ImportBatchesApi);
   private readonly layoutsApi = inject(ImportLayoutsApi);
   private readonly reviewsApi = inject(ImportReviewsApi);
+  private readonly pdfApi = inject(PdfImportsApi);
   private readonly auth = inject(AuthService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -226,8 +247,17 @@ export class BatchList {
     this.reviewsApi.search({ status: ['OPEN', 'AWAITING_APPROVAL'], creditorId: f.creditorId, portfolioId: f.portfolioId }, page),
     10,
   );
+  /** Importações PDF ainda abertas (mapeando, aguardando o mapa ou a validação). */
+  protected readonly pdfImports = pagedQuery(this.filter, (f, page) =>
+    this.pdfApi.search({ status: ['RECEIVED', 'MAPPING', 'AWAITING_MAP', 'AWAITING_VALIDATION'], creditorId: f.creditorId, portfolioId: f.portfolioId }, page),
+    10,
+  );
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((b) => b.creditorId));
-  protected readonly portfolios = nameMap(inject(PortfolioNames), () => [...this.query.rows().map((b) => b.portfolioId), ...this.reviews.rows().map((r) => r.portfolioId)]);
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => [
+    ...this.query.rows().map((b) => b.portfolioId),
+    ...this.reviews.rows().map((r) => r.portfolioId),
+    ...this.pdfImports.rows().map((p) => p.portfolioId),
+  ]);
   private readonly running = computed(() => this.query.rows().some((b) => !isTerminal(b.status) && b.status !== 'AWAITING_FORMAT'));
   protected readonly newParams = computed(() => (this.filter().portfolioId ? { carteira: this.filter().portfolioId } : {}));
 

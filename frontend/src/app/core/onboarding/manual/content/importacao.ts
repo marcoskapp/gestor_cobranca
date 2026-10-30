@@ -4,6 +4,7 @@ export const MANUAL: ModuleManual = {
   id: 'importacao',
   overview: [
     'A importação é a porta de entrada das dívidas. O credor envia uma planilha (CSV ou XLSX) no layout padrão ou no layout combinado com ele, ou os registros chegam por integração.',
+    'Quando o credor só consegue enviar PDF, a Importação PDF inteligente lê o documento, encontra devedor, títulos e totais e escreve um "mapa" de extração que você valida ao lado do PDF; aprovado, ele vira um lote no layout padrão e segue a mesma conferência.',
     'Antes de gravar, o arquivo passa pela conferência: você confirma como os valores foram lidos, compara os totais com a sua planilha e decide sobre valores fora do comum. Nada é gravado até a confirmação final.',
     'Gravado o lote, devedores e títulos são criados ou atualizados e os casos de cobrança são abertos automaticamente para os títulos em aberto.',
   ],
@@ -19,6 +20,8 @@ export const MANUAL: ModuleManual = {
     'Importações de valor alto pedem aprovação de outra pessoa; quem envia não aprova a própria carga.',
     'Reenviar o mesmo arquivo não duplica títulos; arquivo já importado exige justificativa.',
     'Ocorrências mostram os dados pessoais mascarados; o relatório pode ser devolvido ao credor.',
+    'Na importação PDF, todo valor sai do texto do PDF; o mapa só diz onde procurar. Totais do documento que não conferem pedem correção do mapa ou justificativa.',
+    'PDF digitalizado (só imagem) é lido visualmente pela IA: cada título com confiança baixa precisa ser confirmado ou excluído.',
   ],
   screens: [
     {
@@ -34,6 +37,7 @@ export const MANUAL: ModuleManual = {
       outputs: ['Lotes gravados, que criam ou atualizam devedores, títulos e casos.'],
       related: [
         { screen: 'ingestion.review-start', why: 'Começar uma nova importação.' },
+        { screen: 'ingestion.pdf-start', why: 'Importar um PDF do credor.' },
         { screen: 'ingestion.layouts', why: 'Ajustar como as colunas do credor são lidas.' },
         { screen: 'organization.portfolios', why: 'Conferir a carteira que recebe os títulos.' },
       ],
@@ -52,6 +56,40 @@ export const MANUAL: ModuleManual = {
         { screen: 'ingestion.layouts', why: 'Cadastrar o layout de um credor novo.' },
       ],
       terms: ['layout', 'conferencia'],
+    },
+    {
+      id: 'ingestion.pdf-start',
+      title: 'Importação PDF inteligente',
+      objective: 'Envie o PDF do credor: o sistema encontra os títulos e monta o mapa de extração para você validar antes de importar.',
+      purpose: [
+        'Para quando o credor não consegue extrair os dados em planilha. O sistema lê o PDF e, com o mapa já salvo do credor ou com a ajuda da IA, descobre onde estão devedor, títulos e totais.',
+        'Nada é gravado na carteira nesta etapa: a seguir você valida o mapa e, ao concordar, o lote segue para a conferência da importação de sempre.',
+      ],
+      profiles: ['ANALISTA_CARTEIRA', 'GESTOR'],
+      inputs: ['PDF do credor (com texto ou digitalizado), sem senha, até 20 MB.', 'Carteira de destino.'],
+      outputs: ['Uma importação PDF aguardando a sua validação.'],
+      related: [
+        { screen: 'ingestion.pdf-import', why: 'Validar o mapa e os títulos.' },
+        { screen: 'ingestion.review-start', why: 'Importar uma planilha (CSV ou XLSX).' },
+      ],
+      terms: ['mapa-de-extracao', 'leitura-visual', 'conferencia'],
+    },
+    {
+      id: 'ingestion.pdf-import',
+      title: 'Validação da importação PDF',
+      objective: 'Confira o mapa que o sistema escreveu ao ler o PDF, os títulos encontrados e os totais do documento antes de importar.',
+      purpose: [
+        'Mostra o PDF com as regiões lidas em destaque, o mapa em linguagem simples (que você pode editar: campo de cada coluna, colunas ignoradas, linhas por título, início e fim da tabela) e os títulos com os mesmos erros e avisos da importação por planilha.',
+        'Os totais impressos no documento são comparados com a soma extraída; divergência pede correção do mapa ou justificativa. "Concordo, importar" gera o lote no layout padrão e abre a conferência; "Salvar mapa para este credor" faz os próximos PDFs do mesmo layout serem lidos sem IA.',
+      ],
+      profiles: ['ANALISTA_CARTEIRA', 'GESTOR'],
+      inputs: ['O PDF enviado e o mapa proposto pela IA, salvo do credor ou escrito por você.'],
+      outputs: ['Lote no layout padrão na conferência da importação; mapa salvo para o credor, se você quiser.'],
+      related: [
+        { screen: 'ingestion.review', why: 'A conferência que vem depois da aprovação.' },
+        { screen: 'ingestion.batches', why: 'Voltar à lista de importações.' },
+      ],
+      terms: ['mapa-de-extracao', 'leitura-visual', 'conferencia'],
     },
     {
       id: 'ingestion.review',
@@ -99,5 +137,5 @@ export const MANUAL: ModuleManual = {
       terms: ['layout'],
     },
   ],
-  terms: ['lote-de-importacao', 'conferencia', 'layout', 'carteira', 'titulo', 'devedor'],
+  terms: ['lote-de-importacao', 'conferencia', 'layout', 'mapa-de-extracao', 'leitura-visual', 'carteira', 'titulo', 'devedor'],
 };

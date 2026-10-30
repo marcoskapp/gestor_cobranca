@@ -25,7 +25,7 @@ docs/
 | [assistente-ia.md](negocio/assistente-ia.md) | Assistente de negociação com IA: limites, canais, alçadas, modos de operação e implantação |
 | [workflow-juridico.md](negocio/workflow-juridico.md) | Garantias da dívida e etapas do workflow jurídico (extrajudicial e judicial) |
 | [ux-identidade-visual.md](negocio/ux-identidade-visual.md) | Identidade visual, navegação e onboarding por perfil |
-| [layout-importacao.md](negocio/layout-importacao.md) | Layout canônico de importação de carteiras (CSV, XLSX e API) |
+| [layout-importacao.md](negocio/layout-importacao.md) | Layout canônico de importação de carteiras (CSV, XLSX e API) e a Importação PDF inteligente (§9) |
 | [layout-extrato-conciliacao.md](negocio/layout-extrato-conciliacao.md) | Layout do extrato/arquivo de retorno (CSV) para a conciliação de pagamentos |
 | [layout-demonstrativo-prestacao-contas.md](negocio/layout-demonstrativo-prestacao-contas.md) | Demonstrativo de prestação de contas ao credor: o que entra, cálculo do líquido, arquivo conciliável (CSV/XLSX) e ciclo |
 | [indicadores.md](negocio/indicadores.md) | Indicadores dos painéis e relatórios: definição, fórmula e denominador de cada um (contrato com a operação) |
@@ -58,7 +58,7 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [operacao/api-publica-publicacao.md](tecnico/operacao/api-publica-publicacao.md) | API pública: fluxo de mudança do contrato, publicação de release com diff (openapi-diff), nova versão e depreciação, segredo do hash dos tokens |
 | [operacao/ativacao-aws.md](tecnico/operacao/ativacao-aws.md) | Guia operacional de ativação na AWS: pré-requisitos, Terraform, segredos, banco, implantação, primeiro acesso, integrações, operação e checklists de segurança e go-live |
 | [operacao/sandbox.md](tecnico/operacao/sandbox.md) | Sandbox de demonstração com dados fictícios subindo com um comando: scripts, URLs, usuários e senhas por perfil, o que vem carregado, roteiro de demonstração e proteções contra ativação em produção |
-| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `importacao` (conferência da importação), `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `chat-suporte`, `remuneracao-variavel`, `scoring`, `analytics`, `portal`, `pendencias` (Minhas pendências), `ux`, `api-publica` (API pública de integração) |
+| [desenho/](tecnico/desenho) | Desenho de cada módulo: `collection`, `importacao` (conferência da importação), `importacao-pdf` (Importação PDF inteligente), `comunicacao`, `campanhas`, `telefonia`, `negociacao-e-alcadas`, `pagamentos`, `prestacao-de-contas`, `juridico`, `assistente`, `chat-suporte`, `remuneracao-variavel`, `scoring`, `analytics`, `portal`, `pendencias` (Minhas pendências), `ux`, `api-publica` (API pública de integração) |
 
 ## Caminhos antigos
 

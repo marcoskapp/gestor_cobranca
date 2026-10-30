@@ -83,6 +83,9 @@ locals {
     GC_HELPDESK_TICKETS_ENABLED        = tostring(var.helpdesk_tickets_enabled)
     GC_HELPDESK_GITHUB_REPOSITORY      = var.helpdesk_github_repository
     GC_HELPDESK_GITHUB_REQUIRE_PRIVATE = tostring(var.helpdesk_github_require_private_repository)
+    # importação PDF inteligente (módulo ingestion): mesmo endpoint e mesma aprovação de transferência do assistente
+    GC_INGESTION_PDF_BEDROCK_ENABLED  = tostring(var.ingestion_pdf_bedrock_enabled)
+    GC_INGESTION_PDF_BEDROCK_MODEL_ID = var.ingestion_pdf_bedrock_model_id
     # primeiro administrador da plataforma (decisão 520); vazios = bootstrap desligado
     GC_PLATFORM_ADMIN_NAME = var.platform_admin_name == null ? "" : var.platform_admin_name
     GC_PLATFORM_CNPJ       = var.platform_cnpj == null ? "" : var.platform_cnpj

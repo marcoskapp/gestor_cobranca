@@ -394,6 +394,21 @@ variable "helpdesk_bedrock_model_id" {
   default     = "us.anthropic.claude-haiku-5-5"
 }
 
+# --- Importação PDF inteligente (módulo ingestion) — docs/tecnico/desenho/importacao-pdf.md ---
+# Desligado por padrão. Ligar exige bedrock_international_transfer_approved (mesma guarda do assistente).
+
+variable "ingestion_pdf_bedrock_enabled" {
+  description = "Liga a proposta do mapa e a leitura visual da importação PDF com Amazon Bedrock (Claude Sonnet)."
+  type        = bool
+  default     = false
+}
+
+variable "ingestion_pdf_bedrock_model_id" {
+  description = "Perfil de inferência/modelo da importação PDF."
+  type        = string
+  default     = "us.anthropic.claude-sonnet-5-5"
+}
+
 variable "helpdesk_tickets_enabled" {
   description = "Lê o segredo app/helpdesk-github-token na inicialização e liga a abertura de chamados no GitHub."
   type        = bool

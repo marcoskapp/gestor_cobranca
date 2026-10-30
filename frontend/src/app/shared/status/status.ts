@@ -36,6 +36,7 @@ export type StatusDomain =
   | 'importBatch'
   | 'importIssue'
   | 'importReview'
+  | 'pdfImport'
   | 'importAlert'
   | 'proposal'
   | 'agreement'
@@ -236,6 +237,16 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     COMMITTED: { label: 'Importação criada', tone: 'success' },
     REJECTED: { label: 'Recusada', tone: 'danger' },
     CANCELLED: { label: 'Cancelada', tone: 'neutral' },
+  },
+  /** Importação PDF inteligente (`PdfImportStatus`). */
+  pdfImport: {
+    RECEIVED: { label: 'Recebido', tone: 'info' },
+    MAPPING: { label: 'Montando o mapa', tone: 'info' },
+    AWAITING_MAP: { label: 'Aguardando o mapa', tone: 'warning' },
+    AWAITING_VALIDATION: { label: 'Aguardando validação', tone: 'warning' },
+    APPROVED: { label: 'Mapa aprovado', tone: 'success' },
+    DISCARDED: { label: 'Descartado', tone: 'neutral' },
+    FAILED: { label: 'Falhou', tone: 'danger' },
   },
   /** Alertas de valor da conferência (`AlertStatus`). */
   importAlert: {

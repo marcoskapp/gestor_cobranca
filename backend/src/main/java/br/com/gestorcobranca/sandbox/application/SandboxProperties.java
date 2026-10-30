@@ -14,7 +14,7 @@ import java.time.Duration;
 public record SandboxProperties(Seed seed) {
 
     public SandboxProperties {
-        seed = seed == null ? new Seed(false, null, null, null, null, null, null) : seed;
+        seed = seed == null ? new Seed(false, null, null, null, null, null, null, null) : seed;
     }
 
     /**
@@ -26,9 +26,12 @@ public record SandboxProperties(Seed seed) {
      * @param stepTimeout        espera máxima por processamentos assíncronos (importação, jobs, eventos)
      * @param tokensFile         arquivo (volume exclusivo do sandbox, permissão 600) com os segredos dos tokens de
      *                           demonstração da API pública, exibidos só na emissão
+     * @param pdfDir             pasta (volume exclusivo do sandbox) com os PDFs fictícios de demonstração da
+     *                           Importação PDF, copiados para a máquina pelo {@code scripts/sandbox/pdfs.sh}
      */
     public record Seed(boolean enabled, String demoPassword, URI mailpitApiUrl, String platformAdminEmail,
-                       Duration activationTimeout, Duration stepTimeout, java.nio.file.Path tokensFile) {
+                       Duration activationTimeout, Duration stepTimeout, java.nio.file.Path tokensFile,
+                       java.nio.file.Path pdfDir) {
 
         public Seed {
             activationTimeout = activationTimeout == null ? Duration.ofMinutes(2) : activationTimeout;

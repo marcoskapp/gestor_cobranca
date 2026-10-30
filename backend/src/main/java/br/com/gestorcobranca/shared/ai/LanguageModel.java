@@ -47,19 +47,31 @@ public interface LanguageModel {
     enum Role { USER, ASSISTANT, TOOL }
 
     /**
-     * @param role       autor: pessoa atendida ({@code USER}), assistente ({@code ASSISTANT}) ou resultado de ferramenta ({@code TOOL})
-     * @param content    texto (já minimizado) ou resultado da ferramenta em JSON
-     * @param toolCalls  chamadas pedidas pelo assistente nesta mensagem
-     * @param toolCallId chamada respondida por uma mensagem {@code TOOL}
+     * @param role        autor: pessoa atendida ({@code USER}), assistente ({@code ASSISTANT}) ou resultado de ferramenta ({@code TOOL})
+     * @param content     texto (já minimizado) ou resultado da ferramenta em JSON
+     * @param toolCalls   chamadas pedidas pelo assistente nesta mensagem
+     * @param toolCallId  chamada respondida por uma mensagem {@code TOOL}
+     * @param attachments imagens enviadas junto com a mensagem {@code USER} (leitura visual; ignoradas nos demais papéis)
      */
-    record ModelMessage(Role role, String content, List<ToolCall> toolCalls, String toolCallId) {
+    record ModelMessage(Role role, String content, List<ToolCall> toolCalls, String toolCallId,
+                        List<Attachment> attachments) {
 
         public ModelMessage {
             toolCalls = toolCalls == null ? List.of() : List.copyOf(toolCalls);
+            attachments = attachments == null ? List.of() : List.copyOf(attachments);
+        }
+
+        public ModelMessage(Role role, String content, List<ToolCall> toolCalls, String toolCallId) {
+            this(role, content, toolCalls, toolCallId, List.of());
         }
 
         public static ModelMessage user(String content) {
             return new ModelMessage(Role.USER, content, List.of(), null);
+        }
+
+        /** Mensagem da pessoa com imagens (ex.: páginas de um PDF sem camada de texto). */
+        public static ModelMessage user(String content, List<Attachment> attachments) {
+            return new ModelMessage(Role.USER, content, List.of(), null, attachments);
         }
 
         public static ModelMessage assistant(String content, List<ToolCall> calls) {
@@ -68,6 +80,24 @@ public interface LanguageModel {
 
         public static ModelMessage tool(String callId, String resultJson) {
             return new ModelMessage(Role.TOOL, resultJson, List.of(), callId);
+        }
+    }
+
+    /**
+     * Imagem enviada ao modelo. Pode conter dado pessoal: o produto só a envia quando o texto não basta (PDF
+     * escaneado) e nunca a registra em log.
+     *
+     * @param format formato da imagem ({@code png} ou {@code jpeg})
+     */
+    record Attachment(String format, byte[] content) {
+
+        public Attachment {
+            if (format == null || !(format.equals("png") || format.equals("jpeg"))) {
+                throw new IllegalArgumentException("Formato de imagem não suportado: " + format);
+            }
+            if (content == null || content.length == 0) {
+                throw new IllegalArgumentException("Imagem vazia");
+            }
         }
     }
 

@@ -43,6 +43,7 @@ abstract class IngestionTestSupport extends IntegrationTest {
 
     static final String JOB_TYPE = "ingestion.process-batch";
     static final String ANALYSIS_JOB_TYPE = "ingestion.review-analysis";
+    static final String PDF_JOB_TYPE = "ingestion.pdf-map";
     static final String HEADER = "documento;nome;telefone_1;whatsapp_1;email_1;contrato;id_titulo;parcela;vencimento;"
             + "valor_principal;saldo;data_saldo;situacao";
 
@@ -123,8 +124,8 @@ abstract class IngestionTestSupport extends IntegrationTest {
     private void deferPendingJobs() {
         jdbcTemplate.update("""
                 update shared.processing_job set run_at = now() + interval '1 day'
-                where tenant_id = ? and type in (?, ?) and status = 'PENDING'
-                """, tenant, JOB_TYPE, ANALYSIS_JOB_TYPE);
+                where tenant_id = ? and type in (?, ?, ?) and status = 'PENDING'
+                """, tenant, JOB_TYPE, ANALYSIS_JOB_TYPE, PDF_JOB_TYPE);
     }
 
     ImportBatchView uploadCsv(String fileName, String content, String mode) {
@@ -154,10 +155,10 @@ abstract class IngestionTestSupport extends IntegrationTest {
             List<Map<String, Object>> claimed = jdbcTemplate.queryForList("""
                     update shared.processing_job set status = 'RUNNING', attempts = attempts + 1, started_at = now()
                     where id = (select id from shared.processing_job
-                                where tenant_id = ? and type in (?, ?) and status = 'PENDING'
+                                where tenant_id = ? and type in (?, ?, ?) and status = 'PENDING'
                                 order by created_at limit 1 for update skip locked)
                     returning id, type, payload::text as payload, attempts
-                    """, tenant, JOB_TYPE, ANALYSIS_JOB_TYPE);
+                    """, tenant, JOB_TYPE, ANALYSIS_JOB_TYPE, PDF_JOB_TYPE);
             if (claimed.isEmpty()) {
                 break;
             }

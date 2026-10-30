@@ -190,6 +190,8 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V1900–V1999 | pendingwork |
 | V2000–V2099 | helpdesk |
 | V2100–V2199 | publicapi |
+| V2200–V2299 | sandbox (reservada, sem uso — decisão 630) |
+| V2300–V2399 | ingestion — importação PDF inteligente |
 
 Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
 

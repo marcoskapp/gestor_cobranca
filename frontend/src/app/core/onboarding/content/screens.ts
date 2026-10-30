@@ -190,7 +190,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'portal.config', version: 1, path: '/autonegociacao/:id' },
   {
     key: 'ingestion.batches',
-    version: 2,
+    version: 3,
     path: '/importacao',
     tourId: 'ingestion.batches',
     changes: [
@@ -201,10 +201,16 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Conferências em andamento e aguardando aprovação aparecem no topo da lista.',
         ],
       },
+      {
+        version: 3,
+        items: ['"Importação PDF inteligente": quando o credor só envia PDF, o sistema encontra os títulos e você valida o mapa antes de importar.'],
+      },
     ],
   },
   { key: 'ingestion.layouts', version: 1, path: '/importacao/layouts' },
   { key: 'ingestion.review-start', version: 1, path: '/importacao/nova', tourId: 'ingestion.review-start' },
+  { key: 'ingestion.pdf-start', version: 1, path: '/importacao/pdf/nova', tourId: 'ingestion.pdf-start' },
+  { key: 'ingestion.pdf-import', version: 1, path: '/importacao/pdf/:id', tourId: 'ingestion.pdf-import' },
   { key: 'ingestion.review', version: 1, path: '/importacao/conferencias/:id', tourId: 'ingestion.review' },
   {
     key: 'ingestion.batch-detail',

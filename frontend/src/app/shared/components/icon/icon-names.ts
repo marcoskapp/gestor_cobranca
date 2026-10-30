@@ -24,6 +24,7 @@ export const APP_ICONS = [
   'bank2',
   'bar-chart',
   'bar-chart-steps',
+  'bookmark-plus',
   'box-arrow-in-right',
   'box-arrow-right',
   'box-arrow-up-right',

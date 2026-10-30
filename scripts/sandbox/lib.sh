@@ -59,6 +59,18 @@ sandbox_tokens() {
   compose exec -T app cat /sandbox-data/api-tokens.txt 2>/dev/null | grep -v '^#' | grep -v '^$'
 }
 
+# Índice dos PDFs fictícios de demonstração da Importação PDF (gerados pela carga no volume do sandbox):
+# assessoria, credor, carteira, arquivo, finalidade — separados por tabulação.
+sandbox_pdf_index() {
+  compose exec -T app cat /sandbox-data/pdfs/index.tsv 2>/dev/null | grep -v '^#' | grep -v '^$'
+}
+
+# sandbox_pdf <assessoria> <arquivo> → conteúdo do PDF de demonstração (stdout, binário). Sem stdin (</dev/null): o
+# `exec` consumiria a entrada de quem chama em laço (while read … <<< índice).
+sandbox_pdf() {
+  compose exec -T app cat "/sandbox-data/pdfs/$1/$2" </dev/null
+}
+
 # Estado de prontidão (UP só depois da carga de dados fictícios) e detalhes da carga, se publicados.
 readiness_json() {
   # sem -f: em 503 (fora de prontidão) o corpo traz a etapa e a falha da carga
@@ -81,6 +93,7 @@ print_summary() {
   Senha de demonstração: ${SANDBOX_DEMO_PASSWORD:-Sandbox@2026!}
 
   API pública: tokens de demonstração em ./scripts/sandbox/tokens.sh · docs em ${APP_URL}/public-api/docs
+  Importação PDF: PDFs fictícios de demonstração em ./scripts/sandbox/pdfs.sh (copia para ./sandbox-pdfs/)
   Lista completa de usuários e roteiro de demonstração: docs/tecnico/operacao/sandbox.md
 EOF
 }

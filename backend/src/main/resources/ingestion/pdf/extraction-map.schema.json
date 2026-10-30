@@ -1,0 +1,66 @@
+{
+  "type": "object",
+  "description": "Mapa de extração (versão 1): onde estão os dados no documento. Nunca valores.",
+  "required": ["schemaVersion", "documentType", "numberFormat", "debtor", "table", "controlTotals"],
+  "properties": {
+    "schemaVersion": {"type": "integer", "enum": [1]},
+    "documentType": {"type": "string", "maxLength": 120, "description": "Tipo de documento em poucas palavras"},
+    "numberFormat": {"type": "string", "enum": ["COMMA", "DOT"], "description": "COMMA = 1.234,56; DOT = 1,234.56"},
+    "debtor": {
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": {"type": "string", "enum": ["HEADER", "COLUMNS", "NONE"]},
+        "blockStartLabel": {"type": "string", "maxLength": 80, "description": "Rótulo exato que abre o bloco de cada devedor (HEADER)"},
+        "fields": {"type": "array", "maxItems": 40, "items": {"$ref": "#/$defs/labelField"}}
+      }
+    },
+    "documentFields": {"type": "array", "maxItems": 40, "items": {"$ref": "#/$defs/labelField"}},
+    "table": {
+      "type": "object",
+      "required": ["linesPerRecord", "headerLines", "columns"],
+      "properties": {
+        "linesPerRecord": {"type": "integer", "minimum": 1, "maximum": 5},
+        "headerLines": {"type": "array", "minItems": 1, "maxItems": 5,
+          "items": {"type": "array", "maxItems": 80, "items": {"type": "string", "maxLength": 80}},
+          "description": "Rótulos das colunas copiados exatamente do texto, na ordem, por linha do cabeçalho"},
+        "anchorColumn": {"type": "string", "maxLength": 80, "description": "Coluna da 1ª linha sempre preenchida no início do título (de preferência a de vencimento)"},
+        "endMarkers": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 80}},
+        "columns": {"type": "array", "maxItems": 80, "items": {
+          "type": "object",
+          "required": ["header", "line", "targets"],
+          "properties": {
+            "header": {"type": "string", "maxLength": 80},
+            "line": {"type": "integer", "minimum": 1, "maximum": 5},
+            "targets": {"type": "array", "maxItems": 4, "items": {"type": "string", "maxLength": 60}},
+            "xMin": {"type": "number"},
+            "xMax": {"type": "number"}
+          }
+        }}
+      }
+    },
+    "controlTotals": {"type": "array", "maxItems": 20, "items": {
+      "type": "object",
+      "required": ["label", "target"],
+      "properties": {
+        "label": {"type": "string", "maxLength": 80},
+        "column": {"type": "string", "maxLength": 80},
+        "target": {"type": "string", "maxLength": 60},
+        "scope": {"type": "string", "enum": ["BLOCK", "DOCUMENT"]}
+      }
+    }},
+    "ignoreLinesContaining": {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 3, "maxLength": 80}}
+  },
+  "$defs": {
+    "labelField": {
+      "type": "object",
+      "required": ["label", "target"],
+      "properties": {
+        "label": {"type": "string", "maxLength": 80},
+        "target": {"type": "string", "maxLength": 60},
+        "position": {"type": "string", "enum": ["RIGHT", "BELOW"]},
+        "transform": {"type": "string", "enum": ["NONE", "DROP_LEADING_CODE", "LEADING_CODE"]}
+      }
+    }
+  }
+}

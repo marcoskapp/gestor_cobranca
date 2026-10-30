@@ -1,7 +1,9 @@
 # Desenho — Importação de carteiras (módulo `ingestion`) e conferência da importação
 
 Escopo: módulo `ingestion` (lotes CSV/XLSX/API, validação por linha, processamento em fatias retomáveis) e o
-**assistente de conferência** (wizard) que antecede a efetivação de uma carga. Regras de formato e o passo a passo
+**assistente de conferência** (wizard) que antecede a efetivação de uma carga. A **Importação PDF inteligente** é uma
+fonte a mais deste fluxo: o PDF validado vira um CSV do layout canônico que abre esta mesma conferência
+([`importacao-pdf.md`](importacao-pdf.md)). Regras de formato e o passo a passo
 para o usuário estão em [`docs/negocio/layout-importacao.md`](../../negocio/layout-importacao.md).
 
 Pedido do responsável (resumo): *uma etapa anterior à efetivação em que os grandes totais sejam conferidos com a soma

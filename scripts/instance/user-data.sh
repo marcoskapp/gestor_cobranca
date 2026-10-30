@@ -168,6 +168,11 @@ unset secrets_content value
   echo "HELPDESK_BEDROCK_REGION=${GC_BEDROCK_REGION:-us-east-1}"
   echo "HELPDESK_BEDROCK_MODEL_ID=${GC_HELPDESK_BEDROCK_MODEL_ID:-us.anthropic.claude-haiku-5-5}"
   echo "HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=${GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:-false}"
+  # importação PDF inteligente (ingestion): mesmo endpoint e mesma aprovação de transferência internacional do assistente
+  echo "INGESTION_PDF_BEDROCK_ENABLED=${GC_INGESTION_PDF_BEDROCK_ENABLED:-false}"
+  echo "INGESTION_PDF_BEDROCK_REGION=${GC_BEDROCK_REGION:-us-east-1}"
+  echo "INGESTION_PDF_BEDROCK_MODEL_ID=${GC_INGESTION_PDF_BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-5-5}"
+  echo "INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=${GC_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:-false}"
   echo "HELPDESK_GITHUB_REPOSITORY=${GC_HELPDESK_GITHUB_REPOSITORY:-marcoskapp/gestor_cobranca}"
   echo "HELPDESK_GITHUB_REQUIRE_PRIVATE=${GC_HELPDESK_GITHUB_REQUIRE_PRIVATE:-false}"
   # Pix: hosts de PSP permitidos (decisão 313) e webhook com mTLS só com o ALB verificando o cliente (316)

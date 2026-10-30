@@ -133,3 +133,66 @@ Em **Importação de carteiras → Nova importação**. Nada é gravado na carte
 6. **Importar** — resumo do impacto (linhas a importar, títulos novos e existentes, suspensos, soma) e a palavra **IMPORTAR**. Acima de R$ 1.000.000,00 de principal, outra pessoa com permissão de aprovação (nem quem enviou nem quem pediu) precisa aprovar.
 
 Tudo o que foi confirmado — leitura escolhida, totais informados e calculados, alertas e justificativas, linhas excluídas — fica registrado na conferência e na auditoria. Linhas excluídas aparecem no relatório da importação (`row.excluded_by_review`).
+
+## 9. Importação PDF inteligente
+
+Para quando o credor não consegue extrair os dados em CSV ou XLSX e envia **PDF**. Em **Importação de carteiras →
+Importação PDF inteligente**:
+
+1. **Envio** — escolha a carteira e o PDF (até 20 MB, sem senha, sem JavaScript; até 200 páginas com texto ou 30
+   digitalizadas). O mesmo PDF já em andamento ou aprovado na carteira é recusado e a tela abre o existente.
+2. **Mapa** — o sistema descobre **onde** estão os dados: com o mapa já salvo do credor, se o layout casar (sem IA), ou
+   com a proposta da IA a partir do texto do PDF com os números e e-mails mascarados. O mapa nunca contém valores.
+3. **Validação** (tela intermediária) — o PDF com as regiões lidas em destaque (devedor, cabeçalho da tabela, totais),
+   o mapa em linguagem simples ("Coluna 'Pendente' → saldo devedor do título"; "cada título ocupa 2 linhas"; "devedor
+   lido no cabeçalho"), os títulos encontrados com os **mesmos erros e avisos da importação por planilha** e a
+   conferência dos totais impressos no documento com a soma extraída. Clique no número de um título para ver de onde
+   ele saiu. O mapa é editável: campo de cada coluna, coluna ignorada, linhas por título, coluna que inicia o título,
+   início (rótulos do cabeçalho) e fim da tabela, devedor, totais e linhas a ignorar — ao aplicar, o sistema reaplica o
+   mapa ao texto na hora. Títulos podem ser excluídos do lote, com justificativa.
+4. **Concordo, importar** — gera o lote no **layout padrão** (§2) com os títulos não excluídos e abre a **conferência
+   da importação** (§8): formato, linhas, grandes totais informados por você, alertas de ticket médio e de separador,
+   IMPORTAR e, acima do limite, a aprovação de outra pessoa. "Salvar mapa para este credor" faz os próximos PDFs do mesmo
+   layout serem lidos sem IA. "Descartar" encerra sem gravar nada.
+
+Regras:
+
+- **Todo valor importado sai do texto do PDF.** A IA só descreve onde procurar; um programa aplica o mapa e cada valor é
+  conferido de novo contra o texto da região de origem. PDF **digitalizado** (só imagem) é a exceção: a IA lê as páginas
+  visualmente, cada título traz a confiança da leitura, os de confiança baixa precisam ser confirmados ou excluídos um a
+  um e a aprovação exige declarar que os valores foram conferidos com as imagens.
+- **Totais do documento que não conferem bloqueiam** até o mapa ser corrigido ou a divergência ser justificada (fica na
+  auditoria). Sem totais no documento, confira com cuidado a soma na conferência de grandes totais.
+- Valores com vírgula ou ponto decimal conforme o mapa (padrão: vírgula, `1.234,56`). Quem aprovou o mapa, a revisão
+  aprovada e cada edição ficam registrados na auditoria.
+- Pela API pública (`POST /public-api/v1/imports/pdf`) o PDF entra no mesmo fluxo e fica aguardando a validação de uma
+  pessoa da assessoria: a API nunca importa um PDF sozinha.
+
+### 9.1 Mapeamento sugerido: "Histórico Financeiro por Cliente"
+
+Layout de relatório de ERP com cabeçalho do devedor, títulos em **duas linhas** (a 2ª é a conta contábil), linha
+"Totais:" e quadro de resumo.
+
+| No PDF | Vai para | Observação |
+| --- | --- | --- |
+| `Cliente:` (código + nome) | `nome` (sem o código inicial) e `info:codigo_cliente` (só o código) | abre o bloco de cada devedor |
+| `CPF/CNPJ:` | `documento` | dígito verificador conferido |
+| `Endereço:`, `Bairro:`, `Cidade:` | `endereco_logradouro`, `endereco_bairro`, `endereco_cidade` | o número vem junto do logradouro |
+| `Telefone:`, `Email:` | `telefone_1`, `email_1` | |
+| `Data Emissão:` (topo do relatório) | `data_saldo` | data-base do saldo, vale para todos os títulos |
+| `Emp` + `Número` + `Lt` | `id_titulo` (unidos com "-", ex.: `1-32633-01`) | o número se repete entre parcelas; a parcela tem letras (`A3`), por isso não vai para `parcela` |
+| `Número` | `contrato` | |
+| `Vencto` | `vencimento` | coluna que inicia cada título |
+| `Valor` | `valor_principal` | valor **original** do título |
+| `Pendente` | `saldo` | **saldo** devedor informado pelo credor (conferência com a plataforma) |
+| `Pagto` | `pago_se_preenchido` | preenchida = título informado como pago (não cria título; suspende o existente para conciliação) |
+| `Emissão`, `Vcto Ori`, `Atraso` | `info:emissao`, `info:vencimento_original`, `info:dias_atraso` | informação adicional |
+| `Jur Mora`, `Jur Boleto`, `Vlr+Jur+Bol` | `info:juros_mora`, `info:juros_boleto`, `info:valor_com_encargos` | encargos do credor **não** substituem a política de cálculo da plataforma |
+| `Avul`, `Forma Pgto`, `Nosso Número`, `NFSe` | `info:avulso`, `info:forma_pagamento`, `info:nosso_numero`, `info:nfse` | informação adicional |
+| 2ª linha: `Conta` | `info:conta` | |
+| `Totais:` nas colunas `Valor` e `Pendente` | totais de controle de `valor_principal` e `saldo` (por devedor) | o quadro "Nº de Títulos" do resumo **não** é usado: conta títulos que não estão na lista (pagos, a vencer) |
+| `Página` | linha ignorada | rodapé |
+
+Informação adicional (`info:*`) é lida do PDF e mostrada na tela de validação enquanto o PDF estiver guardado (90 dias
+depois de encerrada a importação); o layout canônico não tem campo livre, então ela não vai para o título (ver decisões
+669 e 670).

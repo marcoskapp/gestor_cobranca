@@ -541,6 +541,26 @@ variable "helpdesk_bedrock_model_id" {
   }
 }
 
+# --- Importação PDF inteligente (módulo ingestion) — docs/tecnico/desenho/importacao-pdf.md --
+# Mesmo endpoint (bedrock_region) e mesma aprovação de transferência internacional do assistente.
+
+variable "ingestion_pdf_bedrock_enabled" {
+  description = "Liga o Amazon Bedrock da importação PDF (permissão IAM no modelo e app.ingestion.pdf.bedrock.enabled)."
+  type        = bool
+  default     = false
+}
+
+variable "ingestion_pdf_bedrock_model_id" {
+  description = "Modelo ou perfil de inferência da importação PDF (Claude Sonnet, que lê texto e imagem)."
+  type        = string
+  default     = "us.anthropic.claude-sonnet-5-5"
+
+  validation {
+    condition     = can(regex("^((us|eu|apac|au|jp|ca|global)\\.)?anthropic\\.[a-z0-9.-]+(:[0-9]+)?$", var.ingestion_pdf_bedrock_model_id))
+    error_message = "ingestion_pdf_bedrock_model_id deve ser um modelo Claude (anthropic.*) ou perfil de inferência de sistema."
+  }
+}
+
 variable "helpdesk_tickets_enabled" {
   description = "Lê o segredo app/helpdesk-github-token na inicialização e liga a abertura de chamados no GitHub."
   type        = bool

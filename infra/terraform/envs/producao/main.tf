@@ -66,6 +66,10 @@ resource "terraform_data" "guards" {
       error_message = "assistant_bedrock_enabled exige bedrock_international_transfer_approved: nenhum modelo Claude processa no Brasil e a transferência internacional (LGPD art. 33) precisa da aprovação do responsável."
     }
     precondition {
+      condition     = !var.ingestion_pdf_bedrock_enabled || var.bedrock_international_transfer_approved
+      error_message = "ingestion_pdf_bedrock_enabled exige bedrock_international_transfer_approved: a importação PDF usa a mesma guarda de transferência internacional (LGPD art. 33) do assistente."
+    }
+    precondition {
       condition     = !var.helpdesk_bedrock_enabled || var.bedrock_international_transfer_approved
       error_message = "helpdesk_bedrock_enabled exige bedrock_international_transfer_approved: o chat de suporte usa a mesma guarda de transferência internacional (LGPD art. 33) do assistente."
     }
@@ -269,6 +273,8 @@ module "compute" {
 
   helpdesk_bedrock_enabled                   = var.helpdesk_bedrock_enabled
   helpdesk_bedrock_model_id                  = var.helpdesk_bedrock_model_id
+  ingestion_pdf_bedrock_enabled              = var.ingestion_pdf_bedrock_enabled
+  ingestion_pdf_bedrock_model_id             = var.ingestion_pdf_bedrock_model_id
   helpdesk_tickets_enabled                   = var.helpdesk_tickets_enabled
   helpdesk_github_repository                 = var.helpdesk_github_repository
   helpdesk_github_require_private_repository = var.helpdesk_github_require_private_repository
