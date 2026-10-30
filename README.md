@@ -111,10 +111,27 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:58080/public-api/v1/s
 
 Na aplicação, a mesma posição aparece na tela **Posição do credor** (menu *Prestação de contas → Posição do credor*, `/posicao-credor`; entre como `financeiro` ou `gestor`): ciclo de consumo da API em andamento e repasse do período em aberto. Tokens criados antes desses escopos existirem não os ganham depois (os escopos não mudam após a emissão): rode `./scripts/sandbox/reset.sh` para recriá-los.
 
+### 5a. Importação PDF (sem IA)
+
+A IA da Importação PDF fica desligada no sandbox, mas a carga salva o mapa do layout "Histórico Financeiro por Cliente" no 1º credor de cada assessoria e gera PDFs **fictícios** de demonstração:
+
+```bash
+./scripts/sandbox/pdfs.sh            # copia para ./sandbox-pdfs/<assessoria>/ (fora do Git) e explica cada arquivo
+```
+
+Entre como `analista@aurora.exemplo.test` → *Importações → Importação PDF inteligente*, carteira `HZN-CARTAO`:
+
+1. `historico-financeiro-hzn.pdf` → mapa salvo reaproveitado, totais conferindo → *Concordo, importar* (abre a conferência da importação);
+2. `historico-financeiro-hzn-totais-divergentes.pdf` → mesmo mapa, total "Pendente" divergente: aprovação bloqueada sem justificativa;
+3. `tabela-simples-hzn.pdf` → layout sem mapa: a tela abre o editor e o mapa é montado à mão (passo a passo e gabarito em [`sandbox.md` §4b](docs/tecnico/operacao/sandbox.md)).
+
+Para testar com IA real (Amazon Bedrock, credenciais AWS temporárias por variável de ambiente e **aprovação explícita da transferência internacional**, LGPD art. 33 — só com os PDFs fictícios): `INGESTION_PDF_BEDROCK_ENABLED=true` e `INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=true` (opcionais: `INGESTION_PDF_BEDROCK_REGION`, `INGESTION_PDF_BEDROCK_MODEL_ID`) antes do `up.sh`; detalhes e avisos em [`sandbox.md` §4b](docs/tecnico/operacao/sandbox.md).
+
 ### 6. Comandos do dia a dia
 
 ```bash
-./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública, Swagger e posição do credor
+./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública, Swagger, posição do credor e Importação PDF
+./scripts/sandbox/pdfs.sh            # copia os PDFs fictícios de demonstração da Importação PDF para ./sandbox-pdfs/
 ./scripts/sandbox/down.sh            # para o sandbox MANTENDO os dados
 ./scripts/sandbox/up.sh --no-build   # sobe de novo sem reconstruir a imagem (os dados continuam)
 ./scripts/sandbox/reset.sh           # apaga todos os dados do sandbox e recria do zero (pede confirmação; --yes dispensa)

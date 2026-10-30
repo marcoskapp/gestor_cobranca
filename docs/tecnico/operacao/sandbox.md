@@ -96,6 +96,7 @@ A liberação existe só com o perfil Spring `sandbox` **e** `app.sandbox.api-do
 | Compliance | pedido de titular (LGPD) aberto; trilha de auditoria e log de acesso de tudo o que a carga fez |
 | Prestação de contas | demonstrativo do 1º credor calculado |
 | Painéis | snapshots do analytics atualizados pelo agendamento (a cada 15 min) |
+| Importação PDF | 4 PDFs **fictícios** por assessoria, gerados pela carga (`./scripts/sandbox/pdfs.sh` copia para `./sandbox-pdfs/`), e o mapa salvo "Histórico financeiro por cliente (demonstração)" no 1º credor de cada assessoria; IA desligada (§4b) |
 | API pública | 8 tokens de demonstração (um completo por credor, inclusive com a posição do faturamento e do repasse, e um só de leitura da carteira no 1º credor de cada assessoria) e condições de cobrança das integrações em cada contrato (§4a) |
 
 A carga também deixa e-mails no Mailpit: os links de ativação usados para ativar cada usuário e as mensagens de e-mail da operação.
@@ -108,7 +109,7 @@ A carga também deixa e-mails no Mailpit: os links de ativação usados para ati
 4. **Financeiro**: *Pagamentos* — Pix confirmado e conciliado, pagamento externo pendente de revisão (aprove ou recuse; o selo de quebra suspensa aparece no acordo), estorno; *Prestação de contas* — demonstrativo calculado.
 5. **Gestor**: credores, contratos e carteiras; políticas de negociação; réguas e campanhas (inscrições e envios); painéis e relatórios; portal do devedor (abra o endereço público do portal em outra aba).
 6. **Jurídico** e **advogado parceiro**: o caso ajuizado (processo, prazo, custas, garantias) — o advogado parceiro só vê o caso atribuído ao escritório.
-7. **Analista de carteiras**: *Importações* — lotes de carga com totais de controle; importe um arquivo pelo assistente de importação.
+7. **Analista de carteiras**: *Importações* — lotes de carga com totais de controle; importe um arquivo pelo assistente de importação; **Importação PDF inteligente** sem IA: mapa reaproveitado, bloqueio por totais divergentes e mapa montado à mão (roteiro na §4b).
 8. **Compliance** e **auditor**: pedido de titular, restrições de contato, log de acesso (os logins da demonstração aparecem) e trilha de auditoria (inclusive as ações da carga, marcadas "carga do sandbox").
 9. **Administrador da plataforma** (`admin@plataforma…`, assessoria `plataforma`): lista de assessorias; provisione uma terceira e acompanhe o convite no Mailpit.
 10. **API pública** (terminal + tela): `./scripts/sandbox/tokens.sh` → com o token `sandbox-hzn-completo`, liste carteiras e títulos e importe um lote pelos exemplos da §4a; consulte a posição do credor pela API (`GET /billing/position` e `GET /settlement/position`); mostre a recusa (403) do token `sandbox-hzn-leitura` ao importar e ao pedir essas posições (não tem `billing:read` nem `settlement:read`) e o 404 ao tentar a carteira de outro credor; abra a documentação pública e o changelog (`/public-api/docs`, `/public-api/docs/changelog`); depois, como **gestor**, *Integrações → Tokens de integração* (prefixo, escopos, último uso, revogar/rotacionar) e *Consumo da API* (as chamadas aparecem em até ~1 min).
@@ -173,6 +174,63 @@ Listas usam paginação por cursor e não trazem o último minuto (janela de est
 
 **Faturamento.** O contrato de cada credor tem condições de cobrança das integrações (organization, `ContractIntegrationPricing`, definidas pelo gestor): dia de fechamento do ciclo de consumo variado — HZN 5, EST 15, TVC 31 (último dia), CSR 10, ELT 20, UMC 31 —, mensalidade (R$ 190 a R$ 490 por segmento), franquias de chamadas, MB recebidos/enviados e registros, e preço do excedente. Elas aparecem na ficha do credor (contrato). Os ciclos seguem o calendário do contrato, que começou há 12 meses (decisão 624), e as condições são registradas pela carga no dia em que o sandbox sobe. Como o **primeiro cadastro vale já no ciclo em andamento** (decisões 608 e 624, do responsável), num sandbox recém-criado: a **Posição do credor** (tela e `GET /public-api/v1/billing/position`) mostra o ciclo em curso de cada credor já com as condições — mensalidade cheia (o contrato começou antes do ciclo), franquias e o consumo do dia, com a nota "condições cadastradas em …: o primeiro cadastro vale para o ciclo inteiro"; **nenhum extrato** de ciclos passados (o fechamento automático não alcança ciclos encerrados antes do cadastro); ao fim do ciclo em curso (job diário às 02h20) sai o primeiro extrato de cada credor, com a mensalidade, **mesmo sem uso da API**, e depois um por ciclo. O consumo do dia aparece em **Consumo da API**.
 
+## 4b. Importação PDF inteligente (sem IA)
+
+No sandbox o provedor de IA da Importação PDF fica **desligado** (`INGESTION_PDF_BEDROCK_ENABLED=false`). Mesmo assim o fluxo completo é demonstrável: a carga salvou, pelo caso de uso e como o analista, o mapa do layout "Histórico Financeiro por Cliente" no **1º credor** de cada assessoria (Banco Horizonte na `aurora`, Coop Sertão na `boreal`), e gerou PDFs **fictícios** (PDFBox; devedores inventados, CNPJ/CPF com dígito válido gerado ao acaso, e-mails em `exemplo.test`, datas relativas ao dia da carga). Nenhum PDF real é usado nem versionado.
+
+```bash
+./scripts/sandbox/pdfs.sh            # copia para ./sandbox-pdfs/<assessoria>/ (pasta fora do Git) e explica cada arquivo
+```
+
+| Arquivo (`aurora`; na `boreal`, `csr`) | Layout | Para quê |
+| --- | --- | --- |
+| `historico-financeiro-hzn.pdf` | histórico (cabeçalho do devedor, título em 2 linhas, "Totais:") | mapa reaproveitado sem IA → validação → importar (10 títulos) |
+| `historico-financeiro-hzn-totais-divergentes.pdf` | histórico | total "Pendente" impresso R$ 150,00 acima da soma dos títulos: bloqueio por divergência |
+| `tabela-simples-hzn.pdf` | tabela simples (um título por linha, devedor nas colunas, "Total:" e "Quantidade:") | sem mapa salvo: montar o mapa à mão |
+| `verificacao-api-hzn.pdf` | histórico | enviado pelo `verify.sh` pela API pública — não use na demonstração (o mesmo PDF já em andamento na carteira é recusado, 409) |
+
+**Roteiro** (entre como `analista@aurora.exemplo.test`; *Importações → Importação PDF inteligente*, `/importacao/pdf/nova`; carteira `HZN-CARTAO` do Banco Horizonte):
+
+1. **Mapa reaproveitado.** Envie `historico-financeiro-hzn.pdf`. Em segundos a importação fica *Aguardando validação* com a origem **"Mapa salvo do credor"**: devedor (nome, CNPJ, endereço, telefone, e-mail), 10 títulos com a 2ª linha ("Conta") como informação adicional, data-base do saldo pela "Data Emissão" e os dois totais do documento ("Valor" e "Pendente") **conferindo**. Mostre a página do PDF ao lado, com a região de cada valor destacada, e o mapa em linguagem simples. *Concordo, importar* abre a conferência da importação de sempre (formato, linhas, grandes totais, efetivação).
+2. **Divergência de totais.** Envie `historico-financeiro-hzn-totais-divergentes.pdf`. O mapa salvo também é reaproveitado, mas o total "Pendente" do documento não bate com a soma extraída (diferença de R$ 150,00): a aprovação fica **bloqueada** e só é liberada com uma justificativa registrada (auditada) — ou o usuário descarta a importação.
+3. **Layout sem mapa (montagem manual).** Envie `tabela-simples-hzn.pdf`. Sem mapa salvo para esse layout e sem IA, a importação fica *Aguardando mapa* (motivo: IA desligada) e a tela abre o editor do mapa ao lado da imagem da página. Preencha, copiando os rótulos do PDF:
+   - *Linhas por título* `1`; *Início da tabela*: `Documento`, `Nome`, `Contrato`, `Parcela`, `Vencimento`, `Valor` (um por linha); *Título começa na coluna* `Vencimento`; *Fim da tabela* `Total:`; *Ignorar linhas que contêm* `Página`; separador decimal vírgula.
+   - *Colunas*: Documento → documento do devedor; Nome → nome do devedor; Contrato → contrato **e** identificador do título; Parcela → parcela **e** identificador do título; Vencimento → vencimento; Valor → valor principal.
+   - *Devedor*: "Colunas da própria tabela". *Campos do documento* (opcional): `Posição em:` → data-base do saldo.
+   - *Totais de controle*: `Total:` (valor à direita do rótulo) → valor principal, documento inteiro; `Quantidade:` → quantidade de títulos, documento inteiro.
+   - *Aplicar e reprocessar*: os títulos aparecem e os dois totais conferem. Aprove, ou use **Salvar mapa para este credor** — o próximo PDF desse layout será mapeado sozinho. O gabarito exato (JSON) está em `DemoPdfLayouts.tableMap()` e pode ser colado em *Mapa em JSON (avançado)*.
+4. **Mapas salvos**: na própria tela, a lista de mapas do credor (versão, usos, último uso) e a desativação. Na `boreal`, o mesmo roteiro com `analista@boreal.exemplo.test`, carteira `CSR-CARTAO` e os arquivos `*-csr.pdf`.
+5. **API pública**: o credor também pode enviar o PDF (`POST /public-api/v1/imports/pdf`, multipart, `Idempotency-Key`); a importação fica aguardando a validação humana na tela.
+
+```bash
+TOKEN=$(./scripts/sandbox/tokens.sh --raw | awk -F'\t' '$4 == "sandbox-hzn-completo" {print $6}')
+API=http://localhost:58080/public-api/v1
+PORTFOLIO=$(curl -s -H "Authorization: Bearer $TOKEN" "$API/portfolios" | jq -r '.data[] | select(.code=="HZN-CARTAO") | .id')
+curl -s -X POST "$API/imports/pdf?portfolioId=$PORTFOLIO" -H "Authorization: Bearer $TOKEN" \
+  -H 'Idempotency-Key: demo-pdf-0001' -F 'file=@sandbox-pdfs/aurora/historico-financeiro-hzn.pdf;type=application/pdf' | jq '{id, status}'
+curl -s -H "Authorization: Bearer $TOKEN" "$API/imports/pdf/<id>" | jq '{status, mapOrigin, records, totalsMatch}'
+```
+
+O `verify.sh` faz essa checagem com `verificacao-api-hzn.pdf` e espera `AWAITING_VALIDATION`, origem `TEMPLATE`, 3 títulos e totais batendo.
+
+**Testar com IA real (opcional, Amazon Bedrock).** Só se o responsável quiser ver a proposta de mapa pela IA (layout novo sem montagem manual) e a leitura visual de PDF digitalizado. Atenção:
+
+- **Transferência internacional de dados (LGPD, art. 33).** O Bedrock com os modelos Claude roda fora do Brasil (perfis de inferência `us.*`). O texto do PDF vai **mascarado** (dígitos trocados) na proposta de mapa, mas a **leitura visual** de PDF digitalizado envia a **imagem da página**. Use **apenas os PDFs fictícios** do sandbox — nunca um PDF real de credor numa máquina local. A aplicação não sobe com o provedor ligado sem `INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=true`.
+- **Credenciais AWS:** de uma conta com acesso ao modelo no Bedrock (`bedrock:InvokeModel`/`Converse` no perfil de inferência), de preferência **temporárias** (SSO/`aws login`). São repassadas ao contêiner só por variável de ambiente (nada fica na imagem nem nos volumes); o arquivo `~/.aws` não é montado.
+- **Custo:** cada proposta de mapa é uma chamada ao modelo (consumo visível na tela da importação: chamadas, tokens, custo estimado).
+
+```bash
+# credenciais temporárias no ambiente (AWS CLI v2; ou exporte AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY e AWS_SESSION_TOKEN)
+eval "$(aws configure export-credentials --format env)"
+export INGESTION_PDF_BEDROCK_ENABLED=true
+export INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=true
+export INGESTION_PDF_BEDROCK_REGION=us-east-1                          # padrão
+export INGESTION_PDF_BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-5-5   # padrão
+./scripts/sandbox/down.sh && ./scripts/sandbox/up.sh --no-build
+```
+
+Ligue o Bedrock **depois** da primeira carga (como acima): se ligado já na primeira subida, a carga faz uma chamada ao modelo por assessoria para o PDF modelo do mapa salvo (o mapa proposto é trocado pelo da demonstração). Para voltar ao padrão, abra um terminal novo (sem as variáveis) e rode `down.sh` + `up.sh --no-build`. O mapa salvo continua valendo com a IA ligada: PDFs do layout histórico continuam sem chamada ao modelo.
+
 ## 5. Como a carga funciona
 
 A carga é o módulo `sandbox` do backend (`br.com.gestorcobranca.sandbox`). Ela roda numa thread própria assim que a aplicação fica no ar e usa **somente os casos de uso públicos** dos módulos — as mesmas regras de domínio, criptografia de dados pessoais com blind index, auditoria, logs de negócio e eventos da operação real. Não há SQL de dados nem migration de carga.
@@ -201,6 +259,10 @@ A carga é o módulo `sandbox` do backend (`br.com.gestorcobranca.sandbox`). Ela
 ### Tokens de integração (API pública)
 
 Etapa `IntegrationTokensSeeder` ("tokens de integração", entre a configuração dos credores e a carga das carteiras): emite os tokens de demonstração pelo caso de uso público `IssueIntegrationToken` como o administrador da assessoria, idempotente pelo nome do token (token existente com escopos anteriores aos atuais é mantido e vira aviso da carga: os escopos não mudam depois da emissão, e revogar por conta própria trocaria o segredo em uso; o `reset.sh` o recria), e guarda o segredo pelo `FileDemoTokenVault` (arquivo do volume `sandbox-data`, permissão 600, regravado de forma atômica). O log técnico registra só o id e o prefixo público do token. Uso e exemplos na §4a. As condições de cobrança das integrações de cada contrato são definidas na etapa de configuração operacional (`IntegrationPricingCatalog`). A chave HMAC dos segredos (`APP_PUBLIC_API_TOKEN_HASH_KEY`) é gerada pelo entrypoint junto com as demais chaves locais.
+
+### Importação PDF de demonstração
+
+Etapa `PdfImportDemoSeeder` ("importação PDF de demonstração", depois da carga das carteiras): o conteúdo fictício vem do `DemoPdfFactory` (sandbox, domínio; semente da assessoria) e os layouts e mapas do `DemoPdfLayouts`; o `PdfBoxDemoPdfRenderer` desenha os PDFs e o `FileDemoPdfShelf` os grava em `/sandbox-data/pdfs/<assessoria>/` com o índice `/sandbox-data/pdfs/index.tsv` (lido pelo `pdfs.sh` e pelo `verify.sh`). Arquivo já existente não é regerado (quem já baixou continua com o mesmo arquivo). O mapa salvo é criado pelos casos de uso da Importação PDF, como o analista: envio de um PDF modelo do layout (que não é entregue), mapa escrito (sem IA a importação fica aguardando mapa), conferência dos totais, *Salvar mapa para este credor* e descarte do modelo com motivo — auditoria, logs de negócio e métricas normais (a lista de importações PDF do 1º credor mostra o modelo descartado). Idempotente pelo nome do mapa salvo. Os PDFs são gerados a cada reset, e não versionados, porque as datas são relativas ao dia da carga e o PDFBox não produz bytes idênticos entre execuções (decisão 680).
 
 ## 6. Problemas comuns
 

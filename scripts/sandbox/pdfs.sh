@@ -34,5 +34,5 @@ while IFS=$'\t' read -r tenant creditor portfolio file purpose; do
   printf '  %-7s %-50s\n          credor %s, carteira %s\n          %s\n\n' "${tenant}" "${file}" "${creditor}" \
     "${portfolio}" "${purpose}"
 done <<<"${index}"
-printf '  Entre com analista@<assessoria>.exemplo.test → Importação → Importação PDF → Nova importação PDF.\n'
+printf '  Entre com analista@<assessoria>.exemplo.test → Importações → Importação PDF inteligente (/importacao/pdf/nova).\n'
 printf '  Roteiro: docs/tecnico/operacao/sandbox.md (seção Importação PDF)\n\n'

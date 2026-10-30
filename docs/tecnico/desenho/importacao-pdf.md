@@ -276,6 +276,11 @@ trilha. O CSV canônico gerado segue a guarda dos arquivos de importação.
   idempotência; mapa salvo reaplicado sem IA; justificativa de totais; leitura visual com conferência reforçada; IA
   indisponível → mapa manual; escopo por credor), `PublicApiPdfImportIT`, `PublicApiContractIT`.
 - Frontend: regras do mapa, envio, editor do mapa e tela de validação.
+- Sandbox: `SandboxDemoPdfCompatibilityTest` (os PDFs fictícios de demonstração e os mapas do sandbox — o salvo do
+  histórico e o gabarito manual da tabela — com o leitor, o intérprete e as verificações reais; bloqueio do PDF com
+  totais divergentes; quebra de página), `DemoPdfFactoryTest`, `FileDemoPdfShelfTest`; no sandbox no ar, o `verify.sh`
+  envia o PDF de verificação pela API pública e confere mapa salvo, títulos e totais. Roteiro de demonstração sem IA e
+  como ligar o Bedrock localmente: [`operacao/sandbox.md`](../operacao/sandbox.md) §4b.
 
 Nenhum PDF real entra no repositório: os documentos de teste são gerados com dados fictícios (CPF/CNPJ com dígito
 válido gerado, e-mails `exemplo.test`).
