@@ -56,6 +56,9 @@ public interface UsageStore {
                      long latencyMsTotal) {
     }
 
-    /** Credores com consumo no intervalo (fechamento automático do mês). */
-    List<UUID> creditorsWithUsage(Instant from, Instant to);
+    /**
+     * Início da primeira hora com consumo (requisição ou registro) do credor a partir de {@code from}, inclusivo —
+     * define o início do ciclo de consumo quando não há ciclo anterior contíguo.
+     */
+    java.util.Optional<Instant> firstUsageAt(UUID creditorId, Instant from);
 }

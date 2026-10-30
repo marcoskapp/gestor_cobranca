@@ -34,6 +34,8 @@ class UsageAccumulator {
         final LongAdder serverErrors = new LongAdder();
         final LongAdder bytesIn = new LongAdder();
         final LongAdder bytesOut = new LongAdder();
+        final LongAdder billableBytesIn = new LongAdder();
+        final LongAdder billableBytesOut = new LongAdder();
         final LongAdder records = new LongAdder();
         final LongAdder latencyMs = new LongAdder();
     }
@@ -71,8 +73,17 @@ class UsageAccumulator {
         }
         c.bytesIn.add(bytesIn);
         c.bytesOut.add(bytesOut);
+        if (billable(status)) {
+            c.billableBytesIn.add(bytesIn);
+            c.billableBytesOut.add(bytesOut);
+        }
         c.records.add(records);
         c.latencyMs.add(latencyMs);
+    }
+
+    /** Requisição cobrável: resposta 2xx/3xx (decisão 607). Registros assíncronos (status 0) não têm tráfego. */
+    static boolean billable(int status) {
+        return status >= 200 && status < 400;
     }
 
     /** Devolve um delta não gravado (falha na gravação) para a próxima tentativa. */
@@ -87,6 +98,8 @@ class UsageAccumulator {
             c.serverErrors.add(d.serverErrors());
             c.bytesIn.add(d.bytesIn());
             c.bytesOut.add(d.bytesOut());
+            c.billableBytesIn.add(d.billableBytesIn());
+            c.billableBytesOut.add(d.billableBytesOut());
             c.records.add(d.records());
             c.latencyMs.add(d.latencyMsTotal());
         } finally {
@@ -143,7 +156,8 @@ class UsageAccumulator {
         List<UsageDelta> deltas = new ArrayList<>(map.size());
         map.forEach((k, c) -> deltas.add(new UsageDelta(k.tenantId(), k.creditorId(), k.tokenId(), k.hourStart(),
                 k.method(), k.route(), c.requests.sum(), c.throttled.sum(), c.clientErrors.sum(), c.serverErrors.sum(),
-                c.bytesIn.sum(), c.bytesOut.sum(), c.records.sum(), c.latencyMs.sum())));
+                c.bytesIn.sum(), c.bytesOut.sum(), c.billableBytesIn.sum(), c.billableBytesOut.sum(), c.records.sum(),
+                c.latencyMs.sum())));
         return deltas;
     }
 

@@ -23,6 +23,9 @@ public interface IntegrationTokenRepository {
 
     List<IntegrationToken> findAllByIdIn(Collection<UUID> ids);
 
+    /** Credores que têm ou já tiveram token (candidatos ao fechamento dos ciclos de consumo). */
+    List<UUID> findDistinctCreditorIds();
+
     /**
      * @param allowedCreditorIds credores visíveis; {@code null} = sem restrição
      * @param status             filtro opcional

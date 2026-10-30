@@ -34,6 +34,12 @@ class UsageAccumulatorTest {
         assertThat(first.throttled()).isEqualTo(1);
         assertThat(first.clientErrors()).isEqualTo(1);
         assertThat(first.bytesOut()).isEqualTo(1350);
+        // tráfego cobrável: só o das respostas 2xx/3xx (429 e 404 ficam fora)
+        assertThat(first.billableBytesOut()).isEqualTo(1000);
+        assertThat(first.billableBytesIn()).isEqualTo(10);
+        UsageDelta second = deltas.stream().filter(d -> d != first).findFirst().orElseThrow();
+        assertThat(second.serverErrors()).isEqualTo(1);
+        assertThat(second.billableBytesOut()).isZero();
         assertThat(acc.drainAll().deltas()).isEmpty();
     }
 
@@ -68,6 +74,7 @@ class UsageAccumulatorTest {
         assertThat(acc.drainAll().deltas()).singleElement().satisfies(x -> {
             assertThat(x.requests()).isEqualTo(1);
             assertThat(x.records()).isEqualTo(3);
+            assertThat(x.billableBytesOut()).isEqualTo(2);
         });
     }
 }

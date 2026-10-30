@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "8c7a173677136c1e",
+ "contentVersion": "3e100216ae8d4264",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -5632,7 +5632,8 @@
    "title": "Credor",
    "objective": "Ficha do credor: dados, contratos vigentes, carteiras e histórico de alterações.",
    "purpose": [
-    "O contrato de serviço define vigência e o dia de fechamento da prestação de contas."
+    "O contrato de serviço define vigência e o dia de fechamento da prestação de contas.",
+    "No contrato também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões que valem a partir do próximo ciclo."
    ],
    "profiles": [
     "ADMIN",
@@ -6114,7 +6115,7 @@
    "title": "Consumo da integração",
    "objective": "Chamadas, dados trafegados e registros processados pelos tokens dos credores, por dia, por operação e por token.",
    "purpose": [
-    "Acompanhe o volume de cada credor e de cada sistema. Chamadas recusadas por excesso e falhas da plataforma não são cobradas.",
+    "Acompanhe o volume de cada credor e de cada sistema. Só chamadas bem-sucedidas são cobradas: recusadas por excesso, erros do cliente e falhas da plataforma não entram.",
     "As últimas chamadas aparecem em até um minuto. A exportação fica registrada no log de acesso."
    ],
    "profiles": [
@@ -6128,12 +6129,12 @@
     "Chamadas feitas pelos sistemas dos credores com os tokens."
    ],
    "outputs": [
-    "Base do extrato mensal e planilha de consumo."
+    "Base do extrato por ciclo e planilha de consumo."
    ],
    "related": [
     {
      "screen": "publicapi.billing",
-     "why": "Extrato mensal do consumo."
+     "why": "Extrato por ciclo de consumo."
     }
    ],
    "terms": [
@@ -6152,10 +6153,11 @@
    "id": "publicapi.billing",
    "module": "administracao",
    "title": "Extratos da integração",
-   "objective": "Tabela de preços por versão e extrato mensal de consumo de cada credor, pronto para faturar.",
+   "objective": "Extrato de consumo de cada credor por ciclo, calculado com os preços do contrato, pronto para faturar.",
    "purpose": [
-    "A tabela tem mensalidade, franquias e preço do excedente por chamada, por dados recebidos e enviados e por registro. Publicada, não muda: nova vigência é nova versão.",
-    "O mês anterior fecha sozinho no dia 1. Um novo fechamento do mesmo mês gera revisão com motivo; o extrato guarda uma marca do consumo que prova o cálculo."
+    "Os preços (mensalidade, franquias e excedente por chamada, por MB recebido e enviado e por registro) e o dia de fechamento ficam no contrato do credor. Alterações valem a partir do próximo ciclo.",
+    "O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte. Ciclos encerrados fecham sozinhos de madrugada.",
+    "Só chamadas bem-sucedidas são cobradas. Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token no ciclo. Nova revisão exige motivo; o extrato guarda uma marca do consumo que prova o cálculo."
    ],
    "profiles": [
     "ADMIN",
@@ -6163,7 +6165,7 @@
     "FINANCEIRO"
    ],
    "inputs": [
-    "Consumo dos tokens e a tabela de preços vigente no mês."
+    "Consumo dos tokens e as condições de cobrança do contrato do credor."
    ],
    "outputs": [
     "Extrato por credor com detalhamento por token e por operação, exportável em planilha."
@@ -6172,6 +6174,10 @@
     {
      "screen": "publicapi.usage",
      "why": "Consumo diário."
+    },
+    {
+     "screen": "organization.creditor-detail",
+     "why": "Preços das integrações no contrato."
     }
    ],
    "terms": [
@@ -6205,7 +6211,7 @@
   {
    "id": "extrato-de-consumo",
    "term": "Extrato de consumo",
-   "definition": "Resumo mensal do uso da integração por um credor: chamadas, dados trafegados e registros processados, com o valor pela tabela de preços vigente."
+   "definition": "Resumo do uso da integração por um credor em um ciclo de consumo: chamadas bem-sucedidas, dados trafegados em MB e registros processados, com o valor pelas condições de cobrança do contrato do credor."
   },
   {
    "id": "credor",

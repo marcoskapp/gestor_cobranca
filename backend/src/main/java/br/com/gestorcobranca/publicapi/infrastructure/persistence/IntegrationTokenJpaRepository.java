@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.Collection;
 import java.util.List;
@@ -22,6 +23,10 @@ interface IntegrationTokenJpaRepository extends JpaRepository<IntegrationToken, 
 
     @Override
     List<IntegrationToken> findAllByIdIn(Collection<UUID> ids);
+
+    @Override
+    @Query("select distinct t.creditorId from IntegrationToken t order by t.creditorId")
+    List<UUID> findDistinctCreditorIds();
 
     @Override
     default Page<IntegrationToken> search(Collection<UUID> allowedCreditorIds, UUID creditorId, TokenStatus status,

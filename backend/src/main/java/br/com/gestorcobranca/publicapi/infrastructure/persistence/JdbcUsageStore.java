@@ -30,6 +30,8 @@ class JdbcUsageStore implements UsageStore {
             coalesce(sum(requests), 0) as requests, coalesce(sum(throttled), 0) as throttled,
             coalesce(sum(client_errors), 0) as client_errors, coalesce(sum(server_errors), 0) as server_errors,
             coalesce(sum(bytes_in), 0) as bytes_in, coalesce(sum(bytes_out), 0) as bytes_out,
+            coalesce(sum(billable_bytes_in), 0) as billable_bytes_in,
+            coalesce(sum(billable_bytes_out), 0) as billable_bytes_out,
             coalesce(sum(records), 0) as records
             """;
 
@@ -59,13 +61,16 @@ class JdbcUsageStore implements UsageStore {
                         .addValue("requests", d.requests()).addValue("throttled", d.throttled())
                         .addValue("clientErrors", d.clientErrors()).addValue("serverErrors", d.serverErrors())
                         .addValue("bytesIn", d.bytesIn()).addValue("bytesOut", d.bytesOut())
+                        .addValue("billableBytesIn", d.billableBytesIn())
+                        .addValue("billableBytesOut", d.billableBytesOut())
                         .addValue("records", d.records()).addValue("latency", d.latencyMsTotal()))
                 .toArray(SqlParameterSource[]::new);
         jdbc.batchUpdate("""
                 insert into publicapi.usage_hourly (tenant_id, creditor_id, token_id, hour_start, method, route, requests,
-                    throttled, client_errors, server_errors, bytes_in, bytes_out, records, latency_ms_total, updated_at)
+                    throttled, client_errors, server_errors, bytes_in, bytes_out, billable_bytes_in, billable_bytes_out,
+                    records, latency_ms_total, updated_at)
                 values (:tenant, :creditor, :token, :hour, :method, :route, :requests, :throttled, :clientErrors,
-                    :serverErrors, :bytesIn, :bytesOut, :records, :latency, now())
+                    :serverErrors, :bytesIn, :bytesOut, :billableBytesIn, :billableBytesOut, :records, :latency, now())
                 on conflict (tenant_id, creditor_id, token_id, hour_start, method, route) do update set
                     requests = usage_hourly.requests + excluded.requests,
                     throttled = usage_hourly.throttled + excluded.throttled,
@@ -73,6 +78,8 @@ class JdbcUsageStore implements UsageStore {
                     server_errors = usage_hourly.server_errors + excluded.server_errors,
                     bytes_in = usage_hourly.bytes_in + excluded.bytes_in,
                     bytes_out = usage_hourly.bytes_out + excluded.bytes_out,
+                    billable_bytes_in = usage_hourly.billable_bytes_in + excluded.billable_bytes_in,
+                    billable_bytes_out = usage_hourly.billable_bytes_out + excluded.billable_bytes_out,
                     records = usage_hourly.records + excluded.records,
                     latency_ms_total = usage_hourly.latency_ms_total + excluded.latency_ms_total,
                     updated_at = now()
@@ -141,11 +148,14 @@ class JdbcUsageStore implements UsageStore {
     }
 
     @Override
-    public List<UUID> creditorsWithUsage(java.time.Instant from, java.time.Instant to) {
-        return jdbc.queryForList("""
-                select distinct creditor_id from publicapi.usage_hourly
-                 where hour_start >= :from and hour_start < :to order by creditor_id
-                """, new MapSqlParameterSource("from", Timestamp.from(from)).addValue("to", Timestamp.from(to)), UUID.class);
+    public java.util.Optional<java.time.Instant> firstUsageAt(UUID creditorId, java.time.Instant from) {
+        List<Timestamp> first = jdbc.queryForList("""
+                select min(hour_start) from publicapi.usage_hourly
+                 where creditor_id = :creditor and hour_start >= :from and (requests > 0 or records > 0)
+                """, new MapSqlParameterSource("creditor", creditorId).addValue("from", Timestamp.from(from)),
+                Timestamp.class);
+        return first.isEmpty() || first.getFirst() == null ? java.util.Optional.empty()
+                : java.util.Optional.of(first.getFirst().toInstant());
     }
 
     private static MapSqlParameterSource params(Filter f) {
@@ -175,7 +185,8 @@ class JdbcUsageStore implements UsageStore {
 
     private static UsageTotals totals(ResultSet rs) throws SQLException {
         return new UsageTotals(rs.getLong("requests"), rs.getLong("throttled"), rs.getLong("client_errors"),
-                rs.getLong("server_errors"), rs.getLong("bytes_in"), rs.getLong("bytes_out"), rs.getLong("records"));
+                rs.getLong("server_errors"), rs.getLong("bytes_in"), rs.getLong("bytes_out"),
+                rs.getLong("billable_bytes_in"), rs.getLong("billable_bytes_out"), rs.getLong("records"));
     }
 
     private static String truncate(String route) {

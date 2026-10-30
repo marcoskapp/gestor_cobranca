@@ -14,10 +14,12 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Extrato mensal de consumo da API pública de um credor: totais do mês, versão da tabela de preços aplicada, linhas
- * calculadas e detalhamento por token e por rota (JSON). Gravado uma vez por credor e mês, imutável (append-only no
- * banco); um novo fechamento do mesmo mês não substitui o anterior, gera uma nova revisão (reabertura auditada) — e o
- * {@code usage_hash} permite verificar que o extrato foi calculado sobre exatamente o mesmo consumo.
+ * Extrato de um ciclo de consumo da API pública de um credor: período (datas inclusivas no fuso de negócio), versão
+ * das condições de cobrança do contrato aplicada, quantidades faturáveis inteiras (requisições cobráveis, MB recebidos,
+ * MB enviados, registros), linhas calculadas e detalhamento por token e por rota (JSON). Gravado uma vez por credor e
+ * ciclo, imutável (append-only no banco); um novo fechamento do mesmo ciclo não substitui o anterior, gera uma nova
+ * revisão com motivo — e o {@code usage_hash} permite verificar que o extrato foi calculado sobre exatamente o mesmo
+ * consumo.
  */
 @Entity
 @Table(name = "usage_statement", schema = "publicapi")
@@ -29,17 +31,26 @@ public class UsageStatement extends TenantScopedEntity {
     @Column(name = "period_start", nullable = false, updatable = false)
     private LocalDate periodStart;
 
+    @Column(name = "period_end", nullable = false, updatable = false)
+    private LocalDate periodEnd;
+
     @Column(name = "revision", nullable = false, updatable = false)
     private int revision;
 
-    @Column(name = "price_plan_id", updatable = false)
-    private UUID pricePlanId;
+    @Column(name = "usage_closing_day", nullable = false, updatable = false)
+    private int usageClosingDay;
 
-    @Column(name = "price_plan_code", updatable = false, length = 40)
-    private String pricePlanCode;
+    @Column(name = "contract_id", updatable = false)
+    private UUID contractId;
 
-    @Column(name = "price_plan_version", updatable = false)
-    private Integer pricePlanVersion;
+    @Column(name = "contract_number", updatable = false, length = 60)
+    private String contractNumber;
+
+    @Column(name = "pricing_id", updatable = false)
+    private UUID pricingId;
+
+    @Column(name = "pricing_version", updatable = false)
+    private Integer pricingVersion;
 
     @Column(name = "requests", nullable = false, updatable = false)
     private long requests;
@@ -47,11 +58,11 @@ public class UsageStatement extends TenantScopedEntity {
     @Column(name = "billable_requests", nullable = false, updatable = false)
     private long billableRequests;
 
-    @Column(name = "bytes_in", nullable = false, updatable = false)
-    private long bytesIn;
+    @Column(name = "billable_mb_in", nullable = false, updatable = false)
+    private long billableMbIn;
 
-    @Column(name = "bytes_out", nullable = false, updatable = false)
-    private long bytesOut;
+    @Column(name = "billable_mb_out", nullable = false, updatable = false)
+    private long billableMbOut;
 
     @Column(name = "records", nullable = false, updatable = false)
     private long records;
@@ -86,26 +97,35 @@ public class UsageStatement extends TenantScopedEntity {
     protected UsageStatement() {
     }
 
-    public UsageStatement(UUID creditorId, LocalDate periodStart, int revision, PricePlan plan, UsageTotals totals,
-                          BigDecimal totalAmount, String linesJson, String breakdownJson, String usageHash,
-                          Instant closedAt, UUID closedBy, String reason) {
-        Guard.require(periodStart.getDayOfMonth() == 1, "usage_statement.period_invalid", "Período mensal inválido");
+    /** Versão das condições do contrato aplicada ao ciclo (ausente quando o contrato não tem condições). */
+    public record AppliedPricing(UUID contractId, String contractNumber, UUID pricingId, int pricingVersion) {
+    }
+
+    public UsageStatement(UUID creditorId, LocalDate periodStart, LocalDate periodEnd, int revision, int usageClosingDay,
+                          AppliedPricing pricing, long requests, BillableUsage billable, BigDecimal totalAmount,
+                          String linesJson, String breakdownJson, String usageHash, Instant closedAt, UUID closedBy,
+                          String reason) {
+        Guard.require(periodStart != null && periodEnd != null && !periodEnd.isBefore(periodStart),
+                "usage_statement.period_invalid", "Período do ciclo inválido");
         Guard.require(revision >= 1, "usage_statement.revision_invalid", "Revisão inválida");
         Guard.require(revision == 1 || (reason != null && !reason.isBlank()), "usage_statement.reason_required",
-                "Informe o motivo do novo fechamento do mês");
+                "Informe o motivo do novo fechamento do ciclo");
         this.creditorId = creditorId;
         this.periodStart = periodStart;
+        this.periodEnd = periodEnd;
         this.revision = revision;
-        if (plan != null) {
-            this.pricePlanId = plan.getId();
-            this.pricePlanCode = plan.getCode();
-            this.pricePlanVersion = plan.getPlanVersion();
+        this.usageClosingDay = usageClosingDay;
+        if (pricing != null) {
+            this.contractId = pricing.contractId();
+            this.contractNumber = pricing.contractNumber();
+            this.pricingId = pricing.pricingId();
+            this.pricingVersion = pricing.pricingVersion();
         }
-        this.requests = totals.requests();
-        this.billableRequests = totals.billableRequests();
-        this.bytesIn = totals.bytesIn();
-        this.bytesOut = totals.bytesOut();
-        this.records = totals.records();
+        this.requests = requests;
+        this.billableRequests = billable.requests();
+        this.billableMbIn = billable.mbIn();
+        this.billableMbOut = billable.mbOut();
+        this.records = billable.records();
         this.totalAmount = totalAmount;
         this.currency = "BRL";
         this.lines = linesJson;
@@ -124,20 +144,32 @@ public class UsageStatement extends TenantScopedEntity {
         return periodStart;
     }
 
+    public LocalDate getPeriodEnd() {
+        return periodEnd;
+    }
+
     public int getRevision() {
         return revision;
     }
 
-    public UUID getPricePlanId() {
-        return pricePlanId;
+    public int getUsageClosingDay() {
+        return usageClosingDay;
     }
 
-    public String getPricePlanCode() {
-        return pricePlanCode;
+    public UUID getContractId() {
+        return contractId;
     }
 
-    public Integer getPricePlanVersion() {
-        return pricePlanVersion;
+    public String getContractNumber() {
+        return contractNumber;
+    }
+
+    public UUID getPricingId() {
+        return pricingId;
+    }
+
+    public Integer getPricingVersion() {
+        return pricingVersion;
     }
 
     public long getRequests() {
@@ -148,12 +180,12 @@ public class UsageStatement extends TenantScopedEntity {
         return billableRequests;
     }
 
-    public long getBytesIn() {
-        return bytesIn;
+    public long getBillableMbIn() {
+        return billableMbIn;
     }
 
-    public long getBytesOut() {
-        return bytesOut;
+    public long getBillableMbOut() {
+        return billableMbOut;
     }
 
     public long getRecords() {

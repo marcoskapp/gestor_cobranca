@@ -697,4 +697,6 @@ app:
     default-rate-limit-per-minute: 600
     usage-flush-interval: PT1M
     sync-stabilization-window: PT1M
-    statement-cron: "0 40 3 1 * *"
+    # verificação diária que fecha os ciclos de consumo encerrados (cada credor fecha no dia definido no contrato;
+    # o novo ciclo começa às 00:00 no fuso de negócio) — roda depois da virada e da última gravação em lote
+    statement-cron: "0 20 2 * * *"

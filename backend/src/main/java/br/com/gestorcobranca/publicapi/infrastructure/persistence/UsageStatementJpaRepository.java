@@ -18,14 +18,21 @@ interface UsageStatementJpaRepository extends JpaRepository<UsageStatement, UUID
 
     Optional<UsageStatement> findFirstByCreditorIdAndPeriodStartOrderByRevisionDesc(UUID creditorId, LocalDate periodStart);
 
+    Optional<UsageStatement> findFirstByCreditorIdOrderByPeriodEndDescRevisionDesc(UUID creditorId);
+
     @Override
     default Optional<UsageStatement> findLatest(UUID creditorId, LocalDate periodStart) {
         return findFirstByCreditorIdAndPeriodStartOrderByRevisionDesc(creditorId, periodStart);
     }
 
     @Override
-    default Page<UsageStatement> search(Collection<UUID> allowedCreditorIds, UUID creditorId, LocalDate periodStart,
-                                        Pageable pageable) {
+    default Optional<UsageStatement> findLastCycle(UUID creditorId) {
+        return findFirstByCreditorIdOrderByPeriodEndDescRevisionDesc(creditorId);
+    }
+
+    @Override
+    default Page<UsageStatement> search(Collection<UUID> allowedCreditorIds, UUID creditorId, LocalDate closedFrom,
+                                        LocalDate closedTo, Pageable pageable) {
         Specification<UsageStatement> spec = Specification.unrestricted();
         if (allowedCreditorIds != null) {
             spec = spec.and((root, q, cb) -> allowedCreditorIds.isEmpty()
@@ -34,8 +41,11 @@ interface UsageStatementJpaRepository extends JpaRepository<UsageStatement, UUID
         if (creditorId != null) {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("creditorId"), creditorId));
         }
-        if (periodStart != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("periodStart"), periodStart));
+        if (closedFrom != null) {
+            spec = spec.and((root, q, cb) -> cb.greaterThanOrEqualTo(root.get("periodEnd"), closedFrom));
+        }
+        if (closedTo != null) {
+            spec = spec.and((root, q, cb) -> cb.lessThanOrEqualTo(root.get("periodEnd"), closedTo));
         }
         return findAll(spec, pageable);
     }

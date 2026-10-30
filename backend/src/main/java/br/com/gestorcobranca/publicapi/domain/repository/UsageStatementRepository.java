@@ -15,10 +15,17 @@ public interface UsageStatementRepository {
 
     Optional<UsageStatement> findById(UUID id);
 
-    /** Revisão mais recente do extrato do credor no mês. */
+    /** Revisão mais recente do extrato do credor para o ciclo que começa em {@code periodStart}. */
     Optional<UsageStatement> findLatest(UUID creditorId, LocalDate periodStart);
 
-    /** @param allowedCreditorIds credores visíveis; {@code null} = sem restrição */
-    Page<UsageStatement> search(Collection<UUID> allowedCreditorIds, UUID creditorId, LocalDate periodStart,
-                                Pageable pageable);
+    /** Extrato (qualquer revisão) do ciclo mais recente do credor — o fim dele marca o início do próximo ciclo. */
+    Optional<UsageStatement> findLastCycle(UUID creditorId);
+
+    /**
+     * @param allowedCreditorIds credores visíveis; {@code null} = sem restrição
+     * @param closedFrom         fim do ciclo a partir desta data (inclusiva), opcional
+     * @param closedTo           fim do ciclo até esta data (inclusiva), opcional
+     */
+    Page<UsageStatement> search(Collection<UUID> allowedCreditorIds, UUID creditorId, LocalDate closedFrom,
+                                LocalDate closedTo, Pageable pageable);
 }

@@ -23,7 +23,7 @@ public interface PublicApiUsageUseCases {
     void exportCsv(LocalDate from, LocalDate to, UUID creditorId, UUID tokenId, OutputStream output);
 
     /**
-     * @param billableRequests requisições cobráveis (exclui 429 e 5xx)
+     * @param billableRequests requisições cobráveis (2xx/3xx: exclui 4xx, 429 e 5xx)
      */
     record Totals(long requests, long billableRequests, long throttled, long clientErrors, long serverErrors,
                   long bytesIn, long bytesOut, long records) {

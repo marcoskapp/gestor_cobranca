@@ -48,8 +48,8 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * <p>
  * API pública (docs/tecnico/desenho/api-publica.md §4): gestor e integrações criam, revogam e rotacionam tokens dos
  * credores ({@code PUBLIC_API_TOKEN_MANAGE}) — só com escopos cujas permissões o próprio perfil tem; o financeiro e o
- * gestor mantêm as tabelas de preço e fecham extratos ({@code PUBLIC_API_BILLING_MANAGE}); o auditor consulta tokens
- * e consumo.
+ * gestor fecham e revisam extratos ({@code PUBLIC_API_BILLING_MANAGE}; os preços ficam no contrato do credor, com
+ * {@code CONTRACT_MANAGE}); o auditor consulta tokens e consumo.
  */
 public final class DefaultRoles {
 

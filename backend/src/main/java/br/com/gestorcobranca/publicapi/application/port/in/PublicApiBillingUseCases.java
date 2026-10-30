@@ -13,71 +13,78 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Modelo de faturamento da API pública: tabelas de preço versionadas (padrão da assessoria e por credor) e extrato
- * mensal de consumo por credor, com detalhamento por token e rota. Não cobra: deixa o extrato pronto para faturar.
- * Tabelas exigem todos os credores ({@code PUBLIC_API_BILLING_MANAGE}); extratos respeitam o escopo por credor.
+ * Modelo de faturamento da API pública: extrato por ciclo de consumo do credor, com detalhamento por token e rota.
+ * Preços e dia de fechamento do ciclo vêm das condições de cobrança das integrações do contrato do credor (módulo
+ * organization, {@code ContractIntegrationPricingUseCases}); este módulo não mantém tabela de preços. Não cobra: deixa
+ * o extrato pronto para faturar. Extratos respeitam o escopo por credor.
+ * <p>
+ * Ciclo: fecha no fim do dia de fechamento do contrato e o próximo começa às 00:00 do dia seguinte (fuso de negócio);
+ * meses sem o dia fecham no último dia. Cobrança só de requisições 2xx/3xx; tráfego em MB inteiros (1 MB = 1.048.576
+ * bytes, arredondado para cima no total do ciclo por token e direção).
  */
 public interface PublicApiBillingUseCases {
 
-    List<PricePlanView> plans();
-
-    /** Rascunho de nova versão (a versão é a seguinte à maior do código). */
-    PricePlanView createDraft(PricePlanCommand command);
-
-    PricePlanView updateDraft(UUID planId, PricePlanCommand command);
-
-    /** Publica (imutável depois). Quem cria o rascunho pode publicar: preço não movimenta dinheiro sozinho. */
-    PricePlanView publish(UUID planId);
-
-    /** Prévia do mês (sem gravar), com a tabela que seria aplicada hoje. */
-    StatementView preview(UUID creditorId, YearMonth month);
+    /**
+     * Prévia (sem gravar) do próximo ciclo a fechar do credor — o mais antigo ainda sem extrato, encerrado ou em
+     * curso —, com o consumo medido até agora e as condições do contrato que se aplicam a ele.
+     */
+    StatementView preview(UUID creditorId);
 
     /**
-     * Fecha o mês do credor: grava o extrato. Mês corrente ou futuro é recusado. Já existindo extrato do mês, exige
-     * {@code reason} e gera nova revisão (o anterior permanece).
+     * Fecha um ciclo do credor e grava o extrato.
+     * <ul>
+     *   <li>{@code periodStart} nulo: fecha o próximo ciclo a fechar, que precisa ter terminado;</li>
+     *   <li>{@code periodStart} de um ciclo já fechado: gera nova revisão (exige {@code reason}; a anterior
+     *       permanece), com o mesmo período.</li>
+     * </ul>
      */
-    StatementView close(UUID creditorId, YearMonth month, String reason);
+    StatementView close(UUID creditorId, LocalDate periodStart, String reason);
+
+    /**
+     * Fecha, em ordem, todos os ciclos já encerrados do credor que ainda não têm extrato (fechamento automático
+     * diário). Devolve quantos extratos foram gravados.
+     */
+    int closeEndedCycles(UUID creditorId);
 
     StatementView statement(UUID statementId);
 
+    /** @param month filtra pelo mês do fechamento (fim do ciclo); opcional */
     PageResponse<StatementView> statements(UUID creditorId, YearMonth month, PageQuery page);
 
     /** Extrato em CSV (linhas e detalhamento); registra {@code DATA_EXPORTED}. */
     void exportStatement(UUID statementId, OutputStream output);
 
     /**
-     * @param creditorId nulo = tabela padrão da assessoria
-     * @param effectiveFrom primeiro dia do mês de início da vigência
+     * Linha do extrato: quantidades inteiras (requisições, MB, registros; 1 para a mensalidade).
+     *
+     * @param metric MONTHLY_FEE, REQUESTS, MB_IN, MB_OUT ou RECORDS
      */
-    record PricePlanCommand(String code, UUID creditorId, String name, LocalDate effectiveFrom, BigDecimal monthlyFee,
-                            long includedRequests, BigDecimal pricePerRequest, long includedMbIn, BigDecimal pricePerMbIn,
-                            long includedMbOut, BigDecimal pricePerMbOut, long includedRecords,
-                            BigDecimal pricePerRecord) {
+    record StatementLine(String metric, long quantity, long included, long billable, BigDecimal unitPrice,
+                         BigDecimal amount) {
     }
 
-    record PricePlanView(UUID id, String code, int version, UUID creditorId, String name, String currency,
-                         LocalDate effectiveFrom, String status, BigDecimal monthlyFee, long includedRequests,
-                         BigDecimal pricePerRequest, long includedMbIn, BigDecimal pricePerMbIn, long includedMbOut,
-                         BigDecimal pricePerMbOut, long includedRecords, BigDecimal pricePerRecord, Instant publishedAt,
-                         UUID publishedBy) {
-    }
-
-    record StatementLine(String metric, BigDecimal quantity, BigDecimal included, BigDecimal billable,
-                         BigDecimal unitPrice, BigDecimal amount) {
-    }
-
-    /** Detalhamento por token ou rota (consumo, sem valor: o preço é do credor). */
+    /**
+     * Detalhamento por token (requisições, requisições cobráveis, MB recebidos/enviados faturáveis — arredondados no
+     * token — e registros) ou por rota (requisições, cobráveis e registros: o tráfego é faturado por token).
+     */
     record StatementBreakdown(String kind, String key, String label, Map<String, Long> totals) {
     }
 
     /**
-     * @param id        nulo na prévia
-     * @param revision  0 na prévia
-     * @param usageHash SHA-256 do consumo usado (verificação de reprodutibilidade)
+     * @param id              nulo na prévia
+     * @param revision        0 na prévia
+     * @param periodEnd       dia de fechamento do ciclo (inclusivo); o próximo ciclo começa às 00:00 do dia seguinte
+     * @param ended           o ciclo já terminou (pode ser fechado)
+     * @param contractNumber  contrato cujas condições foram aplicadas (nulo sem condições)
+     * @param pricingVersion  versão das condições do contrato aplicada (nulo sem condições: valor zero)
+     * @param billableMbIn    MB recebidos faturáveis (soma dos tokens)
+     * @param billableMbOut   MB enviados faturáveis (soma dos tokens)
+     * @param usageHash       SHA-256 do consumo usado (verificação de reprodutibilidade)
      */
-    record StatementView(UUID id, UUID creditorId, LocalDate periodStart, int revision, UUID pricePlanId,
-                         String pricePlanCode, Integer pricePlanVersion, long requests, long billableRequests,
-                         long bytesIn, long bytesOut, long records, BigDecimal totalAmount, String currency,
+    record StatementView(UUID id, UUID creditorId, LocalDate periodStart, LocalDate periodEnd, boolean ended,
+                         int revision, int usageClosingDay, UUID contractId, String contractNumber, UUID pricingId,
+                         Integer pricingVersion, long requests, long billableRequests, long billableMbIn,
+                         long billableMbOut, long records, BigDecimal totalAmount, String currency,
                          List<StatementLine> lines, List<StatementBreakdown> breakdown, String usageHash,
                          Instant closedAt, UUID closedBy, String reason) {
     }
