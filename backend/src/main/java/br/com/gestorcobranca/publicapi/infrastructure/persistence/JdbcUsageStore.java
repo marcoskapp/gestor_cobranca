@@ -158,6 +158,24 @@ class JdbcUsageStore implements UsageStore {
                 : java.util.Optional.of(first.getFirst().toInstant());
     }
 
+    @Override
+    public java.util.Optional<java.time.Instant> lastUpdatedAt(Filter f) {
+        MapSqlParameterSource p = params(f);
+        List<Timestamp> last = jdbc.queryForList("select max(updated_at) from publicapi.usage_hourly where "
+                + where(f, p), p, Timestamp.class);
+        return last.isEmpty() || last.getFirst() == null ? java.util.Optional.empty()
+                : java.util.Optional.of(last.getFirst().toInstant());
+    }
+
+    @Override
+    public List<DailyTokenRow> dailyByToken(Filter f, String zoneId) {
+        MapSqlParameterSource p = params(f).addValue("zone", zoneId);
+        return jdbc.query("select (hour_start at time zone :zone)::date as day, token_id, " + SUMS
+                        + " from publicapi.usage_hourly where " + where(f, p) + " group by 1, token_id order by 1, token_id",
+                p, (rs, i) -> new DailyTokenRow(rs.getObject("day", java.time.LocalDate.class),
+                        rs.getObject("token_id", UUID.class), totals(rs)));
+    }
+
     private static MapSqlParameterSource params(Filter f) {
         return new MapSqlParameterSource().addValue("from", Timestamp.from(f.from())).addValue("to", Timestamp.from(f.to()));
     }

@@ -40,7 +40,11 @@ public enum TokenScope {
     PAYMENTS_WRITE("payments:write", "Informar pagamento recebido diretamente pelo credor",
             EnumSet.of(Permission.PAYMENT_VIEW, Permission.PAYMENT_REGISTER_EXTERNAL)),
     DISPUTES_READ("disputes:read", "Consultar contestações", EnumSet.of(Permission.CASE_VIEW)),
-    DISPUTES_WRITE("disputes:write", "Abrir contestações em nome do credor", EnumSet.of(Permission.CASE_VIEW));
+    DISPUTES_WRITE("disputes:write", "Abrir contestações em nome do credor", EnumSet.of(Permission.CASE_VIEW)),
+    BILLING_READ("billing:read", "Consultar o consumo do ciclo atual e os extratos da API pública",
+            EnumSet.of(Permission.PUBLIC_API_USAGE_VIEW)),
+    SETTLEMENT_READ("settlement:read", "Consultar a posição do repasse e os demonstrativos enviados ao credor",
+            EnumSet.of(Permission.SETTLEMENT_VIEW));
 
     private static final Map<String, TokenScope> BY_CODE = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(TokenScope::code, Function.identity()));

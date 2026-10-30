@@ -2,6 +2,7 @@ package br.com.gestorcobranca.publicapi.application.service;
 
 import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases;
 import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases.IntegrationPricingView;
+import br.com.gestorcobranca.publicapi.application.PublicApiProperties;
 import br.com.gestorcobranca.publicapi.application.port.in.PublicApiBillingUseCases;
 import br.com.gestorcobranca.publicapi.application.port.out.CsvWriter;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageStore;
@@ -35,6 +36,10 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,6 +86,7 @@ import java.util.stream.Collectors;
 class BillingService implements PublicApiBillingUseCases {
 
     private static final ZoneId ZONE = TimeConfig.BUSINESS_ZONE;
+    private static final Logger LOG = LoggerFactory.getLogger(BillingService.class);
     private static final TypeReference<List<StatementLine>> LINES = new TypeReference<>() {
     };
     private static final TypeReference<List<StatementBreakdown>> BREAKDOWN = new TypeReference<>() {
@@ -97,12 +103,15 @@ class BillingService implements PublicApiBillingUseCases {
     private final BusinessEventLogger businessEvents;
     private final JsonCodec json;
     private final CsvWriter csv;
+    private final PublicApiProperties properties;
+    private final MeterRegistry meterRegistry;
     private final Clock clock;
 
     BillingService(UsageStatementRepository statements, IntegrationTokenRepository tokens, UsageStore usage,
                    ContractIntegrationPricingUseCases contractPricing, AccessScope accessScope,
                    CurrentActor currentActor, AuditTrail auditTrail, AccessLogger accessLogger,
-                   BusinessEventLogger businessEvents, JsonCodec json, CsvWriter csv, Clock clock) {
+                   BusinessEventLogger businessEvents, JsonCodec json, CsvWriter csv, PublicApiProperties properties,
+                   MeterRegistry meterRegistry, Clock clock) {
         this.statements = statements;
         this.tokens = tokens;
         this.usage = usage;
@@ -114,6 +123,8 @@ class BillingService implements PublicApiBillingUseCases {
         this.businessEvents = businessEvents;
         this.json = json;
         this.csv = csv;
+        this.properties = properties;
+        this.meterRegistry = meterRegistry;
         this.clock = clock;
     }
 
@@ -142,6 +153,121 @@ class BillingService implements PublicApiBillingUseCases {
                 pending.pricing().map(IntegrationPricingView::version).orElse(null), c.totals.requests(),
                 c.billable.requests(), c.billable.mbIn(), c.billable.mbOut(), c.billable.records(), c.result.total(),
                 "BRL", c.lines, c.breakdown, c.usageHash, null, null, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BillingPositionView position(UUID creditorId) {
+        accessScope.requirePermission(Permission.PUBLIC_API_USAGE_VIEW);
+        Guard.require(creditorId != null, "usage_statement.required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        Instant now = Instant.now(clock);
+        LocalDate today = LocalDate.ofInstant(now, ZONE);
+        Pending current = currentCycle(creditorId, now, today);
+        Cycle cycle = current.cycle();
+        Proration proration = BillingCycles.proration(cycle);
+        Computed c = compute(creditorId, current);
+        Optional<PriceTerms> terms = current.pricing().map(BillingService::terms);
+
+        int daysElapsed = (int) java.time.temporal.ChronoUnit.DAYS.between(cycle.start(), today) + 1;
+        int daysRemaining = (int) java.time.temporal.ChronoUnit.DAYS.between(today, cycle.end());
+        List<AllowanceUse> allowances = c.lines.stream().filter(l -> !"MONTHLY_FEE".equals(l.metric()))
+                .map(l -> new AllowanceUse(l.metric(), l.quantity(), l.included(), l.included() == 0 ? null
+                        : BigDecimal.valueOf(l.quantity()).multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(l.included()), 2, RoundingMode.HALF_EVEN)))
+                .toList();
+        List<GrowthPoint> daily = growth(creditorId, cycle, today, terms, proration);
+
+        Cycle previousCycle = statements.findLastCycle(creditorId)
+                .filter(s -> s.getPeriodEnd().equals(cycle.start().minusDays(1)))
+                .map(s -> new Cycle(s.getPeriodStart(), s.getPeriodEnd(), s.getUsageClosingDay()))
+                .orElseGet(() -> {
+                    LocalDate prevEnd = cycle.start().minusDays(1);
+                    int day = applicablePricing(creditorId, prevEnd).map(IntegrationPricingView::usageClosingDay)
+                            .orElse(ContractIntegrationPricingUseCases.DEFAULT_USAGE_CLOSING_DAY);
+                    return BillingCycles.containing(prevEnd, day);
+                });
+        Optional<UsageStatement> previousStatement = statements.findLatest(creditorId, previousCycle.start());
+        Optional<PriceTerms> previousTerms = applicablePricing(creditorId, previousCycle.start()).map(BillingService::terms);
+        List<GrowthPoint> previousDaily = growth(creditorId, previousCycle, previousCycle.end(), previousTerms,
+                BillingCycles.proration(previousCycle));
+        PreviousCycle previous = new PreviousCycle(previousCycle.start(), previousCycle.end(),
+                previousStatement.map(UsageStatement::getId).orElse(null),
+                previousStatement.map(UsageStatement::getTotalAmount)
+                        .orElseGet(() -> previousDaily.isEmpty() ? BigDecimal.ZERO.setScale(2)
+                                : previousDaily.getLast().amount()));
+
+        Projection projection = project(c.billable, daysElapsed, daysRemaining, terms, proration);
+        Optional<Instant> updatedAt = usage.lastUpdatedAt(new UsageStore.Filter(cycle.from(ZONE), cycle.to(ZONE), null,
+                creditorId, null));
+        long millis = java.time.Duration.between(now, Instant.now(clock)).toMillis();
+        Timer.builder("publicapi.billing.position.duration").register(meterRegistry)
+                .record(java.time.Duration.ofMillis(millis));
+        LOG.atDebug().addKeyValue("creditorId", creditorId).addKeyValue("durationMs", millis)
+                .log("Posição do ciclo de consumo calculada");
+        return new BillingPositionView(creditorId, cycle.start(), cycle.end(), cycle.closingDay(),
+                proration.cycleDays(), proration.referenceDays(), today, daysElapsed, daysRemaining,
+                current.pricing().map(IntegrationPricingView::contractNumber).orElse(null),
+                current.pricing().map(IntegrationPricingView::version).orElse(null), c.totals.requests(),
+                c.billable.requests(), c.billable.mbIn(), c.billable.mbOut(), c.billable.records(), c.result.total(),
+                "BRL", c.lines, allowances, c.breakdown, daily, previous, previousDaily, projection,
+                updatedAt.orElse(null), properties.usageFlushInterval().toSeconds(), millis);
+    }
+
+    /** Ciclo que contém hoje: avança pelos ciclos contíguos a partir do próximo a fechar. */
+    private Pending currentCycle(UUID creditorId, Instant now, LocalDate today) {
+        Pending p = pendingCycle(creditorId, now).orElseGet(() -> cycleStartingAt(creditorId,
+                statements.findLastCycle(creditorId).map(s -> s.getPeriodEnd().plusDays(1))
+                        .filter(d -> !d.isAfter(today)).orElseGet(() -> nominalStart(creditorId, today))));
+        while (p.cycle().end().isBefore(today)) {
+            p = cycleStartingAt(creditorId, p.cycle().end().plusDays(1));
+        }
+        return p;
+    }
+
+    /** Acumulado diário do ciclo até {@code until}: MB arredondados por token sobre o acumulado, como no fechamento. */
+    private List<GrowthPoint> growth(UUID creditorId, Cycle cycle, LocalDate until, Optional<PriceTerms> terms,
+                                     Proration proration) {
+        LocalDate last = until.isAfter(cycle.end()) ? cycle.end() : until;
+        if (last.isBefore(cycle.start())) {
+            return List.of();
+        }
+        Map<LocalDate, List<UsageStore.DailyTokenRow>> byDay = usage.dailyByToken(new UsageStore.Filter(cycle.from(ZONE),
+                cycle.to(ZONE), null, creditorId, null), ZONE.getId()).stream()
+                .collect(Collectors.groupingBy(UsageStore.DailyTokenRow::day));
+        Map<UUID, UsageTotals> cumulative = new LinkedHashMap<>();
+        List<GrowthPoint> points = new ArrayList<>();
+        int day = 1;
+        for (LocalDate d = cycle.start(); !d.isAfter(last); d = d.plusDays(1), day++) {
+            for (UsageStore.DailyTokenRow r : byDay.getOrDefault(d, List.of())) {
+                cumulative.merge(r.tokenId(), r.totals(), UsageTotals::plus);
+            }
+            BillableUsage b = BillableUsage.sumOfTokens(cumulative.values());
+            BigDecimal amount = terms.map(t -> PriceCalculator.calculate(t, b, proration).total())
+                    .orElse(BigDecimal.ZERO.setScale(2));
+            points.add(new GrowthPoint(day, d, b.requests(), b.mbIn(), b.mbOut(), b.records(), amount));
+        }
+        return points;
+    }
+
+    private static Projection project(BillableUsage current, int daysElapsed, int daysRemaining,
+                                      Optional<PriceTerms> terms, Proration proration) {
+        BillableUsage projected = new BillableUsage(projectOne(current.requests(), daysElapsed, daysRemaining),
+                projectOne(current.mbIn(), daysElapsed, daysRemaining),
+                projectOne(current.mbOut(), daysElapsed, daysRemaining),
+                projectOne(current.records(), daysElapsed, daysRemaining));
+        BigDecimal amount = terms.map(t -> PriceCalculator.calculate(t, projected, proration).total())
+                .orElse(BigDecimal.ZERO.setScale(2));
+        return new Projection("DAILY_AVERAGE", projected.requests(), projected.mbIn(), projected.mbOut(),
+                projected.records(), amount);
+    }
+
+    static long projectOne(long current, int daysElapsed, int daysRemaining) {
+        if (current == 0 || daysRemaining <= 0 || daysElapsed <= 0) {
+            return current;
+        }
+        return current + BigDecimal.valueOf(current).multiply(BigDecimal.valueOf(daysRemaining))
+                .divide(BigDecimal.valueOf(daysElapsed), 0, RoundingMode.CEILING).longValueExact();
     }
 
     @Override

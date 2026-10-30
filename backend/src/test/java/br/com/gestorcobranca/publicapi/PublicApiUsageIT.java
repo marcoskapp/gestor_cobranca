@@ -411,4 +411,54 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         // nova execução não gera nada (ciclos sem consumo e sem mensalidade continuam sem extrato)
         assertThat(asManager(() -> billing.closeEndedCycles(creditorB))).isZero();
     }
+
+    @Test
+    void billingPositionShowsTheCurrentCycleSoFarAndIsExposedToTheCreditorByToken() throws Exception {
+        IssuedToken token = issue(creditorA, Set.of("portfolios:read", "billing:read", "settlement:read"), null, List.of());
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        LocalDate today = LocalDate.now(zone);
+        insertPricing(creditorA, 1, 31, Instant.parse("2025-12-01T12:00:00Z"), new BigDecimal("50.00"));
+        // ciclo atual (mês corrente): 1.200 chamadas cobráveis, 1 byte recebido; ciclo anterior: 100 chamadas
+        insertUsage(creditorA, token.details().id(), today.atStartOfDay(zone).toInstant().plusSeconds(60),
+                "/public-api/v1/titles", 1200, 0, 0, 0, 1, 0, 0);
+        LocalDate previousDay = today.withDayOfMonth(1).minusDays(1);
+        insertUsage(creditorA, token.details().id(), previousDay.atTime(10, 0).atZone(zone).toInstant(),
+                "/public-api/v1/titles", 100, 0, 0, 0, 0, 0, 0);
+
+        PublicApiBillingUseCases.BillingPositionView p = asManager(() -> billing.position(creditorA));
+        assertThat(p.periodStart()).isEqualTo(today.withDayOfMonth(1));
+        assertThat(p.periodEnd()).isEqualTo(today.withDayOfMonth(today.lengthOfMonth()));
+        assertThat(p.daysElapsed()).isEqualTo(today.getDayOfMonth());
+        assertThat(p.daysRemaining()).isEqualTo(today.lengthOfMonth() - today.getDayOfMonth());
+        assertThat(p.billableRequests()).isEqualTo(1200);
+        assertThat(p.billableMbIn()).isEqualTo(1);
+        // 50,00 + (1.200 − 1.000) × 0,01 + (1 − 1) MB recebido
+        assertThat(p.amountSoFar()).isEqualByComparingTo("52.00");
+        assertThat(p.allowances()).filteredOn(a -> a.metric().equals("REQUESTS")).singleElement()
+                .satisfies(a -> assertThat(a.percent()).isEqualByComparingTo("120.00"));
+        assertThat(p.daily()).hasSize(today.getDayOfMonth());
+        assertThat(p.daily().getLast().amount()).isEqualByComparingTo(p.amountSoFar());
+        assertThat(p.previous().periodEnd()).isEqualTo(previousDay);
+        assertThat(p.previousDaily()).hasSize(previousDay.lengthOfMonth());
+        assertThat(p.previousDaily().getLast().billableRequests()).isEqualTo(100);
+        assertThat(p.projection().method()).isEqualTo("DAILY_AVERAGE");
+        assertThat(p.projection().billableRequests()).isGreaterThanOrEqualTo(1200);
+        assertThat(p.updatedAt()).isNotNull();
+        assertThat(p.flushIntervalSeconds()).isPositive();
+
+        // exposta ao próprio credor pela API pública (escopo billing:read), sem dados de quem fechou
+        HttpResponse<String> position = get("/public-api/v1/billing/position", token.token());
+        assertThat(position.statusCode()).as(position.body()).isEqualTo(200);
+        assertThat(body(position).get("billableRequests")).isEqualTo(1200);
+        assertThat(position.body()).doesNotContain("closedBy").doesNotContain("creditorId");
+        assertThat(get("/public-api/v1/billing/statements", token.token()).statusCode()).isEqualTo(200);
+        HttpResponse<String> settlement = get("/public-api/v1/settlement/position", token.token());
+        assertThat(settlement.statusCode()).as(settlement.body()).isEqualTo(200);
+        assertThat(settlement.body()).doesNotContain("calculation").doesNotContain("openStatementId");
+        assertThat(body(get("/public-api/v1/settlement/statements", token.token())).get("data")).isEqualTo(List.of());
+        // sem o escopo: proibido
+        IssuedToken other = issue(creditorA, Set.of("portfolios:read"), null, List.of());
+        assertThat(get("/public-api/v1/billing/position", other.token()).statusCode()).isEqualTo(403);
+        assertThat(get("/public-api/v1/settlement/position", other.token()).statusCode()).isEqualTo(403);
+    }
 }

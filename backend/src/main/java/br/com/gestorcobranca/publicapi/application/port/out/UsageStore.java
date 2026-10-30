@@ -61,4 +61,13 @@ public interface UsageStore {
      * define o início do ciclo de consumo quando não há ciclo anterior contíguo.
      */
     java.util.Optional<Instant> firstUsageAt(UUID creditorId, Instant from);
+
+    /** Última gravação em lote que alterou o consumo do filtro ("atualizado em" das telas de posição). */
+    java.util.Optional<Instant> lastUpdatedAt(Filter filter);
+
+    /** Consumo por dia (no fuso) e token, para o crescimento diário do ciclo. */
+    List<DailyTokenRow> dailyByToken(Filter filter, String zoneId);
+
+    record DailyTokenRow(LocalDate day, UUID tokenId, UsageTotals totals) {
+    }
 }
