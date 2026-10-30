@@ -24,6 +24,9 @@ springdoc:
 app:
   logging:
     technical-level: DEBUG
+  public-api:
+    token-hash-keys:
+      t1: ZGV2LW9ubHktcHVibGljLWFwaS10b2tlbi1oYXNoLWtleSE=
   crypto:
     keys:
       k1: ZGV2LW9ubHktYWVzLWtleS0zMi1ieXRlcy1sb2NhbCE=

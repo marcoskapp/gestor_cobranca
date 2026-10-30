@@ -6,6 +6,9 @@ import { GlossaryTerm } from '../manual.models';
  */
 export const GLOSSARY: readonly GlossaryTerm[] = [
   { id: 'assessoria', term: 'Assessoria', definition: 'A empresa de cobrança que usa o sistema. Os dados de cada assessoria ficam isolados das demais.' },
+  { id: 'token-de-integracao', term: 'Token de integração', definition: 'Credencial secreta que o sistema de um credor usa para se integrar à assessoria. Vale para um único credor e só para os escopos concedidos; é exibida uma única vez.' },
+  { id: 'escopo-do-token', term: 'Escopo do token', definition: 'O que um token de integração pode fazer (consultar títulos, importar carteiras, informar pagamentos…). Conceda só o necessário.' },
+  { id: 'extrato-de-consumo', term: 'Extrato de consumo', definition: 'Resumo do uso da integração por um credor em um ciclo de consumo: chamadas bem-sucedidas, dados trafegados em MB e registros processados, com o valor pelas condições de cobrança do contrato do credor.' },
   { id: 'credor', term: 'Credor', definition: 'Empresa que contrata a assessoria para cobrar as dívidas dos seus clientes.' },
   { id: 'contrato-de-servico', term: 'Contrato de serviço', definition: 'Acordo entre a assessoria e o credor: vigência, regras de comissão e dia de fechamento da prestação de contas.' },
   { id: 'carteira', term: 'Carteira', definition: 'Lote de títulos recebido de um credor, com vigência própria. Só carteiras ativas geram cobrança e contato.' },

@@ -1,5 +1,10 @@
 package br.com.gestorcobranca.ingestion.infrastructure.persistence;
 
+import java.util.List;
+
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
+
 import br.com.gestorcobranca.ingestion.domain.model.ImportBatch;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportBatchRepository;
 import org.springframework.data.domain.Page;
@@ -13,6 +18,12 @@ import java.util.UUID;
 
 interface ImportBatchJpaRepository extends JpaRepository<ImportBatch, UUID>, JpaSpecificationExecutor<ImportBatch>,
         ImportBatchRepository {
+
+    @Override
+    default List<ImportBatch> findChanges(UUID creditorId, ChangeQuery query) {
+        return findAll(ChangeSpecifications.<ImportBatch>window(query, List.of(creditorId)), ChangeSpecifications.page(query))
+                .getContent();
+    }
 
     @Override
     default Page<ImportBatch> search(Collection<UUID> allowedCreditorIds, Criteria criteria, Pageable pageable) {

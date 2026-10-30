@@ -25,4 +25,10 @@ class SensitiveDataMaskerTest {
         String text = "acordo 01a16584-0340-70ed-a872-83e42519c2e8 valor 1500.00";
         assertThat(SensitiveDataMasker.mask(text)).isEqualTo(text);
     }
+
+    @Test
+    void masksIntegrationTokenSecretKeepingPrefix() {
+        String token = "gck_abcdefghijkl." + "Q".repeat(43);
+        assertThat(SensitiveDataMasker.mask("Authorization: Bearer " + token)).isEqualTo("Authorization: Bearer gck_abcdefghijkl.***");
+    }
 }

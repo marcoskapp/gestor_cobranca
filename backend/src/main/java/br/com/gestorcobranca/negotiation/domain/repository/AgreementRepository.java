@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.negotiation.domain.repository;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementPayment;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementStatus;
@@ -37,6 +39,9 @@ public interface AgreementRepository {
     List<Agreement> findActiveCovering(Collection<UUID> titleIds);
 
     List<Agreement> findByDebtorId(UUID debtorId);
+
+    /** Leitura incremental: até {@code limit + 1} acordos do credor alterados na janela, depois do cursor. */
+    List<Agreement> findChanges(UUID creditorId, ChangeQuery query);
 
     AgreementPayment save(AgreementPayment payment);
 

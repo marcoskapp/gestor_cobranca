@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.payment.domain.repository;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.PaymentStatus;
 import br.com.gestorcobranca.shared.domain.Money;
@@ -36,6 +38,9 @@ public interface PaymentRepository {
     List<Payment> findAllByIdIn(Collection<UUID> ids);
 
     Page<Payment> search(Criteria criteria, Pageable pageable);
+
+    /** Leitura incremental: até {@code limit + 1} pagamentos do credor alterados na janela, depois do cursor. */
+    List<Payment> findChanges(UUID creditorId, ChangeQuery query);
 
     /** Soma dos pagamentos externos confirmados sem revisão, do devedor no credor, informados a partir de {@code since}. */
     Money sumExternalInformedForDebtor(UUID creditorId, UUID debtorId, Instant since);

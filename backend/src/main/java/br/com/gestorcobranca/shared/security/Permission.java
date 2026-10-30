@@ -23,6 +23,12 @@ public enum Permission {
     AUDIT_VIEW("Consultar trilha de auditoria"),
     INTEGRATION_MANAGE("Configurar integrações e provedores"),
 
+    // API pública de integração dos credores (módulo publicapi)
+    PUBLIC_API_TOKEN_VIEW("Consultar tokens de integração da API pública"),
+    PUBLIC_API_TOKEN_MANAGE("Criar, revogar e rotacionar tokens de integração da API pública"),
+    PUBLIC_API_USAGE_VIEW("Consultar consumo e extratos da API pública"),
+    PUBLIC_API_BILLING_MANAGE("Fechar e revisar extratos de consumo da API pública"),
+
     // Credores e carteiras
     CREDITOR_VIEW("Consultar credores"),
     CREDITOR_MANAGE("Gerenciar credores"),

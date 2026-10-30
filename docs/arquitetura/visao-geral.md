@@ -47,6 +47,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/tecnico/desenho/remuneracao-variavel.md` | remuneração variável |
 | `pendingwork` | "Minhas pendências": agrega o que o usuário da sessão pode fazer agora (aprovações, prazos, filas) a partir das fontes que cada módulo dono implementa (`shared.pendingwork.PendingWorkSource`) — ver `docs/tecnico/desenho/pendencias.md` | pendências |
 | `helpdesk` | Chat de suporte com IA para o usuário interno: manual contextual como base de conhecimento, consultas somente leitura como o próprio usuário (permissão, escopo e trilha de acesso), chamado no GitHub com texto mascarado e confirmação — ver `docs/tecnico/desenho/chat-suporte.md` | suporte |
+| `publicapi` | API pública de integração dos credores: tokens por credor com escopos, cadeia de segurança própria em `/public-api/**`, endpoints v1 que chamam os casos de uso dos módulos donos, medição de consumo e extrato por ciclo com os preços do contrato do credor, contrato OpenAPI versionado e changelog — ver `docs/tecnico/desenho/api-publica.md` | integração |
 | `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/tecnico/desenho/juridico.md` | jurídico |
 
 ### 2.1 Grafo de dependências permitido (acíclico)
@@ -75,7 +76,8 @@ shared ◄── organization ◄── identity
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               ├── analytics          (→ organization; lê o banco por views próprias)
               ├── pendingwork        (→ só shared; recebe as fontes de pendência dos módulos por injeção)
-              └── helpdesk           (→ identity, organization, debt, collection, negotiation, payment, ingestion, settlement, incentive, pendingwork — só leitura)
+              ├── helpdesk           (→ identity, organization, debt, collection, negotiation, payment, ingestion, settlement, incentive, pendingwork — só leitura)
+              └── publicapi          (→ organization, debt, ingestion, collection, negotiation, payment — usecases; registros assíncronos por PortfolioLoaded)
 ```
 
 Todo módulo pode depender de `shared`. A dependência é declarada em `package-info.java` com `@ApplicationModule(allowedDependencies = …)` e verificada por teste (`ModularityTest`).
@@ -187,6 +189,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V1800–V1899 | incentive |
 | V1900–V1999 | pendingwork |
 | V2000–V2099 | helpdesk |
+| V2100–V2199 | publicapi |
 
 Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
 

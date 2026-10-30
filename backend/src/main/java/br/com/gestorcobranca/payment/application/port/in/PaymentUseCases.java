@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.payment.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases.BreakSuspensionView;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
@@ -24,6 +27,12 @@ public interface PaymentUseCases {
     PaymentView get(UUID paymentId);
 
     PageResponse<PaymentView> search(PaymentFilter filter, PageQuery page);
+
+    /**
+     * Sincronização incremental (API pública): pagamentos do credor alterados na janela, em ordem de atualização e id,
+     * paginados por cursor. {@code PAYMENT_VIEW} e credor no escopo.
+     */
+    ChangePage<PaymentView> changes(UUID creditorId, ChangeQuery query);
 
     /** Pagamento dono da alocação (o {@code paymentId} publicado nos eventos). */
     PaymentView findByAllocation(UUID allocationId);

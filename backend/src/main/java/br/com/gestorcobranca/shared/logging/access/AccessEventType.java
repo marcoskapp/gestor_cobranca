@@ -67,5 +67,18 @@ public enum AccessEventType {
      */
     SUPPORT_DATA_QUERIED,
     /** Chamado de suporte aberto num rastreador externo (issue no GitHub) com o e-mail de quem abriu. */
-    SUPPORT_TICKET_OPENED
+    SUPPORT_TICKET_OPENED,
+    /**
+     * Requisição à API pública autenticada por token de integração: rota, método, status, bytes trafegados,
+     * latência, credor e prefixo do token (uma linha por requisição; sucesso = status abaixo de 400).
+     */
+    PUBLIC_API_REQUEST,
+    /** Token de integração recusado (inexistente, segredo errado, revogado, expirado, IP fora da lista). */
+    INTEGRATION_TOKEN_REJECTED,
+    /** Token de integração criado (segredo exibido uma única vez). */
+    INTEGRATION_TOKEN_CREATED,
+    /** Token de integração revogado, com motivo. */
+    INTEGRATION_TOKEN_REVOKED,
+    /** Token de integração rotacionado (novo segredo; o anterior expira ao fim da carência). */
+    INTEGRATION_TOKEN_ROTATED
 }

@@ -1,5 +1,10 @@
 package br.com.gestorcobranca.organization.application.service;
 
+import br.com.gestorcobranca.shared.domain.Guard;
+
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.organization.domain.model.Creditor;
 import br.com.gestorcobranca.organization.domain.model.Portfolio;
@@ -14,6 +19,7 @@ import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.shared.domain.PreconditionFailedException;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.events.organization.PortfolioStatusChanged;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
@@ -98,9 +104,10 @@ class PortfolioService implements PortfolioUseCases {
     }
 
     @Override
-    public PortfolioView update(UUID portfolioId, UpdatePortfolioCommand command) {
+    public PortfolioView update(UUID portfolioId, UpdatePortfolioCommand command, Long expectedVersion) {
         Portfolio portfolio = loadVisible(portfolioId);
         accessScope.requireCreditor(portfolio.getCreditorId());
+        requireVersion(portfolio, expectedVersion);
         AuditEntry audit = AuditEntry.of("portfolio.updated", "portfolio", portfolioId)
                 .creditor(portfolio.getCreditorId())
                 .change("name", portfolio.getName(), command.name())
@@ -113,9 +120,10 @@ class PortfolioService implements PortfolioUseCases {
     }
 
     @Override
-    public PortfolioView changeStatus(UUID portfolioId, String targetStatus, String reason) {
+    public PortfolioView changeStatus(UUID portfolioId, String targetStatus, String reason, Long expectedVersion) {
         Portfolio portfolio = loadVisible(portfolioId);
         accessScope.requireCreditor(portfolio.getCreditorId());
+        requireVersion(portfolio, expectedVersion);
         PortfolioStatus target = parseStatus(targetStatus);
         PortfolioStatus previous = portfolio.transitionTo(target, reason);
         portfolios.save(portfolio);
@@ -170,11 +178,31 @@ class PortfolioService implements PortfolioUseCases {
                 page.toPageable(Sort.by(Sort.Direction.DESC, "receivedOn"))), this::view);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ChangePage<PortfolioView> changes(UUID creditorId, ChangeQuery query) {
+        Guard.require(creditorId != null, "portfolio.creditor_required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        return ChangePage.of(portfolios.findChanges(creditorId, query), query.limit(), Portfolio::getUpdatedAt,
+                Portfolio::getId, Portfolio::getVersion, this::view);
+    }
+
     private Portfolio loadVisible(UUID portfolioId) {
         Portfolio portfolio = portfolios.findById(portfolioId)
                 .orElseThrow(() -> ResourceNotFoundException.of("portfolio", portfolioId));
         accessScope.requireVisible("portfolio", portfolioId, portfolio.getCreditorId());
         return portfolio;
+    }
+
+    /**
+     * Concorrência otimista da API pública ({@code If-Match}). A gravação continua protegida pelo {@code @Version}: uma
+     * alteração concorrente entre esta conferência e o commit resulta em conflito (409).
+     */
+    private static void requireVersion(Portfolio portfolio, Long expectedVersion) {
+        if (expectedVersion != null && !expectedVersion.equals(portfolio.getVersion())) {
+            throw new PreconditionFailedException("portfolio.version_mismatch",
+                    "A carteira foi alterada depois da leitura. Consulte-a de novo e repita a operação.");
+        }
     }
 
     private static PortfolioStatus parseStatus(String status) {
@@ -192,6 +220,6 @@ class PortfolioService implements PortfolioUseCases {
     private PortfolioView view(Portfolio p) {
         return new PortfolioView(p.getId(), p.getCreditorId(), p.getContractId(), p.getCode(), p.getName(),
                 p.getDescription(), p.getReceivedOn(), p.getValidUntil(), p.getStatus().name(), p.getStatusReason(),
-                p.isOperableOn(today()));
+                p.isOperableOn(today()), p.getVersion() == null ? 0L : p.getVersion(), p.getUpdatedAt());
     }
 }

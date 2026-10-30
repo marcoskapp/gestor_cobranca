@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.ingestion.domain.repository;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.ingestion.domain.model.ImportBatch;
 import br.com.gestorcobranca.ingestion.domain.model.ImportBatchStatus;
 import br.com.gestorcobranca.ingestion.domain.model.ImportMode;
@@ -27,6 +29,9 @@ public interface ImportBatchRepository {
      * @param allowedCreditorIds credores visíveis ao ator; {@code null} = sem restrição
      */
     Page<ImportBatch> search(Collection<UUID> allowedCreditorIds, Criteria criteria, Pageable pageable);
+
+    /** Leitura incremental: até {@code limit + 1} lotes do credor alterados na janela, depois do cursor. */
+    List<ImportBatch> findChanges(UUID creditorId, ChangeQuery query);
 
     /** Filtros opcionais da listagem de lotes. */
     record Criteria(UUID creditorId, UUID portfolioId, ImportBatchStatus status, ImportSource source,

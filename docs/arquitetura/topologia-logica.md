@@ -24,6 +24,7 @@ flowchart LR
     subgraph Plataforma["Gestor de Cobrança"]
         SPA["Frontend Angular (SPA)"]
         API["API REST /api/v1<br/>Webhooks /api/v1/webhooks<br/>Portal /api/portal/v1"]
+        PUB["API pública dos credores<br/>/public-api/v1 (token de integração,<br/>cadeia de segurança própria)"]
         SSE["Tempo real da caixa de entrada<br/>SSE /api/v1/communication/inbox/stream"]
         CORE["Núcleo de aplicação<br/>(módulos de negócio)"]
         JOBS["Processamento assíncrono<br/>eventos · fila de jobs · agendamentos"]
@@ -37,7 +38,7 @@ flowchart LR
 
     OP --> SPA --> API
     DEV --> SPA
-    CRED --> API
+    CRED --> PUB --> CORE
     WA & PSP & CTI --> API
     API --> CORE
     CORE <--> JOBS

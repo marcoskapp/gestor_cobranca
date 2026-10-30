@@ -251,6 +251,14 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    label: 'API pública',
+    items: [
+      { label: 'Tokens de integração', icon: 'key', route: '/integracoes/tokens', permissions: [Permission.PUBLIC_API_TOKEN_VIEW] },
+      { label: 'Consumo da API', icon: 'activity', route: '/integracoes/consumo', permissions: [Permission.PUBLIC_API_USAGE_VIEW] },
+      { label: 'Extratos da API', icon: 'receipt', route: '/integracoes/extratos', permissions: [Permission.PUBLIC_API_USAGE_VIEW] },
+    ],
+  },
+  {
     label: 'Governança',
     items: [
       { label: 'Log de acesso', icon: 'box-arrow-in-right', route: '/governanca/log-de-acesso', permissions: [Permission.ACCESS_LOG_VIEW] },

@@ -72,6 +72,9 @@
         <app-status-chip domain="contract" [status]="k.status" />
       </ng-template>
       <ng-template appCell="actions" [appCellOf]="contractRows()" let-k>
+        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="integrationPricing(k)" [attr.aria-label]="'Preço das integrações do contrato ' + k.number" ngbTooltip="Preço das integrações (API pública)">
+          <app-icon name="plug" />
+        </button>
         @if (canManageContracts() && k.status === 'ACTIVE') {
           <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="editTerms(k)" [attr.aria-label]="'Alterar termos do contrato ' + k.number" ngbTooltip="Alterar termos">
             <app-icon name="pencil-square" />

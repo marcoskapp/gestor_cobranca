@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.debt.domain.repository;
 
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -52,4 +54,10 @@ public interface DebtTitleRepository {
     List<DebtTitle> findByOriginContractIdInOrderByDueDateAsc(Collection<UUID> originContractIds);
 
     List<DebtTitle> findByCreditorIdAndExternalIdIn(UUID creditorId, Collection<String> externalIds);
+
+    /**
+     * Leitura incremental (sincronização): até {@code limit + 1} títulos do credor alterados na janela, depois do
+     * cursor, em ordem de atualização e id.
+     */
+    List<DebtTitle> findChanges(UUID creditorId, UUID portfolioId, ChangeQuery query);
 }

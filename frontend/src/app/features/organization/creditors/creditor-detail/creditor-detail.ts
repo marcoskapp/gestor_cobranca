@@ -13,6 +13,7 @@ import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { DocumentPipe } from '../../../../shared/pipes/document.pipe';
 import { ContractForm, ContractFormData } from '../../contracts/contract-form/contract-form';
+import { ContractIntegrationPricing } from '../../contracts/contract-integration-pricing/contract-integration-pricing';
 import { ContractTerminate } from '../../contracts/contract-terminate/contract-terminate';
 import { ContractsApi, CreditorsApi } from '../../data/organization.api';
 import { ContractView, CreditorView } from '../../data/organization.models';
@@ -97,6 +98,11 @@ export class CreditorDetail {
 
   protected editTerms(contract: ContractView): void {
     this.openContractDialog(ContractForm, { creditorId: this.id(), contract } satisfies ContractFormData);
+  }
+
+  /** Preço das integrações (API pública) e dia de fechamento do ciclo de consumo, versionados no contrato. */
+  protected integrationPricing(contract: ContractView): void {
+    this.openContractDialog(ContractIntegrationPricing, contract);
   }
 
   protected terminate(contract: ContractView): void {

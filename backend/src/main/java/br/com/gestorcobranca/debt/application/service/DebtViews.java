@@ -47,7 +47,8 @@ final class DebtViews {
         return new TitleView(t.getId(), t.getCreditorId(), t.getPortfolioId(), t.getDebtorId(), t.getOriginContractId(),
                 t.getExternalId(), t.getInstallmentNumber(), t.getDueDate(), t.getPrincipalAmount().amount(),
                 t.getOpenBalance().amount(), t.getPaidTotal().amount(), t.getStatus().name(), t.getStatusReason(),
-                t.isDisputeBlocked(), t.getDisputeId(), t.getLastPaymentAt(), t.daysOverdue(today), t.getImportBatchId());
+                t.isDisputeBlocked(), t.getDisputeId(), t.getLastPaymentAt(), t.daysOverdue(today), t.getImportBatchId(),
+                t.getVersion() == null ? 0L : t.getVersion(), t.getUpdatedAt());
     }
 
     static ContractView contract(OriginContract c) {

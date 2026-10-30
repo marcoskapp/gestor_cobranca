@@ -96,6 +96,7 @@ grep -q 'BEGIN PUBLIC KEY' "${GC_CONF_DIR}/jwt-public.pem" || gc_fail "app/jwt-p
 declare -A SECRET_ENV=(
   [DB_PASSWORD]=app/db-password
   [APP_CRYPTO_BLIND_INDEX_KEY]=app/crypto-blind-index-key
+  [APP_PUBLIC_API_TOKEN_HASH_KEY]=app/public-api-token-hash-key
   [SMTP_USERNAME]=app/smtp-username
   [SMTP_PASSWORD]=app/smtp-password
 )

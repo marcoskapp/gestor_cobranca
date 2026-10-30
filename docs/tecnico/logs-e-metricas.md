@@ -44,6 +44,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
+| API pública (publicapi) | `public_api.token_created`, `public_api.token_revoked`, `public_api.token_rotated`, `public_api.statement_closed`, `public_api.records_processed` (§3.13) |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -359,6 +360,23 @@ Nunca o texto da pergunta, da resposta ou do chamado, nome, documento ou contato
 
 Log de acesso: `SUPPORT_DATA_QUERIED` (`via=helpdesk`, `tool`, `outcome` `ok`/`not_found`, `results`, `resourceIds` — até 20 —, `conversationId`, `screen`) a cada consulta de dados do chat; `ACCESS_DENIED` com `via=helpdesk`, `tool` e `permission` quando a ferramenta exige permissão que a pessoa não tem; `SUPPORT_TICKET_OPENED` (`repository`, `issueNumber`, `ticketId`) na abertura da issue.
 
+### 3.13 API pública de integração (publicapi)
+
+Nunca o segredo do token (só o prefixo `gck_…` e o id), nem dados de devedor. Referência `integration_token`, `service_contract`, `usage_statement` ou `import_batch`; ator = usuário (gestão) ou sistema (fechamento automático, atribuição assíncrona).
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `public_api.token_created` | token criado | `scopes`, `rateLimitPerMinute`, `ipRestricted`, `expires`; `creditorId` |
+| `public_api.token_revoked` | token revogado | `previousState`, `ageDays` |
+| `public_api.token_rotated` | novo segredo | `graceMinutes`, `rotationCount` |
+| `contract.integration_pricing_defined` | nova versão das condições de cobrança das integrações no contrato do credor (módulo organization; vale do próximo ciclo) | `version`, `usageClosingDay`, `includedRequests`, `includedMbIn`, `includedMbOut`, `includedRecords`; `amount` = mensalidade; referência `service_contract` |
+| `public_api.statement_closed` | extrato de um ciclo de consumo gravado (automático ou manual) | `periodStart`, `periodEnd`, `closingDay`, `revision`, `requests`, `billableRequests` (2xx/3xx), `clientErrors`, `throttled`, `serverErrors`, `billableMbIn`, `billableMbOut` (MB inteiros de 1.048.576 bytes, por token), `records`, `contractNumber`, `pricingVersion`; `amount` = total |
+| `public_api.records_processed` | fim de lote de importação enviado por token | `tokenId`, `titlesCreated`, `titlesUpdated`, `debtorsAffected`, `records`; `portfolioId` |
+
+Log de acesso: `PUBLIC_API_REQUEST` uma linha por requisição autenticada (`actorType=INTEGRATION`, `actorId` = token, `principal` = prefixo; `detail.tokenPrefix`, `detail.creditorId`, `detail.method`, `detail.status`, `detail.bytesIn`, `detail.bytesOut`, `detail.latencyMs`, `detail.records`; `route`, `clientIp`, `requestId`, `userAgent` do contexto; `success` = status < 400); `INTEGRATION_TOKEN_REJECTED` (`detail.reason`: `missing`, `malformed`, `unknown`, `secret_mismatch`, `revoked`, `expired`, `ip_not_allowed`, `tenant_inactive`, `creditor_inactive`); `INTEGRATION_TOKEN_CREATED`/`ROTATED`/`REVOKED` (`tokenId`, `prefix`); `PERMISSION_CHANGED` (`resource=integration_token`) na edição de limite e IPs; `ACCESS_DENIED` (`reason=scope_outranks_actor`) na tentativa de conceder escopo fora do perfil; `DATA_EXPORTED` nas exportações de consumo e extrato.
+
+Consumo para faturamento: tabela `publicapi.usage_hourly` (soma por credor, token, hora, método e rota, gravada em lote a cada minuto; bytes totais e bytes das requisições cobráveis) — não é log, é insumo do extrato.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -421,6 +439,10 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | Métrica | Uso |
 | --- | --- |
 | `http.server.requests` (percentis, SLO 200 ms/500 ms/1 s/2 s) | latência e erros por rota |
+| `publicapi.requests{method,route,status,outcome}` (timer com histograma), `publicapi.bytes{direction,route}`, `publicapi.records{route}` | API pública: latência, volume, bytes reais do corpo e registros por rota (sem credor/token nas tags) |
+| `publicapi.auth{outcome}`, `publicapi.tokens.lifecycle{operation}` | aceites e recusas de token por motivo (alarme em `secret_mismatch` anômalo); criação, rotação e revogação |
+| `publicapi.usage.pending_keys`, `publicapi.usage.flushed_rows{outcome}`, `publicapi.usage.flush.duration` | acumulação em memória e gravação em lote do consumo (alarme em `outcome=failed`) |
+| `publicapi.statements.closed{trigger}`, `publicapi.statements.close_failures` | fechamento mensal dos extratos (alarme em falhas) |
 | `hikaricp.*`, `jvm.*`, `process.*` | saúde do pool e da JVM |
 | `business.events{type}` | volume de fatos de negócio |
 | `access.events{type,success}`, `access.log.write_failures` | segurança e integridade do log de acesso |

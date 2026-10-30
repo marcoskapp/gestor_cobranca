@@ -29,7 +29,7 @@ export const MANUAL_MODULES: readonly (ManualModuleInfo & { icon: IconName })[] 
   { id: 'juridico', title: 'Jurídico', icon: 'bank2', summary: 'Casos que saem da cobrança amigável: viabilidade, autorização, medidas e processos.' },
   { id: 'compliance', title: 'Compliance', icon: 'shield-check', summary: 'Quando e como o devedor pode ser contatado e os direitos do titular dos dados.' },
   { id: 'paineis', title: 'Painéis', icon: 'grid-1x2', summary: 'Indicadores da operação, sempre com a base de cálculo, e exportação.' },
-  { id: 'administracao', title: 'Administração', icon: 'people', summary: 'Credores, carteiras, usuários, perfis, equipes, configurações e rastreabilidade.' },
+  { id: 'administracao', title: 'Administração', icon: 'people', summary: 'Credores, carteiras, usuários, perfis, equipes, configurações, integração dos credores e rastreabilidade.' },
 ];
 
 /** Rotas abertas a qualquer usuário autenticado (sem item no menu que as proteja). */
@@ -60,6 +60,7 @@ const MODULE_BY_PREFIX: Readonly<Record<string, ManualModuleId>> = {
   organization: 'administracao',
   governance: 'administracao',
   platform: 'administracao',
+  publicapi: 'administracao',
 };
 
 export function moduleOfScreen(screenKey: string): ManualModuleId | undefined {

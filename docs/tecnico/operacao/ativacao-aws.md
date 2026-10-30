@@ -258,6 +258,7 @@ O script descobre o destino pela saída `secrets_source` do Terraform. Por isso 
 | `migration/db-owner-password` | `DB_MIGRATION_PASSWORD` (`app_owner`, só migrations) | `generate` |
 | `app/crypto-key-k1` | `APP_CRYPTO_KEY_K1`, chave AES-256-GCM dos campos pessoais | `generate` (Base64 de 32 bytes) |
 | `app/crypto-blind-index-key` | `APP_CRYPTO_BLIND_INDEX_KEY`, HMAC da busca sem dado em claro | `generate`; **não é rotacionável** sem reindexação |
+| `app/public-api-token-hash-key` | `APP_PUBLIC_API_TOKEN_HASH_KEY`, HMAC dos segredos dos tokens da API pública | `generate` (Base64 de 32 bytes); rotação por nova chave com outro id ([`api-publica-publicacao.md`](api-publica-publicacao.md) §5) |
 | `app/jwt-private-key`, `app/jwt-public-key` | `/etc/gestor-cobranca/jwt-*.pem` (RS256) | `generate` (RSA 2048, PKCS#8 e X.509) |
 | `app/smtp-username`, `app/smtp-password` | `SMTP_USERNAME`, `SMTP_PASSWORD` | `set`, com o valor do provedor |
 | `app/helpdesk-github-token` (**opcional**) | `HELPDESK_GITHUB_TOKEN`, só com `helpdesk_tickets_enabled = true` | `set`, com o token fine-grained do GitHub (§7.5) |

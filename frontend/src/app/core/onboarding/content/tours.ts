@@ -1085,6 +1085,50 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'publicapi.tokens',
+    version: 1,
+    title: 'Tokens de integração',
+    summary: 'Credenciais da API pública: um token por sistema do credor, com escopos.',
+    steps: [
+      { anchor: 'page-actions', title: 'Novo token', body: 'Escolha o credor, os escopos necessários, o limite por minuto e, se possível, os IPs do sistema do credor.' },
+      { anchor: 'filters', title: 'Filtros', body: 'Veja os tokens de um credor ou só os ativos, revogados ou expirados.' },
+      { anchor: 'data-table', title: 'Só o prefixo', body: 'A lista mostra o prefixo público. O segredo aparece uma única vez, na criação ou na rotação.', placement: 'above' },
+    ],
+  },
+  {
+    id: 'publicapi.token',
+    version: 1,
+    title: 'Token de integração',
+    summary: 'Uso, rotação sem parada e revogação imediata.',
+    steps: [
+      { anchor: 'token-usage', title: 'Uso e proteção', body: 'Último uso e IP, limite por minuto e IPs permitidos. O consumo detalhado fica em Consumo da API.' },
+      { anchor: 'token-rotate', title: 'Rotacionar', body: 'Gera novo segredo e mantém o anterior durante a carência, para o credor trocar sem parar a integração.' },
+      { anchor: 'token-revoke', title: 'Revogar', body: 'Imediato e definitivo, com motivo. Use em vazamento ou quando a integração for desligada.' },
+    ],
+  },
+  {
+    id: 'publicapi.usage',
+    version: 1,
+    title: 'Consumo da API pública',
+    summary: 'Requisições, dados e registros por dia, endpoint e token.',
+    steps: [
+      { anchor: 'filters', title: 'Período e credor', body: 'Até 366 dias. As últimas chamadas aparecem em até um minuto.' },
+      { anchor: 'usage-kpis', title: 'Indicadores', body: 'Requisições limitadas (429) e falhas da plataforma (5xx) não são cobradas.' },
+      { anchor: 'usage-tokens', title: 'Por token', body: 'Compare o consumo de cada sistema do credor.' },
+      { anchor: 'page-actions', title: 'Exportar', body: 'CSV por dia, credor, token e endpoint. A exportação fica no log de acesso.' },
+    ],
+  },
+  {
+    id: 'publicapi.billing',
+    version: 2,
+    title: 'Extratos da API pública',
+    summary: 'Extrato por ciclo de consumo, com os preços do contrato do credor.',
+    steps: [
+      { anchor: 'billing-preview', title: 'Prévia e fechamento', body: 'Prévia do próximo ciclo do credor. Preços e dia de fechamento ficam no contrato; ciclos encerrados fecham sozinhos de madrugada.' },
+      { anchor: 'data-table', title: 'Extratos', body: 'Só chamadas 2xx/3xx são cobradas; dados em MB inteiros por token. O hash prova o cálculo; revisões exigem motivo.', placement: 'above' },
+    ],
+  },
+  {
     id: 'settlement.rules',
     version: 1,
     title: 'Regras de comissão',

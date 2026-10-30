@@ -1,0 +1,14 @@
+{
+  "comment": "Registro das versões da API pública. Mantido junto com o código (docs/tecnico/operacao/api-publica-publicacao.md). Até a produção tudo fica na 1.0 (v1); o versionamento efetivo começa quando o responsável avisar.",
+  "versions": [
+    {
+      "code": "v1",
+      "status": "CURRENT",
+      "basePath": "/public-api/v1",
+      "releasedOn": "2026-10-30",
+      "deprecated": null,
+      "sunset": null,
+      "migrationGuide": null
+    }
+  ]
+}

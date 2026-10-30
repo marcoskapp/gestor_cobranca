@@ -135,6 +135,11 @@ export const SHELL_ROUTES: Routes = [
           import('../../../features/compliance/compliance.routes').then((m) => m.COMPLIANCE_ROUTES),
       },
       {
+        path: 'integracoes',
+        loadChildren: () =>
+          import('../../../features/public-api/public-api.routes').then((m) => m.PUBLIC_API_ROUTES),
+      },
+      {
         path: 'governanca',
         loadChildren: () =>
           import('../../../features/governance/governance.routes').then((m) => m.GOVERNANCE_ROUTES),

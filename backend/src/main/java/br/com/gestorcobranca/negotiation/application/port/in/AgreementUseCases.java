@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.negotiation.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.ChangePage;
+import br.com.gestorcobranca.shared.paging.ChangeQuery;
+
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.AcceptanceView;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.TermContent;
 import br.com.gestorcobranca.shared.paging.PageQuery;
@@ -24,6 +27,12 @@ public interface AgreementUseCases {
 
     /** @param status FORMALIZED, IN_PAYMENT, SETTLED, BROKEN, CANCELLED, RENEGOTIATED */
     PageResponse<AgreementView> search(AgreementFilter filter, PageQuery page);
+
+    /**
+     * Sincronização incremental (API pública): acordos do credor alterados na janela, em ordem de atualização e id,
+     * paginados por cursor. {@code AGREEMENT_VIEW} e credor no escopo (404 fora dele).
+     */
+    ChangePage<AgreementView> changes(UUID creditorId, ChangeQuery query);
 
     List<PaymentView> payments(UUID agreementId);
 
