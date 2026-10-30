@@ -28,4 +28,4 @@ if [[ "${CONFIRMED}" != true ]]; then
 fi
 log INFO "removendo contêineres e volumes do sandbox"
 compose down --volumes --remove-orphans
-exec "$(dirname "${BASH_SOURCE[0]}")/up.sh" "${UP_ARGS[@]}"
+exec "$(dirname "${BASH_SOURCE[0]}")/up.sh" ${UP_ARGS[@]+"${UP_ARGS[@]}"}

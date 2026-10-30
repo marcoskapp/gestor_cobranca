@@ -27,6 +27,17 @@ Ambiente completo do Gestor de Cobrança no Docker, que sobe com **um comando** 
 
 **Não é preciso JDK, Maven nem Node**: o frontend e o backend são compilados dentro da imagem Docker.
 
+Para conferir o que está instalado:
+
+```bash
+docker version            # "Client" e "Server" com Version 23.0+ (sem "Server", o Docker não está rodando)
+docker compose version    # "Docker Compose version v2..." ou mais recente
+docker info --format '{{.MemTotal}}'   # memória disponível para o Docker, em bytes
+jq --version              # usado pelo verify.sh
+```
+
+No macOS, o Docker Engine e o Compose vêm com o **Docker Desktop** (ou OrbStack/Colima); abra o aplicativo antes de rodar os scripts. O `jq` instala com `brew install jq`. Os scripts funcionam com o Bash 3.2 que acompanha o macOS.
+
 ### 2. Passo a passo
 
 ```bash

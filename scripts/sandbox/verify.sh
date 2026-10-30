@@ -49,7 +49,7 @@ login() {
 }
 
 # token <assessoria> <pessoa> → access token já obtido (vazio se o login falhou)
-token() { printf '%s' "${TOKENS[$1:$2]:-}"; }
+token() { kv_get "token:$1:$2"; }
 
 # get <token> <caminho> → corpo (stdout); código HTTP em HTTP_STATUS
 get() {
@@ -61,7 +61,6 @@ get() {
 
 [[ "$(readiness_json)" == *'"status":"UP"}' ]] || die "o sandbox não está pronto em ${APP_URL} (rode ./scripts/sandbox/up.sh)"
 
-declare -A TOKENS=()
 log INFO "1. login de cada perfil em cada assessoria"
 for tenant in aurora boreal; do
   for person in "${PEOPLE[@]}"; do
@@ -69,7 +68,7 @@ for tenant in aurora boreal; do
     response="$(login "${tenant}" "${email}" || true)"
     status="$(jq -r '.status // empty' <<<"${response}" 2>/dev/null || true)"
     if [[ "${status}" == "AUTHENTICATED" ]]; then
-      TOKENS["${tenant}:${person}"]="$(jq -r '.accessToken' <<<"${response}")"
+      kv_set "token:${tenant}:${person}" "$(jq -r '.accessToken' <<<"${response}")"
       roles="$(jq -r '.user.roles | join(",")' <<<"${response}")"
       ok "${tenant}/${person} autenticado (perfis: ${roles})"
     else
@@ -88,26 +87,25 @@ else
 fi
 
 log INFO "2. volumes por assessoria"
-declare -A CREDITOR_IDS=() PORTFOLIO_IDS=() CASE_IDS=() DEBTOR_IDS=() USER_IDS=()
 for tenant in aurora boreal; do
   token="$(token "${tenant}" gestor)"
   [[ -n "${token}" ]] || { fail "${tenant}: sem token do gestor"; continue; }
   creditors="$(get "${token}" '/api/v1/creditors?size=50')"
   ncred="$(jq '.totalElements' <<<"${creditors}")"
-  CREDITOR_IDS[${tenant}]="$(jq -r '[.content[].id] | join(" ")' <<<"${creditors}")"
+  kv_set "creditor_ids:${tenant}" "$(jq -r '[.content[].id] | join(" ")' <<<"${creditors}")"
   portfolios="$(get "${token}" '/api/v1/portfolios?size=50')"
   nport="$(jq '.totalElements' <<<"${portfolios}")"
-  PORTFOLIO_IDS[${tenant}]="$(jq -r '.content[0].id' <<<"${portfolios}")"
+  kv_set "portfolio_ids:${tenant}" "$(jq -r '.content[0].id' <<<"${portfolios}")"
   per_creditor="$(jq -r '[.content | group_by(.creditorId)[] | length] | map(tostring) | join(",")' <<<"${portfolios}")"
   cases="$(get "${token}" '/api/v1/collection/cases?size=1')"
   ncases="$(jq '.totalElements' <<<"${cases}")"
-  CASE_IDS[${tenant}]="$(jq -r '.content[0].id' <<<"${cases}")"
-  DEBTOR_IDS[${tenant}]="$(jq -r '.content[0].debtorId' <<<"${cases}")"
+  kv_set "case_ids:${tenant}" "$(jq -r '.content[0].id' <<<"${cases}")"
+  kv_set "debtor_ids:${tenant}" "$(jq -r '.content[0].debtorId' <<<"${cases}")"
   agreements="$(get "${token}" '/api/v1/negotiation/agreements?size=50' | jq -r '[.content[].status] | group_by(.) | map("\(.[0])=\(length)") | join(" ")')"
   fin="$(token "${tenant}" financeiro)"
   payments="$(get "${fin}" '/api/v1/payment/payments?size=50' | jq -r '[.content[].status] | group_by(.) | map("\(.[0])=\(length)") | join(" ")')"
   users="$(get "$(token "${tenant}" admin)" '/api/v1/users?size=50')"
-  USER_IDS[${tenant}]="$(jq -r '.content[0].id' <<<"${users}")"
+  kv_set "user_ids:${tenant}" "$(jq -r '.content[0].id' <<<"${users}")"
   active="$(jq '[.content[] | select(.status == "ACTIVE")] | length' <<<"${users}")"
   matters="$(get "$(token "${tenant}" juridico)" '/api/v1/legal/matters?size=20' | jq -r '[.content[].stage] | join(",")')"
   if [[ "${ncred}" == 3 && "${nport}" == 12 && "${per_creditor}" == "4,4,4" && "${ncases}" -gt 0 ]]; then
@@ -121,21 +119,21 @@ done
 log INFO "3. isolamento entre assessorias"
 check_isolation() {
   local from="$1" other="$2" token="$(token "$1" gestor)" admin="$(token "$1" admin)" id
-  for id in ${CREDITOR_IDS[${other}]}; do
+  for id in $(kv_get "creditor_ids:${other}"); do
     get "${token}" "/api/v1/creditors/${id}" >/dev/null
     [[ "${HTTP_STATUS}" == 404 ]] || fail "${from} consultou credor de ${other} (HTTP ${HTTP_STATUS})"
   done
-  get "${token}" "/api/v1/portfolios/${PORTFOLIO_IDS[${other}]}" >/dev/null
+  get "${token}" "/api/v1/portfolios/$(kv_get "portfolio_ids:${other}")" >/dev/null
   [[ "${HTTP_STATUS}" == 404 ]] || fail "${from} consultou carteira de ${other} (HTTP ${HTTP_STATUS})"
-  get "${token}" "/api/v1/collection/cases/${CASE_IDS[${other}]}" >/dev/null
+  get "${token}" "/api/v1/collection/cases/$(kv_get "case_ids:${other}")" >/dev/null
   [[ "${HTTP_STATUS}" == 404 ]] || fail "${from} consultou caso de ${other} (HTTP ${HTTP_STATUS})"
-  get "${token}" "/api/v1/debtors/${DEBTOR_IDS[${other}]}" >/dev/null
+  get "${token}" "/api/v1/debtors/$(kv_get "debtor_ids:${other}")" >/dev/null
   [[ "${HTTP_STATUS}" == 404 ]] || fail "${from} consultou devedor de ${other} (HTTP ${HTTP_STATUS})"
-  get "${admin}" "/api/v1/users/${USER_IDS[${other}]}" >/dev/null
+  get "${admin}" "/api/v1/users/$(kv_get "user_ids:${other}")" >/dev/null
   [[ "${HTTP_STATUS}" == 404 ]] || fail "${from} consultou usuário de ${other} (HTTP ${HTTP_STATUS})"
   local seen
   seen="$(get "${token}" '/api/v1/creditors?size=50' | jq -r '[.content[].id] | join(" ")')"
-  for id in ${CREDITOR_IDS[${other}]}; do
+  for id in $(kv_get "creditor_ids:${other}"); do
     [[ " ${seen} " != *" ${id} "* ]] || fail "${from} lista credor de ${other}"
   done
   ok "${from} não enxerga credores, carteira, caso, devedor nem usuário de ${other}"

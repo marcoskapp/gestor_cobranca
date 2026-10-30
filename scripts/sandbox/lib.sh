@@ -12,6 +12,11 @@ readonly MAIL_PORT="${SANDBOX_MAIL_PORT:-58025}"
 readonly DB_PORT="${SANDBOX_DB_PORT:-55432}"
 readonly APP_URL="http://localhost:${APP_PORT}"
 
+# Mapa chave → valor compatível com o Bash 3.2 do macOS (sem `declare -A`): cada chave vira a variável
+# KV_<chave normalizada>. Chaves usadas: assessoria, pessoa e tipo de id (letras, números e ':').
+kv_set() { printf -v "KV_${1//[^a-zA-Z0-9]/_}" '%s' "$2"; }
+kv_get() { local name="KV_${1//[^a-zA-Z0-9]/_}"; printf '%s' "${!name:-}"; }
+
 log() { printf '%s [%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${1}" "${2}" >&2; }
 die() { log ERRO "$1"; exit 1; }
 
@@ -41,7 +46,7 @@ build_app_image() {
   if [[ -n "${SANDBOX_BUILD_NETWORK:-}" && "${SANDBOX_BUILD_NETWORK}" != default ]]; then
     network=(--network "${SANDBOX_BUILD_NETWORK}")
   fi
-  docker build "${network[@]}" -f "${REPO_ROOT}/infra/docker/app/Dockerfile" \
+  docker build ${network[@]+"${network[@]}"} -f "${REPO_ROOT}/infra/docker/app/Dockerfile" \
     --build-arg "NODE_IMAGE=${SANDBOX_NODE_IMAGE:-node:22-bookworm-slim}" \
     --build-arg "MAVEN_IMAGE=${SANDBOX_MAVEN_IMAGE:-maven:3.9-eclipse-temurin-21}" \
     --build-arg "JRE_IMAGE=${SANDBOX_JRE_IMAGE:-eclipse-temurin:21-jre-noble}" \
