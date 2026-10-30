@@ -20,6 +20,8 @@ import { Component, input } from '@angular/core';
       flex-direction: column;
       gap: 4px;
       min-width: 0;
+      /* o tamanho do valor acompanha a largura do próprio cartão (unidades cqi), não a da tela */
+      container-type: inline-size;
       padding: 12px 16px;
       border: 1px solid var(--bs-border-color);
       border-radius: var(--bs-border-radius);
@@ -32,10 +34,14 @@ import { Component, input } from '@angular/core';
       text-transform: uppercase;
       color: var(--bs-secondary-color);
     }
+    /* Valor fluido e sem estouro: a fonte encolhe com o cartão (de 22px até 14px); valores compostos
+       ("12 de 40 · 30%") quebram entre as partes — sobrepõe o nowrap de .app-numeric —, e só
+       em último caso dentro de uma palavra. Valores monetários (app-amount) não quebram ao meio. */
     .kpi__value {
-      font-size: var(--app-text-xl);
+      font-size: clamp(var(--app-text-md), 10cqi, var(--app-text-xl));
       font-weight: 600;
       line-height: var(--app-line-tight);
+      white-space: normal;
       overflow-wrap: anywhere;
     }
     .kpi__detail {
