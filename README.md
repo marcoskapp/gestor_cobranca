@@ -13,9 +13,21 @@ Toda a documentação está em [`docs/`](docs/README.md), organizada em três vi
 ```
 backend/     Java 21 + Spring Boot (monólito modular)
 frontend/    Angular
-infra/       Terraform (AWS) e Docker Compose (local)
-scripts/     scripts de banco e deploy
+infra/       Terraform (AWS), Docker Compose (local e sandbox) e imagem da aplicação
+scripts/     scripts de banco, deploy e do sandbox de demonstração
 ```
+
+## Sandbox de demonstração (um comando)
+
+Ambiente completo no Docker, já com dados **fictícios** (2 assessorias × 3 credores × 4 carteiras, um usuário por perfil, acordos, pagamentos, jurídico e réguas), sem precisar de JDK nem Node:
+
+```bash
+./scripts/sandbox/up.sh        # app em http://localhost:58080 · Mailpit em http://localhost:58025
+./scripts/sandbox/verify.sh    # logins por perfil, volumes e isolamento entre assessorias
+./scripts/sandbox/down.sh      # para (mantém os dados) · reset.sh recria do zero
+```
+
+Usuários como `gestor@aurora.exemplo.test` ou `operador@boreal.exemplo.test` (assessoria `aurora` ou `boreal` no login), senha `Sandbox@2026!`. Guia completo, lista de usuários e roteiro de demonstração: [`docs/tecnico/operacao/sandbox.md`](docs/tecnico/operacao/sandbox.md).
 
 ## Executar localmente
 
