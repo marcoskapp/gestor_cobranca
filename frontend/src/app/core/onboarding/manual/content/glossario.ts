@@ -85,6 +85,8 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
   { id: 'lote-de-importacao', term: 'Lote de importação', definition: 'Um arquivo (ou envio por integração) recebido do credor, com contadores e ocorrências por linha.' },
   { id: 'conferencia', term: 'Conferência da importação', definition: 'Passos antes de gravar um arquivo: formato dos valores, linhas, totais da planilha, alertas e confirmação.' },
   { id: 'layout', term: 'Layout de importação', definition: 'Como as colunas do arquivo de um credor correspondem aos campos do sistema.' },
+  { id: 'mapa-de-extracao', term: 'Mapa de extração', definition: 'Descrição de onde estão os dados num PDF (cabeçalho do devedor, colunas da tabela, linhas por título e totais). Não contém valores: o sistema aplica o mapa ao texto do PDF.' },
+  { id: 'leitura-visual', term: 'Leitura visual', definition: 'Leitura de um PDF digitalizado (sem texto) pela IA, a partir da imagem das páginas. Exige conferência título a título.' },
   { id: 'dados-ate', term: '"Dados até"', definition: 'Instante a partir do qual os números de um painel valem. Os painéis são consolidados periodicamente.' },
   { id: 'base-do-indicador', term: 'Base do indicador', definition: 'Numerador e denominador de cada taxa ("1.100 de 4.000"). Sem base no período, o indicador aparece como indisponível, nunca como 0%.' },
   { id: 'perfil-de-acesso', term: 'Perfil de acesso', definition: 'Conjunto de permissões de uma função (operador, supervisor, financeiro…). Define menus e ações disponíveis.' },

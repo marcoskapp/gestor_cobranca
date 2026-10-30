@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 10,
+    date: '2026-10-30',
+    title: 'Importação PDF inteligente',
+    items: [
+      { text: 'O credor só tem PDF? Envie o arquivo: o sistema encontra devedor, títulos e totais e monta o mapa de extração.', route: '/importacao/pdf/nova' },
+      { text: 'Valide o mapa ao lado do PDF, com as regiões lidas em destaque e os totais do documento conferidos com a soma extraída.', route: '/importacao' },
+      { text: 'Salve o mapa para o credor: os próximos PDFs do mesmo layout são lidos sem IA.', route: '/importacao' },
+    ],
+  },
+  {
     version: 9,
     date: '2026-10-24',
     title: 'Conferência da importação',

@@ -58,6 +58,9 @@ import { FORM_FIELD } from '../../../shared/forms/field';
         }
       </div>
       <p class="app-muted rs-small">
+        O credor só consegue enviar PDF? Use a <a routerLink="/importacao/pdf/nova" [queryParams]="portfolioId() ? { carteira: portfolioId() } : {}">Importação PDF inteligente</a>.
+      </p>
+      <p class="app-muted rs-small">
         Valores com vírgula ou ponto são analisados coluna por coluna: se houver dúvida (por exemplo, <span class="app-mono">1.000</span> pode ser mil ou um real),
         você escolhe a leitura vendo exemplos do próprio arquivo.
       </p>

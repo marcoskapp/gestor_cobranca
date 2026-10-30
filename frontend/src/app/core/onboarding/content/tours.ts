@@ -838,7 +838,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'ingestion.batches',
-    version: 2,
+    version: 3,
     title: 'Importação de carteiras',
     summary: 'Envio de arquivos do credor com conferência, progresso e ocorrências.',
     steps: [
@@ -846,6 +846,11 @@ export const TOURS: readonly TourDefinition[] = [
         anchor: 'page-actions',
         title: 'Modelo e envio',
         body: 'Baixe o modelo do layout padrão e comece uma nova importação: nada é gravado até você conferir e confirmar.',
+      },
+      {
+        anchor: 'pdf-entry',
+        title: 'Importação PDF inteligente',
+        body: 'Quando o credor só consegue enviar PDF: o sistema encontra os títulos no documento e você valida o mapa antes de importar.',
       },
       {
         anchor: 'review-list',
@@ -871,6 +876,30 @@ export const TOURS: readonly TourDefinition[] = [
         title: 'Arquivo e layout',
         body: 'Escolha a carteira e o arquivo. Em seguida você confere o formato dos valores, os totais e os alertas.',
       },
+    ],
+  },
+  {
+    id: 'ingestion.pdf-start',
+    version: 1,
+    title: 'Importação PDF inteligente',
+    summary: 'Envie o PDF do credor: o sistema encontra os dados e você valida antes de importar.',
+    steps: [
+      { anchor: 'pdf-how', title: 'Como funciona', body: 'Envio, mapa, validação e a conferência de sempre. Nada é gravado na carteira antes da conferência.' },
+      { anchor: 'pdf-upload', title: 'Carteira e PDF', body: 'PDF com texto é lido com exatidão; PDF digitalizado é lido visualmente pela IA e pede conferência título a título.' },
+    ],
+  },
+  {
+    id: 'ingestion.pdf-import',
+    version: 1,
+    title: 'Validação da importação PDF',
+    summary: 'Confira o mapa que o sistema escreveu ao ler o PDF e os títulos encontrados.',
+    steps: [
+      { anchor: 'pdf-status', title: 'Situação', body: 'Quem escreveu o mapa (IA, mapa salvo do credor ou você), páginas e o custo da IA nesta importação.' },
+      { anchor: 'pdf-conference', title: 'Conferência com o documento', body: 'Totais impressos no PDF comparados com a soma dos títulos extraídos. Divergência pede correção do mapa ou justificativa.' },
+      { anchor: 'pdf-viewer', title: 'O PDF', body: 'As regiões lidas ficam destacadas: devedor, cabeçalho da tabela e totais. Clique no número de um título para ver de onde ele saiu.' },
+      { anchor: 'pdf-map', title: 'O mapa', body: 'Em linguagem simples: cada coluna e o campo que recebe. Edite para trocar o campo, ignorar uma coluna ou mudar as linhas por título.', placement: 'start' },
+      { anchor: 'pdf-records', title: 'Títulos', body: 'Erros e avisos são os mesmos da importação por planilha. Exclua do lote o que não deve entrar.', placement: 'above' },
+      { anchor: 'pdf-approve', title: 'Concordo, importar', body: 'Gera o lote no layout padrão e abre a conferência da importação. Salve o mapa para os próximos PDFs deste credor.', placement: 'above' },
     ],
   },
   {
