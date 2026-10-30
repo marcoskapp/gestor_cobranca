@@ -49,15 +49,16 @@ locals {
   ]
   secret_read_actions = var.use_ssm_parameters ? ["ssm:GetParameter", "ssm:GetParameters"] : ["s3:GetObject"]
 
-  # Amazon Bedrock (assistente de IA e chat de suporte): somente bedrock:InvokeModel (a Converse API é autorizada por essa ação;
+  # Amazon Bedrock (assistente de IA, chat de suporte e importação PDF): somente bedrock:InvokeModel (a Converse API é autorizada por essa ação;
   # não existe ação IAM "bedrock:Converse") nos modelos configurados. Perfil de inferência de sistema
   # (us./eu./global....): o ARN do perfil na região chamada + o modelo base em cada região de destino, este
   # só por meio do perfil (condição bedrock:InferenceProfileArn). Modelo base sem prefixo: só na região.
   bedrock_profile_pattern = "^(us|eu|apac|au|jp|ca|global)\\."
-  bedrock_enabled         = var.assistant_bedrock_enabled || var.helpdesk_bedrock_enabled
+  bedrock_enabled         = var.assistant_bedrock_enabled || var.helpdesk_bedrock_enabled || var.ingestion_pdf_bedrock_enabled
   bedrock_model_ids = distinct(concat(
     var.assistant_bedrock_enabled ? [var.bedrock_standard_model_id, var.bedrock_advanced_model_id] : [],
     var.helpdesk_bedrock_enabled ? [var.helpdesk_bedrock_model_id] : [],
+    var.ingestion_pdf_bedrock_enabled ? [var.ingestion_pdf_bedrock_model_id] : [],
   ))
   bedrock_profile_ids = [for id in local.bedrock_model_ids : id if can(regex(local.bedrock_profile_pattern, id))]
   bedrock_base_ids    = [for id in local.bedrock_model_ids : id if !can(regex(local.bedrock_profile_pattern, id))]

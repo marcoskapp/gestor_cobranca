@@ -248,6 +248,12 @@ run "chat_suporte_exige_aprovacao_da_transferencia" {
   expect_failures = [terraform_data.guards]
 }
 
+run "importacao_pdf_exige_aprovacao_da_transferencia" {
+  command = plan
+  variables { ingestion_pdf_bedrock_enabled = true }
+  expect_failures = [terraform_data.guards]
+}
+
 run "chat_suporte_so_com_o_haiku" {
   command = plan
   variables {
