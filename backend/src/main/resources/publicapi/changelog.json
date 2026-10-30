@@ -1,0 +1,21 @@
+{
+  "comment": "Changelog público da API (página /public-api/docs/changelog). Uma entrada por release, da mais recente para a mais antiga. type: ADDED, CHANGED, DEPRECATED, REMOVED, FIXED, SECURITY; breaking=true só em mudança incompatível (exige nova versão maior).",
+  "releases": [
+    {
+      "version": "1.0.0",
+      "apiVersion": "v1",
+      "date": "2026-10-30",
+      "summary": "Primeira versão da API pública de integração dos credores (pré-produção).",
+      "sunset": null,
+      "entries": [
+        { "type": "ADDED", "description": "Autenticação por token de integração (cabeçalho Authorization: Bearer gck_...), escopos e limite de requisições por token.", "endpoint": null, "breaking": false },
+        { "type": "ADDED", "description": "Credor do token, contratos e carteiras: consulta, criação, atualização e mudança de situação (If-Match).", "endpoint": "/public-api/v1/portfolios", "breaking": false },
+        { "type": "ADDED", "description": "Importação de títulos em lote por JSON e por arquivo CSV/XLSX, assíncrona, com Idempotency-Key, acompanhamento e relatório de ocorrências.", "endpoint": "/public-api/v1/imports", "breaking": false },
+        { "type": "ADDED", "description": "Títulos: consulta, sincronização incremental por cursor, suspensão, reativação, cancelamento e devolução (If-Match).", "endpoint": "/public-api/v1/titles", "breaking": false },
+        { "type": "ADDED", "description": "Devedores: consulta mascarada, contatos (inclusão e invalidação).", "endpoint": "/public-api/v1/debtors", "breaking": false },
+        { "type": "ADDED", "description": "Somente leitura: casos de cobrança, acordos e parcelas, pagamentos (com sincronização incremental).", "endpoint": "/public-api/v1/collection-cases", "breaking": false },
+        { "type": "ADDED", "description": "Registro de pagamento recebido diretamente pelo credor e abertura de contestação.", "endpoint": "/public-api/v1/payments", "breaking": false }
+      ]
+    }
+  ]
+}
