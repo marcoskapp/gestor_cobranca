@@ -75,6 +75,10 @@ public interface PublicApiBillingUseCases {
      * @param revision        0 na prévia
      * @param periodEnd       dia de fechamento do ciclo (inclusivo); o próximo ciclo começa às 00:00 do dia seguinte
      * @param ended           o ciclo já terminou (pode ser fechado)
+     * @param cycleDays       dias do ciclo
+     * @param referenceCycleDays dias do ciclo regular de referência; diferente de {@code cycleDays} só no ciclo de
+     *                        transição, em que mensalidade e franquias são proporcionais (fator = cycleDays ÷
+     *                        referenceCycleDays)
      * @param contractNumber  contrato cujas condições foram aplicadas (nulo sem condições)
      * @param pricingVersion  versão das condições do contrato aplicada (nulo sem condições: valor zero)
      * @param billableMbIn    MB recebidos faturáveis (soma dos tokens)
@@ -82,7 +86,7 @@ public interface PublicApiBillingUseCases {
      * @param usageHash       SHA-256 do consumo usado (verificação de reprodutibilidade)
      */
     record StatementView(UUID id, UUID creditorId, LocalDate periodStart, LocalDate periodEnd, boolean ended,
-                         int revision, int usageClosingDay, UUID contractId, String contractNumber, UUID pricingId,
+                         int revision, int usageClosingDay, int cycleDays, int referenceCycleDays, UUID contractId, String contractNumber, UUID pricingId,
                          Integer pricingVersion, long requests, long billableRequests, long billableMbIn,
                          long billableMbOut, long records, BigDecimal totalAmount, String currency,
                          List<StatementLine> lines, List<StatementBreakdown> breakdown, String usageHash,

@@ -1,5 +1,5 @@
 import { SCOPE_PERMISSIONS } from '../tokens/token-dialog';
-import { billableMegabytes, formatBytes, formatCycle, parseIpList } from './public-api.labels';
+import { billableMegabytes, formatBytes, formatCycle, parseIpList, prorationLabel } from './public-api.labels';
 import { Permission } from '../../../core/auth/permission';
 
 describe('rótulos da API pública', () => {
@@ -19,6 +19,11 @@ describe('rótulos da API pública', () => {
     expect(billableMegabytes(1)).toBe(1);
     expect(billableMegabytes(1_048_576)).toBe(1);
     expect(billableMegabytes(1_048_577)).toBe(2);
+  });
+
+  it('proporcionalidade só no ciclo de transição', () => {
+    expect(prorationLabel(31, 31)).toBeNull();
+    expect(prorationLabel(10, 28)).toBe('10 de 28 dias (fator 0,3571)');
   });
 
   it('período do ciclo em datas brasileiras', () => {

@@ -218,7 +218,8 @@ export const MANUAL: ModuleManual = {
       objective: 'Extrato de consumo de cada credor por ciclo, calculado com os preços do contrato, pronto para faturar.',
       purpose: [
         'Os preços (mensalidade, franquias e excedente por chamada, por MB recebido e enviado e por registro) e o dia de fechamento ficam no contrato do credor. Alterações valem a partir do próximo ciclo.',
-        'O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte. Ciclos encerrados fecham sozinhos de madrugada.',
+        'O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte. Ciclos encerrados fecham sozinhos de madrugada; ciclo sem consumo só gera extrato se houver mensalidade.',
+        'Ao mudar o dia de fechamento, o ciclo de transição é mais curto: mensalidade e franquias ficam proporcionais aos dias, e o extrato mostra os dias e o fator.',
         'Só chamadas bem-sucedidas são cobradas. Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token no ciclo. Nova revisão exige motivo; o extrato guarda uma marca do consumo que prova o cálculo.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'FINANCEIRO'],

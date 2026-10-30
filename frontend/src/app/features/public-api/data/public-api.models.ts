@@ -109,6 +109,9 @@ export interface StatementView {
   ended: boolean;
   revision: number;
   usageClosingDay: number;
+  /** Dias do ciclo e do ciclo regular de referência; diferentes só no ciclo de transição (valores proporcionais). */
+  cycleDays: number;
+  referenceCycleDays: number;
   contractId: string | null;
   contractNumber: string | null;
   pricingId: string | null;

@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 import { Amount } from '../../../shared/components/amount/amount';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { METRIC_LABELS, formatCycle } from '../data/public-api.labels';
+import { METRIC_LABELS, formatCycle, prorationLabel } from '../data/public-api.labels';
 import { StatementView } from '../data/public-api.models';
 
 const NUMBER = new Intl.NumberFormat('pt-BR');
@@ -16,7 +16,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
   template: `
     @let s = statement();
     <p class="sv-small app-muted">
-      {{ creditorName() }} · ciclo {{ cycle(s) }} (fecha no dia {{ s.usageClosingDay }}) ·
+      {{ creditorName() }} · ciclo {{ cycle(s) }} ({{ s.cycleDays }} dias, fecha no dia {{ s.usageClosingDay }}) ·
       {{ s.pricingVersion ? 'Contrato ' + s.contractNumber + ', condições v' + s.pricingVersion : 'Contrato sem condições de cobrança' }}
       @if (s.closedAt) {
         · fechado em {{ s.closedAt | appDate }} (revisão {{ s.revision }})
@@ -27,6 +27,12 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
         · motivo: {{ s.reason }}
       }
     </p>
+    @if (proration(s); as p) {
+      <div class="alert alert-info sv-small py-2" role="note">
+        Ciclo de transição (mudança do dia de fechamento): mensalidade e franquias proporcionais a {{ p }}. Mensalidade
+        arredondada a centavos (meio para o par); franquias arredondadas para cima.
+      </div>
+    }
     <div class="table-responsive">
       <table class="table table-sm">
         <caption class="visually-hidden">Linhas do extrato</caption>
@@ -98,6 +104,10 @@ export class StatementViewPanel {
 
   protected cycle(s: StatementView): string {
     return formatCycle(s.periodStart, s.periodEnd);
+  }
+
+  protected proration(s: StatementView): string | null {
+    return prorationLabel(s.cycleDays, s.referenceCycleDays);
   }
 
   protected tokens(s: StatementView): StatementView['breakdown'] {

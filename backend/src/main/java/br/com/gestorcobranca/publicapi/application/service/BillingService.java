@@ -8,6 +8,7 @@ import br.com.gestorcobranca.publicapi.application.port.out.UsageStore;
 import br.com.gestorcobranca.publicapi.domain.model.BillableUsage;
 import br.com.gestorcobranca.publicapi.domain.model.IntegrationToken;
 import br.com.gestorcobranca.publicapi.domain.model.PriceTerms;
+import br.com.gestorcobranca.publicapi.domain.model.Proration;
 import br.com.gestorcobranca.publicapi.domain.model.UsageStatement;
 import br.com.gestorcobranca.publicapi.domain.model.UsageTotals;
 import br.com.gestorcobranca.publicapi.domain.repository.IntegrationTokenRepository;
@@ -70,9 +71,10 @@ import java.util.stream.Collectors;
  * <p>
  * <b>Sequência dos ciclos:</b> o próximo ciclo começa no dia seguinte ao fim do último ciclo fechado e fecha no
  * primeiro dia de fechamento (das condições que valem no seu início) igual ou posterior. Se esse ciclo terminou sem
- * consumo, não gera extrato: o próximo extrato é o do ciclo (no calendário do dia de fechamento) que contém o primeiro
- * consumo posterior. Sem ciclo anterior, idem a partir do primeiro consumo do credor. Sem condições no contrato, o
- * ciclo fecha no último dia do mês e o extrato registra o consumo com valor zero.
+ * consumo e sem mensalidade não gera extrato (decisão 624). Sem ciclo anterior, o primeiro ciclo é o que contém o
+ * primeiro consumo do credor. Sem condições no contrato, o ciclo fecha no último dia do mês e o extrato registra o
+ * consumo com valor zero. No ciclo de transição (mudança do dia de fechamento) mensalidade e franquias são
+ * proporcionais aos dias ({@link BillingCycles#proration}).
  */
 @Service
 @Transactional
@@ -133,8 +135,8 @@ class BillingService implements PublicApiBillingUseCases {
         });
         Computed c = compute(creditorId, pending);
         return new StatementView(null, creditorId, pending.cycle().start(), pending.cycle().end(),
-                pending.cycle().endedAt(now, ZONE), 0, pending.cycle().closingDay(),
-                pending.pricing().map(IntegrationPricingView::contractId).orElse(null),
+                pending.cycle().endedAt(now, ZONE), 0, pending.cycle().closingDay(), c.proration.cycleDays(),
+                c.proration.referenceDays(), pending.pricing().map(IntegrationPricingView::contractId).orElse(null),
                 pending.pricing().map(IntegrationPricingView::contractNumber).orElse(null),
                 pending.pricing().map(IntegrationPricingView::id).orElse(null),
                 pending.pricing().map(IntegrationPricingView::version).orElse(null), c.totals.requests(),
@@ -250,39 +252,38 @@ class BillingService implements PublicApiBillingUseCases {
     }
 
     /**
-     * Próximo ciclo a fechar do credor: o contíguo ao último fechado se tiver consumo ou ainda estiver em curso; senão o
-     * que começa no dia do primeiro consumo posterior. Vazio quando não há consumo a fechar.
+     * Próximo ciclo a fechar do credor. Com ciclo anterior, percorre os ciclos contíguos a partir do fim do último
+     * fechado e para no primeiro que deve gerar extrato (tem consumo ou mensalidade &gt; 0, decisão 624) ou que ainda
+     * está em curso; ciclos encerrados sem consumo e sem mensalidade são pulados (sem extrato). Sem ciclo anterior, o
+     * primeiro ciclo é o que contém o primeiro consumo do credor. Vazio quando o credor nunca consumiu.
      */
     private Optional<Pending> pendingCycle(UUID creditorId, Instant now) {
         Optional<UsageStatement> last = statements.findLastCycle(creditorId);
-        LocalDate earliestStart = null;
-        Instant searchFrom = Instant.EPOCH;
-        if (last.isPresent()) {
-            Pending contiguous = cycleStartingAt(creditorId, last.get().getPeriodEnd().plusDays(1));
-            Instant from = contiguous.cycle().from(ZONE);
-            Instant to = contiguous.cycle().to(ZONE);
-            Optional<Instant> first = usage.firstUsageAt(creditorId, from);
-            if (first.filter(t -> t.isBefore(to)).isPresent() || !contiguous.cycle().endedAt(now, ZONE)) {
-                return Optional.of(contiguous);
-            }
-            earliestStart = contiguous.cycle().end().plusDays(1);
-            searchFrom = to;
+        if (last.isEmpty()) {
+            return usage.firstUsageAt(creditorId, Instant.EPOCH)
+                    .map(first -> cycleStartingAt(creditorId, nominalStart(creditorId, LocalDate.ofInstant(first, ZONE))));
         }
-        LocalDate lowerBound = earliestStart;
-        return usage.firstUsageAt(creditorId, searchFrom)
-                .map(first -> cycleStartingAt(creditorId, nominalStart(creditorId, LocalDate.ofInstant(first, ZONE),
-                        lowerBound)));
+        Pending candidate = cycleStartingAt(creditorId, last.get().getPeriodEnd().plusDays(1));
+        while (candidate.cycle().endedAt(now, ZONE) && !generatesStatement(creditorId, candidate)) {
+            candidate = cycleStartingAt(creditorId, candidate.cycle().end().plusDays(1));
+        }
+        return Optional.of(candidate);
     }
 
-    /**
-     * Início do ciclo que contém o dia do primeiro consumo, no calendário do dia de fechamento que vale nesse dia —
-     * nunca antes do dia seguinte ao último ciclo (sem sobreposição).
-     */
-    private LocalDate nominalStart(UUID creditorId, LocalDate firstUsageDay, LocalDate lowerBound) {
+    /** Ciclo gera extrato quando tem consumo ou mensalidade maior que zero (decisão 624). */
+    private boolean generatesStatement(UUID creditorId, Pending p) {
+        if (p.pricing().map(v -> v.monthlyFee().signum() > 0).orElse(false)) {
+            return true;
+        }
+        Instant to = p.cycle().to(ZONE);
+        return usage.firstUsageAt(creditorId, p.cycle().from(ZONE)).filter(t -> t.isBefore(to)).isPresent();
+    }
+
+    /** Início do ciclo que contém o dia do primeiro consumo, no calendário do dia de fechamento que vale nesse dia. */
+    private LocalDate nominalStart(UUID creditorId, LocalDate firstUsageDay) {
         int closingDay = applicablePricing(creditorId, firstUsageDay).map(IntegrationPricingView::usageClosingDay)
                 .orElse(ContractIntegrationPricingUseCases.DEFAULT_USAGE_CLOSING_DAY);
-        LocalDate start = BillingCycles.containing(firstUsageDay, closingDay).start();
-        return lowerBound != null && start.isBefore(lowerBound) ? lowerBound : start;
+        return BillingCycles.containing(firstUsageDay, closingDay).start();
     }
 
     private Pending cycleStartingAt(UUID creditorId, LocalDate start) {
@@ -304,7 +305,7 @@ class BillingService implements PublicApiBillingUseCases {
         UsageStatement.AppliedPricing applied = pending.pricing().map(p -> new UsageStatement.AppliedPricing(
                 p.contractId(), p.contractNumber(), p.id(), p.version())).orElse(null);
         UsageStatement statement = statements.save(new UsageStatement(creditorId, cycle.start(), cycle.end(), revision,
-                cycle.closingDay(), applied, c.totals.requests(), c.billable, c.result.total(), json.toJson(c.lines),
+                cycle.closingDay(), c.proration, applied, c.totals.requests(), c.billable, c.result.total(), json.toJson(c.lines),
                 json.toJson(c.breakdown), c.usageHash, Instant.now(clock), currentActor.actorId(), reason));
         String period = cycle.start() + "/" + cycle.end();
         auditTrail.record(AuditEntry.of(revision == 1 ? "usage_statement.closed" : "usage_statement.reclosed",
@@ -317,6 +318,7 @@ class BillingService implements PublicApiBillingUseCases {
                 .reference("usage_statement", statement.getId()).amount(statement.getTotalAmount())
                 .attr("periodStart", cycle.start().toString()).attr("periodEnd", cycle.end().toString())
                 .attr("closingDay", cycle.closingDay()).attr("revision", revision)
+                .attr("cycleDays", c.proration.cycleDays()).attr("referenceCycleDays", c.proration.referenceDays())
                 .attr("requests", c.totals.requests()).attr("billableRequests", c.billable.requests())
                 .attr("clientErrors", c.totals.clientErrors()).attr("throttled", c.totals.throttled())
                 .attr("serverErrors", c.totals.serverErrors()).attr("billableMbIn", c.billable.mbIn())
@@ -328,8 +330,9 @@ class BillingService implements PublicApiBillingUseCases {
 
     // ---------------------------------------------------------------- cálculo
 
-    private record Computed(UsageTotals totals, BillableUsage billable, PriceCalculator.Result result,
-                            List<StatementLine> lines, List<StatementBreakdown> breakdown, String usageHash) {
+    private record Computed(UsageTotals totals, BillableUsage billable, Proration proration,
+                            PriceCalculator.Result result, List<StatementLine> lines, List<StatementBreakdown> breakdown,
+                            String usageHash) {
     }
 
     private Computed compute(UUID creditorId, Pending pending) {
@@ -339,7 +342,7 @@ class BillingService implements PublicApiBillingUseCases {
         List<UsageStore.TokenRow> byToken = usage.byToken(filter);
         BillableUsage billable = BillableUsage.sumOfTokens(byToken.stream().map(UsageStore.TokenRow::totals).toList());
         PriceCalculator.Result result = pending.pricing()
-                .map(p -> PriceCalculator.calculate(terms(p), billable))
+                .map(p -> PriceCalculator.calculate(terms(p), billable, BillingCycles.proration(cycle)))
                 .orElseGet(() -> new PriceCalculator.Result(List.of(), BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY)));
         List<StatementLine> lines = result.lines().stream().map(l -> new StatementLine(l.metric(), l.quantity(),
                 l.included(), l.billable(), l.unitPrice(), l.amount())).toList();
@@ -371,7 +374,8 @@ class BillingService implements PublicApiBillingUseCases {
         hashed.put("periodEnd", cycle.end().toString());
         hashed.put("totals", totalsMap(totals, billable));
         hashed.put("breakdown", breakdown);
-        return new Computed(totals, billable, result, lines, breakdown, sha256(json.toJson(hashed)));
+        return new Computed(totals, billable, BillingCycles.proration(cycle), result, lines, breakdown,
+                sha256(json.toJson(hashed)));
     }
 
     private static PriceTerms terms(IntegrationPricingView p) {
@@ -411,8 +415,11 @@ class BillingService implements PublicApiBillingUseCases {
     private StatementView view(UsageStatement s) {
         Instant now = Instant.now(clock);
         Cycle cycle = new Cycle(s.getPeriodStart(), s.getPeriodEnd(), s.getUsageClosingDay());
+        Proration proration = s.getCycleDays() == null ? BillingCycles.proration(cycle)
+                : new Proration(s.getCycleDays(), s.getReferenceCycleDays());
         return new StatementView(s.getId(), s.getCreditorId(), s.getPeriodStart(), s.getPeriodEnd(),
-                cycle.endedAt(now, ZONE), s.getRevision(), s.getUsageClosingDay(), s.getContractId(),
+                cycle.endedAt(now, ZONE), s.getRevision(), s.getUsageClosingDay(), proration.cycleDays(),
+                proration.referenceDays(), s.getContractId(),
                 s.getContractNumber(), s.getPricingId(), s.getPricingVersion(), s.getRequests(), s.getBillableRequests(),
                 s.getBillableMbIn(), s.getBillableMbOut(), s.getRecords(), s.getTotalAmount(), s.getCurrency(),
                 json.fromJson(s.getLines(), LINES), json.fromJson(s.getBreakdown(), BREAKDOWN), s.getUsageHash(),
