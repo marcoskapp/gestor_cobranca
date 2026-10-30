@@ -22,7 +22,8 @@ import java.util.function.Consumer;
  * <p>
  * Ordem: administrador da plataforma → para cada assessoria: provisionamento → administrador → credores, contratos e
  * carteiras → usuários de todos os perfis → configuração operacional → canais e provedores simulados → tokens de
- * integração (ponto de extensão) → carga das carteiras → cenários operacionais e jurídicos → réguas → distribuição,
+ * integração (ponto de extensão) → carga das carteiras → importação PDF de demonstração (PDFs fictícios e mapa salvo
+ * do 1º credor) → cenários operacionais e jurídicos → réguas → distribuição,
  * demonstrativo e painéis. Cada etapa confere o que já existe: subir de novo não duplica nada.
  * <p>
  * Ativação: perfil {@code sandbox} e {@code app.sandbox.seed.enabled=true} ({@code SandboxSeedGuard} recusa outras
@@ -39,6 +40,7 @@ class SandboxSeeder {
     private final ChannelSeeder channels;
     private final IntegrationTokensSeeder integrationTokens;
     private final PortfolioLoadSeeder portfolioLoad;
+    private final PdfImportDemoSeeder pdfImportDemo;
     private final OperationSeeder operations;
     private final LegalSeeder legal;
     private final CampaignSeeder campaigns;
@@ -48,7 +50,7 @@ class SandboxSeeder {
 
     SandboxSeeder(IdentitySeeder identity, OrganizationSeeder organization, ConfigurationSeeder configuration,
                   ChannelSeeder channels, IntegrationTokensSeeder integrationTokens, PortfolioLoadSeeder portfolioLoad,
-                  OperationSeeder operations, LegalSeeder legal, CampaignSeeder campaigns, SeedStatus status,
+                  PdfImportDemoSeeder pdfImportDemo, OperationSeeder operations, LegalSeeder legal, CampaignSeeder campaigns, SeedStatus status,
                   SeedRuntime rt, MeterRegistry meters) {
         this.identity = identity;
         this.organization = organization;
@@ -56,6 +58,7 @@ class SandboxSeeder {
         this.channels = channels;
         this.integrationTokens = integrationTokens;
         this.portfolioLoad = portfolioLoad;
+        this.pdfImportDemo = pdfImportDemo;
         this.operations = operations;
         this.legal = legal;
         this.campaigns = campaigns;
@@ -87,6 +90,7 @@ class SandboxSeeder {
                 step("canais e provedores simulados", seed, channels::seed);
                 step("tokens de integração", seed, integrationTokens::seed);
                 step("carga das carteiras", seed, portfolioLoad::seed);
+                step("importação PDF de demonstração", seed, pdfImportDemo::seed);
                 step("cenários operacionais", seed, operations::seed);
                 step("fluxo jurídico", seed, legal::seed);
                 step("réguas de cobrança", seed, campaigns::seed);
