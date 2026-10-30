@@ -34,6 +34,8 @@ infra/terraform/**/.terraform.lock.hcl.bak
 .DS_Store
 
 # Execução local
+# PDFs fictícios de demonstração copiados do sandbox (scripts/sandbox/pdfs.sh); gerados a cada reset
+sandbox-pdfs/
 backend/var/
 backend/config/dev/
 

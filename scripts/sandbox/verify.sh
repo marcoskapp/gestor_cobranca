@@ -12,6 +12,9 @@
 #   6. Swagger e /v3/api-docs de todos os grupos abertos sem login (só no sandbox) e a API interna ainda protegida.
 #   7. posição do credor: repasse e faturamento da API pelas telas internas (financeiro) e pela API pública (token
 #      completo: 200; token só de leitura, sem billing:read/settlement:read: 403).
+#   8. Importação PDF sem IA: PDFs fictícios de demonstração gerados pela carga; o PDF de verificação enviado pela
+#      API pública (token completo, Idempotency-Key fixa) é mapeado pelo mapa salvo do credor (TEMPLATE), fica
+#      aguardando validação humana e os totais do documento batem.
 #
 #   ./scripts/sandbox/verify.sh
 #
@@ -258,6 +261,40 @@ papi GET /billing/position "${FULL}" > "${TMP_BODY}"
 has_fields "API pública: posição do faturamento com o token completo" 'has("periodStart") and has("amountSoFar")' < "${TMP_BODY}"
 papi GET /settlement/position "${READ}" >/dev/null; expect "token só de leitura (sem settlement:read) na posição do repasse" 403
 papi GET /billing/position "${READ}" >/dev/null; expect "token só de leitura (sem billing:read) na posição do faturamento" 403
+
+log INFO "8. Importação PDF (mapa salvo do 1º credor, sem IA)"
+PDF_INDEX="$(sandbox_pdf_index || true)"
+npdfs="$(grep -c . <<<"${PDF_INDEX}" || true)"
+[[ "${npdfs}" == 8 ]] && ok "8 PDFs fictícios de demonstração (4 por assessoria; ./scripts/sandbox/pdfs.sh)" \
+  || fail "PDFs de demonstração no índice: ${npdfs} (esperado 8)"
+PDF_FILE="$(awk -F'\t' '$1 == "aurora" && $4 ~ /^verificacao-api-/ {print $4}' <<<"${PDF_INDEX}")"
+TMP_PDF="$(mktemp "${TMPDIR:-/tmp}/gc-verify-pdf.XXXXXX")"
+trap 'rm -f "${TMP_BODY}" "${TMP_PDF}"' EXIT
+if [[ -z "${PDF_FILE}" ]] || ! sandbox_pdf aurora "${PDF_FILE}" > "${TMP_PDF}" || [[ ! -s "${TMP_PDF}" ]]; then
+  fail "PDF de verificação da Importação PDF indisponível no volume do sandbox"
+else
+  # mesmo arquivo e mesma chave a cada execução → a mesma importação (a API recusa o mesmo PDF com outra chave: 409)
+  out="$(curl -sS --max-time 60 -w '\n%{http_code}' -H "Authorization: Bearer ${FULL}" \
+    -H 'Idempotency-Key: sandbox-verify-pdf-v1' -F "file=@${TMP_PDF};type=application/pdf;filename=${PDF_FILE}" \
+    "${APP_URL}/public-api/v1/imports/pdf?portfolioId=${HZN_PORTFOLIO}")"
+  HTTP_STATUS="${out##*$'\n'}"
+  expect "enviar o PDF de demonstração pela API pública (token completo)" "200|202"
+  pdf_id="$(jq -r '.id // empty' <<<"${out%$'\n'*}" 2>/dev/null || true)"
+  if [[ -n "${pdf_id}" ]]; then
+    pdf=""
+    status=""
+    for _ in $(seq 1 30); do
+      pdf="$(papi GET "/imports/pdf/${pdf_id}" "${FULL}")"
+      status="$(jq -r '.status' <<<"${pdf}")"
+      [[ "${status}" != RECEIVED && "${status}" != MAPPING ]] && break
+      sleep 2
+    done
+    summary="$(jq -r '"\(.status) \(.mapOrigin) \(.records) \(.totalsMatch) \(.awaitingHumanValidation)"' <<<"${pdf}")"
+    [[ "${summary}" == "AWAITING_VALIDATION TEMPLATE 3 true true" ]] \
+      && ok "PDF mapeado pelo mapa salvo, 3 títulos, totais batendo, aguardando validação humana" \
+      || fail "Importação PDF pela API: status mapa títulos totais validação = ${summary} (esperado AWAITING_VALIDATION TEMPLATE 3 true true)"
+  fi
+fi
 
 if (( FAILURES > 0 )); then
   die "${FAILURES} verificação(ões) falharam"

@@ -81,6 +81,16 @@ services:
       APP_BOOTSTRAP_PLATFORM_ADMIN_NAME: Administrador da Plataforma (sandbox)
       APP_BOOTSTRAP_PLATFORM_CNPJ: "11222333000181"
       JAVA_OPTS: -XX:MaxRAMPercentage=60 -Duser.timezone=UTC
+      # Importação PDF com IA real (opcional, desligada por padrão): Amazon Bedrock com credenciais AWS da própria
+      # máquina, passadas só por variável de ambiente (nada é gravado na imagem nem no volume). Ligar exige aprovar a
+      # transferência internacional (LGPD art. 33) — sem isso a aplicação não sobe. Guia: docs/tecnico/operacao/sandbox.md
+      INGESTION_PDF_BEDROCK_ENABLED: ${INGESTION_PDF_BEDROCK_ENABLED:-false}
+      INGESTION_PDF_BEDROCK_REGION: ${INGESTION_PDF_BEDROCK_REGION:-us-east-1}
+      INGESTION_PDF_BEDROCK_MODEL_ID: ${INGESTION_PDF_BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-5-5}
+      INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED: ${INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:-false}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
     ports:
       - "127.0.0.1:${SANDBOX_APP_PORT:-58080}:8080"
     volumes:
@@ -88,6 +98,7 @@ services:
       - sandbox-storage:/var/lib/gestor-cobranca/storage
       - sandbox-logs:/var/lib/gestor-cobranca/logs
       # segredos dos tokens de demonstração da API pública (exibidos só na emissão) → scripts/sandbox/tokens.sh
+      # e PDFs fictícios de demonstração da Importação PDF → scripts/sandbox/pdfs.sh
       - sandbox-data:/sandbox-data
     healthcheck:
       # pronto = aplicação no ar E carga do sandbox concluída (grupo readiness inclui sandboxSeed)
