@@ -435,7 +435,8 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
     }
     @media (max-width: 1100px) {
       .pd-layout {
-        grid-template-columns: 1fr;
+        /* minmax(0, …): a página do PDF (largura mínima legível) rola dentro do quadro, sem alargar a coluna */
+        grid-template-columns: minmax(0, 1fr);
       }
     }
     .pd-map__head,
