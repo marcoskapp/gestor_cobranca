@@ -144,10 +144,15 @@ body {
     width: 320px;
   }
 
+  // Os campos da linha têm rótulo acima (`form-label`): os botões descem a altura do rótulo e
+  // centralizam na altura do controle, como `.app-control-offset`.
   .app-filters__actions {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
-    padding-top: 4px;
+    min-height: $input-height;
+    margin-top: calc(#{$line-height-base} * 1em + #{$form-label-margin-bottom});
   }
 }
 
