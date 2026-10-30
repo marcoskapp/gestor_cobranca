@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_V1 } from '../../../core/config/api';
+import { silentErrorContext } from '../../../core/http/http-context';
 import { toHttpParams } from '../../../core/http/http-params';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
@@ -12,6 +13,8 @@ import {
   CreatePortfolioRequest,
   CreditorRequest,
   CreditorView,
+  IntegrationPricingRequest,
+  IntegrationPricingView,
   PortfolioView,
   TenantSettingsRequest,
   TenantView,
@@ -97,6 +100,18 @@ export class ContractsApi {
 
   terminate(id: string, endDate: string, reason: string): Observable<ContractView> {
     return this.http.post<ContractView>(`${this.base}/${id}/terminate`, { endDate, reason });
+  }
+
+  /** Versões das condições de cobrança das integrações, da mais recente para a mais antiga. */
+  integrationPricing(id: string): Observable<IntegrationPricingView[]> {
+    return this.http.get<IntegrationPricingView[]>(`${this.base}/${id}/integration-pricing`);
+  }
+
+  /** Nova versão (vale a partir do próximo ciclo de consumo). Erros de regra ficam com o diálogo. */
+  defineIntegrationPricing(id: string, request: IntegrationPricingRequest): Observable<IntegrationPricingView> {
+    return this.http.post<IntegrationPricingView>(`${this.base}/${id}/integration-pricing`, request, {
+      context: silentErrorContext(),
+    });
   }
 }
 

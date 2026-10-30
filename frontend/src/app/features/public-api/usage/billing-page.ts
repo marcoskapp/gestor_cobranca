@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { debounceTime, finalize, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -15,87 +15,40 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
-import { valueOr } from '../../../shared/data/resource-value';
 import { sameValue } from '../../../shared/data/same-value';
-import { DialogService } from '../../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../../shared/forms/field';
-import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { PublicApiUsageApi } from '../data/public-api.api';
-import { PUBLIC_API_ERROR_LABELS, formatBytes } from '../data/public-api.labels';
-import { PricePlanView, StatementView } from '../data/public-api.models';
-import { PricePlanDialog, PricePlanDialogData } from './price-plan-dialog';
+import { PUBLIC_API_ERROR_LABELS, formatCycle } from '../data/public-api.labels';
+import { StatementView } from '../data/public-api.models';
 import { StatementViewPanel } from './statement-view';
 
-function previousMonth(): string {
-  const now = new Date();
-  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
-}
-
 /**
- * Faturamento da API pública (modelo pronto para faturar, sem cobrança): tabelas de preço versionadas e extratos
- * mensais por credor, com prévia, fechamento (o mês anterior fecha sozinho no dia 1), revisão com motivo e exportação.
+ * Faturamento da API pública (modelo pronto para faturar, sem cobrança): extrato por ciclo de consumo de cada credor,
+ * com prévia, fechamento (os ciclos encerrados fecham sozinhos na madrugada seguinte), revisão com motivo e exportação.
+ * Os preços e o dia de fechamento ficam no contrato do credor (ficha do credor → contratos → integrações).
  */
 @Component({
   selector: 'app-public-api-billing',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, Icon, PageHeader, StatementViewPanel],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, CellDef, DataTable, EntityPicker, Icon, PageHeader, StatementViewPanel],
   template: `
-    <app-page-header title="Extratos da API pública" subtitle="Tabela de preços por versão e extrato mensal de consumo por credor, reprodutível: o mesmo consumo e a mesma tabela geram sempre o mesmo valor." />
-
-    <section class="app-card" aria-labelledby="bp-plans" data-tour="billing-plans">
-      <div class="bp-head">
-        <h2 class="app-card__title" id="bp-plans">Tabelas de preço</h2>
-        @if (canManage()) {
-          <button class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="newPlan()">
-            <app-icon name="plus-lg" />
-            Nova versão
-          </button>
-        }
-      </div>
-      @if (!plans().length) {
-        <p class="app-muted">Nenhuma tabela cadastrada. Sem tabela vigente, o extrato mostra o consumo com valor zero.</p>
-      } @else {
-        <div class="table-responsive">
-          <table class="table table-sm mb-0">
-            <caption class="visually-hidden">Versões das tabelas de preço</caption>
-            <thead><tr><th scope="col">Código</th><th scope="col">Credor</th><th scope="col">Vigência</th><th scope="col" class="text-end">Mensalidade</th><th scope="col">Franquias (req. · MB in/out · reg.)</th><th scope="col">Situação</th><th scope="col"><span class="visually-hidden">Ações</span></th></tr></thead>
-            <tbody>
-              @for (p of plans(); track p.id) {
-                <tr>
-                  <td><span class="app-mono">{{ p.code }}</span> v{{ p.version }}<div class="app-muted bp-small">{{ p.name }}</div></td>
-                  <td>{{ p.creditorId ? creditors.name(p.creditorId) : 'Padrão da assessoria' }}</td>
-                  <td>{{ p.effectiveFrom | appDate }}</td>
-                  <td class="text-end"><app-amount [value]="p.monthlyFee" /></td>
-                  <td class="bp-small">{{ n(p.includedRequests) }} · {{ n(p.includedMbIn) }}/{{ n(p.includedMbOut) }} · {{ n(p.includedRecords) }}</td>
-                  <td>{{ p.status === 'PUBLISHED' ? 'Publicada' : 'Rascunho' }}</td>
-                  <td class="text-end text-nowrap">
-                    @if (canManage() && p.status === 'DRAFT') {
-                      <button class="btn btn-sm btn-link" type="button" (click)="editPlan(p)">Editar</button>
-                      <button class="btn btn-sm btn-link" type="button" (click)="publish(p)">Publicar</button>
-                    } @else if (canManage()) {
-                      <button class="btn btn-sm btn-link" type="button" (click)="newVersion(p)">Nova versão</button>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    </section>
+    <app-page-header title="Extratos da API pública" subtitle="Extrato por ciclo de consumo de cada credor, com os preços do contrato. Reprodutível: o mesmo consumo e as mesmas condições geram sempre o mesmo valor." />
 
     <section class="app-card" aria-labelledby="bp-preview" data-tour="billing-preview">
-      <h2 class="app-card__title" id="bp-preview">Prévia e fechamento</h2>
+      <h2 class="app-card__title" id="bp-preview">Prévia e fechamento do ciclo</h2>
+      <p class="app-muted bp-small">
+        Preços e dia de fechamento ficam no contrato do credor (ficha do credor, contratos, botão de integrações) e valem a
+        partir do próximo ciclo. O ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte;
+        os ciclos encerrados são fechados automaticamente na madrugada seguinte.
+      </p>
       <form class="app-filters" [formGroup]="previewForm" aria-label="Prévia do extrato">
         <div class="app-filters__wide">
           <app-entity-picker [control]="previewForm.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
         </div>
-        <app-field label="Mês"><input appInput type="month" formControlName="month" required /></app-field>
         <div class="app-filters__actions">
           <button class="btn btn-outline-primary" type="button" (click)="loadPreview()" [disabled]="!previewForm.controls.creditor.value.length">Calcular prévia</button>
-          @if (canManage() && preview()) {
-            <button class="btn btn-primary" type="button" (click)="close()" [disabled]="busy()">Fechar mês</button>
+          @if (canManage() && preview()?.ended) {
+            <button class="btn btn-primary" type="button" (click)="close()" [disabled]="busy()">Fechar ciclo</button>
           }
         </div>
       </form>
@@ -110,7 +63,7 @@ function previousMonth(): string {
         <div class="app-filters__wide">
           <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
         </div>
-        <app-field label="Mês"><input appInput type="month" formControlName="month" /></app-field>
+        <app-field label="Mês do fechamento"><input appInput type="month" formControlName="month" /></app-field>
       </form>
       <app-data-table
         caption="Extratos fechados"
@@ -123,15 +76,18 @@ function previousMonth(): string {
         (retry)="query.reload()"
         emptyIcon="receipt"
         emptyMessage="Nenhum extrato fechado."
-        emptyHint="O mês anterior é fechado automaticamente no dia 1."
+        emptyHint="Cada ciclo encerrado é fechado automaticamente na madrugada seguinte ao dia de fechamento do contrato."
       >
-        <ng-template appCell="period" [appCellOf]="query.rows()" let-s>{{ s.periodStart.slice(5, 7) }}/{{ s.periodStart.slice(0, 4) }}<div class="app-muted bp-small">revisão {{ s.revision }}</div></ng-template>
+        <ng-template appCell="period" [appCellOf]="query.rows()" let-s>{{ cycle(s) }}<div class="app-muted bp-small">revisão {{ s.revision }}</div></ng-template>
         <ng-template appCell="creditor" [appCellOf]="query.rows()" let-s>{{ creditors.name(s.creditorId) }}</ng-template>
-        <ng-template appCell="usage" [appCellOf]="query.rows()" let-s><span class="bp-small">{{ n(s.billableRequests) }} req. · {{ bytes(s.bytesIn + s.bytesOut) }} · {{ n(s.records) }} reg.</span></ng-template>
-        <ng-template appCell="plan" [appCellOf]="query.rows()" let-s>{{ s.pricePlanCode ? s.pricePlanCode + ' v' + s.pricePlanVersion : 'Sem tabela' }}</ng-template>
+        <ng-template appCell="usage" [appCellOf]="query.rows()" let-s><span class="bp-small">{{ n(s.billableRequests) }} cham. · {{ n(s.billableMbIn) }} MB rec. · {{ n(s.billableMbOut) }} MB env. · {{ n(s.records) }} reg.</span></ng-template>
+        <ng-template appCell="plan" [appCellOf]="query.rows()" let-s>{{ s.pricingVersion ? s.contractNumber + ' · v' + s.pricingVersion : 'Sem condições' }}</ng-template>
         <ng-template appCell="total" [appCellOf]="query.rows()" let-s><app-amount [value]="s.totalAmount" /></ng-template>
         <ng-template appCell="actions" [appCellOf]="query.rows()" let-s>
           <button class="btn btn-sm btn-link" type="button" (click)="selected.set(s)">Detalhar</button>
+          @if (canManage()) {
+            <button class="btn btn-sm btn-link" type="button" (click)="revise(s)">Nova revisão</button>
+          }
           @if (canExport()) {
             <button class="btn btn-sm btn-link" type="button" (click)="exportStatement(s)" aria-label="Exportar CSV"><app-icon name="download" /></button>
           }
@@ -144,13 +100,6 @@ function previousMonth(): string {
 
   `,
   styles: `
-    .bp-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
     .bp-small {
       font-size: var(--app-text-xs);
     }
@@ -159,7 +108,6 @@ function previousMonth(): string {
 export class BillingPage {
   private readonly api = inject(PublicApiUsageApi);
   private readonly auth = inject(AuthService);
-  private readonly dialog = inject(DialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -169,11 +117,8 @@ export class BillingPage {
   protected readonly preview = signal<StatementView | null>(null);
   protected readonly selected = signal<StatementView | null>(null);
 
-  private readonly plansResource = rxResource({ stream: () => this.api.plans() });
-  protected readonly plans = valueOr(this.plansResource, []);
-
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly previewForm = this.fb.group({ creditor: this.fb.control<string[]>([]), month: [previousMonth()] });
+  protected readonly previewForm = this.fb.group({ creditor: this.fb.control<string[]>([]) });
   protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), month: [''] });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(startWith(null), debounceTime(250), map(() => this.current())),
@@ -182,98 +127,64 @@ export class BillingPage {
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.statements(f.creditorId, f.month, page));
   protected readonly creditors = nameMap(inject(CreditorNames), () => [
     ...this.query.rows().map((s) => s.creditorId),
-    ...this.plans().map((p) => p.creditorId).filter((v): v is string => !!v),
     ...(this.preview() ? [this.preview()!.creditorId] : []),
   ]);
 
   protected readonly columns: TableColumn[] = [
-    { key: 'period', header: 'Mês' },
+    { key: 'period', header: 'Ciclo' },
     { key: 'creditor', header: 'Credor' },
     { key: 'usage', header: 'Consumo cobrável' },
-    { key: 'plan', header: 'Tabela' },
+    { key: 'plan', header: 'Condições do contrato' },
     { key: 'total', header: 'Total', align: 'end' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 
   protected n(value: number): string {
-    return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 6 }).format(value);
+    return new Intl.NumberFormat('pt-BR').format(value);
   }
 
-  protected bytes(value: number): string {
-    return formatBytes(value);
-  }
-
-  protected newPlan(): void {
-    this.openPlan({});
-  }
-
-  protected newVersion(base: PricePlanView): void {
-    this.openPlan({ base });
-  }
-
-  protected editPlan(plan: PricePlanView): void {
-    this.openPlan({ plan });
-  }
-
-  protected publish(plan: PricePlanView): void {
-    this.confirm
-      .confirm({
-        title: 'Publicar tabela de preços',
-        message: 'Publicada, a versão não muda mais. Extratos de meses a partir da vigência passam a usá-la.',
-        confirmLabel: 'Publicar',
-        details: [
-          { label: 'Tabela', value: `${plan.code} v${plan.version}` },
-          { label: 'Vigência', value: plan.effectiveFrom.split('-').reverse().join('/') },
-        ],
-      })
-      .subscribe(() =>
-        this.api.publishPlan(plan.id).subscribe(() => {
-          this.notifications.success('Tabela publicada.');
-          this.plansResource.reload();
-        }),
-      );
+  protected cycle(s: StatementView): string {
+    return formatCycle(s.periodStart, s.periodEnd);
   }
 
   protected loadPreview(): void {
     const v = this.previewForm.getRawValue();
-    if (!v.creditor.length || !v.month) {
+    if (!v.creditor.length) {
       return;
     }
-    this.api.preview(v.creditor[0], v.month).subscribe((s) => this.preview.set(s));
+    this.api.preview(v.creditor[0]).subscribe((s) => this.preview.set(s));
   }
 
   protected close(): void {
-    const v = this.previewForm.getRawValue();
-    const existing = this.query.rows().some((s) => s.creditorId === v.creditor[0] && s.periodStart.startsWith(v.month));
+    const s = this.preview();
+    if (!s) {
+      return;
+    }
     this.confirm
       .confirm({
-        title: existing ? 'Gerar nova revisão do extrato' : 'Fechar o mês',
-        message: existing
-          ? 'O extrato deste mês já foi fechado. Uma nova revisão é gravada (a anterior permanece), com o motivo.'
-          : 'O extrato é gravado e não muda mais. Novos fechamentos do mesmo mês geram revisões com motivo.',
-        confirmLabel: existing ? 'Gerar revisão' : 'Fechar mês',
-        reason: existing ? 'required' : 'optional',
+        title: 'Fechar o ciclo',
+        message: 'O extrato é gravado e não muda mais. Novos fechamentos do mesmo ciclo geram revisões com motivo.',
+        confirmLabel: 'Fechar ciclo',
+        reason: 'optional',
+        reasonLabel: 'Observação',
+        reasonMaxLength: 500,
+        details: [{ label: 'Ciclo', value: formatCycle(s.periodStart, s.periodEnd) }],
+      })
+      .subscribe((reason) => this.submit(s.creditorId, null, reason || null));
+  }
+
+  protected revise(s: StatementView): void {
+    this.confirm
+      .confirm({
+        title: 'Gerar nova revisão do extrato',
+        message: 'Uma nova revisão do ciclo é gravada com o consumo atual e as mesmas condições; a anterior permanece.',
+        confirmLabel: 'Gerar revisão',
+        reason: 'required',
         reasonLabel: 'Motivo',
         reasonMaxLength: 500,
+        details: [{ label: 'Ciclo', value: formatCycle(s.periodStart, s.periodEnd) }],
       })
-      .subscribe((reason) => {
-        this.busy.set(true);
-        this.api
-          .close(v.creditor[0], v.month, reason || null)
-          .pipe(finalize(() => this.busy.set(false)))
-          .subscribe({
-            next: (s) => {
-              this.notifications.success(`Extrato fechado (revisão ${s.revision}).`);
-              this.preview.set(null);
-              this.selected.set(s);
-              this.query.reload();
-            },
-            error: (err: unknown) => {
-              const e = toApiError(err);
-              this.notifications.error((e.code && PUBLIC_API_ERROR_LABELS[e.code]) || userMessage(e));
-            },
-          });
-      });
+      .subscribe((reason) => this.submit(s.creditorId, s.periodStart, reason || null));
   }
 
   protected exportStatement(s: StatementView): void {
@@ -282,15 +193,22 @@ export class BillingPage {
     }
   }
 
-  private openPlan(data: PricePlanDialogData): void {
-    this.dialog
-      .open<PricePlanDialog, PricePlanDialogData, PricePlanView>(PricePlanDialog, { data, size: 'lg' })
-      .afterClosed()
-      .subscribe((saved) => {
-        if (saved) {
-          this.notifications.success('Rascunho salvo. Publique para valer nos extratos.');
-          this.plansResource.reload();
-        }
+  private submit(creditorId: string, periodStart: string | null, reason: string | null): void {
+    this.busy.set(true);
+    this.api
+      .close(creditorId, periodStart, reason)
+      .pipe(finalize(() => this.busy.set(false)))
+      .subscribe({
+        next: (s) => {
+          this.notifications.success(`Extrato fechado (revisão ${s.revision}).`);
+          this.preview.set(null);
+          this.selected.set(s);
+          this.query.reload();
+        },
+        error: (err: unknown) => {
+          const e = toApiError(err);
+          this.notifications.error((e.code && PUBLIC_API_ERROR_LABELS[e.code]) || userMessage(e));
+        },
       });
   }
 

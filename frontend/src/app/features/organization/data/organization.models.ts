@@ -73,6 +73,36 @@ export interface ContractTermsRequest {
   notes: string | null;
 }
 
+/**
+ * `ContractIntegrationPricingUseCases.IntegrationPricingView`: versão das condições de cobrança das integrações (API
+ * pública) no contrato. Imutável; vale para os ciclos de consumo que começam depois de `registeredAt`.
+ */
+export interface IntegrationPricingView {
+  id: string;
+  contractId: string;
+  contractNumber: string;
+  creditorId: string;
+  version: number;
+  usageClosingDay: number;
+  monthlyFee: number;
+  includedRequests: number;
+  pricePerRequest: number;
+  includedMbIn: number;
+  pricePerMbIn: number;
+  includedMbOut: number;
+  pricePerMbOut: number;
+  includedRecords: number;
+  pricePerRecord: number;
+  registeredAt: string;
+  registeredBy: string | null;
+  reason: string | null;
+}
+
+export type IntegrationPricingRequest = Omit<
+  IntegrationPricingView,
+  'id' | 'contractId' | 'contractNumber' | 'creditorId' | 'version' | 'registeredAt' | 'registeredBy'
+>;
+
 export interface CreateContractRequest {
   creditorId: string;
   number: string;

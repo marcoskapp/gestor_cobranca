@@ -1,24 +1,27 @@
 import { Component, input } from '@angular/core';
 import { Amount } from '../../../shared/components/amount/amount';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { METRIC_LABELS } from '../data/public-api.labels';
+import { METRIC_LABELS, formatCycle } from '../data/public-api.labels';
 import { StatementView } from '../data/public-api.models';
 
-const NUMBER = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 6 });
+const NUMBER = new Intl.NumberFormat('pt-BR');
 
-/** Linhas do extrato (consumo, franquia, cobrável, valor), total e hash do consumo usado no cálculo. */
+/**
+ * Linhas do extrato de um ciclo (quantidade inteira, franquia, cobrável, valor), total, detalhamento por token e hash
+ * do consumo usado no cálculo.
+ */
 @Component({
   selector: 'app-statement-view',
   imports: [Amount, AppDatePipe],
   template: `
     @let s = statement();
     <p class="sv-small app-muted">
-      {{ creditorName() }} · {{ s.periodStart.slice(5, 7) }}/{{ s.periodStart.slice(0, 4) }} ·
-      {{ s.pricePlanCode ? 'Tabela ' + s.pricePlanCode + ' v' + s.pricePlanVersion : 'Sem tabela vigente' }}
+      {{ creditorName() }} · ciclo {{ cycle(s) }} (fecha no dia {{ s.usageClosingDay }}) ·
+      {{ s.pricingVersion ? 'Contrato ' + s.contractNumber + ', condições v' + s.pricingVersion : 'Contrato sem condições de cobrança' }}
       @if (s.closedAt) {
         · fechado em {{ s.closedAt | appDate }} (revisão {{ s.revision }})
       } @else {
-        · prévia
+        · prévia{{ s.ended ? ' (ciclo encerrado)' : ' (ciclo em curso)' }}
       }
       @if (s.reason) {
         · motivo: {{ s.reason }}
@@ -40,12 +43,35 @@ const NUMBER = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 6 });
               <td class="text-end"><app-amount [value]="l.amount" /></td>
             </tr>
           } @empty {
-            <tr><td colspan="5" class="app-muted">Sem tabela de preços vigente no mês: só o consumo é registrado.</td></tr>
+            <tr><td colspan="5" class="app-muted">O contrato não tem condições de cobrança das integrações vigentes no início do ciclo: só o consumo é registrado.</td></tr>
           }
           <tr><th scope="row" colspan="4">Total</th><td class="text-end"><strong><app-amount [value]="s.totalAmount" /></strong></td></tr>
         </tbody>
       </table>
     </div>
+    @if (tokens(s).length) {
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <caption class="visually-hidden">Detalhamento por token</caption>
+          <thead>
+            <tr><th scope="col">Token</th><th scope="col" class="text-end">Chamadas</th><th scope="col" class="text-end">Cobráveis</th><th scope="col" class="text-end">MB recebidos</th><th scope="col" class="text-end">MB enviados</th><th scope="col" class="text-end">Registros</th></tr>
+          </thead>
+          <tbody>
+            @for (b of tokens(s); track b.key) {
+              <tr>
+                <td>{{ b.label || b.key }}</td>
+                <td class="text-end app-numeric">{{ n(b.totals['requests'] ?? 0) }}</td>
+                <td class="text-end app-numeric">{{ n(b.totals['billableRequests'] ?? 0) }}</td>
+                <td class="text-end app-numeric">{{ n(b.totals['billableMbIn'] ?? 0) }}</td>
+                <td class="text-end app-numeric">{{ n(b.totals['billableMbOut'] ?? 0) }}</td>
+                <td class="text-end app-numeric">{{ n(b.totals['records'] ?? 0) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <p class="app-muted sv-small">Cobram-se só chamadas bem-sucedidas (2xx/3xx). Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token e direção no ciclo.</p>
     <p class="app-mono sv-small sv-hash">Hash do consumo: {{ s.usageHash }}</p>
   `,
   styles: `
@@ -68,5 +94,13 @@ export class StatementViewPanel {
 
   protected n(value: number): string {
     return NUMBER.format(value);
+  }
+
+  protected cycle(s: StatementView): string {
+    return formatCycle(s.periodStart, s.periodEnd);
+  }
+
+  protected tokens(s: StatementView): StatementView['breakdown'] {
+    return s.breakdown.filter((b) => b.kind === 'TOKEN');
   }
 }

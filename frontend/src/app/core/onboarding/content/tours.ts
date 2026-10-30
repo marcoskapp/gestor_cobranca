@@ -1120,13 +1120,12 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'publicapi.billing',
-    version: 1,
+    version: 2,
     title: 'Extratos da API pública',
-    summary: 'Tabela de preços versionada e extrato mensal por credor.',
+    summary: 'Extrato por ciclo de consumo, com os preços do contrato do credor.',
     steps: [
-      { anchor: 'billing-plans', title: 'Tabelas de preço', body: 'Mensalidade, franquias e excedente. Publicada, a versão não muda: nova vigência é nova versão.' },
-      { anchor: 'billing-preview', title: 'Prévia e fechamento', body: 'Calcule a prévia de um mês encerrado e feche. O mês anterior fecha sozinho no dia 1.' },
-      { anchor: 'data-table', title: 'Extratos', body: 'Cada extrato guarda o hash do consumo: recalcular sobre os mesmos dados dá o mesmo valor.', placement: 'above' },
+      { anchor: 'billing-preview', title: 'Prévia e fechamento', body: 'Prévia do próximo ciclo do credor. Preços e dia de fechamento ficam no contrato; ciclos encerrados fecham sozinhos de madrugada.' },
+      { anchor: 'data-table', title: 'Extratos', body: 'Só chamadas 2xx/3xx são cobradas; dados em MB inteiros por token. O hash prova o cálculo; revisões exigem motivo.', placement: 'above' },
     ],
   },
   {

@@ -72,9 +72,9 @@ function isoDay(date: Date): string {
       </app-empty-state>
     } @else if (data(); as r) {
       <div class="up-kpis" data-tour="usage-kpis">
-        <app-kpi-card label="Requisições" [detail]="count(r.totals.billableRequests) + ' cobráveis'">{{ count(r.totals.requests) }}</app-kpi-card>
+        <app-kpi-card label="Requisições" [detail]="count(r.totals.billableRequests) + ' cobráveis (2xx/3xx)'">{{ count(r.totals.requests) }}</app-kpi-card>
         <app-kpi-card label="Limitadas (429)" detail="Não cobradas">{{ count(r.totals.throttled) }}</app-kpi-card>
-        <app-kpi-card label="Erros" [detail]="count(r.totals.serverErrors) + ' da plataforma (não cobrados)'">{{ count(r.totals.clientErrors + r.totals.serverErrors) }}</app-kpi-card>
+        <app-kpi-card label="Erros (não cobrados)" [detail]="count(r.totals.clientErrors) + ' do cliente (4xx) · ' + count(r.totals.serverErrors) + ' da plataforma (5xx)'">{{ count(r.totals.clientErrors + r.totals.serverErrors) }}</app-kpi-card>
         <app-kpi-card label="Dados recebidos" detail="Corpo das requisições">{{ bytes(r.totals.bytesIn) }}</app-kpi-card>
         <app-kpi-card label="Dados enviados" detail="Corpo das respostas">{{ bytes(r.totals.bytesOut) }}</app-kpi-card>
         <app-kpi-card label="Registros" detail="Títulos importados, contatos, pagamentos…">{{ count(r.totals.records) }}</app-kpi-card>

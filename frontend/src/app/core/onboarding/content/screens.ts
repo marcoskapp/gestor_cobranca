@@ -112,7 +112,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'publicapi.tokens', version: 1, path: '/integracoes/tokens', tourId: 'publicapi.tokens' },
   { key: 'publicapi.token', version: 1, path: '/integracoes/tokens/:id', tourId: 'publicapi.token' },
   { key: 'publicapi.usage', version: 1, path: '/integracoes/consumo', tourId: 'publicapi.usage' },
-  { key: 'publicapi.billing', version: 1, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
+  { key: 'publicapi.billing', version: 2, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
   {
     key: 'payment.detail',
     version: 2,
@@ -220,7 +220,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.request-detail', version: 1, path: '/compliance/solicitacoes-titulares/:id', tourId: 'compliance.request-detail' },
   { key: 'compliance.retention', version: 1, path: '/compliance/retencao', tourId: 'compliance.retention' },
   { key: 'organization.creditors', version: 1, path: '/organizacao/credores', tourId: 'organization.creditors' },
-  { key: 'organization.creditor-detail', version: 1, path: '/organizacao/credores/:id' },
+  { key: 'organization.creditor-detail', version: 2, path: '/organizacao/credores/:id' },
   { key: 'organization.portfolios', version: 1, path: '/organizacao/carteiras', tourId: 'organization.portfolios' },
   { key: 'organization.settings', version: 1, path: '/organizacao/configuracoes' },
   { key: 'governance.access-log', version: 1, path: '/governanca/log-de-acesso', tourId: 'governance.access-log' },

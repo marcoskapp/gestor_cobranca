@@ -8,7 +8,7 @@ export const TOKEN_STATE_LABELS: Record<TokenState, string> = {
 
 export const METRIC_LABELS: Record<StatementLine['metric'], string> = {
   MONTHLY_FEE: 'Mensalidade',
-  REQUESTS: 'Requisições cobráveis',
+  REQUESTS: 'Chamadas cobráveis (2xx/3xx)',
   MB_IN: 'Dados recebidos (MB)',
   MB_OUT: 'Dados enviados (MB)',
   RECORDS: 'Registros processados',
@@ -23,19 +23,22 @@ export const PUBLIC_API_ERROR_LABELS: Record<string, string> = {
   'integration_token.already_revoked': 'Este token já está revogado.',
   'integration_token.not_active': 'Só tokens ativos podem ser rotacionados.',
   'creditor.inactive': 'O credor está inativo.',
-  'price_plan.retroactive': 'A vigência não pode começar antes do mês corrente.',
-  'price_plan.effective_from_invalid': 'A vigência começa no primeiro dia de um mês.',
-  'usage_statement.already_closed': 'O extrato deste mês já foi fechado: informe o motivo para gerar nova revisão.',
-  'usage_statement.period_open': 'Só meses encerrados podem ser fechados.',
+  'usage_statement.already_closed': 'O extrato deste ciclo já foi fechado: informe o motivo para gerar nova revisão.',
+  'usage_statement.period_open': 'O ciclo ainda está em curso: só ciclos encerrados podem ser fechados.',
+  'usage_statement.nothing_to_close': 'Não há ciclo com consumo a fechar para este credor.',
+  'usage_statement.period_invalid': 'Este não é o próximo ciclo a fechar do credor.',
 };
 
-/** 1.234.567 bytes → "1,2 MB" (unidades decimais, como no faturamento). */
+/** Bytes por MB no faturamento e nas telas (unidade binária: 1 MB = 1.048.576 bytes). */
+export const BYTES_PER_MB = 1_048_576;
+
+/** 1.572.864 bytes → "1,5 MB" (unidades binárias, como no faturamento: 1 KB = 1.024 bytes, 1 MB = 1.048.576). */
 export function formatBytes(bytes: number): string {
-  const units = ['B', 'kB', 'MB', 'GB', 'TB'];
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let value = bytes;
   let unit = 0;
-  while (value >= 1000 && unit < units.length - 1) {
-    value /= 1000;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
     unit++;
   }
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${units[unit]}`;
@@ -44,4 +47,15 @@ export function formatBytes(bytes: number): string {
 /** Linhas de IP digitadas (uma por linha, vírgula ou ponto e vírgula) → lista sem vazios nem repetidos. */
 export function parseIpList(text: string): string[] {
   return [...new Set(text.split(/[\n,;]+/).map((v) => v.trim()).filter(Boolean))];
+}
+
+/** MB faturáveis de um total de bytes: inteiro, arredondado para cima (1 byte → 1 MB; 1.048.577 → 2 MB). */
+export function billableMegabytes(bytes: number): number {
+  return bytes <= 0 ? 0 : Math.ceil(bytes / BYTES_PER_MB);
+}
+
+/** "2026-03-11" e "2026-04-10" → "11/03/2026 a 10/04/2026". */
+export function formatCycle(start: string, end: string): string {
+  const br = (d: string) => d.split('-').reverse().join('/');
+  return `${br(start)} a ${br(end)}`;
 }

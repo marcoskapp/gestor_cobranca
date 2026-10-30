@@ -9,8 +9,6 @@ import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
   CreateTokenRequest,
   IssuedToken,
-  PricePlanRequest,
-  PricePlanView,
   ScopeView,
   StatementView,
   TokenFilter,
@@ -58,7 +56,7 @@ export class IntegrationTokensApi {
   }
 }
 
-/** Consumo, tabelas de preço e extratos da API pública. */
+/** Consumo e extratos por ciclo da API pública (os preços ficam no contrato do credor). */
 @Injectable({ providedIn: 'root' })
 export class PublicApiUsageApi {
   private readonly http = inject(HttpClient);
@@ -73,34 +71,20 @@ export class PublicApiUsageApi {
     return this.files.download(`${BASE}/usage/export?${params}`, `consumo-api-publica-${filter.from}-${filter.to}.csv`);
   }
 
-  plans(): Observable<PricePlanView[]> {
-    return this.http.get<PricePlanView[]>(`${BASE}/price-plans`);
-  }
-
-  createPlan(request: PricePlanRequest): Observable<PricePlanView> {
-    return this.http.post<PricePlanView>(`${BASE}/price-plans`, request, { context: silentErrorContext() });
-  }
-
-  updatePlan(id: string, request: PricePlanRequest): Observable<PricePlanView> {
-    return this.http.put<PricePlanView>(`${BASE}/price-plans/${id}`, request, { context: silentErrorContext() });
-  }
-
-  publishPlan(id: string): Observable<PricePlanView> {
-    return this.http.post<PricePlanView>(`${BASE}/price-plans/${id}/publish`, {});
-  }
-
   statements(creditorId: string | null, month: string | null, page: PageRequest): Observable<PageResponse<StatementView>> {
     return this.http.get<PageResponse<StatementView>>(`${BASE}/statements`, {
       params: toHttpParams({ creditorId, month, page: page.page, size: page.size }),
     });
   }
 
-  preview(creditorId: string, month: string): Observable<StatementView> {
-    return this.http.get<StatementView>(`${BASE}/statements/preview`, { params: toHttpParams({ creditorId, month }) });
+  /** Prévia do próximo ciclo a fechar do credor (encerrado ou em curso). */
+  preview(creditorId: string): Observable<StatementView> {
+    return this.http.get<StatementView>(`${BASE}/statements/preview`, { params: toHttpParams({ creditorId }) });
   }
 
-  close(creditorId: string, month: string, reason: string | null): Observable<StatementView> {
-    return this.http.post<StatementView>(`${BASE}/statements`, { creditorId, month, reason }, { context: silentErrorContext() });
+  /** `periodStart` nulo fecha o próximo ciclo encerrado; o de um ciclo já fechado gera nova revisão (com motivo). */
+  close(creditorId: string, periodStart: string | null, reason: string | null): Observable<StatementView> {
+    return this.http.post<StatementView>(`${BASE}/statements`, { creditorId, periodStart, reason }, { context: silentErrorContext() });
   }
 
   exportStatement(id: string): Observable<string> {

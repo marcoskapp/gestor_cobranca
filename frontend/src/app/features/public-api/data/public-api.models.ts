@@ -90,32 +90,9 @@ export interface UsageFilter {
   tokenId: string | null;
 }
 
-export interface PricePlanView {
-  id: string;
-  code: string;
-  version: number;
-  creditorId: string | null;
-  name: string;
-  currency: string;
-  effectiveFrom: string;
-  status: 'DRAFT' | 'PUBLISHED';
-  monthlyFee: number;
-  includedRequests: number;
-  pricePerRequest: number;
-  includedMbIn: number;
-  pricePerMbIn: number;
-  includedMbOut: number;
-  pricePerMbOut: number;
-  includedRecords: number;
-  pricePerRecord: number;
-  publishedAt: string | null;
-  publishedBy: string | null;
-}
-
-export type PricePlanRequest = Omit<PricePlanView, 'id' | 'version' | 'currency' | 'status' | 'publishedAt' | 'publishedBy'>;
-
 export interface StatementLine {
   metric: 'MONTHLY_FEE' | 'REQUESTS' | 'MB_IN' | 'MB_OUT' | 'RECORDS';
+  /** Quantidade inteira do ciclo (chamadas, MB, registros; 1 para a mensalidade). */
   quantity: number;
   included: number;
   billable: number;
@@ -123,18 +100,23 @@ export interface StatementLine {
   amount: number;
 }
 
+/** `PublicApiBillingUseCases.StatementView`: extrato de um ciclo de consumo (prévia quando `id` é nulo). */
 export interface StatementView {
   id: string | null;
   creditorId: string;
   periodStart: string;
+  periodEnd: string;
+  ended: boolean;
   revision: number;
-  pricePlanId: string | null;
-  pricePlanCode: string | null;
-  pricePlanVersion: number | null;
+  usageClosingDay: number;
+  contractId: string | null;
+  contractNumber: string | null;
+  pricingId: string | null;
+  pricingVersion: number | null;
   requests: number;
   billableRequests: number;
-  bytesIn: number;
-  bytesOut: number;
+  billableMbIn: number;
+  billableMbOut: number;
   records: number;
   totalAmount: number;
   currency: string;
