@@ -1,0 +1,10 @@
+# Contexto do build da imagem da aplicação (infra/docker/app/Dockerfile): só o necessário.
+**
+!backend/pom.xml
+!backend/src/main/**
+!frontend/**
+!infra/docker/app/entrypoint.sh
+frontend/node_modules
+frontend/dist
+frontend/.angular
+frontend/coverage
