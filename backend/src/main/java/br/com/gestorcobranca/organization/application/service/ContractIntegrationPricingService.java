@@ -118,12 +118,31 @@ class ContractIntegrationPricingService implements ContractIntegrationPricingUse
         Guard.require(creditorId != null && cycleStart != null, "contract_pricing.required",
                 "Credor e início do ciclo obrigatórios");
         accessScope.requireVisible("creditor", creditorId, creditorId);
-        LocalDate day = cycleStart.atZone(TimeConfig.BUSINESS_ZONE).toLocalDate();
-        return contracts.findByCreditorId(creditorId).stream()
-                .filter(k -> !day.isBefore(k.getStartDate()) && (k.getEndDate() == null || !day.isAfter(k.getEndDate())))
-                .max(Comparator.comparing(ServiceContract::getStartDate).thenComparing(ServiceContract::getNumber))
+        return contractAt(creditorId, cycleStart)
                 .flatMap(k -> pricings.findFirstByContractIdAndRegisteredAtBeforeOrderByPricingVersionDesc(k.getId(),
                         cycleStart).map(p -> view(p, k)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<IntegrationPricingView> applicableToCycle(UUID creditorId, Instant cycleStart, Instant cycleEnd) {
+        Guard.require(creditorId != null && cycleStart != null && cycleEnd != null, "contract_pricing.required",
+                "Credor e período do ciclo obrigatórios");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        return contractAt(creditorId, cycleStart).flatMap(k -> pricings
+                .findFirstByContractIdAndRegisteredAtBeforeOrderByPricingVersionDesc(k.getId(), cycleStart)
+                // sem versão anterior ao ciclo: o primeiro cadastro vale já no ciclo em que foi feito
+                .or(() -> pricings.findFirstByContractIdOrderByPricingVersionAsc(k.getId())
+                        .filter(first -> first.getRegisteredAt().isBefore(cycleEnd)))
+                .map(p -> view(p, k)));
+    }
+
+    /** Contrato do credor vigente na data (fuso de negócio) do instante; havendo mais de um, o de início mais recente. */
+    private Optional<ServiceContract> contractAt(UUID creditorId, Instant instant) {
+        LocalDate day = instant.atZone(TimeConfig.BUSINESS_ZONE).toLocalDate();
+        return contracts.findByCreditorId(creditorId).stream()
+                .filter(k -> !day.isBefore(k.getStartDate()) && (k.getEndDate() == null || !day.isAfter(k.getEndDate())))
+                .max(Comparator.comparing(ServiceContract::getStartDate).thenComparing(ServiceContract::getNumber));
     }
 
     @Override

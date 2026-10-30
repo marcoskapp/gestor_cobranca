@@ -192,7 +192,7 @@ class BillingService implements PublicApiBillingUseCases {
                             calendar.closingDayAt(prevEnd, applicablePricing(creditorId, prevEnd)));
                 });
         Optional<UsageStatement> previousStatement = statements.findLatest(creditorId, previousCycle.start());
-        Optional<PriceTerms> previousTerms = applicablePricing(creditorId, previousCycle.start()).map(BillingService::terms);
+        Optional<PriceTerms> previousTerms = pricingFor(creditorId, previousCycle).map(BillingService::terms);
         List<GrowthPoint> previousDaily = growth(creditorId, previousCycle, previousCycle.end(), previousTerms,
                 BillingCycles.proration(previousCycle));
         PreviousCycle previous = new PreviousCycle(previousCycle.start(), previousCycle.end(),
@@ -212,7 +212,8 @@ class BillingService implements PublicApiBillingUseCases {
         return new BillingPositionView(creditorId, cycle.start(), cycle.end(), cycle.closingDay(),
                 proration.cycleDays(), proration.referenceDays(), current.kind(), today, daysElapsed, daysRemaining,
                 current.pricing().map(IntegrationPricingView::contractNumber).orElse(null),
-                current.pricing().map(IntegrationPricingView::version).orElse(null), c.totals.requests(),
+                current.pricing().map(IntegrationPricingView::version).orElse(null),
+                current.pricing().map(IntegrationPricingView::registeredAt).orElse(null), c.totals.requests(),
                 c.billable.requests(), c.billable.mbIn(), c.billable.mbOut(), c.billable.records(), c.result.total(),
                 "BRL", c.lines, allowances, c.breakdown, daily, previous, previousDaily, projection,
                 updatedAt.orElse(null), properties.usageFlushInterval().toSeconds(), millis);
@@ -302,7 +303,7 @@ class BillingService implements PublicApiBillingUseCases {
                 UsageStatement previous = existing.get();
                 // mesma vigência e mesmas condições (registradas antes do início do ciclo): só o consumo pode mudar
                 Cycle cycle = new Cycle(previous.getPeriodStart(), previous.getPeriodEnd(), previous.getUsageClosingDay());
-                return save(creditorId, new Pending(cycle, applicablePricing(creditorId, cycle.start()),
+                return save(creditorId, new Pending(cycle, pricingFor(creditorId, cycle),
                         "REVISION"), previous, reason);
             }
         }
@@ -441,10 +442,12 @@ class BillingService implements PublicApiBillingUseCases {
         }
 
         Pending startingAt(LocalDate start) {
-            Optional<IntegrationPricingView> pricing = applicablePricing(creditorId, start);
-            int closingDay = closingDayAt(start, pricing);
+            // dia de fechamento: o da versão registrada antes do início; sem ela, o da primeira versão do contrato
+            int closingDay = closingDayAt(start, applicablePricing(creditorId, start));
             LocalDate lastDay = lastDayFrom(start);
             Cycle cycle = BillingCycles.startingAt(start, closingDay, lastDay);
+            // condições do ciclo: inclui o primeiro cadastro feito durante o ciclo (decisões 608 e 624)
+            Optional<IntegrationPricingView> pricing = pricingFor(creditorId, cycle);
             Optional<IntegrationContractView> contract = contractAt(start);
             String kind;
             if (contract.isEmpty()) {
@@ -531,6 +534,14 @@ class BillingService implements PublicApiBillingUseCases {
     /** Condições registradas antes das 00:00 do primeiro dia do ciclo (não retroatividade). */
     private Optional<IntegrationPricingView> applicablePricing(UUID creditorId, LocalDate cycleStart) {
         return contractPricing.applicable(creditorId, cycleStart.atStartOfDay(ZONE).toInstant());
+    }
+
+    /**
+     * Condições do ciclo: a versão registrada antes do seu início; sem nenhuma, o primeiro cadastro do contrato, se
+     * feito antes do fim do ciclo — o primeiro cadastro vale já no ciclo em andamento (decisões 608 e 624).
+     */
+    private Optional<IntegrationPricingView> pricingFor(UUID creditorId, Cycle cycle) {
+        return contractPricing.applicableToCycle(creditorId, cycle.from(ZONE), cycle.to(ZONE));
     }
 
     private StatementView save(UUID creditorId, Pending pending, UsageStatement previous, String reason) {

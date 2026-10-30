@@ -237,6 +237,12 @@ class PublicApiUsageIT extends PublicApiTestSupport {
                 .hasValueSatisfying(p -> assertThat(p.version()).isEqualTo(2));
         assertThat(asManager(() -> pricing.applicable(creditorA, v2.registeredAt())))
                 .hasValueSatisfying(p -> assertThat(p.version()).isEqualTo(1));
+        // o primeiro cadastro vale já no ciclo em andamento (o que termina depois do registro); a alteração, não
+        Instant cycleEnd = v2.registeredAt().plus(Duration.ofDays(1));
+        assertThat(asManager(() -> pricing.applicableToCycle(creditorA, beforeAny, cycleEnd)))
+                .hasValueSatisfying(p -> assertThat(p.version()).isEqualTo(1));
+        assertThat(asManager(() -> pricing.applicableToCycle(creditorA, beforeAny, beforeAny.plusMillis(1))))
+                .isEmpty();
         // dia de fechamento entre 1 e 31; valores com no máximo 2 casas na mensalidade
         assertThatThrownBy(() -> asManager(() -> pricing.define(contractId, new IntegrationPricingCommand(32,
                 BigDecimal.ZERO, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO, null))))
@@ -280,8 +286,16 @@ class PublicApiUsageIT extends PublicApiTestSupport {
                 0, 10, 10, 0);
 
         int closed = asManager(() -> billing.closeEndedCycles(creditorA));
-        // o consumo da véspera fica no ciclo anterior (11 a 10), fechado antes; depois o ciclo do teste
-        assertThat(closed).isEqualTo(2);
+        // desde o ciclo do primeiro cadastro (que já vale nele, decisões 608/624), todos com mensalidade até o do teste;
+        // o consumo da véspera fica no ciclo anterior (11 a 10)
+        LocalDate firstRegistration = LocalDate.ofInstant(startInstant.minus(java.time.Duration.ofDays(60)),
+                TimeConfig.BUSINESS_ZONE);
+        int expected = 1;
+        for (BillingCycles.Cycle c = BillingCycles.containing(firstRegistration, 10); c.start().isBefore(cycleStart);
+             c = BillingCycles.startingAt(c.end().plusDays(1), 10)) {
+            expected++;
+        }
+        assertThat(closed).isEqualTo(expected);
         StatementView statement = asManager(() -> billing.statements(creditorA, null,
                 br.com.gestorcobranca.shared.paging.PageQuery.of(0, 50))).content().stream()
                 .filter(s -> s.periodStart().equals(cycleStart)).findFirst().orElseThrow();
@@ -346,7 +360,13 @@ class PublicApiUsageIT extends PublicApiTestSupport {
 
         List<StatementView> closed = asManager(() -> billing.statements(creditorB, null,
                 br.com.gestorcobranca.shared.paging.PageQuery.of(0, 50))).content();
-        assertThat(closed).hasSize(2);
+        // janeiro: o primeiro cadastro (15/01) vale já no ciclo em andamento — mensalidade sem consumo
+        assertThat(closed).hasSize(3);
+        assertThat(closed).anySatisfy(s -> {
+            assertThat(s.periodStart()).isEqualTo(LocalDate.of(2026, 1, 1));
+            assertThat(s.requests()).isZero();
+            assertThat(s.totalAmount()).isEqualByComparingTo("50.00");
+        });
         StatementView february = closed.stream().filter(s -> s.periodStart().equals(LocalDate.of(2026, 2, 1)))
                 .findFirst().orElseThrow();
         assertThat(february.periodEnd()).isEqualTo(LocalDate.of(2026, 2, 28));
@@ -363,7 +383,7 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         // uma segunda execução não duplica
         closeAll.invoke(job);
         assertThat(asManager(() -> billing.statements(creditorB, null,
-                br.com.gestorcobranca.shared.paging.PageQuery.of(0, 50))).content()).hasSize(2);
+                br.com.gestorcobranca.shared.paging.PageQuery.of(0, 50))).content()).hasSize(3);
     }
 
     @Test
@@ -383,10 +403,11 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         int closed = asManager(() -> billing.closeEndedCycles(creditorB));
         List<StatementView> all = asManager(() -> billing.statements(creditorB, null,
                 br.com.gestorcobranca.shared.paging.PageQuery.of(0, 50))).content();
-        // fevereiro (consumo), março e abril (sem consumo, com mensalidade), 01–10/05 (transição) e 11/05–10/06;
-        // a partir de 11/06 não há consumo nem mensalidade: nenhum extrato
-        assertThat(closed).isEqualTo(5);
-        assertThat(all).extracting(StatementView::periodStart).containsExactlyInAnyOrder(LocalDate.of(2026, 2, 1),
+        // janeiro (primeiro cadastro em 15/01, vale já no ciclo), fevereiro (consumo), março e abril (sem consumo, com
+        // mensalidade), 01–10/05 (transição) e 11/05–10/06; a partir de 11/06 não há consumo nem mensalidade: nenhum extrato
+        assertThat(closed).isEqualTo(6);
+        assertThat(all).extracting(StatementView::periodStart).containsExactlyInAnyOrder(LocalDate.of(2026, 1, 1),
+                LocalDate.of(2026, 2, 1),
                 LocalDate.of(2026, 3, 1), LocalDate.of(2026, 4, 1), LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 11));
 
         StatementView march = all.stream().filter(s -> s.periodStart().equals(LocalDate.of(2026, 3, 1))).findFirst()
@@ -570,16 +591,66 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         closeAllByJob();
         assertThat(statementsOf(creditorA)).isEmpty();
 
-        // posição: o ciclo do calendário do contrato (dia 5) que contém hoje; as condições, registradas depois do seu
-        // início, valem só do próximo ciclo (não retroativas)
+        // posição: o ciclo do calendário do contrato (dia 5) que contém hoje; o primeiro cadastro vale já nele, com a
+        // mensalidade cheia (o contrato começou antes do ciclo: o serviço já estava contratado)
         BillingCycles.Cycle current = BillingCycles.containing(today, 5);
         PublicApiBillingUseCases.BillingPositionView p = asManager(() -> billing.position(creditorA));
         assertThat(p.periodStart()).isEqualTo(current.start());
         assertThat(p.periodEnd()).isEqualTo(current.end());
         assertThat(p.usageClosingDay()).isEqualTo(5);
         assertThat(p.cycleKind()).isEqualTo("REGULAR");
-        assertThat(p.pricingVersion()).isNull();
-        assertThat(p.amountSoFar()).isEqualByComparingTo("0.00");
+        assertThat(p.pricingVersion()).isEqualTo(1);
+        assertThat(p.pricingRegisteredAt()).isAfter(current.from(zone));
+        assertThat(p.amountSoFar()).isEqualByComparingTo("80.00");
+
+        // a segunda versão (alteração) só vale do próximo ciclo: a posição continua com a primeira
+        asManager(() -> pricing.define(contractId, new IntegrationPricingCommand(5, new BigDecimal("120.00"), 1000,
+                new BigDecimal("0.01"), 0, BigDecimal.ONE, 0, BigDecimal.ONE, 0, BigDecimal.ONE, null)));
+        PublicApiBillingUseCases.BillingPositionView after = asManager(() -> billing.position(creditorA));
+        assertThat(after.pricingVersion()).isEqualTo(1);
+        assertThat(after.amountSoFar()).isEqualByComparingTo("80.00");
+    }
+
+    @Test
+    void firstRegistrationInTheMiddleOfACycleBillsThatCycleAndLaterChangesOnlyTheNextOnes() throws Exception {
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        LocalDate today = LocalDate.now(zone);
+        IssuedToken token = issue(creditorB, Set.of("portfolios:read"), null, List.of());
+        contractPeriod(creditorB, today.minusYears(1).withDayOfMonth(1), null);
+        // ciclos de fechamento no dia 10: o atual e os três anteriores
+        BillingCycles.Cycle current = BillingCycles.containing(today, 10);
+        BillingCycles.Cycle prev1 = BillingCycles.containing(current.start().minusDays(1), 10);
+        BillingCycles.Cycle prev2 = BillingCycles.containing(prev1.start().minusDays(1), 10);
+        BillingCycles.Cycle prev3 = BillingCycles.containing(prev2.start().minusDays(1), 10);
+        // consumo no ciclo anterior ao cadastro (fica sem extrato) e em prev3 antes do cadastro (conta: o ciclo é a unidade)
+        insertUsage(creditorB, token.details().id(), prev3.start().minusDays(5).atTime(10, 0).atZone(zone).toInstant(),
+                "/public-api/v1/portfolios", 40, 0, 0, 0, 0, 10, 0);
+        insertUsage(creditorB, token.details().id(), prev3.start().plusDays(2).atTime(10, 0).atZone(zone).toInstant(),
+                "/public-api/v1/portfolios", 30, 0, 0, 0, 0, 10, 0);
+        // primeiro cadastro no meio de prev3 (mensalidade 100,00); alteração no meio de prev2 (200,00)
+        insertPricing(creditorB, 1, 10, prev3.start().plusDays(9).atTime(12, 0).atZone(zone).toInstant(),
+                new BigDecimal("100.00"));
+        insertPricing(creditorB, 2, 10, prev2.start().plusDays(9).atTime(12, 0).atZone(zone).toInstant(),
+                new BigDecimal("200.00"));
+
+        closeAllByJob();
+
+        List<StatementView> all = statementsOf(creditorB);
+        // prev3 (primeiro cadastro: já cobrado, cheio, com o consumo de antes do cadastro), prev2 (ainda a primeira
+        // versão) e prev1 (a alteração); nada antes de prev3
+        assertThat(all).extracting(StatementView::periodStart)
+                .containsExactly(prev3.start(), prev2.start(), prev1.start());
+        assertThat(all.get(0).pricingVersion()).isEqualTo(1);
+        assertThat(all.get(0).requests()).isEqualTo(30);
+        assertThat(all.get(0).cycleDays()).isEqualTo(all.get(0).referenceCycleDays());
+        // mensalidade cheia + 1 MB enviado (sem franquia, 0,50) do consumo anterior ao cadastro
+        assertThat(all.get(0).totalAmount()).isEqualByComparingTo("100.50");
+        assertThat(all.get(1).pricingVersion()).isEqualTo(1);
+        assertThat(all.get(1).totalAmount()).isEqualByComparingTo("100.00");
+        assertThat(all.get(2).pricingVersion()).isEqualTo(2);
+        assertThat(all.get(2).totalAmount()).isEqualByComparingTo("200.00");
+        // posição do ciclo atual: a segunda versão
+        assertThat(asManager(() -> billing.position(creditorB)).pricingVersion()).isEqualTo(2);
     }
 
     @Test

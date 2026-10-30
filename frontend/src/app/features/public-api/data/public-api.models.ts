@@ -159,6 +159,8 @@ export interface BillingPositionView {
   daysRemaining: number;
   contractNumber: string | null;
   pricingVersion: number | null;
+  /** Registro da versão aplicada; depois do início do ciclo quando é o primeiro cadastro (vale para o ciclo inteiro). */
+  pricingRegisteredAt: string | null;
   requests: number;
   billableRequests: number;
   billableMbIn: number;

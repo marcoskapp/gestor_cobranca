@@ -103,6 +103,8 @@ public interface PublicApiBillingUseCases {
     /**
      * @param daysElapsed      dias do ciclo decorridos, contando hoje
      * @param daysRemaining    dias que faltam depois de hoje
+     * @param pricingRegisteredAt registro da versão das condições aplicada ao ciclo (nulo sem condições); posterior ao
+     *                         início do ciclo quando é o primeiro cadastro do contrato, que vale para o ciclo inteiro
      * @param cycleKind        REGULAR; CONTRACT_START (primeiro ciclo, desde o início da vigência do contrato);
      *                         CONTRACT_END (último, até o fim da vigência); TRANSITION (mudança do dia de fechamento);
      *                         NO_CONTRACT (sem contrato com condições de cobrança: valor zero) — decisão 624
@@ -118,7 +120,8 @@ public interface PublicApiBillingUseCases {
     record BillingPositionView(UUID creditorId, LocalDate periodStart, LocalDate periodEnd, int usageClosingDay,
                                int cycleDays, int referenceCycleDays, String cycleKind,
                                LocalDate today, int daysElapsed,
-                               int daysRemaining, String contractNumber, Integer pricingVersion, long requests,
+                               int daysRemaining, String contractNumber, Integer pricingVersion,
+                               Instant pricingRegisteredAt, long requests,
                                long billableRequests, long billableMbIn, long billableMbOut, long records,
                                BigDecimal amountSoFar, String currency, List<StatementLine> lines,
                                List<AllowanceUse> allowances, List<StatementBreakdown> breakdown,

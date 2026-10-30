@@ -107,7 +107,7 @@ export class ContractsApi {
     return this.http.get<IntegrationPricingView[]>(`${this.base}/${id}/integration-pricing`);
   }
 
-  /** Nova versão (vale a partir do próximo ciclo de consumo). Erros de regra ficam com o diálogo. */
+  /** Nova versão (a primeira vale já no ciclo em andamento; as demais, do próximo ciclo). Erros de regra ficam com o diálogo. */
   defineIntegrationPricing(id: string, request: IntegrationPricingRequest): Observable<IntegrationPricingView> {
     return this.http.post<IntegrationPricingView>(`${this.base}/${id}/integration-pricing`, request, {
       context: silentErrorContext(),

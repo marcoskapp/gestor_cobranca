@@ -10,9 +10,10 @@ import java.util.UUID;
 /**
  * Condições de cobrança das integrações (API pública) no contrato de prestação de serviço do credor: dia de
  * fechamento do ciclo de consumo e preços (mensalidade, franquias e excedente por chamada, MB recebido, MB enviado e
- * registro). Versionadas e não retroativas: cada alteração vale a partir do próximo ciclo de consumo (ciclos que
- * começam depois do registro). O módulo {@code publicapi} lê as condições aplicáveis por
- * {@link #applicable(UUID, Instant)} — o faturamento não mantém tabela de preços própria.
+ * registro). Versionadas: o <b>primeiro</b> cadastro de um contrato vale já no ciclo em andamento; cada
+ * <b>alteração</b> posterior vale a partir do próximo ciclo de consumo (ciclos que começam depois do registro). O
+ * módulo {@code publicapi} lê as condições aplicáveis por {@link #applicableToCycle(UUID, Instant, Instant)} — o
+ * faturamento não mantém tabela de preços própria.
  */
 public interface ContractIntegrationPricingUseCases {
 
@@ -31,6 +32,14 @@ public interface ContractIntegrationPricingUseCases {
      * (havendo mais de um, o de início mais recente). Vazio quando não há contrato vigente ou condições registradas.
      */
     Optional<IntegrationPricingView> applicable(UUID creditorId, Instant cycleStart);
+
+    /**
+     * Condições que valem para o ciclo de consumo {@code [cycleStart, cycleEnd)} do credor: a versão de
+     * {@link #applicable(UUID, Instant)} (registrada antes do início do ciclo); sem nenhuma, a <b>primeira</b> versão
+     * do contrato, se registrada antes do fim do ciclo — o primeiro cadastro vale já no ciclo em andamento (decisão do
+     * responsável, 608/624); as alterações seguintes valem só dos ciclos que começam depois do seu registro.
+     */
+    Optional<IntegrationPricingView> applicableToCycle(UUID creditorId, Instant cycleStart, Instant cycleEnd);
 
     /**
      * Contratos do credor que têm condições de cobrança das integrações registradas, com a vigência e a primeira

@@ -43,7 +43,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Ficha do credor: dados, contratos vigentes, carteiras e histórico de alterações.',
       purpose: [
         'O contrato de serviço define vigência e o dia de fechamento da prestação de contas.',
-        'No contrato também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões que valem a partir do próximo ciclo.',
+        'No contrato também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões: a primeira vale já no ciclo em andamento e as alterações, a partir do próximo ciclo.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'AUDITOR'],
       inputs: ['Cadastro do credor.'],
@@ -217,8 +217,8 @@ export const MANUAL: ModuleManual = {
       title: 'Extratos da integração',
       objective: 'Extrato de consumo de cada credor por ciclo, calculado com os preços do contrato, pronto para faturar.',
       purpose: [
-        'Os preços (mensalidade, franquias e excedente por chamada, por MB recebido e enviado e por registro) e o dia de fechamento ficam no contrato do credor. Alterações valem a partir do próximo ciclo.',
-        'O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte; ciclos encerrados fecham sozinhos de madrugada, e ciclo sem consumo só gera extrato se houver mensalidade — mesmo que o credor nunca tenha usado as integrações. Os ciclos começam no início da vigência do contrato: o primeiro ciclo (do início do contrato ao primeiro dia de fechamento), o último (até o fim da vigência) e o de transição, ao mudar o dia de fechamento, têm mensalidade e franquias proporcionais aos dias. Não há cobrança retroativa: os ciclos encerrados antes do registro das condições não geram extrato.',
+        'Os preços (mensalidade, franquias e excedente por chamada, por MB recebido e enviado e por registro) e o dia de fechamento ficam no contrato do credor. O primeiro cadastro vale já no ciclo em andamento, inteiro (com o consumo de antes do cadastro); as alterações valem a partir do próximo ciclo.',
+        'O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte; ciclos encerrados fecham sozinhos de madrugada, e ciclo sem consumo só gera extrato se houver mensalidade — mesmo que o credor nunca tenha usado as integrações. Os ciclos começam no início da vigência do contrato: o primeiro ciclo (do início do contrato ao primeiro dia de fechamento), o último (até o fim da vigência) e o de transição, ao mudar o dia de fechamento, têm mensalidade e franquias proporcionais aos dias. Não há cobrança retroativa: os ciclos encerrados antes do primeiro cadastro das condições não geram extrato.',
         'Só chamadas bem-sucedidas são cobradas. Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token no ciclo. Nova revisão exige motivo; o extrato guarda uma marca do consumo que prova o cálculo.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'FINANCEIRO'],

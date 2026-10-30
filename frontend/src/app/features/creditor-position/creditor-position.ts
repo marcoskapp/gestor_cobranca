@@ -74,6 +74,7 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
             <p class="app-muted cp-small">
               Ciclo {{ cycle(b.periodStart, b.periodEnd) }} ({{ b.cycleKind === 'CONTRACT_END' ? 'termina no fim da vigência do contrato' : 'fecha no dia ' + b.usageClosingDay }}) · dia {{ b.daysElapsed }} de {{ b.cycleDays }}, faltam {{ b.daysRemaining }}
               · {{ b.pricingVersion ? 'contrato ' + b.contractNumber + ', condições v' + b.pricingVersion : 'contrato sem condições de cobrança (valor zero)' }}
+              @if (registeredDuringCycle(b); as when) { · condições cadastradas em {{ when }}: o primeiro cadastro vale para o ciclo inteiro }
               @if (proration(b); as p) { · {{ cycleKind(b) }}: mensalidade e franquias proporcionais a {{ p }} }
             </p>
             <div class="cp-kpis">
@@ -346,6 +347,17 @@ export class CreditorPosition {
 
   protected proration(b: BillingPositionView): string | null {
     return prorationLabel(b.cycleDays, b.referenceCycleDays);
+  }
+
+  /** Data do primeiro cadastro das condições quando feito durante o ciclo (vale para o ciclo inteiro). */
+  protected registeredDuringCycle(b: BillingPositionView): string | null {
+    if (!b.pricingRegisteredAt) {
+      return null;
+    }
+    // data do registro no fuso de negócio (o ciclo começa às 00:00 de Brasília), em AAAA-MM-DD para comparar
+    const registered = new Date(b.pricingRegisteredAt);
+    const day = registered.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    return day >= b.periodStart ? registered.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : null;
   }
 
   protected cycleKind(b: BillingPositionView): string {

@@ -23,6 +23,9 @@ public interface ContractIntegrationPricingRepository {
     /** Primeira versão (a de menor número) de cada contrato do credor que tem condições registradas. */
     List<ContractIntegrationPricing> findFirstVersionsByCreditorId(UUID creditorId);
 
+    /** Primeira versão das condições do contrato. */
+    Optional<ContractIntegrationPricing> findFirstByContractIdOrderByPricingVersionAsc(UUID contractId);
+
     /** Credores com condições registradas em algum contrato. */
     List<UUID> findDistinctCreditorIds();
 }
