@@ -28,13 +28,30 @@ require_docker() {
   docker compose version >/dev/null 2>&1 || die "Docker Compose v2 ausente (comando 'docker compose')"
 }
 
+readonly APP_IMAGE=gestor-cobranca-sandbox/app:local
+
 compose() {
   docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" "$@"
 }
 
+# Imagem da aplicação (infra/docker/app/Dockerfile). Construída com `docker build` (e não `compose build`) para
+# aceitar SANDBOX_BUILD_NETWORK=host sem exigir permissões extras do Buildx em ambientes com proxy local.
+build_app_image() {
+  local network=()
+  if [[ -n "${SANDBOX_BUILD_NETWORK:-}" && "${SANDBOX_BUILD_NETWORK}" != default ]]; then
+    network=(--network "${SANDBOX_BUILD_NETWORK}")
+  fi
+  docker build "${network[@]}" -f "${REPO_ROOT}/infra/docker/app/Dockerfile" \
+    --build-arg "NODE_IMAGE=${SANDBOX_NODE_IMAGE:-node:22-bookworm-slim}" \
+    --build-arg "MAVEN_IMAGE=${SANDBOX_MAVEN_IMAGE:-maven:3.9-eclipse-temurin-21}" \
+    --build-arg "JRE_IMAGE=${SANDBOX_JRE_IMAGE:-eclipse-temurin:21-jre-noble}" \
+    -t "${APP_IMAGE}" "${REPO_ROOT}"
+}
+
 # Estado de prontidão (UP só depois da carga de dados fictícios) e detalhes da carga, se publicados.
 readiness_json() {
-  curl -fsS --max-time 5 "${APP_URL}/actuator/health/readiness" 2>/dev/null || true
+  # sem -f: em 503 (fora de prontidão) o corpo traz a etapa e a falha da carga
+  curl -sS --max-time 5 "${APP_URL}/actuator/health/readiness" 2>/dev/null || true
 }
 
 print_summary() {
@@ -43,7 +60,7 @@ print_summary() {
   Sandbox do Gestor de Cobrança no ar (dados FICTÍCIOS)
 
   Aplicação ........ ${APP_URL}
-  Swagger (API) .... ${APP_URL}/swagger-ui/index.html  (exige login: use o token do POST /api/v1/auth/login)
+  Swagger (API) .... ${APP_URL}/swagger-ui/index.html  (protegido por token: veja o guia)
   Mailpit (e-mails)  http://localhost:${MAIL_PORT}
   PostgreSQL ....... localhost:${DB_PORT} (banco cobranca; somente para inspeção)
 

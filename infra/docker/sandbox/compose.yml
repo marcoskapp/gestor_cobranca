@@ -28,22 +28,27 @@ services:
       - ./init/10-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
       - ../../../scripts/db/bootstrap-roles.sql:/bootstrap/bootstrap-roles.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cobranca"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d cobranca"]
       interval: 5s
       timeout: 3s
       retries: 30
 
   mailpit:
     image: ${SANDBOX_MAILPIT_IMAGE:-axllent/mailpit:v1.27.10}
+    environment:
+      # e-mails preservados entre subidas (down/up); apagados só pelo reset.sh
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - sandbox-mail:/data
     # SMTP só na rede interna (a aplicação envia para mailpit:1025); a interface web fica publicada
     ports:
       - "127.0.0.1:${SANDBOX_MAIL_PORT:-58025}:8025"
 
   app:
+    # o up.sh constrói a imagem com `docker build` (mesmo Dockerfile e argumentos) e sobe com --no-build
     build:
       context: ../../..
       dockerfile: infra/docker/app/Dockerfile
-      network: ${SANDBOX_BUILD_NETWORK:-default}
       args:
         NODE_IMAGE: ${SANDBOX_NODE_IMAGE:-node:22-bookworm-slim}
         MAVEN_IMAGE: ${SANDBOX_MAVEN_IMAGE:-maven:3.9-eclipse-temurin-21}
@@ -84,7 +89,7 @@ services:
       - sandbox-logs:/var/lib/gestor-cobranca/logs
     healthcheck:
       # pronto = aplicação no ar E carga do sandbox concluída (grupo readiness inclui sandboxSeed)
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"}$$' <&3"]
       interval: 10s
       timeout: 5s
       retries: 120
@@ -95,3 +100,4 @@ volumes:
   sandbox-secrets:
   sandbox-storage:
   sandbox-logs:
+  sandbox-mail:

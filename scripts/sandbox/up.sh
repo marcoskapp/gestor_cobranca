@@ -33,17 +33,19 @@ require_docker
 
 if [[ "${BUILD}" == true ]]; then
   log INFO "construindo a imagem da aplicação (frontend + backend); o primeiro build demora alguns minutos"
-  compose build app
+  build_app_image
+elif ! docker image inspect "${APP_IMAGE}" >/dev/null 2>&1; then
+  die "imagem ${APP_IMAGE} inexistente: rode sem --no-build"
 fi
 log INFO "subindo PostgreSQL, Mailpit e aplicação (projeto ${COMPOSE_PROJECT})"
-compose up -d
+compose up -d --no-build
 
 log INFO "aguardando a aplicação e a carga de dados fictícios (até ${TIMEOUT} s)"
 deadline=$(( $(date +%s) + TIMEOUT ))
 last_phase=""
 while true; do
   body="$(readiness_json)"
-  if [[ "${body}" == *'"status":"UP"'* ]]; then
+  if [[ "${body}" == *'"status":"UP"}' ]]; then   # situação geral (fim do JSON), não a de um componente
     break
   fi
   phase="$(sed -n 's/.*"phase":"\([^"]*\)".*/\1/p' <<<"${body}")"
