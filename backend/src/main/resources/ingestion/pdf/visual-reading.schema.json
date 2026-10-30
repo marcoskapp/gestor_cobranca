@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "description": "Leitura visual de páginas sem camada de texto: o texto exatamente como impresso, sem calcular nem corrigir.",
+  "required": ["documentType", "numberFormat", "columns", "records", "controls"],
+  "properties": {
+    "documentType": {"type": "string", "maxLength": 120},
+    "numberFormat": {"type": "string", "enum": ["COMMA", "DOT"]},
+    "columns": {"type": "array", "maxItems": 80, "items": {
+      "type": "object", "required": ["header", "target"],
+      "properties": {"header": {"type": "string", "maxLength": 80}, "target": {"type": "string", "maxLength": 60}}
+    }},
+    "records": {"type": "array", "maxItems": 2000, "items": {
+      "type": "object",
+      "required": ["page", "values", "confidence"],
+      "properties": {
+        "page": {"type": "integer", "minimum": 1},
+        "values": {"type": "object", "additionalProperties": {"type": "string", "maxLength": 300},
+          "description": "campo canônico ou info:<nome> → texto exatamente como impresso (inclui os dados do devedor do bloco)"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }},
+    "controls": {"type": "array", "maxItems": 40, "items": {
+      "type": "object",
+      "required": ["label", "target", "value", "page"],
+      "properties": {
+        "label": {"type": "string", "maxLength": 80},
+        "target": {"type": "string", "maxLength": 60},
+        "value": {"type": "string", "maxLength": 60},
+        "scope": {"type": "string", "enum": ["BLOCK", "DOCUMENT"]},
+        "page": {"type": "integer", "minimum": 1}
+      }
+    }}
+  }
+}

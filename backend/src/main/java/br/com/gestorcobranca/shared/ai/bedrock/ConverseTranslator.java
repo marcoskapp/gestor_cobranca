@@ -1,11 +1,13 @@
 package br.com.gestorcobranca.shared.ai.bedrock;
 
+import br.com.gestorcobranca.shared.ai.LanguageModel;
 import br.com.gestorcobranca.shared.ai.LanguageModel.ModelMessage;
 import br.com.gestorcobranca.shared.ai.LanguageModel.ModelRequest;
 import br.com.gestorcobranca.shared.ai.LanguageModel.Role;
 import br.com.gestorcobranca.shared.ai.LanguageModel.ToolCall;
 import br.com.gestorcobranca.shared.ai.LanguageModel.ToolDefinition;
 import br.com.gestorcobranca.shared.json.JsonCodec;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.document.Document;
 import software.amazon.awssdk.services.bedrockruntime.model.CachePointBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.CachePointType;
@@ -13,6 +15,9 @@ import software.amazon.awssdk.services.bedrockruntime.model.CacheTTL;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ConversationRole;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseRequest;
+import software.amazon.awssdk.services.bedrockruntime.model.ImageBlock;
+import software.amazon.awssdk.services.bedrockruntime.model.ImageFormat;
+import software.amazon.awssdk.services.bedrockruntime.model.ImageSource;
 import software.amazon.awssdk.services.bedrockruntime.model.InferenceConfiguration;
 import software.amazon.awssdk.services.bedrockruntime.model.Message;
 import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
@@ -42,7 +47,7 @@ import java.util.regex.Pattern;
  *       chamada, fica fora do cache.</li>
  *   <li><strong>Ferramentas</strong>: {@code toolSpec} com o JSON Schema e, com cache, um {@code cachePoint}
  *       depois da última.</li>
- *   <li><strong>Mensagens</strong>: {@code USER} → texto do usuário; {@code ASSISTANT} → texto e {@code toolUse}
+ *   <li><strong>Mensagens</strong>: {@code USER} → imagens anexadas (antes do texto) e texto do usuário; {@code ASSISTANT} → texto e {@code toolUse}
  *       com o id da chamada; {@code TOOL} → {@code toolResult} do usuário com o {@code toolUseId} (status
  *       {@code error} quando o resultado traz {@code error}). Mensagens seguidas do mesmo papel são unidas (a API
  *       exige alternância); mensagens do assistente antes da primeira do devedor e depois da última mensagem do
@@ -129,6 +134,11 @@ public final class ConverseTranslator {
         List<ContentBlock> blocks = new ArrayList<>();
         switch (m.role()) {
             case USER -> {
+                for (LanguageModel.Attachment a : m.attachments()) {
+                    blocks.add(ContentBlock.fromImage(ImageBlock.builder()
+                            .format("png".equals(a.format()) ? ImageFormat.PNG : ImageFormat.JPEG)
+                            .source(ImageSource.fromBytes(SdkBytes.fromByteArray(a.content()))).build()));
+                }
                 if (m.content() != null && !m.content().isBlank()) {
                     blocks.add(ContentBlock.fromText(m.content()));
                 }

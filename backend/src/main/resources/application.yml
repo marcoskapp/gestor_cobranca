@@ -687,6 +687,46 @@ app:
       typical-z: 2.0
       sigma-floor: 0.5
       min-sample: 30
+    # importação PDF inteligente (docs/tecnico/desenho/importacao-pdf.md)
+    pdf:
+      max-file-size: 20MB
+      max-pages: 200
+      max-visual-pages: 30
+      visual-pages-per-call: 5
+      visual-dpi: 150
+      screen-dpi: 110
+      min-confidence: 0.85
+      prompt-max-lines: 220
+      map-timeout: PT90S
+      map-max-output-tokens: 6000
+      visual-max-output-tokens: 12000
+      repair-attempts: 1
+      # PDF guardado (criptografado no S3) até 90 dias depois de aprovado, descartado ou com falha
+      retention: P90D
+      retention-batch: 200
+      retention-cron: "0 20 3 * * *"
+      # Amazon Bedrock com Claude (aprovado como provedor de IA). Mesma guarda de transferência internacional do
+      # assistente (LGPD art. 33): sem a aprovação explícita, a aplicação não sobe com o provedor ligado. Desligado, a
+      # importação PDF usa os mapas salvos do credor e o mapa escrito pelo usuário (PDF sem texto não é lido).
+      bedrock:
+        enabled: ${INGESTION_PDF_BEDROCK_ENABLED:false}
+        region: ${INGESTION_PDF_BEDROCK_REGION:us-east-1}
+        international-transfer-approved: ${INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED:false}
+        connect-timeout: PT3S
+        socket-timeout: PT95S
+        max-connections: 10
+        retry-backoff: PT0.4S
+        cache-ttl: 5m
+        currency: USD
+        model:
+          model-id: ${INGESTION_PDF_BEDROCK_MODEL_ID:us.anthropic.claude-sonnet-5-5}
+          prompt-caching: true
+          # PREÇOS DE REFERÊNCIA (os mesmos do nível avançado do assistente): CONFERIR NA CONTA AWS
+          pricing:
+            input-per-million: 2.00
+            output-per-million: 10.00
+            cache-read-per-million: 0.10
+            cache-write-per-million: 2.50
   # API pública de integração dos credores (docs/tecnico/desenho/api-publica.md)
   public-api:
     # chave HMAC do servidor para o hash dos segredos dos tokens (Base64, >= 32 bytes; segredo app/public-api-token-hash-key).

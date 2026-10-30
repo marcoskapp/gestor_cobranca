@@ -26,6 +26,15 @@ public final class BusinessEventTypes {
     public static final String IMPORT_REVIEW_COMMITTED = "import.review_committed";
     public static final String IMPORT_REVIEW_APPROVED = "import.review_approved";
     public static final String IMPORT_REVIEW_REJECTED = "import.review_rejected";
+    // importação PDF inteligente (docs/tecnico/desenho/importacao-pdf.md)
+    public static final String PDF_IMPORT_RECEIVED = "pdf_import.received";
+    public static final String PDF_IMPORT_MAP_PROPOSED = "pdf_import.map_proposed";
+    public static final String PDF_IMPORT_MAP_REUSED = "pdf_import.map_reused";
+    public static final String PDF_IMPORT_MAP_EDITED = "pdf_import.map_edited";
+    public static final String PDF_IMPORT_MAP_APPROVED = "pdf_import.map_approved";
+    public static final String PDF_IMPORT_IMPORTED = "pdf_import.imported";
+    public static final String PDF_IMPORT_DISCARDED = "pdf_import.discarded";
+    public static final String PDF_IMPORT_MAPPING_FAILED = "pdf_import.mapping_failed";
 
     // Dívida
     public static final String DEBTOR_CONSOLIDATED = "debtor.consolidated";
