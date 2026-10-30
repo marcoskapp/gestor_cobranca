@@ -37,7 +37,7 @@ public final class DemoPdfFactory {
             "SANTA CRUZ", "PARQUE INDUSTRIAL");
     private static final List<String> CITIES = List.of("SAO PAULO", "CAMPINAS", "BELO HORIZONTE", "CURITIBA",
             "PORTO ALEGRE", "RECIFE");
-    private static final List<String> PAYMENTS = List.of("033 - Boleto", "237 - Boleto", "001 - Débito em conta");
+    private static final List<String> PAYMENTS = List.of("033 - Boleto", "237 - Boleto", "001 - Débito");
     private static final List<String> ACCOUNTS = List.of("00047 - CLIENTES - VENDAS", "00043 - CLIENTES MONITORAMENTO");
 
     /**

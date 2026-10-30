@@ -65,9 +65,10 @@ sandbox_pdf_index() {
   compose exec -T app cat /sandbox-data/pdfs/index.tsv 2>/dev/null | grep -v '^#' | grep -v '^$'
 }
 
-# sandbox_pdf <assessoria> <arquivo> → conteúdo do PDF de demonstração (stdout, binário)
+# sandbox_pdf <assessoria> <arquivo> → conteúdo do PDF de demonstração (stdout, binário). Sem stdin (</dev/null): o
+# `exec` consumiria a entrada de quem chama em laço (while read … <<< índice).
 sandbox_pdf() {
-  compose exec -T app cat "/sandbox-data/pdfs/$1/$2"
+  compose exec -T app cat "/sandbox-data/pdfs/$1/$2" </dev/null
 }
 
 # Estado de prontidão (UP só depois da carga de dados fictícios) e detalhes da carga, se publicados.

@@ -95,6 +95,12 @@ class SandboxDemoPdfCompatibilityTest {
         assertThat(first.values()).containsEntry(CanonicalField.DEBTOR_NAME, demo.debtor().name())
                 .containsEntry(CanonicalField.DEBTOR_DOCUMENT, demo.debtor().document())
                 .containsEntry(CanonicalField.EMAIL_1, demo.debtor().email());
+        for (int i = 0; i < demo.titles().size(); i++) {
+            DemoPdf.HistoryTitle t = demo.titles().get(i);
+            assertThat(ok.records().get(i).info()).as("colunas sem sobreposição no título " + i)
+                    .containsEntry("forma_pagamento", t.payment()).containsEntry("nosso_numero", t.ourNumber())
+                    .containsEntry("conta", t.account());
+        }
         assertThat(sum(ok.records(), CanonicalField.REPORTED_BALANCE)).isEqualByComparingTo(demo.sumPending());
 
         Result divergent = run(set.published().get(1), history);
