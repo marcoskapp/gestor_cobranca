@@ -11,7 +11,8 @@ Pré-requisitos: Docker com Compose v2 e `curl` (o `verify.sh` também usa `jq`)
 ```bash
 ./scripts/sandbox/up.sh            # constrói a imagem, sobe tudo e espera a carga terminar (1º build: alguns minutos)
 ./scripts/sandbox/up.sh --no-build # sobe de novo reaproveitando a imagem já construída
-./scripts/sandbox/verify.sh        # verificação de fumaça: logins por perfil, volumes e isolamento entre assessorias
+./scripts/sandbox/verify.sh        # verificação de fumaça: logins por perfil, volumes, isolamento entre assessorias e API pública
+./scripts/sandbox/tokens.sh        # tokens de demonstração da API pública (segredos exibidos só aqui)
 ./scripts/sandbox/down.sh          # para, mantendo os dados
 ./scripts/sandbox/reset.sh         # apaga os volumes do sandbox e recria do zero (pede confirmação; --yes dispensa)
 ```
@@ -82,6 +83,7 @@ Exemplo: `gestor@aurora.exemplo.test` / `Sandbox@2026!`, assessoria `aurora`.
 | Compliance | pedido de titular (LGPD) aberto; trilha de auditoria e log de acesso de tudo o que a carga fez |
 | Prestação de contas | demonstrativo do 1º credor calculado |
 | Painéis | snapshots do analytics atualizados pelo agendamento (a cada 15 min) |
+| API pública | 8 tokens de demonstração (um completo por credor e um só de leitura no 1º credor de cada assessoria) e condições de cobrança das integrações em cada contrato (§4a) |
 
 A carga também deixa e-mails no Mailpit: os links de ativação usados para ativar cada usuário e as mensagens de e-mail da operação.
 
@@ -96,7 +98,62 @@ A carga também deixa e-mails no Mailpit: os links de ativação usados para ati
 7. **Analista de carteiras**: *Importações* — lotes de carga com totais de controle; importe um arquivo pelo assistente de importação.
 8. **Compliance** e **auditor**: pedido de titular, restrições de contato, log de acesso (os logins da demonstração aparecem) e trilha de auditoria (inclusive as ações da carga, marcadas "carga do sandbox").
 9. **Administrador da plataforma** (`admin@plataforma…`, assessoria `plataforma`): lista de assessorias; provisione uma terceira e acompanhe o convite no Mailpit.
-10. **Simuladores** (Swagger, com o token do `integracao`): `POST /api/v1/communication/sandbox/inbound` (mensagem de um devedor), `POST /api/v1/payment/sandbox/instructions/{id}/pay` (pagar um Pix), `POST /api/v1/telephony/sandbox/inbound` (ligação recebida).
+10. **API pública** (terminal + tela): `./scripts/sandbox/tokens.sh` → com o token `sandbox-hzn-completo`, liste carteiras e títulos e importe um lote pelos exemplos da §4a; mostre a recusa (403) do token `sandbox-hzn-leitura` ao importar e o 404 ao tentar a carteira de outro credor; abra a documentação pública e o changelog (`/public-api/docs`, `/public-api/docs/changelog`); depois, como **gestor**, *Integrações → Tokens de integração* (prefixo, escopos, último uso, revogar/rotacionar) e *Consumo da API* (as chamadas aparecem em até ~1 min).
+11. **Faturamento da API** (gestor ou financeiro): ficha do credor → contrato → condições de cobrança das integrações (dia de fechamento, mensalidade, franquias, excedente; cada credor diferente) e *Integrações → Extratos da API* (extratos por ciclo depois do primeiro fechamento).
+12. **Simuladores** (Swagger, com o token do `integracao`): `POST /api/v1/communication/sandbox/inbound` (mensagem de um devedor), `POST /api/v1/payment/sandbox/instructions/{id}/pay` (pagar um Pix), `POST /api/v1/telephony/sandbox/inbound` (ligação recebida).
+
+## 4a. API pública dos credores
+
+A carga emite **tokens de integração de demonstração** pelo mesmo caso de uso das telas (`IssueIntegrationToken`), como o administrador de cada assessoria — a regra que só deixa conceder escopos que o emissor tem é aplicada normalmente:
+
+| Token | Credor | Escopos |
+| --- | --- | --- |
+| `sandbox-<prefixo>-completo` | cada credor (HZN, EST, TVC na `aurora`; CSR, ELT, UMC na `boreal`) | todos os do catálogo: leitura e escrita de carteiras, importação, títulos, devedores, contestações e pagamentos diretos; leitura de cobrança e acordos |
+| `sandbox-<prefixo>-leitura` | só o 1º credor de cada assessoria (`hzn`, `csr`) | somente os escopos `*:read` |
+
+O segredo do token só existe na emissão (o sistema guarda o HMAC e o log mascara `gck_`). Para a demonstração, a carga o grava em `/sandbox-data/api-tokens.txt` (volume `sandbox-data`, exclusivo do sandbox, permissão 600). Para ver:
+
+```bash
+./scripts/sandbox/tokens.sh          # assessoria, credor, nome, escopos e token completo
+./scripts/sandbox/tokens.sh --raw    # linhas separadas por tabulação (para scripts)
+```
+
+Subir de novo não emite tokens novos (identificados pelo nome); se o arquivo se perder sem o banco, o segredo é reemitido pela rotação do próprio token. No `reset.sh` os tokens são recriados com segredos novos.
+
+**Endereços**
+
+| O quê | Endereço | Token |
+| --- | --- | --- |
+| API v1 | http://localhost:58080/public-api/v1 | `Authorization: Bearer gck_…` |
+| Documentação pública (Swagger UI) | http://localhost:58080/public-api/docs | não |
+| Changelog público | http://localhost:58080/public-api/docs/changelog (JSON: `/public-api/changelog`) | não |
+| Versões | http://localhost:58080/public-api/versions | não |
+| Contrato OpenAPI publicado | http://localhost:58080/public-api/v1/openapi.json | não |
+| Telas internas | **Integrações → API pública**: Tokens de integração, Consumo da API, Extratos da API (`/integracoes/tokens`, `/integracoes/consumo`, `/integracoes/extratos`) | login de usuário |
+
+**Exemplos**
+
+```bash
+TOKEN=$(./scripts/sandbox/tokens.sh --raw | awk -F'\t' '$4 == "sandbox-hzn-completo" {print $6}')
+API=http://localhost:58080/public-api/v1
+
+curl -s -H "Authorization: Bearer $TOKEN" "$API/creditor" | jq
+curl -s -H "Authorization: Bearer $TOKEN" "$API/portfolios" | jq '.data[] | {id, code, status}'
+curl -s -H "Authorization: Bearer $TOKEN" "$API/titles?limit=5" | jq '.data[] | {externalId, dueDate, openBalance}'
+
+# importação de um lote JSON (Idempotency-Key obrigatório; repetir com a mesma chave devolve o mesmo lote)
+PORTFOLIO=$(curl -s -H "Authorization: Bearer $TOKEN" "$API/portfolios" | jq -r '.data[] | select(.code=="HZN-CARTAO") | .id')
+curl -s -X POST "$API/imports" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: demo-lote-0001' \
+  -d "{\"portfolioId\":\"$PORTFOLIO\",\"mode\":\"IMPORT\",\"records\":[{\"documento\":\"52998224725\",
+       \"nome\":\"Cliente Demonstração API (fictício)\",\"id_titulo\":\"DEMO-1\",\"vencimento\":\"2026-01-15\",
+       \"valor_principal\":199.90}]}" | jq '{id, status}'
+curl -s -H "Authorization: Bearer $TOKEN" "$API/imports/<id do lote>" | jq '{status, counters}'
+```
+
+Listas usam paginação por cursor e não trazem o último minuto (janela de estabilização da sincronização). O `verify.sh` exercita tudo isso e confere: 200/202 com o token certo; 401 sem token e com token inválido; 404 ao acessar ou importar em carteira de outro credor e de outra assessoria; 403 do token só de leitura num endpoint de escrita; páginas públicas sem token; e o consumo aparecendo em `GET /api/v1/public-api/usage` (gravado em lote a cada minuto).
+
+**Faturamento.** O contrato de cada credor tem condições de cobrança das integrações (organization, `ContractIntegrationPricing`, definidas pelo gestor): dia de fechamento do ciclo de consumo variado — HZN 5, EST 15, TVC 31 (último dia), CSR 10, ELT 20, UMC 31 —, mensalidade (R$ 190 a R$ 490 por segmento), franquias de chamadas, MB recebidos/enviados e registros, e preço do excedente. Elas aparecem na ficha do credor (contrato). Como as condições valem a partir do próximo ciclo de consumo (não retroativas) e o extrato só é fechado depois do fim do ciclo (job diário às 02h20), um sandbox recém-criado mostra o consumo do dia em **Consumo da API**, e os extratos aparecem em **Extratos da API** a partir do primeiro fechamento.
 
 ## 5. Como a carga funciona
 
@@ -124,7 +181,7 @@ A carga é o módulo `sandbox` do backend (`br.com.gestorcobranca.sandbox`). Ela
 
 ### Tokens de integração (API pública)
 
-Ponto de extensão `IntegrationTokensSeeder` (etapa "tokens de integração", entre a configuração dos credores e a carga das carteiras), a ser ligado **após o merge da `feature/api-publica`**: emitir um token de demonstração por credor pelo caso de uso público da API e documentar aqui como obtê-lo. Até lá a etapa só registra que foi pulada.
+Etapa `IntegrationTokensSeeder` ("tokens de integração", entre a configuração dos credores e a carga das carteiras): emite os tokens de demonstração pelo caso de uso público `IssueIntegrationToken` como o administrador da assessoria, idempotente pelo nome do token, e guarda o segredo pelo `FileDemoTokenVault` (arquivo do volume `sandbox-data`, permissão 600, regravado de forma atômica). O log técnico registra só o id e o prefixo público do token. Uso e exemplos na §4a. As condições de cobrança das integrações de cada contrato são definidas na etapa de configuração operacional (`IntegrationPricingCatalog`). A chave HMAC dos segredos (`APP_PUBLIC_API_TOKEN_HASH_KEY`) é gerada pelo entrypoint junto com as demais chaves locais.
 
 ## 6. Problemas comuns
 

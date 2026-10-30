@@ -23,7 +23,8 @@ Ambiente completo no Docker, já com dados **fictícios** (2 assessorias × 3 cr
 
 ```bash
 ./scripts/sandbox/up.sh        # app em http://localhost:58080 · Mailpit em http://localhost:58025
-./scripts/sandbox/verify.sh    # logins por perfil, volumes e isolamento entre assessorias
+./scripts/sandbox/verify.sh    # logins por perfil, volumes, isolamento entre assessorias e API pública
+./scripts/sandbox/tokens.sh    # tokens de demonstração da API pública (/public-api/v1)
 ./scripts/sandbox/down.sh      # para (mantém os dados) · reset.sh recria do zero
 ```
 
