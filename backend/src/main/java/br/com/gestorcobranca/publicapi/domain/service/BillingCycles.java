@@ -1,11 +1,13 @@
 package br.com.gestorcobranca.publicapi.domain.service;
 
+import br.com.gestorcobranca.publicapi.domain.model.Proration;
 import br.com.gestorcobranca.shared.domain.Guard;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Calendário dos ciclos de consumo das integrações (decisão 608). O contrato do credor define o dia de fechamento
@@ -67,6 +69,22 @@ public final class BillingCycles {
         LocalDate end = closingDateOnOrAfter(day, closingDay);
         LocalDate previousEnd = closingDateIn(YearMonth.from(end).minusMonths(1), closingDay);
         return new Cycle(previousEnd.plusDays(1), end, closingDay);
+    }
+
+    /**
+     * Proporcionalidade de um ciclo (decisão 621, do responsável): dias do ciclo ÷ dias do <i>ciclo de referência</i> —
+     * o ciclo regular, no calendário do dia de fechamento, que termina na mesma data de fechamento. Base real/real
+     * (dias corridos do próprio período, como nas assinaturas com cobrança proporcional), e não mês comercial de 30
+     * dias: um ciclo regular tem sempre fator 1, seja de 28, 30 ou 31 dias; só o ciclo de transição (início fora do
+     * calendário, após mudança do dia de fechamento) fica proporcional.
+     */
+    public static Proration proration(Cycle cycle) {
+        Cycle reference = containing(cycle.end(), cycle.closingDay());
+        return new Proration(days(cycle), days(reference));
+    }
+
+    private static int days(Cycle c) {
+        return (int) ChronoUnit.DAYS.between(c.start(), c.end()) + 1;
     }
 
     private static void requireDay(int closingDay) {

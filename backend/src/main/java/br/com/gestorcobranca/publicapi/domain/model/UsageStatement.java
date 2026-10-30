@@ -40,6 +40,13 @@ public class UsageStatement extends TenantScopedEntity {
     @Column(name = "usage_closing_day", nullable = false, updatable = false)
     private int usageClosingDay;
 
+    /** Dias do ciclo e do ciclo de referência (proporcionalidade); nulos em extratos anteriores à regra (fator 1). */
+    @Column(name = "cycle_days", updatable = false)
+    private Integer cycleDays;
+
+    @Column(name = "reference_cycle_days", updatable = false)
+    private Integer referenceCycleDays;
+
     @Column(name = "contract_id", updatable = false)
     private UUID contractId;
 
@@ -102,7 +109,7 @@ public class UsageStatement extends TenantScopedEntity {
     }
 
     public UsageStatement(UUID creditorId, LocalDate periodStart, LocalDate periodEnd, int revision, int usageClosingDay,
-                          AppliedPricing pricing, long requests, BillableUsage billable, BigDecimal totalAmount,
+                          Proration proration, AppliedPricing pricing, long requests, BillableUsage billable, BigDecimal totalAmount,
                           String linesJson, String breakdownJson, String usageHash, Instant closedAt, UUID closedBy,
                           String reason) {
         Guard.require(periodStart != null && periodEnd != null && !periodEnd.isBefore(periodStart),
@@ -115,6 +122,8 @@ public class UsageStatement extends TenantScopedEntity {
         this.periodEnd = periodEnd;
         this.revision = revision;
         this.usageClosingDay = usageClosingDay;
+        this.cycleDays = proration.cycleDays();
+        this.referenceCycleDays = proration.referenceDays();
         if (pricing != null) {
             this.contractId = pricing.contractId();
             this.contractNumber = pricing.contractNumber();
@@ -154,6 +163,14 @@ public class UsageStatement extends TenantScopedEntity {
 
     public int getUsageClosingDay() {
         return usageClosingDay;
+    }
+
+    public Integer getCycleDays() {
+        return cycleDays;
+    }
+
+    public Integer getReferenceCycleDays() {
+        return referenceCycleDays;
     }
 
     public UUID getContractId() {

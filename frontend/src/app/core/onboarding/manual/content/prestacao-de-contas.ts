@@ -24,6 +24,24 @@ export const MANUAL: ModuleManual = {
   ],
   screens: [
     {
+      id: 'settlement.position',
+      title: 'Posição do credor',
+      objective: 'Acompanhar a qualquer momento o faturamento da integração e o repasse ao credor, sem esperar o fechamento.',
+      purpose: [
+        'O bloco de faturamento mostra o ciclo de consumo em andamento: valor até agora (mensalidade do ciclo mais o excedente), uso das franquias, crescimento dia a dia comparado ao ciclo anterior e uma projeção pela média diária.',
+        'O bloco de repasse calcula o período em aberto do mesmo jeito que o demonstrativo calcularia se fosse fechado agora, sem gravar nada. Pagamentos aguardando conciliação ou sem regra ficam fora do líquido e aparecem à parte.',
+        'A tela se atualiza a cada minuto. O consumo da integração chega em lotes de cerca de um minuto; a hora da última atualização aparece no bloco.',
+      ],
+      profiles: ['ADMIN', 'GESTOR', 'FINANCEIRO', 'AUDITOR'],
+      inputs: ['Consumo dos tokens do credor, recebimentos apurados, despesas e ajustes do período.'],
+      outputs: ['Visão atualizada do valor a faturar e do valor a repassar ou a receber.'],
+      related: [
+        { screen: 'settlement.statements', why: 'Fechar o período em demonstrativo.' },
+        { screen: 'publicapi.billing', why: 'Extratos fechados da integração.' },
+      ],
+      terms: ['extrato-de-consumo'],
+    },
+    {
       id: 'settlement.statements',
       title: 'Demonstrativos',
       objective: 'Prestação de contas ao credor por período: recebido, quanto a assessoria fica e o líquido a repassar.',

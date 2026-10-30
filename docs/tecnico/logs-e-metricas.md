@@ -442,7 +442,8 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `publicapi.requests{method,route,status,outcome}` (timer com histograma), `publicapi.bytes{direction,route}`, `publicapi.records{route}` | API pública: latência, volume, bytes reais do corpo e registros por rota (sem credor/token nas tags) |
 | `publicapi.auth{outcome}`, `publicapi.tokens.lifecycle{operation}` | aceites e recusas de token por motivo (alarme em `secret_mismatch` anômalo); criação, rotação e revogação |
 | `publicapi.usage.pending_keys`, `publicapi.usage.flushed_rows{outcome}`, `publicapi.usage.flush.duration` | acumulação em memória e gravação em lote do consumo (alarme em `outcome=failed`) |
-| `publicapi.statements.closed{trigger}`, `publicapi.statements.close_failures` | fechamento mensal dos extratos (alarme em falhas) |
+| `publicapi.statements.closed{trigger}`, `publicapi.statements.close_failures` | fechamento diário dos ciclos encerrados (alarme em falhas) |
+| `publicapi.billing.position.duration` | tempo de cálculo da posição do ciclo de consumo em andamento (tela Posição do credor e `GET /public-api/v1/billing/position`) |
 | `hikaricp.*`, `jvm.*`, `process.*` | saúde do pool e da JVM |
 | `business.events{type}` | volume de fatos de negócio |
 | `access.events{type,success}`, `access.log.write_failures` | segurança e integridade do log de acesso |
@@ -565,6 +566,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `settlement.events.ignored{type,reason}` | eventos sem efeito (ex.: `agreement_payment_recorded`/`unapplied`, `legal_expense`/`reimbursed_after_statement` — possível reembolso em duplicidade, investigar) |
 | `settlement.expenses{kind,effect}` | custas do jurídico materializadas (`CHARGE`/`CANCELLATION` × `DEDUCT`/`INFORMATIVE`) |
 | `settlement.statements.transitions{status}`, `settlement.statement.calculate.duration`, `settlement.statement.receipts` | ciclo dos demonstrativos, duração e volume do cálculo |
+| `settlement.position.duration{cache}`, `settlement.position.requests{cache}` | posição do repasse em tempo real (simulação do demonstrativo): tempo e leituras, `cache` = `hit` ou `miss` (cache de 60 s por credor com marca de alterações) |
 | `settlement.adjustments{status}`, `settlement.exports{format}`, `settlement.transfers{direction,outcome}`, `settlement.rules.published` | ajustes (aplicados, pendentes de segunda aprovação, recusados), exportações, repasses (`registered`/`cancelled`) e publicações de regras |
 | `communication.messages{channel,direction,sender,status}` | mudanças de status de mensagens (inclui `QUEUED` e `RECEIVED`) |
 | `communication.messages.blocked{channel,sender,stage,reason}` | envios negados pelo porteiro, por motivo (`precheck`/`send`) |

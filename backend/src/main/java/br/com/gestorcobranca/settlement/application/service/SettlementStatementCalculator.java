@@ -83,11 +83,54 @@ class SettlementStatementCalculator {
     record Result(Totals totals, String calculationJson, int included) {
     }
 
+    /**
+     * Resultado do cálculo sem efeitos: totais, memória e os itens que entrariam no demonstrativo (com o lançamento do
+     * razão de cada recebimento, para séries diárias).
+     */
+    record Computation(Totals totals, Map<String, Object> calculation, List<Receipt> includedReceipts,
+                       Map<UUID, CommissionEntry> entries, List<ReimbursableExpense> includedExpenses) {
+    }
+
+    /** Calcula e vincula os itens ao demonstrativo (demonstrativo e credor bloqueados pelo chamador). */
     Result calculate(SettlementStatement s, Instant now, LocalDate today) {
         release(s);
-        LocalDate end = s.getPeriodEnd();
-        List<Receipt> candidates = receipts.findByCreditorIdAndStatementIdIsNullAndCompetenceDateLessThanEqual(
-                s.getCreditorId(), end);
+        Computation c = compute(s.getCreditorId(), s.getPeriodStart(), s.getPeriodEnd(), s.getId(), null, now, today);
+        for (Receipt r : c.includedReceipts()) {
+            r.bindTo(s.getId());
+            receipts.save(r);
+        }
+        for (ReimbursableExpense e : c.includedExpenses()) {
+            e.bindTo(s.getId());
+            facts.save(e);
+        }
+        return new Result(c.totals(), json.toJson(c.calculation()), c.includedReceipts().size());
+    }
+
+    /**
+     * Simulação (posição em tempo real): o mesmo cálculo de {@link #calculate}, sem gravar nem bloquear nada. Os itens
+     * vinculados ao demonstrativo em aberto do credor ({@code openStatementId}, se houver) contam como candidatos —
+     * como se ele fosse recalculado agora — e os ajustes aplicados dele entram no líquido.
+     */
+    Computation simulate(UUID creditorId, LocalDate periodStart, LocalDate periodEnd, UUID openStatementId,
+                         Instant now, LocalDate today) {
+        return compute(creditorId, periodStart, periodEnd, openStatementId, openStatementId, now, today);
+    }
+
+    /**
+     * Núcleo comum (sem efeitos).
+     *
+     * @param adjustmentsOf demonstrativo cujos ajustes aplicados entram no líquido (nulo: nenhum)
+     * @param releasedFrom  demonstrativo em aberto cujos itens vinculados contam como liberados (simulação); nulo no
+     *                      cálculo real, que libera antes
+     */
+    private Computation compute(UUID creditorId, LocalDate periodStart, LocalDate end, UUID adjustmentsOf,
+                                UUID releasedFrom, Instant now, LocalDate today) {
+        List<Receipt> candidates = new ArrayList<>(receipts.findByCreditorIdAndStatementIdIsNullAndCompetenceDateLessThanEqual(
+                creditorId, end));
+        if (releasedFrom != null) {
+            receipts.findByStatementId(releasedFrom).stream().filter(r -> !r.getCompetenceDate().isAfter(end))
+                    .forEach(candidates::add);
+        }
         Map<UUID, CommissionEntry> entryByReceipt = entries.findByReceiptIdIn(candidates.stream().map(Receipt::getId)
                 .toList()).stream().collect(Collectors.toMap(CommissionEntry::getReceiptId, Function.identity()));
         Map<UUID, CommissionRules> rulesById = new HashMap<>();
@@ -138,7 +181,8 @@ class SettlementStatementCalculator {
                 continue;
             }
             boolean originalIncluded = includedIds.contains(r.getReversesReceiptId())
-                    || receipts.findById(r.getReversesReceiptId()).map(o -> o.getStatementId() != null).orElse(false);
+                    || receipts.findById(r.getReversesReceiptId()).map(o -> o.getStatementId() != null
+                    && !o.getStatementId().equals(releasedFrom)).orElse(false);
             if (originalIncluded) {
                 included.add(r);
                 includedIds.add(r.getId());
@@ -161,7 +205,7 @@ class SettlementStatementCalculator {
             } else {
                 totals.reversed = totals.reversed.plus(r.getAmount());
             }
-            if (r.getCompetenceDate().isBefore(s.getPeriodStart())) {
+            if (r.getCompetenceDate().isBefore(periodStart)) {
                 priorPeriod++;
             }
             totals.agencyHonorarium = totals.agencyHonorarium.plus(e.getAgencyHonorarium());
@@ -170,16 +214,21 @@ class SettlementStatementCalculator {
             totals.fixedFee = totals.fixedFee.plus(e.getFixedFee());
             totals.transferEffect = totals.transferEffect.plus(e.getTransferEffect());
         }
-        List<ReimbursableExpense> expenses = facts.findOpenExpenses(s.getCreditorId(), end);
+        List<ReimbursableExpense> expenses = new ArrayList<>(facts.findOpenExpenses(creditorId, end));
+        if (releasedFrom != null) {
+            facts.findExpensesByStatement(releasedFrom).stream()
+                    .filter(e -> e.getStatus() == ReimbursableExpense.Status.ACTIVE && !e.getCompetenceDate().isAfter(end))
+                    .forEach(expenses::add);
+        }
         for (ReimbursableExpense e : expenses) {
             totals.expenses = totals.expenses.plus(e.deduction());
         }
-        Money adjustments = statements.findAdjustments(s.getId()).stream()
+        Money adjustments = adjustmentsOf == null ? Money.ZERO : statements.findAdjustments(adjustmentsOf).stream()
                 .filter(a -> a.getStatus() == SettlementAdjustment.Status.APPLIED)
                 .map(SettlementAdjustment::getAmount).reduce(Money.ZERO, Money::plus);
-        Money negotiated = negotiated(s);
-        Forecast forecast = forecast(s.getCreditorId(), today);
-        List<OpenDivergence> divergences = sources.openDivergences(s.getCreditorId());
+        Money negotiated = negotiated(creditorId, periodStart, end);
+        Forecast forecast = forecast(creditorId, today);
+        List<OpenDivergence> divergences = sources.openDivergences(creditorId);
 
         Money recovered = totals.receivedAgency.plus(totals.receivedCreditor).plus(totals.reversed);
         Money net = totals.transferEffect.minus(totals.expenses).plus(adjustments);
@@ -188,18 +237,9 @@ class SettlementStatementCalculator {
                 totals.expenses, adjustments, net, negotiated, forecast.commission(), pendingReconciliationAmount,
                 pendingRulesAmount, divergences.size(), included.size());
 
-        for (Receipt r : included) {
-            r.bindTo(s.getId());
-            receipts.save(r);
-        }
-        for (ReimbursableExpense e : expenses) {
-            e.bindTo(s.getId());
-            facts.save(e);
-        }
-
         Map<String, Object> calculation = new LinkedHashMap<>();
         calculation.put("schema", SettlementStatement.CALCULATION_SCHEMA);
-        calculation.put("periodStart", s.getPeriodStart().toString());
+        calculation.put("periodStart", periodStart.toString());
         calculation.put("periodEnd", end.toString());
         calculation.put("calculatedAt", now.toString());
         calculation.put("ruleVersions", new ArrayList<>(versions.values()));
@@ -222,7 +262,7 @@ class SettlementStatementCalculator {
         }).toList());
         calculation.put("forecast", Map.of("openAgreements", forecast.agreements(),
                 "withoutRules", forecast.withoutRules(), "remaining", forecast.remaining().amount()));
-        return new Result(result, json.toJson(calculation), included.size());
+        return new Computation(result, calculation, included, entryByReceipt, expenses);
     }
 
     /** Libera os itens vinculados (recálculo ou cancelamento de demonstrativo em aberto). */
@@ -242,10 +282,10 @@ class SettlementStatementCalculator {
         return codec.read(ruleSet);
     }
 
-    private Money negotiated(SettlementStatement s) {
-        Instant from = s.getPeriodStart().atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
-        Instant to = s.getPeriodEnd().plusDays(1).atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
-        return facts.findAgreementsFormalizedBetween(s.getCreditorId(), from, to).stream()
+    private Money negotiated(UUID creditorId, LocalDate periodStart, LocalDate periodEnd) {
+        Instant from = periodStart.atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
+        Instant to = periodEnd.plusDays(1).atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
+        return facts.findAgreementsFormalizedBetween(creditorId, from, to).stream()
                 .map(AgreementFact::getAgreementAmount).reduce(Money.ZERO, Money::plus);
     }
 

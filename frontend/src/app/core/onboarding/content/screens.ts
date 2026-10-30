@@ -112,6 +112,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'publicapi.tokens', version: 1, path: '/integracoes/tokens', tourId: 'publicapi.tokens' },
   { key: 'publicapi.token', version: 1, path: '/integracoes/tokens/:id', tourId: 'publicapi.token' },
   { key: 'publicapi.usage', version: 1, path: '/integracoes/consumo', tourId: 'publicapi.usage' },
+  { key: 'settlement.position', version: 1, path: '/posicao-credor', tourId: 'settlement.position' },
   { key: 'publicapi.billing', version: 2, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
   {
     key: 'payment.detail',

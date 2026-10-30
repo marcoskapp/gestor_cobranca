@@ -179,7 +179,8 @@ class PublicApiOpenApiConfig {
     private static final String DESCRIPTION = """
             API para o **credor** administrar, por integração sistema a sistema, a carteira de cobrança mantida na \
             assessoria: carteiras, importação de títulos, ciclo de vida dos títulos, contatos dos devedores, \
-            acompanhamento da cobrança, acordos e pagamentos, pagamento informado e contestações.
+            acompanhamento da cobrança, acordos e pagamentos, pagamento informado e contestações — e acompanhar, a \
+            qualquer momento, o consumo da própria API e o repasse da prestação de contas.
 
             ## Autenticação
             Cada credor recebe da assessoria um **token de integração** (`gck_<prefixo>.<segredo>`), exibido uma \
@@ -209,6 +210,14 @@ class PublicApiOpenApiConfig {
             ## Idempotência
             Comandos que criam lotes ou pagamentos exigem `Idempotency-Key` (8 a 80 caracteres). Repetir a chamada com \
             a mesma chave e o mesmo conteúdo devolve o mesmo resultado; com conteúdo diferente: 409.
+
+            ## Posição do faturamento e do repasse
+            `GET /billing/position` (escopo `billing:read`) mostra o ciclo de consumo em andamento: chamadas \
+            cobráveis (2xx/3xx), MB inteiros (1 MB = 1.048.576 bytes, arredondados por token), valor até agora, \
+            franquias, crescimento diário e projeção; o consumo é gravado em lotes de cerca de 1 minuto \
+            (`updatedAt`). `GET /settlement/position` (escopo `settlement:read`) estima o repasse do período em \
+            aberto como o demonstrativo calcularia se fechado agora — é uma estimativa, não um demonstrativo; os \
+            demonstrativos enviados estão em `GET /settlement/statements`.
 
             ## Dados pessoais (LGPD)
             Documento e contatos do devedor são sempre devolvidos mascarados. Envie só os dados necessários.

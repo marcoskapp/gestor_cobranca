@@ -1119,6 +1119,17 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'settlement.position',
+    version: 1,
+    title: 'Posição do credor',
+    summary: 'Faturamento da API e repasse do período em aberto, atualizados agora.',
+    steps: [
+      { anchor: 'position-filters', title: 'Credor e atualização', body: 'Escolha o credor. A tela se atualiza a cada minuto; o botão atualiza na hora.' },
+      { anchor: 'position-billing', title: 'Faturamento da API', body: 'Valor até agora, franquias, crescimento comparado ao ciclo anterior e projeção pela média diária.' },
+      { anchor: 'position-settlement', title: 'Repasse estimado', body: 'Calculado como o demonstrativo calcularia se fechado agora. Pendências de conciliação ficam fora do líquido.' },
+    ],
+  },
+  {
     id: 'publicapi.billing',
     version: 2,
     title: 'Extratos da API pública',

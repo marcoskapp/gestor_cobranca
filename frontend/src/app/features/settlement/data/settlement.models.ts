@@ -347,3 +347,44 @@ export interface BalanceView {
   toReceive: Amount;
   statements: StatementBalance[];
 }
+
+/** `SettlementPositionUseCases.DailyPoint`: acumulado até o fim do dia do período. */
+export interface PositionDailyPoint {
+  day: number;
+  date: string;
+  recovered: Amount;
+  netTransfer: Amount;
+}
+
+/**
+ * `SettlementPositionUseCases.PositionView`: repasse do período em aberto calculado agora como o demonstrativo
+ * calcularia (simulação, nada é gravado).
+ */
+export interface SettlementPositionView {
+  creditorId: string;
+  periodStart: string;
+  asOf: string;
+  expectedPeriodEnd: string;
+  settlementDay: number | null;
+  openStatementId: string | null;
+  openStatementStatus: StatementStatus | null;
+  totals: TotalsView;
+  direction: 'AGENCY_TO_CREDITOR' | 'CREDITOR_TO_AGENCY' | 'NONE';
+  daily: PositionDailyPoint[];
+  previous: {
+    statementId: string;
+    sequenceNumber: number;
+    periodStart: string;
+    periodEnd: string;
+    status: StatementStatus;
+    recovered: Amount;
+    netTransfer: Amount;
+  } | null;
+  previousDaily: PositionDailyPoint[];
+  closedWithBalance: StatementBalance[];
+  outstandingToTransfer: Amount;
+  outstandingToReceive: Amount;
+  calculatedAt: string;
+  cached: boolean;
+  calculationMillis: number;
+}

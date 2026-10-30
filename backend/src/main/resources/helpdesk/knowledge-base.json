@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "3e100216ae8d4264",
+ "contentVersion": "022911447032f44b",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -3805,6 +3805,50 @@
    }
   },
   {
+   "id": "settlement.position",
+   "module": "prestacao-de-contas",
+   "title": "Posição do credor",
+   "objective": "Acompanhar a qualquer momento o faturamento da integração e o repasse ao credor, sem esperar o fechamento.",
+   "purpose": [
+    "O bloco de faturamento mostra o ciclo de consumo em andamento: valor até agora (mensalidade do ciclo mais o excedente), uso das franquias, crescimento dia a dia comparado ao ciclo anterior e uma projeção pela média diária.",
+    "O bloco de repasse calcula o período em aberto do mesmo jeito que o demonstrativo calcularia se fosse fechado agora, sem gravar nada. Pagamentos aguardando conciliação ou sem regra ficam fora do líquido e aparecem à parte.",
+    "A tela se atualiza a cada minuto. O consumo da integração chega em lotes de cerca de um minuto; a hora da última atualização aparece no bloco."
+   ],
+   "profiles": [
+    "ADMIN",
+    "GESTOR",
+    "FINANCEIRO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Consumo dos tokens do credor, recebimentos apurados, despesas e ajustes do período."
+   ],
+   "outputs": [
+    "Visão atualizada do valor a faturar e do valor a repassar ou a receber."
+   ],
+   "related": [
+    {
+     "screen": "settlement.statements",
+     "why": "Fechar o período em demonstrativo."
+    },
+    {
+     "screen": "publicapi.billing",
+     "why": "Extratos fechados da integração."
+    }
+   ],
+   "terms": [
+    "extrato-de-consumo"
+   ],
+   "path": "/posicao-credor",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SETTLEMENT_VIEW",
+     "PUBLIC_API_USAGE_VIEW"
+    ]
+   }
+  },
+  {
    "id": "settlement.statements",
    "module": "prestacao-de-contas",
    "title": "Demonstrativos",
@@ -6156,7 +6200,7 @@
    "objective": "Extrato de consumo de cada credor por ciclo, calculado com os preços do contrato, pronto para faturar.",
    "purpose": [
     "Os preços (mensalidade, franquias e excedente por chamada, por MB recebido e enviado e por registro) e o dia de fechamento ficam no contrato do credor. Alterações valem a partir do próximo ciclo.",
-    "O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte. Ciclos encerrados fecham sozinhos de madrugada.",
+    "O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte; ciclos encerrados fecham sozinhos de madrugada, e ciclo sem consumo só gera extrato se houver mensalidade. Ao mudar o dia de fechamento, o ciclo de transição tem mensalidade e franquias proporcionais aos dias.",
     "Só chamadas bem-sucedidas são cobradas. Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token no ciclo. Nova revisão exige motivo; o extrato guarda uma marca do consumo que prova o cálculo."
    ],
    "profiles": [

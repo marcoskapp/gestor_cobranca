@@ -76,6 +76,12 @@ class PublicApiUsageController {
         return billing.statements(creditorId, month, PageQuery.of(page, size));
     }
 
+    @GetMapping("/position")
+    @PreAuthorize("hasAuthority('PUBLIC_API_USAGE_VIEW')")
+    PublicApiBillingUseCases.BillingPositionView position(@RequestParam UUID creditorId) {
+        return billing.position(creditorId);
+    }
+
     @GetMapping("/statements/preview")
     @PreAuthorize("hasAuthority('PUBLIC_API_USAGE_VIEW')")
     StatementView preview(@RequestParam UUID creditorId) {

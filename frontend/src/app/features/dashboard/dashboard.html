@@ -25,6 +25,12 @@
   }
 }
 
+@if (showPositions()) {
+  @defer (on idle) {
+    <app-position-summary-card />
+  }
+}
+
 <div class="dashboard__layout" [class.dashboard__layout--with-aside]="onboarding.checklistVisible()">
   <section class="dashboard__main" aria-labelledby="acesso-rapido">
     @if (shortcuts().length > 0) {

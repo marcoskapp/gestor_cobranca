@@ -59,3 +59,16 @@ export function formatCycle(start: string, end: string): string {
   const br = (d: string) => d.split('-').reverse().join('/');
   return `${br(start)} a ${br(end)}`;
 }
+
+/**
+ * Proporcionalidade do ciclo (decisão 621): `null` no ciclo regular; no de transição, "10 de 28 dias (fator 0,3571)".
+ */
+export function prorationLabel(cycleDays: number, referenceCycleDays: number): string | null {
+  if (cycleDays === referenceCycleDays) {
+    return null;
+  }
+  const factor = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(
+    cycleDays / referenceCycleDays,
+  );
+  return `${cycleDays} de ${referenceCycleDays} dias (fator ${factor})`;
+}

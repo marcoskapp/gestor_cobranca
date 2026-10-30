@@ -116,7 +116,7 @@ abstract class PublicApiTestSupport extends IntegrationTest {
     Set<String> allScopes() {
         return Set.of("portfolios:read", "portfolios:write", "imports:read", "imports:write", "titles:read",
                 "titles:write", "debtors:read", "debtors:write", "collection:read", "agreements:read", "payments:read",
-                "payments:write", "disputes:read", "disputes:write");
+                "payments:write", "disputes:read", "disputes:write", "billing:read", "settlement:read");
     }
 
     HttpResponse<String> call(String method, String path, String token, String body, Map<String, String> headers)

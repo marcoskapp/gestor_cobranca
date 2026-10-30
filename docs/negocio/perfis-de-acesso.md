@@ -35,8 +35,10 @@ A lista exata de permissões de cada perfil está em `backend/src/main/java/br/c
 | --- | --- | --- |
 | `PUBLIC_API_TOKEN_VIEW` | Consultar tokens de integração | Administrador, Gestor, Integrações, Auditor |
 | `PUBLIC_API_TOKEN_MANAGE` | Criar, editar, rotacionar e revogar tokens (só com escopos que o próprio perfil tem) | Administrador, Gestor, Integrações |
-| `PUBLIC_API_USAGE_VIEW` | Consumo e extratos por ciclo | Administrador, Gestor, Financeiro, Integrações, Auditor |
+| `PUBLIC_API_USAGE_VIEW` | Consumo, extratos por ciclo e posição do ciclo em andamento (bloco de faturamento da tela Posição do credor) | Administrador, Gestor, Financeiro, Integrações, Auditor |
 | `PUBLIC_API_BILLING_MANAGE` | Fechamento e revisão de extratos (os preços ficam no contrato do credor, com `CONTRACT_MANAGE`) | Administrador, Gestor, Financeiro |
+
+**Posição do credor** (`/posicao-credor`): o bloco de faturamento da API exige `PUBLIC_API_USAGE_VIEW`; o bloco de repasse do período em aberto e o cartão de saldos do painel inicial exigem `SETTLEMENT_VIEW` (Administrador, Gestor, Financeiro, Auditor) — a mesma permissão de consultar demonstrativos, já que a posição é o cálculo do demonstrativo em simulação. Escopos de token `billing:read` (exige `PUBLIC_API_USAGE_VIEW` de quem concede) e `settlement:read` (exige `SETTLEMENT_VIEW`).
 
 Exportar consumo ou extrato exige também `REPORT_EXPORT`. Ver [`api-publica.md`](api-publica.md).
 

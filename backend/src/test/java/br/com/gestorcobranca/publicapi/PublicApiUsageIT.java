@@ -185,6 +185,10 @@ class PublicApiUsageIT extends PublicApiTestSupport {
 
     /** Condições de cobrança registradas diretamente (instante passado), como se definidas antes dos ciclos. */
     UUID insertPricing(UUID creditorId, int version, int closingDay, Instant registeredAt) {
+        return insertPricing(creditorId, version, closingDay, registeredAt, new BigDecimal("50.00"));
+    }
+
+    UUID insertPricing(UUID creditorId, int version, int closingDay, Instant registeredAt, BigDecimal monthlyFee) {
         UUID contractId = system(() -> contracts.listByCreditor(creditorId)).getFirst().id();
         UUID id = UUID.randomUUID();
         system(() -> jdbc.update("""
@@ -192,8 +196,8 @@ class PublicApiUsageIT extends PublicApiTestSupport {
                     contract_id, creditor_id, pricing_version, usage_closing_day, monthly_fee, included_requests,
                     price_per_request, included_mb_in, price_per_mb_in, included_mb_out, price_per_mb_out,
                     included_records, price_per_record, registered_at)
-                values (?, ?, 0, now(), now(), ?, ?, ?, ?, 50.00, 1000, 0.01, 1, 1.00, 0, 0.50, 500, 0.02, ?)""",
-                id, tenant, contractId, creditorId, version, closingDay, java.sql.Timestamp.from(registeredAt)));
+                values (?, ?, 0, now(), now(), ?, ?, ?, ?, ?, 1000, 0.01, 1, 1.00, 0, 0.50, 500, 0.02, ?)""",
+                id, tenant, contractId, creditorId, version, closingDay, monthlyFee, java.sql.Timestamp.from(registeredAt)));
         return id;
     }
 
@@ -257,6 +261,9 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         Instant startInstant = cycleStart.atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
         // condições v1 registradas antes do ciclo (dia 10); v2 registrada agora não vale para ele
         insertPricing(creditorA, 1, 10, startInstant.minus(java.time.Duration.ofDays(60)));
+        // depois do ciclo do teste, condições sem mensalidade: ciclos seguintes sem consumo não geram extrato
+        insertPricing(creditorA, 2, 10, cycleEnd.atTime(12, 0).atZone(TimeConfig.BUSINESS_ZONE).toInstant(),
+                BigDecimal.ZERO);
         UUID contractId = system(() -> contracts.listByCreditor(creditorA)).getFirst().id();
         asManager(() -> pricing.define(contractId, new IntegrationPricingCommand(10, new BigDecimal("999.00"), 0,
                 BigDecimal.ONE, 0, BigDecimal.ONE, 0, BigDecimal.ONE, 0, BigDecimal.ONE, null)));
@@ -317,6 +324,8 @@ class PublicApiUsageIT extends PublicApiTestSupport {
     void day31ClosesOnLastDayOfFebruaryAndCycleTurnsAtMidnightInBusinessZone() throws Exception {
         IssuedToken token = issue(creditorB, Set.of("portfolios:read"), null, List.of());
         insertPricing(creditorB, 1, 31, Instant.parse("2026-01-15T12:00:00Z"));
+        // a partir do ciclo de abril, sem mensalidade: ciclos sem consumo não geram extrato
+        insertPricing(creditorB, 2, 31, Instant.parse("2026-03-15T12:00:00Z"), BigDecimal.ZERO);
         java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
         insertUsage(creditorB, token.details().id(), LocalDate.of(2026, 2, 1).atTime(10, 0).atZone(zone).toInstant(),
                 "/public-api/v1/portfolios", 1, 0, 0, 0, 0, 100, 0);
@@ -353,5 +362,103 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         closeAll.invoke(job);
         assertThat(asManager(() -> billing.statements(creditorB, null,
                 br.com.gestorcobranca.shared.paging.PageQuery.of(0, 50))).content()).hasSize(2);
+    }
+
+    @Test
+    void cycleWithoutUsageClosesOnlyWithMonthlyFeeAndTransitionCycleIsProrated() throws Exception {
+        IssuedToken token = issue(creditorB, Set.of("portfolios:read"), null, List.of());
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        // v1: fecha no dia 31, mensalidade 50,00
+        insertPricing(creditorB, 1, 31, Instant.parse("2026-01-15T12:00:00Z"), new BigDecimal("50.00"));
+        // v2 (registrada em 05/04, vale a partir do ciclo de maio): fecha no dia 10, mensalidade 30,00
+        insertPricing(creditorB, 2, 10, Instant.parse("2026-04-05T12:00:00Z"), new BigDecimal("30.00"));
+        // v3 (registrada em 01/06, vale a partir do ciclo que começa em 11/06): sem mensalidade
+        insertPricing(creditorB, 3, 10, Instant.parse("2026-06-01T12:00:00Z"), BigDecimal.ZERO);
+        // único consumo: fevereiro
+        insertUsage(creditorB, token.details().id(), LocalDate.of(2026, 2, 3).atTime(9, 0).atZone(zone).toInstant(),
+                "/public-api/v1/portfolios", 2, 0, 0, 0, 0, 10, 0);
+
+        int closed = asManager(() -> billing.closeEndedCycles(creditorB));
+        List<StatementView> all = asManager(() -> billing.statements(creditorB, null,
+                br.com.gestorcobranca.shared.paging.PageQuery.of(0, 50))).content();
+        // fevereiro (consumo), março e abril (sem consumo, com mensalidade), 01–10/05 (transição) e 11/05–10/06;
+        // a partir de 11/06 não há consumo nem mensalidade: nenhum extrato
+        assertThat(closed).isEqualTo(5);
+        assertThat(all).extracting(StatementView::periodStart).containsExactlyInAnyOrder(LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 4, 1), LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 11));
+
+        StatementView march = all.stream().filter(s -> s.periodStart().equals(LocalDate.of(2026, 3, 1))).findFirst()
+                .orElseThrow();
+        assertThat(march.requests()).isZero();
+        assertThat(march.totalAmount()).isEqualByComparingTo("50.00");
+        assertThat(march.cycleDays()).isEqualTo(march.referenceCycleDays());
+
+        StatementView transition = all.stream().filter(s -> s.periodStart().equals(LocalDate.of(2026, 5, 1)))
+                .findFirst().orElseThrow();
+        assertThat(transition.periodEnd()).isEqualTo(LocalDate.of(2026, 5, 10));
+        assertThat(transition.usageClosingDay()).isEqualTo(10);
+        assertThat(transition.pricingVersion()).isEqualTo(2);
+        // 10 dias de um ciclo de referência de 30 (11/04 a 10/05): 30,00 × 10 ÷ 30 = 10,00; franquia 1.000 → 334
+        assertThat(transition.cycleDays()).isEqualTo(10);
+        assertThat(transition.referenceCycleDays()).isEqualTo(30);
+        assertThat(transition.totalAmount()).isEqualByComparingTo("10.00");
+        assertThat(transition.lines().get(1).included()).isEqualTo(334);
+
+        StatementView regular = all.stream().filter(s -> s.periodStart().equals(LocalDate.of(2026, 5, 11)))
+                .findFirst().orElseThrow();
+        assertThat(regular.periodEnd()).isEqualTo(LocalDate.of(2026, 6, 10));
+        assertThat(regular.totalAmount()).isEqualByComparingTo("30.00");
+        // nova execução não gera nada (ciclos sem consumo e sem mensalidade continuam sem extrato)
+        assertThat(asManager(() -> billing.closeEndedCycles(creditorB))).isZero();
+    }
+
+    @Test
+    void billingPositionShowsTheCurrentCycleSoFarAndIsExposedToTheCreditorByToken() throws Exception {
+        IssuedToken token = issue(creditorA, Set.of("portfolios:read", "billing:read", "settlement:read"), null, List.of());
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        LocalDate today = LocalDate.now(zone);
+        insertPricing(creditorA, 1, 31, Instant.parse("2025-12-01T12:00:00Z"), new BigDecimal("50.00"));
+        // ciclo atual (mês corrente): 1.200 chamadas cobráveis, 1 byte recebido; ciclo anterior: 100 chamadas
+        insertUsage(creditorA, token.details().id(), today.atStartOfDay(zone).toInstant().plusSeconds(60),
+                "/public-api/v1/titles", 1200, 0, 0, 0, 1, 0, 0);
+        LocalDate previousDay = today.withDayOfMonth(1).minusDays(1);
+        insertUsage(creditorA, token.details().id(), previousDay.atTime(10, 0).atZone(zone).toInstant(),
+                "/public-api/v1/titles", 100, 0, 0, 0, 0, 0, 0);
+
+        PublicApiBillingUseCases.BillingPositionView p = asManager(() -> billing.position(creditorA));
+        assertThat(p.periodStart()).isEqualTo(today.withDayOfMonth(1));
+        assertThat(p.periodEnd()).isEqualTo(today.withDayOfMonth(today.lengthOfMonth()));
+        assertThat(p.daysElapsed()).isEqualTo(today.getDayOfMonth());
+        assertThat(p.daysRemaining()).isEqualTo(today.lengthOfMonth() - today.getDayOfMonth());
+        assertThat(p.billableRequests()).isEqualTo(1200);
+        assertThat(p.billableMbIn()).isEqualTo(1);
+        // 50,00 + (1.200 − 1.000) × 0,01 + (1 − 1) MB recebido
+        assertThat(p.amountSoFar()).isEqualByComparingTo("52.00");
+        assertThat(p.allowances()).filteredOn(a -> a.metric().equals("REQUESTS")).singleElement()
+                .satisfies(a -> assertThat(a.percent()).isEqualByComparingTo("120.00"));
+        assertThat(p.daily()).hasSize(today.getDayOfMonth());
+        assertThat(p.daily().getLast().amount()).isEqualByComparingTo(p.amountSoFar());
+        assertThat(p.previous().periodEnd()).isEqualTo(previousDay);
+        assertThat(p.previousDaily()).hasSize(previousDay.lengthOfMonth());
+        assertThat(p.previousDaily().getLast().billableRequests()).isEqualTo(100);
+        assertThat(p.projection().method()).isEqualTo("DAILY_AVERAGE");
+        assertThat(p.projection().billableRequests()).isGreaterThanOrEqualTo(1200);
+        assertThat(p.updatedAt()).isNotNull();
+        assertThat(p.flushIntervalSeconds()).isPositive();
+
+        // exposta ao próprio credor pela API pública (escopo billing:read), sem dados de quem fechou
+        HttpResponse<String> position = get("/public-api/v1/billing/position", token.token());
+        assertThat(position.statusCode()).as(position.body()).isEqualTo(200);
+        assertThat(body(position).get("billableRequests")).isEqualTo(1200);
+        assertThat(position.body()).doesNotContain("closedBy").doesNotContain("creditorId");
+        assertThat(get("/public-api/v1/billing/statements", token.token()).statusCode()).isEqualTo(200);
+        HttpResponse<String> settlement = get("/public-api/v1/settlement/position", token.token());
+        assertThat(settlement.statusCode()).as(settlement.body()).isEqualTo(200);
+        assertThat(settlement.body()).doesNotContain("calculation").doesNotContain("openStatementId");
+        assertThat(body(get("/public-api/v1/settlement/statements", token.token())).get("data")).isEqualTo(List.of());
+        // sem o escopo: proibido
+        IssuedToken other = issue(creditorA, Set.of("portfolios:read"), null, List.of());
+        assertThat(get("/public-api/v1/billing/position", other.token()).statusCode()).isEqualTo(403);
+        assertThat(get("/public-api/v1/settlement/position", other.token()).statusCode()).isEqualTo(403);
     }
 }

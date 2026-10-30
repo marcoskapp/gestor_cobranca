@@ -1,5 +1,5 @@
 import { SCOPE_PERMISSIONS } from '../tokens/token-dialog';
-import { billableMegabytes, formatBytes, formatCycle, parseIpList } from './public-api.labels';
+import { billableMegabytes, formatBytes, formatCycle, parseIpList, prorationLabel } from './public-api.labels';
 import { Permission } from '../../../core/auth/permission';
 
 describe('rótulos da API pública', () => {
@@ -21,6 +21,11 @@ describe('rótulos da API pública', () => {
     expect(billableMegabytes(1_048_577)).toBe(2);
   });
 
+  it('proporcionalidade só no ciclo de transição', () => {
+    expect(prorationLabel(31, 31)).toBeNull();
+    expect(prorationLabel(10, 28)).toBe('10 de 28 dias (fator 0,3571)');
+  });
+
   it('período do ciclo em datas brasileiras', () => {
     expect(formatCycle('2026-02-01', '2026-02-28')).toBe('01/02/2026 a 28/02/2026');
   });
@@ -34,6 +39,6 @@ describe('rótulos da API pública', () => {
       }
       expect(permissions).not.toContain(Permission.DEBTOR_SENSITIVE_VIEW);
     }
-    expect(Object.keys(SCOPE_PERMISSIONS)).toHaveLength(14);
+    expect(Object.keys(SCOPE_PERMISSIONS)).toHaveLength(16);
   });
 });

@@ -109,6 +109,9 @@ export interface StatementView {
   ended: boolean;
   revision: number;
   usageClosingDay: number;
+  /** Dias do ciclo e do ciclo regular de referência; diferentes só no ciclo de transição (valores proporcionais). */
+  cycleDays: number;
+  referenceCycleDays: number;
   contractId: string | null;
   contractNumber: string | null;
   pricingId: string | null;
@@ -126,4 +129,48 @@ export interface StatementView {
   closedAt: string | null;
   closedBy: string | null;
   reason: string | null;
+}
+
+/** `PublicApiBillingUseCases.GrowthPoint`: acumulado até o fim do dia do ciclo. */
+export interface GrowthPoint {
+  day: number;
+  date: string;
+  billableRequests: number;
+  billableMbIn: number;
+  billableMbOut: number;
+  records: number;
+  amount: number;
+}
+
+/** `PublicApiBillingUseCases.BillingPositionView`: ciclo de consumo em andamento. */
+export interface BillingPositionView {
+  creditorId: string;
+  periodStart: string;
+  periodEnd: string;
+  usageClosingDay: number;
+  cycleDays: number;
+  referenceCycleDays: number;
+  today: string;
+  daysElapsed: number;
+  daysRemaining: number;
+  contractNumber: string | null;
+  pricingVersion: number | null;
+  requests: number;
+  billableRequests: number;
+  billableMbIn: number;
+  billableMbOut: number;
+  records: number;
+  /** Mensalidade do ciclo (cheia ou proporcional no ciclo de transição) + excedente do consumo até agora. */
+  amountSoFar: number;
+  currency: string;
+  lines: StatementLine[];
+  allowances: { metric: StatementLine['metric']; used: number; included: number; percent: number | null }[];
+  breakdown: StatementView['breakdown'];
+  daily: GrowthPoint[];
+  previous: { periodStart: string; periodEnd: string; statementId: string | null; totalAmount: number };
+  previousDaily: GrowthPoint[];
+  projection: { method: 'DAILY_AVERAGE'; billableRequests: number; billableMbIn: number; billableMbOut: number; records: number; amount: number };
+  updatedAt: string | null;
+  flushIntervalSeconds: number;
+  calculationMillis: number;
 }

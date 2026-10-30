@@ -189,6 +189,316 @@
         },
         "type" : "object"
       },
+      "BillingAllowance" : {
+        "description" : "Uso da franquia do ciclo",
+        "properties" : {
+          "included" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "metric" : {
+            "type" : "string"
+          },
+          "percent" : {
+            "type" : "number"
+          },
+          "used" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "BillingBreakdown" : {
+        "description" : "Consumo por token (MB arredondados no token) ou por rota",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [ "TOKEN", "ROUTE" ],
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "totals" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          }
+        },
+        "type" : "object"
+      },
+      "BillingGrowthPoint" : {
+        "description" : "Acumulado até o fim do dia do ciclo",
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "billableMbIn" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "billableMbOut" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "billableRequests" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "day" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "records" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "BillingLine" : {
+        "description" : "Linha do extrato: quantidades inteiras (MB = 1.048.576 bytes)",
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "billable" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "included" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "metric" : {
+            "enum" : [ "MONTHLY_FEE", "REQUESTS", "MB_IN", "MB_OUT", "RECORDS" ],
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "BillingPosition" : {
+        "description" : "Ciclo de consumo em andamento: consumo faturável e valor até agora",
+        "properties" : {
+          "allowances" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingAllowance"
+            },
+            "type" : "array"
+          },
+          "amountSoFar" : {
+            "description" : "Mensalidade do ciclo + excedente do consumo até agora",
+            "type" : "number"
+          },
+          "billableMbIn" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "billableMbOut" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "billableRequests" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "breakdown" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingBreakdown"
+            },
+            "type" : "array"
+          },
+          "contractNumber" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "cycleDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "daily" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingGrowthPoint"
+            },
+            "type" : "array"
+          },
+          "daysElapsed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "daysRemaining" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingLine"
+            },
+            "type" : "array"
+          },
+          "periodEnd" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "previousDaily" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingGrowthPoint"
+            },
+            "type" : "array"
+          },
+          "previousPeriodEnd" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "previousPeriodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "previousTotalAmount" : {
+            "type" : "number"
+          },
+          "pricingVersion" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "projectedAmount" : {
+            "description" : "Projeção pela média diária até o fim do ciclo",
+            "type" : "number"
+          },
+          "records" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "referenceCycleDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "requests" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "updatedAt" : {
+            "description" : "Última gravação do consumo (lotes de ~1 minuto)",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "usageClosingDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "BillingStatement" : {
+        "description" : "Extrato fechado de um ciclo de consumo da API",
+        "properties" : {
+          "billableMbIn" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "billableMbOut" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "billableRequests" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "breakdown" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingBreakdown"
+            },
+            "type" : "array"
+          },
+          "closedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "contractNumber" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "cycleDays" : {
+            "description" : "Dias do ciclo",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingLine"
+            },
+            "type" : "array"
+          },
+          "periodEnd" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "pricingVersion" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "records" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "referenceCycleDays" : {
+            "description" : "Dias do ciclo regular de referência; difere de cycleDays só no ciclo de transição (mensalidade e franquias proporcionais)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "requests" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "revision" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalAmount" : {
+            "type" : "number"
+          },
+          "usageClosingDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "usageHash" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CancelRequest" : {
         "properties" : {
           "reason" : {
@@ -720,6 +1030,23 @@
         },
         "type" : "object"
       },
+      "ListResponseBillingStatement" : {
+        "properties" : {
+          "data" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingStatement"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ListResponseCollectionCase" : {
         "properties" : {
           "data" : {
@@ -793,6 +1120,23 @@
           "data" : {
             "items" : {
               "$ref" : "#/components/schemas/Portfolio"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ListResponseSettlementStatement" : {
+        "properties" : {
+          "data" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SettlementStatement"
             },
             "type" : "array"
           },
@@ -1134,6 +1478,192 @@
         },
         "type" : "object"
       },
+      "SettlementBalance" : {
+        "description" : "Demonstrativo aprovado com saldo a repassar ou a receber",
+        "properties" : {
+          "netTransfer" : {
+            "type" : "number"
+          },
+          "outstanding" : {
+            "type" : "number"
+          },
+          "periodEnd" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "sequenceNumber" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "transferred" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "SettlementDailyPoint" : {
+        "properties" : {
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "day" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "netTransfer" : {
+            "type" : "number"
+          },
+          "recovered" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "SettlementPosition" : {
+        "description" : "Repasse do período em aberto, estimado agora (ainda não é demonstrativo: pode mudar até o fechamento)",
+        "properties" : {
+          "approvedWithBalance" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SettlementBalance"
+            },
+            "type" : "array"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "calculatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "daily" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SettlementDailyPoint"
+            },
+            "type" : "array"
+          },
+          "direction" : {
+            "enum" : [ "AGENCY_TO_CREDITOR", "CREDITOR_TO_AGENCY", "NONE" ],
+            "type" : "string"
+          },
+          "expectedPeriodEnd" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "outstandingToReceive" : {
+            "type" : "number"
+          },
+          "outstandingToTransfer" : {
+            "type" : "number"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "previousDaily" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SettlementDailyPoint"
+            },
+            "type" : "array"
+          },
+          "totals" : {
+            "$ref" : "#/components/schemas/SettlementTotals"
+          }
+        },
+        "type" : "object"
+      },
+      "SettlementStatement" : {
+        "description" : "Demonstrativo enviado ao credor",
+        "properties" : {
+          "creditorResponseAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "periodEnd" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "sentAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "sequenceNumber" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "SENT", "ACKNOWLEDGED", "CONTESTED" ],
+            "type" : "string"
+          },
+          "totals" : {
+            "$ref" : "#/components/schemas/SettlementTotals"
+          }
+        },
+        "type" : "object"
+      },
+      "SettlementTotals" : {
+        "description" : "Totais do repasse (positivo: a assessoria repassa ao credor)",
+        "properties" : {
+          "adjustments" : {
+            "type" : "number"
+          },
+          "agencyHonorarium" : {
+            "type" : "number"
+          },
+          "commission" : {
+            "type" : "number"
+          },
+          "expenses" : {
+            "type" : "number"
+          },
+          "fixedFees" : {
+            "type" : "number"
+          },
+          "netTransfer" : {
+            "type" : "number"
+          },
+          "outstanding" : {
+            "type" : "number"
+          },
+          "pendingReconciliation" : {
+            "description" : "Recebimentos aguardando conciliação (fora do líquido)",
+            "type" : "number"
+          },
+          "pendingRules" : {
+            "description" : "Recebimentos sem regra de comissão vigente (fora do líquido)",
+            "type" : "number"
+          },
+          "receivedByAgency" : {
+            "type" : "number"
+          },
+          "receivedByCreditor" : {
+            "type" : "number"
+          },
+          "recovered" : {
+            "type" : "number"
+          },
+          "reversed" : {
+            "type" : "number"
+          },
+          "transferred" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
       "Title" : {
         "description" : "Título (dívida) do credor",
         "properties" : {
@@ -1239,7 +1769,7 @@
     "securitySchemes" : {
       "integrationToken" : {
         "bearerFormat" : "gck_<prefixo>.<segredo>",
-        "description" : "Token de integração do credor. Envie `Authorization: Bearer gck_…`. Cada endpoint exige um escopo; escopos disponíveis: `portfolios:read` (Consultar o credor, contratos e carteiras), `portfolios:write` (Criar, atualizar e mudar a situação de carteiras), `imports:read` (Acompanhar lotes de importação e baixar o relatório de ocorrências), `imports:write` (Enviar lotes de importação (JSON, CSV, XLSX) e cancelá-los), `titles:read` (Consultar títulos, saldos e sincronizar alterações), `titles:write` (Suspender, reativar, cancelar e devolver títulos), `debtors:read` (Consultar devedores e contatos (sempre mascarados)), `debtors:write` (Incluir e invalidar contatos de devedores), `collection:read` (Consultar a situação da cobrança (casos)), `agreements:read` (Consultar acordos e parcelas), `payments:read` (Consultar pagamentos), `payments:write` (Informar pagamento recebido diretamente pelo credor), `disputes:read` (Consultar contestações), `disputes:write` (Abrir contestações em nome do credor)",
+        "description" : "Token de integração do credor. Envie `Authorization: Bearer gck_…`. Cada endpoint exige um escopo; escopos disponíveis: `portfolios:read` (Consultar o credor, contratos e carteiras), `portfolios:write` (Criar, atualizar e mudar a situação de carteiras), `imports:read` (Acompanhar lotes de importação e baixar o relatório de ocorrências), `imports:write` (Enviar lotes de importação (JSON, CSV, XLSX) e cancelá-los), `titles:read` (Consultar títulos, saldos e sincronizar alterações), `titles:write` (Suspender, reativar, cancelar e devolver títulos), `debtors:read` (Consultar devedores e contatos (sempre mascarados)), `debtors:write` (Incluir e invalidar contatos de devedores), `collection:read` (Consultar a situação da cobrança (casos)), `agreements:read` (Consultar acordos e parcelas), `payments:read` (Consultar pagamentos), `payments:write` (Informar pagamento recebido diretamente pelo credor), `disputes:read` (Consultar contestações), `disputes:write` (Abrir contestações em nome do credor), `billing:read` (Consultar o consumo do ciclo atual e os extratos da API pública), `settlement:read` (Consultar a posição do repasse e os demonstrativos enviados ao credor)",
         "scheme" : "bearer",
         "type" : "http"
       }
@@ -1253,7 +1783,7 @@
     "contact" : {
       "name" : "Suporte da assessoria"
     },
-    "description" : "API para o **credor** administrar, por integração sistema a sistema, a carteira de cobrança mantida na assessoria: carteiras, importação de títulos, ciclo de vida dos títulos, contatos dos devedores, acompanhamento da cobrança, acordos e pagamentos, pagamento informado e contestações.\n\n## Autenticação\nCada credor recebe da assessoria um **token de integração** (`gck_<prefixo>.<segredo>`), exibido uma única vez. Envie em todas as chamadas: `Authorization: Bearer gck_…`. O token pertence a um único credor: os dados de outros credores não existem para ele. Guarde-o num cofre de segredos; nunca em código, URL ou log. Em caso de suspeita de vazamento, peça a revogação (imediata). A rotação gera novo segredo e mantém o anterior válido pela carência escolhida, para a troca sem parada.\n\n## Escopos\nCada endpoint exige um escopo concedido ao token (ex.: `titles:read`). Sem o escopo: 403.\n\n## Limite de requisições\nPor token, em janelas de 1 minuto. Toda resposta traz `RateLimit-Limit`, `RateLimit-Remaining` e `RateLimit-Reset`; acima do limite: 429 com `Retry-After`.\n\n## Erros\nFormato RFC 9457 (`application/problem+json`) com `code` estável e `requestId`.\n\n## Sincronização incremental\nListas usam **paginação por cursor** em ordem crescente de atualização. Guarde o `nextCursor` da última página e continue dele na próxima sincronização; `hasMore=true` indica que há mais agora. Alterações muito recentes (último minuto) aparecem na chamada seguinte.\n\n## Concorrência otimista\nLeituras de carteira e título trazem `ETag`; envie-o em `If-Match` ao alterar. Se o recurso mudou: 412.\n\n## Idempotência\nComandos que criam lotes ou pagamentos exigem `Idempotency-Key` (8 a 80 caracteres). Repetir a chamada com a mesma chave e o mesmo conteúdo devolve o mesmo resultado; com conteúdo diferente: 409.\n\n## Dados pessoais (LGPD)\nDocumento e contatos do devedor são sempre devolvidos mascarados. Envie só os dados necessários.\n\n## Versões\nVersão na URL (`/public-api/v1`). Mudanças compatíveis entram na mesma versão; incompatíveis, numa nova. Versões depreciadas respondem com `Deprecation` e `Sunset`. Acompanhe em `/public-api/docs/changelog`.\n",
+    "description" : "API para o **credor** administrar, por integração sistema a sistema, a carteira de cobrança mantida na assessoria: carteiras, importação de títulos, ciclo de vida dos títulos, contatos dos devedores, acompanhamento da cobrança, acordos e pagamentos, pagamento informado e contestações — e acompanhar, a qualquer momento, o consumo da própria API e o repasse da prestação de contas.\n\n## Autenticação\nCada credor recebe da assessoria um **token de integração** (`gck_<prefixo>.<segredo>`), exibido uma única vez. Envie em todas as chamadas: `Authorization: Bearer gck_…`. O token pertence a um único credor: os dados de outros credores não existem para ele. Guarde-o num cofre de segredos; nunca em código, URL ou log. Em caso de suspeita de vazamento, peça a revogação (imediata). A rotação gera novo segredo e mantém o anterior válido pela carência escolhida, para a troca sem parada.\n\n## Escopos\nCada endpoint exige um escopo concedido ao token (ex.: `titles:read`). Sem o escopo: 403.\n\n## Limite de requisições\nPor token, em janelas de 1 minuto. Toda resposta traz `RateLimit-Limit`, `RateLimit-Remaining` e `RateLimit-Reset`; acima do limite: 429 com `Retry-After`.\n\n## Erros\nFormato RFC 9457 (`application/problem+json`) com `code` estável e `requestId`.\n\n## Sincronização incremental\nListas usam **paginação por cursor** em ordem crescente de atualização. Guarde o `nextCursor` da última página e continue dele na próxima sincronização; `hasMore=true` indica que há mais agora. Alterações muito recentes (último minuto) aparecem na chamada seguinte.\n\n## Concorrência otimista\nLeituras de carteira e título trazem `ETag`; envie-o em `If-Match` ao alterar. Se o recurso mudou: 412.\n\n## Idempotência\nComandos que criam lotes ou pagamentos exigem `Idempotency-Key` (8 a 80 caracteres). Repetir a chamada com a mesma chave e o mesmo conteúdo devolve o mesmo resultado; com conteúdo diferente: 409.\n\n## Posição do faturamento e do repasse\n`GET /billing/position` (escopo `billing:read`) mostra o ciclo de consumo em andamento: chamadas cobráveis (2xx/3xx), MB inteiros (1 MB = 1.048.576 bytes, arredondados por token), valor até agora, franquias, crescimento diário e projeção; o consumo é gravado em lotes de cerca de 1 minuto (`updatedAt`). `GET /settlement/position` (escopo `settlement:read`) estima o repasse do período em aberto como o demonstrativo calcularia se fechado agora — é uma estimativa, não um demonstrativo; os demonstrativos enviados estão em `GET /settlement/statements`.\n\n## Dados pessoais (LGPD)\nDocumento e contatos do devedor são sempre devolvidos mascarados. Envie só os dados necessários.\n\n## Versões\nVersão na URL (`/public-api/v1`). Mudanças compatíveis entram na mesma versão; incompatíveis, numa nova. Versões depreciadas respondem com `Deprecation` e `Sunset`. Acompanhe em `/public-api/docs/changelog`.\n",
     "summary" : "Administração da carteira de cobrança do credor por integração sistema a sistema",
     "title" : "Gestor de Cobrança — API pública de integração",
     "version" : "1.0.0"
@@ -1520,6 +2050,365 @@
         },
         "summary" : "Acordo",
         "tags" : [ "Cobrança" ]
+      }
+    },
+    "/public-api/v1/billing/position" : {
+      "get" : {
+        "operationId" : "position_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BillingPosition"
+                }
+              }
+            },
+            "description" : "OK",
+            "headers" : {
+              "Deprecation" : {
+                "$ref" : "#/components/headers/Deprecation"
+              },
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Sunset" : {
+                "$ref" : "#/components/headers/Sunset"
+              },
+              "X-Request-Id" : {
+                "$ref" : "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Recurso inexistente ou de outro credor (`<recurso>.not_found`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Limite de requisições do token excedido (`rate_limited`)",
+            "headers" : {
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Retry-After" : {
+                "$ref" : "#/components/headers/Retry-After"
+              }
+            }
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erro interno (`internal_error`); informe o `requestId` ao suporte"
+          }
+        },
+        "summary" : "Ciclo de consumo em andamento: consumo faturável, valor até agora, franquias e projeção",
+        "tags" : [ "Faturamento da API" ]
+      }
+    },
+    "/public-api/v1/billing/statements" : {
+      "get" : {
+        "operationId" : "statements_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 120,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListResponseBillingStatement"
+                }
+              }
+            },
+            "description" : "OK",
+            "headers" : {
+              "Deprecation" : {
+                "$ref" : "#/components/headers/Deprecation"
+              },
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Sunset" : {
+                "$ref" : "#/components/headers/Sunset"
+              },
+              "X-Request-Id" : {
+                "$ref" : "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Recurso inexistente ou de outro credor (`<recurso>.not_found`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Limite de requisições do token excedido (`rate_limited`)",
+            "headers" : {
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Retry-After" : {
+                "$ref" : "#/components/headers/Retry-After"
+              }
+            }
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erro interno (`internal_error`); informe o `requestId` ao suporte"
+          }
+        },
+        "summary" : "Extratos fechados (mais recentes primeiro; todas as revisões)",
+        "tags" : [ "Faturamento da API" ]
+      }
+    },
+    "/public-api/v1/billing/statements/{id}" : {
+      "get" : {
+        "operationId" : "statement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BillingStatement"
+                }
+              }
+            },
+            "description" : "OK",
+            "headers" : {
+              "Deprecation" : {
+                "$ref" : "#/components/headers/Deprecation"
+              },
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Sunset" : {
+                "$ref" : "#/components/headers/Sunset"
+              },
+              "X-Request-Id" : {
+                "$ref" : "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Recurso inexistente ou de outro credor (`<recurso>.not_found`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Limite de requisições do token excedido (`rate_limited`)",
+            "headers" : {
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Retry-After" : {
+                "$ref" : "#/components/headers/Retry-After"
+              }
+            }
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erro interno (`internal_error`); informe o `requestId` ao suporte"
+          }
+        },
+        "summary" : "Extrato fechado",
+        "tags" : [ "Faturamento da API" ]
       }
     },
     "/public-api/v1/collection-cases" : {
@@ -5548,6 +6437,232 @@
         },
         "summary" : "Mudar situação da carteira",
         "tags" : [ "Carteiras" ]
+      }
+    },
+    "/public-api/v1/settlement/position" : {
+      "get" : {
+        "operationId" : "position",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SettlementPosition"
+                }
+              }
+            },
+            "description" : "OK",
+            "headers" : {
+              "Deprecation" : {
+                "$ref" : "#/components/headers/Deprecation"
+              },
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Sunset" : {
+                "$ref" : "#/components/headers/Sunset"
+              },
+              "X-Request-Id" : {
+                "$ref" : "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Recurso inexistente ou de outro credor (`<recurso>.not_found`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Limite de requisições do token excedido (`rate_limited`)",
+            "headers" : {
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Retry-After" : {
+                "$ref" : "#/components/headers/Retry-After"
+              }
+            }
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erro interno (`internal_error`); informe o `requestId` ao suporte"
+          }
+        },
+        "summary" : "Repasse estimado do período em aberto (como o demonstrativo calcularia se fechado agora)",
+        "tags" : [ "Prestação de contas" ]
+      }
+    },
+    "/public-api/v1/settlement/statements" : {
+      "get" : {
+        "operationId" : "statements",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListResponseSettlementStatement"
+                }
+              }
+            },
+            "description" : "OK",
+            "headers" : {
+              "Deprecation" : {
+                "$ref" : "#/components/headers/Deprecation"
+              },
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Sunset" : {
+                "$ref" : "#/components/headers/Sunset"
+              },
+              "X-Request-Id" : {
+                "$ref" : "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Recurso inexistente ou de outro credor (`<recurso>.not_found`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Limite de requisições do token excedido (`rate_limited`)",
+            "headers" : {
+              "RateLimit-Limit" : {
+                "$ref" : "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining" : {
+                "$ref" : "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset" : {
+                "$ref" : "#/components/headers/RateLimit-Reset"
+              },
+              "Retry-After" : {
+                "$ref" : "#/components/headers/Retry-After"
+              }
+            }
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erro interno (`internal_error`); informe o `requestId` ao suporte"
+          }
+        },
+        "summary" : "Demonstrativos enviados ao credor (mais recentes primeiro)",
+        "tags" : [ "Prestação de contas" ]
       }
     },
     "/public-api/v1/titles" : {

@@ -10,6 +10,7 @@ import {
   AdjustmentRequest,
   AdjustmentView,
   BalanceView,
+  SettlementPositionView,
   CalculationView,
   CreateStatementRequest,
   ExpenseView,
@@ -223,5 +224,10 @@ export class TransfersApi {
 
   balances(creditorId: string | null): Observable<BalanceView[]> {
     return this.http.get<BalanceView[]>(`${BASE}/balances`, { params: toHttpParams({ creditorId }) });
+  }
+
+  /** Repasse do período em aberto do credor, calculado agora (simulação do demonstrativo). */
+  position(creditorId: string): Observable<SettlementPositionView> {
+    return this.http.get<SettlementPositionView>(`${BASE}/position`, { params: toHttpParams({ creditorId }) });
   }
 }

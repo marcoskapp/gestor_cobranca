@@ -13,7 +13,8 @@
  */
 @ApplicationModule(displayName = "Public API",
         allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "ingestion :: usecases",
-                "collection :: usecases", "negotiation :: usecases", "payment :: usecases"})
+                "collection :: usecases", "negotiation :: usecases", "payment :: usecases",
+                "settlement :: usecases"})
 package br.com.gestorcobranca.publicapi;
 
 import org.springframework.modulith.ApplicationModule;
