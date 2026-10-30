@@ -95,6 +95,8 @@ Banco (`V2100`): `unique(prefix)`, checks de formato, `status`/revogação coere
 | `agreements:read` | acordos e parcelas | `AGREEMENT_VIEW` |
 | `payments:read` / `payments:write` | pagamentos / informar pagamento direto ao credor | `PAYMENT_VIEW` / + `PAYMENT_REGISTER_EXTERNAL` |
 | `disputes:read` / `disputes:write` | contestações / abrir contestação (origem `CREDITOR`) | `CASE_VIEW` |
+| `billing:read` | posição do ciclo de consumo da API e extratos fechados | `PUBLIC_API_USAGE_VIEW` |
+| `settlement:read` | posição do repasse do período em aberto e demonstrativos enviados | `SETTLEMENT_VIEW` |
 
 Nenhum escopo concede `DEBTOR_SENSITIVE_VIEW`, aprovação, estorno, formalização ou gestão (teste `IntegrationTokenTest`). Defesa em profundidade: o endpoint exige `SCOPE_<escopo>` e o caso de uso dono confere a permissão.
 
@@ -155,6 +157,8 @@ O preço da API fica **no contrato de prestação de serviço do credor** (decis
 - **Cálculo** (`PriceCalculator`, função pura sobre quantidades inteiras): por medida, `cobrável = max(0, quantidade − franquia)`, `valor = cobrável × preço` arredondado a centavos (HALF_EVEN) por linha; total = mensalidade + soma das linhas.
 - **Extrato** (`publicapi.usage_statement`, migração `publicapi/V2102`): por credor e ciclo (`period_start`, `period_end` inclusivos, `usage_closing_day`), com contrato e versão das condições aplicadas (chave estrangeira), quantidades faturáveis inteiras (`billable_requests`, `billable_mb_in`, `billable_mb_out`, `records`), linhas, detalhamento por token (MB arredondados no token) e por rota (chamadas e registros) e `usage_hash` = SHA-256 do consumo agregado. **Append-only** (privilégio revogado + gatilho); novo fechamento do mesmo ciclo exige motivo e gera nova revisão com o mesmo período e as mesmas condições — a anterior permanece. Reprodutível: prévia e revisões sobre o mesmo consumo têm o mesmo hash (testado).
 - **Fechamento**: `StatementClosingJob` roda **todo dia às 02h20** (Brasília, ShedLock) — depois da virada do ciclo às 00:00 e da última gravação em lote — e fecha, em ordem, os ciclos encerrados ainda sem extrato de cada credor com token (`closeEndedCycles`); falha de um credor não interrompe os demais (métrica `publicapi.statements.close_failures`). Substitui o fechamento fixo do dia 1. Fechamento manual pela tela (próximo ciclo encerrado) e revisão com motivo; filtro da listagem pelo mês do fechamento (`period_end`).
+- **Posição do ciclo em andamento** (decisão 627): `PublicApiBillingUseCases.position(credor)` (`GET /api/v1/public-api/position?creditorId=`, `PUBLIC_API_USAGE_VIEW`; na API pública `GET /public-api/v1/billing/position`, escopo `billing:read`) mostra o ciclo que contém hoje: período, dias decorridos (contando hoje) e restantes, quantidades faturáveis até agora (MB arredondados por token sobre o acumulado, como no fechamento), **valor até agora = mensalidade do ciclo (cheia, ou proporcional no ciclo de transição — não rateada pelos dias decorridos) + excedente**, uso das franquias em %, detalhamento por token e rota, crescimento diário acumulado (uma consulta `dailyByToken`, precificado dia a dia) comparado ao ciclo anterior no mesmo dia, projeção `DAILY_AVERAGE` (atual + atual ÷ dias decorridos × dias restantes, para cima, precificada) e **atualizado em** = última gravação em lote do consumo (`max(updated_at)`), com o intervalo de gravação. Agregados indexados de `usage_hourly` (`ix_usage_hourly_creditor_hour`), sem cache; métrica `publicapi.billing.position.duration`.
+- Extratos fechados ao credor: `GET /public-api/v1/billing/statements` e `/{id}` (escopo `billing:read`), sem quem fechou nem motivo interno.
 - Não há cobrança: o extrato e a exportação CSV são o insumo para o faturamento (fora do sistema por ora).
 
 ## 8. Endpoints v1
@@ -181,6 +185,10 @@ Todos sob `/public-api/v1`, JSON, token obrigatório, escopo indicado. Listas us
 | `POST /payments` (multipart com evidência, Idempotency-Key) | `payments:write` | `PaymentUseCases.registerExternal` (origem `CREDITOR_DIRECT`; revisão por segunda pessoa acima do limite) |
 | `GET /disputes`, `/disputes/{id}` | `disputes:read` | `DisputeUseCases.changes/get` |
 | `POST /disputes` | `disputes:write` | `DisputeUseCases.open` (origem `CREDITOR`) |
+| `GET /billing/position` | `billing:read` | `PublicApiBillingUseCases.position` |
+| `GET /billing/statements`, `/billing/statements/{id}` | `billing:read` | `PublicApiBillingUseCases.statements/statement` (extratos fechados do credor) |
+| `GET /settlement/position` | `settlement:read` | `SettlementPositionUseCases.position` (simulação do demonstrativo) |
+| `GET /settlement/statements` | `settlement:read` | `SettlementPositionUseCases.sentToCreditor` (só `SENT`/`ACKNOWLEDGED`/`CONTESTED`) |
 
 **Idempotência**: `Idempotency-Key` (8–80 caracteres) obrigatório nos comandos que criam lotes e pagamentos, **isolado por token** (`tok:<token>:<chave>`; o `IdempotencyService` é por assessoria). Mesma chave e conteúdo → mesmo recurso; conteúdo diferente → `409 idempotency.key_reused`.
 

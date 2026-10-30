@@ -48,6 +48,8 @@ Cada token **enxerga um único credor**. Dados de outros credores da assessoria 
 | `agreements:read` | consultar acordos e parcelas |
 | `payments:read` / `payments:write` | consultar pagamentos / informar pagamento recebido pelo credor |
 | `disputes:read` / `disputes:write` | consultar / abrir contestações |
+| `billing:read` | consumo do ciclo atual da API (valor até agora, franquias, projeção) e extratos fechados |
+| `settlement:read` | repasse estimado do período em aberto e demonstrativos já enviados ao credor |
 
 ## 5. Consumo e faturamento
 
@@ -61,6 +63,14 @@ O modelo de faturamento está pronto, sem cobrança automática:
 - **Dados em MB inteiros**: 1 MB = 1.048.576 bytes. A conta é feita no total do ciclo de cada token, separadamente para dados recebidos e enviados, e arredondada para cima: 1 byte vira 1 MB; 1.048.576 bytes, 1 MB; 1.048.577 bytes, 2 MB. O total do credor é a soma dos tokens, e o extrato mostra cada token.
 - **Mudança do dia de fechamento**: vale a partir do próximo ciclo e gera um ciclo de transição, mais curto que o normal. Nele a mensalidade e as franquias são **proporcionais aos dias**: dias do ciclo ÷ dias de um ciclo normal que terminasse na mesma data. Exemplo: o contrato fechava no dia 10 e passa a fechar no dia 20; o ciclo de 11/03 a 20/03 tem 10 dias de 28 — mensalidade de R$ 100,00 vira R$ 35,71 e franquia de 1.000 chamadas vira 358 (arredondada para cima). O extrato mostra os dias e o fator.
 - **Extrato por ciclo**: os ciclos encerrados fecham sozinhos na madrugada seguinte, com o detalhamento por token e por operação. Recalcular sobre o mesmo consumo dá sempre o mesmo valor (o extrato guarda uma marca do consumo usado). Um novo fechamento do mesmo ciclo exige motivo e gera uma revisão; a anterior fica guardada. Ciclo sem consumo gera extrato só se o contrato tiver mensalidade.
+
+### Acompanhamento a qualquer momento
+
+Sem esperar o fechamento, a tela **Posição do credor** (e a API, com os escopos `billing:read` e `settlement:read`) mostra:
+
+- **Faturamento da API, ciclo em andamento**: dias decorridos e restantes, consumo faturável até agora, **valor até agora** (a mensalidade do ciclo — cheia, ou proporcional no ciclo de transição — mais o excedente já consumido; a mensalidade não é dividida pelos dias decorridos), uso das franquias, gráfico do valor acumulado comparado ao ciclo anterior no mesmo dia e uma **projeção** até o fim do ciclo pela média diária. O consumo é gravado em lotes de cerca de um minuto; a tela mostra a hora da última atualização.
+- **Repasse do período em aberto**: recuperado, honorários da assessoria, comissão, valores fixos, despesas, ajustes e o **líquido estimado** a repassar (ou a receber do credor), calculado exatamente como o demonstrativo calcularia se fosse fechado agora — é uma estimativa, não um demonstrativo. Pagamentos aguardando conciliação ou sem regra aparecem à parte, fora do líquido. Também mostra os demonstrativos aprovados com saldo a repassar.
+- Pela API, o credor vê os demonstrativos **já enviados** a ele, nunca rascunhos.
 
 ## 6. Comportamentos importantes para o credor
 

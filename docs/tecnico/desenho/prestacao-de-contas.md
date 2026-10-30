@@ -77,6 +77,16 @@ A memória (`statement.calculation`) guarda versões de regras usadas, pendênci
 
 **Exportação** (`SETTLEMENT_CLOSE`, só aprovado): CSV/XLSX conciliáveis e PDF resumo (PDFBox) no `FileStorage` (`SETTLEMENT_STATEMENT`) com SHA-256; o conteúdo depende só do demonstrativo aprovado. **Envio** registra canal, referência e os arquivos enviados; **aceite/contestação** do credor são registrados pela assessoria (não há portal do credor).
 
+### 5.1 Posição em tempo real (simulação do demonstrativo)
+
+Para acompanhar o repasse sem esperar o fechamento, `SettlementPositionUseCases.position(credor)` (`GET /api/v1/settlement/position?creditorId=`, `SETTLEMENT_VIEW`; na API pública, `GET /public-api/v1/settlement/position`, escopo `settlement:read`) executa **o mesmo núcleo do cálculo** (`SettlementStatementCalculator.compute`) em modo simulação: não libera, não vincula, não grava e não bloqueia nada. `calculate` = liberar + `compute` + vincular; `simulate` = `compute` contando como candidatos os itens vinculados ao demonstrativo em aberto (como se fosse recalculado agora) e somando os ajustes aplicados dele.
+
+- **Período**: início do demonstrativo em aberto; sem ele, o dia seguinte ao último demonstrativo fechado; sem nenhum, o início do ciclo corrente do contrato (`settlementDay`) — até **hoje**. Fechamento previsto pelo `settlementDay`.
+- **Resultado**: os mesmos totais do demonstrativo (recuperado, recebido pela assessoria e direto pelo credor, honorários, comissão, valores fixos, despesas, ajustes, líquido estimado com direção pelo sinal); pendências de conciliação e de regra **fora do líquido**, à parte; acumulado diário (recuperado e líquido; competência anterior ao início conta no dia 1, ajustes no último dia) comparado ao último demonstrativo fechado no mesmo dia do período; demonstrativos aprovados com saldo a repassar/receber (`balances`).
+- **Garantia**: `SettlementPositionIT` calcula a posição, fecha o demonstrativo do mesmo período no dia seguinte e compara todos os totais; repete com o demonstrativo em aberto e confere que nada foi desvinculado.
+- **Desempenho**: cache por (assessoria, credor) de 60 s servido só enquanto a marca de alterações do credor (`SettlementPositionFingerprints`: uma instrução com agregados sobre os índices parciais de itens em aberto e os índices por credor) não muda — dado próprio novo recalcula na hora em qualquer instância; os 60 s cobrem a situação de conciliação (payment) e a virada do dia. Métricas `settlement.position.duration{cache}` (`hit` ou `miss`), `settlement.position.requests{cache}`; log técnico DEBUG com `durationMs` e `receipts` (WARN acima de 2 s).
+- **API pública**: `GET /public-api/v1/settlement/statements` lista só os demonstrativos enviados ao credor (`SENT`, `ACKNOWLEDGED`, `CONTESTED`), com totais e datas de envio/resposta — sem memória de cálculo nem autores.
+
 ## 6. Custas e despesas do jurídico
 
 Contrato novo `shared.events.legal.LegalExpenseChanged` (publicado pelo `LegalExpenseService` no lançamento, cancelamento e reembolso; sem descrição livre). Reembolsável adiantada pela assessoria ou por escritório parceiro → `DEDUCT` (deduzida do repasse: o credor reembolsa no demonstrativo); paga pelo credor ou não reembolsável → `INFORMATIVE`. Cancelamento antes de prestar → sai; depois → lançamento `CANCELLATION` negativo no demonstrativo seguinte. Reembolso registrado no legal antes de prestar → sai (`REIMBURSED_OUTSIDE`); depois → WARN + métrica `settlement.events.ignored{reason=reimbursed_after_statement}` (possível reembolso em duplicidade). `SettlementClosed.reimbursedLegalExpenseIds` permite ao legal marcar as despesas como reembolsadas (pendência no legal).
@@ -91,7 +101,7 @@ Contrato novo `shared.events.legal.LegalExpenseChanged` (publicado pelo `LegalEx
 | --- | --- | --- |
 | consultar regras, razão e simulação | `COMMISSION_VIEW` (ou `COMMISSION_MANAGE`) | gestor, financeiro, auditor |
 | editar/publicar regras, reapurar pendentes | `COMMISSION_MANAGE` (quem edita não publica) | financeiro |
-| consultar demonstrativos, exportações, repasses e saldos | `SETTLEMENT_VIEW` | gestor, financeiro, auditor |
+| consultar demonstrativos, exportações, repasses, saldos e a posição em tempo real | `SETTLEMENT_VIEW` | gestor, financeiro, auditor |
 | criar, calcular, revisar, ajustar, exportar, enviar, registrar resposta do credor, cancelar | `SETTLEMENT_CLOSE` | financeiro |
 | aprovar demonstrativo e segunda aprovação de ajuste | `SETTLEMENT_APPROVE` (**nova**) | gestor |
 | registrar/cancelar repasse | `SETTLEMENT_TRANSFER` (**nova**) | financeiro |
@@ -106,7 +116,7 @@ Integração: consome `PaymentConfirmed`, `PaymentReversed`, `AgreementPaymentRe
 
 Negócio (atributos em [logs-e-metricas.md](../logs-e-metricas.md) §3.8): `commission.accrued`, `commission.reversed`, `commission.rules_published`, `settlement.receipt_pending_rules`, `settlement.calculated`, `settlement.adjusted`, `settlement.closed`, `settlement.exported`, `settlement.sent`, `settlement.acknowledged`, `settlement.contested`, `settlement.transfer_recorded`. Comissão da assessoria não é dado pessoal: os eventos levam valores; nunca nome ou documento do devedor.
 
-Métricas: `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome}`, `settlement.events.ignored{type,reason}`, `settlement.expenses{kind,effect}`, `settlement.statements.transitions{status}`, `settlement.statement.calculate.duration`, `settlement.statement.receipts`, `settlement.adjustments{status}`, `settlement.exports{format}`, `settlement.transfers{direction,outcome}`, `settlement.rules.published`.
+Métricas: `settlement.position.duration{cache}`, `settlement.position.requests{cache}`, `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome}`, `settlement.events.ignored{type,reason}`, `settlement.expenses{kind,effect}`, `settlement.statements.transitions{status}`, `settlement.statement.calculate.duration`, `settlement.statement.receipts`, `settlement.adjustments{status}`, `settlement.exports{format}`, `settlement.transfers{direction,outcome}`, `settlement.rules.published`.
 
 ## 10. REST (`/api/v1/settlement`)
 
@@ -118,6 +128,7 @@ Métricas: `settlement.receipts{kind,outcome}`, `settlement.ratings{kind,outcome
 | `/statements/{id}/calculate` · `/review` · `/approve` · `/send` · `/acknowledge` · `/contest` · `/cancel` | `POST` |
 | `/statements/{id}/adjustments` · `/adjustments/{id}/approve` · `/adjustments/{id}/reject` | `GET`/`POST` · `POST` · `POST` |
 | `/statements/{id}/exports` · `/exports/{id}/content` (cabeçalho `X-Content-SHA256`) | `GET`/`POST` · `GET` |
+| `/position?creditorId=` (posição do período em aberto, simulação) | `GET` |
 | `/transfers` (multipart `transfer` + `evidence`, `Idempotency-Key`) · `/transfers/{id}` · `/{id}/cancel` · `/{id}/evidence` · `/balances` | `POST`/`GET` · `GET` · `POST` · `GET` · `GET` |
 
 ## 11. Contratos alterados em outros módulos
