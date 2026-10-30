@@ -39,6 +39,6 @@ describe('rótulos da API pública', () => {
       }
       expect(permissions).not.toContain(Permission.DEBTOR_SENSITIVE_VIEW);
     }
-    expect(Object.keys(SCOPE_PERMISSIONS)).toHaveLength(14);
+    expect(Object.keys(SCOPE_PERMISSIONS)).toHaveLength(16);
   });
 });

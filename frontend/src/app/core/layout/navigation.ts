@@ -165,6 +165,7 @@ export const NAVIGATION: readonly NavSection[] = [
   {
     label: 'Prestação de contas',
     items: [
+      { label: 'Posição do credor', icon: 'graph-up', route: '/posicao-credor', permissions: [Permission.SETTLEMENT_VIEW, Permission.PUBLIC_API_USAGE_VIEW] },
       { label: 'Demonstrativos', icon: 'file-earmark-ruled', route: '/prestacao-de-contas/demonstrativos', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_CLOSE, Permission.SETTLEMENT_APPROVE] },
       { label: 'Repasses ao credor', icon: 'bank', route: '/prestacao-de-contas/repasses', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_TRANSFER] },
       { label: 'Razão de comissão', icon: 'receipt', route: '/prestacao-de-contas/razao', permissions: [Permission.COMMISSION_VIEW, Permission.SETTLEMENT_VIEW] },

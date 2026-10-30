@@ -7,6 +7,7 @@ import { toHttpParams } from '../../../core/http/http-params';
 import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
+  BillingPositionView,
   CreateTokenRequest,
   IssuedToken,
   ScopeView,
@@ -75,6 +76,11 @@ export class PublicApiUsageApi {
     return this.http.get<PageResponse<StatementView>>(`${BASE}/statements`, {
       params: toHttpParams({ creditorId, month, page: page.page, size: page.size }),
     });
+  }
+
+  /** Posição do ciclo de consumo em andamento (o que contém hoje). */
+  position(creditorId: string): Observable<BillingPositionView> {
+    return this.http.get<BillingPositionView>(`${BASE}/position`, { params: toHttpParams({ creditorId }) });
   }
 
   /** Prévia do próximo ciclo a fechar do credor (encerrado ou em curso). */

@@ -37,6 +37,8 @@ export const SCOPE_PERMISSIONS: Record<string, readonly string[]> = {
   'payments:write': ['PAYMENT_VIEW', 'PAYMENT_REGISTER_EXTERNAL'],
   'disputes:read': ['CASE_VIEW'],
   'disputes:write': ['CASE_VIEW'],
+  'billing:read': ['PUBLIC_API_USAGE_VIEW'],
+  'settlement:read': ['SETTLEMENT_VIEW'],
 };
 
 /**

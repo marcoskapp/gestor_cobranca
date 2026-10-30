@@ -76,6 +76,11 @@ export const SHELL_ROUTES: Routes = [
           import('../../../features/payment/payment.routes').then((m) => m.PAYMENT_ROUTES),
       },
       {
+        path: 'posicao-credor',
+        loadChildren: () =>
+          import('../../../features/creditor-position/creditor-position.routes').then((m) => m.CREDITOR_POSITION_ROUTES),
+      },
+      {
         path: 'prestacao-de-contas',
         loadChildren: () =>
           import('../../../features/settlement/settlement.routes').then((m) => m.SETTLEMENT_ROUTES),
