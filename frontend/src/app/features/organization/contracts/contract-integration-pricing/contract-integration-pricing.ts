@@ -26,7 +26,7 @@ export const INTEGRATION_PRICING_ERRORS: Record<string, string> = {
 
 /**
  * Condições de cobrança das integrações (API pública) no contrato do credor: dia de fechamento do ciclo de consumo,
- * mensalidade, franquias e preço do excedente. Cada gravação é uma nova versão, que vale a partir do próximo ciclo
+ * mensalidade, franquias e preço do excedente. Cada gravação é uma nova versão; a primeira vale já no ciclo em andamento e as demais a partir do próximo ciclo
  * (o ciclo em curso mantém as condições anteriores); o histórico fica abaixo.
  */
 @Component({
@@ -43,8 +43,8 @@ export const INTEGRATION_PRICING_ERRORS: Record<string, string> = {
           <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
         <p class="app-muted cip-small">
-          Preço da API pública para este credor. Alterações valem a partir do próximo ciclo de consumo: o ciclo em curso
-          mantém as condições anteriores. Cobram-se só chamadas bem-sucedidas (2xx/3xx); dados em MB inteiros
+          Preço da API pública para este credor. O primeiro cadastro vale já no ciclo de consumo em andamento (o
+          ciclo inteiro); as alterações valem a partir do próximo ciclo: o ciclo em curso mantém as condições anteriores. Cobram-se só chamadas bem-sucedidas (2xx/3xx); dados em MB inteiros
           (1 MB = 1.048.576 bytes), arredondados para cima por token no ciclo.
         </p>
         @if (canManage()) {
@@ -208,7 +208,9 @@ export class ContractIntegrationPricing {
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (saved) => {
-          this.notifications.success(`Versão ${saved.version} registrada. Vale a partir do próximo ciclo de consumo.`);
+          this.notifications.success(saved.version === 1
+            ? 'Versão 1 registrada. O primeiro cadastro já vale no ciclo de consumo em andamento.'
+            : `Versão ${saved.version} registrada. Vale a partir do próximo ciclo de consumo.`);
           this.ref.close(saved);
         },
         error: (err: unknown) => {

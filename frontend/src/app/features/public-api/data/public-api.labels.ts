@@ -1,4 +1,4 @@
-import { StatementLine, TokenState } from './public-api.models';
+import { BillingCycleKind, StatementLine, TokenState } from './public-api.models';
 
 export const TOKEN_STATE_LABELS: Record<TokenState, string> = {
   ACTIVE: 'Ativo',
@@ -53,6 +53,15 @@ export function parseIpList(text: string): string[] {
 export function billableMegabytes(bytes: number): number {
   return bytes <= 0 ? 0 : Math.ceil(bytes / BYTES_PER_MB);
 }
+
+/** Tipo do ciclo de consumo (decisão 624). */
+export const CYCLE_KIND_LABELS: Record<BillingCycleKind, string> = {
+  REGULAR: 'ciclo regular',
+  CONTRACT_START: 'primeiro ciclo do contrato',
+  CONTRACT_END: 'último ciclo do contrato (até o fim da vigência)',
+  TRANSITION: 'ciclo de transição',
+  NO_CONTRACT: 'sem contrato com condições de cobrança',
+};
 
 /** "2026-03-11" e "2026-04-10" → "11/03/2026 a 10/04/2026". */
 export function formatCycle(start: string, end: string): string {

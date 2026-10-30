@@ -334,6 +334,11 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "cycleKind" : {
+            "description" : "Tipo do ciclo: REGULAR; CONTRACT_START (primeiro, desde o início do contrato); CONTRACT_END (último, até o fim da vigência); TRANSITION (mudança do dia de fechamento); NO_CONTRACT (sem condições de cobrança). Em CONTRACT_START, CONTRACT_END e TRANSITION a mensalidade e as franquias são proporcionais aos dias (cycleDays ÷ referenceCycleDays)",
+            "enum" : [ "REGULAR", "CONTRACT_START", "CONTRACT_END", "TRANSITION", "NO_CONTRACT" ],
+            "type" : "string"
+          },
           "daily" : {
             "items" : {
               "$ref" : "#/components/schemas/BillingGrowthPoint"
@@ -474,7 +479,7 @@
             "type" : "integer"
           },
           "referenceCycleDays" : {
-            "description" : "Dias do ciclo regular de referência; difere de cycleDays só no ciclo de transição (mensalidade e franquias proporcionais)",
+            "description" : "Dias do ciclo regular de referência; difere de cycleDays no primeiro ciclo do contrato, no último (fim da vigência) e no de transição (mensalidade e franquias proporcionais)",
             "format" : "int32",
             "type" : "integer"
           },

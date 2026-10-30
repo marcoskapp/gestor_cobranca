@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.publicapi.domain;
 
+import br.com.gestorcobranca.publicapi.domain.model.Proration;
 import br.com.gestorcobranca.publicapi.domain.service.BillingCycles;
 import br.com.gestorcobranca.publicapi.domain.service.BillingCycles.Cycle;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -64,6 +65,48 @@ class BillingCyclesTest {
         Cycle end = BillingCycles.containing(LocalDate.of(2026, 3, 1), 31);
         assertThat(end.start()).isEqualTo(LocalDate.of(2026, 3, 1));
         assertThat(end.end()).isEqualTo(LocalDate.of(2026, 3, 31));
+    }
+
+    @Test
+    void firstCycleOfTheContractRunsFromItsStartToTheFirstClosingDayAndIsProrated() {
+        // contrato desde 20/01, fechamento dia 10: 20/01 a 10/02 — 22 dias do ciclo de referência 11/01–10/02 (31)
+        Cycle first = BillingCycles.startingAt(LocalDate.of(2026, 1, 20), 10, null);
+        assertThat(first.end()).isEqualTo(LocalDate.of(2026, 2, 10));
+        assertThat(BillingCycles.proration(first)).isEqualTo(new Proration(22, 31));
+        // contrato que começa no dia seguinte ao fechamento: ciclo cheio
+        assertThat(BillingCycles.proration(BillingCycles.startingAt(LocalDate.of(2026, 1, 11), 10, null)).isFull())
+                .isTrue();
+    }
+
+    @Test
+    void lastCycleEndsAtTheEndOfTheContractAndIsProrated() {
+        // vigência até 20/03, fechamento dia 10: 11/03 a 20/03 — 10 dias do ciclo de referência 11/03–10/04 (31)
+        Cycle last = BillingCycles.startingAt(LocalDate.of(2026, 3, 11), 10, LocalDate.of(2026, 3, 20));
+        assertThat(last.end()).isEqualTo(LocalDate.of(2026, 3, 20));
+        assertThat(BillingCycles.proration(last)).isEqualTo(new Proration(10, 31));
+        // fim da vigência depois do fechamento não corta o ciclo
+        assertThat(BillingCycles.startingAt(LocalDate.of(2026, 3, 11), 10, LocalDate.of(2026, 6, 30)).end())
+                .isEqualTo(LocalDate.of(2026, 4, 10));
+        // contrato de poucos dias: começa e termina dentro do mesmo ciclo
+        Cycle shortContract = BillingCycles.startingAt(LocalDate.of(2026, 3, 12), 10, LocalDate.of(2026, 3, 14));
+        assertThat(BillingCycles.proration(shortContract)).isEqualTo(new Proration(3, 31));
+    }
+
+    @Test
+    void automaticClosingStartsAtTheContractCycleThatEndsOnOrAfterTheConditionsWereRegistered() {
+        // contrato desde 01/01/2025, condições registradas em 30/10/2026, fechamento dia 5: o primeiro ciclo alcançado
+        // é 06/10–05/11/2026 — nenhum dos ~22 ciclos anteriores
+        Cycle first = BillingCycles.firstEndingOnOrAfter(LocalDate.of(2025, 1, 1), null, 5, LocalDate.of(2026, 10, 30));
+        assertThat(first.start()).isEqualTo(LocalDate.of(2026, 10, 6));
+        assertThat(first.end()).isEqualTo(LocalDate.of(2026, 11, 5));
+        // condições registradas antes do início: o primeiro ciclo é o do início do contrato
+        Cycle fromStart = BillingCycles.firstEndingOnOrAfter(LocalDate.of(2026, 1, 20), null, 10,
+                LocalDate.of(2025, 12, 1));
+        assertThat(fromStart.start()).isEqualTo(LocalDate.of(2026, 1, 20));
+        // vigência encerrada antes do registro: devolve o último ciclo do contrato, encerrado antes (descartado)
+        Cycle ended = BillingCycles.firstEndingOnOrAfter(LocalDate.of(2025, 1, 1), LocalDate.of(2025, 6, 20), 10,
+                LocalDate.of(2026, 1, 1));
+        assertThat(ended.end()).isEqualTo(LocalDate.of(2025, 6, 20));
     }
 
     @Test

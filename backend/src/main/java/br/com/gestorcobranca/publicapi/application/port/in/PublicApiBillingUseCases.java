@@ -103,8 +103,13 @@ public interface PublicApiBillingUseCases {
     /**
      * @param daysElapsed      dias do ciclo decorridos, contando hoje
      * @param daysRemaining    dias que faltam depois de hoje
-     * @param amountSoFar      valor se o ciclo fechasse agora: mensalidade do ciclo (cheia, ou proporcional no ciclo de
-     *                         transição — a mesma do fechamento; não é rateada pelos dias decorridos) + excedente do
+     * @param pricingRegisteredAt registro da versão das condições aplicada ao ciclo (nulo sem condições); posterior ao
+     *                         início do ciclo quando é o primeiro cadastro do contrato, que vale para o ciclo inteiro
+     * @param cycleKind        REGULAR; CONTRACT_START (primeiro ciclo, desde o início da vigência do contrato);
+     *                         CONTRACT_END (último, até o fim da vigência); TRANSITION (mudança do dia de fechamento);
+     *                         NO_CONTRACT (sem contrato com condições de cobrança: valor zero) — decisão 624
+     * @param amountSoFar      valor se o ciclo fechasse agora: mensalidade do ciclo (cheia, ou proporcional no primeiro, no
+     *                         último e no de transição — a mesma do fechamento; não é rateada pelos dias decorridos) + excedente do
      *                         consumo até agora
      * @param allowances       uso das franquias do ciclo (percentual nulo sem franquia)
      * @param daily            acumulado por dia do ciclo (dia 1 = início), até hoje
@@ -113,8 +118,10 @@ public interface PublicApiBillingUseCases {
      *                         {@code flushIntervalSeconds})
      */
     record BillingPositionView(UUID creditorId, LocalDate periodStart, LocalDate periodEnd, int usageClosingDay,
-                               int cycleDays, int referenceCycleDays, LocalDate today, int daysElapsed,
-                               int daysRemaining, String contractNumber, Integer pricingVersion, long requests,
+                               int cycleDays, int referenceCycleDays, String cycleKind,
+                               LocalDate today, int daysElapsed,
+                               int daysRemaining, String contractNumber, Integer pricingVersion,
+                               Instant pricingRegisteredAt, long requests,
                                long billableRequests, long billableMbIn, long billableMbOut, long records,
                                BigDecimal amountSoFar, String currency, List<StatementLine> lines,
                                List<AllowanceUse> allowances, List<StatementBreakdown> breakdown,

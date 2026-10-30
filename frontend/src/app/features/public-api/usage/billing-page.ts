@@ -37,9 +37,10 @@ import { StatementViewPanel } from './statement-view';
     <section class="app-card" aria-labelledby="bp-preview" data-tour="billing-preview">
       <h2 class="app-card__title" id="bp-preview">Prévia e fechamento do ciclo</h2>
       <p class="app-muted bp-small">
-        Preços e dia de fechamento ficam no contrato do credor (ficha do credor, contratos, botão de integrações) e valem a
-        partir do próximo ciclo. O ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte;
-        os ciclos encerrados são fechados automaticamente na madrugada seguinte.
+        Preços e dia de fechamento ficam no contrato do credor (ficha do credor, contratos, botão de integrações): o
+        primeiro cadastro vale já no ciclo em andamento; as alterações, a partir do próximo ciclo. O ciclo fecha no fim do
+        dia de fechamento e o próximo começa às 00:00 do dia seguinte; os ciclos encerrados são fechados automaticamente
+        na madrugada seguinte.
       </p>
       <form class="app-filters" [formGroup]="previewForm" aria-label="Prévia do extrato">
         <div class="app-filters__wide">

@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.publicapi.application.service;
 
 import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases;
+import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases.IntegrationContractView;
 import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases.IntegrationPricingView;
 import br.com.gestorcobranca.publicapi.application.PublicApiProperties;
 import br.com.gestorcobranca.publicapi.application.port.in.PublicApiBillingUseCases;
@@ -74,12 +75,15 @@ import java.util.stream.Collectors;
  * das condições de cobrança do contrato do credor registrada antes do início do ciclo ({@link PriceCalculator}); o
  * SHA-256 do consumo usado fica gravado para provar que um recálculo sobre os mesmos dados produz o mesmo valor.
  * <p>
- * <b>Sequência dos ciclos:</b> o próximo ciclo começa no dia seguinte ao fim do último ciclo fechado e fecha no
- * primeiro dia de fechamento (das condições que valem no seu início) igual ou posterior. Se esse ciclo terminou sem
- * consumo e sem mensalidade não gera extrato (decisão 624). Sem ciclo anterior, o primeiro ciclo é o que contém o
- * primeiro consumo do credor. Sem condições no contrato, o ciclo fecha no último dia do mês e o extrato registra o
- * consumo com valor zero. No ciclo de transição (mudança do dia de fechamento) mensalidade e franquias são
- * proporcionais aos dias ({@link BillingCycles#proration}).
+ * <b>Sequência dos ciclos (decisão 624, do responsável):</b> começa no início da vigência do contrato com condições
+ * de cobrança das integrações; o primeiro ciclo vai até o primeiro dia de fechamento igual ou posterior e o último
+ * termina no fim da vigência. Depois, o próximo ciclo começa no dia seguinte ao fim do último ciclo fechado e fecha no
+ * primeiro dia de fechamento (das condições que valem no seu início) igual ou posterior. Ciclo encerrado gera extrato
+ * quando tem mensalidade &gt; 0 ou consumo, mesmo sem nenhum uso da API; sem os dois, não gera. Sem retroatividade: o
+ * fechamento não alcança ciclos encerrados antes do registro das primeiras condições do credor. Sem contrato com
+ * condições, o primeiro ciclo é o que contém o primeiro consumo, fecha no último dia do mês e o extrato registra o
+ * consumo com valor zero. Primeiro, último e de transição (mudança do dia de fechamento) têm mensalidade e franquias
+ * proporcionais aos dias ({@link BillingCycles#proration}, decisão 621).
  */
 @Service
 @Transactional
@@ -137,12 +141,10 @@ class BillingService implements PublicApiBillingUseCases {
         Guard.require(creditorId != null, "usage_statement.required", "Credor obrigatório");
         accessScope.requireVisible("creditor", creditorId, creditorId);
         Instant now = Instant.now(clock);
-        Pending pending = pendingCycle(creditorId, now).orElseGet(() -> {
-            // nada a fechar: ciclo em curso a partir de hoje (ou do dia seguinte ao último ciclo fechado)
-            LocalDate today = LocalDate.ofInstant(now, ZONE);
-            LocalDate start = statements.findLastCycle(creditorId).map(s -> s.getPeriodEnd().plusDays(1))
-                    .filter(d -> d.isAfter(today)).orElse(today);
-            return cycleStartingAt(creditorId, start);
+        Calendar calendar = new Calendar(creditorId);
+        Pending pending = pendingCycle(calendar, now).orElseGet(() -> {
+            // sem contrato com condições e sem consumo: ciclo em curso a partir de hoje
+            return calendar.startingAt(LocalDate.ofInstant(now, ZONE));
         });
         Computed c = compute(creditorId, pending);
         return new StatementView(null, creditorId, pending.cycle().start(), pending.cycle().end(),
@@ -163,7 +165,8 @@ class BillingService implements PublicApiBillingUseCases {
         accessScope.requireVisible("creditor", creditorId, creditorId);
         Instant now = Instant.now(clock);
         LocalDate today = LocalDate.ofInstant(now, ZONE);
-        Pending current = currentCycle(creditorId, now, today);
+        Calendar calendar = new Calendar(creditorId);
+        Pending current = currentCycle(calendar, now, today);
         Cycle cycle = current.cycle();
         Proration proration = BillingCycles.proration(cycle);
         Computed c = compute(creditorId, current);
@@ -182,13 +185,14 @@ class BillingService implements PublicApiBillingUseCases {
                 .filter(s -> s.getPeriodEnd().equals(cycle.start().minusDays(1)))
                 .map(s -> new Cycle(s.getPeriodStart(), s.getPeriodEnd(), s.getUsageClosingDay()))
                 .orElseGet(() -> {
+                    // sem extrato adjacente: o ciclo do calendário que termina na véspera (antes do início do
+                    // contrato, o calendário do mês — sem condições, valor zero)
                     LocalDate prevEnd = cycle.start().minusDays(1);
-                    int day = applicablePricing(creditorId, prevEnd).map(IntegrationPricingView::usageClosingDay)
-                            .orElse(ContractIntegrationPricingUseCases.DEFAULT_USAGE_CLOSING_DAY);
-                    return BillingCycles.containing(prevEnd, day);
+                    return BillingCycles.containing(prevEnd,
+                            calendar.closingDayAt(prevEnd, applicablePricing(creditorId, prevEnd)));
                 });
         Optional<UsageStatement> previousStatement = statements.findLatest(creditorId, previousCycle.start());
-        Optional<PriceTerms> previousTerms = applicablePricing(creditorId, previousCycle.start()).map(BillingService::terms);
+        Optional<PriceTerms> previousTerms = pricingFor(creditorId, previousCycle).map(BillingService::terms);
         List<GrowthPoint> previousDaily = growth(creditorId, previousCycle, previousCycle.end(), previousTerms,
                 BillingCycles.proration(previousCycle));
         PreviousCycle previous = new PreviousCycle(previousCycle.start(), previousCycle.end(),
@@ -206,21 +210,34 @@ class BillingService implements PublicApiBillingUseCases {
         LOG.atDebug().addKeyValue("creditorId", creditorId).addKeyValue("durationMs", millis)
                 .log("Posição do ciclo de consumo calculada");
         return new BillingPositionView(creditorId, cycle.start(), cycle.end(), cycle.closingDay(),
-                proration.cycleDays(), proration.referenceDays(), today, daysElapsed, daysRemaining,
+                proration.cycleDays(), proration.referenceDays(), current.kind(), today, daysElapsed, daysRemaining,
                 current.pricing().map(IntegrationPricingView::contractNumber).orElse(null),
-                current.pricing().map(IntegrationPricingView::version).orElse(null), c.totals.requests(),
+                current.pricing().map(IntegrationPricingView::version).orElse(null),
+                current.pricing().map(IntegrationPricingView::registeredAt).orElse(null), c.totals.requests(),
                 c.billable.requests(), c.billable.mbIn(), c.billable.mbOut(), c.billable.records(), c.result.total(),
                 "BRL", c.lines, allowances, c.breakdown, daily, previous, previousDaily, projection,
                 updatedAt.orElse(null), properties.usageFlushInterval().toSeconds(), millis);
     }
 
-    /** Ciclo que contém hoje: avança pelos ciclos contíguos a partir do próximo a fechar. */
-    private Pending currentCycle(UUID creditorId, Instant now, LocalDate today) {
-        Pending p = pendingCycle(creditorId, now).orElseGet(() -> cycleStartingAt(creditorId,
-                statements.findLastCycle(creditorId).map(s -> s.getPeriodEnd().plusDays(1))
-                        .filter(d -> !d.isAfter(today)).orElseGet(() -> nominalStart(creditorId, today))));
+    /**
+     * Ciclo que contém hoje, coerente com o fechamento: avança pelos ciclos contíguos a partir do próximo a fechar.
+     * Sem contrato com condições e sem consumo, o ciclo do calendário do mês que contém hoje; antes do início do
+     * primeiro ciclo (contrato que começa no futuro), o período sem contrato até a véspera dele.
+     */
+    private Pending currentCycle(Calendar calendar, Instant now, LocalDate today) {
+        Optional<Pending> pending = pendingCycle(calendar, now);
+        if (pending.isEmpty() || pending.get().cycle().start().isAfter(today)) {
+            Cycle month = BillingCycles.containing(today, ContractIntegrationPricingUseCases.DEFAULT_USAGE_CLOSING_DAY);
+            LocalDate lastDay = pending.map(p -> p.cycle().start().minusDays(1)).orElse(null);
+            Cycle cycle = BillingCycles.startingAt(month.start(), month.closingDay(), lastDay);
+            if (pending.isEmpty()) {
+                return calendar.startingAt(month.start());
+            }
+            return new Pending(cycle, Optional.empty(), "NO_CONTRACT");
+        }
+        Pending p = pending.get();
         while (p.cycle().end().isBefore(today)) {
-            p = cycleStartingAt(creditorId, p.cycle().end().plusDays(1));
+            p = calendar.next(p);
         }
         return p;
     }
@@ -286,12 +303,12 @@ class BillingService implements PublicApiBillingUseCases {
                 UsageStatement previous = existing.get();
                 // mesma vigência e mesmas condições (registradas antes do início do ciclo): só o consumo pode mudar
                 Cycle cycle = new Cycle(previous.getPeriodStart(), previous.getPeriodEnd(), previous.getUsageClosingDay());
-                return save(creditorId, new Pending(cycle, applicablePricing(creditorId, cycle.start())),
-                        previous, reason);
+                return save(creditorId, new Pending(cycle, pricingFor(creditorId, cycle),
+                        "REVISION"), previous, reason);
             }
         }
         Pending pending = pendingCycle(creditorId, now).orElseThrow(() -> new BusinessRuleException(
-                "usage_statement.nothing_to_close", "Não há ciclo com consumo a fechar para o credor"));
+                "usage_statement.nothing_to_close", "Não há ciclo a fechar para o credor"));
         if (periodStart != null && !periodStart.equals(pending.cycle().start())) {
             throw new BusinessRuleException("usage_statement.period_invalid",
                     "O próximo ciclo a fechar começa em " + pending.cycle().start());
@@ -307,11 +324,12 @@ class BillingService implements PublicApiBillingUseCases {
         accessScope.requireCreditor(creditorId);
         Instant now = Instant.now(clock);
         int closed = 0;
-        Optional<Pending> pending = pendingCycle(creditorId, now);
+        Calendar calendar = new Calendar(creditorId);
+        Optional<Pending> pending = pendingCycle(calendar, now);
         while (pending.isPresent() && pending.get().cycle().endedAt(now, ZONE)) {
             save(creditorId, pending.get(), null, null);
             closed++;
-            pending = pendingCycle(creditorId, now);
+            pending = pendingCycle(calendar, now);
         }
         return closed;
     }
@@ -373,25 +391,126 @@ class BillingService implements PublicApiBillingUseCases {
 
     // ---------------------------------------------------------------- ciclos
 
-    /** Ciclo e condições do contrato aplicadas a ele. */
-    private record Pending(Cycle cycle, Optional<IntegrationPricingView> pricing) {
+    /**
+     * Ciclo, condições do contrato aplicadas a ele e o tipo do ciclo ({@code REGULAR}, {@code CONTRACT_START} — o
+     * primeiro, desde o início da vigência; {@code CONTRACT_END} — o último, até o fim da vigência;
+     * {@code TRANSITION} — mudança do dia de fechamento; {@code NO_CONTRACT} — sem contrato com condições;
+     * {@code REVISION} — nova revisão de um extrato já fechado, com o período gravado).
+     */
+    private record Pending(Cycle cycle, Optional<IntegrationPricingView> pricing, String kind) {
+    }
+
+    /**
+     * Calendário dos ciclos do credor (decisão 624): contratos com condições de cobrança das integrações, lidos uma
+     * vez por operação. A sequência de ciclos de um contrato parte do início da vigência; o primeiro ciclo vai até o
+     * primeiro dia de fechamento igual ou posterior e o último termina no fim da vigência (ambos proporcionais pela
+     * regra da 621). O dia de fechamento de cada ciclo é o das condições que valem no seu início; antes de haver versão
+     * aplicável, o da primeira versão do contrato; fora de contrato com condições, o último dia do mês.
+     */
+    private final class Calendar {
+
+        private final UUID creditorId;
+        private final List<IntegrationContractView> contracts;
+
+        Calendar(UUID creditorId) {
+            this.creditorId = creditorId;
+            this.contracts = contractPricing.integrationContracts(creditorId);
+        }
+
+        /** Contrato com condições vigente na data (havendo mais de um, o de início mais recente). */
+        Optional<IntegrationContractView> contractAt(LocalDate day) {
+            return contracts.stream().filter(k -> !day.isBefore(k.startDate())
+                            && (k.endDate() == null || !day.isAfter(k.endDate())))
+                    .max(Comparator.comparing(IntegrationContractView::startDate));
+        }
+
+        /** Último dia possível de um ciclo que começa na data: fim da vigência ou véspera do próximo contrato. */
+        LocalDate lastDayFrom(LocalDate start) {
+            LocalDate last = contractAt(start).map(IntegrationContractView::endDate).orElse(null);
+            for (IntegrationContractView k : contracts) {
+                if (k.startDate().isAfter(start) && (last == null || !k.startDate().isAfter(last))) {
+                    last = k.startDate().minusDays(1);
+                }
+            }
+            return last;
+        }
+
+        int closingDayAt(LocalDate day, Optional<IntegrationPricingView> pricing) {
+            return pricing.map(IntegrationPricingView::usageClosingDay).orElseGet(() -> contractAt(day)
+                    .map(IntegrationContractView::firstUsageClosingDay)
+                    .orElse(ContractIntegrationPricingUseCases.DEFAULT_USAGE_CLOSING_DAY));
+        }
+
+        Pending startingAt(LocalDate start) {
+            // dia de fechamento: o da versão registrada antes do início; sem ela, o da primeira versão do contrato
+            int closingDay = closingDayAt(start, applicablePricing(creditorId, start));
+            LocalDate lastDay = lastDayFrom(start);
+            Cycle cycle = BillingCycles.startingAt(start, closingDay, lastDay);
+            // condições do ciclo: inclui o primeiro cadastro feito durante o ciclo (decisões 608 e 624)
+            Optional<IntegrationPricingView> pricing = pricingFor(creditorId, cycle);
+            Optional<IntegrationContractView> contract = contractAt(start);
+            String kind;
+            if (contract.isEmpty()) {
+                kind = "NO_CONTRACT";
+            } else if (!cycle.end().equals(BillingCycles.closingDateOnOrAfter(start, closingDay))) {
+                kind = "CONTRACT_END";
+            } else if (start.equals(contract.get().startDate())) {
+                kind = "CONTRACT_START";
+            } else {
+                kind = BillingCycles.proration(cycle).isFull() ? "REGULAR" : "TRANSITION";
+            }
+            return new Pending(cycle, pricing, kind);
+        }
+
+        Pending next(Pending p) {
+            return startingAt(p.cycle().end().plusDays(1));
+        }
+
+        /**
+         * Início do primeiro ciclo do credor sem extrato anterior. Com contrato com condições: o primeiro ciclo do
+         * calendário do contrato (desde o início da vigência) que termina na data do registro das primeiras condições
+         * ou depois — nunca ciclos encerrados antes disso (sem retroatividade nem enxurrada de ciclos passados). Sem
+         * contrato com condições (ou com todos encerrados antes do registro), o ciclo que contém o primeiro consumo,
+         * como antes. Vazio quando não há nenhum dos dois.
+         */
+        Optional<LocalDate> firstStart() {
+            Optional<LocalDate> since = contracts.stream().map(IntegrationContractView::firstRegisteredAt)
+                    .min(Comparator.naturalOrder()).map(t -> LocalDate.ofInstant(t, ZONE));
+            if (since.isPresent()) {
+                for (IntegrationContractView k : contracts) {
+                    LocalDate lastDay = lastDayFrom(k.startDate());
+                    if (lastDay != null && lastDay.isBefore(since.get())) {
+                        continue;
+                    }
+                    return Optional.of(BillingCycles.firstEndingOnOrAfter(k.startDate(), lastDay,
+                            k.firstUsageClosingDay(), since.get()).start());
+                }
+            }
+            return usage.firstUsageAt(creditorId, Instant.EPOCH)
+                    .map(first -> nominalStart(creditorId, LocalDate.ofInstant(first, ZONE)));
+        }
     }
 
     /**
      * Próximo ciclo a fechar do credor. Com ciclo anterior, percorre os ciclos contíguos a partir do fim do último
-     * fechado e para no primeiro que deve gerar extrato (tem consumo ou mensalidade &gt; 0, decisão 624) ou que ainda
-     * está em curso; ciclos encerrados sem consumo e sem mensalidade são pulados (sem extrato). Sem ciclo anterior, o
-     * primeiro ciclo é o que contém o primeiro consumo do credor. Vazio quando o credor nunca consumiu.
+     * fechado; sem ciclo anterior, parte do primeiro ciclo do calendário ({@link Calendar#firstStart}). Para no primeiro
+     * que deve gerar extrato (tem consumo ou mensalidade &gt; 0, decisão 624) ou que ainda está em curso; ciclos
+     * encerrados sem consumo e sem mensalidade são pulados (sem extrato). Vazio quando o credor não tem contrato com
+     * condições nem consumo.
      */
     private Optional<Pending> pendingCycle(UUID creditorId, Instant now) {
-        Optional<UsageStatement> last = statements.findLastCycle(creditorId);
-        if (last.isEmpty()) {
-            return usage.firstUsageAt(creditorId, Instant.EPOCH)
-                    .map(first -> cycleStartingAt(creditorId, nominalStart(creditorId, LocalDate.ofInstant(first, ZONE))));
+        return pendingCycle(new Calendar(creditorId), now);
+    }
+
+    private Optional<Pending> pendingCycle(Calendar calendar, Instant now) {
+        Optional<LocalDate> start = statements.findLastCycle(calendar.creditorId)
+                .map(s -> s.getPeriodEnd().plusDays(1)).or(calendar::firstStart);
+        if (start.isEmpty()) {
+            return Optional.empty();
         }
-        Pending candidate = cycleStartingAt(creditorId, last.get().getPeriodEnd().plusDays(1));
-        while (candidate.cycle().endedAt(now, ZONE) && !generatesStatement(creditorId, candidate)) {
-            candidate = cycleStartingAt(creditorId, candidate.cycle().end().plusDays(1));
+        Pending candidate = calendar.startingAt(start.get());
+        while (candidate.cycle().endedAt(now, ZONE) && !generatesStatement(calendar.creditorId, candidate)) {
+            candidate = calendar.next(candidate);
         }
         return Optional.of(candidate);
     }
@@ -412,16 +531,17 @@ class BillingService implements PublicApiBillingUseCases {
         return BillingCycles.containing(firstUsageDay, closingDay).start();
     }
 
-    private Pending cycleStartingAt(UUID creditorId, LocalDate start) {
-        Optional<IntegrationPricingView> pricing = applicablePricing(creditorId, start);
-        int closingDay = pricing.map(IntegrationPricingView::usageClosingDay)
-                .orElse(ContractIntegrationPricingUseCases.DEFAULT_USAGE_CLOSING_DAY);
-        return new Pending(BillingCycles.startingAt(start, closingDay), pricing);
-    }
-
     /** Condições registradas antes das 00:00 do primeiro dia do ciclo (não retroatividade). */
     private Optional<IntegrationPricingView> applicablePricing(UUID creditorId, LocalDate cycleStart) {
         return contractPricing.applicable(creditorId, cycleStart.atStartOfDay(ZONE).toInstant());
+    }
+
+    /**
+     * Condições do ciclo: a versão registrada antes do seu início; sem nenhuma, o primeiro cadastro do contrato, se
+     * feito antes do fim do ciclo — o primeiro cadastro vale já no ciclo em andamento (decisões 608 e 624).
+     */
+    private Optional<IntegrationPricingView> pricingFor(UUID creditorId, Cycle cycle) {
+        return contractPricing.applicableToCycle(creditorId, cycle.from(ZONE), cycle.to(ZONE));
     }
 
     private StatementView save(UUID creditorId, Pending pending, UsageStatement previous, String reason) {

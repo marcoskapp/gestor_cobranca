@@ -23,7 +23,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -116,12 +118,55 @@ class ContractIntegrationPricingService implements ContractIntegrationPricingUse
         Guard.require(creditorId != null && cycleStart != null, "contract_pricing.required",
                 "Credor e início do ciclo obrigatórios");
         accessScope.requireVisible("creditor", creditorId, creditorId);
-        LocalDate day = cycleStart.atZone(TimeConfig.BUSINESS_ZONE).toLocalDate();
-        return contracts.findByCreditorId(creditorId).stream()
-                .filter(k -> !day.isBefore(k.getStartDate()) && (k.getEndDate() == null || !day.isAfter(k.getEndDate())))
-                .max(Comparator.comparing(ServiceContract::getStartDate).thenComparing(ServiceContract::getNumber))
+        return contractAt(creditorId, cycleStart)
                 .flatMap(k -> pricings.findFirstByContractIdAndRegisteredAtBeforeOrderByPricingVersionDesc(k.getId(),
                         cycleStart).map(p -> view(p, k)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<IntegrationPricingView> applicableToCycle(UUID creditorId, Instant cycleStart, Instant cycleEnd) {
+        Guard.require(creditorId != null && cycleStart != null && cycleEnd != null, "contract_pricing.required",
+                "Credor e período do ciclo obrigatórios");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        return contractAt(creditorId, cycleStart).flatMap(k -> pricings
+                .findFirstByContractIdAndRegisteredAtBeforeOrderByPricingVersionDesc(k.getId(), cycleStart)
+                // sem versão anterior ao ciclo: o primeiro cadastro vale já no ciclo em que foi feito
+                .or(() -> pricings.findFirstByContractIdOrderByPricingVersionAsc(k.getId())
+                        .filter(first -> first.getRegisteredAt().isBefore(cycleEnd)))
+                .map(p -> view(p, k)));
+    }
+
+    /** Contrato do credor vigente na data (fuso de negócio) do instante; havendo mais de um, o de início mais recente. */
+    private Optional<ServiceContract> contractAt(UUID creditorId, Instant instant) {
+        LocalDate day = instant.atZone(TimeConfig.BUSINESS_ZONE).toLocalDate();
+        return contracts.findByCreditorId(creditorId).stream()
+                .filter(k -> !day.isBefore(k.getStartDate()) && (k.getEndDate() == null || !day.isAfter(k.getEndDate())))
+                .max(Comparator.comparing(ServiceContract::getStartDate).thenComparing(ServiceContract::getNumber));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<IntegrationContractView> integrationContracts(UUID creditorId) {
+        Guard.require(creditorId != null, "contract_pricing.required", "Credor obrigatório");
+        accessScope.requireVisible("creditor", creditorId, creditorId);
+        Map<UUID, ContractIntegrationPricing> first = new HashMap<>();
+        for (ContractIntegrationPricing p : pricings.findFirstVersionsByCreditorId(creditorId)) {
+            first.put(p.getContractId(), p);
+        }
+        return contracts.findByCreditorId(creditorId).stream().filter(k -> first.containsKey(k.getId()))
+                .sorted(Comparator.comparing(ServiceContract::getStartDate).thenComparing(ServiceContract::getNumber))
+                .map(k -> new IntegrationContractView(k.getId(), k.getNumber(), k.getStartDate(), k.getEndDate(),
+                        first.get(k.getId()).getRegisteredAt(), first.get(k.getId()).getUsageClosingDay()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> creditorsWithIntegrationPricing() {
+        List<UUID> all = pricings.findDistinctCreditorIds();
+        return accessScope.hasAllCreditors() ? all
+                : all.stream().filter(accessScope::canAccessCreditor).toList();
     }
 
     private ServiceContract loadVisible(UUID contractId) {
