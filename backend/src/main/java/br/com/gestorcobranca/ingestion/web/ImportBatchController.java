@@ -52,10 +52,10 @@ import java.util.UUID;
  * Lotes de importação (F04). O envio responde 202: o processamento é assíncrono e acompanhado
  * pelo status e pelos contadores do lote.
  * <p>
- * {@code POST /records} é a API de ingestão por integração (registros JSON com as chaves do
- * layout canônico, {@code Idempotency-Key} obrigatório). Hoje é autenticada como usuário com
- * {@code IMPORT_EXECUTE}; credenciais de integração (ator {@code INTEGRATION}) dependem do
- * suporte no módulo identity/shared.
+ * {@code POST /records} recebe registros JSON com as chaves do layout canônico ({@code Idempotency-Key}
+ * obrigatório), autenticado como usuário com {@code IMPORT_EXECUTE}. Sistemas dos credores usam a API
+ * pública ({@code POST /public-api/v1/imports}, token de integração — módulo publicapi), que chama o
+ * mesmo caso de uso.
  */
 @RestController
 @RequestMapping(ApiPaths.V1 + "/ingestion/batches")

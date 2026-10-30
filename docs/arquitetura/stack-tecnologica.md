@@ -29,7 +29,8 @@ Versões fixadas no `backend/pom.xml` e no `frontend/package.json`. Itens marcad
 | Apache POI | 6.0.0 | Leitura de carteiras em XLSX e exportação de relatórios |
 | Apache Commons CSV | 1.14.1 | Leitura de carteiras e arquivos de retorno em CSV |
 | Apache PDFBox | 3.0.8 | Geração de termos de acordo e demonstrativos em PDF |
-| springdoc-openapi | 3.1.1 | Documentação OpenAPI da API (UI habilitada apenas fora de produção) |
+| springdoc-openapi | 3.1.1 | Documentação OpenAPI da API interna (UI habilitada apenas fora de produção) e geração do contrato da API pública (grupo `public-v1`, conferido por teste e publicado em `/public-api/docs` com o Swagger UI do webjar) |
+| openapi-diff (Maven) | 2.1.7 | Diff do contrato da API pública entre releases, só no perfil `public-api-diff` (não entra no artefato) |
 
 ### Recursos de segurança implementados no código (sem dependência externa)
 
