@@ -44,8 +44,10 @@
       --bs-modal-header-padding: 1rem 1.25rem;
     }
 
-    // campos usam `.form-control-sm` na densidade compacta
-    .app-control-offset {
+    // campos usam `.form-control-sm` na densidade compacta: os itens alinhados à caixa do campo
+    // centralizam na altura menor
+    .app-control-offset,
+    .app-filters .app-filters__actions {
       min-height: $input-height-sm;
     }
 

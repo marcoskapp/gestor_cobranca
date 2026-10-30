@@ -249,7 +249,7 @@ has_fields() {
 get "${financeiro}" "/api/v1/settlement/position?creditorId=${hzn}" > "${TMP_BODY}"
 has_fields "posição do repasse (financeiro, tela interna)" \
   'has("periodStart") and has("totals") and has("direction") and has("calculatedAt")' < "${TMP_BODY}"
-get "${financeiro}" "/api/v1/public-api/billing/position?creditorId=${hzn}" > "${TMP_BODY}"
+get "${financeiro}" "/api/v1/public-api/position?creditorId=${hzn}" > "${TMP_BODY}"
 has_fields "posição do faturamento da API (financeiro, tela interna)" \
   'has("periodStart") and has("periodEnd") and has("amountSoFar") and has("currency")' < "${TMP_BODY}"
 papi GET /settlement/position "${FULL}" > "${TMP_BODY}"

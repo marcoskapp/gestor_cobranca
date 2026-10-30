@@ -99,11 +99,11 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
           <button type="button" class="btn btn-outline-secondary" (click)="to.toggle()" aria-label="Abrir calendário de fim"><app-icon name="calendar-event" /></button>
         </div>
       </app-field>
-      <div class="form-check pl-check">
-        <input class="form-check-input" type="checkbox" id="pl-with-balance" formControlName="withBalance" />
-        <label class="form-check-label" for="pl-with-balance">Com saldo a realocar</label>
-      </div>
       <div class="app-filters__actions">
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="checkbox" id="pl-with-balance" formControlName="withBalance" />
+          <label class="form-check-label" for="pl-with-balance">Com saldo a realocar</label>
+        </div>
         <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
       </div>
     </form>
@@ -152,9 +152,6 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
     .pl-warn {
       color: var(--bs-warning-text-emphasis);
       font-weight: 600;
-    }
-    .pl-check {
-      padding-top: 2.25rem;
     }
   `,
 })

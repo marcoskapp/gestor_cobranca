@@ -30,6 +30,7 @@ let nextId = 0;
       [class.form-control-sm]="density.compact()"
       [class.is-invalid]="invalid()"
       [class.app-picker--disabled]="disabled()"
+      [class.app-picker--single]="single()"
     >
       @for (item of selected(); track item.value) {
         <span
@@ -110,6 +111,27 @@ let nextId = 0;
       outline: 0;
       background: transparent;
       color: inherit;
+    }
+    /* seleção única: selo e busca na mesma linha, com a altura de um campo comum — o campo não cresce
+       ao escolher e fica alinhado aos demais campos e aos botões da linha de filtros. O selo encolhe
+       (reticências) e a busca mantém espaço para digitar a troca. */
+    .app-picker--single {
+      flex-wrap: nowrap;
+    }
+    .app-picker--single .app-picker__chip {
+      flex: 0 1 auto;
+    }
+    .app-picker--single .app-picker__input {
+      flex: 1 1 4rem;
+      min-width: 4rem;
+    }
+    /* densidade compacta: mesma altura de .form-control-sm, também com um item escolhido */
+    .app-picker.form-control-sm {
+      min-height: calc(1.5em + 0.5rem + 2px);
+      padding-block: 0.125rem;
+    }
+    .app-picker.form-control-sm .app-picker__chip {
+      padding-block: 1px;
     }
   `,
 })
