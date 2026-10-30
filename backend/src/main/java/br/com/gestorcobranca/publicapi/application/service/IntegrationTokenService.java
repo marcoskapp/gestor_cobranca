@@ -101,7 +101,7 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
                 : command.rateLimitPerMinute();
         List<String> ips = addressRules.normalize(command.allowedIps());
         TokenSecret secret = TokenSecret.generate(hashing.random());
-        IntegrationToken token = tokens.save(new IntegrationToken(command.creditorId(), command.name(),
+        IntegrationToken token = tokens.saveAndFlush(new IntegrationToken(command.creditorId(), command.name(),
                 command.description(), secret.prefix(), hashing.hasher().hash(secret), hashing.hasher().activeKeyId(),
                 scopes, rateLimit, ips, command.expiresAt(), now));
         routes.register(secret.prefix(), currentActor.tenantId(), token.getId());

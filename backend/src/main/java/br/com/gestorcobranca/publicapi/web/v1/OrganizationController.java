@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
@@ -100,12 +101,14 @@ class OrganizationController {
     }
 
     @PostMapping("/portfolios")
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('SCOPE_portfolios:write')")
     @Operation(summary = "Criar carteira", description = "Nasce em rascunho (DRAFT); ative com `POST /portfolios/{id}/status`.")
     ResponseEntity<PortfolioDto> createPortfolio(@Valid @RequestBody CreatePortfolioRequest r, HttpServletRequest http) {
-        PortfolioDto dto = PortfolioDto.of(portfolios.create(new CreatePortfolioCommand(support.creditorId(),
-                r.contractId(), r.code(), r.name(), r.description(), r.receivedOn(), r.validUntil())));
+        UUID id = portfolios.create(new CreatePortfolioCommand(support.creditorId(), r.contractId(), r.code(), r.name(),
+                r.description(), r.receivedOn(), r.validUntil())).id();
         UsageRecords.add(http, 1);
+        PortfolioDto dto = PortfolioDto.of(portfolios.get(id));
         return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.ETAG, PublicApiSupport.etag(dto.version()))
                 .body(dto);
     }
@@ -118,10 +121,10 @@ class OrganizationController {
                                                  @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                                  @Valid @RequestBody UpdatePortfolioRequest r, HttpServletRequest http) {
         ownPortfolio(id);
-        PortfolioDto dto = PortfolioDto.of(portfolios.update(id, new UpdatePortfolioCommand(r.name(), r.description(),
-                r.receivedOn(), r.validUntil()), PublicApiSupport.ifMatch(ifMatch)));
+        portfolios.update(id, new UpdatePortfolioCommand(r.name(), r.description(), r.receivedOn(), r.validUntil()),
+                PublicApiSupport.ifMatch(ifMatch));
         UsageRecords.add(http, 1);
-        return PublicApiSupport.withEtag(dto, dto.version());
+        return committed(id);
     }
 
     @PostMapping("/portfolios/{id}/status")
@@ -133,9 +136,17 @@ class OrganizationController {
                                               @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                               @Valid @RequestBody ChangeStatusRequest r, HttpServletRequest http) {
         ownPortfolio(id);
-        PortfolioDto dto = PortfolioDto.of(portfolios.changeStatus(id, r.status(), r.reason(),
-                PublicApiSupport.ifMatch(ifMatch)));
+        portfolios.changeStatus(id, r.status(), r.reason(), PublicApiSupport.ifMatch(ifMatch));
         UsageRecords.add(http, 1);
+        return committed(id);
+    }
+
+    /**
+     * Releitura depois do comando (transação já confirmada): o ETag devolvido é a versão gravada, pronta para o próximo
+     * {@code If-Match}.
+     */
+    private ResponseEntity<PortfolioDto> committed(UUID id) {
+        PortfolioDto dto = PortfolioDto.of(portfolios.get(id));
         return PublicApiSupport.withEtag(dto, dto.version());
     }
 

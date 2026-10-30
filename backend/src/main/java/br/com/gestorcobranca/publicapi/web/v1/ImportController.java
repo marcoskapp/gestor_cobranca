@@ -94,7 +94,8 @@ class ImportController {
                                  @Valid @RequestBody ImportRecordsRequest r) {
         ownPortfolio(r.portfolioId());
         ControlTotalsRequest t = r.controlTotals();
-        return ImportBatchDto.of(imports.importRecords(new ImportRecordsCommand(r.portfolioId(), r.mode(), r.force(),
+        return ImportBatchDto.of(imports.importRecords(new ImportRecordsCommand(r.portfolioId(), r.mode(),
+                Boolean.TRUE.equals(r.force()),
                 r.reason(), r.records(), r.numberFormat(), t == null ? null
                 : new ControlTotalsCommand(t.rows(), t.principalTotal(), t.balanceTotal(), t.contractAmountTotal())),
                 idempotencyKey));
@@ -190,7 +191,7 @@ class ImportController {
     }
 
     record ImportRecordsRequest(@NotNull UUID portfolioId, @Pattern(regexp = "IMPORT|VALIDATE_ONLY") String mode,
-                                boolean force, @Size(max = 500) String reason,
+                                Boolean force, @Size(max = 500) String reason,
                                 @NotEmpty @Size(max = 1000) List<Map<String, Object>> records,
                                 @Size(max = 10) Map<String, @Pattern(regexp = "COMMA|DOT") String> numberFormat,
                                 @Valid ControlTotalsRequest controlTotals) {

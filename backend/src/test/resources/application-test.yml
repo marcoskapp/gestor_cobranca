@@ -14,6 +14,8 @@ app:
     dir: ./target/test-logs
     technical-level: INFO
   public-api:
+    # testes leem o que acabaram de gravar: sem janela de estabilização da sincronização incremental
+    sync-stabilization-window: PT0S
     token-hash-keys:
       t1: dGVzdC1vbmx5LXB1YmxpYy1hcGktdG9rZW4taGFzaC1rZXkh
   crypto:

@@ -86,7 +86,8 @@ class TitleController {
     ResponseEntity<TitleDto> suspend(@PathVariable UUID id, @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                      @Valid @RequestBody TitleReasonRequest r, HttpServletRequest http) {
         own(id);
-        return done(titles.suspend(id, r.reason(), PublicApiSupport.ifMatch(ifMatch)), http);
+        titles.suspend(id, r.reason(), PublicApiSupport.ifMatch(ifMatch));
+        return done(id, http);
     }
 
     @PostMapping("/{id}/reactivate")
@@ -96,7 +97,8 @@ class TitleController {
                                         @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                         HttpServletRequest http) {
         own(id);
-        return done(titles.reactivate(id, PublicApiSupport.ifMatch(ifMatch)), http);
+        titles.reactivate(id, PublicApiSupport.ifMatch(ifMatch));
+        return done(id, http);
     }
 
     @PostMapping("/{id}/cancel")
@@ -105,7 +107,8 @@ class TitleController {
     ResponseEntity<TitleDto> cancel(@PathVariable UUID id, @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                     @Valid @RequestBody TitleReasonRequest r, HttpServletRequest http) {
         own(id);
-        return done(titles.cancel(id, r.reason(), PublicApiSupport.ifMatch(ifMatch)), http);
+        titles.cancel(id, r.reason(), PublicApiSupport.ifMatch(ifMatch));
+        return done(id, http);
     }
 
     @PostMapping("/{id}/return")
@@ -114,12 +117,14 @@ class TitleController {
     ResponseEntity<TitleDto> giveBack(@PathVariable UUID id, @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                       @Valid @RequestBody TitleReasonRequest r, HttpServletRequest http) {
         own(id);
-        return done(titles.returnToCreditor(id, r.reason(), PublicApiSupport.ifMatch(ifMatch)), http);
+        titles.returnToCreditor(id, r.reason(), PublicApiSupport.ifMatch(ifMatch));
+        return done(id, http);
     }
 
-    private ResponseEntity<TitleDto> done(TitleView view, HttpServletRequest http) {
+    /** Releitura depois do comando (transação confirmada): o ETag é a versão gravada. */
+    private ResponseEntity<TitleDto> done(UUID id, HttpServletRequest http) {
         UsageRecords.add(http, 1);
-        TitleDto dto = TitleDto.of(view);
+        TitleDto dto = TitleDto.of(titles.get(id));
         return PublicApiSupport.withEtag(dto, dto.version());
     }
 

@@ -14,6 +14,9 @@ public interface IntegrationTokenRepository {
 
     IntegrationToken save(IntegrationToken token);
 
+    /** Grava e sincroniza com o banco (a rota global do prefixo referencia o token por chave estrangeira). */
+    IntegrationToken saveAndFlush(IntegrationToken token);
+
     Optional<IntegrationToken> findById(UUID id);
 
     Optional<IntegrationToken> findByPrefix(String prefix);
