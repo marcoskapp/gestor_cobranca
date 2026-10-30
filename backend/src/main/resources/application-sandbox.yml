@@ -67,3 +67,5 @@ app:
       platform-admin-email: ${APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL:admin@plataforma.exemplo.test}
       activation-timeout: PT2M
       step-timeout: PT5M
+      # segredos dos tokens de demonstração da API pública (volume sandbox-data; scripts/sandbox/tokens.sh)
+      tokens-file: ${SANDBOX_TOKENS_FILE:/sandbox-data/api-tokens.txt}

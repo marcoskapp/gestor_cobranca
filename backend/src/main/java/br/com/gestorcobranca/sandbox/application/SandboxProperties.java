@@ -14,7 +14,7 @@ import java.time.Duration;
 public record SandboxProperties(Seed seed) {
 
     public SandboxProperties {
-        seed = seed == null ? new Seed(false, null, null, null, null, null) : seed;
+        seed = seed == null ? new Seed(false, null, null, null, null, null, null) : seed;
     }
 
     /**
@@ -24,9 +24,11 @@ public record SandboxProperties(Seed seed) {
      * @param platformAdminEmail administrador da plataforma criado pelo bootstrap ({@code APP_BOOTSTRAP_*})
      * @param activationTimeout  espera máxima pelo e-mail de ativação de cada usuário
      * @param stepTimeout        espera máxima por processamentos assíncronos (importação, jobs, eventos)
+     * @param tokensFile         arquivo (volume exclusivo do sandbox, permissão 600) com os segredos dos tokens de
+     *                           demonstração da API pública, exibidos só na emissão
      */
     public record Seed(boolean enabled, String demoPassword, URI mailpitApiUrl, String platformAdminEmail,
-                       Duration activationTimeout, Duration stepTimeout) {
+                       Duration activationTimeout, Duration stepTimeout, java.nio.file.Path tokensFile) {
 
         public Seed {
             activationTimeout = activationTimeout == null ? Duration.ofMinutes(2) : activationTimeout;

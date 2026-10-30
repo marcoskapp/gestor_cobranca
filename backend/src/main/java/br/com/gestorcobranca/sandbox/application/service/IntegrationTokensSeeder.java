@@ -1,36 +1,96 @@
 package br.com.gestorcobranca.sandbox.application.service;
 
+import br.com.gestorcobranca.publicapi.application.port.in.IntegrationTokenUseCases;
+import br.com.gestorcobranca.publicapi.application.port.in.IntegrationTokenUseCases.ScopeView;
+import br.com.gestorcobranca.publicapi.application.port.in.IntegrationTokenUseCases.TokenView;
+import br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken;
+import br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken.IssueTokenCommand;
+import br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken.IssuedToken;
 import br.com.gestorcobranca.sandbox.application.SandboxSeedComponent;
+import br.com.gestorcobranca.sandbox.application.port.out.DemoTokenVault;
+import br.com.gestorcobranca.sandbox.domain.model.DemoCatalog.CreditorSpec;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.security.Actor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
 /**
- * <strong>Ponto de extensão — tokens de integração da API pública: integrado após o merge da
- * {@code feature/api-publica}.</strong>
+ * Tokens de demonstração da API pública ({@code docs/tecnico/desenho/api-publica.md}): para cada credor de cada
+ * assessoria, um token {@code sandbox-<prefixo>-completo} com todos os escopos do catálogo (leitura e escrita da
+ * carteira) e, no 1º credor, um token {@code sandbox-<prefixo>-leitura} só com os escopos de leitura.
  * <p>
- * A API pública (outra frente, ainda não integrada à master) cria tokens de integração por credor. Quando ela chegar
- * à master, esta etapa passa a emitir, para cada credor de cada assessoria do sandbox, um token de demonstração pelo
- * caso de uso público daquele módulo (nunca gravando no banco por fora), e a documentar o resultado:
- * <ol>
- *   <li>declarar a dependência {@code "<módulo da api pública> :: usecases"} em {@code sandbox/package-info.java};</li>
- *   <li>injetar o caso de uso de tokens aqui e, para cada {@code seed.creditors}, verificar se já há token ativo com o
- *       nome {@code "sandbox-<prefixo do credor>"} (idempotência) e, se não houver, emiti-lo como o administrador da
- *       assessoria ({@code seed.actor("admin")}) — ou o perfil que a API pública definir — com os escopos de importação
- *       de carteira e consulta;</li>
- *   <li>o segredo do token só é exibido na emissão: registrá-lo no log técnico é proibido; expor para a demonstração
- *       pelo mecanismo que a API pública oferecer (ex.: tela de tokens) e citar no guia
- *       {@code docs/tecnico/operacao/sandbox.md} (seção "Tokens de integração").</li>
- * </ol>
- * Até lá a etapa só registra que foi pulada; o {@link SandboxSeeder} já a chama na ordem certa (depois da configuração
- * dos credores e antes das cargas de carteira, para permitir uma carga demonstrativa pela API pública).
+ * Emitidos pelo caso de uso público {@link IssueIntegrationToken}, como o <strong>administrador</strong> da assessoria —
+ * a regra de emissão só deixa conceder escopos que o emissor tem (o perfil Integrações, por exemplo, não teria
+ * {@code titles:*}). O segredo só existe no retorno da emissão: vai para o arquivo do volume exclusivo do sandbox
+ * ({@link DemoTokenVault}, lido pelo {@code scripts/sandbox/tokens.sh}) e nunca para o log.
+ * <p>
+ * Idempotente pelo nome: token ativo existente não é emitido de novo. Se o arquivo se perdeu (volume removido à
+ * parte), o segredo é reemitido pela <em>rotação</em> do próprio token, sem carência.
  */
 @SandboxSeedComponent
 class IntegrationTokensSeeder {
 
     private static final Logger LOG = LoggerFactory.getLogger(IntegrationTokensSeeder.class);
 
+    private final IssueIntegrationToken issuer;
+    private final IntegrationTokenUseCases tokens;
+    private final DemoTokenVault vault;
+    private final SeedRuntime rt;
+
+    IntegrationTokensSeeder(IssueIntegrationToken issuer, IntegrationTokenUseCases tokens, DemoTokenVault vault,
+                            SeedRuntime rt) {
+        this.issuer = issuer;
+        this.tokens = tokens;
+        this.vault = vault;
+        this.rt = rt;
+    }
+
     void seed(TenantSeed seed) {
-        LOG.atInfo().addKeyValue("tenantId", seed.tenantId)
-                .log("Tokens de integração da API pública: etapa pendente (integrada após o merge da feature/api-publica)");
+        Actor admin = seed.actor("admin");
+        List<String> all = rt.as(admin, tokens::scopes).stream().map(ScopeView::code).sorted().toList();
+        List<String> readOnly = all.stream().filter(s -> s.endsWith(":read")).toList();
+        Set<UUID> stored = vault.storedTokenIds();
+        for (int c = 0; c < seed.spec.creditors().size(); c++) {
+            CreditorSpec creditor = seed.creditor(c);
+            UUID creditorId = seed.creditorId(c);
+            ensure(seed, admin, stored, creditor, creditorId, tokenName(creditor, "completo"),
+                    "Token de demonstração com leitura e escrita da carteira (sandbox)", all);
+            if (c == 0) {
+                ensure(seed, admin, stored, creditor, creditorId, tokenName(creditor, "leitura"),
+                        "Token de demonstração somente leitura (sandbox)", readOnly);
+            }
+        }
+    }
+
+    static String tokenName(CreditorSpec creditor, String kind) {
+        return "sandbox-" + creditor.prefix().toLowerCase() + "-" + kind;
+    }
+
+    private void ensure(TenantSeed seed, Actor admin, Set<UUID> stored, CreditorSpec creditor, UUID creditorId,
+                        String name, String description, List<String> scopes) {
+        Optional<TokenView> existing = rt.as(admin, () -> tokens.search(creditorId, "ACTIVE", PageQuery.of(0, 100)))
+                .content().stream().filter(t -> name.equals(t.name())).findFirst();
+        IssuedToken issued;
+        if (existing.isPresent()) {
+            if (stored.contains(existing.get().id())) {
+                return;
+            }
+            issued = rt.as(admin, () -> tokens.rotate(existing.get().id(), 0));
+            LOG.atInfo().addKeyValue("tenantId", seed.tenantId).addKeyValue("tokenId", existing.get().id())
+                    .log("Segredo do token de demonstração reemitido por rotação (arquivo do sandbox sem a entrada)");
+        } else {
+            issued = rt.as(admin, () -> issuer.issue(new IssueTokenCommand(creditorId, name, description,
+                    Set.copyOf(scopes), null, List.of(), null)));
+            LOG.atInfo().addKeyValue("tenantId", seed.tenantId).addKeyValue("tokenId", issued.details().id())
+                    .addKeyValue("prefix", issued.details().prefix())
+                    .log("Token de demonstração da API pública emitido");
+        }
+        vault.store(new DemoTokenVault.Entry(issued.details().id(), seed.spec.slug(), creditor.tradeName(), name,
+                issued.details().scopes().stream().sorted().toList(), issued.token()));
     }
 }

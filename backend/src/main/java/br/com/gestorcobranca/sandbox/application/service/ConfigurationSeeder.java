@@ -26,6 +26,8 @@ import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases.P
 import br.com.gestorcobranca.negotiation.application.port.in.CollectionPolicyUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.CollectionPolicyUseCases.CreatePolicyCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.CollectionPolicyUseCases.PolicyView;
+import br.com.gestorcobranca.organization.application.port.in.ContractIntegrationPricingUseCases;
+import br.com.gestorcobranca.sandbox.application.service.catalog.IntegrationPricingCatalog;
 import br.com.gestorcobranca.sandbox.application.service.catalog.NegotiationCatalog;
 import br.com.gestorcobranca.sandbox.domain.model.DemoCatalog.CreditorSpec;
 import br.com.gestorcobranca.sandbox.domain.service.FictitiousData;
@@ -63,6 +65,7 @@ class ConfigurationSeeder {
     private final CollectionPolicyUseCases policies;
     private final AuthorityUseCases authority;
     private final CommissionRuleUseCases commissionRules;
+    private final ContractIntegrationPricingUseCases integrationPricing;
     private final TeamUseCases teams;
     private final QueueUseCases queues;
     private final CommissionPlanUseCases plans;
@@ -73,7 +76,8 @@ class ConfigurationSeeder {
 
     ConfigurationSeeder(ContactPolicyUseCases contactPolicies, LegalBasisUseCases legalBases,
                         CollectionPolicyUseCases policies, AuthorityUseCases authority,
-                        CommissionRuleUseCases commissionRules, TeamUseCases teams, QueueUseCases queues,
+                        CommissionRuleUseCases commissionRules,
+                        ContractIntegrationPricingUseCases integrationPricing, TeamUseCases teams, QueueUseCases queues,
                         CommissionPlanUseCases plans, LegalSettingsUseCases legalSettings, LawFirmUseCases lawFirms,
                         LegalEligibilityUseCases legalEligibility, SeedRuntime rt) {
         this.contactPolicies = contactPolicies;
@@ -81,6 +85,7 @@ class ConfigurationSeeder {
         this.policies = policies;
         this.authority = authority;
         this.commissionRules = commissionRules;
+        this.integrationPricing = integrationPricing;
         this.teams = teams;
         this.queues = queues;
         this.plans = plans;
@@ -94,6 +99,7 @@ class ConfigurationSeeder {
         compliance(seed);
         negotiation(seed);
         commission(seed);
+        integrationPricing(seed);
         teamAndQueues(seed);
         legal(seed);
     }
@@ -207,6 +213,21 @@ class ConfigurationSeeder {
                             "Comissionamento do contrato de prestação de serviços (sandbox)"))).id());
             // quem edita as regras não publica: o administrador publica (segregação de funções)
             rt.as(admin, () -> commissionRules.publish(draft, seed.contractStarts.get(spec.prefix())));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------ preço da API pública
+
+    /** Condições de cobrança das integrações no contrato de cada credor (organization), definidas pelo gestor. */
+    private void integrationPricing(TenantSeed seed) {
+        Actor gestor = seed.actor("gestor");
+        for (int c = 0; c < seed.spec.creditors().size(); c++) {
+            CreditorSpec spec = seed.creditor(c);
+            UUID contractId = seed.contracts.get(spec.prefix());
+            if (rt.as(gestor, () -> integrationPricing.history(contractId)).isEmpty()) {
+                rt.as(gestor, () -> integrationPricing.define(contractId,
+                        IntegrationPricingCatalog.pricing(spec.prefix(), spec.segment())));
+            }
         }
     }
 
