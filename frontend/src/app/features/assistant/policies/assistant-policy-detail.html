@@ -143,8 +143,11 @@
           <h2 class="app-card__title" id="ap-conv">Alçada, prompt e conversa</h2>
           <div class="app-form-grid row-gap-3">
             <app-field label="Perfil de alçada" [hint]="profileHint()">
-              <select appInput [ngModel]="d.authorityProfileId ?? ''" (ngModelChange)="set('authorityProfileId', $event || null)" [disabled]="!editable()">
+              <select appInput [ngModel]="d.authorityProfileId ?? ''" (ngModelChange)="set('authorityProfileId', $event || null)" [disabled]="!editable() || !canAssignAuthority()">
                 <option value="">Padrão (ASSISTENTE_INICIAL)</option>
+                @if (!canAssignAuthority() && d.authorityProfileId) {
+                  <option [ngValue]="d.authorityProfileId">Perfil de alçada escolhido</option>
+                }
                 @for (pr of profiles(); track pr.id) {
                   <option [ngValue]="pr.id">{{ pr.name }} ({{ pr.code }})</option>
                 }

@@ -15,6 +15,7 @@
 #   8. Importação PDF sem IA: PDFs fictícios de demonstração gerados pela carga; o PDF de verificação enviado pela
 #      API pública (token completo, Idempotency-Key fixa) é mapeado pelo mapa salvo do credor (TEMPLATE), fica
 #      aguardando validação humana e os totais do documento batem.
+#   9. menu x API: para cada perfil, as páginas do menu que o perfil vê não recebem 403 na chamada de carregamento.
 #
 #   ./scripts/sandbox/verify.sh
 #
@@ -74,6 +75,7 @@ for tenant in aurora boreal; do
     status="$(jq -r '.status // empty' <<<"${response}" 2>/dev/null || true)"
     if [[ "${status}" == "AUTHENTICATED" ]]; then
       kv_set "token:${tenant}:${person}" "$(jq -r '.accessToken' <<<"${response}")"
+      kv_set "perms:${tenant}:${person}" "$(jq -r '.user.permissions | join(",")' <<<"${response}")"
       roles="$(jq -r '.user.roles | join(",")' <<<"${response}")"
       ok "${tenant}/${person} autenticado (perfis: ${roles})"
     else
@@ -295,6 +297,43 @@ else
       || fail "Importação PDF pela API: status mapa títulos totais validação = ${summary} (esperado AWAITING_VALIDATION TEMPLATE 3 true true)"
   fi
 fi
+
+log INFO "9. menu x API: para cada perfil, as páginas que o menu mostra não recebem 403 ao carregar"
+# página | permissões do item de menu (frontend/src/app/core/layout/navigation.ts) | chamada de carregamento
+# (o teste navigation-routes.spec.ts garante menu = rota; aqui, rota/menu = API, nos perfis reais do sandbox)
+MENU_PAGES="Painel operacional|DASHBOARD_VIEW,REPORT_VIEW|/api/v1/analytics/portfolio
+Recuperação|REPORT_VIEW|/api/v1/analytics/recovery
+Conversão|REPORT_VIEW|/api/v1/analytics/conversion
+Produtividade|PERFORMANCE_VIEW_OWN,PERFORMANCE_VIEW_TEAM,PERFORMANCE_VIEW_ALL,COMMISSION_STATEMENT_MANAGE,COMMISSION_STATEMENT_APPROVE|/api/v1/analytics/productivity
+Confiabilidade|DASHBOARD_VIEW,REPORT_VIEW|/api/v1/analytics/reliability
+Casos|CASE_VIEW|/api/v1/collection/cases
+Devedores|DEBTOR_VIEW|/api/v1/debtors
+Títulos|DEBTOR_VIEW,CASE_VIEW|/api/v1/titles
+Pagamentos|PAYMENT_VIEW|/api/v1/payment/payments
+Credores|CREDITOR_VIEW|/api/v1/creditors
+Carteiras|PORTFOLIO_VIEW|/api/v1/portfolios
+Importação de carteiras|IMPORT_VIEW|/api/v1/ingestion/batches
+Painel jurídico|LEGAL_VIEW|/api/v1/legal/dashboard
+Casos jurídicos|LEGAL_VIEW|/api/v1/legal/matters"
+menu_checked=0
+for person in "${PEOPLE[@]}"; do
+  token="$(token aurora "${person}")"
+  perms=",$(kv_get "perms:aurora:${person}"),"
+  if [[ -z "${token}" ]]; then continue; fi
+  while IFS='|' read -r page required endpoint; do
+    shown=false
+    for p in ${required//,/ }; do
+      if [[ "${perms}" == *",${p},"* ]]; then shown=true; fi
+    done
+    if [[ "${shown}" != true ]]; then continue; fi
+    menu_checked=$((menu_checked + 1))
+    get "${token}" "${endpoint}" >/dev/null
+    if [[ "${HTTP_STATUS}" == 403 ]]; then
+      fail "aurora/${person}: o menu mostra \"${page}\", mas ${endpoint} responde 403"
+    fi
+  done <<<"${MENU_PAGES}"
+done
+ok "menu x API: ${menu_checked} combinações perfil x página do menu sem 403 no carregamento"
 
 if (( FAILURES > 0 )); then
   die "${FAILURES} verificação(ões) falharam"

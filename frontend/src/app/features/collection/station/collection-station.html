@@ -147,7 +147,10 @@
   <!-- zona 3: ações -->
   <aside class="st-zone st-actions" aria-label="Ações do atendimento">
     <div class="st-zone__body st-pad">
-      <app-contact-window [caseId]="selectedCase()?.id ?? null" />
+      <!-- janela de contato (`CASE_WORK`): quem só consulta o caso não vê nem consulta -->
+      @if (canWork()) {
+        <app-contact-window [caseId]="selectedCase()?.id ?? null" />
+      }
 
       @if (current(); as s) {
         @let c = s.collectionCase;

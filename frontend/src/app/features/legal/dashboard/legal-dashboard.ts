@@ -1,4 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -43,9 +45,11 @@ import { Icon } from '../../../shared/components/icon/icon';
     }
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar painel">
-      <div class="app-filters__wide">
-        <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
-      </div>
+      @if (canSeeCreditor) {
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+        </div>
+      }
       <div class="form-check form-switch ld-toggle">
         <input class="form-check-input" type="checkbox" role="switch" id="ld-mine" formControlName="mine" />
         <label class="form-check-label" for="ld-mine">Somente prazos sob minha responsabilidade</label>
@@ -233,6 +237,8 @@ import { Icon } from '../../../shared/components/icon/icon';
 export class LegalDashboard {
   private readonly mattersApi = inject(LegalMattersApi);
   private readonly operationsApi = inject(LegalOperationsApi);
+  /** Filtro por credor exige `CREDITOR_VIEW` (o advogado parceiro não tem: vê só os casos do escritório). */
+  protected readonly canSeeCreditor = inject(AuthService).hasPermission(Permission.CREDITOR_VIEW);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly kinds = DEADLINE_KIND_LABELS;
   protected readonly partner = inject(LegalProfile).external;

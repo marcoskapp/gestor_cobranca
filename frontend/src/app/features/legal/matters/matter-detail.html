@@ -6,7 +6,7 @@
   </app-empty-state>
 } @else if (sheet(); as s) {
   @let m = s.matter;
-  <app-page-header [title]="s.debtor?.name ?? 'Caso jurídico'" [subtitle]="creditors.name(m.creditorId) + ' · ' + originLabels[m.origin] + ' em ' + (m.referredAt | appDate: 'date')">
+  <app-page-header [title]="s.debtor?.name ?? 'Caso jurídico'" [subtitle]="creditorName(m.creditorId) + ' · ' + originLabels[m.origin] + ' em ' + (m.referredAt | appDate: 'date')">
     @if (canManage() && !final()) {
       <button class="btn btn-outline-primary" type="button" (click)="assignResponsible()" data-tour="matter-responsible">
         <app-icon name="person" />
