@@ -123,7 +123,8 @@ Entre como `analista@aurora.exemplo.test` → *Importações → Importação PD
 
 1. `historico-financeiro-hzn.pdf` → mapa salvo reaproveitado, totais conferindo → *Concordo, importar* (abre a conferência da importação);
 2. `historico-financeiro-hzn-totais-divergentes.pdf` → mesmo mapa, total "Pendente" divergente: aprovação bloqueada sem justificativa;
-3. `tabela-simples-hzn.pdf` → layout sem mapa: a tela abre o editor e o mapa é montado à mão (passo a passo e gabarito em [`sandbox.md` §4b](docs/tecnico/operacao/sandbox.md)).
+3. `historico-financeiro-hzn-longo.pdf` → 64 títulos: filtros com contadores, "Selecionar todos os 64 do filtro" e exclusão em massa com motivo único (os totais passam a divergir e pedem justificativa);
+4. `tabela-simples-hzn.pdf` → layout sem mapa: a tela abre o editor e o mapa é montado à mão (passo a passo e gabarito em [`sandbox.md` §4b](docs/tecnico/operacao/sandbox.md)).
 
 Para testar com IA real (Amazon Bedrock, credenciais AWS temporárias por variável de ambiente e **aprovação explícita da transferência internacional**, LGPD art. 33 — só com os PDFs fictícios): `INGESTION_PDF_BEDROCK_ENABLED=true` e `INGESTION_PDF_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED=true` (opcionais: `INGESTION_PDF_BEDROCK_REGION`, `INGESTION_PDF_BEDROCK_MODEL_ID`) antes do `up.sh`; detalhes e avisos em [`sandbox.md` §4b](docs/tecnico/operacao/sandbox.md).
 

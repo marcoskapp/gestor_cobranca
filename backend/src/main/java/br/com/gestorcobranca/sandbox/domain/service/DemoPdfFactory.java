@@ -30,6 +30,8 @@ public final class DemoPdfFactory {
     public static final BigDecimal DIVERGENCE = new BigDecimal("150.00");
     /** Títulos do PDF conferido pelo {@code verify.sh} (a verificação compara a contagem). */
     public static final int API_CHECK_TITLES = 3;
+    /** Títulos do PDF longo (mais que uma página da lista de títulos da tela, que mostra 50). */
+    public static final int LONG_TITLES = 64;
 
     private static final List<String> STREETS = List.of("DAS ACÁCIAS", "DOS IPÊS", "DO CAMPO ALEGRE", "DA PRAINHA",
             "DAS PALMEIRAS", "DO MIRANTE", "DOS GIRASSÓIS", "DA ALVORADA");
@@ -76,7 +78,11 @@ public final class DemoPdfFactory {
                         history(spec, today, 3, 43000, 6, true)),
                 new DemoPdf("tabela-simples-" + p + ".pdf",
                         "Outro layout, sem mapa salvo: com a IA desligada, montar o mapa à mão na tela",
-                        table(spec, today, 4)));
+                        table(spec, today, 4)),
+                new DemoPdf("historico-financeiro-" + p + "-longo.pdf",
+                        "Mesmo layout com " + LONG_TITLES + " títulos em várias páginas: filtros, seleção de todos do filtro"
+                                + " e exclusão em massa",
+                        history(spec, today, 6, 45000, LONG_TITLES, false)));
         DemoPdf apiCheck = new DemoPdf("verificacao-api-" + p + ".pdf",
                 "Enviado pelo verify.sh pela API pública (não use na demonstração pela tela)",
                 history(spec, today, 5, 44000, API_CHECK_TITLES, false));
