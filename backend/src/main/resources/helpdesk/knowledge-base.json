@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "c80e10eb915713f5",
+ "contentVersion": "bba8f13a8a76117e",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -5674,10 +5674,11 @@
    "access": {
     "kind": "MENU",
     "permissions": [
-     "REPORT_VIEW",
      "PERFORMANCE_VIEW_OWN",
      "PERFORMANCE_VIEW_TEAM",
-     "PERFORMANCE_VIEW_ALL"
+     "PERFORMANCE_VIEW_ALL",
+     "COMMISSION_STATEMENT_MANAGE",
+     "COMMISSION_STATEMENT_APPROVE"
     ]
    }
   },
