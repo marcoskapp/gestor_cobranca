@@ -33,7 +33,7 @@
 }
 
 <div class="sim-grid">
-  <div class="sim-side">
+  <div class="sim-side app-stack">
     <form class="app-card" [formGroup]="context" (ngSubmit)="simulate(0)" novalidate aria-labelledby="sim-context" data-tour="sim-context">
       <h2 class="app-card__title" id="sim-context">Dívida a negociar</h2>
       <app-entity-picker [control]="context.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -126,7 +126,7 @@
     </section>
   </div>
 
-  <div class="sim-main" [attr.aria-busy]="running()">
+  <div class="sim-main app-stack" [attr.aria-busy]="running()">
     @if (!result()) {
       <app-empty-state
         icon="calculator"

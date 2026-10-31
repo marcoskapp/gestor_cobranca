@@ -86,7 +86,7 @@ import { Icon } from '../../../shared/components/icon/icon';
         </div>
       </section>
 
-      <div class="ld-grid">
+      <div class="ld-grid app-columns">
         <section class="app-card" aria-labelledby="ld-stages" data-tour="legal-stages">
           <h2 class="app-card__title" id="ld-stages">Casos por fase</h2>
           <div class="ld-scroll">

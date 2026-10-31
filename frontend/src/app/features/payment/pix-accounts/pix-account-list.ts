@@ -48,7 +48,7 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
         <button class="btn btn-primary" type="button" (click)="create()">Nova conta Pix</button>
       </app-empty-state>
     } @else {
-      <div class="pa-grid" data-tour="pix-accounts">
+      <div class="pa-grid app-columns" data-tour="pix-accounts">
         @for (a of accounts(); track a.id) {
           @let cert = certificate(a);
           <section class="app-card pa-card" [attr.aria-labelledby]="'pa-' + a.id">
@@ -133,10 +133,6 @@ import { RotateDialog, RotateDialogData } from './rotate-dialog';
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
       gap: var(--app-gap);
-      /* espaçamento pelo gap da grade */
-      .app-card + .app-card {
-        margin-top: 0;
-      }
     }
     .pa-head {
       display: flex;

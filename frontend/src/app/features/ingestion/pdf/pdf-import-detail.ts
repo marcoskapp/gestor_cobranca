@@ -169,7 +169,7 @@ const POLL_MS = 3000;
       }
 
       @if (v.status === 'AWAITING_VALIDATION' || v.status === 'APPROVED' || v.status === 'AWAITING_MAP') {
-        <div class="pd-layout">
+        <div class="pd-layout app-columns">
           <section class="app-card pd-pdf" aria-label="PDF">
             @if (!canSeePages() && v.fileAvailable) {
               <p class="app-muted">A imagem das páginas do PDF original fica com quem executa importações ou vê dados sensíveis de devedores.</p>
@@ -330,10 +330,6 @@ const POLL_MS = 3000;
       gap: var(--app-gap);
       margin-bottom: var(--app-gap);
       align-items: start;
-    }
-    /* lado a lado: o espaçamento vem do gap da grade, não da margem entre cartões (.app-card + .app-card) */
-    .pd-layout > .app-card {
-      margin-top: 0;
     }
     @media (max-width: 1100px) {
       .pd-layout {

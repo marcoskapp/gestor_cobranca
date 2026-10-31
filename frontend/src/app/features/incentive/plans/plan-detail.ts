@@ -110,7 +110,7 @@ import { SimulationDialog, VigencyDialog, VigencyDialogData } from './plan-dialo
           <h2 class="app-card__title" id="pd-rules">Regras da versão</h2>
           <app-plan-rules-summary [rules]="p.rules" />
         </section>
-        <aside class="in-side">
+        <aside class="in-side app-stack">
           <section class="app-card" aria-labelledby="pd-versions" data-tour="plan-versions">
             <h2 class="app-card__title" id="pd-versions">Versões</h2>
             <ol class="in-list" reversed>

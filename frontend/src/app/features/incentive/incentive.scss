@@ -19,10 +19,6 @@
   gap: var(--app-gap);
   min-width: 0;
 }
-.in-main > .app-card + .app-card,
-.in-side > .app-card + .app-card {
-  margin-top: 0;
-}
 @media (max-width: 991.98px) {
   .in-grid {
     grid-template-columns: minmax(0, 1fr);

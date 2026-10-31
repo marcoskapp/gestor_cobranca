@@ -45,7 +45,7 @@ import { urlFilter } from '../data/url-filter';
           }
           <app-kpi-card label="Importação (mediana)" [detail]="'p95 ' + seconds(r.imports.p95Seconds) + ' · ' + count(r.imports.batches) + ' lotes'">{{ seconds(r.imports.medianSeconds) }}</app-kpi-card>
         </section>
-        <div class="pn__grid">
+        <div class="pn__grid app-columns">
           <section class="app-card">
             <app-bar-chart title="Falhas de mensagens por causa" categoryHeader="Causa" [summary]="summaryOf(r.messages.failuresByCode, 'falhas de mensagem')"
                            [series]="[{ name: 'Mensagens', color: '--app-chart-1' }]" [rows]="countRows(r.messages.failuresByCode)" />
@@ -56,7 +56,7 @@ import { urlFilter } from '../data/url-filter';
                            [series]="[{ name: 'Instruções', color: '--app-chart-1' }]" [rows]="countRows(r.integrations.instructionFailuresByCode)" />
           </section>
         </div>
-        <div class="pn__grid">
+        <div class="pn__grid app-columns">
           <section class="app-card" aria-labelledby="rl-rec">
             <h2 class="app-card__title" id="rl-rec">Conciliação e duplicidades</h2>
             <table class="pn__table">

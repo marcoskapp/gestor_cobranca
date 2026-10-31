@@ -67,7 +67,7 @@ import { urlFilter } from '../data/url-filter';
         @if (r.referenceDate) {
           <p class="pn__hint">Posição em {{ r.referenceDate | appDate: 'date' }}. Valor recuperado = pagamentos confirmados, líquidos de estornos.</p>
         }
-        <div class="pn__grid">
+        <div class="pn__grid app-columns">
           <section class="app-card">
             <app-bar-chart title="Carteira por credor" categoryHeader="Credor" [summary]="creditorSummary()"
                            [series]="[{ name: 'Valor da carteira', color: '--app-chart-1' }, { name: 'Saldo vencido', color: '--app-chart-2' }]"
@@ -78,7 +78,7 @@ import { urlFilter } from '../data/url-filter';
                            [series]="[{ name: 'Valor da carteira', color: '--app-chart-1' }]" [rows]="bucketRows()" noteHeader="Saldo elegível" />
           </section>
         </div>
-        <div class="pn__grid">
+        <div class="pn__grid app-columns">
           <section class="app-card" aria-labelledby="op-status">
             <h2 class="app-card__title" id="op-status">Casos por estado</h2>
             <div class="pn__table-wrap">

@@ -56,6 +56,8 @@ O **desktop operacional** é o alvo primário (1366–1920 px). Tablet e celular
 
 Tabelas largas rolam horizontalmente dentro do cartão (sem quebrar o layout). Telas futuras para gestor no celular devem preferir lista de cartões a tabelas.
 
+**Leiaute de cartões.** Cartões empilhados no fluxo normal recebem o espaço da regra global `.app-card + .app-card`. Cartões dentro de grade ou flex (lado a lado, coluna principal ou lateral de uma ficha) ficam num contêiner `.app-columns` (grade; a tela define `grid-template-columns`) ou `.app-stack` (coluna): o espaço vem do `gap` e os cartões filhos diretos não recebem a margem — sem ela o segundo cartão da linha desceria e ficaria desalinhado. Não zere a margem tela a tela; a auditoria da interface (`scripts/sandbox/audit.sh`) acusa cartões da mesma linha com topos diferentes (tolerância de 1 px) e o documento rolando além da área de conteúdo.
+
 ## 5. Linguagem e formatação
 
 - pt-BR claro, voz ativa, sem jargão técnico ("Não foi possível carregar os dados" em vez de "Erro 503"); verbos no infinitivo nos botões ("Cadastrar credor").

@@ -63,7 +63,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
             {{ count(q.renegotiations) }}
           </app-kpi-card>
         </section>
-        <div class="pn__grid">
+        <div class="pn__grid app-columns">
           <section class="app-card" data-tour="analytics-funnel">
             <app-funnel-chart title="Funil do período" [summary]="funnelSummary()" [stages]="stages()" />
             <p class="pn__hint">Funil de fluxo: cada etapa conta os eventos do período (contato, proposta, acordo formalizado e 1ª parcela da safra).</p>

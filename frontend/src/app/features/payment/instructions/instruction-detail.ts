@@ -30,7 +30,7 @@ import { InstructionPanel } from './instruction-panel';
       </app-empty-state>
     } @else if (instruction(); as i) {
       <app-page-header [title]="types[i.type] + ' · ' + debtors.name(i.debtorId)" [subtitle]="'Gerada em ' + (i.createdAt | appDate) + ' · ' + creditors.name(i.creditorId)" />
-      <div class="id-grid">
+      <div class="id-grid app-columns">
         <section class="app-card" aria-labelledby="id-pix">
           <h2 class="app-card__title" id="id-pix">Pagamento pelo devedor</h2>
           <app-instruction-panel [instruction]="i" (changed)="resource.set($event)" />
@@ -77,10 +77,6 @@ import { InstructionPanel } from './instruction-panel';
       grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
       gap: var(--app-gap);
       align-items: start;
-      /* espaçamento pelo gap da grade */
-      .app-card + .app-card {
-        margin-top: 0;
-      }
     }
     @media (max-width: 959px) {
       .id-grid {
