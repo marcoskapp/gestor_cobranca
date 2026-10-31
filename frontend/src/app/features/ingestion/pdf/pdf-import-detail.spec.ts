@@ -105,9 +105,10 @@ describe('PdfImportDetail', () => {
         const url = req.request.url;
         requested.push(url);
         if (url === '/api/v1/ingestion/pdf-imports/pdf-1') req.flush(v);
+        else if (url.endsWith('/records/facets')) req.flush({ byStatus: { ALL: 1, OK: 1, WARNING: 0, ERROR: 0, LOW_CONFIDENCE: 0, EXCLUDED: 0 }, debtors: [{ index: 1, name: 'EMPRESA FICTICIA', records: 1 }] });
         else if (url.endsWith('/records'))
           req.flush({
-            content: [{ ordinal: 1, debtorIndex: 0, origin: 'TEXT', confidence: null, values: { nome: 'EMPRESA FICTICIA', id_titulo: '1-100-01', saldo: '455.63' }, info: { conta: '00047' }, sources: {}, lines: [{ kind: 'LINE', page: 1, x0: 10, top: 90, x1: 500, bottom: 96 }], page: 1, status: 'OK', findings: [], decision: null, masked: false }],
+            content: [{ ordinal: 1, debtorIndex: 0, origin: 'TEXT', confidence: null, values: { nome: 'EMPRESA FICTICIA', id_titulo: '1-100-01', saldo: '455.63' }, info: { conta: '00047' }, sources: {}, lines: [{ kind: 'LINE', page: 1, x0: 10, top: 90, x1: 500, bottom: 96 }], page: 1, status: 'OK', findings: [], decision: null, masked: false, lowConfidence: false }],
             page: 0,
             size: 50,
             totalElements: 1,
@@ -156,8 +157,8 @@ describe('PdfImportDetail', () => {
 
   it('clique no título destaca a origem no PDF', async () => {
     const fixture = await render(view());
-    const component = fixture.componentInstance as unknown as { focus: (r: unknown) => void; highlight: () => unknown[]; records: () => unknown[] };
-    component.focus(component.records()[0]);
+    const component = fixture.componentInstance as unknown as { focus: (r: unknown) => void; highlight: () => unknown[] };
+    component.focus({ ordinal: 1, lines: [{ kind: 'LINE', page: 1, x0: 10, top: 90, x1: 500, bottom: 96 }], sources: {}, page: 1 });
     expect(component.highlight()).toHaveLength(1);
   });
 });

@@ -10,6 +10,9 @@ import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.Pdf
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.PdfRecordView;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.PdfTemplateView;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordDecisionCommand;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordDecisionResult;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordFacets;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordFilter;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.SaveTemplateCommand;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.UpdateMapCommand;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.UploadPdfCommand;
@@ -89,10 +92,21 @@ class PdfImportController {
 
     @GetMapping("/{id}/records")
     @PreAuthorize("hasAuthority('IMPORT_VIEW')")
-    PageResponse<PdfRecordView> records(@PathVariable UUID id, @RequestParam(required = false) @Size(max = 20) String filter,
+    PageResponse<PdfRecordView> records(@PathVariable UUID id,
+                                        @RequestParam(required = false) @Size(max = 20) String status,
+                                        @RequestParam(required = false) @Min(1) Integer debtor,
+                                        @RequestParam(required = false) @Size(max = 80) String q,
                                         @RequestParam(required = false) Integer page,
                                         @RequestParam(required = false) Integer size) {
-        return pdfImports.records(id, filter, PageQuery.of(page, size));
+        return pdfImports.records(id, new RecordFilter(status, debtor, q), PageQuery.of(page, size));
+    }
+
+    /** Contadores por situação (com o devedor e o texto) e os devedores do documento. */
+    @GetMapping("/{id}/records/facets")
+    @PreAuthorize("hasAuthority('IMPORT_VIEW')")
+    RecordFacets recordFacets(@PathVariable UUID id, @RequestParam(required = false) @Min(1) Integer debtor,
+                              @RequestParam(required = false) @Size(max = 80) String q) {
+        return pdfImports.recordFacets(id, new RecordFilter(null, debtor, q));
     }
 
     @GetMapping(path = "/{id}/pages/{page}", produces = MediaType.IMAGE_PNG_VALUE)
@@ -131,9 +145,11 @@ class PdfImportController {
 
     @PostMapping("/{id}/records/decisions")
     @PreAuthorize("hasAuthority('IMPORT_EXECUTE')")
-    PdfImportView decide(@PathVariable UUID id, @Valid @RequestBody DecisionRequest request) {
-        return pdfImports.decideRecords(id, new RecordDecisionCommand(request.ordinals(), request.decision(),
-                request.justification(), request.revision()));
+    RecordDecisionResult decide(@PathVariable UUID id, @Valid @RequestBody DecisionRequest request) {
+        FilterRequest f = request.filter();
+        return pdfImports.decideRecords(id, new RecordDecisionCommand(request.ordinals(),
+                f == null ? null : new RecordFilter(f.status(), f.debtor(), f.q()), request.expectedCount(),
+                request.decision(), request.justification(), request.revision()));
     }
 
     @PostMapping("/{id}/approve")
@@ -172,9 +188,16 @@ class PdfImportController {
     record MapRequest(@NotNull Map<String, Object> map, @Min(0) int revision) {
     }
 
-    record DecisionRequest(@NotEmpty @Size(max = 2000) List<@NotNull @Min(1) Integer> ordinals,
-                           @NotBlank @Size(max = 20) String decision, @Size(max = 500) String justification,
-                           @Min(0) int revision) {
+    /**
+     * Títulos pelos números ({@code ordinals}) ou pelo critério do filtro ({@code filter} + {@code expectedCount}, a
+     * quantidade que o usuário viu); um dos dois.
+     */
+    record DecisionRequest(@Size(max = 1000) List<@NotNull @Min(1) Integer> ordinals, @Valid FilterRequest filter,
+                           @Min(0) Integer expectedCount, @NotBlank @Size(max = 20) String decision,
+                           @Size(max = 500) String justification, @Min(0) int revision) {
+    }
+
+    record FilterRequest(@Size(max = 20) String status, @Min(1) Integer debtor, @Size(max = 80) String q) {
     }
 
     record ApproveRequest(@Min(1) int revision, @Size(max = 500) String totalsJustification,

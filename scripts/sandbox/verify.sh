@@ -267,8 +267,8 @@ papi GET /billing/position "${READ}" >/dev/null; expect "token só de leitura (s
 log INFO "8. Importação PDF (mapa salvo do 1º credor, sem IA)"
 PDF_INDEX="$(sandbox_pdf_index || true)"
 npdfs="$(grep -c . <<<"${PDF_INDEX}" || true)"
-[[ "${npdfs}" == 8 ]] && ok "8 PDFs fictícios de demonstração (4 por assessoria; ./scripts/sandbox/pdfs.sh)" \
-  || fail "PDFs de demonstração no índice: ${npdfs} (esperado 8)"
+[[ "${npdfs}" == 10 ]] && ok "10 PDFs fictícios de demonstração (5 por assessoria; ./scripts/sandbox/pdfs.sh)" \
+  || fail "PDFs de demonstração no índice: ${npdfs} (esperado 10)"
 PDF_FILE="$(awk -F'\t' '$1 == "aurora" && $4 ~ /^verificacao-api-/ {print $4}' <<<"${PDF_INDEX}")"
 TMP_PDF="$(mktemp "${TMPDIR:-/tmp}/gc-verify-pdf.XXXXXX")"
 trap 'rm -f "${TMP_BODY}" "${TMP_PDF}"' EXIT

@@ -149,7 +149,10 @@ Importação PDF inteligente**:
    conferência dos totais impressos no documento com a soma extraída. Clique no número de um título para ver de onde
    ele saiu. O mapa é editável: campo de cada coluna, coluna ignorada, linhas por título, coluna que inicia o título,
    início (rótulos do cabeçalho) e fim da tabela, devedor, totais e linhas a ignorar — ao aplicar, o sistema reaplica o
-   mapa ao texto na hora. Títulos podem ser excluídos do lote, com justificativa.
+   mapa ao texto na hora. Títulos podem ser excluídos do lote e reincluídos, um a um ou **em massa**: filtre pela
+   situação (com contadores), pelo devedor ou por texto, marque a página ou "todos os N do filtro" e use a barra de
+   ações, com um motivo único para o grupo (registrado na auditoria de cada título). O sistema aplica o permitido e
+   informa o que ficou de fora.
 4. **Concordo, importar** — gera o lote no **layout padrão** (§2) com os títulos não excluídos e abre a **conferência
    da importação** (§8): formato, linhas, grandes totais informados por você, alertas de ticket médio e de separador,
    IMPORTAR e, acima do limite, a aprovação de outra pessoa. "Salvar mapa para este credor" faz os próximos PDFs do mesmo
@@ -159,10 +162,12 @@ Regras:
 
 - **Todo valor importado sai do texto do PDF.** A IA só descreve onde procurar; um programa aplica o mapa e cada valor é
   conferido de novo contra o texto da região de origem. PDF **digitalizado** (só imagem) é a exceção: a IA lê as páginas
-  visualmente, cada título traz a confiança da leitura, os de confiança baixa precisam ser confirmados ou excluídos um a
-  um e a aprovação exige declarar que os valores foram conferidos com as imagens.
+  visualmente, cada título traz a confiança da leitura, os de confiança baixa precisam ser **confirmados um a um**
+  (a confirmação em massa só vale para os sem essa marca) ou excluídos (inclusive em massa), e a aprovação exige declarar
+  que os valores foram conferidos com as imagens.
 - **Totais do documento que não conferem bloqueiam** até o mapa ser corrigido ou a divergência ser justificada (fica na
-  auditoria). Sem totais no documento, confira com cuidado a soma na conferência de grandes totais.
+  auditoria). Os totais são conferidos com os títulos que vão para o lote: excluir um título que o documento soma faz o
+  total divergir e pede justificativa. Sem totais no documento, confira com cuidado a soma na conferência de grandes totais.
 - Valores com vírgula ou ponto decimal conforme o mapa (padrão: vírgula, `1.234,56`). Quem aprovou o mapa, a revisão
   aprovada e cada edição ficam registrados na auditoria.
 - Pela API pública (`POST /public-api/v1/imports/pdf`) o PDF entra no mesmo fluxo e fica aguardando a validação de uma

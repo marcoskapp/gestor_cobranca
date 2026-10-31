@@ -890,7 +890,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'ingestion.pdf-import',
-    version: 1,
+    version: 2,
     title: 'Validação da importação PDF',
     summary: 'Confira o mapa que o sistema escreveu ao ler o PDF e os títulos encontrados.',
     steps: [
@@ -898,8 +898,8 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'pdf-conference', title: 'Conferência com o documento', body: 'Totais impressos no PDF comparados com a soma dos títulos extraídos. Divergência pede correção do mapa ou justificativa.' },
       { anchor: 'pdf-viewer', title: 'O PDF', body: 'As regiões lidas ficam destacadas: devedor, cabeçalho da tabela e totais. Clique no número de um título para ver de onde ele saiu.' },
       { anchor: 'pdf-map', title: 'O mapa', body: 'Em linguagem simples: cada coluna e o campo que recebe. Edite para trocar o campo, ignorar uma coluna ou mudar as linhas por título.', placement: 'start' },
-      { anchor: 'pdf-records', title: 'Títulos', body: 'Erros e avisos são os mesmos da importação por planilha. Exclua do lote o que não deve entrar.', placement: 'above' },
-      { anchor: 'pdf-approve', title: 'Concordo, importar', body: 'Gera o lote no layout padrão e abre a conferência da importação. Salve o mapa para os próximos PDFs deste credor.', placement: 'above' },
+      { anchor: 'pdf-record-filters', title: 'Títulos e filtros', body: 'Filtre pela situação, com contadores, devedor ou texto. Marque linhas (espaço), a página no cabeçalho ou todos do filtro.', placement: 'above' },
+      { anchor: 'pdf-approve', title: 'Concordo, importar', body: 'Exclua em massa com motivo único na barra de ações. Depois, gere o lote e abra a conferência; salve o mapa para o credor.', placement: 'above' },
     ],
   },
   {

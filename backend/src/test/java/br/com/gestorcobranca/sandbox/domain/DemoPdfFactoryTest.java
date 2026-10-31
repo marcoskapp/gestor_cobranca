@@ -26,7 +26,7 @@ class DemoPdfFactoryTest {
             DemoPdfSet set = DemoPdfFactory.forTenant(spec, TODAY);
             assertThat(set).isEqualTo(DemoPdfFactory.forTenant(spec, TODAY));
             assertThat(set.creditorPrefix()).isEqualTo(spec.creditors().getFirst().prefix());
-            assertThat(set.files()).hasSize(4).extracting(DemoPdf::fileName)
+            assertThat(set.files()).hasSize(5).extracting(DemoPdf::fileName)
                     .allMatch(n -> n.matches("[a-z0-9-]+\\.pdf")).doesNotHaveDuplicates();
 
             List<String> ids = new ArrayList<>();
@@ -61,6 +61,7 @@ class DemoPdfFactoryTest {
                     .isEqualByComparingTo(DemoPdfFactory.DIVERGENCE);
             assertThat(((DemoPdf.History) set.apiCheck().document()).titles()).hasSize(DemoPdfFactory.API_CHECK_TITLES);
             assertThat(set.published().get(2).document()).isInstanceOf(DemoPdf.Table.class);
+            assertThat(((DemoPdf.History) set.published().get(3).document()).titles()).hasSize(DemoPdfFactory.LONG_TITLES);
         }
     }
 }

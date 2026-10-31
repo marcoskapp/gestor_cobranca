@@ -96,7 +96,7 @@ A liberação existe só com o perfil Spring `sandbox` **e** `app.sandbox.api-do
 | Compliance | pedido de titular (LGPD) aberto; trilha de auditoria e log de acesso de tudo o que a carga fez |
 | Prestação de contas | demonstrativo do 1º credor calculado |
 | Painéis | snapshots do analytics atualizados pelo agendamento (a cada 15 min) |
-| Importação PDF | 4 PDFs **fictícios** por assessoria, gerados pela carga (`./scripts/sandbox/pdfs.sh` copia para `./sandbox-pdfs/`), e o mapa salvo "Histórico financeiro por cliente (demonstração)" no 1º credor de cada assessoria; IA desligada (§4b) |
+| Importação PDF | 5 PDFs **fictícios** por assessoria, gerados pela carga (`./scripts/sandbox/pdfs.sh` copia para `./sandbox-pdfs/`), e o mapa salvo "Histórico financeiro por cliente (demonstração)" no 1º credor de cada assessoria; IA desligada (§4b) |
 | API pública | 8 tokens de demonstração (um completo por credor, inclusive com a posição do faturamento e do repasse, e um só de leitura da carteira no 1º credor de cada assessoria) e condições de cobrança das integrações em cada contrato (§4a) |
 
 A carga também deixa e-mails no Mailpit: os links de ativação usados para ativar cada usuário e as mensagens de e-mail da operação.
@@ -187,6 +187,7 @@ No sandbox o provedor de IA da Importação PDF fica **desligado** (`INGESTION_P
 | `historico-financeiro-hzn.pdf` | histórico (cabeçalho do devedor, título em 2 linhas, "Totais:") | mapa reaproveitado sem IA → validação → importar (10 títulos) |
 | `historico-financeiro-hzn-totais-divergentes.pdf` | histórico | total "Pendente" impresso R$ 150,00 acima da soma dos títulos: bloqueio por divergência |
 | `tabela-simples-hzn.pdf` | tabela simples (um título por linha, devedor nas colunas, "Total:" e "Quantidade:") | sem mapa salvo: montar o mapa à mão |
+| `historico-financeiro-hzn-longo.pdf` | histórico, 64 títulos em várias páginas | filtros com contadores, seleção da página e de "todos os 64 do filtro", exclusão em massa com motivo único e o bloqueio dos totais que a exclusão faz divergir |
 | `verificacao-api-hzn.pdf` | histórico | enviado pelo `verify.sh` pela API pública — não use na demonstração (o mesmo PDF já em andamento na carteira é recusado, 409) |
 
 **Roteiro** (entre como `analista@aurora.exemplo.test`; *Importações → Importação PDF inteligente*, `/importacao/pdf/nova`; carteira `HZN-CARTAO` do Banco Horizonte):
@@ -199,8 +200,9 @@ No sandbox o provedor de IA da Importação PDF fica **desligado** (`INGESTION_P
    - *Devedor*: "Colunas da própria tabela". *Campos do documento*: nenhum (a tabela não tem saldo; a "Posição em:" iria para a data-base do saldo e seria ignorada, com aviso).
    - *Totais de controle*: `Total:` (valor à direita do rótulo) → valor principal, documento inteiro; `Quantidade:` → quantidade de títulos, documento inteiro.
    - *Aplicar e reprocessar*: os títulos aparecem e os dois totais conferem. Aprove, ou use **Salvar mapa para este credor** — o próximo PDF desse layout será mapeado sozinho. O gabarito exato (JSON) está em `DemoPdfLayouts.tableMap()` e pode ser colado em *Mapa em JSON (avançado)*.
-4. **Mapas salvos**: na própria tela, a lista de mapas do credor (versão, usos, último uso) e a desativação. Na `boreal`, o mesmo roteiro com `analista@boreal.exemplo.test`, carteira `CSR-CARTAO` e os arquivos `*-csr.pdf`.
-5. **API pública**: o credor também pode enviar o PDF (`POST /public-api/v1/imports/pdf`, multipart, `Idempotency-Key`); a importação fica aguardando a validação humana na tela.
+4. **Seleção em massa.** Envie `historico-financeiro-hzn-longo.pdf` (mapa salvo reaproveitado, 64 títulos). Nos títulos, filtre por situação (os botões mostram os contadores), marque a página no cabeçalho e use "Selecionar todos os 64 do filtro"; na barra de ações, "Excluir do lote" pede um motivo único. Os totais são recalculados: o documento soma os títulos excluídos, então a conferência passa a divergir e a aprovação pede justificativa. "Reincluir" desfaz. (A confirmação em massa e a marca de confiança baixa só aparecem em PDF digitalizado, lido pela IA.)
+5. **Mapas salvos**: na própria tela, a lista de mapas do credor (versão, usos, último uso) e a desativação. Na `boreal`, o mesmo roteiro com `analista@boreal.exemplo.test`, carteira `CSR-CARTAO` e os arquivos `*-csr.pdf`.
+6. **API pública**: o credor também pode enviar o PDF (`POST /public-api/v1/imports/pdf`, multipart, `Idempotency-Key`); a importação fica aguardando a validação humana na tela.
 
 ```bash
 TOKEN=$(./scripts/sandbox/tokens.sh --raw | awk -F'\t' '$4 == "sandbox-hzn-completo" {print $6}')

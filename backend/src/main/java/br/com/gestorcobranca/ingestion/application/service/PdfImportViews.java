@@ -152,7 +152,7 @@ class PdfImportViews {
         String decision = decisions.isExcluded(r.ordinal()) ? "EXCLUDED" : decisions.isConfirmed(r.ordinal()) ? "CONFIRMED" : null;
         return new PdfRecordView(r.ordinal(), r.debtorIndex(), r.origin().name(), r.confidence(), values, info, sources,
                 r.lines().stream().map(l -> region("LINE", l)).toList(), r.page(), status,
-                findings.stream().map(PdfImportViews::finding).toList(), decision, masked);
+                findings.stream().map(PdfImportViews::finding).toList(), decision, masked, lowConfidence);
     }
 
     PdfTemplateView template(PdfLayoutTemplate t) {

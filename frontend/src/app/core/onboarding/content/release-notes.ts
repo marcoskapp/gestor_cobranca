@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 11,
+    date: '2026-10-31',
+    title: 'Seleção em massa na importação PDF',
+    items: [
+      { text: 'Filtre os títulos do PDF pela situação, com contadores, pelo devedor ou por texto.', route: '/importacao' },
+      { text: 'Marque a página ou todos os títulos do filtro e exclua do lote com um motivo único, ou reinclua.', route: '/importacao' },
+      { text: 'Títulos lidos com confiança baixa continuam confirmados um a um; excluí-los em massa é permitido.', route: '/importacao' },
+    ],
+  },
+  {
     version: 10,
     date: '2026-10-30',
     title: 'Importação PDF inteligente',

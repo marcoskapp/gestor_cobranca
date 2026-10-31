@@ -82,7 +82,7 @@ class SandboxDemoPdfCompatibilityTest {
         Result model = run(set.model(), history);
         assertThat(errors(model.report())).isEmpty();
         assertThat(model.report().totalsMatch()).isTrue();
-        for (DemoPdf pdf : List.of(set.published().get(0), set.published().get(1), set.apiCheck())) {
+        for (DemoPdf pdf : List.of(set.published().get(0), set.published().get(1), set.published().get(3), set.apiCheck())) {
             assertThat(LayoutFingerprint.matches(run(pdf, history).text(), history)).as(pdf.fileName()).isTrue();
         }
 
@@ -112,6 +112,11 @@ class SandboxDemoPdfCompatibilityTest {
         });
 
         assertThat(run(set.apiCheck(), history).records()).hasSize(DemoPdfFactory.API_CHECK_TITLES);
+        Result longer = run(set.published().get(3), history);
+        assertThat(longer.text().pages()).hasSizeGreaterThan(1);
+        assertThat(longer.records()).hasSize(DemoPdfFactory.LONG_TITLES);
+        assertThat(errors(longer.report())).isEmpty();
+        assertThat(longer.report().totalsMatch()).isTrue();
     }
 
     @ParameterizedTest

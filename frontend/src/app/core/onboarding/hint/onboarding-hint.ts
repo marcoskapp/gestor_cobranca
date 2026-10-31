@@ -58,7 +58,8 @@ import { OnboardingService } from '../onboarding.service';
     .hint-region {
       position: fixed;
       right: 16px;
-      bottom: 16px;
+      /* acima das barras de ações fixas no rodapé (appBottomBar) */
+      bottom: calc(16px + var(--app-bottom-inset, 0px));
       z-index: 900;
       max-width: calc(100vw - 32px);
     }

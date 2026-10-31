@@ -34,6 +34,12 @@ import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.SkippedRecords;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordDecisionResult;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordFacets;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordFilter;
+import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.ingestion.domain.service.pdf.RecordDecisionPolicy;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
@@ -88,6 +94,8 @@ class PdfImportService implements PdfImportUseCases {
     private static final List<PdfImportStatus> ACTIVE = List.of(PdfImportStatus.RECEIVED, PdfImportStatus.MAPPING,
             PdfImportStatus.AWAITING_MAP, PdfImportStatus.AWAITING_VALIDATION, PdfImportStatus.APPROVED);
     private static final int JUSTIFICATION_MIN = 5;
+    /** Títulos escolhidos pelo número numa decisão (acima disso, a seleção vai pelo critério do filtro). */
+    static final int BULK_MAX = 1000;
     private static final int IDEMPOTENCY_MAX = 160;
     /** Problemas de forma do mapa editado que nem chegam a ser guardados (tamanho, caracteres de controle, esquema). */
     private static final Set<String> REJECTED_MAP_CODES = Set.of("pdf_map.too_many", "pdf_map.text_too_long",
@@ -113,6 +121,7 @@ class PdfImportService implements PdfImportUseCases {
     private final BusinessEventLogger businessEvents;
     private final PdfImportMetrics metrics;
     private final PdfImportProperties properties;
+    private final RecordDecisionPolicy decisionPolicy = new RecordDecisionPolicy();
     private final Clock clock;
     private final ExtractionMapValidator validator = new ExtractionMapValidator();
 
@@ -315,30 +324,21 @@ class PdfImportService implements PdfImportUseCases {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<PdfRecordView> records(UUID id, String filter, PageQuery page) {
+    public PageResponse<PdfRecordView> records(UUID id, RecordFilter filter, PageQuery page) {
         PdfImport pdf = loadVisible(id);
         Guard.requireState(analyzable(pdf) && pdf.getMap() != null, "pdf_import.no_records",
                 "A importação ainda não tem títulos para mostrar");
         PdfAnalysis.Result result = analysis.analyze(pdf);
         RecordDecisions decisions = analysis.decisions(pdf);
-        Map<Integer, List<Finding>> byRecord = result.report().findings().stream().filter(f -> f.record() != null)
-                .collect(Collectors.groupingBy(Finding::record, LinkedHashMap::new, Collectors.toList()));
-        String mode = filter == null || filter.isBlank() ? "ALL" : filter.strip().toUpperCase(Locale.ROOT);
-        List<CanonicalRecord> selected = result.records().stream().filter(r -> switch (mode) {
-            case "ERRORS" -> byRecord.getOrDefault(r.ordinal(), List.of()).stream().anyMatch(f -> f.severity() == Finding.Severity.ERROR);
-            case "WARNINGS" -> !byRecord.getOrDefault(r.ordinal(), List.of()).isEmpty() || analysis.lowConfidence(r);
-            case "EXCLUDED" -> decisions.isExcluded(r.ordinal());
-            case "LOW_CONFIDENCE" -> analysis.lowConfidence(r) && !decisions.isConfirmed(r.ordinal());
-            case "ALL" -> true;
-            default -> throw new BusinessRuleException("pdf_import.filter_invalid", "Filtro inválido: " + filter);
-        }).toList();
         boolean unmasked = canSeeValues();
+        PdfRecordQuery query = query(result, decisions, unmasked);
+        List<CanonicalRecord> selected = query.select(filter);
         int from = Math.min(selected.size(), page.page() * page.size());
         int to = Math.min(selected.size(), from + page.size());
         List<PdfRecordView> content = new ArrayList<>();
         for (CanonicalRecord r : selected.subList(from, to)) {
-            content.add(views.record(r, byRecord.getOrDefault(r.ordinal(), List.of()), decisions, !unmasked,
-                    analysis.lowConfidence(r)));
+            content.add(views.record(r, query.findingsByRecord().getOrDefault(r.ordinal(), List.of()), decisions,
+                    !unmasked, analysis.lowConfidence(r)));
         }
         if (unmasked && !content.isEmpty()) {
             accessLogger.log(AccessEvent.of(AccessEventType.SENSITIVE_DATA_VIEWED, currentActor.get(), Map.of(
@@ -347,6 +347,27 @@ class PdfImportService implements PdfImportUseCases {
         }
         int totalPages = page.size() == 0 ? 0 : (selected.size() + page.size() - 1) / page.size();
         return new PageResponse<>(content, page.page(), page.size(), selected.size(), totalPages);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RecordFacets recordFacets(UUID id, RecordFilter filter) {
+        PdfImport pdf = loadVisible(id);
+        Guard.requireState(analyzable(pdf) && pdf.getMap() != null, "pdf_import.no_records",
+                "A importação ainda não tem títulos para mostrar");
+        boolean unmasked = canSeeValues();
+        RecordFacets facets = query(analysis.analyze(pdf), analysis.decisions(pdf), unmasked).facets(filter);
+        if (unmasked && !facets.debtors().isEmpty()) {
+            accessLogger.log(AccessEvent.of(AccessEventType.SENSITIVE_DATA_VIEWED, currentActor.get(), Map.of(
+                    "resource", RESOURCE, "resourceId", id.toString(), "field", "debtor_names",
+                    "count", String.valueOf(facets.debtors().size()))));
+        }
+        return facets;
+    }
+
+    private PdfRecordQuery query(PdfAnalysis.Result result, RecordDecisions decisions, boolean personal) {
+        return new PdfRecordQuery(result.records(), result.report().findings(), decisions, analysis::lowConfidence,
+                personal);
     }
 
     /** Quem conduz a importação (ou pode ver dado sensível) vê os valores lidos e as páginas. */
@@ -431,7 +452,7 @@ class PdfImportService implements PdfImportUseCases {
     }
 
     @Override
-    public PdfImportView decideRecords(UUID id, RecordDecisionCommand command) {
+    public RecordDecisionResult decideRecords(UUID id, RecordDecisionCommand command) {
         PdfImport pdf = loadForCommand(id);
         Guard.requireState(pdf.getStatus() == PdfImportStatus.AWAITING_VALIDATION, "pdf_import.not_editable",
                 "A importação não aceita alterações neste estado");
@@ -442,8 +463,11 @@ class PdfImportService implements PdfImportUseCases {
         } catch (IllegalArgumentException e) {
             throw new BusinessRuleException("pdf_import.decision_invalid", "Decisão deve ser EXCLUDE, INCLUDE ou CONFIRM");
         }
-        Guard.require(command.ordinals() != null && !command.ordinals().isEmpty(), "pdf_import.records_required",
-                "Escolha ao menos um título");
+        boolean byOrdinals = command.ordinals() != null && !command.ordinals().isEmpty();
+        Guard.require(byOrdinals != (command.filter() != null), "pdf_import.records_required",
+                "Escolha os títulos pelos números ou pelo filtro (um dos dois)");
+        Guard.require(!byOrdinals || command.ordinals().size() <= BULK_MAX, "pdf_import.too_many_records",
+                "Escolha até " + BULK_MAX + " títulos pelos números; para mais, use o filtro");
         String justification = command.justification() == null ? null : command.justification().strip();
         if (decision != RecordDecisions.Decision.INCLUDE) {
             Guard.require(justification != null && justification.length() >= JUSTIFICATION_MIN
@@ -451,25 +475,55 @@ class PdfImportService implements PdfImportUseCases {
                     "pdf_import.justification_required", "Informe a justificativa (de 5 a 500 caracteres)");
         }
         PdfAnalysis.Result result = analysis.analyze(pdf);
+        RecordDecisions current = analysis.decisions(pdf);
         Map<Integer, CanonicalRecord> byOrdinal = result.records().stream()
                 .collect(Collectors.toMap(CanonicalRecord::ordinal, r -> r));
-        Set<Integer> ordinals = new LinkedHashSet<>(command.ordinals());
-        for (Integer ordinal : ordinals) {
-            CanonicalRecord r = byOrdinal.get(ordinal);
-            Guard.require(r != null, "pdf_import.record_not_found", "Título inexistente: " + ordinal);
-            if (decision == RecordDecisions.Decision.CONFIRM) {
-                Guard.require(r.origin() == RecordOrigin.VISUAL, "pdf_import.confirm_visual_only",
-                        "A confirmação um a um vale para títulos lidos visualmente");
+        List<CanonicalRecord> targets = new ArrayList<>();
+        if (byOrdinals) {
+            for (Integer ordinal : new LinkedHashSet<>(command.ordinals())) {
+                CanonicalRecord r = byOrdinal.get(ordinal);
+                Guard.require(r != null, "pdf_import.record_not_found", "Título inexistente: " + ordinal);
+                targets.add(r);
+            }
+        } else {
+            targets = query(result, current, canSeeValues()).select(command.filter());
+            if (command.expectedCount() != null && command.expectedCount() != targets.size()) {
+                throw new ConflictException("pdf_import.selection_changed",
+                        "O filtro tem agora %d título(s), e não %d: atualize a lista e selecione de novo"
+                                .formatted(targets.size(), command.expectedCount()),
+                        Map.of("records", targets.size()));
+            }
+            Guard.require(!targets.isEmpty(), "pdf_import.records_required", "Nenhum título no filtro");
+        }
+        boolean individual = byOrdinals && targets.size() == 1;
+        RecordDecisionPolicy.Outcome outcome = decisionPolicy.decide(current, decision, targets.stream()
+                .map(r -> new RecordDecisionPolicy.Target(r.ordinal(), r.origin() == RecordOrigin.VISUAL,
+                        analysis.lowConfidence(r))).toList(), individual);
+        UUID operationId = Ids.newId();
+        PdfAnalysis.Result updated = result;
+        if (!outcome.applied().isEmpty()) {
+            pdf.updateDecisions(analysis.toJson(outcome.decisions()));
+            // recálculo determinístico: os totais de controle passam a conferir só os títulos que vão para o lote
+            updated = analysis.analyze(pdf, outcome.decisions());
+            pdf.updateSummary(analysis.summaryJson(updated, outcome.decisions()));
+            imports.save(pdf);
+            for (Integer ordinal : outcome.applied()) {
+                auditTrail.record(AuditEntry.of("pdf_import.record_decided", RESOURCE, pdf.getId())
+                        .creditor(pdf.getCreditorId()).reason(justification).meta("decision", decision.name())
+                        .meta("record", ordinal)
+                        .meta("titleId", byOrdinal.get(ordinal).values().get(CanonicalField.TITLE_EXTERNAL_ID))
+                        .meta("operationId", operationId).meta("bulk", !individual)
+                        .meta("revision", pdf.getMapRevision()));
             }
         }
-        RecordDecisions decisions = analysis.decisions(pdf).apply(decision, ordinals);
-        pdf.updateDecisions(analysis.toJson(decisions));
-        pdf.updateSummary(analysis.summaryJson(result, decisions));
-        imports.save(pdf);
-        auditTrail.record(AuditEntry.of("pdf_import.records_decided", RESOURCE, pdf.getId()).creditor(pdf.getCreditorId())
-                .reason(justification).meta("decision", decision.name()).meta("records", ordinals)
-                .meta("revision", pdf.getMapRevision()));
-        return view(pdf, result);
+        metrics.recordsDecided(decision.name(), !individual, outcome.applied().size(), outcome.skippedCount());
+        LOG.atInfo().addKeyValue("pdfImportId", pdf.getId()).addKeyValue("operationId", operationId)
+                .addKeyValue("decision", decision.name()).addKeyValue("bulk", !individual)
+                .addKeyValue("requested", targets.size()).addKeyValue("applied", outcome.applied().size())
+                .addKeyValue("skipped", outcome.skippedCount()).log("Decisão sobre títulos da importação PDF");
+        return new RecordDecisionResult(view(pdf, updated), operationId, decision.name(), !individual, targets.size(),
+                outcome.applied().size(), outcome.skipped().stream()
+                .map(g -> new SkippedRecords(g.code(), g.message(), g.ordinals())).toList());
     }
 
     // ================================================================== aprovação
@@ -579,7 +633,8 @@ class PdfImportService implements PdfImportUseCases {
         Guard.require(pdf.getMapOrigin() != MapOrigin.VISUAL && pdf.hasTextLayer(), "pdf_template.visual_not_reusable",
                 "Mapa de leitura visual não é reaplicável: só PDFs com camada de texto geram mapa salvo");
         requireRevision(pdf, command.revision());
-        PdfAnalysis.Result result = analysis.analyze(pdf);
+        // o mapa em si (sem as exclusões do usuário): os totais do documento conferem com tudo o que o mapa encontra
+        PdfAnalysis.Result result = analysis.analyzeMap(pdf);
         Guard.require(result.hardBlocking().isEmpty() && result.totalsMatch(), "pdf_template.map_not_validated",
                 "Só um mapa sem bloqueios e com os totais do documento conferindo pode ser salvo para o credor");
         ExtractionMap map = result.map();

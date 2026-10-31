@@ -54,6 +54,23 @@ class PdfExtractionTest {
     }
 
     @Test
+    void excludedRecordsLeaveTheControlTotalsSoTheDocumentIsComparedWithTheBatch() {
+        List<HistoryTitle> titles = PdfFixtures.historyTitles(4);
+        Result all = run(PdfFixtures.history(titles, null), PdfFixtures.historyMap());
+        assertThat(all.report().totalsMatch()).isTrue();
+        PdfInspection inspection = reader.inspect(PdfFixtures.history(titles, null), 50);
+        Extraction extraction = interpreter.interpret(inspection.text(), PdfFixtures.historyMap());
+        CheckReport withExclusion = checks.check(inspection.text(), PdfFixtures.historyMap(), extraction,
+                all.records(), extraction.controls(), java.util.Set.of(4));
+        assertThat(withExclusion.totalsMatch()).isFalse();
+        assertThat(withExclusion.totals()).allSatisfy(t -> {
+            assertThat(t.matches()).isFalse();
+            assertThat(t.records()).isEqualTo(3);
+        });
+        assertThat(withExclusion.findings()).anyMatch(f -> f.code().equals("pdf.totals_mismatch"));
+    }
+
+    @Test
     void historyWithTwoLineRecordsDebtorHeaderAndTotals() {
         List<HistoryTitle> titles = PdfFixtures.historyTitles(12);
         Result r = run(PdfFixtures.history(titles, null), PdfFixtures.historyMap());

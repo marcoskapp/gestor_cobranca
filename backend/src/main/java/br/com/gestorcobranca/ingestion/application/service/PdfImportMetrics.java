@@ -68,6 +68,15 @@ class PdfImportMetrics {
         }
     }
 
+    /** Decisões sobre os títulos (individual × em massa) e títulos que ficaram de fora pela regra. */
+    void recordsDecided(String decision, boolean bulk, int applied, int skipped) {
+        registry.counter("ingestion.pdf.records.decided", "decision", decision, "bulk", String.valueOf(bulk))
+                .increment(applied);
+        if (skipped > 0) {
+            registry.counter("ingestion.pdf.records.skipped", "decision", decision).increment(skipped);
+        }
+    }
+
     void discarded() {
         registry.counter("ingestion.pdf.discarded").increment();
     }
