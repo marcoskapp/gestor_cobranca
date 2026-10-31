@@ -7,6 +7,7 @@ import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.App
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.PdfImportView;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.PdfRecordView;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordDecisionCommand;
+import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.RecordFilter;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.SaveTemplateCommand;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.UpdateMapCommand;
 import br.com.gestorcobranca.ingestion.application.port.in.PdfImportUseCases.UploadPdfCommand;
@@ -124,7 +125,7 @@ class PdfImportIT extends IngestionTestSupport {
     }
 
     private List<PdfRecordView> records(UUID id) {
-        return asAna(() -> pdfImports.records(id, null, PageQuery.of(0, 200)).content());
+        return asAna(() -> pdfImports.records(id, RecordFilter.all(), PageQuery.of(0, 200)).content());
     }
 
     private String mapJson(ExtractionMap map) {
@@ -170,7 +171,7 @@ class PdfImportIT extends IngestionTestSupport {
                 tenant)).isPositive();
         // só leitura: valores pessoais mascarados e sem imagem da página
         List<PdfRecordView> masked = asUser(Ids.newId(), VIEWER, creditorA,
-                () -> pdfImports.records(received.id(), null, PageQuery.of(0, 5)).content());
+                () -> pdfImports.records(received.id(), RecordFilter.all(), PageQuery.of(0, 5)).content());
         assertThat(masked.getFirst().masked()).isTrue();
         assertThat(masked.getFirst().values().get("documento")).doesNotContain(PdfFixtures.HISTORY_CNPJ.substring(2, 8));
         assertThat(asAna(() -> pdfImports.page(received.id(), 1)).content()).startsWith((byte) 0x89);
@@ -198,9 +199,16 @@ class PdfImportIT extends IngestionTestSupport {
                 new UpdateMapCommand(json.toMap(mapJson(PdfFixtures.historyMap())), 2)));
         assertThat(fixed.summary().totalsMatch()).isTrue();
         PdfImportView decided = asAna(() -> pdfImports.decideRecords(received.id(),
-                new RecordDecisionCommand(List.of(12), "EXCLUDE", "Título já negociado diretamente", 3)));
+                new RecordDecisionCommand(List.of(12), "EXCLUDE", "Título já negociado diretamente", 3))).importView();
         assertThat(decided.summary().recordsToImport()).isEqualTo(11);
-        PdfImportView approved = asAna(() -> pdfImports.approve(received.id(), new ApproveCommand(3, null, false)));
+        // os totais do documento passam a ser conferidos com o que vai para o lote: a exclusão pede justificativa
+        assertThat(decided.summary().totalsMatch()).isFalse();
+        assertThat(decided.totalsJustificationRequired()).isTrue();
+        assertThatThrownBy(() -> asAna(() -> pdfImports.approve(received.id(), new ApproveCommand(3, null, false))))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasFieldOrPropertyWithValue("code", "pdf_import.totals_justification_required");
+        PdfImportView approved = asAna(() -> pdfImports.approve(received.id(),
+                new ApproveCommand(3, "Título 12 já negociado diretamente com o credor", false)));
         assertThat(approved.status()).isEqualTo("APPROVED");
         assertThat(approved.reviewId()).isNotNull();
         assertThat(approved.approvedBy()).isEqualTo(ana);
@@ -280,6 +288,87 @@ class PdfImportIT extends IngestionTestSupport {
         assertThat(approved.status()).isEqualTo("APPROVED");
         runJobs();
         assertThat(asAna(() -> reviews.get(approved.reviewId())).batch().counters().rowsValid()).isEqualTo(2);
+    }
+
+    @Test
+    void bulkDecisionsApplyWhatIsAllowedKeepLowConfidenceOneByOneAndAuditEachTitle() {
+        model.responses.clear();
+        String doc = FakeDocuments.maskedCpf(FakeDocuments.cpf(301));
+        double[] confidence = {0.97, 0.6, 0.95, 0.5, 0.99};
+        List<Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < confidence.length; i++) {
+            rows.add(Map.of("page", 1, "confidence", confidence[i], "values", Map.of("documento", doc,
+                    "nome", "PEDRO FICTICIO", "id_titulo", "M-" + (i + 1), "vencimento", "10/0" + (i + 1) + "/2026",
+                    "valor_principal", "100,00")));
+        }
+        model.willPropose("registrar_leitura", json.toJson(Map.of(
+                "documentType", "Carteira digitalizada", "numberFormat", "COMMA",
+                "columns", List.of(Map.of("header", "Valor", "target", "valor_principal")),
+                "records", rows,
+                "controls", List.of(Map.of("label", "Total:", "target", "valor_principal", "value", "R$ 500,00",
+                        "scope", "DOCUMENT", "page", 1)))));
+        UUID id = upload(PdfFixtures.scanned(), "lote-misto.pdf").id();
+        runJobs();
+        assertThat(get(id).summary().lowConfidence()).isEqualTo(2);
+        var facets = asAna(() -> pdfImports.recordFacets(id, RecordFilter.all()));
+        assertThat(facets.byStatus()).containsEntry("ALL", 5).containsEntry("LOW_CONFIDENCE", 2)
+                .containsEntry("EXCLUDED", 0);
+        assertThat(facets.debtors()).hasSize(1);
+
+        // confirmar em massa (todos do filtro): só os de confiança adequada; os de confiança baixa ficam de fora
+        var bulk = asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(null, RecordFilter.all(), 5,
+                "CONFIRM", "Conferidos com as imagens", 1)));
+        assertThat(bulk.bulk()).isTrue();
+        assertThat(bulk.requested()).isEqualTo(5);
+        assertThat(bulk.applied()).isEqualTo(3);
+        assertThat(bulk.skipped()).singleElement().satisfies(g -> {
+            assertThat(g.code()).isEqualTo("low_confidence_one_by_one");
+            assertThat(g.ordinals()).containsExactly(2, 4);
+        });
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? and action = 'pdf_import.record_decided'"
+                + " and metadata->>'operationId' = ? and reason = 'Conferidos com as imagens'"
+                + " and metadata->>'bulk' = 'true'", tenant, bulk.operationId().toString())).isEqualTo(3);
+
+        // dois títulos pelo número também é em massa: a regra é do servidor, não da tela
+        var pair = asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(List.of(2, 4), "CONFIRM",
+                "Conferidos com as imagens", 1)));
+        assertThat(pair.applied()).isZero();
+        assertThat(pair.skipped()).singleElement().extracting(g -> g.code()).isEqualTo("low_confidence_one_by_one");
+        // um a um: permitido
+        var single = asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(List.of(2), "CONFIRM",
+                "Conferido com a imagem da página", 1)));
+        assertThat(single.bulk()).isFalse();
+        assertThat(single.applied()).isEqualTo(1);
+
+        // excluir em massa os de confiança baixa é permitido; o filtro mudou desde a tela → 409
+        assertThatThrownBy(() -> asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(null,
+                new RecordFilter("LOW_CONFIDENCE", null, null), 2, "EXCLUDE", "Ilegível na imagem", 1))))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "pdf_import.selection_changed");
+        assertThatThrownBy(() -> asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(null,
+                new RecordFilter("LOW_CONFIDENCE", null, null), 1, "EXCLUDE", "Ilegível na imagem", 0))))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "pdf_import.revision_changed");
+        var excluded = asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(null,
+                new RecordFilter("LOW_CONFIDENCE", null, null), 1, "EXCLUDE", "Ilegível na imagem", 1)));
+        assertThat(excluded.applied()).isEqualTo(1);
+        // recálculo: o documento soma R$ 500,00 e o lote passa a ter R$ 400,00 → divergência com justificativa
+        assertThat(excluded.importView().summary().recordsToImport()).isEqualTo(4);
+        assertThat(excluded.importView().summary().totalsMatch()).isFalse();
+        assertThat(excluded.importView().totalsJustificationRequired()).isTrue();
+        assertThat(excluded.importView().blockers()).noneMatch(b -> b.contains("confiança baixa"));
+        assertThat(asAna(() -> pdfImports.recordFacets(id, RecordFilter.all())).byStatus())
+                .containsEntry("EXCLUDED", 1).containsEntry("LOW_CONFIDENCE", 0);
+
+        // reincluir: aplica o excluído e informa o que não estava excluído; os totais voltam a conferir
+        var back = asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(List.of(4, 1), "INCLUDE", null, 1)));
+        assertThat(back.applied()).isEqualTo(1);
+        assertThat(back.skipped()).singleElement().extracting(g -> g.code()).isEqualTo("not_excluded");
+        assertThat(back.importView().summary().totalsMatch()).isTrue();
+        // filtro inválido e seleção ambígua são recusados
+        assertThatThrownBy(() -> asAna(() -> pdfImports.decideRecords(id, new RecordDecisionCommand(List.of(1),
+                RecordFilter.all(), null, "EXCLUDE", "Motivo qualquer", 1))))
+                .isInstanceOf(BusinessRuleException.class).hasFieldOrPropertyWithValue("code", "pdf_import.records_required");
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? and entity_id = ?"
+                + " and action = 'pdf_import.record_decided'", tenant, id)).isEqualTo(3 + 1 + 1 + 1);
     }
 
     @Test

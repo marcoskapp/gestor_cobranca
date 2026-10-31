@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -77,6 +78,18 @@ public final class ExtractionChecks {
      */
     public CheckReport check(PdfText text, ExtractionMap map, Extraction extraction, List<CanonicalRecord> records,
                              List<ControlValue> controls) {
+        return check(text, map, extraction, records, controls, Set.of());
+    }
+
+    /**
+     * Como {@link #check(PdfText, ExtractionMap, Extraction, List, List)}, com os títulos excluídos do lote pelo usuário
+     * fora da soma dos totais de controle: o documento é conferido com o que vai ser importado (excluir um título que o
+     * documento soma faz o total divergir e pede correção ou justificativa, como qualquer divergência).
+     *
+     * @param excluded números dos títulos excluídos do lote
+     */
+    public CheckReport check(PdfText text, ExtractionMap map, Extraction extraction, List<CanonicalRecord> records,
+                             List<ControlValue> controls, Set<Integer> excluded) {
         List<Finding> findings = new ArrayList<>();
         List<TotalsCheck> totals = new ArrayList<>();
         if (extraction != null && !extraction.tableHeaderFound()) {
@@ -86,7 +99,8 @@ public final class ExtractionChecks {
         if (records.isEmpty()) {
             findings.add(Finding.blocking("pdf.no_records", "Nenhum título encontrado com este mapa", null, null, null));
         }
-        totals(map, extraction, records, controls, findings, totals);
+        totals(map, extraction, excluded.isEmpty() ? records
+                : records.stream().filter(r -> !excluded.contains(r.ordinal())).toList(), controls, findings, totals);
         if (text != null) {
             trace(text, records, findings);
         }

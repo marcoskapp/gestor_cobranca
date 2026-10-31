@@ -29,8 +29,11 @@ public interface PdfImportUseCases {
 
     PageResponse<PdfImportSummaryView> search(PdfImportSearch filter, PageQuery page);
 
-    /** Títulos encontrados, com a origem no PDF e as ocorrências de cada um. */
-    PageResponse<PdfRecordView> records(UUID id, String filter, PageQuery page);
+    /** Títulos encontrados (filtrados), com a origem no PDF e as ocorrências de cada um. */
+    PageResponse<PdfRecordView> records(UUID id, RecordFilter filter, PageQuery page);
+
+    /** Contadores por situação (com o devedor e o texto do filtro) e os devedores, para os filtros da tela. */
+    RecordFacets recordFacets(UUID id, RecordFilter filter);
 
     /** Imagem PNG de uma página (visualização na tela de validação). */
     PageImage page(UUID id, int page);
@@ -41,8 +44,13 @@ public interface PdfImportUseCases {
     /** Pede nova proposta de mapa à IA (layout que não casou com o mapa salvo, ou proposta ruim). */
     PdfImportView requestNewMap(UUID id);
 
-    /** Exclui, inclui de volta ou confirma (leitura visual) títulos antes da aprovação. */
-    PdfImportView decideRecords(UUID id, RecordDecisionCommand command);
+    /**
+     * Exclui do lote, reinclui ou confirma (leitura visual) títulos antes da aprovação — um título ou em massa (lista de
+     * números ou o critério do filtro), numa única transação. Aplica o permitido e informa o que ficou de fora; título
+     * de confiança baixa só é confirmado um a um (decisão 667). Auditoria: uma entrada por título, com o motivo e o
+     * identificador da operação.
+     */
+    RecordDecisionResult decideRecords(UUID id, RecordDecisionCommand command);
 
     /** "Concordo, importar": gera o lote canônico e abre a conferência da importação. */
     PdfImportView approve(UUID id, ApproveCommand command);
@@ -74,11 +82,38 @@ public interface PdfImportUseCases {
     }
 
     /**
-     * @param ordinals      títulos (posição no documento)
-     * @param decision      EXCLUDE, INCLUDE ou CONFIRM (leitura visual)
-     * @param justification obrigatória para EXCLUDE e CONFIRM
+     * Filtro dos títulos.
+     *
+     * @param status ALL, OK, WARNING, ERROR, LOW_CONFIDENCE (leitura visual com confiança baixa ainda não confirmada) ou
+     *               EXCLUDED; OK, WARNING e ERROR não incluem os excluídos
+     * @param debtor índice do devedor no documento (1, 2…); nulo = todos
+     * @param query  texto livre: identificador do título e contrato e, para quem vê dado pessoal, nome e CPF/CNPJ
      */
-    record RecordDecisionCommand(List<Integer> ordinals, String decision, String justification, int revision) {
+    record RecordFilter(String status, Integer debtor, String query) {
+
+        public static RecordFilter all() {
+            return new RecordFilter(null, null, null);
+        }
+    }
+
+    /**
+     * Decisão sobre títulos: pelos números ({@code ordinals}) <strong>ou</strong> pelo critério do filtro
+     * ({@code filter}, todos os títulos que o satisfazem na revisão informada).
+     *
+     * @param ordinals      títulos (posição no documento)
+     * @param filter        critério do filtro (seleção "todos os N do filtro")
+     * @param expectedCount com {@code filter}: quantos títulos o usuário viu no filtro (outro número = 409)
+     * @param decision      EXCLUDE, INCLUDE ou CONFIRM (leitura visual)
+     * @param justification obrigatória para EXCLUDE e CONFIRM (motivo único do grupo)
+     * @param revision      revisão do mapa que o usuário está vendo (concorrência)
+     */
+    record RecordDecisionCommand(List<Integer> ordinals, RecordFilter filter, Integer expectedCount, String decision,
+                                 String justification, int revision) {
+
+        /** Decisão sobre títulos escolhidos pelo número. */
+        public RecordDecisionCommand(List<Integer> ordinals, String decision, String justification, int revision) {
+            this(ordinals, null, null, decision, justification, revision);
+        }
     }
 
     /**
@@ -99,6 +134,32 @@ public interface PdfImportUseCases {
     // ------------------------------------------------------------------ visões
 
     record PageImage(int page, String contentType, byte[] content) {
+    }
+
+    /**
+     * @param operationId identificador da operação (na auditoria de cada título)
+     * @param bulk        decisão em massa (mais de um título ou pelo filtro)
+     * @param requested   títulos alcançados pela seleção
+     * @param applied     títulos em que a decisão foi aplicada
+     * @param skipped     o que ficou de fora, por motivo
+     */
+    record RecordDecisionResult(PdfImportView importView, UUID operationId, String decision, boolean bulk,
+                                int requested, int applied, List<SkippedRecords> skipped) {
+    }
+
+    /** @param code already_excluded, not_excluded, not_visual, already_confirmed ou low_confidence_one_by_one */
+    record SkippedRecords(String code, String message, List<Integer> ordinals) {
+    }
+
+    /**
+     * @param byStatus quantidade por situação (ALL, OK, WARNING, ERROR, LOW_CONFIDENCE, EXCLUDED), já com o devedor e
+     *                 o texto do filtro aplicados
+     * @param debtors  devedores do documento (nome mascarado para quem não vê dado pessoal)
+     */
+    record RecordFacets(Map<String, Integer> byStatus, List<DebtorFacet> debtors) {
+    }
+
+    record DebtorFacet(int index, String name, int records) {
     }
 
     record PdfImportSummaryView(UUID id, UUID creditorId, UUID portfolioId, String channel, String status,

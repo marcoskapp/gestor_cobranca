@@ -181,11 +181,27 @@ class PdfAnalysis {
 
     // ------------------------------------------------------------------ análise
 
+    /** Mapa corrente com as decisões correntes (títulos excluídos fora da soma dos totais de controle). */
     Result analyze(PdfImport pdf) {
-        return analyze(pdf, parseMap(pdf.getMap()));
+        return analyze(pdf, parseMap(pdf.getMap()), decisions(pdf));
     }
 
+    /** Mapa corrente sem as decisões do usuário (o mapa em si: salvar mapa para o credor). */
+    Result analyzeMap(PdfImport pdf) {
+        return analyze(pdf, parseMap(pdf.getMap()), RecordDecisions.none());
+    }
+
+    /** Mapa novo (as decisões valem por revisão: um mapa novo começa sem decisões). */
     Result analyze(PdfImport pdf, ExtractionMap map) {
+        return analyze(pdf, map, RecordDecisions.none());
+    }
+
+    /** Mapa corrente com outras decisões (recálculo determinístico depois de uma decisão sobre os títulos). */
+    Result analyze(PdfImport pdf, RecordDecisions decisions) {
+        return analyze(pdf, parseMap(pdf.getMap()), decisions);
+    }
+
+    private Result analyze(PdfImport pdf, ExtractionMap map, RecordDecisions decisions) {
         Timer.Sample sample = Timer.start(meters);
         String outcome = "ok";
         try {
@@ -196,7 +212,8 @@ class PdfAnalysis {
                     throw new BusinessRuleException("pdf_import.file_deleted",
                             "A leitura visual já foi descartada pela política de retenção");
                 }
-                return visual(json.fromJson(pdf.getVisualResult(), VisualReading.class), map, checks);
+                return visual(json.fromJson(pdf.getVisualResult(), VisualReading.class), map, checks,
+                        decisions.excluded());
             }
             PdfText text = text(pdf);
             if (map == null) {
@@ -207,7 +224,8 @@ class PdfAnalysis {
             List<MapProblem> problems = validator.validate(map);
             Extraction extraction = interpreter.interpret(text, map);
             List<CanonicalRecord> records = assembler.assemble(extraction, map);
-            CheckReport report = checks.check(text, map, extraction, records, extraction.controls());
+            CheckReport report = checks.check(text, map, extraction, records, extraction.controls(),
+                    decisions.excluded());
             if (!problems.isEmpty()) {
                 List<Finding> findings = new ArrayList<>();
                 problems.forEach(p -> findings.add(Finding.blocking("pdf.map_invalid", p.message(), null, null, null)));
@@ -227,13 +245,13 @@ class PdfAnalysis {
     /** Leitura visual (PDF sem camada de texto): títulos e totais transcritos pelo modelo. */
     Result analyzeVisual(VisualReading reading, ExtractionMap described) {
         return visual(reading, described, new ExtractionChecks(LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE)),
-                properties.minConfidence()));
+                properties.minConfidence()), Set.of());
     }
 
-    private Result visual(VisualReading reading, ExtractionMap map, ExtractionChecks checks) {
+    private Result visual(VisualReading reading, ExtractionMap map, ExtractionChecks checks, Set<Integer> excluded) {
         List<CanonicalRecord> records = visualAssembler.records(reading);
         List<ControlValue> controls = visualAssembler.controls(reading);
-        CheckReport report = checks.check(null, map, null, records, controls);
+        CheckReport report = checks.check(null, map, null, records, controls, excluded);
         return new Result(null, map, List.of(), null, records, controls, report);
     }
 
