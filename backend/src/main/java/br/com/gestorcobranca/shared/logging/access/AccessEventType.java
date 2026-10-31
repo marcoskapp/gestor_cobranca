@@ -69,6 +69,11 @@ public enum AccessEventType {
     /** Chamado de suporte aberto num rastreador externo (issue no GitHub) com o e-mail de quem abriu. */
     SUPPORT_TICKET_OPENED,
     /**
+     * Consulta à lista restrita de usuários atribuíveis (ex.: advogado interno, responsável por prazo — decisão 686):
+     * campo, caso e quantidade devolvida, nunca o texto buscado.
+     */
+    USER_DIRECTORY_QUERIED,
+    /**
      * Requisição à API pública autenticada por token de integração: rota, método, status, bytes trafegados,
      * latência, credor e prefixo do token (uma linha por requisição; sucesso = status abaixo de 400).
      */

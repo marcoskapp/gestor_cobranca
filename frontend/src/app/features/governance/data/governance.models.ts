@@ -101,6 +101,7 @@ export const ACCESS_EVENT_LABELS: Record<string, string> = {
   PORTAL_LOGIN_SUCCESS: 'Login no portal',
   PORTAL_LOGIN_FAILURE: 'Falha de login no portal',
   RATE_LIMITED: 'Limite de tentativas atingido',
+  USER_DIRECTORY_QUERIED: 'Consulta de usuários atribuíveis',
 };
 
 /** Tipos de entidade auditados atualmente pelo backend. */

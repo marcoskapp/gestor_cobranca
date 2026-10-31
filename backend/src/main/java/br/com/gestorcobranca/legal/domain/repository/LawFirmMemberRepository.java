@@ -12,6 +12,9 @@ public interface LawFirmMemberRepository {
 
     Optional<LawFirmMember> findByUserIdAndActiveTrue(UUID userId);
 
+    /** Vínculos ativos com escritórios parceiros (todos os escritórios da assessoria). */
+    List<LawFirmMember> findByActiveTrue();
+
     List<LawFirmMember> findByLawFirmIdOrderByJoinedAtAsc(UUID lawFirmId);
 
     Optional<LawFirmMember> findByLawFirmIdAndUserIdAndActiveTrue(UUID lawFirmId, UUID userId);
