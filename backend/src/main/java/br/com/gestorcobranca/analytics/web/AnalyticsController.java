@@ -44,8 +44,9 @@ import java.util.UUID;
 @Tag(name = "Analytics", description = "Painel operacional, recuperação, conversão, produtividade e confiabilidade")
 class AnalyticsController {
 
-    private static final String PEOPLE = "hasAnyAuthority('REPORT_VIEW', 'PERFORMANCE_VIEW_OWN', "
-            + "'PERFORMANCE_VIEW_TEAM', 'PERFORMANCE_VIEW_ALL')";
+    /** Dados por pessoa: mesmas permissões que dão escopo de pessoas em {@code AnalyticsAccess#peopleScope()}. */
+    private static final String PEOPLE = "hasAnyAuthority('PERFORMANCE_VIEW_OWN', 'PERFORMANCE_VIEW_TEAM', "
+            + "'PERFORMANCE_VIEW_ALL', 'COMMISSION_STATEMENT_MANAGE', 'COMMISSION_STATEMENT_APPROVE')";
 
     private final AnalyticsQueries queries;
     private final AnalyticsExportUseCases exports;

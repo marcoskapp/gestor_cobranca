@@ -61,8 +61,10 @@ class AnalyticsQueryService implements AnalyticsQueries {
     static final String NO_KEY = "-";
     static final List<Integer> BREAK_WINDOWS = List.of(30, 60, 90);
 
-    private static final Permission[] PEOPLE_PERMISSIONS = {Permission.REPORT_VIEW, Permission.PERFORMANCE_VIEW_OWN,
-            Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL};
+    /** Mesmas permissões que dão escopo de pessoas ({@link AnalyticsAccess#peopleScope()}); só relatório não basta. */
+    private static final Permission[] PEOPLE_PERMISSIONS = {Permission.PERFORMANCE_VIEW_OWN,
+            Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL, Permission.COMMISSION_STATEMENT_MANAGE,
+            Permission.COMMISSION_STATEMENT_APPROVE};
 
     private final AnalyticsReader reader;
     private final AnalyticsAccess access;

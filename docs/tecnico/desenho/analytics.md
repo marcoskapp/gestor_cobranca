@@ -93,7 +93,7 @@ Job: `AnalyticsJobs#refreshAll` — `@Scheduled(fixedDelay = app.analytics.refre
 | --- | --- | --- |
 | `GET /analytics/portfolio` | `DASHBOARD_VIEW` ou `REPORT_VIEW` | escopo de credores |
 | `GET /analytics/recovery`, `/conversion` | `REPORT_VIEW` | agrupar/filtrar por operador ou equipe exige escopo de pessoas |
-| `GET /analytics/productivity` | `REPORT_VIEW` ou `PERFORMANCE_VIEW_OWN/TEAM/ALL` | sempre por pessoa |
+| `GET /analytics/productivity` | `PERFORMANCE_VIEW_OWN/TEAM/ALL` ou gestão/aprovação de extratos de comissão (só `REPORT_VIEW` não basta: dados por pessoa) | sempre por pessoa |
 | `GET /analytics/reliability` | `DASHBOARD_VIEW` ou `REPORT_VIEW` | processamentos (sem credor) só com todos os credores |
 | `GET /analytics/freshness`, `POST /analytics/refresh` | leitura de qualquer painel | — |
 | `GET /analytics/{report}/export?format=CSV|XLSX` | `REPORT_EXPORT` + leitura do relatório | `DATA_EXPORTED` com relatório, filtros, linhas e SHA-256 |
