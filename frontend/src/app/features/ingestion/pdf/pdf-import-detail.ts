@@ -331,6 +331,10 @@ const POLL_MS = 3000;
       margin-bottom: var(--app-gap);
       align-items: start;
     }
+    /* lado a lado: o espaçamento vem do gap da grade, não da margem entre cartões (.app-card + .app-card) */
+    .pd-layout > .app-card {
+      margin-top: 0;
+    }
     @media (max-width: 1100px) {
       .pd-layout {
         /* minmax(0, …): a página do PDF (largura mínima legível) rola dentro do quadro, sem alargar a coluna */
