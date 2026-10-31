@@ -171,7 +171,9 @@ const POLL_MS = 3000;
       @if (v.status === 'AWAITING_VALIDATION' || v.status === 'APPROVED' || v.status === 'AWAITING_MAP') {
         <div class="pd-layout">
           <section class="app-card pd-pdf" aria-label="PDF">
-            @if (v.textLayer && v.fileAvailable) {
+            @if (!canSeePages() && v.fileAvailable) {
+              <p class="app-muted">A imagem das páginas do PDF original fica com quem executa importações ou vê dados sensíveis de devedores.</p>
+            } @else if (v.textLayer && v.fileAvailable) {
               <app-pdf-page-viewer [importId]="v.id" [pages]="v.pages" [pageSizes]="v.pageSizes" [regions]="v.regions" [highlight]="highlight()" [(page)]="page" />
             } @else if (v.fileAvailable) {
               <app-pdf-page-viewer [importId]="v.id" [pages]="v.pages" [pageSizes]="v.pageSizes" [regions]="[]" [highlight]="[]" [(page)]="page" />
@@ -373,6 +375,8 @@ export class PdfImportDetail {
   protected readonly size = sizeText;
   protected readonly canExecute = computed(() => this.auth.hasPermission(Permission.IMPORT_EXECUTE));
   protected readonly canSensitive = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
+  /** Imagem das páginas (`GET .../pages/{n}`): `IMPORT_EXECUTE` ou `DEBTOR_SENSITIVE_VIEW`; sem elas, nem consulta (seria 403). */
+  protected readonly canSeePages = computed(() => this.canExecute() || this.canSensitive());
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.resource, undefined);

@@ -86,7 +86,8 @@ describe('MatterDetail', () => {
   let data: MatterSheet;
 
   beforeEach(() => {
-    permissions = ['LEGAL_VIEW', 'LEGAL_MANAGE', 'LEGAL_AUTHORIZE', 'LEGAL_EXPENSE_MANAGE', 'CASE_VIEW'];
+    requested.length = 0;
+    permissions = ['CREDITOR_VIEW', 'LEGAL_VIEW', 'LEGAL_MANAGE', 'LEGAL_AUTHORIZE', 'LEGAL_EXPENSE_MANAGE', 'CASE_VIEW'];
     roles = ['JURIDICO'];
     external = false;
     data = sheet(matter());
@@ -112,8 +113,11 @@ describe('MatterDetail', () => {
 
   afterEach(() => http.verify());
 
+  const requested: string[] = [];
+
   function answer(req: TestRequest): void {
     const url = req.request.url;
+    requested.push(url);
     if (url === '/api/v1/legal/matters/m-1/sheet') req.flush(data);
     else if (url === '/api/v1/legal/me') req.flush({ external, lawFirmId: external ? 'f-1' : null, lawFirmName: external ? 'Silva Advogados' : null, firmActive: true });
     else if (url === '/api/v1/creditors/c-1') req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
@@ -210,5 +214,8 @@ describe('MatterDetail', () => {
     const fixture = await render();
     expect(el(fixture).textContent).toContain('Caso atribuído ao seu escritório');
     expect(el(fixture).textContent).not.toContain('Caso de cobrança');
+    // sem CREDITOR_VIEW nem permissão de nomes de usuários: nenhuma consulta de credor ou de usuários (seria 403); a ficha diz "Credor do caso"
+    expect(requested.filter((u) => u.startsWith('/api/v1/creditors') || u.startsWith('/api/v1/users'))).toEqual([]);
+    expect(el(fixture).textContent).toContain('Credor do caso');
   });
 });

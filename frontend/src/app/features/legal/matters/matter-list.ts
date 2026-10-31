@@ -63,9 +63,11 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
     }
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar casos jurídicos">
-      <div class="app-filters__wide">
-        <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
-      </div>
+      @if (canSeeCreditor()) {
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+        </div>
+      }
       <app-field label="Fase">
         <select appInput formControlName="stage">
           <option value="OPEN">Em aberto</option>
@@ -100,7 +102,9 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
     >
       <ng-template appCell="debtor" [appCellOf]="query.rows()" let-m>
         <a [routerLink]="['/juridico/casos', m.id]">{{ canSeeDebtor() ? debtors.name(m.debtorId) : 'Caso ' + m.id.slice(0, 8) }}</a>
-        <div class="app-muted">{{ creditors.name(m.creditorId) }}</div>
+        @if (canSeeCreditor()) {
+          <div class="app-muted">{{ creditors.name(m.creditorId) }}</div>
+        }
       </ng-template>
       <ng-template appCell="stage" [appCellOf]="query.rows()" let-m>
         <app-status-chip domain="legalStage" [status]="m.stage" />
@@ -178,7 +182,11 @@ export class MatterList {
   protected readonly debtors = nameMap(this.auth.hasPermission(Permission.DEBTOR_VIEW) ? inject(DebtorNames) : this.noNames, () =>
     this.canSeeDebtor() ? this.query.rows().map((m) => m.debtorId) : [],
   );
-  protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((m) => m.creditorId));
+  /** Nome e filtro de credor exigem `CREDITOR_VIEW` (o advogado parceiro não tem: vê só os casos do escritório). */
+  protected readonly canSeeCreditor = computed(() => this.auth.hasPermission(Permission.CREDITOR_VIEW));
+  protected readonly creditors = nameMap(this.auth.hasPermission(Permission.CREDITOR_VIEW) ? inject(CreditorNames) : this.noNames, () =>
+    this.canSeeCreditor() ? this.query.rows().map((m) => m.creditorId) : [],
+  );
 
   protected readonly columns: TableColumn[] = [
     { key: 'debtor', header: 'Devedor' },

@@ -85,7 +85,11 @@ export class AssistantPolicyDetail {
   protected readonly versions = computed(() => (this.versionList.hasValue() ? [...this.versionList.value()!].sort((a, b) => b.policyVersion - a.policyVersion) : []));
   private readonly promptList = rxResource({ stream: () => this.api.prompts().pipe(catchError(() => of([]))) });
   protected readonly prompts = valueOr(this.promptList, []);
-  private readonly profileList = rxResource({ stream: () => this.authorityApi.profiles().pipe(catchError(() => of<ProfileView[]>([]))) });
+  // a lista de perfis de alçada exige `AUTHORITY_MANAGE`: sem ela, nada é consultado (seria 403 e aviso de acesso negado)
+  private readonly profileList = rxResource({
+    stream: () =>
+      this.canAssignAuthority() ? this.authorityApi.profiles().pipe(catchError(() => of<ProfileView[]>([]))) : of<ProfileView[]>([]),
+  });
   protected readonly profiles = valueOr(this.profileList, []);
 
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.policy()?.creditorId]);
@@ -120,6 +124,9 @@ export class AssistantPolicyDetail {
   });
   protected readonly profileHint = computed(() => {
     const sp = this.selectedProfile();
+    if (!sp && !this.canAssignAuthority()) {
+      return 'Escolher o perfil de alçada exige a permissão de gestão de alçadas.';
+    }
     return sp ? `até ${sp.maxInstallments} parcelas · ${sp.canFormalize ? 'formaliza' : 'não formaliza'}` : '';
   });
 

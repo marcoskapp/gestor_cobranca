@@ -1,7 +1,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { toApiError, userMessage } from '../../../core/http/problem';
@@ -14,7 +14,7 @@ import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { nameMap } from '../../../shared/data/name-map';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { UserNames } from '../../admin/data/user-names';
+import { USER_NAMES_PERMISSIONS, UserNames } from '../../admin/data/user-names';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { IntegrationTokensApi } from '../data/public-api.api';
 import { PUBLIC_API_ERROR_LABELS, TOKEN_STATE_LABELS } from '../data/public-api.labels';
@@ -150,7 +150,8 @@ export class TokenDetail {
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly token = computed(() => (this.resource.hasValue() ? this.resource.value() : null));
   protected readonly creditors = nameMap(inject(CreditorNames), () => (this.token() ? [this.token()!.creditorId] : []));
-  protected readonly users = nameMap(inject(UserNames), () => {
+  // "criado por"/"revogado por" exigem CASE_VIEW, POLICY_VIEW ou USER_VIEW (o perfil Integrações não tem: "Indisponível")
+  protected readonly users = nameMap(this.auth.hasAnyPermission(USER_NAMES_PERMISSIONS) ? inject(UserNames) : { resolve: () => of([]) }, () => {
     const t = this.token();
     return t ? [t.createdBy, t.revokedBy].filter((v): v is string => !!v) : [];
   });

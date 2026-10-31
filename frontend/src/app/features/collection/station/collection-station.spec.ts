@@ -334,6 +334,25 @@ describe('CollectionStation', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('app-interaction-panel')).toBeNull();
   });
 
+  it('quem só consulta o caso (CASE_VIEW, ex.: financeiro) não vê nem consulta a janela de contato (CASE_WORK)', async () => {
+    permissions.set(['CASE_VIEW']);
+    const urls: string[] = [];
+    const fixture = TestBed.createComponent(CollectionStation);
+    fixture.componentRef.setInput('caso', 'k-1');
+    for (let i = 0; i < 4; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      for (const req of http.match(() => true)) {
+        urls.push(req.request.url);
+        reply(req, sheet());
+      }
+    }
+    fixture.detectChanges();
+    expect(urls.some((u) => u.endsWith('/sheet'))).toBe(true);
+    expect(urls.some((u) => u.endsWith('/contact-availability'))).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-contact-window')).toBeNull();
+  });
+
   it('sugere a densidade compacta uma vez, sem impor', async () => {
     const original = window.matchMedia;
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({ matches: true }) });

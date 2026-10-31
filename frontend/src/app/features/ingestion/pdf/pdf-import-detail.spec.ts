@@ -75,8 +75,12 @@ function view(overrides: Partial<PdfImportView> = {}): PdfImportView {
 
 describe('PdfImportDetail', () => {
   let http: HttpTestingController;
+  let permissions: string[];
+  const requested: string[] = [];
 
   beforeEach(() => {
+    permissions = ['IMPORT_EXECUTE', 'IMPORT_VIEW'];
+    requested.length = 0;
     TestBed.configureTestingModule({
       imports: [PdfImportDetail],
       providers: [
@@ -85,7 +89,7 @@ describe('PdfImportDetail', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
-        { provide: AuthService, useValue: { hasPermission: (p: string) => p === 'IMPORT_EXECUTE' || p === 'IMPORT_VIEW' } },
+        { provide: AuthService, useValue: { hasPermission: (p: string) => permissions.includes(p) } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -99,6 +103,7 @@ describe('PdfImportDetail', () => {
       await tick();
       for (const req of http.match(() => true)) {
         const url = req.request.url;
+        requested.push(url);
         if (url === '/api/v1/ingestion/pdf-imports/pdf-1') req.flush(v);
         else if (url.endsWith('/records/facets')) req.flush({ byStatus: { ALL: 1, OK: 1, WARNING: 0, ERROR: 0, LOW_CONFIDENCE: 0, EXCLUDED: 0 }, debtors: [{ index: 1, name: 'EMPRESA FICTICIA', records: 1 }] });
         else if (url.endsWith('/records'))
@@ -140,6 +145,14 @@ describe('PdfImportDetail', () => {
     expect(component.canApprove()).toBe(false);
     component.visualConfirmed.set(true);
     expect(component.canApprove()).toBe(true);
+  });
+
+  it('sem IMPORT_EXECUTE nem DEBTOR_SENSITIVE_VIEW (ex.: auditor), não consulta a imagem das páginas (seria 403)', async () => {
+    permissions = ['IMPORT_VIEW'];
+    const fixture = await render(view());
+    expect(requested.some((u) => u.includes('/pages/'))).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-pdf-page-viewer')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('A imagem das páginas do PDF original');
   });
 
   it('clique no título destaca a origem no PDF', async () => {

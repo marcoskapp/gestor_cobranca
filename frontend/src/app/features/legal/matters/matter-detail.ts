@@ -17,7 +17,7 @@ import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { describeStatus } from '../../../shared/status/status';
-import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
+import { USER_NAMES_BATCH, USER_NAMES_PERMISSIONS, UserNames } from '../../admin/data/user-names';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { COLLATERAL_TYPE_LABELS } from '../../debt/data/debt.labels';
@@ -125,9 +125,19 @@ export class MatterDetail {
   protected readonly matter = computed(() => this.sheet()?.matter ?? null);
   protected readonly tab = linkedSignal(() => Math.max(0, MATTER_TABS.indexOf((this.aba() ?? 'resumo') as (typeof MATTER_TABS)[number])));
 
-  protected readonly creditors = nameMap(inject(CreditorNames), () => [this.matter()?.creditorId]);
+  /** Nome do credor exige `CREDITOR_VIEW` (o advogado parceiro não tem: a ficha mostra "Credor do caso"). */
+  protected readonly canSeeCreditor = computed(() => this.auth.hasPermission(Permission.CREDITOR_VIEW));
+  protected readonly creditors = nameMap(
+    this.auth.hasPermission(Permission.CREDITOR_VIEW) ? inject(CreditorNames) : { resolve: () => of([]) },
+    () => (this.canSeeCreditor() ? [this.matter()?.creditorId] : []),
+  );
+
+  protected creditorName(id: string): string {
+    return this.canSeeCreditor() ? this.creditors.name(id) : 'Credor do caso';
+  }
+  // nomes de quem agiu exigem CASE_VIEW, POLICY_VIEW ou USER_VIEW (o advogado parceiro não tem: "Indisponível")
   protected readonly users = nameMap(
-    inject(UserNames),
+    this.auth.hasAnyPermission(USER_NAMES_PERMISSIONS) ? inject(UserNames) : { resolve: () => of([]) },
     () => {
       const s = this.sheet();
       return s ? [s.matter.responsibleUserId, ...s.history.map((h) => h.actorId), ...s.deadlines.map((d) => d.responsibleUserId)] : [];
@@ -208,7 +218,7 @@ export class MatterDetail {
     const s = this.sheet()!;
     return [
       { label: 'Devedor', value: s.debtor ? `${s.debtor.name} · ${s.debtor.maskedDocument}` : 'Devedor do caso' },
-      { label: 'Credor', value: this.creditors.name(s.matter.creditorId) },
+      { label: 'Credor', value: this.creditorName(s.matter.creditorId) },
       { label: 'Dívida', value: formatAmount(s.matter.debtAmount) },
       { label: 'Fase atual', value: this.stageLabel(s.matter.stage) },
     ];
