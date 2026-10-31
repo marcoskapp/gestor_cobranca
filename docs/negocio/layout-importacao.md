@@ -193,6 +193,6 @@ Layout de relatório de ERP com cabeçalho do devedor, títulos em **duas linhas
 | `Totais:` nas colunas `Valor` e `Pendente` | totais de controle de `valor_principal` e `saldo` (por devedor) | o quadro "Nº de Títulos" do resumo **não** é usado: conta títulos que não estão na lista (pagos, a vencer) |
 | `Página` | linha ignorada | rodapé |
 
-Informação adicional (`info:*`) é lida do PDF e mostrada na tela de validação enquanto o PDF estiver guardado (90 dias
+Informação adicional (`info:*`) é lida do PDF e mostrada na tela de validação enquanto o PDF estiver guardado (120 dias
 depois de encerrada a importação); o layout canônico não tem campo livre, então ela não vai para o título (ver decisões
 669 e 670).

@@ -22,7 +22,7 @@ import java.time.Duration;
  * @param mapMaxOutputTokens   tokens de saída da proposta do mapa (padrão 6.000)
  * @param visualMaxOutputTokens tokens de saída de uma chamada de leitura visual (padrão 12.000)
  * @param repairAttempts       novas tentativas quando a proposta da IA não passa na validação do mapa (padrão 1)
- * @param retention            tempo que o PDF fica guardado depois de aprovado, descartado ou com falha (padrão 90 dias)
+ * @param retention            tempo que o PDF fica guardado depois de aprovado, descartado ou com falha (padrão 120 dias)
  * @param retentionBatch       arquivos descartados por execução da retenção (padrão 200)
  */
 @ConfigurationProperties(prefix = "app.ingestion.pdf")
@@ -38,11 +38,11 @@ public record PdfImportProperties(@DefaultValue("20MB") DataSize maxFileSize,
                                   @DefaultValue("6000") int mapMaxOutputTokens,
                                   @DefaultValue("12000") int visualMaxOutputTokens,
                                   @DefaultValue("1") int repairAttempts,
-                                  @DefaultValue("P90D") Duration retention,
+                                  @DefaultValue("P120D") Duration retention,
                                   @DefaultValue("200") int retentionBatch) {
 
     public static PdfImportProperties defaults() {
         return new PdfImportProperties(DataSize.ofMegabytes(20), 200, 30, 5, 150, 110, 0.85, 220,
-                Duration.ofSeconds(90), 6000, 12000, 1, Duration.ofDays(90), 200);
+                Duration.ofSeconds(90), 6000, 12000, 1, Duration.ofDays(120), 200);
     }
 }

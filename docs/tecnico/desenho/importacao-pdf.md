@@ -260,7 +260,7 @@ justificativa, conferência), `discarded`, `file_deleted`; `pdf_layout_template.
 ## 11. Retenção
 
 `PdfRetention` (diário, `retention-cron`, ShedLock): importações aprovadas, descartadas ou com falha há mais de
-`retention` (90 dias) têm o PDF apagado do armazenamento e a leitura visual removida; ficam hash, mapa, resumo e
+`retention` (120 dias) têm o PDF apagado do armazenamento e a leitura visual removida; ficam hash, mapa, resumo e
 trilha. O CSV canônico gerado segue a guarda dos arquivos de importação.
 
 ## 12. Testes

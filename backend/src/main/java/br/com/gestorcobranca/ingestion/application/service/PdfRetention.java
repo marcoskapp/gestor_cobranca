@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Retenção dos PDFs ({@code app.ingestion.pdf.retention}, padrão 90 dias): importações aprovadas, descartadas ou com
+ * Retenção dos PDFs ({@code app.ingestion.pdf.retention}, padrão 120 dias): importações aprovadas, descartadas ou com
  * falha há mais tempo têm o arquivo apagado do armazenamento e a leitura visual removida; ficam o hash, o mapa, o
  * resumo e a trilha. O lote canônico gerado segue a retenção dos arquivos de importação. Uma instância por vez.
  */

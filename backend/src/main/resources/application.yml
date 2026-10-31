@@ -701,8 +701,8 @@ app:
       map-max-output-tokens: 6000
       visual-max-output-tokens: 12000
       repair-attempts: 1
-      # PDF guardado (criptografado no S3) até 90 dias depois de aprovado, descartado ou com falha
-      retention: P90D
+      # PDF guardado (criptografado no S3) até 120 dias depois de aprovado, descartado ou com falha
+      retention: P120D
       retention-batch: 200
       retention-cron: "0 20 3 * * *"
       # Amazon Bedrock com Claude (aprovado como provedor de IA). Mesma guarda de transferência internacional do
