@@ -11,12 +11,15 @@ const STYLE: Record<NotificationTone, { classes: string; icon: IconName }> = {
   error: { classes: 'bg-danger-subtle text-danger-emphasis border-danger-subtle', icon: 'exclamation-circle' },
 };
 
-/** Região das notificações (canto inferior direito; largura total no celular). */
+/**
+ * Região das notificações (canto inferior direito; largura total no celular). Sobe acima das barras de ações fixas
+ * no rodapé (`appBottomBar`, que publicam a altura ocupada em `--app-bottom-inset`), para não cobrir os botões delas.
+ */
 @Component({
   selector: 'app-toasts',
   imports: [NgbToast, NgTemplateOutlet, Icon],
   template: `
-    <div class="toast-container position-fixed bottom-0 end-0 p-3 app-toasts">
+    <div class="toast-container position-fixed end-0 p-3 app-toasts">
       @for (n of notifications.notifications(); track n.id) {
         <!-- aria-live é atributo estático do ngb-toast: um ramo por nível de urgência -->
         @if (n.tone === 'error') {
@@ -61,6 +64,13 @@ const STYLE: Record<NotificationTone, { classes: string; icon: IconName }> = {
   styles: `
     .app-toasts {
       z-index: 1090;
+      bottom: var(--app-bottom-inset, 0px);
+      transition: bottom 0.15s ease-out;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .app-toasts {
+        transition: none;
+      }
     }
     @media (max-width: 575.98px) {
       .app-toasts {

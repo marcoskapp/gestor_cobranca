@@ -6,6 +6,7 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { Amount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { Icon } from '../../../shared/components/icon/icon';
+import { BottomBar } from '../../../shared/directives/bottom-bar';
 import { PdfImportsApi } from '../data/pdf-import.api';
 import { PdfImportView, PdfRecordView, RecordDecision, RecordFacets, RecordFilter, RecordStatusFilter } from '../data/pdf-import.models';
 import { confidenceText } from '../data/pdf-import.rules';
@@ -37,7 +38,7 @@ const VERBS: Record<RecordDecision, string> = { EXCLUDE: 'excluído(s) do lote',
  */
 @Component({
   selector: 'app-pdf-records-table',
-  imports: [Amount, Icon],
+  imports: [Amount, BottomBar, Icon],
   template: `
     @let v = view();
     <section class="app-card rt" aria-labelledby="rt-title" data-tour="pdf-records">
@@ -178,7 +179,7 @@ const VERBS: Record<RecordDecision, string> = { EXCLUDE: 'excluído(s) do lote',
       }
 
       @if (selectable() && selected() > 0) {
-        <div class="rt-bulk" role="region" aria-label="Ações em massa" data-tour="pdf-bulk-bar" data-testid="bulk-bar">
+        <div class="rt-bulk" appBottomBar role="region" aria-label="Ações em massa" data-tour="pdf-bulk-bar" data-testid="bulk-bar">
           <strong class="rt-bulk__count">{{ selected() }} selecionado(s)</strong>
           <button class="btn btn-sm btn-danger" type="button" (click)="decide('EXCLUDE')" [disabled]="busy()"><app-icon name="x-circle" /> Excluir do lote</button>
           <button class="btn btn-sm btn-outline-secondary" type="button" (click)="decide('INCLUDE')" [disabled]="busy()"><app-icon name="arrow-counterclockwise" /> Reincluir</button>
