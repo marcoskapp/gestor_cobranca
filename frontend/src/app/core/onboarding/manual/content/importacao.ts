@@ -21,7 +21,7 @@ export const MANUAL: ModuleManual = {
     'Reenviar o mesmo arquivo não duplica títulos; arquivo já importado exige justificativa.',
     'Ocorrências mostram os dados pessoais mascarados; o relatório pode ser devolvido ao credor.',
     'Na importação PDF, todo valor sai do texto do PDF; o mapa só diz onde procurar. Totais do documento que não conferem pedem correção do mapa ou justificativa.',
-    'PDF digitalizado (só imagem) é lido visualmente pela IA: cada título com confiança baixa precisa ser confirmado ou excluído.',
+    'PDF digitalizado (só imagem) é lido visualmente pela IA: cada título com confiança baixa precisa ser confirmado um a um ou excluído (a exclusão pode ser em massa, com motivo único).',
   ],
   screens: [
     {
@@ -80,7 +80,8 @@ export const MANUAL: ModuleManual = {
       objective: 'Confira o mapa que o sistema escreveu ao ler o PDF, os títulos encontrados e os totais do documento antes de importar.',
       purpose: [
         'Mostra o PDF com as regiões lidas em destaque, o mapa em linguagem simples (que você pode editar: campo de cada coluna, colunas ignoradas, linhas por título, início e fim da tabela) e os títulos com os mesmos erros e avisos da importação por planilha.',
-        'Os totais impressos no documento são comparados com a soma extraída; divergência pede correção do mapa ou justificativa. "Concordo, importar" gera o lote no layout padrão e abre a conferência; "Salvar mapa para este credor" faz os próximos PDFs do mesmo layout serem lidos sem IA.',
+        'Os totais impressos no documento são comparados com a soma dos títulos que vão para o lote; divergência — inclusive a causada por excluir títulos que o documento soma — pede correção do mapa ou justificativa. "Concordo, importar" gera o lote no layout padrão e abre a conferência; "Salvar mapa para este credor" faz os próximos PDFs do mesmo layout serem lidos sem IA.',
+        'Filtre os títulos pela situação (com contadores), pelo devedor ou por texto, marque linhas (espaço marca a linha com foco) ou a página e, com a página marcada, "Selecionar todos os N do filtro". A barra de ações exclui do lote com um motivo único (na auditoria de cada título) ou reinclui; o sistema aplica o permitido e informa o que ficou de fora. Mudar o filtro limpa a seleção. Na leitura visual, a confirmação em massa vale só para títulos sem a marca de confiança baixa: estes são confirmados um a um, pelo botão da linha; excluí-los em massa é permitido.',
       ],
       profiles: ['ANALISTA_CARTEIRA', 'GESTOR'],
       inputs: ['O PDF enviado e o mapa proposto pela IA, salvo do credor ou escrito por você.'],

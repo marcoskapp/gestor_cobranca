@@ -234,11 +234,13 @@ public interface PdfImportUseCases {
     /**
      * @param values   campo canônico → valor (mascarado para quem não pode ver dado pessoal)
      * @param status   OK, WARNING ou ERROR
-     * @param decision EXCLUDED, CONFIRMED ou nulo
+     * @param decision      EXCLUDED, CONFIRMED ou nulo
+     * @param lowConfidence leitura visual abaixo da confiança mínima (confirmação só um a um, decisão 667)
      */
     record PdfRecordView(int ordinal, int debtorIndex, String origin, Double confidence, Map<String, String> values,
                          Map<String, String> info, Map<String, List<RegionView>> sources, List<RegionView> lines,
-                         Integer page, String status, List<FindingView> findings, String decision, boolean masked) {
+                         Integer page, String status, List<FindingView> findings, String decision, boolean masked,
+                         boolean lowConfidence) {
     }
 
     record PdfTemplateView(UUID id, UUID creditorId, String name, String fingerprint, int version, boolean active,

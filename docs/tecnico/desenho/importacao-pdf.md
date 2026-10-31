@@ -10,7 +10,7 @@ arquivo do **layout canônico** (`PADRAO`, CSV) que abre a **mesma conferência*
 (formato, validação por linha, grandes totais, alertas de ticket médio e de separador, efetivação e aprovação de
 segunda pessoa). Nenhuma regra de validação de linha é duplicada: o `RowValidator`, o `AmountParser` e o
 `DocumentNormalizer` do ingestion são usados tal como estão. Regras para o usuário em
-[`docs/negocio/layout-importacao.md`](../../negocio/layout-importacao.md) §9; decisões 660–679 em
+[`docs/negocio/layout-importacao.md`](../../negocio/layout-importacao.md) §9; decisões 660–679 e 685 em
 [`decisoes-autonomas.md`](../../negocio/decisoes-autonomas.md).
 
 ## 1. Visão geral
@@ -178,13 +178,13 @@ usuário pode sempre "Pedir novo mapa à IA".
 
 | Verificação | Efeito |
 | --- | --- |
-| Total do documento × soma da coluna (ou do campo) dos títulos do bloco/documento; contagem × `quantidade` | diferença acima de R$ 0,01 (ou de 1 título) **bloqueia** até corrigir o mapa ou justificar (mín. 10 caracteres, auditada); total ilegível idem |
+| Total do documento × soma da coluna (ou do campo) dos títulos do bloco/documento **que vão para o lote** (os excluídos pelo usuário ficam fora, decisão 685); contagem × `quantidade` | diferença acima de R$ 0,01 (ou de 1 título) **bloqueia** até corrigir o mapa ou justificar (mín. 10 caracteres, auditada); total ilegível idem |
 | Total do mapa não encontrado; mapa sem totais | aviso (a conferência de grandes totais do wizard continua) |
 | **Rastreio de origem**: cada valor é conferido de novo contra as palavras da região de origem (página, linha, caixa) | valor que não aparece literalmente no texto **bloqueia** |
 | `RowValidator` do ingestion por título (CPF/CNPJ com dígito, nome, datas, valores, obrigatórios, título repetido no arquivo, contatos) | erro/aviso por título (como no CSV: títulos com erro não são importados) |
 | Cabeçalho da tabela não encontrado; nenhum título | bloqueia |
 | Linhas da tabela não reconhecidas; topo de página dentro da tabela | aviso com a região destacada |
-| Leitura visual com confiança baixa | aviso; aprovação exige confirmar ou excluir |
+| Leitura visual com confiança baixa | aviso; aprovação exige confirmar (um a um) ou excluir |
 | Problemas do mapa (`ExtractionMapValidator`) | bloqueia |
 
 Os alertas de **ticket médio** e de **separador decimal** continuam no passo 5 da conferência do ingestion, que recebe
@@ -217,16 +217,56 @@ Prefixo `/api/v1/ingestion/pdf-imports`:
 | `POST /` (multipart `file`, `portfolioId`) | `IMPORT_EXECUTE` | envia o PDF (202) |
 | `GET /?creditorId&portfolioId&status` | `IMPORT_VIEW` | importações (resumo) |
 | `GET /{id}` | `IMPORT_VIEW` | estado completo: mapa, explicação, problemas, resumo, totais, ocorrências do documento, regiões, uso de IA, bloqueios, revisões, campos canônicos |
-| `GET /{id}/records?filter&page&size` | `IMPORT_VIEW` | títulos com origem e ocorrências (`ALL`, `ERRORS`, `WARNINGS`, `EXCLUDED`, `LOW_CONFIDENCE`); valores pessoais mascarados sem `IMPORT_EXECUTE`/`DEBTOR_SENSITIVE_VIEW` |
+| `GET /{id}/records?status&debtor&q&page&size` | `IMPORT_VIEW` | títulos com origem, ocorrências e a marca `lowConfidence`; filtro (§8.1); valores pessoais mascarados sem `IMPORT_EXECUTE`/`DEBTOR_SENSITIVE_VIEW` |
+| `GET /{id}/records/facets?debtor&q` | `IMPORT_VIEW` | contadores por situação (com o devedor e o texto) e os devedores (nome mascarado sem permissão de dado pessoal; sem máscara, `SENSITIVE_DATA_VIEWED`) |
 | `GET /{id}/pages/{n}` | `IMPORT_VIEW` + (`IMPORT_EXECUTE` ou `DEBTOR_SENSITIVE_VIEW`) | PNG da página (110 dpi), `no-store` |
 | `GET /{id}/file` | `IMPORT_VIEW` + `DEBTOR_SENSITIVE_VIEW` | PDF original |
 | `PUT /{id}/map` `{map, revision}` | `IMPORT_EXECUTE` | aplica o mapa editado e reprocessa |
 | `POST /{id}/new-map` | `IMPORT_EXECUTE` | nova proposta da IA |
-| `POST /{id}/records/decisions` `{ordinals, decision, justification, revision}` | `IMPORT_EXECUTE` | `EXCLUDE`, `INCLUDE`, `CONFIRM` (leitura visual) |
+| `POST /{id}/records/decisions` `{ordinals \| filter+expectedCount, decision, justification, revision}` | `IMPORT_EXECUTE` | `EXCLUDE`, `INCLUDE`, `CONFIRM` (leitura visual), um título ou em massa (§8.1); devolve aplicados e o que ficou de fora |
 | `POST /{id}/approve` `{revision, totalsJustification?, visualReadingConfirmed}` | `IMPORT_EXECUTE` | gera o lote e abre a conferência |
 | `POST /{id}/template` `{name, revision}` | `IMPORT_EXECUTE` | salva o mapa para o credor |
 | `POST /{id}/discard` `{reason}` | `IMPORT_EXECUTE` | descarta |
 | `GET /templates?creditorId&includeInactive`, `POST /templates/{id}/deactivate` | `IMPORT_VIEW` / `IMPORT_EXECUTE` | mapas salvos |
+
+### 8.1 Filtros e decisões em massa (decisão 685)
+
+**Filtro** (`PdfRecordQuery`), o mesmo na listagem, nos contadores e na decisão pelo critério do filtro — o que o
+usuário vê é exatamente o que a ação alcança:
+
+| Situação | Títulos |
+| --- | --- |
+| `ALL` | todos |
+| `OK` / `WARNING` / `ERROR` | fora os excluídos: sem ocorrência / aviso (ou leitura visual de confiança baixa) / algum erro (`ERRORS`/`WARNINGS` aceitos como sinônimos) |
+| `LOW_CONFIDENCE` | leitura visual abaixo de `min-confidence` ainda não confirmada nem excluída (também conta em `WARNING`/`ERROR`) |
+| `EXCLUDED` | excluídos do lote |
+
+`debtor` restringe ao bloco do devedor; `q` (até 80 caracteres, sem acento e sem diferença de maiúsculas) procura no
+identificador do título e no contrato e, para quem vê dado pessoal, no nome e no CPF/CNPJ (também só pelos dígitos).
+
+**Decisão** (`decideRecords`, uma transação, com a linha da importação bloqueada e a revisão do mapa conferida): alvo
+pelos números (`ordinals`, até 1000) **ou** pelo critério do filtro (`filter` + `expectedCount`, a quantidade que o
+usuário viu: outra quantidade → 409 `pdf_import.selection_changed`). As regras ficam no domínio
+(`RecordDecisionPolicy`), que aplica o permitido e devolve, por motivo, o que ficou de fora:
+
+| Decisão | Fica de fora |
+| --- | --- |
+| `EXCLUDE` (justificativa obrigatória, a mesma para o grupo) | já excluídos (`already_excluded`); confiança baixa **pode** ser excluída em massa |
+| `INCLUDE` | não excluídos (`not_excluded`) |
+| `CONFIRM` (justificativa obrigatória) | texto (`not_visual`), já confirmados (`already_confirmed`) e, **em massa**, os de confiança baixa (`low_confidence_one_by_one`) — decisão 667: só a decisão individual (um título escolhido pelo número) os confirma |
+
+Depois de aplicar, a análise é recalculada de forma determinística com as decisões novas (totais de controle só com os
+títulos do lote, resumo, contadores e bloqueios). Auditoria: **uma entrada por título** (`pdf_import.record_decided`,
+com o motivo, a decisão, o número e o identificador do título, a revisão, `bulk` e o `operationId` comum à operação);
+log técnico com o `operationId`, a quantidade pedida, aplicada e de fora; métricas `ingestion.pdf.records.decided{decision,bulk}`
+e `ingestion.pdf.records.skipped{decision}`.
+
+**Tela** (`PdfRecordsTable`): botões de situação com contadores, devedor e busca; checkbox por linha (rótulo com o
+número e o identificador do título; espaço marca a linha com foco), checkbox do cabeçalho para a página visível (estado
+indeterminado), aviso no padrão do Gmail ("50 selecionados nesta página — Selecionar todos os 57 do filtro"), limpar
+seleção; a seleção sobrevive à troca de página e é limpa, com aviso, ao mudar o filtro. Barra de ações fixa
+(`position: sticky`) com "Excluir do lote" (motivo único), "Reincluir" e, na leitura visual, "Confirmar leitura"; o
+título de confiança baixa tem o próprio botão "Confirmar" na linha.
 
 **API pública** (`/public-api/v1/imports/pdf`, escopos `imports:write`/`imports:read`, `Idempotency-Key` isolada por
 token): envio e consulta da situação/resumo, sem dados do devedor. A importação fica aguardando validação humana na
@@ -253,7 +293,8 @@ Eventos de negócio (`docs/tecnico/logs-e-metricas.md` §3.2a): `pdf_import.rece
 `pdf_import.discarded`, `pdf_import.mapping_failed` — com páginas, títulos, devedores, totais conferidos, tokens e custo,
 nunca valores do devedor. Métricas `ingestion.pdf.*` (§5) e as do cliente Bedrock. Logs técnicos só com ids, contagens
 e códigos. Auditoria: `pdf_import.received`, `map_applied`, `awaiting_map`, `map_updated` (mapa antes/depois),
-`new_map_requested`, `records_decided` (decisão, títulos, justificativa), `approved` (revisão, origem, títulos,
+`new_map_requested`, `record_decided` (uma por título: decisão, número, identificador do título, justificativa,
+`operationId`, `bulk`), `approved` (revisão, origem, títulos,
 justificativa, conferência), `discarded`, `file_deleted`; `pdf_layout_template.saved`/`deactivated`. Log de acesso:
 `SENSITIVE_DATA_VIEWED` (títulos sem máscara e imagem de página) e `FILE_DOWNLOADED`.
 

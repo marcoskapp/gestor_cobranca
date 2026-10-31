@@ -7,7 +7,15 @@ export type DebtorSource = 'HEADER' | 'COLUMNS' | 'NONE';
 export type ValuePosition = 'RIGHT' | 'BELOW';
 export type ValueTransform = 'NONE' | 'DROP_LEADING_CODE' | 'LEADING_CODE';
 export type TotalScope = 'BLOCK' | 'DOCUMENT';
-export type RecordFilter = 'ALL' | 'ERRORS' | 'WARNINGS' | 'EXCLUDED' | 'LOW_CONFIDENCE';
+/** Situação dos títulos (filtro). OK, WARNING e ERROR não incluem os excluídos; LOW_CONFIDENCE também conta em WARNING ou ERROR. */
+export type RecordStatusFilter = 'ALL' | 'OK' | 'WARNING' | 'ERROR' | 'LOW_CONFIDENCE' | 'EXCLUDED';
+
+/** Filtro dos títulos: situação, devedor (índice no documento) e texto livre. */
+export interface RecordFilter {
+  status: RecordStatusFilter;
+  debtor: number | null;
+  q: string | null;
+}
 export type RecordDecision = 'EXCLUDE' | 'INCLUDE' | 'CONFIRM';
 
 /** Mapa de extração (versão 1): onde estão os dados no documento, nunca os valores. */
@@ -203,6 +211,8 @@ export interface PdfRecordView {
   findings: FindingView[];
   decision: 'EXCLUDED' | 'CONFIRMED' | null;
   masked: boolean;
+  /** Leitura visual abaixo da confiança mínima: confirmação só um a um (decisão 667). */
+  lowConfidence: boolean;
 }
 
 export interface PdfTemplateView {
@@ -217,4 +227,35 @@ export interface PdfTemplateView {
   sourceImportId: string | null;
   createdBy: string | null;
   createdAt: string;
+}
+
+export interface DebtorFacet {
+  index: number;
+  name: string | null;
+  records: number;
+}
+
+/** Contadores por situação (já com o devedor e o texto do filtro) e os devedores do documento. */
+export interface RecordFacets {
+  byStatus: Record<RecordStatusFilter, number>;
+  debtors: DebtorFacet[];
+}
+
+/** Títulos alcançados por uma decisão: pelos números ou pelo critério do filtro (com a quantidade vista). */
+export type DecisionTarget = { ordinals: number[] } | { filter: RecordFilter; expectedCount: number };
+
+export interface SkippedRecords {
+  code: 'already_excluded' | 'not_excluded' | 'not_visual' | 'already_confirmed' | 'low_confidence_one_by_one' | string;
+  message: string;
+  ordinals: number[];
+}
+
+export interface RecordDecisionResult {
+  importView: PdfImportView;
+  operationId: string;
+  decision: RecordDecision;
+  bulk: boolean;
+  requested: number;
+  applied: number;
+  skipped: SkippedRecords[];
 }

@@ -21,21 +21,14 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { sizeText } from '../data/ingestion.labels';
 import { PdfImportsApi } from '../data/pdf-import.api';
-import { ExtractionMap, PdfImportView, PdfRecordView, RecordDecision, RecordFilter, RegionView } from '../data/pdf-import.models';
-import { ORIGIN_LABELS, canEdit, confidenceText, needsPolling, targetLabel } from '../data/pdf-import.rules';
+import { ExtractionMap, PdfImportView, PdfRecordView, RegionView } from '../data/pdf-import.models';
+import { ORIGIN_LABELS, canEdit, needsPolling, targetLabel } from '../data/pdf-import.rules';
 import { PdfMapEditor } from './pdf-map-editor';
 import { PdfPageViewer } from './pdf-page-viewer';
+import { PdfRecordsTable } from './pdf-records-table';
 
 const POLL_MS = 3000;
-const RECORD_PAGE = 50;
 
-const FILTERS: readonly { value: RecordFilter; label: string }[] = [
-  { value: 'ALL', label: 'Todos' },
-  { value: 'ERRORS', label: 'Com erro' },
-  { value: 'WARNINGS', label: 'Com aviso' },
-  { value: 'LOW_CONFIDENCE', label: 'Confiança baixa' },
-  { value: 'EXCLUDED', label: 'Excluídos' },
-];
 
 /**
  * Tela intermediária da Importação PDF inteligente: o PDF com as regiões lidas, o "mapa" em linguagem simples (e
@@ -44,7 +37,7 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
  */
 @Component({
   selector: 'app-pdf-import-detail',
-  imports: [RouterLink, DecimalPipe, Amount, EmptyState, Icon, PageHeader, Skeleton, StatusChip, AppDatePipe, PdfMapEditor, PdfPageViewer],
+  imports: [RouterLink, DecimalPipe, Amount, EmptyState, Icon, PageHeader, Skeleton, StatusChip, AppDatePipe, PdfMapEditor, PdfPageViewer, PdfRecordsTable],
   template: `
     @if (resource.isLoading() && !current()) {
       <app-skeleton variant="card" [rows]="6" />
@@ -231,103 +224,7 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
       }
 
       @if (v.summary && (v.status === 'AWAITING_VALIDATION' || v.status === 'APPROVED')) {
-        <section class="app-card" aria-labelledby="pd-records" data-tour="pdf-records">
-          <div class="pd-records__head">
-            <h2 class="app-card__title" id="pd-records">Títulos encontrados</h2>
-            <div class="btn-group btn-group-sm" role="group" aria-label="Filtrar títulos">
-              @for (f of filters; track f.value) {
-                <button type="button" class="btn btn-outline-secondary" [class.active]="filter() === f.value" (click)="setFilter(f.value)">{{ f.label }}</button>
-              }
-            </div>
-          </div>
-          @if (canExecute() && v.status === 'AWAITING_VALIDATION' && selected().size) {
-            <div class="pd-bulk">
-              <span>{{ selected().size }} selecionado(s)</span>
-              <button class="btn btn-sm btn-outline-danger" type="button" (click)="decide(v, 'EXCLUDE')" [disabled]="busy()">Excluir do lote</button>
-              <button class="btn btn-sm btn-outline-secondary" type="button" (click)="decide(v, 'INCLUDE')" [disabled]="busy()">Incluir de volta</button>
-              @if (v.mapOrigin === 'VISUAL') {
-                <button class="btn btn-sm btn-outline-success" type="button" (click)="decide(v, 'CONFIRM')" [disabled]="busy()">Confirmar leitura</button>
-              }
-            </div>
-          }
-          <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle pd-table">
-              <caption class="visually-hidden">Títulos lidos do PDF; selecione uma linha para ver a origem no documento</caption>
-              <thead>
-                <tr>
-                  @if (canExecute() && v.status === 'AWAITING_VALIDATION') {
-                    <th scope="col"><span class="visually-hidden">Selecionar</span></th>
-                  }
-                  <th scope="col">#</th>
-                  <th scope="col">Devedor</th>
-                  <th scope="col">Título</th>
-                  <th scope="col">Vencimento</th>
-                  <th scope="col" class="text-end">Valor original</th>
-                  <th scope="col" class="text-end">Saldo</th>
-                  <th scope="col">Situação</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of records(); track r.ordinal) {
-                  <tr [class.table-active]="active() === r.ordinal" [class.pd-excluded]="r.decision === 'EXCLUDED'">
-                    @if (canExecute() && v.status === 'AWAITING_VALIDATION') {
-                      <td><input class="form-check-input" type="checkbox" [checked]="selected().has(r.ordinal)" (change)="toggle(r.ordinal)" [attr.aria-label]="'Selecionar título ' + r.ordinal" /></td>
-                    }
-                    <td>
-                      <button type="button" class="btn btn-link btn-sm p-0" (click)="focus(r)" [attr.aria-label]="'Mostrar a origem do título ' + r.ordinal + ' no PDF'">{{ r.ordinal }}</button>
-                    </td>
-                    <td>
-                      {{ r.values['nome'] || '—' }}
-                      <div class="app-muted pd-small">{{ r.values['documento'] || '' }}</div>
-                    </td>
-                    <td>{{ r.values['id_titulo'] || '—' }}</td>
-                    <td>{{ r.values['vencimento'] || '—' }}</td>
-                    <td class="text-end"><app-amount [value]="amount(r.values['valor_principal'])" /></td>
-                    <td class="text-end"><app-amount [value]="amount(r.values['saldo'])" /></td>
-                    <td>
-                      @if (r.decision === 'EXCLUDED') {
-                        <span class="badge text-bg-secondary">Excluído</span>
-                      } @else if (r.decision === 'CONFIRMED') {
-                        <span class="badge text-bg-success">Confirmado</span>
-                      } @else if (r.status === 'ERROR') {
-                        <span class="badge text-bg-danger">Erro</span>
-                      } @else if (r.status === 'WARNING') {
-                        <span class="badge text-bg-warning">Aviso</span>
-                      } @else {
-                        <span class="badge bg-success-subtle text-success-emphasis">OK</span>
-                      }
-                      @if (r.origin === 'VISUAL') {
-                        <span class="app-muted pd-small">leitura visual {{ confidence(r.confidence) }}</span>
-                      }
-                      @for (f of r.findings; track $index) {
-                        <div class="pd-small" [class.text-danger]="f.severity === 'ERROR'">{{ f.field ? f.field + ': ' : '' }}{{ f.message }}</div>
-                      }
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr><td colspan="8" class="app-muted">Nenhum título neste filtro.</td></tr>
-                }
-              </tbody>
-            </table>
-          </div>
-          @if (recordsPage().totalPages > 1) {
-            <nav class="pd-pager" aria-label="Páginas de títulos">
-              <button class="btn btn-sm btn-outline-secondary" type="button" [disabled]="recordsPage().page === 0" (click)="recordPage.set(recordsPage().page - 1)">Anterior</button>
-              <span class="pd-small">Página {{ recordsPage().page + 1 }} de {{ recordsPage().totalPages }}</span>
-              <button class="btn btn-sm btn-outline-secondary" type="button" [disabled]="recordsPage().page + 1 >= recordsPage().totalPages" (click)="recordPage.set(recordsPage().page + 1)">Próxima</button>
-            </nav>
-          }
-          @if (activeRecord(); as r) {
-            @if (objectKeys(r.info).length) {
-              <div class="pd-info pd-small">
-                <strong>Informações adicionais do título {{ r.ordinal }}</strong> (guardadas na importação, não vão ao lote):
-                @for (k of objectKeys(r.info); track k) {
-                  <span class="pd-info__item">{{ k.replaceAll('_', ' ') }}: {{ r.info[k] }}</span>
-                }
-              </div>
-            }
-          }
-        </section>
+        <app-pdf-records-table [view]="v" [canExecute]="canExecute()" (focused)="focus($event)" (changed)="replace($event)" (stale)="resource.reload()" />
       }
 
       @if (canExecute() && v.status === 'AWAITING_VALIDATION') {
@@ -411,8 +308,7 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
       font-size: 1.1rem;
       font-weight: 500;
     }
-    .pd-totals,
-    .pd-table {
+    .pd-totals {
       font-size: var(--app-text-sm);
     }
     .pd-small {
@@ -439,8 +335,7 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
         grid-template-columns: minmax(0, 1fr);
       }
     }
-    .pd-map__head,
-    .pd-records__head {
+    .pd-map__head {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -457,33 +352,6 @@ const FILTERS: readonly { value: RecordFilter; label: string }[] = [
     .pd-revisions {
       margin: 6px 0 0;
       padding-left: 18px;
-    }
-    .pd-bulk {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      font-size: var(--app-text-sm);
-    }
-    .pd-excluded td {
-      text-decoration: line-through;
-      color: var(--bs-secondary-color);
-    }
-    .pd-pager {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-    }
-    .pd-info {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 12px;
-      margin-top: 8px;
-    }
-    .pd-info__item {
-      color: var(--bs-secondary-color);
     }
     .pd-actions {
       display: flex;
@@ -502,10 +370,7 @@ export class PdfImportDetail {
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly breadcrumbs = inject(BreadcrumbService);
-  protected readonly filters = FILTERS;
   protected readonly size = sizeText;
-  protected readonly confidence = confidenceText;
-  protected readonly objectKeys = Object.keys;
   protected readonly canExecute = computed(() => this.auth.hasPermission(Permission.IMPORT_EXECUTE));
   protected readonly canSensitive = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
 
@@ -519,28 +384,12 @@ export class PdfImportDetail {
     return s === 'RECEIVED' || s === 'MAPPING' || s === 'AWAITING_MAP' || s === 'AWAITING_VALIDATION';
   });
 
-  protected readonly filter = signal<RecordFilter>('ALL');
-  protected readonly recordPage = signal(0);
-  private readonly recordsResource = rxResource({
-    params: () => {
-      const v = this.current();
-      return v && v.summary && (v.status === 'AWAITING_VALIDATION' || v.status === 'APPROVED')
-        ? { id: v.id, revision: v.mapRevision, decisions: v.summary.excluded + ':' + v.summary.confirmed, filter: this.filter(), page: this.recordPage() }
-        : undefined;
-    },
-    stream: ({ params }) => this.api.records(params.id, params.filter, { page: params.page, size: RECORD_PAGE }),
-  });
-  protected readonly recordsPage = computed(() => (this.recordsResource.hasValue() ? this.recordsResource.value() : { content: [], page: 0, size: RECORD_PAGE, totalElements: 0, totalPages: 0 }));
-  protected readonly records = computed(() => this.recordsPage().content);
   protected readonly docFindings = computed(() => (this.current()?.findings ?? []).filter((f) => f.severity !== 'INFO' || f.code === 'pdf.visual_reading').slice(0, 30));
 
   protected readonly editing = signal(false);
   protected readonly busy = signal(false);
   protected readonly page = signal(1);
   protected readonly highlight = signal<readonly RegionView[]>([]);
-  protected readonly active = signal<number | null>(null);
-  protected readonly activeRecord = computed(() => this.records().find((r) => r.ordinal === this.active()) ?? null);
-  protected readonly selected = signal<ReadonlySet<number>>(new Set());
   protected readonly justification = signal('');
   protected readonly visualConfirmed = signal(false);
   protected readonly actionError = signal<string | null>(null);
@@ -586,17 +435,11 @@ export class PdfImportDetail {
     return Number.isFinite(n) ? n : null;
   }
 
-  protected setFilter(f: RecordFilter): void {
-    this.filter.set(f);
-    this.recordPage.set(0);
-  }
-
   protected show(regions: readonly RegionView[]): void {
     this.highlight.set(regions);
   }
 
   protected focus(r: PdfRecordView): void {
-    this.active.set(r.ordinal);
     const regions = r.lines.length ? r.lines : Object.values(r.sources).flat();
     if (regions.length) {
       this.highlight.set(regions);
@@ -606,19 +449,7 @@ export class PdfImportDetail {
     }
   }
 
-  protected toggle(ordinal: number): void {
-    this.selected.update((s) => {
-      const next = new Set(s);
-      if (next.has(ordinal)) {
-        next.delete(ordinal);
-      } else {
-        next.add(ordinal);
-      }
-      return next;
-    });
-  }
-
-  private replace(view: PdfImportView): void {
+  protected replace(view: PdfImportView): void {
     this.resource.set(view);
     this.actionError.set(null);
   }
@@ -636,7 +467,6 @@ export class PdfImportDetail {
       .subscribe({
         next: (view) => {
           this.replace(view);
-          this.selected.set(new Set());
           this.notifications.success(`Mapa aplicado (rev. ${view.mapRevision}): ${view.summary?.records ?? 0} título(s) encontrados.`);
         },
         error: (err: unknown) => {
@@ -656,37 +486,6 @@ export class PdfImportDetail {
           .pipe(finalize(() => this.busy.set(false)))
           .subscribe({ next: (view) => this.replace(view), error: (err: unknown) => this.fail(err) });
       });
-  }
-
-  protected decide(v: PdfImportView, decision: RecordDecision): void {
-    const ordinals = [...this.selected()];
-    const run = (justification: string | null) => {
-      this.busy.set(true);
-      this.api
-        .decide(v.id, ordinals, decision, justification, v.mapRevision)
-        .pipe(finalize(() => this.busy.set(false)))
-        .subscribe({
-          next: (view) => {
-            this.replace(view);
-            this.selected.set(new Set());
-          },
-          error: (err: unknown) => this.fail(err),
-        });
-    };
-    if (decision === 'INCLUDE') {
-      run(null);
-      return;
-    }
-    this.confirm
-      .confirm({
-        title: decision === 'EXCLUDE' ? 'Excluir do lote' : 'Confirmar leitura visual',
-        message: decision === 'EXCLUDE' ? `${ordinals.length} título(s) não vão para o lote.` : `Você conferiu ${ordinals.length} título(s) com a imagem da página.`,
-        confirmLabel: decision === 'EXCLUDE' ? 'Excluir' : 'Confirmar',
-        reason: 'required',
-        reasonLabel: 'Justificativa',
-        reasonMaxLength: 500,
-      })
-      .subscribe((reason) => run(reason));
   }
 
   protected approve(v: PdfImportView): void {

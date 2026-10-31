@@ -6,7 +6,7 @@ import { silentErrorContext } from '../../../core/http/http-context';
 import { toHttpParams } from '../../../core/http/http-params';
 import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
-import { ExtractionMap, PdfImportStatus, PdfImportSummaryView, PdfImportView, PdfRecordView, PdfTemplateView, RecordDecision, RecordFilter } from './pdf-import.models';
+import { DecisionTarget, ExtractionMap, PdfImportStatus, PdfImportSummaryView, PdfImportView, PdfRecordView, PdfTemplateView, RecordDecision, RecordDecisionResult, RecordFacets, RecordFilter } from './pdf-import.models';
 
 const BASE = `${API_V1}/ingestion/pdf-imports`;
 
@@ -34,7 +34,14 @@ export class PdfImportsApi {
   }
 
   records(id: string, filter: RecordFilter, page: PageRequest): Observable<PageResponse<PdfRecordView>> {
-    return this.http.get<PageResponse<PdfRecordView>>(`${BASE}/${id}/records`, { params: toHttpParams({ filter, page: page.page, size: page.size }) });
+    return this.http.get<PageResponse<PdfRecordView>>(`${BASE}/${id}/records`, {
+      params: toHttpParams({ status: filter.status, debtor: filter.debtor, q: filter.q || null, page: page.page, size: page.size }),
+    });
+  }
+
+  /** Contadores por situação (com o devedor e o texto do filtro) e os devedores. */
+  facets(id: string, filter: RecordFilter): Observable<RecordFacets> {
+    return this.http.get<RecordFacets>(`${BASE}/${id}/records/facets`, { params: toHttpParams({ debtor: filter.debtor, q: filter.q || null }) });
   }
 
   /**
@@ -58,8 +65,16 @@ export class PdfImportsApi {
     return this.http.post<PdfImportView>(`${BASE}/${id}/new-map`, {});
   }
 
-  decide(id: string, ordinals: number[], decision: RecordDecision, justification: string | null, revision: number): Observable<PdfImportView> {
-    return this.http.post<PdfImportView>(`${BASE}/${id}/records/decisions`, { ordinals, decision, justification, revision });
+  /**
+   * Exclui, reinclui ou confirma títulos — um, vários pelos números ou todos os do filtro — numa operação. O servidor
+   * aplica o permitido e devolve o que ficou de fora (ex.: confiança baixa só é confirmada um a um).
+   */
+  decide(id: string, target: DecisionTarget, decision: RecordDecision, justification: string | null, revision: number): Observable<RecordDecisionResult> {
+    const body =
+      'ordinals' in target
+        ? { ordinals: target.ordinals, decision, justification, revision }
+        : { filter: { status: target.filter.status, debtor: target.filter.debtor, q: target.filter.q || null }, expectedCount: target.expectedCount, decision, justification, revision };
+    return this.http.post<RecordDecisionResult>(`${BASE}/${id}/records/decisions`, body, { context: silentErrorContext() });
   }
 
   approve(id: string, revision: number, totalsJustification: string | null, visualReadingConfirmed: boolean): Observable<PdfImportView> {

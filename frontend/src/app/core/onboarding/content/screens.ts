@@ -210,7 +210,21 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'ingestion.layouts', version: 1, path: '/importacao/layouts' },
   { key: 'ingestion.review-start', version: 1, path: '/importacao/nova', tourId: 'ingestion.review-start' },
   { key: 'ingestion.pdf-start', version: 1, path: '/importacao/pdf/nova', tourId: 'ingestion.pdf-start' },
-  { key: 'ingestion.pdf-import', version: 1, path: '/importacao/pdf/:id', tourId: 'ingestion.pdf-import' },
+  {
+    key: 'ingestion.pdf-import',
+    version: 2,
+    path: '/importacao/pdf/:id',
+    tourId: 'ingestion.pdf-import',
+    changes: [
+      {
+        version: 2,
+        items: [
+          'Filtros por situação (com contadores), devedor e texto; seleção da página ou de todos os títulos do filtro.',
+          'Excluir do lote e reincluir em massa, com motivo único; títulos de confiança baixa continuam confirmados um a um.',
+        ],
+      },
+    ],
+  },
   { key: 'ingestion.review', version: 1, path: '/importacao/conferencias/:id', tourId: 'ingestion.review' },
   {
     key: 'ingestion.batch-detail',
