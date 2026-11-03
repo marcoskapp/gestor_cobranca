@@ -1,6 +1,6 @@
 # Indicadores dos painéis — definições, fórmulas e denominadores
 
-Contrato com a operação para os painéis do produto (F11 painel operacional, F18 relatórios de recuperação e produtividade; escopo §7 e M08). Cada indicador tem **fórmula e denominador explícitos**; os painéis mostram sempre a base ("1.100 de 4.000"), nunca uma taxa sozinha. Mudança de fórmula exige atualizar este documento e os testes com resultado conferido à mão (`AnalyticsIndicatorsIT`, `IndicatorsTest`). Desenho técnico em [`tecnico/desenho/analytics.md`](../tecnico/desenho/analytics.md).
+Contrato com a operação para os painéis do produto (F11 painel operacional, F18 relatórios de recuperação e produtividade; escopo §7 e M08). Cada indicador tem **fórmula e denominador explícitos**; os painéis mostram sempre a base ("1.100 de 4.000"), nunca uma taxa sozinha. Mudança de fórmula exige atualizar este documento e os testes com resultado conferido à mão (`AnalyticsIndicatorsIT`, `IndicatorsTest`). Desenho técnico em [`tecnico/desenho/analytics.md`](../tecnico/desenho/analytics.md). O texto que o usuário lê no "i" de cada indicador (o que é, como é calculado, como usar) fica no catálogo de informação contextual (`frontend/src/app/core/onboarding/manual/indicators/content/paineis.ts`, [`tecnico/desenho/ux.md`](../tecnico/desenho/ux.md) §8.6): ao mudar uma fórmula aqui, atualize também esse texto e rode `npm run knowledge`.
 
 ## 1. Regras gerais
 

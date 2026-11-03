@@ -93,7 +93,7 @@
     <dl class="app-definition-list">
       <dt>Situação</dt>
       <dd><app-status-chip domain="dataSubjectRequest" [status]="r.status" /></dd>
-      <dt>Prazo</dt>
+      <dt>Prazo <app-info-hint indicator="compliance.requests.deadline" label="Prazo legal da solicitação" /></dt>
       <dd>
         {{ r.dueAt | appDate: 'date' }}
         @if (r.status !== 'COMPLETED' && r.status !== 'REJECTED') {

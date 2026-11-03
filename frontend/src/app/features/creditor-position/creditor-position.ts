@@ -20,6 +20,7 @@ import { BillingPositionView } from '../public-api/data/public-api.models';
 import { TransfersApi } from '../settlement/data/settlement.api';
 import { SettlementPositionView } from '../settlement/data/settlement.models';
 import { CumulativeChart, mergeCumulative } from './cumulative-chart';
+import { InfoHint } from '../../shared/components/info-hint/info-hint';
 
 /** Intervalo da atualização automática (o consumo da API chega em lotes de ~1 min; a posição de repasse tem cache de 60 s). */
 export const POSITION_REFRESH_MS = 60_000;
@@ -37,7 +38,7 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
  */
 @Component({
   selector: 'app-creditor-position',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, AppDatePipe, CumulativeChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, AppDatePipe, CumulativeChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader, InfoHint],
   template: `
     <app-page-header title="Posição do credor" subtitle="Faturamento da API e repasse do período em aberto, atualizados agora — sem esperar o fechamento." />
 
@@ -78,12 +79,12 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
               @if (proration(b); as p) { · {{ cycleKind(b) }}: mensalidade e franquias proporcionais a {{ p }} }
             </p>
             <div class="cp-kpis">
-              <app-kpi-card label="Valor até agora" detail="Mensalidade do ciclo + excedente consumido"><app-amount [value]="b.amountSoFar" /></app-kpi-card>
-              <app-kpi-card label="Projeção no fechamento" detail="Média diária × dias restantes"><app-amount [value]="b.projection.amount" /></app-kpi-card>
-              <app-kpi-card label="Chamadas cobráveis" detail="Respostas 2xx/3xx">{{ n(b.billableRequests) }}</app-kpi-card>
-              <app-kpi-card label="Dados recebidos" detail="MB inteiros por token (1 MB = 1.048.576 bytes)">{{ n(b.billableMbIn) }} MB</app-kpi-card>
-              <app-kpi-card label="Dados enviados" detail="MB inteiros por token (1 MB = 1.048.576 bytes)">{{ n(b.billableMbOut) }} MB</app-kpi-card>
-              <app-kpi-card label="Registros" detail="Processados no ciclo">{{ n(b.records) }}</app-kpi-card>
+              <app-kpi-card label="Valor até agora" info="publicapi.billing.amount" detail="Mensalidade do ciclo + excedente consumido"><app-amount [value]="b.amountSoFar" /></app-kpi-card>
+              <app-kpi-card label="Projeção no fechamento" info="publicapi.billing.projection" detail="Média diária × dias restantes"><app-amount [value]="b.projection.amount" /></app-kpi-card>
+              <app-kpi-card label="Chamadas cobráveis" info="publicapi.usage.billable-requests" detail="Respostas 2xx/3xx">{{ n(b.billableRequests) }}</app-kpi-card>
+              <app-kpi-card label="Dados recebidos" info="publicapi.usage.data" detail="MB inteiros por token (1 MB = 1.048.576 bytes)">{{ n(b.billableMbIn) }} MB</app-kpi-card>
+              <app-kpi-card label="Dados enviados" info="publicapi.usage.data" detail="MB inteiros por token (1 MB = 1.048.576 bytes)">{{ n(b.billableMbOut) }} MB</app-kpi-card>
+              <app-kpi-card label="Registros" info="publicapi.usage.records" detail="Processados no ciclo">{{ n(b.records) }}</app-kpi-card>
             </div>
             @if (b.allowances.length) {
               <h3 class="app-section-title">Franquias do ciclo</h3>
@@ -150,16 +151,16 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
               · estimativa: calculada como o demonstrativo calcularia se fechado agora; pode mudar até o fechamento.
             </p>
             <div class="cp-kpis">
-              <app-kpi-card label="Líquido estimado" [detail]="direction(s)"><app-amount [value]="s.totals.netTransfer" /></app-kpi-card>
-              <app-kpi-card label="Recuperado" [detail]="'Na assessoria · direto ao credor: ' + money(s.totals.receivedByCreditor)"><app-amount [value]="s.totals.recovered" /></app-kpi-card>
-              <app-kpi-card label="Comissão apurada" [detail]="'Valores fixos: ' + money(s.totals.fixedFees)"><app-amount [value]="s.totals.commission" /></app-kpi-card>
-              <app-kpi-card label="Honorários da assessoria" detail="Retidos, fora da base"><app-amount [value]="s.totals.agencyHonorarium" /></app-kpi-card>
-              <app-kpi-card label="Despesas e ajustes" [detail]="'Despesas ' + money(s.totals.expenses) + ' · ajustes ' + money(s.totals.adjustments)"><app-amount [value]="s.totals.adjustments - s.totals.expenses" /></app-kpi-card>
+              <app-kpi-card label="Líquido estimado" info="settlement.position.net" [detail]="direction(s)"><app-amount [value]="s.totals.netTransfer" /></app-kpi-card>
+              <app-kpi-card label="Recuperado" info="settlement.statement.recovered" [detail]="'Na assessoria · direto ao credor: ' + money(s.totals.receivedByCreditor)"><app-amount [value]="s.totals.recovered" /></app-kpi-card>
+              <app-kpi-card label="Comissão apurada" info="settlement.statement.commission" [detail]="'Valores fixos: ' + money(s.totals.fixedFees)"><app-amount [value]="s.totals.commission" /></app-kpi-card>
+              <app-kpi-card label="Honorários da assessoria" info="settlement.statement.honorarium" detail="Retidos, fora da base"><app-amount [value]="s.totals.agencyHonorarium" /></app-kpi-card>
+              <app-kpi-card label="Despesas e ajustes" info="settlement.statement.adjustments" [detail]="'Despesas ' + money(s.totals.expenses) + ' · ajustes ' + money(s.totals.adjustments)"><app-amount [value]="s.totals.adjustments - s.totals.expenses" /></app-kpi-card>
             </div>
             @if (s.totals.pendingReconciliation || s.totals.pendingRules) {
               <div class="alert alert-warning d-flex gap-2 align-items-start cp-small" role="note">
                 <app-icon name="exclamation-triangle" />
-                <span>Fora do líquido: <strong><app-amount [value]="s.totals.pendingReconciliation" /></strong> aguardando conciliação e
+                <span><app-info-hint indicator="settlement.position.pending" label="Fora do líquido" /> Fora do líquido: <strong><app-amount [value]="s.totals.pendingReconciliation" /></strong> aguardando conciliação e
                   <strong><app-amount [value]="s.totals.pendingRules" /></strong> sem regra de comissão vigente.</span>
               </div>
             }

@@ -49,7 +49,7 @@ Toda ferramenta de dados chama o **caso de uso do módulo dono no contexto de se
 | Ferramenta | Permissão (basta uma) | Caso de uso | O que volta ao modelo |
 | --- | --- | --- | --- |
 | `registrar_pergunta` | — | — | tema (catálogo) e se resolveu (métrica de negócio) |
-| `consultar_manual` | — | base de conhecimento | manual de uma tela ou de um módulo |
+| `consultar_manual` | — | base de conhecimento | manual de uma tela (com os indicadores dela) ou de um módulo (com a lista de indicadores), ou a explicação de um indicador pelo id (`indicador`): o mesmo texto do "i" da tela (ux.md §8.6) |
 | `indicar_tela` | — | base de conhecimento | botão ABRIR (só tela direta que a pessoa pode abrir), TOUR ou SOBRE (só da tela atual) |
 | `buscar_devedor` | `DEBTOR_VIEW` | `DebtorUseCases#search` / `#findByDocument` (marcador `[DOCn]`) | referência `D…`, tipo de pessoa, situação |
 | `situacao_casos` | `CASE_VIEW` | `CaseUseCases#listByDebtor` | situação, elegibilidade e motivos, saldos, atraso, títulos, responsável é você?, próxima ação |
@@ -106,7 +106,7 @@ Prompt: `classpath:helpdesk/prompts/suporte-v1.txt` (versão nunca editada; SHA-
 
 ## 7. Base de conhecimento (manual contextual)
 
-Fonte única: o manual do frontend (`frontend/src/app/core/onboarding/manual/`, TypeScript só com dados). `npm run knowledge` (esbuild) gera `backend/src/main/resources/helpdesk/knowledge-base.json` com versão do formato, versão do conteúdo (hash), perfis, módulos (visão geral, encaixe, regras, termos), telas (objetivo, para que serve, quem usa, entradas, saídas, relacionadas, termos, **caminho** e **acesso**: `OPEN`, `MENU` com as permissões do item do menu, ou `CONTEXT` com as permissões do item que contém a tela) e o glossário. `npm run knowledge:check` roda antes do build e dos testes do frontend e falha se o JSON estiver desatualizado. O backend carrega o arquivo na subida (formato incompatível impede a subida).
+Fonte única: o manual do frontend (`frontend/src/app/core/onboarding/manual/`, TypeScript só com dados). `npm run knowledge` (esbuild) gera `backend/src/main/resources/helpdesk/knowledge-base.json` com versão do formato, versão do conteúdo (hash), perfis, módulos (visão geral, encaixe, regras, termos), telas (objetivo, para que serve, quem usa, entradas, saídas, relacionadas, termos, **caminho** e **acesso**: `OPEN`, `MENU` com as permissões do item do menu, ou `CONTEXT` com as permissões do item que contém a tela), o glossário e a **informação contextual dos indicadores** (`indicators`: id, módulo, título, o que é, como é calculado, como usar e telas — o catálogo de `manual/indicators/`, ux.md §8.6). O contexto da pergunta leva os indicadores da tela atual (`telaAtual.indicadores`), para o chat explicar os números com os mesmos textos da tela; exportação sem `indicators` (versão anterior) continua aceita. `npm run knowledge:check` roda antes do build e dos testes do frontend e falha se o JSON estiver desatualizado. O backend carrega o arquivo na subida (formato incompatível impede a subida).
 
 Alternativa descartada: o navegador enviar o trecho do manual — permitiria injetar instruções no prompt de sistema.
 

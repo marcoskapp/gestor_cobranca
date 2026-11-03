@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -29,16 +29,14 @@ export const CARD_FACTORS = 3;
  */
 @Component({
   selector: 'app-case-score-card',
-  imports: [Icon, NgbTooltip, AppDatePipe, ScoreBandChip],
+  imports: [Icon, InfoHint, AppDatePipe, ScoreBandChip],
   template: `
     @if (canView()) {
       <section class="cs" aria-labelledby="cs-title" data-tour="case-score" [attr.aria-busy]="resource.isLoading() || busy()">
         <div class="cs__head">
           <h3 class="cs__title" id="cs-title">
             Score de propensão
-            <button type="button" class="btn btn-link btn-sm p-0 cs__help" [ngbTooltip]="purpose" aria-label="Para que serve o score" [attr.aria-describedby]="'cs-purpose'">
-              <app-icon name="info-circle" />
-            </button>
+            <app-info-hint indicator="scoring.case.score" label="Score de propensão" />
           </h3>
           <div class="cs__actions">
             @if (score(); as s) {
@@ -74,11 +72,12 @@ export const CARD_FACTORS = 3;
               <app-score-band [band]="s.band" />
             </div>
             <div class="cs__meta">
-              <span><strong>{{ probability() }}</strong> de chance de pagamento em {{ s.outcomeDays }} dias</span>
+              <span><strong>{{ probability() }}</strong> de chance de pagamento em {{ s.outcomeDays }} dias <app-info-hint indicator="scoring.case.probability" label="Chance de pagamento" /></span>
               <span class="cs__muted">{{ kinds[s.modelKind] }} v{{ s.modelVersion }} · {{ s.calculatedAt | appDate }} ({{ triggers[s.trigger] }})</span>
             </div>
           </div>
           @if (top().length) {
+            <p class="cs__muted mb-0">Fatores que mais pesaram <app-info-hint indicator="scoring.case.factors" label="Fatores que mais pesaram" /></p>
             <ul class="cs__factors" aria-label="Fatores que mais pesaram">
               @for (f of top(); track f.feature) {
                 <li [class.cs__factor--up]="f.effect === 'INCREASES'" [class.cs__factor--down]="f.effect === 'DECREASES'">
@@ -126,10 +125,6 @@ export const CARD_FACTORS = 3;
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--bs-secondary-color);
-    }
-    .cs__help {
-      min-width: 24px;
-      min-height: 24px;
     }
     .cs__actions {
       display: flex;

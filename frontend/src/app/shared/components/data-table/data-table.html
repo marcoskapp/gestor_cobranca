@@ -25,6 +25,9 @@
               } @else {
                 {{ column.header }}
               }
+              @if (column.info && !column.actions) {
+                <app-info-hint [indicator]="column.info" [label]="column.header" />
+              }
             </th>
           }
         </tr>

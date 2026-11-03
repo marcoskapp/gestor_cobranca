@@ -1,5 +1,6 @@
 import { Component, computed, input, signal } from '@angular/core';
 import { Icon } from '../../../shared/components/icon/icon';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 export interface FunnelStage {
   label: string;
@@ -18,11 +19,16 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-funnel-chart',
-  imports: [Icon],
+  imports: [Icon, InfoHint],
   template: `
     <figure class="fn" [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-s'">
       <div class="fn__head">
-        <figcaption [id]="id + '-t'" class="fn__title">{{ title() }}</figcaption>
+        <div class="d-flex align-items-center gap-1 min-w-0">
+          <figcaption [id]="id + '-t'" class="fn__title">{{ title() }}</figcaption>
+          @if (info(); as hint) {
+            <app-info-hint [indicator]="hint" [label]="title()" />
+          }
+        </div>
         <button class="btn btn-link" type="button" (click)="table.set(!table())" [attr.aria-pressed]="table()">
           <app-icon [name]="table() ? 'funnel' : 'table'" />
           {{ table() ? 'Ver funil' : 'Ver tabela' }}
@@ -79,6 +85,8 @@ let nextId = 0;
 })
 export class FunnelChart {
   readonly title = input.required<string>();
+  /** Id do indicador no catálogo de informação contextual (o "i" ao lado do título). */
+  readonly info = input<string | null>(null);
   readonly summary = input.required<string>();
   readonly stages = input.required<FunnelStage[]>();
 

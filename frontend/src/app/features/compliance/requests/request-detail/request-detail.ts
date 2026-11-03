@@ -36,6 +36,7 @@ import { PickDialog, PickDialogData, ResponseDialog, ResponseDialogData } from '
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
+import { InfoHint } from '../../../../shared/components/info-hint/info-hint';
 
 /** Próximas ações possíveis no estado atual (espelho de `RequestStatus.allowedTransitions` e das guardas do agregado). */
 export function requestActions(r: DataSubjectRequestView): {
@@ -71,7 +72,7 @@ export function requestActions(r: DataSubjectRequestView): {
 
 @Component({
   selector: 'app-request-detail',
-  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip],
+  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, InfoHint],
   templateUrl: './request-detail.html',
   styleUrl: '../../compliance.scss',
 })

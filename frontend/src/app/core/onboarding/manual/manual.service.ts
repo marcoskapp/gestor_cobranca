@@ -4,6 +4,8 @@ import { NAVIGATION } from '../../layout/navigation';
 import { SCREENS } from '../content/screens';
 import { GlossaryTerm, ManualModuleId, ModuleManual, RelatedScreen, ScreenManual } from './manual.models';
 import { OPEN_ROUTES, loadGlossary, loadModuleManual, loadScreenManual, moduleOfScreen } from './manual-index';
+import { IndicatorHelp } from './indicators/indicator.models';
+import { loadScreenIndicators } from './indicators/indicator-index';
 
 /** Tela relacionada pronta para exibir: título do manual dela e o link, se o usuário tiver acesso. */
 export interface ResolvedRelated {
@@ -20,6 +22,8 @@ export interface ScreenManualView {
   module: ManualModuleId;
   related: ResolvedRelated[];
   terms: GlossaryTerm[];
+  /** Indicadores da tela (os mesmos textos do "i"); vazio se a tela não tiver ou se o catálogo não carregar. */
+  indicators: readonly IndicatorHelp[];
 }
 
 /**
@@ -45,8 +49,12 @@ export class ManualService {
     if (!manual || !module) {
       return undefined;
     }
-    const [related, terms] = await Promise.all([this.resolveRelated(manual.related), this.terms(manual.terms)]);
-    return { manual, module, related, terms };
+    const [related, terms, indicators] = await Promise.all([
+      this.resolveRelated(manual.related),
+      this.terms(manual.terms),
+      loadScreenIndicators(screenKey).catch(() => [] as readonly IndicatorHelp[]),
+    ]);
+    return { manual, module, related, terms, indicators };
   }
 
   async resolveRelated(related: readonly RelatedScreen[]): Promise<ResolvedRelated[]> {

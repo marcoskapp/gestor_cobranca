@@ -7,6 +7,7 @@ import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { PendingWorkList } from './pending-work-list';
+import { InfoHint } from '../../shared/components/info-hint/info-hint';
 
 interface AreaGroup {
   area: string;
@@ -20,7 +21,7 @@ interface AreaGroup {
  */
 @Component({
   selector: 'app-pending-work-page',
-  imports: [PageHeader, Icon, EmptyState, Skeleton, AppDatePipe, PendingWorkList],
+  imports: [PageHeader, Icon, EmptyState, Skeleton, AppDatePipe, PendingWorkList, InfoHint],
   template: `
     <app-page-header title="Minhas pendências" subtitle="O que depende de você agora, conforme o seu perfil e o seu escopo de credores.">
       <button type="button" class="btn btn-outline-primary" (click)="store.refresh()" [disabled]="store.status() === 'loading'">
@@ -40,6 +41,7 @@ interface AreaGroup {
               · <strong class="text-warning-emphasis">{{ s.dueToday }} {{ s.dueToday === 1 ? 'vence' : 'vencem' }} hoje</strong>
             }
             · atualizado às {{ s.generatedAt | appDate: 'time' }}
+            <app-info-hint indicator="app.pending.urgency" label="Vencidos e que vencem hoje" />
           </p>
           @if (s.unavailable.length > 0) {
             <div class="alert alert-warning d-flex align-items-start gap-2" role="status">

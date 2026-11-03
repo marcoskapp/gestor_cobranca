@@ -183,7 +183,7 @@ export class AgentList {
 
   protected readonly columns: TableColumn[] = [
     { key: 'user', header: 'Operador' },
-    { key: 'status', header: 'Presença' },
+    { key: 'status', header: 'Presença', info: 'telephony.presence.status' },
     { key: 'since', header: 'Neste estado' },
     { key: 'campaign', header: 'Campanha' },
     { key: 'actions', header: 'Ações', actions: true },

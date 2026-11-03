@@ -28,6 +28,7 @@ import { TransferDialog, TransferDialogData } from './transfer-dialog';
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../shared/dialog/dialog.service';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Saldo a repassar (e a receber) por credor, com os demonstrativos aprovados em aberto, e os
@@ -35,7 +36,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
  */
 @Component({
   selector: 'app-transfer-list',
-  imports: [NgbTooltip, Icon, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip],
+  imports: [NgbTooltip, Icon, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, InfoHint],
   template: `
     <app-page-header title="Repasses ao credor" subtitle="Saldo dos demonstrativos aprovados e repasses registrados com o comprovante bancário." />
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar repasses">
@@ -56,7 +57,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
             <article class="app-card">
               <h3 class="app-card__title">{{ creditors.name(b.creditorId) }}</h3>
               <div class="tl-totals">
-                <div><span class="tl-label">A repassar</span><app-amount class="tl-value" [value]="b.toTransfer" /></div>
+                <div><span class="tl-label">A repassar <app-info-hint indicator="settlement.transfers.balance" label="A repassar" /></span><app-amount class="tl-value" [value]="b.toTransfer" /></div>
                 <div><span class="tl-label">A receber do credor</span><app-amount class="tl-value" [value]="b.toReceive" /></div>
               </div>
               <ul class="tl-list">

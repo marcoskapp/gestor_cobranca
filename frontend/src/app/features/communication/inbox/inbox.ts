@@ -22,6 +22,7 @@ import { ConversationView, InboxCounts, InboxFilter } from '../data/communicatio
 import { InboxStream } from '../data/inbox-stream';
 import { InboxTab, slaHint, slaTone, tabFilter, waitingText } from '../data/communication.rules';
 import { ConversationPanel } from './conversation-panel';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /** Atualização periódica da lista sem tempo real (aguardando resposta e novas conversas). */
 export const INBOX_REFRESH_MS = 30_000;
@@ -53,7 +54,7 @@ export function inboxFilter(tab: InboxTab, channel: string, awaiting: boolean): 
  */
 @Component({
   selector: 'app-inbox',
-  imports: [FormsModule, RouterLink, ...FORM_FIELD, Icon, EmptyState, Skeleton, StatusChip, AppDatePipe, ConversationPanel],
+  imports: [FormsModule, RouterLink, ...FORM_FIELD, Icon, EmptyState, Skeleton, StatusChip, AppDatePipe, ConversationPanel, InfoHint],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
 })

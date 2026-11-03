@@ -39,17 +39,17 @@
 
     <section class="ex-kpis" aria-label="Indicadores da campanha" data-tour="execution-kpis">
       <div class="ex-kpi">
-        <span class="ex-kpi__label">Inscritos</span>
+        <span class="ex-kpi__label">Inscritos <app-info-hint indicator="campaign.execution.enrollments" label="Inscritos" /></span>
         <span class="ex-kpi__value app-numeric">{{ count(p.enrollments) }}</span>
         <span class="ex-kpi__hint">{{ count(p.enrollmentsByStatus['ACTIVE'] ?? 0) }} em andamento</span>
       </div>
       <div class="ex-kpi">
-        <span class="ex-kpi__label">Etapas executadas</span>
+        <span class="ex-kpi__label">Etapas executadas <app-info-hint indicator="campaign.execution.steps" label="Etapas executadas" /></span>
         <span class="ex-kpi__value app-numeric">{{ count(p.steps.executed) }}</span>
         <span class="ex-kpi__hint">{{ count(p.steps.skipped) }} puladas · {{ count(p.steps.failed) }} com falha</span>
       </div>
       <div class="ex-kpi" [class.ex-kpi--late]="failedEnrollments() > 0">
-        <span class="ex-kpi__label">Inscrições com falha</span>
+        <span class="ex-kpi__label">Inscrições com falha <app-info-hint indicator="campaign.execution.failed" label="Inscrições com falha" /></span>
         <span class="ex-kpi__value app-numeric">
           @if (failedEnrollments() > 0) {
             <app-icon name="exclamation-circle" />
@@ -59,17 +59,17 @@
         <span class="ex-kpi__hint">aguardando reprocesso</span>
       </div>
       <div class="ex-kpi">
-        <span class="ex-kpi__label">Respostas</span>
+        <span class="ex-kpi__label">Respostas <app-info-hint indicator="campaign.execution.replies" label="Respostas" /></span>
         <span class="ex-kpi__value app-numeric">{{ count(p.outcomes.repliedEnrollments) }}</span>
         <span class="ex-kpi__hint">{{ share(p.outcomes.repliedEnrollments, p.enrollments) }}</span>
       </div>
       <div class="ex-kpi">
-        <span class="ex-kpi__label">Acordos atribuídos</span>
+        <span class="ex-kpi__label">Acordos atribuídos <app-info-hint indicator="campaign.execution.agreements" label="Acordos atribuídos" /></span>
         <span class="ex-kpi__value app-numeric">{{ count(p.outcomes.agreements) }}</span>
         <span class="ex-kpi__hint"><app-amount [value]="p.outcomes.agreementAmount" [compact]="true" /> em acordos</span>
       </div>
       <div class="ex-kpi">
-        <span class="ex-kpi__label">Recuperado</span>
+        <span class="ex-kpi__label">Recuperado <app-info-hint indicator="campaign.execution.recovered" label="Recuperado" /></span>
         <span class="ex-kpi__value"><app-amount [value]="p.outcomes.recoveredAmount" [compact]="true" /></span>
         <span class="ex-kpi__hint">{{ share(p.outcomes.payingEnrollments, p.enrollments) }} pagaram</span>
       </div>
@@ -142,7 +142,7 @@
             <li class="app-muted ex-small">Nenhuma falha.</li>
           }
         </ul>
-        <h3 class="app-section-title">Mensagens da régua</h3>
+        <h3 class="app-section-title">Mensagens da régua <app-info-hint indicator="campaign.execution.messages" label="Mensagens da régua" /></h3>
         <dl class="ex-msgs">
           <div><dt>Enviadas</dt><dd class="app-numeric">{{ count(p.messages.sent) }}</dd></div>
           <div><dt>Entregues</dt><dd class="app-numeric">{{ share(p.messages.delivered, p.messages.sent) }}</dd></div>

@@ -29,6 +29,7 @@
         }
         @if (waitingText(c); as w) {
           <span class="cv-sla d-inline-flex align-items-center gap-1" [class]="'cv-sla--' + slaTone(c)" [attr.title]="slaHint(c, time)"><app-icon name="clock" />{{ w }}</span>
+          <app-info-hint indicator="communication.sla.first-response" label="Espera e meta de 1ª resposta" />
         }
       </div>
     </div>

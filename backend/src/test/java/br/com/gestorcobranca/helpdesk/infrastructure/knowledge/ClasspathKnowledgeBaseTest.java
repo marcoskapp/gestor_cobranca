@@ -37,6 +37,31 @@ class ClasspathKnowledgeBaseTest {
     }
 
     @Test
+    void loadsTheIndicatorHelpOfEachScreen() {
+        ClasspathKnowledgeBase kb = new ClasspathKnowledgeBase(json);
+        var rate = kb.indicator("analytics.recovery.rate").orElseThrow();
+        assertThat(rate.title()).isEqualTo("Taxa de recuperação");
+        assertThat(rate.module()).isEqualTo("paineis");
+        assertThat(rate.what()).isNotBlank();
+        assertThat(rate.how()).contains("saldo elegível");
+        assertThat(rate.use()).isNotBlank();
+        assertThat(kb.screenIndicators("analytics.recovery")).extracting(i -> i.id())
+                .contains("analytics.recovery.net", "analytics.recovery.rate");
+        assertThat(kb.moduleIndicators("paineis")).isNotEmpty()
+                .allSatisfy(i -> assertThat(i.module()).isEqualTo("paineis"));
+        assertThat(kb.indicator("nao.existe.x")).isEmpty();
+        assertThat(kb.screenIndicators("help.center")).isEmpty();
+    }
+
+    @Test
+    void exportWithoutIndicatorsStillLoads() {
+        ClasspathKnowledgeBase kb = new ClasspathKnowledgeBase(json, """
+                {"contentVersion":"x","schemaVersion":1,"profiles":{},"modules":[],"screens":[],"glossary":[]}""");
+        assertThat(kb.indicator("analytics.recovery.rate")).isEmpty();
+        assertThat(kb.screenIndicators("analytics.recovery")).isEmpty();
+    }
+
+    @Test
     void incompatibleSchemaPreventsStartup() {
         assertThatThrownBy(() -> new ClasspathKnowledgeBase(json, """
                 {"contentVersion":"x","schemaVersion":99,"profiles":{},"modules":[],"screens":[],"glossary":[]}"""))

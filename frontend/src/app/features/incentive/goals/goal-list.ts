@@ -100,7 +100,7 @@ export class GoalList {
   protected readonly columns: TableColumn[] = [
     { key: 'subject', header: 'Negociador ou equipe' },
     { key: 'unit', header: 'Unidade' },
-    { key: 'target', header: 'Meta', align: 'end' },
+    { key: 'target', header: 'Meta', align: 'end', info: 'incentive.goals.target' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

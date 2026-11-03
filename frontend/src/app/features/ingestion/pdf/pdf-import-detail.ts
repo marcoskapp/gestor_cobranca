@@ -26,6 +26,7 @@ import { ORIGIN_LABELS, canEdit, needsPolling, targetLabel } from '../data/pdf-i
 import { PdfMapEditor } from './pdf-map-editor';
 import { PdfPageViewer } from './pdf-page-viewer';
 import { PdfRecordsTable } from './pdf-records-table';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 const POLL_MS = 3000;
 
@@ -37,7 +38,7 @@ const POLL_MS = 3000;
  */
 @Component({
   selector: 'app-pdf-import-detail',
-  imports: [RouterLink, DecimalPipe, Amount, EmptyState, Icon, PageHeader, Skeleton, StatusChip, AppDatePipe, PdfMapEditor, PdfPageViewer, PdfRecordsTable],
+  imports: [RouterLink, DecimalPipe, Amount, EmptyState, Icon, PageHeader, Skeleton, StatusChip, AppDatePipe, PdfMapEditor, PdfPageViewer, PdfRecordsTable, InfoHint],
   template: `
     @if (resource.isLoading() && !current()) {
       <app-skeleton variant="card" [rows]="6" />
@@ -102,7 +103,7 @@ const POLL_MS = 3000;
 
       @if (v.summary && (v.status === 'AWAITING_VALIDATION' || v.status === 'APPROVED')) {
         <section class="app-card pd-conference" aria-labelledby="pd-conf" data-tour="pdf-conference">
-          <h2 class="app-card__title" id="pd-conf">Conferência com o documento</h2>
+          <h2 class="app-card__title" id="pd-conf">Conferência com o documento <app-info-hint indicator="ingestion.pdf.summary" label="Resumo da leitura do PDF" /></h2>
           <dl class="pd-kpis">
             <div><dt>Títulos encontrados</dt><dd class="app-numeric">{{ v.summary.records | number }}</dd></div>
             <div><dt>A importar</dt><dd class="app-numeric">{{ v.summary.recordsToImport | number }}</dd></div>

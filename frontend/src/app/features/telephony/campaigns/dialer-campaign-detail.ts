@@ -35,6 +35,7 @@ import { CALL_RESULT_LABELS, DIALER_MODE_HINTS, DIALER_MODE_LABELS, EXCLUDED_REA
 import { CallResult, CampaignView } from '../data/telephony.models';
 import { SUPERVISION_POLL_MS, abandonLevel, durationText, percentText } from '../data/telephony.rules';
 import { CampaignDialog, CampaignDialogData } from './campaign-dialog';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Painel da campanha de discagem: indicadores do dia em tempo quase real (ASR, abandono contra o
@@ -44,7 +45,7 @@ import { CampaignDialog, CampaignDialogData } from './campaign-dialog';
  */
 @Component({
   selector: 'app-dialer-campaign-detail',
-  imports: [FormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip],
+  imports: [FormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip, InfoHint],
   templateUrl: './dialer-campaign-detail.html',
   styleUrl: '../telephony.scss',
 })

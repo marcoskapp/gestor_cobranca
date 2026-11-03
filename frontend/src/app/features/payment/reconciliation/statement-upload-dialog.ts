@@ -17,6 +17,7 @@ import { PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { StatementImportView } from '../data/payment.models';
 import { STATEMENT_ACCEPT, statementFileProblem } from '../data/payment.rules';
 import { StatementPreview, decodeUtf8, previewStatement } from '../data/statement-preview';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Importação de extrato CSV em duas etapas: prévia local (mesmas regras do servidor, nada é
@@ -25,7 +26,7 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
  */
 @Component({
   selector: 'app-statement-upload-dialog',
-  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, Amount, AppDatePipe, EntityPicker],
+  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, Amount, AppDatePipe, EntityPicker, InfoHint],
   template: `
     <div class="modal-header">
       <h2 appDialogTitle class="h5 mb-0" tabindex="-1" ngbAutofocus>Importar extrato</h2>
@@ -67,7 +68,7 @@ import { StatementPreview, decodeUtf8, previewStatement } from '../data/statemen
           <div class="su-kpis">
             <div class="su-kpi"><span class="su-kpi__label">Linhas</span><span class="su-kpi__value">{{ p.lines }}</span></div>
             <div class="su-kpi"><span class="su-kpi__label">Créditos</span><span class="su-kpi__value">{{ p.credits }}</span></div>
-            <div class="su-kpi"><span class="su-kpi__label">Total creditado</span><span class="su-kpi__value"><app-amount [value]="p.creditTotal" /></span></div>
+            <div class="su-kpi"><span class="su-kpi__label">Total creditado <app-info-hint indicator="payment.statement.preview" label="Prévia do arquivo" /></span><span class="su-kpi__value"><app-amount [value]="p.creditTotal" /></span></div>
             <div class="su-kpi"><span class="su-kpi__label">Débitos (ignorados)</span><span class="su-kpi__value">{{ p.debits }}</span></div>
           </div>
           @if (p.firstDate) {

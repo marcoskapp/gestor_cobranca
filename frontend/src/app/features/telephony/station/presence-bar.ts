@@ -14,6 +14,7 @@ import { clockText, isCallActive, presenceActions } from '../data/telephony.rule
 import { TelephonyLauncher } from './telephony-launcher';
 import { SoftphoneState, WebrtcSoftphone } from './softphone';
 import { TelephonySession } from './telephony-session';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Barra de presença do operador na estação de cobrança: entrar (opcionalmente numa campanha de
@@ -22,7 +23,7 @@ import { TelephonySession } from './telephony-session';
  */
 @Component({
   selector: 'app-presence-bar',
-  imports: [NgbDropdownModule, NgbTooltip, Icon, StatusChip],
+  imports: [NgbDropdownModule, NgbTooltip, Icon, StatusChip, InfoHint],
   template: `
     @if (session.enabled()) {
       <div class="d-flex flex-wrap align-items-center column-gap-2 row-gap-1" role="group" aria-label="Presença na telefonia" data-tour="presence">
@@ -30,6 +31,7 @@ import { TelephonySession } from './telephony-session';
           <span class="app-muted small d-inline-flex align-items-center gap-1" ngbTooltip="Peça ao gestor para habilitar o seu usuário na telefonia"><app-icon name="telephone-x" />Sem ramal</span>
         } @else if (agent(); as a) {
           <app-status-chip domain="agentPresence" [status]="a.status" />
+          <app-info-hint indicator="telephony.presence.status" label="Presença na telefonia" />
           @if (a.status === 'PAUSED' && a.pauseReason) {
             <span class="small">{{ pauseLabels[a.pauseReason] }}</span>
           }

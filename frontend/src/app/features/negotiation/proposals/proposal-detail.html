@@ -101,9 +101,9 @@
       <section class="app-card" aria-labelledby="pd-conditions" data-tour="proposal-conditions">
         <h2 class="app-card__title" id="pd-conditions">Condições</h2>
         <div class="pd-kpis">
-          <div class="pd-kpi"><span class="pd-kpi__label">Total a pagar</span><span class="pd-kpi__value"><app-amount [value]="p.totalAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Dívida atualizada</span><span class="pd-kpi__value"><app-amount [value]="p.updatedAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Desconto</span><span class="pd-kpi__value"><app-amount [value]="p.discountAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Total a pagar <app-info-hint indicator="negotiation.sim.offer-total" label="Total a pagar" /></span><span class="pd-kpi__value"><app-amount [value]="p.totalAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Dívida atualizada <app-info-hint indicator="negotiation.sim.updated-debt" label="Dívida atualizada" /></span><span class="pd-kpi__value"><app-amount [value]="p.updatedAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Desconto <app-info-hint indicator="negotiation.sim.discount" label="Desconto" /></span><span class="pd-kpi__value"><app-amount [value]="p.discountAmount" /></span></div>
           <div class="pd-kpi"><span class="pd-kpi__label">Forma</span><span class="pd-kpi__value pd-kpi__text">{{ plan(p) }}</span></div>
         </div>
         <dl class="app-definition-list">
@@ -213,11 +213,11 @@
       <section class="app-card" aria-labelledby="pd-authority" data-tour="proposal-authority">
         <h2 class="app-card__title" id="pd-authority">Nível e alçada</h2>
         <dl class="app-definition-list">
-          <dt>Nível da escada</dt>
+          <dt>Nível da escada <app-info-hint indicator="negotiation.sim.ladder" label="Nível da escada" /></dt>
           <dd>{{ p.level }} · {{ p.offer.levelName }}</dd>
           <dt>Justificativa</dt>
           <dd>{{ reasonText(p.justificationReason) }}</dd>
-          <dt>Uso do desconto máximo</dt>
+          <dt>Uso do desconto máximo <app-info-hint indicator="negotiation.proposal.envelope-usage" label="Uso do desconto máximo" /></dt>
           <dd>{{ p.envelopeUsage !== null ? percent(p.envelopeUsage) : '—' }}</dd>
         </dl>
         @if (p.authorityViolations.length) {

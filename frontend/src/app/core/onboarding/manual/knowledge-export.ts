@@ -2,6 +2,7 @@ import { NAVIGATION } from '../../layout/navigation';
 import { SCREENS } from '../content/screens';
 import { MANUAL_SCHEMA_VERSION, PROFILE_LABELS } from './manual.models';
 import { OPEN_ROUTES, loadKnowledgeBase, moduleOfScreen } from './manual-index';
+import { loadAllIndicators } from './indicators/indicator-index';
 
 /**
  * Base de conhecimento do chat de suporte, gerada a partir do manual (fonte única) por
@@ -47,6 +48,19 @@ export interface KnowledgeExport {
     access: KnowledgeScreenAccess;
   }[];
   glossary: readonly { id: string; term: string; definition: string }[];
+  /**
+   * Informação contextual dos indicadores (o "i" das telas, `indicators/content/`): os mesmos textos
+   * que a pessoa vê, para o chat explicar os números da tela com as mesmas palavras.
+   */
+  indicators: readonly {
+    id: string;
+    module: string;
+    title: string;
+    what: string;
+    how: string;
+    use: string;
+    screens: readonly string[];
+  }[];
 }
 
 const MENU_ITEMS = NAVIGATION.flatMap((s) => s.items);
@@ -67,7 +81,7 @@ export function screenAccess(path: string | null): KnowledgeScreenAccess {
 }
 
 export async function buildKnowledgeExport(): Promise<KnowledgeExport> {
-  const kb = await loadKnowledgeBase();
+  const [kb, indicators] = await Promise.all([loadKnowledgeBase(), loadAllIndicators()]);
   const paths = new Map(SCREENS.map((s) => [s.key, s.path]));
   return {
     schemaVersion: MANUAL_SCHEMA_VERSION,
@@ -101,5 +115,14 @@ export async function buildKnowledgeExport(): Promise<KnowledgeExport> {
       }),
     ),
     glossary: kb.glossary.map((g) => ({ id: g.id, term: g.term, definition: g.definition })),
+    indicators: indicators.map((i) => ({
+      id: i.id,
+      module: moduleOfScreen(i.id) ?? '',
+      title: i.title,
+      what: i.what,
+      how: i.how,
+      use: i.use,
+      screens: [...i.screens],
+    })),
   };
 }

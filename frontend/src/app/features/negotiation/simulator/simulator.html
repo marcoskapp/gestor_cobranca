@@ -95,7 +95,7 @@
     </form>
 
     <section class="app-card" aria-labelledby="sim-authority" data-tour="sim-authority">
-      <h2 class="app-card__title" id="sim-authority">Sua alçada</h2>
+      <h2 class="app-card__title" id="sim-authority">Sua alçada <app-info-hint indicator="negotiation.authority.limits" label="Sua alçada" /></h2>
       @if (mine(); as a) {
         <p class="sim-profile"><strong>{{ a.profile.name }}</strong>&ngsp;<span class="app-muted">· {{ sourceLabels[a.source] }}</span></p>
         <dl class="app-definition-list sim-small">
@@ -135,9 +135,9 @@
       />
     } @else {
       @let r = result()!;
-      <section class="app-card" aria-labelledby="sim-composition">
+      <section class="app-card" aria-labelledby="sim-composition" data-tour="sim-composition">
         <div class="sim-head">
-          <h2 class="app-card__title" id="sim-composition">Dívida atualizada em {{ r.referenceDate | appDate: 'date' }}</h2>
+          <h2 class="app-card__title" id="sim-composition">Dívida atualizada em {{ r.referenceDate | appDate: 'date' }} <app-info-hint indicator="negotiation.sim.updated-debt" label="Dívida atualizada" /></h2>
           <span class="app-muted sim-small">
             Política v{{ r.policy.version }}{{ r.policy.overrideCode ? ' · sobreposição ' + r.policy.overrideCode : '' }} · motor v{{ r.engineVersion }}
           </span>
@@ -207,7 +207,7 @@
             </table>
           </div>
           @if (r.envelope?.length) {
-            <h3 class="app-section-title">Envelope da política (desconto máximo)</h3>
+            <h3 class="app-section-title">Envelope da política (desconto máximo) <app-info-hint indicator="negotiation.sim.envelope" label="Envelope da política" /></h3>
             <div class="sim-scroll">
               <table class="sim-table" aria-label="Envelope da política">
                 <thead>
@@ -241,6 +241,7 @@
             <app-icon name="bar-chart-steps" />
             Nível {{ viewLevel() }} de {{ r.limits.maxLevel }} permitido pela sua alçada
           </span>
+          <app-info-hint indicator="negotiation.sim.ladder" label="Nível da escada" />
         </div>
         @if (levels().length > 1) {
           <div class="sim-levels" role="tablist" aria-label="Nível da escada">
@@ -265,6 +266,7 @@
                 <article class="sim-offer" [class.sim-offer--invalid]="!o.valid" [attr.aria-label]="planText(o)">
                   <header class="sim-offer__head">
                     <h3>{{ planText(o) }}</h3>
+                    <app-info-hint indicator="negotiation.sim.offer-status" label="Situação da oferta" />
                     @if (!o.valid) {
                       <app-status-chip domain="negotiationOutcome" status="REJECTED" />
                     } @else if (o.withinAuthority) {
@@ -273,11 +275,11 @@
                       <app-status-chip domain="negotiationOutcome" status="REQUIRES_APPROVAL" />
                     }
                   </header>
-                  <p class="sim-offer__total"><app-amount [value]="o.total" /></p>
+                  <p class="sim-offer__total"><app-amount [value]="o.total" /> <app-info-hint indicator="negotiation.sim.offer-total" label="Total da oferta" /></p>
                   <dl class="app-definition-list sim-small">
                     <dt>Valor negociado</dt>
                     <dd><app-amount [value]="o.negotiated" /></dd>
-                    <dt>Desconto</dt>
+                    <dt>Desconto <app-info-hint indicator="negotiation.sim.discount" label="Desconto" /></dt>
                     <dd><app-amount [value]="o.discountTotal" /> ({{ percent(saving(o)) }})</dd>
                     @if (o.installments > 1) {
                       @if (o.downPayment) {
@@ -286,7 +288,7 @@
                       }
                       <dt>Parcelas</dt>
                       <dd>{{ o.downPayment ? o.installments - 1 : o.installments }} × <app-amount [value]="installmentValue(o)" /></dd>
-                      <dt>Juros do parcelamento</dt>
+                      <dt>Juros do parcelamento <app-info-hint indicator="negotiation.sim.financing-interest" label="Juros do parcelamento" /></dt>
                       <dd><app-amount [value]="o.financingInterest" />{{ o.periodRate ? ' (' + percent(o.periodRate, 4) + ' por período)' : '' }}</dd>
                     }
                     <dt>Descontos aplicados</dt>

@@ -4,11 +4,11 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "prebuild": "npm run icons:check && npm run bootstrap:check && npm run money:check && npm run knowledge:check",
+    "prebuild": "npm run icons:check && npm run bootstrap:check && npm run money:check && npm run hints:check && npm run knowledge:check",
     "build": "ng build",
     "build:dev": "ng build --configuration development",
     "watch": "ng build --watch --configuration development",
-    "pretest": "npm run icons:check && npm run bootstrap:check && npm run money:check && npm run knowledge:check",
+    "pretest": "npm run icons:check && npm run bootstrap:check && npm run money:check && npm run hints:check && npm run knowledge:check",
     "test": "ng test --watch=false",
     "test:watch": "ng test",
     "lint": "ng lint",
@@ -16,6 +16,7 @@
     "icons:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-icon-sprite.mjs --check",
     "bootstrap:check": "node scripts/check-bootstrap-variables.mjs",
     "money:check": "node scripts/check-money-inputs.mjs",
+    "hints:check": "node scripts/check-info-hints.mjs",
     "knowledge": "node scripts/export-knowledge-base.mjs",
     "knowledge:check": "node scripts/export-knowledge-base.mjs --check"
   },

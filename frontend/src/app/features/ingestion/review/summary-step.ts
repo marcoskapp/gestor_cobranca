@@ -13,6 +13,7 @@ import { ImpactView, ReviewView } from '../data/ingestion.models';
 import { BLOCKER_STEPS, COLUMN_LABELS, OPTION_LABELS, REVIEW_ERROR_LABELS } from '../data/review.rules';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /** Linhas do resumo de impacto mostradas na confirmação. */
 export function impactDetails(impact: ImpactView): { label: string; value: string }[] {
@@ -40,12 +41,12 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
  */
 @Component({
   selector: 'app-summary-step',
-  imports: [...FORM_FIELD, Icon, DecimalPipe, FormsModule, RouterLink, Amount, AppDatePipe],
+  imports: [...FORM_FIELD, Icon, DecimalPipe, FormsModule, RouterLink, Amount, AppDatePipe, InfoHint],
   template: `
     @let r = review();
     @if (r.impact; as impact) {
       <section class="ss-kpis" aria-label="Impacto da importação" data-tour="review-impact">
-        <div class="ss-kpi"><span class="ss-kpi__label">Linhas a importar</span><span class="ss-kpi__value app-numeric">{{ impact.rowsToImport | number }}</span></div>
+        <div class="ss-kpi"><span class="ss-kpi__label">Linhas a importar <app-info-hint indicator="ingestion.review.impact" label="Impacto da importação" /></span><span class="ss-kpi__value app-numeric">{{ impact.rowsToImport | number }}</span></div>
         <div class="ss-kpi"><span class="ss-kpi__label">Títulos novos</span><span class="ss-kpi__value app-numeric">{{ impact.newTitles | number }}</span></div>
         <div class="ss-kpi"><span class="ss-kpi__label">Já existentes</span><span class="ss-kpi__value app-numeric">{{ impact.existingTitles | number }}</span></div>
         <div class="ss-kpi"><span class="ss-kpi__label">Ficam suspensos</span><span class="ss-kpi__value app-numeric">{{ impact.holdBySituation | number }}</span></div>

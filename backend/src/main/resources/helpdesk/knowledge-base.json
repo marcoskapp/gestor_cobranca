@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "c3c3ba88eba464bf",
+ "contentVersion": "10d18eff3f33f481",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -6792,6 +6792,2205 @@
    "id": "tour",
    "term": "Tour",
    "definition": "Passeio curto pelos elementos da tela. Começa pelo objetivo da tela e pode ser refeito pela ajuda."
+  }
+ ],
+ "indicators": [
+  {
+   "id": "app.pending.total",
+   "module": "geral",
+   "title": "Suas pendências",
+   "what": "Quantidade de itens que dependem de você agora: aprovações, retornos agendados, conversas aguardando resposta, prazos e outras tarefas, conforme o seu perfil e o seu escopo de credores.",
+   "how": "Soma dos itens de cada área que você pode resolver. Prazos que só aparecem quando estão perto (solicitações de titulares, contestações, prazos jurídicos) entram a partir de 3 dias do vencimento. Atualiza a cada minuto enquanto a tela está aberta.",
+   "use": "Comece pelos vencidos e pelos que vencem hoje; cada item leva à tela de ação já filtrada. Lista vazia significa que você está em dia.",
+   "screens": [
+    "app.pending-work",
+    "app.home"
+   ]
+  },
+  {
+   "id": "app.pending.urgency",
+   "module": "geral",
+   "title": "Vencidos e que vencem hoje",
+   "what": "Quantos itens das suas pendências já passaram do prazo e quantos vencem hoje.",
+   "how": "Vencido: prazo encerrado (por exemplo, retorno não feito no horário, conversa além da meta de primeira resposta, prazo legal passado). Hoje: prazo até o fim do dia. Aprovações sem prazo não entram nessas contagens.",
+   "use": "Vencidos primeiro: podem gerar quebra de compromisso com o devedor, multa ou prazo perdido. Se os vencidos se acumulam, peça redistribuição ao supervisor.",
+   "screens": [
+    "app.pending-work"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.amount",
+   "module": "paineis",
+   "title": "Valor da carteira",
+   "what": "Quanto ainda está para receber nos títulos em cobrança, na posição da última atualização dos dados.",
+   "how": "Soma do saldo em aberto dos títulos em cobrança ou suspensos com saldo maior que zero. Não depende do período escolhido.",
+   "use": "É o tamanho do trabalho. Crescimento sem aumento da recuperação indica carteira entrando mais rápido do que a equipe trabalha: reveja filas, capacidade e campanhas.",
+   "screens": [
+    "analytics.operational",
+    "app.home"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.overdue",
+   "module": "paineis",
+   "title": "Saldo vencido",
+   "what": "Parte da carteira cujos títulos já passaram do vencimento.",
+   "how": "Soma do saldo em aberto dos títulos com vencimento anterior à data da posição. A participação é o saldo vencido dividido pelo valor da carteira.",
+   "use": "Participação subindo pede mais esforço nas faixas de atraso maiores, onde a chance de recuperação cai com o tempo; caindo, a carteira está sendo regularizada.",
+   "screens": [
+    "analytics.operational",
+    "app.home"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.eligible",
+   "module": "paineis",
+   "title": "Saldo elegível",
+   "what": "Saldo que pode ser cobrado agora: sem contestação que bloqueia, suspensão, restrição de contato ou envio ao jurídico.",
+   "how": "Soma do saldo elegível dos casos não encerrados. A participação compara com o saldo em aberto desses mesmos casos.",
+   "use": "Diferença grande entre o saldo dos casos e o elegível mostra dinheiro travado: resolva contestações, revise restrições e suspensões para liberar a cobrança.",
+   "screens": [
+    "analytics.operational"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.open-cases",
+   "module": "paineis",
+   "title": "Casos em aberto",
+   "what": "Quantidade de casos ainda não encerrados e, abaixo, quantos estão elegíveis para cobrança.",
+   "how": "Contagem dos casos não encerrados na posição da última atualização, em qualquer estado (em aberto, negociação, promessa, acordo, contestação, suspenso ou jurídico).",
+   "use": "Compare com o tamanho da equipe para dimensionar filas. Muitos casos não elegíveis indicam bloqueios a tratar antes de cobrar.",
+   "screens": [
+    "analytics.operational"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.pending-queue",
+   "module": "paineis",
+   "title": "Fila pendente",
+   "what": "Casos elegíveis aguardando na fila, ainda sem negociador atribuído.",
+   "how": "Contagem dos casos elegíveis cuja responsabilidade está com uma fila. A participação é essa quantidade dividida pelo total de casos elegíveis.",
+   "use": "Fila crescendo significa casos esperando atendimento: redistribua negociadores, ajuste a prioridade das filas ou use campanhas e o assistente para dar vazão.",
+   "screens": [
+    "analytics.operational",
+    "app.home"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.recovered-period",
+   "module": "paineis",
+   "title": "Recuperado no período",
+   "what": "Dinheiro efetivamente recebido no período escolhido, com a taxa de recuperação ao lado.",
+   "how": "Pagamentos confirmados no período menos os estornos do período. Acordo não pago não entra. A taxa divide esse valor pelo saldo elegível no início do período.",
+   "use": "Mostra o resultado da operação ao lado da carteira. Para entender a variação, abra o painel de recuperação e quebre por credor, carteira ou pessoa.",
+   "screens": [
+    "analytics.operational"
+   ]
+  },
+  {
+   "id": "analytics.home.recovered-30d",
+   "module": "paineis",
+   "title": "Recuperado em 30 dias",
+   "what": "Dinheiro efetivamente recebido nos últimos 30 dias, com a taxa de recuperação do mesmo período.",
+   "how": "Pagamentos confirmados nos últimos 30 dias menos os estornos desses dias. A taxa divide esse valor pelo saldo elegível do início da janela.",
+   "use": "Termômetro rápido da operação. Queda em relação ao que você costuma ver merece abrir o painel de recuperação para achar onde caiu.",
+   "screens": [
+    "app.home"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.by-creditor",
+   "module": "paineis",
+   "title": "Carteira por credor",
+   "what": "Valor da carteira e saldo vencido de cada credor, lado a lado.",
+   "how": "Mesmas somas dos cartões, separadas pelo credor do título. A observação mostra quanto do valor do credor já está vencido.",
+   "use": "Mostra onde está o dinheiro e qual credor tem a carteira mais envelhecida, para decidir onde concentrar a equipe e as campanhas.",
+   "screens": [
+    "analytics.operational"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.by-delay",
+   "module": "paineis",
+   "title": "Carteira por faixa de atraso",
+   "what": "Valor da carteira distribuído pelos dias de atraso: a vencer, até 30, 31 a 90, 91 a 180, 181 a 360 e mais de 360 dias.",
+   "how": "Dias entre o vencimento do título e a data da posição. O saldo elegível da faixa usa o vencimento mais antigo de cada caso.",
+   "use": "Quanto mais antigo o atraso, menor a chance de receber. Valor concentrado nas faixas iniciais é a melhor oportunidade; nas finais, avalie descontos maiores ou jurídico.",
+   "screens": [
+    "analytics.operational"
+   ]
+  },
+  {
+   "id": "analytics.portfolio.cases-by-status",
+   "module": "paineis",
+   "title": "Casos por estado",
+   "what": "Casos não encerrados por estado, com quantos estão elegíveis, o saldo em aberto e o saldo elegível de cada estado.",
+   "how": "Contagens e somas dos casos não encerrados na posição da última atualização.",
+   "use": "Muitos casos em contestação ou suspensos travam saldo; muitos em promessa pedem acompanhamento para virar acordo ou pagamento.",
+   "screens": [
+    "analytics.operational"
+   ]
+  },
+  {
+   "id": "analytics.recovery.net",
+   "module": "paineis",
+   "title": "Recuperado líquido",
+   "what": "Dinheiro efetivamente recebido no período, já descontados os estornos. É a mesma base do demonstrativo de prestação de contas ao credor.",
+   "how": "Recebimentos confirmados (pelo provedor, pelo extrato ou por segunda pessoa) com data no período, menos os estornos com data no período. Valor acordado e não pago nunca entra.",
+   "use": "É o resultado da operação. Compare com períodos anteriores e quebre por credor, carteira, pessoa ou origem para saber de onde veio a variação.",
+   "screens": [
+    "analytics.recovery",
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.recovery.rate",
+   "module": "paineis",
+   "title": "Taxa de recuperação",
+   "what": "Quanto do saldo que podia ser cobrado no início do período virou dinheiro recebido.",
+   "how": "Recuperado líquido do período dividido pelo saldo elegível dos casos no início do período (último retrato antes da meia-noite do primeiro dia). Por pessoa, o saldo é de quem era responsável pelo caso e o recuperado é de quem fechou o acordo.",
+   "use": "Compara desempenho entre credores, carteiras e pessoas de tamanhos diferentes. Taxa caindo com carteira estável pede revisar estratégia, descontos e esforço. Não se divide por canal, origem ou faixa de atraso.",
+   "screens": [
+    "analytics.recovery",
+    "app.home",
+    "analytics.operational"
+   ]
+  },
+  {
+   "id": "analytics.recovery.reversals",
+   "module": "paineis",
+   "title": "Estornos",
+   "what": "Valores recebidos que foram devolvidos ou desfeitos no período.",
+   "how": "Soma dos estornos com data no período (o mês do pagamento original não muda). A participação compara com o recebido bruto.",
+   "use": "Participação alta indica problema na confirmação dos pagamentos ou contestação do devedor: confira a conciliação e as divergências antes de prestar contas.",
+   "screens": [
+    "analytics.recovery"
+   ]
+  },
+  {
+   "id": "analytics.recovery.gross",
+   "module": "paineis",
+   "title": "Recebido",
+   "what": "Recebimentos confirmados no período, antes de descontar os estornos.",
+   "how": "Soma dos pagamentos confirmados com data no período, alocados a títulos ou acordos.",
+   "use": "Junto com o estornado explica o recuperado líquido. Diferença grande entre os dois pede investigar os estornos.",
+   "screens": [
+    "analytics.recovery"
+   ]
+  },
+  {
+   "id": "analytics.recovery.receipts",
+   "module": "paineis",
+   "title": "Recebimentos",
+   "what": "Quantidade de pagamentos confirmados no período.",
+   "how": "Contagem dos recebimentos confirmados com data no período, no recorte escolhido.",
+   "use": "Com o valor recuperado, mostra o valor médio por pagamento: muitos pagamentos pequenos sugerem parcelamentos; poucos e altos, quitações.",
+   "screens": [
+    "analytics.recovery"
+   ]
+  },
+  {
+   "id": "analytics.recovery.time-to-receipt",
+   "module": "paineis",
+   "title": "Tempo até o 1º recebimento",
+   "what": "Quantos dias se passam entre a formalização do acordo e o primeiro pagamento dele.",
+   "how": "Para os acordos cujo primeiro pagamento caiu no período: mediana dos dias entre a formalização e esse pagamento. O percentil 90 mostra o prazo dos 10% mais lentos.",
+   "use": "Prazo subindo atrasa o caixa e aumenta o risco de quebra. Encurte o vencimento da primeira parcela ou reforce o lembrete antes do vencimento.",
+   "screens": [
+    "analytics.recovery"
+   ]
+  },
+  {
+   "id": "analytics.recovery.cost",
+   "module": "paineis",
+   "title": "Comissão por real recuperado",
+   "what": "Quanto a assessoria paga de comissão variável aos negociadores para cada real recuperado.",
+   "how": "Comissão a pagar dos extratos aprovados ou exportados dividida pelo recuperado líquido, só nos meses inteiros do período. Fica indisponível com recortes, para quem não vê todos os negociadores ou com menos de 3 extratos.",
+   "use": "Mostra a eficiência do plano de remuneração. Subindo sem aumento de recuperação, o plano está pagando mais pelo mesmo resultado: reveja faixas e metas.",
+   "screens": [
+    "analytics.recovery"
+   ]
+  },
+  {
+   "id": "analytics.recovery.by-group",
+   "module": "paineis",
+   "title": "Recuperado líquido por agrupamento",
+   "what": "O recuperado líquido do período separado pelo agrupamento escolhido (mês, semana, dia, credor, carteira, pessoa, canal, origem ou faixa de atraso).",
+   "how": "Mesma conta do cartão de recuperado líquido, separada pela dimensão escolhida. A taxa aparece só para credor, carteira e pessoa, que têm saldo inicial.",
+   "use": "Por período, mostra a tendência; por credor, carteira ou pessoa, onde está o resultado. Por origem, quanto veio de negociadores, assistente, portal e campanhas.",
+   "screens": [
+    "analytics.recovery"
+   ]
+  },
+  {
+   "id": "analytics.conversion.agreements",
+   "module": "paineis",
+   "title": "Acordos formalizados",
+   "what": "Acordos fechados no período (a safra do período), com a conversão a partir dos contatos efetivos.",
+   "how": "Contagem dos acordos formalizados no período. A conversão divide essa quantidade pelos contatos efetivos do mesmo período.",
+   "use": "Conversão caindo com contatos estáveis indica proposta pouco atrativa ou abordagem a rever: confira políticas de desconto e a monitoria das conversas.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.agreed",
+   "module": "paineis",
+   "title": "Valor acordado",
+   "what": "Valor total dos acordos formalizados no período. Não é dinheiro recebido.",
+   "how": "Soma do valor total dos acordos da safra do período.",
+   "use": "Mostra o potencial de recebimento da safra. Compare sempre com o valor pago: acordado alto e pago baixo indica acordos que não se sustentam.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.paid",
+   "module": "paineis",
+   "title": "Valor pago",
+   "what": "Quanto dos acordos da safra do período já foi efetivamente pago, em qualquer data.",
+   "how": "Soma dos recebimentos dos acordos formalizados no período, líquidos de estornos. O percentual divide pelo valor acordado.",
+   "use": "Pago sobre acordado baixo pede rever condições (parcelas muito longas, entrada pequena) e o acompanhamento das parcelas.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.first-installment",
+   "module": "paineis",
+   "title": "1ª parcela paga",
+   "what": "Quantos acordos da safra tiveram a primeira parcela paga integralmente.",
+   "how": "Acordos formalizados no período com a parcela 1 paga por inteiro, divididos pelos acordos da safra.",
+   "use": "É o melhor sinal precoce de acordo que vai se sustentar. Caindo, reforce o lembrete da primeira parcela e revise o prazo do primeiro vencimento.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.installments-paid",
+   "module": "paineis",
+   "title": "Parcelas pagas no período",
+   "what": "Parcelas de acordo pagas integralmente no período, de qualquer safra, e o valor delas.",
+   "how": "Contagem e soma das parcelas de acordo quitadas com data de pagamento no período.",
+   "use": "Mostra o fluxo de caixa vindo dos acordos já existentes. Queda indica acordos antigos parando de pagar: acompanhe as quebras.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.renegotiations",
+   "module": "paineis",
+   "title": "Renegociações",
+   "what": "Acordos da safra que substituem um acordo anterior do mesmo caso.",
+   "how": "Contagem dos acordos formalizados no período que são renegociação. O percentual divide pelos acordos da safra.",
+   "use": "Percentual alto indica acordos iniciais mal dimensionados para a capacidade de pagamento do devedor: revise as condições oferecidas na primeira negociação.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.funnel",
+   "module": "paineis",
+   "title": "Funil do período",
+   "what": "Etapas do contato efetivo até a primeira parcela paga: contatos, propostas, acordos e primeira parcela.",
+   "how": "Cada etapa conta os eventos do período, não necessariamente das mesmas pessoas. Por isso uma etapa pode passar de 100% da anterior (propostas de contatos antigos ou do portal).",
+   "use": "Mostra onde o processo perde mais: poucos contatos viram proposta (abordagem), poucas propostas viram acordo (condições) ou poucos acordos pagam a primeira parcela (sustentação).",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.early-break",
+   "module": "paineis",
+   "title": "Quebra precoce por safra",
+   "what": "Quantos acordos foram quebrados nos primeiros 30, 60 ou 90 dias depois de formalizados.",
+   "how": "Para cada janela, só entram os acordos maduros (formalizados há pelo menos a janela). A taxa é a quantidade quebrada dentro da janela dividida pelos acordos maduros.",
+   "use": "Quebra precoce alta indica acordos acima da capacidade de pagamento. Reveja entrada, número de parcelas e descontos, e acompanhe de perto as primeiras parcelas.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.agreed-vs-paid",
+   "module": "paineis",
+   "title": "Acordado × pago",
+   "what": "Valor acordado e valor pago dos acordos da safra, separados pelo agrupamento escolhido.",
+   "how": "As mesmas somas dos cartões de valor acordado e valor pago, por credor, carteira, pessoa, canal, origem ou período.",
+   "use": "Mostra quem fecha acordos que se pagam. Distância grande entre as barras aponta onde rever condições ou acompanhamento.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.effective-contacts",
+   "module": "paineis",
+   "title": "Contatos efetivos",
+   "what": "Conversas em que se falou com a pessoa certa (o devedor ou responsável), de negociadores e do assistente.",
+   "how": "Contagem das interações do período registradas com tabulação de contato efetivo.",
+   "use": "É a base do funil. Poucos contatos efetivos indicam dados de contato ruins ou horários inadequados: revise o enriquecimento de telefones e a régua de contato.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.proposals",
+   "module": "paineis",
+   "title": "Propostas",
+   "what": "Propostas de acordo registradas no período, em qualquer situação, inclusive as recusadas.",
+   "how": "Contagem das propostas criadas no período. Por origem do acordo não se aplica.",
+   "use": "Comparada aos contatos, mostra se a equipe está propondo; comparada aos acordos, se as condições são aceitas.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.conversion.contact-to-agreement",
+   "module": "paineis",
+   "title": "Contato → acordo",
+   "what": "Quantos contatos efetivos viraram acordo no período.",
+   "how": "Acordos formalizados no período divididos pelos contatos efetivos do período, no mesmo recorte.",
+   "use": "Compara a efetividade de pessoas, canais e carteiras. Valores baixos pedem treino, revisão de roteiro ou de condições.",
+   "screens": [
+    "analytics.conversion"
+   ]
+  },
+  {
+   "id": "analytics.productivity.worked-cases",
+   "module": "paineis",
+   "title": "Casos trabalhados",
+   "what": "Casos em que a pessoa registrou ao menos uma interação no período, com as tentativas de contato abaixo.",
+   "how": "Contagem de casos com interação da pessoa no período; na equipe e no total, soma das pessoas (um caso trabalhado por duas pessoas conta para as duas). Só negociadores humanos.",
+   "use": "Mede o esforço. Poucos casos trabalhados com muitas horas logadas indicam tempo ocioso ou atendimento longo demais.",
+   "screens": [
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.productivity.attempts",
+   "module": "paineis",
+   "title": "Tentativas",
+   "what": "Interações de saída registradas pela pessoa: ligações, mensagens e outros contatos iniciados pela assessoria.",
+   "how": "Contagem das interações de saída do período, as mesmas do extrato do negociador.",
+   "use": "Com os contatos efetivos, mostra a taxa de contato. Muitas tentativas e poucos contatos apontam para dados de contato ruins.",
+   "screens": [
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.productivity.effective-contacts",
+   "module": "paineis",
+   "title": "Contatos efetivos",
+   "what": "Interações da pessoa em que se falou com a pessoa certa.",
+   "how": "Contagem das interações com tabulação de contato efetivo. A taxa divide pelas tentativas.",
+   "use": "Taxa de contato baixa indica telefones desatualizados ou horários ruins; compare entre pessoas da mesma carteira antes de concluir que é desempenho.",
+   "screens": [
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.productivity.handling-time",
+   "module": "paineis",
+   "title": "Tempo médio de atendimento",
+   "what": "Duração média das chamadas atendidas pela pessoa (TMA).",
+   "how": "Tempo de conversação das chamadas atendidas dividido pela quantidade de chamadas atendidas.",
+   "use": "Muito alto reduz a quantidade de atendimentos; muito baixo pode indicar conversa sem negociação. Avalie junto com acordos e monitoria de qualidade.",
+   "screens": [
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.productivity.logged-hours",
+   "module": "paineis",
+   "title": "Horas logadas",
+   "what": "Tempo em que a pessoa esteve conectada ao sistema no período.",
+   "how": "União das sessões de acesso de cada dia (sessões sobrepostas contam uma vez). Não se divide por credor, carteira ou canal.",
+   "use": "Base dos indicadores por hora. Compare com a jornada prevista para identificar ausências ou horas extras.",
+   "screens": [
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.productivity.agreements-per-hour",
+   "module": "paineis",
+   "title": "Acordos por hora logada",
+   "what": "Quantos acordos a pessoa formaliza, em média, por hora conectada.",
+   "how": "Acordos formalizados pela pessoa no período divididos pelas horas logadas. Fica indisponível com filtro de credor, carteira ou canal, porque o tempo logado não se divide.",
+   "use": "Compara produtividade entre pessoas com jornadas diferentes. Use com o recuperado: muitos acordos pequenos podem valer menos que poucos acordos grandes.",
+   "screens": [
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.productivity.agreements",
+   "module": "paineis",
+   "title": "Acordos",
+   "what": "Acordos formalizados pela pessoa no período.",
+   "how": "Contagem dos acordos em que a pessoa é quem fechou (formalizou) o acordo.",
+   "use": "Resultado de negociação da pessoa. Avalie junto com a quebra precoce, para não premiar acordos que não se pagam.",
+   "screens": [
+    "analytics.productivity"
+   ]
+  },
+  {
+   "id": "analytics.reliability.instruction-failures",
+   "module": "paineis",
+   "title": "Falha em instruções de pagamento",
+   "what": "Pix, boletos e links de pagamento criados no período que falharam ao ser gerados.",
+   "how": "Instruções criadas no período em situação de falha divididas pelas instruções criadas no período. O gráfico separa por causa.",
+   "use": "Falha impede o devedor de pagar. Taxa subindo pede verificar a conta Pix e o provedor de pagamento; a causa mais frequente mostra por onde começar.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.message-failures",
+   "module": "paineis",
+   "title": "Mensagens com falha",
+   "what": "Mensagens enviadas aos devedores (WhatsApp, e-mail, SMS) no período que não foram entregues por falha.",
+   "how": "Mensagens de saída do período com falha divididas pelas mensagens de saída do período. O gráfico separa por causa.",
+   "use": "Falha alta desperdiça a régua de contato e pode indicar template recusado, número inválido ou problema no canal: confira a causa principal e o cadastro do canal.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.call-failures",
+   "module": "paineis",
+   "title": "Chamadas com falha",
+   "what": "Ligações criadas no período que falharam na plataforma de telefonia.",
+   "how": "Chamadas do período com falha divididas pelas chamadas do período.",
+   "use": "Subindo, verifique a plataforma de telefonia e as rotas: cada falha é uma tentativa perdida e tempo de negociador parado.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.divergences",
+   "module": "paineis",
+   "title": "Divergências de conciliação",
+   "what": "Diferenças entre o extrato bancário e os pagamentos do sistema que precisam de análise.",
+   "how": "Em aberto agora (com o valor envolvido), abertas no período por tipo e resolvidas no período, com a mediana de horas até a resolução.",
+   "use": "Divergência aberta segura a prestação de contas e pode esconder pagamento não baixado. Estoque crescendo pede reforço na conciliação.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.dead-jobs",
+   "module": "paineis",
+   "title": "Processamentos em falha",
+   "what": "Processamentos automáticos do sistema que esgotaram as tentativas sem concluir.",
+   "how": "Quantidade em falha agora, por tipo, e a taxa no período: falhas divididas pelos processamentos concluídos no período. Só aparece para quem vê todos os credores.",
+   "use": "Qualquer valor acima de zero merece atenção da equipe de suporte: pode haver mensagem, cálculo ou integração que não aconteceu.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.import-time",
+   "module": "paineis",
+   "title": "Importação de carteiras",
+   "what": "Lotes de importação concluídos no período, quantos falharam, as linhas com erro e o tempo de processamento.",
+   "how": "Mediana e percentil 95 do tempo de processamento dos lotes concluídos no período; falhas divididas pelos lotes e linhas com erro divididas pelas linhas lidas.",
+   "use": "Tempo ou erros subindo indicam arquivos fora do layout ou volume maior: converse com o credor sobre o arquivo e acompanhe a conferência.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.duplicate-lines",
+   "module": "paineis",
+   "title": "Linhas de extrato duplicadas",
+   "what": "Linhas de extrato bancário ignoradas porque já tinham sido importadas.",
+   "how": "Linhas ignoradas por duplicidade divididas pelas linhas de extrato importadas no período.",
+   "use": "Percentual alto indica extratos reenviados ou com períodos sobrepostos. Não causa pagamento em dobro, mas vale combinar com o banco o período de cada arquivo.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.statement-failures",
+   "module": "paineis",
+   "title": "Extratos com falha",
+   "what": "Importações de extrato bancário do período que falharam.",
+   "how": "Quantidade de importações de extrato com falha sobre o total de importações de extrato do período.",
+   "use": "Extrato que falha atrasa a baixa dos pagamentos: confira o formato do arquivo e importe de novo.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.reliability.sla-breaches",
+   "module": "paineis",
+   "title": "SLA de 1ª resposta estourado",
+   "what": "Conversas em que o devedor esperou mais do que o limite de primeira resposta sem ser atendido.",
+   "how": "Quantidade de conversas que passaram do limite de primeira resposta no período, registradas pela verificação automática das conversas.",
+   "use": "Devedor sem resposta esfria a negociação. Subindo, reforce a equipe da caixa de conversas ou amplie o atendimento do assistente.",
+   "screens": [
+    "analytics.reliability"
+   ]
+  },
+  {
+   "id": "scoring.case.score",
+   "module": "score",
+   "title": "Score e faixa",
+   "what": "Pontuação de 0 a 1000 da chance de o devedor pagar algo nos próximos dias, e a faixa de A (maior chance) a E.",
+   "how": "O modelo campeão combina dados permitidos do caso (atraso, saldo, contatos, promessas, pagamentos anteriores) e chega a uma chance; o score é essa chance multiplicada por 1000. A faixa vem dos cortes do modelo (padrão: A a partir de 400, B de 250, C de 150, D de 75).",
+   "use": "Serve só para decidir por onde começar: filas e campanhas podem priorizar as faixas mais altas. Nunca use o score para definir desconto, parcelas ou medidas contra o devedor.",
+   "screens": [
+    "collection.case",
+    "collection.queue"
+   ]
+  },
+  {
+   "id": "scoring.case.probability",
+   "module": "score",
+   "title": "Chance de pagamento",
+   "what": "Probabilidade estimada de haver pagamento confirmado do devedor nesta carteira dentro da janela do modelo (padrão 30 dias).",
+   "how": "Resultado do modelo campeão para o caso no último cálculo, que acontece na escoragem diária e depois de contato efetivo, promessa, acordo, pagamento ou estorno.",
+   "use": "Ajuda a ordenar o trabalho do dia. Uma chance baixa não significa que o devedor não vai pagar: é um retrato estatístico, não um julgamento.",
+   "screens": [
+    "collection.case",
+    "collection.queue"
+   ]
+  },
+  {
+   "id": "scoring.case.factors",
+   "module": "score",
+   "title": "Fatores que mais pesaram",
+   "what": "As três informações do caso que mais aumentaram ou reduziram o score, com o peso de cada uma.",
+   "how": "Para o scorecard, os pontos que cada variável deu ao caso; para a regressão, a contribuição de cada variável para a chance. A seta indica se aumentou ou reduziu.",
+   "use": "Explica o número ao devedor que pedir revisão e orienta a abordagem (por exemplo, sem contato recente). A explicação completa e o pedido de revisão ficam em \"Ver explicação\".",
+   "screens": [
+    "collection.case",
+    "collection.queue"
+   ]
+  },
+  {
+   "id": "scoring.monitoring.population",
+   "module": "score",
+   "title": "População",
+   "what": "Quantidade de casos escorados no retrato semanal usado no monitoramento.",
+   "how": "Casos ativos escorados pelo campeão na data do retrato (casos no jurídico, encerrados e de devedor anonimizado não são escorados).",
+   "use": "Mostra a base do monitoramento. Mudança brusca na população (entrada ou saída de carteira grande) costuma explicar mudança no score.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.monitoring.psi",
+   "module": "score",
+   "title": "PSI do score",
+   "what": "Índice de estabilidade: quanto a distribuição dos scores do retrato mudou em relação à referência do modelo campeão.",
+   "how": "Compara a proporção de casos em cada décimo do score com a da referência (o treino ou, para scorecard, a primeira população escorada). Até 0,10 é estável; a partir de 0,10 pede atenção; a partir de 0,25 é alerta (limites ajustáveis nos parâmetros).",
+   "use": "Em atenção ou alerta, a carteira mudou e o modelo pode estar descalibrado: compare com o desafiante e avalie um novo treino ou scorecard.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.monitoring.alerts",
+   "module": "score",
+   "title": "Alertas",
+   "what": "Quantidade de avisos do último retrato: score ou variáveis instáveis e desempenho real abaixo do mínimo.",
+   "how": "Um alerta por item fora do limite: PSI do score ou de uma variável acima do limite de atenção ou de alerta, e AUC realizada abaixo da mínima.",
+   "use": "Nenhum alerta: siga com o campeão. Com alerta, leia o texto de cada um e decida entre manter, promover o desafiante ou pedir novo treino.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.monitoring.realized-auc",
+   "module": "score",
+   "title": "AUC realizada",
+   "what": "Capacidade real do score de separar quem pagou de quem não pagou numa safra já apurada.",
+   "how": "Para os casos de um retrato que completaram a janela de desfecho, a chance de um caso que pagou ter score maior que um caso que não pagou. 0,50 é sorteio; quanto mais perto de 1, melhor.",
+   "use": "Caindo safra a safra ou abaixo do mínimo (padrão 0,60), o modelo deixou de ordenar bem: priorize o desafiante ou um novo treino.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.monitoring.calibration",
+   "module": "score",
+   "title": "Prevista × observada",
+   "what": "Chance média prevista pelo score comparada à taxa de pagamento que de fato aconteceu na safra.",
+   "how": "Média das chances previstas dos casos da safra e proporção dos casos que pagaram dentro da janela. No gráfico, a mesma comparação por faixa.",
+   "use": "Previsto bem acima do observado indica score otimista (e o contrário, pessimista). Mesmo calibrado errado, o score ainda pode ordenar bem: olhe também a AUC.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.monitoring.feature-psi",
+   "module": "score",
+   "title": "PSI por variável",
+   "what": "Quanto a distribuição de cada variável usada pelo modelo mudou em relação à referência.",
+   "how": "Mesmo índice de estabilidade do score, calculado para cada variável no último retrato.",
+   "use": "Aponta a causa de um score instável (por exemplo, atraso médio maior numa carteira nova). Variável acima do limite de alerta pede reavaliar o modelo.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.expected.ratio",
+   "module": "score",
+   "title": "Recuperado ÷ esperado",
+   "what": "Quanto a carteira rendeu comparado ao que o score previa para os mesmos casos.",
+   "how": "Valor recuperado na janela dividido pelo valor esperado das safras apuradas no período, por credor, carteira ou responsável na data do score. 1,00× significa exatamente o previsto.",
+   "use": "Acima de 1,00× a operação superou a previsão (boa estratégia ou esforço); abaixo, rendeu menos: investigue a carteira ou o responsável. Também alimenta a remuneração variável.",
+   "screens": [
+    "scoring.monitoring",
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "scoring.expected.realized",
+   "module": "score",
+   "title": "Recuperado na janela",
+   "what": "Valor pago e confirmado pelos casos da safra dentro da janela de desfecho, líquido de estornos.",
+   "how": "Soma dos pagamentos confirmados entre a data do retrato e o fim da janela (padrão 30 dias, apurados 5 dias depois para pegar confirmações tardias).",
+   "use": "É o lado real da comparação com o esperado. Use os dois juntos, nunca só um deles.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.expected.expected",
+   "module": "score",
+   "title": "Esperado pelo score",
+   "what": "Valor que o score previa receber dos casos da safra.",
+   "how": "Para cada caso, a chance de pagamento vezes o saldo, somado, vezes a fração paga típica do modelo (quanto do saldo quem paga costuma pagar; padrão 30%).",
+   "use": "Base justa de comparação entre carteiras e responsáveis com casos de dificuldade diferente: quem recebe casos difíceis tem esperado menor.",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.expected.payers",
+   "module": "score",
+   "title": "Casos que pagaram",
+   "what": "Quantos casos da safra pagaram algo na janela, comparado com quantos o score esperava.",
+   "how": "Pagantes realizados: casos com pagamento confirmado na janela. Pagantes esperados: soma das chances de todos os casos da safra.",
+   "use": "Mostra se a diferença entre recuperado e esperado vem de mais (ou menos) pessoas pagando ou de valores pagos maiores (ou menores).",
+   "screens": [
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.model.auc",
+   "module": "score",
+   "title": "AUC",
+   "what": "Capacidade do modelo de colocar quem paga acima de quem não paga, medida no período de validação, que o treino não viu.",
+   "how": "Chance de um caso que pagou ter score maior que um caso que não pagou. 0,50 é sorteio, 1,00 é perfeito. O Gini (2 × AUC − 1) é a mesma medida em outra escala.",
+   "use": "Um modelo só vira desafiante com AUC de validação a partir do mínimo (padrão 0,60). Para promover, compare com o campeão nas mesmas observações.",
+   "screens": [
+    "scoring.model",
+    "scoring.models"
+   ]
+  },
+  {
+   "id": "scoring.model.ks",
+   "module": "score",
+   "title": "KS",
+   "what": "Maior distância entre a distribuição de score de quem pagou e de quem não pagou.",
+   "how": "Ao longo da escala de score, a maior diferença entre a proporção acumulada de pagantes e de não pagantes. Vai de 0 a 1.",
+   "use": "Complementa a AUC: quanto maior, melhor a separação. Use para comparar versões do modelo nas mesmas observações.",
+   "screens": [
+    "scoring.model"
+   ]
+  },
+  {
+   "id": "scoring.model.brier",
+   "module": "score",
+   "title": "Brier",
+   "what": "Erro médio das chances previstas em relação ao que aconteceu.",
+   "how": "Média, por observação, do quadrado da diferença entre a chance prevista e o resultado (1 pagou, 0 não pagou). Menor é melhor.",
+   "use": "Mostra se as chances podem ser lidas como probabilidade. Dois modelos com AUC parecida: prefira o de Brier menor.",
+   "screens": [
+    "scoring.model"
+   ]
+  },
+  {
+   "id": "scoring.model.mean-predicted",
+   "module": "score",
+   "title": "Chance média prevista",
+   "what": "Média das chances previstas na validação, ao lado da taxa de pagamento observada.",
+   "how": "Média das chances do modelo nas observações de validação, comparada à proporção das que de fato pagaram.",
+   "use": "Valores próximos indicam modelo calibrado. Diferença grande pede cuidado ao usar a chance como estimativa de recebimento.",
+   "screens": [
+    "scoring.model"
+   ]
+  },
+  {
+   "id": "scoring.model.observations",
+   "module": "score",
+   "title": "Observações",
+   "what": "Quantidade de retratos de casos usados na validação e quantos deles pagaram.",
+   "how": "Retratos semanais com desfecho apurado no período de validação.",
+   "use": "Poucas observações ou poucos pagantes deixam as métricas instáveis: desconfie de diferenças pequenas entre modelos.",
+   "screens": [
+    "scoring.model"
+   ]
+  },
+  {
+   "id": "scoring.model.comparison",
+   "module": "score",
+   "title": "Comparação com o campeão",
+   "what": "As métricas deste modelo e do campeão calculadas nas mesmas observações, com a leitura de qual é melhor.",
+   "how": "Os dois modelos escoram as mesmas observações de validação e cada métrica é comparada lado a lado.",
+   "use": "É a evidência da promoção: promova só se o desafiante for melhor no conjunto, e registre a justificativa.",
+   "screens": [
+    "scoring.model"
+   ]
+  },
+  {
+   "id": "scoring.model.calibration",
+   "module": "score",
+   "title": "Calibração por faixa",
+   "what": "Chance prevista e taxa de pagamento observada em cada faixa de score, de A a E.",
+   "how": "Para cada faixa, a média das chances previstas e a proporção de observações que pagaram, com a quantidade de casos.",
+   "use": "As faixas devem ter taxas observadas decrescentes de A para E. Faixa fora de ordem indica cortes a rever.",
+   "screens": [
+    "scoring.model",
+    "scoring.monitoring"
+   ]
+  },
+  {
+   "id": "scoring.model.lift",
+   "module": "score",
+   "title": "Lift por decil",
+   "what": "Quanto cada décimo da população, do maior para o menor score, paga mais que a média.",
+   "how": "Taxa de pagamento de cada decil dividida pela taxa geral, com a captura acumulada (quanto dos pagantes está nos decis até ali).",
+   "use": "Lift alto nos primeiros decis significa que trabalhar primeiro os scores altos rende mais: é o ganho prático da priorização.",
+   "screens": [
+    "scoring.model"
+   ]
+  },
+  {
+   "id": "scoring.model.paid-share",
+   "module": "score",
+   "title": "Fração paga típica",
+   "what": "Quanto do saldo os casos que pagaram costumam pagar dentro da janela.",
+   "how": "Média do valor pago dividido pelo saldo entre os pagantes do treino; para scorecard, o padrão de 30%.",
+   "use": "Transforma chance em valor esperado no recuperado × esperado. Se a operação mudou de perfil (mais quitação ou mais parcelamento), um novo treino atualiza esse número.",
+   "screens": [
+    "scoring.model"
+   ]
+  },
+  {
+   "id": "scoring.run.scored",
+   "module": "score",
+   "title": "Casos escorados",
+   "what": "Casos que receberam score gravado nesta execução da escoragem.",
+   "how": "Contagem dos casos ativos processados pelo campeão na data de referência da execução.",
+   "use": "Compare com a quantidade de casos ativos: diferença grande indica casos fora da escoragem ou falhas.",
+   "screens": [
+    "scoring.run"
+   ]
+  },
+  {
+   "id": "scoring.run.skipped",
+   "module": "score",
+   "title": "Ignorados",
+   "what": "Casos que já tinham um cálculo mais recente que a referência da execução e por isso não foram sobrescritos.",
+   "how": "Contagem dos casos recalculados por evento (contato, promessa, pagamento) depois da data de referência do lote.",
+   "use": "Normal em dias de muita atividade. Não indica problema.",
+   "screens": [
+    "scoring.run"
+   ]
+  },
+  {
+   "id": "scoring.run.published",
+   "module": "score",
+   "title": "Publicados",
+   "what": "Scores enviados às filas e campanhas.",
+   "how": "Casos com primeiro score, mudança de faixa ou variação de pelo menos 10 pontos em relação ao último score publicado.",
+   "use": "Mostra quantos casos podem ter mudado de fila ou de segmento de campanha nesta execução.",
+   "screens": [
+    "scoring.run"
+   ]
+  },
+  {
+   "id": "scoring.run.band-changes",
+   "module": "score",
+   "title": "Mudaram de faixa",
+   "what": "Casos cuja faixa (A a E) mudou nesta execução.",
+   "how": "Contagem dos casos escorados com faixa diferente da anterior; cada mudança fica registrada na auditoria.",
+   "use": "Muitas mudanças de uma vez indicam mudança da carteira ou do modelo: confira o monitoramento.",
+   "screens": [
+    "scoring.run"
+   ]
+  },
+  {
+   "id": "scoring.run.failures",
+   "module": "score",
+   "title": "Falhas",
+   "what": "Casos que não puderam ser escorados nesta execução e mantêm o score anterior.",
+   "how": "Contagem dos casos com erro no cálculo, registrados no log técnico sem dados pessoais.",
+   "use": "Acima de zero, acione o suporte com o número da execução.",
+   "screens": [
+    "scoring.run"
+   ]
+  },
+  {
+   "id": "scoring.run.training-data",
+   "module": "score",
+   "title": "Dados do treino",
+   "what": "Observações, casos com desfecho e casos que pagaram disponíveis para treinar um novo modelo, com os mínimos exigidos.",
+   "how": "Retratos semanais com desfecho apurado na janela de treino; o treino só acontece quando os casos e os pagantes atingem os mínimos dos parâmetros.",
+   "use": "Abaixo do mínimo, a assessoria segue com o campeão atual. Aguarde mais safras apuradas antes de pedir novo treino.",
+   "screens": [
+    "scoring.run"
+   ]
+  },
+  {
+   "id": "scoring.run.validation-auc",
+   "module": "score",
+   "title": "AUC de validação",
+   "what": "Qualidade do novo modelo medida num período posterior ao do treino.",
+   "how": "Mesma AUC da ficha do modelo, calculada nas observações de validação.",
+   "use": "A partir do mínimo (padrão 0,60) o modelo vira desafiante; abaixo, é reprovado e nunca pode ser promovido.",
+   "screens": [
+    "scoring.run"
+   ]
+  },
+  {
+   "id": "incentive.performance.worked-cases",
+   "module": "remuneracao-variavel",
+   "title": "Casos trabalhados",
+   "what": "Casos em que o negociador registrou ao menos uma interação no período, com as tentativas de contato abaixo.",
+   "how": "Contagem de casos distintos com interação da pessoa no mês; na equipe, soma das pessoas.",
+   "use": "Mede o esforço. Compare com a carteira atribuída: poucos casos trabalhados indicam fila parada ou atendimento longo demais.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.effective-contacts",
+   "module": "remuneracao-variavel",
+   "title": "Contatos efetivos",
+   "what": "Interações em que o negociador falou com a pessoa certa.",
+   "how": "Contagem das interações com tabulação de contato efetivo. A taxa divide pelas tentativas de contato.",
+   "use": "Taxa de contato baixa costuma ser problema de dado de contato ou de horário, não de desempenho: compare com quem trabalha a mesma carteira.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.agreements",
+   "module": "remuneracao-variavel",
+   "title": "Acordos",
+   "what": "Acordos formalizados pelo negociador no mês, com a média por hora logada.",
+   "how": "Contagem dos acordos em que a pessoa é quem fechou; a média divide pelas horas logadas no período.",
+   "use": "Resultado de negociação. Leia junto com a quebra precoce: acordo que não se paga não gera comissão.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.recovered",
+   "module": "remuneracao-variavel",
+   "title": "Recuperado",
+   "what": "Pagamentos confirmados atribuídos ao negociador no período, líquidos de estornos, com a taxa de recuperação.",
+   "how": "Pagamentos dos acordos que a pessoa fechou, pelo peso de crédito de cada acordo (por exemplo, acordo que o assistente deixou pronto e a pessoa só confirmou tem peso menor). A taxa divide pelo saldo elegível atribuído no início do período.",
+   "use": "É a base da comissão. Taxa baixa com carteira grande pede revisar priorização e abordagem; compare com o recuperado × esperado para uma leitura justa.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.expected-ratio",
+   "module": "remuneracao-variavel",
+   "title": "Recuperado × esperado",
+   "what": "Quanto o negociador recuperou comparado ao que o score previa para a carteira que ele recebeu.",
+   "how": "Recuperado dividido pelo esperado das safras do score com data no período, pelo responsável pelo caso na data do score. 100% é exatamente o previsto.",
+   "use": "É a comparação mais justa entre pessoas, porque desconta a dificuldade da carteira recebida. Acima de 100%, a pessoa supera o esperado.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.callbacks",
+   "module": "remuneracao-variavel",
+   "title": "Retornos cumpridos",
+   "what": "Retornos agendados com o devedor que foram feitos no horário combinado.",
+   "how": "Retornos cumpridos até o fim da tolerância divididos pelos retornos com horário no período (sem os cancelados antes de vencer e os substituídos por reagendamento).",
+   "use": "Retorno perdido esfria a negociação e desgasta a relação com o devedor. Taxa baixa pede organizar a agenda do dia.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.promises",
+   "module": "remuneracao-variavel",
+   "title": "Promessas cumpridas",
+   "what": "Promessas de pagamento registradas pelo negociador que o devedor cumpriu.",
+   "how": "Promessas cumpridas divididas pelas promessas vencidas com desfecho (cumpridas mais quebradas), pela data prometida. Pendentes na tolerância e canceladas ficam fora.",
+   "use": "Mostra se as promessas são realistas. Taxa baixa indica promessa sem compromisso real do devedor: prefira acordo formal ou valores menores.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.early-break",
+   "module": "remuneracao-variavel",
+   "title": "Quebra precoce (60 dias)",
+   "what": "Acordos da safra do negociador quebrados nos primeiros 60 dias.",
+   "how": "Acordos formalizados que quebraram em até 60 dias divididos pelos acordos da safra.",
+   "use": "Quebra alta pode acionar deflator no plano. Revise entrada e número de parcelas oferecidos: acordo dimensionado à capacidade do devedor se sustenta.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.performance.qa-score",
+   "module": "remuneracao-variavel",
+   "title": "Nota de monitoria",
+   "what": "Média das avaliações de qualidade de atendimento do negociador, de 0 a 10.",
+   "how": "Média das notas das avaliações de monitoria no período, calculadas pelos critérios e pesos do formulário usado.",
+   "use": "Pode funcionar como portão do variável (padrão 7,0): abaixo, a comissão fica retida até nova avaliação. Use os comentários das avaliações para orientar o treino.",
+   "screens": [
+    "incentive.performance",
+    "incentive.evaluations"
+   ]
+  },
+  {
+   "id": "incentive.performance.handling-time",
+   "module": "remuneracao-variavel",
+   "title": "Tempo médio de atendimento",
+   "what": "Duração média das chamadas atendidas pelo negociador.",
+   "how": "Tempo de conversação das chamadas atendidas dividido pela quantidade de chamadas atendidas.",
+   "use": "Muito alto reduz a quantidade de atendimentos; muito baixo pode indicar conversa sem negociação. Avalie com a nota de monitoria.",
+   "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.statement.credited",
+   "module": "remuneracao-variavel",
+   "title": "Recuperado creditado",
+   "what": "Valor recuperado que conta para a comissão do negociador no período.",
+   "how": "Pagamentos liberados depois da carência, vezes o peso de crédito de cada acordo (origem do acordo, renegociação, desligamento) e o fator de dificuldade do segmento.",
+   "use": "É a base sobre a qual o plano calcula a comissão. Diferença em relação ao recuperado bruto se explica pelos pesos: veja a memória de cálculo.",
+   "screens": [
+    "incentive.statement",
+    "incentive.statements"
+   ]
+  },
+  {
+   "id": "incentive.statement.calculated",
+   "module": "remuneracao-variavel",
+   "title": "Calculado",
+   "what": "Comissão variável apurada pelo plano no fechamento do período, antes dos ajustes.",
+   "how": "Percentual sobre o recuperado creditado por tabela de segmento, fixo por acordo, meta (gatilho e acelerador), deflatores, pool de equipe, monitoria e teto, nessa ordem. Cada etapa é uma linha da memória de cálculo.",
+   "use": "Confira a memória de cálculo antes de aprovar; contestações do negociador são tratadas por ajuste com motivo.",
+   "screens": [
+    "incentive.statement"
+   ]
+  },
+  {
+   "id": "incentive.statement.adjustments",
+   "module": "remuneracao-variavel",
+   "title": "Ajustes",
+   "what": "Correções manuais do extrato, positivas ou negativas, sempre com motivo.",
+   "how": "Soma dos ajustes lançados no extrato antes da aprovação.",
+   "use": "Ajustes frequentes indicam regra do plano a corrigir. Prefira corrigir o plano na próxima versão.",
+   "screens": [
+    "incentive.statement"
+   ]
+  },
+  {
+   "id": "incentive.statement.withheld",
+   "module": "remuneracao-variavel",
+   "title": "Retido",
+   "what": "Parte do variável suspensa pelo portão de monitoria (nota abaixo do mínimo do plano).",
+   "how": "Valor que seria pago, mantido retido até uma nova avaliação de monitoria; é liberado por recálculo depois dela.",
+   "use": "Para liberar, agende a reavaliação de monitoria do negociador.",
+   "screens": [
+    "incentive.statement"
+   ]
+  },
+  {
+   "id": "incentive.statement.payable",
+   "module": "remuneracao-variavel",
+   "title": "A pagar",
+   "what": "Valor final da comissão do período, que vai para a folha depois da aprovação.",
+   "how": "Calculado mais ajustes, menos o retido, com piso zero e teto do período do plano.",
+   "use": "Só é exportado para a folha depois de aprovado por outra pessoa. Por cautela trabalhista, comissão aprovada não é estornada depois (salvo plano configurado).",
+   "screens": [
+    "incentive.statement",
+    "incentive.statements"
+   ]
+  },
+  {
+   "id": "incentive.preview.cleared",
+   "module": "remuneracao-variavel",
+   "title": "Recuperado liberado",
+   "what": "Pagamentos do mês em curso que já passaram pela carência e contam para a comissão.",
+   "how": "Recuperado creditado dos pagamentos confirmados cuja carência (dias úteis definidos no plano) já terminou sem estorno.",
+   "use": "Mostra o que já está garantido no mês. O variável com o liberado é a comissão que esse valor geraria hoje.",
+   "screens": [
+    "incentive.preview"
+   ]
+  },
+  {
+   "id": "incentive.preview.pending",
+   "module": "remuneracao-variavel",
+   "title": "Em carência",
+   "what": "Pagamentos do mês ainda dentro da carência: contam para a comissão só se não forem estornados até o fim dela.",
+   "how": "Recuperado creditado dos pagamentos confirmados ainda dentro dos dias de carência do plano.",
+   "use": "A carência evita pagar comissão sobre pagamento que depois é estornado. Acompanhe os estornos para não contar com esse valor antes da hora.",
+   "screens": [
+    "incentive.preview"
+   ]
+  },
+  {
+   "id": "incentive.preview.projected",
+   "module": "remuneracao-variavel",
+   "title": "Variável projetado",
+   "what": "Comissão estimada do mês se todos os pagamentos em carência forem liberados sem estorno.",
+   "how": "O motor do plano aplicado ao liberado mais o que está em carência. Meta, deflatores e portão de monitoria são reavaliados no fechamento.",
+   "use": "Ajuda o negociador a ver quanto falta para a meta. Não é valor garantido.",
+   "screens": [
+    "incentive.preview"
+   ]
+  },
+  {
+   "id": "incentive.goals.target",
+   "module": "remuneracao-variavel",
+   "title": "Meta",
+   "what": "Objetivo do negociador ou da equipe no mês, em valor (R$) ou percentual, conforme o plano.",
+   "how": "Meta cadastrada para o período; sem meta cadastrada, vale a meta padrão do plano. No fechamento, o atingimento é o realizado dividido pela meta.",
+   "use": "Abaixo do gatilho do plano (por exemplo, 80%), o variável é reduzido; acima de 100%, o acelerador aumenta. Defina metas alcançáveis e coerentes com a carteira recebida.",
+   "screens": [
+    "incentive.goals"
+   ]
+  },
+  {
+   "id": "settlement.statement.received-agency",
+   "module": "prestacao-de-contas",
+   "title": "Recebido na assessoria",
+   "what": "Pagamentos dos devedores que entraram na conta da assessoria e foram aplicados a títulos ou parcelas no período.",
+   "how": "Soma dos pagamentos confirmados com data até o fim do período e ainda não prestados, inclusive os que chegaram atrasados de períodos anteriores. Quando o contrato exige, só entram os já conciliados com o extrato.",
+   "use": "É o dinheiro que a assessoria tem em mãos para repassar. Diferença em relação ao extrato bancário indica pagamento aguardando conciliação.",
+   "screens": [
+    "settlement.statement"
+   ]
+  },
+  {
+   "id": "settlement.statement.received-creditor",
+   "module": "prestacao-de-contas",
+   "title": "Pago direto ao credor",
+   "what": "Pagamentos que o devedor fez diretamente ao credor, informados pela assessoria.",
+   "how": "Soma dos pagamentos registrados como recebidos pelo credor no período. Contam como recuperação (geram comissão), mas o dinheiro não passou pela assessoria.",
+   "use": "Quanto maior, mais o líquido tende a ficar negativo: a assessoria passa a ter valor a receber do credor pela comissão.",
+   "screens": [
+    "settlement.statement"
+   ]
+  },
+  {
+   "id": "settlement.statement.reversals",
+   "module": "prestacao-de-contas",
+   "title": "Estornos",
+   "what": "Pagamentos já prestados que foram devolvidos ou desfeitos.",
+   "how": "Soma dos estornos com data no período, lançados como valor negativo. O demonstrativo aprovado não muda: o estorno sempre aparece no demonstrativo seguinte.",
+   "use": "Estornos reduzem o líquido e a comissão. Valor alto merece conferir a origem (contestação do devedor, pagamento duplicado, erro de baixa).",
+   "screens": [
+    "settlement.statement"
+   ]
+  },
+  {
+   "id": "settlement.statement.recovered",
+   "module": "prestacao-de-contas",
+   "title": "Recuperado líquido",
+   "what": "Total recebido no período, na assessoria e diretamente pelo credor, menos os estornos.",
+   "how": "Recebido na assessoria mais pago direto ao credor, menos estornos. É a mesma base do valor recuperado dos painéis.",
+   "use": "É o resultado da cobrança para o credor no período e a base da comissão. Use para conferir com o painel de recuperação.",
+   "screens": [
+    "settlement.statement",
+    "settlement.position",
+    "settlement.statements"
+   ]
+  },
+  {
+   "id": "settlement.statement.honorarium",
+   "module": "prestacao-de-contas",
+   "title": "Honorários da assessoria",
+   "what": "Parte dos honorários cobrados do devedor que pertence à assessoria pelo contrato.",
+   "how": "Honorários cobrados do devedor em cada pagamento vezes a fração contratual da assessoria. Ficam com a assessoria e saem da base da comissão.",
+   "use": "Explica por que a comissão é calculada sobre um valor menor que o recebido. Confira a fração no contrato do credor.",
+   "screens": [
+    "settlement.statement",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.statement.commission",
+   "module": "prestacao-de-contas",
+   "title": "Comissão",
+   "what": "Remuneração da assessoria sobre o que recuperou, pelas regras do contrato do credor.",
+   "how": "Para cada recebimento, o valor recebido menos os honorários da assessoria, vezes o percentual da regra vigente (por carteira, faixa de atraso, à vista ou parcelado).",
+   "use": "É a receita da assessoria no período. Pagamento sem regra vigente fica fora até a regra ser cadastrada: confira o informativo \"Aguardando regra\".",
+   "screens": [
+    "settlement.statement",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.statement.fixed-fees",
+   "module": "prestacao-de-contas",
+   "title": "Valores fixos",
+   "what": "Valor fixo por acordo previsto no contrato, cobrado no primeiro pagamento de cada acordo.",
+   "how": "Soma dos valores fixos dos acordos que tiveram o primeiro pagamento no período.",
+   "use": "Complementa a comissão em contratos com tarifa por acordo. Muitos acordos novos aumentam esse valor.",
+   "screens": [
+    "settlement.statement",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.statement.expenses",
+   "module": "prestacao-de-contas",
+   "title": "Custas deduzidas",
+   "what": "Custas reembolsáveis adiantadas pela assessoria ou por escritório parceiro (por exemplo, no jurídico), descontadas do repasse.",
+   "how": "Soma das custas com reembolso previsto no período. Custas pagas pelo próprio credor aparecem só como informação.",
+   "use": "Reduzem o líquido. Confira os comprovantes antes de aprovar o demonstrativo.",
+   "screens": [
+    "settlement.statement",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.statement.adjustments",
+   "module": "prestacao-de-contas",
+   "title": "Ajustes",
+   "what": "Correções aprovadas do valor, sempre com motivo (por exemplo, contestação do credor no período anterior).",
+   "how": "Soma dos ajustes do demonstrativo, positivos ou negativos. Acima de R$ 1.000,00 precisam da aprovação de outra pessoa.",
+   "use": "Ajustes frequentes indicam erro recorrente em regras ou baixas: corrija a causa em vez de ajustar todo mês.",
+   "screens": [
+    "settlement.statement",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.statement.net",
+   "module": "prestacao-de-contas",
+   "title": "Líquido a repassar",
+   "what": "Valor que a assessoria deve transferir ao credor pelo período. Se negativo, é o valor que o credor deve à assessoria.",
+   "how": "Para cada recebimento, o valor recebido pela assessoria menos honorários, comissão e valor fixo; a soma desses efeitos, menos as custas reembolsáveis, mais os ajustes.",
+   "use": "É o número do repasse. Depois de aprovado não muda; registre o repasse com o comprovante até o saldo zerar.",
+   "screens": [
+    "settlement.statement",
+    "settlement.statements",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.statement.informative",
+   "module": "prestacao-de-contas",
+   "title": "Informativos",
+   "what": "Valores que ajudam a entender o período mas não entram no líquido: negociado em acordos, comissão prevista, aguardando conciliação, aguardando regra e divergências abertas.",
+   "how": "Negociado: valor dos acordos (acordo não pago não é recuperação). Comissão prevista: saldo dos acordos em aberto pelas regras vigentes. Aguardando conciliação e aguardando regra: pagamentos que entram depois.",
+   "use": "Valores aguardando conciliação ou regra entram em um demonstrativo futuro: resolva antes do fechamento para o credor receber no prazo.",
+   "screens": [
+    "settlement.statement"
+   ]
+  },
+  {
+   "id": "settlement.position.net",
+   "module": "prestacao-de-contas",
+   "title": "Líquido estimado",
+   "what": "Quanto seria repassado ao credor se o período em aberto fechasse agora.",
+   "how": "O mesmo cálculo do demonstrativo, feito sobre o período em aberto até hoje. Pode mudar até o fechamento, com novos pagamentos, estornos e ajustes.",
+   "use": "Permite ao credor e ao financeiro acompanhar o repasse sem esperar o fechamento e planejar o caixa.",
+   "screens": [
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.position.pending",
+   "module": "prestacao-de-contas",
+   "title": "Fora do líquido",
+   "what": "Pagamentos do período que ainda não podem entrar no repasse: aguardando conciliação com o extrato ou sem regra de comissão vigente.",
+   "how": "Soma desses pagamentos na data do cálculo. Entram no primeiro demonstrativo depois de conciliados ou de a regra ser cadastrada.",
+   "use": "Concilie o extrato e cadastre a regra que falta antes do fechamento para o valor não ficar para o período seguinte.",
+   "screens": [
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "settlement.transfers.balance",
+   "module": "prestacao-de-contas",
+   "title": "Saldo a repassar",
+   "what": "Valor dos demonstrativos aprovados que ainda não foi repassado ao credor (ou recebido dele, quando o líquido é negativo).",
+   "how": "Líquido dos demonstrativos aprovados menos os repasses registrados com comprovante.",
+   "use": "Saldo parado indica repasse atrasado: registre a transferência e o comprovante para manter o credor em dia.",
+   "screens": [
+    "settlement.transfers"
+   ]
+  },
+  {
+   "id": "payment.detail.amount",
+   "module": "pagamentos",
+   "title": "Valor pago",
+   "what": "Valor que o devedor pagou neste pagamento.",
+   "how": "Valor confirmado pelo provedor, pelo extrato ou por quem informou e aprovou o pagamento.",
+   "use": "Compare com o alocado: o que não couber no destino vira sobra e precisa ser realocado ou devolvido.",
+   "screens": [
+    "payment.detail"
+   ]
+  },
+  {
+   "id": "payment.detail.allocated",
+   "module": "pagamentos",
+   "title": "Alocado",
+   "what": "Parte do pagamento aplicada às parcelas do acordo ou aos títulos do devedor.",
+   "how": "Soma das alocações do pagamento; cada alocação baixa um destino e é a unidade que entra na recuperação e na comissão.",
+   "use": "Só o alocado conta como recuperado para o credor e para a comissão.",
+   "screens": [
+    "payment.detail"
+   ]
+  },
+  {
+   "id": "payment.detail.unallocated",
+   "module": "pagamentos",
+   "title": "Sobra",
+   "what": "Parte do pagamento que não coube em nenhum destino (acordo encerrado, destino já quitado ou valor acima do saldo).",
+   "how": "Valor pago menos a parte já alocada aos destinos do devedor.",
+   "use": "Sobra parada é dinheiro do devedor sem destino: realoque para outro acordo ou título, ou devolva, na tela de sobras.",
+   "screens": [
+    "payment.detail",
+    "payment.reallocation"
+   ]
+  },
+  {
+   "id": "payment.detail.pending-reallocation",
+   "module": "pagamentos",
+   "title": "A realocar",
+   "what": "Valor deste pagamento aguardando realocação: a sobra mais o que foi liberado de um acordo sem ser aplicado.",
+   "how": "Sobra ainda não realocada mais os valores liberados de alocações a acordo que não foram aplicados.",
+   "use": "Realoque com justificativa o quanto antes: enquanto não for realocado, o valor não aparece como recuperação de nenhum título.",
+   "screens": [
+    "payment.detail",
+    "payment.reallocation"
+   ]
+  },
+  {
+   "id": "payment.statement.lines",
+   "module": "pagamentos",
+   "title": "Linhas lidas",
+   "what": "Quantidade de lançamentos lidos do arquivo de extrato ou retorno bancário.",
+   "how": "Todas as linhas válidas do arquivo, créditos e débitos.",
+   "use": "Confira com o total de lançamentos do extrato do banco para ter certeza de que o arquivo veio completo.",
+   "screens": [
+    "payment.statement"
+   ]
+  },
+  {
+   "id": "payment.statement.credits",
+   "module": "pagamentos",
+   "title": "Créditos tratados",
+   "what": "Linhas de entrada de dinheiro que o sistema tentou conciliar.",
+   "how": "Linhas lidas menos as ignoradas (débitos e transações já importadas em outro arquivo).",
+   "use": "É a base das taxas de conciliação e de divergência do lote.",
+   "screens": [
+    "payment.statement"
+   ]
+  },
+  {
+   "id": "payment.statement.reconciled",
+   "module": "pagamentos",
+   "title": "Conciliadas",
+   "what": "Créditos do extrato ligados a um pagamento já confirmado no sistema.",
+   "how": "Linhas cujo identificador da transação, referência da cobrança ou pagamento correspondem a um pagamento confirmado com o mesmo valor e data dentro da tolerância.",
+   "use": "Quanto maior a taxa de conciliação (conciliadas mais confirmações sobre os créditos), menos trabalho manual e mais rápida a prestação de contas.",
+   "screens": [
+    "payment.statement"
+   ]
+  },
+  {
+   "id": "payment.statement.confirmed",
+   "module": "pagamentos",
+   "title": "Confirmaram pagamento",
+   "what": "Créditos do extrato que eram de uma cobrança emitida e ainda não confirmada: o próprio extrato confirmou o pagamento.",
+   "how": "Linhas com a referência de uma cobrança sem pagamento: o sistema cria o pagamento, aplica ao destino e concilia.",
+   "use": "Mostra pagamentos que só foram conhecidos pelo extrato (por exemplo, sem aviso do provedor). É normal; acompanhe se o volume crescer.",
+   "screens": [
+    "payment.statement"
+   ]
+  },
+  {
+   "id": "payment.statement.divergent",
+   "module": "pagamentos",
+   "title": "Divergentes",
+   "what": "Créditos do extrato que não puderam ser conciliados automaticamente e foram para a fila de divergências.",
+   "how": "Linhas sem correspondência ou com diferença de valor, duplicidade ou devolução parcial. A taxa de divergência divide pelos créditos tratados.",
+   "use": "Cada divergência pode ser um pagamento sem baixa: resolva na fila de divergências antes do fechamento da prestação de contas.",
+   "screens": [
+    "payment.statement",
+    "payment.divergences"
+   ]
+  },
+  {
+   "id": "payment.statement.ignored",
+   "module": "pagamentos",
+   "title": "Ignoradas",
+   "what": "Linhas do extrato que não geram baixa: débitos e transações já importadas em outro arquivo.",
+   "how": "Débitos mais linhas reconhecidas como repetidas pela impressão digital da transação.",
+   "use": "Muitas repetidas indicam arquivos com períodos sobrepostos; não há baixa em dobro, mas combine com o banco o período de cada arquivo.",
+   "screens": [
+    "payment.statement"
+   ]
+  },
+  {
+   "id": "payment.statement.preview",
+   "module": "pagamentos",
+   "title": "Prévia do arquivo",
+   "what": "Resumo do arquivo antes de importar: linhas, créditos, total creditado e débitos.",
+   "how": "Leitura do arquivo no navegador, sem gravar nada; débitos são ignorados na conciliação.",
+   "use": "Confira o total creditado com o extrato do banco antes de importar: diferença indica arquivo errado ou incompleto.",
+   "screens": [
+    "payment.reconciliation"
+   ]
+  },
+  {
+   "id": "negotiation.sim.updated-debt",
+   "module": "negociacao",
+   "title": "Dívida atualizada",
+   "what": "Quanto o devedor deve hoje (na data-base), separado em principal, juros, multa, encargos e honorários.",
+   "how": "O sistema aplica aos títulos escolhidos as regras da política vigente do credor: correção quando contratual, juros de mora sobre o principal em aberto, multa uma vez, encargos autorizados e honorários. A memória de cálculo mostra cada parcela da conta por título.",
+   "use": "É o ponto de partida da negociação e a referência do desconto. Se um valor parecer estranho, abra a memória de cálculo antes de negociar.",
+   "screens": [
+    "negotiation.simulator",
+    "negotiation.proposal-detail",
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.sim.envelope",
+   "module": "negociacao",
+   "title": "Envelope da política",
+   "what": "O desconto máximo que a política do credor permite em cada forma de pagamento (à vista ou em até N pagamentos) e o valor mínimo do acordo.",
+   "how": "Faixas de desconto da política por componente da dívida, aplicadas à composição atualizada; quanto mais pagamentos, em geral menor o desconto permitido.",
+   "use": "Mostra até onde a negociação pode ir. Nunca comece pelo limite: use a escada de concessões e suba só com justificativa.",
+   "screens": [
+    "negotiation.simulator"
+   ]
+  },
+  {
+   "id": "negotiation.sim.ladder",
+   "module": "negociacao",
+   "title": "Nível da escada",
+   "what": "Degrau de concessão em que as ofertas estão, do nível 0 (sem desconto) até o topo permitido pela sua alçada.",
+   "how": "Cada nível libera uma fatia do envelope da política. Seu nível máximo é o menor entre o topo da escada da política e o do seu perfil de alçada.",
+   "use": "Comece pelo nível mais baixo e suba conforme a negociação pede; cada subida exige o motivo, registrado na auditoria. A operação mede em que nível os acordos fecham.",
+   "screens": [
+    "negotiation.simulator",
+    "negotiation.proposal-detail"
+   ]
+  },
+  {
+   "id": "negotiation.sim.offer-total",
+   "module": "negociacao",
+   "title": "Total da oferta",
+   "what": "Quanto o devedor paga ao todo nesta oferta, somando entrada e parcelas.",
+   "how": "Valor negociado (dívida atualizada menos os descontos) mais os juros do parcelamento, quando houver.",
+   "use": "É o valor que o devedor vai comparar. Ao parcelar, mostre também o valor da parcela, que costuma pesar mais na decisão do devedor.",
+   "screens": [
+    "negotiation.simulator",
+    "negotiation.proposal-detail",
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.sim.discount",
+   "module": "negociacao",
+   "title": "Desconto",
+   "what": "Quanto a oferta abate da dívida atualizada, em reais e em percentual.",
+   "how": "Soma dos descontos aplicados a cada componente (principal, juros, multa, encargos, honorários), limitados pelo envelope da política e pela sua alçada.",
+   "use": "Desconto maior aumenta a chance de acordo, mas reduz o valor recuperado e a comissão. Use o menor desconto que fecha o acordo.",
+   "screens": [
+    "negotiation.simulator",
+    "negotiation.proposal-detail",
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.sim.financing-interest",
+   "module": "negociacao",
+   "title": "Juros do parcelamento",
+   "what": "Acréscimo cobrado por parcelar o valor negociado.",
+   "how": "Juros da política aplicados ao saldo financiado depois da entrada, pela tabela de parcelas iguais à taxa do período.",
+   "use": "Explica a diferença entre o total à vista e o parcelado. Se o devedor estranhar, compare as duas ofertas lado a lado.",
+   "screens": [
+    "negotiation.simulator",
+    "negotiation.proposal-detail",
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.sim.offer-status",
+   "module": "negociacao",
+   "title": "Situação da oferta",
+   "what": "Se a oferta pode ser proposta por você, precisa de aprovação ou foi recusada pelas regras.",
+   "how": "O sistema confere a oferta contra a política (descontos, parcelas, entrada e valor mínimos) e contra o seu perfil de alçada. Fora da política, é recusada; dentro da política mas acima da alçada, precisa de aprovação.",
+   "use": "Dentro da alçada, use \"Propor\". Acima dela, \"Pedir aprovação\" envia a proposta para quem tem alçada maior, com o resumo do impacto.",
+   "screens": [
+    "negotiation.simulator"
+   ]
+  },
+  {
+   "id": "negotiation.authority.limits",
+   "module": "negociacao",
+   "title": "Sua alçada",
+   "what": "Até onde você pode negociar sem aprovação: nível da escada, fatia do desconto máximo, número de pagamentos, valor do acordo, entrada mínima e se formaliza sozinho.",
+   "how": "Vem do seu perfil de alçada (por credor, quando houver). O limite efetivo é sempre o menor entre a política do credor e o seu perfil; a entrada mínima é a maior das duas.",
+   "use": "Negociações acima desses limites viram pedido de aprovação. Se você pede aprovação com frequência, converse com o supervisor sobre o seu perfil.",
+   "screens": [
+    "negotiation.simulator",
+    "negotiation.authority"
+   ]
+  },
+  {
+   "id": "negotiation.proposal.envelope-usage",
+   "module": "negociacao",
+   "title": "Uso do desconto máximo",
+   "what": "Quanto do desconto máximo permitido pela política a proposta usou.",
+   "how": "Desconto da proposta dividido pelo desconto máximo da política para a mesma forma de pagamento, em percentual.",
+   "use": "Uso alto e frequente indica negociação começando pelo limite. Esse número alimenta a remuneração variável (pode haver deflator acima de um limite).",
+   "screens": [
+    "negotiation.proposal-detail"
+   ]
+  },
+  {
+   "id": "negotiation.agreement.paid",
+   "module": "negociacao",
+   "title": "Pago",
+   "what": "Quanto do acordo o devedor já pagou, com pagamentos confirmados e líquidos de estornos.",
+   "how": "Soma das baixas confirmadas nas parcelas do acordo.",
+   "use": "Acompanhe com o saldo: parcelas em atraso além da tolerância da política quebram o acordo.",
+   "screens": [
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.agreement.remaining",
+   "module": "negociacao",
+   "title": "Saldo do acordo",
+   "what": "Quanto ainda falta o devedor pagar do acordo.",
+   "how": "Total do acordo menos o que já foi pago.",
+   "use": "É o valor ainda em risco. Com parcelas vencidas, gere o Pix da parcela e contate o devedor antes da quebra.",
+   "screens": [
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.agreement.incremental",
+   "module": "negociacao",
+   "title": "Ganho da renegociação",
+   "what": "Quanto a renegociação acrescenta em relação ao que ainda faltava pagar no acordo anterior.",
+   "how": "Novo valor menos o saldo do acordo substituído (valor dele menos o já pago), nunca abaixo de zero. O já recebido nunca é contado de novo.",
+   "use": "É o que conta para a comissão numa renegociação. Ganho zero significa que a renegociação só reorganizou a dívida.",
+   "screens": [
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.agreement.break-rule",
+   "module": "negociacao",
+   "title": "Quebra",
+   "what": "Regra que caracteriza a quebra deste acordo: quantas parcelas vencidas sem pagamento e por quantos dias de tolerância.",
+   "how": "Vem da política na formalização. Uma verificação diária quebra o acordo quando a regra é atingida, exceto com pagamento em revisão ou em trânsito.",
+   "use": "Saber a regra ajuda a agir antes: contate o devedor dentro da tolerância e ofereça o Pix da parcela.",
+   "screens": [
+    "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "ingestion.review.validation",
+   "module": "importacao",
+   "title": "Resultado da validação",
+   "what": "Quantas linhas do arquivo foram lidas, quantas estão válidas, quantas têm erro e quantos avisos foram gerados.",
+   "how": "Cada linha de dados é conferida contra o layout (campos obrigatórios, datas, valores, documento). Linha com erro não é importada; aviso não impede, mas merece leitura.",
+   "use": "Muitos erros do mesmo tipo indicam problema no arquivo inteiro (coluna trocada, formato de valor): corrija na origem e envie de novo em vez de excluir linha a linha.",
+   "screens": [
+    "ingestion.review"
+   ]
+  },
+  {
+   "id": "ingestion.review.control-totals",
+   "module": "importacao",
+   "title": "Totais de controle",
+   "what": "Comparação entre os totais que você digitou da sua planilha (linhas e somas de valores) e os totais que o sistema leu do arquivo.",
+   "how": "O sistema soma todas as linhas de dados do arquivo, inclusive as com erro, com o formato de valor escolhido. Quantidade precisa bater exatamente; valores aceitam diferença de até um centavo.",
+   "use": "Se não bater, a importação fica bloqueada. Diferença de 10, 100 ou 1.000 vezes quase sempre é separador decimal trocado: volte ao passo do formato dos valores.",
+   "screens": [
+    "ingestion.review"
+   ]
+  },
+  {
+   "id": "ingestion.review.breakdown",
+   "module": "importacao",
+   "title": "Totais do arquivo por grupo",
+   "what": "Linhas, principal e saldo do arquivo separados por faixa de vencimento, situação informada, produto e validade da linha.",
+   "how": "As mesmas somas dos totais de controle, quebradas por grupo.",
+   "use": "Compare com os subtotais da sua planilha para achar onde está a diferença quando os totais não batem.",
+   "screens": [
+    "ingestion.review"
+   ]
+  },
+  {
+   "id": "ingestion.review.expected-range",
+   "module": "importacao",
+   "title": "Faixa esperada (ticket médio)",
+   "what": "Intervalo de valores considerado normal para o título, com base no histórico do credor ou no próprio arquivo.",
+   "how": "O sistema usa a mediana dos valores já carregados do credor (na mesma carteira e produto, quando há pelo menos 30 títulos) ou do próprio arquivo, com uma medida de dispersão que não é distorcida pelos extremos. Valor muito acima ou muito abaixo dessa faixa vira alerta.",
+   "use": "Um valor fora da faixa pode ser verdadeiro (dívida grande) ou erro de digitação ou de separador decimal. Confirme se estiver correto ou exclua a linha do lote.",
+   "screens": [
+    "ingestion.review"
+   ]
+  },
+  {
+   "id": "ingestion.review.alerts",
+   "module": "importacao",
+   "title": "Alertas de valor",
+   "what": "Sinais de valor suspeito no arquivo, por tipo: provável separador decimal, valor fora do ticket médio, saldo muito acima do principal, vencimentos improváveis e outros.",
+   "how": "Cada tipo tem uma regra; os de escala (separador decimal, mudança de escala do arquivo, padrão de centavos) têm prioridade máxima. Mostra quantos estão abertos e quantos já foram revisados.",
+   "use": "Alertas de escala precisam ser revisados antes de importar, e há um limite de alertas abertos. Muitos alertas do mesmo tipo indicam problema sistemático: revise o formato dos valores.",
+   "screens": [
+    "ingestion.review"
+   ]
+  },
+  {
+   "id": "ingestion.review.impact",
+   "module": "importacao",
+   "title": "Impacto da importação",
+   "what": "O que vai acontecer ao importar: linhas a importar, títulos novos, títulos já existentes, títulos que ficam suspensos e a soma do principal.",
+   "how": "Calculado sobre as linhas válidas e não excluídas na conferência, comparando com os títulos já cadastrados do credor; linhas com erro e excluídas ficam fora.",
+   "use": "Confira se a quantidade de títulos novos e a soma do principal fazem sentido para o que o credor enviou antes de importar ou pedir aprovação.",
+   "screens": [
+    "ingestion.review"
+   ]
+  },
+  {
+   "id": "ingestion.batch.principal",
+   "module": "importacao",
+   "title": "Principal do lote",
+   "what": "Soma do valor principal das linhas validadas ou gravadas neste lote.",
+   "how": "Soma do valor principal das linhas aceitas, com o formato de valor aplicado na leitura.",
+   "use": "Compare com o total que o credor informou para o arquivo. Diferença grande pede rever a conferência e a leitura dos valores.",
+   "screens": [
+    "ingestion.batch-detail"
+   ]
+  },
+  {
+   "id": "ingestion.pdf.summary",
+   "module": "importacao",
+   "title": "Resumo da leitura do PDF",
+   "what": "Títulos encontrados no PDF, quantos serão importados, devedores, valor original, saldo e títulos com erro.",
+   "how": "Contagens e somas do mapa de dados escrito a partir do PDF, depois das suas decisões de excluir ou confirmar títulos.",
+   "use": "Confira os totais com o PDF original (ou com o total informado pelo credor) antes de concluir; títulos de confiança baixa precisam ser confirmados um a um.",
+   "screens": [
+    "ingestion.pdf-import"
+   ]
+  },
+  {
+   "id": "campaign.execution.enrollments",
+   "module": "campanhas",
+   "title": "Inscritos",
+   "what": "Casos inscritos na campanha desde o início, com quantos ainda estão em andamento na régua.",
+   "how": "Contagem das inscrições da campanha, de qualquer situação (em andamento, pausadas, encerradas). É o denominador das taxas do painel.",
+   "use": "Inscrições abaixo do esperado indicam segmento restrito demais ou casos em outra campanha concorrente: revise o segmento e as supressões.",
+   "screens": [
+    "campaign.execution"
+   ]
+  },
+  {
+   "id": "campaign.execution.steps",
+   "module": "campanhas",
+   "title": "Etapas executadas",
+   "what": "Ações da régua realizadas (mensagens, tarefas, ligações), com as puladas e as que falharam.",
+   "how": "Execuções das etapas por situação. Etapa pulada é a que não se aplicava (caso inelegível, condição não atendida, contato negado pelo porteiro de contato).",
+   "use": "Muitas etapas puladas pedem rever condições e janelas da régua; falhas pedem conferir templates e canais.",
+   "screens": [
+    "campaign.execution"
+   ]
+  },
+  {
+   "id": "campaign.execution.failed",
+   "module": "campanhas",
+   "title": "Inscrições com falha",
+   "what": "Inscrições paradas por uma falha na execução de uma etapa, aguardando reprocessamento.",
+   "how": "Contagem das inscrições em situação de falha no momento.",
+   "use": "Reprocesse depois de corrigir a causa (template, canal, dado do devedor); enquanto isso, esses casos não recebem a régua.",
+   "screens": [
+    "campaign.execution"
+   ]
+  },
+  {
+   "id": "campaign.execution.replies",
+   "module": "campanhas",
+   "title": "Respostas",
+   "what": "Inscrições em que o devedor respondeu a alguma mensagem dentro do período de observação.",
+   "how": "Inscrições com resposta atribuída (da inscrição até o fim da régua mais a janela de atribuição, padrão 7 dias), divididas pelas inscrições.",
+   "use": "Mede o engajamento da régua. Taxa baixa pede testar outro template, canal ou horário (use um teste A/B).",
+   "screens": [
+    "campaign.execution"
+   ]
+  },
+  {
+   "id": "campaign.execution.agreements",
+   "module": "campanhas",
+   "title": "Acordos atribuídos",
+   "what": "Acordos formalizados por devedores inscritos dentro do período de observação, e o valor deles.",
+   "how": "Leitura por intenção de tratar: o acordo conta para toda inscrição cujo período de observação o contém, uma vez por campanha, mesmo que tenha sido fechado por um negociador.",
+   "use": "Mostra o resultado associado à campanha, não necessariamente causado por ela. Para medir o efeito real, compare com um grupo de controle num teste A/B.",
+   "screens": [
+    "campaign.execution"
+   ]
+  },
+  {
+   "id": "campaign.execution.recovered",
+   "module": "campanhas",
+   "title": "Recuperado",
+   "what": "Valor pago por devedores inscritos dentro do período de observação, líquido de estornos.",
+   "how": "Pagamentos confirmados atribuídos às inscrições (mesma regra dos acordos), menos estornos; cada pagamento conta uma vez na campanha. Abaixo, quanto das inscrições pagou.",
+   "use": "Compare com o custo das mensagens e com o grupo de controle antes de ampliar a campanha.",
+   "screens": [
+    "campaign.execution"
+   ]
+  },
+  {
+   "id": "campaign.execution.messages",
+   "module": "campanhas",
+   "title": "Mensagens da régua",
+   "what": "Mensagens enviadas pela campanha, quantas foram entregues e lidas, quantas não foram enviadas e quantas o porteiro de contato bloqueou.",
+   "how": "Situação das mensagens das etapas da régua; entregues e lidas são percentuais das enviadas.",
+   "use": "Entrega baixa indica número ou canal com problema; bloqueios altos indicam régua fora das regras de contato (horário, frequência, restrições).",
+   "screens": [
+    "campaign.execution"
+   ]
+  },
+  {
+   "id": "campaign.experiment.interval",
+   "module": "campanhas",
+   "title": "Estimativa e intervalo de confiança",
+   "what": "O resultado de cada braço do teste (ponto) e a faixa onde o valor real provavelmente está, com 95% de confiança (barra).",
+   "how": "O denominador é sempre o número de devedores do braço. Taxas usam o intervalo de Wilson; o valor por devedor, o intervalo da média. Quanto mais devedores, mais estreita a barra.",
+   "use": "Barras largas significam pouca informação: espere a amostra mínima. Não decida olhando só o ponto.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.difference",
+   "module": "campanhas",
+   "title": "Diferença para a referência",
+   "what": "Quanto o braço ficou acima ou abaixo da referência (o grupo de controle ou, sem controle, a primeira variante), com o intervalo de 95%.",
+   "how": "Diferença absoluta entre as taxas (método de Newcombe) ou entre os valores médios por devedor (Welch). É significativa quando o intervalo da diferença não cruza o zero. O sistema não calcula a variação relativa (o \"lift\" em percentual).",
+   "use": "Só adote a variante quando a diferença for significativa com a amostra planejada atingida. Olhar o resultado todo dia e parar no primeiro sinal aumenta a chance de falso positivo.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.min-sample",
+   "module": "campanhas",
+   "title": "Amostra mínima por braço",
+   "what": "Quantidade de devedores que cada braço precisa ter antes de o resultado ser usado para decidir.",
+   "how": "Definida no planejamento do teste (padrão 100). Abaixo dela, o braço mostra o aviso de amostra abaixo do mínimo.",
+   "use": "Defina antes de começar, com base no tamanho do efeito que importa para a operação, e só decida quando todos os braços a atingirem.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.mature",
+   "module": "campanhas",
+   "title": "Somente horizonte completo",
+   "what": "Filtro que considera só os devedores inscritos há pelo menos o horizonte de observação.",
+   "how": "Ligado (padrão), todos os braços são observados pelo mesmo período. Desligado, entram devedores recentes, ainda em observação.",
+   "use": "Para decidir, mantenha ligado. Desligado serve só para acompanhar o andamento.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.effective-contact",
+   "module": "campanhas",
+   "title": "Contato efetivo",
+   "what": "Proporção dos devedores do braço com contato efetivo (pessoa certa) no período de observação.",
+   "how": "Devedores do braço com contato efetivo entre a inscrição e o horizonte, divididos pelos devedores do braço.",
+   "use": "Bom para comparar canais e horários. Mais contato não garante mais pagamento: confira as métricas de acordo e pagamento.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.reply",
+   "module": "campanhas",
+   "title": "Resposta",
+   "what": "Proporção dos devedores do braço que responderam a alguma mensagem.",
+   "how": "Devedores do braço com resposta no período de observação, divididos pelos devedores do braço.",
+   "use": "Indicador rápido para comparar templates. Confirme com acordo e pagamento antes de adotar a variante.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.agreement",
+   "module": "campanhas",
+   "title": "Acordo",
+   "what": "Proporção dos devedores do braço com acordo formalizado no período de observação.",
+   "how": "Devedores do braço com acordo entre a inscrição e o horizonte, divididos pelos devedores do braço, inclusive no grupo de controle, que não recebe nenhuma ação.",
+   "use": "A diferença para o controle mostra quantos acordos a campanha realmente gerou.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.payment",
+   "module": "campanhas",
+   "title": "Pagamento confirmado",
+   "what": "Proporção dos devedores do braço que pagaram algo no período de observação, líquido de estornos.",
+   "how": "Devedores do braço com valor pago líquido maior que zero, divididos pelos devedores do braço.",
+   "use": "É a métrica mais próxima do objetivo da cobrança. Prefira-a como métrica principal quando a amostra permitir.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "campaign.experiment.recovered-per-debtor",
+   "module": "campanhas",
+   "title": "Valor recuperado por devedor",
+   "what": "Valor médio recuperado por devedor do braço, líquido de estornos.",
+   "how": "Soma do valor pago no período de observação dividida por todos os devedores do braço (inclusive os que não pagaram).",
+   "use": "Combina taxa de pagamento e valor pago. Uma variante com desconto pode ter mais pagamentos e menos valor por devedor.",
+   "screens": [
+    "campaign.experiment"
+   ]
+  },
+  {
+   "id": "communication.sla.first-response",
+   "module": "comunicacao",
+   "title": "Espera e meta de 1ª resposta",
+   "what": "Há quanto tempo o devedor espera resposta, com a cor da meta de primeira resposta: dentro do prazo, em aviso ou estourada.",
+   "how": "Tempo corrido desde a primeira mensagem do devedor ainda sem resposta. A meta é da assessoria por canal (padrão: WhatsApp e SMS aviso em 15 e limite em 60 minutos; e-mail 4 e 24 horas). A situação vem do servidor, que verifica as conversas a cada minuto.",
+   "use": "Responda primeiro as conversas em aviso e estouradas: devedor sem resposta esfria a negociação. Estouros frequentes pedem reforço na equipe da caixa ou mais atendimento pelo assistente.",
+   "screens": [
+    "communication.conversation",
+    "communication.inbox"
+   ]
+  },
+  {
+   "id": "communication.whatsapp.window",
+   "module": "comunicacao",
+   "title": "Janela de 24 h do WhatsApp",
+   "what": "Período em que é permitido escrever livremente ao devedor no WhatsApp.",
+   "how": "Abre a cada mensagem recebida do devedor e fica aberta por 24 horas, regra do próprio WhatsApp. Fora dela, só é possível enviar um template aprovado. E-mail e SMS sempre saem por template.",
+   "use": "Aproveite a janela aberta para negociar por texto livre. Quando fechar, use um template para retomar o contato e aguarde a resposta do devedor, que reabre a janela.",
+   "screens": [
+    "communication.conversation",
+    "communication.inbox",
+    "communication.templates"
+   ]
+  },
+  {
+   "id": "telephony.comparison.dialed",
+   "module": "telefonia",
+   "title": "Discadas",
+   "what": "Ligações de saída que cada plataforma de fato discou nos últimos 30 dias, com as que chegaram pela contingência.",
+   "how": "Chamadas de saída com discagem iniciada na conta. Pela contingência são as que a conta recebeu porque a principal falhou.",
+   "use": "Mostra o volume de cada fornecedor. Muitas pela contingência indicam instabilidade da conta principal.",
+   "screens": [
+    "telephony.accounts"
+   ]
+  },
+  {
+   "id": "telephony.comparison.asr",
+   "module": "telefonia",
+   "title": "Atendimento (ASR)",
+   "what": "Proporção das ligações discadas que foram atendidas (por pessoa ou por caixa postal).",
+   "how": "Chamadas atendidas divididas pelas discadas da conta no período.",
+   "use": "Compare plataformas na mesma carteira e horário: ASR menor numa delas costuma indicar problema de rota ou de identificação do número (bina) bloqueada.",
+   "screens": [
+    "telephony.accounts",
+    "telephony.campaign"
+   ]
+  },
+  {
+   "id": "telephony.comparison.failures",
+   "module": "telefonia",
+   "title": "Falhas",
+   "what": "Ligações que a plataforma recusou antes de discar ou que falharam durante a discagem.",
+   "how": "Recusas mais falhas, divididas pelas discadas mais as recusas.",
+   "use": "Taxa alta desperdiça tentativas e tempo dos operadores: confira credenciais, saldo e limites da conta no fornecedor, ou mude a rota para a outra plataforma.",
+   "screens": [
+    "telephony.accounts"
+   ]
+  },
+  {
+   "id": "telephony.comparison.times",
+   "module": "telefonia",
+   "title": "Toque e conversa (média)",
+   "what": "Tempo médio de toque até o atendimento e tempo médio de conversa com o operador.",
+   "how": "Média do tempo de toque das chamadas discadas e encerradas, e média da conversa das chamadas conectadas a um operador.",
+   "use": "Toque muito curto pode indicar chamada derrubada pela operadora; conversa muito curta, chamada caindo ou atendimento por máquina.",
+   "screens": [
+    "telephony.accounts"
+   ]
+  },
+  {
+   "id": "telephony.comparison.cost",
+   "module": "telefonia",
+   "title": "Custo estimado",
+   "what": "Estimativa do custo das ligações de cada plataforma no período.",
+   "how": "Minutos tarifáveis (do atendimento ao fim de cada chamada) vezes a tarifa por minuto informada na conta. A fatura do fornecedor é a referência oficial; sem tarifa cadastrada, não há estimativa.",
+   "use": "Junto com o ASR, mostra o custo por ligação atendida: priorize a plataforma que atende mais por real gasto, nas mesmas condições de carteira e horário.",
+   "screens": [
+    "telephony.accounts"
+   ]
+  },
+  {
+   "id": "telephony.dialer.abandon",
+   "module": "telefonia",
+   "title": "Abandono",
+   "what": "Ligações atendidas por uma pessoa que ficaram sem operador disponível para falar.",
+   "how": "Atendidas por pessoa sem operador divididas pelas atendidas por pessoa (conectadas mais abandonadas), no dia de operação. O máximo padrão é 3%, regra de mercado; o devedor ouve uma mensagem informativa.",
+   "use": "Perto do máximo, o discador reduz o ritmo sozinho. Abandono alto irrita o devedor e expõe a assessoria: coloque mais operadores disponíveis ou reduza a razão máxima.",
+   "screens": [
+    "telephony.campaign"
+   ]
+  },
+  {
+   "id": "telephony.dialer.connected",
+   "module": "telefonia",
+   "title": "Conectadas",
+   "what": "Ligações atendidas que chegaram a um operador, com as que caíram em caixa postal ao lado.",
+   "how": "Chamadas conectadas a operador no dia; caixa postal é a detectada automaticamente pela plataforma.",
+   "use": "Muitas caixas postais indicam horário ruim para a carteira: teste outras janelas de discagem.",
+   "screens": [
+    "telephony.campaign"
+   ]
+  },
+  {
+   "id": "telephony.dialer.ratio",
+   "module": "telefonia",
+   "title": "Ritmo agora",
+   "what": "Quantas ligações o discador faz, neste momento, para cada operador livre.",
+   "how": "No modo preditivo, uma ligação dividida pela taxa de atendimento por pessoa do dia, limitada à razão máxima da campanha; começa em 1 até ter 30 discagens e cai quando o abandono se aproxima do máximo. O motivo aparece abaixo.",
+   "use": "Ritmo baixo com operadores livres indica abandono alto ou aquecimento. Ritmo no máximo e operadores sempre ocupados: a campanha comporta mais operadores.",
+   "screens": [
+    "telephony.campaign"
+   ]
+  },
+  {
+   "id": "telephony.dialer.agents",
+   "module": "telefonia",
+   "title": "Operadores livres",
+   "what": "Operadores disponíveis na campanha agora, prontos para receber uma ligação.",
+   "how": "Operadores com presença \"disponível\" na campanha, com as chamadas em andamento ao lado.",
+   "use": "Sem operadores livres, o discador não disca. Acompanhe pausas longas na equipe.",
+   "screens": [
+    "telephony.campaign"
+   ]
+  },
+  {
+   "id": "telephony.presence.status",
+   "module": "telefonia",
+   "title": "Presença na telefonia",
+   "what": "Seu estado para o discador: disponível, em chamada, pós-atendimento, em pausa (com motivo) ou fora, e há quanto tempo.",
+   "how": "Você escolhe entrar, ficar disponível, pausar ou sair; em chamada e pós-atendimento são definidos pelas ligações. Sem sinal do navegador por 90 segundos, o sistema tira você da telefonia (exceto em chamada).",
+   "use": "Só quem está disponível recebe ligações do discador. Use o motivo certo na pausa: treino, monitoria, reunião e retaguarda contam como pausas produtivas.",
+   "screens": [
+    "collection.queue",
+    "collection.case",
+    "telephony.agents"
+   ]
+  },
+  {
+   "id": "assistant.quality.handoff-rate",
+   "module": "assistente",
+   "title": "Transferência para humano",
+   "what": "Quanto das conversas atendidas pelo assistente precisou ser passada a uma pessoa.",
+   "how": "Transferências do período (por qualquer motivo) divididas pelas conversas atendidas pelo assistente. O gráfico ao lado separa por motivo.",
+   "use": "Taxa alta com motivo \"fora da alçada\" pede revisar a alçada do assistente; com \"não entendeu\", revisar a política e o roteiro. Transferências por reclamação devem ser poucas.",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "assistant.quality.complaints",
+   "module": "assistente",
+   "title": "Reclamações",
+   "what": "Conversas em que o devedor reclamou ou citou Procon, advogado, processo ou ouvidoria, ou pediu para não ser mais contatado.",
+   "how": "Transferências do período cujo motivo é uma reclamação ou pedido de não contato.",
+   "use": "É o principal sinal de risco. Qualquer aumento merece ler as conversas na revisão antes de ampliar o uso do assistente na carteira.",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "assistant.quality.cost-per-agreement",
+   "module": "assistente",
+   "title": "Custo por acordo",
+   "what": "Quanto o uso do modelo de IA custou para cada acordo com participação do assistente, e o custo total do período.",
+   "how": "Custo do modelo no período (pela tabela de preços configurada, na moeda do provedor) dividido pelos acordos fechados ou preparados pelo assistente.",
+   "use": "Compare com o valor recuperado desses acordos e com o custo de um negociador. Custo subindo sem mais acordos indica conversas longas: revise limites e o roteiro.",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "assistant.quality.reviews",
+   "module": "assistente",
+   "title": "Revisões",
+   "what": "Nota média das conversas do assistente avaliadas por pessoas (de 1 a 5), quantas ficaram fora da política e quantas aguardam revisão.",
+   "how": "Média das notas das revisões registradas no período; \"fora da política\" conta as avaliadas como em desacordo com as regras.",
+   "use": "Nota baixa ou conversas fora da política impedem avançar de fase. Mantenha a fila de revisão em dia para a amostra ser representativa.",
+   "screens": [
+    "assistant.quality",
+    "assistant.reviews"
+   ]
+  },
+  {
+   "id": "assistant.quality.latency",
+   "module": "assistente",
+   "title": "Latência média",
+   "what": "Tempo médio que o assistente leva para responder, com o volume de texto processado pelo modelo.",
+   "how": "Média do tempo de resposta do modelo por turno no período; o volume é medido em tokens (pedaços de texto) de entrada e de saída.",
+   "use": "Respostas lentas fazem o devedor desistir. Latência subindo pede verificar o provedor do modelo ou o tamanho do contexto enviado.",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "assistant.quality.origins",
+   "module": "assistente",
+   "title": "Acordos por origem",
+   "what": "Acordos do período separados por quem negociou e fechou: negociador, negociador com copiloto, assistente sozinho, assistente com confirmação humana e outros.",
+   "how": "Contagem dos acordos formalizados no período pela origem registrada na formalização.",
+   "use": "Mostra quanto do resultado já vem do assistente e como a equipe usa o copiloto.",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "assistant.quality.early-break",
+   "module": "assistente",
+   "title": "Quebra precoce: assistente × humanos",
+   "what": "Proporção dos acordos que quebraram nos primeiros dias (padrão 60), comparando os acordos com o assistente e os só de humanos.",
+   "how": "Acordos formalizados no período e quebrados dentro da janela, divididos por todos os acordos formalizados no período, por grupo. Acordos recentes ainda não completaram a janela, então a taxa do período mais recente tende a ser menor.",
+   "use": "Critério de avanço de fase: a quebra com o assistente deve ser igual ou menor que a dos humanos. Compare períodos já maduros (formalizados há mais que a janela).",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "assistant.quality.guardrails",
+   "module": "assistente",
+   "title": "Guardrails acionados",
+   "what": "Vezes em que uma proteção automática barrou ou corrigiu uma resposta do assistente, por tipo.",
+   "how": "Contagem das proteções acionadas nos turnos do período (por exemplo, valor que não veio do cálculo, condição fora da política, dado pessoal).",
+   "use": "Proteções funcionando evitam erro com o devedor. Um tipo crescendo indica ajuste necessário no roteiro ou na política.",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "assistant.quality.pix",
+   "module": "assistente",
+   "title": "Pix na conversa",
+   "what": "Pix gerados pelo assistente na conversa, entregues, sugeridos, pagos (e pagos em até 24 horas) e as recusas por motivo.",
+   "how": "Contagens do período; a conversão é Pix pagos divididos pelos gerados.",
+   "use": "Conversão baixa indica que o devedor não estava pronto para pagar: reveja quando o assistente oferece o Pix. Recusas mostram por que o Pix não pôde ser gerado.",
+   "screens": [
+    "assistant.quality"
+   ]
+  },
+  {
+   "id": "compliance.requests.deadline",
+   "module": "compliance",
+   "title": "Prazo legal da solicitação",
+   "what": "Data limite para responder ao titular dos dados (acesso, correção, eliminação, portabilidade, oposição e outros pedidos da LGPD), com os dias que faltam.",
+   "how": "Dias corridos a partir do recebimento (padrão 15 dias, prazo da LGPD para a declaração completa; pode haver prazo próprio por tipo de pedido). O prazo termina ao fim do último dia: recebida em 03/03 com 15 dias, vence ao fim de 18/03.",
+   "use": "Atenda primeiro as vencidas e as que vencem em breve; elas também aparecem em Minhas pendências. Perder o prazo expõe a assessoria a sanções da autoridade de proteção de dados.",
+   "screens": [
+    "compliance.requests",
+    "compliance.request-detail"
+   ]
+  },
+  {
+   "id": "legal.dashboard.open-debt",
+   "module": "juridico",
+   "title": "Dívida em aberto",
+   "what": "Saldo dos títulos dos casos jurídicos ainda não encerrados.",
+   "how": "Soma da dívida dos casos jurídicos em aberto, no escopo de credores e com os filtros escolhidos.",
+   "use": "É o valor em disputa no jurídico. Compare com as custas para avaliar se vale seguir com cada fase.",
+   "screens": [
+    "legal.dashboard"
+   ]
+  },
+  {
+   "id": "legal.dashboard.expenses",
+   "module": "juridico",
+   "title": "Custas e despesas",
+   "what": "Custas processuais e despesas lançadas nos casos jurídicos (cartório, diligências, honorários periciais e outras).",
+   "how": "Soma das custas e despesas registradas nos casos, adiantadas pela assessoria, por escritório parceiro ou pelo credor.",
+   "use": "Custas reembolsáveis entram na prestação de contas do credor. Custas altas frente à dívida indicam caso que pode não compensar: reavalie a viabilidade.",
+   "screens": [
+    "legal.dashboard",
+    "legal.matter-detail"
+   ]
+  },
+  {
+   "id": "legal.dashboard.recovered",
+   "module": "juridico",
+   "title": "Valor recuperado no jurídico",
+   "what": "Valores liberados em favor do credor nos processos (levantamento de valores), registrados nos andamentos.",
+   "how": "Soma dos levantamentos de valores lançados nos andamentos dos processos dos casos. Não inclui pagamentos de acordos extrajudiciais, que aparecem na recuperação dos painéis.",
+   "use": "Mostra o retorno da via judicial. Compare com as custas por fase para decidir em quais carteiras vale ajuizar.",
+   "screens": [
+    "legal.dashboard"
+   ]
+  },
+  {
+   "id": "legal.dashboard.deadlines-soon",
+   "module": "juridico",
+   "title": "Prazos próximos",
+   "what": "Prazos processuais pendentes que vencem nos próximos 5 dias, contando hoje.",
+   "how": "Prazos pendentes com vencimento até 5 dias corridos à frente. O vencimento já considera dias úteis, feriados, suspensões do tribunal e recesso, conforme a regra de contagem do prazo.",
+   "use": "Distribua os prazos entre os responsáveis e registre o cumprimento assim que protocolar.",
+   "screens": [
+    "legal.dashboard",
+    "legal.matter-detail"
+   ]
+  },
+  {
+   "id": "legal.dashboard.deadlines-missed",
+   "module": "juridico",
+   "title": "Prazos perdidos",
+   "what": "Prazos processuais que venceram sem registro de cumprimento, em casos ainda abertos.",
+   "how": "Prazos marcados como perdidos pela verificação diária. Se o cumprimento ocorreu até o vencimento e só foi registrado depois, a correção tira o prazo desta contagem.",
+   "use": "Deve ser sempre zero. Qualquer prazo perdido exige avaliar o impacto no processo com o escritório responsável imediatamente.",
+   "screens": [
+    "legal.dashboard"
+   ]
+  },
+  {
+   "id": "legal.dashboard.stages",
+   "module": "juridico",
+   "title": "Casos por fase",
+   "what": "Casos jurídicos em cada fase do fluxo (da indicação e análise de viabilidade, passando pela autorização do credor, medidas extrajudiciais e processo, até o encerramento), com dívida, custas e recuperado de cada fase.",
+   "how": "Contagens e somas dos casos pela fase atual, no escopo e filtros escolhidos.",
+   "use": "Mostra onde os casos se acumulam. Muitos casos parados em autorização pedem cobrar a resposta do credor.",
+   "screens": [
+    "legal.dashboard"
+   ]
+  },
+  {
+   "id": "legal.matter.deadline",
+   "module": "juridico",
+   "title": "Prazo processual",
+   "what": "Data de vencimento de cada prazo do caso, com quanto falta e a situação (pendente, cumprido, perdido ou cancelado).",
+   "how": "Calculado a partir do fato inicial (intimação ou publicação) e da quantidade de dias: em dias úteis, sem fins de semana, feriados, suspensões do tribunal e, se ligado, o recesso de fim de ano; em dias corridos, o vencimento é prorrogado para o próximo dia com expediente. Alertas em 5, 2 e 0 dias úteis.",
+   "use": "Registre o cumprimento assim que protocolar. Prazo perto do vencimento sem responsável ativo deve ser redistribuído.",
+   "screens": [
+    "legal.matter-detail"
+   ]
+  },
+  {
+   "id": "publicapi.billing.amount",
+   "module": "administracao",
+   "title": "Valor até agora",
+   "what": "Quanto o credor deve pela integração no ciclo em andamento, até este momento.",
+   "how": "Mensalidade do ciclo (proporcional no ciclo de transição) mais o consumo acima das franquias, pelas condições de cobrança do contrato. Sem condições cadastradas, o valor é zero.",
+   "use": "Acompanhe o crescimento do faturamento sem esperar o fechamento. Valor subindo rápido merece conversar com o credor sobre o volume.",
+   "screens": [
+    "settlement.position",
+    "publicapi.billing"
+   ]
+  },
+  {
+   "id": "publicapi.billing.projection",
+   "module": "administracao",
+   "title": "Projeção no fechamento",
+   "what": "Estimativa do valor do ciclo no dia do fechamento, se o ritmo de uso continuar.",
+   "how": "O consumo até agora mais a média diária do ciclo vezes os dias que faltam, calculado com as mesmas condições do contrato (mensalidade, franquias e excedente).",
+   "use": "Antecipe a conversa com o credor quando a projeção passar muito do valor habitual ou da franquia contratada.",
+   "screens": [
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "publicapi.usage.billable-requests",
+   "module": "administracao",
+   "title": "Chamadas cobráveis",
+   "what": "Chamadas da integração do credor que deram certo e entram na cobrança.",
+   "how": "Só respostas de sucesso contam. Chamadas recusadas por excesso, erros do credor e falhas da plataforma não são cobradas, nem os dados trafegados nelas.",
+   "use": "Base da cobrança por chamada. Diferença grande para o total de chamadas mostra integração com erros: ajude o credor a corrigir.",
+   "screens": [
+    "publicapi.usage",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "publicapi.usage.requests",
+   "module": "administracao",
+   "title": "Requisições",
+   "what": "Total de chamadas feitas pela integração do credor no período, com as cobráveis ao lado.",
+   "how": "Contagem de todas as chamadas recebidas, de qualquer resultado, no período e tokens escolhidos.",
+   "use": "Mostra o volume de uso. Compare com as cobráveis para ver quanto do tráfego falhou.",
+   "screens": [
+    "publicapi.usage"
+   ]
+  },
+  {
+   "id": "publicapi.usage.throttled",
+   "module": "administracao",
+   "title": "Limitadas",
+   "what": "Chamadas recusadas porque o credor passou do limite de chamadas por minuto.",
+   "how": "Contagem das recusas por excesso no período. Não são cobradas.",
+   "use": "Valores altos indicam integração mal dimensionada: oriente o credor a espaçar as chamadas ou a enviar em lotes.",
+   "screens": [
+    "publicapi.usage"
+   ]
+  },
+  {
+   "id": "publicapi.usage.errors",
+   "module": "administracao",
+   "title": "Erros (não cobrados)",
+   "what": "Chamadas que falharam por erro do credor (dados inválidos, sem permissão) ou por falha da plataforma.",
+   "how": "Contagem separada dos erros do credor e das falhas da plataforma no período. Nenhum deles é cobrado.",
+   "use": "Erros do credor pedem ajuste na integração dele; falhas da plataforma pedem acionar o suporte.",
+   "screens": [
+    "publicapi.usage"
+   ]
+  },
+  {
+   "id": "publicapi.usage.data",
+   "module": "administracao",
+   "title": "Dados trafegados",
+   "what": "Volume de dados recebidos do credor e enviados a ele pela integração.",
+   "how": "No consumo, o tamanho dos dados das chamadas. Na cobrança, o total do ciclo de cada token em MB inteiros (1 MB = 1.048.576 bytes), arredondado para cima e só das chamadas de sucesso.",
+   "use": "Envios grandes e frequentes encarecem o ciclo. Consultas paginadas e envio só do que mudou reduzem o volume.",
+   "screens": [
+    "publicapi.usage",
+    "settlement.position"
+   ]
+  },
+  {
+   "id": "publicapi.usage.records",
+   "module": "administracao",
+   "title": "Registros",
+   "what": "Itens processados pela integração: títulos importados, contatos, pagamentos e outros.",
+   "how": "Contagem dos registros processados nas chamadas do período (ou do ciclo, na posição do credor).",
+   "use": "Mostra o trabalho real feito pela integração; é base de cobrança quando o contrato prevê preço por registro.",
+   "screens": [
+    "publicapi.usage",
+    "settlement.position"
+   ]
   }
  ]
 }

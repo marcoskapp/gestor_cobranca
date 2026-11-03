@@ -5,6 +5,7 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { Icon } from '../../shared/components/icon/icon';
 import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { PendingWorkList } from './pending-work-list';
+import { InfoHint } from '../../shared/components/info-hint/info-hint';
 
 /**
  * "Suas pendências" no topo da tela inicial: as primeiras pendências do usuário (vencidas primeiro),
@@ -12,7 +13,7 @@ import { PendingWorkList } from './pending-work-list';
  */
 @Component({
   selector: 'app-pending-work-panel',
-  imports: [RouterLink, Icon, EmptyState, Skeleton, PendingWorkList],
+  imports: [RouterLink, Icon, EmptyState, Skeleton, PendingWorkList, InfoHint],
   template: `
     <section class="pwp" aria-labelledby="pwp-title" data-tour="pending-work-panel">
       <div class="pwp__head">
@@ -21,6 +22,7 @@ import { PendingWorkList } from './pending-work-list';
           @if (total() > 0) {
             <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary-subtle ms-1">{{ total() }}</span>
           }
+          <app-info-hint indicator="app.pending.total" label="Suas pendências" />
         </h2>
         @if (store.status() === 'ready' && items().length > 0) {
           <a class="btn btn-link" routerLink="/pendencias">

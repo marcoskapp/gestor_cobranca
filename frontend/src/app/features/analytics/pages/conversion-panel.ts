@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
@@ -27,7 +28,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
  */
 @Component({
   selector: 'app-conversion-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, FunnelChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, FunnelChart, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Conversão" subtitle="Do contato efetivo ao pagamento da 1ª parcela; acordo não pago não é recuperação."
                      report="conversion" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
@@ -44,32 +45,32 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
         @let r = report()!;
         @let q = r.quality;
         <section class="pn__kpis" aria-label="Indicadores de conversão" data-tour="analytics-kpis">
-          <app-kpi-card label="Acordos formalizados" [detail]="percent(r.funnel.contactToAgreement) + ' dos contatos efetivos (' + ratioDetail(r.funnel.contactToAgreement) + ')'">
+          <app-kpi-card label="Acordos formalizados" info="analytics.conversion.agreements" data-tour="kpi-agreements" [detail]="percent(r.funnel.contactToAgreement) + ' dos contatos efetivos (' + ratioDetail(r.funnel.contactToAgreement) + ')'">
             {{ count(q.agreements) }}
           </app-kpi-card>
-          <app-kpi-card label="Valor acordado" [detail]="'Na safra do período'">
+          <app-kpi-card label="Valor acordado" info="analytics.conversion.agreed" [detail]="'Na safra do período'">
             <app-amount [value]="q.agreedAmount" [compact]="true" />
           </app-kpi-card>
-          <app-kpi-card label="Valor pago" [detail]="percent(q.paidShare) + ' do acordado (líquido de estornos)'">
+          <app-kpi-card label="Valor pago" info="analytics.conversion.paid" data-tour="kpi-paid" [detail]="percent(q.paidShare) + ' do acordado (líquido de estornos)'">
             <app-amount [value]="q.paidAmount" [compact]="true" />
           </app-kpi-card>
-          <app-kpi-card label="1ª parcela paga" [detail]="ratioDetail(r.funnel.agreementToFirstInstallment) + ' acordos'">
+          <app-kpi-card label="1ª parcela paga" info="analytics.conversion.first-installment" data-tour="kpi-first" [detail]="ratioDetail(r.funnel.agreementToFirstInstallment) + ' acordos'">
             {{ percent(r.funnel.agreementToFirstInstallment) }}
           </app-kpi-card>
-          <app-kpi-card label="Parcelas pagas no período" [detail]="money(q.installmentsPaidAmount)">
+          <app-kpi-card label="Parcelas pagas no período" info="analytics.conversion.installments-paid" [detail]="money(q.installmentsPaidAmount)">
             {{ count(q.installmentsPaid) }}
           </app-kpi-card>
-          <app-kpi-card label="Renegociações" [detail]="percent(q.renegotiationRate) + ' dos acordos (' + ratioDetail(q.renegotiationRate) + ')'">
+          <app-kpi-card label="Renegociações" info="analytics.conversion.renegotiations" [detail]="percent(q.renegotiationRate) + ' dos acordos (' + ratioDetail(q.renegotiationRate) + ')'">
             {{ count(q.renegotiations) }}
           </app-kpi-card>
         </section>
         <div class="pn__grid app-columns">
           <section class="app-card" data-tour="analytics-funnel">
-            <app-funnel-chart title="Funil do período" [summary]="funnelSummary()" [stages]="stages()" />
+            <app-funnel-chart title="Funil do período" info="analytics.conversion.funnel" [summary]="funnelSummary()" [stages]="stages()" />
             <p class="pn__hint">Funil de fluxo: cada etapa conta os eventos do período (contato, proposta, acordo formalizado e 1ª parcela da safra).</p>
           </section>
-          <section class="app-card" aria-labelledby="cv-breaks">
-            <h2 class="app-card__title" id="cv-breaks">Quebra precoce por safra</h2>
+          <section class="app-card" aria-labelledby="cv-breaks" data-tour="analytics-breaks">
+            <h2 class="app-card__title" id="cv-breaks">Quebra precoce por safra <app-info-hint indicator="analytics.conversion.early-break" label="Quebra precoce por safra" /></h2>
             <div class="pn__table-wrap">
               <table class="pn__table">
                 <thead><tr><th scope="col">Janela</th><th scope="col" class="num">Acordos maduros</th><th scope="col" class="num">Quebrados</th><th scope="col" class="num">Taxa</th></tr></thead>
@@ -89,7 +90,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
           </section>
         </div>
         <section class="app-card">
-          <app-bar-chart [title]="'Acordado × pago por ' + groupName().toLowerCase()" [categoryHeader]="groupName()" [summary]="rowsSummary()"
+          <app-bar-chart [title]="'Acordado × pago por ' + groupName().toLowerCase()" info="analytics.conversion.agreed-vs-paid" [categoryHeader]="groupName()" [summary]="rowsSummary()"
                          [series]="[{ name: 'Valor acordado', color: '--app-chart-1' }, { name: 'Valor pago', color: '--app-chart-2' }]"
                          [rows]="rows()" noteHeader="Pago / acordado" />
         </section>
@@ -98,7 +99,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
           <div class="pn__table-wrap">
             <table class="pn__table">
               <thead>
-                <tr><th scope="col">{{ groupName() }}</th><th scope="col" class="num">Contatos efetivos</th><th scope="col" class="num">Propostas</th><th scope="col" class="num">Acordos</th><th scope="col" class="num">Contato → acordo</th><th scope="col" class="num">1ª parcela</th><th scope="col" class="num">Acordado</th><th scope="col" class="num">Pago</th></tr>
+                <tr><th scope="col">{{ groupName() }}</th><th scope="col" class="num">Contatos efetivos <app-info-hint indicator="analytics.conversion.effective-contacts" label="Contatos efetivos" /></th><th scope="col" class="num">Propostas <app-info-hint indicator="analytics.conversion.proposals" label="Propostas" /></th><th scope="col" class="num">Acordos <app-info-hint indicator="analytics.conversion.agreements" label="Acordos" /></th><th scope="col" class="num">Contato → acordo <app-info-hint indicator="analytics.conversion.contact-to-agreement" label="Contato → acordo" /></th><th scope="col" class="num">1ª parcela <app-info-hint indicator="analytics.conversion.first-installment" label="1ª parcela" /></th><th scope="col" class="num">Acordado <app-info-hint indicator="analytics.conversion.agreed" label="Acordado" /></th><th scope="col" class="num">Pago <app-info-hint indicator="analytics.conversion.paid" label="Pago" /></th></tr>
               </thead>
               <tbody>
                 @for (row of r.rows; track row.key) {

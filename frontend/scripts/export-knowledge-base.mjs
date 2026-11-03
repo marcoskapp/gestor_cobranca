@@ -38,7 +38,7 @@ try {
     console.log(`Base de conhecimento do chat de suporte em dia (versão ${version}).`);
   } else {
     writeFileSync(target, text);
-    console.log(`Base de conhecimento gravada: ${data.modules.length} módulos, ${data.screens.length} telas, ${data.glossary.length} termos (versão ${version}).`);
+    console.log(`Base de conhecimento gravada: ${data.modules.length} módulos, ${data.screens.length} telas, ${data.glossary.length} termos, ${data.indicators.length} indicadores (versão ${version}).`);
   }
 } finally {
   rmSync(work, { recursive: true, force: true });

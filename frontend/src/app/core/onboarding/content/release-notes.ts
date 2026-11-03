@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 12,
+    date: '2026-11-03',
+    title: 'Entenda cada número sem sair da tela',
+    items: [
+      { text: 'Ícone "i" ao lado dos indicadores: o que é o valor, como é calculado e o que fazer quando ele sobe ou cai.', route: '/paineis' },
+      { text: 'Abre ao passar o mouse, com Tab ou com um toque no celular; "Saiba mais" leva à parte certa do manual.', route: '/paineis/recuperacao' },
+      { text: 'Tours dos painéis refeitos: cada passo mostra um indicador e como usá-lo na decisão.', route: '/paineis' },
+      { text: 'O chat de suporte explica os mesmos números com os mesmos textos.' },
+    ],
+  },
+  {
     version: 11,
     date: '2026-10-31',
     title: 'Seleção em massa na importação PDF',

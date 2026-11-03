@@ -166,7 +166,7 @@ export class ModelList {
     { key: 'version', header: 'Versão' },
     { key: 'kind', header: 'Tipo' },
     { key: 'status', header: 'Situação' },
-    { key: 'auc', header: 'AUC de validação', align: 'end' },
+    { key: 'auc', header: 'AUC de validação', align: 'end', info: 'scoring.model.auc' },
     { key: 'trainedAt', header: 'Criado em' },
     { key: 'actions', header: 'Ações', actions: true },
   ];

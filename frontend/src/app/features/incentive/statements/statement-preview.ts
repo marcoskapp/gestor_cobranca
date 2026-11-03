@@ -18,6 +18,7 @@ import { LedgerTable } from '../components/ledger-table';
 import { StatementLines } from '../components/statement-lines';
 import { CommissionStatementsApi } from '../data/incentive.api';
 import { monthLabel } from '../data/incentive.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Prévia em tempo real do período corrente: quanto já foi liberado e quanto está em carência,
@@ -25,7 +26,7 @@ import { monthLabel } from '../data/incentive.rules';
  */
 @Component({
   selector: 'app-incentive-statement-preview',
-  imports: [ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, Icon, LedgerTable, PageHeader, Skeleton, StatementLines, StatusChip],
+  imports: [ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, Icon, LedgerTable, PageHeader, Skeleton, StatementLines, StatusChip, InfoHint],
   template: `
     <app-page-header [title]="person() ? 'Prévia do período' : 'Minha prévia do período'" subtitle="Comissão do mês em curso com o que já foi pago: liberado e em carência. Valor informativo até o fechamento.">
       <a class="btn btn-link" routerLink="/remuneracao/extratos">
@@ -57,10 +58,10 @@ import { monthLabel } from '../data/incentive.rules';
       <section class="app-card" aria-labelledby="pv-values" data-tour="preview-values">
         <h2 class="app-card__title" id="pv-values">Valores até agora</h2>
         <div class="in-kpis mb-2">
-          <div class="in-kpi"><span class="in-kpi__label">Recuperado liberado</span><span class="in-kpi__value"><app-amount [value]="p.clearedRecovery" /></span></div>
-          <div class="in-kpi"><span class="in-kpi__label">Em carência</span><span class="in-kpi__value"><app-amount [value]="p.pendingRecovery" /></span></div>
-          <div class="in-kpi"><span class="in-kpi__label">Variável com o liberado</span><span class="in-kpi__value"><app-amount [value]="p.clearedAmount" /></span></div>
-          <div class="in-kpi in-kpi--total"><span class="in-kpi__label">Variável projetado</span><span class="in-kpi__value"><app-amount [value]="p.projectedAmount" /></span></div>
+          <div class="in-kpi"><span class="in-kpi__label">Recuperado liberado <app-info-hint indicator="incentive.preview.cleared" label="Recuperado liberado" /></span><span class="in-kpi__value"><app-amount [value]="p.clearedRecovery" /></span></div>
+          <div class="in-kpi"><span class="in-kpi__label">Em carência <app-info-hint indicator="incentive.preview.pending" label="Em carência" /></span><span class="in-kpi__value"><app-amount [value]="p.pendingRecovery" /></span></div>
+          <div class="in-kpi"><span class="in-kpi__label">Variável com o liberado <app-info-hint indicator="incentive.preview.cleared" label="Variável com o liberado" /></span><span class="in-kpi__value"><app-amount [value]="p.clearedAmount" /></span></div>
+          <div class="in-kpi in-kpi--total"><span class="in-kpi__label">Variável projetado <app-info-hint indicator="incentive.preview.projected" label="Variável projetado" /></span><span class="in-kpi__value"><app-amount [value]="p.projectedAmount" /></span></div>
         </div>
         <p class="app-muted in-small mb-0">Projetado = se todos os pagamentos em carência forem liberados sem estorno. Meta, deflatores e portão de monitoria são reavaliados no fechamento.</p>
       </section>

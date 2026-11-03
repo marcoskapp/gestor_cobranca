@@ -26,6 +26,7 @@ import { PerformanceApi } from '../data/incentive.api';
 import { CHANNEL_LABELS, DELAY_BUCKET_LABELS, GROUP_BY_LABELS, PLAN_DELAY_BUCKETS, UNAVAILABLE_METRIC_LABELS } from '../data/incentive.labels';
 import { IndicatorRow, PerformanceGroupBy, PerformanceQuery } from '../data/incentive.models';
 import { fraction, monthEnd, monthOf, monthOptions, monthStart, score } from '../data/incentive.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 export type PerformanceScope = 'OWN' | 'TEAM' | 'ALL';
 
@@ -53,7 +54,7 @@ export function monthRange(month: string, today: string): { from: string; to: st
  */
 @Component({
   selector: 'app-incentive-performance-panel',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, KpiCard, PageHeader, Skeleton],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, KpiCard, PageHeader, Skeleton, InfoHint],
   template: `
     <app-page-header [title]="title()" subtitle="Indicadores dos negociadores humanos a partir dos fatos de cobrança, negociação e pagamento, com as bases sempre visíveis." />
     <form class="app-filters" data-tour="filters" [formGroup]="form" role="search" aria-label="Filtrar indicadores">
@@ -105,22 +106,22 @@ export function monthRange(month: string, today: string): { from: string; to: st
     } @else {
       @let t = total()!;
       <section class="in-kpis" aria-label="Indicadores do período" data-tour="performance-kpis">
-        <app-kpi-card label="Casos trabalhados" [detail]="count(t.effort.attempts) + ' tentativas'">{{ count(t.effort.workedCases) }}</app-kpi-card>
-        <app-kpi-card label="Contatos efetivos" [detail]="pct(t.effort.effectiveContactRate) + ' das tentativas'">{{ count(t.effort.effectiveContacts) }}</app-kpi-card>
-        <app-kpi-card label="Acordos" [detail]="rate(t.conversion.agreementsPerLoggedHour) + ' por hora logada'">{{ count(t.conversion.agreements) }}</app-kpi-card>
-        <app-kpi-card label="Recuperado" [detail]="'Taxa de recuperação ' + pct(t.financial.recoveryRate)"><app-amount [value]="t.financial.recoveredAmount ?? 0" [compact]="true" /></app-kpi-card>
-        <app-kpi-card label="Recuperado × esperado" detail="Pelo score da carteira atribuída">{{ pct(t.financial.expectedRecoveryRatio) }}</app-kpi-card>
-        <app-kpi-card label="Retornos cumpridos" [detail]="count(t.effort.callbacksKept) + ' de ' + count(t.effort.callbacksScheduled)">{{ pct(t.effort.callbacksKeptRate) }}</app-kpi-card>
-        <app-kpi-card label="Promessas cumpridas" [detail]="count(t.conversion.promisesKept) + ' de ' + count(t.conversion.promisesDue)">{{ pct(t.conversion.promisesKeptRate) }}</app-kpi-card>
-        <app-kpi-card label="Quebra precoce (60 dias)" [detail]="count(t.quality.safraAgreements) + ' acordos na safra'">{{ pct(t.quality.earlyBreak60) }}</app-kpi-card>
-        <app-kpi-card label="Nota de monitoria" detail="Média das avaliações (0 a 10)">{{ scoreText(t.quality.qaScoreAverage) }}</app-kpi-card>
-        <app-kpi-card label="Tempo médio de atendimento" [detail]="count(t.effort.answeredCalls) + ' chamadas atendidas'">{{ seconds(t.effort.averageHandlingSeconds) }}</app-kpi-card>
+        <app-kpi-card label="Casos trabalhados" info="incentive.performance.worked-cases" [detail]="count(t.effort.attempts) + ' tentativas'">{{ count(t.effort.workedCases) }}</app-kpi-card>
+        <app-kpi-card label="Contatos efetivos" info="incentive.performance.effective-contacts" [detail]="pct(t.effort.effectiveContactRate) + ' das tentativas'">{{ count(t.effort.effectiveContacts) }}</app-kpi-card>
+        <app-kpi-card label="Acordos" info="incentive.performance.agreements" [detail]="rate(t.conversion.agreementsPerLoggedHour) + ' por hora logada'">{{ count(t.conversion.agreements) }}</app-kpi-card>
+        <app-kpi-card label="Recuperado" info="incentive.performance.recovered" data-tour="kpi-recovered" [detail]="'Taxa de recuperação ' + pct(t.financial.recoveryRate)"><app-amount [value]="t.financial.recoveredAmount ?? 0" [compact]="true" /></app-kpi-card>
+        <app-kpi-card label="Recuperado × esperado" info="incentive.performance.expected-ratio" data-tour="kpi-expected" detail="Pelo score da carteira atribuída">{{ pct(t.financial.expectedRecoveryRatio) }}</app-kpi-card>
+        <app-kpi-card label="Retornos cumpridos" info="incentive.performance.callbacks" [detail]="count(t.effort.callbacksKept) + ' de ' + count(t.effort.callbacksScheduled)">{{ pct(t.effort.callbacksKeptRate) }}</app-kpi-card>
+        <app-kpi-card label="Promessas cumpridas" info="incentive.performance.promises" [detail]="count(t.conversion.promisesKept) + ' de ' + count(t.conversion.promisesDue)">{{ pct(t.conversion.promisesKeptRate) }}</app-kpi-card>
+        <app-kpi-card label="Quebra precoce (60 dias)" info="incentive.performance.early-break" data-tour="kpi-quality" [detail]="count(t.quality.safraAgreements) + ' acordos na safra'">{{ pct(t.quality.earlyBreak60) }}</app-kpi-card>
+        <app-kpi-card label="Nota de monitoria" info="incentive.performance.qa-score" detail="Média das avaliações (0 a 10)">{{ scoreText(t.quality.qaScoreAverage) }}</app-kpi-card>
+        <app-kpi-card label="Tempo médio de atendimento" info="incentive.performance.handling-time" [detail]="count(t.effort.answeredCalls) + ' chamadas atendidas'">{{ seconds(t.effort.averageHandlingSeconds) }}</app-kpi-card>
       </section>
 
       @if (grouped(); as rows) {
         @if (rows.length) {
           <section class="app-card" data-tour="performance-chart">
-            <app-bar-chart [title]="'Recuperado ' + groupLabels[groupBy()].toLowerCase()" [categoryHeader]="groupHeader()" [summary]="chartSummary()"
+            <app-bar-chart [title]="'Recuperado ' + groupLabels[groupBy()].toLowerCase()" info="incentive.performance.recovered" [categoryHeader]="groupHeader()" [summary]="chartSummary()"
                            [series]="[{ name: 'Recuperado', color: '--app-chart-1' }]" [rows]="chartRows()" noteHeader="Acordos" />
           </section>
         }
@@ -133,13 +134,13 @@ export function monthRange(month: string, today: string): { from: string; to: st
                 <tr>
                   <th scope="col">{{ groupHeader() }}</th>
                   <th scope="col" class="in-end">Casos</th>
-                  <th scope="col" class="in-end">Contato efetivo</th>
+                  <th scope="col" class="in-end">Contato efetivo <app-info-hint indicator="incentive.performance.effective-contacts" label="Contato efetivo" /></th>
                   <th scope="col" class="in-end">Acordos</th>
-                  <th scope="col" class="in-end">Recuperado</th>
-                  <th scope="col" class="in-end">Taxa de recuperação</th>
-                  <th scope="col" class="in-end">Promessas cumpridas</th>
-                  <th scope="col" class="in-end">Quebra 60d</th>
-                  <th scope="col" class="in-end">Monitoria</th>
+                  <th scope="col" class="in-end">Recuperado <app-info-hint indicator="incentive.performance.recovered" label="Recuperado" /></th>
+                  <th scope="col" class="in-end">Taxa de recuperação <app-info-hint indicator="analytics.recovery.rate" label="Taxa de recuperação" /></th>
+                  <th scope="col" class="in-end">Promessas cumpridas <app-info-hint indicator="incentive.performance.promises" label="Promessas cumpridas" /></th>
+                  <th scope="col" class="in-end">Quebra 60d <app-info-hint indicator="incentive.performance.early-break" label="Quebra precoce (60 dias)" /></th>
+                  <th scope="col" class="in-end">Monitoria <app-info-hint indicator="incentive.performance.qa-score" label="Nota de monitoria" /></th>
                 </tr>
               </thead>
               <tbody>

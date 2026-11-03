@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ class ClasspathKnowledgeBase implements KnowledgeBase {
     private final Map<String, Screen> screens;
     private final Map<String, Module> modules;
     private final Map<String, Term> terms;
+    private final Map<String, Indicator> indicators;
     private final Map<String, String> profiles;
     private final Set<String> vocabulary;
 
@@ -64,6 +66,9 @@ class ClasspathKnowledgeBase implements KnowledgeBase {
         Map<String, Term> t = new LinkedHashMap<>();
         export.glossary().forEach(term -> t.put(term.id(), term));
         this.terms = Map.copyOf(t);
+        Map<String, Indicator> ind = new LinkedHashMap<>();
+        (export.indicators() == null ? List.<Indicator>of() : export.indicators()).forEach(i -> ind.put(i.id(), i));
+        this.indicators = Collections.unmodifiableMap(ind);
         this.profiles = Map.copyOf(export.profiles());
         Set<String> words = new HashSet<>();
         export.screens().forEach(sc -> words(words, sc.title()));
@@ -75,7 +80,7 @@ class ClasspathKnowledgeBase implements KnowledgeBase {
         this.profiles.values().forEach(p -> words(words, p));
         this.vocabulary = Set.copyOf(words);
         LOG.atInfo().addKeyValue("knowledgeVersion", contentVersion).addKeyValue("screens", screens.size())
-                .addKeyValue("modules", modules.size()).log("Base de conhecimento do chat de suporte carregada");
+                .addKeyValue("modules", modules.size()).addKeyValue("indicators", indicators.size()).log("Base de conhecimento do chat de suporte carregada");
     }
 
     private static String read() {
@@ -123,6 +128,22 @@ class ClasspathKnowledgeBase implements KnowledgeBase {
     }
 
     @Override
+    public Optional<Indicator> indicator(String id) {
+        return id == null ? Optional.empty() : Optional.ofNullable(indicators.get(id));
+    }
+
+    @Override
+    public List<Indicator> screenIndicators(String screenId) {
+        return screenId == null ? List.of()
+                : indicators.values().stream().filter(i -> i.screens() != null && i.screens().contains(screenId)).toList();
+    }
+
+    @Override
+    public List<Indicator> moduleIndicators(String moduleId) {
+        return moduleId == null ? List.of() : indicators.values().stream().filter(i -> moduleId.equals(i.module())).toList();
+    }
+
+    @Override
     public Map<String, String> profileLabels() {
         return profiles;
     }
@@ -134,6 +155,6 @@ class ClasspathKnowledgeBase implements KnowledgeBase {
 
     /** Formato do arquivo gerado por {@code frontend/scripts/export-knowledge-base.mjs}. */
     record Export(String generatedBy, String contentVersion, int schemaVersion, Map<String, String> profiles,
-                  List<Module> modules, List<Screen> screens, List<Term> glossary) {
+                  List<Module> modules, List<Screen> screens, List<Term> glossary, List<Indicator> indicators) {
     }
 }

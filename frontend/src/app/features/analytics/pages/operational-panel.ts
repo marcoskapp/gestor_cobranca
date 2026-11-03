@@ -5,6 +5,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -26,7 +27,7 @@ import { urlFilter } from '../data/url-filter';
  */
 @Component({
   selector: 'app-operational-panel',
-  imports: [Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Painel operacional" subtitle="Carteira, saldos, casos e fila de trabalho da operação."
                      report="portfolio" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()"
@@ -43,23 +44,23 @@ import { urlFilter } from '../data/url-filter';
         @let r = report()!;
         @let t = r.totals;
         <section class="pn__kpis" aria-label="Indicadores da carteira" data-tour="analytics-kpis">
-          <app-kpi-card label="Valor da carteira" [detail]="count(t.openTitles) + ' títulos em cobrança'">
+          <app-kpi-card label="Valor da carteira" info="analytics.portfolio.amount" data-tour="kpi-portfolio" [detail]="count(t.openTitles) + ' títulos em cobrança'">
             <app-amount [value]="t.portfolioAmount" [compact]="true" />
           </app-kpi-card>
-          <app-kpi-card label="Saldo vencido" [detail]="percent(t.overdueShare) + ' da carteira · ' + count(t.overdueTitles) + ' títulos'">
+          <app-kpi-card label="Saldo vencido" info="analytics.portfolio.overdue" [detail]="percent(t.overdueShare) + ' da carteira · ' + count(t.overdueTitles) + ' títulos'">
             <app-amount [value]="t.overdueAmount" [compact]="true" />
           </app-kpi-card>
-          <app-kpi-card label="Saldo elegível" [detail]="percent(t.eligibleShare) + ' do saldo dos casos abertos'">
+          <app-kpi-card label="Saldo elegível" info="analytics.portfolio.eligible" data-tour="kpi-eligible" [detail]="percent(t.eligibleShare) + ' do saldo dos casos abertos'">
             <app-amount [value]="t.eligibleBalance" [compact]="true" />
           </app-kpi-card>
-          <app-kpi-card label="Casos em aberto" [detail]="count(t.eligibleCases) + ' elegíveis para cobrança'">
+          <app-kpi-card label="Casos em aberto" info="analytics.portfolio.open-cases" [detail]="count(t.eligibleCases) + ' elegíveis para cobrança'">
             {{ count(t.openCases) }}
           </app-kpi-card>
-          <app-kpi-card label="Fila pendente" [detail]="percent(t.pendingQueueShare) + ' · ' + ratioDetail(t.pendingQueueShare) + ' casos elegíveis'">
+          <app-kpi-card label="Fila pendente" info="analytics.portfolio.pending-queue" data-tour="kpi-queue" [detail]="percent(t.pendingQueueShare) + ' · ' + ratioDetail(t.pendingQueueShare) + ' casos elegíveis'">
             {{ count(t.pendingQueueCases) }}
           </app-kpi-card>
           @if (recoveryReport(); as rec) {
-            <app-kpi-card label="Recuperado no período" [detail]="'Taxa ' + percent(rec.totals.recoveryRate) + ' · ' + ratioDetail(rec.totals.recoveryRate, 'money')">
+            <app-kpi-card label="Recuperado no período" info="analytics.portfolio.recovered-period" [detail]="'Taxa ' + percent(rec.totals.recoveryRate) + ' · ' + ratioDetail(rec.totals.recoveryRate, 'money')">
               <app-amount [value]="rec.totals.recoveredNet" [compact]="true" />
             </app-kpi-card>
           }
@@ -69,21 +70,21 @@ import { urlFilter } from '../data/url-filter';
         }
         <div class="pn__grid app-columns">
           <section class="app-card">
-            <app-bar-chart title="Carteira por credor" categoryHeader="Credor" [summary]="creditorSummary()"
+            <app-bar-chart title="Carteira por credor" info="analytics.portfolio.by-creditor" data-tour="analytics-chart" categoryHeader="Credor" [summary]="creditorSummary()"
                            [series]="[{ name: 'Valor da carteira', color: '--app-chart-1' }, { name: 'Saldo vencido', color: '--app-chart-2' }]"
                            [rows]="creditorRows()" noteHeader="Vencido / carteira" />
           </section>
           <section class="app-card">
-            <app-bar-chart title="Carteira por faixa de atraso" categoryHeader="Faixa" [summary]="bucketSummary()"
+            <app-bar-chart title="Carteira por faixa de atraso" info="analytics.portfolio.by-delay" categoryHeader="Faixa" [summary]="bucketSummary()"
                            [series]="[{ name: 'Valor da carteira', color: '--app-chart-1' }]" [rows]="bucketRows()" noteHeader="Saldo elegível" />
           </section>
         </div>
         <div class="pn__grid app-columns">
           <section class="app-card" aria-labelledby="op-status">
-            <h2 class="app-card__title" id="op-status">Casos por estado</h2>
+            <h2 class="app-card__title" id="op-status">Casos por estado <app-info-hint indicator="analytics.portfolio.cases-by-status" label="Casos por estado" /></h2>
             <div class="pn__table-wrap">
               <table class="pn__table">
-                <thead><tr><th scope="col">Estado</th><th scope="col" class="num">Casos</th><th scope="col" class="num">Elegíveis</th><th scope="col" class="num">Saldo em aberto</th><th scope="col" class="num">Saldo elegível</th></tr></thead>
+                <thead><tr><th scope="col">Estado</th><th scope="col" class="num">Casos</th><th scope="col" class="num">Elegíveis</th><th scope="col" class="num">Saldo em aberto</th><th scope="col" class="num">Saldo elegível <app-info-hint indicator="analytics.portfolio.eligible" label="Saldo elegível" /></th></tr></thead>
                 <tbody>
                   @for (s of r.casesByStatus; track s.status) {
                     <tr>
@@ -101,7 +102,7 @@ import { urlFilter } from '../data/url-filter';
             </div>
           </section>
           <section class="app-card" aria-labelledby="op-queue">
-            <h2 class="app-card__title" id="op-queue">Fila pendente</h2>
+            <h2 class="app-card__title" id="op-queue">Fila pendente <app-info-hint indicator="analytics.portfolio.pending-queue" label="Fila pendente" /></h2>
             <p class="pn__hint">Casos elegíveis aguardando na fila (sem negociador atribuído).</p>
             <div class="pn__table-wrap">
               <table class="pn__table">

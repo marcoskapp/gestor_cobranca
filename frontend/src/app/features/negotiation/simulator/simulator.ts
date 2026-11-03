@@ -39,6 +39,7 @@ import {
 } from '../data/negotiation.labels';
 import { ConcessionReason, DEBT_COMPONENTS, OfferView, PlanRequest, SimulationView, ValidationView } from '../data/negotiation.models';
 import { justificationProblem, offeredLevels, savingShare, sideBySide } from '../data/negotiation.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Simulador de negociação: composição da dívida atualizada, ofertas à vista × parcelado lado a
@@ -65,6 +66,7 @@ import { justificationProblem, offeredLevels, savingShare, sideBySide } from '..
     StatusChip,
     AppDatePipe,
     LowerCasePipe,
+    InfoHint,
   ],
   templateUrl: './simulator.html',
   styleUrl: './simulator.scss',

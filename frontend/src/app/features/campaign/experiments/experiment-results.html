@@ -2,9 +2,10 @@
   <div class="form-check form-switch mb-0">
     <input class="form-check-input" type="checkbox" role="switch" id="xr-mature" [ngModel]="mature()" (ngModelChange)="mature.set($event)" />
     <label class="form-check-label" for="xr-mature">Somente devedores com o horizonte completo</label>
+    <app-info-hint indicator="campaign.experiment.mature" label="Somente horizonte completo" />
   </div>
   @if (data(); as r) {
-    <span class="app-muted xr-small">Calculado em {{ r.computedAt | appDate }} · horizonte de {{ r.observationDays }} dias · {{ count(totalDebtors()) }} devedores no total</span>
+    <span class="app-muted xr-small">Calculado em {{ r.computedAt | appDate }} · horizonte de {{ r.observationDays }} dias · {{ count(totalDebtors()) }} devedores no total <app-info-hint indicator="campaign.experiment.min-sample" label="Amostra mínima por braço" /></span>
   }
 </div>
 <p class="app-muted xr-small">
@@ -37,6 +38,10 @@
 
   <details class="xr-method">
     <summary>Como ler e como calculamos</summary>
+    <p class="d-flex flex-wrap gap-3 mb-2">
+      <span>Estimativa e IC 95% <app-info-hint indicator="campaign.experiment.interval" label="Estimativa e intervalo de confiança" /></span>
+      <span>Diferença para a referência <app-info-hint indicator="campaign.experiment.difference" label="Diferença para a referência" /></span>
+    </p>
     <p>
       Cada braço reúne os devedores sorteados para ele (o mesmo devedor fica sempre no mesmo braço). O denominador é sempre o número de devedores do braço, e
       contam os resultados da inscrição até o fim do horizonte de observação — inclusive no grupo de controle, que não recebe nenhuma ação.
@@ -55,6 +60,8 @@
     <section class="xr-metric" [attr.aria-labelledby]="'xr-' + b.metric" [attr.data-tour]="b.primary ? 'experiment-primary' : null">
       <h3 class="xr-metric__title" [id]="'xr-' + b.metric">
         {{ metricLabels[b.metric] }}
+        <!-- info-hint: campaign.experiment.effective-contact, campaign.experiment.reply, campaign.experiment.agreement, campaign.experiment.payment, campaign.experiment.recovered-per-debtor -->
+        <app-info-hint [indicator]="metricInfo[b.metric]" [label]="metricLabels[b.metric]" />
         @if (b.primary) {
           <span class="badge rounded-pill border bg-info-subtle text-info-emphasis border-info-subtle fw-normal"><app-icon name="star" />Métrica principal</span>
         }

@@ -26,6 +26,7 @@ import { ImportBatchView, IssueSeverity } from '../data/ingestion.models';
 import { POLL_MS } from './batch-list';
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Ações disponíveis pela situação do lote. Importar uma prévia ou reprocessar um arquivo passa sempre pela conferência
@@ -65,6 +66,7 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
     Skeleton,
     StatusChip,
     AppDatePipe,
+    InfoHint,
   ],
   template: `
     @if (batch.isLoading() && !current()) {
@@ -136,7 +138,7 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
           </div>
         }
         <div class="bd-kpi">
-          <span class="bd-kpi__label">Principal {{ b.mode === 'VALIDATE_ONLY' ? 'validado' : 'gravado' }}</span>
+          <span class="bd-kpi__label">Principal {{ b.mode === 'VALIDATE_ONLY' ? 'validado' : 'gravado' }} <app-info-hint indicator="ingestion.batch.principal" label="Principal do lote" /></span>
           <span class="bd-kpi__value"><app-amount [value]="b.counters.principalTotal" /></span>
         </div>
       </section>

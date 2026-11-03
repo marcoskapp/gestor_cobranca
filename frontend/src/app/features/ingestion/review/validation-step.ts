@@ -10,11 +10,12 @@ import { ImportBatchesApi } from '../data/ingestion.api';
 import { isTerminal, progressText } from '../data/ingestion.labels';
 import { IssueSeverity, ReviewView } from '../data/ingestion.models';
 import { Icon } from '../../../shared/components/icon/icon';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /** Passo 3: validação das linhas da prévia (nada é gravado), com as ocorrências por linha já existentes. */
 @Component({
   selector: 'app-validation-step',
-  imports: [Icon, DecimalPipe, RouterLink, CellDef, DataTable, StatusChip],
+  imports: [Icon, DecimalPipe, RouterLink, CellDef, DataTable, StatusChip, InfoHint],
   template: `
     @let b = review().batch;
     @if (!terminal()) {
@@ -29,7 +30,7 @@ import { Icon } from '../../../shared/components/icon/icon';
       <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ b.statusReason || 'A validação não foi concluída.' }}</span></div>
     }
     <section class="vs-kpis" aria-label="Resultado da validação" data-tour="review-validation">
-      <div class="vs-kpi"><span class="vs-kpi__label">Linhas lidas</span><span class="vs-kpi__value app-numeric">{{ b.counters.rowsRead | number }}</span></div>
+      <div class="vs-kpi"><span class="vs-kpi__label">Linhas lidas <app-info-hint indicator="ingestion.review.validation" label="Resultado da validação" /></span><span class="vs-kpi__value app-numeric">{{ b.counters.rowsRead | number }}</span></div>
       <div class="vs-kpi"><span class="vs-kpi__label">Válidas</span><span class="vs-kpi__value app-numeric">{{ b.counters.rowsValid | number }}</span></div>
       <div class="vs-kpi" [class.vs-kpi--alert]="b.counters.rowsWithError > 0">
         <span class="vs-kpi__label">Com erro (não serão importadas)</span><span class="vs-kpi__value app-numeric">{{ b.counters.rowsWithError | number }}</span>

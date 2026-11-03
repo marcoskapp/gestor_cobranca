@@ -9,6 +9,7 @@ import { MessagesApi, TemplatesApi } from '../data/communication.api';
 import { VARIABLE_TYPE_LABELS } from '../data/communication.labels';
 import { ConversationView, MessageView, TemplateView } from '../data/communication.models';
 import { charCount, composerMode, idempotencyKey, windowText } from '../data/communication.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /** Templates publicados do canal: o do credor tem precedência sobre o da assessoria (mesmo código). */
 export function applicableTemplates(list: readonly TemplateView[], creditorId: string | null): TemplateView[] {
@@ -31,12 +32,13 @@ export function applicableTemplates(list: readonly TemplateView[], creditorId: s
  */
 @Component({
   selector: 'app-composer',
-  imports: [FormsModule, ...FORM_FIELD, Icon],
+  imports: [FormsModule, ...FORM_FIELD, Icon, InfoHint],
   template: `
     @let c = conversation();
     <p class="d-flex align-items-center gap-2 mb-2 small" [class]="mode() === 'free-text' ? 'text-success-emphasis' : 'text-body-secondary'">
       <app-icon [name]="mode() === 'free-text' ? 'unlock' : 'shield-lock'" />
       <span>{{ window() }}</span>
+      <app-info-hint indicator="communication.whatsapp.window" label="Janela de 24 h do WhatsApp" />
     </p>
     @if (mode() === 'free-text') {
       <app-field label="Mensagem" [hintEnd]="count().chars + ' / ' + count().limit">

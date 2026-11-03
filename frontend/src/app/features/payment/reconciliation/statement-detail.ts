@@ -22,13 +22,14 @@ import { ReconciliationApi } from '../data/payment.api';
 import { DIRECTION_LABELS, STATEMENT_FAILURE_LABELS } from '../data/payment.labels';
 import { StatementImportView } from '../data/payment.models';
 import { importIndicators, isImportRunning } from '../data/payment.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 });
 
 /** Resultado de um extrato importado: indicadores do lote e o tratamento de cada linha. */
 @Component({
   selector: 'app-statement-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip, InfoHint],
   template: `
     @if (resource.isLoading() && !statement()) {
       <app-skeleton variant="card" [rows]="5" />
@@ -67,12 +68,12 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
       <section class="app-card" aria-labelledby="sd-kpis" data-tour="statement-indicators">
         <h2 class="app-card__title" id="sd-kpis">Indicadores do lote</h2>
         <div class="sd-kpis">
-          <div class="sd-kpi"><span class="sd-kpi__label">Linhas lidas</span><span class="sd-kpi__value">{{ s.totalLines }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Créditos tratados</span><span class="sd-kpi__value">{{ ind.credits }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Conciliadas</span><span class="sd-kpi__value">{{ s.reconciledLines }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Confirmaram pagamento</span><span class="sd-kpi__value">{{ s.createdPayments }}</span></div>
-          <div class="sd-kpi sd-kpi--warn"><span class="sd-kpi__label">Divergentes</span><span class="sd-kpi__value">{{ s.divergentLines }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Ignoradas</span><span class="sd-kpi__value">{{ s.ignoredLines }}</span></div>
+          <div class="sd-kpi"><span class="sd-kpi__label">Linhas lidas <app-info-hint indicator="payment.statement.lines" label="Linhas lidas" /></span><span class="sd-kpi__value">{{ s.totalLines }}</span></div>
+          <div class="sd-kpi"><span class="sd-kpi__label">Créditos tratados <app-info-hint indicator="payment.statement.credits" label="Créditos tratados" /></span><span class="sd-kpi__value">{{ ind.credits }}</span></div>
+          <div class="sd-kpi"><span class="sd-kpi__label">Conciliadas <app-info-hint indicator="payment.statement.reconciled" label="Conciliadas" /></span><span class="sd-kpi__value">{{ s.reconciledLines }}</span></div>
+          <div class="sd-kpi"><span class="sd-kpi__label">Confirmaram pagamento <app-info-hint indicator="payment.statement.confirmed" label="Confirmaram pagamento" /></span><span class="sd-kpi__value">{{ s.createdPayments }}</span></div>
+          <div class="sd-kpi sd-kpi--warn"><span class="sd-kpi__label">Divergentes <app-info-hint indicator="payment.statement.divergent" label="Divergentes" /></span><span class="sd-kpi__value">{{ s.divergentLines }}</span></div>
+          <div class="sd-kpi"><span class="sd-kpi__label">Ignoradas <app-info-hint indicator="payment.statement.ignored" label="Ignoradas" /></span><span class="sd-kpi__value">{{ s.ignoredLines }}</span></div>
         </div>
         <p class="app-muted sd-small">
           Taxa de conciliação: <strong>{{ ind.reconciledShare === null ? '—' : pct(ind.reconciledShare) }}</strong> dos créditos (conciliadas + confirmações) ·

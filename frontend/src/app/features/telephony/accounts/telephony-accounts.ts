@@ -167,10 +167,11 @@ type Tab = 'accounts' | 'routes' | 'comparison';
         </ng-template>
       </li>
       <li [ngbNavItem]="'comparison'">
-        <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2"><app-icon name="bar-chart" />Comparação</button>
+        <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2" data-tour="telephony-comparison-tab"><app-icon name="bar-chart" />Comparação</button>
         <ng-template ngbNavContent>
           <p class="app-muted">Últimos 30 dias, chamadas de saída. Custo estimado = minutos do atendimento ao fim × tarifa informada na conta (a fatura do fornecedor é a referência).</p>
           <app-data-table
+            data-tour="telephony-comparison"
             caption="Comparação entre plataformas"
             [rows]="comparisonRows()"
             [columns]="comparisonColumns"
@@ -258,11 +259,11 @@ export class TelephonyAccounts {
   ];
   protected readonly comparisonColumns: TableColumn[] = [
     { key: 'account', header: 'Conta' },
-    { key: 'volume', header: 'Discadas', align: 'end' },
-    { key: 'asr', header: 'Atendimento (ASR)', align: 'end' },
-    { key: 'failures', header: 'Falhas', align: 'end' },
-    { key: 'times', header: 'Toque / conversa (média)', align: 'end' },
-    { key: 'cost', header: 'Custo estimado', align: 'end' },
+    { key: 'volume', header: 'Discadas', align: 'end', info: 'telephony.comparison.dialed' },
+    { key: 'asr', header: 'Atendimento (ASR)', align: 'end', info: 'telephony.comparison.asr' },
+    { key: 'failures', header: 'Falhas', align: 'end', info: 'telephony.comparison.failures' },
+    { key: 'times', header: 'Toque / conversa (média)', align: 'end', info: 'telephony.comparison.times' },
+    { key: 'cost', header: 'Custo estimado', align: 'end', info: 'telephony.comparison.cost' },
   ];
 
   protected keyText(a: TelephonyAccountView): string {

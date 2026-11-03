@@ -93,13 +93,13 @@
   <section class="app-card" aria-labelledby="sd-values" data-tour="statement-values">
     <h2 class="app-card__title" id="sd-values">Valores do período</h2>
     <div class="in-kpis mb-0">
-      <div class="in-kpi"><span class="in-kpi__label">Recuperado creditado</span><span class="in-kpi__value"><app-amount [value]="s.creditedRecovery" /></span></div>
-      <div class="in-kpi"><span class="in-kpi__label">Calculado</span><span class="in-kpi__value"><app-amount [value]="s.calculatedAmount" /></span></div>
-      <div class="in-kpi"><span class="in-kpi__label">Ajustes</span><span class="in-kpi__value"><app-amount [value]="s.adjustmentsAmount" [signed]="true" /></span></div>
+      <div class="in-kpi"><span class="in-kpi__label">Recuperado creditado <app-info-hint indicator="incentive.statement.credited" label="Recuperado creditado" /></span><span class="in-kpi__value"><app-amount [value]="s.creditedRecovery" /></span></div>
+      <div class="in-kpi"><span class="in-kpi__label">Calculado <app-info-hint indicator="incentive.statement.calculated" label="Calculado" /></span><span class="in-kpi__value"><app-amount [value]="s.calculatedAmount" /></span></div>
+      <div class="in-kpi"><span class="in-kpi__label">Ajustes <app-info-hint indicator="incentive.statement.adjustments" label="Ajustes" /></span><span class="in-kpi__value"><app-amount [value]="s.adjustmentsAmount" [signed]="true" /></span></div>
       @if (s.withheldAmount > 0) {
-        <div class="in-kpi"><span class="in-kpi__label">Retido</span><span class="in-kpi__value"><app-amount [value]="s.withheldAmount" /></span></div>
+        <div class="in-kpi"><span class="in-kpi__label">Retido <app-info-hint indicator="incentive.statement.withheld" label="Retido" /></span><span class="in-kpi__value"><app-amount [value]="s.withheldAmount" /></span></div>
       }
-      <div class="in-kpi in-kpi--total"><span class="in-kpi__label">A pagar</span><span class="in-kpi__value"><app-amount [value]="s.payableAmount" /></span></div>
+      <div class="in-kpi in-kpi--total"><span class="in-kpi__label">A pagar <app-info-hint indicator="incentive.statement.payable" label="A pagar" /></span><span class="in-kpi__value"><app-amount [value]="s.payableAmount" /></span></div>
     </div>
   </section>
 

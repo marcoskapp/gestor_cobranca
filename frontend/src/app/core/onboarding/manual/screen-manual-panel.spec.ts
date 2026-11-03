@@ -66,7 +66,10 @@ describe('ManualService e painel "Sobre esta tela"', () => {
     const el = await render();
     expect(el.querySelector('#manual-panel-title')?.textContent).toContain('Simulador de negociação');
     const headings = [...el.querySelectorAll('[role=heading]')].map((h) => h.textContent?.trim());
-    expect(headings).toEqual(['Para que serve', 'Quem usa', 'Como se encaixa no sistema', 'Telas relacionadas', 'Termos']);
+    expect(headings).toEqual(['Para que serve', 'Quem usa', 'Como se encaixa no sistema', 'Telas relacionadas', 'Indicadores desta tela', 'Termos']);
+    // os mesmos textos do "i" das telas (catálogo de indicadores)
+    expect(el.textContent).toContain('Envelope da política');
+    expect(el.textContent).toContain('Sua alçada');
     expect(el.querySelector('[role=heading]')?.getAttribute('aria-level')).toBe('3');
     expect(el.textContent).toContain('De onde vêm os dados');
     expect(el.textContent).toContain('Operador (negociador)');

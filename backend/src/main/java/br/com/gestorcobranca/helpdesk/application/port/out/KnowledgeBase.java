@@ -27,6 +27,15 @@ public interface KnowledgeBase {
 
     List<Term> terms(Collection<String> ids);
 
+    /** Informação contextual de um indicador (o "i" das telas) pelo id estável (ex.: {@code analytics.recovery.rate}). */
+    Optional<Indicator> indicator(String id);
+
+    /** Indicadores exibidos numa tela, na ordem do catálogo (vazio se a tela não tiver). */
+    List<Indicator> screenIndicators(String screenId);
+
+    /** Indicadores de um módulo do manual, na ordem do catálogo. */
+    List<Indicator> moduleIndicators(String moduleId);
+
     /** Rótulo do perfil padrão na linguagem do usuário (ex.: {@code OPERADOR} → "Operador (negociador)"). */
     Map<String, String> profileLabels();
 
@@ -77,5 +86,13 @@ public interface KnowledgeBase {
     }
 
     record Term(String id, String term, String definition) {
+    }
+
+    /**
+     * Texto do "i" de um indicador, igual ao que a pessoa vê na tela: o que é, como é calculado (em
+     * linguagem de negócio) e como usar na decisão; {@code screens} são as telas em que ele aparece.
+     */
+    record Indicator(String id, String module, String title, String what, String how, String use,
+                     List<String> screens) {
     }
 }

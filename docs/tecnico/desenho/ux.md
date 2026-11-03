@@ -40,6 +40,7 @@ O **desktop operacional** é o alvo primário (1366–1920 px). Tablet e celular
 | 2.5.8 tamanho do alvo | Botões de ícone ≥ 28 px na densidade compacta; densidade compacta desativada em telas de toque |
 | 2.1.1 teclado | Tour (← → Esc), paleta (padrão combobox/listbox com `aria-activedescendant`), menus `ngbDropdown` (setas, Home/End, Esc), diálogos `NgbModal` (foco preso e devolvido), typeahead (combobox), atalhos |
 | 2.2.1 tempo | Convites não somem sozinhos; nada com tempo limite |
+| 1.4.13 conteúdo em hover ou foco | `app-info-hint`: o balão pode receber o ponteiro, fica aberto enquanto ponteiro ou foco estiverem nele e fecha com Esc sem mover o foco (§8.6) |
 | 2.3.3 / `prefers-reduced-motion` | Animações e transições reduzidas a 0,01 ms; esqueleto sem pulsação |
 | 4.1.3 mensagens de status | Convites em região `aria-live="polite"`; estados vazio/erro com `role=status/alert`; tabela com `aria-busy` |
 | Leitores de tela | Trilha com `aria-current="page"`; itens do menu em trilho com `aria-label`; valores compactos com o valor exato em texto oculto; menus de tema com `menuitemradio`/`aria-checked` |
@@ -118,6 +119,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 | Novidades | `whats-new/whats-new-dialog.ts` | Central por versão; selo "Novo" na ajuda |
 | Estado | `core/preferences/ui-state.store.ts` | Carga no login, alterações otimistas agrupadas (debounce 800 ms) em um PATCH, reenvio em falha, `flush()` antes do logout |
 | Manual | `core/onboarding/manual/` (`content/*.ts`, `manual-index.ts`, `manual.service.ts`, `screen-tour.ts`, `screen-manual-panel.ts`) e `features/help/` | Manual rápido por tela ("Sobre esta tela"), passo de objetivo do tour e manual de cada módulo em `/ajuda` (§8.5) |
+| Informação contextual | `shared/components/info-hint/` e `core/onboarding/manual/indicators/` (`content/*.ts`, `indicator-index.ts`) | O "i" ao lado de cada número com significado de negócio e o catálogo dos textos (§8.6) |
 
 ### 8.3 Regras dos convites
 
@@ -137,6 +139,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 5. Inclua o destino no `NAVIGATION`: os itens de checklist com essa rota (ex.: `/cobranca/fila`, `/devedores`) passam a aparecer automaticamente para os perfis com permissão.
 6. Atalhos da tela: `KeyboardShortcuts.register({ group: 'Estação de cobrança', … })` no construtor e remoção no `DestroyRef`; ações na busca rápida: `CommandPaletteService.register([...])`.
 7. **Manual da tela (obrigatório)**: acrescente o `ScreenManual` da tela no arquivo do módulo em `core/onboarding/manual/content/` (`id` = `key` da tela; `objective` de 6 a 25 palavras, que vira o primeiro passo do tour; `purpose`, `profiles`, `inputs`, `outputs`, `related`, `terms`). Prefixo de chave novo → inclua-o em `MODULE_BY_PREFIX` (`manual-index.ts`). O `manual-content.spec.ts` falha se a tela ou a rota do menu ficar sem manual.
+8. **Números com significado de negócio (obrigatório)**: todo cartão de indicador, título de gráfico e coluna de tabela com valor calculado leva o "i" (§8.6), com o texto no catálogo de indicadores. O `npm run hints:check` (antes do build e dos testes) recusa `app-kpi-card` sem `info` e id fora do catálogo.
 
 ### 8.5 Ajuda contextual e manual do usuário (decisões 410–422)
 
@@ -164,6 +167,42 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 **Base do chat de suporte** ([`chat-suporte.md`](chat-suporte.md) §7): `npm run knowledge` exporta o manual (`knowledge-export.ts`: módulos, telas com caminho e acesso pelo menu, glossário, versão) para `backend/src/main/resources/helpdesk/knowledge-base.json`; `knowledge:check` roda antes do build e dos testes e falha com o arquivo desatualizado — **ao mudar o manual, rode `npm run knowledge` e versione o JSON**. O chat (`core/support-chat/`, botão na barra superior, painel `NgbOffcanvas` como "Sobre esta tela") envia só a chave da tela; o texto do manual vem do servidor.
 
 **Testes**: `manual/manual-content.spec.ts` (cobertura de todas as telas e rotas do menu, campos obrigatórios, vínculos, glossário, jargão e o tour com objetivo em todas as telas), `manual/screen-manual-panel.spec.ts` (links por permissão, seções, "Saiba mais", tour), `features/help/help-pages.spec.ts` (central, módulo com âncora e foco, módulo inexistente), além de `onboarding.service.spec.ts` e `tour-engine.service.spec.ts` (objetivo primeiro, tour transitório não gravado).
+
+### 8.6 Informação contextual de indicadores (decisões 700–711)
+
+Pedido do responsável: *"trazer contexto de negócio para cada valor exibido, informando do que se trata aquele valor, para que ele é usado na tomada de decisão… A ideia é o usuário entender o valor sem sair da tela."*
+
+| Opção avaliada | Decisão |
+| --- | --- |
+| `ngbTooltip` (só texto, abre no hover/foco) | **Descartado**: o conteúdo tem estrutura e link ("Saiba mais"); tooltip não recebe foco nem toque e some ao tirar o ponteiro |
+| `ngbPopover` com `triggers="manual"`, anexado ao `body` | **Adotado** (`app-info-hint`): abertura controlada pelo componente (ponteiro, foco do teclado e toque), balão fora de contêineres com rolagem (tabelas, `container-type` dos cartões) |
+| Diálogo (`NgbModal`) ou painel lateral | **Descartados**: tiram o usuário do contexto; o painel "Sobre esta tela" continua para a leitura da tela inteira |
+| Textos nos templates ou em `i18n` | **Descartados**: o mesmo texto precisa servir ao chat de suporte e ao manual; catálogo declarativo e versionado, como o manual |
+
+**Componente** `app-info-hint` (`shared/components/info-hint/`): `<app-info-hint indicator="analytics.recovery.rate" label="Taxa de recuperação" />`.
+
+| Aspecto | Contrato |
+| --- | --- |
+| Visual | Botão com o ícone `info-circle` do sprite, cor secundária; realce `primary-bg-subtle` ao passar o mouse ou aberto; balão do popover do Bootstrap (classe `app-info-popover`, até 340 px, texto de 14 px) com título, "O que é", "Como é calculado", "Como usar" e "Saiba mais no manual" (`/ajuda/<módulo>#<tela>`). Tema escuro e densidade compacta pelas variáveis do Bootstrap |
+| Abertura | Mouse: abre após 120 ms e fecha 250 ms depois de sair do botão **e** do balão (o ponteiro pode ir até o balão — WCAG 1.4.13). Teclado: o foco abre (o texto é lido pelo `aria-describedby`); Enter/Espaço fixa e leva o foco para dentro do balão (para chegar ao "Saiba mais"). Toque/clique: abre e fixa; segundo toque, toque fora ou Esc fecham. O foco vindo de um toque não abre sozinho (o toque é tratado pelo clique) |
+| Fechamento e foco | Esc fecha em qualquer modo (escuta no `document`, com prioridade sobre o Esc de diálogos) e devolve o foco ao botão quando ele estava no balão; Tab para fora do balão fecha e devolve o foco ao botão (o balão fica no `body`, fora da ordem da tela); "Saiba mais" fecha e navega |
+| Acessibilidade | `button type=button` com `aria-label="Sobre: <nome>"`, `aria-expanded`, `aria-describedby` (do ng-bootstrap) apontando para o balão (`role=tooltip`); ícone decorativo; alvo de 24 × 24 px (32 × 32 px com `pointer: coarse`) com margens negativas para não aumentar a linha; foco visível; nada depende só de hover |
+| Carga | O texto vem do catálogo, carregado na primeira abertura (um chunk por módulo); o componente fica nos chunks das telas. O CSS do popover do Bootstrap entrou no CSS global (`_index.scss`, ~6,5 kB sem compressão, ~1 kB transferido); o JavaScript inicial não mudou |
+| Onde | `app-kpi-card` (`info`), `app-bar-chart`/`app-column-chart`/`app-funnel-chart` do analytics e o gráfico do assistente (`info`), colunas do `app-data-table` (`TableColumn.info`) e diretamente nos títulos, cabeçalhos de tabela e rótulos (`<dt>`, `kpi__label`). Nunca dentro de outro botão ou link |
+
+**Catálogo** (`core/onboarding/manual/indicators/`): `IndicatorHelp` = `id` estável (`<prefixo da tela>.<assunto>.<indicador>`; o prefixo define o módulo, pelo mesmo `moduleOfScreen` das telas), `title`, `what` (o que é), `how` (como é calculado, em linguagem de negócio), `use` (como usar na decisão: o que fazer quando sobe ou cai) e `screens` (telas em que aparece; a primeira é a do "Saiba mais"). Um arquivo por módulo em `content/`, só dados. Os textos seguem as definições reais (docs/negocio/indicadores.md, desenho de cada módulo) e o código que calcula cada número.
+
+**Usos do mesmo texto**: o "i" das telas; a seção "Indicadores desta tela" do manual rápido e do manual do módulo; o "tour desta tela" dos painéis (passos nos cartões); a base do chat de suporte (`npm run knowledge` exporta `indicators`; o chat recebe os indicadores da tela atual e consulta `consultar_manual` com `indicador`).
+
+**Contrato para telas novas**
+1. Número com significado de negócio → id no catálogo do módulo (`content/<módulo>.ts`) com os quatro textos (6 a 70 palavras cada, frase completa) e as telas.
+2. Cartão: `<app-kpi-card label="…" info="<id>">`; gráfico: `info="<id>"`; coluna do `app-data-table`: `{ key, header, info: '<id>' }`; demais lugares: `<app-info-hint indicator="<id>" label="<nome na tela>" />`. Id calculado em tempo de execução: comentário `info-hint: <id>, <id>` ao lado, para a conferência.
+3. Rode `npm run knowledge` e versione o JSON do chat.
+4. Tour da tela: os passos principais apontam para os cartões (`data-tour="kpi-…"`) e um passo para o "i" (`data-tour="info-hint"`, o primeiro visível), dentro do limite de 6 passos + objetivo; aumente a versão da tela e do tour.
+
+**Verificação**: `hints:check` (todo id usado existe; todo cartão tem `info`; `app-info-hint` com `indicator` e `label`), `indicator-content.spec.ts` (ids, módulo, campos e tamanhos, telas existentes, "Saiba mais" com manual, a mesma regra anti-jargão do manual — `content-rules.ts`), `info-hint.spec.ts` (hover, foco, Enter, Tab, toque, clique fora, Esc, ARIA), `knowledge-export.spec.ts` e `ClasspathKnowledgeBaseTest`/`HelpdeskIT` no backend.
+
+**Inventário** (195 indicadores, 15 módulos do manual): painéis (operacional, recuperação, conversão, produtividade, confiabilidade e a tela inicial), Minhas pendências, score (cartão do caso, monitoramento, modelo, execuções), remuneração variável (desempenho, extratos, prévia, metas, monitoria), prestação de contas (demonstrativo, posição do credor, repasses), pagamentos e conciliação, negociação (simulador, propostas, acordos), importação (validação, totais de controle, alertas, impacto, lote, PDF), campanhas (execução e testes A/B), comunicação (SLA e janela de 24 h), telefonia (comparação, discador, presença), assistente (qualidade), compliance (prazo LGPD), jurídico (painel e prazos) e consumo da integração dos credores.
 
 ## 9. Estado de interface no servidor (módulo `identity`)
 
@@ -217,7 +256,7 @@ Regras:
 2. **Nenhum seletor interno do Bootstrap é sobrescrito**, salvo as exceções da §11.6. Ajustes de componente usam as CSS custom properties que o próprio Bootstrap expõe (`--bs-btn-*`, `--bs-nav-*`, `--bs-modal-*`, `--bs-card-*`…), aplicadas em classes da aplicação (`.app-topbar__btn`, `.app-sidenav__list`, `.app-palette-window`), como mostra a documentação ("Buttons → Variables", "Navs → Variables").
 3. **Mapas e utilitários pelas APIs oficiais**: `map-remove($theme-colors, …)` e `$utilities` com `map-merge` (`responsive: false`).
 4. **Modo escuro nativo** (`$color-mode-type: data`, `[data-bs-theme="dark"]`): cores do escuro em `_variables-dark.scss`; o único ajuste além de variáveis usa os mixins documentados `color-mode()` e `button-outline-variant()` (§11.5).
-5. **Importação seletiva**: ficam de fora `carousel`, `images`, `navbar`, `popover`, `forms/floating-labels` e `forms/form-range`. Para usar um deles numa tela, acrescente o `@import` em `_index.scss` — nunca copie CSS do Bootstrap.
+5. **Importação seletiva**: ficam de fora `carousel`, `images`, `navbar`, `forms/floating-labels` e `forms/form-range` (o `popover` entrou com o `app-info-hint`, §8.6). Para usar um deles numa tela, acrescente o `@import` em `_index.scss` — nunca copie CSS do Bootstrap.
 
 ### 11.3 Variáveis alteradas e por quê
 
@@ -271,7 +310,8 @@ Contraste conferido (WCAG 2.2 AA): texto secundário 6,9:1 (claro) e 8,4:1 (escu
 | `DialogService` + `DialogRef` + `DIALOG_DATA` | `shared/dialog/` | Substituto do `MatDialog` sobre `NgbModal`: `open(Componente, { data, size, disableClose, role })` → `afterClosed()` (resultado ou `undefined`). Diretivas `appDialogTitle` (liga o `aria-labelledby`) e `appDialogClose` (sem valor = cancelamento). Foco preso, Esc, foco devolvido; `ngbAutofocus` marca o foco inicial. |
 | `app-field` + `appInput` | `shared/forms/` | Substituto do `mat-form-field`: rótulo, ajuda (`form-text`), erro (`invalid-feedback` com `errorMessage()`), `is-invalid` + `aria-invalid` + `aria-describedby`; mostra erro após tocar ou submeter; tamanho compacto pela densidade. |
 | `appMoney` (`MoneyInput`) + `div.input-group` (`InputGroupDensity`) | `shared/forms/money-input.ts`, `money.ts`, `input-group.ts` | Máscara monetária por centavos, `ControlValueAccessor` + validador (`[min]`/`[max]`), modelo `number` ou texto decimal, vazio = `null` (§13.4). O `input-group` recebe `.input-group-sm` na densidade compacta. Ambos vêm com `FORM_FIELD`. |
-| `app-data-table` | `shared/components/data-table/` | Mesma API (+ `sortable`/`sort`/`sortChange` opcionais): tabela responsiva do Bootstrap, cabeçalho fixo, `ngb-pagination` + quantidade por página + faixa "1 – 20 de 135", esqueleto/vazio/erro. |
+| `app-info-hint` | `shared/components/info-hint/` | Informação contextual de indicador (popover do ng-bootstrap, §8.6). |
+| `app-data-table` | `shared/components/data-table/` | Mesma API (+ `sortable`/`sort`/`sortChange` e `info` por coluna, opcionais): tabela responsiva do Bootstrap, cabeçalho fixo, `ngb-pagination` + quantidade por página + faixa "1 – 20 de 135", esqueleto/vazio/erro. |
 | `ConfirmService`/`ConfirmDialog` | `shared/components/confirm-dialog/` | Mesma API; `alertdialog` quando destrutivo, foco inicial em "Cancelar", motivo e palavra de confirmação com `app-field`. |
 | `DetailDialog` (`openDetail`) | `shared/components/detail-dialog/` | Ficha somente leitura (lista de definições + JSON), para log de acesso/auditoria nas próximas ondas. |
 | `NotificationService` + `app-toasts` | `core/notification/` | Mesma API (`success/info/error`); toasts do ng-bootstrap na raiz; `aria-live` polido/assertivo; erro 10 s, demais 5 s, pausa com ponteiro/foco, sem empilhar repetidos. |

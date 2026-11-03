@@ -21,6 +21,7 @@ import { ScoringMonitoringApi } from '../data/scoring.api';
 import { GROUP_BY_LABELS, SCORING_ERROR_LABELS } from '../data/scoring.labels';
 import { ExpectedRecoveryFilter, ExpectedRecoveryReport, RecoveryGroupBy } from '../data/scoring.models';
 import { dec, defaultRecoveryRange, integer, percent, ratioText, recoveryRangeProblem, recoveryRows, recoveryTotals } from '../data/scoring.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 interface RecoveryFilterValue {
   from: string | null;
@@ -39,7 +40,7 @@ const GROUPS: readonly RecoveryGroupBy[] = ['NONE', 'CREDITOR', 'PORTFOLIO', 'AS
  */
 @Component({
   selector: 'app-expected-recovery-panel',
-  imports: [Icon, NgbInputDatepicker, ...FORM_FIELD, ReactiveFormsModule, Amount, EmptyState, EntityPicker, Skeleton, BarChart, KpiCard],
+  imports: [Icon, NgbInputDatepicker, ...FORM_FIELD, ReactiveFormsModule, Amount, EmptyState, EntityPicker, Skeleton, BarChart, KpiCard, InfoHint],
   template: `
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar recuperado × esperado">
       <app-field label="Safras de">
@@ -83,15 +84,16 @@ const GROUPS: readonly RecoveryGroupBy[] = ['NONE', 'CREDITOR', 'PORTFOLIO', 'AS
     } @else {
       @let t = totals();
       <section class="er-kpis" aria-label="Recuperado × esperado no período" data-tour="scoring-expected-recovery" [attr.aria-busy]="report.isLoading()">
-        <app-kpi-card label="Recuperado ÷ esperado" [detail]="ratioDetail()">{{ ratio(t.ratio) }}</app-kpi-card>
-        <app-kpi-card label="Recuperado" detail="Pago confirmado na janela, líquido de estornos"><app-amount [value]="t.realizedAmount" [compact]="true" /></app-kpi-card>
-        <app-kpi-card label="Esperado pelo score" detail="Σ chance × saldo × fração paga típica"><app-amount [value]="t.expectedAmount" [compact]="true" /></app-kpi-card>
-        <app-kpi-card label="Casos que pagaram" [detail]="'esperados ' + decimalCount(t.expectedPayers) + ' de ' + int(t.cases) + ' casos'">{{ int(t.realizedPayers) }}</app-kpi-card>
+        <app-kpi-card label="Recuperado ÷ esperado" info="scoring.expected.ratio" [detail]="ratioDetail()">{{ ratio(t.ratio) }}</app-kpi-card>
+        <app-kpi-card label="Recuperado" info="scoring.expected.realized" detail="Pago confirmado na janela, líquido de estornos"><app-amount [value]="t.realizedAmount" [compact]="true" /></app-kpi-card>
+        <app-kpi-card label="Esperado pelo score" info="scoring.expected.expected" detail="Σ chance × saldo × fração paga típica"><app-amount [value]="t.expectedAmount" [compact]="true" /></app-kpi-card>
+        <app-kpi-card label="Casos que pagaram" info="scoring.expected.payers" [detail]="'esperados ' + decimalCount(t.expectedPayers) + ' de ' + int(t.cases) + ' casos'">{{ int(t.realizedPayers) }}</app-kpi-card>
       </section>
       @if (grouped()) {
         <section class="app-card">
           <app-bar-chart
             [title]="'Esperado × recuperado por ' + groupLabels[data()!.groupBy].toLowerCase()"
+            info="scoring.expected.ratio"
             [summary]="chartSummary()"
             [categoryHeader]="groupLabels[data()!.groupBy]"
             noteHeader="Recuperado ÷ esperado"
@@ -108,11 +110,11 @@ const GROUPS: readonly RecoveryGroupBy[] = ['NONE', 'CREDITOR', 'PORTFOLIO', 'AS
               <tr>
                 <th scope="col">{{ groupLabels[data()!.groupBy] }}</th>
                 <th scope="col" class="text-end">Casos</th>
-                <th scope="col" class="text-end">Pagantes esperados</th>
+                <th scope="col" class="text-end">Pagantes esperados <app-info-hint indicator="scoring.expected.payers" label="Pagantes esperados" /></th>
                 <th scope="col" class="text-end">Pagantes</th>
-                <th scope="col" class="text-end">Esperado</th>
+                <th scope="col" class="text-end">Esperado <app-info-hint indicator="scoring.expected.expected" label="Esperado pelo score" /></th>
                 <th scope="col" class="text-end">Recuperado</th>
-                <th scope="col" class="text-end">Recuperado ÷ esperado</th>
+                <th scope="col" class="text-end">Recuperado ÷ esperado <app-info-hint indicator="scoring.expected.ratio" label="Recuperado ÷ esperado" /></th>
               </tr>
             </thead>
             <tbody>

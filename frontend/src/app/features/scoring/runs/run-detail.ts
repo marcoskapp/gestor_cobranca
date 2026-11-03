@@ -56,11 +56,11 @@ export const RUN_POLL_MS = 5000;
 
       @if (r.kind === 'BATCH') {
         <section class="rd-kpis" aria-label="Resultado da escoragem">
-          <app-kpi-card label="Casos escorados" detail="Score gravado nesta execução">{{ int(r.scored) }}</app-kpi-card>
-          <app-kpi-card label="Ignorados" detail="Já recalculados depois da referência">{{ int(r.skipped) }}</app-kpi-card>
-          <app-kpi-card label="Publicados" detail="Primeiro score, mudança de faixa ou variação mínima">{{ int(r.published) }}</app-kpi-card>
-          <app-kpi-card label="Mudaram de faixa" [detail]="'de ' + int(r.scored) + ' escorados'">{{ int(r.bandChanges) }}</app-kpi-card>
-          <app-kpi-card label="Falhas" detail="Registradas no log técnico">{{ int(r.failures) }}</app-kpi-card>
+          <app-kpi-card label="Casos escorados" info="scoring.run.scored" detail="Score gravado nesta execução">{{ int(r.scored) }}</app-kpi-card>
+          <app-kpi-card label="Ignorados" info="scoring.run.skipped" detail="Já recalculados depois da referência">{{ int(r.skipped) }}</app-kpi-card>
+          <app-kpi-card label="Publicados" info="scoring.run.published" detail="Primeiro score, mudança de faixa ou variação mínima">{{ int(r.published) }}</app-kpi-card>
+          <app-kpi-card label="Mudaram de faixa" info="scoring.run.band-changes" [detail]="'de ' + int(r.scored) + ' escorados'">{{ int(r.bandChanges) }}</app-kpi-card>
+          <app-kpi-card label="Falhas" info="scoring.run.failures" detail="Registradas no log técnico">{{ int(r.failures) }}</app-kpi-card>
         </section>
         @if (r.failures > 0) {
           <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
@@ -71,11 +71,11 @@ export const RUN_POLL_MS = 5000;
       } @else {
         @let d = training();
         <section class="rd-kpis" aria-label="Dados do treino">
-          <app-kpi-card label="Observações" detail="Retratos com desfecho apurado">{{ int(d.observations) }}</app-kpi-card>
-          <app-kpi-card label="Casos com desfecho" [detail]="'mínimo ' + int(d.minCases)">{{ int(d.distinctCases) }}</app-kpi-card>
-          <app-kpi-card label="Casos que pagaram" [detail]="'mínimo ' + int(d.minPositives)">{{ int(d.distinctPositiveCases) }}</app-kpi-card>
+          <app-kpi-card label="Observações" info="scoring.run.training-data" detail="Retratos com desfecho apurado">{{ int(d.observations) }}</app-kpi-card>
+          <app-kpi-card label="Casos com desfecho" info="scoring.run.training-data" [detail]="'mínimo ' + int(d.minCases)">{{ int(d.distinctCases) }}</app-kpi-card>
+          <app-kpi-card label="Casos que pagaram" info="scoring.run.training-data" [detail]="'mínimo ' + int(d.minPositives)">{{ int(d.distinctPositiveCases) }}</app-kpi-card>
           @if (d.validationAuc !== undefined) {
-            <app-kpi-card label="AUC de validação" detail="Período posterior ao treino">{{ metric(d.validationAuc) }}</app-kpi-card>
+            <app-kpi-card label="AUC de validação" info="scoring.run.validation-auc" detail="Período posterior ao treino">{{ metric(d.validationAuc) }}</app-kpi-card>
           }
         </section>
         @if (r.status === 'INSUFFICIENT_DATA') {

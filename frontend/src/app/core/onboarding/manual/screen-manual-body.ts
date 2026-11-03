@@ -5,7 +5,7 @@ import { ScreenManualView } from './manual.service';
 
 /**
  * Conteúdo do manual rápido de uma tela: para que serve, quem usa, encaixe no todo, telas
- * relacionadas e termos. Usado no painel "Sobre esta tela" e em cada tela do manual do módulo.
+ * relacionadas, indicadores da tela (os mesmos textos do "i", ux.md §8.6) e termos. Usado no painel "Sobre esta tela" e em cada tela do manual do módulo.
  * Texto só por interpolação (o conteúdo é dado, nunca HTML).
  */
 @Component({
@@ -68,6 +68,18 @@ import { ScreenManualView } from './manual.service';
             </li>
           }
         </ul>
+      </section>
+    }
+
+    @if (v.indicators.length > 0) {
+      <section class="manual__section" [attr.aria-labelledby]="ids().indicators">
+        <div role="heading" [attr.aria-level]="level()" class="manual__heading" [id]="ids().indicators">Indicadores desta tela</div>
+        <dl class="manual__terms">
+          @for (indicator of v.indicators; track indicator.id) {
+            <dt>{{ indicator.title }}</dt>
+            <dd>{{ indicator.what }} {{ indicator.use }}</dd>
+          }
+        </dl>
       </section>
     }
 
@@ -170,6 +182,7 @@ export class ScreenManualBody {
       flow: `${base}-flow`,
       related: `${base}-related`,
       terms: `${base}-terms`,
+      indicators: `${base}-indicators`,
     };
   });
 }

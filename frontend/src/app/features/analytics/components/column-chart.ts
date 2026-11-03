@@ -1,6 +1,7 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { ChartRow, ChartSeries } from './chart.models';
 import { Icon } from '../../../shared/components/icon/icon';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 let nextId = 0;
 
@@ -16,11 +17,16 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
  */
 @Component({
   selector: 'app-column-chart',
-  imports: [Icon],
+  imports: [Icon, InfoHint],
   template: `
     <figure class="cc" [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-s'">
       <div class="cc__head">
-        <figcaption [id]="id + '-t'" class="cc__title">{{ title() }}</figcaption>
+        <div class="d-flex align-items-center gap-1 min-w-0">
+          <figcaption [id]="id + '-t'" class="cc__title">{{ title() }}</figcaption>
+          @if (info(); as hint) {
+            <app-info-hint [indicator]="hint" [label]="title()" />
+          }
+        </div>
         <button class="btn btn-link" type="button" (click)="table.set(!table())" [attr.aria-pressed]="table()">
           <app-icon [name]="table() ? 'bar-chart' : 'table'" />
           {{ table() ? 'Ver gráfico' : 'Ver tabela' }}
@@ -86,6 +92,8 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
 })
 export class ColumnChart {
   readonly title = input.required<string>();
+  /** Id do indicador no catálogo de informação contextual (o "i" ao lado do título). */
+  readonly info = input<string | null>(null);
   readonly summary = input.required<string>();
   readonly series = input.required<ChartSeries>();
   readonly rows = input.required<ChartRow[]>();

@@ -88,7 +88,7 @@ export class ReallocationList {
     { key: 'paidAt', header: 'Pago em' },
     { key: 'debtor', header: 'Devedor e credor' },
     { key: 'amount', header: 'Pagamento', align: 'end' },
-    { key: 'pending', header: 'A realocar', align: 'end' },
+    { key: 'pending', header: 'A realocar', align: 'end', info: 'payment.detail.pending-reallocation' },
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
