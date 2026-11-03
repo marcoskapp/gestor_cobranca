@@ -25,7 +25,7 @@ Ambiente completo do Gestor de Cobrança no Docker, que sobe com **um comando** 
 | Disco | **15 GB livres** (imagens: ~3 GB; cache do build: até ~8 GB; volumes do sandbox: ~150 MB) |
 | Portas (só em `127.0.0.1`) | **58080** (aplicação), **58025** (Mailpit) e **55432** (PostgreSQL); trocáveis, veja os problemas comuns |
 
-**Não é preciso JDK, Maven nem Node**: o frontend e o backend são compilados dentro da imagem Docker.
+**Não é preciso JDK, Maven nem Node**: o frontend e o backend são compilados dentro da imagem Docker. A auditoria opcional da interface (`audit.sh`) roda na imagem oficial do Playwright ou, sem ela, com Node 22.18+ local.
 
 Para conferir o que está instalado:
 
@@ -133,6 +133,7 @@ Para testar com IA real (Amazon Bedrock, credenciais AWS temporárias por variá
 ```bash
 ./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública, Swagger, posição do credor e Importação PDF
 ./scripts/sandbox/pdfs.sh            # copia os PDFs fictícios de demonstração da Importação PDF para ./sandbox-pdfs/
+./scripts/sandbox/audit.sh           # auditoria da interface perfil a perfil (acesso negado, cartões desalinhados, rolagem dupla) → ./sandbox-audit/relatorio.md
 ./scripts/sandbox/down.sh            # para o sandbox MANTENDO os dados
 ./scripts/sandbox/up.sh --no-build   # sobe de novo sem reconstruir a imagem (os dados continuam)
 ./scripts/sandbox/reset.sh           # apaga todos os dados do sandbox e recria do zero (pede confirmação; --yes dispensa)
@@ -148,6 +149,7 @@ docker compose -p gestor-cobranca-sandbox logs -f app   # logs da aplicação (C
 | Primeira subida demorada | é o download das imagens base e das dependências (Maven e npm) e o build; as próximas usam o cache. Se passar de 30 min, aumente o limite: `./scripts/sandbox/up.sh --timeout 3600` |
 | Painéis e relatórios vazios ou desatualizados logo após subir | os painéis são atualizados pelo agendamento a cada 15 minutos: aguarde até 15 min |
 | Falha ao baixar imagens (`failed to resolve reference "docker.io/…"`, `Forbidden`, `pull access denied`) | sem acesso ao Docker Hub: aponte as imagens base para um espelho/registro interno com `SANDBOX_NODE_IMAGE`, `SANDBOX_MAVEN_IMAGE`, `SANDBOX_JRE_IMAGE`, `SANDBOX_POSTGRES_IMAGE` e `SANDBOX_MAILPIT_IMAGE` (padrões: `node:22-bookworm-slim`, `maven:3.9-eclipse-temurin-21`, `eclipse-temurin:21-jre-noble`, `postgres:16-alpine`, `axllent/mailpit:v1.27.10`); atrás de proxy local, acrescente `SANDBOX_BUILD_NETWORK=host` |
+| `audit.sh`: "imagem mcr.microsoft.com/playwright… indisponível; usando o Node local" | sem acesso ao registro da Microsoft a auditoria roda com o Node local (22.18+; o script instala as dependências e o Chromium do Playwright); para outro registro, `SANDBOX_PLAYWRIGHT_IMAGE` (mesma versão do `scripts/sandbox/audit/package.json`). Detalhes em [`sandbox.md` §4c](docs/tecnico/operacao/sandbox.md) |
 
 Guia aprofundado — dados carregados, roteiro de demonstração de 30–40 minutos, API pública e faturamento, como a carga funciona e as proteções contra uso fora do sandbox: [`docs/tecnico/operacao/sandbox.md`](docs/tecnico/operacao/sandbox.md).
 

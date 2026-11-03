@@ -13,6 +13,7 @@ Pré-requisitos (detalhes, versões mínimas, memória, disco e portas no [READM
 ./scripts/sandbox/up.sh --no-build # sobe de novo reaproveitando a imagem já construída
 ./scripts/sandbox/verify.sh        # verificação de fumaça: logins por perfil, volumes, isolamento entre assessorias e API pública
 ./scripts/sandbox/tokens.sh        # tokens de demonstração da API pública (segredos exibidos só aqui)
+./scripts/sandbox/audit.sh         # auditoria da interface perfil a perfil (§4c)
 ./scripts/sandbox/down.sh          # para, mantendo os dados
 ./scripts/sandbox/reset.sh         # apaga os volumes do sandbox e recria do zero (pede confirmação; --yes dispensa)
 ```
@@ -232,6 +233,35 @@ export INGESTION_PDF_BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-5-5   # padrão
 ```
 
 Ligue o Bedrock **depois** da primeira carga (como acima): se ligado já na primeira subida, a carga faz uma chamada ao modelo por assessoria para o PDF modelo do mapa salvo (o mapa proposto é trocado pelo da demonstração). Para voltar ao padrão, abra um terminal novo (sem as variáveis) e rode `down.sh` + `up.sh --no-build`. O mapa salvo continua valendo com a IA ligada: PDFs do layout histórico continuam sem chamada ao modelo.
+
+## 4c. Auditoria da interface (perfil a perfil)
+
+O `verify.sh` confere o contrato da API (inclusive menu × API, §9); o `audit.sh` confere **a tela**, com um navegador de verdade (Playwright, decisão 688). Para cada perfil ele entra com o usuário de demonstração, percorre o menu lateral, os atalhos da página inicial, as opções extras da busca "Buscar ou ir para", as abas de cada página e o primeiro registro de cada lista (com as abas dele), e relata por perfil × página:
+
+| Tipo | O que acusa |
+| --- | --- |
+| `403` | a tela chamou um endpoint da API que o perfil não pode usar |
+| `acesso-negado` | aviso "Acesso negado" (toast) ou a página de acesso negado da rota |
+| `cartoes` | cartões irmãos na mesma linha (sobreposição vertical de mais da metade do menor) com topos diferentes em mais de 1 px — use `.app-columns`/`.app-stack` ([`ux.md` §4](../desenho/ux.md)) |
+| `rolagem` | o documento rola (`scrollHeight > innerHeight` ou `scrollWidth > innerWidth`): só a área de conteúdo (`main.app-content`) pode rolar |
+| `erro-js` | exceção não tratada no navegador |
+
+```bash
+./scripts/sandbox/audit.sh                       # perfis padrão: os 14 da aurora + boreal/operador2 e boreal/advogado
+./scripts/sandbox/audit.sh aurora/juridico       # só os perfis informados (assessoria/pessoa)
+AUDIT_DETAIL=0 ./scripts/sandbox/audit.sh         # sem abrir o primeiro registro das listas (mais rápido)
+```
+
+O relatório fica em `./sandbox-audit/` (fora do Git): `relatorio.md` (resumo por perfil, problemas perfil × página e páginas visitadas) e `resultado.json`. Código de saída: **0** sem problemas, **1** com problemas, **2** quando a auditoria não rodou (sandbox fora do ar, login recusado). Janela padrão 1280×800 (`AUDIT_WIDTH`/`AUDIT_HEIGHT`); `AUDIT_PARALLEL` perfis em paralelo (padrão 3). A rodada completa leva de 20 a 40 min.
+
+**Limites do sandbox respeitados**: uma sessão por perfil, encerrada no fim (o limite é 3 sessões simultâneas por usuário — a mais antiga cai), e logins espaçados de 3,5 s (o limite é 20 por minuto por IP; um 429 espera e tenta de novo). Não altera dados: só navega e abre abas; da busca usa apenas opções de navegação (nada de sair, tema, densidade ou tour).
+
+**Onde roda.** O script fica em `scripts/sandbox/audit/` (TypeScript executado direto pelo Node, `package.json` com a versão do Playwright fixada e `package-lock.json`):
+
+1. **Imagem oficial** `mcr.microsoft.com/playwright:v<versão>-noble`, com a mesma versão do `package.json` (navegadores e biblioteca casados), rede do host para alcançar `localhost:58080` — no Docker Desktop, ative *Settings → Resources → Network → Enable host networking* (sem isso use `--local`). Outro registro: `SANDBOX_PLAYWRIGHT_IMAGE`. `--docker` exige a imagem.
+2. **Node local** (padrão quando a imagem não está disponível, ou `--local`): Node 22.18+ (executa TypeScript sem compilação); o script roda `npm ci` em `scripts/sandbox/audit/` e `playwright install chromium` (reaproveita o navegador já baixado em `PLAYWRIGHT_BROWSERS_PATH` ou no cache do Playwright).
+
+Ao atualizar o Playwright, troque a versão no `package.json`, rode `npm install` na pasta (atualiza o `package-lock.json`) e `npm run typecheck`; a imagem acompanha a versão automaticamente.
 
 ## 5. Como a carga funciona
 
