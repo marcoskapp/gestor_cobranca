@@ -61,6 +61,8 @@ O `up.sh` constrói a imagem, sobe PostgreSQL, Mailpit e aplicação e **espera 
 | Documentação pública da API | http://localhost:58080/public-api/docs | não |
 | Changelog da API pública | http://localhost:58080/public-api/docs/changelog | não |
 
+**Acesso de fora da sua máquina:** `./scripts/sandbox/tunnel.sh` publica o sandbox num endereço `https://….trycloudflare.com` temporário (`--stop` derruba). Não use um `cloudflared` rodando direto no host: o login pelo túnel é recusado com 403 — detalhes em [docs/tecnico/operacao/sandbox.md §2b](docs/tecnico/operacao/sandbox.md).
+
 ### 4. Acesso
 
 Senha de **todos** os usuários: `Sandbox@2026!`. No login, o campo **Assessoria** recebe `aurora` (Aurora Cobrança) ou `boreal` (Boreal Crédito); o e-mail segue o padrão `<usuário>@<assessoria>.exemplo.test`.

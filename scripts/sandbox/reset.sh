@@ -27,5 +27,5 @@ if [[ "${CONFIRMED}" != true ]]; then
   [[ "${answer}" =~ ^[sS]$ ]] || die "cancelado"
 fi
 log INFO "removendo contêineres e volumes do sandbox"
-compose down --volumes --remove-orphans
+compose --profile tunnel down --volumes --remove-orphans
 exec "$(dirname "${BASH_SOURCE[0]}")/up.sh" ${UP_ARGS[@]+"${UP_ARGS[@]}"}

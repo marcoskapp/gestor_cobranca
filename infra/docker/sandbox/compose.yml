@@ -68,6 +68,10 @@ services:
       GC_GENERATE_LOCAL_SECRETS: "true"
       APP_BASE_URL: http://localhost:${SANDBOX_APP_PORT:-58080}
       CORS_ALLOWED_ORIGINS: http://localhost:${SANDBOX_APP_PORT:-58080}
+      # Único proxy confiável: o túnel opcional (serviço tunnel, IP fixo na rede edge). Só dele a aplicação aceita
+      # X-Forwarded-For/-Proto/-Port; assim, acessada por https://<túnel>, ela se vê na própria origem pública
+      # (CORS e renovação de sessão de mesma origem) e registra o IP real de quem acessa (decisão 689).
+      APP_HTTP_TRUSTED_PROXIES: ${SANDBOX_TUNNEL_IP:-172.30.58.10}/32
       DB_URL: jdbc:postgresql://postgres:5432/cobranca
       DB_USERNAME: app_runtime_login
       DB_PASSWORD: app_runtime_sandbox
@@ -93,6 +97,9 @@ services:
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
     ports:
       - "127.0.0.1:${SANDBOX_APP_PORT:-58080}:8080"
+    networks:
+      - default
+      - edge
     volumes:
       - sandbox-secrets:/var/lib/gestor-cobranca/secrets
       - sandbox-storage:/var/lib/gestor-cobranca/storage
@@ -107,6 +114,28 @@ services:
       timeout: 5s
       retries: 120
       start_period: 60s
+
+  # Túnel público opcional (Cloudflare Quick Tunnel, endereço https://<aleatório>.trycloudflare.com), só com o perfil
+  # tunnel: ./scripts/sandbox/tunnel.sh. Fala com a aplicação pela rede interna edge, com IP fixo — o único em que a
+  # aplicação confia como proxy. Não publica porta nenhuma na máquina.
+  tunnel:
+    image: ${SANDBOX_CLOUDFLARED_IMAGE:-cloudflare/cloudflared:2026.9.3}
+    profiles: [tunnel]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://app:8080"]
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      edge:
+        ipv4_address: ${SANDBOX_TUNNEL_IP:-172.30.58.10}
+
+networks:
+  default:
+  # rede só da aplicação e do túnel; faixa trocável (SANDBOX_EDGE_SUBNET + SANDBOX_TUNNEL_IP) se colidir com a sua rede
+  edge:
+    ipam:
+      config:
+        - subnet: ${SANDBOX_EDGE_SUBNET:-172.30.58.0/24}
 
 volumes:
   sandbox-pgdata:

@@ -96,6 +96,18 @@ class ClientAddressIT extends IntegrationTest {
         assertThat(ip).isIn("127.0.0.1", "::1");
     }
 
+    /**
+     * Acesso por túnel/proxy TLS (ex.: Cloudflare Tunnel do sandbox): o navegador manda a origem pública https e o
+     * proxy confiável fala http com a aplicação. Com o {@code X-Forwarded-Proto} do proxy a requisição é de mesma
+     * origem (chega ao login: 401 por senha errada); sem ele, a mesma origem pública é cruzada e o CORS recusa (403).
+     */
+    @Test
+    void publicHttpsOriginBehindTrustedProxyIsSameOriginOnlyWithForwardedProto() throws Exception {
+        String publicOrigin = "https://127.0.0.1";
+        assertThat(login(Map.of("Origin", publicOrigin, "X-Forwarded-Proto", "https"))).isEqualTo(401);
+        assertThat(login(Map.of("Origin", publicOrigin))).isEqualTo(403);
+    }
+
     /** O limite é por janela de 1 minuto do relógio: começa longe da virada para não dividir as tentativas. */
     private static void awayFromMinuteBoundary() throws InterruptedException {
         long second = (System.currentTimeMillis() / 1000) % 60;
