@@ -1,4 +1,5 @@
 import { Component, input } from '@angular/core';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Bar } from '../data/assistant.rules';
 
 /**
@@ -8,9 +9,15 @@ import { Bar } from '../data/assistant.rules';
  */
 @Component({
   selector: 'app-bar-chart',
+  imports: [InfoHint],
   template: `
     <figure class="bc" [attr.aria-labelledby]="id + '-t'">
-      <figcaption class="bc__title" [id]="id + '-t'">{{ title() }}</figcaption>
+      <div class="d-flex align-items-center gap-1">
+        <figcaption class="bc__title" [id]="id + '-t'">{{ title() }}</figcaption>
+        @if (info(); as hint) {
+          <app-info-hint [indicator]="hint" [label]="title()" />
+        }
+      </div>
       @if (data().length) {
         <ul class="bc__list">
           @for (b of data(); track b.key) {
@@ -83,6 +90,8 @@ export class BarChart {
   private static seq = 0;
   protected readonly id = `bc-${++BarChart.seq}`;
   readonly title = input.required<string>();
+  /** Id do indicador no catálogo de informação contextual (o "i" ao lado do título). */
+  readonly info = input<string | null>(null);
   readonly data = input.required<readonly Bar[]>();
   readonly empty = input('Sem dados no período.');
   /** Barra destacada (outra cor + o rótulo já diz qual é). */

@@ -4,6 +4,7 @@ import { findTour } from '../content/tours';
 import { WELCOME_TOUR } from '../onboarding.service';
 import { MANUAL_MODULES, loadKnowledgeBase, manualLink, moduleOfScreen } from './manual-index';
 import { MANUAL_SCHEMA_VERSION, ScreenManual } from './manual.models';
+import { JARGON } from './content-rules';
 import { HELP_POINTER_STEP, composeScreenTour } from './screen-tour';
 
 /**
@@ -14,12 +15,6 @@ import { HELP_POINTER_STEP, composeScreenTour } from './screen-tour';
 describe('conteúdo do manual', () => {
   const words = (text: string) => text.trim().split(/\s+/).length;
 
-  /** Jargão técnico que não deve aparecer no texto do usuário final. */
-  const JARGON = [
-    /<|>/, // nada de HTML
-    /\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b/, // códigos internos (PORTAL_SELF_SERVICE, CASE_WORK…)
-    /\b(API|endpoint|HTTP|JSON|SQL|UUID|RLS|backend|frontend|webhook|payload|job|enum|tenant|evento de integração)\b/i,
-  ];
 
   async function knowledgeBase() {
     return loadKnowledgeBase();

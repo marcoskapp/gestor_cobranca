@@ -20,4 +20,20 @@ describe('Base de conhecimento do chat de suporte (exportação do manual)', () 
     expect(kb.glossary.some((t) => t.id === 'chat-de-suporte')).toBe(true);
     expect(JSON.stringify(kb)).not.toMatch(/<[a-z]/i);
   });
+
+  it('exporta a informação contextual dos indicadores com os mesmos textos das telas', async () => {
+    const kb = await buildKnowledgeExport();
+    const rate = kb.indicators.find((i) => i.id === 'analytics.recovery.rate')!;
+    expect(rate.module).toBe('paineis');
+    expect(rate.screens).toContain('analytics.recovery');
+    expect(rate.what.length).toBeGreaterThan(20);
+    expect(new Set(kb.indicators.map((i) => i.id)).size).toBe(kb.indicators.length);
+    const screens = new Set(kb.screens.map((s) => s.id));
+    for (const i of kb.indicators) {
+      expect(i.module, i.id).not.toBe('');
+      for (const s of i.screens) {
+        expect(screens.has(s), `${i.id} → ${s}`).toBe(true);
+      }
+    }
+  });
 });

@@ -75,7 +75,14 @@ class ChatContextBuilder {
                         knowledge.screen(r.screen()).map(Screen::title).orElse(null))).toList(),
                 "termos", knowledge.terms(s.terms()).stream().map(t -> map("termo", t.term(), "definicao", t.definition()))
                         .toList(),
+                "indicadores", knowledge.screenIndicators(s.id()).stream().map(ChatContextBuilder::indicator).toList(),
                 "abertura", s.access().direct() ? "pelo menu ou pela rota" : "a partir de outra tela, escolhendo o registro");
+    }
+
+    /** Texto do "i" de um indicador para o modelo (o mesmo da tela). */
+    static Map<String, Object> indicator(KnowledgeBase.Indicator i) {
+        return map("indicador", i.id(), "titulo", i.title(), "oQueE", i.what(), "comoECalculado", i.how(),
+                "comoUsar", i.use());
     }
 
     private static List<String> permissionLabels(Set<String> codes) {

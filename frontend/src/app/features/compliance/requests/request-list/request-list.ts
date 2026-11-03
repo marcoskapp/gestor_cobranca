@@ -101,7 +101,7 @@ export class RequestList {
   });
 
   protected readonly columns: TableColumn[] = [
-    { key: 'due', header: 'Prazo' },
+    { key: 'due', header: 'Prazo', info: 'compliance.requests.deadline' },
     { key: 'type', header: 'Pedido' },
     { key: 'requester', header: 'Requerente' },
     { key: 'receivedAt', header: 'Recebida em' },

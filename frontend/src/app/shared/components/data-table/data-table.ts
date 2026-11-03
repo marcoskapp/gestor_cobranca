@@ -5,6 +5,7 @@ import { DensityService } from '../../../core/preferences/density.service';
 import { PAGE_SIZE_OPTIONS, PageRequest } from '../../models/page';
 import { EmptyState } from '../empty-state/empty-state';
 import { Icon } from '../icon/icon';
+import { InfoHint } from '../info-hint/info-hint';
 import { IconName } from '../icon/icon-names';
 import { Skeleton } from '../skeleton/skeleton';
 import { CellDef } from './cell-def';
@@ -17,6 +18,8 @@ export interface TableColumn {
   actions?: boolean;
   /** Cabeçalho clicável que emite `sortChange` (a ordenação é feita por quem fornece as linhas). */
   sortable?: boolean;
+  /** Id do indicador no catálogo de informação contextual: "i" ao lado do cabeçalho (ux.md §8.6). */
+  info?: string;
 }
 
 export interface TablePage {
@@ -52,7 +55,7 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-data-table',
-  imports: [NgTemplateOutlet, NgbPagination, EmptyState, Skeleton, Icon],
+  imports: [NgTemplateOutlet, NgbPagination, EmptyState, Skeleton, Icon, InfoHint],
   templateUrl: './data-table.html',
   styleUrl: './data-table.scss',
 })

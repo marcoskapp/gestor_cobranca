@@ -3,6 +3,7 @@
   @if (breached(); as n) {
     <span class="ms-2 d-inline-flex align-items-center gap-1 small fw-semibold text-danger-emphasis" role="status"><app-icon name="alarm" />{{ n }} além da meta de resposta</span>
   }
+  <app-info-hint indicator="communication.sla.first-response" label="Espera e meta de 1ª resposta" />
   <span class="flex-grow-1"></span>
   <span class="ib-live me-2 d-inline-flex align-items-center gap-2 small text-body-secondary" [class.ib-live--on]="live()" role="status">
     <span class="ib-live__dot" aria-hidden="true"></span>{{ live() ? 'Ao vivo' : 'Atualização periódica' }}

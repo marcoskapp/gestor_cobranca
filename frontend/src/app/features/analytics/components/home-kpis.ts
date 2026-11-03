@@ -31,12 +31,12 @@ import { Icon } from '../../../shared/components/icon/icon';
         </a>
       </div>
       @if (portfolio(); as p) {
-        <div class="hk__grid">
-          <app-kpi-card label="Valor da carteira" [detail]="count(p.totals.openTitles) + ' títulos'"><app-amount [value]="p.totals.portfolioAmount" [compact]="true" /></app-kpi-card>
-          <app-kpi-card label="Saldo vencido" [detail]="percent(p.totals.overdueShare) + ' da carteira'"><app-amount [value]="p.totals.overdueAmount" [compact]="true" /></app-kpi-card>
-          <app-kpi-card label="Fila pendente" [detail]="ratioDetail(p.totals.pendingQueueShare) + ' elegíveis'">{{ count(p.totals.pendingQueueCases) }}</app-kpi-card>
+        <div class="hk__grid" data-tour="home-kpis">
+          <app-kpi-card label="Valor da carteira" info="analytics.portfolio.amount" [detail]="count(p.totals.openTitles) + ' títulos'"><app-amount [value]="p.totals.portfolioAmount" [compact]="true" /></app-kpi-card>
+          <app-kpi-card label="Saldo vencido" info="analytics.portfolio.overdue" [detail]="percent(p.totals.overdueShare) + ' da carteira'"><app-amount [value]="p.totals.overdueAmount" [compact]="true" /></app-kpi-card>
+          <app-kpi-card label="Fila pendente" info="analytics.portfolio.pending-queue" [detail]="ratioDetail(p.totals.pendingQueueShare) + ' elegíveis'">{{ count(p.totals.pendingQueueCases) }}</app-kpi-card>
           @if (recovery(); as r) {
-            <app-kpi-card label="Recuperado em 30 dias" [detail]="'Taxa ' + percent(r.totals.recoveryRate)"><app-amount [value]="r.totals.recoveredNet" [compact]="true" /></app-kpi-card>
+            <app-kpi-card label="Recuperado em 30 dias" info="analytics.home.recovered-30d" [detail]="'Taxa ' + percent(r.totals.recoveryRate)"><app-amount [value]="r.totals.recoveredNet" [compact]="true" /></app-kpi-card>
           }
         </div>
         @if (p.meta.dataUntil) {

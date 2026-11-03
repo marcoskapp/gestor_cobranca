@@ -372,6 +372,19 @@ body {
   }
 }
 
+// --------------------------------------------------------------------- informação contextual (app-info-hint)
+
+// balão do "i" dos indicadores (popover do ng-bootstrap anexado ao body): largura de leitura e texto
+// no tamanho do corpo, pelas variáveis documentadas do popover
+.app-info-popover {
+  --bs-popover-max-width: min(340px, calc(100vw - 32px));
+  --bs-popover-font-size: var(--app-text-md, 0.875rem);
+  --bs-popover-body-padding-x: 14px;
+  --bs-popover-body-padding-y: 12px;
+  --bs-popover-box-shadow: var(--bs-box-shadow);
+  box-shadow: var(--bs-popover-box-shadow);
+}
+
 // --------------------------------------------------------------------- diálogos (NgbModal)
 
 // busca rápida: 640px, próxima ao topo (`windowClass` do CommandPaletteService), pela variável

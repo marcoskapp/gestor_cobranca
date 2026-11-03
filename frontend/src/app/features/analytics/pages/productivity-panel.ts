@@ -4,6 +4,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
@@ -24,7 +25,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
  */
 @Component({
   selector: 'app-productivity-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame [title]="ownOnly() ? 'Meu desempenho' : 'Produtividade da equipe'"
                      subtitle="Esforço, contato, tempo de atendimento e resultado por pessoa (negociadores humanos)."
@@ -42,35 +43,35 @@ const GROUPS = ['OPERATOR', 'TEAM'];
         @let r = report()!;
         @let t = r.total;
         <section class="pn__kpis" aria-label="Indicadores de produtividade" data-tour="analytics-kpis">
-          <app-kpi-card label="Casos trabalhados" [detail]="count(t.attempts) + ' tentativas de contato'">{{ count(t.workedCases) }}</app-kpi-card>
-          <app-kpi-card label="Contatos efetivos" [detail]="percent(t.contactRate) + ' das tentativas (' + ratioDetail(t.contactRate) + ')'">{{ count(t.effectiveContacts) }}</app-kpi-card>
-          <app-kpi-card label="Tempo médio de atendimento" [detail]="count(t.answeredCalls) + ' chamadas atendidas'">{{ seconds(t.averageHandlingSeconds.value) }}</app-kpi-card>
-          <app-kpi-card label="Acordos por hora logada" [detail]="count(t.agreements) + ' acordos em ' + decimal(t.loggedHours) + ' h'">{{ rate(t.agreementsPerLoggedHour.value) }}</app-kpi-card>
-          <app-kpi-card label="Recuperado líquido" detail="Pagamentos confirmados dos acordos fechados">
+          <app-kpi-card label="Casos trabalhados" info="analytics.productivity.worked-cases" data-tour="kpi-worked" [detail]="count(t.attempts) + ' tentativas de contato'">{{ count(t.workedCases) }}</app-kpi-card>
+          <app-kpi-card label="Contatos efetivos" info="analytics.productivity.effective-contacts" [detail]="percent(t.contactRate) + ' das tentativas (' + ratioDetail(t.contactRate) + ')'">{{ count(t.effectiveContacts) }}</app-kpi-card>
+          <app-kpi-card label="Tempo médio de atendimento" info="analytics.productivity.handling-time" data-tour="kpi-aht" [detail]="count(t.answeredCalls) + ' chamadas atendidas'">{{ seconds(t.averageHandlingSeconds.value) }}</app-kpi-card>
+          <app-kpi-card label="Acordos por hora logada" info="analytics.productivity.agreements-per-hour" data-tour="kpi-per-hour" [detail]="count(t.agreements) + ' acordos em ' + decimal(t.loggedHours) + ' h'">{{ rate(t.agreementsPerLoggedHour.value) }}</app-kpi-card>
+          <app-kpi-card label="Recuperado líquido" info="analytics.recovery.net" detail="Pagamentos confirmados dos acordos fechados">
             <app-amount [value]="t.recoveredNet" [compact]="true" />
           </app-kpi-card>
         </section>
         @if (!ownOnly()) {
           <section class="app-card">
-            <app-bar-chart title="Recuperado líquido por pessoa" categoryHeader="Pessoa" [summary]="chartSummary()"
+            <app-bar-chart title="Recuperado líquido por pessoa" info="analytics.recovery.net" categoryHeader="Pessoa" [summary]="chartSummary()"
                            [series]="[{ name: 'Recuperado líquido', color: '--app-chart-1' }]" [rows]="chartRows()" noteHeader="Acordos por hora" />
           </section>
         }
-        <section class="app-card" aria-labelledby="pd-table">
+        <section class="app-card" aria-labelledby="pd-table" data-tour="analytics-table">
           <h2 class="app-card__title" id="pd-table">{{ state.filter().groupBy === 'TEAM' ? 'Por equipe' : 'Por pessoa' }}</h2>
           <div class="pn__table-wrap">
             <table class="pn__table">
               <thead>
                 <tr>
                   <th scope="col">{{ state.filter().groupBy === 'TEAM' ? 'Equipe' : 'Pessoa' }}</th>
-                  <th scope="col" class="num">Casos trabalhados</th>
-                  <th scope="col" class="num">Tentativas</th>
-                  <th scope="col" class="num">Contatos efetivos</th>
-                  <th scope="col" class="num">TMA</th>
-                  <th scope="col" class="num">Horas logadas</th>
-                  <th scope="col" class="num">Acordos</th>
-                  <th scope="col" class="num">Acordos/hora</th>
-                  <th scope="col" class="num">Recuperado</th>
+                  <th scope="col" class="num">Casos trabalhados <app-info-hint indicator="analytics.productivity.worked-cases" label="Casos trabalhados" /></th>
+                  <th scope="col" class="num">Tentativas <app-info-hint indicator="analytics.productivity.attempts" label="Tentativas" /></th>
+                  <th scope="col" class="num">Contatos efetivos <app-info-hint indicator="analytics.productivity.effective-contacts" label="Contatos efetivos" /></th>
+                  <th scope="col" class="num">TMA <app-info-hint indicator="analytics.productivity.handling-time" label="Tempo médio de atendimento" /></th>
+                  <th scope="col" class="num">Horas logadas <app-info-hint indicator="analytics.productivity.logged-hours" label="Horas logadas" /></th>
+                  <th scope="col" class="num">Acordos <app-info-hint indicator="analytics.productivity.agreements" label="Acordos" /></th>
+                  <th scope="col" class="num">Acordos/hora <app-info-hint indicator="analytics.productivity.agreements-per-hour" label="Acordos por hora logada" /></th>
+                  <th scope="col" class="num">Recuperado <app-info-hint indicator="analytics.recovery.net" label="Recuperado líquido" /></th>
                 </tr>
               </thead>
               <tbody>

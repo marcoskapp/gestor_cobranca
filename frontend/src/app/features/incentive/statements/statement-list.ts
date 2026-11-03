@@ -138,8 +138,8 @@ export class StatementList {
     { key: 'period', header: 'Período e negociador' },
     { key: 'status', header: 'Situação' },
     { key: 'plan', header: 'Plano' },
-    { key: 'recovery', header: 'Recuperado creditado', align: 'end' },
-    { key: 'payable', header: 'A pagar', align: 'end' },
+    { key: 'recovery', header: 'Recuperado creditado', align: 'end', info: 'incentive.statement.credited' },
+    { key: 'payable', header: 'A pagar', align: 'end', info: 'incentive.statement.payable' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

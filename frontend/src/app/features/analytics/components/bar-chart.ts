@@ -1,6 +1,7 @@
 import { Component, computed, input, signal } from '@angular/core';
 import { ChartRow, ChartSeries } from './chart.models';
 import { Icon } from '../../../shared/components/icon/icon';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 let nextId = 0;
 
@@ -11,11 +12,16 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-bar-chart',
-  imports: [Icon],
+  imports: [Icon, InfoHint],
   template: `
     <figure class="bc" [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-s'">
       <div class="bc__head">
-        <figcaption [id]="id + '-t'" class="bc__title">{{ title() }}</figcaption>
+        <div class="d-flex align-items-center gap-1 min-w-0">
+          <figcaption [id]="id + '-t'" class="bc__title">{{ title() }}</figcaption>
+          @if (info(); as hint) {
+            <app-info-hint [indicator]="hint" [label]="title()" />
+          }
+        </div>
         <button type="button" class="btn btn-link bc__toggle" (click)="table.set(!table())" [attr.aria-pressed]="table()">
           <app-icon [name]="table() ? 'bar-chart' : 'table'" />
           {{ table() ? 'Ver gráfico' : 'Ver tabela' }}
@@ -100,6 +106,8 @@ let nextId = 0;
 })
 export class BarChart {
   readonly title = input.required<string>();
+  /** Id do indicador no catálogo de informação contextual (o "i" ao lado do título). */
+  readonly info = input<string | null>(null);
   /** Texto alternativo: o que o gráfico mostra e o destaque principal. */
   readonly summary = input.required<string>();
   readonly series = input.required<ChartSeries[]>();

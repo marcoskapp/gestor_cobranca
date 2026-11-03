@@ -31,6 +31,7 @@ import { AdjustmentDialog, AdjustmentDialogData, SendDialog, SendDialogData } fr
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../shared/dialog/dialog.service';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Demonstrativo do credor: totais (RB08) com a conferência do líquido, ciclo com ações e a
@@ -40,7 +41,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
  */
 @Component({
   selector: 'app-statement-detail',
-  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip],
+  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip, InfoHint],
   templateUrl: './statement-detail.html',
   styleUrl: '../settlement.scss',
 })

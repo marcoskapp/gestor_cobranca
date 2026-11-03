@@ -1,0 +1,121 @@
+import { IndicatorHelp } from '../indicator.models';
+
+/**
+ * Indicadores da prestação de contas: totais do demonstrativo, posição do repasse do credor e saldos
+ * a repassar. Definições: docs/negocio/layout-demonstrativo-prestacao-contas.md e
+ * docs/tecnico/desenho/prestacao-de-contas.md; cálculo no módulo `settlement`.
+ */
+export const INDICATORS: readonly IndicatorHelp[] = [
+  {
+    id: 'settlement.statement.received-agency',
+    title: 'Recebido na assessoria',
+    what: 'Pagamentos dos devedores que entraram na conta da assessoria e foram aplicados a títulos ou parcelas no período.',
+    how: 'Soma dos pagamentos confirmados com data até o fim do período e ainda não prestados, inclusive os que chegaram atrasados de períodos anteriores. Quando o contrato exige, só entram os já conciliados com o extrato.',
+    use: 'É o dinheiro que a assessoria tem em mãos para repassar. Diferença em relação ao extrato bancário indica pagamento aguardando conciliação.',
+    screens: ['settlement.statement'],
+  },
+  {
+    id: 'settlement.statement.received-creditor',
+    title: 'Pago direto ao credor',
+    what: 'Pagamentos que o devedor fez diretamente ao credor, informados pela assessoria.',
+    how: 'Soma dos pagamentos registrados como recebidos pelo credor no período. Contam como recuperação (geram comissão), mas o dinheiro não passou pela assessoria.',
+    use: 'Quanto maior, mais o líquido tende a ficar negativo: a assessoria passa a ter valor a receber do credor pela comissão.',
+    screens: ['settlement.statement'],
+  },
+  {
+    id: 'settlement.statement.reversals',
+    title: 'Estornos',
+    what: 'Pagamentos já prestados que foram devolvidos ou desfeitos.',
+    how: 'Soma dos estornos com data no período, lançados como valor negativo. O demonstrativo aprovado não muda: o estorno sempre aparece no demonstrativo seguinte.',
+    use: 'Estornos reduzem o líquido e a comissão. Valor alto merece conferir a origem (contestação do devedor, pagamento duplicado, erro de baixa).',
+    screens: ['settlement.statement'],
+  },
+  {
+    id: 'settlement.statement.recovered',
+    title: 'Recuperado líquido',
+    what: 'Total recebido no período, na assessoria e diretamente pelo credor, menos os estornos.',
+    how: 'Recebido na assessoria mais pago direto ao credor, menos estornos. É a mesma base do valor recuperado dos painéis.',
+    use: 'É o resultado da cobrança para o credor no período e a base da comissão. Use para conferir com o painel de recuperação.',
+    screens: ['settlement.statement', 'settlement.position', 'settlement.statements'],
+  },
+  {
+    id: 'settlement.statement.honorarium',
+    title: 'Honorários da assessoria',
+    what: 'Parte dos honorários cobrados do devedor que pertence à assessoria pelo contrato.',
+    how: 'Honorários cobrados do devedor em cada pagamento vezes a fração contratual da assessoria. Ficam com a assessoria e saem da base da comissão.',
+    use: 'Explica por que a comissão é calculada sobre um valor menor que o recebido. Confira a fração no contrato do credor.',
+    screens: ['settlement.statement', 'settlement.position'],
+  },
+  {
+    id: 'settlement.statement.commission',
+    title: 'Comissão',
+    what: 'Remuneração da assessoria sobre o que recuperou, pelas regras do contrato do credor.',
+    how: 'Para cada recebimento, o valor recebido menos os honorários da assessoria, vezes o percentual da regra vigente (por carteira, faixa de atraso, à vista ou parcelado).',
+    use: 'É a receita da assessoria no período. Pagamento sem regra vigente fica fora até a regra ser cadastrada: confira o informativo "Aguardando regra".',
+    screens: ['settlement.statement', 'settlement.position'],
+  },
+  {
+    id: 'settlement.statement.fixed-fees',
+    title: 'Valores fixos',
+    what: 'Valor fixo por acordo previsto no contrato, cobrado no primeiro pagamento de cada acordo.',
+    how: 'Soma dos valores fixos dos acordos que tiveram o primeiro pagamento no período.',
+    use: 'Complementa a comissão em contratos com tarifa por acordo. Muitos acordos novos aumentam esse valor.',
+    screens: ['settlement.statement', 'settlement.position'],
+  },
+  {
+    id: 'settlement.statement.expenses',
+    title: 'Custas deduzidas',
+    what: 'Custas reembolsáveis adiantadas pela assessoria ou por escritório parceiro (por exemplo, no jurídico), descontadas do repasse.',
+    how: 'Soma das custas com reembolso previsto no período. Custas pagas pelo próprio credor aparecem só como informação.',
+    use: 'Reduzem o líquido. Confira os comprovantes antes de aprovar o demonstrativo.',
+    screens: ['settlement.statement', 'settlement.position'],
+  },
+  {
+    id: 'settlement.statement.adjustments',
+    title: 'Ajustes',
+    what: 'Correções aprovadas do valor, sempre com motivo (por exemplo, contestação do credor no período anterior).',
+    how: 'Soma dos ajustes do demonstrativo, positivos ou negativos. Acima de R$ 1.000,00 precisam da aprovação de outra pessoa.',
+    use: 'Ajustes frequentes indicam erro recorrente em regras ou baixas: corrija a causa em vez de ajustar todo mês.',
+    screens: ['settlement.statement', 'settlement.position'],
+  },
+  {
+    id: 'settlement.statement.net',
+    title: 'Líquido a repassar',
+    what: 'Valor que a assessoria deve transferir ao credor pelo período. Se negativo, é o valor que o credor deve à assessoria.',
+    how: 'Para cada recebimento, o valor recebido pela assessoria menos honorários, comissão e valor fixo; a soma desses efeitos, menos as custas reembolsáveis, mais os ajustes.',
+    use: 'É o número do repasse. Depois de aprovado não muda; registre o repasse com o comprovante até o saldo zerar.',
+    screens: ['settlement.statement', 'settlement.statements', 'settlement.position'],
+  },
+  {
+    id: 'settlement.statement.informative',
+    title: 'Informativos',
+    what: 'Valores que ajudam a entender o período mas não entram no líquido: negociado em acordos, comissão prevista, aguardando conciliação, aguardando regra e divergências abertas.',
+    how: 'Negociado: valor dos acordos (acordo não pago não é recuperação). Comissão prevista: saldo dos acordos em aberto pelas regras vigentes. Aguardando conciliação e aguardando regra: pagamentos que entram depois.',
+    use: 'Valores aguardando conciliação ou regra entram em um demonstrativo futuro: resolva antes do fechamento para o credor receber no prazo.',
+    screens: ['settlement.statement'],
+  },
+  {
+    id: 'settlement.position.net',
+    title: 'Líquido estimado',
+    what: 'Quanto seria repassado ao credor se o período em aberto fechasse agora.',
+    how: 'O mesmo cálculo do demonstrativo, feito sobre o período em aberto até hoje. Pode mudar até o fechamento, com novos pagamentos, estornos e ajustes.',
+    use: 'Permite ao credor e ao financeiro acompanhar o repasse sem esperar o fechamento e planejar o caixa.',
+    screens: ['settlement.position'],
+  },
+  {
+    id: 'settlement.position.pending',
+    title: 'Fora do líquido',
+    what: 'Pagamentos do período que ainda não podem entrar no repasse: aguardando conciliação com o extrato ou sem regra de comissão vigente.',
+    how: 'Soma desses pagamentos na data do cálculo. Entram no primeiro demonstrativo depois de conciliados ou de a regra ser cadastrada.',
+    use: 'Concilie o extrato e cadastre a regra que falta antes do fechamento para o valor não ficar para o período seguinte.',
+    screens: ['settlement.position'],
+  },
+  {
+    id: 'settlement.transfers.balance',
+    title: 'Saldo a repassar',
+    what: 'Valor dos demonstrativos aprovados que ainda não foi repassado ao credor (ou recebido dele, quando o líquido é negativo).',
+    how: 'Líquido dos demonstrativos aprovados menos os repasses registrados com comprovante.',
+    use: 'Saldo parado indica repasse atrasado: registre a transferência e o comprovante para manter o credor em dia.',
+    screens: ['settlement.transfers'],
+  },
+];

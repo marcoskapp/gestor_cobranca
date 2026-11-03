@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
@@ -26,7 +27,7 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
  */
 @Component({
   selector: 'app-recovery-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, ColumnChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, ColumnChart, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Recuperação" subtitle="Valor efetivamente pago (confirmado, líquido de estornos), taxa, tempo e custo."
                      report="recovery" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
@@ -43,28 +44,28 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
         @let r = report()!;
         @let t = r.totals;
         <section class="pn__kpis" aria-label="Indicadores de recuperação" data-tour="analytics-kpis">
-          <app-kpi-card label="Recuperado líquido" [detail]="count(t.receipts) + ' recebimentos confirmados'">
+          <app-kpi-card label="Recuperado líquido" info="analytics.recovery.net" data-tour="kpi-recovered" [detail]="count(t.receipts) + ' recebimentos confirmados'">
             <app-amount [value]="t.recoveredNet" [compact]="true" />
           </app-kpi-card>
-          <app-kpi-card label="Taxa de recuperação" [detail]="rateDetail()">
+          <app-kpi-card label="Taxa de recuperação" info="analytics.recovery.rate" data-tour="kpi-rate" [detail]="rateDetail()">
             {{ percent(t.recoveryRate) }}
           </app-kpi-card>
-          <app-kpi-card label="Estornos" [detail]="percent(t.reversalShare) + ' do recebido bruto (' + money(t.recoveredGross) + ')'">
+          <app-kpi-card label="Estornos" info="analytics.recovery.reversals" [detail]="percent(t.reversalShare) + ' do recebido bruto (' + money(t.recoveredGross) + ')'">
             <app-amount [value]="t.reversed" [compact]="true" />
           </app-kpi-card>
-          <app-kpi-card label="Tempo até o 1º recebimento" [detail]="'Mediana de ' + count(r.timeToReceipt.agreements) + ' acordos · p90 ' + days(r.timeToReceipt.p90Days)">
+          <app-kpi-card label="Tempo até o 1º recebimento" info="analytics.recovery.time-to-receipt" data-tour="kpi-time" [detail]="'Mediana de ' + count(r.timeToReceipt.agreements) + ' acordos · p90 ' + days(r.timeToReceipt.p90Days)">
             {{ days(r.timeToReceipt.medianDays) }}
           </app-kpi-card>
-          <app-kpi-card label="Comissão por real recuperado" [detail]="costDetail()">
+          <app-kpi-card label="Comissão por real recuperado" info="analytics.recovery.cost" [detail]="costDetail()">
             {{ costValue() }}
           </app-kpi-card>
         </section>
-        <section class="app-card">
+        <section class="app-card" data-tour="analytics-chart">
           @if (temporal()) {
-            <app-column-chart [title]="'Recuperado líquido por ' + groupName().toLowerCase()" [summary]="summary()"
+            <app-column-chart [title]="'Recuperado líquido por ' + groupName().toLowerCase()" info="analytics.recovery.by-group" [summary]="summary()"
                               [series]="{ name: 'Recuperado líquido', color: '--app-chart-1' }" [rows]="rows()" />
           } @else {
-            <app-bar-chart [title]="'Recuperado líquido por ' + groupName().toLowerCase()" [categoryHeader]="groupName()"
+            <app-bar-chart [title]="'Recuperado líquido por ' + groupName().toLowerCase()" info="analytics.recovery.by-group" [categoryHeader]="groupName()"
                            [summary]="summary()" [series]="[{ name: 'Recuperado líquido', color: '--app-chart-1' }]" [rows]="rows()"
                            noteHeader="Taxa de recuperação" />
           }
@@ -74,7 +75,7 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
           <div class="pn__table-wrap">
             <table class="pn__table">
               <thead>
-                <tr><th scope="col">{{ groupName() }}</th><th scope="col" class="num">Recebido</th><th scope="col" class="num">Estornado</th><th scope="col" class="num">Recuperado líquido</th><th scope="col" class="num">Recebimentos</th>@if (showRate()) {<th scope="col" class="num">Taxa (base: saldo elegível no início)</th>}</tr>
+                <tr><th scope="col">{{ groupName() }}</th><th scope="col" class="num">Recebido <app-info-hint indicator="analytics.recovery.gross" label="Recebido" /></th><th scope="col" class="num">Estornado <app-info-hint indicator="analytics.recovery.reversals" label="Estornado" /></th><th scope="col" class="num">Recuperado líquido <app-info-hint indicator="analytics.recovery.net" label="Recuperado líquido" /></th><th scope="col" class="num">Recebimentos <app-info-hint indicator="analytics.recovery.receipts" label="Recebimentos" /></th>@if (showRate()) {<th scope="col" class="num">Taxa (base: saldo elegível no início) <app-info-hint indicator="analytics.recovery.rate" label="Taxa de recuperação" /></th>}</tr>
               </thead>
               <tbody>
                 @for (row of r.rows; track row.key) {

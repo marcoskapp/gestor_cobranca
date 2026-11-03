@@ -7,16 +7,73 @@ import { TourDefinition } from '../onboarding.models';
  */
 export const TOURS: readonly TourDefinition[] = [
   {
-    id: 'analytics.panels',
+    id: 'analytics.operational',
     version: 1,
-    title: 'Painéis da operação',
-    summary: 'Filtros, indicadores com a base de cálculo, gráficos com tabela e exportação.',
+    title: 'Painel operacional',
+    summary: 'O que cada número da carteira mostra e como usá-lo para direcionar a equipe.',
     steps: [
-      { anchor: 'analytics-tabs', title: 'Cinco painéis', body: 'Operacional, recuperação, conversão, produtividade e confiabilidade. Os filtros acompanham você entre eles.' },
-      { anchor: 'filters', title: 'Filtros na URL', body: 'Período, credor, carteira, pessoas e canal. Copie o endereço para compartilhar exatamente esta visão.' },
+      { anchor: 'kpi-portfolio', title: 'Valor da carteira', body: 'O tamanho do trabalho na última atualização. Ao lado, quanto já venceu: vencido crescendo pede foco nas faixas iniciais.' },
+      { anchor: 'kpi-eligible', title: 'Saldo elegível', body: 'O que pode ser cobrado agora. Distância grande do saldo dos casos indica dinheiro travado em contestação ou suspensão.' },
+      { anchor: 'kpi-queue', title: 'Fila pendente', body: 'Casos elegíveis ainda sem negociador. Fila crescendo pede redistribuir a equipe ou acionar campanhas e o assistente.' },
+      { anchor: 'analytics-chart', title: 'Onde está a carteira', body: 'Valor e vencido por credor, e a carteira por faixa de atraso, para decidir onde concentrar o esforço.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+      { anchor: 'analytics-tabs', title: 'Outros painéis', body: 'Recuperação, conversão, produtividade e confiabilidade. Os filtros acompanham você entre eles.' },
+    ],
+  },
+  {
+    id: 'analytics.recovery',
+    version: 1,
+    title: 'Painel de recuperação',
+    summary: 'Quanto foi efetivamente recebido, a taxa sobre o saldo e de onde veio o resultado.',
+    steps: [
+      { anchor: 'kpi-recovered', title: 'Recuperado líquido', body: 'Pagamento confirmado menos estornos, a mesma base da prestação de contas. Acordo não pago não entra.' },
+      { anchor: 'kpi-rate', title: 'Taxa de recuperação', body: 'Recuperado sobre o saldo elegível do início do período: compara credores, carteiras e pessoas de tamanhos diferentes.' },
+      { anchor: 'kpi-time', title: 'Tempo até o 1º recebimento', body: 'Dias entre o acordo e o primeiro pagamento. Subindo, encurte o primeiro vencimento ou reforce o lembrete.' },
+      { anchor: 'analytics-chart', title: 'Tendência ou origem', body: 'Agrupe por mês para ver a tendência, ou por credor, pessoa e origem para saber de onde veio o resultado.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+      { anchor: 'analytics-export', title: 'Exportar', body: 'Planilha ou CSV com os mesmos filtros, com numerador e denominador de cada taxa.' },
+    ],
+  },
+  {
+    id: 'analytics.conversion',
+    version: 1,
+    title: 'Painel de conversão',
+    summary: 'Do contato efetivo à primeira parcela paga: onde o processo perde e se os acordos se sustentam.',
+    steps: [
+      { anchor: 'kpi-agreements', title: 'Acordos formalizados', body: 'Acordos da safra do período e a conversão sobre os contatos efetivos. Caindo, reveja condições e abordagem.' },
+      { anchor: 'kpi-paid', title: 'Acordado não é recebido', body: 'Valor pago sobre o acordado mostra se os acordos se pagam. Baixo pede rever entrada, parcelas e acompanhamento.' },
+      { anchor: 'kpi-first', title: '1ª parcela paga', body: 'O melhor sinal precoce de acordo sustentável. Caindo, reforce o lembrete e revise o primeiro vencimento.' },
+      { anchor: 'analytics-funnel', title: 'Funil do período', body: 'Mostra onde o processo perde: na abordagem, nas condições ou na sustentação do acordo.' },
+      { anchor: 'analytics-breaks', title: 'Quebra precoce', body: 'Só acordos maduros entram na base. Quebra alta indica acordos acima da capacidade de pagamento do devedor.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+    ],
+  },
+  {
+    id: 'analytics.productivity',
+    version: 1,
+    title: 'Painel de produtividade',
+    summary: 'Esforço, contato, tempo de atendimento e resultado de cada pessoa, lidos juntos.',
+    steps: [
+      { anchor: 'kpi-worked', title: 'Esforço', body: 'Casos trabalhados e tentativas medem o esforço; os contatos efetivos mostram a qualidade dos telefones.' },
+      { anchor: 'kpi-aht', title: 'Tempo médio de atendimento', body: 'Muito alto reduz atendimentos; muito baixo pode ser conversa sem negociação. Leia junto com a monitoria.' },
+      { anchor: 'kpi-per-hour', title: 'Acordos por hora logada', body: 'Compara pessoas com jornadas diferentes. Fica indisponível com filtro de credor, carteira ou canal.' },
+      { anchor: 'analytics-table', title: 'Por pessoa ou equipe', body: 'Compare lado a lado antes de concluir: carteiras diferentes explicam boa parte das diferenças.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+      { anchor: 'filters', title: 'Recorte', body: 'Período, credor, carteira e pessoas. Cada perfil vê só as pessoas que pode acompanhar.' },
+    ],
+  },
+  {
+    id: 'analytics.reliability',
+    version: 1,
+    title: 'Painel de confiabilidade',
+    summary: 'Falhas que impedem o devedor de pagar ou de ser contatado, e o que fazer com cada uma.',
+    steps: [
+      { anchor: 'kpi-instructions', title: 'Falha em pagamentos', body: 'Pix, boleto ou link que falhou não chega ao devedor. O gráfico mostra a causa mais frequente.' },
+      { anchor: 'kpi-messages', title: 'Mensagens com falha', body: 'Desperdiçam a régua de contato. Confira a causa principal, o template e o cadastro do canal.' },
+      { anchor: 'kpi-divergences', title: 'Divergências em aberto', body: 'Seguram a prestação de contas e podem esconder pagamento sem baixa. Resolva antes do fechamento.' },
+      { anchor: 'analytics-reconciliation', title: 'Conciliação e duplicidades', body: 'Linhas de extrato repetidas, extratos com falha e conversas que passaram da meta de resposta.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
       { anchor: 'analytics-freshness', title: 'Dados até', body: 'Os números são consolidados periodicamente. Veja até quando valem e atualize quando precisar.' },
-      { anchor: 'analytics-kpis', title: 'Sempre com a base', body: 'Cada taxa mostra numerador e denominador. Recuperado é só o pagamento confirmado, líquido de estornos.' },
-      { anchor: 'analytics-export', title: 'Exportar', body: 'Planilha ou CSV com os mesmos filtros. Cada exportação fica registrada no log de acesso.' },
     ],
   },
   {
@@ -33,25 +90,33 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'scoring.model',
-    version: 1,
+    version: 2,
     title: 'Modelo do score',
     summary: 'Validação, comparação com o campeão e decisão manual.',
     steps: [
       { anchor: 'scoring-validation', title: 'Validação fora do tempo', body: 'AUC, KS e Brier no período posterior ao treino, comparados com o campeão nas mesmas observações.' },
+      { anchor: 'scoring-lift', title: 'Lift por decil', body: 'Quanto os scores mais altos pagam acima da média: o ganho prático de trabalhar primeiro esses casos.' },
       { anchor: 'scoring-definition', title: 'Definição', body: 'Regras do scorecard ou coeficientes da regressão: o que faz o score subir ou descer.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
       { anchor: 'page-actions', title: 'Promover ou rejeitar', body: 'Decisão manual, com justificativa registrada. Quem pediu o treino não promove o próprio modelo.' },
     ],
   },
+
   {
     id: 'scoring.monitoring',
-    version: 1,
+    version: 2,
     title: 'Monitoramento do score',
-    summary: 'Deriva, calibração e recuperado × esperado.',
+    summary: 'Se o score continua estável, se ordena bem quem paga e se a carteira rende o previsto.',
     steps: [
       { anchor: 'scoring-monitoring-tabs', title: 'Duas visões', body: 'Estabilidade e calibração do modelo; recuperado × esperado por credor, carteira ou responsável.' },
-      { anchor: 'scoring-drift', title: 'Deriva', body: 'PSI compara a população atual com a do treino. Alertas pedem reavaliar o modelo.' },
+      { anchor: 'kpi-psi', title: 'PSI do score', body: 'Quanto a população mudou desde a referência. Em atenção ou alerta, compare com o desafiante ou peça novo treino.' },
+      { anchor: 'kpi-auc', title: 'AUC realizada', body: 'Se o score separou bem quem pagou de quem não pagou na safra. Abaixo do mínimo, o modelo deixou de ordenar.' },
+      { anchor: 'kpi-calibration', title: 'Prevista × observada', body: 'Chance prevista contra a taxa real de pagamento: mostra se o score está otimista ou pessimista.' },
+      { anchor: 'scoring-expected-recovery', title: 'Recuperado × esperado', body: 'Quanto a carteira rendeu frente ao previsto pelo score: a comparação justa entre carteiras e responsáveis.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
+
   {
     id: 'scoring.settings',
     version: 1,
@@ -638,7 +703,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'negotiation.simulator',
-    version: 2,
+    version: 3,
     title: 'Simulador de negociação',
     summary: 'Dívida atualizada, ofertas lado a lado e validação das condições pela sua alçada.',
     steps: [
@@ -655,14 +720,14 @@ export const TOURS: readonly TourDefinition[] = [
         placement: 'end',
       },
       {
-        anchor: 'sim-offers',
-        title: 'À vista e parcelado',
-        body: 'Compare as ofertas lado a lado. A situação indica se estão dentro da alçada ou exigem aprovação.',
+        anchor: 'sim-composition',
+        title: 'Dívida atualizada',
+        body: 'Principal, juros, multa, encargos e honorários pela política do credor. O "i" explica cada número e a memória mostra a conta.',
       },
       {
-        anchor: 'sim-escalate',
-        title: 'Subir de nível',
-        body: 'Concessões acima do nível 0 exigem o motivo, que fica registrado na auditoria.',
+        anchor: 'sim-offers',
+        title: 'Ofertas pela escada',
+        body: 'Total, desconto e juros do parcelamento de cada oferta. Comece no nível mais baixo; subir exige motivo registrado.',
       },
       {
         anchor: 'sim-validate',
@@ -749,13 +814,14 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'legal.dashboard',
-    version: 1,
+    version: 2,
     title: 'Painel jurídico',
     summary: 'Casos por fase, valores e prazos que exigem atenção.',
     steps: [
       { anchor: 'legal-kpis', title: 'Números do jurídico', body: 'Casos em aberto, dívida, custas, valor recuperado e prazos próximos ou perdidos.' },
       { anchor: 'legal-stages', title: 'Casos por fase', body: 'Clique na fase para ver a lista de casos nela.' },
       { anchor: 'legal-deadlines', title: 'Prazos', body: 'Perdidos e os dos próximos 10 dias, mais urgentes primeiro. Filtre pelos seus.', placement: 'start' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
   {
@@ -904,7 +970,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'ingestion.review',
-    version: 1,
+    version: 2,
     title: 'Conferência da importação',
     summary: 'Seis passos antes de gravar: formato, linhas, totais, alertas e resumo.',
     steps: [
@@ -912,6 +978,7 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'review-format', title: 'Formato dos valores', body: 'Veja exemplos do arquivo lidos lado a lado. Se 1.000 puder ser mil ou um real, você escolhe.' },
       { anchor: 'review-totals', title: 'Totais da planilha', body: 'Informe a soma e a contagem da sua planilha. Divergência bloqueia a importação e indica onde procurar.' },
       { anchor: 'review-alerts', title: 'Alertas de valor', body: 'Valores fora do ticket médio. Confirme ou exclua do lote, com justificativa.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
       { anchor: 'review-commit', title: 'Importar', body: 'Confira o impacto e digite a palavra de confirmação. Valores altos pedem aprovação de outra pessoa.' },
     ],
   },
@@ -986,7 +1053,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'campaign.execution',
-    version: 1,
+    version: 2,
     title: 'Execução',
     summary: 'Painel com denominadores explícitos e as inscrições.',
     steps: [
@@ -994,17 +1061,19 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'execution-skips', title: 'Puladas e falhas', body: 'Motivo de cada etapa pulada ou com falha, para corrigir a causa.' },
       { anchor: 'page-actions', title: 'Reprocessar', body: 'Falhas voltam para a mesma etapa sem duplicar mensagens.' },
       { anchor: 'execution-enrollments', title: 'Inscrições', body: 'Estado e motivo por caso. Abra uma inscrição para ver as etapas e pausar ou encerrar.', placement: 'above' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
   {
     id: 'campaign.experiment',
-    version: 1,
+    version: 2,
     title: 'Teste A/B',
     summary: 'Variantes, grupo de controle e resultado com intervalo de confiança.',
     steps: [
       { anchor: 'experiment-config', title: 'Controle e amostra', body: 'O grupo de controle não recebe ações. Defina horizonte e amostra mínima antes de iniciar.' },
       { anchor: 'experiment-variants', title: 'Variantes', body: 'Altere template, canal, horário ou oferta de etapas da régua publicada.' },
-      { anchor: 'experiment-results', title: 'Resultados', body: 'Barra e texto mostram estimativa e intervalo de 95%. Significativa quando a diferença não cruza o zero.' },
+      { anchor: 'experiment-results', title: 'Resultados', body: 'Ponto e barra: estimativa e intervalo de 95%. Adote a variante só com diferença significativa e amostra mínima atingida.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
       { anchor: 'page-actions', title: 'Iniciar e encerrar', body: 'Ao iniciar, o teste fica congelado. Encerre registrando a decisão.' },
     ],
   },
@@ -1084,12 +1153,13 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'payment.statement',
-    version: 1,
+    version: 2,
     title: 'Extrato importado',
     summary: 'Indicadores do lote e o tratamento de cada linha.',
     steps: [
       { anchor: 'statement-indicators', title: 'Indicadores', body: 'Taxa de conciliação sobre os créditos; débitos e repetidas são ignorados.' },
       { anchor: 'data-table', title: 'Linhas', body: 'Cada linha com o tratamento e o pagamento vinculado.', placement: 'above' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
   {
@@ -1137,7 +1207,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'publicapi.usage',
-    version: 1,
+    version: 2,
     title: 'Consumo da API pública',
     summary: 'Requisições, dados e registros por dia, endpoint e token.',
     steps: [
@@ -1145,17 +1215,19 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'usage-kpis', title: 'Indicadores', body: 'Requisições limitadas (429) e falhas da plataforma (5xx) não são cobradas.' },
       { anchor: 'usage-tokens', title: 'Por token', body: 'Compare o consumo de cada sistema do credor.' },
       { anchor: 'page-actions', title: 'Exportar', body: 'CSV por dia, credor, token e endpoint. A exportação fica no log de acesso.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
   {
     id: 'settlement.position',
-    version: 1,
+    version: 2,
     title: 'Posição do credor',
     summary: 'Faturamento da API e repasse do período em aberto, atualizados agora.',
     steps: [
       { anchor: 'position-filters', title: 'Credor e atualização', body: 'Escolha o credor. A tela se atualiza a cada minuto; o botão atualiza na hora.' },
       { anchor: 'position-billing', title: 'Faturamento da API', body: 'Valor até agora, franquias, crescimento comparado ao ciclo anterior e projeção pela média diária.' },
       { anchor: 'position-settlement', title: 'Repasse estimado', body: 'Calculado como o demonstrativo calcularia se fechado agora. Pendências de conciliação ficam fora do líquido.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
   {
@@ -1214,13 +1286,14 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'settlement.statement',
-    version: 1,
+    version: 2,
     title: 'Demonstrativo',
     summary: 'Totais, ajustes, arquivos, envio e repasses.',
     steps: [
       { anchor: 'statement-cycle', title: 'Etapas', body: 'Calcular depois do fim do período, revisar e aprovar. Quem calcula ou pede ajuste não aprova.' },
       { anchor: 'statement-totals', title: 'Totais', body: 'Recebido, comissão, valores fixos, custas e ajustes até o líquido a repassar, com a conferência da soma.' },
       { anchor: 'page-actions', title: 'Ações da etapa', body: 'O botão principal muda conforme a etapa. Ações financeiras mostram o impacto antes de confirmar.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
   {
@@ -1235,14 +1308,19 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'incentive.performance',
-    version: 1,
+    version: 2,
     title: 'Desempenho',
-    summary: 'Indicadores do negociador, da equipe ou de todos.',
+    summary: 'O que cada indicador do negociador mostra e como usá-lo para orientar a equipe.',
     steps: [
       { anchor: 'filters', title: 'Recorte', body: 'Mês, agrupamento, faixa de atraso e credor. Você vê só o que o seu perfil permite.' },
-      { anchor: 'performance-kpis', title: 'Indicadores', body: 'Cada taxa mostra a base. Recuperado conta só pagamento confirmado, com o peso de crédito.' },
+      { anchor: 'kpi-recovered', title: 'Recuperado', body: 'Pagamento confirmado com o peso de crédito de cada acordo: a base da comissão.' },
+      { anchor: 'kpi-expected', title: 'Recuperado × esperado', body: 'Compara com o que o score previa para a carteira recebida: a leitura mais justa entre pessoas.' },
+      { anchor: 'kpi-quality', title: 'Qualidade', body: 'Quebra precoce e nota de monitoria podem reduzir ou reter o variável, conforme o plano.' },
+      { anchor: 'performance-chart', title: 'Comparação', body: 'Recuperado por pessoa, equipe ou credor, com os acordos ao lado.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
+
   {
     id: 'incentive.statements',
     version: 1,
@@ -1309,13 +1387,14 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'telephony.campaign',
-    version: 1,
+    version: 2,
     title: 'Painel da campanha',
     summary: 'Indicadores do dia, operadores e lista.',
     steps: [
       { anchor: 'dialer-stats', title: 'Hoje', body: 'ASR, conectadas, caixa postal e tempos médios, atualizados a cada 5 segundos enquanto disca.' },
       { anchor: 'dialer-abandon', title: 'Abandono', body: 'Atendidas sem operador ÷ atendidas por pessoa. Perto do máximo, o ritmo reduz sozinho.' },
       { anchor: 'dialer-agents', title: 'Operadores', body: 'Quem está na campanha e em que estado. Operadores entram pela estação de cobrança.', placement: 'start' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
       { anchor: 'page-actions', title: 'Operar', body: 'Ativar, pausar, recarregar a lista e encerrar. Parâmetros mudam com a campanha pausada.' },
     ],
   },
@@ -1328,7 +1407,19 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'filters', title: 'Filtros', body: 'Por credor, resultado, direção e período.' },
       { anchor: 'data-table', title: 'Gravação', body: 'Ouvir exige permissão própria e a finalidade declarada; o acesso fica registrado no log de acesso.', placement: 'above' },
     ],
+  },  {
+    id: 'telephony.accounts',
+    version: 1,
+    title: 'Plataformas de telefonia',
+    summary: 'Contas dos fornecedores, rotas por credor e a comparação entre as plataformas.',
+    steps: [
+      { anchor: 'telephony-accounts-tabs', title: 'Contas, rotas e comparação', body: 'Cadastre as contas de cada fornecedor, defina a rota principal e a contingência por credor e compare os resultados.' },
+      { anchor: 'telephony-comparison-tab', title: 'Comparação', body: 'Atendimento (ASR), falhas, tempos e custo estimado de cada plataforma nos últimos 30 dias.' },
+      { anchor: 'telephony-comparison', title: 'Qual plataforma usar', body: 'Compare na mesma carteira e horário: mais atendimentos por real gasto indica a melhor rota principal.', placement: 'above' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+    ],
   },
+
   {
     id: 'assistant.policies',
     version: 1,
@@ -1375,12 +1466,13 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'assistant.quality',
-    version: 1,
+    version: 2,
     title: 'Qualidade do assistente',
     summary: 'Assistente comparado aos humanos.',
     steps: [
       { anchor: 'quality-kpis', title: 'Indicadores', body: 'Transferência, reclamações, custo por acordo e revisões no período.' },
       { anchor: 'quality-break', title: 'Quebra precoce', body: 'Avance de fase quando a quebra com o assistente for igual ou menor que a dos humanos.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
 ];

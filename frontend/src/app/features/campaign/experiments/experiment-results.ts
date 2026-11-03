@@ -10,6 +10,7 @@ import { ExperimentsApi } from '../data/campaign.api';
 import { CONTROL_ARM, METRIC_HINTS, METRIC_LABELS, RESULT_WARNING_LABELS } from '../data/campaign.labels';
 import { ExperimentMetric, ExperimentResults, ExperimentView, MetricResult } from '../data/campaign.models';
 import { armLabel, count, differenceScale, differenceValue, estimateScale, isRateMetric, metricValue, position } from '../data/campaign.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 interface ArmRow {
   arm: string;
@@ -40,7 +41,7 @@ interface MetricBlock {
  */
 @Component({
   selector: 'app-experiment-results',
-  imports: [FormsModule, Icon, EmptyState, Skeleton, AppDatePipe],
+  imports: [FormsModule, Icon, EmptyState, Skeleton, AppDatePipe, InfoHint],
   templateUrl: './experiment-results.html',
   styleUrl: './experiment-results.scss',
 })
@@ -51,6 +52,14 @@ export class ExperimentResultsView {
   protected readonly mature = signal(true);
   protected readonly metricLabels = METRIC_LABELS;
   protected readonly metricHints = METRIC_HINTS;
+  /** Explicação de cada métrica no catálogo de informação contextual. */
+  protected readonly metricInfo: Record<string, string> = {
+    EFFECTIVE_CONTACT: 'campaign.experiment.effective-contact',
+    REPLY: 'campaign.experiment.reply',
+    AGREEMENT: 'campaign.experiment.agreement',
+    PAYMENT: 'campaign.experiment.payment',
+    RECOVERED_PER_DEBTOR: 'campaign.experiment.recovered-per-debtor',
+  };
   protected readonly count = count;
 
   protected readonly results = rxResource({

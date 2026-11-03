@@ -60,12 +60,12 @@
           </div>
           <div class="tl-kpis">
             <div class="tl-kpi">
-              <span class="tl-kpi__label">ASR</span>
+              <span class="tl-kpi__label">ASR <app-info-hint indicator="telephony.comparison.asr" label="Atendimento (ASR)" /></span>
               <span class="tl-kpi__value app-numeric">{{ percent(s.asr) }}</span>
               <span class="tl-kpi__hint">{{ s.answered }} atendidas de {{ s.dialed }} discadas</span>
             </div>
             <div class="tl-kpi" data-tour="dialer-abandon">
-              <span class="tl-kpi__label">Abandono</span>
+              <span class="tl-kpi__label">Abandono <app-info-hint indicator="telephony.dialer.abandon" label="Abandono" /></span>
               <span class="tl-kpi__value app-numeric">{{ percent(s.abandonRate) }}</span>
               <div class="tl-meter" role="meter" [attr.aria-valuenow]="s.abandonRate ?? 0" aria-valuemin="0" [attr.aria-valuemax]="s.maxAbandonRate * 2" [attr.aria-label]="'Abandono ' + percent(s.abandonRate) + ' de máximo ' + percent(s.maxAbandonRate)">
                 <div class="tl-meter__bar" [class.tl-meter__bar--near]="abandon() === 'near'" [class.tl-meter__bar--limit]="abandon() === 'limit'" [style.width.%]="abandonWidth()"></div>
@@ -82,22 +82,22 @@
               </span>
             </div>
             <div class="tl-kpi">
-              <span class="tl-kpi__label">Conectadas</span>
+              <span class="tl-kpi__label">Conectadas <app-info-hint indicator="telephony.dialer.connected" label="Conectadas" /></span>
               <span class="tl-kpi__value app-numeric">{{ s.connected }}</span>
               <span class="tl-kpi__hint">{{ s.machine }} caixa postal (AMD)</span>
             </div>
             <div class="tl-kpi">
-              <span class="tl-kpi__label">Ritmo agora</span>
+              <span class="tl-kpi__label">Ritmo agora <app-info-hint indicator="telephony.dialer.ratio" label="Ritmo agora" /></span>
               <span class="tl-kpi__value app-numeric">{{ s.currentRatio ?? '—' }}</span>
               <span class="tl-kpi__hint">{{ pacing[s.pacingReason ?? ''] || s.pacingReason || '—' }}</span>
             </div>
             <div class="tl-kpi">
-              <span class="tl-kpi__label">Operadores livres</span>
+              <span class="tl-kpi__label">Operadores livres <app-info-hint indicator="telephony.dialer.agents" label="Operadores livres" /></span>
               <span class="tl-kpi__value app-numeric">{{ s.availableAgents }}</span>
               <span class="tl-kpi__hint">{{ s.callsInProgress }} chamada(s) em andamento</span>
             </div>
             <div class="tl-kpi">
-              <span class="tl-kpi__label">Tempos médios</span>
+              <span class="tl-kpi__label">Tempos médios <app-info-hint indicator="telephony.comparison.times" label="Toque e conversa (média)" /></span>
               <span class="tl-kpi__value tl-small">conversa {{ duration(s.averageTalkSeconds) }}</span>
               <span class="tl-kpi__hint">toque {{ duration(s.averageRingSeconds) }} · pós {{ duration(s.averageWrapUpSeconds) }}</span>
             </div>

@@ -1,14 +1,23 @@
 import { Component, input } from '@angular/core';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Cartão de indicador: rótulo, valor (projetado — texto ou `app-amount`) e o denominador sempre
- * visível ("1.100 de 4.000"), para que nenhuma taxa apareça sem a base.
+ * visível ("1.100 de 4.000"), para que nenhuma taxa apareça sem a base. `info` é o id do indicador
+ * no catálogo (informação contextual, docs/tecnico/desenho/ux.md §8.6) — obrigatório nas telas: o
+ * `npm run hints:check` recusa cartão sem ele.
  */
 @Component({
   selector: 'app-kpi-card',
+  imports: [InfoHint],
   host: { class: 'kpi', role: 'group', '[attr.aria-label]': 'label()' },
   template: `
-    <span class="kpi__label">{{ label() }}</span>
+    <span class="kpi__head">
+      <span class="kpi__label">{{ label() }}</span>
+      @if (info(); as id) {
+        <app-info-hint [indicator]="id" [label]="label()" />
+      }
+    </span>
     <span class="kpi__value app-numeric"><ng-content /></span>
     @if (detail()) {
       <span class="kpi__detail">{{ detail() }}</span>
@@ -26,6 +35,12 @@ import { Component, input } from '@angular/core';
       border: 1px solid var(--bs-border-color);
       border-radius: var(--bs-border-radius);
       background: var(--bs-body-bg);
+    }
+    .kpi__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 4px;
     }
     .kpi__label {
       font-size: var(--app-text-xs);
@@ -54,4 +69,6 @@ export class KpiCard {
   readonly label = input.required<string>();
   /** Base do indicador (denominador) ou explicação curta. */
   readonly detail = input<string | null>(null);
+  /** Id do indicador no catálogo de informação contextual. */
+  readonly info = input<string | null>(null);
 }

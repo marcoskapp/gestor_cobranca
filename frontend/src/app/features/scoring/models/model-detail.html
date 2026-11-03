@@ -56,11 +56,11 @@
         <h2 class="app-card__title" id="md-validation">Validação</h2>
         @if (validation(); as v) {
           <div class="md-kpis">
-            <app-kpi-card label="AUC" [detail]="'Gini ' + metric(v.gini)">{{ metric(v.auc) }}</app-kpi-card>
-            <app-kpi-card label="KS" detail="Separação entre quem paga e quem não paga">{{ metric(v.ks) }}</app-kpi-card>
-            <app-kpi-card label="Brier" detail="Erro da probabilidade (menor é melhor)">{{ brier(v.brier) }}</app-kpi-card>
-            <app-kpi-card label="Chance média prevista" [detail]="'Taxa observada ' + percent(v.observedRate)">{{ percent(v.meanPredicted) }}</app-kpi-card>
-            <app-kpi-card label="Observações" [detail]="int(v.positives) + ' pagaram'">{{ int(v.rows) }}</app-kpi-card>
+            <app-kpi-card label="AUC" info="scoring.model.auc" [detail]="'Gini ' + metric(v.gini)">{{ metric(v.auc) }}</app-kpi-card>
+            <app-kpi-card label="KS" info="scoring.model.ks" detail="Separação entre quem paga e quem não paga">{{ metric(v.ks) }}</app-kpi-card>
+            <app-kpi-card label="Brier" info="scoring.model.brier" detail="Erro da probabilidade (menor é melhor)">{{ brier(v.brier) }}</app-kpi-card>
+            <app-kpi-card label="Chance média prevista" info="scoring.model.mean-predicted" [detail]="'Taxa observada ' + percent(v.observedRate)">{{ percent(v.meanPredicted) }}</app-kpi-card>
+            <app-kpi-card label="Observações" info="scoring.model.observations" [detail]="int(v.positives) + ' pagaram'">{{ int(v.rows) }}</app-kpi-card>
           </div>
           @if (comparison().length) {
             <div class="pd-scroll">
@@ -69,7 +69,7 @@
                   <tr>
                     <th scope="col">Métrica</th>
                     <th scope="col" class="pd-end">Este modelo</th>
-                    <th scope="col" class="pd-end">Campeão (mesmas observações)</th>
+                    <th scope="col" class="pd-end">Campeão (mesmas observações) <app-info-hint indicator="scoring.model.comparison" label="Comparação com o campeão" /></th>
                     <th scope="col">Leitura</th>
                   </tr>
                 </thead>
@@ -100,6 +100,7 @@
         <section class="app-card" aria-label="Calibração por faixa">
           <app-bar-chart
             title="Calibração por faixa"
+            info="scoring.model.calibration"
             [summary]="calibrationText()"
             categoryHeader="Faixa"
             noteHeader="Casos"
@@ -107,9 +108,10 @@
             [rows]="calibration()"
           />
         </section>
-        <section class="app-card" aria-label="Lift por decil">
+        <section class="app-card" aria-label="Lift por decil" data-tour="scoring-lift">
           <app-bar-chart
             title="Lift por decil de score"
+            info="scoring.model.lift"
             [summary]="liftText()"
             categoryHeader="Decil (1 = maior score)"
             noteHeader="Taxa e captura acumulada"
@@ -201,9 +203,9 @@
             <dt>Período de validação</dt>
             <dd>{{ m.validationFrom | appDate: 'date' }} a {{ m.validationTo | appDate: 'date' }} · {{ int(m.validationRows) }} obs. ({{ int(m.validationPositives) }} pagaram)</dd>
           }
-          <dt>Cortes das faixas</dt>
+          <dt>Cortes das faixas <app-info-hint indicator="scoring.case.score" label="Score e faixa" /></dt>
           <dd class="app-numeric">A ≥ {{ m.bandCutoffs[0] }} · B ≥ {{ m.bandCutoffs[1] }} · C ≥ {{ m.bandCutoffs[2] }} · D ≥ {{ m.bandCutoffs[3] }}</dd>
-          <dt>Fração paga típica</dt>
+          <dt>Fração paga típica <app-info-hint indicator="scoring.model.paid-share" label="Fração paga típica" /></dt>
           <dd>{{ percent(m.paidShare) }} do saldo (recuperado × esperado)</dd>
           @if (m.promotedAt) {
             <dt>Promovido</dt>

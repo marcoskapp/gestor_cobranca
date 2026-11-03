@@ -135,8 +135,8 @@ export class StatementList {
   protected readonly columns: TableColumn[] = [
     { key: 'period', header: 'Demonstrativo' },
     { key: 'status', header: 'Situação' },
-    { key: 'recovered', header: 'Recuperado', align: 'end' },
-    { key: 'net', header: 'Líquido a repassar', align: 'end' },
+    { key: 'recovered', header: 'Recuperado', align: 'end', info: 'settlement.statement.recovered' },
+    { key: 'net', header: 'Líquido a repassar', align: 'end', info: 'settlement.statement.net' },
     { key: 'updated', header: 'Última etapa' },
     { key: 'actions', header: 'Ações', actions: true },
   ];

@@ -1,0 +1,113 @@
+import { IndicatorHelp } from '../indicator.models';
+
+/**
+ * Indicadores da negociação: simulador (dívida atualizada, envelope, escada, ofertas e alçada),
+ * propostas e acordos. Definições: docs/tecnico/desenho/negociacao-e-alcadas.md §1–§4, §9.3–§9.5
+ * e §10.6; cálculo em `negotiation/domain/service/` (`DebtCalculator`, envelope e limite efetivo).
+ */
+export const INDICATORS: readonly IndicatorHelp[] = [
+  {
+    id: 'negotiation.sim.updated-debt',
+    title: 'Dívida atualizada',
+    what: 'Quanto o devedor deve hoje (na data-base), separado em principal, juros, multa, encargos e honorários.',
+    how: 'O sistema aplica aos títulos escolhidos as regras da política vigente do credor: correção quando contratual, juros de mora sobre o principal em aberto, multa uma vez, encargos autorizados e honorários. A memória de cálculo mostra cada parcela da conta por título.',
+    use: 'É o ponto de partida da negociação e a referência do desconto. Se um valor parecer estranho, abra a memória de cálculo antes de negociar.',
+    screens: ['negotiation.simulator', 'negotiation.proposal-detail', 'negotiation.agreement-detail'],
+  },
+  {
+    id: 'negotiation.sim.envelope',
+    title: 'Envelope da política',
+    what: 'O desconto máximo que a política do credor permite em cada forma de pagamento (à vista ou em até N pagamentos) e o valor mínimo do acordo.',
+    how: 'Faixas de desconto da política por componente da dívida, aplicadas à composição atualizada; quanto mais pagamentos, em geral menor o desconto permitido.',
+    use: 'Mostra até onde a negociação pode ir. Nunca comece pelo limite: use a escada de concessões e suba só com justificativa.',
+    screens: ['negotiation.simulator'],
+  },
+  {
+    id: 'negotiation.sim.ladder',
+    title: 'Nível da escada',
+    what: 'Degrau de concessão em que as ofertas estão, do nível 0 (sem desconto) até o topo permitido pela sua alçada.',
+    how: 'Cada nível libera uma fatia do envelope da política. Seu nível máximo é o menor entre o topo da escada da política e o do seu perfil de alçada.',
+    use: 'Comece pelo nível mais baixo e suba conforme a negociação pede; cada subida exige o motivo, registrado na auditoria. A operação mede em que nível os acordos fecham.',
+    screens: ['negotiation.simulator', 'negotiation.proposal-detail'],
+  },
+  {
+    id: 'negotiation.sim.offer-total',
+    title: 'Total da oferta',
+    what: 'Quanto o devedor paga ao todo nesta oferta, somando entrada e parcelas.',
+    how: 'Valor negociado (dívida atualizada menos os descontos) mais os juros do parcelamento, quando houver.',
+    use: 'É o valor que o devedor vai comparar. Ao parcelar, mostre também o valor da parcela, que costuma pesar mais na decisão do devedor.',
+    screens: ['negotiation.simulator', 'negotiation.proposal-detail', 'negotiation.agreement-detail'],
+  },
+  {
+    id: 'negotiation.sim.discount',
+    title: 'Desconto',
+    what: 'Quanto a oferta abate da dívida atualizada, em reais e em percentual.',
+    how: 'Soma dos descontos aplicados a cada componente (principal, juros, multa, encargos, honorários), limitados pelo envelope da política e pela sua alçada.',
+    use: 'Desconto maior aumenta a chance de acordo, mas reduz o valor recuperado e a comissão. Use o menor desconto que fecha o acordo.',
+    screens: ['negotiation.simulator', 'negotiation.proposal-detail', 'negotiation.agreement-detail'],
+  },
+  {
+    id: 'negotiation.sim.financing-interest',
+    title: 'Juros do parcelamento',
+    what: 'Acréscimo cobrado por parcelar o valor negociado.',
+    how: 'Juros da política aplicados ao saldo financiado depois da entrada, pela tabela de parcelas iguais à taxa do período.',
+    use: 'Explica a diferença entre o total à vista e o parcelado. Se o devedor estranhar, compare as duas ofertas lado a lado.',
+    screens: ['negotiation.simulator', 'negotiation.proposal-detail', 'negotiation.agreement-detail'],
+  },
+  {
+    id: 'negotiation.sim.offer-status',
+    title: 'Situação da oferta',
+    what: 'Se a oferta pode ser proposta por você, precisa de aprovação ou foi recusada pelas regras.',
+    how: 'O sistema confere a oferta contra a política (descontos, parcelas, entrada e valor mínimos) e contra o seu perfil de alçada. Fora da política, é recusada; dentro da política mas acima da alçada, precisa de aprovação.',
+    use: 'Dentro da alçada, use "Propor". Acima dela, "Pedir aprovação" envia a proposta para quem tem alçada maior, com o resumo do impacto.',
+    screens: ['negotiation.simulator'],
+  },
+  {
+    id: 'negotiation.authority.limits',
+    title: 'Sua alçada',
+    what: 'Até onde você pode negociar sem aprovação: nível da escada, fatia do desconto máximo, número de pagamentos, valor do acordo, entrada mínima e se formaliza sozinho.',
+    how: 'Vem do seu perfil de alçada (por credor, quando houver). O limite efetivo é sempre o menor entre a política do credor e o seu perfil; a entrada mínima é a maior das duas.',
+    use: 'Negociações acima desses limites viram pedido de aprovação. Se você pede aprovação com frequência, converse com o supervisor sobre o seu perfil.',
+    screens: ['negotiation.simulator', 'negotiation.authority'],
+  },
+  {
+    id: 'negotiation.proposal.envelope-usage',
+    title: 'Uso do desconto máximo',
+    what: 'Quanto do desconto máximo permitido pela política a proposta usou.',
+    how: 'Desconto da proposta dividido pelo desconto máximo da política para a mesma forma de pagamento, em percentual.',
+    use: 'Uso alto e frequente indica negociação começando pelo limite. Esse número alimenta a remuneração variável (pode haver deflator acima de um limite).',
+    screens: ['negotiation.proposal-detail'],
+  },
+  {
+    id: 'negotiation.agreement.paid',
+    title: 'Pago',
+    what: 'Quanto do acordo o devedor já pagou, com pagamentos confirmados e líquidos de estornos.',
+    how: 'Soma das baixas confirmadas nas parcelas do acordo.',
+    use: 'Acompanhe com o saldo: parcelas em atraso além da tolerância da política quebram o acordo.',
+    screens: ['negotiation.agreement-detail'],
+  },
+  {
+    id: 'negotiation.agreement.remaining',
+    title: 'Saldo do acordo',
+    what: 'Quanto falta pagar do acordo.',
+    how: 'Total do acordo menos o que já foi pago.',
+    use: 'É o valor ainda em risco. Com parcelas vencidas, gere o Pix da parcela e contate o devedor antes da quebra.',
+    screens: ['negotiation.agreement-detail'],
+  },
+  {
+    id: 'negotiation.agreement.incremental',
+    title: 'Ganho da renegociação',
+    what: 'Quanto a renegociação acrescenta em relação ao que ainda faltava pagar no acordo anterior.',
+    how: 'Novo valor menos o saldo do acordo substituído (valor dele menos o já pago), nunca abaixo de zero. O já recebido nunca é contado de novo.',
+    use: 'É o que conta para a comissão numa renegociação. Ganho zero significa que a renegociação só reorganizou a dívida.',
+    screens: ['negotiation.agreement-detail'],
+  },
+  {
+    id: 'negotiation.agreement.break-rule',
+    title: 'Quebra',
+    what: 'Regra que caracteriza a quebra deste acordo: quantas parcelas vencidas sem pagamento e por quantos dias de tolerância.',
+    how: 'Vem da política na formalização. Uma verificação diária quebra o acordo quando a regra é atingida, exceto com pagamento em revisão ou em trânsito.',
+    use: 'Saber a regra ajuda a agir antes: contate o devedor dentro da tolerância e ofereça o Pix da parcela.',
+    screens: ['negotiation.agreement-detail'],
+  },
+];

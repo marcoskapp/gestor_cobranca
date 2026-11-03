@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Amount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
@@ -21,7 +22,7 @@ import { urlFilter } from '../data/url-filter';
  */
 @Component({
   selector: 'app-reliability-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Confiabilidade" subtitle="Falhas de integração, mensagens, conciliação, processamentos e importações."
                      report="reliability" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
@@ -36,29 +37,29 @@ import { urlFilter } from '../data/url-filter';
       } @else {
         @let r = report()!;
         <section class="pn__kpis" aria-label="Indicadores de confiabilidade" data-tour="analytics-kpis">
-          <app-kpi-card label="Falha em instruções de pagamento" [detail]="ratioDetail(r.integrations.instructionFailureRate) + ' geradas'">{{ percent(r.integrations.instructionFailureRate) }}</app-kpi-card>
-          <app-kpi-card label="Mensagens com falha" [detail]="ratioDetail(r.messages.failureRate) + ' enviadas'">{{ percent(r.messages.failureRate) }}</app-kpi-card>
-          <app-kpi-card label="Chamadas com falha" [detail]="ratioDetail(r.integrations.callFailureRate) + ' chamadas'">{{ percent(r.integrations.callFailureRate) }}</app-kpi-card>
-          <app-kpi-card label="Divergências em aberto" [detail]="count(r.reconciliation.opened) + ' abertas no período'">{{ count(r.reconciliation.openNow) }}</app-kpi-card>
+          <app-kpi-card label="Falha em instruções de pagamento" info="analytics.reliability.instruction-failures" data-tour="kpi-instructions" [detail]="ratioDetail(r.integrations.instructionFailureRate) + ' geradas'">{{ percent(r.integrations.instructionFailureRate) }}</app-kpi-card>
+          <app-kpi-card label="Mensagens com falha" info="analytics.reliability.message-failures" data-tour="kpi-messages" [detail]="ratioDetail(r.messages.failureRate) + ' enviadas'">{{ percent(r.messages.failureRate) }}</app-kpi-card>
+          <app-kpi-card label="Chamadas com falha" info="analytics.reliability.call-failures" [detail]="ratioDetail(r.integrations.callFailureRate) + ' chamadas'">{{ percent(r.integrations.callFailureRate) }}</app-kpi-card>
+          <app-kpi-card label="Divergências em aberto" info="analytics.reliability.divergences" data-tour="kpi-divergences" [detail]="count(r.reconciliation.opened) + ' abertas no período'">{{ count(r.reconciliation.openNow) }}</app-kpi-card>
           @if (r.jobs; as j) {
-            <app-kpi-card label="Processamentos em falha (DEAD)" [detail]="percent(j.deadRate) + ' dos concluídos no período'">{{ count(j.deadNow) }}</app-kpi-card>
+            <app-kpi-card label="Processamentos em falha (DEAD)" info="analytics.reliability.dead-jobs" [detail]="percent(j.deadRate) + ' dos concluídos no período'">{{ count(j.deadNow) }}</app-kpi-card>
           }
-          <app-kpi-card label="Importação (mediana)" [detail]="'p95 ' + seconds(r.imports.p95Seconds) + ' · ' + count(r.imports.batches) + ' lotes'">{{ seconds(r.imports.medianSeconds) }}</app-kpi-card>
+          <app-kpi-card label="Importação (mediana)" info="analytics.reliability.import-time" [detail]="'p95 ' + seconds(r.imports.p95Seconds) + ' · ' + count(r.imports.batches) + ' lotes'">{{ seconds(r.imports.medianSeconds) }}</app-kpi-card>
         </section>
         <div class="pn__grid">
           <section class="app-card">
-            <app-bar-chart title="Falhas de mensagens por causa" categoryHeader="Causa" [summary]="summaryOf(r.messages.failuresByCode, 'falhas de mensagem')"
+            <app-bar-chart title="Falhas de mensagens por causa" info="analytics.reliability.message-failures" categoryHeader="Causa" [summary]="summaryOf(r.messages.failuresByCode, 'falhas de mensagem')"
                            [series]="[{ name: 'Mensagens', color: '--app-chart-1' }]" [rows]="countRows(r.messages.failuresByCode)" />
           </section>
           <section class="app-card">
-            <app-bar-chart title="Falhas de instruções de pagamento por causa" categoryHeader="Causa"
+            <app-bar-chart title="Falhas de instruções de pagamento por causa" info="analytics.reliability.instruction-failures" categoryHeader="Causa"
                            [summary]="summaryOf(r.integrations.instructionFailuresByCode, 'falhas de instrução')"
                            [series]="[{ name: 'Instruções', color: '--app-chart-1' }]" [rows]="countRows(r.integrations.instructionFailuresByCode)" />
           </section>
         </div>
         <div class="pn__grid">
-          <section class="app-card" aria-labelledby="rl-rec">
-            <h2 class="app-card__title" id="rl-rec">Conciliação e duplicidades</h2>
+          <section class="app-card" aria-labelledby="rl-rec" data-tour="analytics-reconciliation">
+            <h2 class="app-card__title" id="rl-rec">Conciliação e duplicidades <app-info-hint indicator="analytics.reliability.divergences" label="Divergências de conciliação" /></h2>
             <table class="pn__table">
               <tbody>
                 <tr><th scope="row">Divergências abertas no período</th><td class="num app-numeric">{{ count(r.reconciliation.opened) }}</td></tr>
@@ -67,14 +68,14 @@ import { urlFilter } from '../data/url-filter';
                 }
                 <tr><th scope="row">Em aberto agora</th><td class="num">{{ count(r.reconciliation.openNow) }} · <app-amount [value]="r.reconciliation.openNowAmount" /></td></tr>
                 <tr><th scope="row">Resolvidas no período (mediana)</th><td class="num">{{ count(r.reconciliation.resolved) }} · {{ decimal(r.reconciliation.medianResolutionHours) }} h</td></tr>
-                <tr><th scope="row">Linhas de extrato duplicadas</th><td class="num">{{ percent(r.messages.duplicateLineRate) }}<span class="sub">{{ ratioDetail(r.messages.duplicateLineRate) }}</span></td></tr>
-                <tr><th scope="row">Extratos com falha</th><td class="num app-numeric">{{ count(r.integrations.statementImportsFailed) }} de {{ count(r.integrations.statementImports) }}</td></tr>
-                <tr><th scope="row">Conversas com SLA de 1ª resposta estourado</th><td class="num app-numeric">{{ count(r.messages.slaBreaches) }}</td></tr>
+                <tr><th scope="row">Linhas de extrato duplicadas <app-info-hint indicator="analytics.reliability.duplicate-lines" label="Linhas de extrato duplicadas" /></th><td class="num">{{ percent(r.messages.duplicateLineRate) }}<span class="sub">{{ ratioDetail(r.messages.duplicateLineRate) }}</span></td></tr>
+                <tr><th scope="row">Extratos com falha <app-info-hint indicator="analytics.reliability.statement-failures" label="Extratos com falha" /></th><td class="num app-numeric">{{ count(r.integrations.statementImportsFailed) }} de {{ count(r.integrations.statementImports) }}</td></tr>
+                <tr><th scope="row">Conversas com SLA de 1ª resposta estourado <app-info-hint indicator="analytics.reliability.sla-breaches" label="SLA de 1ª resposta estourado" /></th><td class="num app-numeric">{{ count(r.messages.slaBreaches) }}</td></tr>
               </tbody>
             </table>
           </section>
           <section class="app-card" aria-labelledby="rl-jobs">
-            <h2 class="app-card__title" id="rl-jobs">Processamentos e importações</h2>
+            <h2 class="app-card__title" id="rl-jobs">Processamentos e importações <app-info-hint indicator="analytics.reliability.import-time" label="Importação de carteiras" /></h2>
             <table class="pn__table">
               <tbody>
                 @if (r.jobs; as j) {

@@ -56,6 +56,7 @@ import { ViabilityDialog, ViabilityDialogData } from './viability-dialog';
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbDropdownModule, NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../shared/dialog/dialog.service';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /** Abas da ficha (o parâmetro `?aba=` abre direto na aba). */
 export const MATTER_TABS = ['resumo', 'viabilidade', 'autorizacao', 'medidas', 'processos', 'prazos', 'custas', 'documentos'] as const;
@@ -83,6 +84,7 @@ const routeOptions = (only?: readonly string[]) => options(ROUTE_LABELS, only);
     StatusChip,
     AppDatePipe,
     LawsuitCard,
+    InfoHint,
   ],
   templateUrl: './matter-detail.html',
   styleUrl: './matter-detail.scss',

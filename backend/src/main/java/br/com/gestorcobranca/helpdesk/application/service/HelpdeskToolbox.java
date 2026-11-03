@@ -167,6 +167,12 @@ class HelpdeskToolbox {
     private String manual(Map<String, Object> args) {
         String screenId = string(args, "tela");
         String moduleId = string(args, "modulo");
+        String indicatorId = string(args, "indicador");
+        if (indicatorId != null) {
+            var i = knowledge.indicator(indicatorId).orElseThrow(() -> new ToolArgumentException("indicador_desconhecido",
+                    "Indicador desconhecido no manual"));
+            return json.toJson(ChatContextBuilder.indicator(i));
+        }
         if (screenId != null) {
             Screen s = knowledge.screen(screenId).orElseThrow(() -> new ToolArgumentException("tela_desconhecida",
                     "Tela desconhecida no manual"));
@@ -180,9 +186,11 @@ class HelpdeskToolbox {
             return json.toJson(map("modulo", m.id(), "titulo", m.title(), "visaoGeral", m.overview(), "regras", m.rules(),
                     "encaixe", m.connections().stream().map(c -> c.module() + ": " + c.text()).toList(),
                     "telas", screens, "termos", knowledge.terms(m.terms()).stream()
-                            .map(t -> map("termo", t.term(), "definicao", t.definition())).toList()));
+                            .map(t -> map("termo", t.term(), "definicao", t.definition())).toList(),
+                    "indicadores", knowledge.moduleIndicators(m.id()).stream()
+                            .map(i -> map("indicador", i.id(), "titulo", i.title())).toList()));
         }
-        throw new ToolArgumentException("tela_ou_modulo", "Informe a tela ou o módulo");
+        throw new ToolArgumentException("tela_ou_modulo", "Informe a tela, o módulo ou o indicador");
     }
 
     private String pointToScreen(Map<String, Object> args, TurnState state) {
@@ -295,11 +303,14 @@ class HelpdeskToolbox {
                  "tema":{"type":"string","enum":["HOW_TO","DATA_LOOKUP","BUSINESS_RULE","ACCESS","SYSTEM_ERROR","OUT_OF_SCOPE","OTHER"]},
                  "resolvida":{"type":"boolean","description":"true se a resposta resolve a dúvida"}},
                  "required":["tema","resolvida"],"additionalProperties":false}""", Set.of(), false);
-        add(m, MANUAL, "Consulta o manual do sistema: uma tela (pela chave, ex.: collection.queue) ou um módulo (ex.: pagamentos).",
+        add(m, MANUAL, "Consulta o manual do sistema: uma tela (pela chave, ex.: collection.queue, com os indicadores dela), "
+                        + "um módulo (ex.: pagamentos) ou um indicador (pelo id, ex.: analytics.recovery.rate: o que é, "
+                        + "como é calculado e como usar — o mesmo texto do \"i\" da tela).",
                 """
                 {"type":"object","properties":{
                  "tela":{"type":"string","pattern":"^[a-z0-9]+([.-][a-z0-9]+)*$"},
-                 "modulo":{"type":"string","pattern":"^[a-z-]+$"}},"additionalProperties":false}""", Set.of(), false);
+                 "modulo":{"type":"string","pattern":"^[a-z-]+$"},
+                 "indicador":{"type":"string","pattern":"^[a-z0-9]+([.-][a-z0-9]+)*$"}},"additionalProperties":false}""", Set.of(), false);
         add(m, POINT_TO_SCREEN, "Oferece à pessoa um botão: ABRIR uma tela que ela pode abrir; TOUR ou SOBRE da tela atual.",
                 """
                 {"type":"object","properties":{

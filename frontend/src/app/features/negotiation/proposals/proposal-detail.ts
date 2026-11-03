@@ -30,6 +30,7 @@ import { SimulationApi } from '../data/negotiation.api';
 import { CONCESSION_REASON_LABELS, ENGINE_COMPONENT_LABELS, RULE_LABELS, percent, planText, ratesText } from '../data/negotiation.labels';
 import { ConcessionReason } from '../data/negotiation.models';
 import { AcceptDialog, AcceptDialogData } from './accept-dialog';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse().join('/') : '—');
 
@@ -41,7 +42,7 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-proposal-detail',
-  imports: [Icon, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe],
+  imports: [Icon, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, InfoHint],
   templateUrl: './proposal-detail.html',
   styleUrl: '../detail-page.scss',
 })

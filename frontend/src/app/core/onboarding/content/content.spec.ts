@@ -139,14 +139,28 @@ describe('conteúdo do onboarding', () => {
     expect(CHECKLISTS.findIndex((c) => c.id === 'manager')).toBeLessThan(CHECKLISTS.findIndex((c) => c.id === 'negotiator'));
   });
 
-  it('painéis registrados com tour cujas âncoras existem e nota de versão própria', () => {
-    for (const path of ['/paineis', '/paineis/recuperacao', '/paineis/conversao', '/paineis/produtividade', '/paineis/confiabilidade']) {
-      expect(findScreen(path + '?de=2026-06-01')?.tourId, path).toBe('analytics.panels');
+  it('cada painel com tour próprio, que aponta para os indicadores e para o "i", e nota de versão própria', () => {
+    const panels: [string, string][] = [
+      ['/paineis', 'analytics.operational'],
+      ['/paineis/recuperacao', 'analytics.recovery'],
+      ['/paineis/conversao', 'analytics.conversion'],
+      ['/paineis/produtividade', 'analytics.productivity'],
+      ['/paineis/confiabilidade', 'analytics.reliability'],
+    ];
+    for (const [path, tourId] of panels) {
+      const screen = findScreen(path + '?de=2026-06-01')!;
+      expect(screen.tourId, path).toBe(tourId);
+      expect(screen.version, `${path}: versão aumentada com o tour novo`).toBeGreaterThanOrEqual(2);
+      expect(screen.changes?.some((c) => c.version === screen.version), path).toBe(true);
+      const tour = findTour(tourId)!;
+      expect(tour.steps.length).toBeLessThanOrEqual(6);
+      const anchors = tour.steps.map((s) => s.anchor ?? '');
+      expect(anchors.filter((a) => a.startsWith('kpi-')).length, `${tourId}: passos nos cartões`).toBeGreaterThanOrEqual(3);
+      expect(anchors, tourId).toContain('info-hint');
     }
-    const tour = findTour('analytics.panels')!;
-    expect(tour.steps.length).toBeLessThanOrEqual(6);
-    expect(tour.steps.map((s) => s.anchor)).toEqual(['analytics-tabs', 'filters', 'analytics-freshness', 'analytics-kpis', 'analytics-export']);
+    expect(findTour('analytics.panels')).toBeUndefined();
     expect(RELEASE_NOTES.find((n) => n.version === 7)?.title).toContain('Painéis');
+    expect(RELEASE_NOTES.find((n) => n.version === 12)?.title).toContain('número');
     expect(findScreen('/')?.version).toBe(2);
   });
 

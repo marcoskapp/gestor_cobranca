@@ -35,6 +35,7 @@ import {
 import { AcceptanceChannel, InstallmentView } from '../data/agreement.models';
 import { actorText, agreementActions, installmentBalance, scheduleSummary, shortHash } from '../data/agreement.rules';
 import { percent } from '../data/negotiation.labels';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse().join('/') : '—');
 
@@ -45,7 +46,7 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-agreement-detail',
-  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, PaymentReviewAlert],
+  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, PaymentReviewAlert, InfoHint],
   templateUrl: './agreement-detail.html',
   styleUrl: '../detail-page.scss',
 })

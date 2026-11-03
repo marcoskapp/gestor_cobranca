@@ -9,6 +9,7 @@ import { BreakdownRow, MeasureView, ReviewView, TotalsCheckView, TotalsMeasure, 
 import { BREAKDOWN_LABELS, DIMENSION_LABELS, MEASURE_LABELS, REVIEW_ERROR_LABELS, parseCount, scaleText } from '../data/review.rules';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 type Field = 'rows' | 'principal' | 'balance' | 'contract';
 const FIELD_MEASURE: Record<Field, TotalsMeasure> = { rows: 'ROWS', principal: 'PRINCIPAL', balance: 'BALANCE', contract: 'CONTRACT_AMOUNT' };
@@ -41,7 +42,7 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
  */
 @Component({
   selector: 'app-totals-step',
-  imports: [...FORM_FIELD, Icon, ReactiveFormsModule, Amount],
+  imports: [...FORM_FIELD, Icon, ReactiveFormsModule, Amount, InfoHint],
   template: `
     @if (review().batch.status !== 'VALIDATED') {
       <p class="app-muted" role="status">Os totais ficam disponíveis quando a validação das linhas terminar.</p>
@@ -96,7 +97,7 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
             <table class="ts-table">
               <caption class="visually-hidden">Totais informados e calculados</caption>
               <thead>
-                <tr><th scope="col">Total</th><th scope="col" class="num">Sua planilha</th><th scope="col" class="num">Arquivo convertido</th><th scope="col" class="num">Diferença</th><th scope="col">Situação</th></tr>
+                <tr><th scope="col">Total</th><th scope="col" class="num">Sua planilha</th><th scope="col" class="num">Arquivo convertido</th><th scope="col" class="num">Diferença <app-info-hint indicator="ingestion.review.control-totals" label="Totais de controle" /></th><th scope="col">Situação</th></tr>
               </thead>
               <tbody>
                 @for (m of r.measures; track m.measure) {
@@ -148,7 +149,7 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
       }
       @if (breakdown().length) {
         <section class="app-card" aria-labelledby="ts-breakdown">
-          <h3 class="ts-title" id="ts-breakdown">Totais do arquivo por grupo</h3>
+          <h3 class="ts-title" id="ts-breakdown">Totais do arquivo por grupo <app-info-hint indicator="ingestion.review.breakdown" label="Totais do arquivo por grupo" /></h3>
           <p class="app-muted ts-small">Ajudam a localizar a diferença: compare com os subtotais da sua planilha.</p>
           <div class="ts-groups">
             @for (d of dimensions(); track d.dimension) {

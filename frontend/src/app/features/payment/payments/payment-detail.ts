@@ -33,6 +33,7 @@ import { allocationTarget, paymentActions, paymentTimeline, requestedTargetText 
 import { breakHoldBadge } from '../data/review-status';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Ficha do pagamento: valores e destinos (alocações com o resultado da baixa), linha do tempo dos
@@ -40,7 +41,7 @@ import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, InfoHint],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })

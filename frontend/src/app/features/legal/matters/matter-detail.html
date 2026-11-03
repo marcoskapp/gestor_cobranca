@@ -349,7 +349,7 @@
       <ng-template ngbNavContent>
         <div class="md-tab" data-tour="matter-deadlines">
           <div class="md-tabhead">
-            <p class="app-muted">Dias úteis com feriados, suspensões forenses e recesso; alertas em 5, 2 e 0 dias úteis.</p>
+            <p class="app-muted">Dias úteis com feriados, suspensões forenses e recesso; alertas em 5, 2 e 0 dias úteis. <app-info-hint indicator="legal.matter.deadline" label="Prazo processual" /></p>
             @if (canManage() && !final()) {
               <button class="btn btn-primary" type="button" (click)="createDeadline()"><app-icon name="plus-lg" /> Novo prazo</button>
             }

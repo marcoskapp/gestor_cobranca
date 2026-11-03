@@ -65,12 +65,12 @@ export const MONITORING_REPORTS = 26;
           <app-status-chip domain="scoringMonitoring" [status]="l.status" />
         </div>
         <div class="st-kpis">
-          <app-kpi-card label="População" detail="Casos escorados no retrato">{{ int(l.population) }}</app-kpi-card>
-          <app-kpi-card label="PSI do score" [detail]="scorePsiDetail()">{{ metric(l.scorePsi) }}</app-kpi-card>
-          <app-kpi-card label="Alertas" [detail]="'Atenção ≥ ' + metric(warning()) + ' · alerta ≥ ' + metric(alert())">{{ int(l.alerts.length) }}</app-kpi-card>
+          <app-kpi-card label="População" info="scoring.monitoring.population" detail="Casos escorados no retrato">{{ int(l.population) }}</app-kpi-card>
+          <app-kpi-card label="PSI do score" info="scoring.monitoring.psi" data-tour="kpi-psi" [detail]="scorePsiDetail()">{{ metric(l.scorePsi) }}</app-kpi-card>
+          <app-kpi-card label="Alertas" info="scoring.monitoring.alerts" [detail]="'Atenção ≥ ' + metric(warning()) + ' · alerta ≥ ' + metric(alert())">{{ int(l.alerts.length) }}</app-kpi-card>
           @if (cohort(); as c) {
-            <app-kpi-card label="AUC realizada" [detail]="'Safra de ' + (c.referenceDate | appDate: 'date') + ' · ' + int(c.cases) + ' casos'">{{ metric(c.auc) }}</app-kpi-card>
-            <app-kpi-card label="Prevista × observada" [detail]="'Taxa observada ' + percent(c.observedRate)">{{ percent(c.meanPredicted) }}</app-kpi-card>
+            <app-kpi-card label="AUC realizada" info="scoring.monitoring.realized-auc" data-tour="kpi-auc" [detail]="'Safra de ' + (c.referenceDate | appDate: 'date') + ' · ' + int(c.cases) + ' casos'">{{ metric(c.auc) }}</app-kpi-card>
+            <app-kpi-card label="Prevista × observada" info="scoring.monitoring.calibration" data-tour="kpi-calibration" [detail]="'Taxa observada ' + percent(c.observedRate)">{{ percent(c.meanPredicted) }}</app-kpi-card>
           }
         </div>
         @if (l.alerts.length) {
@@ -92,6 +92,7 @@ export const MONITORING_REPORTS = 26;
         <section class="app-card">
           <app-column-chart
             title="PSI do score por retrato"
+            info="scoring.monitoring.psi"
             [summary]="psiSummary()"
             [series]="{ name: 'PSI do score', color: '--app-chart-1' }"
             [rows]="psiRows()"
@@ -102,6 +103,7 @@ export const MONITORING_REPORTS = 26;
         <section class="app-card">
           <app-column-chart
             title="AUC realizada por safra"
+            info="scoring.monitoring.realized-auc"
             [summary]="aucSummary()"
             [series]="{ name: 'AUC realizada do campeão', color: '--app-chart-1' }"
             [rows]="aucRows()"
@@ -114,6 +116,7 @@ export const MONITORING_REPORTS = 26;
         <section class="app-card">
           <app-bar-chart
             title="PSI por variável no último retrato"
+            info="scoring.monitoring.feature-psi"
             summary="Quanto a distribuição de cada variável mudou em relação ao treino; acima do limite de alerta, reavalie o modelo."
             categoryHeader="Variável"
             noteHeader="Situação"
@@ -124,6 +127,7 @@ export const MONITORING_REPORTS = 26;
         <section class="app-card">
           <app-bar-chart
             [title]="cohort() ? 'Calibração da safra de ' + (cohort()!.referenceDate | appDate: 'date') : 'Calibração por faixa'"
+            info="scoring.model.calibration"
             [summary]="calibrationText()"
             categoryHeader="Faixa"
             noteHeader="Casos"
@@ -244,8 +248,8 @@ export class StabilityPanel {
   protected readonly columns: TableColumn[] = [
     { key: 'referenceDate', header: 'Retrato' },
     { key: 'status', header: 'Situação' },
-    { key: 'population', header: 'População', align: 'end' },
-    { key: 'scorePsi', header: 'PSI do score', align: 'end' },
+    { key: 'population', header: 'População', align: 'end', info: 'scoring.monitoring.population' },
+    { key: 'scorePsi', header: 'PSI do score', align: 'end', info: 'scoring.monitoring.psi' },
     { key: 'alerts', header: 'Alertas' },
     { key: 'run', header: 'Origem' },
   ];

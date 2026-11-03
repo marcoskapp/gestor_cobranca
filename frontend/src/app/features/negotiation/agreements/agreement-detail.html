@@ -68,13 +68,13 @@
       <section class="app-card" aria-labelledby="ad-values">
         <h2 class="app-card__title" id="ad-values">Valores</h2>
         <div class="pd-kpis">
-          <div class="pd-kpi"><span class="pd-kpi__label">Total do acordo</span><span class="pd-kpi__value"><app-amount [value]="a.totalAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Pago</span><span class="pd-kpi__value"><app-amount [value]="a.paidAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Saldo</span><span class="pd-kpi__value"><app-amount [value]="a.remainingAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Desconto</span><span class="pd-kpi__value"><app-amount [value]="a.discountAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Total do acordo <app-info-hint indicator="negotiation.sim.offer-total" label="Total do acordo" /></span><span class="pd-kpi__value"><app-amount [value]="a.totalAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Pago <app-info-hint indicator="negotiation.agreement.paid" label="Pago" /></span><span class="pd-kpi__value"><app-amount [value]="a.paidAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Saldo <app-info-hint indicator="negotiation.agreement.remaining" label="Saldo" /></span><span class="pd-kpi__value"><app-amount [value]="a.remainingAmount" /></span></div>
+          <div class="pd-kpi"><span class="pd-kpi__label">Desconto <app-info-hint indicator="negotiation.sim.discount" label="Desconto" /></span><span class="pd-kpi__value"><app-amount [value]="a.discountAmount" /></span></div>
         </div>
         <dl class="app-definition-list">
-          <dt>Dívida atualizada</dt>
+          <dt>Dívida atualizada <app-info-hint indicator="negotiation.sim.updated-debt" label="Dívida atualizada" /></dt>
           <dd><app-amount [value]="a.updatedAmount" /></dd>
           <dt>Valor negociado</dt>
           <dd><app-amount [value]="a.negotiatedAmount" /></dd>
@@ -82,10 +82,10 @@
             <dt>Entrada</dt>
             <dd><app-amount [value]="a.downPayment" /></dd>
           }
-          <dt>Juros do parcelamento</dt>
+          <dt>Juros do parcelamento <app-info-hint indicator="negotiation.sim.financing-interest" label="Juros do parcelamento" /></dt>
           <dd><app-amount [value]="a.financingInterest" /></dd>
           @if (a.incrementalAmount !== null && a.renegotiationNumber > 0) {
-            <dt>Ganho da renegociação</dt>
+            <dt>Ganho da renegociação <app-info-hint indicator="negotiation.agreement.incremental" label="Ganho da renegociação" /></dt>
             <dd><app-amount [value]="a.incrementalAmount" /></dd>
           }
         </dl>
@@ -195,7 +195,7 @@
       <section class="app-card" aria-labelledby="ad-terms">
         <h2 class="app-card__title" id="ad-terms">Regras do acordo</h2>
         <dl class="app-definition-list">
-          <dt>Quebra</dt>
+          <dt>Quebra <app-info-hint indicator="negotiation.agreement.break-rule" label="Quebra" /></dt>
           <dd>{{ a.breakRule.overdueInstallments }} parcela(s) vencida(s) há mais de {{ a.breakRule.toleranceDays }} dia(s)</dd>
           <dt>Política</dt>
           <dd>v{{ a.policyVersion }} · nível {{ a.concessionLevel }}</dd>

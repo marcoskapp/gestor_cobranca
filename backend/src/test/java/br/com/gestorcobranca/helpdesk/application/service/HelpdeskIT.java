@@ -249,6 +249,8 @@ class HelpdeskIT extends CommunicationTestSupport {
         String context = model.requests.getFirst().contextDocument();
         assertThat(context).contains("Estação de cobrança").contains("collection.queue")
                 .doesNotContain("\"tela\":\"admin.users\"");
+        // e a informação contextual dos indicadores da tela, com o mesmo texto do "i"
+        assertThat(context).contains("\"indicadores\"").contains("scoring.case.score").contains("Score e faixa");
         assertThat(model.requests.getFirst().tools()).extracting(t -> t.name())
                 .contains("buscar_devedor", "situacao_casos", "minhas_pendencias").doesNotContain("status_importacao");
 

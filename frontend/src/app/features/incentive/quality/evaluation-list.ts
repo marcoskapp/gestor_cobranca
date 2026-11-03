@@ -291,7 +291,7 @@ export class EvaluationList {
     { key: 'date', header: 'Atendimento' },
     { key: 'user', header: 'Negociador' },
     { key: 'form', header: 'Formulário' },
-    { key: 'score', header: 'Nota', align: 'end' },
+    { key: 'score', header: 'Nota', align: 'end', info: 'incentive.performance.qa-score' },
     { key: 'comments', header: 'Comentários' },
   ];
 

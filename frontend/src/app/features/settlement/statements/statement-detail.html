@@ -112,17 +112,17 @@
     <section class="app-card" aria-labelledby="sd-totals" data-tour="statement-totals">
       <h2 class="app-card__title" id="sd-totals">Totais do período</h2>
       <div class="st-kpis">
-        <div class="st-kpi"><span class="st-kpi__label">Recebido na assessoria</span><span class="st-kpi__value"><app-amount [value]="t.receivedByAgency" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Pago direto ao credor</span><span class="st-kpi__value"><app-amount [value]="t.receivedByCreditor" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Estornos</span><span class="st-kpi__value"><app-amount [value]="t.reversed" [signed]="true" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Recuperado líquido</span><span class="st-kpi__value"><app-amount [value]="t.recovered" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Honorários da assessoria</span><span class="st-kpi__value"><app-amount [value]="t.agencyHonorarium" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Comissão</span><span class="st-kpi__value"><app-amount [value]="t.commission" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Valores fixos</span><span class="st-kpi__value"><app-amount [value]="t.fixedFees" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Custas deduzidas</span><span class="st-kpi__value"><app-amount [value]="t.expenses" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Ajustes</span><span class="st-kpi__value"><app-amount [value]="t.adjustments" [signed]="true" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Recebido na assessoria <app-info-hint indicator="settlement.statement.received-agency" label="Recebido na assessoria" /></span><span class="st-kpi__value"><app-amount [value]="t.receivedByAgency" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Pago direto ao credor <app-info-hint indicator="settlement.statement.received-creditor" label="Pago direto ao credor" /></span><span class="st-kpi__value"><app-amount [value]="t.receivedByCreditor" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Estornos <app-info-hint indicator="settlement.statement.reversals" label="Estornos" /></span><span class="st-kpi__value"><app-amount [value]="t.reversed" [signed]="true" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Recuperado líquido <app-info-hint indicator="settlement.statement.recovered" label="Recuperado líquido" /></span><span class="st-kpi__value"><app-amount [value]="t.recovered" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Honorários da assessoria <app-info-hint indicator="settlement.statement.honorarium" label="Honorários da assessoria" /></span><span class="st-kpi__value"><app-amount [value]="t.agencyHonorarium" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Comissão <app-info-hint indicator="settlement.statement.commission" label="Comissão" /></span><span class="st-kpi__value"><app-amount [value]="t.commission" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Valores fixos <app-info-hint indicator="settlement.statement.fixed-fees" label="Valores fixos" /></span><span class="st-kpi__value"><app-amount [value]="t.fixedFees" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Custas deduzidas <app-info-hint indicator="settlement.statement.expenses" label="Custas deduzidas" /></span><span class="st-kpi__value"><app-amount [value]="t.expenses" /></span></div>
+        <div class="st-kpi"><span class="st-kpi__label">Ajustes <app-info-hint indicator="settlement.statement.adjustments" label="Ajustes" /></span><span class="st-kpi__value"><app-amount [value]="t.adjustments" [signed]="true" /></span></div>
         <div class="st-kpi st-kpi--total">
-          <span class="st-kpi__label">{{ t.netTransfer < 0 ? 'Credor deve à assessoria' : 'Líquido a repassar' }}</span>
+          <span class="st-kpi__label">{{ t.netTransfer < 0 ? 'Credor deve à assessoria' : 'Líquido a repassar' }} <app-info-hint indicator="settlement.statement.net" label="Líquido a repassar" /></span>
           <span class="st-kpi__value"><app-amount [value]="t.netTransfer" [signed]="true" /></span>
         </div>
       </div>
@@ -133,7 +133,7 @@
           · já {{ t.netTransfer < 0 ? 'recebido' : 'repassado' }} <app-amount [value]="t.transferred" /> · saldo <app-amount [value]="t.outstanding" />
         }
       </p>
-      <h3 class="app-section-title">Informativos (não entram no líquido)</h3>
+      <h3 class="app-section-title">Informativos (não entram no líquido) <app-info-hint indicator="settlement.statement.informative" label="Informativos" /></h3>
       <dl class="app-definition-list">
         <dt>Valor negociado em acordos</dt>
         <dd><app-amount [value]="t.negotiated" /> <span class="app-muted st-small">&nbsp;— acordo não pago não é recuperação</span></dd>

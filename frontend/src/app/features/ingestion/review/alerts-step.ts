@@ -14,6 +14,7 @@ import { ImportReviewsApi } from '../data/ingestion.api';
 import { AlertDecision, AlertStatus, AlertType, AlertView, AnalysisView, ReviewView } from '../data/ingestion.models';
 import { ALERT_TYPE_LABELS, REFERENCE_LABELS, REVIEW_ERROR_LABELS } from '../data/review.rules';
 import { Icon } from '../../../shared/components/icon/icon';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /** Texto da referência estatística usada (resumo da análise). */
 export function referenceSummary(references: Record<string, unknown>): string | null {
@@ -35,7 +36,7 @@ export function referenceSummary(references: Record<string, unknown>): string | 
  */
 @Component({
   selector: 'app-alerts-step',
-  imports: [Icon, DecimalPipe, Amount, CellDef, DataTable, Skeleton, StatusChip],
+  imports: [Icon, DecimalPipe, Amount, CellDef, DataTable, Skeleton, StatusChip, InfoHint],
   template: `
     @let a = review().analysis;
     @if (a.status === 'NOT_STARTED' || a.status === 'PENDING') {
@@ -46,6 +47,7 @@ export function referenceSummary(references: Record<string, unknown>): string | 
     } @else {
       <p class="as-intro">
         Valores muito acima ou abaixo do esperado para esta carteira, e outros sinais de erro de digitação ou de separador decimal. Confira cada um na sua planilha.
+        <app-info-hint indicator="ingestion.review.alerts" label="Alertas de valor" />
         @if (reference()) {
           <span class="app-muted">Comparado com: {{ reference() }}.</span>
         }
@@ -229,7 +231,7 @@ export class AlertsStep {
     { key: 'row', header: 'Linha', align: 'end' as const },
     { key: 'type', header: 'Alerta' },
     { key: 'amount', header: 'Valor', align: 'end' as const },
-    { key: 'range', header: 'Faixa esperada' },
+    { key: 'range', header: 'Faixa esperada', info: 'ingestion.review.expected-range' },
     { key: 'detail', header: 'Detalhe' },
     { key: 'status', header: 'Situação' },
   ]);

@@ -43,6 +43,7 @@ import {
   sortedTerms,
 } from '../data/scoring.rules';
 import { DecisionDialog, DecisionDialogData } from './decision-dialog';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Ficha do modelo: métricas de validação fora do tempo (AUC/Gini, KS, Brier, calibração por faixa e
@@ -51,7 +52,7 @@ import { DecisionDialog, DecisionDialogData } from './decision-dialog';
  */
 @Component({
   selector: 'app-model-detail',
-  imports: [Icon, RouterLink, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, BarChart, KpiCard, ScopeNotice],
+  imports: [Icon, RouterLink, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, BarChart, KpiCard, ScopeNotice, InfoHint],
   templateUrl: './model-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './model-detail.scss'],
 })

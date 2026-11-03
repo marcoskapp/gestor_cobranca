@@ -28,6 +28,7 @@ import { blockText, mergeTimeline, newInbound, senderText, slaHint, slaTone, wai
 import { InboxStream } from '../data/inbox-stream';
 import { AssignConversationDialog, ConversationDialogData, IdentifyDialog } from './conversation-dialogs';
 import { Composer } from './composer';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /** Intervalo de atualização da conversa aberta sem tempo real (sem som; anúncio discreto para leitores de tela). */
 export const CONVERSATION_REFRESH_MS = 15_000;
@@ -54,6 +55,7 @@ export const TIMELINE_PAGE_SIZE = 100;
     StatusChip,
     AppDatePipe,
     Composer,
+    InfoHint,
   ],
   templateUrl: './conversation-panel.html',
   styleUrl: './conversation-panel.scss',

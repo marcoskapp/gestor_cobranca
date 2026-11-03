@@ -33,6 +33,7 @@ import { ACTION_LABELS, CHANNEL_LABELS, END_REASON_LABELS, PAUSE_REASON_LABELS, 
 import { ContactChannel, EnrollmentFilter, EnrollmentView } from '../data/campaign.models';
 import { breakdown, count, enrollmentReason, failureText, share } from '../data/campaign.rules';
 import { EnrollmentDialog, EnrollmentDialogData } from './enrollment-dialog';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Painel de execução da campanha (denominadores explícitos) e lista de inscrições com estado e
@@ -40,7 +41,7 @@ import { EnrollmentDialog, EnrollmentDialogData } from './enrollment-dialog';
  */
 @Component({
   selector: 'app-execution-page',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, Amount, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs],
+  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, Amount, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs, InfoHint],
   templateUrl: './execution-page.html',
   styleUrl: './execution-page.scss',
 })

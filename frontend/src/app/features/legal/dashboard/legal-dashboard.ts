@@ -21,6 +21,7 @@ import { DEADLINE_KIND_LABELS, STAGE_ORDER } from '../data/legal.labels';
 import { DeadlineView } from '../data/legal.models';
 import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
 import { Icon } from '../../../shared/components/icon/icon';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Painel jurídico: casos por fase com dívida, custas e valor recuperado; prazos que vencem nos
@@ -28,7 +29,7 @@ import { Icon } from '../../../shared/components/icon/icon';
  */
 @Component({
   selector: 'app-legal-dashboard',
-  imports: [Icon, ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe],
+  imports: [Icon, ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, InfoHint],
   template: `
     <app-page-header title="Jurídico" subtitle="Casos por fase, prazos a vencer e perdidos, custas e valores recuperados.">
       <a class="btn btn-primary" routerLink="/juridico/casos">
@@ -65,30 +66,30 @@ import { Icon } from '../../../shared/components/icon/icon';
           <span class="ld-kpi__value app-numeric">{{ b.openMatters }}</span>
         </a>
         <div class="ld-kpi">
-          <span class="ld-kpi__label">Dívida em aberto</span>
+          <span class="ld-kpi__label">Dívida em aberto <app-info-hint indicator="legal.dashboard.open-debt" label="Dívida em aberto" /></span>
           <span class="ld-kpi__value"><app-amount [value]="b.openDebtAmount" [compact]="true" /></span>
         </div>
         <div class="ld-kpi">
-          <span class="ld-kpi__label">Custas e despesas</span>
+          <span class="ld-kpi__label">Custas e despesas <app-info-hint indicator="legal.dashboard.expenses" label="Custas e despesas" /></span>
           <span class="ld-kpi__value"><app-amount [value]="b.expensesTotal" [compact]="true" /></span>
         </div>
         <div class="ld-kpi">
-          <span class="ld-kpi__label">Valor recuperado</span>
+          <span class="ld-kpi__label">Valor recuperado <app-info-hint indicator="legal.dashboard.recovered" label="Valor recuperado" /></span>
           <span class="ld-kpi__value"><app-amount [value]="b.recoveredAmount" [compact]="true" /></span>
         </div>
         <div class="ld-kpi" [class.ld-kpi--warn]="b.deadlinesDueSoon > 0">
-          <span class="ld-kpi__label">Prazos próximos</span>
+          <span class="ld-kpi__label">Prazos próximos <app-info-hint indicator="legal.dashboard.deadlines-soon" label="Prazos próximos" /></span>
           <span class="ld-kpi__value app-numeric">{{ b.deadlinesDueSoon }}</span>
         </div>
         <div class="ld-kpi" [class.ld-kpi--late]="b.deadlinesMissed > 0">
-          <span class="ld-kpi__label">Prazos perdidos</span>
+          <span class="ld-kpi__label">Prazos perdidos <app-info-hint indicator="legal.dashboard.deadlines-missed" label="Prazos perdidos" /></span>
           <span class="ld-kpi__value app-numeric">{{ b.deadlinesMissed }}</span>
         </div>
       </section>
 
       <div class="ld-grid">
         <section class="app-card" aria-labelledby="ld-stages" data-tour="legal-stages">
-          <h2 class="app-card__title" id="ld-stages">Casos por fase</h2>
+          <h2 class="app-card__title" id="ld-stages">Casos por fase <app-info-hint indicator="legal.dashboard.stages" label="Casos por fase" /></h2>
           <div class="ld-scroll">
             <table class="ld-table" aria-label="Casos por fase">
               <thead>
@@ -97,7 +98,7 @@ import { Icon } from '../../../shared/components/icon/icon';
                   <th scope="col" class="ld-end">Casos</th>
                   <th scope="col" class="ld-end">Dívida</th>
                   <th scope="col" class="ld-end">Custas</th>
-                  <th scope="col" class="ld-end">Recuperado</th>
+                  <th scope="col" class="ld-end">Recuperado <app-info-hint indicator="legal.dashboard.recovered" label="Valor recuperado no jurídico" /></th>
                 </tr>
               </thead>
               <tbody>

@@ -20,6 +20,7 @@ import { BarChart } from '../components/bar-chart';
 import { AssistantReviewApi } from '../data/assistant.api';
 import { AGREEMENT_GROUP_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, PIX_DENIAL_LABELS } from '../data/assistant.labels';
 import { Bar, bars, fractionText } from '../data/assistant.rules';
+import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 interface QualityFilter {
   from: string | null;
@@ -35,7 +36,7 @@ interface QualityFilter {
  */
 @Component({
   selector: 'app-quality-panel',
-  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, NgbInputDatepicker, Icon, AppDatePipe, BarChart, EmptyState, EntityPicker, PageHeader, Skeleton],
+  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, NgbInputDatepicker, Icon, AppDatePipe, BarChart, EmptyState, EntityPicker, PageHeader, Skeleton, InfoHint],
   template: `
     <app-page-header title="Qualidade do assistente" subtitle="Resultado do assistente comparado aos humanos, para decidir carteira a carteira quando avançar de fase ou ampliar a alçada." />
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar qualidade">
@@ -74,32 +75,32 @@ interface QualityFilter {
     } @else if (q(); as v) {
       <p class="app-muted qp-small">{{ v.from | appDate: 'date' }} a {{ v.to | appDate: 'date' }} · {{ num(v.conversations) }} conversa(s), {{ num(v.turns) }} turno(s)</p>
       <section class="qp-kpis" aria-label="Indicadores do período" data-tour="quality-kpis">
-        <div class="qp-kpi"><span class="qp-kpi__label">Transferência para humano</span><span class="qp-kpi__value">{{ fraction(v.handoffRate) }}</span><span class="qp-kpi__hint">das conversas atendidas</span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Reclamações</span><span class="qp-kpi__value app-numeric">{{ v.complaints }}</span><span class="qp-kpi__hint">Procon, advogado, ouvidoria ou opt-out</span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Custo por acordo</span><span class="qp-kpi__value app-numeric">{{ money(v.costPerAgreement, v.costCurrency) }}</span><span class="qp-kpi__hint">total {{ money(v.cost, v.costCurrency) }}</span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Revisões</span><span class="qp-kpi__value app-numeric">{{ v.avgScore !== null ? score(v.avgScore) + '/5' : '—' }}</span><span class="qp-kpi__hint">{{ v.reviewed }} avaliadas · {{ v.outOfPolicy }} fora da política · <a routerLink="/assistente/revisao">{{ v.pendingReviews }} pendentes</a></span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Latência média</span><span class="qp-kpi__value app-numeric">{{ num(v.avgLatencyMs) }} ms</span><span class="qp-kpi__hint">{{ num(v.inputTokens + v.outputTokens) }} tokens</span></div>
+        <div class="qp-kpi"><span class="qp-kpi__label">Transferência para humano <app-info-hint indicator="assistant.quality.handoff-rate" label="Transferência para humano" /></span><span class="qp-kpi__value">{{ fraction(v.handoffRate) }}</span><span class="qp-kpi__hint">das conversas atendidas</span></div>
+        <div class="qp-kpi"><span class="qp-kpi__label">Reclamações <app-info-hint indicator="assistant.quality.complaints" label="Reclamações" /></span><span class="qp-kpi__value app-numeric">{{ v.complaints }}</span><span class="qp-kpi__hint">Procon, advogado, ouvidoria ou opt-out</span></div>
+        <div class="qp-kpi"><span class="qp-kpi__label">Custo por acordo <app-info-hint indicator="assistant.quality.cost-per-agreement" label="Custo por acordo" /></span><span class="qp-kpi__value app-numeric">{{ money(v.costPerAgreement, v.costCurrency) }}</span><span class="qp-kpi__hint">total {{ money(v.cost, v.costCurrency) }}</span></div>
+        <div class="qp-kpi"><span class="qp-kpi__label">Revisões <app-info-hint indicator="assistant.quality.reviews" label="Revisões" /></span><span class="qp-kpi__value app-numeric">{{ v.avgScore !== null ? score(v.avgScore) + '/5' : '—' }}</span><span class="qp-kpi__hint">{{ v.reviewed }} avaliadas · {{ v.outOfPolicy }} fora da política · <a routerLink="/assistente/revisao">{{ v.pendingReviews }} pendentes</a></span></div>
+        <div class="qp-kpi"><span class="qp-kpi__label">Latência média <app-info-hint indicator="assistant.quality.latency" label="Latência média" /></span><span class="qp-kpi__value app-numeric">{{ num(v.avgLatencyMs) }} ms</span><span class="qp-kpi__hint">{{ num(v.inputTokens + v.outputTokens) }} tokens</span></div>
       </section>
       <div class="qp-grid">
         <section class="app-card qp-card" data-tour="quality-handoffs">
-          <app-bar-chart title="Transferências por motivo" [data]="handoffs()" empty="Nenhuma transferência no período." />
+          <app-bar-chart title="Transferências por motivo" info="assistant.quality.handoff-rate" [data]="handoffs()" empty="Nenhuma transferência no período." />
         </section>
         <section class="app-card qp-card" data-tour="quality-origin">
-          <app-bar-chart title="Acordos por origem" [data]="origins()" empty="Nenhum acordo no período." />
+          <app-bar-chart title="Acordos por origem" info="assistant.quality.origins" [data]="origins()" empty="Nenhum acordo no período." />
         </section>
         <section class="app-card qp-card" data-tour="quality-break">
-          <app-bar-chart [title]="'Quebra precoce (até ' + v.earlyBreakDays + ' dias): assistente × humanos'" [data]="earlyBreak()" highlight="ASSISTANT" [format]="breakFormat" empty="Sem acordos formalizados no período." />
+          <app-bar-chart [title]="'Quebra precoce (até ' + v.earlyBreakDays + ' dias): assistente × humanos'" info="assistant.quality.early-break" [data]="earlyBreak()" highlight="ASSISTANT" [format]="breakFormat" empty="Sem acordos formalizados no período." />
           <p class="app-muted qp-small">Critério de avanço: a quebra com o assistente igual ou menor que a dos humanos.</p>
         </section>
         <section class="app-card qp-card">
-          <app-bar-chart title="Guardrails acionados" [data]="guardrails()" empty="Nenhum guardrail acionado." />
+          <app-bar-chart title="Guardrails acionados" info="assistant.quality.guardrails" [data]="guardrails()" empty="Nenhum guardrail acionado." />
         </section>
         <section class="app-card qp-card">
-          <app-bar-chart title="Acordos: com o assistente × só humanos" [data]="groups()" highlight="ASSISTANT" empty="Nenhum acordo no período." />
+          <app-bar-chart title="Acordos: com o assistente × só humanos" info="assistant.quality.origins" [data]="groups()" highlight="ASSISTANT" empty="Nenhum acordo no período." />
         </section>
         @if (v.pix; as pix) {
           <section class="app-card qp-card" data-tour="quality-pix">
-            <app-bar-chart title="Pix na conversa: recusas por motivo" [data]="pixDenied()" empty="Nenhuma recusa de Pix no período." />
+            <app-bar-chart title="Pix na conversa: recusas por motivo" info="assistant.quality.pix" [data]="pixDenied()" empty="Nenhuma recusa de Pix no período." />
             <p class="app-muted qp-small">{{ pix.issued }} gerado(s) · {{ pix.delivered }} entregue(s) · {{ pix.suggested }} sugerido(s) · {{ pix.paid }} pago(s), {{ pix.paidWithin24h }} em até 24 h · conversão gerado → pago {{ fraction(pix.conversionRate) }} ({{ fraction(pix.paidWithin24hRate) }} em 24 h)</p>
           </section>
         }
