@@ -89,7 +89,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
   {
     id: 'negotiation.agreement.remaining',
     title: 'Saldo do acordo',
-    what: 'Quanto falta pagar do acordo.',
+    what: 'Quanto ainda falta o devedor pagar do acordo.',
     how: 'Total do acordo menos o que já foi pago.',
     use: 'É o valor ainda em risco. Com parcelas vencidas, gere o Pix da parcela e contate o devedor antes da quebra.',
     screens: ['negotiation.agreement-detail'],

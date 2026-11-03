@@ -27,7 +27,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     id: 'payment.detail.unallocated',
     title: 'Sobra',
     what: 'Parte do pagamento que não coube em nenhum destino (acordo encerrado, destino já quitado ou valor acima do saldo).',
-    how: 'Valor pago menos o alocado.',
+    how: 'Valor pago menos a parte já alocada aos destinos do devedor.',
     use: 'Sobra parada é dinheiro do devedor sem destino: realoque para outro acordo ou título, ou devolva, na tela de sobras.',
     screens: ['payment.detail', 'payment.reallocation'],
   },

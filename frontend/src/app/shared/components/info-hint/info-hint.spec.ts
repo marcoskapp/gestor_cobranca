@@ -63,6 +63,11 @@ describe('InfoHint (informação contextual de indicador)', () => {
     vi.useRealTimers();
     await settle(fixture);
 
+    // o texto vem do catálogo carregado sob demanda (chunk do módulo)
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(popover()?.textContent).toContain('O que é');
+    });
     const pop = popover();
     expect(pop).not.toBeNull();
     expect(button.getAttribute('aria-expanded')).toBe('true');
@@ -179,8 +184,10 @@ describe('InfoHint (informação contextual de indicador)', () => {
   it('indicador fora do catálogo mostra aviso em vez de quebrar', async () => {
     const other = (fixture.nativeElement as HTMLElement).querySelector('[data-indicator="analytics.nao.existe"]') as HTMLButtonElement;
     other.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
-    await settle(fixture);
-    expect(popover()!.textContent).toContain('Explicação ainda não disponível');
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(popover()!.textContent).toContain('Explicação ainda não disponível');
+    });
     expect(popover()!.querySelector('a')).toBeNull();
   });
 });

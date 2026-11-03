@@ -21,6 +21,9 @@ describe('ProposalDetail', () => {
   let permissions: string[];
 
   beforeEach(() => {
+    // a proposta de exemplo vale até 28/10/2026: a data do teste fica fixa para ela não expirar com o calendário
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-23T12:00:00-03:00'));
     permissions = ['AGREEMENT_VIEW', 'NEGOTIATION_PROPOSE', 'NEGOTIATION_APPROVE', 'AGREEMENT_FORMALIZE', 'DEBTOR_VIEW', 'NEGOTIATION_SIMULATE'];
     TestBed.configureTestingModule({
       imports: [ProposalDetail],
@@ -43,7 +46,10 @@ describe('ProposalDetail', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    vi.useRealTimers();
+  });
 
   function respond(view: ProposalView): void {
     for (let i = 0; i < 4; i++) {

@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "22e7031b4d659bd9",
+ "contentVersion": "10d18eff3f33f481",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -8057,7 +8057,7 @@
    "module": "pagamentos",
    "title": "Sobra",
    "what": "Parte do pagamento que não coube em nenhum destino (acordo encerrado, destino já quitado ou valor acima do saldo).",
-   "how": "Valor pago menos o alocado.",
+   "how": "Valor pago menos a parte já alocada aos destinos do devedor.",
    "use": "Sobra parada é dinheiro do devedor sem destino: realoque para outro acordo ou título, ou devolva, na tela de sobras.",
    "screens": [
     "payment.detail",
@@ -8278,7 +8278,7 @@
    "id": "negotiation.agreement.remaining",
    "module": "negociacao",
    "title": "Saldo do acordo",
-   "what": "Quanto falta pagar do acordo.",
+   "what": "Quanto ainda falta o devedor pagar do acordo.",
    "how": "Total do acordo menos o que já foi pago.",
    "use": "É o valor ainda em risco. Com parcelas vencidas, gere o Pix da parcela e contate o devedor antes da quebra.",
    "screens": [

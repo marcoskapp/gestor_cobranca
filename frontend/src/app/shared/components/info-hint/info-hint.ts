@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, ElementRef, inject, input, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgbPopover } from '@ng-bootstrap/ng-bootstrap';
+import type { Options } from '@popperjs/core';
 import { IndicatorHelp } from '../../../core/onboarding/manual/indicators/indicator.models';
 import { indicatorManualLink, loadIndicator } from '../../../core/onboarding/manual/indicators/indicator-index';
 import { Icon } from '../icon/icon';
@@ -46,6 +47,7 @@ const POINTER_FOCUS_MS = 600;
       container="body"
       placement="top bottom end start"
       popoverClass="app-info-popover"
+      [popperOptions]="popperOptions"
       [attr.aria-label]="'Sobre: ' + label()"
       [attr.aria-expanded]="open()"
       [attr.data-indicator]="indicator()"
@@ -179,6 +181,12 @@ export class InfoHint {
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
   private readonly popover = viewChild.required<NgbPopover>('popover');
   private readonly content = viewChild<ElementRef<HTMLElement>>('content');
+
+  /** Margem de 12 px entre o balão e as bordas da janela (no celular o balão não encosta na tela). */
+  protected readonly popperOptions = (options: Partial<Options>): Partial<Options> => ({
+    ...options,
+    modifiers: [...(options.modifiers ?? []), { name: 'preventOverflow', options: { padding: 12 } }, { name: 'flip', options: { padding: 12 } }],
+  });
 
   protected readonly open = signal(false);
   protected readonly state = signal<LoadState>('idle');
