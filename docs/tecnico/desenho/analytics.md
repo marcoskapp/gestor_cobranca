@@ -122,7 +122,8 @@ Exportação: formato longo (`secao;chave;rotulo;indicador;valor;numerador;denom
 - Cartões de KPI sempre com a base ("R$ 1.100,00 de R$ 4.000,00"); indicador indisponível mostra o motivo.
 - Filtros numa barra única acima dos gráficos, **persistidos na URL** (`de`, `ate`, `credor`, `carteira`, `operador`, `equipe`, `canal`, `agrupar`; valores malformados descartados), preservados ao trocar de painel; seletor de pessoas só para quem vê usuários. Recarga mantém o conteúdo anterior com opacidade reduzida (sem salto de layout).
 - Carimbo "Dados até …" com "Atualizar agora"; exportação XLSX/CSV no cabeçalho para quem tem `REPORT_EXPORT`.
-- Tour `analytics.panels` (5 passos) e notas de versão 6.
+- Tour próprio por painel (`analytics.operational`, `analytics.recovery`, `analytics.conversion`, `analytics.productivity`, `analytics.reliability`, até 6 passos cada, com passos nos cartões e no "i"), que substituiu o tour único `analytics.panels`; notas de versão 6 e 12.
+- Informação contextual ("i") em cada cartão, gráfico e coluna de tabela, com os textos do catálogo `analytics.*` (ux.md §8.6).
 
 ## 8. Logs e métricas
 
