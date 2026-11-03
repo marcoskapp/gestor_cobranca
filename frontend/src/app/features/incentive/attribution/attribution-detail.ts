@@ -50,7 +50,7 @@ import { pct } from '../data/incentive.rules';
         }
       </app-page-header>
       <div class="in-grid">
-        <div class="in-main">
+        <div class="in-main app-stack">
           <section class="app-card" aria-labelledby="at-credits">
             <h2 class="app-card__title" id="at-credits">Créditos</h2>
             @if (a.credits.length === 0) {
@@ -98,7 +98,7 @@ import { pct } from '../data/incentive.rules';
             </ul>
           </section>
         </div>
-        <aside class="in-side">
+        <aside class="in-side app-stack">
           <section class="app-card" aria-labelledby="at-facts">
             <h2 class="app-card__title" id="at-facts">Dados do acordo</h2>
             <dl class="app-definition-list">

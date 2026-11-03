@@ -106,9 +106,32 @@ body {
   border-radius: var(--bs-border-radius-lg);
   background: var(--app-surface);
 
+  // Cartões empilhados no fluxo normal da página. Em grade ou flex o espaço é o `gap` do contêiner:
+  // use `.app-columns`/`.app-stack` abaixo (nunca zere esta margem tela a tela).
   & + & {
     margin-top: var(--app-gap);
   }
+}
+
+// Leiaute de cartões. Num contêiner grid/flex a margem entre irmãos (`.app-card + .app-card`) desceria
+// só o segundo cartão da linha (cartões lado a lado desalinhados) e somaria ao `gap` numa coluna; nestes
+// contêineres o espaçamento vem só do `gap` e os cartões filhos diretos não recebem a margem.
+// - `.app-columns`: grade; as colunas (`grid-template-columns`, quebras por largura) ficam com a tela.
+// - `.app-stack`: coluna de cartões (coluna principal ou lateral de uma ficha).
+.app-columns {
+  display: grid;
+  gap: var(--app-gap);
+}
+
+.app-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-gap);
+  min-width: 0;
+}
+
+:is(.app-columns, .app-stack) > .app-card {
+  margin-top: 0;
 }
 
 .app-card__title {

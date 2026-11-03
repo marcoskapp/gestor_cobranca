@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.legal.web;
 
+import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases;
+import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases.AssigneeView;
+import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases.Purpose;
 import br.com.gestorcobranca.legal.application.port.in.LawFirmUseCases;
 import br.com.gestorcobranca.legal.application.port.in.LawFirmUseCases.LawFirmView;
 import br.com.gestorcobranca.legal.application.port.in.LawFirmUseCases.MemberView;
@@ -68,15 +71,37 @@ class LegalOperationsController {
     private final LegalExpenseUseCases expenses;
     private final LawFirmUseCases firms;
     private final LegalDocumentUseCases documents;
+    private final LegalAssigneeUseCases assignees;
     private final CurrentActor currentActor;
 
     LegalOperationsController(LegalDeadlineUseCases deadlines, LegalExpenseUseCases expenses, LawFirmUseCases firms,
-                              LegalDocumentUseCases documents, CurrentActor currentActor) {
+                              LegalDocumentUseCases documents, LegalAssigneeUseCases assignees,
+                              CurrentActor currentActor) {
         this.deadlines = deadlines;
         this.expenses = expenses;
         this.firms = firms;
         this.documents = documents;
+        this.assignees = assignees;
         this.currentActor = currentActor;
+    }
+
+    // ---------------------------------------------------------------- usuários atribuíveis (decisão 686)
+
+    /**
+     * Busca restrita para os campos de responsável do jurídico: só id e nome dos usuários elegíveis ao campo, sem
+     * exigir {@code USER_VIEW}; paginada (até {@value LegalAssigneeUseCases#MAX_PAGE_SIZE} por página).
+     *
+     * @param ids ids separados por vírgula, para exibir o nome do que já está escolhido
+     */
+    @GetMapping("/assignable-users")
+    @PreAuthorize("hasAuthority('LEGAL_MANAGE')")
+    PageResponse<AssigneeView> assignableUsers(@RequestParam Purpose purpose,
+                                               @RequestParam(required = false) UUID matterId,
+                                               @RequestParam(required = false) String q,
+                                               @RequestParam(required = false) Set<UUID> ids,
+                                               @RequestParam(required = false) Integer page,
+                                               @RequestParam(required = false) Integer size) {
+        return assignees.search(purpose, matterId, q, ids, PageQuery.of(page, size));
     }
 
     // ---------------------------------------------------------------- prazos

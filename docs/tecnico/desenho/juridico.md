@@ -139,6 +139,7 @@ Para plugar um adaptador real (após aprovação — issues #13 e #14):
 | `GET/POST /eligibility-rules`, `GET/PUT /eligibility-rules/{id}`, `POST …/activate`, `…/deactivate`, `GET /eligibility/cases/{caseId}` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
 | `POST/GET /matters`, `GET /matters/{id}`, `…/sheet`, `…/history`, `…/agreements`, `…/collaterals`, `…/hearings`, `GET /dashboard` | `LEGAL_MANAGE` (indicação) / `LEGAL_VIEW` |
 | `GET /me` (vínculo do usuário com escritório parceiro: `external`, `lawFirmId`, `lawFirmName`, `firmActive`) | `LEGAL_VIEW` |
+| `GET /assignable-users?purpose=MATTER_RESPONSIBLE|DEADLINE_RESPONSIBLE|FIRM_MEMBER[&matterId][&q][&ids]` — usuários atribuíveis nos campos de responsável (só id e nome; decisão 686) | `LEGAL_MANAGE` |
 | `POST /matters/{id}/transitions`, `PUT /matters/{id}/responsible` | `LEGAL_MANAGE` (aceite da indicação também `LEGAL_AUTHORIZE`) |
 | `POST /matters/{id}/viability/preview`, `POST/GET /matters/{id}/viability` | `LEGAL_VIEW` / `LEGAL_MANAGE` |
 | `GET/POST /matters/{id}/authorizations`, `POST /authorizations/{id}/decision` | `LEGAL_VIEW` / `LEGAL_MANAGE` / `LEGAL_AUTHORIZE` |

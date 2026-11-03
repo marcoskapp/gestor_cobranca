@@ -13,6 +13,7 @@ Pré-requisitos (detalhes, versões mínimas, memória, disco e portas no [READM
 ./scripts/sandbox/up.sh --no-build # sobe de novo reaproveitando a imagem já construída
 ./scripts/sandbox/verify.sh        # verificação de fumaça: logins por perfil, volumes, isolamento entre assessorias e API pública
 ./scripts/sandbox/tokens.sh        # tokens de demonstração da API pública (segredos exibidos só aqui)
+./scripts/sandbox/audit.sh         # auditoria da interface perfil a perfil (§4c)
 ./scripts/sandbox/down.sh          # para, mantendo os dados
 ./scripts/sandbox/reset.sh         # apaga os volumes do sandbox e recria do zero (pede confirmação; --yes dispensa)
 ```
@@ -73,6 +74,21 @@ curl -s http://localhost:58080/api/v1/auth/login -H 'Content-Type: application/j
 ```
 
 A liberação existe só com o perfil Spring `sandbox` **e** `app.sandbox.api-docs.public=true` (definida em `application-sandbox.yml`), e a aplicação não sobe se o perfil `sandbox` for combinado com `prod` ou se `app.environment` ≠ `sandbox` (`SandboxProfileGuard`). Nos demais ambientes nada muda: a documentação interna exige login (local/homologação) e fica desligada em produção.
+
+### 2b. Acesso externo por túnel (Cloudflare Quick Tunnel)
+
+Para mostrar o sandbox a quem está fora da sua máquina, sem abrir porta nem ter conta na Cloudflare:
+
+```bash
+./scripts/sandbox/tunnel.sh          # sobe o túnel e mostra https://<aleatório>.trycloudflare.com
+./scripts/sandbox/tunnel.sh --stop   # derruba (a aplicação continua em http://localhost:58080)
+```
+
+O túnel é o serviço `tunnel` do próprio Compose (perfil `tunnel`, imagem `cloudflare/cloudflared` fixada em `SANDBOX_CLOUDFLARED_IMAGE`). Ele fala com a aplicação pela rede interna `edge` com IP fixo (`SANDBOX_TUNNEL_IP`, padrão `172.30.58.10`, na faixa `SANDBOX_EDGE_SUBNET`, padrão `172.30.58.0/24` — troque as duas se colidirem com a sua rede), e esse IP é o **único** proxy confiável da aplicação (`APP_HTTP_TRUSTED_PROXIES`). Assim a aplicação aceita o `X-Forwarded-Proto: https` e o `X-Forwarded-For` do túnel: reconhece a origem pública como a sua própria (login e renovação de sessão de mesma origem, sem liberar a origem no CORS) e registra no log de acesso e no limite de login o IP real de quem acessa (decisão 689).
+
+**Não use um `cloudflared` rodando direto na sua máquina** (`cloudflared tunnel --url http://127.0.0.1:58080`): a conexão chega à aplicação pelo encaminhamento de porta do Docker, de um endereço que ela não trata como proxy; o cabeçalho `X-Forwarded-Proto` é ignorado, a página vem por `https://…trycloudflare.com` mas a aplicação se vê em `http://…`, e o CORS recusa o login como origem cruzada (**403, "sem permissão"**). Confiar no gateway do Docker para contornar isso deixaria qualquer processo local forjar o IP do cliente — por isso o túnel roda dentro do Compose.
+
+**Atenção:** com o túnel no ar, qualquer pessoa com o endereço chega ao login, e a senha de demonstração é pública. Use só com os dados fictícios e derrube ao terminar. Os links enviados por e-mail (portal do devedor, ativação) continuam apontando para `http://localhost:58080` (`APP_BASE_URL`), já que o endereço do túnel só é conhecido depois que ele sobe.
 
 ## 3. O que vem carregado
 
@@ -233,6 +249,35 @@ export INGESTION_PDF_BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-5-5   # padrão
 
 Ligue o Bedrock **depois** da primeira carga (como acima): se ligado já na primeira subida, a carga faz uma chamada ao modelo por assessoria para o PDF modelo do mapa salvo (o mapa proposto é trocado pelo da demonstração). Para voltar ao padrão, abra um terminal novo (sem as variáveis) e rode `down.sh` + `up.sh --no-build`. O mapa salvo continua valendo com a IA ligada: PDFs do layout histórico continuam sem chamada ao modelo.
 
+## 4c. Auditoria da interface (perfil a perfil)
+
+O `verify.sh` confere o contrato da API (inclusive menu × API, §9); o `audit.sh` confere **a tela**, com um navegador de verdade (Playwright, decisão 688). Para cada perfil ele entra com o usuário de demonstração, percorre o menu lateral, os atalhos da página inicial, as opções extras da busca "Buscar ou ir para", as abas de cada página e o primeiro registro de cada lista (com as abas dele), e relata por perfil × página:
+
+| Tipo | O que acusa |
+| --- | --- |
+| `403` | a tela chamou um endpoint da API que o perfil não pode usar |
+| `acesso-negado` | aviso "Acesso negado" (toast) ou a página de acesso negado da rota |
+| `cartoes` | cartões irmãos na mesma linha (sobreposição vertical de mais da metade do menor) com topos diferentes em mais de 1 px — use `.app-columns`/`.app-stack` ([`ux.md` §4](../desenho/ux.md)) |
+| `rolagem` | o documento rola (`scrollHeight > innerHeight` ou `scrollWidth > innerWidth`): só a área de conteúdo (`main.app-content`) pode rolar |
+| `erro-js` | exceção não tratada no navegador |
+
+```bash
+./scripts/sandbox/audit.sh                       # perfis padrão: os 14 da aurora + boreal/operador2 e boreal/advogado
+./scripts/sandbox/audit.sh aurora/juridico       # só os perfis informados (assessoria/pessoa)
+AUDIT_DETAIL=0 ./scripts/sandbox/audit.sh         # sem abrir o primeiro registro das listas (mais rápido)
+```
+
+O relatório fica em `./sandbox-audit/` (fora do Git): `relatorio.md` (resumo por perfil, problemas perfil × página e páginas visitadas) e `resultado.json`. Código de saída: **0** sem problemas, **1** com problemas, **2** quando a auditoria não rodou (sandbox fora do ar, login recusado). Janela padrão 1280×800 (`AUDIT_WIDTH`/`AUDIT_HEIGHT`); `AUDIT_PARALLEL` perfis em paralelo (padrão 3). A rodada completa leva de 20 a 40 min.
+
+**Limites do sandbox respeitados**: uma sessão por perfil, encerrada no fim (o limite é 3 sessões simultâneas por usuário — a mais antiga cai), e logins espaçados de 3,5 s (o limite é 20 por minuto por IP; um 429 espera e tenta de novo). Não altera dados: só navega e abre abas; da busca usa apenas opções de navegação (nada de sair, tema, densidade ou tour).
+
+**Onde roda.** O script fica em `scripts/sandbox/audit/` (TypeScript executado direto pelo Node, `package.json` com a versão do Playwright fixada e `package-lock.json`):
+
+1. **Imagem oficial** `mcr.microsoft.com/playwright:v<versão>-noble`, com a mesma versão do `package.json` (navegadores e biblioteca casados), rede do host para alcançar `localhost:58080` — no Docker Desktop, ative *Settings → Resources → Network → Enable host networking* (sem isso use `--local`). Outro registro: `SANDBOX_PLAYWRIGHT_IMAGE`. `--docker` exige a imagem.
+2. **Node local** (padrão quando a imagem não está disponível, ou `--local`): Node 22.18+ (executa TypeScript sem compilação); o script roda `npm ci` em `scripts/sandbox/audit/` e `playwright install chromium` (reaproveita o navegador já baixado em `PLAYWRIGHT_BROWSERS_PATH` ou no cache do Playwright).
+
+Ao atualizar o Playwright, troque a versão no `package.json`, rode `npm install` na pasta (atualiza o `package-lock.json`) e `npm run typecheck`; a imagem acompanha a versão automaticamente.
+
 ## 5. Como a carga funciona
 
 A carga é o módulo `sandbox` do backend (`br.com.gestorcobranca.sandbox`). Ela roda numa thread própria assim que a aplicação fica no ar e usa **somente os casos de uso públicos** dos módulos — as mesmas regras de domínio, criptografia de dados pessoais com blind index, auditoria, logs de negócio e eventos da operação real. Não há SQL de dados nem migration de carga.
@@ -273,6 +318,7 @@ Etapa `PdfImportDemoSeeder` ("importação PDF de demonstração", depois da car
 | `up.sh` falha no build ao baixar imagens base | sem acesso ao Docker Hub: aponte `SANDBOX_*_IMAGE` para o registro interno |
 | `state: FAILED` na prontidão | veja `docker compose -p gestor-cobranca-sandbox logs app` (linha "Carga do sandbox falhou na etapa …"); corrija e rode `up.sh --no-build` (a carga retoma de onde parou) ou `reset.sh` |
 | Porta em uso | troque `SANDBOX_APP_PORT`/`SANDBOX_MAIL_PORT`/`SANDBOX_DB_PORT` |
+| Pelo túnel (`https://…trycloudflare.com`) o login diz "sem permissão" (403), mas em `http://localhost:58080` entra | túnel `cloudflared` rodando fora do Compose: a aplicação não confia no proxy e recusa a origem pública no CORS. Pare esse `cloudflared` e use `./scripts/sandbox/tunnel.sh` (§2b) |
 | Login recusado com a senha certa | usuário bloqueado por tentativas erradas (desbloqueie como `admin`) ou senha expirada após 90 dias (`reset.sh`) |
 | Build interrompido ou a aplicação para sozinha (código 137) | Docker sem memória: reserve ao menos 6 GB e rode `up.sh` de novo |
 | Painéis vazios logo após subir | os snapshots do analytics são atualizados pelo agendamento a cada 15 min: aguarde até 15 min |

@@ -56,10 +56,6 @@ p.ex-small {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: var(--app-gap);
   margin-bottom: var(--app-gap);
-
-  .app-card + .app-card {
-    margin-top: 0;
-  }
 }
 
 .ex-bars {

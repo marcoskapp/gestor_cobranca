@@ -55,7 +55,7 @@ interface ComparisonModel {
         </p>
       </section>
 
-      <div class="tp-grid">
+      <div class="tp-grid app-columns">
         <section class="app-card" aria-labelledby="tp-allowed" data-tour="scoring-features">
           <h2 class="app-card__title" id="tp-allowed">Variáveis usadas ({{ f.allowed.length }})</h2>
           <p class="tp-small">Somente dados da dívida e do relacionamento de cobrança. A lista é fixa no sistema: uma variável nova exige mudança de código e revisão.</p>
@@ -141,9 +141,6 @@ interface ComparisonModel {
       grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
       gap: var(--app-gap);
       margin-top: var(--app-gap);
-    }
-    .tp-grid > .app-card + .app-card {
-      margin-top: 0;
     }
     .tp-code {
       font-size: var(--app-text-xs);

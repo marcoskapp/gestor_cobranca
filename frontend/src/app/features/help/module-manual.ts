@@ -127,9 +127,6 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
         top: var(--app-space-4);
       }
     }
-    .module-manual__content > .app-card + .app-card {
-      margin-top: var(--app-gap);
-    }
     .module-manual__toc-list,
     .module-manual__list {
       margin: 0;

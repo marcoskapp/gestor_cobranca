@@ -170,7 +170,7 @@ const POLL_MS = 3000;
       }
 
       @if (v.status === 'AWAITING_VALIDATION' || v.status === 'APPROVED' || v.status === 'AWAITING_MAP') {
-        <div class="pd-layout">
+        <div class="pd-layout app-columns">
           <section class="app-card pd-pdf" aria-label="PDF">
             @if (!canSeePages() && v.fileAvailable) {
               <p class="app-muted">A imagem das páginas do PDF original fica com quem executa importações ou vê dados sensíveis de devedores.</p>

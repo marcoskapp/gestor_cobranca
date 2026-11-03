@@ -10,7 +10,7 @@
 # Variáveis opcionais (ver infra/docker/sandbox/compose.yml): SANDBOX_APP_PORT, SANDBOX_MAIL_PORT,
 # SANDBOX_DB_PORT, SANDBOX_DEMO_PASSWORD e, para registros/espelhos internos, SANDBOX_NODE_IMAGE,
 # SANDBOX_MAVEN_IMAGE, SANDBOX_JRE_IMAGE, SANDBOX_POSTGRES_IMAGE, SANDBOX_MAILPIT_IMAGE e
-# SANDBOX_BUILD_NETWORK (rede do build: default|host).
+# SANDBOX_BUILD_NETWORK (rede do build: default|host). Túnel público opcional: ./scripts/sandbox/tunnel.sh.
 # =============================================================================
 set -Eeuo pipefail
 

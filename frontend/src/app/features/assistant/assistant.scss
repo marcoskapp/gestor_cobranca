@@ -18,9 +18,6 @@
   flex-direction: column;
   gap: var(--app-gap);
   min-width: 0;
-  .app-card + .app-card {
-    margin-top: 0;
-  }
 }
 .as-head {
   display: flex;

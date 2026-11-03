@@ -88,7 +88,7 @@ export const MONITORING_REPORTS = 26;
         }
       </section>
 
-      <div class="st-grid">
+      <div class="st-grid app-columns">
         <section class="app-card">
           <app-column-chart
             title="PSI do score por retrato"
@@ -112,7 +112,7 @@ export const MONITORING_REPORTS = 26;
           />
         </section>
       </div>
-      <div class="st-grid">
+      <div class="st-grid app-columns">
         <section class="app-card">
           <app-bar-chart
             title="PSI por variável no último retrato"
@@ -173,9 +173,6 @@ export const MONITORING_REPORTS = 26;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
       gap: var(--app-gap);
       margin: var(--app-gap) 0;
-    }
-    .st-grid > .app-card + .app-card {
-      margin-top: 0;
     }
     .st-alerts {
       margin: 12px 0 0;

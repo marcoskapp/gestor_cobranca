@@ -11,5 +11,5 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 [[ $# -eq 0 ]] || die "uso: $0"
 require_docker
-compose down
+compose --profile tunnel down
 log INFO "sandbox parado; os dados foram mantidos (./scripts/sandbox/up.sh --no-build para voltar)"

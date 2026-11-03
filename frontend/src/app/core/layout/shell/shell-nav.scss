@@ -81,6 +81,10 @@
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  // Único rolador da página: também é o bloco de contenção dos elementos absolutos sem ancestral posicionado
+  // (`.visually-hidden` das regiões ao vivo, dicas, destaques). Sem isso eles se posicionam pelo documento
+  // e, abaixo da dobra, fazem o html rolar junto com o conteúdo (barra de rolagem dupla).
+  position: relative;
   box-sizing: border-box;
   padding: var(--app-content-padding);
   outline: none;

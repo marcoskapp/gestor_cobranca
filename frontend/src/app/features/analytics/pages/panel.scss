@@ -10,9 +10,6 @@
   gap: var(--app-gap);
   margin-bottom: var(--app-gap);
 }
-.pn__grid > .app-card + .app-card {
-  margin-top: 0;
-}
 .pn__table-wrap {
   overflow-x: auto;
 }

@@ -36,6 +36,9 @@ infra/terraform/**/.terraform.lock.hcl.bak
 # Execução local
 # PDFs fictícios de demonstração copiados do sandbox (scripts/sandbox/pdfs.sh); gerados a cada reset
 sandbox-pdfs/
+# Relatórios da auditoria da interface (scripts/sandbox/audit.sh) e dependências do script
+sandbox-audit/
+scripts/sandbox/audit/node_modules/
 backend/var/
 backend/config/dev/
 

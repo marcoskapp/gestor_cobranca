@@ -57,7 +57,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
           <span>Rotação em andamento: o segredo anterior ainda é aceito até {{ t.previousValidUntil | appDate }}.</span>
         </div>
       }
-      <div class="td-grid">
+      <div class="td-grid app-columns">
         <section class="app-card" aria-labelledby="td-id">
           <h2 class="app-card__title" id="td-id">Identificação</h2>
           <dl class="app-definition-list">
@@ -121,9 +121,6 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
       gap: var(--app-gap);
-      .app-card + .app-card {
-        margin-top: 0;
-      }
     }
     .td-scopes {
       columns: 2;

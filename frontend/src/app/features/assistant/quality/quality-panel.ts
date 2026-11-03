@@ -81,25 +81,25 @@ interface QualityFilter {
         <div class="qp-kpi"><span class="qp-kpi__label">Revisões <app-info-hint indicator="assistant.quality.reviews" label="Revisões" /></span><span class="qp-kpi__value app-numeric">{{ v.avgScore !== null ? score(v.avgScore) + '/5' : '—' }}</span><span class="qp-kpi__hint">{{ v.reviewed }} avaliadas · {{ v.outOfPolicy }} fora da política · <a routerLink="/assistente/revisao">{{ v.pendingReviews }} pendentes</a></span></div>
         <div class="qp-kpi"><span class="qp-kpi__label">Latência média <app-info-hint indicator="assistant.quality.latency" label="Latência média" /></span><span class="qp-kpi__value app-numeric">{{ num(v.avgLatencyMs) }} ms</span><span class="qp-kpi__hint">{{ num(v.inputTokens + v.outputTokens) }} tokens</span></div>
       </section>
-      <div class="qp-grid">
-        <section class="app-card qp-card" data-tour="quality-handoffs">
+      <div class="qp-grid app-columns">
+        <section class="app-card" data-tour="quality-handoffs">
           <app-bar-chart title="Transferências por motivo" info="assistant.quality.handoff-rate" [data]="handoffs()" empty="Nenhuma transferência no período." />
         </section>
-        <section class="app-card qp-card" data-tour="quality-origin">
+        <section class="app-card" data-tour="quality-origin">
           <app-bar-chart title="Acordos por origem" info="assistant.quality.origins" [data]="origins()" empty="Nenhum acordo no período." />
         </section>
-        <section class="app-card qp-card" data-tour="quality-break">
+        <section class="app-card" data-tour="quality-break">
           <app-bar-chart [title]="'Quebra precoce (até ' + v.earlyBreakDays + ' dias): assistente × humanos'" info="assistant.quality.early-break" [data]="earlyBreak()" highlight="ASSISTANT" [format]="breakFormat" empty="Sem acordos formalizados no período." />
           <p class="app-muted qp-small">Critério de avanço: a quebra com o assistente igual ou menor que a dos humanos.</p>
         </section>
-        <section class="app-card qp-card">
+        <section class="app-card">
           <app-bar-chart title="Guardrails acionados" info="assistant.quality.guardrails" [data]="guardrails()" empty="Nenhum guardrail acionado." />
         </section>
-        <section class="app-card qp-card">
+        <section class="app-card">
           <app-bar-chart title="Acordos: com o assistente × só humanos" info="assistant.quality.origins" [data]="groups()" highlight="ASSISTANT" empty="Nenhum acordo no período." />
         </section>
         @if (v.pix; as pix) {
-          <section class="app-card qp-card" data-tour="quality-pix">
+          <section class="app-card" data-tour="quality-pix">
             <app-bar-chart title="Pix na conversa: recusas por motivo" info="assistant.quality.pix" [data]="pixDenied()" empty="Nenhuma recusa de Pix no período." />
             <p class="app-muted qp-small">{{ pix.issued }} gerado(s) · {{ pix.delivered }} entregue(s) · {{ pix.suggested }} sugerido(s) · {{ pix.paid }} pago(s), {{ pix.paidWithin24h }} em até 24 h · conversão gerado → pago {{ fraction(pix.conversionRate) }} ({{ fraction(pix.paidWithin24hRate) }} em 24 h)</p>
           </section>
@@ -153,9 +153,6 @@ interface QualityFilter {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: var(--app-gap);
-    }
-    .qp-card {
-      margin: 0 !important;
     }
     @media (max-width: 599px) {
       .qp-grid {

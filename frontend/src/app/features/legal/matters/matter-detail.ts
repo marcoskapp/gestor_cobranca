@@ -18,7 +18,7 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { describeStatus } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, USER_NAMES_PERMISSIONS, UserNames } from '../../admin/data/user-names';
-import { UserLookup } from '../../admin/data/user.lookup';
+import { LegalAssignees } from '../data/legal-assignees';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { COLLATERAL_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { CreditorNames } from '../../organization/data/organization.lookups';
@@ -102,7 +102,8 @@ export class MatterDetail {
   private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
-  private readonly userLookup = inject(UserLookup);
+  // campos de responsável: busca restrita de usuários atribuíveis (decisão 686), sem exigir USER_VIEW
+  private readonly assignees = inject(LegalAssignees);
 
   protected readonly routes = ROUTE_LABELS;
   protected readonly flagLabels = FLAG_LABELS;
@@ -274,7 +275,7 @@ export class MatterDetail {
         submitLabel: 'Salvar',
         fields: [
           { key: 'responsibleType', label: 'Quem conduz', type: 'select', required: true, options: options(RESPONSIBLE_LABELS), value: m.responsibleType },
-          { key: 'userId', label: 'Advogado interno', type: 'entity', source: this.userLookup, value: m.responsibleUserId, showIf: (v) => v['responsibleType'] === 'INTERNAL' },
+          { key: 'userId', label: 'Advogado interno', type: 'entity', source: this.assignees.source('MATTER_RESPONSIBLE', m.id), value: m.responsibleUserId, showIf: (v) => v['responsibleType'] === 'INTERNAL' },
           { key: 'lawFirmId', label: 'Escritório parceiro', type: 'select', required: true, options: firms, value: m.lawFirmId, showIf: (v) => v['responsibleType'] === 'LAW_FIRM' },
         ],
         submit: (v) =>
@@ -478,7 +479,7 @@ export class MatterDetail {
           { key: 'startEvent', label: 'Fato inicial (opcional)', type: 'select', options: options(START_EVENT_LABELS), showIf: (v) => v['countingMode'] !== 'FIXED_DATE' },
           { key: 'termDays', label: 'Prazo (dias)', type: 'number', required: true, min: 1, max: 365, showIf: (v) => v['countingMode'] !== 'FIXED_DATE' },
           { key: 'fixedDate', label: 'Vencimento', type: 'date', required: true, showIf: (v) => v['countingMode'] === 'FIXED_DATE' },
-          { key: 'responsibleUserId', label: 'Responsável (opcional)', type: 'entity', source: this.userLookup },
+          { key: 'responsibleUserId', label: 'Responsável (opcional)', type: 'entity', source: this.assignees.source('DEADLINE_RESPONSIBLE', s.matter.id) },
         ],
         submit: (v) => this.operationsApi.createDeadline(s.matter.id, { ...v, measureId: null }),
       })

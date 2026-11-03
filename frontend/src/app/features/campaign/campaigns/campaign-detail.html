@@ -42,7 +42,7 @@
   <app-campaign-tabs [campaignId]="c.id" />
 
   <div class="cd-layout">
-    <div class="cd-main">
+    <div class="cd-main app-stack">
       <section class="app-card cd-summary" aria-label="Situação da campanha" data-tour="campaign-status">
         <app-status-chip domain="campaign" [status]="c.status" />
         @switch (c.status) {
@@ -62,7 +62,7 @@
         <span class="app-muted">· {{ purposeLabels[c.purpose] }} · prioridade {{ c.priority }} · {{ c.exclusivityGroup ? 'grupo ' + c.exclusivityGroup : 'sem grupo de exclusividade' }}</span>
       </section>
 
-      <div class="cd-cards">
+      <div class="cd-cards app-columns">
         <section class="app-card" aria-labelledby="cd-segment">
           <h2 class="app-card__title" id="cd-segment">Público</h2>
           @if (segment(); as s) {

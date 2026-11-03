@@ -85,7 +85,7 @@ function isoDay(date: Date): string {
         <section class="app-card" data-tour="usage-daily">
           <app-column-chart title="Requisições por dia" [summary]="dailySummary()" [series]="{ name: 'Requisições', color: '--app-chart-1' }" [rows]="dailyRows()" [money]="false" />
         </section>
-        <div class="up-grid">
+        <div class="up-grid app-columns">
           <section class="app-card">
             <app-bar-chart title="Por endpoint" categoryHeader="Endpoint" noteHeader="Dados" [summary]="'Endpoints mais chamados no período.'" [series]="[{ name: 'Requisições', color: '--app-chart-2' }]" [rows]="routeRows()" />
           </section>
@@ -108,9 +108,6 @@ function isoDay(date: Date): string {
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));
       gap: var(--app-gap);
       margin-top: var(--app-gap);
-      .app-card + .app-card {
-        margin-top: 0;
-      }
     }
   `,
 })

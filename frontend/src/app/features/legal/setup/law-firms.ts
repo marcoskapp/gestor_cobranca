@@ -12,7 +12,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { isValidCnpj } from '../../../shared/validation/document';
-import { UserLookup } from '../../admin/data/user.lookup';
+import { LegalAssignees } from '../data/legal-assignees';
 import { FormDialogService } from '../components/form-dialog';
 import { LegalOperationsApi } from '../data/legal.api';
 import { LawFirmRequest, LawFirmView, MemberView } from '../data/legal.models';
@@ -130,7 +130,8 @@ export class LawFirms {
   private readonly forms = inject(FormDialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
-  private readonly users = inject(UserLookup);
+  // advogados a vincular: busca restrita de usuários atribuíveis (decisão 686), sem exigir USER_VIEW
+  private readonly users = inject(LegalAssignees).source('FIRM_MEMBER');
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.LEGAL_MANAGE));
 
   protected readonly firms = rxResource({ stream: () => this.api.firms() });

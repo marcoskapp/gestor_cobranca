@@ -52,9 +52,9 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
       } @else if (!balances().length) {
         <app-empty-state icon="bank" title="Nenhum saldo em aberto." message="Demonstrativos aprovados aparecem aqui até o repasse zerar o saldo." [compact]="true" />
       } @else {
-        <div class="tl-cards">
+        <div class="tl-cards app-columns">
           @for (b of balances(); track b.creditorId) {
-            <article class="app-card tl-card">
+            <article class="app-card">
               <h3 class="app-card__title">{{ creditors.name(b.creditorId) }}</h3>
               <div class="tl-totals">
                 <div><span class="tl-label">A repassar <app-info-hint indicator="settlement.transfers.balance" label="A repassar" /></span><app-amount class="tl-value" [value]="b.toTransfer" /></div>
@@ -125,9 +125,6 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: var(--app-gap);
       margin-bottom: var(--app-gap);
-    }
-    .tl-card {
-      margin: 0 !important;
     }
     .tl-totals {
       display: flex;

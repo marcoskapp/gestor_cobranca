@@ -217,6 +217,9 @@ Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança
 | `legal.titles_settled` | todos os títulos do caso jurídico saíram de cobrança | `stage`, `titleStatuses`, `removalDeadlines` |
 | `legal.prescription_alert` | alerta de prescrição do debt para título de caso jurídico aberto | `titleId`, `claim`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `stage` |
 | `legal.matter_closed` | `CLOSED` ou `RETURNED_TO_CREDITOR` | `stage`, `from`, `closureReason`, `route`, `durationDays`, `debtAmount`, `expensesTotal`, `recoveredAmount`, `responsibleType`, `lawFirmId`, `deadlinesCancelled`, `removalDeadlines`; `amount` = valor recuperado; `durationMs` |
+
+Log de acesso: `USER_DIRECTORY_QUERIED` (`resource=legal_assignee`, `purpose` `MATTER_RESPONSIBLE`/`DEADLINE_RESPONSIBLE`/`FIRM_MEMBER`, `matterId` quando o campo é do caso, `returned`) a cada busca de usuários atribuíveis (decisão 686); o texto buscado nunca é gravado.
+
 ### 3.6 Atributos dos eventos de campanhas
 
 Referência `campaign` (eventos da campanha) ou `campaign_enrollment` (eventos de inscrição, com `creditorId`,

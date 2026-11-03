@@ -47,7 +47,7 @@ import { ScorecardDialog, ScorecardDialogData } from './scorecard-dialog';
       <app-scoring-scope-notice />
     } @else {
       @if (rows().length) {
-        <section class="ml-highlights" aria-label="Campeão e desafiante" data-tour="scoring-champion">
+        <section class="ml-highlights app-columns" aria-label="Campeão e desafiante" data-tour="scoring-champion">
           @if (champion(); as c) {
             <a class="app-card ml-highlight" [routerLink]="['/score/modelos', c.id]">
               <span class="ml-highlight__label"><app-icon name="patch-check" />Campeão em uso</span>
@@ -120,7 +120,6 @@ import { ScorecardDialog, ScorecardDialogData } from './scorecard-dialog';
       display: flex;
       flex-direction: column;
       gap: 4px;
-      margin: 0;
       color: inherit;
       text-decoration: none;
     }
