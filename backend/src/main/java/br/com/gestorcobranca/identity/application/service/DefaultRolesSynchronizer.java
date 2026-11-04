@@ -37,7 +37,8 @@ import java.util.stream.Collectors;
  * </ul>
  * Roda logo após a subida e periodicamente, com ShedLock (uma instância por vez). O tenant da
  * plataforma (atributo {@code platform} do tenant — nunca o código de um perfil, que uma assessoria
- * poderia imitar) não recebe perfis de assessoria.
+ * poderia imitar) não recebe perfis de assessoria: nele só o perfil de sistema {@code PLATFORM_ADMIN}, criado no
+ * bootstrap, recebe uma única vez as permissões novas da sua definição padrão (ex.: as do faturamento da plataforma).
  */
 @Component
 public class DefaultRolesSynchronizer {
@@ -81,12 +82,15 @@ public class DefaultRolesSynchronizer {
         }
     }
 
-    /** @return resultado da sincronização da assessoria (vazio para o tenant da plataforma) */
+    /**
+     * @return resultado da sincronização da assessoria (no tenant da plataforma, só o perfil {@code PLATFORM_ADMIN}
+     *         existente é atualizado; nenhum perfil é criado)
+     */
     public SyncResult syncTenant(UUID tenantId) {
         return tenantExecution.callInTenant(tenantId, "identity.default_roles_sync", () -> {
             boolean platform = tenantAdministration.findById(tenantId).map(TenantView::platform).orElse(false);
             if (platform) {
-                return SyncResult.EMPTY;
+                return syncPlatformAdmin(tenantId);
             }
             Map<String, Role> existing = roles.findAll().stream()
                     .collect(Collectors.toMap(Role::getCode, Function.identity()));
@@ -121,6 +125,24 @@ public class DefaultRolesSynchronizer {
             meterRegistry.counter("identity.default_roles.roles_created").increment(created.size());
             return new SyncResult(List.copyOf(created), List.copyOf(updated));
         });
+    }
+
+    private SyncResult syncPlatformAdmin(UUID tenantId) {
+        Optional<Role> current = roles.findByCode(DefaultRoles.PLATFORM_ADMIN).filter(Role::isSystemRole);
+        if (current.isEmpty()) {
+            return SyncResult.EMPTY;
+        }
+        Role role = current.get();
+        Set<Permission> added = role.applyDefaultPermissions(DefaultRoles.platformAdmin().permissions());
+        roles.save(role);
+        if (added.isEmpty()) {
+            return SyncResult.EMPTY;
+        }
+        auditTrail.record(AuditEntry.of("role.default_permissions_added", "role", role.getId())
+                .created("permissions", names(added)));
+        meterRegistry.counter("identity.default_roles.permissions_added").increment(added.size());
+        LOG.info("Perfil da plataforma sincronizado no tenant {}: permissões acrescentadas={}", tenantId, names(added));
+        return new SyncResult(List.of(), List.of(role.getCode()));
     }
 
     private static String names(Set<Permission> permissions) {

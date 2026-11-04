@@ -60,7 +60,7 @@ public record Actor(
      */
     public static Actor assistant(UUID tenantId, UUID policyId, String policyCode, Set<Permission> permissions,
                                   Set<UUID> creditors) {
-        if (permissions.contains(Permission.TENANT_MANAGE)) {
+        if (permissions.stream().anyMatch(Permission::isPlatformOnly)) {
             throw new IllegalArgumentException("Assistente não pode receber permissão de plataforma");
         }
         return new Actor(ActorType.ASSISTANT, policyId, tenantId, null, "assistant:" + policyCode, permissions,

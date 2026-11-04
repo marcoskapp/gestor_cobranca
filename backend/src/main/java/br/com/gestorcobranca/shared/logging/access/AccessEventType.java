@@ -85,5 +85,10 @@ public enum AccessEventType {
     /** Token de integração revogado, com motivo. */
     INTEGRATION_TOKEN_REVOKED,
     /** Token de integração rotacionado (novo segredo; o anterior expira ao fim da carência). */
-    INTEGRATION_TOKEN_ROTATED
+    INTEGRATION_TOKEN_ROTATED,
+    /**
+     * Consulta da equipe da plataforma a dados de uma assessoria (consumo, posição e extratos do faturamento da
+     * plataforma): recurso, assessoria consultada e ids — nunca valores. Gravado no log de acesso da plataforma.
+     */
+    PLATFORM_TENANT_DATA_VIEWED
 }

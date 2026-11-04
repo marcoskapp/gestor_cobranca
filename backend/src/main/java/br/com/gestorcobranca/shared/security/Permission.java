@@ -12,6 +12,8 @@ public enum Permission {
 
     // Plataforma (somente operador do SaaS)
     TENANT_MANAGE("Gerenciar assessorias (plataforma)"),
+    PLATFORM_BILLING_VIEW("Consultar o faturamento da plataforma de todas as assessorias (consumo da API, posição e extratos)"),
+    PLATFORM_BILLING_MANAGE("Manter a política de cobrança da plataforma por assessoria e fechar e revisar os extratos da plataforma"),
 
     // Administração da assessoria
     ORG_SETTINGS_MANAGE("Configurar assessoria e unidades"),
@@ -28,6 +30,7 @@ public enum Permission {
     PUBLIC_API_TOKEN_MANAGE("Criar, revogar e rotacionar tokens de integração da API pública"),
     PUBLIC_API_USAGE_VIEW("Consultar consumo e extratos da API pública"),
     PUBLIC_API_BILLING_MANAGE("Fechar e revisar extratos de consumo da API pública"),
+    TENANT_BILLING_VIEW("Consultar a cobrança da plataforma à assessoria pelo consumo da API (posição, política e extratos)"),
 
     // Credores e carteiras
     CREDITOR_VIEW("Consultar credores"),
@@ -144,6 +147,13 @@ public enum Permission {
     REPORT_VIEW("Consultar relatórios"),
     REPORT_EXPORT("Exportar relatórios");
 
+    /**
+     * Permissões exclusivas do operador da plataforma SaaS: só o perfil de sistema {@code PLATFORM_ADMIN} do tenant da
+     * plataforma as recebe; nenhum perfil de assessoria, o assistente de IA ou um token de integração.
+     */
+    public static final java.util.Set<Permission> PLATFORM_ONLY = java.util.Collections.unmodifiableSet(
+            java.util.EnumSet.of(TENANT_MANAGE, PLATFORM_BILLING_VIEW, PLATFORM_BILLING_MANAGE));
+
     private final String description;
 
     Permission(String description) {
@@ -152,5 +162,9 @@ public enum Permission {
 
     public String description() {
         return description;
+    }
+
+    public boolean isPlatformOnly() {
+        return PLATFORM_ONLY.contains(this);
     }
 }

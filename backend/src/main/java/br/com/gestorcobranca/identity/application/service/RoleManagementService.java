@@ -189,7 +189,7 @@ class RoleManagementService implements RoleManagementUseCases {
     public List<PermissionView> permissionCatalog() {
         Actor actor = currentActor.get();
         return Arrays.stream(Permission.values())
-                .filter(p -> p != Permission.TENANT_MANAGE)
+                .filter(p -> !p.isPlatformOnly())
                 .map(p -> new PermissionView(p.name(), p.description(), actor.isSystem() || actor.permissions().contains(p)))
                 .toList();
     }

@@ -103,7 +103,7 @@ abstract class PublicApiTestSupport extends IntegrationTest {
 
     <T> T asUser(UUID id, Set<Permission> permissions, CreditorScope scope, Supplier<T> action) {
         Set<Permission> perms = EnumSet.copyOf(permissions);
-        perms.remove(Permission.TENANT_MANAGE);
+        perms.removeAll(Permission.PLATFORM_ONLY);
         return tenantExecution.callAs(new Actor(Actor.ActorType.USER, id, tenant, Ids.newId(), "gestor", perms, scope),
                 action);
     }

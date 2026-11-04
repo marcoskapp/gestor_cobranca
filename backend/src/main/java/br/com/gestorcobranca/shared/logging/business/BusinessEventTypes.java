@@ -193,6 +193,9 @@ public final class BusinessEventTypes {
     public static final String CONTRACT_INTEGRATION_PRICING_DEFINED = "contract.integration_pricing_defined";
     public static final String PUBLIC_API_STATEMENT_CLOSED = "public_api.statement_closed";
     public static final String PUBLIC_API_RECORDS_PROCESSED = "public_api.records_processed";
+    // Faturamento da plataforma às assessorias pelo consumo da API — atributos em docs/tecnico/logs-e-metricas.md §3.14
+    public static final String PLATFORM_BILLING_POLICY_DEFINED = "platform_billing.policy_defined";
+    public static final String PLATFORM_BILLING_STATEMENT_CLOSED = "platform_billing.statement_closed";
     public static final String ASSISTANT_REPLIED = "assistant.replied";
     public static final String ASSISTANT_HANDOFF = "assistant.handoff";
 

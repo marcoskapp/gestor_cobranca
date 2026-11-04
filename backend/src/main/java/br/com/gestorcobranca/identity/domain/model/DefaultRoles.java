@@ -50,6 +50,12 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * credores ({@code PUBLIC_API_TOKEN_MANAGE}) — só com escopos cujas permissões o próprio perfil tem; o financeiro e o
  * gestor fecham e revisam extratos ({@code PUBLIC_API_BILLING_MANAGE}; os preços ficam no contrato do credor, com
  * {@code CONTRACT_MANAGE}); o auditor consulta tokens e consumo.
+ * <p>
+ * Faturamento da plataforma (docs/negocio/api-publica.md §9): só o administrador da plataforma mantém a política de
+ * cobrança de cada assessoria e fecha e revisa os extratos ({@code PLATFORM_BILLING_MANAGE}, exclusiva da plataforma,
+ * com {@code PLATFORM_BILLING_VIEW}); na assessoria, só o administrador consulta, sem alterar, a cobrança da
+ * plataforma pelo consumo da API ({@code TENANT_BILLING_VIEW}, que o perfil ADMIN recebe por ter todas as permissões
+ * da assessoria).
  */
 public final class DefaultRoles {
 
@@ -76,7 +82,7 @@ public final class DefaultRoles {
 
     public static List<Definition> forTenant() {
         Set<Permission> admin = EnumSet.allOf(Permission.class);
-        admin.remove(TENANT_MANAGE);
+        admin.removeAll(Permission.PLATFORM_ONLY);
 
         Set<Permission> operador = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW,
@@ -176,7 +182,9 @@ public final class DefaultRoles {
     }
 
     public static Definition platformAdmin() {
-        return new Definition(PLATFORM_ADMIN, "Administrador da plataforma", "Provisionamento de assessorias",
-                EnumSet.of(TENANT_MANAGE, USER_VIEW, USER_MANAGE, ROLE_MANAGE, ACCESS_LOG_VIEW, AUDIT_VIEW));
+        return new Definition(PLATFORM_ADMIN, "Administrador da plataforma",
+                "Provisionamento de assessorias e faturamento da plataforma",
+                EnumSet.of(TENANT_MANAGE, PLATFORM_BILLING_VIEW, PLATFORM_BILLING_MANAGE, USER_VIEW, USER_MANAGE,
+                        ROLE_MANAGE, ACCESS_LOG_VIEW, AUDIT_VIEW));
     }
 }

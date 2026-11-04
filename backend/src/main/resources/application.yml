@@ -740,3 +740,6 @@ app:
     # verificação diária que fecha os ciclos de consumo encerrados (cada credor fecha no dia definido no contrato;
     # o novo ciclo começa às 00:00 no fuso de negócio) — roda depois da virada e da última gravação em lote
     statement-cron: "0 20 2 * * *"
+    # fechamento automático dos ciclos da cobrança da plataforma às assessorias (política da plataforma por
+    # assessoria) — depois do fechamento dos extratos dos credores, sobre a mesma medição
+    platform-statement-cron: "0 40 2 * * *"

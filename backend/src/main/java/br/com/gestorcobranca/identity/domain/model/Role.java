@@ -84,7 +84,7 @@ public class Role extends TenantScopedEntity {
         Guard.requireState(systemRole, "role.not_system", "Somente perfis de sistema recebem permissões padrão");
         Set<Permission> pending = EnumSet.noneOf(Permission.class);
         for (Permission permission : definition) {
-            if (permission != Permission.TENANT_MANAGE || (systemRole && "PLATFORM_ADMIN".equals(code))) {
+            if (!permission.isPlatformOnly() || isPlatformAdminRole()) {
                 if (!appliedDefaults.contains(permission)) {
                     pending.add(permission);
                 }
@@ -104,12 +104,20 @@ public class Role extends TenantScopedEntity {
         Guard.require(name != null && !name.isBlank(), "role.name_required", "Nome do perfil obrigatório");
         Guard.require(permissions != null && !permissions.isEmpty(), "role.permissions_required",
                 "Perfil deve ter ao menos uma permissão");
-        Guard.require(!permissions.contains(Permission.TENANT_MANAGE) || (systemRole && "PLATFORM_ADMIN".equals(code)),
+        Guard.require(permissions.stream().noneMatch(Permission::isPlatformOnly) || isPlatformAdminRole(),
                 "role.platform_permission", "Permissão de plataforma não pode ser atribuída a perfis de assessoria");
         this.name = name.trim();
         this.description = description;
         this.permissions.clear();
         this.permissions.addAll(permissions);
+    }
+
+    /**
+     * Perfil de sistema da plataforma, o único que recebe as permissões exclusivas da plataforma
+     * ({@link Permission#PLATFORM_ONLY}); a assessoria não cria perfis de sistema nem usa o código reservado.
+     */
+    private boolean isPlatformAdminRole() {
+        return systemRole && "PLATFORM_ADMIN".equals(code);
     }
 
     public void deactivate() {

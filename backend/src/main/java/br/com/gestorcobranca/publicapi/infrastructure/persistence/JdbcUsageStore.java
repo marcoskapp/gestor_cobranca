@@ -159,6 +159,16 @@ class JdbcUsageStore implements UsageStore {
     }
 
     @Override
+    public java.util.Optional<java.time.Instant> firstTenantUsageAt(java.time.Instant from) {
+        List<Timestamp> first = jdbc.queryForList("""
+                select min(hour_start) from publicapi.usage_hourly
+                 where hour_start >= :from and (requests > 0 or records > 0)
+                """, new MapSqlParameterSource("from", Timestamp.from(from)), Timestamp.class);
+        return first.isEmpty() || first.getFirst() == null ? java.util.Optional.empty()
+                : java.util.Optional.of(first.getFirst().toInstant());
+    }
+
+    @Override
     public java.util.Optional<java.time.Instant> lastUpdatedAt(Filter f) {
         MapSqlParameterSource p = params(f);
         List<Timestamp> last = jdbc.queryForList("select max(updated_at) from publicapi.usage_hourly where "

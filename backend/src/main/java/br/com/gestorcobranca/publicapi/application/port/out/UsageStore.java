@@ -62,6 +62,12 @@ public interface UsageStore {
      */
     java.util.Optional<Instant> firstUsageAt(UUID creditorId, Instant from);
 
+    /**
+     * Início da primeira hora com consumo de qualquer token da assessoria corrente (todos os credores) a partir de
+     * {@code from}, inclusivo — base da cobrança da plataforma à assessoria.
+     */
+    java.util.Optional<Instant> firstTenantUsageAt(Instant from);
+
     /** Última gravação em lote que alterou o consumo do filtro ("atualizado em" das telas de posição). */
     java.util.Optional<Instant> lastUpdatedAt(Filter filter);
 

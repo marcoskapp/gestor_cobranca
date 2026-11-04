@@ -17,7 +17,9 @@ import br.com.gestorcobranca.publicapi.domain.repository.IntegrationTokenReposit
 import br.com.gestorcobranca.publicapi.domain.repository.UsageStatementRepository;
 import br.com.gestorcobranca.publicapi.domain.service.BillingCycles;
 import br.com.gestorcobranca.publicapi.domain.service.BillingCycles.Cycle;
+import br.com.gestorcobranca.publicapi.domain.service.ChargeLines;
 import br.com.gestorcobranca.publicapi.domain.service.PriceCalculator;
+import br.com.gestorcobranca.publicapi.domain.service.UsageProjection;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -175,9 +177,8 @@ class BillingService implements PublicApiBillingUseCases {
         int daysElapsed = (int) java.time.temporal.ChronoUnit.DAYS.between(cycle.start(), today) + 1;
         int daysRemaining = (int) java.time.temporal.ChronoUnit.DAYS.between(today, cycle.end());
         List<AllowanceUse> allowances = c.lines.stream().filter(l -> !"MONTHLY_FEE".equals(l.metric()))
-                .map(l -> new AllowanceUse(l.metric(), l.quantity(), l.included(), l.included() == 0 ? null
-                        : BigDecimal.valueOf(l.quantity()).multiply(BigDecimal.valueOf(100))
-                        .divide(BigDecimal.valueOf(l.included()), 2, RoundingMode.HALF_EVEN)))
+                .map(l -> new AllowanceUse(l.metric(), l.quantity(), l.included(),
+                        ChargeLines.allowancePercent(l.quantity(), l.included())))
                 .toList();
         List<GrowthPoint> daily = growth(creditorId, cycle, today, terms, proration);
 
@@ -269,22 +270,11 @@ class BillingService implements PublicApiBillingUseCases {
 
     private static Projection project(BillableUsage current, int daysElapsed, int daysRemaining,
                                       Optional<PriceTerms> terms, Proration proration) {
-        BillableUsage projected = new BillableUsage(projectOne(current.requests(), daysElapsed, daysRemaining),
-                projectOne(current.mbIn(), daysElapsed, daysRemaining),
-                projectOne(current.mbOut(), daysElapsed, daysRemaining),
-                projectOne(current.records(), daysElapsed, daysRemaining));
+        BillableUsage projected = UsageProjection.dailyAverage(current, daysElapsed, daysRemaining);
         BigDecimal amount = terms.map(t -> PriceCalculator.calculate(t, projected, proration).total())
                 .orElse(BigDecimal.ZERO.setScale(2));
-        return new Projection("DAILY_AVERAGE", projected.requests(), projected.mbIn(), projected.mbOut(),
+        return new Projection(UsageProjection.METHOD, projected.requests(), projected.mbIn(), projected.mbOut(),
                 projected.records(), amount);
-    }
-
-    static long projectOne(long current, int daysElapsed, int daysRemaining) {
-        if (current == 0 || daysRemaining <= 0 || daysElapsed <= 0) {
-            return current;
-        }
-        return current + BigDecimal.valueOf(current).multiply(BigDecimal.valueOf(daysRemaining))
-                .divide(BigDecimal.valueOf(daysElapsed), 0, RoundingMode.CEILING).longValueExact();
     }
 
     @Override

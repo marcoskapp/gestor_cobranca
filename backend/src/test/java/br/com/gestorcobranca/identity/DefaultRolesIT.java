@@ -65,8 +65,8 @@ class DefaultRolesIT extends IntegrationTest {
                 DefaultRoles.QUALIDADE, DefaultRoles.COMPLIANCE, DefaultRoles.INTEGRACAO);
         Role admin = in(tenant, () -> roles.findByCode(DefaultRoles.ADMIN).orElseThrow());
         Set<Permission> all = EnumSet.allOf(Permission.class);
-        all.remove(Permission.TENANT_MANAGE);
-        assertThat(admin.getPermissions()).isEqualTo(all);
+        all.removeAll(Permission.PLATFORM_ONLY);
+        assertThat(admin.getPermissions()).isEqualTo(all).contains(Permission.TENANT_BILLING_VIEW);
         assertThat(admin.isSystemRole()).isTrue();
 
         // segunda execução não muda nada

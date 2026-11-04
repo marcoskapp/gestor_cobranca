@@ -52,8 +52,7 @@ public final class PriceCalculator {
     }
 
     private static Line line(String metric, long quantity, long included, BigDecimal unitPrice) {
-        long billable = Math.max(0, quantity - included);
-        BigDecimal amount = BigDecimal.valueOf(billable).multiply(unitPrice).setScale(2, Money.ROUNDING);
-        return new Line(metric, quantity, included, billable, unitPrice, amount);
+        long billable = ChargeLines.excess(quantity, included);
+        return new Line(metric, quantity, included, billable, unitPrice, ChargeLines.amount(billable, unitPrice));
     }
 }
