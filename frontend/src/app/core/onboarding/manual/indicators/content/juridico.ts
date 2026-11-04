@@ -1,7 +1,8 @@
 import { IndicatorHelp } from '../indicator.models';
 
 /**
- * Indicadores do jurídico: painel (dívida, custas, recuperado e prazos) e casos por fase.
+ * Indicadores do jurídico: painel (dívida, custas, valor liberado judicialmente e prazos) e casos por fase.
+ * "Recuperado" fica reservado a pagamentos confirmados (docs/negocio/indicadores.md §1; decisão 713).
  * Definições: docs/negocio/workflow-juridico.md e docs/tecnico/desenho/juridico.md (B.8 prazos);
  * cálculo em `legal/application/service/LegalMatterService.java` (painel) e `LawsuitService`
  * (valor recuperado por levantamento de valores).
@@ -25,9 +26,9 @@ export const INDICATORS: readonly IndicatorHelp[] = [
   },
   {
     id: 'legal.dashboard.recovered',
-    title: 'Valor recuperado no jurídico',
-    what: 'Valores liberados em favor do credor nos processos (levantamento de valores), registrados nos andamentos.',
-    how: 'Soma dos levantamentos de valores lançados nos andamentos dos processos dos casos. Não inclui pagamentos de acordos extrajudiciais, que aparecem na recuperação dos painéis.',
+    title: 'Valor liberado judicialmente',
+    what: 'Valores que o juízo liberou em favor do credor nos processos (alvarás e levantamentos de valores), registrados nos andamentos.',
+    how: 'Soma dos levantamentos de valores lançados nos andamentos dos processos dos casos. Não é o valor recuperado: recuperado é só pagamento confirmado, e os acordos extrajudiciais aparecem na recuperação dos painéis.',
     use: 'Mostra o retorno da via judicial. Compare com as custas por fase para decidir em quais carteiras vale ajuizar.',
     screens: ['legal.dashboard'],
   },
@@ -50,7 +51,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
   {
     id: 'legal.dashboard.stages',
     title: 'Casos por fase',
-    what: 'Casos jurídicos em cada fase do fluxo (da indicação e análise de viabilidade, passando pela autorização do credor, medidas extrajudiciais e processo, até o encerramento), com dívida, custas e recuperado de cada fase.',
+    what: 'Casos jurídicos em cada fase do fluxo (da indicação e análise de viabilidade, passando pela autorização do credor, medidas extrajudiciais e processo, até o encerramento), com dívida, custas e valor liberado judicialmente de cada fase.',
     how: 'Contagens e somas dos casos pela fase atual, no escopo e filtros escolhidos.',
     use: 'Mostra onde os casos se acumulam. Muitos casos parados em autorização pedem cobrar a resposta do credor.',
     screens: ['legal.dashboard'],

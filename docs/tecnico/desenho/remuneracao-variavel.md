@@ -24,7 +24,7 @@ Todas por negociador, equipe, credor, carteira, faixa de atraso, canal e períod
 
 | Métrica | Fórmula / definição | Fonte |
 | --- | --- | --- |
-| Tempo logado | soma das sessões ativas no período | identity (sessões) + presença do operador |
+| Tempo logado | união das sessões autenticadas por dia (sessões sobrepostas contam uma vez — decisão 24; igual a "horas logadas" em [`indicadores.md`](../../negocio/indicadores.md) §5) | identity (sessões) + presença do operador |
 | Ocupação | tempo em atendimento ÷ tempo logado disponível | collection, telephony, communication |
 | Casos trabalhados | casos com ≥ 1 interação registrada pelo negociador | collection |
 | Tentativas | interações de saída registradas | collection |

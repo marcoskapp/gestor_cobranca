@@ -16,7 +16,7 @@ import java.util.UUID;
  * polos (devedor principal e coobrigados vigentes dos contratos dos títulos), andamentos manuais
  * ou capturados e situação. O cadastro do primeiro processo leva o caso jurídico a FILED; a
  * citação registra a interrupção da prescrição no debt e leva FILED a IN_PROGRESS; o levantamento
- * de valores soma ao valor recuperado.
+ * de valores soma ao valor liberado judicialmente ("recuperado" é só pagamento confirmado).
  */
 public interface LawsuitUseCases {
 

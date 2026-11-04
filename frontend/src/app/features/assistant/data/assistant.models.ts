@@ -250,7 +250,12 @@ export interface QualityView {
   guardrails: Record<string, number>;
   agreementsByOrigin: Record<string, number>;
   agreementsByGroup: Record<string, number>;
-  earlyBreakRate: Record<string, number>;
+  /** Quebrados na janela ÷ acordos já expostos ao risco (nulo sem acordo exposto). */
+  earlyBreakRate: Record<string, number | null>;
+  /** Acordos do período que já completaram a janela (denominador da quebra precoce). */
+  earlyBreakExposed: Record<string, number>;
+  /** Acordos do período ainda dentro da janela ("em maturação", fora da taxa). */
+  earlyBreakMaturing: Record<string, number>;
   earlyBreakDays: number;
   complaints: number;
   cost: number | null;

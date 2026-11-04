@@ -41,14 +41,19 @@ public interface AssistantReviewUseCases {
 
     /**
      * @param handoffRate         transferências ÷ conversas atendidas
-     * @param earlyBreakRate      por grupo (ASSISTANT, HUMAN): quebrados em até N dias ÷ formalizados no período
+     * @param earlyBreakRate      por grupo (ASSISTANT, HUMAN): dos acordos do período já expostos ao risco
+     *                            (formalizados há pelo menos N dias), os quebrados em até N dias ÷ expostos — mesmo
+     *                            critério da quebra precoce por safra do analytics (nulo sem acordo exposto)
+     * @param earlyBreakExposed   por grupo: acordos do período já expostos ao risco (denominador da quebra precoce)
+     * @param earlyBreakMaturing  por grupo: acordos do período ainda dentro da janela ("em maturação", fora da taxa)
      * @param complaints          transferências por motivos de reclamação (Procon/advogado/processo, reclamação, opt-out)
      * @param costPerAgreement    custo do modelo ÷ acordos com participação do assistente (nulo sem acordos)
      */
     record QualityView(LocalDate from, LocalDate to, long turns, long conversations, Map<String, Long> outcomes,
                        Map<String, Long> handoffsByReason, BigDecimal handoffRate, Map<String, Long> guardrails,
                        Map<String, Long> agreementsByOrigin, Map<String, Long> agreementsByGroup,
-                       Map<String, BigDecimal> earlyBreakRate, int earlyBreakDays, long complaints, BigDecimal cost,
+                       Map<String, BigDecimal> earlyBreakRate, Map<String, Long> earlyBreakExposed,
+                       Map<String, Long> earlyBreakMaturing, int earlyBreakDays, long complaints, BigDecimal cost,
                        String costCurrency, BigDecimal costPerAgreement, long inputTokens, long outputTokens,
                        long avgLatencyMs, long reviewed, BigDecimal avgScore, long outOfPolicy, long pendingReviews,
                        PixQuality pix) {

@@ -1,4 +1,4 @@
-import { PolicySettings, PolicyView, ReviewView, ServiceWindow } from './assistant.models';
+import { PolicySettings, PolicyView, QualityView, ReviewView, ServiceWindow } from './assistant.models';
 
 /**
  * Regras de apresentação do assistente. A validação espelha `PolicySettings.normalized()` para
@@ -139,6 +139,33 @@ export function bars(data: Record<string, number> | null | undefined, labels: Re
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, limit)
     .map(([key, value]) => ({ key, label: labels[key] ?? key, value, share: max ? value / max : 0, ofTotal: total ? value / total : 0 }));
+}
+
+const EARLY_BREAK_GROUPS = ['ASSISTANT', 'HUMAN'] as const;
+
+/**
+ * Quebra precoce por grupo (assistente primeiro, ordem fixa para comparar): taxa sobre os acordos já
+ * expostos ao risco; grupo sem acordo exposto fica de fora (não é "0%").
+ */
+export function earlyBreakBars(view: Pick<QualityView, 'earlyBreakRate'> | null | undefined, labels: Record<string, string> = {}): Bar[] {
+  const rates = view?.earlyBreakRate ?? {};
+  const keys = EARLY_BREAK_GROUPS.filter((k) => rates[k] !== undefined && rates[k] !== null);
+  const max = Math.max(0, ...keys.map((k) => rates[k] as number));
+  return keys.map((k) => {
+    const value = rates[k] as number;
+    return { key: k, label: labels[k] ?? k, value, share: max ? value / max : 0, ofTotal: value };
+  });
+}
+
+/** "Base: 12 com o assistente, 30 só humanos · Em maturação: 4 com o assistente, 9 só humanos" (vazio sem acordos). */
+export function earlyBreakBaseText(view: Pick<QualityView, 'earlyBreakExposed' | 'earlyBreakMaturing'> | null | undefined, labels: Record<string, string> = {}): string {
+  const count = (data: Record<string, number> | undefined) =>
+    EARLY_BREAK_GROUPS.map((k) => `${new Intl.NumberFormat('pt-BR').format(data?.[k] ?? 0)} ${(labels[k] ?? k).toLowerCase()}`).join(', ');
+  const total = (data: Record<string, number> | undefined) => EARLY_BREAK_GROUPS.reduce((s, k) => s + (data?.[k] ?? 0), 0);
+  if (!view || total(view.earlyBreakExposed) + total(view.earlyBreakMaturing) === 0) {
+    return '';
+  }
+  return `Expostos ao risco: ${count(view.earlyBreakExposed)} · Em maturação (fora da taxa): ${count(view.earlyBreakMaturing)}`;
 }
 
 /** Janela "seg a sex, 08:00–20:00". */

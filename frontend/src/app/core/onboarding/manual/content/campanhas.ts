@@ -91,7 +91,7 @@ export const MANUAL: ModuleManual = {
       title: 'Teste A/B da campanha',
       objective: 'Compare variantes de template, canal, horário ou oferta com um grupo de controle sorteado.',
       purpose: [
-        'Defina o grupo de controle, o horizonte e a amostra mínima antes de iniciar. O resultado mostra a estimativa e o intervalo de 95%: é significativo quando o intervalo da diferença não cruza o zero.',
+        'Defina o grupo de controle, o horizonte e a amostra mínima antes de iniciar. O resultado mostra a estimativa e o intervalo de 95%: é significativo quando o intervalo da diferença não cruza o zero. Ao lado da diferença em pontos percentuais aparece o ganho relativo sobre a referência.',
       ],
       profiles: ['ESTRATEGIA', 'GESTOR'],
       inputs: ['Régua publicada da campanha.'],

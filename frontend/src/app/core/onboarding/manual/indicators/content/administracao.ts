@@ -17,8 +17,8 @@ export const INDICATORS: readonly IndicatorHelp[] = [
   {
     id: 'publicapi.billing.projection',
     title: 'Projeção no fechamento',
-    what: 'Estimativa do valor do ciclo no dia do fechamento, se o ritmo de uso continuar.',
-    how: 'O consumo até agora mais a média diária do ciclo vezes os dias que faltam, calculado com as mesmas condições do contrato (mensalidade, franquias e excedente).',
+    what: 'Estimativa do valor total do ciclo no dia do fechamento, se o ritmo de uso continuar.',
+    how: 'Uso cobrável até agora mais a média diária do ciclo vezes os dias que faltam. O uso projetado é precificado pelo contrato: mensalidade, franquias e excedente.',
     use: 'Antecipe a conversa com o credor quando a projeção passar muito do valor habitual ou da franquia contratada.',
     screens: ['settlement.position'],
   },

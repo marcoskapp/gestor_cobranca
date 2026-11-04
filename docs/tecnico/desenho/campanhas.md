@@ -247,6 +247,10 @@ inscrição × tipo × referência; estorno (`PaymentReversed`) gera valor negat
   controle) pelo **método híbrido de Newcombe** (score de Wilson); valor por devedor com intervalo normal da média e
   diferença por **Welch** (aproximação normal). "Significativa" = intervalo da diferença sem o zero. Sem correção para
   múltiplas comparações nem testes sequenciais: decidir com amostra planejada.
+* **Ganho relativo** (`difference.lift`, decisão 714): `(variante − referência) ÷ referência` sobre as estimativas
+  pontuais (fração, 4 casas), exibido ao lado da diferença absoluta (p.p. nas taxas, R$ no valor por devedor); nulo
+  quando a referência é zero (a tela mostra "—" com a explicação para leitor de tela). Sem intervalo próprio: a
+  significância continua sendo a da diferença absoluta.
 * **Avisos**: `SAMPLE_BELOW_MINIMUM` (braço abaixo de `minSamplePerArm`, padrão 100), `FEW_EVENTS` (menos de 5 sucessos
   ou fracassos), `NO_VARIANCE`; geral `INSUFFICIENT_SAMPLE` (na métrica principal) e `NO_COMPARISON`.
 

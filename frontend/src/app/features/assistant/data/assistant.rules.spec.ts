@@ -1,5 +1,5 @@
 import { PolicySettings } from './assistant.models';
-import { bars, fractionText, prettyJson, reviewBlocked, reviewProblems, scopeOf, settingsProblems } from './assistant.rules';
+import { bars, earlyBreakBars, earlyBreakBaseText, fractionText, prettyJson, reviewBlocked, reviewProblems, scopeOf, settingsProblems } from './assistant.rules';
 
 function settings(o: Partial<PolicySettings> = {}): PolicySettings {
   return {
@@ -83,5 +83,23 @@ describe('regras do assistente', () => {
     expect(fractionText(0.125)).toBe('12,5%');
     expect(prettyJson('{"a":1}')).toBe('{\n  "a": 1\n}');
     expect(prettyJson('texto')).toBe('texto');
+  });
+
+  it('quebra precoce: taxa só dos grupos com acordo exposto, assistente primeiro', () => {
+    const labels = { ASSISTANT: 'Com o assistente', HUMAN: 'Só humanos' };
+    const b = earlyBreakBars({ earlyBreakRate: { HUMAN: 0.2, ASSISTANT: 0.1 } }, labels);
+    expect(b.map((x) => x.key)).toEqual(['ASSISTANT', 'HUMAN']);
+    expect(b[0]).toEqual(expect.objectContaining({ label: 'Com o assistente', value: 0.1, share: 0.5 }));
+    expect(earlyBreakBars({ earlyBreakRate: { ASSISTANT: null, HUMAN: 0 } }, labels).map((x) => x.key)).toEqual(['HUMAN']);
+    expect(earlyBreakBars(null)).toEqual([]);
+  });
+
+  it('quebra precoce: base exposta ao risco e acordos em maturação à parte', () => {
+    const labels = { ASSISTANT: 'Com o assistente', HUMAN: 'Só humanos' };
+    expect(earlyBreakBaseText({ earlyBreakExposed: { ASSISTANT: 1, HUMAN: 1200 }, earlyBreakMaturing: { ASSISTANT: 4, HUMAN: 0 } }, labels)).toBe(
+      'Expostos ao risco: 1 com o assistente, 1.200 só humanos · Em maturação (fora da taxa): 4 com o assistente, 0 só humanos',
+    );
+    expect(earlyBreakBaseText({ earlyBreakExposed: { ASSISTANT: 0, HUMAN: 0 }, earlyBreakMaturing: {} }, labels)).toBe('');
+    expect(earlyBreakBaseText(undefined)).toBe('');
   });
 });

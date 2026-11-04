@@ -76,8 +76,8 @@ export const INDICATORS: readonly IndicatorHelp[] = [
   {
     id: 'campaign.experiment.difference',
     title: 'Diferença para a referência',
-    what: 'Quanto o braço ficou acima ou abaixo da referência (o grupo de controle ou, sem controle, a primeira variante), com o intervalo de 95%.',
-    how: 'Diferença absoluta entre as taxas (método de Newcombe) ou entre os valores médios por devedor (Welch). É significativa quando o intervalo da diferença não cruza o zero. O sistema não calcula a variação relativa (o "lift" em percentual).',
+    what: 'Quanto o braço ficou acima ou abaixo da referência (o grupo de controle ou, sem controle, a primeira variante): a diferença absoluta, com o intervalo de 95%, e o ganho relativo.',
+    how: 'Diferença absoluta em pontos percentuais (Newcombe) ou em reais por devedor (Welch); é significativa quando o intervalo não cruza o zero. Ganho relativo = (variante − referência) ÷ referência: 10% contra 8% dá +25%. Com referência zero, aparece "—".',
     use: 'Só adote a variante quando a diferença for significativa com a amostra planejada atingida. Olhar o resultado todo dia e parar no primeiro sinal aumenta a chance de falso positivo.',
     screens: ['campaign.experiment'],
   },

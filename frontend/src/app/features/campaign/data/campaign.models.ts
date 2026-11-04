@@ -407,6 +407,8 @@ export interface Difference {
   upper: number;
   /** O intervalo não contém o zero. */
   significant: boolean;
+  /** Ganho relativo (variante − referência) ÷ referência, em fração; nulo quando a referência é zero. */
+  lift: number | null;
 }
 
 export interface MetricResult {

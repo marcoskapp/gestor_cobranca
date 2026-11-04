@@ -250,10 +250,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'assistant.turn', version: 1, path: '/assistente/turnos/:id', tourId: 'assistant.turn' },
   {
     key: 'assistant.quality',
-    version: 2,
+    version: 3,
     path: '/assistente/qualidade',
     tourId: 'assistant.quality',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
+      { version: 3, items: ['Quebra precoce na mesma regra dos painéis: a taxa considera só os acordos formalizados há pelo menos a janela; os recentes aparecem à parte, em maturação.'] },
+    ],
   },
   { key: 'communication.inbox', version: 1, path: '/conversas', tourId: 'communication.inbox' },
   { key: 'communication.templates', version: 1, path: '/conversas/templates', tourId: 'communication.templates' },
@@ -282,10 +285,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'legal.dashboard',
-    version: 2,
+    version: 3,
     path: '/juridico',
     tourId: 'legal.dashboard',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
+      { version: 3, items: ['"Valor recuperado" passou a se chamar "Valor liberado judicialmente": é a soma dos valores liberados pelo juízo. Recuperado é só pagamento confirmado.'] },
+    ],
   },
   { key: 'legal.matters', version: 1, path: '/juridico/casos' },
   { key: 'legal.matter-detail', version: 1, path: '/juridico/casos/:id', tourId: 'legal.matter-detail' },

@@ -814,11 +814,11 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'legal.dashboard',
-    version: 2,
+    version: 3,
     title: 'Painel jurídico',
     summary: 'Casos por fase, valores e prazos que exigem atenção.',
     steps: [
-      { anchor: 'legal-kpis', title: 'Números do jurídico', body: 'Casos em aberto, dívida, custas, valor recuperado e prazos próximos ou perdidos.' },
+      { anchor: 'legal-kpis', title: 'Números do jurídico', body: 'Casos em aberto, dívida, custas, valor liberado judicialmente e prazos próximos ou perdidos.' },
       { anchor: 'legal-stages', title: 'Casos por fase', body: 'Clique na fase para ver a lista de casos nela.' },
       { anchor: 'legal-deadlines', title: 'Prazos', body: 'Perdidos e os dos próximos 10 dias, mais urgentes primeiro. Filtre pelos seus.', placement: 'start' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
@@ -1466,12 +1466,12 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'assistant.quality',
-    version: 2,
+    version: 3,
     title: 'Qualidade do assistente',
     summary: 'Assistente comparado aos humanos.',
     steps: [
       { anchor: 'quality-kpis', title: 'Indicadores', body: 'Transferência, reclamações, custo por acordo e revisões no período.' },
-      { anchor: 'quality-break', title: 'Quebra precoce', body: 'Avance de fase quando a quebra com o assistente for igual ou menor que a dos humanos.' },
+      { anchor: 'quality-break', title: 'Quebra precoce', body: 'Taxa só com acordos que completaram a janela; os recentes ficam em maturação. Avance se o assistente quebrar igual ou menos que os humanos.' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },

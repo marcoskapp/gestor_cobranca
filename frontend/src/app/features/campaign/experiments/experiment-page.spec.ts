@@ -29,7 +29,7 @@ const RESULTS: ExperimentResults = {
       debtors: 80,
       metrics: [
         { metric: 'PAYMENT', successes: 4, denominator: 80, estimate: 0.05, lower: 0.0196, upper: 0.1216, difference: null, warnings: ['SAMPLE_BELOW_MINIMUM', 'FEW_EVENTS'] },
-        { metric: 'RECOVERED_PER_DEBTOR', successes: null, denominator: 80, estimate: 21.4, lower: 5.2, upper: 37.6, difference: null, warnings: [] },
+        { metric: 'RECOVERED_PER_DEBTOR', successes: null, denominator: 80, estimate: 0, lower: 0, upper: 0, difference: null, warnings: ['NO_VARIANCE'] },
       ],
     },
     {
@@ -37,8 +37,8 @@ const RESULTS: ExperimentResults = {
       control: false,
       debtors: 360,
       metrics: [
-        { metric: 'PAYMENT', successes: 45, denominator: 360, estimate: 0.125, lower: 0.0947, upper: 0.1633, difference: { estimate: 0.075, lower: 0.0101, upper: 0.1291, significant: true }, warnings: [] },
-        { metric: 'RECOVERED_PER_DEBTOR', successes: null, denominator: 360, estimate: 30.1, lower: 22.3, upper: 37.9, difference: { estimate: 8.7, lower: -9.1, upper: 26.5, significant: false }, warnings: [] },
+        { metric: 'PAYMENT', successes: 45, denominator: 360, estimate: 0.125, lower: 0.0947, upper: 0.1633, difference: { estimate: 0.075, lower: 0.0101, upper: 0.1291, significant: true, lift: 1.5 }, warnings: [] },
+        { metric: 'RECOVERED_PER_DEBTOR', successes: null, denominator: 360, estimate: 30.1, lower: 22.3, upper: 37.9, difference: { estimate: 30.1, lower: -1.2, upper: 61.4, significant: false, lift: null }, warnings: [] },
       ],
     },
   ],
@@ -78,6 +78,12 @@ describe('ExperimentResultsView', () => {
     expect(text).toContain('12,5% (IC 95%: 9,5% a 16,3%) · 45 de 360 devedores');
     expect(text).toContain('+7,5 p.p. (IC 95%: +1,0 p.p. a +12,9 p.p.) — melhor que a referência, diferença significativa');
     expect(text).toContain('sem diferença significativa');
+    // ganho relativo ao lado da diferença absoluta; referência zero → "—" com explicação para leitor de tela
+    const lifts = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.xr-lift')].map((l) => l.textContent!.replace(/\s+/g, ' ').trim());
+    expect(lifts).toContain('Ganho relativo: +150,0%');
+    const noBase = lifts.find((l) => l.includes('—'))!;
+    expect(noBase).toContain('indisponível, porque a referência é zero');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.xr-lift .visually-hidden')).not.toBeNull();
     expect(text).toContain('Amostra abaixo do mínimo planejado');
     expect(text).toContain('Grupo de controle');
     expect(text).toContain('Braço de referência das diferenças');
