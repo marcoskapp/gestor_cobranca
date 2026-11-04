@@ -7,10 +7,12 @@ import { toHttpParams } from '../../../core/http/http-params';
 import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
+  BulkTokenResult,
   CreatePolicyRequest,
   OverviewView,
   PlatformPositionView,
   PlatformStatementView,
+  PlatformTokenView,
   PolicyTermsRequest,
   PolicyView,
 } from './platform-billing.models';
@@ -63,6 +65,37 @@ export class PlatformBillingApi {
 
   exportStatement(tenantId: string, id: string): Observable<string> {
     return this.files.download(`${this.tenant(tenantId)}/statements/${id}/export`, `extrato-plataforma-${id}.csv`);
+  }
+
+  // ------------------------------------------------ controle dos tokens da assessoria (PlatformTokenController)
+
+  tokens(tenantId: string): Observable<PlatformTokenView[]> {
+    return this.http.get<PlatformTokenView[]>(`${this.tenant(tenantId)}/tokens`);
+  }
+
+  /** `resumeAt` (ISO) opcional: retomada automática agendada. */
+  pauseToken(tenantId: string, tokenId: string, reason: string, resumeAt: string | null): Observable<PlatformTokenView> {
+    return this.http.post<PlatformTokenView>(`${this.token(tenantId, tokenId)}/pause`, { reason, resumeAt }, { context: silentErrorContext() });
+  }
+
+  resumeToken(tenantId: string, tokenId: string, reason: string): Observable<PlatformTokenView> {
+    return this.http.post<PlatformTokenView>(`${this.token(tenantId, tokenId)}/resume`, { reason }, { context: silentErrorContext() });
+  }
+
+  revokeToken(tenantId: string, tokenId: string, reason: string): Observable<PlatformTokenView> {
+    return this.http.post<PlatformTokenView>(`${this.token(tenantId, tokenId)}/revoke`, { reason }, { context: silentErrorContext() });
+  }
+
+  pauseAllTokens(tenantId: string, reason: string, resumeAt: string | null): Observable<BulkTokenResult> {
+    return this.http.post<BulkTokenResult>(`${this.tenant(tenantId)}/tokens/pause-all`, { reason, resumeAt }, { context: silentErrorContext() });
+  }
+
+  resumeAllTokens(tenantId: string, reason: string): Observable<BulkTokenResult> {
+    return this.http.post<BulkTokenResult>(`${this.tenant(tenantId)}/tokens/resume-all`, { reason }, { context: silentErrorContext() });
+  }
+
+  private token(tenantId: string, tokenId: string): string {
+    return `${this.tenant(tenantId)}/tokens/${encodeURIComponent(tokenId)}`;
   }
 
   private tenant(tenantId: string): string {

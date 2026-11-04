@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-/** Fornece aos jobs a lista de assessorias ativas (a tabela de tenants não tem RLS). */
+/** Fornece aos jobs a lista de assessorias ativas — e, às visões da plataforma, todas (a tabela de tenants não tem RLS). */
 @Service
 class ActiveTenantDirectory implements TenantDirectory {
 
@@ -22,5 +22,11 @@ class ActiveTenantDirectory implements TenantDirectory {
     @Transactional(readOnly = true)
     public List<UUID> activeTenantIds() {
         return tenants.findActiveIds();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> allTenantIds() {
+        return tenants.findAllIds();
     }
 }

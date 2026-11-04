@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "996d4f0b52add6ad",
+ "contentVersion": "da74705a6abd726e",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -872,7 +872,9 @@
     "Suspender ou devolver carteira pede motivo; encerrar é definitivo.",
     "A trilha de auditoria é encadeada e a verificação de integridade mostra se algum registro foi alterado fora do sistema.",
     "A cobrança da plataforma à assessoria é independente das condições que a assessoria cobra dos credores: soma o uso de todos os tokens da assessoria, inclusive revogados ou expirados.",
-    "Só a equipe da plataforma cadastra a política e fecha ou revisa os extratos da plataforma; a assessoria consulta, sem alterar."
+    "Só a equipe da plataforma cadastra a política e fecha ou revisa os extratos da plataforma; a assessoria consulta, sem alterar.",
+    "Assessoria suspensa continua aparecendo, com o uso e as chamadas recusadas pela suspensão, mas com valores zerados e sem extrato enquanto durar a suspensão.",
+    "A equipe da plataforma pode pausar, retomar e revogar tokens de qualquer assessoria, sempre com motivo. A pausa tem precedência: só a plataforma retoma; a assessoria é avisada e pode revogar."
    ],
    "terms": [
     "credor",
@@ -6178,7 +6180,8 @@
    "objective": "Credenciais que os sistemas dos credores usam para enviar carteiras e acompanhar a cobrança de forma automática.",
    "purpose": [
     "Crie um token para cada sistema do credor, com os escopos estritamente necessários, o limite de chamadas por minuto e, se possível, os endereços de rede do credor.",
-    "O token aparece uma única vez, na criação: copie e entregue ao credor por canal seguro. A lista mostra só o prefixo."
+    "O token aparece uma única vez, na criação: copie e entregue ao credor por canal seguro. A lista mostra só o prefixo.",
+    "A equipe da plataforma pode pausar um token para bloquear uso indevido: ele aparece como \"Pausado pela plataforma\", as chamadas são recusadas sem cobrança e só a plataforma retoma. Você recebe um aviso por e-mail."
    ],
    "profiles": [
     "ADMIN",
@@ -6221,7 +6224,8 @@
    "objective": "Identificação, uso, rotação sem parada e revogação imediata de um token de integração.",
    "purpose": [
     "Rotacione periodicamente ou quando a equipe do credor mudar: o segredo anterior continua aceito durante a carência. Em caso de vazamento, rotacione sem carência ou revogue.",
-    "A revogação é imediata e definitiva e exige motivo."
+    "A revogação é imediata e definitiva e exige motivo.",
+    "Pausado pela plataforma: a ficha mostra desde quando, o motivo e a retomada agendada, se houver. Você não retoma, mas pode editar, rotacionar (segredo exposto) e revogar; para retomar antes, procure a plataforma."
    ],
    "profiles": [
     "ADMIN",
@@ -6340,7 +6344,8 @@
    "objective": "Quanto cada assessoria deve à plataforma pelo uso da integração no ciclo em andamento, com projeção e ranking.",
    "purpose": [
     "Tela da equipe da plataforma. Cada assessoria tem a sua política de cobrança da plataforma, e a base é o uso somado de todos os tokens dela, de todos os credores.",
-    "Mostra a receita até agora, a projeção pela média diária, o último extrato fechado de cada assessoria e as que ainda não têm política (o uso aparece, sem valor)."
+    "Mostra a receita até agora, a projeção pela média diária, o último extrato fechado de cada assessoria e as que ainda não têm política (o uso aparece, sem valor).",
+    "Assessorias suspensas aparecem com selo e valores zerados. As chamadas recusadas (tokens pausados, revogados, assessoria suspensa) mostram tentativas de uso; o atalho \"Tokens\" leva ao controle dos tokens da assessoria."
    ],
    "profiles": [
     "PLATAFORMA"
@@ -6349,7 +6354,7 @@
     "Uso medido de todos os tokens das assessorias e a política da plataforma de cada uma."
    ],
    "outputs": [
-    "Visão da receita da plataforma e acesso ao faturamento de cada assessoria."
+    "Visão da receita e do tráfego da plataforma e acesso ao faturamento e aos tokens de cada assessoria."
    ],
    "related": [
     {
@@ -6378,11 +6383,11 @@
    "id": "platform.billing-tenant",
    "module": "administracao",
    "title": "Faturamento da assessoria",
-   "objective": "Política da plataforma, ciclo em andamento e extratos de uma assessoria, com fechamento, revisão e exportação.",
+   "objective": "Política, ciclo em andamento, tráfego, tokens e extratos de uma assessoria, com fechamento, revisão e controle dos tokens.",
    "purpose": [
     "A política tem vigência e versões: dia de fechamento, mensalidade, franquias e preço do excedente por chamada (único ou por faixas de volume), por MB recebido, por MB enviado e por registro. A primeira versão vale já no ciclo em andamento; as seguintes, a partir do próximo ciclo.",
-    "O ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte. Primeiro, último e de transição têm mensalidade, franquias e limites das faixas proporcionais aos dias. Só chamadas bem-sucedidas contam; dados em MB inteiros por token.",
-    "Ciclos encerrados fecham sozinhos de madrugada. Uma nova revisão exige motivo e a anterior fica guardada; ciclos encerrados antes do primeiro cadastro não são cobrados."
+    "O ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte. Primeiro, último e de transição têm mensalidade, franquias e limites das faixas proporcionais aos dias. Só chamadas bem-sucedidas contam; dados em MB inteiros por token. Ciclos encerrados fecham sozinhos de madrugada. Uma nova revisão exige motivo e a anterior fica guardada; ciclos encerrados antes do primeiro cadastro não são cobrados. Assessoria suspensa: valores zerados, sem prévia nem extrato.",
+    "Tráfego e tokens: chamadas cobráveis, não cobráveis e recusadas por credor e token. Pause um token ou todos (motivo obrigatório, retomada automática opcional em até 90 dias), retome depois ou revogue de vez; a assessoria é avisada por e-mail."
    ],
    "profiles": [
     "PLATAFORMA"
@@ -9222,7 +9227,7 @@
    "module": "administracao",
    "title": "Receita até agora",
    "what": "Soma do valor até agora de todas as assessorias com política, nos ciclos em andamento.",
-   "how": "Para cada assessoria ativa, a mensalidade do ciclo mais o excedente já consumido, pela política da plataforma; assessorias sem política entram com zero.",
+   "how": "Para cada assessoria ativa, a mensalidade do ciclo mais o excedente já consumido, pela política da plataforma; assessorias sem política ou suspensas entram com zero.",
    "use": "Acompanhe a receita do mês da plataforma a qualquer momento e compare com os ciclos já fechados.",
    "screens": [
     "platform.billing"
@@ -9254,8 +9259,8 @@
    "id": "platform.overview.without-policy",
    "module": "administracao",
    "title": "Assessorias sem política",
-   "what": "Assessorias ativas que ainda não têm política de cobrança da plataforma cadastrada.",
-   "how": "Contagem das assessorias ativas sem política; o uso delas aparece no ranking, mas sem valor.",
+   "what": "Assessorias que ainda não têm política de cobrança da plataforma cadastrada.",
+   "how": "Contagem das assessorias (ativas ou suspensas) sem política; o uso delas aparece no ranking, mas sem valor e sem extrato.",
    "use": "Cadastre a política para começar a cobrar. O primeiro cadastro já vale no ciclo em andamento, sem cobrar ciclos passados.",
    "screens": [
     "platform.billing"
@@ -9266,10 +9271,77 @@
    "module": "administracao",
    "title": "Posição no ranking de consumo",
    "what": "Ordem das assessorias pelo uso cobrável da integração no ciclo em andamento.",
-   "how": "Ordenação pelas chamadas cobráveis do ciclo e, no empate, pelo valor até agora. A primeira posição é a de maior consumo.",
+   "how": "Ordenação pelas chamadas cobráveis do ciclo e, no empate, pelo valor até agora e pelas chamadas recusadas. A primeira posição é a de maior consumo.",
    "use": "Priorize o acompanhamento das maiores consumidoras e confira se a política delas está adequada ao volume.",
    "screens": [
     "platform.billing"
+   ]
+  },
+  {
+   "id": "platform.overview.suspended",
+   "module": "administracao",
+   "title": "Assessorias suspensas",
+   "what": "Assessorias com acesso suspenso que continuam aparecendo no ranking, com o uso e o tráfego da integração.",
+   "how": "Contagem das assessorias suspensas. Para elas os valores ficam zerados e nenhum extrato é gerado enquanto durar a suspensão; o detalhe mostra os tokens pausados pela plataforma.",
+   "use": "Chamadas recusadas de uma suspensa indicam sistemas do credor ainda tentando integrar: avise a assessoria ou pause os tokens.",
+   "screens": [
+    "platform.billing"
+   ]
+  },
+  {
+   "id": "platform.traffic.requests",
+   "module": "administracao",
+   "title": "Chamadas autenticadas",
+   "what": "Todas as chamadas aceitas pelos tokens da assessoria no ciclo, cobráveis ou não, com os MB trafegados.",
+   "how": "Chamadas cobráveis (com sucesso) mais as não cobráveis (excesso de limite, erros do credor e falhas da plataforma). MB inteiros por token, de todas as chamadas.",
+   "use": "Compare com as cobráveis: diferença grande indica integração com muitos erros, que consome capacidade sem gerar receita.",
+   "screens": [
+    "platform.billing-tenant"
+   ]
+  },
+  {
+   "id": "platform.traffic.non-billable",
+   "module": "administracao",
+   "title": "Chamadas não cobráveis",
+   "what": "Chamadas aceitas no ciclo que não entram na cobrança da plataforma.",
+   "how": "Recusadas pelo limite por minuto (429), erros do credor (4xx) e falhas da plataforma (5xx), de todos os tokens da assessoria.",
+   "use": "Muitos 429 indicam limite baixo ou laço no sistema do credor; muitos 4xx, integração mal configurada. Avise a assessoria.",
+   "screens": [
+    "platform.billing-tenant"
+   ]
+  },
+  {
+   "id": "platform.traffic.rejected",
+   "module": "administracao",
+   "title": "Chamadas recusadas",
+   "what": "Tentativas de uso com tokens válidos que foram barradas antes de chegar à integração, no ciclo.",
+   "how": "Chamadas com o segredo correto recusadas por token pausado, revogado ou expirado, assessoria suspensa, credor inativo ou IP fora da lista. Nunca são cobradas.",
+   "use": "Mostra quem continua tentando integrar mesmo bloqueado. Volume alto e constante sugere robô em laço: confirme com a assessoria ou pause o token.",
+   "screens": [
+    "platform.billing-tenant",
+    "platform.billing"
+   ]
+  },
+  {
+   "id": "platform.traffic.by-token",
+   "module": "administracao",
+   "title": "Tráfego por credor e token",
+   "what": "O tráfego do ciclo de cada credor e de cada token da assessoria, com a situação atual do token.",
+   "how": "Para cada token: chamadas autenticadas, cobráveis, não cobráveis, recusadas na autenticação, MB recebidos e enviados e registros; o credor soma os seus tokens.",
+   "use": "Encontre o token que gera tentativas indevidas ou erros e use o controle de tokens para pausá-lo.",
+   "screens": [
+    "platform.billing-tenant"
+   ]
+  },
+  {
+   "id": "platform.tokens.cycle-traffic",
+   "module": "administracao",
+   "title": "Tráfego do token no ciclo",
+   "what": "Uso do token no ciclo em andamento da cobrança da plataforma.",
+   "how": "Chamadas cobráveis e não cobráveis, tentativas recusadas na autenticação e MB de todas as chamadas do token, desde o início do ciclo.",
+   "use": "Antes de pausar ou revogar, confira se o token está mesmo gerando o tráfego suspeito e se há chamadas legítimas que serão interrompidas.",
+   "screens": [
+    "platform.billing-tenant"
    ]
   }
  ]

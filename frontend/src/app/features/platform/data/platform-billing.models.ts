@@ -1,3 +1,5 @@
+import { TokenState } from '../../public-api/data/public-api.models';
+
 /**
  * Faturamento da plataforma às assessorias pelo consumo da integração (espelho de
  * `publicapi.application.port.in.PlatformBillingUseCases`). Valores monetários chegam como número (BigDecimal).
@@ -166,6 +168,72 @@ export interface PlatformPositionView {
   updatedAt: string | null;
   flushIntervalSeconds: number;
   calculationMillis: number;
+  /** Assessoria suspensa: consumo e tráfego visíveis, valores zerados e sem extrato. */
+  suspended: boolean;
+  traffic: TrafficView;
+}
+
+/**
+ * Tráfego da API num período: autenticadas (`requests`) = cobráveis + não cobráveis (429, 4xx, 5xx); recusadas
+ * (`rejectedRequests`) = barradas na autenticação de um token identificado (pausado, revogado, expirado, assessoria
+ * suspensa, credor inativo, IP fora da lista) — nunca cobradas.
+ */
+export interface TrafficTotals {
+  requests: number;
+  billableRequests: number;
+  nonBillableRequests: number;
+  rejectedRequests: number;
+  mbIn: number;
+  mbOut: number;
+  billableMbIn: number;
+  billableMbOut: number;
+  records: number;
+}
+
+export type RejectionReason = 'paused' | 'revoked' | 'expired' | 'tenant_inactive' | 'creditor_inactive' | 'ip_not_allowed';
+
+export interface TrafficRow {
+  kind: 'CREDITOR' | 'TOKEN';
+  key: string;
+  label: string | null;
+  creditorId: string | null;
+  tokenState: TokenState | null;
+  totals: TrafficTotals;
+}
+
+export interface TrafficView {
+  totals: TrafficTotals;
+  rows: TrafficRow[];
+  rejections: { reason: RejectionReason; attempts: number }[];
+}
+
+/** Token da assessoria visto pela plataforma (controle: pausar, retomar, revogar). */
+export interface PlatformTokenView {
+  id: string;
+  creditorId: string;
+  creditorName: string | null;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  state: TokenState;
+  createdAt: string;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  pausedAt: string | null;
+  pausedBy: string | null;
+  pauseReason: string | null;
+  resumeAt: string | null;
+  revokedAt: string | null;
+  revokedByPlatform: boolean;
+  revokeReason: string | null;
+  /** Tráfego do token no ciclo em andamento da cobrança da plataforma. */
+  cycle: TrafficTotals;
+}
+
+export interface BulkTokenResult {
+  affected: number;
+  skipped: number;
+  tokens: PlatformTokenView[];
 }
 
 export interface TenantSummary {
@@ -187,6 +255,11 @@ export interface TenantSummary {
   projectedAmount: number;
   lastStatement: StatementRef | null;
   rank: number;
+  suspended: boolean;
+  requests: number;
+  nonBillableRequests: number;
+  rejectedRequests: number;
+  pausedTokens: number;
 }
 
 export interface OverviewTotals {
@@ -200,6 +273,11 @@ export interface OverviewTotals {
   billableMbIn: number;
   billableMbOut: number;
   records: number;
+  suspended: number;
+  requests: number;
+  nonBillableRequests: number;
+  rejectedRequests: number;
+  pausedTokens: number;
 }
 
 export interface OverviewView {

@@ -55,7 +55,8 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * cobrança de cada assessoria e fecha e revisa os extratos ({@code PLATFORM_BILLING_MANAGE}, exclusiva da plataforma,
  * com {@code PLATFORM_BILLING_VIEW}); na assessoria, só o administrador consulta, sem alterar, a cobrança da
  * plataforma pelo consumo da API ({@code TENANT_BILLING_VIEW}, que o perfil ADMIN recebe por ter todas as permissões
- * da assessoria).
+ * da assessoria). O administrador da plataforma também pausa, retoma e revoga tokens de integração de qualquer
+ * assessoria para bloquear consumo indevido ({@code PLATFORM_API_TOKENS_MANAGE}, exclusiva da plataforma).
  */
 public final class DefaultRoles {
 
@@ -183,8 +184,9 @@ public final class DefaultRoles {
 
     public static Definition platformAdmin() {
         return new Definition(PLATFORM_ADMIN, "Administrador da plataforma",
-                "Provisionamento de assessorias e faturamento da plataforma",
-                EnumSet.of(TENANT_MANAGE, PLATFORM_BILLING_VIEW, PLATFORM_BILLING_MANAGE, USER_VIEW, USER_MANAGE,
+                "Provisionamento de assessorias, faturamento da plataforma e controle dos tokens de integração",
+                EnumSet.of(TENANT_MANAGE, PLATFORM_BILLING_VIEW, PLATFORM_BILLING_MANAGE, PLATFORM_API_TOKENS_MANAGE,
+                        USER_VIEW, USER_MANAGE,
                         ROLE_MANAGE, ACCESS_LOG_VIEW, AUDIT_VIEW));
     }
 }

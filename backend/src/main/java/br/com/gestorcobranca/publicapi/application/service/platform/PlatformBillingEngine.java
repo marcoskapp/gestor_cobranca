@@ -17,10 +17,15 @@ import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCas
 import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCases.StatementView;
 import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCases.TierChargeView;
 import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCases.TierView;
+import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCases.RejectionRow;
+import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCases.TrafficRow;
+import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCases.TrafficTotals;
+import br.com.gestorcobranca.publicapi.application.port.in.PlatformBillingUseCases.TrafficView;
 import br.com.gestorcobranca.publicapi.application.port.out.CsvWriter;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageStore;
 import br.com.gestorcobranca.publicapi.domain.model.BillableUsage;
 import br.com.gestorcobranca.publicapi.domain.model.IntegrationToken;
+import br.com.gestorcobranca.publicapi.domain.model.TokenState;
 import br.com.gestorcobranca.publicapi.domain.model.Proration;
 import br.com.gestorcobranca.publicapi.domain.model.UsageTotals;
 import br.com.gestorcobranca.publicapi.domain.model.platform.PlatformBillingPolicy;
@@ -525,15 +530,18 @@ class PlatformBillingEngine {
     /**
      * Posição do ciclo em andamento.
      *
-     * @param detailed com detalhamento (nomes), crescimento diário e linhas; sem ele (consolidado), só os totais
+     * @param detailed  com detalhamento (nomes), crescimento diário e linhas; sem ele (consolidado), só os totais
+     * @param suspended assessoria suspensa: o consumo e o tráfego aparecem, mas sem valores (sem linhas, franquias nem
+     *                  valor projetado; crescimento diário com valor zero) — decisão 760
      */
-    PositionView position(boolean detailed) {
+    PositionView position(boolean detailed, boolean suspended) {
         Instant now = Instant.now(clock);
         LocalDate today = LocalDate.ofInstant(now, ZONE);
         Optional<State> st = state(false);
-        Pending current = currentCycle(st, now, today);
+        Pending current = currentCycle(st, now, LocalDate.ofInstant(now, ZONE));
         Cycle cycle = current.cycle();
-        Computed c = compute(current, detailed);
+        Pending priced = suspended ? new Pending(cycle, Optional.empty(), current.kind()) : current;
+        Computed c = compute(priced, detailed);
         int daysElapsed = (int) ChronoUnit.DAYS.between(cycle.start(), today) + 1;
         int daysRemaining = (int) ChronoUnit.DAYS.between(today, cycle.end());
         List<AllowanceUse> allowances = c.lines().stream()
@@ -541,7 +549,7 @@ class PlatformBillingEngine {
                 .map(l -> new AllowanceUse(l.metric(), l.quantity(), l.included(),
                         ChargeLines.allowancePercent(l.quantity(), l.included())))
                 .toList();
-        Optional<PlatformPriceTerms> terms = current.version().map(this::terms);
+        Optional<PlatformPriceTerms> terms = priced.version().map(this::terms);
         BillableUsage projected = UsageProjection.dailyAverage(c.billable(), daysElapsed, daysRemaining);
         BigDecimal projectedAmount = terms.map(t -> PlatformPriceCalculator.calculate(t, projected, c.proration()).total())
                 .orElse(BigDecimal.ZERO.setScale(2));
@@ -551,6 +559,7 @@ class PlatformBillingEngine {
         StatementRef last = statements.findLastCycle().map(PlatformBillingEngine::ref).orElse(null);
         Optional<Instant> updatedAt = detailed ? usage.lastUpdatedAt(new UsageStore.Filter(cycle.from(ZONE),
                 cycle.to(ZONE), null, null, null)) : Optional.empty();
+        TrafficView traffic = traffic(cycle, detailed, now);
         long millis = Duration.between(now, Instant.now(clock)).toMillis();
         if (detailed) {
             Timer.builder("publicapi.platform_billing.position.duration").register(meterRegistry)
@@ -563,7 +572,66 @@ class PlatformBillingEngine {
                 c.billable().requests(), c.billable().mbIn(), c.billable().mbOut(), c.billable().records(), c.creditors(),
                 c.tokens(), c.total(), "BRL", detailed ? c.lines() : List.of(), detailed ? allowances : List.of(),
                 detailed ? c.breakdown() : List.of(), daily, projection, last, updatedAt.orElse(null),
-                properties.usageFlushInterval().toSeconds(), millis);
+                properties.usageFlushInterval().toSeconds(), millis, suspended, traffic);
+    }
+
+    /** Tráfego do ciclo em andamento (cobrável, não cobrável e recusado), para a lista de tokens da plataforma. */
+    TrafficView currentTraffic(boolean labels) {
+        Instant now = Instant.now(clock);
+        return traffic(currentCycle(state(false), now, LocalDate.ofInstant(now, ZONE)).cycle(), labels, now);
+    }
+
+    /** Tokens hoje pausados pela plataforma (situação efetiva). */
+    int pausedTokens() {
+        Instant now = Instant.now(clock);
+        return (int) tokens.findAll().stream().filter(t -> t.stateAt(now) == TokenState.PAUSED).count();
+    }
+
+    /**
+     * Tráfego do período por credor e token: autenticadas (cobráveis e não cobráveis, MB de todas e só das cobráveis,
+     * arredondados por token) e recusadas na autenticação (por motivo). Tokens só com recusas também aparecem — é o
+     * caso da assessoria suspensa e do token pausado.
+     */
+    private TrafficView traffic(Cycle cycle, boolean labels, Instant now) {
+        UsageStore.Filter filter = new UsageStore.Filter(cycle.from(ZONE), cycle.to(ZONE), null, null, null);
+        Map<UUID, UUID> creditorOf = new LinkedHashMap<>();
+        Map<UUID, TrafficTotals> perToken = new LinkedHashMap<>();
+        for (UsageStore.TokenRow r : usage.byToken(filter)) {
+            BillableUsage billable = BillableUsage.ofToken(r.totals());
+            creditorOf.put(r.tokenId(), r.creditorId());
+            perToken.merge(r.tokenId(), new TrafficTotals(r.totals().requests(), billable.requests(),
+                    r.totals().requests() - billable.requests(), 0, BillableUsage.megabytes(r.totals().bytesIn()),
+                    BillableUsage.megabytes(r.totals().bytesOut()), billable.mbIn(), billable.mbOut(),
+                    r.totals().records()), TrafficTotals::plus);
+        }
+        Map<String, Long> reasons = new TreeMap<>();
+        for (UsageStore.RejectedRow r : usage.rejected(filter)) {
+            creditorOf.putIfAbsent(r.tokenId(), r.creditorId());
+            perToken.merge(r.tokenId(), new TrafficTotals(0, 0, 0, r.attempts(), 0, 0, 0, 0, 0), TrafficTotals::plus);
+            reasons.merge(r.reason(), r.attempts(), Long::sum);
+        }
+        Map<UUID, TrafficTotals> perCreditor = new TreeMap<>(Comparator.comparing(UUID::toString));
+        perToken.forEach((token, t) -> perCreditor.merge(creditorOf.get(token), t, TrafficTotals::plus));
+        Map<UUID, String> creditorNames = labels && !perCreditor.isEmpty() ? creditors.getAll(perCreditor.keySet())
+                .stream().collect(Collectors.toMap(CreditorView::id, CreditorView::tradeName)) : Map.of();
+        Map<UUID, IntegrationToken> tokenById = labels && !perToken.isEmpty()
+                ? tokens.findAllByIdIn(perToken.keySet()).stream()
+                .collect(Collectors.toMap(IntegrationToken::getId, Function.identity())) : Map.of();
+        List<TrafficRow> rows = new ArrayList<>();
+        perCreditor.forEach((creditorId, t) -> rows.add(new TrafficRow("CREDITOR", creditorId.toString(),
+                creditorNames.get(creditorId), null, null, t)));
+        perToken.entrySet().stream()
+                .sorted(Comparator.comparing((Map.Entry<UUID, TrafficTotals> e) -> creditorOf.get(e.getKey()).toString())
+                        .thenComparing(e -> e.getKey().toString()))
+                .forEach(e -> {
+                    IntegrationToken t = tokenById.get(e.getKey());
+                    rows.add(new TrafficRow("TOKEN", e.getKey().toString(),
+                            t == null ? null : t.getDisplayPrefix() + " · " + t.getName(), creditorOf.get(e.getKey()),
+                            t == null ? null : t.stateAt(now).name(), e.getValue()));
+                });
+        TrafficTotals totals = perToken.values().stream().reduce(TrafficTotals.ZERO, TrafficTotals::plus);
+        return new TrafficView(totals, List.copyOf(rows), reasons.entrySet().stream()
+                .map(e -> new RejectionRow(e.getKey(), e.getValue())).toList());
     }
 
     /** Acumulado diário do ciclo até hoje: MB arredondados por token sobre o acumulado, como no fechamento. */

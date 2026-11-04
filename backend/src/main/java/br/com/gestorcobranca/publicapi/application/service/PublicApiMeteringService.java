@@ -24,6 +24,8 @@ import java.util.Map;
  *       faturamento.</li>
  * </ol>
  * Nenhuma escrita de consumo acontece no caminho da requisição; o log de acesso usa a gravação própria já existente.
+ * As recusas na autenticação de um token identificado vão só ao acumulador de tráfego recusado e à métrica
+ * {@code publicapi.requests.rejected{reason}} (o log de acesso da recusa é da autenticação).
  */
 @Service
 class PublicApiMeteringService implements PublicApiMetering {
@@ -36,6 +38,12 @@ class PublicApiMeteringService implements PublicApiMetering {
         this.accumulator = accumulator;
         this.accessLogger = accessLogger;
         this.meterRegistry = meterRegistry;
+    }
+
+    @Override
+    public void recordRejected(RejectedAttempt a) {
+        accumulator.addRejected(a.tenantId(), a.creditorId(), a.tokenId(), a.at(), a.reason(), a.method());
+        meterRegistry.counter("publicapi.requests.rejected", "reason", a.reason()).increment();
     }
 
     @Override

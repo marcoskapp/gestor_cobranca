@@ -190,6 +190,9 @@ public final class BusinessEventTypes {
     public static final String PUBLIC_API_TOKEN_CREATED = "public_api.token_created";
     public static final String PUBLIC_API_TOKEN_REVOKED = "public_api.token_revoked";
     public static final String PUBLIC_API_TOKEN_ROTATED = "public_api.token_rotated";
+    // controle dos tokens pela plataforma (revogação pela plataforma usa PUBLIC_API_TOKEN_REVOKED com byPlatform=true)
+    public static final String PUBLIC_API_TOKEN_PAUSED = "public_api.token_paused";
+    public static final String PUBLIC_API_TOKEN_RESUMED = "public_api.token_resumed";
     public static final String CONTRACT_INTEGRATION_PRICING_DEFINED = "contract.integration_pricing_defined";
     public static final String PUBLIC_API_STATEMENT_CLOSED = "public_api.statement_closed";
     public static final String PUBLIC_API_RECORDS_PROCESSED = "public_api.records_processed";

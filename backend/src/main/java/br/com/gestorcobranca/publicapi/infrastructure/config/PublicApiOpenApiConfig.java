@@ -109,7 +109,8 @@ class PublicApiOpenApiConfig {
         }
         problem(responses, "400", "Requisição malformada ou dados inválidos (`validation.failed`, `request.malformed`)");
         problem(responses, "401", "Token ausente, inválido, revogado ou expirado (`auth.unauthenticated`)");
-        problem(responses, "403", "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)");
+        problem(responses, "403", "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token "
+                + "pausado pela plataforma (`auth.token_paused`, não cobrada)");
         problem(responses, "404", "Recurso inexistente ou de outro credor (`<recurso>.not_found`)");
         if (!read) {
             problem(responses, "409", "Conflito de estado ou alteração concorrente (`<recurso>.<motivo>`)");
@@ -198,6 +199,13 @@ class PublicApiOpenApiConfig {
 
             ## Erros
             Formato RFC 9457 (`application/problem+json`) com `code` estável e `requestId`.
+
+            ## Token pausado
+            A plataforma pode **pausar** um token para bloquear consumo indevido. Enquanto pausado, toda chamada com \
+            ele recebe **403** com `code` = `auth.token_paused` (o token continua existindo; não é revogação). Não \
+            repita a chamada em laço: a pausa não termina sozinha por novas tentativas. As chamadas recusadas não são \
+            cobradas. Procure a assessoria; quando a pausa terminar, o mesmo token volta a funcionar, sem troca de \
+            segredo.
 
             ## Sincronização incremental
             Listas usam **paginação por cursor** em ordem crescente de atualização. Guarde o `nextCursor` da última \

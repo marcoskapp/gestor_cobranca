@@ -14,9 +14,10 @@ import { TenantSummary } from '../data/platform-billing.models';
 const NUMBER = new Intl.NumberFormat('pt-BR');
 
 /**
- * Faturamento da plataforma, visão consolidada: o ciclo em andamento de cada assessoria ativa (consumo somado de todos
- * os tokens), a receita até agora e projetada, o último extrato fechado, o ranking por consumo e as assessorias ainda
- * sem política. Independente da cobrança de cada assessoria aos seus credores.
+ * Faturamento da plataforma, visão consolidada: o ciclo em andamento de cada assessoria (ativas e suspensas, estas com
+ * selo e valores zerados), com consumo somado de todos os tokens, tráfego não cobrável e recusado, receita até agora e
+ * projetada, o último extrato fechado, o ranking por consumo, as assessorias ainda sem política e o acesso direto aos
+ * tokens de cada uma. Independente da cobrança de cada assessoria aos seus credores.
  */
 @Component({
   selector: 'app-platform-billing-overview',
@@ -37,8 +38,10 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
         <app-kpi-card label="Receita até agora" info="platform.overview.revenue" data-tour="kpi-revenue" [detail]="'Ciclos em andamento de ' + o.totals.withPolicy + ' assessorias com política'"><app-amount [value]="o.totals.amountSoFar" /></app-kpi-card>
         <app-kpi-card label="Receita projetada" info="platform.overview.projection" detail="Pela média diária de cada assessoria"><app-amount [value]="o.totals.projectedAmount" /></app-kpi-card>
         <app-kpi-card label="Últimos extratos fechados" info="platform.overview.last-closed" detail="Soma do último extrato de cada assessoria"><app-amount [value]="o.totals.lastClosedAmount" /></app-kpi-card>
-        <app-kpi-card label="Assessorias sem política" info="platform.overview.without-policy" data-tour="kpi-without-policy" [detail]="'de ' + o.totals.tenants + ' assessorias ativas'">{{ o.totals.withoutPolicy }}</app-kpi-card>
+        <app-kpi-card label="Assessorias sem política" info="platform.overview.without-policy" data-tour="kpi-without-policy" [detail]="'de ' + o.totals.tenants + ' assessorias'">{{ o.totals.withoutPolicy }}</app-kpi-card>
         <app-kpi-card label="Chamadas cobráveis" info="platform.billing.billable-requests" [detail]="n(o.totals.billableMbIn) + ' MB recebidos · ' + n(o.totals.billableMbOut) + ' MB enviados'">{{ n(o.totals.billableRequests) }}</app-kpi-card>
+        <app-kpi-card label="Chamadas recusadas" info="platform.traffic.rejected" data-tour="kpi-rejected" [detail]="n(o.totals.nonBillableRequests) + ' autenticadas não cobráveis'">{{ n(o.totals.rejectedRequests) }}</app-kpi-card>
+        <app-kpi-card label="Assessorias suspensas" info="platform.overview.suspended" [detail]="n(o.totals.pausedTokens) + ' tokens pausados pela plataforma'">{{ o.totals.suspended }}</app-kpi-card>
       </div>
     }
 
@@ -52,16 +55,21 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
         [failed]="overview.status() === 'error'"
         (retry)="overview.reload()"
         emptyIcon="building"
-        emptyMessage="Nenhuma assessoria ativa."
+        emptyMessage="Nenhuma assessoria."
       >
         <ng-template appCell="rank" [appCellOf]="rows()" let-t>{{ t.rank }}º</ng-template>
         <ng-template appCell="tenant" [appCellOf]="rows()" let-t>
           <strong>{{ t.tradeName }}</strong>
+          @if (t.suspended) { <span class="badge rounded-pill border fw-normal bg-danger-subtle text-danger-emphasis border-danger-subtle"><app-icon name="exclamation-octagon" /> suspensa</span> }
           @if (!t.hasPolicy) { <span class="app-status app-status--warning">sem política</span> }
           <div class="app-muted pbo-small app-mono">{{ t.slug }}</div>
         </ng-template>
         <ng-template appCell="cycle" [appCellOf]="rows()" let-t>{{ cycle(t) }}<div class="app-muted pbo-small">dia {{ t.daysElapsed }} de {{ t.cycleDays }}{{ t.policyVersion ? ' · política v' + t.policyVersion : '' }}</div></ng-template>
         <ng-template appCell="usage" [appCellOf]="rows()" let-t><span class="pbo-small">{{ n(t.billableRequests) }} cham. · {{ n(t.billableMbIn) }}/{{ n(t.billableMbOut) }} MB · {{ n(t.records) }} reg. · {{ n(t.tokens) }} tokens</span></ng-template>
+        <ng-template appCell="traffic" [appCellOf]="rows()" let-t>
+          <span class="pbo-small">{{ n(t.nonBillableRequests) }} não cobráveis</span>
+          <div class="pbo-small" [class.text-warning-emphasis]="t.rejectedRequests > 0">{{ n(t.rejectedRequests) }} recusadas{{ t.pausedTokens ? ' · ' + t.pausedTokens + ' pausado(s)' : '' }}</div>
+        </ng-template>
         <ng-template appCell="amount" [appCellOf]="rows()" let-t><app-amount [value]="t.amountSoFar" /></ng-template>
         <ng-template appCell="projection" [appCellOf]="rows()" let-t><app-amount [value]="t.projectedAmount" /></ng-template>
         <ng-template appCell="last" [appCellOf]="rows()" let-t>
@@ -69,6 +77,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
         </ng-template>
         <ng-template appCell="actions" [appCellOf]="rows()" let-t>
           <a class="btn btn-sm btn-link" [routerLink]="['/plataforma/faturamento', t.tenantId]" [queryParams]="{ nome: t.tradeName }">{{ t.hasPolicy ? 'Detalhar' : 'Cadastrar política' }}</a>
+          <a class="btn btn-sm btn-link" [routerLink]="['/plataforma/faturamento', t.tenantId]" [queryParams]="{ nome: t.tradeName }" fragment="tokens" data-tour="ranking-tokens">Tokens</a>
         </ng-template>
       </app-data-table>
     </section>
@@ -95,6 +104,7 @@ export class PlatformBillingOverview {
     { key: 'tenant', header: 'Assessoria' },
     { key: 'cycle', header: 'Ciclo em andamento' },
     { key: 'usage', header: 'Consumo cobrável', info: 'platform.billing.billable-requests' },
+    { key: 'traffic', header: 'Não cobrável e recusado', info: 'platform.traffic.rejected' },
     { key: 'amount', header: 'Valor até agora', align: 'end', info: 'platform.billing.amount' },
     { key: 'projection', header: 'Projeção', align: 'end', info: 'platform.billing.projection' },
     { key: 'last', header: 'Último extrato', align: 'end', info: 'platform.statement.total' },

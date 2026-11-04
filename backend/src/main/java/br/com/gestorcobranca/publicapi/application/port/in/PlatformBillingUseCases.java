@@ -31,7 +31,10 @@ import java.util.UUID;
  */
 public interface PlatformBillingUseCases {
 
-    /** Visão consolidada: ciclo em andamento de cada assessoria ativa, receita até agora, projeção e ranking. */
+    /**
+     * Visão consolidada: ciclo em andamento de cada assessoria — ativas e suspensas (decisão 760; as suspensas com
+     * valores zerados e o tráfego visível) —, receita até agora, projeção e ranking.
+     */
     OverviewView overview();
 
     PolicyView policy(UUID tenantId);
@@ -45,14 +48,16 @@ public interface PlatformBillingUseCases {
     /** Altera a vigência (o início só enquanto não há extrato; o fim nunca no passado). */
     PolicyView changeTerm(UUID tenantId, LocalDate startDate, LocalDate endDate, String reason);
 
+    /** Posição do ciclo em andamento; assessoria suspensa: consumo e tráfego visíveis, valores zerados. */
     PositionView position(UUID tenantId);
 
-    /** Prévia (sem gravar) do próximo ciclo a fechar da assessoria, encerrado ou em curso. */
+    /** Prévia (sem gravar) do próximo ciclo a fechar da assessoria, encerrado ou em curso. Recusada se suspensa. */
     StatementView preview(UUID tenantId);
 
     /**
      * Fecha o próximo ciclo encerrado ({@code periodStart} nulo ou igual ao início dele) ou gera nova revisão de um
-     * ciclo já fechado ({@code periodStart} desse ciclo; exige {@code reason}).
+     * ciclo já fechado ({@code periodStart} desse ciclo; exige {@code reason}). Recusado se a assessoria estiver
+     * suspensa ({@code platform_statement.tenant_suspended}): suspensa não gera extrato.
      */
     StatementView close(UUID tenantId, LocalDate periodStart, String reason);
 
@@ -149,6 +154,46 @@ public interface PlatformBillingUseCases {
     record StatementRef(UUID id, LocalDate periodStart, LocalDate periodEnd, int revision, BigDecimal totalAmount) {
     }
 
+    // ------------------------------------------------------------------ tráfego
+
+    /**
+     * Tráfego da API num período, separando o cobrável do não cobrável (decisão 762). Chamadas autenticadas
+     * ({@code requests}) = cobráveis (2xx/3xx) + não cobráveis (limitadas 429, erros 4xx do cliente e falhas 5xx);
+     * recusadas ({@code rejectedRequests}) são as barradas na autenticação de um token identificado (pausado, revogado,
+     * expirado, assessoria suspensa, credor inativo, IP fora da lista) — fora das autenticadas e nunca cobradas.
+     *
+     * @param mbIn        MB recebidos de todas as chamadas autenticadas (inteiros por token, para cima)
+     * @param billableMbIn MB recebidos só das cobráveis (os do extrato)
+     */
+    record TrafficTotals(long requests, long billableRequests, long nonBillableRequests, long rejectedRequests,
+                         long mbIn, long mbOut, long billableMbIn, long billableMbOut, long records) {
+
+        public static final TrafficTotals ZERO = new TrafficTotals(0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+        public TrafficTotals plus(TrafficTotals o) {
+            return new TrafficTotals(requests + o.requests, billableRequests + o.billableRequests,
+                    nonBillableRequests + o.nonBillableRequests, rejectedRequests + o.rejectedRequests, mbIn + o.mbIn,
+                    mbOut + o.mbOut, billableMbIn + o.billableMbIn, billableMbOut + o.billableMbOut,
+                    records + o.records);
+        }
+    }
+
+    /**
+     * @param kind       CREDITOR ou TOKEN
+     * @param creditorId credor do token (nulo na linha do credor)
+     * @param tokenState situação atual do token (ACTIVE, PAUSED, REVOKED, EXPIRED); nula na linha do credor
+     */
+    record TrafficRow(String kind, String key, String label, UUID creditorId, String tokenState, TrafficTotals totals) {
+    }
+
+    /** @param reason paused, revoked, expired, tenant_inactive, creditor_inactive ou ip_not_allowed */
+    record RejectionRow(String reason, long attempts) {
+    }
+
+    /** @param rows credores e tokens com tráfego (autenticado ou recusado) no período */
+    record TrafficView(TrafficTotals totals, List<TrafficRow> rows, List<RejectionRow> rejections) {
+    }
+
     // ------------------------------------------------------------------ extrato e posição
 
     /**
@@ -172,6 +217,9 @@ public interface PlatformBillingUseCases {
     /**
      * Ciclo em andamento da assessoria, sem esperar o fechamento.
      *
+     * @param suspended     assessoria suspensa: consumo e tráfego visíveis, valores monetários zerados (sem linhas,
+     *                      franquias nem valor na projeção) e nenhum extrato gerado enquanto durar (decisão 760)
+     * @param traffic       tráfego do ciclo: cobrável, não cobrável e recusado, por credor, token e motivo
      * @param hasPolicy     sem política, o ciclo é o mês corrente, o valor é zero e o consumo aparece só como
      *                      informação
      * @param cycleKind     REGULAR, POLICY_START, POLICY_END, TRANSITION ou NO_POLICY
@@ -187,26 +235,36 @@ public interface PlatformBillingUseCases {
                         int tokens, BigDecimal amountSoFar, String currency, List<ChargeLineView> lines,
                         List<AllowanceUse> allowances, List<BreakdownView> breakdown, List<DailyPoint> daily,
                         ProjectionView projection, StatementRef lastStatement, Instant updatedAt,
-                        long flushIntervalSeconds, long calculationMillis) {
+                        long flushIntervalSeconds, long calculationMillis, boolean suspended, TrafficView traffic) {
     }
 
     // ------------------------------------------------------------------ consolidado
 
     /**
-     * @param rank posição no ranking de consumo (chamadas cobráveis do ciclo em andamento; 1 = maior)
+     * @param rank                posição no ranking de consumo (chamadas cobráveis do ciclo em andamento; 1 = maior)
+     * @param suspended           assessoria suspensa (valores zerados, tráfego visível)
+     * @param requests            chamadas autenticadas do ciclo (cobráveis + não cobráveis)
+     * @param nonBillableRequests autenticadas não cobráveis (429, 4xx, 5xx)
+     * @param rejectedRequests    recusadas na autenticação de tokens identificados (tentativas de tráfego)
+     * @param pausedTokens        tokens hoje pausados pela plataforma
      */
     record TenantSummary(UUID tenantId, String slug, String tradeName, boolean hasPolicy, LocalDate periodStart,
                          LocalDate periodEnd, int daysElapsed, int cycleDays, Integer policyVersion,
                          long billableRequests, long billableMbIn, long billableMbOut, long records, int tokens,
-                         BigDecimal amountSoFar, BigDecimal projectedAmount, StatementRef lastStatement, int rank) {
+                         BigDecimal amountSoFar, BigDecimal projectedAmount, StatementRef lastStatement, int rank,
+                         boolean suspended, long requests, long nonBillableRequests, long rejectedRequests,
+                         int pausedTokens) {
     }
 
     /**
+     * @param tenants          assessorias listadas (ativas e suspensas)
      * @param lastClosedAmount soma do último extrato fechado de cada assessoria
+     * @param suspended        assessorias suspensas
      */
     record OverviewTotals(int tenants, int withPolicy, int withoutPolicy, BigDecimal amountSoFar,
                           BigDecimal projectedAmount, BigDecimal lastClosedAmount, long billableRequests,
-                          long billableMbIn, long billableMbOut, long records) {
+                          long billableMbIn, long billableMbOut, long records, int suspended, long requests,
+                          long nonBillableRequests, long rejectedRequests, int pausedTokens) {
     }
 
     /** @param tenants ordenadas pelo ranking de consumo */

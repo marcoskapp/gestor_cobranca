@@ -1850,7 +1850,7 @@
     "contact" : {
       "name" : "Suporte da assessoria"
     },
-    "description" : "API para o **credor** administrar, por integração sistema a sistema, a carteira de cobrança mantida na assessoria: carteiras, importação de títulos, ciclo de vida dos títulos, contatos dos devedores, acompanhamento da cobrança, acordos e pagamentos, pagamento informado e contestações — e acompanhar, a qualquer momento, o consumo da própria API e o repasse da prestação de contas.\n\n## Autenticação\nCada credor recebe da assessoria um **token de integração** (`gck_<prefixo>.<segredo>`), exibido uma única vez. Envie em todas as chamadas: `Authorization: Bearer gck_…`. O token pertence a um único credor: os dados de outros credores não existem para ele. Guarde-o num cofre de segredos; nunca em código, URL ou log. Em caso de suspeita de vazamento, peça a revogação (imediata). A rotação gera novo segredo e mantém o anterior válido pela carência escolhida, para a troca sem parada.\n\n## Escopos\nCada endpoint exige um escopo concedido ao token (ex.: `titles:read`). Sem o escopo: 403.\n\n## Limite de requisições\nPor token, em janelas de 1 minuto. Toda resposta traz `RateLimit-Limit`, `RateLimit-Remaining` e `RateLimit-Reset`; acima do limite: 429 com `Retry-After`.\n\n## Erros\nFormato RFC 9457 (`application/problem+json`) com `code` estável e `requestId`.\n\n## Sincronização incremental\nListas usam **paginação por cursor** em ordem crescente de atualização. Guarde o `nextCursor` da última página e continue dele na próxima sincronização; `hasMore=true` indica que há mais agora. Alterações muito recentes (último minuto) aparecem na chamada seguinte.\n\n## Concorrência otimista\nLeituras de carteira e título trazem `ETag`; envie-o em `If-Match` ao alterar. Se o recurso mudou: 412.\n\n## Idempotência\nComandos que criam lotes ou pagamentos exigem `Idempotency-Key` (8 a 80 caracteres). Repetir a chamada com a mesma chave e o mesmo conteúdo devolve o mesmo resultado; com conteúdo diferente: 409.\n\n## Posição do faturamento e do repasse\n`GET /billing/position` (escopo `billing:read`) mostra o ciclo de consumo em andamento: chamadas cobráveis (2xx/3xx), MB inteiros (1 MB = 1.048.576 bytes, arredondados por token), valor até agora, franquias, crescimento diário e projeção; o consumo é gravado em lotes de cerca de 1 minuto (`updatedAt`). `GET /settlement/position` (escopo `settlement:read`) estima o repasse do período em aberto como o demonstrativo calcularia se fechado agora — é uma estimativa, não um demonstrativo; os demonstrativos enviados estão em `GET /settlement/statements`.\n\n## Dados pessoais (LGPD)\nDocumento e contatos do devedor são sempre devolvidos mascarados. Envie só os dados necessários.\n\n## Versões\nVersão na URL (`/public-api/v1`). Mudanças compatíveis entram na mesma versão; incompatíveis, numa nova. Versões depreciadas respondem com `Deprecation` e `Sunset`. Acompanhe em `/public-api/docs/changelog`.\n",
+    "description" : "API para o **credor** administrar, por integração sistema a sistema, a carteira de cobrança mantida na assessoria: carteiras, importação de títulos, ciclo de vida dos títulos, contatos dos devedores, acompanhamento da cobrança, acordos e pagamentos, pagamento informado e contestações — e acompanhar, a qualquer momento, o consumo da própria API e o repasse da prestação de contas.\n\n## Autenticação\nCada credor recebe da assessoria um **token de integração** (`gck_<prefixo>.<segredo>`), exibido uma única vez. Envie em todas as chamadas: `Authorization: Bearer gck_…`. O token pertence a um único credor: os dados de outros credores não existem para ele. Guarde-o num cofre de segredos; nunca em código, URL ou log. Em caso de suspeita de vazamento, peça a revogação (imediata). A rotação gera novo segredo e mantém o anterior válido pela carência escolhida, para a troca sem parada.\n\n## Escopos\nCada endpoint exige um escopo concedido ao token (ex.: `titles:read`). Sem o escopo: 403.\n\n## Limite de requisições\nPor token, em janelas de 1 minuto. Toda resposta traz `RateLimit-Limit`, `RateLimit-Remaining` e `RateLimit-Reset`; acima do limite: 429 com `Retry-After`.\n\n## Erros\nFormato RFC 9457 (`application/problem+json`) com `code` estável e `requestId`.\n\n## Token pausado\nA plataforma pode **pausar** um token para bloquear consumo indevido. Enquanto pausado, toda chamada com ele recebe **403** com `code` = `auth.token_paused` (o token continua existindo; não é revogação). Não repita a chamada em laço: a pausa não termina sozinha por novas tentativas. As chamadas recusadas não são cobradas. Procure a assessoria; quando a pausa terminar, o mesmo token volta a funcionar, sem troca de segredo.\n\n## Sincronização incremental\nListas usam **paginação por cursor** em ordem crescente de atualização. Guarde o `nextCursor` da última página e continue dele na próxima sincronização; `hasMore=true` indica que há mais agora. Alterações muito recentes (último minuto) aparecem na chamada seguinte.\n\n## Concorrência otimista\nLeituras de carteira e título trazem `ETag`; envie-o em `If-Match` ao alterar. Se o recurso mudou: 412.\n\n## Idempotência\nComandos que criam lotes ou pagamentos exigem `Idempotency-Key` (8 a 80 caracteres). Repetir a chamada com a mesma chave e o mesmo conteúdo devolve o mesmo resultado; com conteúdo diferente: 409.\n\n## Posição do faturamento e do repasse\n`GET /billing/position` (escopo `billing:read`) mostra o ciclo de consumo em andamento: chamadas cobráveis (2xx/3xx), MB inteiros (1 MB = 1.048.576 bytes, arredondados por token), valor até agora, franquias, crescimento diário e projeção; o consumo é gravado em lotes de cerca de 1 minuto (`updatedAt`). `GET /settlement/position` (escopo `settlement:read`) estima o repasse do período em aberto como o demonstrativo calcularia se fechado agora — é uma estimativa, não um demonstrativo; os demonstrativos enviados estão em `GET /settlement/statements`.\n\n## Dados pessoais (LGPD)\nDocumento e contatos do devedor são sempre devolvidos mascarados. Envie só os dados necessários.\n\n## Versões\nVersão na URL (`/public-api/v1`). Mudanças compatíveis entram na mesma versão; incompatíveis, numa nova. Versões depreciadas respondem com `Deprecation` e `Sunset`. Acompanhe em `/public-api/docs/changelog`.\n",
     "summary" : "Administração da carteira de cobrança do credor por integração sistema a sistema",
     "title" : "Gestor de Cobrança — API pública de integração",
     "version" : "1.0.0"
@@ -1946,7 +1946,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2068,7 +2068,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2181,7 +2181,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2305,7 +2305,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2427,7 +2427,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2574,7 +2574,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2696,7 +2696,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2813,7 +2813,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -2927,7 +2927,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -3051,7 +3051,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -3193,7 +3193,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -3318,7 +3318,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -3449,7 +3449,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -3610,7 +3610,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -3755,7 +3755,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -3894,7 +3894,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -4016,7 +4016,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -4158,7 +4158,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -4297,7 +4297,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -4429,7 +4429,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -4636,7 +4636,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -4804,7 +4804,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -4947,7 +4947,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -5070,7 +5070,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -5203,7 +5203,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -5373,7 +5373,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -5489,7 +5489,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -5628,7 +5628,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -5853,7 +5853,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -5995,7 +5995,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -6137,7 +6137,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -6259,7 +6259,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -6402,7 +6402,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -6543,7 +6543,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -6716,7 +6716,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -6859,7 +6859,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -6972,7 +6972,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -7120,7 +7120,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -7244,7 +7244,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -7366,7 +7366,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -7509,7 +7509,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -7671,7 +7671,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -7844,7 +7844,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {
@@ -8017,7 +8017,7 @@
                 }
               }
             },
-            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`)"
+            "description" : "Escopo insuficiente, IP não permitido ou credor inativo (`access.denied`); token pausado pela plataforma (`auth.token_paused`, não cobrada)"
           },
           "404" : {
             "content" : {

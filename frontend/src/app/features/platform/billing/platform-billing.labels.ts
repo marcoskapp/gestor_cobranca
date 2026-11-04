@@ -1,4 +1,4 @@
-import { PlatformCycleKind, PlatformMetric, TierChargeView, TierView } from '../data/platform-billing.models';
+import { PlatformCycleKind, PlatformMetric, RejectionReason, TierChargeView, TierView } from '../data/platform-billing.models';
 
 export const PLATFORM_METRIC_LABELS: Record<PlatformMetric, string> = {
   MONTHLY_FEE: 'Mensalidade',
@@ -34,6 +34,23 @@ export const PLATFORM_BILLING_ERRORS: Record<string, string> = {
   'platform_statement.period_open': 'O ciclo ainda está em curso: só ciclos encerrados podem ser fechados.',
   'platform_statement.nothing_to_close': 'Não há ciclo a fechar para esta assessoria.',
   'platform_statement.period_invalid': 'Este não é o próximo ciclo a fechar da assessoria.',
+  'platform_statement.tenant_suspended': 'Assessoria suspensa: não há extrato nem prévia enquanto durar a suspensão.',
+  'integration_token.not_active': 'O token não está ativo (já pausado, revogado ou expirado).',
+  'integration_token.not_paused': 'O token não está pausado.',
+  'integration_token.already_revoked': 'Este token já está revogado.',
+  'integration_token.resume_in_past': 'A retomada automática precisa ser no futuro.',
+  'integration_token.resume_too_far': 'A retomada automática pode ser agendada para até 90 dias.',
+  'integration_token.reason_required': 'Informe o motivo.',
+};
+
+/** Motivo da recusa na autenticação (tráfego recusado, nunca cobrado). */
+export const REJECTION_REASON_LABELS: Record<RejectionReason, string> = {
+  paused: 'Token pausado pela plataforma',
+  revoked: 'Token revogado',
+  expired: 'Token expirado',
+  tenant_inactive: 'Assessoria suspensa',
+  creditor_inactive: 'Credor inativo',
+  ip_not_allowed: 'IP fora da lista permitida',
 };
 
 const NUMBER = new Intl.NumberFormat('pt-BR');

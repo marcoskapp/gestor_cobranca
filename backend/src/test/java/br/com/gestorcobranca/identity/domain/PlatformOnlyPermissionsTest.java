@@ -18,7 +18,8 @@ class PlatformOnlyPermissionsTest {
     @Test
     void platformBillingPermissionsArePlatformOnly() {
         assertThat(Permission.PLATFORM_ONLY).containsExactlyInAnyOrder(Permission.TENANT_MANAGE,
-                Permission.PLATFORM_BILLING_VIEW, Permission.PLATFORM_BILLING_MANAGE);
+                Permission.PLATFORM_BILLING_VIEW, Permission.PLATFORM_BILLING_MANAGE,
+                Permission.PLATFORM_API_TOKENS_MANAGE);
         assertThat(Permission.TENANT_BILLING_VIEW.isPlatformOnly()).isFalse();
         assertThat(DefaultRoles.platformAdmin().permissions()).containsAll(Permission.PLATFORM_ONLY);
         DefaultRoles.forTenant().forEach(d -> assertThat(d.permissions()).doesNotContainAnyElementsOf(Permission.PLATFORM_ONLY));
@@ -32,6 +33,8 @@ class PlatformOnlyPermissionsTest {
                 false)).isInstanceOf(BusinessRuleException.class);
         assertThatThrownBy(() -> new Role("ADMIN", "Administrador", null, Set.of(Permission.PLATFORM_BILLING_MANAGE),
                 true)).isInstanceOf(BusinessRuleException.class);
+        assertThatThrownBy(() -> new Role("INTEGRACAO_X", "Integrações", null,
+                Set.of(Permission.PLATFORM_API_TOKENS_MANAGE), false)).isInstanceOf(BusinessRuleException.class);
         Role admin = new Role("ADMIN", "Administrador", null, Set.of(Permission.USER_VIEW), true);
         assertThat(admin.applyDefaultPermissions(EnumSet.of(Permission.PLATFORM_BILLING_VIEW, Permission.CASE_VIEW)))
                 .containsExactly(Permission.CASE_VIEW);
@@ -40,7 +43,8 @@ class PlatformOnlyPermissionsTest {
         Role platform = new Role(DefaultRoles.PLATFORM_ADMIN, "Administrador da plataforma", null,
                 EnumSet.of(Permission.TENANT_MANAGE, Permission.USER_VIEW), true);
         assertThat(platform.applyDefaultPermissions(DefaultRoles.platformAdmin().permissions()))
-                .contains(Permission.PLATFORM_BILLING_VIEW, Permission.PLATFORM_BILLING_MANAGE);
+                .contains(Permission.PLATFORM_BILLING_VIEW, Permission.PLATFORM_BILLING_MANAGE,
+                        Permission.PLATFORM_API_TOKENS_MANAGE);
         assertThat(platform.applyDefaultPermissions(DefaultRoles.platformAdmin().permissions())).isEmpty();
     }
 }

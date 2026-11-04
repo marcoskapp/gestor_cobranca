@@ -743,3 +743,6 @@ app:
     # fechamento automático dos ciclos da cobrança da plataforma às assessorias (política da plataforma por
     # assessoria) — depois do fechamento dos extratos dos credores, sobre a mesma medição
     platform-statement-cron: "0 40 2 * * *"
+    # registro das retomadas automáticas de tokens pausados pela plataforma (a retomada já vale no instante agendado
+    # na autenticação; o job só grava a situação, a auditoria e o aviso à assessoria)
+    token-resume-interval: PT5M

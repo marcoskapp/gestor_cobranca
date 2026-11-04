@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -25,12 +26,23 @@ interface IntegrationTokenJpaRepository extends JpaRepository<IntegrationToken, 
     List<IntegrationToken> findAllByIdIn(Collection<UUID> ids);
 
     @Override
+    List<IntegrationToken> findAll();
+
+    @Override
+    @Query("""
+            select t from IntegrationToken t
+             where t.status = br.com.gestorcobranca.publicapi.domain.model.TokenStatus.PAUSED
+               and t.resumeAt is not null and t.resumeAt <= :now
+             order by t.resumeAt, t.id""")
+    List<IntegrationToken> findResumeDue(Instant now);
+
+    @Override
     @Query("select distinct t.creditorId from IntegrationToken t order by t.creditorId")
     List<UUID> findDistinctCreditorIds();
 
     @Override
-    default Page<IntegrationToken> search(Collection<UUID> allowedCreditorIds, UUID creditorId, TokenStatus status,
-                                          Pageable pageable) {
+    default Page<IntegrationToken> search(Collection<UUID> allowedCreditorIds, UUID creditorId,
+                                          Collection<TokenStatus> statuses, Pageable pageable) {
         Specification<IntegrationToken> spec = Specification.unrestricted();
         if (allowedCreditorIds != null) {
             spec = spec.and((root, q, cb) -> allowedCreditorIds.isEmpty()
@@ -39,8 +51,8 @@ interface IntegrationTokenJpaRepository extends JpaRepository<IntegrationToken, 
         if (creditorId != null) {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("creditorId"), creditorId));
         }
-        if (status != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("status"), status));
+        if (statuses != null) {
+            spec = spec.and((root, q, cb) -> statuses.isEmpty() ? cb.disjunction() : root.get("status").in(statuses));
         }
         return findAll(spec, pageable);
     }

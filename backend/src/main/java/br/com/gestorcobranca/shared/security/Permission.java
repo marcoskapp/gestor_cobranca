@@ -14,6 +14,7 @@ public enum Permission {
     TENANT_MANAGE("Gerenciar assessorias (plataforma)"),
     PLATFORM_BILLING_VIEW("Consultar o faturamento da plataforma de todas as assessorias (consumo da API, posição e extratos)"),
     PLATFORM_BILLING_MANAGE("Manter a política de cobrança da plataforma por assessoria e fechar e revisar os extratos da plataforma"),
+    PLATFORM_API_TOKENS_MANAGE("Pausar, retomar e revogar tokens de integração de qualquer assessoria (plataforma)"),
 
     // Administração da assessoria
     ORG_SETTINGS_MANAGE("Configurar assessoria e unidades"),
@@ -152,7 +153,8 @@ public enum Permission {
      * plataforma as recebe; nenhum perfil de assessoria, o assistente de IA ou um token de integração.
      */
     public static final java.util.Set<Permission> PLATFORM_ONLY = java.util.Collections.unmodifiableSet(
-            java.util.EnumSet.of(TENANT_MANAGE, PLATFORM_BILLING_VIEW, PLATFORM_BILLING_MANAGE));
+            java.util.EnumSet.of(TENANT_MANAGE, PLATFORM_BILLING_VIEW, PLATFORM_BILLING_MANAGE,
+                    PLATFORM_API_TOKENS_MANAGE));
 
     private final String description;
 

@@ -38,7 +38,8 @@ import java.util.regex.Pattern;
  *       {@code Deprecation} (RFC 9745), {@code Sunset} (RFC 8594) e {@code Link} para o guia de migração;</li>
  *   <li><b>autenticação</b> do token ({@code Authorization: Bearer gck_…}), exceto rotas públicas de documentação: o
  *       ator {@code INTEGRATION} com o escopo do credor do token vira a autenticação da requisição (RLS, escopo por
- *       credor e {@code @PreAuthorize} por escopo);</li>
+ *       credor e {@code @PreAuthorize} por escopo); token pausado pela plataforma → 403 {@code auth.token_paused};
+ *       recusas de um token identificado (segredo correto) entram na medição do tráfego recusado;</li>
  *   <li><b>limite de taxa</b> por token → 429 com {@code Retry-After} e cabeçalhos {@code RateLimit-*};</li>
  *   <li><b>medição</b> dos bytes trafegados, latência, status e registros, entregue ao fim da requisição
  *       ({@link PublicApiMetering}).</li>
@@ -50,6 +51,8 @@ public class PublicApiRequestFilter extends OncePerRequestFilter {
     public static final String RATE_LIMIT_LIMIT = "RateLimit-Limit";
     public static final String RATE_LIMIT_REMAINING = "RateLimit-Remaining";
     public static final String RATE_LIMIT_RESET = "RateLimit-Reset";
+    /** Código do erro de token pausado pela plataforma (403, documentado no OpenAPI e no changelog). */
+    public static final String TOKEN_PAUSED = "auth.token_paused";
 
     /** Rotas públicas (sem token): documentação, contrato, versões e changelog. */
     private static final Pattern PUBLIC_ROUTE = Pattern.compile(
@@ -93,7 +96,17 @@ public class PublicApiRequestFilter extends OncePerRequestFilter {
         String clientIp = clientIp(request);
         IntegrationAuthentication.Result result = authentication.authenticate(bearer(request), clientIp);
         if (result instanceof Rejected rejected) {
-            if (rejected.status() == 401) {
+            if (rejected.attributable()) {
+                // tentativa de tráfego de um token identificado: medida, nunca cobrada (decisão 761)
+                metering.recordRejected(new PublicApiMetering.RejectedAttempt(rejected.tenantId(),
+                        rejected.creditorId(), rejected.tokenId(), request.getMethod(), rejected.reason(),
+                        Instant.now(clock)));
+            }
+            if (rejected.paused()) {
+                ProblemWriter.write(response, json, 403, TOKEN_PAUSED,
+                        "Token de integração pausado pela plataforma; as chamadas voltam a ser aceitas quando a pausa "
+                                + "terminar. Procure a assessoria responsável pela integração");
+            } else if (rejected.status() == 401) {
                 response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer realm=\"gestor-cobranca-public-api\"");
                 ProblemWriter.write(response, json, 401, "auth.unauthenticated",
                         "Token de integração ausente, inválido, revogado ou expirado");

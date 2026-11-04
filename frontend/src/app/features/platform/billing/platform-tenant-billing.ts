@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -24,6 +24,8 @@ import { PlatformTenantsApi } from '../data/platform.api';
 import { PlatformPolicyVersions } from './components/platform-policy-versions';
 import { PlatformPositionPanel } from './components/platform-position-panel';
 import { PlatformStatementPanel } from './components/platform-statement-parts';
+import { PlatformTokensPanel } from './components/platform-tokens-panel';
+import { PlatformTrafficPanel } from './components/platform-traffic-panel';
 import { PLATFORM_BILLING_ERRORS } from './platform-billing.labels';
 import { PlatformPolicyDialog, PlatformPolicyDialogData } from './platform-policy-dialog';
 import { PlatformTermDialog } from './platform-term-dialog';
@@ -31,18 +33,30 @@ import { PlatformTermDialog } from './platform-term-dialog';
 const NUMBER = new Intl.NumberFormat('pt-BR');
 
 /**
- * Faturamento da plataforma de uma assessoria: posição do ciclo em andamento, política (vigência e versões) e extratos
+ * Faturamento da plataforma de uma assessoria: posição do ciclo em andamento, tráfego da API (cobrável, não cobrável e
+ * recusado), tokens com o controle da plataforma (pausar, retomar, revogar), política (vigência e versões) e extratos
  * por ciclo, com prévia, fechamento manual, revisão com motivo e exportação. Os ciclos encerrados fecham sozinhos de
  * madrugada; só a equipe da plataforma com {@code PLATFORM_BILLING_MANAGE} altera a política e fecha ou revisa.
+ * Assessoria suspensa: selo, valores zerados e sem prévia/fechamento/revisão.
  */
 @Component({
   selector: 'app-platform-tenant-billing',
   imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, CellDef, DataTable, Icon, PageHeader, PlatformPolicyVersions,
-    PlatformPositionPanel, PlatformStatementPanel, RouterLink],
+    PlatformPositionPanel, PlatformStatementPanel, PlatformTokensPanel, PlatformTrafficPanel, RouterLink],
   template: `
     <app-page-header [title]="'Faturamento da plataforma — ' + tenantName()" subtitle="Consumo somado de todos os tokens da assessoria, de todos os credores, pela política da plataforma.">
       <a class="btn btn-link" routerLink="/plataforma/faturamento"><app-icon name="arrow-left" /> Consolidado</a>
     </app-page-header>
+
+    @if (suspended()) {
+      <div class="alert alert-warning d-flex gap-2 align-items-start" role="status" data-tour="tenant-suspended">
+        <app-icon name="exclamation-octagon" />
+        <span>
+          <strong>Assessoria suspensa.</strong> O consumo e o tráfego da API continuam visíveis — inclusive as chamadas recusadas
+          pela suspensão —, mas os valores ficam zerados e não há extrato nem prévia enquanto durar a suspensão.
+        </span>
+      </div>
+    }
 
     <section class="app-card" aria-labelledby="ptb-position" data-tour="tenant-position">
       <div class="ptb-head">
@@ -58,6 +72,23 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
       } @else {
         <p class="app-muted" role="status">Carregando…</p>
       }
+    </section>
+
+    <section class="app-card" aria-labelledby="ptb-traffic">
+      <h2 class="app-card__title" id="ptb-traffic">Tráfego da API no ciclo</h2>
+      <p class="app-muted ptb-small">Tudo o que chegou dos tokens da assessoria: cobrável, não cobrável e recusado na autenticação (tentativas).</p>
+      @if (position.value(); as p) {
+        <app-platform-traffic-panel [traffic]="p.traffic" />
+      }
+    </section>
+
+    <section class="app-card" aria-labelledby="ptb-tokens" data-tour="tenant-tokens">
+      <h2 class="app-card__title" id="ptb-tokens" tabindex="-1">Tokens de integração</h2>
+      <p class="app-muted ptb-small">
+        Pause um token (ou todos) para bloquear consumo indevido e retome depois; a revogação é definitiva. Motivo obrigatório; a
+        assessoria é avisada por e-mail e não pode retomar uma pausa da plataforma.
+      </p>
+      <app-platform-tokens-panel [tenantId]="tenantId" [tenantName]="tenantName()" (changed)="position.reload()" />
     </section>
 
     <section class="app-card" aria-labelledby="ptb-policy" data-tour="tenant-policy">
@@ -82,7 +113,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
     <section class="app-card" aria-labelledby="ptb-statements" data-tour="tenant-statements">
       <div class="ptb-head">
         <h2 class="app-card__title" id="ptb-statements">Extratos da plataforma</h2>
-        @if (policy.value()?.policyId) {
+        @if (policy.value()?.policyId && !suspended()) {
           <button class="btn btn-sm btn-outline-primary" type="button" (click)="loadPreview()">Prévia do próximo ciclo</button>
         }
       </div>
@@ -116,7 +147,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
         <ng-template appCell="total" [appCellOf]="query.rows()" let-s><app-amount [value]="s.totalAmount" /></ng-template>
         <ng-template appCell="actions" [appCellOf]="query.rows()" let-s>
           <button class="btn btn-sm btn-link" type="button" (click)="selected.set(s)">Detalhar</button>
-          @if (canManage()) {
+          @if (canManage() && !suspended()) {
             <button class="btn btn-sm btn-link" type="button" (click)="revise(s)">Nova revisão</button>
           }
           <button class="btn btn-sm btn-link" type="button" (click)="exportStatement(s)" aria-label="Exportar CSV"><app-icon name="download" /></button>
@@ -171,6 +202,7 @@ export class PlatformTenantBilling {
     ?? this.route.snapshot.queryParamMap.get('nome') ?? 'assessoria');
 
   protected readonly position = rxResource({ stream: () => this.api.position(this.tenantId) });
+  protected readonly suspended = computed(() => (this.position.hasValue() ? this.position.value().suspended : false));
   protected readonly policy = rxResource({ stream: () => this.api.policy(this.tenantId) });
 
   protected readonly filters = this.fb.group({ month: [''] });
@@ -179,6 +211,18 @@ export class PlatformTenantBilling {
     { initialValue: { month: null as string | null }, equal: sameValue },
   );
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.statements(this.tenantId, f.month, page));
+
+  constructor() {
+    // vindo do ranking do consolidado ("Tokens"): leva direto à seção de tokens
+    if (this.route.snapshot.fragment === 'tokens') {
+      const host = inject<ElementRef<HTMLElement>>(ElementRef);
+      afterNextRender(() => {
+        const heading = host.nativeElement.querySelector<HTMLElement>('#ptb-tokens');
+        heading?.scrollIntoView({ block: 'start' });
+        heading?.focus({ preventScroll: true });
+      });
+    }
+  }
 
   protected readonly columns: TableColumn[] = [
     { key: 'period', header: 'Ciclo' },

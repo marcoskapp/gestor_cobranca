@@ -20,7 +20,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { IntegrationTokensApi } from '../data/public-api.api';
-import { TOKEN_STATE_LABELS } from '../data/public-api.labels';
+import { TOKEN_STATE_LABELS, tokenStateTone } from '../data/public-api.labels';
 import { TokenFilter, TokenState, TokenView } from '../data/public-api.models';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 
@@ -86,8 +86,15 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
         }
       </ng-template>
       <ng-template appCell="state" [appCellOf]="query.rows()" let-t>
-        <span class="badge rounded-pill border fw-normal" [class]="stateClass(t.state)">{{ stateLabels[t.state] }}</span>
-        @if (t.expiresAt && t.state === 'ACTIVE') {
+        <span class="badge rounded-pill border fw-normal" [class]="stateClass(t.state)">
+          @if (t.state === 'PAUSED') { <app-icon name="pause-circle" /> }
+          {{ stateLabels[t.state] }}
+        </span>
+        @if (t.state === 'PAUSED') {
+          <div class="app-muted tl-small">{{ t.resumeAt ? 'retomada em ' + (t.resumeAt | appDate) : 'até a plataforma retomar' }}</div>
+        } @else if (t.state === 'REVOKED' && t.revokedByPlatform) {
+          <div class="app-muted tl-small">pela plataforma</div>
+        } @else if (t.expiresAt && t.state === 'ACTIVE') {
           <div class="app-muted tl-small">expira {{ t.expiresAt | appDate: 'date' }}</div>
         }
       </ng-template>
@@ -133,7 +140,7 @@ export class TokenList {
   ];
 
   protected stateClass(state: TokenState): string {
-    const tone = state === 'ACTIVE' ? 'success' : state === 'REVOKED' ? 'danger' : 'secondary';
+    const tone = tokenStateTone(state);
     return `bg-${tone}-subtle text-${tone}-emphasis border-${tone}-subtle`;
   }
 

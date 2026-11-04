@@ -7,6 +7,8 @@ import { ScreenManual } from '../manual.models';
 export const RULES: readonly string[] = [
   'A cobrança da plataforma à assessoria é independente das condições que a assessoria cobra dos credores: soma o uso de todos os tokens da assessoria, inclusive revogados ou expirados.',
   'Só a equipe da plataforma cadastra a política e fecha ou revisa os extratos da plataforma; a assessoria consulta, sem alterar.',
+  'Assessoria suspensa continua aparecendo, com o uso e as chamadas recusadas pela suspensão, mas com valores zerados e sem extrato enquanto durar a suspensão.',
+  'A equipe da plataforma pode pausar, retomar e revogar tokens de qualquer assessoria, sempre com motivo. A pausa tem precedência: só a plataforma retoma; a assessoria é avisada e pode revogar.',
 ];
 
 export const SCREENS: readonly ScreenManual[] = [
@@ -17,10 +19,11 @@ export const SCREENS: readonly ScreenManual[] = [
     purpose: [
       'Tela da equipe da plataforma. Cada assessoria tem a sua política de cobrança da plataforma, e a base é o uso somado de todos os tokens dela, de todos os credores.',
       'Mostra a receita até agora, a projeção pela média diária, o último extrato fechado de cada assessoria e as que ainda não têm política (o uso aparece, sem valor).',
+      'Assessorias suspensas aparecem com selo e valores zerados. As chamadas recusadas (tokens pausados, revogados, assessoria suspensa) mostram tentativas de uso; o atalho "Tokens" leva ao controle dos tokens da assessoria.',
     ],
     profiles: ['PLATAFORMA'],
     inputs: ['Uso medido de todos os tokens das assessorias e a política da plataforma de cada uma.'],
-    outputs: ['Visão da receita da plataforma e acesso ao faturamento de cada assessoria.'],
+    outputs: ['Visão da receita e do tráfego da plataforma e acesso ao faturamento e aos tokens de cada assessoria.'],
     related: [
       { screen: 'platform.billing-tenant', why: 'Política, posição e extratos de uma assessoria.' },
       { screen: 'platform.tenants', why: 'Assessorias da plataforma.' },
@@ -30,11 +33,11 @@ export const SCREENS: readonly ScreenManual[] = [
   {
     id: 'platform.billing-tenant',
     title: 'Faturamento da assessoria',
-    objective: 'Política da plataforma, ciclo em andamento e extratos de uma assessoria, com fechamento, revisão e exportação.',
+    objective: 'Política, ciclo em andamento, tráfego, tokens e extratos de uma assessoria, com fechamento, revisão e controle dos tokens.',
     purpose: [
       'A política tem vigência e versões: dia de fechamento, mensalidade, franquias e preço do excedente por chamada (único ou por faixas de volume), por MB recebido, por MB enviado e por registro. A primeira versão vale já no ciclo em andamento; as seguintes, a partir do próximo ciclo.',
-      'O ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte. Primeiro, último e de transição têm mensalidade, franquias e limites das faixas proporcionais aos dias. Só chamadas bem-sucedidas contam; dados em MB inteiros por token.',
-      'Ciclos encerrados fecham sozinhos de madrugada. Uma nova revisão exige motivo e a anterior fica guardada; ciclos encerrados antes do primeiro cadastro não são cobrados.',
+      'O ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte. Primeiro, último e de transição têm mensalidade, franquias e limites das faixas proporcionais aos dias. Só chamadas bem-sucedidas contam; dados em MB inteiros por token. Ciclos encerrados fecham sozinhos de madrugada. Uma nova revisão exige motivo e a anterior fica guardada; ciclos encerrados antes do primeiro cadastro não são cobrados. Assessoria suspensa: valores zerados, sem prévia nem extrato.',
+      'Tráfego e tokens: chamadas cobráveis, não cobráveis e recusadas por credor e token. Pause um token ou todos (motivo obrigatório, retomada automática opcional em até 90 dias), retome depois ou revogue de vez; a assessoria é avisada por e-mail.',
     ],
     profiles: ['PLATAFORMA'],
     inputs: ['Uso medido de todos os tokens da assessoria e a política da plataforma.'],

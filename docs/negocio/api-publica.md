@@ -28,12 +28,13 @@ Cada token **enxerga um único credor**. Dados de outros credores da assessoria 
 | --- | --- |
 | Segredo exibido uma vez | A assessoria guarda só uma impressão irreversível (com chave do servidor). Ninguém consegue recuperar o token depois. |
 | Escopos | Só o necessário; quem cria o token só concede o que o próprio perfil pode fazer. Nenhum escopo vê documento ou contato sem máscara. |
-| Revogação | Imediata e definitiva, com motivo. A chamada seguinte já é recusada. |
+| Revogação | Imediata e definitiva, com motivo. A chamada seguinte já é recusada. A equipe da plataforma também pode revogar (§9.3). |
+| Pausa pela plataforma | Reversível: a equipe da plataforma pode pausar um token (ou todos os da assessoria) para bloquear consumo indevido. A chamada seguinte já é recusada com **403 `auth.token_paused`**, sem cobrança; só a plataforma retoma (§9.3). |
 | Rotação | Gera novo segredo e mantém o anterior por uma carência (até 24 h), para o credor trocar sem parar a integração. Em vazamento: sem carência. |
 | Endereços permitidos | Opcional: só aceita chamadas das faixas de rede informadas. |
 | Limite de chamadas | Por token, por minuto. Acima disso a chamada é recusada (429) com o tempo de espera. |
 | Expiração | Opcional, na criação. |
-| Rastreabilidade | Cada chamada vai ao log de acesso (token, credor, operação, resultado, volume, tempo, endereço de origem e identificador da requisição). Criação, rotação e revogação vão à trilha de auditoria. |
+| Rastreabilidade | Cada chamada vai ao log de acesso (token, credor, operação, resultado, volume, tempo, endereço de origem e identificador da requisição). Criação, rotação, revogação, pausa e retomada vão à trilha de auditoria. Chamadas recusadas de um token identificado (segredo correto) são medidas como **tentativas de tráfego**, nunca cobradas. |
 | LGPD | Documento e contatos do devedor sempre mascarados; busca de devedor por documento só no corpo da chamada; nada de observações internas ou dados de outros credores. |
 
 ## 4. Escopos disponíveis
@@ -81,6 +82,16 @@ Sem esperar o fechamento, a tela **Posição do credor** (e a API, com os escopo
 - **Sincronização incremental**: as listas vêm em ordem de atualização com um cursor; o credor guarda o cursor e continua dele na próxima sincronização. Alterações do último minuto aparecem na chamada seguinte.
 - **Alteração concorrente**: carteiras e títulos têm versão (`ETag`). Se o credor enviar a versão lida (`If-Match`) e alguém tiver alterado antes, a alteração é recusada (412) para não sobrescrever.
 - **Baixa de título**: não há "baixar" direto — o credor informa o pagamento com comprovante (regra de baixa com evidência).
+- **Token pausado pela plataforma**: toda chamada recebe **403** com `code` = `auth.token_paused` (`application/problem+json`, com `requestId`). O token continua existindo e volta a funcionar, sem troca de segredo, quando a pausa terminar. Não é cobrada. O sistema do credor deve tratar como erro definitivo até contato com a assessoria — não repetir em laço (as tentativas são medidas e ficam visíveis à plataforma).
+
+**Erros de autenticação** (resposta RFC 9457, `code` estável):
+
+| Situação | Status | `code` |
+| --- | --- | --- |
+| Token ausente, inválido, revogado ou expirado; assessoria suspensa | 401 | `auth.unauthenticated` |
+| Token pausado pela plataforma | 403 | `auth.token_paused` |
+| Escopo insuficiente, IP fora da lista ou credor inativo | 403 | `access.denied` |
+| Limite por minuto excedido | 429 | `rate_limited` (com `Retry-After`) |
 
 ## 7. Versões e compatibilidade
 
@@ -131,10 +142,41 @@ Mudar uma não muda a outra: a assessoria pode cobrar dos credores preços maior
 
 **Mesmas regras da cobrança ao credor**: ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte (meses sem o dia fecham no último dia); primeiro, último e de transição (mudança do dia de fechamento) têm mensalidade, franquias **e limites das faixas** proporcionais aos dias; só chamadas bem-sucedidas (2xx/3xx) e só os dados delas; dados em MB inteiros (1 MB = 1.048.576 bytes) somados no ciclo por token e direção e arredondados para cima — por isso o consumo da assessoria é a soma do consumo dos credores, e o extrato da plataforma fecha com a soma dos extratos dos credores; centavos arredondados ao par por linha (cada faixa é uma sublinha); sem cobrança retroativa (ciclos encerrados antes do primeiro cadastro da política não são cobrados); ciclo sem consumo só gera extrato se houver mensalidade.
 
-**Acompanhamento a qualquer momento**: para cada assessoria, o ciclo em andamento com valor até agora (mensalidade do ciclo + excedente consumido), uso das franquias, linhas com as faixas, detalhamento por credor, token e operação e **projeção** = consumo até agora + média diária × dias restantes, precificada pela política. O consolidado da plataforma mostra a receita até agora, a projetada, a soma dos últimos extratos fechados, o **ranking das assessorias por consumo** e as **assessorias sem política** (o consumo delas aparece, sem valor).
+**Acompanhamento a qualquer momento**: para cada assessoria, o ciclo em andamento com valor até agora (mensalidade do ciclo + excedente consumido), uso das franquias, linhas com as faixas, detalhamento por credor, token e operação e **projeção** = consumo até agora + média diária × dias restantes, precificada pela política. O consolidado da plataforma mostra a receita até agora, a projetada, a soma dos últimos extratos fechados, o **ranking das assessorias por consumo**, as **assessorias sem política** (o consumo delas aparece, sem valor e sem extrato — decisão 747) e as **assessorias suspensas** (§9.1).
 
 **Extratos da plataforma**: os ciclos encerrados fecham sozinhos às 02h40 (depois dos extratos dos credores), com detalhamento por credor, por token e por operação e a marca do consumo usado. A equipe da plataforma pode fechar antes da madrugada um ciclo já encerrado e gerar uma nova revisão com motivo (a anterior fica guardada). Exportação em planilha (CSV). Extrato fechado nunca muda.
 
 **Transparência**: o administrador da assessoria vê, sem poder alterar, a política aplicada, a posição do ciclo e os extratos da plataforma, com o mesmo cálculo (decisão 745, revisável).
 
 **Fora do escopo**: cobrança automática (boleto, cartão, Pix), emissão de nota fiscal e impostos — a plataforma deixa o extrato pronto para faturar. Ainda depende do responsável: os valores das políticas de cada assessoria e a forma de faturar (ver decisões 740–757).
+
+### 9.1 Assessorias suspensas e tráfego recusado
+
+Decisão do responsável (04/11/2026): *"mesmo as suspensas, apesar dos valores monetários zerados, é importante eu como adm da plataforma entender se há tráfego, portanto o consumo da API deveria mostrar."* (revê a decisão 752 — decisões 760–762).
+
+- **Suspensas aparecem** no consolidado (com o selo "suspensa") e na tela da assessoria, com o consumo e o tráfego do ciclo em andamento por credor, token e operação. **Valores monetários zerados**: sem valor até agora, sem linhas nem franquias, projeção com valor zero; **sem extrato** enquanto durar a suspensão (prévia e fechamento manual são recusados; o fechamento automático continua só nas ativas). Ao reativar, os ciclos pendentes voltam a fechar pela política (ver "pontos para o responsável" na decisão 760).
+- **Sem política** (decisão 747): igual — consumo e tráfego visíveis, valor zero, sem extrato.
+- **Tráfego separado em três**: **cobráveis** (autenticadas com sucesso, 2xx/3xx — as do extrato), **não cobráveis** (autenticadas recusadas por excesso 429, erros do credor 4xx e falhas da plataforma 5xx) e **recusadas na autenticação** — tentativas de tráfego de um token **identificado** (segredo correto) barradas antes da API: token pausado, revogado ou expirado, **assessoria suspensa**, credor inativo ou IP fora da lista. As recusadas são medidas por credor, token, motivo e método (não por operação: a operação não é resolvida antes da autenticação), nunca entram no consumo cobrável e aparecem com o motivo. Chamadas com token desconhecido ou segredo errado não são atribuídas a nenhuma assessoria (ficam no log de acesso e na métrica técnica).
+- Como hoje: o token de uma assessoria suspensa é **recusado** (401 genérico ao cliente, motivo `tenant_inactive` no log de acesso); essas tentativas agora aparecem como tráfego recusado da assessoria.
+
+### 9.2 Telas da plataforma: tráfego e tokens
+
+- **Consolidado**: KPIs "Chamadas recusadas" e "Assessorias suspensas" (com os tokens pausados); no ranking, a coluna "Não cobrável e recusado" e o atalho **Tokens** de cada assessoria.
+- **Assessoria**: aviso de suspensão; seção **Tráfego da API no ciclo** (autenticadas, cobráveis, não cobráveis, recusadas, recusas por motivo, tabela por credor e token com a situação do token); seção **Tokens de integração** com o controle da §9.3.
+
+### 9.3 Controle dos tokens pela plataforma
+
+Decisão do responsável (04/11/2026): *"Deve ser possível também para mim como adm da plataforma, revogar tokens. Assim posso bloquear consumo indevido na plataforma. O ideal seria poder pausar o tráfego pelo token, mas permitir retomar em algum momento."* (decisões 763–772).
+
+| Ação | Efeito | Regras |
+| --- | --- | --- |
+| **Pausar** um token | Chamadas recusadas na próxima requisição, em todos os servidores: **403 `auth.token_paused`**, não cobradas, medidas como tentativas recusadas | Motivo obrigatório; **retomada automática opcional** (data e hora no futuro, até 90 dias) — o token volta a valer no instante agendado. Só tokens ativos. |
+| **Retomar** | Chamadas aceitas de novo na próxima requisição | Motivo obrigatório. Só a plataforma retoma. |
+| **Revogar** | Igual à revogação da assessoria: imediata e definitiva | Motivo obrigatório e confirmação na tela (digitar REVOGAR). A assessoria vê "Revogado pela plataforma". |
+| **Pausar todos** / **Retomar todos** | O mesmo para todos os tokens ativos (ou pausados) da assessoria | Mesmo motivo para todos; cada token fica na auditoria. |
+
+- **Precedência da plataforma**: a assessoria vê o token como **"Pausado pela plataforma"**, com o motivo, desde quando e a retomada agendada (padrão de mercado: o cliente sabe por que foi bloqueado e o que fazer), e **não pode retomá-lo**. Ela continua podendo editar, **rotacionar** (troca de segredo exposto — a pausa continua) e **revogar** o próprio token (a revogação encerra a pausa). O usuário da plataforma que agiu não é identificado à assessoria ("Equipe da plataforma").
+- **Aviso**: quem administra os tokens na assessoria (usuários ativos com a permissão de gerenciar tokens — o administrador e o perfil Integrações) recebe um e-mail de alerta de segurança quando a plataforma pausa, retoma ou revoga, e quando a retomada agendada acontece. O e-mail identifica o token pelo prefixo e remete à tela, onde está o motivo.
+- **Para o credor**: o erro não revela o motivo nem a data de retomada (assunto entre a plataforma e a assessoria); o credor procura a assessoria.
+- **Rastreabilidade**: trilha de auditoria da assessoria (com o usuário da plataforma) e da plataforma; log de acesso da plataforma com quem fez, motivo e assessoria; log de negócio da assessoria; métricas técnicas de recusas por token pausado.
+- **Quem pode**: só o administrador da plataforma (permissão `PLATFORM_API_TOKENS_MANAGE`, exclusiva da plataforma); a lista de tokens exige a consulta do faturamento da plataforma.

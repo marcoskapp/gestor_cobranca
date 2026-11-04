@@ -2,9 +2,15 @@ import { BillingCycleKind, StatementLine, TokenState } from './public-api.models
 
 export const TOKEN_STATE_LABELS: Record<TokenState, string> = {
   ACTIVE: 'Ativo',
+  PAUSED: 'Pausado pela plataforma',
   REVOKED: 'Revogado',
   EXPIRED: 'Expirado',
 };
+
+/** Tom do selo da situação do token (cor + texto; nunca só a cor). */
+export function tokenStateTone(state: TokenState): 'success' | 'warning' | 'danger' | 'secondary' {
+  return state === 'ACTIVE' ? 'success' : state === 'PAUSED' ? 'warning' : state === 'REVOKED' ? 'danger' : 'secondary';
+}
 
 export const METRIC_LABELS: Record<StatementLine['metric'], string> = {
   MONTHLY_FEE: 'Mensalidade',
@@ -21,7 +27,7 @@ export const PUBLIC_API_ERROR_LABELS: Record<string, string> = {
   'integration_token.allowed_ip_too_wide': 'Faixa de IP ampla demais: use no mínimo /8 (IPv4) ou /32 (IPv6).',
   'integration_token.expiry_in_past': 'A expiração precisa ser no futuro.',
   'integration_token.already_revoked': 'Este token já está revogado.',
-  'integration_token.not_active': 'Só tokens ativos podem ser rotacionados.',
+  'integration_token.not_active': 'Só tokens ativos ou pausados podem ser rotacionados.',
   'creditor.inactive': 'O credor está inativo.',
   'usage_statement.already_closed': 'O extrato deste ciclo já foi fechado: informe o motivo para gerar nova revisão.',
   'usage_statement.period_open': 'O ciclo ainda está em curso: só ciclos encerrados podem ser fechados.',

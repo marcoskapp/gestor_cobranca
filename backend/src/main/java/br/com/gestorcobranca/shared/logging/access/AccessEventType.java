@@ -90,5 +90,12 @@ public enum AccessEventType {
      * Consulta da equipe da plataforma a dados de uma assessoria (consumo, posição e extratos do faturamento da
      * plataforma): recurso, assessoria consultada e ids — nunca valores. Gravado no log de acesso da plataforma.
      */
-    PLATFORM_TENANT_DATA_VIEWED
+    PLATFORM_TENANT_DATA_VIEWED,
+    /**
+     * Token de integração pausado pela equipe da plataforma (bloqueio reversível de consumo): token, prefixo, credor,
+     * assessoria, motivo e retomada agendada. Gravado no log de acesso da plataforma.
+     */
+    INTEGRATION_TOKEN_PAUSED,
+    /** Pausa de um token de integração encerrada pela plataforma ou pela retomada automática agendada. */
+    INTEGRATION_TOKEN_RESUMED
 }

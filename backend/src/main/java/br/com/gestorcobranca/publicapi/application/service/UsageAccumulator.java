@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.publicapi.application.service;
 
+import br.com.gestorcobranca.publicapi.application.port.out.RejectedDelta;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageDelta;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageStore.LastUse;
 import org.springframework.stereotype.Component;
@@ -8,7 +9,9 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
@@ -20,6 +23,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * {@code UsageFlushJob} troca o mapa sob a trava de escrita e grava o acumulado em lote, por soma, a cada minuto e no
  * desligamento da instância. Em queda abrupta da instância perde-se no máximo o
  * último intervalo (o log de acesso por requisição continua completo e permite reconstituir o consumo).
+ * <p>
+ * As chamadas recusadas na autenticação de um token identificado somam num mapa próprio (tráfego recusado), drenado e
+ * gravado junto, em tabela separada — nunca entram no consumo cobrável.
  */
 @Component
 class UsageAccumulator {
@@ -40,9 +46,16 @@ class UsageAccumulator {
         final LongAdder latencyMs = new LongAdder();
     }
 
+    record RejectedKey(UUID tenantId, UUID creditorId, UUID tokenId, Instant hourStart, String reason, String method) {
+    }
+
+    /** Métodos gravados como estão; qualquer outro vira {@code OTHER} (coluna curta, sem texto livre do cliente). */
+    private static final Set<String> METHODS = Set.of("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
+
     /** Requisições somam sob a trava de leitura (compartilhada); a troca do mapa usa a de escrita. */
     private final ReentrantReadWriteLock swap = new ReentrantReadWriteLock();
     private Map<Key, Counters> current = new ConcurrentHashMap<>();
+    private Map<RejectedKey, LongAdder> rejected = new ConcurrentHashMap<>();
     private Map<UUID, LastUseHolder> lastUses = new ConcurrentHashMap<>();
 
     private record LastUseHolder(UUID tenantId, Instant at, String ip) {
@@ -86,6 +99,30 @@ class UsageAccumulator {
         return status >= 200 && status < 400;
     }
 
+    /** Recusa na autenticação de um token identificado (tráfego recusado, não cobrado). */
+    void addRejected(UUID tenantId, UUID creditorId, UUID tokenId, Instant at, String reason, String method) {
+        String m = method == null ? "OTHER" : method.toUpperCase(Locale.ROOT);
+        RejectedKey key = new RejectedKey(tenantId, creditorId, tokenId, at.truncatedTo(ChronoUnit.HOURS), reason,
+                METHODS.contains(m) ? m : "OTHER");
+        swap.readLock().lock();
+        try {
+            rejected.computeIfAbsent(key, k -> new LongAdder()).increment();
+        } finally {
+            swap.readLock().unlock();
+        }
+    }
+
+    /** Devolve um delta de recusas não gravado para a próxima tentativa. */
+    void restore(RejectedDelta d) {
+        swap.readLock().lock();
+        try {
+            rejected.computeIfAbsent(new RejectedKey(d.tenantId(), d.creditorId(), d.tokenId(), d.hourStart(),
+                    d.reason(), d.method()), k -> new LongAdder()).add(d.attempts());
+        } finally {
+            swap.readLock().unlock();
+        }
+    }
+
     /** Devolve um delta não gravado (falha na gravação) para a próxima tentativa. */
     void restore(UsageDelta d) {
         swap.readLock().lock();
@@ -123,16 +160,19 @@ class UsageAccumulator {
     Drained drain() {
         Map<Key, Counters> toWrite;
         Map<UUID, LastUseHolder> uses;
+        Map<RejectedKey, LongAdder> refused;
         swap.writeLock().lock();
         try {
             toWrite = current;
             uses = lastUses;
+            refused = rejected;
             current = new ConcurrentHashMap<>();
             lastUses = new ConcurrentHashMap<>();
+            rejected = new ConcurrentHashMap<>();
         } finally {
             swap.writeLock().unlock();
         }
-        return new Drained(toDeltas(toWrite), toLastUses(uses));
+        return new Drained(toDeltas(toWrite), toLastUses(uses), toRejected(refused));
     }
 
     /** Desligamento: drena tudo. */
@@ -143,13 +183,20 @@ class UsageAccumulator {
     int pendingKeys() {
         swap.readLock().lock();
         try {
-            return current.size();
+            return current.size() + rejected.size();
         } finally {
             swap.readLock().unlock();
         }
     }
 
-    record Drained(List<UsageDelta> deltas, Map<UUID, List<LastUse>> lastUses) {
+    record Drained(List<UsageDelta> deltas, Map<UUID, List<LastUse>> lastUses, List<RejectedDelta> rejected) {
+    }
+
+    private static List<RejectedDelta> toRejected(Map<RejectedKey, LongAdder> map) {
+        List<RejectedDelta> deltas = new ArrayList<>(map.size());
+        map.forEach((k, c) -> deltas.add(new RejectedDelta(k.tenantId(), k.creditorId(), k.tokenId(), k.hourStart(),
+                k.reason(), k.method(), c.sum())));
+        return deltas;
     }
 
     private static List<UsageDelta> toDeltas(Map<Key, Counters> map) {

@@ -174,6 +174,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Crie um token para cada sistema do credor, com os escopos estritamente necessários, o limite de chamadas por minuto e, se possível, os endereços de rede do credor.',
         'O token aparece uma única vez, na criação: copie e entregue ao credor por canal seguro. A lista mostra só o prefixo.',
+        'A equipe da plataforma pode pausar um token para bloquear uso indevido: ele aparece como "Pausado pela plataforma", as chamadas são recusadas sem cobrança e só a plataforma retoma. Você recebe um aviso por e-mail.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'INTEGRACAO', 'AUDITOR'],
       inputs: ['Pedido do credor que vai integrar o seu sistema.'],
@@ -191,6 +192,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Rotacione periodicamente ou quando a equipe do credor mudar: o segredo anterior continua aceito durante a carência. Em caso de vazamento, rotacione sem carência ou revogue.',
         'A revogação é imediata e definitiva e exige motivo.',
+        'Pausado pela plataforma: a ficha mostra desde quando, o motivo e a retomada agendada, se houver. Você não retoma, mas pode editar, rotacionar (segredo exposto) e revogar; para retomar antes, procure a plataforma.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'INTEGRACAO'],
       inputs: ['Token criado na lista de tokens.'],

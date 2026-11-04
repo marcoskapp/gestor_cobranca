@@ -18,7 +18,7 @@ public interface IntegrationTokenUseCases {
 
     TokenView get(UUID tokenId);
 
-    /** @param status ACTIVE, REVOKED ou EXPIRED (opcional) */
+    /** @param status ACTIVE, PAUSED, REVOKED ou EXPIRED (opcional) */
     PageResponse<TokenView> search(UUID creditorId, String status, PageQuery page);
 
     TokenView updateSettings(UUID tokenId, UpdateTokenCommand command);
@@ -43,13 +43,19 @@ public interface IntegrationTokenUseCases {
 
     /**
      * @param prefix            identificação pública ({@code gck_xxxxxxxxxxxx})
-     * @param state             ACTIVE, REVOKED ou EXPIRED
+     * @param state             ACTIVE, PAUSED (pela plataforma), REVOKED ou EXPIRED
      * @param previousValidUntil fim da carência do segredo anterior (rotação), se houver
      * @param lastUsedAt        último uso (atualizado em lote, até ~1 min de atraso)
+     * @param revokedBy         usuário que revogou — da assessoria ou, com {@code revokedByPlatform}, da plataforma
+     *                          (nulo para a assessoria nesse caso: o usuário da plataforma não é identificado a ela)
+     * @param pausedAt          início da pausa imposta pela plataforma (nulo se não pausado)
+     * @param pauseReason       motivo informado pela plataforma
+     * @param resumeAt          retomada automática agendada pela plataforma, se houver
      */
     record TokenView(UUID id, UUID creditorId, String name, String description, String prefix, Set<String> scopes,
                      int rateLimitPerMinute, List<String> allowedIps, Instant expiresAt, String state, UUID createdBy,
                      Instant createdAt, Instant lastUsedAt, String lastUsedIp, Instant revokedAt, UUID revokedBy,
-                     String revokeReason, Instant rotatedAt, int rotationCount, Instant previousValidUntil) {
+                     String revokeReason, Instant rotatedAt, int rotationCount, Instant previousValidUntil,
+                     boolean revokedByPlatform, Instant pausedAt, String pauseReason, Instant resumeAt) {
     }
 }

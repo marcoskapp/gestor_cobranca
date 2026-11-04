@@ -21,4 +21,7 @@ public interface TenantRepository {
     List<Tenant> findAll();
 
     List<UUID> findActiveIds();
+
+    /** Ids de todos os tenants, inclusive suspensos. */
+    List<UUID> findAllIds();
 }

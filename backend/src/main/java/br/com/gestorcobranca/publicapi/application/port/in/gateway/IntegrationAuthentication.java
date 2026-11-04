@@ -10,9 +10,10 @@ import java.util.UUID;
  * módulo</strong> (cadeia de filtros de {@code /public-api/**}); exposta como porta para manter a separação entre o
  * adaptador e a regra.
  * <p>
- * Cada verificação é feita no banco a cada requisição (sem cache): revogação, expiração e troca de IPs valem
- * imediatamente. Recusas são registradas no log de acesso ({@code INTEGRATION_TOKEN_REJECTED}) com o motivo real; ao
- * cliente vai sempre a mesma resposta genérica (exceto IP fora da lista, que exige o segredo correto).
+ * Cada verificação é feita no banco a cada requisição (sem cache): revogação, pausa, retomada, expiração e troca de
+ * IPs valem imediatamente em todas as instâncias. Recusas são registradas no log de acesso
+ * ({@code INTEGRATION_TOKEN_REJECTED}) com o motivo real; ao cliente vai sempre a mesma resposta genérica, exceto as
+ * que exigem o segredo correto (IP fora da lista, credor inativo e token pausado pela plataforma).
  */
 public interface IntegrationAuthentication {
 
@@ -33,13 +34,26 @@ public interface IntegrationAuthentication {
     }
 
     /**
-     * @param reason   motivo interno (log de acesso): missing, malformed, unknown, secret_mismatch, revoked, expired,
-     *                 ip_not_allowed, tenant_inactive, creditor_inactive
-     * @param status   401 ou 403
-     * @param tenantId assessoria do token, quando identificada
-     * @param prefix   prefixo exibível, quando identificado
+     * @param reason     motivo interno (log de acesso): missing, malformed, unknown, secret_mismatch, revoked, expired,
+     *                   paused, ip_not_allowed, tenant_inactive, creditor_inactive
+     * @param status     401 ou 403
+     * @param tenantId   assessoria do token, quando identificada
+     * @param prefix     prefixo exibível, quando identificado
+     * @param tokenId    token cujo segredo conferiu (a recusa é tráfego dele e é medida); nulo quando o portador não
+     *                   foi provado (ausente, malformado, desconhecido ou segredo errado)
+     * @param creditorId credor do token, com {@code tokenId}
      */
-    record Rejected(String reason, int status, UUID tenantId, String prefix) implements Result {
+    record Rejected(String reason, int status, UUID tenantId, String prefix, UUID tokenId, UUID creditorId)
+            implements Result {
+
+        /** Recusa atribuível ao token (segredo conferido): entra na medição do tráfego recusado. */
+        public boolean attributable() {
+            return tokenId != null && creditorId != null && tenantId != null;
+        }
+
+        public boolean paused() {
+            return "paused".equals(reason);
+        }
     }
 
     /** @param resetSeconds segundos até a próxima janela */

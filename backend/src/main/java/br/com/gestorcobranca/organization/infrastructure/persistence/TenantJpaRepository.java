@@ -24,4 +24,8 @@ interface TenantJpaRepository extends JpaRepository<Tenant, UUID>, TenantReposit
     @Override
     @Query("select t.id from Tenant t where t.status = br.com.gestorcobranca.organization.domain.model.TenantStatus.ACTIVE")
     List<UUID> findActiveIds();
+
+    @Override
+    @Query("select t.id from Tenant t order by t.id")
+    List<UUID> findAllIds();
 }

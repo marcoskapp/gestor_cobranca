@@ -18,6 +18,9 @@ public interface UsageStore {
     /** Soma os deltas do tenant corrente (uma instrução em lote). */
     void add(List<UsageDelta> deltas);
 
+    /** Soma as recusas na autenticação de tokens identificados do tenant corrente (tráfego recusado). */
+    void addRejected(List<RejectedDelta> deltas);
+
     /** Último uso e IP dos tokens do tenant corrente (só avança). */
     void touchTokens(List<LastUse> uses);
 
@@ -75,5 +78,14 @@ public interface UsageStore {
     List<DailyTokenRow> dailyByToken(Filter filter, String zoneId);
 
     record DailyTokenRow(LocalDate day, UUID tokenId, UsageTotals totals) {
+    }
+
+    /**
+     * Tráfego recusado na autenticação (tokens identificados), agregado por token, credor, motivo e método no filtro
+     * (só período, credores e token são considerados).
+     */
+    List<RejectedRow> rejected(Filter filter);
+
+    record RejectedRow(UUID tokenId, UUID creditorId, String reason, String method, long attempts) {
     }
 }

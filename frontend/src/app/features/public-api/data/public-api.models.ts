@@ -3,7 +3,8 @@
  * `PublicApiBillingUseCases`). O segredo do token só existe na resposta da criação e da rotação.
  */
 
-export type TokenState = 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+/** `PAUSED`: pausado pela plataforma (reversível; só a plataforma retoma). */
+export type TokenState = 'ACTIVE' | 'PAUSED' | 'REVOKED' | 'EXPIRED';
 
 export interface TokenView {
   id: string;
@@ -28,6 +29,12 @@ export interface TokenView {
   rotationCount: number;
   /** Fim da carência do segredo anterior (rotação). */
   previousValidUntil: string | null;
+  /** Revogado pela equipe da plataforma (o usuário da plataforma não é identificado: `revokedBy` vem nulo). */
+  revokedByPlatform: boolean;
+  /** Pausa imposta pela plataforma: início, motivo e retomada automática agendada (nulos se não pausado). */
+  pausedAt: string | null;
+  pauseReason: string | null;
+  resumeAt: string | null;
 }
 
 /** Resposta da criação/rotação: `token` é exibido uma única vez. */

@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.publicapi.infrastructure.persistence;
 
+import br.com.gestorcobranca.publicapi.application.port.out.RejectedDelta;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageDelta;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageStore;
 import br.com.gestorcobranca.publicapi.domain.model.UsageTotals;
@@ -84,6 +85,41 @@ class JdbcUsageStore implements UsageStore {
                     latency_ms_total = usage_hourly.latency_ms_total + excluded.latency_ms_total,
                     updated_at = now()
                 """, batch);
+    }
+
+    @Override
+    public void addRejected(List<RejectedDelta> deltas) {
+        if (deltas.isEmpty()) {
+            return;
+        }
+        UUID tenantId = currentActor.tenantId();
+        List<RejectedDelta> ordered = new ArrayList<>(deltas);
+        ordered.sort(Comparator.comparing((RejectedDelta d) -> d.creditorId().toString())
+                .thenComparing(d -> d.tokenId().toString()).thenComparing(RejectedDelta::hourStart)
+                .thenComparing(RejectedDelta::reason).thenComparing(RejectedDelta::method));
+        SqlParameterSource[] batch = ordered.stream().filter(d -> d.tenantId().equals(tenantId) && d.attempts() > 0)
+                .map(d -> new MapSqlParameterSource().addValue("tenant", tenantId).addValue("creditor", d.creditorId())
+                        .addValue("token", d.tokenId()).addValue("hour", Timestamp.from(d.hourStart()))
+                        .addValue("reason", d.reason()).addValue("method", d.method())
+                        .addValue("attempts", d.attempts()))
+                .toArray(SqlParameterSource[]::new);
+        jdbc.batchUpdate("""
+                insert into publicapi.usage_rejected_hourly (tenant_id, creditor_id, token_id, hour_start, reason, method,
+                    attempts, updated_at)
+                values (:tenant, :creditor, :token, :hour, :reason, :method, :attempts, now())
+                on conflict (tenant_id, creditor_id, token_id, hour_start, reason, method) do update set
+                    attempts = usage_rejected_hourly.attempts + excluded.attempts, updated_at = now()
+                """, batch);
+    }
+
+    @Override
+    public List<RejectedRow> rejected(Filter f) {
+        MapSqlParameterSource p = params(f);
+        return jdbc.query("select token_id, creditor_id, reason, method, sum(attempts) as attempts"
+                        + " from publicapi.usage_rejected_hourly where " + where(f, p)
+                        + " group by token_id, creditor_id, reason, method order by token_id, reason, method", p,
+                (rs, i) -> new RejectedRow(rs.getObject("token_id", UUID.class), rs.getObject("creditor_id", UUID.class),
+                        rs.getString("reason"), rs.getString("method"), rs.getLong("attempts")));
     }
 
     @Override

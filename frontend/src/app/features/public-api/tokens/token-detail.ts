@@ -22,7 +22,10 @@ import { TokenView } from '../data/public-api.models';
 import { RotateTokenDialog, RotateTokenDialogData } from './rotate-token-dialog';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 
-/** Ficha do token: identificação, escopos, limite, IPs, uso, rotação e revogação (com motivo, imediata). */
+/**
+ * Ficha do token: identificação, escopos, limite, IPs, uso, rotação e revogação (com motivo, imediata). Token pausado
+ * pela plataforma: aviso com motivo e retomada agendada; a assessoria não retoma, mas edita, rotaciona e revoga.
+ */
 @Component({
   selector: 'app-token-detail',
   imports: [RouterLink, AppDatePipe, EmptyState, Icon, PageHeader, Skeleton],
@@ -35,7 +38,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
       </app-empty-state>
     } @else if (token(); as t) {
       <app-page-header [title]="t.name" [subtitle]="creditors.name(t.creditorId) + ' · ' + t.prefix">
-        @if (canManage() && t.state === 'ACTIVE') {
+        @if (canManage() && (t.state === 'ACTIVE' || t.state === 'PAUSED')) {
           <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="edit(t)" [disabled]="busy()">
             <app-icon name="pencil" />
             Editar
@@ -51,6 +54,18 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
         }
       </app-page-header>
       <p><a routerLink="/integracoes/tokens">← Tokens de integração</a></p>
+      @if (t.state === 'PAUSED') {
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="status" data-tour="token-paused">
+          <app-icon name="pause-circle" />
+          <div>
+            <strong>Pausado pela plataforma</strong> desde {{ t.pausedAt | appDate }}: as chamadas com este token estão sendo
+            recusadas (sem cobrança).
+            {{ t.resumeAt ? 'Volta a valer automaticamente em ' + (t.resumeAt | appDate) + '.' : 'Só a plataforma pode retomar.' }}
+            <div class="mt-1"><span class="fw-semibold">Motivo:</span> {{ t.pauseReason }}</div>
+            <div class="td-small mt-1">Você ainda pode editar, rotacionar (segredo exposto) ou revogar o token. Para retomar antes, procure a plataforma.</div>
+          </div>
+        </div>
+      }
       @if (t.previousValidUntil) {
         <div class="alert alert-info d-flex gap-2 align-items-start" role="status">
           <app-icon name="clock" />
@@ -62,7 +77,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
           <h2 class="app-card__title" id="td-id">Identificação</h2>
           <dl class="app-definition-list">
             <dt>Situação</dt>
-            <dd>{{ stateLabels[t.state] }}</dd>
+            <dd>{{ stateLabels[t.state] }}{{ t.state === 'REVOKED' && t.revokedByPlatform ? ' pela plataforma' : '' }}</dd>
             <dt>Prefixo</dt>
             <dd class="app-mono">{{ t.prefix }}</dd>
             <dt>Descrição</dt>
@@ -107,7 +122,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
               <dt>Revogado em</dt>
               <dd>{{ t.revokedAt | appDate }}</dd>
               <dt>Por</dt>
-              <dd>{{ t.revokedBy ? users.name(t.revokedBy) : '—' }}</dd>
+              <dd>{{ t.revokedByPlatform ? 'Equipe da plataforma' : t.revokedBy ? users.name(t.revokedBy) : '—' }}</dd>
               <dt>Motivo</dt>
               <dd>{{ t.revokeReason }}</dd>
             </dl>

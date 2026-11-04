@@ -25,6 +25,11 @@ import java.util.UUID;
  * Token de integração da API pública, sempre vinculado a <strong>um</strong> credor da assessoria. Guarda só o hash do
  * segredo ({@link TokenHasher}); o prefixo identifica o token sem revelar o segredo. Revogação é definitiva e imediata;
  * a rotação troca o segredo e mantém o anterior válido por uma carência curta (troca sem parada no sistema do credor).
+ * <p>
+ * <b>Pausa pela plataforma</b> (decisões 763–766): a equipe da plataforma pode pausar um token (motivo obrigatório,
+ * retomada automática opcional) para bloquear consumo indevido sem destruir a credencial; só ela retoma. Enquanto
+ * pausado, o token é recusado na autenticação; a assessoria continua podendo alterar, rotacionar e revogar (a
+ * revogação encerra a pausa).
  */
 @Entity
 @Table(name = "integration_token", schema = "publicapi")
@@ -35,6 +40,8 @@ public class IntegrationToken extends TenantScopedEntity {
     public static final int MIN_RATE_LIMIT = 1;
     public static final int MAX_RATE_LIMIT = 6_000;
     public static final int MAX_ALLOWED_IPS = 20;
+    /** Prazo máximo da retomada automática de uma pausa. */
+    public static final Duration MAX_PAUSE_SCHEDULE = Duration.ofDays(90);
 
     @Column(name = "creditor_id", nullable = false, updatable = false)
     private UUID creditorId;
@@ -94,6 +101,23 @@ public class IntegrationToken extends TenantScopedEntity {
     @Column(name = "revoke_reason", length = 500)
     private String revokeReason;
 
+    @Column(name = "revoked_by_platform", nullable = false)
+    private boolean revokedByPlatform;
+
+    @Column(name = "paused_at")
+    private Instant pausedAt;
+
+    /** Usuário da plataforma que pausou (de outro tenant; sem chave estrangeira). */
+    @Column(name = "paused_by")
+    private UUID pausedBy;
+
+    @Column(name = "pause_reason", length = 500)
+    private String pauseReason;
+
+    /** Retomada automática agendada (opcional): a partir dela o token volta a valer, mesmo antes de gravada. */
+    @Column(name = "resume_at")
+    private Instant resumeAt;
+
     @Column(name = "rotated_at")
     private Instant rotatedAt;
 
@@ -152,7 +176,54 @@ public class IntegrationToken extends TenantScopedEntity {
         if (status == TokenStatus.REVOKED) {
             return TokenState.REVOKED;
         }
-        return expiresAt != null && !now.isBefore(expiresAt) ? TokenState.EXPIRED : TokenState.ACTIVE;
+        if (expiresAt != null && !now.isBefore(expiresAt)) {
+            return TokenState.EXPIRED;
+        }
+        return status == TokenStatus.PAUSED && !resumeDue(now) ? TokenState.PAUSED : TokenState.ACTIVE;
+    }
+
+    /** A retomada automática agendada já venceu (o token vale de novo; falta só gravar a retomada). */
+    public boolean resumeDue(Instant now) {
+        return status == TokenStatus.PAUSED && resumeAt != null && !now.isBefore(resumeAt);
+    }
+
+    /**
+     * Pausa imposta pela plataforma: reversível, com motivo e retomada automática opcional (até
+     * {@link #MAX_PAUSE_SCHEDULE}). Só um token ativo pode ser pausado.
+     */
+    public void pauseByPlatform(UUID by, String reason, Instant resumeAt, Instant now) {
+        Guard.requireState(stateAt(now) == TokenState.ACTIVE, "integration_token.not_active",
+                "Só tokens ativos podem ser pausados");
+        requireReason(reason);
+        Guard.require(resumeAt == null || resumeAt.isAfter(now), "integration_token.resume_in_past",
+                "A retomada automática precisa ser no futuro");
+        Guard.require(resumeAt == null || !resumeAt.isAfter(now.plus(MAX_PAUSE_SCHEDULE)),
+                "integration_token.resume_too_far", "Retomada automática em até 90 dias");
+        Guard.require(by != null, "integration_token.actor_required", "Responsável obrigatório");
+        this.status = TokenStatus.PAUSED;
+        this.pausedAt = now;
+        this.pausedBy = by;
+        this.pauseReason = reason.strip();
+        this.resumeAt = resumeAt;
+    }
+
+    /** Fim da pausa (pela plataforma ou pela retomada automática vencida). */
+    public void resume() {
+        Guard.requireState(status == TokenStatus.PAUSED, "integration_token.not_paused", "O token não está pausado");
+        this.status = TokenStatus.ACTIVE;
+        clearPause();
+    }
+
+    private void clearPause() {
+        this.pausedAt = null;
+        this.pausedBy = null;
+        this.pauseReason = null;
+        this.resumeAt = null;
+    }
+
+    private static void requireReason(String reason) {
+        Guard.require(reason != null && !reason.isBlank(), "integration_token.reason_required", "Informe o motivo");
+        Guard.require(reason.strip().length() <= 500, "integration_token.reason_too_long", "Motivo com até 500 caracteres");
     }
 
     /**
@@ -169,11 +240,24 @@ public class IntegrationToken extends TenantScopedEntity {
         return current || previous;
     }
 
-    /** Revogação definitiva e imediata (inclusive do segredo anterior em carência). */
+    /**
+     * Revogação definitiva e imediata (inclusive do segredo anterior em carência), pela assessoria; também de um token
+     * pausado pela plataforma (a pausa termina com a revogação e continua registrada na auditoria).
+     */
     public void revoke(UUID by, String reason, Instant now) {
+        revoke(by, reason, now, false);
+    }
+
+    /** Revogação pela equipe da plataforma ({@code by} = usuário da plataforma). */
+    public void revokeByPlatform(UUID by, String reason, Instant now) {
+        revoke(by, reason, now, true);
+    }
+
+    private void revoke(UUID by, String reason, Instant now, boolean platform) {
         Guard.requireState(status != TokenStatus.REVOKED, "integration_token.already_revoked", "Token já revogado");
-        Guard.require(reason != null && !reason.isBlank(), "integration_token.reason_required", "Informe o motivo");
-        Guard.require(reason.strip().length() <= 500, "integration_token.reason_too_long", "Motivo com até 500 caracteres");
+        requireReason(reason);
+        clearPause();
+        this.revokedByPlatform = platform;
         this.status = TokenStatus.REVOKED;
         this.revokedAt = now;
         this.revokedBy = by;
@@ -188,8 +272,10 @@ public class IntegrationToken extends TenantScopedEntity {
      * a carência de outra encerra a carência anterior: só existem, no máximo, dois segredos válidos.
      */
     public void rotate(String newSecretHash, String newKeyId, Duration grace, Instant now) {
-        Guard.requireState(stateAt(now) == TokenState.ACTIVE, "integration_token.not_active",
-                "Só tokens ativos podem ser rotacionados");
+        TokenState state = stateAt(now);
+        // pausado também: a assessoria troca um segredo exposto enquanto a plataforma mantém a pausa
+        Guard.requireState(state == TokenState.ACTIVE || state == TokenState.PAUSED, "integration_token.not_active",
+                "Só tokens ativos ou pausados podem ser rotacionados");
         Guard.require(grace != null && !grace.isNegative() && grace.compareTo(MAX_ROTATION_GRACE) <= 0,
                 "integration_token.grace_invalid", "Carência entre 0 e 24 horas");
         if (grace.isZero()) {
@@ -257,6 +343,26 @@ public class IntegrationToken extends TenantScopedEntity {
 
     public String getRevokeReason() {
         return revokeReason;
+    }
+
+    public boolean isRevokedByPlatform() {
+        return revokedByPlatform;
+    }
+
+    public Instant getPausedAt() {
+        return pausedAt;
+    }
+
+    public UUID getPausedBy() {
+        return pausedBy;
+    }
+
+    public String getPauseReason() {
+        return pauseReason;
+    }
+
+    public Instant getResumeAt() {
+        return resumeAt;
     }
 
     public Instant getRotatedAt() {

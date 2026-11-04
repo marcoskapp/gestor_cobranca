@@ -5,6 +5,7 @@ import br.com.gestorcobranca.publicapi.domain.model.TokenStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -28,8 +29,14 @@ public interface IntegrationTokenRepository {
 
     /**
      * @param allowedCreditorIds credores visíveis; {@code null} = sem restrição
-     * @param status             filtro opcional
+     * @param statuses           situações gravadas aceitas; {@code null} = todas
      */
-    Page<IntegrationToken> search(Collection<UUID> allowedCreditorIds, UUID creditorId, TokenStatus status,
+    Page<IntegrationToken> search(Collection<UUID> allowedCreditorIds, UUID creditorId, Collection<TokenStatus> statuses,
                                   Pageable pageable);
+
+    /** Todos os tokens da assessoria corrente (controle pela plataforma). */
+    List<IntegrationToken> findAll();
+
+    /** Pausas com retomada automática vencida em {@code now}, da assessoria corrente. */
+    List<IntegrationToken> findResumeDue(Instant now);
 }

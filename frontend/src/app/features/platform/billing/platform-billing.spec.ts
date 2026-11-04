@@ -9,7 +9,7 @@ import { provideAppLocale } from '../../../core/config/app-locale';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
-import { OverviewView, PlatformPositionView, PlatformStatementView, PolicyView } from '../data/platform-billing.models';
+import { OverviewView, PlatformPositionView, PlatformStatementView, PlatformTokenView, PolicyView, TrafficTotals } from '../data/platform-billing.models';
 import { PlatformBillingOverview } from './platform-billing-overview';
 import { tierProblem, tierRange, tiersSummary } from './platform-billing.labels';
 import { buildTerms } from './platform-policy-dialog';
@@ -61,6 +61,27 @@ const position = (overrides: Partial<PlatformPositionView> = {}): PlatformPositi
   updatedAt: '2026-11-04T12:00:00Z',
   flushIntervalSeconds: 60,
   calculationMillis: 12,
+  suspended: false,
+  traffic: {
+    totals: traffic({ requests: 160_000, billableRequests: 150_000, nonBillableRequests: 10_000, rejectedRequests: 40 }),
+    rows: [
+      { kind: 'CREDITOR', key: 'c-1', label: 'Banco Horizonte', creditorId: null, tokenState: null, totals: traffic({ requests: 100, billableRequests: 90, nonBillableRequests: 10, rejectedRequests: 40 }) },
+      { kind: 'TOKEN', key: 'k-1', label: 'gck_ab12 · ERP', creditorId: 'c-1', tokenState: 'PAUSED', totals: traffic({ requests: 100, billableRequests: 90, nonBillableRequests: 10, rejectedRequests: 40 }) },
+    ],
+    rejections: [{ reason: 'paused', attempts: 40 }],
+  },
+  ...overrides,
+});
+
+function traffic(t: Partial<TrafficTotals>): TrafficTotals {
+  return { requests: 0, billableRequests: 0, nonBillableRequests: 0, rejectedRequests: 0, mbIn: 0, mbOut: 0, billableMbIn: 0, billableMbOut: 0, records: 0, ...t };
+}
+
+const token = (overrides: Partial<PlatformTokenView> = {}): PlatformTokenView => ({
+  id: 'k-1', creditorId: 'c-1', creditorName: 'Banco Horizonte', name: 'ERP', prefix: 'gck_abcdefghijkl', scopes: ['titles:read'],
+  state: 'ACTIVE', createdAt: '2026-10-01T12:00:00Z', expiresAt: null, lastUsedAt: '2026-11-04T11:00:00Z', pausedAt: null,
+  pausedBy: null, pauseReason: null, resumeAt: null, revokedAt: null, revokedByPlatform: false, revokeReason: null,
+  cycle: traffic({ requests: 100, billableRequests: 90, nonBillableRequests: 10, rejectedRequests: 0 }),
   ...overrides,
 });
 
@@ -138,12 +159,13 @@ describe('telas do faturamento da plataforma', () => {
 
   const page = (content: PlatformStatementView[]) => ({ content, page: 0, size: 20, totalElements: content.length, totalPages: 1 });
 
-  /** Responde às três cargas da tela da assessoria (posição, política e extratos). */
-  async function renderTenant(): Promise<ComponentFixture<PlatformTenantBilling>> {
+  /** Responde às quatro cargas da tela da assessoria (posição, tokens, política e extratos). */
+  async function renderTenant(p: PlatformPositionView = position(), tokens: PlatformTokenView[] = [token()]): Promise<ComponentFixture<PlatformTenantBilling>> {
     const fixture = TestBed.createComponent(PlatformTenantBilling);
     fixture.detectChanges();
     await settle(fixture);
-    http.expectOne(`${BASE}/tenants/t-1/position`).flush(position());
+    http.expectOne(`${BASE}/tenants/t-1/position`).flush(p);
+    http.expectOne(`${BASE}/tenants/t-1/tokens`).flush(tokens);
     http.expectOne(`${BASE}/tenants/t-1/policy`).flush(policy);
     http.expectOne((r) => r.url === `${BASE}/tenants/t-1/statements`).flush(page([statement]));
     await settle(fixture);
@@ -153,10 +175,10 @@ describe('telas do faturamento da plataforma', () => {
   it('consolidado: receita, projeção, assessorias sem política e ranking com link para a assessoria', async () => {
     const overview: OverviewView = {
       today: '2026-11-04',
-      totals: { tenants: 2, withPolicy: 1, withoutPolicy: 1, amountSoFar: 1800, projectedAmount: 9000, lastClosedAmount: 1200, billableRequests: 155_000, billableMbIn: 12, billableMbOut: 30, records: 900 },
+      totals: { tenants: 2, withPolicy: 1, withoutPolicy: 1, amountSoFar: 1800, projectedAmount: 9000, lastClosedAmount: 1200, billableRequests: 155_000, billableMbIn: 12, billableMbOut: 30, records: 900, suspended: 1, requests: 160_000, nonBillableRequests: 5_000, rejectedRequests: 320, pausedTokens: 1 },
       tenants: [
-        { tenantId: 't-1', slug: 'horizonte', tradeName: 'Horizonte', hasPolicy: true, periodStart: '2026-11-01', periodEnd: '2026-11-30', daysElapsed: 4, cycleDays: 30, policyVersion: 1, billableRequests: 150_000, billableMbIn: 12, billableMbOut: 30, records: 900, tokens: 3, amountSoFar: 1800, projectedAmount: 9000, lastStatement: null, rank: 1 },
-        { tenantId: 't-2', slug: 'aurora', tradeName: 'Aurora', hasPolicy: false, periodStart: '2026-11-01', periodEnd: '2026-11-30', daysElapsed: 4, cycleDays: 30, policyVersion: null, billableRequests: 5_000, billableMbIn: 0, billableMbOut: 0, records: 0, tokens: 1, amountSoFar: 0, projectedAmount: 0, lastStatement: null, rank: 2 },
+        { tenantId: 't-1', slug: 'horizonte', tradeName: 'Horizonte', hasPolicy: true, periodStart: '2026-11-01', periodEnd: '2026-11-30', daysElapsed: 4, cycleDays: 30, policyVersion: 1, billableRequests: 150_000, billableMbIn: 12, billableMbOut: 30, records: 900, tokens: 3, amountSoFar: 1800, projectedAmount: 9000, lastStatement: null, rank: 1, suspended: false, requests: 155_000, nonBillableRequests: 5_000, rejectedRequests: 0, pausedTokens: 0 },
+        { tenantId: 't-2', slug: 'aurora', tradeName: 'Aurora', hasPolicy: false, periodStart: '2026-11-01', periodEnd: '2026-11-30', daysElapsed: 4, cycleDays: 30, policyVersion: null, billableRequests: 5_000, billableMbIn: 0, billableMbOut: 0, records: 0, tokens: 1, amountSoFar: 0, projectedAmount: 0, lastStatement: null, rank: 2, suspended: true, requests: 5_000, nonBillableRequests: 0, rejectedRequests: 320, pausedTokens: 1 },
       ],
       calculationMillis: 20,
     };
@@ -170,12 +192,20 @@ describe('telas do faturamento da plataforma', () => {
     expect(text).toContain('Receita até agora');
     expect(text).toContain('Assessorias sem política');
     expect(text).toContain('sem política');
-    expect(el.querySelectorAll('app-kpi-card').length).toBe(5);
+    expect(text).toContain('Chamadas recusadas');
+    expect(text).toContain('Assessorias suspensas');
+    expect(el.querySelectorAll('app-kpi-card').length).toBe(7);
     const rows = el.querySelectorAll('app-data-table tbody tr');
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('Horizonte');
+    expect(rows[0].textContent).not.toContain('suspensa');
     expect(rows[1].textContent).toContain('Cadastrar política');
+    expect(rows[1].textContent).toContain('suspensa');
+    expect(rows[1].textContent).toContain('320 recusadas · 1 pausado(s)');
     expect(rows[0].querySelector('a')?.getAttribute('href')).toContain('/plataforma/faturamento/t-1');
+    const tokensLink = [...rows[1].querySelectorAll('a')].find((a) => a.textContent?.includes('Tokens'))!;
+    expect(tokensLink.getAttribute('href')).toContain('/plataforma/faturamento/t-2');
+    expect(tokensLink.getAttribute('href')).toContain('#tokens');
   });
 
   it('assessoria: posição com faixas, política e extratos; só quem gerencia vê os botões de alteração', async () => {
@@ -189,6 +219,55 @@ describe('telas do faturamento da plataforma', () => {
     expect(text).toContain('ciclo atual');
     expect(text).not.toContain('Nova versão');
     expect(text).not.toContain('Nova revisão');
+    // tráfego: cobrável, não cobrável e recusado, com o motivo; tokens sem ações para quem só consulta
+    expect(text).toContain('Recusadas na autenticação');
+    expect(text).toContain('Token pausado pela plataforma');
+    expect(text).toContain('ERP');
+    expect(text).not.toContain('Pausar todos');
+    expect([...el.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Pausar')).toBe(false);
+    expect(text).not.toContain('Assessoria suspensa.');
+  });
+
+  it('assessoria suspensa: selo, valores zerados e sem prévia nem revisão', async () => {
+    permissions.set(['PLATFORM_BILLING_VIEW', 'PLATFORM_BILLING_MANAGE']);
+    const fixture = await renderTenant(position({ suspended: true, amountSoFar: 0, lines: [], allowances: [] }));
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Assessoria suspensa.');
+    expect(el.textContent).not.toContain('Prévia do próximo ciclo');
+    expect(el.textContent).not.toContain('Nova revisão');
+  });
+
+  it('controle dos tokens: pausar com motivo, retomar e revogar com confirmação forte', async () => {
+    permissions.set(['PLATFORM_BILLING_VIEW', 'PLATFORM_API_TOKENS_MANAGE']);
+    const paused = token({ id: 'k-2', name: 'Robô', prefix: 'gck_bbbbbbbbbbbb', state: 'PAUSED', pausedAt: '2026-11-04T10:00:00Z', pauseReason: 'laço de chamadas', resumeAt: '2026-11-05T10:00:00Z' });
+    const fixture = await renderTenant(position(), [paused, token()]);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Pausar todos (1)');
+    expect(el.textContent).toContain('Retomar todos (1)');
+    expect(el.textContent).toContain('laço de chamadas');
+    expect(el.textContent).toContain('Pausado pela plataforma');
+
+    const buttons = () => [...el.querySelectorAll('app-platform-tokens-panel button')] as HTMLButtonElement[];
+    buttons().find((b) => b.textContent?.trim() === 'Retomar')!.click();
+    expect(confirmations[0].reason).toBe('required');
+    const resume = http.expectOne(`${BASE}/tenants/t-1/tokens/k-2/resume`);
+    expect(resume.request.body).toEqual({ reason: 'conferência' });
+    resume.flush({ ...paused, state: 'ACTIVE', pausedAt: null, pauseReason: null, resumeAt: null });
+    await settle(fixture);
+    http.expectOne(`${BASE}/tenants/t-1/tokens`).flush([token({ id: 'k-2' }), token()]);
+    http.expectOne(`${BASE}/tenants/t-1/position`).flush(position());
+    await settle(fixture);
+
+    buttons().find((b) => b.textContent?.trim() === 'Revogar')!.click();
+    expect(confirmations[1].destructive).toBe(true);
+    expect(confirmations[1].confirmationText).toBe('REVOGAR');
+    expect(confirmations[1].reason).toBe('required');
+    const revoke = http.expectOne(`${BASE}/tenants/t-1/tokens/k-2/revoke`);
+    expect(revoke.request.body).toEqual({ reason: 'conferência' });
+    revoke.flush(token({ id: 'k-2', state: 'REVOKED', revokedByPlatform: true }));
+    await settle(fixture);
+    http.expectOne(`${BASE}/tenants/t-1/tokens`).flush([]);
+    http.expectOne(`${BASE}/tenants/t-1/position`).flush(position());
   });
 
   it('nova revisão pede motivo e envia o início do ciclo', async () => {

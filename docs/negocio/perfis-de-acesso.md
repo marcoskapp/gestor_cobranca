@@ -18,7 +18,7 @@ Toda assessoria nasce com um perfil para cada tipo de usuário do sistema. Eles 
 | Compliance e privacidade (`COMPLIANCE`) | Encarregado de dados / compliance | Restrições de contato, solicitações de titulares (LGPD), retenção, logs de acesso e auditoria | Obrigatório |
 | Integrações (`INTEGRACAO`) | Equipe técnica | Canais, provedores e cargas automáticas; tokens de integração da API pública (só com os escopos que o perfil tem: carteiras e importação) e consumo; sem acesso a dados de devedores | Obrigatório |
 
-Além desses, o tenant da plataforma tem o perfil **Administrador da plataforma** (`PLATFORM_ADMIN`), com MFA **obrigatório** (decisão 521): provisiona e suspende assessorias, reenvia o convite do administrador inicial enquanto a assessoria não tem administrador ativo, administra os usuários da própria plataforma e mantém o faturamento da plataforma às assessorias (`PLATFORM_BILLING_VIEW` e `PLATFORM_BILLING_MANAGE`, exclusivas da plataforma como `TENANT_MANAGE` — api-publica.md §9). O autenticador é cadastrado no primeiro login, logo depois da ativação. São 10 perfis com MFA obrigatório: os 9 marcados acima e o `PLATFORM_ADMIN` (`app.security.mfa.required-for-roles`).
+Além desses, o tenant da plataforma tem o perfil **Administrador da plataforma** (`PLATFORM_ADMIN`), com MFA **obrigatório** (decisão 521): provisiona e suspende assessorias, reenvia o convite do administrador inicial enquanto a assessoria não tem administrador ativo, administra os usuários da própria plataforma e mantém o faturamento da plataforma às assessorias (`PLATFORM_BILLING_VIEW` e `PLATFORM_BILLING_MANAGE`, exclusivas da plataforma como `TENANT_MANAGE` — api-publica.md §9) e controla os tokens de integração de qualquer assessoria — pausar, retomar e revogar para bloquear consumo indevido (`PLATFORM_API_TOKENS_MANAGE`, também exclusiva da plataforma — api-publica.md §9.3). O autenticador é cadastrado no primeiro login, logo depois da ativação. São 10 perfis com MFA obrigatório: os 9 marcados acima e o `PLATFORM_ADMIN` (`app.security.mfa.required-for-roles`).
 
 A lista exata de permissões de cada perfil está em `backend/src/main/java/br/com/gestorcobranca/identity/domain/model/DefaultRoles.java`.
 
@@ -34,7 +34,7 @@ A lista exata de permissões de cada perfil está em `backend/src/main/java/br/c
 | Permissão | O que libera | Perfis padrão |
 | --- | --- | --- |
 | `PUBLIC_API_TOKEN_VIEW` | Consultar tokens de integração | Administrador, Gestor, Integrações, Auditor |
-| `PUBLIC_API_TOKEN_MANAGE` | Criar, editar, rotacionar e revogar tokens (só com escopos que o próprio perfil tem) | Administrador, Gestor, Integrações |
+| `PUBLIC_API_TOKEN_MANAGE` | Criar, editar, rotacionar e revogar tokens (só com escopos que o próprio perfil tem), inclusive os pausados pela plataforma — que só a plataforma retoma; quem tem a permissão recebe o aviso por e-mail das ações da plataforma | Administrador, Gestor, Integrações |
 | `PUBLIC_API_USAGE_VIEW` | Consumo, extratos por ciclo e posição do ciclo em andamento (bloco de faturamento da tela Posição do credor) | Administrador, Gestor, Financeiro, Integrações, Auditor |
 | `PUBLIC_API_BILLING_MANAGE` | Fechamento e revisão de extratos (os preços ficam no contrato do credor, com `CONTRACT_MANAGE`) | Administrador, Gestor, Financeiro |
 | `TENANT_BILLING_VIEW` | Consultar, sem alterar, a cobrança da plataforma à assessoria pelo consumo da integração (política, posição do ciclo e extratos; exige todos os credores) | Administrador |

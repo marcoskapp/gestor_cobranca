@@ -145,14 +145,19 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
         Instant now = Instant.now(clock);
         TokenState state = parseState(status);
         Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(null);
-        TokenStatus stored = state == null ? null : state == TokenState.REVOKED ? TokenStatus.REVOKED : TokenStatus.ACTIVE;
+        // gravado × efetivo: expiração e retomada automática vencida dependem do instante
+        Set<TokenStatus> stored = state == null ? null : switch (state) {
+            case REVOKED -> Set.of(TokenStatus.REVOKED);
+            case PAUSED -> Set.of(TokenStatus.PAUSED);
+            case ACTIVE, EXPIRED -> Set.of(TokenStatus.ACTIVE, TokenStatus.PAUSED);
+        };
         PageResponse<TokenView> result = PageResponse.of(tokens.search(allowed, creditorId, stored,
                 page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
                 t -> TokenViews.view(t, now));
         if (state == null || state == TokenState.REVOKED) {
             return result;
         }
-        // ACTIVE × EXPIRED dependem do instante: filtra a página (expirados são raros e a página é pequena)
+        // ACTIVE × PAUSED × EXPIRED dependem do instante: filtra a página (expirados e pausas vencidas são raros)
         List<TokenView> filtered = result.content().stream().filter(v -> v.state().equals(state.name())).toList();
         return new PageResponse<>(filtered, result.page(), result.size(), result.totalElements(), result.totalPages());
     }

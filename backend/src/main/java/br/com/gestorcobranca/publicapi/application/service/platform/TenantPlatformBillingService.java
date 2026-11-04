@@ -53,7 +53,7 @@ class TenantPlatformBillingService implements TenantPlatformBillingUseCases {
     @Override
     public PositionView position() {
         requireView();
-        return engine.position(true);
+        return engine.position(true, false);
     }
 
     @Override

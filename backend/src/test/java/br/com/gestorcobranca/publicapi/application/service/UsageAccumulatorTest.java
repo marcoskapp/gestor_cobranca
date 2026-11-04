@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.publicapi.application.service;
 
+import br.com.gestorcobranca.publicapi.application.port.out.RejectedDelta;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageDelta;
 import org.junit.jupiter.api.Test;
 
@@ -76,5 +77,29 @@ class UsageAccumulatorTest {
             assertThat(x.records()).isEqualTo(3);
             assertThat(x.billableBytesOut()).isEqualTo(2);
         });
+    }
+
+    @Test
+    void rejectedAttemptsAreAccumulatedApartFromBillableUsageAndRestoredOnFailure() {
+        UsageAccumulator acc = new UsageAccumulator();
+        Instant t = Instant.parse("2026-11-04T10:15:00Z");
+        acc.addRejected(tenant, creditor, token, t, "paused", "GET");
+        acc.addRejected(tenant, creditor, token, t.plusSeconds(30), "paused", "get");
+        acc.addRejected(tenant, creditor, token, t.plusSeconds(60), "paused", "BREW");
+        acc.addRejected(tenant, creditor, token, t.plusSeconds(90), "tenant_inactive", "POST");
+        assertThat(acc.pendingKeys()).isEqualTo(3);
+
+        UsageAccumulator.Drained drained = acc.drain();
+        assertThat(drained.deltas()).isEmpty();
+        assertThat(drained.rejected()).extracting(RejectedDelta::reason, RejectedDelta::method, RejectedDelta::attempts)
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("paused", "GET", 2L),
+                        org.assertj.core.groups.Tuple.tuple("paused", "OTHER", 1L),
+                        org.assertj.core.groups.Tuple.tuple("tenant_inactive", "POST", 1L));
+        assertThat(drained.rejected()).allSatisfy(d -> assertThat(d.hourStart())
+                .isEqualTo(Instant.parse("2026-11-04T10:00:00Z")));
+        assertThat(acc.drain().rejected()).isEmpty();
+
+        drained.rejected().forEach(acc::restore);
+        assertThat(acc.drain().rejected()).extracting(RejectedDelta::attempts).containsExactlyInAnyOrder(2L, 1L, 1L);
     }
 }

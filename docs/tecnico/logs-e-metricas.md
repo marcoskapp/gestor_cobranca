@@ -44,7 +44,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
-| API pública (publicapi) | `public_api.token_created`, `public_api.token_revoked`, `public_api.token_rotated`, `public_api.statement_closed`, `public_api.records_processed` (§3.13) |
+| API pública (publicapi) | `public_api.token_created`, `public_api.token_revoked`, `public_api.token_rotated`, `public_api.token_paused`, `public_api.token_resumed`, `public_api.statement_closed`, `public_api.records_processed` (§3.13) |
 | Faturamento da plataforma às assessorias (publicapi) | `platform_billing.policy_defined`, `platform_billing.statement_closed` (§3.14) |
 
 ### 3.1 Atributos dos eventos de compliance
@@ -383,15 +383,17 @@ Nunca o segredo do token (só o prefixo `gck_…` e o id), nem dados de devedor.
 | Evento | Quando | Atributos |
 | --- | --- | --- |
 | `public_api.token_created` | token criado | `scopes`, `rateLimitPerMinute`, `ipRestricted`, `expires`; `creditorId` |
-| `public_api.token_revoked` | token revogado | `previousState`, `ageDays` |
+| `public_api.token_revoked` | token revogado (pela assessoria ou, com `byPlatform=true`, pela equipe da plataforma) | `previousState`, `ageDays`, `byPlatform` |
+| `public_api.token_paused` | token pausado pela equipe da plataforma (bloqueio reversível de consumo) | `byPlatform`, `scheduledResume`, `scheduledHours`; `creditorId` — sem o motivo (texto livre, fica na auditoria e no log de acesso) |
+| `public_api.token_resumed` | pausa encerrada pela plataforma ou pela retomada agendada | `byPlatform`, `trigger` (`MANUAL`, `SCHEDULED`), `pausedHours`; `creditorId` |
 | `public_api.token_rotated` | novo segredo | `graceMinutes`, `rotationCount` |
 | `contract.integration_pricing_defined` | nova versão das condições de cobrança das integrações no contrato do credor (módulo organization; vale do próximo ciclo) | `version`, `usageClosingDay`, `includedRequests`, `includedMbIn`, `includedMbOut`, `includedRecords`; `amount` = mensalidade; referência `service_contract` |
 | `public_api.statement_closed` | extrato de um ciclo de consumo gravado (automático ou manual) | `periodStart`, `periodEnd`, `closingDay`, `revision`, `requests`, `billableRequests` (2xx/3xx), `clientErrors`, `throttled`, `serverErrors`, `billableMbIn`, `billableMbOut` (MB inteiros de 1.048.576 bytes, por token), `records`, `contractNumber`, `pricingVersion`; `amount` = total |
 | `public_api.records_processed` | fim de lote de importação enviado por token | `tokenId`, `titlesCreated`, `titlesUpdated`, `debtorsAffected`, `records`; `portfolioId` |
 
-Log de acesso: `PUBLIC_API_REQUEST` uma linha por requisição autenticada (`actorType=INTEGRATION`, `actorId` = token, `principal` = prefixo; `detail.tokenPrefix`, `detail.creditorId`, `detail.method`, `detail.status`, `detail.bytesIn`, `detail.bytesOut`, `detail.latencyMs`, `detail.records`; `route`, `clientIp`, `requestId`, `userAgent` do contexto; `success` = status < 400); `INTEGRATION_TOKEN_REJECTED` (`detail.reason`: `missing`, `malformed`, `unknown`, `secret_mismatch`, `revoked`, `expired`, `ip_not_allowed`, `tenant_inactive`, `creditor_inactive`); `INTEGRATION_TOKEN_CREATED`/`ROTATED`/`REVOKED` (`tokenId`, `prefix`); `PERMISSION_CHANGED` (`resource=integration_token`) na edição de limite e IPs; `ACCESS_DENIED` (`reason=scope_outranks_actor`) na tentativa de conceder escopo fora do perfil; `DATA_EXPORTED` nas exportações de consumo e extrato.
+Log de acesso: `PUBLIC_API_REQUEST` uma linha por requisição autenticada (`actorType=INTEGRATION`, `actorId` = token, `principal` = prefixo; `detail.tokenPrefix`, `detail.creditorId`, `detail.method`, `detail.status`, `detail.bytesIn`, `detail.bytesOut`, `detail.latencyMs`, `detail.records`; `route`, `clientIp`, `requestId`, `userAgent` do contexto; `success` = status < 400); `INTEGRATION_TOKEN_REJECTED` (`detail.reason`: `missing`, `malformed`, `unknown`, `secret_mismatch`, `revoked`, `expired`, `paused`, `ip_not_allowed`, `tenant_inactive`, `creditor_inactive`); `INTEGRATION_TOKEN_CREATED`/`ROTATED`/`REVOKED` (`tokenId`, `prefix`); `INTEGRATION_TOKEN_RESUMED` com `trigger=SCHEDULED` (ator de sistema) na retomada agendada; `PERMISSION_CHANGED` (`resource=integration_token`) na edição de limite e IPs; `ACCESS_DENIED` (`reason=scope_outranks_actor`) na tentativa de conceder escopo fora do perfil; `DATA_EXPORTED` nas exportações de consumo e extrato.
 
-Consumo para faturamento: tabela `publicapi.usage_hourly` (soma por credor, token, hora, método e rota, gravada em lote a cada minuto; bytes totais e bytes das requisições cobráveis) — não é log, é insumo do extrato.
+Consumo para faturamento: tabela `publicapi.usage_hourly` (soma por credor, token, hora, método e rota, gravada em lote a cada minuto; bytes totais e bytes das requisições cobráveis) — não é log, é insumo do extrato. Tráfego recusado: `publicapi.usage_rejected_hourly` (soma por credor, token, hora, **motivo** e método das recusas na autenticação de um token cujo segredo confere; gravada no mesmo lote) — insumo das telas de tráfego da plataforma, nunca do extrato (decisões 761–762).
 
 ### 3.14 Faturamento da plataforma às assessorias (publicapi)
 
@@ -403,6 +405,17 @@ Cobrança da plataforma à assessoria pelo consumo de todos os tokens dela (docs
 | `platform_billing.statement_closed` | extrato da plataforma de um ciclo gravado | `periodStart`, `periodEnd`, `closingDay`, `revision`, `trigger` (`SCHEDULED`, `MANUAL`, `REVISION`), `cycleKind`, `cycleDays`, `referenceCycleDays`, `policyVersion`, `requests`, `billableRequests`, `clientErrors`, `throttled`, `serverErrors`, `billableMbIn`, `billableMbOut`, `records`, `creditors`, `tokens`; `amount` = total |
 
 Auditoria: `platform_billing.policy_created`, `platform_billing.policy_version_added`, `platform_billing.policy_term_changed`, `platform_statement.closed`, `platform_statement.reclosed` — na trilha da assessoria (entidade da política ou do extrato, `requestedByPlatformUserId`) e, quando a ação é da equipe da plataforma, também na trilha da plataforma (entidade `tenant` = assessoria, `targetTenantId`). Log de acesso (tenant da plataforma): `PLATFORM_TENANT_DATA_VIEWED` em toda consulta da plataforma a dados de uma assessoria (`resource` = `platform_billing_overview`, `platform_billing_position`, `platform_statement_preview`, `platform_statement_list` ou `platform_statement`; `targetTenantId`, `resourceId`; no consolidado, `tenants`), `DATA_EXPORTED` (`resource=platform_statement`, `targetTenantId`, `usageHash`) e `ACCESS_DENIED` (`reason=platform_tenant_required`) quando a permissão aparece fora do tenant da plataforma. Na assessoria, `DATA_EXPORTED` na exportação do próprio extrato.
+
+**Controle dos tokens pela plataforma** (api-publica.md §9.3, decisão 771). Auditoria na trilha da assessoria: `integration_token.paused` (motivo, `resumeAt`, `byPlatform`, `requestedByPlatformUserId`), `integration_token.resumed` (motivo, `trigger` `MANUAL`/`SCHEDULED`), `integration_token.revoked` (com `byPlatform`); na trilha da plataforma (entidade `tenant`): `platform_api_token.paused`, `.resumed`, `.revoked`, `.paused_all`, `.resumed_all` (motivo, `tokenId`/`prefix`/`creditorId` ou `affected`/`skipped`). Log de acesso da plataforma: `INTEGRATION_TOKEN_PAUSED`, `INTEGRATION_TOKEN_RESUMED`, `INTEGRATION_TOKEN_REVOKED` com quem fez (ator), `detail.reason`, `targetTenantId`, `tokenId`, `prefix`, `creditorId`, `byPlatform=true`, `resumeAt` (em massa: `bulk=true`, `affected`); `PLATFORM_TENANT_DATA_VIEWED` com `resource=platform_api_tokens` na lista. Eventos de negócio `public_api.token_paused`/`token_resumed`/`token_revoked` (§3.13) no tenant da assessoria. Aviso: evento de integração `PlatformTokensControlled` → e-mail `mail.sent{type=security_alert}` aos usuários com `PUBLIC_API_TOKEN_MANAGE`.
+
+Consulta útil (tentativas de uso com token pausado por assessoria):
+
+```
+fields @timestamp, tenantId, actorId, principal
+| filter eventType = 'INTEGRATION_TOKEN_REJECTED' and detail.reason = 'paused'
+| stats count(*) as tentativas by tenantId, principal
+| sort tentativas desc
+```
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
@@ -471,7 +484,10 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | --- | --- |
 | `http.server.requests` (percentis, SLO 200 ms/500 ms/1 s/2 s) | latência e erros por rota |
 | `publicapi.requests{method,route,status,outcome}` (timer com histograma), `publicapi.bytes{direction,route}`, `publicapi.records{route}` | API pública: latência, volume, bytes reais do corpo e registros por rota (sem credor/token nas tags) |
-| `publicapi.auth{outcome}`, `publicapi.tokens.lifecycle{operation}` | aceites e recusas de token por motivo (alarme em `secret_mismatch` anômalo); criação, rotação e revogação |
+| `publicapi.auth{outcome}`, `publicapi.tokens.lifecycle{operation}` | aceites e recusas de token por motivo (alarme em `secret_mismatch` anômalo; `outcome=paused` = recusas por token pausado pela plataforma); criação, rotação, revogação, e as operações da plataforma `paused_by_platform`, `resumed_by_platform`, `revoked_by_platform`, `resumed_scheduled` |
+| `publicapi.requests.rejected{reason}` | recusas na autenticação de tokens identificados (segredo correto), por motivo (`paused`, `revoked`, `expired`, `tenant_inactive`, `creditor_inactive`, `ip_not_allowed`) — tráfego recusado medido, sem tenant/token nas tags |
+| `publicapi.tokens.resume.duration`, `publicapi.tokens.resume_failures` | job de registro das retomadas agendadas (a cada 5 min): duração e falhas por assessoria (alarme) |
+| `identity.platform_token_notices{action}` | e-mails de aviso enviados à assessoria pelo controle de tokens da plataforma (`paused`, `resumed`, `auto_resumed`, `revoked`) |
 | `publicapi.usage.pending_keys`, `publicapi.usage.flushed_rows{outcome}`, `publicapi.usage.flush.duration` | acumulação em memória e gravação em lote do consumo (alarme em `outcome=failed`) |
 | `publicapi.statements.closed{trigger}`, `publicapi.statements.close_failures` | fechamento diário dos ciclos encerrados (alarme em falhas) |
 | `publicapi.billing.position.duration` | tempo de cálculo da posição do ciclo de consumo em andamento (tela Posição do credor e `GET /public-api/v1/billing/position`) |

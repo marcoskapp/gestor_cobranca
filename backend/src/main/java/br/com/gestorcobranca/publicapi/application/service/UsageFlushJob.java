@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.publicapi.application.service;
 
+import br.com.gestorcobranca.publicapi.application.port.out.RejectedDelta;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageDelta;
 import br.com.gestorcobranca.publicapi.application.port.out.UsageStore;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
@@ -11,8 +12,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,23 +55,32 @@ class UsageFlushJob {
         write(accumulator.drainAll());
     }
 
-    /** Grava um lote drenado. Visível ao pacote para testes. */
+    /** Grava um lote drenado (consumo e tráfego recusado), uma transação por assessoria. Visível ao pacote para testes. */
     void write(UsageAccumulator.Drained drained) {
         Map<UUID, List<UsageDelta>> byTenant = drained.deltas().stream()
                 .collect(Collectors.groupingBy(UsageDelta::tenantId));
-        for (Map.Entry<UUID, List<UsageDelta>> e : byTenant.entrySet()) {
+        Map<UUID, List<RejectedDelta>> rejectedByTenant = drained.rejected().stream()
+                .collect(Collectors.groupingBy(RejectedDelta::tenantId));
+        Set<UUID> tenants = new LinkedHashSet<>(byTenant.keySet());
+        tenants.addAll(rejectedByTenant.keySet());
+        for (UUID tenantId : tenants) {
+            List<UsageDelta> deltas = byTenant.getOrDefault(tenantId, List.of());
+            List<RejectedDelta> rejected = rejectedByTenant.getOrDefault(tenantId, List.of());
+            int rows = deltas.size() + rejected.size();
             long started = System.nanoTime();
             try {
-                tenantExecution.inTenant(e.getKey(), "publicapi.usage_flush", () -> {
-                    store.add(e.getValue());
-                    store.touchTokens(drained.lastUses().getOrDefault(e.getKey(), List.of()));
+                tenantExecution.inTenant(tenantId, "publicapi.usage_flush", () -> {
+                    store.add(deltas);
+                    store.addRejected(rejected);
+                    store.touchTokens(drained.lastUses().getOrDefault(tenantId, List.of()));
                 });
-                meterRegistry.counter("publicapi.usage.flushed_rows", "outcome", "ok").increment(e.getValue().size());
+                meterRegistry.counter("publicapi.usage.flushed_rows", "outcome", "ok").increment(rows);
             } catch (RuntimeException ex) {
-                meterRegistry.counter("publicapi.usage.flushed_rows", "outcome", "failed").increment(e.getValue().size());
-                LOG.atError().addKeyValue("tenantId", e.getKey()).addKeyValue("rows", e.getValue().size())
+                meterRegistry.counter("publicapi.usage.flushed_rows", "outcome", "failed").increment(rows);
+                LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("rows", rows)
                         .setCause(ex).log("Falha ao gravar o consumo da API pública; devolvido ao acumulador");
-                e.getValue().forEach(d -> accumulator.restore(d));
+                deltas.forEach(accumulator::restore);
+                rejected.forEach(accumulator::restore);
             } finally {
                 meterRegistry.timer("publicapi.usage.flush.duration").record(System.nanoTime() - started,
                         java.util.concurrent.TimeUnit.NANOSECONDS);
