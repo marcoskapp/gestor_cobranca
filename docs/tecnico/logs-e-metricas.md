@@ -45,6 +45,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
 | API pública (publicapi) | `public_api.token_created`, `public_api.token_revoked`, `public_api.token_rotated`, `public_api.statement_closed`, `public_api.records_processed` (§3.13) |
+| Faturamento da plataforma às assessorias (publicapi) | `platform_billing.policy_defined`, `platform_billing.statement_closed` (§3.14) |
 
 ### 3.1 Atributos dos eventos de compliance
 
@@ -392,6 +393,17 @@ Log de acesso: `PUBLIC_API_REQUEST` uma linha por requisição autenticada (`act
 
 Consumo para faturamento: tabela `publicapi.usage_hourly` (soma por credor, token, hora, método e rota, gravada em lote a cada minuto; bytes totais e bytes das requisições cobráveis) — não é log, é insumo do extrato.
 
+### 3.14 Faturamento da plataforma às assessorias (publicapi)
+
+Cobrança da plataforma à assessoria pelo consumo de todos os tokens dela (docs/negocio/api-publica.md §9). Eventos gravados **no tenant da assessoria cobrada** (o `tenantId` do evento é a assessoria), sem dado pessoal; ator = sistema (`system:publicapi.platform_billing` quando a equipe da plataforma age pela troca de tenant, ou `system:publicapi.platform_statement_closing` no fechamento automático). Referência `platform_billing_policy` ou `platform_statement`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `platform_billing.policy_defined` | versão da política da plataforma registrada (a 1ª vale no ciclo em andamento; as demais, do próximo ciclo) | `policyVersion`, `closingDay`, `tiered`, `tiers`, `includedRequests`, `includedMbIn`, `includedMbOut`, `includedRecords`, `startDate`; `amount` = mensalidade |
+| `platform_billing.statement_closed` | extrato da plataforma de um ciclo gravado | `periodStart`, `periodEnd`, `closingDay`, `revision`, `trigger` (`SCHEDULED`, `MANUAL`, `REVISION`), `cycleKind`, `cycleDays`, `referenceCycleDays`, `policyVersion`, `requests`, `billableRequests`, `clientErrors`, `throttled`, `serverErrors`, `billableMbIn`, `billableMbOut`, `records`, `creditors`, `tokens`; `amount` = total |
+
+Auditoria: `platform_billing.policy_created`, `platform_billing.policy_version_added`, `platform_billing.policy_term_changed`, `platform_statement.closed`, `platform_statement.reclosed` — na trilha da assessoria (entidade da política ou do extrato, `requestedByPlatformUserId`) e, quando a ação é da equipe da plataforma, também na trilha da plataforma (entidade `tenant` = assessoria, `targetTenantId`). Log de acesso (tenant da plataforma): `PLATFORM_TENANT_DATA_VIEWED` em toda consulta da plataforma a dados de uma assessoria (`resource` = `platform_billing_overview`, `platform_billing_position`, `platform_statement_preview`, `platform_statement_list` ou `platform_statement`; `targetTenantId`, `resourceId`; no consolidado, `tenants`), `DATA_EXPORTED` (`resource=platform_statement`, `targetTenantId`, `usageHash`) e `ACCESS_DENIED` (`reason=platform_tenant_required`) quando a permissão aparece fora do tenant da plataforma. Na assessoria, `DATA_EXPORTED` na exportação do próprio extrato.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -463,6 +475,8 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `publicapi.usage.pending_keys`, `publicapi.usage.flushed_rows{outcome}`, `publicapi.usage.flush.duration` | acumulação em memória e gravação em lote do consumo (alarme em `outcome=failed`) |
 | `publicapi.statements.closed{trigger}`, `publicapi.statements.close_failures` | fechamento diário dos ciclos encerrados (alarme em falhas) |
 | `publicapi.billing.position.duration` | tempo de cálculo da posição do ciclo de consumo em andamento (tela Posição do credor e `GET /public-api/v1/billing/position`) |
+| `publicapi.platform_billing.closing.duration`, `publicapi.platform_billing.closing.tenants_processed`, `publicapi.platform_statements.closed{trigger}`, `publicapi.platform_statements.close_failures` | fechamento diário da cobrança da plataforma (02h40): duração da execução, assessorias processadas, extratos gravados por origem (`scheduled`, `manual`, `revision`) e falhas por assessoria (alarme) |
+| `publicapi.platform_billing.position.duration`, `publicapi.platform_billing.overview.duration` | tempo de cálculo da posição de uma assessoria e do consolidado da plataforma (cresce com o número de assessorias: uma troca de tenant por assessoria) |
 | `hikaricp.*`, `jvm.*`, `process.*` | saúde do pool e da JVM |
 | `business.events{type}` | volume de fatos de negócio |
 | `access.events{type,success}`, `access.log.write_failures` | segurança e integridade do log de acesso |

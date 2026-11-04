@@ -7,6 +7,7 @@ export const PUBLIC_API_PERMISSIONS = {
   tokens: [Permission.PUBLIC_API_TOKEN_VIEW],
   usage: [Permission.PUBLIC_API_USAGE_VIEW],
   billing: [Permission.PUBLIC_API_USAGE_VIEW],
+  platformCharges: [Permission.TENANT_BILLING_VIEW],
 } as const;
 
 /** `/integracoes`: API pública de integração dos credores. */
@@ -39,5 +40,12 @@ export const PUBLIC_API_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: PUBLIC_API_PERMISSIONS.billing },
     loadComponent: () => import('./usage/billing-page').then((m) => m.BillingPage),
+  },
+  {
+    path: 'cobranca-plataforma',
+    title: 'Cobrança da plataforma',
+    canActivate: [permissionGuard],
+    data: { permissions: PUBLIC_API_PERMISSIONS.platformCharges },
+    loadComponent: () => import('./usage/platform-charges-page').then((m) => m.PlatformChargesPage),
   },
 ];

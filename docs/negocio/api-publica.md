@@ -55,7 +55,7 @@ Cada token **enxerga um único credor**. Dados de outros credores da assessoria 
 
 Toda chamada é medida: quantidade, dados recebidos e enviados (tamanho real do conteúdo) e registros processados (títulos importados, contatos e pagamentos gravados…), por token, credor e operação. As telas **Consumo da API** (gráficos por dia, por operação e por token, com exportação) e **Extratos da API** mostram esses números.
 
-O modelo de faturamento está pronto, sem cobrança automática:
+O modelo de faturamento está pronto, sem cobrança automática (esta é a cobrança da assessoria ao credor; a cobrança da plataforma à assessoria pelo consumo de todos os tokens dela é outra, independente — §9):
 
 - **Preço no contrato do credor**: a mensalidade, as franquias e o preço do excedente por chamada, por MB recebido, por MB enviado e por registro ficam no **contrato de prestação de serviço** do credor, junto com o **dia de fechamento do consumo** (1 a 31). São editados na ficha do credor (contratos → integrações). Cada alteração fica guardada como uma nova versão e **vale a partir do próximo ciclo**: o ciclo em curso não muda. A exceção é o **primeiro cadastro** de condições de um contrato (decisão do responsável): ele vale **já no ciclo em andamento** — o ciclo inteiro, com a mensalidade cheia (ou proporcional, se for o primeiro ciclo do contrato) e com todo o consumo do ciclo, inclusive o de antes do cadastro.
 - **Ciclos desde o início do contrato** (decisão do responsável): os ciclos de cada credor começam no **início da vigência do contrato** com condições de integração. O primeiro vai do início do contrato até o primeiro dia de fechamento; o último termina no **fim da vigência**. Se forem mais curtos que um ciclo normal, a mensalidade e as franquias são proporcionais aos dias, pela mesma regra da mudança do dia de fechamento (abaixo). Exemplo: contrato desde 20/01, fechamento no dia 10 e mensalidade de R$ 100,00 — o primeiro ciclo, de 20/01 a 10/02, tem 22 dias de 31 e custa R$ 70,97.
@@ -107,3 +107,34 @@ Quando houver uma nova versão, a anterior fica **depreciada** e continua funcio
 - Endereço público da documentação para os credores.
 - Valores das condições de cobrança em cada contrato e forma de faturar.
 - Avisos automáticos para o sistema do credor (webhooks: lote processado, acordo formalizado, pagamento conciliado) — próxima fase.
+
+## 9. Cobrança da plataforma à assessoria (segunda camada)
+
+Pedido do responsável: *"incluir uma segunda camada de acompanhamento e cobrança, agora como administrador do sistema, para que eu possa cobrar do tenant pelo consumo total da API, somando o consumo de todos os seus tokens. A política de cobrança deve ser independente e a partir do consumo geral daquele tenant, gerar o billing."*
+
+São **duas cobranças diferentes sobre a mesma medição**, que não se influenciam:
+
+| | Cobrança ao credor (§5) | Cobrança da plataforma (esta seção) |
+| --- | --- | --- |
+| Quem cobra → quem paga | Assessoria → credor | Plataforma (SaaS) → assessoria |
+| Base | Consumo dos tokens **de um credor** | Consumo de **todos os tokens da assessoria**, de todos os credores, inclusive tokens revogados ou expirados no ciclo |
+| Preços e dia de fechamento | Condições de cobrança no contrato do credor | **Política da plataforma** da assessoria (cadastrada só pela equipe da plataforma) |
+| Telas | Consumo da API, Extratos da API, Posição do credor | Plataforma → **Faturamento da plataforma** (consolidado e por assessoria); na assessoria, API pública → **Cobrança da plataforma** (somente leitura, administrador) |
+
+Mudar uma não muda a outra: a assessoria pode cobrar dos credores preços maiores, menores ou nenhum, e a plataforma cobra dela pela política própria. Nenhum número da cobrança ao credor mudou.
+
+**Política da plataforma** (uma por assessoria):
+
+- **Vigência**: início (os ciclos começam nele) e fim opcional (o último ciclo termina no fim da vigência). O início só muda enquanto não houver extrato; o fim nunca fica no passado nem corta um ciclo já fechado. Alterar a vigência exige motivo.
+- **Versões**: dia de fechamento (1 a 31), mensalidade por ciclo, franquias e preço do excedente por **chamada**, por **MB recebido**, por **MB enviado** e por **registro processado**, em reais (até 2 casas na mensalidade e 6 nos preços unitários). Cada alteração é uma nova versão guardada para sempre e **vale a partir do próximo ciclo**; a **primeira versão vale já no ciclo em andamento** (o ciclo inteiro), como no contrato do credor.
+- **Faixas de volume nas chamadas** (preço escalonado, padrão das assinaturas SaaS): opcionalmente, o preço por chamada é por faixa, até 10 faixas. As faixas contam as chamadas do ciclo desde a primeira; as da franquia não são cobradas e cada chamada excedente paga o preço da faixa em que cai. Exemplo: franquia de 10.000, faixas até 100.000 a R$ 0,01 e acima a R$ 0,008; 150.000 chamadas no ciclo = 90.000 × 0,01 + 50.000 × 0,008 = R$ 1.300,00, mais a mensalidade.
+
+**Mesmas regras da cobrança ao credor**: ciclo fecha no fim do dia de fechamento e o próximo começa às 00:00 do dia seguinte (meses sem o dia fecham no último dia); primeiro, último e de transição (mudança do dia de fechamento) têm mensalidade, franquias **e limites das faixas** proporcionais aos dias; só chamadas bem-sucedidas (2xx/3xx) e só os dados delas; dados em MB inteiros (1 MB = 1.048.576 bytes) somados no ciclo por token e direção e arredondados para cima — por isso o consumo da assessoria é a soma do consumo dos credores, e o extrato da plataforma fecha com a soma dos extratos dos credores; centavos arredondados ao par por linha (cada faixa é uma sublinha); sem cobrança retroativa (ciclos encerrados antes do primeiro cadastro da política não são cobrados); ciclo sem consumo só gera extrato se houver mensalidade.
+
+**Acompanhamento a qualquer momento**: para cada assessoria, o ciclo em andamento com valor até agora (mensalidade do ciclo + excedente consumido), uso das franquias, linhas com as faixas, detalhamento por credor, token e operação e **projeção** = consumo até agora + média diária × dias restantes, precificada pela política. O consolidado da plataforma mostra a receita até agora, a projetada, a soma dos últimos extratos fechados, o **ranking das assessorias por consumo** e as **assessorias sem política** (o consumo delas aparece, sem valor).
+
+**Extratos da plataforma**: os ciclos encerrados fecham sozinhos às 02h40 (depois dos extratos dos credores), com detalhamento por credor, por token e por operação e a marca do consumo usado. A equipe da plataforma pode fechar antes da madrugada um ciclo já encerrado e gerar uma nova revisão com motivo (a anterior fica guardada). Exportação em planilha (CSV). Extrato fechado nunca muda.
+
+**Transparência**: o administrador da assessoria vê, sem poder alterar, a política aplicada, a posição do ciclo e os extratos da plataforma, com o mesmo cálculo (decisão 745, revisável).
+
+**Fora do escopo**: cobrança automática (boleto, cartão, Pix), emissão de nota fiscal e impostos — a plataforma deixa o extrato pronto para faturar. Ainda depende do responsável: os valores das políticas de cada assessoria e a forma de faturar (ver decisões 740–757).

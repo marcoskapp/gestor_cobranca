@@ -263,6 +263,7 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Tokens de integração', icon: 'key', route: '/integracoes/tokens', permissions: [Permission.PUBLIC_API_TOKEN_VIEW] },
       { label: 'Consumo da API', icon: 'activity', route: '/integracoes/consumo', permissions: [Permission.PUBLIC_API_USAGE_VIEW] },
       { label: 'Extratos da API', icon: 'receipt', route: '/integracoes/extratos', permissions: [Permission.PUBLIC_API_USAGE_VIEW] },
+      { label: 'Cobrança da plataforma', icon: 'wallet2', route: '/integracoes/cobranca-plataforma', permissions: [Permission.TENANT_BILLING_VIEW] },
     ],
   },
   {
@@ -276,6 +277,7 @@ export const NAVIGATION: readonly NavSection[] = [
     label: 'Plataforma',
     items: [
       { label: 'Assessorias', icon: 'building', route: '/plataforma/assessorias', permissions: [Permission.TENANT_MANAGE] },
+      { label: 'Faturamento da plataforma', icon: 'cash-coin', route: '/plataforma/faturamento', permissions: [Permission.PLATFORM_BILLING_VIEW] },
     ],
   },
 ];

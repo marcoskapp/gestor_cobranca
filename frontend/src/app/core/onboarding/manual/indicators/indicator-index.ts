@@ -22,7 +22,11 @@ const LOADERS: Readonly<Partial<Record<ManualModuleId, () => Promise<readonly In
   assistente: () => import('./content/assistente').then((m) => m.INDICATORS),
   compliance: () => import('./content/compliance').then((m) => m.INDICATORS),
   juridico: () => import('./content/juridico').then((m) => m.INDICATORS),
-  administracao: () => import('./content/administracao').then((m) => m.INDICATORS),
+  // o faturamento da plataforma tem arquivo próprio, juntado aos indicadores da administração
+  administracao: () =>
+    Promise.all([import('./content/administracao'), import('./content/faturamento-plataforma')]).then(
+      ([m, platform]) => [...m.INDICATORS, ...platform.INDICATORS],
+    ),
 };
 
 /** Módulos que têm indicadores no catálogo. */

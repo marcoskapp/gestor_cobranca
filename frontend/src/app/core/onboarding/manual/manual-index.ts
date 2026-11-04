@@ -93,7 +93,13 @@ const LOADERS: Readonly<Record<ManualModuleId, () => Promise<ModuleManual>>> = {
   juridico: () => import('./content/juridico').then((m) => m.MANUAL),
   compliance: () => import('./content/compliance').then((m) => m.MANUAL),
   paineis: () => import('./content/paineis').then((m) => m.MANUAL),
-  administracao: () => import('./content/administracao').then((m) => m.MANUAL),
+  // o faturamento da plataforma tem arquivo próprio, juntado ao manual da administração
+  administracao: () =>
+    Promise.all([import('./content/administracao'), import('./content/faturamento-plataforma')]).then(([m, platform]) => ({
+      ...m.MANUAL,
+      rules: [...m.MANUAL.rules, ...platform.RULES],
+      screens: [...m.MANUAL.screens, ...platform.SCREENS],
+    })),
 };
 
 const moduleCache = new Map<ManualModuleId, Promise<ModuleManual>>();

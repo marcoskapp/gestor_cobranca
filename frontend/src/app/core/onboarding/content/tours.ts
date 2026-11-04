@@ -1475,6 +1475,43 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
+  {
+    id: 'platform.billing',
+    version: 1,
+    title: 'Faturamento da plataforma',
+    summary: 'Cobrança das assessorias pelo consumo de todos os seus tokens.',
+    steps: [
+      { anchor: 'kpi-revenue', title: 'Receita do ciclo', body: 'Soma do valor até agora das assessorias com política: mensalidade do ciclo mais o excedente já consumido.' },
+      { anchor: 'kpi-without-policy', title: 'Sem política', body: 'Assessorias que usam a integração sem cobrança da plataforma. Cadastre a política para começar a faturar.' },
+      { anchor: 'data-table', title: 'Ranking por consumo', body: 'Chamadas cobráveis do ciclo em andamento, valor, projeção e último extrato de cada assessoria. Abra uma para detalhar.', placement: 'above' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+    ],
+  },
+  {
+    id: 'platform.billing-tenant',
+    version: 1,
+    title: 'Faturamento da assessoria',
+    summary: 'Posição, política e extratos da plataforma para uma assessoria.',
+    steps: [
+      { anchor: 'kpi-amount', title: 'Valor até agora', body: 'Consumo de todos os tokens da assessoria, de todos os credores, precificado pela política da plataforma.' },
+      { anchor: 'kpi-projection', title: 'Projeção', body: 'Consumo até agora mais a média diária vezes os dias restantes, com a mesma política.' },
+      { anchor: 'tenant-policy', title: 'Política', body: 'Primeira versão vale no ciclo em andamento; as seguintes, no próximo. Chamadas podem ter preço por faixas de volume.' },
+      { anchor: 'tenant-statements', title: 'Extratos', body: 'Ciclos encerrados fecham sozinhos de madrugada. Revisão exige motivo; o extrato guarda a marca do consumo.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+    ],
+  },
+  {
+    id: 'publicapi.platform-charges',
+    version: 1,
+    title: 'Cobrança da plataforma',
+    summary: 'O que a plataforma cobra da assessoria pela integração.',
+    steps: [
+      { anchor: 'kpi-amount', title: 'Valor até agora', body: 'Quanto a plataforma cobra da assessoria no ciclo, somando o uso de todos os credores.' },
+      { anchor: 'charges-policy', title: 'Política', body: 'Preços definidos pela plataforma, somente leitura. Não confunda com a cobrança da assessoria aos credores.' },
+      { anchor: 'charges-statements', title: 'Extratos', body: 'Ciclos fechados com o detalhamento por credor, token e operação, exportáveis em planilha.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+    ],
+  },
 ];
 
 export function findTour(id: string): TourDefinition | undefined {
