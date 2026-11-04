@@ -166,6 +166,9 @@ class CampaignConcurrencyAndExperimentIT extends CampaignTestSupport {
             }
             if (!arm.control()) {
                 assertThat(payment.difference()).isNotNull();
+                // referência (controle) sem pagamento: ganho relativo indefinido, diferença absoluta mantida
+                assertThat(payment.difference().lift()).isNull();
+                assertThat(recovered.difference().lift()).isNull();
             }
         }
         assertThat(all.warnings()).contains("INSUFFICIENT_SAMPLE");

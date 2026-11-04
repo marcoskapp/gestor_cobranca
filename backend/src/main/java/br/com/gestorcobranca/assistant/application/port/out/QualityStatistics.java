@@ -10,21 +10,25 @@ import java.util.UUID;
 public interface QualityStatistics {
 
     /**
-     * @param creditorIds credores permitidos (nulo = todos)
+     * @param creditorIds    credores permitidos (nulo = todos)
+     * @param earlyBreakDays janela da quebra precoce
+     * @param asOf           referência da exposição ao risco (acordo exposto: formalizado + janela ≤ asOf)
      */
     Snapshot snapshot(Instant from, Instant to, Set<UUID> creditorIds, UUID creditorId, UUID portfolioId,
-                      int earlyBreakDays);
+                      int earlyBreakDays, Instant asOf);
 
     /**
      * @param handoffsByReason transferências por motivo
      * @param guardrails       acionamentos por código
      * @param agreementsByOrigin acordos formalizados no período por origem da atribuição
-     * @param earlyBreaksByOrigin dos acordos do período, quebrados até {@code earlyBreakDays} após a formalização
+     * @param exposedByOrigin  dos acordos do período, os já expostos ao risco (formalizados há pelo menos
+     *                         {@code earlyBreakDays} em {@code asOf})
+     * @param earlyBreaksByOrigin dos expostos, os quebrados até {@code earlyBreakDays} após a formalização
      */
     record Snapshot(long turns, long conversations, Map<String, Long> outcomes, Map<String, Long> handoffsByReason,
                     Map<String, Long> guardrails, BigDecimal cost, String costCurrency, long inputTokens,
                     long outputTokens, long avgLatencyMs, Map<String, Long> agreementsByOrigin,
-                    Map<String, Long> earlyBreaksByOrigin, long reviewed, BigDecimal avgScore, long outOfPolicy,
+                    Map<String, Long> exposedByOrigin, Map<String, Long> earlyBreaksByOrigin, long reviewed, BigDecimal avgScore, long outOfPolicy,
                     long pendingReviews, PixStats pix) {
     }
 

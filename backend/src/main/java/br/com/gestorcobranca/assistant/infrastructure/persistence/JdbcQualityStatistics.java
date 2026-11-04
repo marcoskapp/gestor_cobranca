@@ -25,13 +25,13 @@ class JdbcQualityStatistics implements QualityStatistics {
 
     @Override
     public Snapshot snapshot(Instant from, Instant to, Set<UUID> creditorIds, UUID creditorId, UUID portfolioId,
-                             int earlyBreakDays) {
+                             int earlyBreakDays, Instant asOf) {
         MapSqlParameterSource p = new MapSqlParameterSource()
                 .addValue("from", Timestamp.from(from)).addValue("to", Timestamp.from(to))
                 .addValue("restricted", creditorIds != null)
                 .addValue("creditors", creditorIds == null || creditorIds.isEmpty() ? Set.of(new UUID(0, 0)) : creditorIds)
                 .addValue("creditor", creditorId).addValue("portfolio", portfolioId)
-                .addValue("earlyDays", earlyBreakDays);
+                .addValue("earlyDays", earlyBreakDays).addValue("asOf", Timestamp.from(asOf));
         String scope = """
                 (not :restricted or creditor_id in (:creditors))
                 and (cast(:creditor as uuid) is null or creditor_id = :creditor)
@@ -54,9 +54,20 @@ class JdbcQualityStatistics implements QualityStatistics {
         String factsWhere = " where formalized_at >= :from and formalized_at < :to and " + scope;
         Map<String, Long> agreements = grouped("select coalesce(origin, 'UNKNOWN') as k, count(*) as n "
                 + "from assistant.agreement_fact" + factsWhere + " group by 1", p);
-        Map<String, Long> early = grouped("select coalesce(origin, 'UNKNOWN') as k, count(*) as n "
-                + "from assistant.agreement_fact" + factsWhere
-                + " and broken_at is not null and broken_at < formalized_at + make_interval(days => :earlyDays) group by 1", p);
+        // mesmo critério da quebra precoce por safra do analytics (decisão 158): exposto = formalizado + janela
+        // ≤ referência; quebra precoce = quebra até o fim da janela, entre os expostos
+        Map<String, Long> exposed = new LinkedHashMap<>();
+        Map<String, Long> early = new LinkedHashMap<>();
+        jdbc.query("""
+                select coalesce(origin, 'UNKNOWN') as k,
+                       count(*) filter (where formalized_at + make_interval(days => :earlyDays) <= :asOf) as exposed,
+                       count(*) filter (where formalized_at + make_interval(days => :earlyDays) <= :asOf
+                                          and broken_at is not null
+                                          and broken_at <= formalized_at + make_interval(days => :earlyDays)) as broken
+                  from assistant.agreement_fact""" + factsWhere + " group by 1 order by 1", p, rs -> {
+            exposed.put(rs.getString("k"), rs.getLong("exposed"));
+            early.put(rs.getString("k"), rs.getLong("broken"));
+        });
         String reviewsWhere = " where created_at >= :from and created_at < :to and " + scope;
         Map<String, Object> review = jdbc.queryForMap("""
                 select count(*) filter (where status = 'REVIEWED') as reviewed,
@@ -83,8 +94,8 @@ class JdbcQualityStatistics implements QualityStatistics {
         return new Snapshot(num(totals.get("turns")), num(totals.get("conversations")), outcomes, handoffs, guardrails,
                 new BigDecimal(totals.get("cost").toString()), (String) totals.get("currency"),
                 num(totals.get("input_tokens")), num(totals.get("output_tokens")), num(totals.get("latency")), agreements,
-                early, num(review.get("reviewed")), avgScore, num(review.get("out_of_policy")), num(review.get("pending")),
-                pixStats);
+                exposed, early, num(review.get("reviewed")), avgScore, num(review.get("out_of_policy")),
+                num(review.get("pending")), pixStats);
     }
 
     private Map<String, Long> grouped(String sql, MapSqlParameterSource p) {

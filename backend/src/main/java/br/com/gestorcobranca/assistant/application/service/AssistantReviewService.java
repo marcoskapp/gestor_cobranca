@@ -4,6 +4,7 @@ import br.com.gestorcobranca.assistant.application.AssistantProperties;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantReviewUseCases;
 import br.com.gestorcobranca.assistant.application.port.out.QualityStatistics;
 import br.com.gestorcobranca.assistant.domain.model.AssistantPolicy;
+import br.com.gestorcobranca.assistant.domain.model.EarlyBreakTally;
 import br.com.gestorcobranca.assistant.domain.model.HandoffReason;
 import br.com.gestorcobranca.assistant.domain.model.ReviewStatus;
 import br.com.gestorcobranca.assistant.domain.model.ReviewVerdict;
@@ -159,16 +160,20 @@ class AssistantReviewService implements AssistantReviewUseCases {
         Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(null);
         QualityStatistics.Snapshot s = statistics.snapshot(from.atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant(),
                 to.plusDays(1).atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant(), allowed, creditorId,
-                query == null ? null : query.portfolioId(), properties.earlyBreakDays());
+                query == null ? null : query.portfolioId(), properties.earlyBreakDays(), Instant.now(clock));
         long handoffs = s.handoffsByReason().values().stream().mapToLong(Long::longValue).sum();
         Map<String, Long> byGroup = new LinkedHashMap<>();
         Map<String, BigDecimal> earlyRate = new LinkedHashMap<>();
+        Map<String, Long> exposed = new LinkedHashMap<>();
+        Map<String, Long> maturing = new LinkedHashMap<>();
         for (String group : List.of("ASSISTANT", "HUMAN")) {
             Set<String> origins = group.equals("ASSISTANT") ? ASSISTANT_ORIGINS : HUMAN_ORIGINS;
-            long formalized = sum(s.agreementsByOrigin(), origins);
-            long early = sum(s.earlyBreaksByOrigin(), origins);
-            byGroup.put(group, formalized);
-            earlyRate.put(group, formalized == 0 ? null : ratio(early, formalized));
+            EarlyBreakTally tally = new EarlyBreakTally(sum(s.agreementsByOrigin(), origins),
+                    sum(s.exposedByOrigin(), origins), sum(s.earlyBreaksByOrigin(), origins));
+            byGroup.put(group, tally.formalized());
+            earlyRate.put(group, tally.rate());
+            exposed.put(group, tally.exposed());
+            maturing.put(group, tally.maturing());
         }
         long complaints = s.handoffsByReason().entrySet().stream()
                 .filter(e -> HandoffReason.parse(e.getKey()).map(HandoffReason::complaint).orElse(false))
@@ -178,7 +183,7 @@ class AssistantReviewService implements AssistantReviewUseCases {
                 : s.cost().divide(BigDecimal.valueOf(assistantAgreements), 6, RoundingMode.HALF_EVEN);
         return new QualityView(from, to, s.turns(), s.conversations(), s.outcomes(), s.handoffsByReason(),
                 s.conversations() == 0 ? null : ratio(handoffs, s.conversations()), s.guardrails(), s.agreementsByOrigin(),
-                byGroup, earlyRate, properties.earlyBreakDays(), complaints, s.cost(), s.costCurrency(), costPerAgreement,
+                byGroup, earlyRate, exposed, maturing, properties.earlyBreakDays(), complaints, s.cost(), s.costCurrency(), costPerAgreement,
                 s.inputTokens(), s.outputTokens(), s.avgLatencyMs(), s.reviewed(), s.avgScore(), s.outOfPolicy(),
                 s.pendingReviews(), pix(s.pix()));
     }

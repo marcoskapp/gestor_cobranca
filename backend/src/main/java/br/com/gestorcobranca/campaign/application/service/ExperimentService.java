@@ -40,6 +40,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.ToLongFunction;
@@ -198,7 +199,8 @@ class ExperimentService implements ExperimentUseCases {
         Difference difference = null;
         if (!isBaseline) {
             Proportion b = ExperimentStatistics.proportion(successes.applyAsLong(base), base.debtors());
-            difference = difference(ExperimentStatistics.difference(p, b), 4);
+            difference = difference(ExperimentStatistics.difference(p, b), 4,
+                    ExperimentStatistics.lift(p.interval().estimate(), b.interval().estimate()));
         }
         return new MetricResult(metric.name(), p.successes(), p.n(), scale(p.interval().estimate(), 4),
                 scale(p.interval().lower(), 4), scale(p.interval().upper(), 4), difference,
@@ -207,7 +209,9 @@ class ExperimentService implements ExperimentUseCases {
 
     private static MetricResult recovered(ArmTotals arm, ArmTotals base, boolean isBaseline, int minSample) {
         Mean m = mean(arm);
-        Difference difference = isBaseline ? null : difference(ExperimentStatistics.difference(m, mean(base)), 2);
+        Mean b = mean(base);
+        Difference difference = isBaseline ? null : difference(ExperimentStatistics.difference(m, b), 2,
+                ExperimentStatistics.lift(m.interval().estimate(), b.interval().estimate()));
         return new MetricResult(ExperimentMetric.RECOVERED_PER_DEBTOR.name(), null, m.n(),
                 scale(m.interval().estimate(), 2), scale(m.interval().lower(), 2), scale(m.interval().upper(), 2),
                 difference, ExperimentStatistics.warnings(m, minSample));
@@ -217,9 +221,10 @@ class ExperimentService implements ExperimentUseCases {
         return ExperimentStatistics.mean(t.debtors(), t.recovered().doubleValue(), t.recoveredSquares().doubleValue());
     }
 
-    private static Difference difference(Interval i, int scale) {
+    private static Difference difference(Interval i, int scale, OptionalDouble lift) {
         return new Difference(scale(i.estimate(), scale), scale(i.lower(), scale), scale(i.upper(), scale),
-                Double.isFinite(i.lower()) && Double.isFinite(i.upper()) && i.significant());
+                Double.isFinite(i.lower()) && Double.isFinite(i.upper()) && i.significant(),
+                lift.isPresent() ? scale(lift.getAsDouble(), 4) : null);
     }
 
     private static BigDecimal scale(double value, int scale) {

@@ -26,7 +26,8 @@ import java.util.UUID;
  * Caso jurídico (docs/design/juridico.md §B.1): títulos de um caso de cobrança (devedor ×
  * carteira) indicados ao jurídico, com fase (§B.2), via principal, responsável (jurídico interno
  * ou escritório parceiro) e valores (dívida, custas previstas, valor recuperável estimado,
- * despesas lançadas e valores recuperados). Há no máximo um caso jurídico não final por caso de
+ * despesas lançadas e valor liberado judicialmente — campo {@code recoveredAmount}; "recuperado" nos
+ * painéis é só pagamento confirmado). Há no máximo um caso jurídico não final por caso de
  * cobrança (índice único parcial no banco).
  * <p>
  * As transições validam a tabela de fases e as pré-condições de cada fase
@@ -301,7 +302,7 @@ public class LegalMatter extends TenantScopedEntity {
 
     public void addRecovered(Money amount) {
         Guard.require(amount != null && amount.isPositive(), "legal_matter.recovered_invalid",
-                "Valor recuperado deve ser positivo");
+                "Valor liberado judicialmente deve ser positivo");
         this.recoveredAmount = recoveredAmount.plus(amount);
     }
 

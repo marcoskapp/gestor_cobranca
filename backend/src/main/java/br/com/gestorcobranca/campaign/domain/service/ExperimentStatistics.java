@@ -2,6 +2,7 @@ package br.com.gestorcobranca.campaign.domain.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 
 /**
  * Estatística dos testes A/B (F25), com intervalo de confiança de 95%:
@@ -12,6 +13,10 @@ import java.util.List;
  *   <li><b>Valor recuperado por devedor</b>: média com intervalo normal ({@code média ± 1,96·s/√n});
  *       diferença pela aproximação de Welch ({@code ± 1,96·√(s₁²/n₁ + s₀²/n₀)}).</li>
  * </ul>
+ * <b>Ganho relativo</b> ("lift"): {@code (variante − referência) ÷ referência}, sobre as estimativas pontuais,
+ * exibido ao lado da diferença absoluta; indefinido quando a referência é zero. A significância continua
+ * sendo a do intervalo da diferença absoluta (o lift não tem intervalo próprio).
+ * <p>
  * Avisos de amostra insuficiente: braço abaixo da amostra mínima do experimento, ou menos de 5
  * sucessos ou 5 fracassos (a aproximação normal deixa de valer). Os cálculos usam {@code double}:
  * são estimativas estatísticas, não valores financeiros (os totais vêm em {@code BigDecimal}).
@@ -84,6 +89,17 @@ public final class ExperimentStatistics {
         }
         double half = Z * Math.sqrt(sq(a.standardDeviation()) / a.n() + sq(b.standardDeviation()) / b.n());
         return new Interval(d, d - half, d + half);
+    }
+
+    /**
+     * Ganho relativo da variante sobre a referência: {@code (variante − referência) ÷ referência} (fração; 0,25 =
+     * +25%). Vazio quando a referência é zero ou algum valor não é finito (divisão indefinida).
+     */
+    public static OptionalDouble lift(double variant, double reference) {
+        if (reference == 0 || !Double.isFinite(variant) || !Double.isFinite(reference)) {
+            return OptionalDouble.empty();
+        }
+        return OptionalDouble.of((variant - reference) / reference);
     }
 
     /** Avisos de amostra de um braço para uma taxa. */

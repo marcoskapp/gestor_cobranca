@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "10d18eff3f33f481",
+ "contentVersion": "f41d54b0f82c6ed2",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -2364,7 +2364,7 @@
    "title": "Teste A/B da campanha",
    "objective": "Compare variantes de template, canal, horário ou oferta com um grupo de controle sorteado.",
    "purpose": [
-    "Defina o grupo de controle, o horizonte e a amostra mínima antes de iniciar. O resultado mostra a estimativa e o intervalo de 95%: é significativo quando o intervalo da diferença não cruza o zero."
+    "Defina o grupo de controle, o horizonte e a amostra mínima antes de iniciar. O resultado mostra a estimativa e o intervalo de 95%: é significativo quando o intervalo da diferença não cruza o zero. Ao lado da diferença em pontos percentuais aparece o ganho relativo sobre a referência."
    ],
    "profiles": [
     "ESTRATEGIA",
@@ -5044,7 +5044,7 @@
    "id": "legal.dashboard",
    "module": "juridico",
    "title": "Painel jurídico",
-   "objective": "Casos por fase, prazos a vencer e perdidos, custas e valores recuperados no jurídico.",
+   "objective": "Casos por fase, prazos a vencer e perdidos, custas e valores liberados judicialmente.",
    "purpose": [
     "Clique numa fase para ver a lista de casos nela. Prazos próximos ou perdidos merecem ação imediata."
    ],
@@ -8487,8 +8487,8 @@
    "id": "campaign.experiment.difference",
    "module": "campanhas",
    "title": "Diferença para a referência",
-   "what": "Quanto o braço ficou acima ou abaixo da referência (o grupo de controle ou, sem controle, a primeira variante), com o intervalo de 95%.",
-   "how": "Diferença absoluta entre as taxas (método de Newcombe) ou entre os valores médios por devedor (Welch). É significativa quando o intervalo da diferença não cruza o zero. O sistema não calcula a variação relativa (o \"lift\" em percentual).",
+   "what": "Quanto o braço ficou acima ou abaixo da referência (o grupo de controle ou, sem controle, a primeira variante): a diferença absoluta, com o intervalo de 95%, e o ganho relativo.",
+   "how": "Diferença absoluta em pontos percentuais (Newcombe) ou em reais por devedor (Welch); é significativa quando o intervalo não cruza o zero. Ganho relativo = (variante − referência) ÷ referência: 10% contra 8% dá +25%. Com referência zero, aparece \"—\".",
    "use": "Só adote a variante quando a diferença for significativa com a amostra planejada atingida. Olhar o resultado todo dia e parar no primeiro sinal aumenta a chance de falso positivo.",
    "screens": [
     "campaign.experiment"
@@ -8780,9 +8780,9 @@
    "id": "assistant.quality.early-break",
    "module": "assistente",
    "title": "Quebra precoce: assistente × humanos",
-   "what": "Proporção dos acordos que quebraram nos primeiros dias (padrão 60), comparando os acordos com o assistente e os só de humanos.",
-   "how": "Acordos formalizados no período e quebrados dentro da janela, divididos por todos os acordos formalizados no período, por grupo. Acordos recentes ainda não completaram a janela, então a taxa do período mais recente tende a ser menor.",
-   "use": "Critério de avanço de fase: a quebra com o assistente deve ser igual ou menor que a dos humanos. Compare períodos já maduros (formalizados há mais que a janela).",
+   "what": "Proporção dos acordos quebrados nos primeiros dias (padrão 60) depois de formalizados, comparando os acordos com o assistente e os só de humanos.",
+   "how": "Mesma regra da quebra precoce dos painéis: só entram os acordos do período formalizados há pelo menos a janela. A taxa é a quantidade quebrada dentro da janela dividida por esses acordos. Os mais recentes aparecem à parte, como em maturação.",
+   "use": "Critério de avanço de fase: a quebra com o assistente deve ser igual ou menor que a dos humanos. Com poucos acordos na base ou muitos em maturação, espere o período amadurecer antes de decidir.",
    "screens": [
     "assistant.quality"
    ]
@@ -8847,9 +8847,9 @@
   {
    "id": "legal.dashboard.recovered",
    "module": "juridico",
-   "title": "Valor recuperado no jurídico",
-   "what": "Valores liberados em favor do credor nos processos (levantamento de valores), registrados nos andamentos.",
-   "how": "Soma dos levantamentos de valores lançados nos andamentos dos processos dos casos. Não inclui pagamentos de acordos extrajudiciais, que aparecem na recuperação dos painéis.",
+   "title": "Valor liberado judicialmente",
+   "what": "Valores que o juízo liberou em favor do credor nos processos (alvarás e levantamentos de valores), registrados nos andamentos.",
+   "how": "Soma dos levantamentos de valores lançados nos andamentos dos processos dos casos. Não é o valor recuperado: recuperado é só pagamento confirmado, e os acordos extrajudiciais aparecem na recuperação dos painéis.",
    "use": "Mostra o retorno da via judicial. Compare com as custas por fase para decidir em quais carteiras vale ajuizar.",
    "screens": [
     "legal.dashboard"
@@ -8882,7 +8882,7 @@
    "id": "legal.dashboard.stages",
    "module": "juridico",
    "title": "Casos por fase",
-   "what": "Casos jurídicos em cada fase do fluxo (da indicação e análise de viabilidade, passando pela autorização do credor, medidas extrajudiciais e processo, até o encerramento), com dívida, custas e recuperado de cada fase.",
+   "what": "Casos jurídicos em cada fase do fluxo (da indicação e análise de viabilidade, passando pela autorização do credor, medidas extrajudiciais e processo, até o encerramento), com dívida, custas e valor liberado judicialmente de cada fase.",
    "how": "Contagens e somas dos casos pela fase atual, no escopo e filtros escolhidos.",
    "use": "Mostra onde os casos se acumulam. Muitos casos parados em autorização pedem cobrar a resposta do credor.",
    "screens": [
@@ -8916,8 +8916,8 @@
    "id": "publicapi.billing.projection",
    "module": "administracao",
    "title": "Projeção no fechamento",
-   "what": "Estimativa do valor do ciclo no dia do fechamento, se o ritmo de uso continuar.",
-   "how": "O consumo até agora mais a média diária do ciclo vezes os dias que faltam, calculado com as mesmas condições do contrato (mensalidade, franquias e excedente).",
+   "what": "Estimativa do valor total do ciclo no dia do fechamento, se o ritmo de uso continuar.",
+   "how": "Uso cobrável até agora mais a média diária do ciclo vezes os dias que faltam. O uso projetado é precificado pelo contrato: mensalidade, franquias e excedente.",
    "use": "Antecipe a conversa com o credor quando a projeção passar muito do valor habitual ou da franquia contratada.",
    "screens": [
     "settlement.position"

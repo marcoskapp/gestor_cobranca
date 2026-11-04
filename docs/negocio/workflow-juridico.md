@@ -38,11 +38,11 @@ flowchart LR
 | 4 | Medidas extrajudiciais | Notificação e constituição em mora; protesto; negativação com comunicação prévia; execução extrajudicial de garantia (ex.: consolidação de imóvel em cartório, vias ampliadas pela Lei 14.711/2023) | Pagamento, acordo ou avanço ao judicial |
 | 5 | Ajuizamento | Escolha da ação, responsável (interno ou escritório parceiro), petição, procuração, custas, distribuição | Processo com número CNJ, tribunal e vara |
 | 6 | Acompanhamento processual | Andamentos, prazos em dias úteis com alertas, audiências, citação, defesas, recursos, sentença, cumprimento de sentença | Linha do tempo do processo |
-| 7 | Constrição e expropriação | Busca e apreensão, penhora, avaliação, leilão ou adjudicação, levantamento de valores | Valores recuperados |
+| 7 | Constrição e expropriação | Busca e apreensão, penhora, avaliação, leilão ou adjudicação, levantamento de valores | Valores liberados judicialmente (alvarás/levantamentos) |
 | 8 | Acordo judicial | Negociação com política própria (custas e honorários), homologação, suspensão do processo; quebra retoma o processo | Acordo acompanhado como os demais |
 | 9 | Encerramento | Extinção; baixa de protesto e negativação no prazo legal após o pagamento; liberação do gravame; prescrição intercorrente; devolução ao credor ou baixa como incobrável | Caso encerrado e prestado contas |
 
-**Transversal**: custas e despesas (adiantadas e reembolsáveis), documentos e evidências, auditoria de cada movimentação, painel jurídico (casos por fase, prazos vencendo, custas, valor recuperado).
+**Transversal**: custas e despesas (adiantadas e reembolsáveis), documentos e evidências, auditoria de cada movimentação, painel jurídico (casos por fase, prazos vencendo, custas, **valor liberado judicialmente** — soma dos valores liberados pelo juízo; "recuperado" fica reservado a pagamentos confirmados, [`indicadores.md`](indicadores.md) §1).
 
 ## 3. Efeitos na operação
 

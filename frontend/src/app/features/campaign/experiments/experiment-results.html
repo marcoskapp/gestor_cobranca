@@ -51,6 +51,10 @@
       Wilson; a diferença para a referência, o método de Newcombe; o valor por devedor, intervalo normal da média e Welch para a diferença.
     </p>
     <p>
+      A diferença é absoluta (em pontos percentuais nas taxas). Ao lado, o <strong>ganho relativo</strong> = (variante − referência) ÷ referência: 10% contra
+      8% é +2 p.p. e +25%. Com a referência em zero não há base, e o ganho relativo aparece como "—". A significância vale para a diferença absoluta.
+    </p>
+    <p>
       A diferença é <strong>significativa</strong> quando o intervalo dela não cruza o zero. Não há correção para várias comparações nem para espiar o resultado
       todo dia: defina a amostra antes e decida só quando ela for atingida.
     </p>
@@ -113,6 +117,18 @@
                     }
                   }
                   {{ row.diffText }}
+                </span>
+              }
+              @if (row.diff) {
+                <span class="xr-text xr-lift">
+                  Ganho relativo:
+                  @if (row.liftText) {
+                    {{ row.liftText }}
+                  } @else {
+                    <span aria-hidden="true" title="Sem base: a referência é zero">—</span>
+                    <span class="visually-hidden">indisponível, porque a referência é zero e não há base para a variação relativa</span>
+                    <span class="app-muted" aria-hidden="true">(referência zero)</span>
+                  }
                 </span>
               }
             </div>

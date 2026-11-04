@@ -58,9 +58,9 @@ export const INDICATORS: readonly IndicatorHelp[] = [
   {
     id: 'assistant.quality.early-break',
     title: 'Quebra precoce: assistente × humanos',
-    what: 'Proporção dos acordos que quebraram nos primeiros dias (padrão 60), comparando os acordos com o assistente e os só de humanos.',
-    how: 'Acordos formalizados no período e quebrados dentro da janela, divididos por todos os acordos formalizados no período, por grupo. Acordos recentes ainda não completaram a janela, então a taxa do período mais recente tende a ser menor.',
-    use: 'Critério de avanço de fase: a quebra com o assistente deve ser igual ou menor que a dos humanos. Compare períodos já maduros (formalizados há mais que a janela).',
+    what: 'Proporção dos acordos quebrados nos primeiros dias (padrão 60) depois de formalizados, comparando os acordos com o assistente e os só de humanos.',
+    how: 'Mesma regra da quebra precoce dos painéis: só entram os acordos do período formalizados há pelo menos a janela. A taxa é a quantidade quebrada dentro da janela dividida por esses acordos. Os mais recentes aparecem à parte, como em maturação.',
+    use: 'Critério de avanço de fase: a quebra com o assistente deve ser igual ou menor que a dos humanos. Com poucos acordos na base ou muitos em maturação, espere o período amadurecer antes de decidir.',
     screens: ['assistant.quality'],
   },
   {

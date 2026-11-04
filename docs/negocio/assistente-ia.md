@@ -95,7 +95,7 @@ Versionada e auditada, por credor → carteira → segmento (a mais específica 
 A promoção de alçada e a comparação com humanos usam, por carteira e período:
 
 - **valor efetivamente recuperado** (pagamentos confirmados, não acordos firmados);
-- taxa de quebra de acordos e tempo até o primeiro pagamento;
+- taxa de quebra de acordos e tempo até o primeiro pagamento — a **quebra precoce** usa a mesma regra dos painéis ([`indicadores.md`](indicadores.md) §4): só entram os acordos já expostos ao risco (formalizados há pelo menos a janela, padrão 60 dias); os mais recentes aparecem à parte como "em maturação";
 - desconto médio concedido e desconto como percentual do limite;
 - taxa de transferência para humano e motivo;
 - reclamações, opt-outs e contestações originados de conversas do assistente;

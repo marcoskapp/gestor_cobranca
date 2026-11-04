@@ -4,7 +4,7 @@ package br.com.gestorcobranca.legal.domain.model;
  * Natureza do andamento processual (etapas 6 e 7). {@code CITATION} interrompe a prescrição
  * (CC art. 202, I; CPC art. 240 §1º — retroage à data do despacho que ordenou a citação, que é a
  * data a lançar) e leva o caso de FILED a IN_PROGRESS; {@code FUNDS_RELEASED} soma ao valor
- * recuperado.
+ * liberado judicialmente.
  */
 public enum MovementType {
     DISTRIBUTION,

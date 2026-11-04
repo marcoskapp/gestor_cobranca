@@ -74,7 +74,12 @@ public interface ExperimentUseCases {
                         BigDecimal upper, Difference difference, List<String> warnings) {
     }
 
-    /** @param significant o intervalo de 95% da diferença não contém zero */
-    record Difference(BigDecimal estimate, BigDecimal lower, BigDecimal upper, boolean significant) {
+    /**
+     * @param estimate    diferença absoluta para a referência (pontos de taxa, fração; ou R$ por devedor)
+     * @param significant o intervalo de 95% da diferença não contém zero
+     * @param lift        ganho relativo {@code (variante − referência) ÷ referência} (fração, 4 casas); nulo quando a
+     *                    referência é zero
+     */
+    record Difference(BigDecimal estimate, BigDecimal lower, BigDecimal upper, boolean significant, BigDecimal lift) {
     }
 }

@@ -11,6 +11,7 @@ import {
   criteriaSummary,
   differenceScale,
   differenceValue,
+  liftValue,
   durationText,
   emptyCriteria,
   enrollmentReason,
@@ -252,6 +253,10 @@ describe('regras de teste A/B', () => {
     expect(differenceValue('PAYMENT', 0.021)).toBe('+2,1 p.p.');
     expect(differenceValue('PAYMENT', -0.004)).toBe('−0,4 p.p.');
     expect(differenceValue('RECOVERED_PER_DEBTOR', -3.2)).toBe('−R$\u00a03,20');
+    expect(liftValue(0.2)).toBe('+20,0%');
+    expect(liftValue(-0.0525)).toBe('−5,3%');
+    expect(liftValue(0)).toBe('+0,0%');
+    expect(liftValue(null)).toBe('—');
     expect(estimateScale('PAYMENT', [0.15, 0.12])).toEqual({ min: 0, max: 0.2 });
     const d = differenceScale([-0.01, 0.04]);
     expect(d).toEqual({ min: -0.05, max: 0.05 });

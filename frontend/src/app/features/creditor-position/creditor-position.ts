@@ -80,7 +80,7 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
             </p>
             <div class="cp-kpis">
               <app-kpi-card label="Valor até agora" info="publicapi.billing.amount" detail="Mensalidade do ciclo + excedente consumido"><app-amount [value]="b.amountSoFar" /></app-kpi-card>
-              <app-kpi-card label="Projeção no fechamento" info="publicapi.billing.projection" detail="Média diária × dias restantes"><app-amount [value]="b.projection.amount" /></app-kpi-card>
+              <app-kpi-card label="Projeção no fechamento" info="publicapi.billing.projection" detail="Uso até agora + média diária × dias restantes, pelo contrato"><app-amount [value]="b.projection.amount" /></app-kpi-card>
               <app-kpi-card label="Chamadas cobráveis" info="publicapi.usage.billable-requests" detail="Respostas 2xx/3xx">{{ n(b.billableRequests) }}</app-kpi-card>
               <app-kpi-card label="Dados recebidos" info="publicapi.usage.data" detail="MB inteiros por token (1 MB = 1.048.576 bytes)">{{ n(b.billableMbIn) }} MB</app-kpi-card>
               <app-kpi-card label="Dados enviados" info="publicapi.usage.data" detail="MB inteiros por token (1 MB = 1.048.576 bytes)">{{ n(b.billableMbOut) }} MB</app-kpi-card>

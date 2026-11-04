@@ -8,6 +8,7 @@ Contrato com a operação para os painéis do produto (F11 painel operacional, F
 | --- | --- |
 | Valor recuperado | **Pagamento confirmado** (pelo provedor, pelo extrato ou por segunda pessoa), alocado a título ou acordo, **líquido de estornos**. É a mesma base do demonstrativo de prestação de contas ao credor (recebimentos do `settlement`). |
 | Acordo não pago não é recuperação | O valor acordado aparece separado ("valor acordado" × "valor pago") e nunca entra no recuperado. |
+| Liberação judicial não é recuperação | No painel jurídico, a soma dos valores liberados pelo juízo (alvarás e levantamentos lançados nos andamentos) chama-se **valor liberado judicialmente**; só vira recuperado quando o pagamento é confirmado e alocado (decisão 713). |
 | Data do fato | Pagamento: data do pagamento. Estorno: data do estorno (o período em que o pagamento entrou não muda). Acordo: data da formalização (safra). Datas no fuso de operação (`America/Sao_Paulo`). |
 | Período | Inclusive nas duas pontas; até 400 dias por consulta. |
 | Taxas | Fração com 4 casas (arredondamento *half-even*), exibida em %. Denominador zero → indicador **indisponível** ("sem base no período"), nunca 0%. |
@@ -64,6 +65,8 @@ Quebras da taxa de recuperação: por credor e carteira (do caso), por operador/
 | Parcelas pagas | parcelas de acordo pagas integralmente no período (qualquer safra) e o valor delas | — |
 | Renegociações | acordos da safra que substituem outro acordo | ÷ acordos da safra |
 | Quebra precoce 30/60/90 | acordos da safra **maduros** (formalizados há pelo menos a janela) quebrados até a janela ÷ acordos maduros | acordos maduros na janela |
+
+A **quebra precoce da qualidade do assistente** (assistente × humanos) usa o mesmo critério, com a janela do assistente (padrão 60 dias): só os acordos do período já expostos ao risco entram no denominador; os ainda dentro da janela aparecem à parte como **em maturação** (decisão 712).
 
 O funil é **de fluxo**: cada etapa conta os eventos do período, não necessariamente as mesmas pessoas (por isso contato → proposta pode passar de 100% quando há propostas de contatos de períodos anteriores ou do portal). Por origem do acordo, contatos e propostas não se aplicam.
 

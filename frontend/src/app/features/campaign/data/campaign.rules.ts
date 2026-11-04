@@ -910,6 +910,14 @@ export function differenceValue(metric: ExperimentMetric, value: number | null |
   return `${sign}${formatAmount(Math.abs(value))}`;
 }
 
+/** Ganho relativo com sinal explícito ("+20,0%"); nulo (referência zero) = "—". */
+export function liftValue(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '—';
+  }
+  return `${DECIMAL1.format(value * 100).replace('-', '−')}%`;
+}
+
 export function armLabel(arm: string, variants: readonly ExperimentVariant[]): string {
   if (arm === CONTROL_ARM) {
     return CONTROL_LABEL;

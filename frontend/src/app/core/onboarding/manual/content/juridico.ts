@@ -25,7 +25,7 @@ export const MANUAL: ModuleManual = {
     {
       id: 'legal.dashboard',
       title: 'Painel jurídico',
-      objective: 'Casos por fase, prazos a vencer e perdidos, custas e valores recuperados no jurídico.',
+      objective: 'Casos por fase, prazos a vencer e perdidos, custas e valores liberados judicialmente.',
       purpose: ['Clique numa fase para ver a lista de casos nela. Prazos próximos ou perdidos merecem ação imediata.'],
       profiles: ['JURIDICO', 'GESTOR', 'ADVOGADO_PARCEIRO', 'AUDITOR'],
       inputs: ['Casos jurídicos, prazos e custas lançados.'],

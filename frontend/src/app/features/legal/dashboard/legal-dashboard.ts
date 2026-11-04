@@ -24,14 +24,14 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
- * Painel jurídico: casos por fase com dívida, custas e valor recuperado; prazos que vencem nos
+ * Painel jurídico: casos por fase com dívida, custas e valor liberado judicialmente; prazos que vencem nos
  * próximos dias e prazos perdidos (os meus ou de todos). Cada número leva à lista filtrada.
  */
 @Component({
   selector: 'app-legal-dashboard',
   imports: [Icon, ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, InfoHint],
   template: `
-    <app-page-header title="Jurídico" subtitle="Casos por fase, prazos a vencer e perdidos, custas e valores recuperados.">
+    <app-page-header title="Jurídico" subtitle="Casos por fase, prazos a vencer e perdidos, custas e valores liberados judicialmente.">
       <a class="btn btn-primary" routerLink="/juridico/casos">
         <app-icon name="folder-symlink" />
         Casos jurídicos
@@ -74,7 +74,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
           <span class="ld-kpi__value"><app-amount [value]="b.expensesTotal" [compact]="true" /></span>
         </div>
         <div class="ld-kpi">
-          <span class="ld-kpi__label">Valor recuperado <app-info-hint indicator="legal.dashboard.recovered" label="Valor recuperado" /></span>
+          <span class="ld-kpi__label">Valor liberado judicialmente <app-info-hint indicator="legal.dashboard.recovered" label="Valor liberado judicialmente" /></span>
           <span class="ld-kpi__value"><app-amount [value]="b.recoveredAmount" [compact]="true" /></span>
         </div>
         <div class="ld-kpi" [class.ld-kpi--warn]="b.deadlinesDueSoon > 0">
@@ -98,7 +98,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
                   <th scope="col" class="ld-end">Casos</th>
                   <th scope="col" class="ld-end">Dívida</th>
                   <th scope="col" class="ld-end">Custas</th>
-                  <th scope="col" class="ld-end">Recuperado <app-info-hint indicator="legal.dashboard.recovered" label="Valor recuperado no jurídico" /></th>
+                  <th scope="col" class="ld-end">Liberado judicialmente <app-info-hint indicator="legal.dashboard.recovered" label="Valor liberado judicialmente" /></th>
                 </tr>
               </thead>
               <tbody>

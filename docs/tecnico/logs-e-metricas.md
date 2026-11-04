@@ -209,14 +209,14 @@ Todos levam `creditorId`, `portfolioId`, `debtorId`, `caseId` (caso de cobrança
 | `legal.measure_registered` / `legal.measure_status_changed` | medida extrajudicial registrada / mudou de situação | `type`, `titles`, `collateralType`, `provider`, `stage`; na mudança `from`, `to`, `prescriptionInterruptions`, `daysSinceSubmission`; `amount` = valor da medida |
 | `legal.lawsuit_filed` | processo cadastrado | `route`, `courtCode`, `segment`, `defendants`, `creditorPole`, `responsibleType`, `lawFirmId`, `daysSinceReferral`; `amount` = valor da causa |
 | `legal.movement_recorded` | andamento manual ou capturado | `lawsuitId`, `type`, `source`, `provider`, `route`, `courtCode`, `prescriptionInterruptions`, `stage`; `amount` |
-| `legal.recovery_recorded` | levantamento de valores | `route`, `recoveredTotal`, `stage`; `amount` = valor levantado |
+| `legal.recovery_recorded` | levantamento de valores (valor liberado judicialmente) | `route`, `recoveredTotal` (total liberado judicialmente no caso), `stage`; `amount` = valor levantado |
 | `legal.deadline_created` / `_approaching` / `_met` / `_missed` | ciclo do prazo | `kind`, `countingMode`, `termDays`, `calendarDays`, `source`, `level`, `businessDaysRemaining`, `dueDate`, `onTime`, `correctedFromMissed`, `daysBeforeDue`, `responsibleUserId`, `lawFirmId` |
 | `legal.hearing_scheduled` / `legal.hearing_held` | audiência agendada / realizada | `type`, `mode`, `daysAhead`, `outcome`, `rescheduleCount` |
 | `legal.expense_recorded` / `_cancelled` / `_reimbursed` | custas e despesas | `type`, `advancedBy`, `reimbursable`, `overBudget`, `hasReceipt`, `expensesTotal`, `authorizedBudget`, `daysToReimburse`; `amount` |
 | `legal.agreement_linked` / `legal.agreement_broken` | acordo do negotiation vinculado / acordo judicial quebrado ou cancelado | `agreementId`, `judicial`, `status`, `resumedStage`, `cause`; `amount` = valor do acordo |
 | `legal.titles_settled` | todos os títulos do caso jurídico saíram de cobrança | `stage`, `titleStatuses`, `removalDeadlines` |
 | `legal.prescription_alert` | alerta de prescrição do debt para título de caso jurídico aberto | `titleId`, `claim`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `stage` |
-| `legal.matter_closed` | `CLOSED` ou `RETURNED_TO_CREDITOR` | `stage`, `from`, `closureReason`, `route`, `durationDays`, `debtAmount`, `expensesTotal`, `recoveredAmount`, `responsibleType`, `lawFirmId`, `deadlinesCancelled`, `removalDeadlines`; `amount` = valor recuperado; `durationMs` |
+| `legal.matter_closed` | `CLOSED` ou `RETURNED_TO_CREDITOR` | `stage`, `from`, `closureReason`, `route`, `durationDays`, `debtAmount`, `expensesTotal`, `recoveredAmount`, `responsibleType`, `lawFirmId`, `deadlinesCancelled`, `removalDeadlines`; `amount` = valor liberado judicialmente (`recoveredAmount`, soma dos levantamentos); `durationMs` |
 
 Log de acesso: `USER_DIRECTORY_QUERIED` (`resource=legal_assignee`, `purpose` `MATTER_RESPONSIBLE`/`DEADLINE_RESPONSIBLE`/`FIRM_MEMBER`, `matterId` quando o campo é do caso, `returned`) a cada busca de usuários atribuíveis (decisão 686); o texto buscado nunca é gravado.
 

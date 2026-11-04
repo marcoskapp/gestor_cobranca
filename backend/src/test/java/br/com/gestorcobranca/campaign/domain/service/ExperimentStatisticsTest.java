@@ -59,4 +59,20 @@ class ExperimentStatisticsTest {
         assertThat(ExperimentStatistics.warnings(ExperimentStatistics.proportion(30, 200), 100)).isEmpty();
         assertThat(ExperimentStatistics.proportion(0, 0).interval().upper()).isEqualTo(1);
     }
+
+    @Test
+    void liftIsTheRelativeChangeOverTheReference() {
+        // 12% × 10%: +2 pontos percentuais e +20% de ganho relativo
+        assertThat(ExperimentStatistics.lift(0.12, 0.10)).hasValueCloseTo(0.2, within(1e-9));
+        assertThat(ExperimentStatistics.lift(0.05, 0.10)).hasValueCloseTo(-0.5, within(1e-9));
+        assertThat(ExperimentStatistics.lift(30, 40)).hasValueCloseTo(-0.25, within(1e-9));
+        assertThat(ExperimentStatistics.lift(0.10, 0.10)).hasValueCloseTo(0.0, within(1e-9));
+    }
+
+    @Test
+    void liftIsUndefinedWhenTheReferenceIsZero() {
+        assertThat(ExperimentStatistics.lift(0.05, 0)).isEmpty();
+        assertThat(ExperimentStatistics.lift(0, 0)).isEmpty();
+        assertThat(ExperimentStatistics.lift(Double.NaN, 0.1)).isEmpty();
+    }
 }

@@ -252,7 +252,7 @@ class LawsuitService implements LawsuitUseCases {
 
     /**
      * Efeitos do andamento (manual ou capturado): citação → interrupção da prescrição e FILED →
-     * IN_PROGRESS; levantamento → valor recuperado; registro, auditoria e evento de negócio.
+     * IN_PROGRESS; levantamento → valor liberado judicialmente; registro, auditoria e evento de negócio.
      *
      * @return interrupções de prescrição registradas
      */

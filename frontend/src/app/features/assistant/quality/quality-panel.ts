@@ -19,7 +19,7 @@ import { CreditorLookup, PortfolioLookup } from '../../organization/data/organiz
 import { BarChart } from '../components/bar-chart';
 import { AssistantReviewApi } from '../data/assistant.api';
 import { AGREEMENT_GROUP_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, PIX_DENIAL_LABELS } from '../data/assistant.labels';
-import { Bar, bars, fractionText } from '../data/assistant.rules';
+import { Bar, bars, earlyBreakBars, earlyBreakBaseText, fractionText } from '../data/assistant.rules';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 interface QualityFilter {
@@ -89,8 +89,11 @@ interface QualityFilter {
           <app-bar-chart title="Acordos por origem" info="assistant.quality.origins" [data]="origins()" empty="Nenhum acordo no período." />
         </section>
         <section class="app-card" data-tour="quality-break">
-          <app-bar-chart [title]="'Quebra precoce (até ' + v.earlyBreakDays + ' dias): assistente × humanos'" info="assistant.quality.early-break" [data]="earlyBreak()" highlight="ASSISTANT" [format]="breakFormat" empty="Sem acordos formalizados no período." />
-          <p class="app-muted qp-small">Critério de avanço: a quebra com o assistente igual ou menor que a dos humanos.</p>
+          <app-bar-chart [title]="'Quebra precoce (até ' + v.earlyBreakDays + ' dias): assistente × humanos'" info="assistant.quality.early-break" [data]="earlyBreak()" highlight="ASSISTANT" [format]="breakFormat" [empty]="'Nenhum acordo do período completou os ' + v.earlyBreakDays + ' dias.'" />
+          @if (earlyBreakBase(); as base) {
+            <p class="app-muted qp-small" data-testid="early-break-base">{{ base }}.</p>
+          }
+          <p class="app-muted qp-small">A taxa considera só os acordos formalizados há pelo menos {{ v.earlyBreakDays }} dias. Critério de avanço: a quebra com o assistente igual ou menor que a dos humanos.</p>
         </section>
         <section class="app-card">
           <app-bar-chart title="Guardrails acionados" info="assistant.quality.guardrails" [data]="guardrails()" empty="Nenhum guardrail acionado." />
@@ -197,12 +200,8 @@ export class QualityPanel {
   protected readonly groups = computed(() => bars(this.q()?.agreementsByGroup, AGREEMENT_GROUP_LABELS));
   protected readonly pixDenied = computed(() => bars(this.q()?.pix?.deniedByReason, PIX_DENIAL_LABELS));
   /** Taxas (0–1) como barras; a ordem fixa (assistente primeiro) facilita a comparação. */
-  protected readonly earlyBreak = computed<Bar[]>(() => {
-    const rates = this.q()?.earlyBreakRate ?? {};
-    const keys = ['ASSISTANT', 'HUMAN'].filter((k) => rates[k] !== undefined && rates[k] !== null);
-    const max = Math.max(0, ...keys.map((k) => rates[k]));
-    return keys.map((k) => ({ key: k, label: AGREEMENT_GROUP_LABELS[k] ?? k, value: rates[k], share: max ? rates[k] / max : 0, ofTotal: rates[k] }));
-  });
+  protected readonly earlyBreak = computed<Bar[]>(() => earlyBreakBars(this.q(), AGREEMENT_GROUP_LABELS));
+  protected readonly earlyBreakBase = computed(() => earlyBreakBaseText(this.q(), AGREEMENT_GROUP_LABELS));
   protected readonly breakFormat = (b: Bar) => fractionText(b.value);
 
   protected money(value: number | null, currency: string | null): string {

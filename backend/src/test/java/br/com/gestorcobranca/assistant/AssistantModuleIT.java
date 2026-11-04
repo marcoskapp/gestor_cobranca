@@ -13,12 +13,17 @@ import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUs
 import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -278,5 +283,43 @@ class AssistantModuleIT extends AssistantTestSupport {
         assertThat(conversation().ownerType()).isEqualTo("QUEUE");
         assertThat(asAdmin(() -> assistantPolicies.effective(creditorA, portfolioA))).get()
                 .extracting(PolicyView::mode).isEqualTo("OFF");
+    }
+
+    @Test
+    void earlyBreakCountsOnlyAgreementsExposedToRiskAndReportsMaturingApart() {
+        provision("ast-early");
+        Instant now = Instant.now();
+        // humanos: 3 expostos (formalizados há ≥ 60 dias), 1 quebrado na janela, 1 quebrado depois dela
+        agreementFact("HUMAN", now.minus(Duration.ofDays(100)), now.minus(Duration.ofDays(70)));
+        agreementFact("HUMAN", now.minus(Duration.ofDays(90)), null);
+        agreementFact("HUMAN_COPILOT", now.minus(Duration.ofDays(140)), now.minus(Duration.ofDays(70)));
+        // assistente: 1 exposto sem quebra; 1 em maturação já quebrado (fora do denominador e do numerador)
+        agreementFact("ASSISTANT_AUTONOMOUS", now.minus(Duration.ofDays(80)), null);
+        agreementFact("ASSISTANT_HANDOFF_CONFIRMED", now.minus(Duration.ofDays(10)), now.minus(Duration.ofDays(5)));
+        LocalDate today = LocalDate.now(TimeConfig.BUSINESS_ZONE);
+
+        var quality = asSupervisor(() -> reviews.quality(new QualityQuery(today.minusDays(200), today, creditorA,
+                null)));
+
+        assertThat(quality.earlyBreakDays()).isEqualTo(60);
+        assertThat(quality.agreementsByGroup()).containsEntry("HUMAN", 3L).containsEntry("ASSISTANT", 2L);
+        assertThat(quality.earlyBreakExposed()).containsEntry("HUMAN", 3L).containsEntry("ASSISTANT", 1L);
+        assertThat(quality.earlyBreakMaturing()).containsEntry("HUMAN", 0L).containsEntry("ASSISTANT", 1L);
+        assertThat(quality.earlyBreakRate().get("HUMAN")).isEqualByComparingTo("0.3333");
+        assertThat(quality.earlyBreakRate().get("ASSISTANT")).isEqualByComparingTo("0");
+
+        // só acordos em maturação: sem taxa (não é "0%")
+        var recent = asSupervisor(() -> reviews.quality(new QualityQuery(today.minusDays(20), today, creditorA, null)));
+        assertThat(recent.earlyBreakRate().get("ASSISTANT")).isNull();
+        assertThat(recent.earlyBreakMaturing()).containsEntry("ASSISTANT", 1L);
+    }
+
+    private void agreementFact(String origin, Instant formalizedAt, Instant brokenAt) {
+        system(() -> jdbcTemplate.update("""
+                insert into assistant.agreement_fact (id, tenant_id, version, created_at, updated_at, agreement_id,
+                    creditor_id, portfolio_id, origin, amount, formalized_at, status, broken_at, status_at)
+                values (?, ?, 0, now(), now(), ?, ?, ?, ?, 100.00, ?, ?, ?, now())
+                """, Ids.newId(), tenant, Ids.newId(), creditorA, portfolioA, origin, Timestamp.from(formalizedAt),
+                brokenAt == null ? "FORMALIZED" : "BROKEN", brokenAt == null ? null : Timestamp.from(brokenAt)));
     }
 }

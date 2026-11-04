@@ -9,7 +9,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { ExperimentsApi } from '../data/campaign.api';
 import { CONTROL_ARM, METRIC_HINTS, METRIC_LABELS, RESULT_WARNING_LABELS } from '../data/campaign.labels';
 import { ExperimentMetric, ExperimentResults, ExperimentView, MetricResult } from '../data/campaign.models';
-import { armLabel, count, differenceScale, differenceValue, estimateScale, isRateMetric, metricValue, position } from '../data/campaign.rules';
+import { armLabel, count, differenceScale, differenceValue, estimateScale, isRateMetric, liftValue, metricValue, position } from '../data/campaign.rules';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 interface ArmRow {
@@ -23,6 +23,8 @@ interface ArmRow {
   diff: { lower: number; upper: number; estimate: number; zero: number } | null;
   text: string;
   diffText: string | null;
+  /** Ganho relativo sobre a referência ("+20,0%"); nulo quando a referência é zero (sem base). */
+  liftText: string | null;
   verdict: 'better' | 'worse' | 'none' | null;
 }
 
@@ -110,6 +112,7 @@ function blocks(r: ExperimentResults, e: ExperimentView): MetricBlock[] {
           : baseline
             ? 'Braço de referência das diferenças'
             : null,
+        liftText: d && d.lift !== null && d.lift !== undefined ? liftValue(d.lift) : null,
         verdict: d ? (d.significant ? (d.estimate > 0 ? 'better' : 'worse') : 'none') : null,
       };
     });
