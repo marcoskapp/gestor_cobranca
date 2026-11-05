@@ -59,9 +59,14 @@ import br.com.gestorcobranca.shared.storage.FileStorage;
 import br.com.gestorcobranca.shared.storage.FileStorage.StoredFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -124,6 +129,8 @@ class PdfImportService implements PdfImportUseCases {
     private final RecordDecisionPolicy decisionPolicy = new RecordDecisionPolicy();
     private final Clock clock;
     private final ExtractionMapValidator validator = new ExtractionMapValidator();
+    /** Transações curtas do envio, que roda sem transação (decisão 868). */
+    private final TransactionTemplate shortTx;
 
     PdfImportService(PdfImportRepository imports, PdfMapRevisionRepository revisions,
                      PdfLayoutTemplateRepository templates, BatchCreation creation, PdfDocumentReader reader,
@@ -131,7 +138,7 @@ class PdfImportService implements PdfImportUseCases {
                      CanonicalFileWriter fileWriter, FileStorage storage, JobQueue jobQueue, PdfImportViews views,
                      AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger,
                      AuditTrail auditTrail, BusinessEventLogger businessEvents, PdfImportMetrics metrics,
-                     PdfImportProperties properties, Clock clock) {
+                     PdfImportProperties properties, PlatformTransactionManager transactionManager, Clock clock) {
         this.imports = imports;
         this.revisions = revisions;
         this.templates = templates;
@@ -153,11 +160,21 @@ class PdfImportService implements PdfImportUseCases {
         this.metrics = metrics;
         this.properties = properties;
         this.clock = clock;
+        this.shortTx = new TransactionTemplate(transactionManager);
+        this.shortTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     // ================================================================== envio
 
+    /**
+     * Sem transação longa (decisão 868): a leitura do arquivo, a abertura segura do PDF (até 200 páginas de texto,
+     * segundos de CPU) e o envio ao armazenamento correm sem conexão do banco presa. O banco entra em transações
+     * curtas — a consulta de idempotência e duplicidade, e o registro (que repete a consulta: corrida entre envios
+     * iguais; o índice único {@code uq_pdf_import_active_file} é a última proteção). Registro não confirmado remove
+     * o arquivo já gravado.
+     */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PdfImportView upload(UploadPdfCommand command) {
         PortfolioView portfolio = creation.requirePortfolio(command.portfolioId());
         PdfImportChannel channel = parseChannel(command.channel());
@@ -166,52 +183,94 @@ class PdfImportService implements PdfImportUseCases {
         try {
             byte[] content = read(command);
             String sha256 = sha256(content);
-            if (idempotencyKey != null) {
-                var existing = imports.findByCreditorIdAndIdempotencyKey(portfolio.creditorId(), idempotencyKey);
-                if (existing.isPresent()) {
-                    Guard.require(existing.get().getFileSha256().equals(sha256)
-                                    && existing.get().getPortfolioId().equals(portfolio.id()),
-                            "pdf_import.idempotency_conflict", "Chave de idempotência já usada com outro arquivo ou carteira");
-                    return get(existing.get().getId());
-                }
-            }
-            List<PdfImport> duplicates = imports.findByPortfolioIdAndFileSha256AndStatusIn(portfolio.id(), sha256, ACTIVE);
-            if (!duplicates.isEmpty()) {
-                throw new ConflictException("pdf_import.duplicate_file",
-                        "Este PDF já foi enviado para esta carteira (em andamento ou aprovado)",
-                        Map.of("pdfImportId", duplicates.getFirst().getId(), "status", duplicates.getFirst().getStatus().name()));
+            UUID existing = shortTx.execute(s -> existingOrDuplicate(portfolio, idempotencyKey, sha256));
+            if (existing != null) {
+                return shortTx.execute(s -> get(existing));
             }
             PdfInspection inspection = reader.inspect(content, properties.maxPages());
-            boolean textLayer = inspection.text().hasTextLayer();
-            if (!textLayer && inspection.pages() > properties.maxVisualPages()) {
+            if (!inspection.text().hasTextLayer() && inspection.pages() > properties.maxVisualPages()) {
                 throw new ImportFileException("pdf_import.too_many_pages_visual",
                         "PDF sem camada de texto (digitalizado) com %d páginas: o limite da leitura visual é %d"
                                 .formatted(inspection.pages(), properties.maxVisualPages()));
             }
-            StoredFile stored = creation.store(() -> new ByteArrayInputStream(content), fileName, "application/pdf",
-                    content.length);
-            Guard.require(stored.sha256().equals(sha256), "import.file_changed", "Conteúdo do arquivo mudou durante o envio");
-            PdfImport pdf = imports.save(new PdfImport(portfolio.creditorId(), portfolio.id(), channel, fileName,
-                    content.length, sha256, stored.key(), inspection.pages(), textLayer, idempotencyKey));
-            analysis.remember(pdf, inspection.text());
-            jobQueue.enqueue(PdfMappingJobHandler.TYPE, new PdfMappingJobHandler.Payload(pdf.getId(), true), null,
-                    PdfMappingJobHandler.deduplicationKey(pdf.getId()));
-            auditTrail.record(AuditEntry.of("pdf_import.received", RESOURCE, pdf.getId()).creditor(pdf.getCreditorId())
-                    .created("portfolioId", pdf.getPortfolioId()).created("fileSha256", sha256)
-                    .created("pages", inspection.pages()).created("textLayer", textLayer)
-                    .meta("channel", channel.name()).meta("encrypted", inspection.encrypted()));
-            businessEvents.log(BusinessEvent.of(BusinessEventTypes.PDF_IMPORT_RECEIVED)
-                    .creditor(pdf.getCreditorId()).portfolio(pdf.getPortfolioId()).reference(RESOURCE, pdf.getId())
-                    .channel(channel.name()).attr("pages", inspection.pages()).attr("textLayer", textLayer)
-                    .attr("fileSize", content.length));
-            metrics.received(pdf);
-            LOG.atInfo().addKeyValue("pdfImportId", pdf.getId()).addKeyValue("pages", inspection.pages())
-                    .addKeyValue("textLayer", textLayer).addKeyValue("channel", channel).log("PDF recebido para importação");
-            return get(pdf.getId());
+            StoredFile stored = creation.storeOutsideTransaction(() -> new ByteArrayInputStream(content), fileName,
+                    "application/pdf", content.length);
+            Registration registration;
+            try {
+                Guard.require(stored.sha256().equals(sha256), "import.file_changed", "Conteúdo do arquivo mudou durante o envio");
+                registration = shortTx.execute(s -> {
+                    UUID concurrent = existingOrDuplicate(portfolio, idempotencyKey, sha256);
+                    return concurrent != null ? new Registration(concurrent, false) : new Registration(
+                            register(portfolio, channel, idempotencyKey, fileName, content.length, sha256, stored,
+                                    inspection), true);
+                });
+            } catch (DataIntegrityViolationException e) {
+                // corrida que a releitura não viu (o outro envio ainda não tinha confirmado): o índice único barrou
+                creation.discardStored(stored.key());
+                UUID winner = shortTx.execute(s -> existingOrDuplicate(portfolio, idempotencyKey, sha256));
+                if (winner == null) {
+                    throw e;
+                }
+                return shortTx.execute(s -> get(winner));
+            } catch (RuntimeException e) {
+                creation.discardStored(stored.key());
+                throw e;
+            }
+            if (!registration.created()) {
+                // envio idêntico concorrente (mesma chave de idempotência) registrou primeiro: vale o dele
+                creation.discardStored(stored.key());
+            }
+            return shortTx.execute(s -> get(registration.id()));
         } catch (ImportFileException e) {
             metrics.rejected(e.code());
             throw e;
         }
+    }
+
+    /** Id da importação já criada com a mesma chave de idempotência, ou nulo; recusa PDF repetido na carteira. */
+    private UUID existingOrDuplicate(PortfolioView portfolio, String idempotencyKey, String sha256) {
+        if (idempotencyKey != null) {
+            var existing = imports.findByCreditorIdAndIdempotencyKey(portfolio.creditorId(), idempotencyKey);
+            if (existing.isPresent()) {
+                Guard.require(existing.get().getFileSha256().equals(sha256)
+                                && existing.get().getPortfolioId().equals(portfolio.id()),
+                        "pdf_import.idempotency_conflict", "Chave de idempotência já usada com outro arquivo ou carteira");
+                return existing.get().getId();
+            }
+        }
+        List<PdfImport> duplicates = imports.findByPortfolioIdAndFileSha256AndStatusIn(portfolio.id(), sha256, ACTIVE);
+        if (!duplicates.isEmpty()) {
+            throw new ConflictException("pdf_import.duplicate_file",
+                    "Este PDF já foi enviado para esta carteira (em andamento ou aprovado)",
+                    Map.of("pdfImportId", duplicates.getFirst().getId(), "status", duplicates.getFirst().getStatus().name()));
+        }
+        return null;
+    }
+
+    /** @param created {@code false} quando outra requisição com a mesma chave registrou primeiro */
+    private record Registration(UUID id, boolean created) {
+    }
+
+    private UUID register(PortfolioView portfolio, PdfImportChannel channel, String idempotencyKey, String fileName,
+                          long size, String sha256, StoredFile stored, PdfInspection inspection) {
+        boolean textLayer = inspection.text().hasTextLayer();
+        PdfImport pdf = imports.save(new PdfImport(portfolio.creditorId(), portfolio.id(), channel, fileName,
+                size, sha256, stored.key(), inspection.pages(), textLayer, idempotencyKey));
+        analysis.remember(pdf, inspection.text());
+        jobQueue.enqueue(PdfMappingJobHandler.TYPE, new PdfMappingJobHandler.Payload(pdf.getId(), true), null,
+                PdfMappingJobHandler.deduplicationKey(pdf.getId()));
+        auditTrail.record(AuditEntry.of("pdf_import.received", RESOURCE, pdf.getId()).creditor(pdf.getCreditorId())
+                .created("portfolioId", pdf.getPortfolioId()).created("fileSha256", sha256)
+                .created("pages", inspection.pages()).created("textLayer", textLayer)
+                .meta("channel", channel.name()).meta("encrypted", inspection.encrypted()));
+        businessEvents.log(BusinessEvent.of(BusinessEventTypes.PDF_IMPORT_RECEIVED)
+                .creditor(pdf.getCreditorId()).portfolio(pdf.getPortfolioId()).reference(RESOURCE, pdf.getId())
+                .channel(channel.name()).attr("pages", inspection.pages()).attr("textLayer", textLayer)
+                .attr("fileSize", size));
+        metrics.received(pdf);
+        LOG.atInfo().addKeyValue("pdfImportId", pdf.getId()).addKeyValue("pages", inspection.pages())
+                .addKeyValue("textLayer", textLayer).addKeyValue("channel", channel).log("PDF recebido para importação");
+        return pdf.getId();
     }
 
     private byte[] read(UploadPdfCommand command) {

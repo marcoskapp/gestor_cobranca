@@ -31,7 +31,7 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
         webhook = webhook == null ? new Webhook(null, null, null, null, null, null, null) : webhook;
         pix = pix == null ? new Pix(null, null, null, null, null) : pix;
         evidence = evidence == null ? new Evidence(null) : evidence;
-        statement = statement == null ? new Statement(null, null) : statement;
+        statement = statement == null ? new Statement(null, null, null) : statement;
         expirationCheckInterval = expirationCheckInterval == null ? Duration.ofMinutes(15) : expirationCheckInterval;
         sandbox = sandbox == null ? new Sandbox(false) : sandbox;
         externalReview = externalReview == null ? new ExternalReview(null, null, null) : externalReview;
@@ -152,11 +152,16 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
         }
     }
 
-    public record Statement(Long maxSizeBytes, Integer maxLines) {
+    /** @param chunkSize linhas conciliadas por transação no processamento do extrato (decisão 866) */
+    public record Statement(Long maxSizeBytes, Integer maxLines, Integer chunkSize) {
 
         public Statement {
             maxSizeBytes = maxSizeBytes == null ? 10L * 1024 * 1024 : maxSizeBytes;
             maxLines = maxLines == null ? 50_000 : maxLines;
+            chunkSize = chunkSize == null ? 500 : chunkSize;
+            if (chunkSize < 1) {
+                throw new IllegalArgumentException("app.payment.statement.chunk-size deve ser positivo");
+            }
         }
     }
 

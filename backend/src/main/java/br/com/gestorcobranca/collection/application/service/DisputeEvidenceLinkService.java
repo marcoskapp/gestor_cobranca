@@ -97,21 +97,29 @@ class DisputeEvidenceLinkService implements DisputeEvidenceLinkUseCases {
         return new Package(route.tenantId(), route.requestId(), "contestacao-documentos.zip");
     }
 
+    /**
+     * Os metadados são lidos numa transação curta; a leitura do armazenamento e o envio ao cliente anônimo (que pode
+     * ser lento: até 20 evidências de 20 MB) correm só com o tenant definido, sem transação nem conexão do banco presa
+     * (decisão 869).
+     */
     @Override
     public void write(Package pack, OutputStream out) {
-        tenantExecution.inTenant(pack.tenantId(), "collection.dispute-link", () -> {
+        List<LinkFile> files = tenantExecution.callInTenant(pack.tenantId(), "collection.dispute-link", () -> {
             DisputeCreditorRequest request = requests.findById(pack.requestId()).orElseThrow();
-            List<DisputeEvidence> files = evidences.findByDisputeIdOrderByCreatedAtAsc(request.getDisputeId()).stream()
-                    .filter(e -> request.getEvidenceIds().contains(e.getId())).toList();
+            return evidences.findByDisputeIdOrderByCreatedAtAsc(request.getDisputeId()).stream()
+                    .filter(e -> request.getEvidenceIds().contains(e.getId()))
+                    .map(e -> new LinkFile(e.getFileKey(), e.getFileName()))
+                    .toList();
+        });
+        tenantExecution.withTenantContext(pack.tenantId(), "collection.dispute-link", () -> {
             try {
                 ZipOutputStream zip = new ZipOutputStream(out);
                 Set<String> names = new HashSet<>();
                 int n = 0;
-                for (DisputeEvidence e : files) {
+                for (LinkFile file : files) {
                     n++;
-                    String name = uniqueName(names, n, e.getFileName());
-                    zip.putNextEntry(new ZipEntry(name));
-                    try (InputStream in = fileStorage.open(e.getFileKey())) {
+                    zip.putNextEntry(new ZipEntry(uniqueName(names, n, file.name())));
+                    try (InputStream in = fileStorage.open(file.key())) {
                         in.transferTo(zip);
                     }
                     zip.closeEntry();
@@ -122,6 +130,10 @@ class DisputeEvidenceLinkService implements DisputeEvidenceLinkUseCases {
                 throw new UncheckedIOException("Falha ao entregar as evidências do link", e);
             }
         });
+    }
+
+    /** Arquivo a entregar: chave no armazenamento e nome original. */
+    private record LinkFile(String key, String name) {
     }
 
     @Override

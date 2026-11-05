@@ -177,6 +177,13 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
     public AdjustmentView request(UUID titleId, AdjustmentCommand command, EvidenceUpload upload) {
         accessScope.requirePermission(Permission.TITLE_AMOUNT_ADJUST);
         Guard.require(command != null, "title_amount.required", "Dados da correção obrigatórios");
+        // upload antes do lock (decisão 870): o envio ao armazenamento não segura a linha do título, que pagamentos,
+        // estornos e cargas também travam. O escopo é conferido antes, sem carregar o título; o arquivo de um pedido
+        // recusado depois é removido no rollback.
+        UUID creditorId = titles.findCreditorIdById(titleId).orElseThrow(() -> ResourceNotFoundException.of(TITLE, titleId));
+        accessScope.requireVisible(TITLE, titleId, creditorId);
+        accessScope.requireCreditor(creditorId);
+        TitleAmountAdjustment.Evidence evidence = upload == null ? null : store(upload);
         DebtTitle title = lockForCommand(titleId);
         requireAdjustable(title);
         Guard.requireState(!adjustments.existsByTitleIdAndStatus(titleId, AmountAdjustmentStatus.PENDING_APPROVAL),
@@ -191,7 +198,6 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         Map<LedgerComponent, Money> balances = balances(existing);
         Instant now = Instant.now(clock);
         Actor actor = currentActor.get();
-        TitleAmountAdjustment.Evidence evidence = upload == null ? null : store(upload);
         TitleAmountAdjustment adjustment = new TitleAmountAdjustment(title, balances, targets, reason, command.note(),
                 command.disputeId(), evidence, threshold(), actor.id(), actor.name(), now);
         if (adjustment.getApprovalMode() == AmountAdjustmentMode.WITHIN_LIMIT) {

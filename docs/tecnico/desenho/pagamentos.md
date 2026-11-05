@@ -112,6 +112,16 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
 ## 8. Conciliação (F15)
 
 - Importação (`POST /payment/reconciliation/statements`, multipart): arquivo no `FileStorage` (`PAYMENT_RETURN`) com SHA-256; o mesmo arquivo de novo → 409; processamento assíncrono (`payment.statement_import`), restrito opcionalmente a um credor. Formatos: `CSV_GENERIC`; `CNAB_240`/`CNAB_400` aceitos na API como porta futura (sem leitor → 422).
+- Processamento em lotes (decisões 866 e 871; `StatementImportJob`, `transactional() = false`): transação curta marca
+  `PROCESSING`; o arquivo é lido e interpretado fora de transação; as linhas são conciliadas em lotes de
+  `statement.chunk-size` (500), cada lote na própria transação — os locks de pagamentos e instruções duram só o lote e as
+  baixas seguem para a negociação a cada lote; no fim, as contagens são apuradas sobre as linhas gravadas. Falha no meio
+  desfaz só o lote corrente; a nova tentativa retoma pulando as linhas já gravadas (índice único `(import_id,
+  line_number)`, `V0805`), sem baixa duplicada, e refaz a impressão digital das linhas repetidas na ordem do arquivo
+  (métrica `payment.reconciliation.lines_resumed`). Esgotadas as 3 tentativas, a importação fica `FAILED`
+  (`statement.processing_failed`) com as linhas e baixas já gravadas e as contagens delas (auditoria
+  `statement_import.failed`). Teste: `PaymentStatementResumeIT` (falha forçada por gatilho no segundo lote, retomada
+  sem baixa duplicada; tentativas esgotadas).
 - Por linha (`StatementMatcher`): débito → ignorado; mesma transação já importada (impressão digital: `id_transacao` + sentido, ou data+valor+sentido+referência+ocorrência no arquivo) → `IGNORED_DUPLICATE`, sem nova baixa; `id_transacao` = `endToEndId`/id do provedor ou referência externa de pagamento confirmado → concilia; `referencia` = `txid` ou id de instrução (sem pagamento ainda: **o arquivo de retorno é a confirmação** — cria pagamento integrado `STATEMENT`, aloca e concilia), id de pagamento ou id de parcela (pagamento confirmado com mesmo valor e data na tolerância `reconciliationDateToleranceDays`); sem correspondência → `UNMATCHED`.
 - Divergências (`payment.divergence`): `AMOUNT_MISMATCH`, `DUPLICATE_PAYMENT`, `UNMATCHED`, `NOT_CONFIRMED`, `PARTIAL_REFUND`. Resolução com justificativa obrigatória e auditoria: `MATCHED_PAYMENT` (concilia manualmente o pagamento indicado e vincula a linha; **quem informou o pagamento externo não o concilia** — `payment.self_reconciliation`), `ACCEPTED` ou `DISMISSED`. Divergência sem credor só é visível a quem tem todos os credores. A descrição da linha do banco (pode conter nome/documento do pagador) fica criptografada e é exibida mascarada.
 
@@ -159,7 +169,7 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 
 ## 12. Parâmetros (`app.payment.*`)
 
-`defaults.external-review-threshold` (500,00), `defaults.pix-expiration-seconds` (86400), `defaults.pix-due-validity-days` (30), `defaults.reconciliation-date-tolerance-days` (3); `webhook.public-base-url`, `max-body-bytes`, `requests-per-minute`, `max-event-age`, `max-clock-skew`, `client-certificate-header`; `pix.connect-timeout`, `read-timeout`, `token-refresh-margin`, `scope`; `evidence.max-size-bytes`; `statement.max-size-bytes`, `max-lines`; `expiration-check-interval`; `review-status.rejected-window` (P30D), `review-status.max-rejected` (5); `sandbox.enabled` (recusado em `prod`). Testes: sandbox ligado e URL pública local — nenhum teste acessa a rede (o adaptador do BACEN é testado com `MockRestServiceServer`).
+`defaults.external-review-threshold` (500,00), `defaults.pix-expiration-seconds` (86400), `defaults.pix-due-validity-days` (30), `defaults.reconciliation-date-tolerance-days` (3); `webhook.public-base-url`, `max-body-bytes`, `requests-per-minute`, `max-event-age`, `max-clock-skew`, `client-certificate-header`; `pix.connect-timeout`, `read-timeout`, `token-refresh-margin`, `scope`; `evidence.max-size-bytes`; `statement.max-size-bytes`, `max-lines`, `chunk-size` (500); `expiration-check-interval`; `review-status.rejected-window` (P30D), `review-status.max-rejected` (5); `sandbox.enabled` (recusado em `prod`). Testes: sandbox ligado e URL pública local — nenhum teste acessa a rede (o adaptador do BACEN é testado com `MockRestServiceServer`).
 
 ## 13. Decisões
 

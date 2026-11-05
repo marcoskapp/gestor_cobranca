@@ -375,6 +375,8 @@ app:
     statement:
       max-size-bytes: 10485760
       max-lines: 50000
+      # linhas conciliadas por transação (lotes com retomada; decisão 866)
+      chunk-size: 500
     expiration-check-interval: PT15M
     # Controle acumulado de pagamentos externos (sem segunda pessoa só até estes totais na janela).
     # Fracionar um valor alto em pagamentos abaixo do limite por pagamento não dispensa a revisão.

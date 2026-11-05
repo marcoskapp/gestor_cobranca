@@ -45,6 +45,12 @@ class PdfMappingJobHandler implements JobHandler<PdfMappingJobHandler.Payload> {
         return MAX_ATTEMPTS;
     }
 
+    /** As chamadas à IA (até minutos) correm fora de transação; o mapeamento abre as próprias, curtas (decisão 867). */
+    @Override
+    public boolean transactional() {
+        return false;
+    }
+
     @Override
     public void handle(JobContext context, Payload payload) {
         mapping.map(payload.pdfImportId(), payload.useTemplates(), context.attempt() >= MAX_ATTEMPTS);

@@ -203,6 +203,20 @@ Cada mudança de mapa cria uma revisão (`pdf_map_revision`, append-only) e zera
 pode mudar). Edição, decisão, aprovação e salvar mapa exigem a **revisão** que o usuário viu (409
 `pdf_import.revision_changed`) e bloqueiam a linha (`SELECT … FOR UPDATE`).
 
+**Sem transação longa (decisões 867–868)**:
+
+- **Envio** (`upload`, `Propagation.NOT_SUPPORTED`): leitura do arquivo, abertura segura (até 200 páginas de texto,
+  segundos de CPU) e gravação no S3 correm sem conexão do banco presa. O banco entra em transações curtas: a consulta
+  de idempotência/duplicidade e o registro (que repete a consulta, para envios iguais em corrida; o índice único
+  `uq_pdf_import_active_file` é a última proteção). Registro recusado ou não confirmado remove o arquivo já gravado; o
+  reenvio com a mesma chave que perdeu a corrida também remove a cópia dele e devolve a importação já criada.
+- **Mapeamento** (job `ingestion.pdf-map`, `transactional() = false`): a linha da importação só fica bloqueada em
+  transações curtas — reivindicar (`RECEIVED → MAPPING`) e gravar o resultado (mapa salvo, proposta, leitura visual,
+  `AWAITING_MAP` ou `FAILED`). A leitura do arquivo, a renderização das páginas e as chamadas ao modelo (até minutos)
+  acontecem entre elas. Descartar, editar ou pedir novo mapa não esperam a IA; se a importação saiu de `MAPPING` ou mudou
+  de revisão durante a chamada, o resultado é ignorado (consumo só nas métricas `ingestion.pdf.ai.*`, desfecho
+  `ingestion.pdf.mapping{outcome=discarded}`). Falha transitória da IA desfaz só a transação curta e o job tenta de novo.
+
 **Aprovação** ("Concordo, importar"): sem bloqueios; justificativa se os totais não conferem; declaração na leitura
 visual. Gera o CSV do layout canônico (UTF-8, `;`, aspas em todos os campos; colunas presentes nos títulos; títulos
 excluídos fora) chamado `<pdf>-pdf-r<revisão>.csv` e chama `ImportReviewUseCases.start` **na mesma transação** — a
@@ -315,7 +329,9 @@ trilha. O CSV canônico gerado segue a guarda dos arquivos de importação.
   páginas demais, imagem), `PdfMapProposerTest` (mascaramento, correção, proposta inválida), `ConverseTranslatorImageTest`.
 - Integração: `PdfImportIT` (envio → mapa da IA dublê → edição → exclusão → aprovação → conferência com o lote validado;
   idempotência; mapa salvo reaplicado sem IA; justificativa de totais; leitura visual com conferência reforçada; IA
-  indisponível → mapa manual; escopo por credor), `PublicApiPdfImportIT`, `PublicApiContractIT`.
+  indisponível → mapa manual; escopo por credor; descarte durante a chamada à IA concluído sem esperar e resultado
+  tardio ignorado; envio gravando no armazenamento fora de transação, com idempotência e duplicidade mantidas),
+  `PublicApiPdfImportIT`, `PublicApiContractIT`.
 - Frontend: regras do mapa, envio, editor do mapa e tela de validação.
 - Sandbox: `SandboxDemoPdfCompatibilityTest` (os PDFs fictícios de demonstração e os mapas do sandbox — o salvo do
   histórico e o gabarito manual da tabela — com o leitor, o intérprete e as verificações reais; bloqueio do PDF com

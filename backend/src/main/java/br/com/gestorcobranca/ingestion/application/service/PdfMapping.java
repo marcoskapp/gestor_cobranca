@@ -23,7 +23,9 @@ import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -32,6 +34,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * Mapeamento de uma importação PDF (job {@link PdfMappingJobHandler}), na ordem:
@@ -61,11 +64,13 @@ class PdfMapping {
     private final BusinessEventLogger businessEvents;
     private final PdfImportMetrics metrics;
     private final PdfImportProperties properties;
+    private final TransactionTemplate tx;
     private final Clock clock;
 
     PdfMapping(PdfImportRepository imports, PdfLayoutTemplateRepository templates, PdfAnalysis analysis,
                PdfMapApplier applier, PdfMapProposer proposer, PdfDocumentReader reader, AuditTrail auditTrail,
-               BusinessEventLogger businessEvents, PdfImportMetrics metrics, PdfImportProperties properties, Clock clock) {
+               BusinessEventLogger businessEvents, PdfImportMetrics metrics, PdfImportProperties properties,
+               PlatformTransactionManager transactionManager, Clock clock) {
         this.imports = imports;
         this.templates = templates;
         this.analysis = analysis;
@@ -76,32 +81,108 @@ class PdfMapping {
         this.businessEvents = businessEvents;
         this.metrics = metrics;
         this.properties = properties;
+        this.tx = new TransactionTemplate(transactionManager);
+        this.tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.clock = clock;
     }
 
     /**
+     * Sem transação própria (o job roda com {@code transactional() = false}): a importação só fica bloqueada nas
+     * transações curtas de reivindicar e de gravar o resultado; a leitura do arquivo e as chamadas ao modelo (até
+     * minutos) acontecem entre elas, sem conexão nem lock presos (decisão 867). Se a importação saiu de
+     * {@code MAPPING} ou teve a revisão alterada no meio (ex.: descartada), o resultado da IA é ignorado.
+     *
      * @param useTemplates procura mapa salvo (falso quando o usuário pediu nova proposta à IA)
      * @param lastAttempt  última tentativa do job: falha transitória da IA vira {@code AWAITING_MAP}
      */
-    @Transactional
     void map(UUID importId, boolean useTemplates, boolean lastAttempt) {
+        PdfImport claimed = tx.execute(s -> claim(importId));
+        if (claimed == null) {
+            return;
+        }
+        Claim claim = new Claim(importId, claimed.getMapRevision(), clock.instant());
+        if (!claimed.hasTextLayer()) {
+            readVisually(claim, claimed, lastAttempt);
+            return;
+        }
+        PdfText text = analysis.text(claimed);
+        if (useTemplates) {
+            Boolean reused = inMapping(claim, pdf -> reuseTemplate(pdf, text, claim.started()));
+            if (reused == null || reused) {
+                return;
+            }
+        }
+        if (!proposer.available()) {
+            locked(claim, pdf -> {
+                awaitMap(pdf, "pdf_map.ai_disabled", "Nenhum mapa salvo do credor casou com este layout e a IA está "
+                        + "desligada neste ambiente. Descreva o mapa na tela.", claim.started());
+                return true;
+            });
+            return;
+        }
+        PdfMapProposer.Proposal proposal;
+        try {
+            proposal = proposer.propose(importId, claimed.getTenantId(), text);
+        } catch (ModelException e) {
+            locked(claim, pdf -> aiFailure(pdf, e, claim.started(), lastAttempt));
+            return;
+        }
+        if (!locked(claim, pdf -> {
+            proposal.usage().forEach(u -> usage(pdf, u));
+            if (proposal.map() == null) {
+                awaitMap(pdf, "pdf_map.ai_invalid", "A IA não chegou a um mapa válido ("
+                        + String.join(", ", proposal.problems().stream().map(MapProblem::code).distinct().toList())
+                        + "): ajuste o mapa na tela", claim.started());
+            } else {
+                finished(pdf, applier.apply(pdf, proposal.map(), MapOrigin.AI, null), MapOrigin.AI, claim.started(),
+                        BusinessEventTypes.PDF_IMPORT_MAP_PROPOSED);
+            }
+            return true;
+        })) {
+            discardedResult(claim, MapOrigin.AI, proposal.usage());
+        }
+    }
+
+    /** Reivindicação do mapeamento (importação recebida ou em mapeamento) e revisão do mapa no início. */
+    private record Claim(UUID importId, int revision, Instant started) {
+    }
+
+    private PdfImport claim(UUID importId) {
         PdfImport pdf = imports.findByIdForUpdate(importId).orElse(null);
         if (pdf == null || !(pdf.getStatus() == PdfImportStatus.RECEIVED || pdf.getStatus() == PdfImportStatus.MAPPING)) {
-            return;
+            return null;
         }
         if (pdf.getStatus() == PdfImportStatus.RECEIVED) {
             pdf.startMapping();
+            return imports.save(pdf);
         }
-        Instant started = clock.instant();
-        if (pdf.hasTextLayer()) {
-            PdfText text = analysis.text(pdf);
-            if (useTemplates && reuseTemplate(pdf, text, started)) {
-                return;
-            }
-            propose(pdf, text, started, lastAttempt);
-        } else {
-            readVisually(pdf, started, lastAttempt);
-        }
+        return pdf;
+    }
+
+    /**
+     * Reabre a importação bloqueada numa transação curta e aplica a ação; nada faz se ela saiu de {@code MAPPING} ou
+     * mudou de revisão desde a reivindicação.
+     *
+     * @return o retorno da ação, ou {@code false} se a importação não está mais neste mapeamento
+     */
+    private boolean locked(Claim claim, Predicate<PdfImport> action) {
+        return Boolean.TRUE.equals(inMapping(claim, action));
+    }
+
+    /** Como {@link #locked}, distinguindo: {@code null} se a importação não está mais neste mapeamento. */
+    private Boolean inMapping(Claim claim, Predicate<PdfImport> action) {
+        return tx.execute(s -> imports.findByIdForUpdate(claim.importId())
+                .filter(pdf -> pdf.getStatus() == PdfImportStatus.MAPPING && pdf.getMapRevision() == claim.revision())
+                .map(action::test)
+                .orElse(null));
+    }
+
+    /** A IA respondeu, mas a importação saiu do mapeamento no meio: o consumo fica só na métrica e no log técnico. */
+    private void discardedResult(Claim claim, MapOrigin origin, List<PdfMapProposer.CallUsage> calls) {
+        calls.forEach(metrics::usage);
+        metrics.mapped(origin.name(), "discarded", Duration.between(claim.started(), clock.instant()));
+        LOG.atInfo().addKeyValue("pdfImportId", claim.importId()).addKeyValue("aiCalls", calls.size())
+                .log("Resultado da IA ignorado: a importação saiu do mapeamento durante a chamada");
     }
 
     private boolean reuseTemplate(PdfImport pdf, PdfText text, Instant started) {
@@ -119,64 +200,54 @@ class PdfMapping {
         return false;
     }
 
-    private void propose(PdfImport pdf, PdfText text, Instant started, boolean lastAttempt) {
+    private void readVisually(Claim claim, PdfImport claimed, boolean lastAttempt) {
         if (!proposer.available()) {
-            awaitMap(pdf, "pdf_map.ai_disabled", "Nenhum mapa salvo do credor casou com este layout e a IA está "
-                    + "desligada neste ambiente. Descreva o mapa na tela.", started);
-            return;
-        }
-        PdfMapProposer.Proposal proposal;
-        try {
-            proposal = proposer.propose(pdf.getId(), pdf.getTenantId(), text);
-        } catch (ModelException e) {
-            aiFailure(pdf, e, started, lastAttempt);
-            return;
-        }
-        proposal.usage().forEach(u -> usage(pdf, u));
-        if (proposal.map() == null) {
-            awaitMap(pdf, "pdf_map.ai_invalid", "A IA não chegou a um mapa válido ("
-                    + String.join(", ", proposal.problems().stream().map(MapProblem::code).distinct().toList())
-                    + "): ajuste o mapa na tela", started);
-            return;
-        }
-        PdfAnalysis.Result result = applier.apply(pdf, proposal.map(), MapOrigin.AI, null);
-        finished(pdf, result, MapOrigin.AI, started, BusinessEventTypes.PDF_IMPORT_MAP_PROPOSED);
-    }
-
-    private void readVisually(PdfImport pdf, Instant started, boolean lastAttempt) {
-        if (!proposer.available()) {
-            pdf.fail("pdf_import.no_text_layer", "O PDF não tem camada de texto (digitalizado) e a leitura visual "
-                    + "pela IA está desligada neste ambiente. Peça ao credor o PDF gerado pelo sistema (com texto)");
-            imports.save(pdf);
-            failedEvent(pdf, "pdf_import.no_text_layer", started);
+            locked(claim, pdf -> {
+                pdf.fail("pdf_import.no_text_layer", "O PDF não tem camada de texto (digitalizado) e a leitura visual "
+                        + "pela IA está desligada neste ambiente. Peça ao credor o PDF gerado pelo sistema (com texto)");
+                imports.save(pdf);
+                failedEvent(pdf, "pdf_import.no_text_layer", claim.started());
+                return true;
+            });
             return;
         }
         PdfMapProposer.Visual visual;
         try {
-            byte[] content = analysis.content(pdf);
+            byte[] content = analysis.content(claimed);
             List<RenderedPage> pages = new ArrayList<>();
-            for (int p = 1; p <= pdf.getPageCount(); p++) {
+            for (int p = 1; p <= claimed.getPageCount(); p++) {
                 pages.add(reader.render(content, p, properties.visualDpi()));
             }
-            visual = proposer.readVisually(pdf.getId(), pdf.getTenantId(), pages);
+            visual = proposer.readVisually(claim.importId(), claimed.getTenantId(), pages);
         } catch (ModelException e) {
-            aiFailure(pdf, e, started, lastAttempt);
+            locked(claim, pdf -> aiFailure(pdf, e, claim.started(), lastAttempt));
             return;
         } catch (PdfMapProposer.VisualReadingFailed e) {
-            pdf.fail("pdf_import.visual_reading_failed", e.getMessage());
-            imports.save(pdf);
-            failedEvent(pdf, "pdf_import.visual_reading_failed", started);
+            locked(claim, pdf -> {
+                pdf.fail("pdf_import.visual_reading_failed", e.getMessage());
+                imports.save(pdf);
+                failedEvent(pdf, "pdf_import.visual_reading_failed", claim.started());
+                return true;
+            });
             return;
         }
-        visual.usage().forEach(u -> usage(pdf, u));
-        PdfAnalysis.Result result = applier.applyVisual(pdf, visual.reading());
-        finished(pdf, result, MapOrigin.VISUAL, started, BusinessEventTypes.PDF_IMPORT_MAP_PROPOSED);
+        if (!locked(claim, pdf -> {
+            visual.usage().forEach(u -> usage(pdf, u));
+            finished(pdf, applier.applyVisual(pdf, visual.reading()), MapOrigin.VISUAL, claim.started(),
+                    BusinessEventTypes.PDF_IMPORT_MAP_PROPOSED);
+            return true;
+        })) {
+            discardedResult(claim, MapOrigin.VISUAL, visual.usage());
+        }
     }
 
-    private void aiFailure(PdfImport pdf, ModelException e, Instant started, boolean lastAttempt) {
+    /**
+     * @return {@code true} depois de registrar o desfecho; falha transitória fora da última tentativa é relançada
+     *     (desfaz só a transação curta, a importação segue em mapeamento e o job tenta de novo)
+     */
+    private boolean aiFailure(PdfImport pdf, ModelException e, Instant started, boolean lastAttempt) {
         boolean permanent = e instanceof ModelRejectedException;
         if (!permanent && !lastAttempt) {
-            // falha transitória: o job tenta de novo (a transação desfeita mantém a importação em mapeamento)
             throw e;
         }
         LOG.atWarn().addKeyValue("pdfImportId", pdf.getId()).addKeyValue("outcome", e.code())
@@ -189,6 +260,7 @@ class PdfMapping {
             imports.save(pdf);
             failedEvent(pdf, "pdf_import.ai_unavailable", started);
         }
+        return true;
     }
 
     private void awaitMap(PdfImport pdf, String code, String message, Instant started) {
