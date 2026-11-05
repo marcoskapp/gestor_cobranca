@@ -26,6 +26,12 @@ public interface UserDirectory {
     Set<UUID> teamsOf(UUID userId);
 
     /**
+     * E-mail corporativo de um usuário ativo da assessoria, para comunicações operacionais em nome dele (ex.: resposta
+     * e cópia de um pedido de contestação ao credor). Vazio para usuário inexistente ou inativo. Nunca registrar em log.
+     */
+    Optional<String> workEmail(UUID userId);
+
+    /**
      * @param permissions  permissões efetivas (união dos perfis ativos)
      * @param teamIds      equipes ativas do usuário
      */

@@ -31,6 +31,12 @@ public interface AnalyticsQueries {
     /** Confiabilidade: integrações, mensagens, conciliação, jobs e importações. */
     ReliabilityReport reliability(ReportFilter filter);
 
+    /**
+     * Contestações: volume por tipo, origem e credor, tempo médio de resolução, cumprimento do prazo, taxa de
+     * procedência, tempo de resposta do credor e fila por responsável (leitura ao vivo).
+     */
+    DisputeReport disputes(ReportFilter filter);
+
     /** Carimbo "dados até" de cada conjunto materializado da assessoria. */
     List<DatasetFreshness> freshness();
 
@@ -197,5 +203,38 @@ public interface AnalyticsQueries {
 
     record ReliabilityReport(ReportMeta meta, IntegrationHealth integrations, MessageHealth messages,
                              ReconciliationHealth reconciliation, JobHealth jobs, ImportHealth imports) {
+    }
+
+    // ------------------------------------------------------------- contestações
+
+    /**
+     * @param opened                     abertas no período
+     * @param resolved                   resolvidas (com resultado) no período
+     * @param withdrawn                  com desistência no período
+     * @param openNow                    abertas ou em análise agora (fila)
+     * @param overdueNow                 abertas com o prazo de resposta ao devedor vencido
+     * @param averageResolutionDays      média de dias corridos da abertura à resolução (resolvidas no período)
+     * @param withinDeadline             resolvidas até o prazo de resposta ÷ resolvidas no período
+     * @param upheldRate                 procedentes e parcialmente procedentes ÷ resolvidas no período
+     * @param averageCreditorResponseHours média de horas entre o envio do pedido e a resposta do credor
+     */
+    record DisputeTotals(long opened, long resolved, long withdrawn, long openNow, long overdueNow,
+                         BigDecimal averageResolutionDays, Ratio withinDeadline, Ratio upheldRate,
+                         long creditorRequestsSent, long creditorRequestsAnswered,
+                         BigDecimal averageCreditorResponseHours, long creditorAwaitingNow, long creditorOverdueNow) {
+    }
+
+    record DisputeRow(String key, String label, long opened, long resolved, long upheld, Ratio upheldRate,
+                      Ratio withinDeadline, BigDecimal averageResolutionDays, long openNow, long overdueNow,
+                      long creditorRequestsAnswered, BigDecimal averageCreditorResponseHours) {
+    }
+
+    /** @param key id do responsável ou {@code -} (sem responsável) */
+    record DisputeBacklogRow(String key, String label, long open, long overdue, long internalOverdue,
+                             long awaitingCreditor) {
+    }
+
+    record DisputeReport(ReportMeta meta, LocalDate referenceDate, DisputeTotals totals, List<DisputeRow> byType,
+                         List<DisputeRow> byOrigin, List<DisputeRow> byCreditor, List<DisputeBacklogRow> backlog) {
     }
 }

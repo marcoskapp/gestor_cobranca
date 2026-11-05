@@ -13,10 +13,11 @@ import java.time.Duration;
  * @param dailyCron            job diário (fuso de operação): quebra de promessas e prazo de contestações
  * @param batchSize            casos/devedores por job de sincronização, roteamento e recálculo
  * @param evidence             anexos de evidência de contestações
+ * @param disputes             rotina de contestações (follow-up do credor e link seguro das evidências)
  */
 @ConfigurationProperties(prefix = "app.collection")
 public record CollectionProperties(Defaults defaults, Duration callbackCheckInterval, String dailyCron,
-                                   Integer batchSize, Evidence evidence) {
+                                   Integer batchSize, Evidence evidence, Disputes disputes) {
 
     public CollectionProperties {
         defaults = defaults == null ? new Defaults(null, null, null, null) : defaults;
@@ -24,6 +25,7 @@ public record CollectionProperties(Defaults defaults, Duration callbackCheckInte
         dailyCron = dailyCron == null ? "0 10 0 * * *" : dailyCron;
         batchSize = batchSize == null ? 200 : batchSize;
         evidence = evidence == null ? new Evidence(null) : evidence;
+        disputes = disputes == null ? new Disputes(null, null, null, null) : disputes;
     }
 
     public record Defaults(Integer promiseToleranceDays, Integer promiseMaxDays, Integer callbackToleranceMinutes,
@@ -39,6 +41,24 @@ public record CollectionProperties(Defaults defaults, Duration callbackCheckInte
         public CollectionSettings.Values values() {
             return new CollectionSettings.Values(promiseToleranceDays, promiseMaxDays, callbackToleranceMinutes,
                     disputeResponseDays);
+        }
+    }
+
+    /**
+     * @param followUpCron           acompanhamento diário dos pedidos ao credor (lembrete e retorno vencido), no fuso de
+     *                               operação — em horário comercial, para o credor receber no expediente
+     * @param linkMaxDownloads       downloads permitidos por link seguro de evidências
+     * @param linkRequestsPerMinute  limite de acessos ao link por IP e minuto, por instância
+     * @param mailMaxAttempts        tentativas de envio de cada e-mail ao credor
+     */
+    public record Disputes(String followUpCron, Integer linkMaxDownloads, Integer linkRequestsPerMinute,
+                           Integer mailMaxAttempts) {
+
+        public Disputes {
+            followUpCron = followUpCron == null ? "0 5 8 * * *" : followUpCron;
+            linkMaxDownloads = linkMaxDownloads == null ? 20 : linkMaxDownloads;
+            linkRequestsPerMinute = linkRequestsPerMinute == null ? 30 : linkRequestsPerMinute;
+            mailMaxAttempts = mailMaxAttempts == null ? 6 : mailMaxAttempts;
         }
     }
 

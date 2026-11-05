@@ -465,6 +465,99 @@ class AnalyticsQueryService implements AnalyticsQueries {
         });
     }
 
+    // ============================================================ contestações
+
+    @Override
+    public DisputeReport disputes(ReportFilter filter) {
+        access.requireAny("analytics_disputes", Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW,
+                Permission.DISPUTE_MANAGE);
+        return metrics.query("disputes", "NONE", () -> {
+            Context ctx = context(filter, false);
+            Slice s = ctx.slice();
+            LocalDate today = LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
+            List<String> notApplicable = new ArrayList<>();
+            notApplicableIfSet(notApplicable, filter);
+            if (!filter.channels().isEmpty()) {
+                notApplicable.add("channels");
+            }
+            AnalyticsReader.DisputeRaw total = reader.disputes(s, "ALL", today).stream().findFirst()
+                    .orElse(emptyDispute("ALL"));
+            AnalyticsReader.CreditorRequestRaw requests = reader.creditorRequests(s, "ALL").stream().findFirst()
+                    .orElse(new AnalyticsReader.CreditorRequestRaw("ALL", 0, 0, BigDecimal.ZERO, 0, 0));
+            DisputeTotals totals = new DisputeTotals(total.opened(), total.resolved(), total.withdrawn(), total.openNow(),
+                    total.overdueNow(), average(total.resolutionDays(), total.resolved()),
+                    ratio(total.resolvedWithinDeadline(), total.resolved()), ratio(total.upheld(), total.resolved()),
+                    requests.sent(), requests.answered(), average(requests.responseHours(), requests.answered()),
+                    requests.awaitingNow(), requests.overdueNow());
+            List<DisputeRow> byType = disputeRows(s, "TYPE", today, Map.of());
+            List<DisputeRow> byOrigin = disputeRows(s, "ORIGIN", today, Map.of());
+            List<AnalyticsReader.DisputeRaw> creditorRaw = reader.disputes(s, "CREDITOR", today);
+            Map<String, String> creditorLabels = reader.labels(Dimension.CREDITOR,
+                    creditorRaw.stream().map(AnalyticsReader.DisputeRaw::key).toList());
+            List<DisputeRow> byCreditor = disputeRows(s, "CREDITOR", today, creditorLabels);
+
+            // fila por responsável: quem gerencia contestações (ou vê todas as pessoas) vê todos; os demais, só o
+            // que o escopo de pessoas permite (próprio ou equipe) — a linha "sem responsável" não é de pessoa
+            boolean peopleRestricted = false;
+            Set<UUID> visible = null;
+            if (!access.actor().has(Permission.DISPUTE_MANAGE)) {
+                PeopleScope scope = access.peopleScope();
+                if (scope != PeopleScope.ALL) {
+                    visible = scope == PeopleScope.NONE ? Set.of() : access.visibleUsers(scope, reader.teams());
+                    peopleRestricted = true;
+                }
+            }
+            Set<UUID> visibleUsers = visible;
+            List<AnalyticsReader.DisputeBacklogRaw> backlogRaw = reader.disputeBacklog(s, today).stream()
+                    .filter(b -> b.assigneeId() == null || visibleUsers == null || visibleUsers.contains(b.assigneeId()))
+                    .toList();
+            Map<String, String> userLabels = reader.labels(Dimension.OPERATOR, backlogRaw.stream()
+                    .map(AnalyticsReader.DisputeBacklogRaw::assigneeId).filter(Objects::nonNull).map(UUID::toString)
+                    .toList());
+            List<DisputeBacklogRow> backlog = backlogRaw.stream()
+                    .map(b -> {
+                        String key = b.assigneeId() == null ? NO_KEY : b.assigneeId().toString();
+                        String label = b.assigneeId() == null ? "Sem responsável" : userLabels.getOrDefault(key, key);
+                        return new DisputeBacklogRow(key, label, b.open(), b.overdue(), b.internalOverdue(),
+                                b.awaitingCreditor());
+                    })
+                    .sorted(Comparator.comparingLong(DisputeBacklogRow::open).reversed()
+                            .thenComparing(DisputeBacklogRow::label))
+                    .toList();
+            ReportMeta meta = meta(filter, "NONE", Instant.now(clock), notApplicable, peopleRestricted, List.of());
+            return new DisputeReport(meta, today, totals, byType, byOrigin, byCreditor, backlog);
+        });
+    }
+
+    private List<DisputeRow> disputeRows(Slice s, String groupBy, LocalDate today, Map<String, String> labels) {
+        Map<String, AnalyticsReader.CreditorRequestRaw> requests = reader.creditorRequests(s, groupBy).stream()
+                .collect(Collectors.toMap(AnalyticsReader.CreditorRequestRaw::key, r -> r));
+        return reader.disputes(s, groupBy, today).stream()
+                .filter(d -> d.opened() + d.resolved() + d.withdrawn() + d.openNow() > 0)
+                .map(d -> {
+                    AnalyticsReader.CreditorRequestRaw r = requests.get(d.key());
+                    long answered = r == null ? 0 : r.answered();
+                    return new DisputeRow(d.key(), labels.getOrDefault(d.key(), d.key()), d.opened(), d.resolved(),
+                            d.upheld(), ratio(d.upheld(), d.resolved()), ratio(d.resolvedWithinDeadline(), d.resolved()),
+                            average(d.resolutionDays(), d.resolved()), d.openNow(), d.overdueNow(), answered,
+                            r == null ? null : average(r.responseHours(), answered));
+                })
+                .sorted(Comparator.comparingLong(DisputeRow::opened).reversed().thenComparing(DisputeRow::key))
+                .toList();
+    }
+
+    private static AnalyticsReader.DisputeRaw emptyDispute(String key) {
+        return new AnalyticsReader.DisputeRaw(key, 0, 0, 0, 0, 0, BigDecimal.ZERO, 0, 0);
+    }
+
+    /** Média com 2 casas; nula sem itens. */
+    static BigDecimal average(BigDecimal sum, long count) {
+        if (count <= 0 || sum == null) {
+            return null;
+        }
+        return sum.divide(BigDecimal.valueOf(count), 2, java.math.RoundingMode.HALF_EVEN);
+    }
+
     @Override
     public List<DatasetFreshness> freshness() {
         access.requireAny("analytics_freshness", Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW,

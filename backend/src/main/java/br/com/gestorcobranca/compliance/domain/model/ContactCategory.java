@@ -1,0 +1,18 @@
+package br.com.gestorcobranca.compliance.domain.model;
+
+/**
+ * Natureza da comunicação com o devedor no porteiro de contato.
+ * <ul>
+ *   <li>{@link #COLLECTION}: contato de cobrança (padrão) — todas as regras: restrições, janela, feriados, limites
+ *       de frequência e intervalo mínimo; a tentativa conta para os limites.</li>
+ *   <li>{@link #TRANSACTIONAL}: resposta devida ao devedor por um pedido dele (ex.: resultado da contestação, CDC):
+ *       continuam valendo o opt-out e as demais restrições do devedor, do canal e do contato, a janela de horário,
+ *       os feriados e a anonimização; não se aplicam os limites de frequência nem o intervalo mínimo, nem a
+ *       suspensão de cobrança pedida pelo credor ({@code CREDITOR_REQUEST}). A tentativa é registrada com a
+ *       categoria e não conta para os limites de cobrança.</li>
+ * </ul>
+ */
+public enum ContactCategory {
+    COLLECTION,
+    TRANSACTIONAL
+}

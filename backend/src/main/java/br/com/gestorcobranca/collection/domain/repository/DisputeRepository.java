@@ -3,7 +3,6 @@ package br.com.gestorcobranca.collection.domain.repository;
 import br.com.gestorcobranca.shared.paging.ChangeQuery;
 
 import br.com.gestorcobranca.collection.domain.model.Dispute;
-import br.com.gestorcobranca.collection.domain.model.DisputeStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -27,13 +26,17 @@ public interface DisputeRepository {
     /** Abertas, ainda não marcadas como vencidas, com prazo antes de {@code today}. */
     List<Dispute> findOverdueCandidates(LocalDate today, int limit);
 
-    /**
-     * @param allowedCreditorIds nulo = sem restrição
-     * @param statuses           nulo = todos
-     */
     /** Leitura incremental: até {@code limit + 1} contestações do credor alteradas na janela, depois do cursor. */
     List<Dispute> findChanges(UUID creditorId, ChangeQuery query);
 
-    Page<Dispute> search(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses, Boolean overdue,
-                         Pageable pageable);
+    Page<Dispute> search(DisputeSearchCriteria criteria, Pageable pageable);
+
+    /** Contestações abertas por responsável (ausente = nenhuma). */
+    java.util.Map<UUID, Long> countOpenByAssignees(java.util.Collection<UUID> assigneeIds);
+
+    /** Contestações do devedor com ajuste sugerido pendente. */
+    List<Dispute> findPendingAdjustmentsByDebtorId(UUID debtorId);
+
+    /** Ajustes pendentes (varredura diária), em ordem de resolução. */
+    List<Dispute> findPendingAdjustments(int limit);
 }

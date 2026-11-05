@@ -14,7 +14,7 @@ public interface ContactAttemptRepository {
 
     ContactAttempt save(ContactAttempt attempt);
 
-    /** Instantes das tentativas do devedor no canal (todos os credores) a partir de {@code since}. */
+    /** Instantes das tentativas de cobrança do devedor no canal (todos os credores) a partir de {@code since}. */
     List<Instant> findAttemptTimes(UUID debtorId, ContactChannel channel, Instant since);
 
     /** @param allowedCreditorIds {@code null} = sem restrição */

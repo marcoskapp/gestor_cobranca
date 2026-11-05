@@ -80,6 +80,7 @@ class AnalyticsExportService implements AnalyticsExportUseCases {
             case "conversion" -> ReportTable.of(queries.conversion(filter, groupBy));
             case "productivity" -> ReportTable.of(queries.productivity(filter, groupBy));
             case "reliability" -> ReportTable.of(queries.reliability(filter));
+            case "disputes" -> ReportTable.of(queries.disputes(filter));
             default -> throw new BusinessRuleException("analytics.report_invalid", "Relatório desconhecido: " + report);
         };
         List<List<Object>> rows = new ArrayList<>();

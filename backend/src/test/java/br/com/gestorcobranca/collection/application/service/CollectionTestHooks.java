@@ -22,4 +22,12 @@ public final class CollectionTestHooks {
     public static int flagOverdueDisputes(ApplicationContext context) {
         return context.getBean(CollectionMaintenance.class).flagOverdueDisputes();
     }
+
+    public static int followUpCreditorRequests(ApplicationContext context) {
+        return context.getBean(CollectionMaintenance.class).followUpCreditorRequests();
+    }
+
+    public static int reconcileDisputeAdjustments(ApplicationContext context) {
+        return context.getBean(DisputeAdjustments.class).sweep(500);
+    }
 }

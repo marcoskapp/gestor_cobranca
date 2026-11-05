@@ -10,6 +10,7 @@ import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.Prod
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.ProductivityRow;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.RecoveryReport;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.RecoveryRow;
+import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.ReliabilityReport;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.ReportMeta;
 import br.com.gestorcobranca.analytics.domain.model.Ratio;
@@ -233,6 +234,43 @@ final class ReportTable {
                 .value("importacoes", "ALL", "Total", "p95_segundos", im.p95Seconds())
                 .ratio("importacoes", "ALL", "Total", "taxa_linhas_com_erro", im.rowErrorRate());
         return t;
+    }
+
+    static ReportTable of(AnalyticsQueries.DisputeReport r) {
+        ReportTable t = new ReportTable();
+        t.meta(r.meta());
+        var x = r.totals();
+        t.value("contestacoes", "ALL", "Total", "abertas_no_periodo", x.opened())
+                .value("contestacoes", "ALL", "Total", "resolvidas_no_periodo", x.resolved())
+                .value("contestacoes", "ALL", "Total", "desistencias_no_periodo", x.withdrawn())
+                .value("contestacoes", "ALL", "Total", "em_aberto", x.openNow())
+                .value("contestacoes", "ALL", "Total", "vencidas_em_aberto", x.overdueNow())
+                .value("contestacoes", "ALL", "Total", "media_dias_resolucao", x.averageResolutionDays())
+                .ratio("contestacoes", "ALL", "Total", "resolvidas_no_prazo", x.withinDeadline())
+                .ratio("contestacoes", "ALL", "Total", "taxa_procedencia", x.upheldRate())
+                .value("credor", "ALL", "Total", "pedidos_enviados", x.creditorRequestsSent())
+                .value("credor", "ALL", "Total", "pedidos_respondidos", x.creditorRequestsAnswered())
+                .value("credor", "ALL", "Total", "media_horas_resposta", x.averageCreditorResponseHours())
+                .value("credor", "ALL", "Total", "aguardando_agora", x.creditorAwaitingNow())
+                .value("credor", "ALL", "Total", "vencidos_agora", x.creditorOverdueNow());
+        disputeRows(t, "por_tipo", r.byType());
+        disputeRows(t, "por_origem", r.byOrigin());
+        disputeRows(t, "por_credor", r.byCreditor());
+        r.backlog().forEach(b -> t.value("fila_por_responsavel", b.key(), b.label(), "em_aberto", b.open())
+                .value("fila_por_responsavel", b.key(), b.label(), "vencidas", b.overdue())
+                .value("fila_por_responsavel", b.key(), b.label(), "prazo_interno_vencido", b.internalOverdue())
+                .value("fila_por_responsavel", b.key(), b.label(), "aguardando_credor", b.awaitingCreditor()));
+        return t;
+    }
+
+    private static void disputeRows(ReportTable t, String section, List<AnalyticsQueries.DisputeRow> rows) {
+        rows.forEach(d -> t.value(section, d.key(), d.label(), "abertas", d.opened())
+                .value(section, d.key(), d.label(), "resolvidas", d.resolved())
+                .ratio(section, d.key(), d.label(), "taxa_procedencia", d.upheldRate())
+                .ratio(section, d.key(), d.label(), "resolvidas_no_prazo", d.withinDeadline())
+                .value(section, d.key(), d.label(), "media_dias_resolucao", d.averageResolutionDays())
+                .value(section, d.key(), d.label(), "em_aberto", d.openNow())
+                .value(section, d.key(), d.label(), "media_horas_resposta_credor", d.averageCreditorResponseHours()));
     }
 
     private static void counts(ReportTable t, String section, List<CountRow> rows) {

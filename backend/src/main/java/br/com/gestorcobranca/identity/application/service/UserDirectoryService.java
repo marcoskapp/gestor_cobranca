@@ -79,6 +79,14 @@ class UserDirectoryService implements UserDirectory {
         return teams.findByMember(userId).stream().filter(Team::isActive).map(Team::getId).collect(Collectors.toUnmodifiableSet());
     }
 
+    @Override
+    public Optional<String> workEmail(UUID userId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        return users.findById(userId).filter(u -> u.getStatus() == UserStatus.ACTIVE).map(User::getEmail);
+    }
+
     private UserSummary summary(User user) {
         return new UserSummary(user.getId(), user.getName(), user.getStatus() == UserStatus.ACTIVE, user.isAllCreditors(),
                 user.getCreditorIds(), profileResolver.resolve(user).permissionNames(), teamsOf(user.getId()));

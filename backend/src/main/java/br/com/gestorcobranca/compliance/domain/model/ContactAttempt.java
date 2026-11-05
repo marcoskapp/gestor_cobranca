@@ -45,11 +45,21 @@ public class ContactAttempt extends TenantScopedEntity {
     @Column(name = "reference_id", updatable = false)
     private UUID referenceId;
 
+    /** Cobrança (conta para os limites) ou transacional (resposta devida ao devedor; não conta). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false, length = 20, updatable = false)
+    private ContactCategory category;
+
     protected ContactAttempt() {
     }
 
     public ContactAttempt(UUID debtorId, UUID creditorId, ContactChannel channel, Instant attemptedAt,
                           AttemptOrigin origin, String referenceType, UUID referenceId) {
+        this(debtorId, creditorId, channel, attemptedAt, origin, referenceType, referenceId, ContactCategory.COLLECTION);
+    }
+
+    public ContactAttempt(UUID debtorId, UUID creditorId, ContactChannel channel, Instant attemptedAt,
+                          AttemptOrigin origin, String referenceType, UUID referenceId, ContactCategory category) {
         Guard.require(debtorId != null, "attempt.debtor_required", "Devedor obrigatório");
         Guard.require(creditorId != null, "attempt.creditor_required", "Credor obrigatório");
         Guard.require(channel != null, "attempt.channel_required", "Canal obrigatório");
@@ -66,6 +76,7 @@ public class ContactAttempt extends TenantScopedEntity {
         this.origin = origin;
         this.referenceType = referenceId == null ? null : referenceType.trim();
         this.referenceId = referenceId;
+        this.category = category == null ? ContactCategory.COLLECTION : category;
     }
 
     public UUID getDebtorId() {
@@ -94,5 +105,9 @@ public class ContactAttempt extends TenantScopedEntity {
 
     public UUID getReferenceId() {
         return referenceId;
+    }
+
+    public ContactCategory getCategory() {
+        return category;
     }
 }

@@ -12,7 +12,7 @@
  */
 @ApplicationModule(displayName = "Communication",
         allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "compliance :: usecases",
-                "collection :: usecases"})
+                "collection :: usecases", "collection :: spi"})
 package br.com.gestorcobranca.communication;
 
 import org.springframework.modulith.ApplicationModule;

@@ -8,6 +8,7 @@ import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.Data
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.PortfolioReport;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.ProductivityReport;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.RecoveryReport;
+import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.DisputeReport;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries.ReliabilityReport;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsRefreshUseCases;
 import br.com.gestorcobranca.analytics.domain.model.ReportFilter;
@@ -84,6 +85,12 @@ class AnalyticsController {
     @Operation(summary = "Produtividade por operador ou equipe (escopo próprio, equipe ou todos)")
     ProductivityReport productivity(FilterParams params, @RequestParam(required = false) String groupBy) {
         return queries.productivity(params.toFilter(), groupBy);
+    }
+
+    @GetMapping("/disputes")
+    @PreAuthorize("hasAuthority('DASHBOARD_VIEW') or hasAuthority('REPORT_VIEW') or hasAuthority('DISPUTE_MANAGE')")
+    DisputeReport disputes(FilterParams params) {
+        return queries.disputes(params.toFilter());
     }
 
     @GetMapping("/reliability")

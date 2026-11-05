@@ -4,12 +4,15 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.OpenDisputeCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.publicapi.web.security.UsageRecords;
 import br.com.gestorcobranca.publicapi.web.v1.PublicApiModels.AgreementDto;
 import br.com.gestorcobranca.publicapi.web.v1.PublicApiModels.CaseDto;
+import br.com.gestorcobranca.publicapi.web.v1.PublicApiModels.CreditorRequestDto;
+import br.com.gestorcobranca.publicapi.web.v1.PublicApiModels.CreditorResponseDto;
 import br.com.gestorcobranca.publicapi.web.v1.PublicApiModels.DisputeDto;
 import br.com.gestorcobranca.publicapi.web.v1.PublicApiSupport.ListResponse;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
@@ -44,7 +47,8 @@ import java.util.UUID;
 
 /**
  * Situação da cobrança (somente leitura): casos e acordos com parcelas; contestações (consulta e abertura em nome do
- * credor, pelo caso de uso do collection — vincula os títulos e suspende a cobrança).
+ * credor, pelo caso de uso do collection — vincula os títulos e suspende a cobrança; pedidos da assessoria ao credor
+ * e resposta do credor).
  */
 @RestController
 @Validated
@@ -118,11 +122,7 @@ class CollectionController {
     @PreAuthorize("hasAuthority('SCOPE_disputes:read')")
     @Operation(summary = "Contestação")
     DisputeDto dispute(@PathVariable UUID id) {
-        DisputeView view = disputes.get(id);
-        if (!view.creditorId().equals(support.creditorId())) {
-            throw ResourceNotFoundException.of("dispute", id);
-        }
-        return DisputeDto.of(view);
+        return DisputeDto.of(ownDispute(id));
     }
 
     @PostMapping("/disputes")
@@ -138,12 +138,50 @@ class CollectionController {
         return dto;
     }
 
+    @GetMapping("/disputes/{id}/creditor-requests")
+    @PreAuthorize("hasAuthority('SCOPE_disputes:read')")
+    @Operation(summary = "Pedidos da assessoria ao credor na contestação",
+            description = "Pedidos formais de documentos/posição enviados aos contatos de contestação do credor, com prazo "
+                    + "pedido e situação (enviado, respondido, vencido).")
+    java.util.List<CreditorRequestDto> creditorRequests(@PathVariable UUID id) {
+        ownDispute(id);
+        return disputes.creditorRequests(id).stream().map(CreditorRequestDto::of).toList();
+    }
+
+    @PostMapping("/disputes/{id}/creditor-responses")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('SCOPE_disputes:write')")
+    @Operation(summary = "Responder ao pedido da assessoria na contestação",
+            description = "Posição do credor (CONFIRMS_DEBT, ACCEPTS_CLAIM, PARTIAL ou INFORMATION) e resumo. Sem requestId, "
+                    + "responde ao pedido mais recente aguardando retorno. A análise e a resolução continuam com a "
+                    + "assessoria. Documentos: pelo canal combinado com a assessoria (o e-mail do pedido).")
+    CreditorResponseDto respond(@PathVariable UUID id, @Valid @RequestBody CreditorResponseRequest r,
+                                HttpServletRequest http) {
+        ownDispute(id);
+        CreditorResponseDto dto = CreditorResponseDto.of(disputes.registerCreditorResponse(id,
+                new CreditorResponseCommand(r.position(), r.note(), r.requestId(), null), java.util.List.of()));
+        UsageRecords.add(http, 1);
+        return dto;
+    }
+
+    private DisputeView ownDispute(UUID id) {
+        DisputeView view = disputes.get(id);
+        if (!view.creditorId().equals(support.creditorId())) {
+            throw ResourceNotFoundException.of("dispute", id);
+        }
+        return view;
+    }
+
     private CaseView ownCase(UUID id) {
         CaseView view = cases.get(id);
         if (!view.creditorId().equals(support.creditorId())) {
             throw ResourceNotFoundException.of("collection_case", id);
         }
         return view;
+    }
+
+    record CreditorResponseRequest(@NotBlank @Pattern(regexp = "CONFIRMS_DEBT|ACCEPTS_CLAIM|PARTIAL|INFORMATION") String position,
+                                   @NotBlank @Size(max = 4000) String note, UUID requestId) {
     }
 
     record OpenDisputeRequest(@NotNull UUID caseId, @Size(max = 500) Set<UUID> titleIds,

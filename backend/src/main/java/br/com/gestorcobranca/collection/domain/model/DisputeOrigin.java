@@ -9,5 +9,13 @@ public enum DisputeOrigin {
     /** Informada pelo credor. */
     CREDITOR,
     /** Recebida por órgão de defesa do consumidor / jurídico. */
-    LEGAL
+    LEGAL;
+
+    /**
+     * A resposta fundamentada do resultado vai ao devedor pela assessoria (CDC) quando foi ele quem contestou (pelo
+     * operador ou pelo portal). Contestação do credor ou de órgão/jurídico é respondida a quem a abriu.
+     */
+    public boolean expectsDebtorResponse() {
+        return this == OPERATOR || this == DEBTOR;
+    }
 }

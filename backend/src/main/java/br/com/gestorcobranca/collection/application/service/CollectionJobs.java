@@ -48,6 +48,18 @@ class CollectionJobs {
     void daily() {
         forEachTenant("collection.promise_broken", maintenance::breakPromises);
         forEachTenant("collection.dispute_overdue", maintenance::flagOverdueDisputes);
+        forEachTenant("collection.dispute_adjustments", maintenance::reconcileDisputeAdjustments);
+        forEachTenant("collection.dispute_links", maintenance::purgeDisputeLinks);
+    }
+
+    /**
+     * Acompanhamento diário dos pedidos ao credor em horário comercial (padrão 08:05 no fuso de operação): lembrete
+     * antes do prazo e cobrança do retorno vencido.
+     */
+    @Scheduled(cron = "${app.collection.disputes.follow-up-cron:0 5 8 * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
+    @SchedulerLock(name = "collection.dispute-follow-up", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
+    void disputeFollowUp() {
+        forEachTenant("collection.dispute_follow_up", maintenance::followUpCreditorRequests);
     }
 
     private void forEachTenant(String job, Supplier<Integer> batch) {

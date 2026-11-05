@@ -105,17 +105,21 @@ final class CollectionViews {
                 p.getResolutionReason(), version(p.getVersion()));
     }
 
-    static DisputeView dispute(Dispute d, int evidenceCount, List<DisputedTitle> titles) {
+    static DisputeView dispute(Dispute d, int evidenceCount, List<DisputedTitle> titles, String assigneeName) {
         return new DisputeView(d.getId(), d.getCaseId(), d.getDebtorId(), d.getCreditorId(), d.getPortfolioId(),
                 d.getTitleIds(), titles, d.getType().name(), d.getOrigin().name(), d.getStatus().name(), d.getDescription(),
                 d.isBlocksCollection(), amount(d.getDisputedAmount()), d.getOpenedAt(), d.getResponseDueDate(),
                 d.isOverdue(), CollectionEnums.name(d.getOutcome()), d.getResolutionNote(), d.getResolvedAt(),
-                d.getResolvedBy(), evidenceCount, version(d.getVersion()));
+                d.getResolvedBy(), evidenceCount, d.getAssigneeId(), assigneeName, d.getAssignedAt(),
+                d.getInternalDueDate(), CollectionEnums.name(d.getDeadlineSource()), d.getAwaitingCreditorSince(),
+                CollectionEnums.name(d.getDebtorNoticeStatus()), CollectionEnums.name(d.getAdjustmentAction()),
+                CollectionEnums.name(d.getAdjustmentStatus()), amount(d.getAdjustmentBaseline()), d.getAdjustmentNote(),
+                d.getAdjustmentClosedAt(), version(d.getVersion()));
     }
 
     static EvidenceView evidence(DisputeEvidence e, String createdByName) {
         return new EvidenceView(e.getId(), e.getDisputeId(), e.getFileName(), e.getContentType(), e.getSize(),
-                e.getSha256(), e.getCreatedAt(), e.getCreatedBy(), createdByName);
+                e.getSha256(), e.getCreatedAt(), e.getCreatedBy(), createdByName, e.getCreditorResponseId());
     }
 
     static BigDecimal amount(Money money) {

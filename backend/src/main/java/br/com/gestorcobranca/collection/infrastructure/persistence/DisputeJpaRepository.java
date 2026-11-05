@@ -4,8 +4,10 @@ import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
 
 import br.com.gestorcobranca.collection.domain.model.Dispute;
-import br.com.gestorcobranca.collection.domain.model.DisputeStatus;
+import br.com.gestorcobranca.collection.domain.model.DebtorNoticeStatus;
+import br.com.gestorcobranca.collection.domain.model.DisputeAdjustmentStatus;
 import br.com.gestorcobranca.collection.domain.repository.DisputeRepository;
+import br.com.gestorcobranca.collection.domain.repository.DisputeSearchCriteria;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,8 +17,10 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 interface DisputeJpaRepository extends JpaRepository<Dispute, UUID>, JpaSpecificationExecutor<Dispute>,
@@ -52,22 +56,93 @@ interface DisputeJpaRepository extends JpaRepository<Dispute, UUID>, JpaSpecific
     }
 
     @Override
-    default Page<Dispute> search(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses,
-                                 Boolean overdue, Pageable pageable) {
+    default Page<Dispute> search(DisputeSearchCriteria c, Pageable pageable) {
         Specification<Dispute> spec = Specification.unrestricted();
-        if (allowedCreditorIds != null) {
-            spec = spec.and((root, query, cb) -> allowedCreditorIds.isEmpty() ? cb.disjunction()
-                    : root.get("creditorId").in(allowedCreditorIds));
+        if (c.allowedCreditorIds() != null) {
+            spec = spec.and((root, query, cb) -> c.allowedCreditorIds().isEmpty() ? cb.disjunction()
+                    : root.get("creditorId").in(c.allowedCreditorIds()));
         }
-        if (creditorId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("creditorId"), creditorId));
+        if (c.creditorId() != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("creditorId"), c.creditorId()));
         }
-        if (statuses != null && !statuses.isEmpty()) {
-            spec = spec.and((root, query, cb) -> root.get("status").in(statuses));
+        if (c.statuses() != null && !c.statuses().isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("status").in(c.statuses()));
         }
-        if (overdue != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("overdue"), overdue));
+        if (c.types() != null && !c.types().isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("type").in(c.types()));
+        }
+        if (c.origins() != null && !c.origins().isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("origin").in(c.origins()));
+        }
+        if (c.assigneeId() != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("assigneeId"), c.assigneeId()));
+        }
+        if (c.unassigned()) {
+            spec = spec.and((root, query, cb) -> cb.isNull(root.get("assigneeId")));
+        }
+        if (c.overdue() != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("overdue"), c.overdue()));
+        }
+        if (c.dueUntil() != null) {
+            spec = spec.and((root, query, cb) -> cb.or(cb.lessThanOrEqualTo(root.get("internalDueDate"), c.dueUntil()),
+                    cb.lessThanOrEqualTo(root.get("responseDueDate"), c.dueUntil())));
+        }
+        if (c.awaitingCreditor() != null) {
+            spec = spec.and((root, query, cb) -> c.awaitingCreditor() ? cb.isNotNull(root.get("awaitingCreditorSince"))
+                    : cb.isNull(root.get("awaitingCreditorSince")));
+        }
+        if (c.noticePending()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("debtorNoticeStatus"), DebtorNoticeStatus.PENDING));
+        }
+        if (c.adjustmentPending()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("adjustmentStatus"), DisputeAdjustmentStatus.PENDING));
+        }
+        if (c.supervisionAsOf() != null) {
+            spec = spec.and((root, query, cb) -> cb.or(cb.isNull(root.get("assigneeId")),
+                    cb.lessThan(root.get("internalDueDate"), c.supervisionAsOf()),
+                    cb.lessThan(root.get("responseDueDate"), c.supervisionAsOf())));
         }
         return findAll(spec, pageable);
     }
+
+    @Override
+    default Map<UUID, Long> countOpenByAssignees(Collection<UUID> assigneeIds) {
+        if (assigneeIds == null || assigneeIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Long> counts = new HashMap<>();
+        for (Object[] row : openCountRows(assigneeIds)) {
+            counts.put((UUID) row[0], (Long) row[1]);
+        }
+        return counts;
+    }
+
+    @Query("""
+            select d.assigneeId, count(d) from Dispute d
+             where d.assigneeId in :assigneeIds
+               and d.status in (br.com.gestorcobranca.collection.domain.model.DisputeStatus.OPEN,
+                                br.com.gestorcobranca.collection.domain.model.DisputeStatus.UNDER_REVIEW)
+             group by d.assigneeId
+            """)
+    List<Object[]> openCountRows(Collection<UUID> assigneeIds);
+
+    @Override
+    @Query("""
+            select d from Dispute d
+             where d.debtorId = :debtorId
+               and d.adjustmentStatus = br.com.gestorcobranca.collection.domain.model.DisputeAdjustmentStatus.PENDING
+            """)
+    List<Dispute> findPendingAdjustmentsByDebtorId(UUID debtorId);
+
+    @Override
+    default List<Dispute> findPendingAdjustments(int limit) {
+        return pendingAdjustments(Limit.of(limit));
+    }
+
+    @Query("""
+            select d from Dispute d
+             where d.adjustmentStatus = br.com.gestorcobranca.collection.domain.model.DisputeAdjustmentStatus.PENDING
+             order by d.resolvedAt, d.id
+            """)
+    List<Dispute> pendingAdjustments(Limit limit);
 }

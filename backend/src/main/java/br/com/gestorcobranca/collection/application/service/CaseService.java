@@ -176,7 +176,7 @@ class CaseService implements CaseUseCases {
                         r.startsAt(), r.endsAt()))
                 .toList();
         var sheetTitles = DisputeViews.index(titles.stream().map(t -> new DisputedTitle(t.titleId(), t.externalId(),
-                t.installmentNumber(), t.dueDate(), t.principalAmount(), t.openBalance())).toList());
+                t.installmentNumber(), t.dueDate(), t.principalAmount(), t.openBalance(), t.status())).toList());
         List<br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView> openDisputes =
                 disputes.findByCaseIdOrderByOpenedAtDesc(c.getId()).stream()
                         .filter(d -> d.getStatus().isOpen())

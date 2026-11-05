@@ -7,7 +7,12 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseVie
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView;
+import br.com.gestorcobranca.collection.application.port.in.DisputeConfigUseCases;
+import br.com.gestorcobranca.collection.application.port.in.DisputeConfigUseCases.DeadlineRuleCommand;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorRequestCommand;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.OpenDisputeCommand;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.ResolveCommand;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.CallbackInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.PromiseInput;
@@ -91,6 +96,7 @@ class OperationSeeder {
     private final QueueUseCases queues;
     private final InteractionUseCases interactions;
     private final DisputeUseCases disputes;
+    private final DisputeConfigUseCases disputeConfig;
     private final NegotiationSimulationUseCases simulations;
     private final ProposalUseCases proposals;
     private final AgreementUseCases agreements;
@@ -107,7 +113,7 @@ class OperationSeeder {
     private final SeedRuntime rt;
 
     OperationSeeder(DebtorUseCases debtors, CaseUseCases cases, CaseWorkUseCases caseWork, QueueUseCases queues,
-                    InteractionUseCases interactions, DisputeUseCases disputes,
+                    InteractionUseCases interactions, DisputeUseCases disputes, DisputeConfigUseCases disputeConfig,
                     NegotiationSimulationUseCases simulations, ProposalUseCases proposals, AgreementUseCases agreements,
                     PaymentInstructionUseCases instructions, PaymentSandboxUseCases pixSandbox, PaymentUseCases payments,
                     ContactRestrictionUseCases restrictions, DataSubjectRequestUseCases dataSubjectRequests,
@@ -120,6 +126,7 @@ class OperationSeeder {
         this.queues = queues;
         this.interactions = interactions;
         this.disputes = disputes;
+        this.disputeConfig = disputeConfig;
         this.simulations = simulations;
         this.proposals = proposals;
         this.agreements = agreements;
@@ -151,6 +158,7 @@ class OperationSeeder {
         callback(seed, target(seed, 0, 0, 5));
         dispute(seed, target(seed, 0, 0, 6), "ALREADY_PAID", "Devedor afirma ter pago no caixa da loja", false);
         dispute(seed, target(seed, 0, 0, 7), "WRONG_AMOUNT", "Devedor contesta juros cobrados na parcela", true);
+        disputeWorkflow(seed);
         reversedPayment(seed, target(seed, 0, 0, 8));
         cancelledAgreement(seed, target(seed, 0, 0, 9));
         optOut(seed, target(seed, 0, 0, 10));
@@ -337,6 +345,64 @@ class OperationSeeder {
                     : existing.getFirst();
             if (startReview && "OPEN".equals(dispute.status())) {
                 rt.as(seed.actor("supervisor"), () -> disputes.startReview(dispute.id()));
+            }
+        });
+    }
+
+    /**
+     * Rotina das contestações nos estados novos: prazo próprio para fraude, contestação com responsável aguardando o
+     * credor, outra com a resposta do credor registrada e uma procedente com ajuste no título e resposta ao devedor
+     * pendentes. Os e-mails ao credor vão para o Mailpit do sandbox.
+     */
+    private void disputeWorkflow(TenantSeed seed) {
+        Actor supervisor = seed.actor("supervisor");
+        rt.optional("prazo de contestação por tipo (fraude)", () -> {
+            if (rt.as(supervisor, disputeConfig::rules).isEmpty()) {
+                rt.as(supervisor, () -> disputeConfig.createRule(new DeadlineRuleCommand(null, "FRAUD", 15, 10)));
+            }
+        });
+        Target waiting = target(seed, 0, 0, 7);
+        rt.optional("contestação aguardando o credor (" + (waiting == null ? "-" : waiting.ref()) + ")", () -> {
+            if (waiting == null) {
+                return;
+            }
+            DisputeView d = rt.as(supervisor, () -> disputes.listByCase(waiting.collectionCase().id())).getFirst();
+            if (d.assigneeId() == null) {
+                rt.as(supervisor, () -> disputes.assign(d.id(), seed.user("operador"), "Analista da carteira"));
+            }
+            if (d.awaitingCreditorSince() == null && rt.as(supervisor, () -> disputes.creditorRequests(d.id())).isEmpty()) {
+                Actor operador = seed.actor("operador");
+                var draft = rt.as(operador, () -> disputes.draftCreditorRequest(d.id()));
+                rt.as(operador, () -> disputes.requestCreditor(d.id(), new CreditorRequestCommand(draft.subject(),
+                        draft.body(), null, Set.of(), Set.of(), true)));
+            }
+        });
+        Target answered = target(seed, 1, 0, 3);
+        rt.optional("contestação com resposta do credor (" + (answered == null ? "-" : answered.ref()) + ")", () -> {
+            if (answered == null) {
+                return;
+            }
+            dispute(seed, answered, "NOT_RECOGNIZED", "Devedor não reconhece a compra no cartão da loja", false);
+            DisputeView d = rt.as(supervisor, () -> disputes.listByCase(answered.collectionCase().id())).getFirst();
+            if (rt.as(supervisor, () -> disputes.creditorRequests(d.id())).isEmpty() && "OPEN".equals(d.status())) {
+                var draft = rt.as(supervisor, () -> disputes.draftCreditorRequest(d.id()));
+                rt.as(supervisor, () -> disputes.requestCreditor(d.id(), new CreditorRequestCommand(draft.subject(),
+                        draft.body(), null, Set.of(), Set.of(), false)));
+                rt.as(supervisor, () -> disputes.registerCreditorResponse(d.id(), new CreditorResponseCommand(
+                        "CONFIRMS_DEBT", "Credor enviou o pedido assinado e o comprovante de entrega (fictício)", null,
+                        null), List.of()));
+            }
+        });
+        Target upheld = target(seed, 2, 0, 2);
+        rt.optional("contestação procedente com ajuste pendente (" + (upheld == null ? "-" : upheld.ref()) + ")", () -> {
+            if (upheld == null) {
+                return;
+            }
+            dispute(seed, upheld, "FRAUD", "Devedor registrou boletim de ocorrência por uso indevido do CPF", false);
+            DisputeView d = rt.as(supervisor, () -> disputes.listByCase(upheld.collectionCase().id())).getFirst();
+            if ("OPEN".equals(d.status()) || "UNDER_REVIEW".equals(d.status())) {
+                rt.as(supervisor, () -> disputes.resolve(d.id(), new ResolveCommand("UPHELD",
+                        "Credor confirmou a fraude na contratação; cobrança encerrada (cenário fictício)", null)));
             }
         });
     }

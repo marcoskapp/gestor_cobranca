@@ -203,6 +203,48 @@ class MessageService implements MessageUseCases {
         return saved;
     }
 
+    /**
+     * Mensagem <b>transacional</b> (resposta devida ao devedor, ex.: resultado da contestação) com texto livre em
+     * e-mail ou WhatsApp (este só dentro da janela de 24 h): autor = usuário da sessão, sem assumir a conversa (o dono
+     * do atendimento não muda); porteiro com a categoria {@code TRANSACTIONAL} na verificação prévia e no envio.
+     */
+    Message queueTransactional(UUID debtorId, UUID creditorId, UUID caseId, String channel, UUID contactId,
+                               String subject, String body, String referenceType, UUID referenceId) {
+        ChannelType channelType = CommunicationEnums.parse(ChannelType.class, channel, "message.channel_invalid", "Canal");
+        Guard.require(channelType == ChannelType.EMAIL || channelType == ChannelType.WHATSAPP,
+                "message.transactional_channel_invalid", "Resposta transacional só por e-mail ou WhatsApp");
+        Guard.require(channelType != ChannelType.EMAIL || (subject != null && !subject.isBlank()),
+                "message.subject_required", "Assunto obrigatório no e-mail");
+        Conversation c = openConversation(new SendMessageCommand(null, debtorId, creditorId, caseId, channelType.name(),
+                contactId, null, null, body, null, null));
+        Guard.requireState(c.isOpen(), "conversation.closed", "Conversa encerrada; inicie uma nova");
+        Actor actor = access.actor();
+        Guard.requireState(actor.isUser(), "message.transactional_requires_user",
+                "A resposta transacional é enviada por um usuário");
+        Instant now = Instant.now(clock);
+        if (channelType == ChannelType.WHATSAPP && !c.sessionWindowOpen(now)) {
+            throw new ConflictException("message.whatsapp_window_closed",
+                    "Fora da janela de 24 h do WhatsApp: responda por e-mail ou registre outro meio");
+        }
+        Message message = Message.outbound(c, new Message.Outbound(SenderType.USER, actor.id(), null, null,
+                channelType == ChannelType.EMAIL ? subject.trim() : null, body, null, null, null), now);
+        message.markTransactional(referenceType, referenceId);
+        ContactDecision decision = gate.evaluate(gateRequest(c, message, SenderType.USER));
+        if (!decision.allowed()) {
+            List<String> reasons = decision.reasons().stream().map(Enum::name).toList();
+            message.markBlocked(String.join(",", reasons), now);
+            Message saved = messages.save(message);
+            recorder.blocked(saved, c, reasons, "precheck");
+            return saved;
+        }
+        c.registerOutbound(SenderType.USER, now);
+        conversations.save(c);
+        Message saved = messages.saveAndFlush(message);
+        jobQueue.enqueue(SendMessageJob.TYPE, new SendMessageJob.Payload(saved.getId()), null, "message:" + saved.getId());
+        recorder.queued(saved, c);
+        return saved;
+    }
+
     /** Pedido ao porteiro para a mensagem (verificação prévia e autorização no envio). */
     static ContactRequest gateRequest(Conversation c, Message m, SenderType sender) {
         String origin = switch (sender) {
@@ -211,7 +253,7 @@ class MessageService implements MessageUseCases {
             default -> "SYSTEM";
         };
         return new ContactRequest(c.getDebtorId(), c.getCreditorId(), c.getChannel().name(), c.getContactValue(), null,
-                origin, "message", m.getId());
+                origin, "message", m.getId(), m.getContactCategory());
     }
 
     Content content(Conversation c, SenderType sender, String templateCode, Map<String, String> values, String text) {

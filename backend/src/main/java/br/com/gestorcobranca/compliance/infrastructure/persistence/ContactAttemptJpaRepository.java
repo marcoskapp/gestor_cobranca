@@ -15,11 +15,15 @@ import java.util.UUID;
 
 interface ContactAttemptJpaRepository extends JpaRepository<ContactAttempt, UUID>, ContactAttemptRepository {
 
-    /** Usa o índice {@code ix_contact_attempt_gate (tenant, devedor, canal, instante)}. */
+    /**
+     * Usa o índice {@code ix_contact_attempt_gate (tenant, devedor, canal, instante)}. Só tentativas de cobrança contam
+     * para os limites (as transacionais — resposta devida ao devedor — não).
+     */
     @Override
     @Query("""
             select a.attemptedAt from ContactAttempt a
              where a.debtorId = :debtorId and a.channel = :channel and a.attemptedAt >= :since
+               and a.category = br.com.gestorcobranca.compliance.domain.model.ContactCategory.COLLECTION
             """)
     List<Instant> findAttemptTimes(UUID debtorId, ContactChannel channel, Instant since);
 

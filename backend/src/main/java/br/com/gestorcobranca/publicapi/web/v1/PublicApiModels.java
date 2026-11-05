@@ -187,14 +187,40 @@ final class PublicApiModels {
     record AllocationLineDto(UUID installmentId, UUID titleId, BigDecimal amount) {
     }
 
+    /** @param awaitingCreditor a assessoria aguarda o retorno do credor a um pedido */
     @Schema(name = "Dispute", description = "Contestação")
     record DisputeDto(UUID id, UUID caseId, UUID debtorId, UUID portfolioId, List<UUID> titleIds, String type,
                       String origin, String status, boolean blocksCollection, BigDecimal disputedAmount, Instant openedAt,
-                      LocalDate responseDueDate, boolean overdue, String outcome, Instant resolvedAt, long version) {
+                      LocalDate responseDueDate, boolean overdue, String outcome, Instant resolvedAt,
+                      boolean awaitingCreditor, long version) {
         static DisputeDto of(DisputeView v) {
             return new DisputeDto(v.id(), v.caseId(), v.debtorId(), v.portfolioId(), List.copyOf(v.titleIds()), v.type(),
                     v.origin(), v.status(), v.blocksCollection(), v.disputedAmount(), v.openedAt(), v.responseDueDate(),
-                    v.overdue(), v.outcome(), v.resolvedAt(), v.version());
+                    v.overdue(), v.outcome(), v.resolvedAt(), v.awaitingCreditorSince() != null, v.version());
+        }
+    }
+
+    /**
+     * @param status QUEUED, SENT, FAILED, ANSWERED ou CANCELLED
+     * @param overdue o prazo pedido ao credor venceu sem resposta
+     */
+    @Schema(name = "DisputeCreditorRequest", description = "Pedido da assessoria ao credor numa contestação")
+    record CreditorRequestDto(UUID id, UUID disputeId, int sequenceNumber, String subject, String body,
+                              LocalDate requestedDueDate, String status, boolean overdue, Instant sentAt,
+                              Instant answeredAt, List<UUID> titleIds, int documents, Instant documentsLinkExpiresAt) {
+        static CreditorRequestDto of(br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorRequestView v) {
+            return new CreditorRequestDto(v.id(), v.disputeId(), v.sequenceNumber(), v.subject(), v.body(),
+                    v.requestedDueDate(), v.status(), v.overdue(), v.sentAt(), v.answeredAt(),
+                    v.titleIds().stream().sorted().toList(), v.evidenceIds().size(), v.linkExpiresAt());
+        }
+    }
+
+    /** @param source MANUAL (registrada pela assessoria) ou PUBLIC_API */
+    @Schema(name = "DisputeCreditorResponse", description = "Resposta do credor a um pedido da contestação")
+    record CreditorResponseDto(UUID id, UUID disputeId, UUID requestId, String source, String position,
+                               Instant receivedAt) {
+        static CreditorResponseDto of(br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseView v) {
+            return new CreditorResponseDto(v.id(), v.disputeId(), v.requestId(), v.source(), v.position(), v.receivedAt());
         }
     }
 }

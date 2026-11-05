@@ -2,6 +2,8 @@ package br.com.gestorcobranca.sandbox.application.service;
 
 import br.com.gestorcobranca.sandbox.application.SandboxSeedComponent;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
+import br.com.gestorcobranca.organization.application.port.in.CreditorDisputeContactUseCases;
+import br.com.gestorcobranca.organization.application.port.in.CreditorDisputeContactUseCases.DisputeContactCommand;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases.CreditorCommand;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.CreatePortfolioCommand;
@@ -33,14 +35,16 @@ class OrganizationSeeder {
     private final CreditorUseCases creditors;
     private final ServiceContractUseCases contracts;
     private final PortfolioUseCases portfolios;
+    private final CreditorDisputeContactUseCases disputeContacts;
     private final SeedRuntime rt;
 
     OrganizationSeeder(TenantAdministration tenants, CreditorUseCases creditors, ServiceContractUseCases contracts,
-                       PortfolioUseCases portfolios, SeedRuntime rt) {
+                       PortfolioUseCases portfolios, CreditorDisputeContactUseCases disputeContacts, SeedRuntime rt) {
         this.tenants = tenants;
         this.creditors = creditors;
         this.contracts = contracts;
         this.portfolios = portfolios;
+        this.disputeContacts = disputeContacts;
         this.rt = rt;
     }
 
@@ -58,6 +62,17 @@ class OrganizationSeeder {
                     .orElseGet(() -> creditors.create(new CreditorCommand(spec.legalName(), spec.tradeName(), document,
                             spec.prefix(), contact)))).id();
             seed.creditors.put(spec.prefix(), creditorId);
+            // canal formal das contestações: equipe de contestações (principal) e jurídico do credor (cópia)
+            String slug = FictitiousData.slug(spec.tradeName());
+            rt.as(admin, () -> {
+                if (disputeContacts.list(creditorId).isEmpty()) {
+                    disputeContacts.create(creditorId, new DisputeContactCommand(null, "Equipe de contestações "
+                            + spec.tradeName(), "contestacoes@" + slug + ".exemplo.test", "(11) 4000-0000", "PRIMARY"));
+                    disputeContacts.create(creditorId, new DisputeContactCommand(null, "Jurídico " + spec.tradeName(),
+                            "juridico@" + slug + ".exemplo.test", null, "COPY"));
+                }
+                return null;
+            });
 
             LocalDate start = seed.today.minusYears(1).withDayOfMonth(1);
             String number = "CPS-" + spec.prefix() + "-" + start.getYear();

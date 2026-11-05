@@ -44,11 +44,14 @@ class CollectionReactions {
     private final CollectionSettingsUseCases settings;
     private final CollectionMetrics metrics;
     private final CaseAccess access;
+    private final DisputeAdjustments disputeAdjustments;
+    private final DisputeDebtorResponder disputeResponder;
     private final Clock clock;
 
     CollectionReactions(CollectionCaseRepository cases, CaseSynchronizer synchronizer, CaseRecorder recorder,
                         CaseAgenda agenda, PromiseService promises, PortfolioSyncJob portfolioSync, CaseSweepJob sweep,
-                        CollectionSettingsUseCases settings, CollectionMetrics metrics, CaseAccess access, Clock clock) {
+                        CollectionSettingsUseCases settings, CollectionMetrics metrics, CaseAccess access,
+                        DisputeAdjustments disputeAdjustments, DisputeDebtorResponder disputeResponder, Clock clock) {
         this.cases = cases;
         this.synchronizer = synchronizer;
         this.recorder = recorder;
@@ -59,6 +62,8 @@ class CollectionReactions {
         this.settings = settings;
         this.metrics = metrics;
         this.access = access;
+        this.disputeAdjustments = disputeAdjustments;
+        this.disputeResponder = disputeResponder;
         this.clock = clock;
     }
 
@@ -66,6 +71,13 @@ class CollectionReactions {
     void titleStatusChanged(TitleStatusChanged e) {
         metrics.eventConsumed("title_status");
         synchronizer.syncDebtor(e.debtorId(), e.creditorId(), "title_status", synchronizer.context());
+        // ajuste sugerido por contestação procedente: o efeito apareceu no título?
+        disputeAdjustments.reconcile(e.debtorId());
+    }
+
+    /** Situação da resposta de contestação ao devedor (mensagem transacional do communication). */
+    void messageStatusChanged(br.com.gestorcobranca.shared.events.communication.MessageStatusChanged e) {
+        disputeResponder.messageStatusChanged(e);
     }
 
     /** Carga concluída: sincroniza os devedores do lote em segundo plano (lotes de devedores). */

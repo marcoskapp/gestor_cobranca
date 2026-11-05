@@ -56,6 +56,18 @@ public interface AnalyticsReader {
     // confiabilidade
     ReliabilityRaw reliability(Slice slice);
 
+    /**
+     * Contestações agrupadas ({@code groupBy}: ALL, TYPE, ORIGIN ou CREDITOR): fluxo no período (abertas, resolvidas,
+     * procedentes, no prazo, dias até a resolução) e posição atual (abertas, vencidas em {@code today}).
+     */
+    List<DisputeRaw> disputes(Slice slice, String groupBy, LocalDate today);
+
+    /** Pedidos ao credor agrupados como em {@link #disputes}: enviados e respondidos no período, horas até a resposta. */
+    List<CreditorRequestRaw> creditorRequests(Slice slice, String groupBy);
+
+    /** Contestações abertas por responsável (chave nula = sem responsável). */
+    List<DisputeBacklogRaw> disputeBacklog(Slice slice, LocalDate today);
+
     // apoio
     List<TeamRaw> teams();
 
@@ -110,6 +122,19 @@ public interface AnalyticsReader {
                           long jobsFinished, long jobsDead, long batches, long batchesFailed,
                           BigDecimal batchMedianSeconds, BigDecimal batchP95Seconds, long rowsRead,
                           long rowsWithError) {
+    }
+
+    /** @param resolutionDays soma dos dias corridos (fração) entre abertura e resolução das resolvidas no período */
+    record DisputeRaw(String key, long opened, long resolved, long withdrawn, long upheld, long resolvedWithinDeadline,
+                      BigDecimal resolutionDays, long openNow, long overdueNow) {
+    }
+
+    /** @param responseHours soma das horas entre o envio e a resposta dos pedidos respondidos no período */
+    record CreditorRequestRaw(String key, long sent, long answered, BigDecimal responseHours, long awaitingNow,
+                              long overdueNow) {
+    }
+
+    record DisputeBacklogRaw(UUID assigneeId, long open, long overdue, long internalOverdue, long awaitingCreditor) {
     }
 
     record TeamRaw(UUID teamId, String name, UUID supervisorId, boolean active, Set<UUID> members) {

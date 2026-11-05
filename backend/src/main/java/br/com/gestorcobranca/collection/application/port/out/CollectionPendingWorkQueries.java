@@ -21,10 +21,31 @@ public interface CollectionPendingWorkQueries {
                               Instant missedSince);
 
     /**
-     * Contestações em aberto (abertas ou em análise) com prazo de resposta até {@code until}, inclusive
-     * vencidas.
+     * Contestações em aberto do responsável com o prazo mais próximo (interno ou de resposta) até {@code until},
+     * inclusive vencidas. Vencida: prazo interno ou de resposta antes de hoje.
      *
      * @param creditorScope credores permitidos (nulo = todos)
      */
-    PendingWorkCount disputesDue(Set<UUID> creditorScope, LocalDate today, LocalDate until);
+    PendingWorkCount disputesOfAssignee(Set<UUID> creditorScope, UUID userId, LocalDate today, LocalDate until);
+
+    /**
+     * Supervisão: contestações em aberto sem responsável ou com prazo (interno ou de resposta) vencido.
+     *
+     * @param creditorScope credores permitidos (nulo = todos)
+     */
+    PendingWorkCount disputesForSupervision(Set<UUID> creditorScope, LocalDate today);
+
+    /**
+     * Contestações resolvidas com a resposta ao devedor pendente (sem prazo; idade desde a resolução).
+     *
+     * @param userId responsável (nulo = todas do escopo)
+     */
+    PendingWorkCount debtorNoticesPending(Set<UUID> creditorScope, UUID userId);
+
+    /**
+     * Contestações com ajuste sugerido no título pendente (sem prazo; idade desde a resolução).
+     *
+     * @param userId responsável (nulo = todas do escopo)
+     */
+    PendingWorkCount adjustmentsPending(Set<UUID> creditorScope, UUID userId);
 }

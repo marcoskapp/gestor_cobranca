@@ -65,6 +65,7 @@ public enum Permission {
     INTERACTION_REGISTER("Registrar interações e tabulações"),
     TASK_MANAGE("Gerenciar tarefas e retornos"),
     DISPUTE_MANAGE("Gerenciar contestações"),
+    DISPUTE_WORK("Trabalhar as contestações atribuídas a si"),
 
     // Negociação e acordos
     NEGOTIATION_SIMULATE("Simular negociações"),

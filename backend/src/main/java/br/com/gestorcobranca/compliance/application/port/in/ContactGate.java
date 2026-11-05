@@ -35,9 +35,19 @@ public interface ContactGate {
      * @param origin        OPERATOR, CAMPAIGN ou SYSTEM
      * @param referenceType agregado que origina o contato (ex.: {@code message}); opcional
      * @param referenceId   id do agregado; obrigatório com {@code referenceType}
+     * @param category      COLLECTION (padrão, nulo) ou TRANSACTIONAL — resposta devida ao devedor (ex.: resultado
+     *                      da contestação): sem limites de frequência nem intervalo mínimo e sem a suspensão de
+     *                      cobrança pedida pelo credor; opt-out, demais restrições, janela, feriados e anonimização
+     *                      continuam valendo; a tentativa não conta para os limites de cobrança
      */
     record ContactRequest(UUID debtorId, UUID creditorId, String channel, String contactValue, Instant at,
-                          String origin, String referenceType, UUID referenceId) {
+                          String origin, String referenceType, UUID referenceId, String category) {
+
+        /** Contato de cobrança (categoria padrão). */
+        public ContactRequest(UUID debtorId, UUID creditorId, String channel, String contactValue, Instant at,
+                              String origin, String referenceType, UUID referenceId) {
+            this(debtorId, creditorId, channel, contactValue, at, origin, referenceType, referenceId, null);
+        }
 
         public static ContactRequest of(UUID debtorId, UUID creditorId, String channel, String contactValue, Instant at,
                                         String origin) {

@@ -21,6 +21,11 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * administrador; políticas de cobrança ({@code POLICY_MANAGE}) idem. Operadores consultam a
  * política ({@code POLICY_VIEW}) e simulam ({@code NEGOTIATION_SIMULATE}) dentro da própria alçada.
  * <p>
+ * Contestações (docs/negocio/contestacoes.md §8): o operador trabalha as contestações atribuídas a ele
+ * ({@code DISPUTE_WORK}: assumir as sem responsável, pedir documentos ao credor, registrar a resposta do credor,
+ * resolver e responder ao devedor); o supervisor gerencia todas ({@code DISPUTE_MANAGE}: atribuir, redistribuir,
+ * prazos por tipo, modelos e distribuição automática).
+ * <p>
  * Jurídico (docs/design/juridico.md §B.5): o gestor conduz e aprova indicações; o jurídico interno
  * ({@code JURIDICO}) conduz os casos, aprova indicações, registra a autorização do credor e
  * consulta a dívida; o advogado de escritório parceiro ({@code ADVOGADO_PARCEIRO}) recebe somente
@@ -90,7 +95,8 @@ public final class DefaultRoles {
                 DEBTOR_VIEW, CASE_VIEW, CASE_WORK, INTERACTION_REGISTER, TASK_MANAGE,
                 NEGOTIATION_SIMULATE, NEGOTIATION_PROPOSE, AGREEMENT_VIEW, AGREEMENT_FORMALIZE,
                 PAYMENT_VIEW, PAYMENT_INSTRUCTION_CREATE, PAYMENT_REGISTER_EXTERNAL,
-                MESSAGE_SEND, INBOX_VIEW, TELEPHONY_USE, ASSISTANT_USE, SCORING_VIEW, PERFORMANCE_VIEW_OWN);
+                MESSAGE_SEND, INBOX_VIEW, TELEPHONY_USE, ASSISTANT_USE, SCORING_VIEW, PERFORMANCE_VIEW_OWN,
+                DISPUTE_WORK);
 
         Set<Permission> supervisor = EnumSet.copyOf(operador);
         supervisor.addAll(EnumSet.of(USER_VIEW, TEAM_MANAGE, CASE_ASSIGN, CASE_MANAGE, QUEUE_MANAGE, DISPUTE_MANAGE,

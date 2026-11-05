@@ -56,6 +56,14 @@ public final class BusinessEventTypes {
     public static final String PROMISE_REGISTERED = "promise.registered";
     public static final String DISPUTE_OPENED = "dispute.opened";
     public static final String DISPUTE_RESOLVED = "dispute.resolved";
+    public static final String DISPUTE_ASSIGNED = "dispute.assigned";
+    public static final String DISPUTE_CREDITOR_REQUEST_SENT = "dispute.creditor_request_sent";
+    public static final String DISPUTE_CREDITOR_REQUEST_FAILED = "dispute.creditor_request_failed";
+    public static final String DISPUTE_CREDITOR_REQUEST_OVERDUE = "dispute.creditor_request_overdue";
+    public static final String DISPUTE_CREDITOR_RESPONDED = "dispute.creditor_responded";
+    public static final String DISPUTE_DEBTOR_NOTIFIED = "dispute.debtor_notified";
+    public static final String DISPUTE_ADJUSTMENT_SUGGESTED = "dispute.adjustment_suggested";
+    public static final String DISPUTE_ADJUSTMENT_CLOSED = "dispute.adjustment_closed";
     public static final String CASE_STATUS_CHANGED = "case.status_changed";
     public static final String CASE_ELIGIBILITY_CHANGED = "case.eligibility_changed";
     public static final String CALLBACK_KEPT = "callback.kept";

@@ -39,11 +39,20 @@ public class DisputeEvidence extends TenantScopedEntity {
     @Column(name = "sha256", nullable = false, length = 64, updatable = false)
     private String sha256;
 
+    /** Resposta do credor que trouxe o documento (nulo = anexado pela assessoria). */
+    @Column(name = "creditor_response_id", updatable = false)
+    private UUID creditorResponseId;
+
     protected DisputeEvidence() {
     }
 
     public DisputeEvidence(Dispute dispute, String fileKey, String fileName, String contentType, long size,
                            String sha256) {
+        this(dispute, fileKey, fileName, contentType, size, sha256, null);
+    }
+
+    public DisputeEvidence(Dispute dispute, String fileKey, String fileName, String contentType, long size,
+                           String sha256, UUID creditorResponseId) {
         dispute.requireOpenForEvidence();
         Guard.require(fileKey != null && sha256 != null, "dispute.evidence_invalid", "Arquivo de evidência inválido");
         this.disputeId = dispute.getId();
@@ -54,6 +63,11 @@ public class DisputeEvidence extends TenantScopedEntity {
         this.contentType = contentType;
         this.size = size;
         this.sha256 = sha256;
+        this.creditorResponseId = creditorResponseId;
+    }
+
+    public UUID getCreditorResponseId() {
+        return creditorResponseId;
     }
 
     public UUID getDisputeId() {

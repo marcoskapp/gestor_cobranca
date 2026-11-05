@@ -5,6 +5,7 @@ import br.com.gestorcobranca.compliance.application.port.out.DebtorContactLock;
 import br.com.gestorcobranca.compliance.domain.model.AttemptOrigin;
 import br.com.gestorcobranca.compliance.domain.model.ChannelRule;
 import br.com.gestorcobranca.compliance.domain.model.ContactAttempt;
+import br.com.gestorcobranca.compliance.domain.model.ContactCategory;
 import br.com.gestorcobranca.compliance.domain.model.ContactChannel;
 import br.com.gestorcobranca.compliance.domain.model.ContactPolicy;
 import br.com.gestorcobranca.compliance.domain.model.ContactWindow;
@@ -102,7 +103,7 @@ class ContactGateService implements ContactGate {
     public ContactDecision evaluate(ContactRequest request) {
         Prepared prepared = prepare(request);
         Decision decision = decide(prepared);
-        count("evaluate", decision);
+        count("evaluate", decision, prepared.category());
         return toView(decision, null);
     }
 
@@ -114,17 +115,19 @@ class ContactGateService implements ContactGate {
                 "contact_gate.attempt_time_invalid", "A tentativa deve ser registrada no momento do contato");
         lock.lock(currentActor.tenantId(), prepared.debtorId());
         Decision decision = decide(prepared);
-        count("authorize", decision);
+        count("authorize", decision, prepared.category());
         if (!decision.allowed()) {
             businessEvents.log(BusinessEvent.of(BusinessEventTypes.CONTACT_DENIED)
                     .creditor(prepared.creditorId()).debtor(prepared.debtorId())
                     .channel(prepared.channel().name())
                     .attr("origin", prepared.origin())
+                    .attr("category", prepared.category())
                     .attr("reasons", decision.reasons().stream().map(Enum::name).collect(Collectors.joining(","))));
             return toView(decision, null);
         }
         ContactAttempt attempt = attempts.save(new ContactAttempt(prepared.debtorId(), prepared.creditorId(),
-                prepared.channel(), prepared.at(), prepared.origin(), request.referenceType(), request.referenceId()));
+                prepared.channel(), prepared.at(), prepared.origin(), request.referenceType(), request.referenceId(),
+                prepared.category()));
         return toView(decision, attempt.getId());
     }
 
@@ -136,6 +139,9 @@ class ContactGateService implements ContactGate {
                 "contact_gate.channel_invalid", "Canal");
         AttemptOrigin origin = ComplianceEnums.parse(AttemptOrigin.class, request.origin(),
                 "contact_gate.origin_invalid", "Origem");
+        ContactCategory category = request.category() == null || request.category().isBlank() ? ContactCategory.COLLECTION
+                : ComplianceEnums.parse(ContactCategory.class, request.category(), "contact_gate.category_invalid",
+                "Categoria");
         accessScope.requireCreditor(request.creditorId());
         creditors.get(request.creditorId());
         boolean anonymized = "ANONYMIZED".equals(debtors.get(request.debtorId()).status());
@@ -146,7 +152,8 @@ class ContactGateService implements ContactGate {
             contactHash = debtorContacts.fingerprint(type, request.contactValue()).hash();
         }
         Instant at = request.at() == null ? Instant.now(clock) : request.at();
-        return new Prepared(request.debtorId(), request.creditorId(), channel, origin, contactHash, at, anonymized);
+        return new Prepared(request.debtorId(), request.creditorId(), channel, origin, contactHash, at, anonymized,
+                category);
     }
 
     private Decision decide(Prepared p) {
@@ -168,7 +175,7 @@ class ContactGateService implements ContactGate {
 
         return rules.evaluate(new Situation(p.debtorId(), p.creditorId(), p.channel(), p.contactHash(), p.at(),
                 p.anonymized(), restrictions.findActiveForGate(p.debtorId(), p.contactHash()), rule.orElse(null),
-                window, holidayDates, previous));
+                window, holidayDates, previous, p.category() == ContactCategory.TRANSACTIONAL));
     }
 
     private ContactWindow tenantWindow() {
@@ -177,9 +184,9 @@ class ContactGateService implements ContactGate {
                 tenant.contactOnSunday());
     }
 
-    private void count(String operation, Decision decision) {
+    private void count(String operation, Decision decision, ContactCategory category) {
         meterRegistry.counter("compliance.contact_gate.decisions", "operation", operation,
-                "outcome", decision.allowed() ? "allowed" : "denied").increment();
+                "outcome", decision.allowed() ? "allowed" : "denied", "category", category.name()).increment();
         decision.reasons().forEach(r -> meterRegistry.counter("compliance.contact_gate.denials",
                 "operation", operation, "reason", r.name()).increment());
     }
@@ -191,6 +198,6 @@ class ContactGateService implements ContactGate {
     }
 
     private record Prepared(UUID debtorId, UUID creditorId, ContactChannel channel, AttemptOrigin origin,
-                            String contactHash, Instant at, boolean anonymized) {
+                            String contactHash, Instant at, boolean anonymized, ContactCategory category) {
     }
 }

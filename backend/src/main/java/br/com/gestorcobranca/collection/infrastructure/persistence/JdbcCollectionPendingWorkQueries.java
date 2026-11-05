@@ -16,7 +16,9 @@ import java.util.UUID;
 
 /**
  * Índices: {@code ix_task_agenda (tenant_id, assignee_user_id, due_at)} (PENDING/MISSED) e
- * {@code ix_dispute_open (tenant_id, creditor_id, response_due_date)} (OPEN/UNDER_REVIEW).
+ * {@code ix_dispute_open (tenant_id, creditor_id, response_due_date)} (OPEN/UNDER_REVIEW),
+ * {@code ix_dispute_assignee}, {@code ix_dispute_unassigned}, {@code ix_dispute_notice_pending} e
+ * {@code ix_dispute_adjustment_pending} (V0603).
  */
 @Component
 class JdbcCollectionPendingWorkQueries implements CollectionPendingWorkQueries {
@@ -54,21 +56,63 @@ class JdbcCollectionPendingWorkQueries implements CollectionPendingWorkQueries {
     }
 
     @Override
-    public PendingWorkCount disputesDue(Set<UUID> creditorScope, LocalDate today, LocalDate until) {
+    public PendingWorkCount disputesOfAssignee(Set<UUID> creditorScope, UUID userId, LocalDate today, LocalDate until) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("me", userId)
+                .addValue("today", Date.valueOf(today)).addValue("until", Date.valueOf(until));
+        return disputes(creditorScope, params, """
+                select count(*) as total,
+                       count(*) filter (where least(internal_due_date, response_due_date) < :today) as overdue,
+                       count(*) filter (where least(internal_due_date, response_due_date) = :today) as due_today,
+                       min(opened_at) as oldest_at, min(least(internal_due_date, response_due_date)) as next_due,
+                       case when count(*) = 1 then (array_agg(id))[1] end as single_id
+                  from collection.dispute
+                 where status in ('OPEN', 'UNDER_REVIEW') and assignee_id = :me
+                   and least(internal_due_date, response_due_date) <= :until
+                """);
+    }
+
+    @Override
+    public PendingWorkCount disputesForSupervision(Set<UUID> creditorScope, LocalDate today) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("today", Date.valueOf(today));
+        return disputes(creditorScope, params, """
+                select count(*) as total,
+                       count(*) filter (where least(internal_due_date, response_due_date) < :today) as overdue,
+                       count(*) filter (where least(internal_due_date, response_due_date) = :today) as due_today,
+                       min(opened_at) as oldest_at, min(least(internal_due_date, response_due_date)) as next_due,
+                       case when count(*) = 1 then (array_agg(id))[1] end as single_id
+                  from collection.dispute
+                 where status in ('OPEN', 'UNDER_REVIEW')
+                   and (assignee_id is null or least(internal_due_date, response_due_date) < :today)
+                """);
+    }
+
+    @Override
+    public PendingWorkCount debtorNoticesPending(Set<UUID> creditorScope, UUID userId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("me", userId);
+        return disputes(creditorScope, params, """
+                select count(*) as total, 0 as overdue, 0 as due_today, min(resolved_at) as oldest_at,
+                       null::date as next_due, case when count(*) = 1 then (array_agg(id))[1] end as single_id
+                  from collection.dispute
+                 where debtor_notice_status = 'PENDING'
+                """ + (userId == null ? "" : " and assignee_id = :me"));
+    }
+
+    @Override
+    public PendingWorkCount adjustmentsPending(Set<UUID> creditorScope, UUID userId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("me", userId);
+        return disputes(creditorScope, params, """
+                select count(*) as total, 0 as overdue, 0 as due_today, min(resolved_at) as oldest_at,
+                       null::date as next_due, case when count(*) = 1 then (array_agg(id))[1] end as single_id
+                  from collection.dispute
+                 where adjustment_status = 'PENDING'
+                """ + (userId == null ? "" : " and assignee_id = :me"));
+    }
+
+    private PendingWorkCount disputes(Set<UUID> creditorScope, MapSqlParameterSource params, String base) {
         if (creditorScope != null && creditorScope.isEmpty()) {
             return PendingWorkCount.NONE;
         }
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("today", Date.valueOf(today))
-                .addValue("until", Date.valueOf(until));
-        StringBuilder sql = new StringBuilder("""
-                select count(*) as total,
-                       count(*) filter (where response_due_date < :today) as overdue,
-                       count(*) filter (where response_due_date = :today) as due_today,
-                       min(opened_at) as oldest_at, min(response_due_date) as next_due,
-                       case when count(*) = 1 then (array_agg(id))[1] end as single_id
-                  from collection.dispute
-                 where status in ('OPEN', 'UNDER_REVIEW') and response_due_date <= :until
-                """);
+        StringBuilder sql = new StringBuilder(base);
         if (creditorScope != null) {
             sql.append(" and creditor_id in (:scope)");
             params.addValue("scope", creditorScope);

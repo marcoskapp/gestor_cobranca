@@ -39,7 +39,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AnalyticsIsolationAndExportIT extends AnalyticsTestSupport {
 
     static final List<String> SOURCE_VIEWS = List.of("src_creditor", "src_portfolio", "src_user", "src_team",
-            "src_team_member", "src_title", "src_case", "src_interaction", "src_queue", "src_proposal",
+            "src_team_member", "src_title", "src_case", "src_interaction", "src_queue", "src_dispute",
+            "src_dispute_creditor_request", "src_proposal",
             "src_agreement", "src_installment", "src_receipt", "src_payment_instruction", "src_divergence",
             "src_statement_import", "src_statement_line", "src_message", "src_call", "src_import_batch",
             "src_processing_job", "src_business_event", "src_performance_fact", "src_worked_case", "src_logged_time",
@@ -185,7 +186,11 @@ class AnalyticsIsolationAndExportIT extends AnalyticsTestSupport {
                         "FAILED", "CANCELLED")),
                 Map.entry("ingestion.import_batch:ck_import_batch_mode", List.of("IMPORT")),
                 Map.entry("shared.processing_job:ck_processing_job_status", List.of("DONE", "DEAD")),
-                Map.entry("incentive.commission_statement:ck_statement_status", List.of("APPROVED", "EXPORTED")));
+                Map.entry("incentive.commission_statement:ck_statement_status", List.of("APPROVED", "EXPORTED")),
+                Map.entry("collection.dispute:ck_dispute_status", List.of("OPEN", "UNDER_REVIEW", "RESOLVED",
+                        "WITHDRAWN")),
+                Map.entry("collection.dispute:ck_dispute_outcome", List.of("UPHELD", "PARTIALLY_UPHELD")),
+                Map.entry("collection.dispute_creditor_request:ck_dispute_request_status", List.of("SENT")));
         required.forEach((key, values) -> {
             String[] parts = key.split(":");
             String definition = jdbc.queryForObject("""

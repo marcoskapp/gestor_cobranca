@@ -42,6 +42,8 @@ public enum AccessEventType {
     FILE_DOWNLOADED,
     /** Webhook recebido com assinatura inválida. */
     WEBHOOK_REJECTED,
+    /** Link seguro de evidências de contestação recusado (token desconhecido, vencido ou limite de downloads). */
+    DISPUTE_LINK_REJECTED,
     /** Acesso do devedor ao portal de autonegociação (sessão aberta por link ou documento + código). */
     PORTAL_LOGIN_SUCCESS,
     /** Código, link ou desafio de conhecimento inválido no portal (sem revelar se o documento existe). */

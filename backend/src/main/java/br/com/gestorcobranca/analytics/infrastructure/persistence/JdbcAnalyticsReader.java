@@ -395,6 +395,72 @@ class JdbcAnalyticsReader implements AnalyticsReader {
                 (long) batch[4], (long) batch[5]);
     }
 
+    // ---------------------------------------------------------------- contestações
+
+    private static String disputeKey(String alias, String groupBy) {
+        return switch (groupBy) {
+            case "TYPE" -> alias + ".type";
+            case "ORIGIN" -> alias + ".origin";
+            case "CREDITOR" -> alias + ".creditor_id::text";
+            default -> "'ALL'";
+        };
+    }
+
+    @Override
+    public List<DisputeRaw> disputes(Slice slice, String groupBy, LocalDate today) {
+        MapSqlParameterSource p = SqlWhere.params(slice).addValue("today", today, Types.DATE);
+        String where = new SqlWhere(p).creditors("d.creditor_id", slice).in("d.portfolio_id", slice.portfolios()).toString();
+        String resolvedIn = "d.status = 'RESOLVED' and d.resolved_at >= :fromTs and d.resolved_at < :toTs";
+        return jdbc.query("""
+                select %1$s,
+                       count(*) filter (where d.opened_at >= :fromTs and d.opened_at < :toTs),
+                       count(*) filter (where %2$s),
+                       count(*) filter (where d.status = 'WITHDRAWN' and d.resolved_at >= :fromTs and d.resolved_at < :toTs),
+                       count(*) filter (where %2$s and d.outcome in ('UPHELD', 'PARTIALLY_UPHELD')),
+                       count(*) filter (where %2$s and (d.resolved_at at time zone :zone)::date <= d.response_due_date),
+                       coalesce(sum(extract(epoch from d.resolved_at - d.opened_at) / 86400) filter (where %2$s), 0),
+                       count(*) filter (where d.status in ('OPEN', 'UNDER_REVIEW')),
+                       count(*) filter (where d.status in ('OPEN', 'UNDER_REVIEW') and d.response_due_date < :today)
+                from analytics.src_dispute d where %3$s group by 1
+                """.formatted(disputeKey("d", groupBy), resolvedIn, where), p,
+                (rs, i) -> new DisputeRaw(rs.getString(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5),
+                        rs.getLong(6), rs.getBigDecimal(7), rs.getLong(8), rs.getLong(9)));
+    }
+
+    @Override
+    public List<CreditorRequestRaw> creditorRequests(Slice slice, String groupBy) {
+        MapSqlParameterSource p = SqlWhere.params(slice);
+        String where = new SqlWhere(p).creditors("r.creditor_id", slice).in("r.portfolio_id", slice.portfolios()).toString();
+        String answeredIn = "r.answered_at >= :fromTs and r.answered_at < :toTs and r.sent_at is not null";
+        return jdbc.query("""
+                select %1$s,
+                       count(*) filter (where r.sent_at >= :fromTs and r.sent_at < :toTs),
+                       count(*) filter (where %2$s),
+                       coalesce(sum(greatest(extract(epoch from r.answered_at - r.sent_at), 0) / 3600)
+                                filter (where %2$s), 0),
+                       count(*) filter (where r.status = 'SENT'),
+                       count(*) filter (where r.status = 'SENT' and r.overdue)
+                from analytics.src_dispute_creditor_request r where %3$s group by 1
+                """.formatted(disputeKey("r", groupBy), answeredIn, where), p,
+                (rs, i) -> new CreditorRequestRaw(rs.getString(1), rs.getLong(2), rs.getLong(3), rs.getBigDecimal(4),
+                        rs.getLong(5), rs.getLong(6)));
+    }
+
+    @Override
+    public List<DisputeBacklogRaw> disputeBacklog(Slice slice, LocalDate today) {
+        MapSqlParameterSource p = SqlWhere.params(slice).addValue("today", today, Types.DATE);
+        String where = new SqlWhere(p).raw("d.status in ('OPEN', 'UNDER_REVIEW')").creditors("d.creditor_id", slice)
+                .in("d.portfolio_id", slice.portfolios()).toString();
+        return jdbc.query("""
+                select d.assignee_id, count(*),
+                       count(*) filter (where d.response_due_date < :today),
+                       count(*) filter (where d.internal_due_date < :today),
+                       count(*) filter (where d.awaiting_creditor_since is not null)
+                from analytics.src_dispute d where %s group by 1
+                """.formatted(where), p, (rs, i) -> new DisputeBacklogRaw(uuid(rs, 1), rs.getLong(2), rs.getLong(3),
+                rs.getLong(4), rs.getLong(5)));
+    }
+
     // --------------------------------------------------------------------- apoio
 
     @Override

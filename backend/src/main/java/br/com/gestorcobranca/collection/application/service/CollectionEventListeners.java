@@ -2,6 +2,7 @@ package br.com.gestorcobranca.collection.application.service;
 
 import br.com.gestorcobranca.shared.config.AsyncConfig;
 import br.com.gestorcobranca.shared.events.TenantEventListener;
+import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.compliance.ContactPolicyPublished;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
 import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
@@ -25,12 +26,28 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Component
 class CollectionEventListeners extends TenantEventListener {
 
+    private static final java.util.Set<String> NOTICE_STATUSES = java.util.Set.of("SENT", "DELIVERED", "READ", "FAILED");
+
     private final CollectionReactions reactions;
     private final PromiseService promises;
 
     CollectionEventListeners(CollectionReactions reactions, PromiseService promises) {
         this.reactions = reactions;
         this.promises = promises;
+    }
+
+    /**
+     * Só mensagens de saída de usuários com situação final podem ser respostas de contestação ao devedor; as demais
+     * nem abrem transação.
+     */
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(MessageStatusChanged event) {
+        if (!"OUTBOUND".equals(event.direction()) || !"USER".equals(event.senderActorType())
+                || !NOTICE_STATUSES.contains(event.status())) {
+            return;
+        }
+        handleOnce(event, "collection.dispute-notice-status", () -> reactions.messageStatusChanged(event));
     }
 
     @Async(AsyncConfig.EVENT_EXECUTOR)

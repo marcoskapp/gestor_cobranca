@@ -92,6 +92,51 @@ public class Dispute extends TenantScopedEntity {
     @Column(name = "resolved_by")
     private UUID resolvedBy;
 
+    /** Analista responsável (nulo = sem responsável). */
+    @Column(name = "assignee_id")
+    private UUID assigneeId;
+
+    @Column(name = "assigned_at")
+    private Instant assignedAt;
+
+    /** Prazo interno (SLA da equipe), nunca depois do prazo de resposta ao devedor. */
+    @Column(name = "internal_due_date", nullable = false)
+    private LocalDate internalDueDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "deadline_source", nullable = false, length = 20, updatable = false)
+    private DeadlineSource deadlineSource;
+
+    /** Desde quando aguarda o retorno do credor (nulo = não aguarda). */
+    @Column(name = "awaiting_creditor_since")
+    private Instant awaitingCreditorSince;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "debtor_notice_status", length = 20)
+    private DebtorNoticeStatus debtorNoticeStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "adjustment_action", length = 30)
+    private DisputeAdjustmentAction adjustmentAction;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "adjustment_status", length = 20)
+    private DisputeAdjustmentStatus adjustmentStatus;
+
+    /** Saldo em aberto dos títulos contestados na resolução: referência para detectar o ajuste feito. */
+    @Column(name = "adjustment_baseline", precision = 19, scale = 2)
+    private Money adjustmentBaseline;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "adjustment_note_encrypted", length = 24000)
+    private String adjustmentNote;
+
+    @Column(name = "adjustment_closed_at")
+    private Instant adjustmentClosedAt;
+
+    @Column(name = "adjustment_closed_by")
+    private UUID adjustmentClosedBy;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "dispute_title", schema = "collection", joinColumns = @JoinColumn(name = "dispute_id"))
     @Column(name = "title_id", nullable = false)
@@ -100,9 +145,13 @@ public class Dispute extends TenantScopedEntity {
     protected Dispute() {
     }
 
+    /**
+     * @param internalDueDate prazo interno (SLA), limitado ao prazo de resposta
+     * @param deadlineSource  origem do prazo na hierarquia
+     */
     public Dispute(CollectionCase c, Collection<UUID> titleIds, DisputeType type, DisputeOrigin origin,
                    String description, boolean blocksCollection, Money disputedAmount, LocalDate responseDueDate,
-                   Instant now) {
+                   LocalDate internalDueDate, DeadlineSource deadlineSource, Instant now) {
         Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
         Guard.require(titleIds != null && !titleIds.isEmpty(), "dispute.titles_required", "Informe os títulos contestados");
         Guard.require(type != null, "dispute.type_required", "Tipo da contestação obrigatório");
@@ -123,6 +172,90 @@ public class Dispute extends TenantScopedEntity {
         this.status = DisputeStatus.OPEN;
         this.openedAt = now;
         this.responseDueDate = responseDueDate;
+        this.internalDueDate = internalDueDate == null || internalDueDate.isAfter(responseDueDate) ? responseDueDate
+                : internalDueDate;
+        this.deadlineSource = deadlineSource == null ? DeadlineSource.TENANT_DEFAULT : deadlineSource;
+    }
+
+    // ------------------------------------------------------------------ responsável
+
+    /**
+     * Define o responsável (nulo = sem responsável).
+     *
+     * @return o responsável anterior
+     */
+    public UUID assign(UUID assignee, Instant now) {
+        Guard.requireState(status.isOpen(), "dispute.not_open", "Contestação já encerrada");
+        Guard.requireState(!java.util.Objects.equals(assignee, assigneeId), "dispute.same_assignee",
+                assignee == null ? "A contestação já está sem responsável" : "A contestação já é deste responsável");
+        UUID previous = assigneeId;
+        this.assigneeId = assignee;
+        this.assignedAt = assignee == null ? null : now;
+        return previous;
+    }
+
+    public boolean isAssignedTo(UUID userId) {
+        return assigneeId != null && assigneeId.equals(userId);
+    }
+
+    // ------------------------------------------------------------------ credor
+
+    /** Passou a aguardar o retorno do credor (pedido enviado); encaminha para análise se ainda aberta. */
+    public void awaitCreditor(Instant now) {
+        Guard.requireState(status.isOpen(), "dispute.not_open", "Contestação já encerrada");
+        if (status == DisputeStatus.OPEN) {
+            status = DisputeStatus.UNDER_REVIEW;
+        }
+        if (awaitingCreditorSince == null) {
+            awaitingCreditorSince = now;
+        }
+    }
+
+    /** Deixou de aguardar o credor (resposta recebida ou pedidos cancelados). */
+    public void stopAwaitingCreditor() {
+        awaitingCreditorSince = null;
+    }
+
+    // ------------------------------------------------------------------ devedor
+
+    public void markDebtorNotified() {
+        Guard.requireState(!status.isOpen(), "dispute.notice_before_resolution",
+                "A resposta ao devedor é enviada depois da resolução");
+        this.debtorNoticeStatus = DebtorNoticeStatus.SENT;
+    }
+
+    // ------------------------------------------------------------------ ajuste sugerido
+
+    /** Sugere a ação no título a partir da resolução (sem efeito financeiro). */
+    private void suggestAdjustment(DisputeAdjustmentAction action, Money baseline) {
+        if (action == null) {
+            return;
+        }
+        this.adjustmentAction = action;
+        this.adjustmentStatus = DisputeAdjustmentStatus.PENDING;
+        this.adjustmentBaseline = baseline == null ? Money.ZERO : baseline;
+    }
+
+    /**
+     * Encerra a sugestão pendente: feita (detectada no título) ou dispensada com motivo.
+     *
+     * @return true se estava pendente
+     */
+    public boolean closeAdjustment(DisputeAdjustmentStatus outcome, String note, UUID by, Instant now) {
+        Guard.require(outcome == DisputeAdjustmentStatus.DONE || outcome == DisputeAdjustmentStatus.DISMISSED,
+                "dispute.adjustment_outcome_invalid", "Resultado do ajuste inválido");
+        if (adjustmentStatus != DisputeAdjustmentStatus.PENDING) {
+            return false;
+        }
+        if (outcome == DisputeAdjustmentStatus.DISMISSED) {
+            Guard.require(note != null && !note.isBlank() && note.trim().length() <= DESCRIPTION_MAX,
+                    "dispute.adjustment_reason_required", "Informe o motivo para dispensar o ajuste");
+        }
+        this.adjustmentStatus = outcome;
+        this.adjustmentNote = note == null || note.isBlank() ? null : note.trim();
+        this.adjustmentClosedAt = now;
+        this.adjustmentClosedBy = by;
+        return true;
     }
 
     public void startReview() {
@@ -131,7 +264,18 @@ public class Dispute extends TenantScopedEntity {
     }
 
     public void resolve(DisputeOutcome outcome, String note, UUID by, Instant now) {
+        resolve(outcome, note, by, now, null, null);
+    }
+
+    /**
+     * @param adjustment ação sugerida no título (nula = nenhuma); só com resultado procedente ou parcial
+     * @param baseline   saldo em aberto atual dos títulos contestados
+     */
+    public void resolve(DisputeOutcome outcome, String note, UUID by, Instant now, DisputeAdjustmentAction adjustment,
+                        Money baseline) {
         Guard.requireState(status.isOpen(), "dispute.not_open", "Contestação já encerrada");
+        Guard.require(adjustment == null || outcome != DisputeOutcome.REJECTED, "dispute.adjustment_not_applicable",
+                "Contestação improcedente não sugere ajuste no título");
         Guard.require(outcome != null, "dispute.outcome_required", "Resultado obrigatório");
         Guard.require(note != null && !note.isBlank() && note.trim().length() <= DESCRIPTION_MAX,
                 "dispute.resolution_required", "Parecer obrigatório (até %d caracteres)".formatted(DESCRIPTION_MAX));
@@ -140,6 +284,10 @@ public class Dispute extends TenantScopedEntity {
         this.resolutionNote = note.trim();
         this.resolvedAt = now;
         this.resolvedBy = by;
+        this.awaitingCreditorSince = null;
+        this.debtorNoticeStatus = origin.expectsDebtorResponse() ? DebtorNoticeStatus.PENDING
+                : DebtorNoticeStatus.NOT_REQUIRED;
+        suggestAdjustment(adjustment, baseline);
     }
 
     public void withdraw(String note, UUID by, Instant now) {
@@ -150,6 +298,8 @@ public class Dispute extends TenantScopedEntity {
         this.resolutionNote = note.trim();
         this.resolvedAt = now;
         this.resolvedBy = by;
+        this.awaitingCreditorSince = null;
+        this.debtorNoticeStatus = DebtorNoticeStatus.NOT_REQUIRED;
     }
 
     /** Exige a contestação aberta para receber evidências. */
@@ -236,6 +386,54 @@ public class Dispute extends TenantScopedEntity {
 
     public UUID getResolvedBy() {
         return resolvedBy;
+    }
+
+    public UUID getAssigneeId() {
+        return assigneeId;
+    }
+
+    public Instant getAssignedAt() {
+        return assignedAt;
+    }
+
+    public LocalDate getInternalDueDate() {
+        return internalDueDate;
+    }
+
+    public DeadlineSource getDeadlineSource() {
+        return deadlineSource;
+    }
+
+    public Instant getAwaitingCreditorSince() {
+        return awaitingCreditorSince;
+    }
+
+    public DebtorNoticeStatus getDebtorNoticeStatus() {
+        return debtorNoticeStatus;
+    }
+
+    public DisputeAdjustmentAction getAdjustmentAction() {
+        return adjustmentAction;
+    }
+
+    public DisputeAdjustmentStatus getAdjustmentStatus() {
+        return adjustmentStatus;
+    }
+
+    public Money getAdjustmentBaseline() {
+        return adjustmentBaseline;
+    }
+
+    public String getAdjustmentNote() {
+        return adjustmentNote;
+    }
+
+    public Instant getAdjustmentClosedAt() {
+        return adjustmentClosedAt;
+    }
+
+    public UUID getAdjustmentClosedBy() {
+        return adjustmentClosedBy;
     }
 
     public Set<UUID> getTitleIds() {

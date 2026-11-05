@@ -79,6 +79,45 @@ class CollectionMetrics {
         registry.counter("collection.disputes.overdue", "type", type).increment();
     }
 
+    /** @param mode MANUAL, TAKE, AUTOMATIC, REDISTRIBUTION, RELEASE */
+    void disputeAssignment(String mode) {
+        registry.counter("collection.disputes.assignments", "mode", mode).increment();
+    }
+
+    /** @param purpose REQUEST, REMINDER, OVERDUE; @param outcome sent, rejected, transient, exhausted */
+    void disputeMail(String purpose, String outcome) {
+        registry.counter("collection.disputes.creditor_mails", "purpose", purpose, "outcome", outcome).increment();
+    }
+
+    void disputeMailDuration(Duration duration) {
+        Timer.builder("collection.disputes.creditor_mail.duration").publishPercentiles(0.5, 0.95, 0.99)
+                .register(registry).record(duration);
+    }
+
+    void disputeCreditorRequestOverdue(String type) {
+        registry.counter("collection.disputes.creditor_overdue", "type", type).increment();
+    }
+
+    /** @param source MANUAL ou PUBLIC_API */
+    void disputeCreditorResponse(String source) {
+        registry.counter("collection.disputes.creditor_responses", "source", source).increment();
+    }
+
+    /** @param outcome queued, blocked, registered */
+    void disputeDebtorNotice(String channel, String outcome) {
+        registry.counter("collection.disputes.debtor_notices", "channel", channel, "outcome", outcome).increment();
+    }
+
+    /** @param status PENDING (sugerido), DONE, DISMISSED */
+    void disputeAdjustment(String action, String status) {
+        registry.counter("collection.disputes.adjustments", "action", action, "status", status).increment();
+    }
+
+    /** @param outcome served, expired, unknown, rate_limited */
+    void disputeLinkDownload(String outcome) {
+        registry.counter("collection.disputes.evidence_link", "outcome", outcome).increment();
+    }
+
     void sync(String trigger, int cases, Duration duration) {
         registry.counter("collection.sync.cases", "trigger", trigger).increment(cases);
         Timer.builder("collection.sync.duration").tag("trigger", trigger).register(registry).record(duration);

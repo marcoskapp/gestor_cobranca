@@ -6,6 +6,7 @@ import br.com.gestorcobranca.compliance.domain.model.ContactPolicy;
 import br.com.gestorcobranca.compliance.domain.model.ContactRestriction;
 import br.com.gestorcobranca.compliance.domain.model.ContactWindow;
 import br.com.gestorcobranca.compliance.domain.model.DenialReason;
+import br.com.gestorcobranca.compliance.domain.model.RestrictionType;
 
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -64,10 +65,22 @@ public final class ContactRules {
      * @param holidays          feriados cadastrados no horizonte avaliado
      * @param attempts          instantes das tentativas anteriores do devedor no canal (ao menos
      *                          as da semana civil corrente)
+     * @param transactional     comunicação transacional (resposta devida ao devedor): sem limites de frequência nem
+     *                          intervalo mínimo e sem as restrições {@code CREDITOR_REQUEST} (suspensão de cobrança
+     *                          pedida pelo credor); as demais restrições, a janela e os feriados continuam valendo
      */
     public record Situation(UUID debtorId, UUID creditorId, ContactChannel channel, String contactValueHash, Instant at,
                             boolean debtorAnonymized, Collection<ContactRestriction> restrictions, ChannelRule rule,
-                            ContactWindow window, Set<LocalDate> holidays, Collection<Instant> attempts) {
+                            ContactWindow window, Set<LocalDate> holidays, Collection<Instant> attempts,
+                            boolean transactional) {
+
+        /** Contato de cobrança. */
+        public Situation(UUID debtorId, UUID creditorId, ContactChannel channel, String contactValueHash, Instant at,
+                         boolean debtorAnonymized, Collection<ContactRestriction> restrictions, ChannelRule rule,
+                         ContactWindow window, Set<LocalDate> holidays, Collection<Instant> attempts) {
+            this(debtorId, creditorId, channel, contactValueHash, at, debtorAnonymized, restrictions, rule, window,
+                    holidays, attempts, false);
+        }
 
         public Situation {
             Objects.requireNonNull(debtorId, "debtorId");
@@ -75,7 +88,9 @@ public final class ContactRules {
             Objects.requireNonNull(channel, "channel");
             Objects.requireNonNull(at, "at");
             Objects.requireNonNull(window, "window");
-            restrictions = List.copyOf(restrictions);
+            restrictions = transactional
+                    ? restrictions.stream().filter(r -> r.getType() != RestrictionType.CREDITOR_REQUEST).toList()
+                    : List.copyOf(restrictions);
             holidays = Set.copyOf(holidays);
             attempts = List.copyOf(attempts);
         }
@@ -135,6 +150,9 @@ public final class ContactRules {
         if (rule.isBlockOnHolidays() && s.holidays().contains(day)) {
             reasons.add(DenialReason.HOLIDAY);
         }
+        if (s.transactional()) {
+            return reasons;
+        }
         if (rule.getMaxPerDay() != null && attemptsOnDay(s, local.toLocalDate()) >= rule.getMaxPerDay()) {
             reasons.add(DenialReason.DAILY_LIMIT);
         }
@@ -191,6 +209,9 @@ public final class ContactRules {
         LocalDate openingDay = s.window().openingDate(local).orElseThrow();
         if (rule.isBlockOnHolidays() && s.holidays().contains(openingDay)) {
             return Optional.of(toInstant(s.window().firstOpeningAfter(openingDay)));
+        }
+        if (s.transactional()) {
+            return Optional.of(t);
         }
         LocalDate day = local.toLocalDate();
         if (rule.getMaxPerDay() != null && attemptsOnDay(s, day) >= rule.getMaxPerDay()) {

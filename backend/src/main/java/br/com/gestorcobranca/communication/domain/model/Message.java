@@ -28,6 +28,8 @@ public class Message extends TenantScopedEntity {
 
     public static final int CONTENT_MAX = 20_000;
     public static final String CONTACT_DENIED = "CONTACT_DENIED";
+    public static final String CATEGORY_COLLECTION = "COLLECTION";
+    public static final String CATEGORY_TRANSACTIONAL = "TRANSACTIONAL";
 
     @Column(name = "conversation_id", nullable = false, updatable = false)
     private UUID conversationId;
@@ -98,6 +100,17 @@ public class Message extends TenantScopedEntity {
 
     @Column(name = "idempotency_key", length = 100, updatable = false)
     private String idempotencyKey;
+
+    /** COLLECTION (cobrança) ou TRANSACTIONAL (resposta devida ao devedor), repassada ao porteiro de contato. */
+    @Column(name = "contact_category", nullable = false, length = 20, updatable = false)
+    private String contactCategory = CATEGORY_COLLECTION;
+
+    /** Agregado de outro módulo que originou a mensagem transacional (ex.: {@code dispute}). */
+    @Column(name = "reference_type", length = 40, updatable = false)
+    private String referenceType;
+
+    @Column(name = "reference_id", updatable = false)
+    private UUID referenceId;
 
     @Column(name = "queued_at")
     private Instant queuedAt;
@@ -350,6 +363,33 @@ public class Message extends TenantScopedEntity {
 
     public String getIdempotencyKey() {
         return idempotencyKey;
+    }
+
+    /**
+     * Marca a mensagem nova como transacional (resposta devida ao devedor), com o agregado de origem. Antes de gravar.
+     */
+    public void markTransactional(String referenceType, UUID referenceId) {
+        Guard.require(referenceType != null && !referenceType.isBlank() && referenceType.length() <= 40
+                && referenceId != null, "message.reference_invalid", "Referência da mensagem transacional inválida");
+        this.contactCategory = CATEGORY_TRANSACTIONAL;
+        this.referenceType = referenceType;
+        this.referenceId = referenceId;
+    }
+
+    public String getContactCategory() {
+        return contactCategory;
+    }
+
+    public boolean isTransactional() {
+        return CATEGORY_TRANSACTIONAL.equals(contactCategory);
+    }
+
+    public String getReferenceType() {
+        return referenceType;
+    }
+
+    public UUID getReferenceId() {
+        return referenceId;
     }
 
     public Instant getQueuedAt() {

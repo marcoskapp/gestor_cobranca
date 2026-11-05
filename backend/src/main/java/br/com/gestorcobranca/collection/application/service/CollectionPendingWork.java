@@ -25,6 +25,9 @@ class CollectionPendingWork implements PendingWorkSource {
 
     static final String CALLBACKS = "collection.callbacks_due";
     static final String DISPUTES = "collection.disputes_due";
+    static final String MY_DISPUTES = "collection.disputes_mine";
+    static final String DEBTOR_NOTICES = "collection.dispute_debtor_notices";
+    static final String ADJUSTMENTS = "collection.dispute_adjustments";
     /** Retornos perdidos continuam na agenda ("Atrasados") por 30 dias. */
     static final Duration MISSED_WINDOW = Duration.ofDays(30);
 
@@ -48,7 +51,8 @@ class CollectionPendingWork implements PendingWorkSource {
 
     @Override
     public boolean appliesTo(Actor actor) {
-        return actor.has(Permission.CASE_WORK) || actor.has(Permission.TASK_MANAGE) || actor.has(Permission.DISPUTE_MANAGE);
+        return actor.has(Permission.CASE_WORK) || actor.has(Permission.TASK_MANAGE) || actor.has(Permission.DISPUTE_MANAGE)
+                || actor.has(Permission.DISPUTE_WORK);
     }
 
     @Override
@@ -67,12 +71,43 @@ class CollectionPendingWork implements PendingWorkSource {
             }
             items.add(item.build());
         }
-        if (actor.has(Permission.DISPUTE_MANAGE)) {
-            PendingWorkCount disputes = queries.disputesDue(scope, request.today(), request.dueSoonUntil());
-            items.add(PendingWorkItem.of(DISPUTES, "Contestações com prazo de resposta próximo", disputes)
-                    .hint("Analise a contestação e registre a resposta.")
-                    .route("/cobranca/contestacoes").param("vencidas", disputes.overdue() > 0 ? "true" : null)
+        boolean manage = actor.has(Permission.DISPUTE_MANAGE);
+        if (manage || actor.has(Permission.DISPUTE_WORK)) {
+            PendingWorkCount mine = queries.disputesOfAssignee(scope, actor.id(), request.today(), request.dueSoonUntil());
+            items.add(PendingWorkItem.of(MY_DISPUTES, "Suas contestações com prazo próximo ou vencido", mine)
+                    .hint("Peça os documentos ao credor, analise e resolva dentro do prazo.")
+                    .route("/cobranca/contestacoes").param("responsavel", "me")
+                    .singleRoute(id -> "/cobranca/contestacoes/" + id)
                     .build());
+        }
+        if (manage) {
+            PendingWorkCount supervision = queries.disputesForSupervision(scope, request.today());
+            items.add(PendingWorkItem.of(DISPUTES, "Contestações sem responsável ou com prazo vencido", supervision)
+                    .hint("Atribua um responsável ou redistribua as vencidas.")
+                    .route("/cobranca/contestacoes").param("fila", "supervisao")
+                    .singleRoute(id -> "/cobranca/contestacoes/" + id)
+                    .build());
+        }
+        if (manage || actor.has(Permission.DISPUTE_WORK)) {
+            UUID owner = manage ? null : actor.id();
+            PendingWorkCount notices = queries.debtorNoticesPending(scope, owner);
+            PendingWorkItem.Builder notice = PendingWorkItem.of(DEBTOR_NOTICES,
+                            "Contestações resolvidas sem resposta ao devedor", notices)
+                    .hint("Envie ao devedor a resposta fundamentada do resultado.")
+                    .route("/cobranca/contestacoes").param("resposta", "pendente")
+                    .singleRoute(id -> "/cobranca/contestacoes/" + id);
+            PendingWorkCount adjustments = queries.adjustmentsPending(scope, owner);
+            PendingWorkItem.Builder adjustment = PendingWorkItem.of(ADJUSTMENTS,
+                            "Ajustes de título pendentes após contestação procedente", adjustments)
+                    .hint("Faça o ajuste sugerido no título ou dispense com o motivo.")
+                    .route("/cobranca/contestacoes").param("ajuste", "pendente")
+                    .singleRoute(id -> "/cobranca/contestacoes/" + id);
+            if (!manage) {
+                notice.param("responsavel", "me");
+                adjustment.param("responsavel", "me");
+            }
+            items.add(notice.build());
+            items.add(adjustment.build());
         }
         return items;
     }

@@ -79,6 +79,19 @@ create view analytics.src_queue with (security_invoker = true) as
 select q.tenant_id, q.id as queue_id, q.code, q.name, q.creditor_id, q.active
 from collection.queue q;
 
+-- contestações (painel de contestações): sem descrição, parecer nem textos dos e-mails
+create view analytics.src_dispute with (security_invoker = true) as
+select d.tenant_id, d.id as dispute_id, d.creditor_id, d.portfolio_id, d.type, d.origin, d.status, d.outcome,
+       d.opened_at, d.resolved_at, d.response_due_date, d.internal_due_date, d.assignee_id,
+       d.awaiting_creditor_since, d.adjustment_status
+from collection.dispute d;
+
+create view analytics.src_dispute_creditor_request with (security_invoker = true) as
+select r.tenant_id, r.id as request_id, r.dispute_id, r.creditor_id, d.portfolio_id, d.type, d.origin, r.status,
+       r.requested_due_date, r.overdue, r.sent_at, r.answered_at
+from collection.dispute_creditor_request r
+join collection.dispute d on d.id = r.dispute_id;
+
 -- ------------------------------------------------------------------ negotiation
 create view analytics.src_proposal with (security_invoker = true) as
 select p.tenant_id, p.id as proposal_id, p.creditor_id, p.portfolio_id, p.team_id, p.channel, p.actor_type,

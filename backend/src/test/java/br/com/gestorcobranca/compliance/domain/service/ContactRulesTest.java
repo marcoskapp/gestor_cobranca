@@ -239,4 +239,37 @@ class ContactRulesTest {
     void startOfWeekIsMondayMidnightInBusinessZone() {
         assertThat(RULES.startOfWeek(local(WEDNESDAY, 10, 0))).isEqualTo(local(WEDNESDAY.minusDays(2), 0, 0));
     }
+
+    /** Resposta transacional (ex.: resultado da contestação): sem limites nem suspensão do credor; o resto vale. */
+    @Test
+    void transactionalIgnoresFrequencyLimitsAndCreditorSuspensionButKeepsOptOutAndWindow() {
+        Instant at = local(WEDNESDAY, 10, 0);
+        ChannelRule strict = limits(1, 1, 600, true);
+        List<Instant> earlier = List.of(local(WEDNESDAY, 9, 50));
+        ContactRestriction creditorSuspension = new ContactRestriction(DEBTOR, CREDITOR, null,
+                RestrictionType.CREDITOR_REQUEST, null, "credor pediu suspensão", RestrictionSource.CREDITOR, at.minusSeconds(3600),
+                null, null);
+        Situation collection = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false,
+                List.of(creditorSuspension), strict, BUSINESS, Set.of(), earlier);
+        assertThat(RULES.evaluate(collection).allowed()).isFalse();
+        assertThat(RULES.evaluate(collection).reasons()).contains(DenialReason.DAILY_LIMIT, DenialReason.MIN_INTERVAL,
+                DenialReason.RESTRICTED_DEBTOR);
+
+        Situation transactional = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false,
+                List.of(creditorSuspension), strict, BUSINESS, Set.of(), earlier, true);
+        assertThat(RULES.evaluate(transactional).allowed()).isTrue();
+
+        // opt-out/pedido do devedor no canal, janela de horário e feriado continuam valendo
+        Situation optedOut = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false,
+                List.of(restriction(null, ContactChannel.WHATSAPP, at.minusSeconds(60), null)), strict, BUSINESS,
+                Set.of(), List.of(), true);
+        assertThat(RULES.evaluate(optedOut).reasons()).containsExactly(DenialReason.RESTRICTED_CHANNEL);
+        Situation night = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, local(WEDNESDAY, 22, 0), false,
+                List.of(), strict, BUSINESS, Set.of(), List.of(), true);
+        assertThat(RULES.evaluate(night).reasons()).containsExactly(DenialReason.OUTSIDE_WINDOW);
+        assertThat(RULES.evaluate(night).nextAllowedAt()).isEqualTo(local(WEDNESDAY.plusDays(1), 8, 0));
+        Situation holiday = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false, List.of(), strict,
+                BUSINESS, Set.of(WEDNESDAY), List.of(), true);
+        assertThat(RULES.evaluate(holiday).reasons()).containsExactly(DenialReason.HOLIDAY);
+    }
 }

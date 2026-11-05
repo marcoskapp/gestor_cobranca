@@ -32,13 +32,19 @@ class CollectionMaintenance {
     private final CaseAgenda agenda;
     private final PromiseService promises;
     private final DisputeService disputes;
+    private final DisputeCreditorChannel disputeCreditorChannel;
+    private final DisputeAdjustments disputeAdjustments;
+    private final br.com.gestorcobranca.collection.application.port.out.DisputeLinkRoutes disputeLinks;
     private final AuditTrail auditTrail;
     private final CaseAccess access;
     private final Clock clock;
 
     CollectionMaintenance(CollectionTaskRepository tasks, CollectionCaseRepository cases, CallbackRecorder callbacks,
                           CaseRecorder caseRecorder, CaseAgenda agenda, PromiseService promises,
-                          DisputeService disputes, AuditTrail auditTrail, CaseAccess access, Clock clock) {
+                          DisputeService disputes, DisputeCreditorChannel disputeCreditorChannel,
+                          DisputeAdjustments disputeAdjustments,
+                          br.com.gestorcobranca.collection.application.port.out.DisputeLinkRoutes disputeLinks,
+                          AuditTrail auditTrail, CaseAccess access, Clock clock) {
         this.tasks = tasks;
         this.cases = cases;
         this.callbacks = callbacks;
@@ -46,6 +52,9 @@ class CollectionMaintenance {
         this.agenda = agenda;
         this.promises = promises;
         this.disputes = disputes;
+        this.disputeCreditorChannel = disputeCreditorChannel;
+        this.disputeAdjustments = disputeAdjustments;
+        this.disputeLinks = disputeLinks;
         this.auditTrail = auditTrail;
         this.access = access;
         this.clock = clock;
@@ -90,5 +99,23 @@ class CollectionMaintenance {
 
     int flagOverdueDisputes() {
         return disputes.flagOverdue(BATCH);
+    }
+
+    /** Lembrete antes do prazo pedido ao credor e cobrança do retorno vencido. */
+    int followUpCreditorRequests() {
+        return disputeCreditorChannel.followUp(BATCH);
+    }
+
+    /** Ajustes sugeridos cujo efeito já aparece nos títulos (rede de segurança do consumo de eventos). */
+    int reconcileDisputeAdjustments() {
+        disputeAdjustments.sweep(BATCH);
+        // a varredura revisita os pendentes sem efeito; um lote por execução evita repetir os mesmos
+        return 0;
+    }
+
+    /** Rotas de links de evidências vencidas há mais de 30 dias (a tabela global não guarda histórico). */
+    int purgeDisputeLinks() {
+        disputeLinks.purgeExpired(Instant.now(clock).minus(java.time.Duration.ofDays(30)));
+        return 0;
     }
 }
