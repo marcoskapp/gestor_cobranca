@@ -290,6 +290,8 @@ class TelephonyMultiProviderIT extends TelephonyTestSupport {
         assertThat(call(callId).provider()).isEqualTo("ALVARIA");
 
         assertThat(alvariaEvent(providerCallId(callId), callId, "ANSWERED", "HUMAN", null)).isEqualTo(Outcome.ACCEPTED);
+        // o bridge sai depois do commit, no executor de comandos
+        awaitTrue("bridge na Alvaria", () -> !received.isEmpty());
         JsonNode bridge = received.poll();
         assertThat(bridge).isNotNull();
         assertThat(bridge.path("agentEndpoint").asString()).isEqualTo("alv-x");

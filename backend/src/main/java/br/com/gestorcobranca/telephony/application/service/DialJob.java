@@ -2,13 +2,16 @@ package br.com.gestorcobranca.telephony.application.service;
 
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate;
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate.ContactDecision;
+import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.jobs.JobContext;
 import br.com.gestorcobranca.shared.jobs.JobHandler;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.DialResult;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupReason;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.OriginateRequest;
+import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.ProviderContext;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.TransientProviderException;
 import br.com.gestorcobranca.telephony.domain.model.Agent;
 import br.com.gestorcobranca.telephony.domain.model.Call;
@@ -24,22 +27,29 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Discagem do clique para ligar ({@code telephony.dial}), no tenant da chamada, como sistema:
+ * Discagem do clique para ligar ({@code telephony.dial}), no tenant da chamada, como sistema, em fases
+ * (handler sem transação, decisão 852; TEL-02):
  * <ol>
- *   <li>chamada que não está mais {@code QUEUED} → nada a fazer (reexecução idempotente);</li>
- *   <li>conta inativa/sem adaptador ou operador sem ramal → {@code FAILED};</li>
- *   <li>{@code ContactGate#authorizeAndRecord} imediatamente antes de discar: negado →
- *       {@code FAILED/CONTACT_DENIED}, operador liberado; permitido → tentativa registrada;</li>
- *   <li>provedor: aceite → {@code DIALING}; recusa → {@code FAILED}; falha transitória que
- *       comprovadamente não criou a chamada → a mesma chamada vai, uma única vez, para a conta de
- *       contingência da regra (se o operador tem ramal nela); demais falhas transitórias → exceção
- *       (transação desfeita, inclusive a tentativa no compliance e o desvio, e o job reagendado). Na
- *       última tentativa a chamada é encerrada como {@code FAILED/RETRIES_EXHAUSTED} em transação
- *       própria.</li>
+ *   <li><b>preparo</b> (transação curta, chamada em {@code FOR UPDATE}): chamada que não está mais
+ *       {@code QUEUED} nem aguardando o provedor → nada a fazer; conta inativa/sem adaptador ou operador sem
+ *       ramal → {@code FAILED}; {@code ContactGate#authorizeAndRecord} imediatamente antes de discar: negado →
+ *       {@code FAILED/CONTACT_DENIED}, operador liberado; permitido → tentativa registrada e pedido de
+ *       discagem gravado ({@code QUEUED → DIALING}, sem id do provedor). Confirmado antes do HTTP: os eventos
+ *       e pedidos de instrução do provedor já encontram a chamada;</li>
+ *   <li><b>provedor</b> (sem transação e sem lock): {@code originate}. Falha transitória que comprovadamente
+ *       não criou a chamada → a mesma chamada vai, uma única vez, para a conta de contingência da regra (se o
+ *       operador tem ramal nela; o desvio é gravado em transação curta antes do novo pedido); demais falhas
+ *       transitórias → exceção e o job é reagendado. A nova execução encontra o pedido sem resposta e o
+ *       repete com a mesma tentativa do compliance (sem novo registro). Na última tentativa a chamada é
+ *       encerrada como {@code FAILED/RETRIES_EXHAUSTED};</li>
+ *   <li><b>resultado</b> (transação curta): aceite → id do provedor gravado (a chamada pode já ter avançado
+ *       pelos eventos); se ela foi encerrada aqui enquanto o provedor discava (operador desligou), o
+ *       encerramento é pedido ao provedor depois do commit; recusa → {@code FAILED} como não discada.</li>
  * </ol>
  * O ramal enviado ao provedor é o do operador na conta que disca ({@link AgentEndpoints}).
  */
@@ -57,6 +67,7 @@ class DialJob implements JobHandler<DialJob.Payload> {
     private final AgentEndpoints endpoints;
     private final ContactGate gate;
     private final CallLifecycle lifecycle;
+    private final ProviderCalls providerCalls;
     private final TenantExecution tenantExecution;
     private final TelephonyMetrics metrics;
     private final TelephonyProperties properties;
@@ -64,7 +75,8 @@ class DialJob implements JobHandler<DialJob.Payload> {
 
     DialJob(CallRepository calls, TelephonyAccountRepository accounts, AgentRepository agents, ProviderResolver resolver,
             AccountRouter router, AgentEndpoints endpoints, ContactGate gate, CallLifecycle lifecycle,
-            TenantExecution tenantExecution, TelephonyMetrics metrics, TelephonyProperties properties, Clock clock) {
+            ProviderCalls providerCalls, TenantExecution tenantExecution, TelephonyMetrics metrics,
+            TelephonyProperties properties, Clock clock) {
         this.calls = calls;
         this.accounts = accounts;
         this.agents = agents;
@@ -73,6 +85,7 @@ class DialJob implements JobHandler<DialJob.Payload> {
         this.endpoints = endpoints;
         this.gate = gate;
         this.lifecycle = lifecycle;
+        this.providerCalls = providerCalls;
         this.tenantExecution = tenantExecution;
         this.metrics = metrics;
         this.properties = properties;
@@ -98,71 +111,104 @@ class DialJob implements JobHandler<DialJob.Payload> {
     }
 
     @Override
+    public boolean transactional() {
+        return false;
+    }
+
+    @Override
     public void handle(JobContext context, Payload payload) {
-        Optional<Call> found = calls.findById(payload.callId());
-        if (found.isEmpty() || found.get().getStatus() != CallStatus.QUEUED) {
+        UUID tenantId = context.tenantId();
+        Optional<Dial> prepared = tenantExecution.callInTenant(tenantId, "telephony.dial.prepare",
+                () -> prepare(payload.callId()));
+        if (prepared.isEmpty()) {
             return;
         }
+        Dial dial = prepared.get();
+        DialResult result;
+        try {
+            result = originate(dial);
+        } catch (TransientProviderException primaryFailure) {
+            metrics.providerDial(dial.providerName(), dial.origin(),
+                    primaryFailure.notProcessed() ? "transient_not_processed" : "transient");
+            Optional<Dial> fallback = primaryFailure.notProcessed()
+                    ? tenantExecution.callInTenant(tenantId, "telephony.dial.fallback", () -> switchToFallback(dial))
+                    : Optional.empty();
+            if (fallback.isEmpty()) {
+                throw exhaustedOr(context, dial, primaryFailure);
+            }
+            metrics.fallback(dial.providerName(), fallback.get().providerName(), dial.origin(), 1);
+            LOG.atWarn().addKeyValue("callId", dial.callId()).addKeyValue("fromAccountId", dial.accountId())
+                    .addKeyValue("toAccountId", fallback.get().accountId())
+                    .log("Discagem desviada para a conta de contingência");
+            try {
+                result = originate(fallback.get());
+            } catch (TransientProviderException fallbackFailure) {
+                metrics.providerDial(fallback.get().providerName(), dial.origin(), "transient");
+                throw exhaustedOr(context, fallback.get(), fallbackFailure);
+            } catch (RuntimeException unexpected) {
+                throw unexpected(context, fallback.get(), unexpected);
+            }
+        } catch (RuntimeException unexpected) {
+            throw unexpected(context, dial, unexpected);
+        }
+        DialResult outcome = result;
+        tenantExecution.inTenant(tenantId, "telephony.dial.result", () -> record(dial.callId(), outcome));
+    }
+
+    // ------------------------------------------------------------------ fase 1: preparo
+
+    private Optional<Dial> prepare(UUID callId) {
+        Optional<Call> found = calls.findByIdForUpdate(callId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
         Call call = found.get();
+        boolean retry = call.isAwaitingProvider();
+        if (call.getStatus() != CallStatus.QUEUED && !retry) {
+            return Optional.empty();
+        }
         Optional<TelephonyAccount> account = accounts.findById(call.getAccountId()).filter(TelephonyAccount::isActive);
         Optional<TelephonyProvider> provider = account.flatMap(a -> resolver.provider(a.getProvider()));
         Optional<Agent> agent = agents.findByUserId(call.getOperatorId()).filter(Agent::isActive);
         Optional<String> extension = agent.flatMap(a -> account.flatMap(acc -> endpoints.extensionFor(a, acc.getId())));
         if (provider.isEmpty() || extension.isEmpty()) {
-            fail(call, provider.isEmpty() ? "ACCOUNT_UNAVAILABLE" : "AGENT_UNAVAILABLE",
-                    provider.isEmpty() ? "Conta de telefonia inativa ou sem adaptador"
-                            : "Operador sem ramal ativo nesta conta");
-            return;
+            unavailable(call, provider.isEmpty() ? "ACCOUNT_UNAVAILABLE" : "AGENT_UNAVAILABLE",
+                    provider.isEmpty() ? "Conta de telefonia inativa ou sem adaptador" : "Operador sem ramal ativo nesta conta");
+            return Optional.empty();
         }
-        ContactDecision decision = gate.authorizeAndRecord(new ContactGate.ContactRequest(call.getDebtorId(),
-                call.getCreditorId(), "PHONE", call.getNumber(), null, call.getOrigin().gateOrigin(), "call", call.getId()));
-        if (!decision.allowed()) {
-            List<String> reasons = decision.reasons().stream().map(Enum::name).toList();
-            call.block(String.join(",", reasons), Instant.now(clock));
-            calls.save(call);
-            lifecycle.blocked(call, reasons, decision.nextAllowedAt(), "dial");
-            return;
-        }
-        DialResult result;
-        try {
-            result = originate(provider.get(), account.get(), extension.get(), call);
-        } catch (TransientProviderException primaryFailure) {
-            Optional<Fallback> fallback = primaryFailure.notProcessed() ? fallback(call, agent.get()) : Optional.empty();
-            metrics.providerDial(name(account.get()), call.getOrigin().name(),
-                    primaryFailure.notProcessed() ? "transient_not_processed" : "transient");
-            if (fallback.isEmpty()) {
-                throw exhaustedOr(context, call, primaryFailure);
+        if (!retry) {
+            ContactDecision decision = gate.authorizeAndRecord(new ContactGate.ContactRequest(call.getDebtorId(),
+                    call.getCreditorId(), "PHONE", call.getNumber(), null, call.getOrigin().gateOrigin(), "call",
+                    call.getId()));
+            if (!decision.allowed()) {
+                List<String> reasons = decision.reasons().stream().map(Enum::name).toList();
+                call.block(String.join(",", reasons), Instant.now(clock));
+                calls.save(call);
+                lifecycle.blocked(call, reasons, decision.nextAllowedAt(), "dial");
+                return Optional.empty();
             }
-            call.switchToFallback(fallback.get().account());
-            metrics.fallback(name(account.get()), name(fallback.get().account()), call.getOrigin().name(), 1);
-            LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("fromAccountId", account.get().getId())
-                    .addKeyValue("toAccountId", fallback.get().account().getId())
-                    .log("Discagem desviada para a conta de contingência");
-            try {
-                result = originate(fallback.get().provider(), fallback.get().account(), fallback.get().extension(), call);
-            } catch (TransientProviderException fallbackFailure) {
-                metrics.providerDial(name(fallback.get().account()), call.getOrigin().name(), "transient");
-                throw exhaustedOr(context, call, fallbackFailure);
-            }
-        }
-        Instant now = Instant.now(clock);
-        if (result.accepted()) {
-            call.dialing(result.providerCallId(), decision.attemptId(), now);
+            call.dialRequested(decision.attemptId(), Instant.now(clock));
             calls.save(call);
-            lifecycle.dialed(call);
-        } else {
-            LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("provider", call.getProvider())
-                    .addKeyValue("errorCode", result.errorCode()).log("Provedor recusou a discagem");
-            metrics.dial(call.getOrigin().name(), "rejected");
-            metrics.providerDial(call.getProvider().name().toLowerCase(java.util.Locale.ROOT), call.getOrigin().name(),
-                    "rejected");
-            fail(call, result.errorCode(), result.errorDetail());
         }
+        // nova execução com o pedido sem resposta: repete na mesma conta, com a mesma tentativa do compliance
+        return Optional.of(dial(call, account.get(), provider.get(), extension.get()));
     }
 
-    private DialResult originate(TelephonyProvider provider, TelephonyAccount account, String extension, Call call) {
-        return provider.originate(new OriginateRequest(resolver.context(account), call.getId(), extension,
-                call.getNumber(), CallInstructions.CLICK_TO_CALL_RING_SECONDS, call.isRecordingRequested(), call.isRecordingAnnounced()));
+    /** Desvio para a contingência, gravado antes do novo pedido (os eventos dela precisam achar a conta). */
+    private Optional<Dial> switchToFallback(Dial dial) {
+        Optional<Call> found = calls.findByIdForUpdate(dial.callId()).filter(Call::isAwaitingProvider);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        Call call = found.get();
+        Optional<Agent> agent = agents.findByUserId(call.getOperatorId()).filter(Agent::isActive);
+        Optional<Fallback> fallback = agent.flatMap(a -> fallback(call, a));
+        if (fallback.isEmpty()) {
+            return Optional.empty();
+        }
+        call.switchToFallback(fallback.get().account());
+        calls.save(call);
+        return Optional.of(dial(call, fallback.get().account(), fallback.get().provider(), fallback.get().extension()));
     }
 
     /** Contingência da regra do caso, se habilitada, ainda não usada e com ramal do operador. */
@@ -173,7 +219,7 @@ class DialJob implements JobHandler<DialJob.Payload> {
         AccountRouter.Route route;
         try {
             route = router.forClickToCall(agent, call.getCreditorId(), call.getPortfolioId());
-        } catch (br.com.gestorcobranca.shared.domain.ConflictException e) {
+        } catch (ConflictException e) {
             return Optional.empty();
         }
         Optional<TelephonyAccount> candidate = route.primary().getId().equals(call.getAccountId())
@@ -183,30 +229,121 @@ class DialJob implements JobHandler<DialJob.Payload> {
                         .map(ext -> new Fallback(a, p, ext))));
     }
 
-    /** Falha transitória sem contingência: na última tentativa encerra a chamada; devolve a exceção a relançar. */
-    private RuntimeException exhaustedOr(JobContext context, Call call, TransientProviderException e) {
-        metrics.dial(call.getOrigin().name(), "transient");
-        if (context.attempt() >= maxAttempts()) {
-            metrics.jobFailure(TYPE);
-            metrics.dial(call.getOrigin().name(), "exhausted");
-            // a tentativa no compliance é desfeita com esta transação; o encerramento vale em transação própria
-            tenantExecution.inTenant(context.tenantId(), "telephony.dial_exhausted", () ->
-                    calls.findByIdForUpdate(call.getId()).filter(c -> c.getStatus() == CallStatus.QUEUED)
-                            .ifPresent(c -> fail(c, "RETRIES_EXHAUSTED", "Provedor indisponível")));
-        }
+    private Dial dial(Call call, TelephonyAccount account, TelephonyProvider provider, String extension) {
+        return new Dial(call.getId(), account.getId(), name(account), provider, resolver.context(account), extension,
+                call.getNumber(), call.isRecordingRequested(), call.isRecordingAnnounced(), call.getOrigin().name());
+    }
+
+    // ------------------------------------------------------------------ fase 2: provedor
+
+    private DialResult originate(Dial dial) {
+        return dial.provider().originate(new OriginateRequest(dial.context(), dial.callId(), dial.extension(),
+                dial.number(), CallInstructions.CLICK_TO_CALL_RING_SECONDS, dial.recordingRequested(),
+                dial.recordingAnnounced()));
+    }
+
+    /** Falha inesperada do adaptador: como a transitória (nova tentativa; na última, a chamada é encerrada). */
+    private RuntimeException unexpected(JobContext context, Dial dial, RuntimeException e) {
+        metrics.providerDial(dial.providerName(), dial.origin(), "error");
+        closeIfLastAttempt(context, dial);
         return e;
     }
 
+    /** Falha transitória sem contingência: na última tentativa encerra a chamada; devolve a exceção a relançar. */
+    private RuntimeException exhaustedOr(JobContext context, Dial dial, TransientProviderException e) {
+        metrics.dial(dial.origin(), "transient");
+        closeIfLastAttempt(context, dial);
+        return e;
+    }
+
+    /** Na última tentativa o pedido sem resposta não fica aberto: {@code FAILED/RETRIES_EXHAUSTED}, não discada. */
+    private void closeIfLastAttempt(JobContext context, Dial dial) {
+        if (context.attempt() >= maxAttempts()) {
+            metrics.jobFailure(TYPE);
+            metrics.dial(dial.origin(), "exhausted");
+            tenantExecution.inTenant(context.tenantId(), "telephony.dial_exhausted", () ->
+                    calls.findByIdForUpdate(dial.callId()).filter(Call::isAwaitingProvider).ifPresent(c -> {
+                        c.providerRejected("RETRIES_EXHAUSTED", "Provedor indisponível", Instant.now(clock));
+                        calls.save(c);
+                        lifecycle.ended(c);
+                    }));
+        }
+    }
+
+    // ------------------------------------------------------------------ fase 3: resultado
+
+    private void record(UUID callId, DialResult result) {
+        Call call = calls.findByIdForUpdate(callId).orElseThrow();
+        if (result.accepted()) {
+            accepted(accounts.findById(call.getAccountId()).orElseThrow(), call, result.providerCallId(), calls,
+                    lifecycle, providerCalls, HangupReason.OPERATOR);
+            return;
+        }
+        LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("provider", call.getProvider())
+                .addKeyValue("errorCode", result.errorCode()).log("Provedor recusou a discagem");
+        metrics.dial(call.getOrigin().name(), "rejected");
+        metrics.providerDial(call.getProvider().name().toLowerCase(Locale.ROOT), call.getOrigin().name(), "rejected");
+        if (call.isAwaitingProvider()) {
+            call.providerRejected(result.errorCode(), result.errorDetail(), Instant.now(clock));
+            calls.save(call);
+            lifecycle.ended(call);
+        }
+    }
+
+    /**
+     * Aceite do provedor (comum ao discador). Chamada já final sem o pedido (recusada pela conciliação ou nas
+     * tentativas esgotadas) ou com outro id: o que o provedor criou é encerrado lá, sem exceção (no discador ela
+     * desfaria o resultado do lote inteiro). Gravado agora numa chamada já final → encerrada aqui enquanto o provedor
+     * discava (o evento grava o id antes, quando o traz): encerra também lá.
+     */
+    static void accepted(TelephonyAccount account, Call call, String providerCallId, CallRepository calls,
+                         CallLifecycle lifecycle, ProviderCalls providerCalls, HangupReason reason) {
+        boolean bindable = call.getDialStartedAt() != null
+                && (call.getProviderCallId() == null || call.getProviderCallId().equals(providerCallId));
+        if (!bindable) {
+            LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("status", call.getStatus())
+                    .log("Aceite do provedor para chamada já encerrada ou com outro id; encerrando no provedor");
+            providerCalls.hangupAfterCommit(account, call.getId(), providerCallId, null, reason);
+            return;
+        }
+        boolean bound = call.providerAccepted(providerCallId);
+        calls.save(call);
+        lifecycle.dialed(call);
+        if (bound && call.getStatus().isTerminal()) {
+            providerCalls.hangupAfterCommit(account, call, reason);
+        }
+    }
+
+    /** Conta ou operador indisponível: antes do pedido, falha antes da discagem; na nova execução, recusa. */
+    private void unavailable(Call call, String code, String detail) {
+        Instant now = Instant.now(clock);
+        if (call.isAwaitingProvider()) {
+            call.providerRejected(code, detail, now);
+        } else {
+            call.failBeforeDialing(code, detail, now);
+        }
+        calls.save(call);
+        lifecycle.ended(call);
+    }
+
     private static String name(TelephonyAccount account) {
-        return account.getProvider().name().toLowerCase(java.util.Locale.ROOT);
+        return account.getProvider().name().toLowerCase(Locale.ROOT);
     }
 
     private record Fallback(TelephonyAccount account, TelephonyProvider provider, String extension) {
     }
 
-    private void fail(Call call, String code, String detail) {
-        call.failBeforeDialing(code, detail, Instant.now(clock));
-        calls.save(call);
-        lifecycle.ended(call);
+    /**
+     * Pedido de discagem montado na fase de preparo (fora da transação só circulam estes valores). O número em
+     * claro vai ao provedor e nunca a log: {@link #toString()} não o inclui.
+     */
+    private record Dial(UUID callId, UUID accountId, String providerName, TelephonyProvider provider,
+                        ProviderContext context, String extension, String number, boolean recordingRequested,
+                        boolean recordingAnnounced, String origin) {
+
+        @Override
+        public String toString() {
+            return "Dial[callId=" + callId + ", accountId=" + accountId + ", provider=" + providerName + "]";
+        }
     }
 }

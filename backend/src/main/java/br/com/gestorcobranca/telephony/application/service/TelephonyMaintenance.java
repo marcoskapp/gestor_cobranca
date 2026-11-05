@@ -139,9 +139,16 @@ class TelephonyMaintenance {
             if (call.getStatus().isTerminal()) {
                 continue;
             }
-            boolean ended = call.getStatus() == CallStatus.QUEUED
-                    ? endQueued(call, now)
-                    : call.end(CallStatus.FAILED, now, HangupSide.SYSTEM, "STALE");
+            boolean ended;
+            if (call.getStatus() == CallStatus.QUEUED) {
+                ended = endQueued(call, now);
+            } else if (call.isAwaitingProvider()) {
+                // pedido de discagem que o provedor nunca confirmou (instância caiu entre o pedido e o resultado)
+                call.providerRejected("STALE", "Discagem não confirmada pelo provedor", now);
+                ended = true;
+            } else {
+                ended = call.end(CallStatus.FAILED, now, HangupSide.SYSTEM, "STALE");
+            }
             if (ended) {
                 lifecycle.ended(call);
                 count++;

@@ -18,7 +18,11 @@ import java.util.Set;
 public enum CallStatus {
     /** Registrada, aguardando a discagem (job). */
     QUEUED,
-    /** Pedido aceito pelo provedor; discando. */
+    /**
+     * Pedido de discagem enviado ao provedor; discando. Sem {@code providerCallId} enquanto o provedor
+     * não responde ao pedido ({@code Call#isAwaitingProvider()}); os eventos já encontram a chamada pela
+     * referência interna.
+     */
     DIALING,
     /** Tocando no destino. */
     RINGING,

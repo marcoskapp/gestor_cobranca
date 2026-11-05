@@ -1,10 +1,15 @@
 package br.com.gestorcobranca.telephony.infrastructure.provider.sandbox;
 
 import br.com.gestorcobranca.shared.jobs.JobQueue;
+import br.com.gestorcobranca.shared.security.CurrentActor;
+import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
+import br.com.gestorcobranca.telephony.application.port.in.ProviderEventUseCases;
+import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.domain.model.ProviderType;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +17,8 @@ import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,20 +31,34 @@ import java.util.UUID;
  * Destinos terminados em {@code 0000} simulam número inexistente (recusa); em {@code 9999}, falha
  * transitória ambígua (o provedor pode ter discado: repete na mesma conta); em {@code 9998}, falha
  * transitória que comprovadamente não criou a chamada (provedor fora do ar: a contingência pode
- * assumir). A gravação devolvida é um WAV de 1 s de silêncio.
+ * assumir); em {@code 7777}, provedor rápido: o toque e o atendimento por pessoa chegam (como webhooks,
+ * em transação própria) <b>antes</b> da resposta ao pedido de discagem. A gravação devolvida é um WAV de
+ * 1 s de silêncio. Como o adaptador real, roda fora de transação: o andamento automático é agendado em
+ * transação própria.
  */
 @Component
 @ConditionalOnProperty(prefix = "app.telephony.sandbox", name = "enabled", havingValue = "true")
 class SandboxTelephonyProvider implements TelephonyProvider {
 
     private final JobQueue jobQueue;
+    private final TenantExecution tenantExecution;
+    private final CurrentActor currentActor;
+    /** Tardio: o processador de eventos depende do catálogo de provedores, que inclui este. */
+    private final ObjectProvider<ProviderEventUseCases> events;
     private final TelephonyProperties properties;
     private final MeterRegistry meterRegistry;
+    private final Clock clock;
 
-    SandboxTelephonyProvider(JobQueue jobQueue, TelephonyProperties properties, MeterRegistry meterRegistry) {
+    SandboxTelephonyProvider(JobQueue jobQueue, TenantExecution tenantExecution, CurrentActor currentActor,
+                             ObjectProvider<ProviderEventUseCases> events, TelephonyProperties properties,
+                             MeterRegistry meterRegistry, Clock clock) {
         this.jobQueue = jobQueue;
+        this.tenantExecution = tenantExecution;
+        this.currentActor = currentActor;
+        this.events = events;
         this.properties = properties;
         this.meterRegistry = meterRegistry;
+        this.clock = clock;
     }
 
     @Override
@@ -77,9 +98,20 @@ class SandboxTelephonyProvider implements TelephonyProvider {
             return DialResult.rejected(callId, "SANDBOX_INVALID_NUMBER", "Número inexistente (simulado)");
         }
         String providerCallId = "sbx-call-" + UUID.randomUUID();
-        if (properties.sandbox().autoProgress()) {
-            jobQueue.enqueue(SandboxProgressJob.TYPE, new SandboxProgressJob.Payload(accountId, providerCallId, callId),
-                    null, null);
+        UUID tenantId = currentActor.tenantId();
+        if (destination.endsWith("7777")) {
+            // provedor rápido: os eventos chegam antes da resposta ao pedido (cada um na transação do "webhook")
+            Instant now = Instant.now(clock);
+            for (ProviderCallEvent event : List.of(
+                    new ProviderCallEvent("sbx-fast-ring-" + providerCallId, ProviderCallEvent.Type.RINGING, providerCallId,
+                            callId, now, null, null, null, null, null, null),
+                    new ProviderCallEvent("sbx-fast-answer-" + providerCallId, ProviderCallEvent.Type.ANSWERED,
+                            providerCallId, callId, now, "HUMAN", null, null, null, null, null))) {
+                tenantExecution.inTenant(tenantId, "telephony.sandbox_event", () -> events.getObject().apply(accountId, event));
+            }
+        } else if (properties.sandbox().autoProgress()) {
+            tenantExecution.inTenant(tenantId, "telephony.sandbox_progress", () -> jobQueue.enqueue(SandboxProgressJob.TYPE,
+                    new SandboxProgressJob.Payload(accountId, providerCallId, callId), null, null));
         }
         count(operation, "success");
         return DialResult.accepted(callId, providerCallId);

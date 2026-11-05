@@ -230,14 +230,15 @@ public class Call extends TenantScopedEntity {
     /**
      * Contingência: a conta principal falhou de forma transitória <b>sem</b> criar a chamada no
      * provedor; a mesma chamada (mesmo id, mesma tentativa no compliance) passa a ser discada pela
-     * conta de contingência. Uma única vez por chamada e somente antes da discagem — assim nunca há
+     * conta de contingência. Uma única vez por chamada e somente antes de o provedor aceitar o pedido
+     * (ainda {@code QUEUED} ou pedido sem resposta, {@link #isAwaitingProvider()}) — assim nunca há
      * duas chamadas para o mesmo pedido.
      */
     public void switchToFallback(TelephonyAccount fallback) {
         Guard.require(fallback != null && !fallback.getId().equals(accountId), "call.fallback_invalid",
                 "Conta de contingência inválida");
-        Guard.requireState(status == CallStatus.QUEUED && providerCallId == null, "call.fallback_not_queued",
-                "A contingência só vale antes da discagem");
+        Guard.requireState((status == CallStatus.QUEUED || isAwaitingProvider()) && providerCallId == null,
+                "call.fallback_not_queued", "A contingência só vale antes de o provedor aceitar a discagem");
         Guard.requireState(fallbackFromAccountId == null, "call.fallback_already_used",
                 "A chamada já foi desviada para a contingência");
         this.fallbackFromAccountId = accountId;
@@ -295,15 +296,83 @@ public class Call extends TenantScopedEntity {
         this.interactionState = InteractionState.SKIPPED;
     }
 
-    /** Provedor aceitou o pedido de discagem. */
-    public void dialing(String providerCallId, UUID contactAttemptId, Instant at) {
+    /**
+     * Pedido de discagem a caminho do provedor ({@code QUEUED → DIALING}, ainda sem
+     * {@code providerCallId}). Gravado e confirmado <b>antes</b> da chamada HTTP ao provedor: os
+     * eventos que chegarem enquanto ele responde já encontram a chamada pela referência (o id
+     * interno) em {@code DIALING}. O aceite ({@link #providerAccepted}) ou a recusa
+     * ({@link #providerRejected}) vêm depois, em outra transação.
+     *
+     * @param contactAttemptId tentativa registrada pelo porteiro de contato para esta discagem
+     */
+    public void dialRequested(UUID contactAttemptId, Instant at) {
         Guard.requireState(status == CallStatus.QUEUED, "call.not_queued", "Chamada já discada");
-        Guard.require(providerCallId != null && !providerCallId.isBlank(), "call.provider_id_required",
-                "Id do provedor obrigatório");
-        this.providerCallId = providerCallId;
+        Guard.requireState(direction == CallDirection.OUTBOUND, "call.not_outbound", "Somente chamadas de saída são discadas");
         this.contactAttemptId = contactAttemptId;
         this.dialStartedAt = at;
         this.status = CallStatus.DIALING;
+    }
+
+    /**
+     * Pedido de discagem feito e ainda sem resposta do provedor: {@code DIALING} sem
+     * {@code providerCallId}. Nesse estado a contingência ainda vale e a recusa encerra a chamada como
+     * não discada.
+     */
+    public boolean isAwaitingProvider() {
+        return direction == CallDirection.OUTBOUND && status == CallStatus.DIALING && providerCallId == null;
+    }
+
+    /**
+     * Provedor aceitou o pedido de discagem e devolveu o id da chamada. Vale em qualquer estado depois
+     * do pedido: os eventos podem ter avançado a chamada (toque, atendimento, fim) antes da resposta,
+     * e o próprio evento pode ter informado o mesmo id antes.
+     *
+     * @return false se o id já estava gravado (mesmo valor)
+     */
+    public boolean providerAccepted(String providerCallId) {
+        Guard.require(providerCallId != null && !providerCallId.isBlank() && providerCallId.length() <= 200,
+                "call.provider_id_required", "Id do provedor obrigatório");
+        Guard.requireState(direction == CallDirection.OUTBOUND && status != CallStatus.QUEUED && dialStartedAt != null,
+                "call.dial_not_requested", "A discagem não foi pedida ao provedor");
+        if (this.providerCallId != null) {
+            Guard.requireState(this.providerCallId.equals(providerCallId), "call.provider_id_conflict",
+                    "A chamada já tem outro id no provedor");
+            return false;
+        }
+        this.providerCallId = providerCallId;
+        return true;
+    }
+
+    /**
+     * Provedor recusou o pedido (ou ficou indisponível sem criar a chamada, ou não respondeu até o fim
+     * das tentativas): a chamada termina {@code FAILED} como não discada — sem resultado de tentativa
+     * publicado nem interação no caso, como na recusa antes da discagem. A tentativa do porteiro de
+     * contato registrada no pedido permanece (conta a mais, pelo lado seguro).
+     */
+    public void providerRejected(String code, String detail, Instant at) {
+        Guard.requireState(isAwaitingProvider(), "call.not_awaiting_provider", "A chamada não aguarda o provedor");
+        this.dialStartedAt = null;
+        this.failureCode = truncate(code, 60);
+        this.failureDetail = truncate(detail, 300);
+        terminate(CallStatus.FAILED, at, HangupSide.PROVIDER);
+    }
+
+    /**
+     * A conexão ao operador decidida pelo domínio (e já confirmada no banco) falhou no provedor: a
+     * chamada volta a ficar sem operador. No discador ela é abandono (o chamador encerra); na recebida,
+     * volta a tocar sem atendimento (o chamador encerra como perdida).
+     */
+    public void bridgeFailed() {
+        Guard.requireState(status == CallStatus.ANSWERED && connectedAt != null && origin != CallOrigin.CLICK_TO_CALL,
+                "call.not_bridged", "Chamada não está conectada a um operador pelo sistema");
+        this.connectedAt = null;
+        this.operatorId = null;
+        if (direction == CallDirection.INBOUND) {
+            this.answeredAt = null;
+            this.status = CallStatus.RINGING;
+        } else {
+            this.abandoned = true;
+        }
     }
 
     /**

@@ -43,7 +43,8 @@ import java.util.stream.Collectors;
  * Marcadores para testes: {@code [sandbox:confuso]} (confiança 0,2), {@code [sandbox:sinal:<MOTIVO>]}
  * (sinal de transferência do modelo), {@code [sandbox:valor-inventado]} (resposta com valor fora do motor,
  * para o guardrail), {@code [sandbox:timeout]} e {@code [sandbox:indisponivel]} (falhas do provedor),
- * {@code [sandbox:transferir]} (o modelo pede humano). Tokens estimados por caracteres/4 e custo pelas
+ * {@code [sandbox:transferir]} (o modelo pede humano), {@code [sandbox:lento]} (cada chamada demora
+ * {@link #SLOW_CALL}, como um provedor lento: exercita o turno fora de transação). Tokens estimados por caracteres/4 e custo pelas
  * tarifas simuladas de {@code app.assistant.sandbox}.
  */
 @Component
@@ -51,6 +52,7 @@ import java.util.stream.Collectors;
 class SandboxLanguageModel implements LanguageModelPort {
 
     static final String MODEL = "sandbox-roteiro-v1";
+    static final Duration SLOW_CALL = Duration.ofMillis(1500);
     private static final DateTimeFormatter BR_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final Pattern OFFER_REF = Pattern.compile("\\b[oO](\\d{1,2})\\b");
     private static final Pattern TIMES = Pattern.compile("(\\d{1,2})\\s?(?:x|vezes|parcelas)");
@@ -86,6 +88,14 @@ class SandboxLanguageModel implements LanguageModelPort {
         }
         if (plain.contains("[sandbox:indisponivel]")) {
             throw new ModelUnavailableException("Provedor indisponível simulado", null);
+        }
+        if (plain.contains("[sandbox:lento]")) {
+            try {
+                Thread.sleep(SLOW_CALL.toMillis());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ModelTimeoutException("Chamada simulada interrompida", e);
+            }
         }
         Map<String, Object> context = json.toMap(request.contextDocument());
         Set<String> tools = request.tools().stream().map(ToolDefinition::name).collect(Collectors.toSet());

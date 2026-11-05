@@ -156,7 +156,7 @@ public abstract class TelephonyTestSupport extends IntegrationTest {
         }
     }
 
-    private UUID portfolio(UUID creditorId, String code) {
+    protected UUID portfolio(UUID creditorId, String code) {
         return system(() -> {
             UUID contract = contracts.create(new CreateContractCommand(creditorId, "CT-" + code,
                     new ContractTermsCommand(LocalDate.of(2026, 1, 1), null, null, 10, null))).id();

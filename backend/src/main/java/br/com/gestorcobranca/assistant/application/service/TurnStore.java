@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -65,6 +66,22 @@ class TurnStore {
         this.businessEvents = businessEvents;
         this.metrics = metrics;
         this.clock = clock;
+    }
+
+    /**
+     * Sessão da conversa como está gravada, sem alterá-la (na transação corrente, sob o lock consultivo): um turno
+     * em andamento grava a sessão no fim, e qualquer gravação dela no meio do turno conflitaria com a versão.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Optional<AssistantSession> find(UUID conversationId) {
+        return sessions.findByConversationId(conversationId);
+    }
+
+    /** Agenda o turno seguinte da conversa (mensagens que chegaram durante o turno ou com outro turno em andamento). */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    void schedule(UUID conversationId, Instant runAt, String deduplicationKey) {
+        jobQueue.enqueue(AssistantTurnJob.TYPE, new AssistantTurnJob.Payload(conversationId, null), runAt,
+                deduplicationKey);
     }
 
     /** Sessão da conversa (criada no primeiro turno), com os vínculos atuais de caso e carteira. */

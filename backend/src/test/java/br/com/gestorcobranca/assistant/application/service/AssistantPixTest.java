@@ -70,6 +70,8 @@ class AssistantPixTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         when(actors.as(any(), any())).thenAnswer(inv -> ((Supplier<Object>) inv.getArgument(1)).get());
+        // consultas da trilha em transação própria (o turno roda fora de transação)
+        when(actors.system(any(), any())).thenAnswer(inv -> ((Supplier<Object>) inv.getArgument(1)).get());
         ObjectProvider<PaymentInstructionPort> payments = mock(ObjectProvider.class);
         when(payments.getIfAvailable()).thenReturn(port);
         when(payments.getObject()).thenReturn(port);

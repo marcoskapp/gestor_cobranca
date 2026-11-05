@@ -352,6 +352,9 @@ class TelephonyCpaasIT extends TelephonyTestSupport {
                 "RequestUUID", providerCallId(secondCall), "Machine", "true", "Event", "MachineDetection"), PL_TOKEN)
                 .statusCode()).isEqualTo(200);
         assertThat(call(secondCall).result()).isEqualTo("VOICEMAIL");
+        // o encerramento sai depois do commit, no executor de comandos
+        awaitTrue("hangup na Plivo", () -> !api.requests("/plivo/v1/Account/" + PL_AUTH_ID + "/Call/" + secondLeg + "/")
+                .isEmpty());
         assertThat(api.requests("/plivo/v1/Account/" + PL_AUTH_ID + "/Call/" + secondLeg + "/"))
                 .extracting(Request::method).containsExactly("DELETE");
     }

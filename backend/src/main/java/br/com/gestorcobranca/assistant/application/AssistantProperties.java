@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.assistant.application;
 
+import br.com.gestorcobranca.assistant.domain.model.PolicySettings;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.math.BigDecimal;
@@ -11,7 +12,9 @@ import java.time.Duration;
  *
  * @param historyMessages   mensagens mais recentes da conversa enviadas ao modelo
  * @param turnMaxAttempts   tentativas do job de turno (falha de banco/infra; erros do modelo não repetem)
- * @param staleTurnAfter    turno sem conclusão além deste prazo é recuperado (instância caiu)
+ * @param staleTurnAfter    turno sem conclusão além deste prazo é recuperado (instância caiu); antes dele o turno
+ *                          está em andamento e outro job da conversa é adiado. Precisa superar o pior turno
+ *                          ({@link PolicySettings.Limits#worstTurnModelTime()} + {@link #STALE_TURN_MARGIN})
  * @param earlyBreakDays    janela da "quebra precoce" nas métricas de qualidade
  * @param retentionCron     descarte diário do conteúdo da trilha (política MESSAGE_CONTENT do compliance)
  * @param retentionBatch    turnos por lote e assessoria
@@ -22,10 +25,20 @@ public record AssistantProperties(Integer historyMessages, Integer turnMaxAttemp
                                   Integer earlyBreakDays, String retentionCron, Integer retentionBatch,
                                   Sandbox sandbox) {
 
+    /** Folga sobre o tempo de modelo do pior turno: ferramentas, envios e gravações do turno. */
+    public static final Duration STALE_TURN_MARGIN = Duration.ofMinutes(5);
+
     public AssistantProperties {
         historyMessages = historyMessages == null ? 12 : historyMessages;
         turnMaxAttempts = turnMaxAttempts == null ? 3 : turnMaxAttempts;
-        staleTurnAfter = staleTurnAfter == null ? Duration.ofMinutes(10) : staleTurnAfter;
+        staleTurnAfter = staleTurnAfter == null ? Duration.ofMinutes(20) : staleTurnAfter;
+        Duration minimum = PolicySettings.Limits.worstTurnModelTime().plus(STALE_TURN_MARGIN);
+        if (staleTurnAfter.compareTo(minimum) < 0) {
+            // o turno não segura lock: recuperar antes do pior turno abandonaria um turno ainda em andamento
+            throw new IllegalArgumentException("app.assistant.stale-turn-after (" + staleTurnAfter + ") precisa ser de "
+                    + "pelo menos " + minimum + ": pior turno com o modelo (" + PolicySettings.Limits.worstTurnModelTime()
+                    + ") mais a margem para ferramentas e envios (" + STALE_TURN_MARGIN + ")");
+        }
         earlyBreakDays = earlyBreakDays == null ? 60 : earlyBreakDays;
         retentionCron = retentionCron == null ? "0 55 2 * * *" : retentionCron;
         retentionBatch = retentionBatch == null ? 500 : retentionBatch;

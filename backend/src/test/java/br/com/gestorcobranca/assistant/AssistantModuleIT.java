@@ -172,6 +172,44 @@ class AssistantModuleIT extends AssistantTestSupport {
     }
 
     @Test
+    void twoJobsOfTheSameConversationProduceASingleTurnWithTheModelOutsideTheLock() {
+        scenario("ast-conc", "800.00");
+        publishPolicy("concorrente", creditorA, AssistantMode.AUTONOMOUS, null);
+        handToAssistant();
+        asAdmin(() -> {
+            sandbox.simulateInbound(whatsapp.id(), PHONE_E164, "oi");
+            sandbox.simulateInbound(whatsapp.id(), PHONE_E164, "quanto devo? [sandbox:lento]");
+            return null;
+        });
+        awaitIdle("assistant");
+        assertThat(count("select count(*) from shared.processing_job where type = 'assistant.turn' and status = 'PENDING' "
+                + "and payload ->> 'conversationId' = ?", conversationId.toString())).isEqualTo(2);
+
+        // os dois jobs rodam juntos: um inicia o turno (lease gravado, lock solto) e conversa com o modelo lento;
+        // o outro encontra o turno em andamento e só deixa a retomada adiada para depois do prazo
+        br.com.gestorcobranca.shared.jobs.JobDrain.drain(applicationContext, jdbcTemplate, "assistant.");
+        drainCommunication();
+        awaitIdle("communication");
+
+        assertThat(outcomes()).containsExactly("REPLIED");
+        assertThat(count("select jsonb_array_length(input_message_ids) from assistant.assistant_turn "
+                + "where conversation_id = ?", conversationId)).isEqualTo(2);
+        assertThat(count("select count(*) from shared.processing_job where type = 'assistant.turn' and status = 'DONE' "
+                + "and dedup_key like 'message:%' and payload ->> 'conversationId' = ?", conversationId.toString()))
+                .isEqualTo(2);
+        assertThat(count("select count(*) from shared.processing_job where type = 'assistant.turn' and status = 'PENDING' "
+                + "and dedup_key like 'busy:%' and run_at > now() + interval '15 minutes' "
+                + "and payload ->> 'conversationId' = ?", conversationId.toString())).isEqualTo(1);
+        assertThat(count("select count(*) from assistant.assistant_session where conversation_id = ? "
+                + "and pending_turn_id is null and turns = 1", conversationId)).isEqualTo(1);
+        assertThat(assistantMessages()).hasSize(1);
+
+        // mensagem nova depois do turno: um turno novo normalmente (o lease foi liberado no registro)
+        inbound("e agora?");
+        assertThat(outcomes()).containsExactly("REPLIED", "REPLIED");
+    }
+
+    @Test
     void vulnerabilityTriggerTransfersBeforeTheModel() {
         scenario("ast-vuln", "800.00");
         publishPolicy("vuln", creditorA, AssistantMode.AUTONOMOUS, null);

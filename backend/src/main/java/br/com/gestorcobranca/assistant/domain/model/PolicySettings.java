@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.domain.Guard;
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -115,6 +116,20 @@ public record PolicySettings(
      */
     public record Limits(Integer maxOutputTokens, Integer maxTokensPerTurn, Integer maxToolCallsPerTurn,
                          Integer timeoutSeconds, BigDecimal maxCostPerConversation) {
+
+        /** Teto de {@code maxToolCallsPerTurn} aceito em qualquer política. */
+        public static final int MAX_TOOL_CALLS_PER_TURN = 12;
+        /** Teto de {@code timeoutSeconds} aceito em qualquer política. */
+        public static final int MAX_TIMEOUT_SECONDS = 60;
+
+        /**
+         * Pior tempo de modelo de um turno em qualquer política: uma chamada por rodada de ferramentas mais a
+         * resposta final, cada uma no prazo máximo (13 × 60 s = 13 min). A recuperação de turno interrompido
+         * precisa esperar mais que isso.
+         */
+        public static Duration worstTurnModelTime() {
+            return Duration.ofSeconds((long) (MAX_TOOL_CALLS_PER_TURN + 1) * MAX_TIMEOUT_SECONDS);
+        }
     }
 
     /**
@@ -242,8 +257,8 @@ public record PolicySettings(
         Limits l = limits == null ? new Limits(null, null, null, null, null) : limits;
         Limits lim = new Limits(bounded(l.maxOutputTokens(), 600, 50, 4000, "max_output_tokens"),
                 bounded(l.maxTokensPerTurn(), DEFAULT_MAX_TOKENS_PER_TURN, 500, 64000, "max_tokens_per_turn"),
-                bounded(l.maxToolCallsPerTurn(), 6, 1, 12, "max_tool_calls"),
-                bounded(l.timeoutSeconds(), 20, 2, 60, "timeout"),
+                bounded(l.maxToolCallsPerTurn(), 6, 1, Limits.MAX_TOOL_CALLS_PER_TURN, "max_tool_calls"),
+                bounded(l.timeoutSeconds(), 20, 2, Limits.MAX_TIMEOUT_SECONDS, "timeout"),
                 l.maxCostPerConversation() == null ? new BigDecimal("1.00") : l.maxCostPerConversation());
         Guard.require(lim.maxCostPerConversation().signum() > 0, "assistant_policy.max_cost_invalid",
                 "Custo máximo por conversa deve ser positivo");

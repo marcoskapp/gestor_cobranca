@@ -174,6 +174,14 @@ public class AssistantSession extends TenantScopedEntity {
         }
     }
 
+    /**
+     * Há turno em andamento: marca gravada há menos de {@code staleAfter}. O turno não segura lock durante as
+     * chamadas ao modelo; a marca é o lease dele. Depois do prazo, a marca é de um turno interrompido.
+     */
+    public boolean turnInProgress(Instant now, Duration staleAfter) {
+        return pendingTurnId != null && pendingSince != null && pendingSince.isAfter(now.minus(staleAfter));
+    }
+
     /** Conclusão do turno com o consumo do modelo. */
     public void finish(UUID turnId, long inTokens, long outTokens, BigDecimal cost, String currency) {
         Guard.requireState(turnId.equals(pendingTurnId), "assistant_session.turn_mismatch", "Turno não corresponde");

@@ -30,9 +30,7 @@ import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.storage.FileStorage;
 import br.com.gestorcobranca.telephony.application.port.in.CallUseCases;
-import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupReason;
-import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupRequest;
 import br.com.gestorcobranca.telephony.domain.model.Agent;
 import br.com.gestorcobranca.telephony.domain.model.Call;
 import br.com.gestorcobranca.telephony.domain.model.CallOrigin;
@@ -65,8 +63,6 @@ import java.util.UUID;
 @Transactional
 class CallService implements CallUseCases {
 
-    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CallService.class);
-
     private final CallRepository calls;
     private final CallRecordingRepository recordings;
     private final AgentRepository agents;
@@ -74,9 +70,9 @@ class CallService implements CallUseCases {
     private final CaseUseCases cases;
     private final DebtorContactUseCases debtorContacts;
     private final ContactGate gate;
-    private final ProviderResolver resolver;
     private final AccountRouter router;
     private final CallLifecycle lifecycle;
+    private final ProviderCalls providerCalls;
     private final CaseInteractions caseInteractions;
     private final PresenceRecorder presence;
     private final CallAccess callAccess;
@@ -93,8 +89,8 @@ class CallService implements CallUseCases {
 
     CallService(CallRepository calls, CallRecordingRepository recordings, AgentRepository agents,
                 TelephonyAccountRepository accounts, CaseUseCases cases, DebtorContactUseCases debtorContacts,
-                ContactGate gate, ProviderResolver resolver, AccountRouter router, CallLifecycle lifecycle,
-                CaseInteractions caseInteractions,
+                ContactGate gate, AccountRouter router, CallLifecycle lifecycle,
+                ProviderCalls providerCalls, CaseInteractions caseInteractions,
                 PresenceRecorder presence, CallAccess callAccess, AccessScope accessScope, CurrentActor currentActor,
                 IdempotencyService idempotency, JobQueue jobQueue, FileStorage storage, AccessLogger accessLogger,
                 AuditTrail auditTrail, BusinessEventLogger businessEvents, TelephonyMetrics metrics, Clock clock) {
@@ -105,9 +101,9 @@ class CallService implements CallUseCases {
         this.cases = cases;
         this.debtorContacts = debtorContacts;
         this.gate = gate;
-        this.resolver = resolver;
         this.router = router;
         this.lifecycle = lifecycle;
+        this.providerCalls = providerCalls;
         this.caseInteractions = caseInteractions;
         this.presence = presence;
         this.callAccess = callAccess;
@@ -229,17 +225,10 @@ class CallService implements CallUseCases {
         Guard.requireState(call.getStatus().isActive(), "call.not_active", "A chamada já terminou");
         Instant now = Instant.now(clock);
         if (call.getStatus() != CallStatus.QUEUED) {
-            TelephonyAccount account = accounts.findById(call.getAccountId()).orElseThrow();
-            resolver.provider(account.getProvider()).ifPresent(p -> {
-                try {
-                    p.hangup(new HangupRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
-                            HangupReason.OPERATOR, call.getProviderLegId()));
-                } catch (TelephonyProvider.ProviderRejectedException e) {
-                    // a chamada já terminou no provedor: o encerramento local segue
-                    LOG.atWarn().addKeyValue("callId", call.getId())
-                            .addKeyValue("code", e.code()).log("Provedor recusou o encerramento da chamada");
-                }
-            });
+            // depois do commit e sem o lock da chamada; falha transitória vira retentativa (telephony.hangup). Pedido
+            // de discagem ainda sem resposta: a fase de resultado do DialJob encerra no provedor ao receber o id.
+            providerCalls.hangupAfterCommit(accounts.findById(call.getAccountId()).orElseThrow(), call,
+                    HangupReason.OPERATOR);
         }
         HangupSide side = callAccess.actorId().equals(call.getOperatorId()) ? HangupSide.OPERATOR : HangupSide.SYSTEM;
         call.end(call.getStatus() == CallStatus.ANSWERED ? CallStatus.COMPLETED : CallStatus.CANCELLED, now, side,
