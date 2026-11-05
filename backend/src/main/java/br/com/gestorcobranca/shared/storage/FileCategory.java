@@ -12,7 +12,9 @@ public enum FileCategory {
     MESSAGE_ATTACHMENT("message-attachments"),
     DATA_SUBJECT_EXPORT("data-subject-exports"),
     /** Marca do credor exibida no portal de autonegociação (logotipo público controlado). */
-    PORTAL_BRANDING("portal-branding");
+    PORTAL_BRANDING("portal-branding"),
+    /** Arquivo vindo de sistema externo aguardando a verificação de malware; nunca é servido daqui. */
+    QUARANTINE("quarantine");
 
     private final String prefix;
 

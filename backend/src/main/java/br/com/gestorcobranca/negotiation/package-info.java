@@ -19,7 +19,7 @@
  * integração ({@code shared.events.payment}, {@code .debt}, {@code .identity}).
  */
 @ApplicationModule(displayName = "Negotiation",
-        allowedDependencies = {"shared", "organization :: usecases", "identity :: usecases", "debt :: usecases",
+        allowedDependencies = {"shared", "organization :: usecases", "identity :: usecases", "debt :: usecases", "debt :: spi",
                 "collection :: usecases"})
 package br.com.gestorcobranca.negotiation;
 

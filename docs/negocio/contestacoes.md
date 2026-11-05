@@ -56,7 +56,7 @@ O prazo de resposta ao devedor **não é pausado** enquanto se aguarda o credor:
 2. **Solicitar ao credor** (na página da contestação): o texto vem do **modelo do tipo** (editável antes de enviar), com o protocolo, os títulos citados (todos ou os escolhidos), o prazo pedido e, se houver evidências escolhidas, o **link seguro** delas. Cópia opcional ao responsável. As respostas por e-mail vão ao responsável (*reply-to*); a assessoria **não lê e-mail de entrada**.
 3. **LGPD**: o pedido **não leva nome nem documento do devedor** — o credor localiza pelo protocolo e pelos títulos. As evidências **não vão anexadas**: vão num link com **validade** (padrão 7 dias, configurável até 30) e **limite de downloads** (20), que entrega um ZIP só com as evidências escolhidas; cada download fica no log de acesso; link vencido, esgotado ou inválido é recusado e registrado.
 4. **Lembrete** antes do prazo (padrão 1 dia; 0 desliga) e **cobrança do retorno vencido** no dia seguinte ao prazo, ambos automáticos (todos os dias às 08:05), uma vez por pedido.
-5. **Resposta do credor**: registrada na tela (posição + resumo + documentos, que entram como evidências marcadas "do credor") ou enviada pelo próprio credor pela **API pública** (`POST /public-api/v1/disputes/{id}/creditor-responses`, escopo `disputes:write`; só texto). A resposta encerra o "aguardando o credor" do pedido.
+5. **Resposta do credor**: registrada na tela (posição + resumo + documentos, que entram como evidências marcadas "do credor") ou enviada pelo próprio credor pela **API pública** (`POST /public-api/v1/disputes/{id}/creditor-responses`, escopo `disputes:write`), com até 5 documentos PDF, PNG ou JPEG de até 10 MB (tipo conferido pelo conteúdo). Os documentos da API passam pela **quarentena** (verificação de malware) antes de virar evidência; infectado tem o conteúdo apagado e é recusado, e o credor acompanha a situação pela API. A resposta encerra o "aguardando o credor" do pedido.
 6. **Histórico**: cada pedido guarda o texto enviado, a versão do modelo, destinatários, títulos, evidências, downloads do link e cada e-mail (pedido, lembrete, cobrança) com a situação de envio.
 
 Envio por SMTP: "enviado" significa aceito pelo servidor de e-mail; não há confirmação de entrega. Falha temporária é repetida (até 6 tentativas, espera crescente); falha definitiva aparece no pedido.
@@ -87,7 +87,7 @@ A sugestão **não altera o título**. Fica **pendente** na contestação até:
 - **feita** — detectada automaticamente quando o efeito aparece no título: cancelado (cancelar), quitado (pagamento) ou saldo diferente do da resolução (corrigir valor); ou
 - **dispensada** com motivo.
 
-Atalhos para os fluxos existentes, com as regras e permissões deles: **cancelar** abre o título com a confirmação de cancelamento já com o motivo sugerido; **pagamento** abre "Informar pagamento" com os títulos marcados (comprovante e aprovação conforme a regra de pagamentos); **corrigir valor** abre o título — a correção vem do credor na carga (o sistema não tem ajuste manual de principal).
+Atalhos para os fluxos existentes, com as regras e permissões deles: **cancelar** abre o título com a confirmação de cancelamento já com o motivo sugerido; **pagamento** abre "Informar pagamento" com os títulos marcados (comprovante e aprovação conforme a regra de pagamentos); **corrigir valor** abre a correção manual do valor no título, já com o motivo "Contestação procedente" e o vínculo com a contestação (limite, aprovação por segunda pessoa e histórico em [correcao-de-valor.md](correcao-de-valor.md)); a carga do credor com o valor corrigido também conclui o ajuste.
 
 ## 7. Indicadores e logs
 
@@ -96,7 +96,6 @@ Atalhos para os fluxos existentes, com as regras e permissões deles: **cancelar
 
 ## 8. O que ainda depende do responsável
 
+- Ligar a verificação de malware (daemon ClamAV) dos documentos recebidos pela API (decisão 815).
+
 - Revisão jurídica dos **textos padrão** dos modelos (pedido ao credor por tipo e resposta ao devedor por resultado).
-- Se o operador deve ou não receber `DISPUTE_WORK` por padrão (hoje recebe; o administrador pode retirar no perfil).
-- Leitura automática das respostas do credor por e-mail (hoje: *reply-to* ao responsável e registro manual ou pela API).
-- Ajuste manual de valor do título pela assessoria (hoje a correção vem na carga do credor).

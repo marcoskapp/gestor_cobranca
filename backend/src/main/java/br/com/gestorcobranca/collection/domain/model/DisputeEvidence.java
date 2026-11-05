@@ -53,7 +53,23 @@ public class DisputeEvidence extends TenantScopedEntity {
 
     public DisputeEvidence(Dispute dispute, String fileKey, String fileName, String contentType, long size,
                            String sha256, UUID creditorResponseId) {
-        dispute.requireOpenForEvidence();
+        this(dispute, fileKey, fileName, contentType, size, sha256, creditorResponseId, true);
+    }
+
+    /**
+     * Documento do credor liberado da quarentena: chegou com a contestação aberta (conferido no recebimento) e vira
+     * evidência mesmo que a contestação tenha sido resolvida durante a verificação.
+     */
+    public static DisputeEvidence fromQuarantine(Dispute dispute, String fileKey, String fileName, String contentType,
+                                                 long size, String sha256, UUID creditorResponseId) {
+        return new DisputeEvidence(dispute, fileKey, fileName, contentType, size, sha256, creditorResponseId, false);
+    }
+
+    private DisputeEvidence(Dispute dispute, String fileKey, String fileName, String contentType, long size,
+                            String sha256, UUID creditorResponseId, boolean requireOpen) {
+        if (requireOpen) {
+            dispute.requireOpenForEvidence();
+        }
         Guard.require(fileKey != null && sha256 != null, "dispute.evidence_invalid", "Arquivo de evidência inválido");
         this.disputeId = dispute.getId();
         this.creditorId = dispute.getCreditorId();

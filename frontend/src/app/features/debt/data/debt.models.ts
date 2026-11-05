@@ -333,3 +333,98 @@ export interface PrescriptionInterruptionView {
   recordedAt: string;
   recordedBy: string | null;
 }
+
+// ---------------------------------------------------------------- correção manual do valor (decisões 801–812)
+
+export type AmountComponent = 'PRINCIPAL' | 'INTEREST' | 'FINE' | 'FEES' | 'HONORARIUM';
+export type AmountAdjustmentReason = 'CALCULATION_ERROR' | 'CREDITOR_CONFIRMATION' | 'DISPUTE_UPHELD' | 'DUPLICATE_CHARGE' | 'CONTRACT_TERMS' | 'PARTIAL_WAIVER' | 'OTHER';
+export type AmountAdjustmentStatus = 'PENDING_APPROVAL' | 'APPLIED' | 'REJECTED' | 'CANCELLED';
+export type AmountAdjustmentMode = 'WITHIN_LIMIT' | 'DUAL_CONTROL';
+export type AmountDivergenceStatus = 'OPEN' | 'KEPT_MANUAL' | 'ACCEPTED_CREDITOR' | 'RESOLVED_BY_CREDITOR' | 'SUPERSEDED';
+/** STATUS (fora de cobrança), AGREEMENT (acordo em vigor), PENDING (pedido aguardando aprovação). */
+export type AmountAdjustmentBlocker = 'STATUS' | 'AGREEMENT' | 'PENDING';
+
+export interface AmountAdjustmentLine {
+  component: AmountComponent;
+  previousBalance: number;
+  newBalance: number;
+  delta: number;
+}
+
+export interface AmountAdjustmentView {
+  id: string;
+  titleId: string;
+  creditorId: string;
+  status: AmountAdjustmentStatus;
+  approvalMode: AmountAdjustmentMode;
+  reason: AmountAdjustmentReason;
+  note: string;
+  disputeId: string | null;
+  evidence: { fileName: string; contentType: string; size: number; sha256: string } | null;
+  previousPrincipal: number;
+  newPrincipal: number;
+  previousOpenBalance: number;
+  newOpenBalance: number;
+  delta: number;
+  lines: AmountAdjustmentLine[];
+  requestedBy: string;
+  requestedByName: string | null;
+  requestedAt: string;
+  decidedBy: string | null;
+  decidedByName: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  appliedAt: string | null;
+  titleLabel: string | null;
+}
+
+export interface AmountDivergenceView {
+  id: string;
+  titleId: string;
+  creditorId: string;
+  status: AmountDivergenceStatus;
+  currentPrincipal: number;
+  reportedPrincipal: number;
+  importBatchId: string | null;
+  detectedAt: string;
+  lastSeenAt: string;
+  occurrences: number;
+  resolvedBy: string | null;
+  resolvedByName: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  titleLabel: string | null;
+}
+
+export interface AmountAdjustmentContext {
+  titleId: string;
+  components: { component: AmountComponent; balance: number }[];
+  principalAmount: number;
+  openBalance: number;
+  approvalThreshold: number;
+  manualPrincipal: boolean;
+  creditorPrincipal: number;
+  blockers: AmountAdjustmentBlocker[];
+  agreementId: string | null;
+  pending: AmountAdjustmentView | null;
+  openDivergence: AmountDivergenceView | null;
+}
+
+export interface AmountAdjustmentHistory {
+  titleId: string;
+  adjustments: AmountAdjustmentView[];
+  divergences: AmountDivergenceView[];
+}
+
+export interface AmountAdjustmentRequest {
+  components: Partial<Record<AmountComponent, number>>;
+  reason: AmountAdjustmentReason;
+  note: string;
+  disputeId: string | null;
+}
+
+export interface AmountAdjustmentSettings {
+  approvalThreshold: number;
+  customized: boolean;
+  updatedAt: string | null;
+}

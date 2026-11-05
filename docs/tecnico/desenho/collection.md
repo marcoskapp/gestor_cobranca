@@ -296,6 +296,14 @@ aberto, sem status novo).
 * Resposta: `collection.dispute_creditor_response` (append-only, `MANUAL|PUBLIC_API`, posição, resumo criptografado);
   documentos manuais viram `dispute_evidence` com `creditor_response_id`. API pública em `publicapi` (escopos
   `disputes:read`/`disputes:write`, ator `INTEGRATION`).
+* Documentos da API (decisões 813–818): tipo pelo conteúdo (`FileSignatures`: PDF, PNG, JPEG), até
+  `app.collection.disputes.api-max-documents` (5) por resposta e `api-max-document-bytes` (10 MB) cada, gravados na
+  categoria `QUARANTINE` em `collection.dispute_document_quarantine` (`V0605`) e verificados pelo job
+  `collection.dispute_document_scan` (`MalwareScanner`, `app.storage.malware-scan.mode` = `disabled` | `clamd`; até
+  `scan-max-attempts`, padrão 8). Limpo ou `NOT_SCANNED` → cópia para `EVIDENCE` e `DisputeEvidence.fromQuarantine`
+  (append-only); infectado → conteúdo apagado após o commit, `MALWARE_DETECTED` no log de acesso; sem veredito →
+  `FAILED` (`DisputeQuarantineFailures`, nunca liberado). `CreditorResponseView` traz `documentsInVerification` e
+  `documentsRejected`.
 
 ### 7.4 Resposta ao devedor
 
@@ -312,7 +320,8 @@ acompanha `MessageStatusChanged` (consumidor `collection.dispute-notice-status`;
 `adjustment_status` `PENDING → DONE|DISMISSED`, `adjustment_baseline` = saldo dos títulos na resolução.
 `DisputeAdjustments#reconcile` reage a `TitleStatusChanged` e à varredura diária: cancelados (cancelar), quitados
 (pagamento) ou saldo ≠ base (corrigir). Dispensa com motivo (`POST /disputes/{id}/adjustment/dismiss`). O frontend leva
-aos fluxos existentes (título com `?acao=cancelar&motivo=`; "Informar pagamento" com os títulos marcados).
+aos fluxos existentes (título com `?acao=cancelar&motivo=`; "Informar pagamento" com os títulos marcados; corrigir o
+valor com `?acao=corrigir-valor&contestacao=<id>&motivo=`, a correção manual do debt — docs/negocio/correcao-de-valor.md).
 
 ### 7.6 Pendências e indicadores
 

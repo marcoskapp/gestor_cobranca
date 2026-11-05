@@ -1,6 +1,6 @@
 import { IconName } from '../../../shared/components/icon/icon-names';
 import { Option } from '../../../shared/models/lookup';
-import { ContactLabel, ContactSource, ContactType, LedgerComponent, LedgerEntryType, PersonType } from './debt.models';
+import { ContactLabel, ContactSource, ContactType, LedgerComponent, LedgerEntryType, PersonType, AmountAdjustmentBlocker, AmountAdjustmentMode, AmountAdjustmentReason } from './debt.models';
 
 export const PERSON_TYPE_LABELS: Record<PersonType, string> = {
   INDIVIDUAL: 'Pessoa física',
@@ -53,6 +53,8 @@ export const LEDGER_ENTRY_LABELS: Record<LedgerEntryType, string> = {
 
 /** Origem do lançamento (`referenceType` livre; valores conhecidos dos módulos que lançam no razão). */
 export const REFERENCE_TYPE_LABELS: Record<string, string> = {
+  amount_adjustment: 'Correção manual do valor',
+  amount_divergence: 'Valor do credor aceito',
   import_batch: 'Carga do credor',
   agreement: 'Acordo',
   payment: 'Pagamento',
@@ -162,3 +164,25 @@ export function prescriptionTone(c: { situation: string; daysRemaining: number }
   }
   return c.daysRemaining <= 90 ? 'warning' : 'neutral';
 }
+
+/** Motivos da correção manual do valor (lista fechada; o texto livre detalha). */
+export const AMOUNT_REASON_LABELS: Record<AmountAdjustmentReason, string> = {
+  CALCULATION_ERROR: 'Erro de cálculo ou digitação',
+  CREDITOR_CONFIRMATION: 'Valor confirmado pelo credor',
+  DISPUTE_UPHELD: 'Contestação procedente',
+  DUPLICATE_CHARGE: 'Cobrança em duplicidade',
+  CONTRACT_TERMS: 'Encargo acima do contrato',
+  PARTIAL_WAIVER: 'Dispensa parcial autorizada pelo credor',
+  OTHER: 'Outro motivo',
+};
+
+export const AMOUNT_MODE_LABELS: Record<AmountAdjustmentMode, string> = {
+  WITHIN_LIMIT: 'Dentro do limite (aplicada no registro)',
+  DUAL_CONTROL: 'Aprovação por outra pessoa',
+};
+
+export const AMOUNT_BLOCKER_LABELS: Record<AmountAdjustmentBlocker, string> = {
+  STATUS: 'Só títulos em cobrança (em aberto ou suspensos) têm o valor corrigido.',
+  AGREEMENT: 'O título está num acordo em vigor: renegocie ou cancele o acordo antes de corrigir o valor.',
+  PENDING: 'Já há um pedido de correção aguardando aprovação neste título.',
+};

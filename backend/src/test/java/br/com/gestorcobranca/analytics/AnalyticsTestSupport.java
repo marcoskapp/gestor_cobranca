@@ -204,12 +204,14 @@ abstract class AnalyticsTestSupport extends IntegrationTest {
         void title(UUID creditorId, UUID portfolioId, UUID debtorId, LocalDate due, String status, String balance) {
             Instant now = Instant.now();
             BigDecimal open = new BigDecimal(balance);
+            BigDecimal principal = open.signum() > 0 ? open : new BigDecimal("100.00");
             jdbc.update("""
                     insert into debt.debt_title (id, tenant_id, version, created_at, updated_at, creditor_id, portfolio_id,
-                        debtor_id, external_id, due_date, principal_amount, status, dispute_blocked, open_balance, paid_total)
-                    values (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, ?, 0)""",
+                        debtor_id, external_id, due_date, principal_amount, creditor_principal, status, dispute_blocked,
+                        open_balance, paid_total)
+                    values (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, ?, 0)""",
                     Ids.newId(), tenant, ts(now), ts(now), creditorId, portfolioId, debtorId,
-                    "T-" + UUID.randomUUID(), due, open.signum() > 0 ? open : new BigDecimal("100.00"), status, open);
+                    "T-" + UUID.randomUUID(), due, principal, principal, status, open);
         }
 
         UUID queue(String code) {

@@ -111,13 +111,26 @@ class DisputeViews {
     }
 
     List<CreditorResponseView> creditorResponses(List<DisputeCreditorResponse> list, List<DisputeEvidence> disputeEvidence) {
+        return creditorResponses(list, disputeEvidence, List.of());
+    }
+
+    /** @param quarantined documentos do credor pela API (em verificação ou recusados) */
+    List<CreditorResponseView> creditorResponses(List<DisputeCreditorResponse> list, List<DisputeEvidence> disputeEvidence,
+                                                 List<br.com.gestorcobranca.collection.domain.model.DisputeDocumentQuarantine> quarantined) {
+        Map<UUID, Long> pending = quarantined.stream().filter(q -> q.isPending())
+                .collect(Collectors.groupingBy(q -> q.getCreditorResponseId(), Collectors.counting()));
+        Map<UUID, Long> rejected = quarantined.stream()
+                .filter(q -> q.getStatus() == br.com.gestorcobranca.collection.domain.model.DisputeDocumentQuarantine.Status.INFECTED
+                        || q.getStatus() == br.com.gestorcobranca.collection.domain.model.DisputeDocumentQuarantine.Status.FAILED)
+                .collect(Collectors.groupingBy(q -> q.getCreditorResponseId(), Collectors.counting()));
         Map<UUID, List<UUID>> documents = disputeEvidence.stream().filter(e -> e.getCreditorResponseId() != null)
                 .collect(Collectors.groupingBy(DisputeEvidence::getCreditorResponseId,
                         Collectors.mapping(DisputeEvidence::getId, Collectors.toList())));
         Map<UUID, String> names = names(list.stream().map(DisputeCreditorResponse::getRecordedBy));
         return list.stream().map(r -> new CreditorResponseView(r.getId(), r.getDisputeId(), r.getRequestId(),
                 r.getSource().name(), r.getPosition().name(), r.getNote(), r.getReceivedAt(), r.getRecordedBy(),
-                names.get(r.getRecordedBy()), documents.getOrDefault(r.getId(), List.of()))).toList();
+                names.get(r.getRecordedBy()), documents.getOrDefault(r.getId(), List.of()),
+                pending.getOrDefault(r.getId(), 0L).intValue(), rejected.getOrDefault(r.getId(), 0L).intValue())).toList();
     }
 
     List<DebtorNoticeView> debtorNotices(List<DisputeDebtorNotice> list) {

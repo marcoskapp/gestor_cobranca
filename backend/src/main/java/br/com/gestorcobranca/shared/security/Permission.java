@@ -52,6 +52,8 @@ public enum Permission {
     DEBTOR_MANAGE("Editar devedores e contatos"),
     DEBTOR_SENSITIVE_VIEW("Visualizar dados pessoais sem máscara"),
     DEBT_TITLE_MANAGE("Suspender, cancelar e ajustar títulos"),
+    TITLE_AMOUNT_ADJUST("Corrigir manualmente o valor do título (até o limite; acima, pede aprovação)"),
+    TITLE_AMOUNT_APPROVE("Aprovar correções de valor de título pedidas por outra pessoa e definir o limite"),
     COLLATERAL_MANAGE("Gerenciar garantias, avaliações e partes da obrigação (coobrigados)"),
     PRESCRIPTION_MANAGE("Classificar a natureza do título e registrar interrupções de prescrição"),
 

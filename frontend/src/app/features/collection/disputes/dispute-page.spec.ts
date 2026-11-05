@@ -196,6 +196,17 @@ describe('DisputePage', () => {
     expect(actions(f)).toEqual(['Responder ao devedor']);
   });
 
+  it('corrigir o valor: atalho abre a correção manual no título vinculada à contestação', async () => {
+    permissions.set(['DISPUTE_MANAGE', 'TITLE_AMOUNT_ADJUST']);
+    const f = await render(
+      detail(dispute({ status: 'RESOLVED', type: 'WRONG_AMOUNT', outcome: 'PARTIALLY_UPHELD', resolutionNote: 'Juros', resolvedAt: '2026-11-05T12:00:00Z', adjustmentAction: 'ADJUST_AMOUNT', adjustmentStatus: 'PENDING' })),
+    );
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const button = [...(f.nativeElement as HTMLElement).querySelectorAll('[data-tour="dispute-adjustment"] button')].find((b) => b.textContent?.includes('Corrigir o valor')) as HTMLButtonElement;
+    button.click();
+    expect(navigate).toHaveBeenCalledWith(['/titulos', 't-1'], { queryParams: { acao: 'corrigir-valor', contestacao: ID, motivo: 'Contestação ABCDEF12 procedente' } });
+  });
+
   it('dispensar o ajuste exige motivo e chama o servidor', async () => {
     permissions.set(['DISPUTE_MANAGE']);
     const f = await render(

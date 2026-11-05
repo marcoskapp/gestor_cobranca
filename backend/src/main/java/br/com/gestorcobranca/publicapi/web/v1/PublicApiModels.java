@@ -217,10 +217,17 @@ final class PublicApiModels {
 
     /** @param source MANUAL (registrada pela assessoria) ou PUBLIC_API */
     @Schema(name = "DisputeCreditorResponse", description = "Resposta do credor a um pedido da contestação")
+    /**
+     * Resposta do credor. Documentos enviados pela API passam pela verificação de segurança antes de chegar à
+     * assessoria: {@code documentsInVerification} ainda em verificação, {@code documentsAccepted} entregues e
+     * {@code documentsRejected} recusados (conteúdo malicioso ou sem verificação concluída — reenvie por outro meio).
+     */
     record CreditorResponseDto(UUID id, UUID disputeId, UUID requestId, String source, String position,
-                               Instant receivedAt) {
+                               Instant receivedAt, int documentsAccepted, int documentsInVerification,
+                               int documentsRejected) {
         static CreditorResponseDto of(br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseView v) {
-            return new CreditorResponseDto(v.id(), v.disputeId(), v.requestId(), v.source(), v.position(), v.receivedAt());
+            return new CreditorResponseDto(v.id(), v.disputeId(), v.requestId(), v.source(), v.position(), v.receivedAt(),
+                    v.evidenceIds().size(), v.documentsInVerification(), v.documentsRejected());
         }
     }
 }

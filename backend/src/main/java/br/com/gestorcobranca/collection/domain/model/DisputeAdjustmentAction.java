@@ -7,7 +7,7 @@ package br.com.gestorcobranca.collection.domain.model;
 public enum DisputeAdjustmentAction {
     /** Cancelar os títulos (dívida não reconhecida, fraude, prescrição, produto/serviço). */
     CANCEL_TITLES,
-    /** Corrigir o valor (o credor corrige o principal na carga, com o ajuste lançado no razão). */
+    /** Corrigir o valor: correção manual no título (debt, com limite e aprovação) ou o credor corrige na carga. */
     ADJUST_AMOUNT,
     /** Baixar por pagamento comprovado: pagamento externo com comprovante, revisado conforme a regra de pagamentos. */
     SETTLE_BY_PAYMENT;

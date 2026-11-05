@@ -16,11 +16,13 @@ import java.util.Map;
  * @param syncStabilizationWindow  atraso da sincronização incremental: só registros alterados antes de
  *                                 {@code agora - janela} são entregues, para não pular alterações de transações ainda
  *                                 não confirmadas (padrão 1 min)
+ * @param documentUploadsPerMinute envios com documentos (multipart de evidências) por token por minuto, além do limite
+ *                                 geral (padrão 10, por instância)
  */
 @ConfigurationProperties(prefix = "app.public-api")
 public record PublicApiProperties(Map<String, String> tokenHashKeys, String activeTokenHashKeyId,
                                   int defaultRateLimitPerMinute, Duration usageFlushInterval,
-                                  Duration syncStabilizationWindow) {
+                                  Duration syncStabilizationWindow, int documentUploadsPerMinute) {
 
     public PublicApiProperties {
         tokenHashKeys = tokenHashKeys == null ? Map.of() : Map.copyOf(tokenHashKeys);
@@ -30,5 +32,6 @@ public record PublicApiProperties(Map<String, String> tokenHashKeys, String acti
                 ? Duration.ofMinutes(1) : usageFlushInterval;
         syncStabilizationWindow = syncStabilizationWindow == null || syncStabilizationWindow.isNegative()
                 ? Duration.ofMinutes(1) : syncStabilizationWindow;
+        documentUploadsPerMinute = documentUploadsPerMinute <= 0 ? 10 : documentUploadsPerMinute;
     }
 }

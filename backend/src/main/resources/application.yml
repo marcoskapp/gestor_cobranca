@@ -170,6 +170,13 @@ app:
     bucket: ${S3_BUCKET:}
     region: ${AWS_REGION:sa-east-1}
     kms-key-id: ${S3_KMS_KEY_ID:}
+    # Arquivos de sistemas externos (documentos do credor pela API) passam pela quarentena antes de liberar.
+    # disabled: libera com a conferência de tipo pelo conteúdo (NOT_SCANNED); clamd: daemon ClamAV (decisão 815).
+    malware-scan:
+      mode: ${MALWARE_SCAN_MODE:disabled}
+      host: ${CLAMD_HOST:127.0.0.1}
+      port: ${CLAMD_PORT:3310}
+      timeout: 30s
 
   security:
     jwt:

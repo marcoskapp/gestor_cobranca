@@ -27,6 +27,12 @@
         Ficha do devedor
       </a>
     }
+    @if (canAdjustAmount()) {
+      <button class="btn btn-outline-primary" type="button" (click)="adjustAmount(t)" data-tour="title-amount-adjust">
+        <app-icon name="pencil-square" />
+        Corrigir valor
+      </button>
+    }
     @if (actions().length) {
       <span class="debt-actions" data-tour="title-actions">
         @if (actions().includes('suspend')) {
@@ -149,6 +155,12 @@
         <button ngbNavLink type="button">Prescrição</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-prescription [titleId]="t.id" /></div>
+        </ng-template>
+      </li>
+      <li ngbNavItem>
+        <button ngbNavLink type="button" data-tour="title-amount-tab">Correções de valor</button>
+        <ng-template ngbNavContent>
+          <div class="debt-tab"><app-title-amount-history [titleId]="t.id" (changed)="refresh()" /></div>
         </ng-template>
       </li>
       <li ngbNavItem>

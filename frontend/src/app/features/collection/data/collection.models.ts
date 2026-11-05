@@ -565,6 +565,10 @@ export interface CreditorResponseView {
   recordedBy: string;
   recordedByName: string | null;
   evidenceIds: string[];
+  /** Documentos enviados pela API ainda na verificação de segurança (quarentena). */
+  documentsInVerification: number;
+  /** Documentos da API recusados na verificação (malware ou sem veredito). */
+  documentsRejected: number;
 }
 
 export interface NoticeChannelOption {

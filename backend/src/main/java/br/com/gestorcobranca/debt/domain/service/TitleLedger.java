@@ -79,6 +79,32 @@ public final class TitleLedger {
     }
 
     /**
+     * Correção manual do valor pela assessoria (pedido aplicado): um {@code ADJUSTMENT} por componente afetado,
+     * referenciado ao pedido. Nenhum componente fica negativo e o principal acompanha o ajuste do componente principal.
+     *
+     * @param deltas variação (com sinal) por componente
+     */
+    public static Posting adjustManually(DebtTitle title, Collection<TitleLedgerEntry> existing,
+                                         Map<LedgerComponent, Money> deltas, Instant at, String referenceType,
+                                         UUID referenceId, String reason) {
+        Guard.require(deltas != null && !deltas.isEmpty(), "ledger.parts_required", "Informe ao menos um componente com valor");
+        TitleBalance balance = TitleBalance.of(existing);
+        Map<LedgerComponent, Money> nonZero = new EnumMap<>(LedgerComponent.class);
+        deltas.forEach((component, delta) -> {
+            if (!delta.isZero()) {
+                Guard.require(!balance.balanceOf(component).plus(delta).isNegative(), "title.component_below_zero",
+                        "O saldo de %s não pode ficar negativo".formatted(component));
+                nonZero.put(component, delta);
+            }
+        });
+        Money principalDelta = nonZero.getOrDefault(LedgerComponent.PRINCIPAL, Money.ZERO);
+        if (!principalDelta.isZero()) {
+            title.changePrincipalManually(title.getPrincipalAmount().plus(principalDelta));
+        }
+        return post(title, existing, LedgerEntryType.ADJUSTMENT, nonZero, at, referenceType, referenceId, reason);
+    }
+
+    /**
      * Pagamento alocado por componente.
      *
      * @param parts valores pagos (positivos) por componente

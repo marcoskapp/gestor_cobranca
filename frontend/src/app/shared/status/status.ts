@@ -34,6 +34,8 @@ export type StatusDomain =
   | 'disputeCreditorRequest'
   | 'disputeNotice'
   | 'disputeAdjustment'
+  | 'titleAmountAdjustment'
+  | 'titleAmountDivergence'
   | 'collectionPolicy'
   | 'negotiationOutcome'
   | 'importBatch'
@@ -228,6 +230,21 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     PENDING: { label: 'Ajuste pendente', tone: 'warning' },
     DONE: { label: 'Ajuste feito', tone: 'success' },
     DISMISSED: { label: 'Ajuste dispensado', tone: 'neutral' },
+  },
+  /** Correção manual do valor do título. */
+  titleAmountAdjustment: {
+    PENDING_APPROVAL: { label: 'Aguardando aprovação', tone: 'warning' },
+    APPLIED: { label: 'Aplicada', tone: 'success' },
+    REJECTED: { label: 'Recusada', tone: 'danger' },
+    CANCELLED: { label: 'Retirada', tone: 'neutral' },
+  },
+  /** Divergência entre o valor corrigido e a carga do credor. */
+  titleAmountDivergence: {
+    OPEN: { label: 'Divergência em aberto', tone: 'warning' },
+    KEPT_MANUAL: { label: 'Correção mantida', tone: 'success' },
+    ACCEPTED_CREDITOR: { label: 'Valor do credor aceito', tone: 'info' },
+    RESOLVED_BY_CREDITOR: { label: 'Credor passou a informar o valor corrigido', tone: 'success' },
+    SUPERSEDED: { label: 'Substituída', tone: 'neutral' },
   },
   /** Versões da política de cobrança e negociação (`PolicyStatus`). */
   collectionPolicy: {

@@ -14,9 +14,21 @@ import br.com.gestorcobranca.organization.application.port.in.CreditorDisputeCon
 import br.com.gestorcobranca.organization.application.port.in.CreditorDisputeContactUseCases.DisputeContactCommand;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.jobs.JobDrain;
+import br.com.gestorcobranca.shared.storage.MalwareScanner;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.net.http.HttpRequest;
+import java.nio.charset.StandardCharsets;
 
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
@@ -32,7 +44,55 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Contestações pela API pública: o credor consulta os pedidos da assessoria e responde (escopo
  * {@code disputes:write}); token de outro credor não enxerga a contestação; sem o escopo, 403.
  */
+@Import(PublicApiDisputesIT.ScannerConfig.class)
 class PublicApiDisputesIT extends PublicApiTestSupport {
+
+    /** Verificador de teste: o marcador EICAR no conteúdo é "malware". */
+    @TestConfiguration
+    static class ScannerConfig {
+        @Bean
+        @Primary
+        MalwareScanner testScanner() {
+            return new MalwareScanner() {
+                @Override
+                public ScanResult scan(java.io.InputStream content) {
+                    try {
+                        String text = new String(content.readAllBytes(), StandardCharsets.ISO_8859_1);
+                        return text.contains("EICAR") ? new ScanResult(Verdict.INFECTED, "Eicar-Test-Signature")
+                                : new ScanResult(Verdict.CLEAN, null);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }
+
+                @Override
+                public String engine() {
+                    return "test";
+                }
+            };
+        }
+    }
+
+    private HttpResponse<String> respondWithFiles(String token, UUID disputeId, String json, Map<String, byte[]> files)
+            throws IOException, InterruptedException {
+        String boundary = "----gc" + UUID.randomUUID().toString().replace("-", "");
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"response\"\r\n"
+                + "Content-Type: application/json\r\n\r\n" + json + "\r\n").getBytes(StandardCharsets.UTF_8));
+        for (Map.Entry<String, byte[]> f : files.entrySet()) {
+            body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"files\"; filename=\"" + f.getKey()
+                    + "\"\r\nContent-Type: application/pdf\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            body.write(f.getValue());
+            body.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+        body.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+                        + "/public-api/v1/disputes/" + disputeId + "/creditor-responses"))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build();
+        return http.send(request, HttpResponse.BodyHandlers.ofString());
+    }
 
     @Autowired
     DebtIngestionPort ingestion;
@@ -99,5 +159,36 @@ class PublicApiDisputesIT extends PublicApiTestSupport {
         assertThat(body(get("/public-api/v1/disputes/" + dispute.id(), tokenA)).get("awaitingCreditor")).isEqualTo(false);
         assertThat(get("/public-api/v1/disputes/" + dispute.id() + "/creditor-requests", tokenA).body())
                 .contains("\"status\":\"ANSWERED\"");
+    }
+
+    @Test
+    void creditorSendsDocumentsThatGoThroughQuarantineBeforeReachingTheAgency() throws Exception {
+        DisputeView dispute = disputeWithRequest();
+        String token = issue(creditorA, allScopes(), null, null).token();
+        String answer = "{\"position\":\"CONFIRMS_DEBT\",\"note\":\"Contrato e extrato anexos\"}";
+        byte[] contract = "%PDF-1.4 contrato assinado".getBytes(StandardCharsets.US_ASCII);
+        byte[] infected = "%PDF-1.4 X5O!P%@AP EICAR-STANDARD-ANTIVIRUS-TEST-FILE".getBytes(StandardCharsets.US_ASCII);
+
+        // conteúdo que não é PDF/PNG/JPEG é recusado, qualquer que seja a extensão
+        HttpResponse<String> fake = respondWithFiles(token, dispute.id(), answer,
+                Map.of("planilha.pdf", "MZ executavel".getBytes(StandardCharsets.US_ASCII)));
+        assertThat(fake.statusCode()).isEqualTo(422);
+        assertThat(fake.body()).contains("dispute.evidence_type_invalid");
+
+        HttpResponse<String> sent = respondWithFiles(token, dispute.id(), answer,
+                new java.util.LinkedHashMap<>(Map.of("contrato.pdf", contract, "extrato.pdf", infected)));
+        assertThat(sent.statusCode()).isEqualTo(201);
+        assertThat(body(sent)).containsEntry("documentsInVerification", 2).containsEntry("documentsAccepted", 0);
+        // nada chega à assessoria antes da verificação
+        assertThat(asManager(() -> disputes.listEvidence(dispute.id()))).isEmpty();
+
+        JobDrain.drain(context, jdbc, "collection.");
+        assertThat(asManager(() -> disputes.listEvidence(dispute.id()))).singleElement()
+                .satisfies(e -> assertThat(e.fileName()).isEqualTo("contrato.pdf"));
+        String listed = get("/public-api/v1/disputes/" + dispute.id() + "/creditor-responses", token).body();
+        assertThat(listed).contains("\"documentsAccepted\":1").contains("\"documentsRejected\":1")
+                .contains("\"documentsInVerification\":0");
+        assertThat(system(() -> jdbc.queryForObject("select count(*) from shared.access_log where event_type ="
+                + " 'MALWARE_DETECTED'", Long.class))).isEqualTo(1);
     }
 }

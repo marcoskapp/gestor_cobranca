@@ -124,17 +124,19 @@ export type AdjustmentShortcut =
   | { kind: 'title'; titleId: string; queryParams: Record<string, string> }
   | { kind: 'payment'; titleIds: string[] };
 
-export function adjustmentShortcut(action: AdjustmentAction, titleIds: string[], protocol: string): AdjustmentShortcut | null {
+export function adjustmentShortcut(action: AdjustmentAction, titleIds: string[], protocol: string, disputeId: string): AdjustmentShortcut | null {
   if (!titleIds.length) {
     return null;
   }
   if (action === 'SETTLE_BY_PAYMENT') {
     return { kind: 'payment', titleIds };
   }
+  const motivo = `Contestação ${protocol} procedente`;
   return {
     kind: 'title',
     titleId: titleIds[0],
-    queryParams: action === 'CANCEL_TITLES' ? { acao: 'cancelar', motivo: `Contestação ${protocol} procedente` } : { contestacao: protocol },
+    // corrigir o valor: abre a correção manual vinculada à contestação (decisão 810)
+    queryParams: action === 'CANCEL_TITLES' ? { acao: 'cancelar', motivo } : { acao: 'corrigir-valor', contestacao: disputeId, motivo },
   };
 }
 

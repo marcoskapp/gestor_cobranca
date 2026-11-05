@@ -195,7 +195,7 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
                         }
                       </div>
                       @if (d.adjustmentAction === 'ADJUST_AMOUNT') {
-                        <div class="app-muted mt-1">O valor é corrigido pelo credor na próxima carga; a pendência é concluída quando o saldo do título mudar.</div>
+                        <div class="app-muted mt-1">A correção manual do valor fica registrada no título (motivo, quem e quando; acima do limite, com aprovação de outra pessoa); a pendência é concluída quando o saldo mudar, também se o credor corrigir na carga.</div>
                       }
                     }
                   </dd>
@@ -259,6 +259,12 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
                 <p class="dp-pre mb-0">{{ resp.note }}</p>
                 @if (resp.evidenceIds.length) {
                   <div class="app-muted">{{ resp.evidenceIds.length }} documento(s) nas evidências</div>
+                }
+                @if (resp.documentsInVerification) {
+                  <div class="app-muted">{{ resp.documentsInVerification }} documento(s) em verificação de segurança</div>
+                }
+                @if (resp.documentsRejected) {
+                  <div class="dp-late">{{ resp.documentsRejected }} documento(s) recusado(s) na verificação de segurança — peça o reenvio por outro meio</div>
                 }
               </article>
             }
@@ -562,16 +568,16 @@ export class DisputePage {
     if (d.adjustmentAction === 'CANCEL_TITLES') {
       return this.auth.hasPermission(Permission.DEBT_TITLE_MANAGE);
     }
-    return this.auth.hasAnyPermission([Permission.DEBTOR_VIEW, Permission.CASE_VIEW]);
+    return this.auth.hasPermission(Permission.TITLE_AMOUNT_ADJUST);
   }
 
   protected adjustmentCta(d: DisputeView): string {
-    return d.adjustmentAction === 'SETTLE_BY_PAYMENT' ? 'Informar pagamento' : d.adjustmentAction === 'CANCEL_TITLES' ? 'Cancelar no título' : 'Abrir o título';
+    return d.adjustmentAction === 'SETTLE_BY_PAYMENT' ? 'Informar pagamento' : d.adjustmentAction === 'CANCEL_TITLES' ? 'Cancelar no título' : 'Corrigir o valor no título';
   }
 
   /** Atalho para o fluxo existente; a pendência é concluída pelo servidor quando o efeito aparece no título. */
   protected adjust(d: DisputeView): void {
-    const shortcut = d.adjustmentAction ? adjustmentShortcut(d.adjustmentAction, d.titleIds, this.protocol()) : null;
+    const shortcut = d.adjustmentAction ? adjustmentShortcut(d.adjustmentAction, d.titleIds, this.protocol(), d.id) : null;
     if (!shortcut) {
       return;
     }

@@ -87,6 +87,30 @@ public class DebtTitle extends TenantScopedEntity {
     @Column(name = "import_batch_id")
     private UUID importBatchId;
 
+    /** Principal corrigido manualmente pela assessoria: a carga do credor não o sobrescreve em silêncio. */
+    @Column(name = "manual_principal", nullable = false)
+    private boolean manualPrincipal;
+
+    /** Último principal informado pelo credor numa carga (ou na criação). */
+    @Column(name = "creditor_principal", nullable = false, precision = 19, scale = 2)
+    private Money creditorPrincipal;
+
+    /** Principal do credor já reconhecido numa divergência resolvida mantendo a correção (não reabre). */
+    @Column(name = "acknowledged_principal", precision = 19, scale = 2)
+    private Money acknowledgedPrincipal;
+
+    /** Como a carga do credor deve tratar o principal informado. */
+    public enum CreditorPrincipal {
+        /** Sem correção manual: o valor do credor vale (ajuste no razão se diferente). */
+        APPLY,
+        /** Com correção manual, o credor passou a informar o mesmo valor: a correção deixa de ser manual. */
+        CONVERGED,
+        /** Com correção manual, valor do credor já reconhecido numa decisão anterior: nada a fazer. */
+        ACKNOWLEDGED,
+        /** Com correção manual, valor diferente: mantém a correção e sinaliza a divergência. */
+        DIVERGENT
+    }
+
     protected DebtTitle() {
     }
 
@@ -104,6 +128,7 @@ public class DebtTitle extends TenantScopedEntity {
         this.debtorId = debtorId;
         this.externalId = validExternalId(externalId, "title");
         this.principalAmount = validPrincipal(principalAmount);
+        this.creditorPrincipal = this.principalAmount;
         this.status = TitleStatus.OPEN;
         this.openBalance = Money.ZERO;
         this.paidTotal = Money.ZERO;
@@ -153,6 +178,49 @@ public class DebtTitle extends TenantScopedEntity {
     public void changePrincipal(Money newPrincipal) {
         requireAcceptsPosting(LedgerEntryType.ADJUSTMENT);
         this.principalAmount = validPrincipal(newPrincipal);
+    }
+
+    /**
+     * Classifica o principal informado pelo credor numa carga e registra-o como o último do credor. Com correção manual,
+     * só a convergência (credor passou a informar o valor corrigido) devolve o título ao fluxo normal.
+     */
+    public CreditorPrincipal receiveCreditorPrincipal(Money reported) {
+        Guard.require(reported != null, "title.principal_invalid", "Valor principal obrigatório");
+        this.creditorPrincipal = reported;
+        if (!manualPrincipal) {
+            return CreditorPrincipal.APPLY;
+        }
+        if (reported.equals(principalAmount)) {
+            this.manualPrincipal = false;
+            this.acknowledgedPrincipal = null;
+            return CreditorPrincipal.CONVERGED;
+        }
+        return reported.equals(acknowledgedPrincipal) ? CreditorPrincipal.ACKNOWLEDGED : CreditorPrincipal.DIVERGENT;
+    }
+
+    /**
+     * Correção manual do principal (pela assessoria). Chamado somente pelo razão ({@code TitleLedger.adjustManually}),
+     * que lança o {@code ADJUSTMENT} correspondente.
+     */
+    public void changePrincipalManually(Money newPrincipal) {
+        requireAcceptsPosting(LedgerEntryType.ADJUSTMENT);
+        Guard.require(newPrincipal != null && !newPrincipal.isNegative(), "title.principal_invalid",
+                "Valor principal não pode ser negativo");
+        this.principalAmount = newPrincipal;
+        this.manualPrincipal = !newPrincipal.equals(creditorPrincipal);
+        this.acknowledgedPrincipal = null;
+    }
+
+    /** Divergência resolvida mantendo a correção: o valor do credor fica reconhecido. */
+    public void acknowledgeCreditorPrincipal(Money reported) {
+        Guard.requireState(manualPrincipal, "title_amount.not_manual", "O principal do título não foi corrigido manualmente");
+        this.acknowledgedPrincipal = reported;
+    }
+
+    /** Divergência resolvida aceitando o valor do credor (o razão lança o ajuste pela via da carga). */
+    public void dropManualPrincipal() {
+        this.manualPrincipal = false;
+        this.acknowledgedPrincipal = null;
     }
 
     /** Títulos quitados, cancelados ou devolvidos não são alterados por novas cargas. */
@@ -347,6 +415,18 @@ public class DebtTitle extends TenantScopedEntity {
 
     public Instant getLastPaymentAt() {
         return lastPaymentAt;
+    }
+
+    public boolean isManualPrincipal() {
+        return manualPrincipal;
+    }
+
+    public Money getCreditorPrincipal() {
+        return creditorPrincipal;
+    }
+
+    public Money getAcknowledgedPrincipal() {
+        return acknowledgedPrincipal;
     }
 
     public UUID getImportBatchId() {

@@ -73,7 +73,7 @@ Severidade: **erro** — a linha não é gravada; **aviso** — a linha é grava
 - O devedor é casado pelo documento; o título por (credor, `id_titulo`); o contrato por (credor, `contrato`).
 - Reenviar o mesmo arquivo, ou o arquivo corrigido, **não duplica** devedores, contatos, títulos, lançamentos ou saldos: o que não mudou fica inalterado, o principal alterado é corrigido por lançamento de ajuste e contatos novos são acrescentados.
 - O mesmo conteúdo (SHA-256) já importado com sucesso na carteira é recusado (`import.duplicate_file`), salvo confirmação explícita com motivo (auditada). O mesmo conteúdo em importação simultânea na carteira é sempre recusado.
-- Títulos encerrados (quitados, cancelados, devolvidos) não são alterados pela carga (aviso `title.locked_status`); mudança de carteira não acontece pela carga (aviso `title.portfolio_mismatch` — use a transferência de carteira).
+- Títulos encerrados (quitados, cancelados, devolvidos) não são alterados pela carga (aviso `title.locked_status`); mudança de carteira não acontece pela carga (aviso `title.portfolio_mismatch` — use a transferência de carteira). Título com valor corrigido manualmente pela assessoria não tem o principal sobrescrito: principal diferente do corrigido mantém a correção e abre uma divergência para decisão (aviso `title.principal_divergence`, [correcao-de-valor.md](correcao-de-valor.md) §5).
 
 ## 4. Situação informada pelo credor (`situacao`)
 

@@ -25,7 +25,7 @@ public record CollectionProperties(Defaults defaults, Duration callbackCheckInte
         dailyCron = dailyCron == null ? "0 10 0 * * *" : dailyCron;
         batchSize = batchSize == null ? 200 : batchSize;
         evidence = evidence == null ? new Evidence(null) : evidence;
-        disputes = disputes == null ? new Disputes(null, null, null, null) : disputes;
+        disputes = disputes == null ? new Disputes(null, null, null, null, null, null, null) : disputes;
     }
 
     public record Defaults(Integer promiseToleranceDays, Integer promiseMaxDays, Integer callbackToleranceMinutes,
@@ -51,10 +51,19 @@ public record CollectionProperties(Defaults defaults, Duration callbackCheckInte
      * @param linkRequestsPerMinute  limite de acessos ao link por IP e minuto, por instância
      * @param mailMaxAttempts        tentativas de envio de cada e-mail ao credor
      */
+    /**
+     * @param apiMaxDocuments     documentos por resposta do credor pela API (padrão 5)
+     * @param apiMaxDocumentBytes tamanho máximo de cada documento pela API (padrão 10 MB)
+     * @param scanMaxAttempts     tentativas da verificação de malware antes de desistir (padrão 8)
+     */
     public record Disputes(String followUpCron, Integer linkMaxDownloads, Integer linkRequestsPerMinute,
-                           Integer mailMaxAttempts) {
+                           Integer mailMaxAttempts, Integer apiMaxDocuments, Long apiMaxDocumentBytes,
+                           Integer scanMaxAttempts) {
 
         public Disputes {
+            apiMaxDocuments = apiMaxDocuments == null ? 5 : apiMaxDocuments;
+            apiMaxDocumentBytes = apiMaxDocumentBytes == null ? 10L * 1024 * 1024 : apiMaxDocumentBytes;
+            scanMaxAttempts = scanMaxAttempts == null ? 8 : scanMaxAttempts;
             followUpCron = followUpCron == null ? "0 5 8 * * *" : followUpCron;
             linkMaxDownloads = linkMaxDownloads == null ? 20 : linkMaxDownloads;
             linkRequestsPerMinute = linkRequestsPerMinute == null ? 30 : linkRequestsPerMinute;

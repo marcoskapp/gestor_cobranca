@@ -10,6 +10,7 @@ import { ConfirmDialogData } from '../../../../shared/components/confirm-dialog/
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm.service';
 import { TitleView } from '../../data/debt.models';
 import { TitleDetail } from './title-detail';
+import { DialogService } from '../../../../shared/dialog/dialog.service';
 
 const base: TitleView = {
   id: 't-1',
@@ -147,5 +148,22 @@ describe('TitleDetail', () => {
     permissions.set(['DEBTOR_VIEW']);
     await render(base, { acao: 'cancelar', motivo: 'x' });
     expect(confirmations).toHaveLength(0);
+  });
+
+  it('atalho da contestação (?acao=corrigir-valor) abre a correção do valor vinculada', async () => {
+    permissions.set(['DEBTOR_VIEW', 'TITLE_AMOUNT_ADJUST']);
+    const open = vi.spyOn(TestBed.inject(DialogService), 'open').mockReturnValue({ afterClosed: () => of(undefined) } as never);
+    await render(base, { acao: 'corrigir-valor', contestacao: 'd-1', motivo: 'Contestação D-1 procedente' });
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open.mock.calls[0][1]).toMatchObject({ data: { titleId: 't-1', disputeId: 'd-1', note: 'Contestação D-1 procedente' } });
+  });
+
+  it('corrigir valor só para quem tem a permissão própria', async () => {
+    permissions.set(['DEBTOR_VIEW', 'DEBT_TITLE_MANAGE']);
+    const fixture = await render(base);
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-tour="title-amount-adjust"]')).toBeNull();
+    permissions.set(['DEBTOR_VIEW', 'TITLE_AMOUNT_ADJUST']);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-tour="title-amount-adjust"]')).not.toBeNull();
   });
 });

@@ -25,6 +25,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
   { id: 'promessa', term: 'Promessa de pagamento', definition: 'Compromisso do devedor de pagar um valor até uma data, sem acordo formal. É quebrada se o pagamento não chegar na tolerância.' },
   { id: 'retorno', term: 'Retorno', definition: 'Contato combinado com o devedor para data e hora marcadas. Aparece na agenda e volta como próxima ação do caso.' },
   { id: 'contestacao', term: 'Contestação', definition: 'Questionamento da dívida pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução.' },
+  { id: 'correcao-de-valor', term: 'Correção de valor', definition: 'Alteração manual do saldo do título pela assessoria, com motivo e evidência. Acima do limite, ou se aumentar o saldo, outra pessoa aprova; fica no histórico do título.' },
   { id: 'prazo-interno', term: 'Prazo interno', definition: 'Meta da equipe para resolver a contestação, antes do prazo de resposta ao devedor, que nunca é pausado.' },
   { id: 'comunicacao-de-servico', term: 'Comunicação de serviço', definition: 'Mensagem que não é cobrança, como a resposta a uma contestação. Não conta nos limites de tentativas, mas respeita descadastro, restrições e horário.' },
   { id: 'porteiro-de-contato', term: '"Posso contatar agora?"', definition: 'Decisão do sistema, por canal, antes de cada contato: considera restrições, política de contato, feriados e limites de tentativas.' },

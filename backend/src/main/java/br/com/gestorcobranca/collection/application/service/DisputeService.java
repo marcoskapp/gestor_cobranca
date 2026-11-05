@@ -84,6 +84,7 @@ class DisputeService implements DisputeUseCases {
 
     private final DisputeRepository disputes;
     private final DisputeEvidenceRepository evidences;
+    private final br.com.gestorcobranca.collection.domain.repository.DisputeDocumentQuarantineRepository quarantine;
     private final DisputeAssignmentRepository assignmentHistory;
     private final DisputeCreditorRequestRepository creditorRequests;
     private final DisputeMailRepository mails;
@@ -115,6 +116,7 @@ class DisputeService implements DisputeUseCases {
     private final Clock clock;
 
     DisputeService(DisputeRepository disputes, DisputeEvidenceRepository evidences,
+                   br.com.gestorcobranca.collection.domain.repository.DisputeDocumentQuarantineRepository quarantine,
                    DisputeAssignmentRepository assignmentHistory, DisputeCreditorRequestRepository creditorRequests,
                    DisputeMailRepository mails, DisputeCreditorResponseRepository creditorResponses,
                    DisputeDebtorNoticeRepository debtorNotices, DisputeDeadlineRuleRepository deadlineRules,
@@ -129,6 +131,7 @@ class DisputeService implements DisputeUseCases {
                    Clock clock) {
         this.disputes = disputes;
         this.evidences = evidences;
+        this.quarantine = quarantine;
         this.assignmentHistory = assignmentHistory;
         this.creditorRequests = creditorRequests;
         this.mails = mails;
@@ -382,7 +385,7 @@ class DisputeService implements DisputeUseCases {
                 views.creditorRequests(requests, mails.findByRequestIdIn(requests.stream()
                         .map(DisputeCreditorRequest::getId).toList())),
                 views.creditorResponses(creditorResponses.findByDisputeIdOrderByReceivedAtAsc(d.getId()),
-                        evidences.findByDisputeIdOrderByCreatedAtAsc(d.getId())),
+                        evidences.findByDisputeIdOrderByCreatedAtAsc(d.getId()), quarantine.findByDisputeId(d.getId())),
                 views.debtorNotices(debtorNotices.findByDisputeIdOrderByCreatedAtAsc(d.getId())));
     }
 
@@ -510,8 +513,8 @@ class DisputeService implements DisputeUseCases {
             source = CreditorResponseSource.MANUAL;
         }
         DisputeCreditorResponse response = creditorChannel.respond(d, command, documents, source);
-        return views.creditorResponses(List.of(response), evidences.findByDisputeIdOrderByCreatedAtAsc(d.getId()))
-                .getFirst();
+        return views.creditorResponses(List.of(response), evidences.findByDisputeIdOrderByCreatedAtAsc(d.getId()),
+                quarantine.findByDisputeId(d.getId())).getFirst();
     }
 
     @Override
@@ -521,6 +524,14 @@ class DisputeService implements DisputeUseCases {
         List<DisputeCreditorRequest> requests = creditorRequests.findByDisputeIdOrderBySequenceNumberAsc(d.getId());
         return views.creditorRequests(requests, mails.findByRequestIdIn(requests.stream()
                 .map(DisputeCreditorRequest::getId).toList()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CreditorResponseView> creditorResponses(UUID disputeId) {
+        Dispute d = disputeAccess.visible(disputeId);
+        return views.creditorResponses(creditorResponses.findByDisputeIdOrderByReceivedAtAsc(d.getId()),
+                evidences.findByDisputeIdOrderByCreatedAtAsc(d.getId()), quarantine.findByDisputeId(d.getId()));
     }
 
     // =================================================================== devedor

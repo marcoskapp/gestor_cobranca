@@ -61,4 +61,14 @@ class DebtMetrics {
     void stopScan(Timer.Sample sample, String phase) {
         sample.stop(registry.timer("debt.prescription.scan.duration", "phase", phase));
     }
+
+    /** @param outcome requested, applied, rejected, cancelled; @param mode WITHIN_LIMIT ou DUAL_CONTROL */
+    void amountAdjustment(String outcome, String mode) {
+        registry.counter("debt.title_amount.adjustments", "outcome", outcome, "mode", mode).increment();
+    }
+
+    /** @param outcome detected, seen_again, KEPT_MANUAL, ACCEPTED_CREDITOR, RESOLVED_BY_CREDITOR */
+    void amountDivergence(String outcome) {
+        registry.counter("debt.title_amount.divergences", "outcome", outcome).increment();
+    }
 }

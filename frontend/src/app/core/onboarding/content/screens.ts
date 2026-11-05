@@ -75,7 +75,23 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.debtors', version: 1, path: '/devedores', tourId: 'debt.debtors' },
   { key: 'debt.debtor-detail', version: 1, path: '/devedores/:id', tourId: 'debt.debtor-detail' },
   { key: 'debt.titles', version: 1, path: '/titulos', tourId: 'debt.titles' },
-  { key: 'debt.title-detail', version: 1, path: '/titulos/:id', tourId: 'debt.title-detail' },
+  // "correções de valor" antes do detalhe (":id" casaria o caminho)
+  { key: 'debt.title-amounts', version: 1, path: '/titulos/correcoes-de-valor', tourId: 'debt.title-amounts' },
+  {
+    key: 'debt.title-detail',
+    version: 2,
+    path: '/titulos/:id',
+    tourId: 'debt.title-detail',
+    changes: [
+      {
+        version: 2,
+        items: [
+          'Corrigir valor: novo saldo por componente com motivo e evidência; acima do limite ou em aumento do saldo, outra pessoa aprova.',
+          'Aba "Correções de valor" com o histórico do título e as cargas do credor diferentes do valor corrigido, para decidir qual vale.',
+        ],
+      },
+    ],
+  },
   {
     key: 'collection.queue',
     version: 6,

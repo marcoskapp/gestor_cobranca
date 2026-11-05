@@ -28,7 +28,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | --- | --- |
 | Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
 | Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled`, `import.format_confirmed`, `import.totals_matched`, `import.totals_mismatch`, `import.alerts_detected`, `import.outliers_reviewed`, `import.review_committed`, `import.review_approved`, `import.review_rejected`, `pdf_import.received`, `pdf_import.map_proposed`, `pdf_import.map_reused`, `pdf_import.map_edited`, `pdf_import.map_approved`, `pdf_import.imported`, `pdf_import.discarded`, `pdf_import.mapping_failed` |
-| Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
+| Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching`, `title.amount_adjustment_requested`, `title.amount_adjusted`, `title.amount_adjustment_rejected`, `title.amount_divergence_detected`, `title.amount_divergence_resolved` |
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `interaction.follow_up`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `agreement.break_suspended`, `agreement.break_suspension_ended`, `installment.overdue`, `installment.paid` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.rejected`, `payment.reconciled`, `payment.reallocated`, `payment.divergence`, `payment.reversed` |
@@ -68,6 +68,11 @@ Nenhum evento leva placa, RENAVAM, chassi, matrícula, documento ou nome: apenas
 | `collateral.appraised` | avaliação registrada | `type`, `appraisalSource`, `appraisalDate`, `estimatedValue`; `amount` = valor da avaliação |
 | `obligation_party.registered` | coobrigado incluído no contrato | `role`, `originContractId`, `principalDebtorId`, `personType`, `source`; `debtorId` = coobrigado |
 | `title.prescription_interrupted` | interrupção registrada (manual ou módulo legal) | `type`, `origin` (`MANUAL`/`LEGAL`), `hasEvidence`, `executionEstimatedDate`, `collectionEstimatedDate`, `extended` (alguma data estimada foi adiada); `amount` = saldo em aberto |
+| `title.amount_adjustment_requested` | correção manual do valor aguardando aprovação (acima do limite ou aumento) | `adjustmentId`, `reason`, `approvalMode`, `direction` (decrease/increase), `principalChanged`, `withDispute`, `withEvidence`; `amount` = variação do saldo |
+| `title.amount_adjusted` | correção aplicada (no registro ou na aprovação) | os mesmos + `components` (lista), `hoursPending` (só com aprovação) |
+| `title.amount_adjustment_rejected` | correção recusada por quem aprova | os mesmos + `hoursPending` |
+| `title.amount_divergence_detected` | carga com principal diferente do corrigido manualmente (correção mantida) | `divergenceId`, `occurrences`, `importBatchId`; `amount` = informado − corrigido |
+| `title.amount_divergence_resolved` | divergência decidida (`KEPT_MANUAL`, `ACCEPTED_CREDITOR`) ou encerrada pela carga (`RESOLVED_BY_CREDITOR`) | `divergenceId`, `decision`, `daysOpen`, `occurrences` |
 | `title.prescription_approaching` | varredura diária: data estimada entrou na janela da regra (uma vez por data) | `claim` (`EXECUTION`/`COLLECTION`), `instrumentType`, `executiveTitle`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `titleStatus`; `amount` = saldo em aberto |
 
 ### 3.2a Atributos dos eventos de ingestão
@@ -187,9 +192,12 @@ Eventos do fluxo das contestações (negocio/contestacoes.md): todos levam credo
 | `dispute.creditor_request_failed` | pedido com falha definitiva de envio | `sequence`, `errorCode` |
 | `dispute.creditor_request_overdue` | prazo pedido ao credor vencido sem resposta | `sequence`, `daysLate` |
 | `dispute.creditor_responded` | resposta do credor (tela ou API) | `position`, `source` (MANUAL, PUBLIC_API), `documents`, `withRequest`, `withinRequestedDeadline` |
+| `dispute.creditor_document_scanned` | documento do credor pela API verificado na quarentena | `verdict` (CLEAN, NOT_SCANNED, INFECTED), `engine` (clamav, disabled), `attempts`, `minutesInQuarantine` |
 | `dispute.debtor_notified` | resposta ao devedor enviada, registrada ou bloqueada | `channel`, `outcome` (queued, registered, blocked), `disputeOutcome`, `reasons` (só se bloqueada: motivos do porteiro), `hoursAfterResolution` |
 | `dispute.adjustment_suggested` | resolução com ajuste sugerido | `action`, `outcome`; `amount` = saldo dos títulos na resolução |
 | `dispute.adjustment_closed` | ajuste feito (detectado) ou dispensado | `action`, `status` (DONE, DISMISSED), `trigger` (detected, dismissed), `daysAfterResolution` |
+
+Log de acesso: `MALWARE_DETECTED` (documento externo infectado: recurso, credor, SHA-256 e assinatura, sem o conteúdo), `RATE_LIMITED` com `scope=document_upload`, `FILE_DOWNLOADED` da evidência da correção de valor (`resource=title_amount_adjustment`).
 
 O porteiro de contato (compliance) passa a registrar `category` (`COLLECTION`, `TRANSACTIONAL`) em `contact.denied` e na
 métrica `compliance.contact_gate.decisions{operation,outcome,category}`.
@@ -539,6 +547,8 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `collection.disputes.creditor_mails{purpose,outcome}`, `collection.disputes.creditor_mail.duration` (p50/p95/p99) | e-mails ao credor (pedido, lembrete, cobrança): `sent`, `transient` (será repetido), `exhausted` (tentativas esgotadas), `rejected` (falha definitiva); duração do envio SMTP |
 | `collection.disputes.creditor_overdue{type}`, `collection.disputes.creditor_responses{source}` | pedidos ao credor vencidos; respostas do credor (tela, API) |
 | `collection.disputes.debtor_notices{channel,outcome}`, `collection.disputes.adjustments{action,status}` | respostas ao devedor; ajustes sugeridos, feitos e dispensados |
+| `collection.disputes.document_scans{engine,outcome}`, `collection.disputes.document_scan.duration{engine}` | verificação de malware dos documentos do credor pela API: `clean`, `not_scanned`, `infected`, `unavailable` (daemon fora; job tenta de novo) — `infected` > 0 e `unavailable` contínuo pedem alarme |
+| `publicapi.document_uploads.rejected{operation}` | envios com documentos recusados pelo limite próprio por token (429) |
 | `collection.disputes.evidence_link{outcome}` | downloads do link de evidências (`served`, `expired`, `exhausted`, `unknown`, `malformed`, `rate_limited`) — recusas em alta podem indicar varredura |
 | `integration.calls{provider=smtp,operation=dispute_mail,outcome}` | chamadas ao SMTP dos e-mails de contestação |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
@@ -596,6 +606,8 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `negotiation.jobs.failures{job}` | falhas dos agendamentos do módulo (alarme) |
 | `debt.collateral.registered{type,source}`, `debt.collateral.transitions{type,to}`, `debt.collateral.appraisals{source}` | garantias cadastradas, mudanças de situação e avaliações |
 | `debt.obligation_parties.registered{role,source}` | coobrigados incluídos |
+| `debt.title_amount.adjustments{outcome,mode}` | correções de valor: `requested`, `applied`, `rejected`, `cancelled` por `WITHIN_LIMIT`/`DUAL_CONTROL` |
+| `debt.title_amount.divergences{outcome}` | divergências com a carga: `detected`, `seen_again`, `KEPT_MANUAL`, `ACCEPTED_CREDITOR`, `RESOLVED_BY_CREDITOR` |
 | `debt.prescription.interruptions{type,origin}` | interrupções de prescrição registradas |
 | `debt.prescription.recalculated{trigger}` | linhas de prescrição criadas/alteradas/removidas por recálculo (`IMPORT`, `CLASSIFICATION`, `INTERRUPTION`, `RULE_CHANGE`, `RECONCILIATION`); `RECONCILIATION` contínuo indica recálculo que não está acontecendo na origem |
 | `debt.prescription.alerts{claim,instrumentType}` | alertas de prescrição próxima emitidos |

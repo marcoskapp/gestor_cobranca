@@ -61,7 +61,7 @@ public record AccessEvent(
     private static boolean isSuccess(AccessEventType type) {
         return switch (type) {
             case LOGIN_FAILURE, LOGIN_BLOCKED, MFA_FAILURE, TOKEN_REUSE_DETECTED, ACCESS_DENIED, SCOPE_DENIED,
-                 UNAUTHENTICATED, WEBHOOK_REJECTED, DISPUTE_LINK_REJECTED, PORTAL_LOGIN_FAILURE, PORTAL_LOCKED, RATE_LIMITED,
+                 UNAUTHENTICATED, WEBHOOK_REJECTED, DISPUTE_LINK_REJECTED, MALWARE_DETECTED, PORTAL_LOGIN_FAILURE, PORTAL_LOCKED, RATE_LIMITED,
                  INTEGRATION_TOKEN_REJECTED -> false;
             default -> true;
         };

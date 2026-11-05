@@ -5,7 +5,14 @@ import { API_V1 } from '../../../core/config/api';
 import { silentErrorContext } from '../../../core/http/http-context';
 import { toHttpParams } from '../../../core/http/http-params';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
+import { FileDownloadService } from '../../../shared/data/file-download';
 import {
+  AmountAdjustmentContext,
+  AmountAdjustmentHistory,
+  AmountAdjustmentRequest,
+  AmountAdjustmentSettings,
+  AmountAdjustmentView,
+  AmountDivergenceView,
   AddContactRequest,
   ContactView,
   DebtorFilter,
@@ -109,6 +116,69 @@ export class DebtorContactsApi {
 
   validate(debtorId: string, contactId: string): Observable<ContactView> {
     return this.http.post<ContactView>(`${this.base(debtorId)}/${contactId}/validate`, null);
+  }
+}
+
+/** Correção manual do valor do título (`TitleAmountAdjustmentController`). */
+@Injectable({ providedIn: 'root' })
+export class TitleAmountApi {
+  private readonly http = inject(HttpClient);
+  private readonly files = inject(FileDownloadService);
+
+  context(titleId: string): Observable<AmountAdjustmentContext> {
+    return this.http.get<AmountAdjustmentContext>(`${API_V1}/titles/${titleId}/amount-adjustment-context`);
+  }
+
+  history(titleId: string): Observable<AmountAdjustmentHistory> {
+    return this.http.get<AmountAdjustmentHistory>(`${API_V1}/titles/${titleId}/amount-adjustments`);
+  }
+
+  /** Com arquivo: multipart (`adjustment` em JSON + `file`). */
+  request(titleId: string, request: AmountAdjustmentRequest, file: File | null): Observable<AmountAdjustmentView> {
+    const url = `${API_V1}/titles/${titleId}/amount-adjustments`;
+    if (!file) {
+      return this.http.post<AmountAdjustmentView>(url, request);
+    }
+    const body = new FormData();
+    body.append('adjustment', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    body.append('file', file, file.name);
+    return this.http.post<AmountAdjustmentView>(url, body);
+  }
+
+  approve(id: string, note: string | null): Observable<AmountAdjustmentView> {
+    return this.http.post<AmountAdjustmentView>(`${API_V1}/title-amount-adjustments/${id}/approve`, { note });
+  }
+
+  reject(id: string, note: string): Observable<AmountAdjustmentView> {
+    return this.http.post<AmountAdjustmentView>(`${API_V1}/title-amount-adjustments/${id}/reject`, { note });
+  }
+
+  cancel(id: string, note: string | null): Observable<AmountAdjustmentView> {
+    return this.http.post<AmountAdjustmentView>(`${API_V1}/title-amount-adjustments/${id}/cancel`, { note });
+  }
+
+  pending(page: PageRequest): Observable<PageResponse<AmountAdjustmentView>> {
+    return this.http.get<PageResponse<AmountAdjustmentView>>(`${API_V1}/title-amount-adjustments/pending`, { params: toHttpParams({ page: page.page, size: page.size }) });
+  }
+
+  divergences(page: PageRequest): Observable<PageResponse<AmountDivergenceView>> {
+    return this.http.get<PageResponse<AmountDivergenceView>>(`${API_V1}/title-amount-divergences`, { params: toHttpParams({ page: page.page, size: page.size }) });
+  }
+
+  resolveDivergence(id: string, decision: 'KEEP_MANUAL' | 'ACCEPT_CREDITOR', note: string): Observable<AmountDivergenceView> {
+    return this.http.post<AmountDivergenceView>(`${API_V1}/title-amount-divergences/${id}/resolve`, { decision, note });
+  }
+
+  downloadEvidence(adjustment: AmountAdjustmentView): Observable<string> {
+    return this.files.download(`${API_V1}/title-amount-adjustments/${adjustment.id}/evidence`, adjustment.evidence?.fileName ?? 'evidencia');
+  }
+
+  settings(): Observable<AmountAdjustmentSettings> {
+    return this.http.get<AmountAdjustmentSettings>(`${API_V1}/title-amount-adjustments/settings`);
+  }
+
+  updateSettings(approvalThreshold: number): Observable<AmountAdjustmentSettings> {
+    return this.http.put<AmountAdjustmentSettings>(`${API_V1}/title-amount-adjustments/settings`, { approvalThreshold });
   }
 }
 

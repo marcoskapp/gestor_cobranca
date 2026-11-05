@@ -29,7 +29,7 @@ import java.time.Instant;
 class TitleChangeNotifier {
 
     /** O que provocou a mudança (atributo {@code trigger} do evento de negócio). */
-    enum Trigger { PAYMENT, REVERSAL, CHARGE, DISCOUNT, IMPORT, MANUAL, RETURN, TRANSFER, DISPUTE }
+    enum Trigger { PAYMENT, REVERSAL, CHARGE, DISCOUNT, IMPORT, MANUAL, RETURN, TRANSFER, DISPUTE, AMOUNT_ADJUSTMENT }
 
     private final ApplicationEventPublisher events;
     private final BusinessEventLogger businessEvents;

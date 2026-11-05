@@ -50,14 +50,18 @@ describe('regras de tela das contestações', () => {
   });
 
   it('atalho do ajuste leva ao fluxo existente já preenchido', () => {
-    expect(adjustmentShortcut('CANCEL_TITLES', ['t1', 't2'], 'AB12CD34')).toEqual({
+    expect(adjustmentShortcut('CANCEL_TITLES', ['t1', 't2'], 'AB12CD34', 'd-1')).toEqual({
       kind: 'title',
       titleId: 't1',
       queryParams: { acao: 'cancelar', motivo: 'Contestação AB12CD34 procedente' },
     });
-    expect(adjustmentShortcut('SETTLE_BY_PAYMENT', ['t1'], 'X')).toEqual({ kind: 'payment', titleIds: ['t1'] });
-    expect(adjustmentShortcut('ADJUST_AMOUNT', ['t9'], 'X')).toMatchObject({ kind: 'title', titleId: 't9' });
-    expect(adjustmentShortcut('ADJUST_AMOUNT', [], 'X')).toBeNull();
+    expect(adjustmentShortcut('SETTLE_BY_PAYMENT', ['t1'], 'X', 'd-1')).toEqual({ kind: 'payment', titleIds: ['t1'] });
+    expect(adjustmentShortcut('ADJUST_AMOUNT', ['t9'], 'X', 'd-1')).toEqual({
+      kind: 'title',
+      titleId: 't9',
+      queryParams: { acao: 'corrigir-valor', contestacao: 'd-1', motivo: 'Contestação X procedente' },
+    });
+    expect(adjustmentShortcut('ADJUST_AMOUNT', [], 'X', 'd-1')).toBeNull();
   });
 
   it('protocolo e variáveis por preencher', () => {

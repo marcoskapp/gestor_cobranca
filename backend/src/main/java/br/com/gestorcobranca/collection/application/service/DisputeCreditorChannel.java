@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.collection.application.service;
 
+import br.com.gestorcobranca.collection.application.CollectionProperties;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorRequestCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorRequestDraft;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseCommand;
@@ -98,6 +99,7 @@ class DisputeCreditorChannel {
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final CollectionMetrics metrics;
+    private final CollectionProperties properties;
     private final Clock clock;
     private final String baseUrl;
 
@@ -108,8 +110,8 @@ class DisputeCreditorChannel {
                            DisputeLinkRoutes linkRoutes, CreditorDisputeContactUseCases contacts,
                            CreditorUseCases creditors, TenantAdministration tenants, UserDirectory users,
                            CurrentActor currentActor, JobQueue jobQueue, AuditTrail auditTrail,
-                           BusinessEventLogger businessEvents, CollectionMetrics metrics, Clock clock,
-                           @Value("${app.base-url}") String baseUrl) {
+                           BusinessEventLogger businessEvents, CollectionMetrics metrics,
+                           CollectionProperties properties, Clock clock, @Value("${app.base-url}") String baseUrl) {
         this.disputes = disputes;
         this.requests = requests;
         this.mails = mails;
@@ -128,6 +130,7 @@ class DisputeCreditorChannel {
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
+        this.properties = properties;
         this.clock = clock;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
@@ -250,9 +253,18 @@ class DisputeCreditorChannel {
                 answered == null ? null : answered.getId(), source, position, command.note(), receivedAt,
                 currentActor.actorId()));
         List<UUID> stored = new ArrayList<>();
-        for (EvidenceUpload file : files) {
-            DisputeEvidence evidence = evidenceStore.store(d, file, response.getId());
-            stored.add(evidence.getId());
+        if (source == CreditorResponseSource.PUBLIC_API) {
+            // documentos de sistema externo: quarentena e verificação de malware antes de virar evidência
+            Guard.require(files.size() <= properties.disputes().apiMaxDocuments(), "dispute_response.too_many_documents",
+                    "No máximo %d documentos por resposta".formatted(properties.disputes().apiMaxDocuments()));
+            for (EvidenceUpload file : files) {
+                stored.add(evidenceStore.quarantine(d, file, response.getId()).getId());
+            }
+        } else {
+            for (EvidenceUpload file : files) {
+                DisputeEvidence evidence = evidenceStore.store(d, file, response.getId());
+                stored.add(evidence.getId());
+            }
         }
         Long responseHours = null;
         if (answered != null && answered.markAnswered(receivedAt)) {

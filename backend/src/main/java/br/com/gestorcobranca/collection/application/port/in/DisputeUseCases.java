@@ -105,6 +105,9 @@ public interface DisputeUseCases {
     /** Pedidos ao credor da contestação (API pública: só os do próprio credor). */
     List<CreditorRequestView> creditorRequests(UUID disputeId);
 
+    /** Respostas do credor da contestação, com a situação dos documentos enviados pela API (verificação). */
+    List<CreditorResponseView> creditorResponses(UUID disputeId);
+
     // ------------------------------------------------------------------ devedor
 
     /** Resposta pré-preenchida pelo modelo do resultado e canais permitidos agora (porteiro, categoria transacional). */
@@ -278,8 +281,14 @@ public interface DisputeUseCases {
     }
 
     /** @param source MANUAL ou PUBLIC_API */
+    /**
+     * @param evidenceIds             documentos que viraram evidência da contestação
+     * @param documentsInVerification documentos enviados pela API ainda na quarentena (verificação de malware)
+     * @param documentsRejected       documentos da API recusados na verificação (malware ou sem veredito)
+     */
     record CreditorResponseView(UUID id, UUID disputeId, UUID requestId, String source, String position, String note,
-                                Instant receivedAt, UUID recordedBy, String recordedByName, List<UUID> evidenceIds) {
+                                Instant receivedAt, UUID recordedBy, String recordedByName, List<UUID> evidenceIds,
+                                int documentsInVerification, int documentsRejected) {
     }
 
     // ------------------------------------------------------------------ devedor

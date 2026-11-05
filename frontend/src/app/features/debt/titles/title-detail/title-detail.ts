@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, map, of } from 'rxjs';
@@ -30,13 +30,16 @@ import { TitleTransfer, TitleTransferData } from '../title-transfer/title-transf
 import { Icon } from '../../../../shared/components/icon/icon';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
+import { TitleAmountDialog, TitleAmountDialogData } from '../title-amount/title-amount-dialog';
+import { TitleAmountHistory } from '../title-amount/title-amount-history';
+import { AmountAdjustmentView } from '../../data/debt.models';
 
 type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
 
 /** Detalhe do título: dados, saldo por componente, razão, titularidade e ações de ciclo de vida. */
 @Component({
   selector: 'app-title-detail',
-  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, OverdueBadge, Icon, NgbNavModule],
+  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, TitleAmountHistory, OverdueBadge, Icon, NgbNavModule],
   templateUrl: './title-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -45,6 +48,8 @@ export class TitleDetail {
   /** `?acao=cancelar&motivo=…`: abre a confirmação do cancelamento com o motivo sugerido (atalho da contestação procedente). */
   readonly acao = input<string | undefined>();
   readonly motivo = input<string | undefined>();
+  /** `?acao=corrigir-valor&contestacao=<id>`: abre a correção do valor vinculada à contestação procedente. */
+  readonly contestacao = input<string | undefined>();
   private shortcutHandled = false;
   private readonly router = inject(Router);
 
@@ -74,6 +79,12 @@ export class TitleDetail {
     return t && this.canManage() ? (TITLE_MANUAL_ACTIONS[t.status] ?? []) : [];
   });
   protected readonly canTransfer = computed(() => this.actions().includes('return'));
+  /** Correção manual do valor: só em cobrança (em aberto ou suspenso) e com a permissão própria. */
+  protected readonly canAdjustAmount = computed(() => {
+    const t = this.current();
+    return !!t && (t.status === 'OPEN' || t.status === 'SUSPENDED') && this.auth.hasPermission(Permission.TITLE_AMOUNT_ADJUST);
+  });
+  protected readonly amountHistory = viewChild(TitleAmountHistory);
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.current()?.creditorId]);
@@ -88,14 +99,17 @@ export class TitleDetail {
     });
     effect(() => {
       const t = this.current();
-      if (!t || this.shortcutHandled || this.acao() !== 'cancelar') {
+      const acao = this.acao();
+      if (!t || this.shortcutHandled || (acao !== 'cancelar' && acao !== 'corrigir-valor')) {
         return;
       }
       this.shortcutHandled = true;
       // a URL não reabre a confirmação ao voltar; sem a ação disponível (situação ou permissão), nada acontece
-      this.router.navigate([], { queryParams: { acao: null, motivo: null }, queryParamsHandling: 'merge', replaceUrl: true });
-      if (this.actions().includes('cancel')) {
+      this.router.navigate([], { queryParams: { acao: null, motivo: null, contestacao: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      if (acao === 'cancelar' && this.actions().includes('cancel')) {
         this.run('cancel', t, this.motivo());
+      } else if (acao === 'corrigir-valor' && this.canAdjustAmount()) {
+        this.adjustAmount(t, this.contestacao() ?? null, this.motivo() ?? null);
       }
     });
   }
@@ -156,6 +170,22 @@ export class TitleDetail {
         this.title.set(updated);
       });
     });
+  }
+
+  protected adjustAmount(t: TitleView, disputeId: string | null = null, note: string | null = null): void {
+    this.dialog
+      .open<TitleAmountDialog, TitleAmountDialogData, AmountAdjustmentView>(TitleAmountDialog, {
+        data: { titleId: t.id, titleLabel: titleLabel(t), disputeId, note },
+        size: 'lg',
+      })
+      .afterClosed()
+      .subscribe((a) => a && this.refresh());
+  }
+
+  /** Correção aplicada ou decidida: dados, saldos e histórico. */
+  protected refresh(): void {
+    this.title.reload();
+    this.amountHistory()?.reload();
   }
 
   protected transfer(t: TitleView): void {

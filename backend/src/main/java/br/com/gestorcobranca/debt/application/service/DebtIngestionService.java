@@ -86,6 +86,8 @@ class DebtIngestionService implements DebtIngestionPort {
     static final String PORTFOLIO_MISMATCH = "title.portfolio_mismatch";
     static final String PARTY_ENDED = "obligation_party.ended";
     static final String COLLATERAL_TYPE_MISMATCH = "collateral.type_mismatch";
+    /** Principal informado diferente do corrigido manualmente pela assessoria: mantido o corrigido, divergência aberta. */
+    static final String PRINCIPAL_DIVERGENCE = "title.principal_divergence";
     private static final String ADJUSTMENT_REASON = "Principal corrigido pelo credor na carga";
 
     private final DebtorRepository debtors;
@@ -110,6 +112,7 @@ class DebtIngestionService implements DebtIngestionPort {
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final ApplicationEventPublisher events;
+    private final AmountDivergenceRecorder divergenceRecorder;
     private final Clock clock;
 
     DebtIngestionService(DebtorRepository debtors, DebtTitleRepository titles, OriginContractRepository contracts,
@@ -121,7 +124,8 @@ class DebtIngestionService implements DebtIngestionPort {
                          ObligationPartyRecorder partyRecorder, CollateralRecorder collateralRecorder,
                          PrescriptionRecalculator prescriptions, PortfolioUseCases portfolios,
                          AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
-                         BusinessEventLogger businessEvents, ApplicationEventPublisher events, Clock clock) {
+                         BusinessEventLogger businessEvents, ApplicationEventPublisher events,
+                         AmountDivergenceRecorder divergenceRecorder, Clock clock) {
         this.debtors = debtors;
         this.titles = titles;
         this.contracts = contracts;
@@ -144,6 +148,7 @@ class DebtIngestionService implements DebtIngestionPort {
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
         this.events = events;
+        this.divergenceRecorder = divergenceRecorder;
         this.clock = clock;
     }
 
@@ -249,9 +254,28 @@ class DebtIngestionService implements DebtIngestionPort {
         Integer previousInstallment = title.getInstallmentNumber();
         boolean termsChanged = title.updateTerms(contractId, record.installmentNumber(), record.dueDate());
         Money previousPrincipal = title.getPrincipalAmount();
-        Posting adjustment = TitleLedger.adjustPrincipal(title, ledgerRecorder.existingEntries(title), principal, now,
-                TitleLedgerEntry.REF_IMPORT_BATCH, importBatchId, ADJUSTMENT_REASON);
+        Money previousCreditorPrincipal = title.getCreditorPrincipal();
+        // principal corrigido manualmente: a carga não o sobrescreve em silêncio (decisão 806)
+        DebtTitle.CreditorPrincipal decision = title.receiveCreditorPrincipal(principal);
+        boolean creditorPrincipalChanged = !principal.equals(previousCreditorPrincipal);
+        Posting adjustment;
+        if (decision == DebtTitle.CreditorPrincipal.APPLY || decision == DebtTitle.CreditorPrincipal.CONVERGED) {
+            adjustment = TitleLedger.adjustPrincipal(title, ledgerRecorder.existingEntries(title), principal, now,
+                    TitleLedgerEntry.REF_IMPORT_BATCH, importBatchId, ADJUSTMENT_REASON);
+            if (decision == DebtTitle.CreditorPrincipal.CONVERGED) {
+                divergenceRecorder.converged(title, now);
+            }
+        } else {
+            adjustment = new Posting(List.of(), title.getStatus(), title.getOpenBalance());
+            if (decision == DebtTitle.CreditorPrincipal.DIVERGENT
+                    && divergenceRecorder.divergent(title, principal, importBatchId, now)) {
+                warnings.add(PRINCIPAL_DIVERGENCE);
+            }
+        }
         if (!termsChanged && !adjustment.applied()) {
+            if (creditorPrincipalChanged || decision == DebtTitle.CreditorPrincipal.CONVERGED) {
+                titles.save(title);
+            }
             return Outcome.UNCHANGED;
         }
         title.touchedByImport(importBatchId);

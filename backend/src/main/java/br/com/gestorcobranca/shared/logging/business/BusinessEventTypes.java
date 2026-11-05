@@ -45,6 +45,11 @@ public final class BusinessEventTypes {
     public static final String OBLIGATION_PARTY_REGISTERED = "obligation_party.registered";
     public static final String TITLE_PRESCRIPTION_INTERRUPTED = "title.prescription_interrupted";
     public static final String TITLE_PRESCRIPTION_APPROACHING = "title.prescription_approaching";
+    public static final String TITLE_AMOUNT_ADJUSTMENT_REQUESTED = "title.amount_adjustment_requested";
+    public static final String TITLE_AMOUNT_ADJUSTED = "title.amount_adjusted";
+    public static final String TITLE_AMOUNT_ADJUSTMENT_REJECTED = "title.amount_adjustment_rejected";
+    public static final String TITLE_AMOUNT_DIVERGENCE_DETECTED = "title.amount_divergence_detected";
+    public static final String TITLE_AMOUNT_DIVERGENCE_RESOLVED = "title.amount_divergence_resolved";
 
     // Operação
     public static final String CASE_OPENED = "case.opened";
@@ -63,6 +68,7 @@ public final class BusinessEventTypes {
     public static final String DISPUTE_CREDITOR_REQUEST_FAILED = "dispute.creditor_request_failed";
     public static final String DISPUTE_CREDITOR_REQUEST_OVERDUE = "dispute.creditor_request_overdue";
     public static final String DISPUTE_CREDITOR_RESPONDED = "dispute.creditor_responded";
+    public static final String DISPUTE_CREDITOR_DOCUMENT_SCANNED = "dispute.creditor_document_scanned";
     public static final String DISPUTE_DEBTOR_NOTIFIED = "dispute.debtor_notified";
     public static final String DISPUTE_ADJUSTMENT_SUGGESTED = "dispute.adjustment_suggested";
     public static final String DISPUTE_ADJUSTMENT_CLOSED = "dispute.adjustment_closed";

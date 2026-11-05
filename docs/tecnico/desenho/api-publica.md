@@ -221,6 +221,8 @@ Todos sob `/public-api/v1`, JSON, token obrigatório, escopo indicado. Listas us
 | `POST /payments` (multipart com evidência, Idempotency-Key) | `payments:write` | `PaymentUseCases.registerExternal` (origem `CREDITOR_DIRECT`; revisão por segunda pessoa acima do limite) |
 | `GET /disputes`, `/disputes/{id}` | `disputes:read` | `DisputeUseCases.changes/get` |
 | `POST /disputes` | `disputes:write` | `DisputeUseCases.open` (origem `CREDITOR`) |
+| `GET /disputes/{id}/creditor-requests`, `GET /disputes/{id}/creditor-responses` | `disputes:read` | `DisputeUseCases.creditorRequests/creditorResponses` (situação dos documentos) |
+| `POST /disputes/{id}/creditor-responses` (JSON ou `multipart/form-data`: `response` + até 5 `files`) | `disputes:write` | `DisputeUseCases.registerCreditorResponse`; documentos pela quarentena e verificação de malware (collection.md §7.3), limite próprio `app.public-api.document-uploads-per-minute` (10) por token (`DocumentUploadLimiter`) |
 | `GET /billing/position` | `billing:read` | `PublicApiBillingUseCases.position` |
 | `GET /billing/statements`, `/billing/statements/{id}` | `billing:read` | `PublicApiBillingUseCases.statements/statement` (extratos fechados do credor) |
 | `GET /settlement/position` | `settlement:read` | `SettlementPositionUseCases.position` (simulação do demonstrativo) |

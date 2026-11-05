@@ -44,6 +44,8 @@ public enum AccessEventType {
     WEBHOOK_REJECTED,
     /** Link seguro de evidências de contestação recusado (token desconhecido, vencido ou limite de downloads). */
     DISPUTE_LINK_REJECTED,
+    /** Arquivo recebido de sistema externo com malware detectado na quarentena (conteúdo apagado). */
+    MALWARE_DETECTED,
     /** Acesso do devedor ao portal de autonegociação (sessão aberta por link ou documento + código). */
     PORTAL_LOGIN_SUCCESS,
     /** Código, link ou desafio de conhecimento inválido no portal (sem revelar se o documento existe). */

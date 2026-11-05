@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "83b8d4a23fa8a2f4",
+ "contentVersion": "edf7b1653eda8016",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -2096,11 +2096,13 @@
    "objective": "Saldo por componente, razão, titularidade e as ações do ciclo de vida de um título.",
    "purpose": [
     "O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque.",
-    "Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria."
+    "Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.",
+    "Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes."
    ],
    "profiles": [
     "SUPERVISOR",
     "GESTOR",
+    "FINANCEIRO",
     "ANALISTA_CARTEIRA",
     "AUDITOR"
    ],
@@ -2118,12 +2120,17 @@
     {
      "screen": "collection.disputes",
      "why": "Contestação sobre o título."
+    },
+    {
+     "screen": "debt.title-amounts",
+     "why": "Aprovar correções de valor."
     }
    ],
    "terms": [
     "titulo",
     "razao-do-titulo",
-    "trilha-de-auditoria"
+    "trilha-de-auditoria",
+    "correcao-de-valor"
    ],
    "path": "/titulos/:id",
    "access": {
@@ -2131,6 +2138,49 @@
     "permissions": [
      "DEBTOR_VIEW",
      "CASE_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "debt.title-amounts",
+   "module": "cobranca",
+   "title": "Correções de valor",
+   "objective": "Aprove correções de valor pedidas por outra pessoa e decida as cargas do credor diferentes do valor corrigido.",
+   "purpose": [
+    "Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois.",
+    "A carga do credor não sobrescreve um valor corrigido: a divergência fica aqui até alguém manter a correção ou aceitar o valor do credor.",
+    "O limite define até quanto uma redução é aplicada sem segunda pessoa. Aumentos do saldo sempre passam por aprovação."
+   ],
+   "profiles": [
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Correções pedidas no detalhe do título e cargas do credor."
+   ],
+   "outputs": [
+    "Saldos corrigidos no razão do título, com o histórico de quem pediu e quem aprovou."
+   ],
+   "related": [
+    {
+     "screen": "debt.title-detail",
+     "why": "Pedir a correção e ver o histórico do título."
+    },
+    {
+     "screen": "collection.dispute",
+     "why": "Ajuste sugerido por contestação procedente."
+    }
+   ],
+   "terms": [
+    "correcao-de-valor",
+    "razao-do-titulo"
+   ],
+   "path": "/titulos/correcoes-de-valor",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TITLE_AMOUNT_ADJUST",
+     "TITLE_AMOUNT_APPROVE"
     ]
    }
   },
@@ -6717,6 +6767,11 @@
    "id": "contestacao",
    "term": "Contestação",
    "definition": "Questionamento da dívida pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução."
+  },
+  {
+   "id": "correcao-de-valor",
+   "term": "Correção de valor",
+   "definition": "Alteração manual do saldo do título pela assessoria, com motivo e evidência. Acima do limite, ou se aumentar o saldo, outra pessoa aprova; fica no histórico do título."
   },
   {
    "id": "prazo-interno",

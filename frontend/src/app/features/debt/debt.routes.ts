@@ -32,6 +32,13 @@ export const TITLE_ROUTES: Routes = [
     loadComponent: () => import('./titles/title-list/title-list').then((m) => m.TitleList),
   },
   {
+    path: 'correcoes-de-valor',
+    title: 'Correções de valor',
+    canActivate: [permissionGuard],
+    data: { permissions: [Permission.TITLE_AMOUNT_ADJUST, Permission.TITLE_AMOUNT_APPROVE] },
+    loadComponent: () => import('./titles/title-amount/title-amount-page').then((m) => m.TitleAmountPage),
+  },
+  {
     path: ':id',
     title: 'Título',
     canActivate: [permissionGuard],

@@ -63,6 +63,7 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Casos', icon: 'briefcase', route: '/cobranca/casos', permissions: [Permission.CASE_VIEW] },
       { label: 'Devedores', icon: 'person-bounding-box', route: '/devedores', permissions: [Permission.DEBTOR_VIEW] },
       { label: 'Títulos', icon: 'file-earmark-text', route: '/titulos', permissions: [Permission.DEBTOR_VIEW, Permission.CASE_VIEW] },
+      { label: 'Correções de valor', icon: 'pencil-square', route: '/titulos/correcoes-de-valor', permissions: [Permission.TITLE_AMOUNT_ADJUST, Permission.TITLE_AMOUNT_APPROVE] },
     ],
   },
   {

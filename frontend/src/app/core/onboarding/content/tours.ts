@@ -325,7 +325,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'debt.title-detail',
-    version: 1,
+    version: 2,
     title: 'Detalhe do título',
     summary: 'Saldo, razão, titularidade e ciclo de vida do título.',
     steps: [
@@ -345,6 +345,26 @@ export const TOURS: readonly TourDefinition[] = [
         title: 'Ciclo de vida',
         body: 'Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.',
       },
+      {
+        anchor: 'title-amount-adjust',
+        title: 'Corrigir valor',
+        body: 'Novo saldo por componente, com motivo. Acima do limite ou aumento do saldo, outra pessoa aprova com evidência.',
+      },
+      {
+        anchor: 'title-amount-tab',
+        title: 'Correções de valor',
+        body: 'Histórico no próprio título: valores, motivo, quem pediu e aprovou. Carga do credor diferente aparece para decisão.',
+      },
+    ],
+  },
+  {
+    id: 'debt.title-amounts',
+    version: 1,
+    title: 'Correções de valor',
+    summary: 'Aprovação das correções manuais, divergências com a carga do credor e o limite da assessoria.',
+    steps: [
+      { anchor: 'title-amount-tabs', title: 'Aprovar e acompanhar', body: 'Correções pedidas por outra pessoa para aprovar e cargas do credor diferentes do valor corrigido.' },
+      { anchor: 'title-amount-limit', title: 'Limite', body: 'Reduções até o limite são aplicadas por quem corrige; acima dele, e em aumentos, outra pessoa aprova.' },
     ],
   },
   {

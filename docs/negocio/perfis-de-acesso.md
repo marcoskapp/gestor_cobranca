@@ -5,10 +5,10 @@ Toda assessoria nasce com um perfil para cada tipo de usuário do sistema. Eles 
 | Perfil (código) | Para quem | O que faz | MFA |
 | --- | --- | --- | --- |
 | Administrador (`ADMIN`) | Responsável pela assessoria na plataforma | Acesso total à assessoria (todas as permissões, exceto o provisionamento de assessorias, que é da plataforma) | Obrigatório |
-| Gestor (`GESTOR`) | Gestão da operação | Credores, contratos, carteiras, políticas e alçadas, importação, estratégias, templates, score, portal, jurídico, telefonia, assistente, prestação de contas (aprovação), tokens, consumo e faturamento da API pública | Obrigatório |
+| Gestor (`GESTOR`) | Gestão da operação | Credores, contratos, carteiras, políticas e alçadas, correção manual do valor do título e aprovação das correções de outra pessoa (correcao-de-valor.md), importação, estratégias, templates, score, portal, jurídico, telefonia, assistente, prestação de contas (aprovação), tokens, consumo e faturamento da API pública | Obrigatório |
 | Supervisor (`SUPERVISOR`) | Coordenação de equipes | Tudo do operador, mais distribuição e redistribuição, filas, gestão das contestações (atribuir, redistribuir, prazos, distribuição e modelos), aprovações de proposta, caixa de entrada, monitoria, gravações e revisão do assistente | — |
 | Operador (`OPERADOR`) | Negociador | Estação de cobrança: casos, interações, retornos, simulação, propostas, formalização dentro da alçada, Pix, mensagens, telefone; contestações atribuídas a si e as sem responsável que assumir (`DISPUTE_WORK`, contestacoes.md §2) | — |
-| Financeiro (`FINANCEIRO`) | Tesouraria e repasses | Pagamentos, aprovação de pagamento externo, estornos, conciliação, comissão, fechamento e repasse ao credor, consumo e extratos da API pública | Obrigatório |
+| Financeiro (`FINANCEIRO`) | Tesouraria e repasses | Pagamentos, aprovação de pagamento externo, correção manual do valor do título e aprovação das correções de outra pessoa, estornos, conciliação, comissão, fechamento e repasse ao credor, consumo e extratos da API pública | Obrigatório |
 | Auditor (`AUDITOR`) | Auditoria interna/externa | Somente leitura de cadastros, operação, finanças, logs de acesso, trilha de auditoria, tokens e consumo da API pública | Obrigatório |
 | Jurídico (`JURIDICO`) | Jurídico interno | Casos jurídicos, autorização do credor, custas, garantias e prescrição | Obrigatório |
 | Advogado parceiro (`ADVOGADO_PARCEIRO`) | Escritório parceiro | Somente os casos jurídicos atribuídos ao escritório | Obrigatório |

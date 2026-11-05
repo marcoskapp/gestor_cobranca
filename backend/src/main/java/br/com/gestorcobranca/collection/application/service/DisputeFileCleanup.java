@@ -38,4 +38,19 @@ class DisputeFileCleanup {
             }
         });
     }
+
+    /** Remove o arquivo depois do commit (conteúdo que não deve ficar: quarentena liberada ou infectado). */
+    void deleteAfterCommit(String key) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    fileStorage.delete(key);
+                } catch (RuntimeException e) {
+                    LOG.atError().addKeyValue("storageKey", key).setCause(e)
+                            .log("Arquivo da quarentena não pôde ser removido; a manutenção do armazenamento deve removê-lo");
+                }
+            }
+        });
+    }
 }

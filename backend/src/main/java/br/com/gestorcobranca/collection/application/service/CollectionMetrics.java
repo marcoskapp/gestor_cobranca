@@ -135,4 +135,14 @@ class CollectionMetrics {
     void jobFailure(String job) {
         registry.counter("collection.jobs.failures", "job", job).increment();
     }
+
+    /** @param outcome clean, not_scanned, infected, unavailable */
+    void disputeDocumentScan(String engine, String outcome) {
+        registry.counter("collection.disputes.document_scans", "engine", engine, "outcome", outcome).increment();
+    }
+
+    void disputeDocumentScanDuration(String engine, Duration duration) {
+        Timer.builder("collection.disputes.document_scan.duration").tag("engine", engine)
+                .publishPercentiles(0.5, 0.95, 0.99).register(registry).record(duration);
+    }
 }

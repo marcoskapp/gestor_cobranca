@@ -5,6 +5,7 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseVie
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseCommand;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.EvidenceUpload;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.OpenDisputeCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
@@ -20,6 +21,7 @@ import br.com.gestorcobranca.shared.web.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -29,6 +31,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,8 +40,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -60,13 +65,15 @@ class CollectionController {
     private final AgreementUseCases agreements;
     private final DisputeUseCases disputes;
     private final PublicApiSupport support;
+    private final DocumentUploadLimiter uploadLimiter;
 
     CollectionController(CaseUseCases cases, AgreementUseCases agreements, DisputeUseCases disputes,
-                         PublicApiSupport support) {
+                         PublicApiSupport support, DocumentUploadLimiter uploadLimiter) {
         this.cases = cases;
         this.agreements = agreements;
         this.disputes = disputes;
         this.support = support;
+        this.uploadLimiter = uploadLimiter;
     }
 
     @GetMapping("/collection-cases")
@@ -148,18 +155,62 @@ class CollectionController {
         return disputes.creditorRequests(id).stream().map(CreditorRequestDto::of).toList();
     }
 
-    @PostMapping("/disputes/{id}/creditor-responses")
+    @GetMapping("/disputes/{id}/creditor-responses")
+    @PreAuthorize("hasAuthority('SCOPE_disputes:read')")
+    @Operation(summary = "Respostas do credor na contestação",
+            description = "Inclui a situação dos documentos enviados pela API: em verificação de segurança, aceitos ou "
+                    + "recusados.")
+    java.util.List<CreditorResponseDto> creditorResponses(@PathVariable UUID id) {
+        ownDispute(id);
+        return disputes.creditorResponses(id).stream().map(CreditorResponseDto::of).toList();
+    }
+
+    @PostMapping(path = "/disputes/{id}/creditor-responses", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('SCOPE_disputes:write')")
     @Operation(summary = "Responder ao pedido da assessoria na contestação",
             description = "Posição do credor (CONFIRMS_DEBT, ACCEPTS_CLAIM, PARTIAL ou INFORMATION) e resumo. Sem requestId, "
                     + "responde ao pedido mais recente aguardando retorno. A análise e a resolução continuam com a "
-                    + "assessoria. Documentos: pelo canal combinado com a assessoria (o e-mail do pedido).")
+                    + "assessoria. Para enviar documentos, use a mesma rota em multipart/form-data.")
     CreditorResponseDto respond(@PathVariable UUID id, @Valid @RequestBody CreditorResponseRequest r,
                                 HttpServletRequest http) {
         ownDispute(id);
         CreditorResponseDto dto = CreditorResponseDto.of(disputes.registerCreditorResponse(id,
                 new CreditorResponseCommand(r.position(), r.note(), r.requestId(), null), java.util.List.of()));
+        UsageRecords.add(http, 1);
+        return dto;
+    }
+
+    @PostMapping(path = "/disputes/{id}/creditor-responses", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('SCOPE_disputes:write')")
+    @Operation(summary = "Responder ao pedido da assessoria na contestação, com documentos",
+            description = "Partes: `response` (JSON, mesmo conteúdo da resposta sem documentos) e `files` (até 5 arquivos "
+                    + "PDF, PNG ou JPEG de até 10 MB cada; o tipo é conferido pelo conteúdo, não pela extensão). Os "
+                    + "documentos passam por verificação de segurança (quarentena) antes de chegar à assessoria: "
+                    + "acompanhe por `GET /disputes/{id}/creditor-responses` (`documentsInVerification`, "
+                    + "`documentsAccepted`, `documentsRejected`). Limite próprio de envios com documentos por token "
+                    + "(429 `rate_limited` com `Retry-After`).")
+    CreditorResponseDto respondWithDocuments(@PathVariable UUID id,
+                                             @Valid @RequestPart("response") CreditorResponseRequest r,
+                                             @RequestPart(name = "files", required = false) java.util.List<MultipartFile> files,
+                                             HttpServletRequest http, HttpServletResponse httpResponse) {
+        ownDispute(id);
+        java.util.List<MultipartFile> parts = files == null ? java.util.List.of()
+                : files.stream().filter(f -> f != null && !f.isEmpty()).toList();
+        if (!parts.isEmpty()) {
+            uploadLimiter.acquire(support.tokenId(), "dispute_creditor_response", httpResponse);
+        }
+        java.util.List<EvidenceUpload> uploads = new java.util.ArrayList<>();
+        for (MultipartFile f : parts) {
+            try {
+                uploads.add(new EvidenceUpload(f.getOriginalFilename(), f.getContentType(), f.getSize(), f.getInputStream()));
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException("Falha ao ler o arquivo enviado", e);
+            }
+        }
+        CreditorResponseDto dto = CreditorResponseDto.of(disputes.registerCreditorResponse(id,
+                new CreditorResponseCommand(r.position(), r.note(), r.requestId(), null), uploads));
         UsageRecords.add(http, 1);
         return dto;
     }
