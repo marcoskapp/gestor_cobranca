@@ -131,7 +131,7 @@ class PdfImportIT extends IngestionTestSupport {
             return new FakePdfModel();
         }
 
-        /** Sonda do armazenamento: registra se havia transação aberta em cada gravação e leitura (decisões 867–868). */
+        /** Sonda do armazenamento: registra se havia transação aberta em cada gravação e leitura (decisões 869–870). */
         @Bean
         static BeanPostProcessor storageProbe() {
             return new BeanPostProcessor() {
@@ -442,7 +442,7 @@ class PdfImportIT extends IngestionTestSupport {
     }
 
     /**
-     * A IA é chamada sem transação e sem o lock da importação (decisão 867): um descarte durante a chamada conclui na
+     * A IA é chamada sem transação e sem o lock da importação (decisão 869): um descarte durante a chamada conclui na
      * hora — com a linha travada pelo job, ele esperaria a resposta do modelo — e o resultado que chega depois é
      * ignorado.
      */
@@ -485,7 +485,7 @@ class PdfImportIT extends IngestionTestSupport {
     }
 
     /**
-     * Envio sem transação longa (decisão 868): o arquivo vai ao armazenamento sem transação aberta — mesmo chamado de
+     * Envio sem transação longa (decisão 870): o arquivo vai ao armazenamento sem transação aberta — mesmo chamado de
      * dentro de uma —, e idempotência e duplicidade seguem como antes (o reenvio com a mesma chave não grava outra
      * cópia).
      */

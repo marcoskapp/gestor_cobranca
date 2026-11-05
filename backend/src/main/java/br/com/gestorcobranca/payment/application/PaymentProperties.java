@@ -152,7 +152,7 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
         }
     }
 
-    /** @param chunkSize linhas conciliadas por transação no processamento do extrato (decisão 866) */
+    /** @param chunkSize linhas conciliadas por transação no processamento do extrato (decisão 868) */
     public record Statement(Long maxSizeBytes, Integer maxLines, Integer chunkSize) {
 
         public Statement {

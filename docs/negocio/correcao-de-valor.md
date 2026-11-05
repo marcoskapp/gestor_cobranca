@@ -15,7 +15,7 @@ O **operador nunca recebe** essas permissões por padrão. O histórico de corre
 
 - O usuário informa o **novo saldo de cada componente** a corrigir (principal, juros, multa, encargos, honorários), com a máscara monetária.
 - **Motivo** da lista — erro de cálculo ou digitação, valor confirmado pelo credor, contestação procedente, cobrança em duplicidade, encargo acima do contrato, dispensa parcial autorizada pelo credor, outro — mais **descrição** obrigatória (texto livre, guardado criptografado).
-- **Evidência** opcional (PDF, PNG ou JPEG até 20 MB, tipo conferido pelo conteúdo) e **vínculo opcional com a contestação** (o atalho da contestação já preenche). A evidência é enviada ao armazenamento **antes** de o título ser travado para o pedido (decisão 870): pagamentos, estornos e cargas do mesmo título não esperam o upload; o saldo do pedido é lido já com o título travado, e o arquivo de um pedido recusado é removido.
+- **Evidência** opcional (PDF, PNG ou JPEG até 20 MB, tipo conferido pelo conteúdo) e **vínculo opcional com a contestação** (o atalho da contestação já preenche). A evidência é enviada ao armazenamento **antes** de o título ser travado para o pedido (decisão 872): pagamentos, estornos e cargas do mesmo título não esperam o upload; o saldo do pedido é lido já com o título travado, e o arquivo de um pedido recusado é removido.
 - Regras:
   - nenhum componente fica negativo;
   - a correção não pode zerar o saldo: para encerrar a cobrança, cancele o título;

@@ -60,7 +60,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Evidência da correção de valor enviada ao armazenamento antes do lock do título (decisão 870), contra PostgreSQL
+ * Evidência da correção de valor enviada ao armazenamento antes do lock do título (decisão 872), contra PostgreSQL
  * real: um pagamento que trava o mesmo título durante o envio conclui na hora (com o título travado, ele esperaria o
  * fim do upload), o pedido considera o saldo já com o pagamento, e o arquivo de um pedido recusado depois do envio é
  * removido.

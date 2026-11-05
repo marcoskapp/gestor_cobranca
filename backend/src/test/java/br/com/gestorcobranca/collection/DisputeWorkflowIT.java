@@ -272,7 +272,7 @@ class DisputeWorkflowIT extends CollectionTestSupport {
         String token = m.group(1);
         assertThat(count("select count(*) from collection.dispute_link_route where token_hash = ?", token)).isZero();
         var pack = evidenceLinks.open(token, "127.0.0.1");
-        // o envio ao cliente anônimo corre sem transação (nem conexão do banco presa) durante a escrita (decisão 869)
+        // o envio ao cliente anônimo corre sem transação (nem conexão do banco presa) durante a escrita (decisão 871)
         AtomicInteger writesInTransaction = new AtomicInteger();
         ByteArrayOutputStream zip = new ByteArrayOutputStream() {
             @Override

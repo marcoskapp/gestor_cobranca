@@ -89,7 +89,7 @@ class PaymentMetrics {
         registry.counter("payment.reconciliation.imports", "format", format, "status", status).increment();
     }
 
-    /** Linhas já gravadas numa tentativa anterior e puladas na retomada do extrato (decisão 866). */
+    /** Linhas já gravadas numa tentativa anterior e puladas na retomada do extrato (decisão 868). */
     void statementLinesResumed(int lines) {
         registry.counter("payment.reconciliation.lines_resumed").increment(lines);
     }

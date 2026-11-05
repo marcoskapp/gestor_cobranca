@@ -286,7 +286,7 @@ aberto, sem status novo).
   `app.collection.disputes.link-max-downloads` (20) downloads e `link-requests-per-minute` (30) por IP;
   `GET /api/v1/dispute-files/{token}` é `PublicEndpoint`; ZIP com as evidências escolhidas; `FILE_DOWNLOADED` no log de
   acesso; recusa → `DISPUTE_LINK_REJECTED`. Links vencidos são removidos pela manutenção diária. O envio do ZIP não
-  segura transação (decisão 869): a contagem do download e os metadados das evidências são lidos em transações curtas,
+  segura transação (decisão 871): a contagem do download e os metadados das evidências são lidos em transações curtas,
   e a leitura do armazenamento e a escrita para o cliente anônimo (que pode ser lento) correm só com o tenant definido,
   sem conexão do banco presa (`DisputeWorkflowIT` confere que nenhuma escrita acontece com transação ativa).
 * E-mail: `collection.dispute_mail` (`REQUEST|REMINDER|OVERDUE`, `QUEUED|SENT|FAILED|SKIPPED`) enviado pelo job

@@ -15,7 +15,7 @@ import java.util.UUID;
 /**
  * Importação de extrato bancário ou arquivo de retorno (F15). O arquivo fica no {@code FileStorage}
  * ({@code PAYMENT_RETURN}) com SHA-256; o mesmo arquivo não é importado duas vezes. Processamento
- * assíncrono (job) em lotes com retomada (decisão 866), com contagens apuradas sobre as linhas gravadas.
+ * assíncrono (job) em lotes com retomada (decisão 868), com contagens apuradas sobre as linhas gravadas.
  */
 @Entity
 @Table(name = "statement_import", schema = "payment")
@@ -122,7 +122,7 @@ public class StatementImport extends TenantScopedEntity {
 
     /**
      * Falha depois de parte das linhas gravadas (tentativas esgotadas): as linhas e baixas já confirmadas ficam,
-     * e as contagens refletem só elas (decisão 871).
+     * e as contagens refletem só elas (decisão 873).
      */
     public void failProcessing(String code, Map<StatementLineStatus, Long> lines, Instant now) {
         Guard.require(isProcessing(), "statement.not_processing", "Importação não está em processamento");

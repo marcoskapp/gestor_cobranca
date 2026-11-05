@@ -89,7 +89,7 @@ class PdfMapping {
     /**
      * Sem transação própria (o job roda com {@code transactional() = false}): a importação só fica bloqueada nas
      * transações curtas de reivindicar e de gravar o resultado; a leitura do arquivo e as chamadas ao modelo (até
-     * minutos) acontecem entre elas, sem conexão nem lock presos (decisão 867). Se a importação saiu de
+     * minutos) acontecem entre elas, sem conexão nem lock presos (decisão 869). Se a importação saiu de
      * {@code MAPPING} ou teve a revisão alterada no meio (ex.: descartada), o resultado da IA é ignorado.
      *
      * @param useTemplates procura mapa salvo (falso quando o usuário pediu nova proposta à IA)

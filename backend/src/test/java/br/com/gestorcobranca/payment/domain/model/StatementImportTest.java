@@ -10,7 +10,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Ciclo da importação de extrato processada em lotes com retomada (decisão 866). */
+/** Ciclo da importação de extrato processada em lotes com retomada (decisão 868). */
 class StatementImportTest {
 
     private final Instant now = Instant.parse("2026-11-05T12:00:00Z");

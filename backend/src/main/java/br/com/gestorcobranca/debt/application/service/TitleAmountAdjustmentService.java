@@ -177,7 +177,7 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
     public AdjustmentView request(UUID titleId, AdjustmentCommand command, EvidenceUpload upload) {
         accessScope.requirePermission(Permission.TITLE_AMOUNT_ADJUST);
         Guard.require(command != null, "title_amount.required", "Dados da correção obrigatórios");
-        // upload antes do lock (decisão 870): o envio ao armazenamento não segura a linha do título, que pagamentos,
+        // upload antes do lock (decisão 872): o envio ao armazenamento não segura a linha do título, que pagamentos,
         // estornos e cargas também travam. O escopo é conferido antes, sem carregar o título; o arquivo de um pedido
         // recusado depois é removido no rollback.
         UUID creditorId = titles.findCreditorIdById(titleId).orElseThrow(() -> ResourceNotFoundException.of(TITLE, titleId));

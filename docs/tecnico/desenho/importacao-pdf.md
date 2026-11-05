@@ -203,7 +203,7 @@ Cada mudança de mapa cria uma revisão (`pdf_map_revision`, append-only) e zera
 pode mudar). Edição, decisão, aprovação e salvar mapa exigem a **revisão** que o usuário viu (409
 `pdf_import.revision_changed`) e bloqueiam a linha (`SELECT … FOR UPDATE`).
 
-**Sem transação longa (decisões 867–868)**:
+**Sem transação longa (decisões 869–870)**:
 
 - **Envio** (`upload`, `Propagation.NOT_SUPPORTED`): leitura do arquivo, abertura segura (até 200 páginas de texto,
   segundos de CPU) e gravação no S3 correm sem conexão do banco presa. O banco entra em transações curtas: a consulta
@@ -319,7 +319,7 @@ justificativa, conferência), `discarded`, `file_deleted`; `pdf_layout_template.
 trilha. A execução repete rodadas de `retention-batch` (200), cada uma na própria transação, até esvaziar (teto de 50
 rodadas por assessoria), para o atraso não crescer quando mais de 200 importações encerram por dia. O bucket é
 versionado: o PDF é gravado com a tag `retention-class=import` e a regra de lifecycle `imports-noncurrent-expiration`
-expira a versão anterior 1 dia depois do descarte (antes ficava mais 365 dias como versão não corrente; decisão 876).
+expira a versão anterior 1 dia depois do descarte (antes ficava mais 365 dias como versão não corrente; decisão 878).
 O CSV canônico gerado segue a política `IMPORT_FILES` dos arquivos de importação (importacao.md §8.1).
 
 ## 12. Testes

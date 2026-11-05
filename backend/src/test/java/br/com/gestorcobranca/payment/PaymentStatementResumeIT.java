@@ -27,7 +27,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Extrato processado em lotes com transação própria (decisão 866) contra PostgreSQL real: uma falha forçada no
+ * Extrato processado em lotes com transação própria (decisão 868) contra PostgreSQL real: uma falha forçada no
  * segundo lote (gatilho no banco) desfaz só aquele lote — a baixa do primeiro já está confirmada —, a nova tentativa
  * pula as linhas gravadas sem baixa duplicada e mantém a impressão digital das linhas repetidas; esgotadas as
  * tentativas, a importação fica {@code FAILED} com as linhas já gravadas.

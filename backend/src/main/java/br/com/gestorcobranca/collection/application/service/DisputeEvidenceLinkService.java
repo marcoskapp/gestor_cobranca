@@ -100,7 +100,7 @@ class DisputeEvidenceLinkService implements DisputeEvidenceLinkUseCases {
     /**
      * Os metadados são lidos numa transação curta; a leitura do armazenamento e o envio ao cliente anônimo (que pode
      * ser lento: até 20 evidências de 20 MB) correm só com o tenant definido, sem transação nem conexão do banco presa
-     * (decisão 869).
+     * (decisão 871).
      */
     @Override
     public void write(Package pack, OutputStream out) {

@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Processamento de um extrato importado ({@code payment.statement_import}) sem transação longa (decisão 866):
+ * Processamento de um extrato importado ({@code payment.statement_import}) sem transação longa (decisão 868):
  * <ol>
  *   <li>transação curta: marca a importação {@code PROCESSING} (ou retoma uma tentativa interrompida);</li>
  *   <li>sem transação: lê o arquivo no armazenamento e interpreta com o leitor do formato;</li>
@@ -227,7 +227,7 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
 
     /**
      * Última tentativa falhou no meio: as linhas (e baixas) já gravadas ficam e a importação sai de processamento
-     * (decisão 871).
+     * (decisão 873).
      */
     private void failProcessing(UUID importId) {
         try {

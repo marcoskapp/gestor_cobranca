@@ -112,7 +112,7 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
 ## 8. Conciliação (F15)
 
 - Importação (`POST /payment/reconciliation/statements`, multipart): arquivo no `FileStorage` (`PAYMENT_RETURN`) com SHA-256; o mesmo arquivo de novo → 409; processamento assíncrono (`payment.statement_import`), restrito opcionalmente a um credor. Formatos: `CSV_GENERIC`; `CNAB_240`/`CNAB_400` aceitos na API como porta futura (sem leitor → 422).
-- Processamento em lotes (decisões 866 e 871; `StatementImportJob`, `transactional() = false`): transação curta marca
+- Processamento em lotes (decisões 868 e 873; `StatementImportJob`, `transactional() = false`): transação curta marca
   `PROCESSING`; o arquivo é lido e interpretado fora de transação; as linhas são conciliadas em lotes de
   `statement.chunk-size` (500), cada lote na própria transação — os locks de pagamentos e instruções duram só o lote e as
   baixas seguem para a negociação a cada lote; no fim, as contagens são apuradas sobre as linhas gravadas. Falha no meio

@@ -129,7 +129,7 @@ class PdfImportService implements PdfImportUseCases {
     private final RecordDecisionPolicy decisionPolicy = new RecordDecisionPolicy();
     private final Clock clock;
     private final ExtractionMapValidator validator = new ExtractionMapValidator();
-    /** Transações curtas do envio, que roda sem transação (decisão 868). */
+    /** Transações curtas do envio, que roda sem transação (decisão 870). */
     private final TransactionTemplate shortTx;
 
     PdfImportService(PdfImportRepository imports, PdfMapRevisionRepository revisions,
@@ -167,7 +167,7 @@ class PdfImportService implements PdfImportUseCases {
     // ================================================================== envio
 
     /**
-     * Sem transação longa (decisão 868): a leitura do arquivo, a abertura segura do PDF (até 200 páginas de texto,
+     * Sem transação longa (decisão 870): a leitura do arquivo, a abertura segura do PDF (até 200 páginas de texto,
      * segundos de CPU) e o envio ao armazenamento correm sem conexão do banco presa. O banco entra em transações
      * curtas — a consulta de idempotência e duplicidade, e o registro (que repete a consulta: corrida entre envios
      * iguais; o índice único {@code uq_pdf_import_active_file} é a última proteção). Registro não confirmado remove

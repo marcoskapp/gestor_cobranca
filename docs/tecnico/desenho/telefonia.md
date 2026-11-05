@@ -69,7 +69,7 @@ Falha/cancelamento depois do atendimento vira `COMPLETED` (a chamada foi atendid
 
 A tentativa registrada vale mesmo que o provedor falhe depois: o pedido é confirmado antes do HTTP (§3.1) e nada desfaz
 essa transação. Recusa, indisponibilidade ou tentativas esgotadas encerram a chamada como **não discada**, com a tentativa
-contada no compliance — conta a mais, pelo lado seguro (decisões 860 e 861). O porteiro aplica janelas, dias, feriados,
+contada no compliance — conta a mais, pelo lado seguro (decisões 882 e 883). O porteiro aplica janelas, dias, feriados,
 limites diário/semanal e intervalo mínimo no canal `PHONE` (RB02).
 
 ## 3. Clique para ligar
@@ -85,7 +85,7 @@ limites diário/semanal e intervalo mínimo no canal `PHONE` (RB02).
 5. Fim → operador em `WRAP_UP` (pós-atendimento) até tabular (§6). `POST /calls/{id}/hangup` encerra (o próprio
    operador ou a supervisão, auditado); o pedido ao provedor sai depois do commit (§3.2).
 
-### 3.1 Discagem em fases, sem transação durante o HTTP (TEL-02, decisões 860 e 862)
+### 3.1 Discagem em fases, sem transação durante o HTTP (TEL-02, decisões 882 e 884)
 
 Os jobs `telephony.dial` e `telephony.dialer_tick` são handlers **sem transação** (`JobHandler.transactional() = false`,
 decisão 852) e trabalham em três fases:
@@ -108,7 +108,7 @@ evento (`providerAccepted`) quando ele chega antes da resposta. `DIALING` sem id
   enquanto o provedor discava (operador desligou) → ao receber o aceite, o encerramento é pedido ao provedor (§3.2).
 * **Discador**: o lote não discado por falha transitória (sem contingência, ou com ela também indisponível) fica
   recusado com `PROVIDER_UNAVAILABLE` (retentativa pela política); falha inesperada do adaptador → `PROVIDER_ERROR`; os
-  lotes já aceitos nunca são desfeitos e a falha de um lote não impede os seguintes (TEL-01, decisão 861).
+  lotes já aceitos nunca são desfeitos e a falha de um lote não impede os seguintes (TEL-01, decisão 883).
 * **Aceite tardio**: aceite para chamada já final sem o pedido (recusada pela conciliação ou nas tentativas esgotadas) ou
   com outro id → só o encerramento no provedor, sem exceção (no discador ela desfaria o resultado do lote inteiro).
 * Pedido que o provedor nunca confirmou (instância caiu entre as fases do discador) → a conciliação de chamadas paradas
@@ -117,7 +117,7 @@ evento (`providerAccepted`) quando ele chega antes da resposta. `DIALING` sem id
 Simulador: destino terminado em `7777` entrega o toque e o atendimento por pessoa (como webhooks, em transação própria)
 **antes** da resposta ao pedido — `TelephonyDialPhasesIT`.
 
-### 3.2 Comandos à chamada em andamento depois do commit (decisão 862)
+### 3.2 Comandos à chamada em andamento depois do commit (decisão 884)
 
 `bridge` (conectar a atendida ao operador) e `hangup` saem **depois do commit** da transação que decidiu o estado local
 (`ProviderCalls`, sincronização `afterCommit` que entrega o comando ao executor `telephonyCommandExecutor`, sem lock da
@@ -430,9 +430,9 @@ conexão esgotado, host não resolvido, 429 ou 503, falha ao obter o token. Só 
 * clique para ligar (`telephony.dial`): a **mesma chamada** (mesmo id, mesma tentativa no compliance) passa para a conta de
   contingência da regra (`Call#switchToFallback`, uma única vez, só antes do aceite: `QUEUED` ou pedido sem resposta),
   com o ramal do operador nela; o desvio é gravado antes do novo pedido. Falha também na contingência → exceção e o job
-  tenta de novo **pela contingência** (o desvio e a tentativa ficam; decisão 860);
+  tenta de novo **pela contingência** (o desvio e a tentativa ficam; decisão 882);
 * discador: o lote inteiro vai para a contingência da regra; nova falha → lote recusado com `PROVIDER_UNAVAILABLE`, sem
-  desfazer o ciclo (decisão 861).
+  desfazer o ciclo (decisão 883).
 
 Tempo de leitura esgotado e outros 5xx são **ambíguos** (o provedor pode ter discado): repetem na mesma conta com a mesma
 referência do cliente e `Idempotency-Key` (deduplicação no fornecedor a confirmar — anexo A). A chamada guarda
