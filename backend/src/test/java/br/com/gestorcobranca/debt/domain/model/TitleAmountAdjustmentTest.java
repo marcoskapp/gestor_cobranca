@@ -55,6 +55,36 @@ class TitleAmountAdjustmentTest {
         assertThat(request("1000.01", EVIDENCE).getApprovalMode()).isEqualTo(AmountAdjustmentMode.DUAL_CONTROL);
     }
 
+    private TitleAmountAdjustment requestMany(Map<LedgerComponent, Money> targets, TitleAmountAdjustment.Evidence evidence) {
+        Map<LedgerComponent, Money> b = balances();
+        b.put(LedgerComponent.FINE, Money.of("300.00"));
+        b.put(LedgerComponent.HONORARIUM, Money.ZERO);
+        return new TitleAmountAdjustment(title, b, targets, AmountAdjustmentReason.CALCULATION_ERROR, "Erro de cálculo",
+                null, evidence, LIMIT, requester, "Ana", T0);
+    }
+
+    @Test
+    void withinTheLimitOnlyForAPureReductionWhoseSumFitsTheLimit() {
+        // principal 1.000 → 100 e honorários 0 → 899,99: líquido −0,01, mas desloca valor do credor para a assessoria
+        assertThat(requestMany(Map.of(LedgerComponent.PRINCIPAL, Money.of("100.00"),
+                LedgerComponent.HONORARIUM, Money.of("899.99")), EVIDENCE).getApprovalMode())
+                .isEqualTo(AmountAdjustmentMode.DUAL_CONTROL);
+        assertThatThrownBy(() -> requestMany(Map.of(LedgerComponent.PRINCIPAL, Money.of("100.00"),
+                LedgerComponent.HONORARIUM, Money.of("899.99")), null)).hasMessageContaining("evidência");
+        // aumento de um componente com redução maior em outro (líquido −100)
+        assertThat(requestMany(Map.of(LedgerComponent.PRINCIPAL, Money.of("850.00"),
+                LedgerComponent.FINE, Money.of("350.00")), EVIDENCE).getApprovalMode())
+                .isEqualTo(AmountAdjustmentMode.DUAL_CONTROL);
+        // duas reduções de 150: soma 300 acima do limite
+        assertThat(requestMany(Map.of(LedgerComponent.PRINCIPAL, Money.of("850.00"),
+                LedgerComponent.FINE, Money.of("150.00")), EVIDENCE).getApprovalMode())
+                .isEqualTo(AmountAdjustmentMode.DUAL_CONTROL);
+        // duas reduções que somam exatamente o limite
+        assertThat(requestMany(Map.of(LedgerComponent.PRINCIPAL, Money.of("900.00"),
+                LedgerComponent.FINE, Money.of("200.00")), null).getApprovalMode())
+                .isEqualTo(AmountAdjustmentMode.WITHIN_LIMIT);
+    }
+
     @Test
     void dualControlNeedsEvidenceOrDisputeAndTheRequesterNeverApproves() {
         assertThatThrownBy(() -> request("500.00", null)).isInstanceOf(BusinessRuleException.class)

@@ -427,4 +427,9 @@ export interface AmountAdjustmentSettings {
   approvalThreshold: number;
   customized: boolean;
   updatedAt: string | null;
+  /** Aumento aguardando a confirmação de outra pessoa (o limite vigente não muda até lá). */
+  proposedThreshold: number | null;
+  proposedBy: string | null;
+  proposedByName: string | null;
+  proposedAt: string | null;
 }

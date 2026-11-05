@@ -359,12 +359,16 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'debt.title-amounts',
-    version: 1,
+    version: 2,
     title: 'Correções de valor',
     summary: 'Aprovação das correções manuais, divergências com a carga do credor e o limite da assessoria.',
     steps: [
       { anchor: 'title-amount-tabs', title: 'Aprovar e acompanhar', body: 'Correções pedidas por outra pessoa para aprovar e cargas do credor diferentes do valor corrigido.' },
-      { anchor: 'title-amount-limit', title: 'Limite', body: 'Reduções até o limite são aplicadas por quem corrige; acima dele, e em aumentos, outra pessoa aprova.' },
+      {
+        anchor: 'title-amount-limit',
+        title: 'Limite',
+        body: 'Redução pura até o limite é aplicada já; acima dele ou com componente aumentando, outra pessoa aprova. Aumentar o limite exige confirmação de outra pessoa.',
+      },
     ],
   },
   {

@@ -10,7 +10,10 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 import java.util.UUID;
 
-/** Índices parciais {@code ix_amount_adjustment_pending} e {@code ix_amount_divergence_open} (V0304). */
+/**
+ * Índices parciais {@code ix_amount_adjustment_pending} e {@code ix_amount_divergence_open} (V0304); a proposta de limite é
+ * a linha única da assessoria em {@code amount_adjustment_settings} (V0305).
+ */
 @Component
 class JdbcDebtPendingWorkQueries implements DebtPendingWorkQueries {
 
@@ -33,6 +36,17 @@ class JdbcDebtPendingWorkQueries implements DebtPendingWorkQueries {
                  where status = 'PENDING_APPROVAL' and requested_by <> :me
                 """ + scope(creditorScope, params);
         return jdbc.queryForObject(sql, params, PendingWorkRows.COUNT);
+    }
+
+    @Override
+    public PendingWorkCount thresholdProposal(UUID confirmerId) {
+        String sql = """
+                select count(*) as total, 0 as overdue, 0 as due_today, min(proposed_at) as oldest_at,
+                       null::date as next_due, null::uuid as single_id
+                  from debt.amount_adjustment_settings
+                 where proposed_threshold is not null and proposed_by <> :me
+                """;
+        return jdbc.queryForObject(sql, new MapSqlParameterSource("me", confirmerId), PendingWorkRows.COUNT);
     }
 
     @Override

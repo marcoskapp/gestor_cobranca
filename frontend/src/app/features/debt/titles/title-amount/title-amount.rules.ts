@@ -2,7 +2,7 @@
  * Regras de tela da correção manual do valor (funções puras, testadas em `title-amount.rules.spec.ts`). A decisão é do
  * servidor; aqui só a prévia para o usuário saber antes de enviar.
  */
-import { AmountAdjustmentMode, AmountAdjustmentView, AmountComponent } from '../../data/debt.models';
+import { AmountAdjustmentMode, AmountAdjustmentSettings, AmountAdjustmentView, AmountComponent } from '../../data/debt.models';
 
 export interface AdjustmentPreview {
   changed: boolean;
@@ -14,7 +14,11 @@ export interface AdjustmentPreview {
 
 const cents = (v: number) => Math.round(v * 100);
 
-/** Redução até o limite → aplicada já; acima do limite ou qualquer aumento → aprovação de outra pessoa (RB06). */
+/**
+ * Redução pura (nenhum componente sobe) com a soma das reduções até o limite → aplicada já; acima do limite ou com
+ * aumento de qualquer componente (mesmo com o líquido negativo) → aprovação de outra pessoa (RB06; espelho de
+ * `TitleAmountAdjustment.isPureReductionWithin`).
+ */
 export function adjustmentPreview(
   current: readonly { component: AmountComponent; balance: number }[],
   targets: Partial<Record<AmountComponent, number>>,
@@ -22,6 +26,8 @@ export function adjustmentPreview(
   threshold: number,
 ): AdjustmentPreview {
   let delta = 0;
+  let increases = 0;
+  let decreases = 0;
   let changed = false;
   for (const row of current) {
     const target = targets[row.component];
@@ -29,9 +35,15 @@ export function adjustmentPreview(
       continue;
     }
     changed = true;
-    delta += cents(target) - cents(row.balance);
+    const change = cents(target) - cents(row.balance);
+    delta += change;
+    if (change > 0) {
+      increases += change;
+    } else {
+      decreases -= change;
+    }
   }
-  const mode: AmountAdjustmentMode = delta < 0 && -delta <= cents(threshold) ? 'WITHIN_LIMIT' : 'DUAL_CONTROL';
+  const mode: AmountAdjustmentMode = increases === 0 && decreases > 0 && decreases <= cents(threshold) ? 'WITHIN_LIMIT' : 'DUAL_CONTROL';
   return { changed: changed && delta !== 0, delta: delta / 100, absDelta: Math.abs(delta) / 100, newOpenBalance: (cents(openBalance) + delta) / 100, mode };
 }
 
@@ -42,4 +54,13 @@ export function canDecide(a: Pick<AmountAdjustmentView, 'status' | 'requestedBy'
 
 export function canWithdraw(a: Pick<AmountAdjustmentView, 'status' | 'requestedBy'>, userId: string | null): boolean {
   return a.status === 'PENDING_APPROVAL' && a.requestedBy === userId;
+}
+
+/** Quem pode confirmar o aumento de limite proposto: aprovador com todos os credores que não é quem propôs. */
+export function canConfirmThreshold(
+  s: Pick<AmountAdjustmentSettings, 'proposedThreshold' | 'proposedBy'>,
+  userId: string | null,
+  canManageLimit: boolean,
+): boolean {
+  return canManageLimit && s.proposedThreshold !== null && s.proposedBy !== userId;
 }

@@ -276,7 +276,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois.',
         'A carga do credor não sobrescreve um valor corrigido: a divergência fica aqui até alguém manter a correção ou aceitar o valor do credor.',
-        'O limite define até quanto uma redução é aplicada sem segunda pessoa. Aumentos do saldo sempre passam por aprovação.',
+        'O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa.',
       ],
       profiles: ['GESTOR', 'FINANCEIRO'],
       inputs: ['Correções pedidas no detalhe do título e cargas do credor.'],

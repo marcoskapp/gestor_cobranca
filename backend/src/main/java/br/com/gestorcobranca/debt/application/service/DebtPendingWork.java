@@ -15,14 +15,15 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Pendências do debt: correções de valor de título aguardando aprovação (quem pediu não vê o próprio pedido) e
- * divergências entre a correção e a carga do credor. Mesmos critérios de {@code TitleAmountAdjustmentService}.
+ * Pendências do debt: correções de valor de título aguardando aprovação (quem pediu não vê o próprio pedido), aumento
+ * do limite de correção aguardando a confirmação de outra pessoa e divergências entre a correção e a carga do credor. Mesmos critérios de {@code TitleAmountAdjustmentService}.
  */
 @Component
 class DebtPendingWork implements PendingWorkSource {
 
     static final String AMOUNT_APPROVALS = "debt.amount_adjustment_approvals";
     static final String AMOUNT_DIVERGENCES = "debt.amount_divergences";
+    static final String THRESHOLD_PROPOSAL = "debt.amount_threshold_proposal";
 
     private final DebtPendingWorkQueries queries;
     private final AccessScope accessScope;
@@ -58,6 +59,14 @@ class DebtPendingWork implements PendingWorkSource {
                     .hint("Confira o motivo, a evidência e os componentes; aprove ou recuse com o motivo.")
                     .route("/titulos/correcoes-de-valor").param("aba", "aprovacoes")
                     .singleRoute(id -> "/titulos/" + id)
+                    .build());
+        }
+        // o limite vale para toda a assessoria: confirma quem aprova, vê todos os credores e não propôs
+        if (actor.has(Permission.TITLE_AMOUNT_APPROVE) && accessScope.hasAllCreditors()) {
+            items.add(PendingWorkItem.of(THRESHOLD_PROPOSAL, "Aumento do limite de correção de valor para confirmar",
+                            queries.thresholdProposal(actor.id()))
+                    .hint("Outra pessoa propôs aumentar o limite para aplicar reduções sem segunda pessoa; confirme se concordar.")
+                    .route("/titulos/correcoes-de-valor").param("aba", "limite")
                     .build());
         }
         if (actor.has(Permission.TITLE_AMOUNT_ADJUST)) {

@@ -30,7 +30,7 @@ const EVIDENCE_MAX = 20 * 1024 * 1024;
 /**
  * Correção manual do valor do título: novo saldo por componente (máscara monetária), motivo da lista com descrição,
  * evidência e vínculo com a contestação. Mostra antes de enviar se a correção será aplicada já (redução até o limite)
- * ou irá para aprovação de outra pessoa (acima do limite ou aumento do saldo), com evidência obrigatória.
+ * ou irá para aprovação de outra pessoa (soma das reduções acima do limite ou algum componente aumentando), com evidência obrigatória.
  */
 @Component({
   selector: 'app-title-amount-dialog',
@@ -96,8 +96,8 @@ const EVIDENCE_MAX = 20 * 1024 * 1024;
                 <app-amount [value]="p.absDelta" />).
                 {{
                   p.mode === 'WITHIN_LIMIT'
-                    ? 'Redução até o limite da assessoria: aplicada ao salvar.'
-                    : 'Acima do limite ou aumento do saldo: vai para aprovação de outra pessoa e exige evidência ou contestação.'
+                    ? 'Redução até o limite da assessoria, sem nenhum componente aumentar: aplicada ao salvar.'
+                    : 'Reduções acima do limite ou algum componente aumentando: vai para aprovação de outra pessoa e exige evidência ou contestação.'
                 }}
               }
             </span>
@@ -220,7 +220,7 @@ export class TitleAmountDialog {
       return;
     }
     if (p.mode === 'DUAL_CONTROL' && !this.evidence() && !this.data.disputeId) {
-      this.error.set('Acima do limite ou com aumento do saldo, anexe a evidência ou abra a correção pela contestação.');
+      this.error.set('Acima do limite ou com aumento de algum componente, anexe a evidência ou abra a correção pela contestação.');
       return;
     }
     const changed: Partial<Record<AmountComponent, number>> = {};
