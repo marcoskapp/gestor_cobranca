@@ -46,3 +46,7 @@ backend/config/dev/
 !backend/src/test/resources/it/*.pem
 !backend/src/test/resources/payment/*.p12
 !backend/src/test/resources/payment/*.pem
+
+# Claude Code: preferências pessoais (as regras do projeto ficam em CLAUDE.md e .claude/settings.json)
+CLAUDE.local.md
+.claude/settings.local.json

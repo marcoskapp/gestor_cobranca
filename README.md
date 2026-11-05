@@ -205,4 +205,9 @@ IT_DB_OWNER_PASSWORD=... IT_DB_RUNTIME_PASSWORD=... mvn verify
 
 ## Fluxo de trabalho
 
-Branches `feature/*` a partir da `master` e pull request com aprovação do responsável pelo projeto.
+Branches `feature/*` a partir da `master` e pull request com aprovação do responsável pelo projeto (por ora, commits
+direto na `master` até o responsável avisar).
+
+Desenvolvimento assistido com o Claude Code: as instruções do projeto estão em [`CLAUDE.md`](CLAUDE.md) e as permissões
+compartilhadas em [`.claude/settings.json`](.claude/settings.json). Pré-requisitos e roteiro de testes do ambiente local
+em [`docs/tecnico/claude-code.md`](docs/tecnico/claude-code.md).
