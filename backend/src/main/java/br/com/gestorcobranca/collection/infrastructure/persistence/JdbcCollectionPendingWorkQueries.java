@@ -18,7 +18,7 @@ import java.util.UUID;
  * Índices: {@code ix_task_agenda (tenant_id, assignee_user_id, due_at)} (PENDING/MISSED) e
  * {@code ix_dispute_open (tenant_id, creditor_id, response_due_date)} (OPEN/UNDER_REVIEW),
  * {@code ix_dispute_assignee}, {@code ix_dispute_unassigned}, {@code ix_dispute_notice_pending} e
- * {@code ix_dispute_adjustment_pending} (V0603).
+ * {@code ix_dispute_adjustment_pending} (V0604).
  */
 @Component
 class JdbcCollectionPendingWorkQueries implements CollectionPendingWorkQueries {
