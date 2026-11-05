@@ -40,6 +40,7 @@ export const SCREENS: readonly ScreenGuide[] = [
     tourId: 'analytics.productivity',
     changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
   },
+  { key: 'analytics.disputes', version: 1, path: '/paineis/contestacoes', tourId: 'analytics.disputes' },
   {
     key: 'analytics.reliability',
     version: 2,
@@ -106,11 +107,23 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.settings', version: 1, path: '/cobranca/parametros' },
   {
     key: 'collection.disputes',
-    version: 2,
+    version: 3,
     path: '/cobranca/contestacoes',
     tourId: 'collection.disputes',
-    changes: [{ version: 2, items: ['Detalhe da contestação com número, vencimento e valor dos títulos e quem anexou cada evidência.'] }],
+    changes: [
+      { version: 2, items: ['Detalhe da contestação com número, vencimento e valor dos títulos e quem anexou cada evidência.'] },
+      {
+        version: 3,
+        items: [
+          'Responsável por contestação: "Pegar para mim", filtro "Minhas" e distribuição automática ao analista menos carregado.',
+          'Prazo interno da equipe ao lado do prazo de resposta ao devedor, com regras por tipo e por credor.',
+          'Página da contestação com pedido formal ao credor, resposta do credor, resposta ao devedor e ajuste sugerido no título.',
+        ],
+      },
+    ],
   },
+  { key: 'collection.dispute-config', version: 1, path: '/cobranca/contestacoes/configuracao', tourId: 'collection.dispute-config' },
+  { key: 'collection.dispute', version: 1, path: '/cobranca/contestacoes/:id', tourId: 'collection.dispute' },
   {
     key: 'negotiation.simulator',
     version: 3,

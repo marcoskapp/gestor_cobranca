@@ -8,7 +8,8 @@ import { fakeUser } from '../../../../testing/auth-fixtures';
 import { flushAll, page, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
-import { ProductivityReport, Ratio, RecoveryReport, ReportMeta } from '../data/analytics.models';
+import { DisputeReport, ProductivityReport, Ratio, RecoveryReport, ReportMeta } from '../data/analytics.models';
+import { DisputesPanel } from './disputes-panel';
 import { ProductivityPanel } from './productivity-panel';
 import { RecoveryPanel } from './recovery-panel';
 
@@ -156,5 +157,49 @@ describe('painéis de analytics', () => {
     expect(all).toContain('Produtividade da equipe');
     expect(all).toContain('você e as equipes que supervisiona');
     expect(el(fixture).querySelectorAll('app-bar-chart .bc__bar-line')).toHaveLength(2);
+  });
+
+  it('contestações: prazo, procedência e retorno do credor com a base; fila por responsável com atalho para a supervisão', async () => {
+    permissions.set(['DISPUTE_MANAGE']);
+    const row = { opened: 4, resolved: 2, upheld: 1, upheldRate: ratio(0.5, 1, 2), withinDeadline: ratio(1, 2, 2), averageResolutionDays: 3.5, openNow: 2, overdueNow: 1, creditorRequestsAnswered: 1, averageCreditorResponseHours: 30 };
+    const report: DisputeReport = {
+      meta: meta({ groupBy: 'NONE' }),
+      referenceDate: '2026-06-30',
+      totals: {
+        opened: 4,
+        resolved: 2,
+        withdrawn: 0,
+        openNow: 2,
+        overdueNow: 1,
+        averageResolutionDays: 3.5,
+        withinDeadline: ratio(1, 2, 2),
+        upheldRate: ratio(0.5, 1, 2),
+        creditorRequestsSent: 3,
+        creditorRequestsAnswered: 1,
+        averageCreditorResponseHours: 30,
+        creditorAwaitingNow: 2,
+        creditorOverdueNow: 1,
+      },
+      byType: [{ key: 'FRAUD', label: 'FRAUD', ...row }],
+      byOrigin: [{ key: 'DEBTOR', label: 'DEBTOR', ...row }],
+      byCreditor: [{ key: 'c-1', label: 'Banco Alfa', ...row }],
+      backlog: [
+        { key: 'u-1', label: 'Ana Analista', open: 1, overdue: 0, internalOverdue: 1, awaitingCreditor: 1 },
+        { key: '-', label: 'Sem responsável', open: 1, overdue: 1, internalOverdue: 1, awaitingCreditor: 0 },
+      ],
+    };
+    const fixture = await render(DisputesPanel, { '/api/v1/analytics/disputes': report });
+    const kpis = text(el(fixture).querySelector('[data-tour="analytics-kpis"]'));
+    expect(kpis).toContain('1 com prazo de resposta vencido');
+    expect(kpis).toContain('100,0%');
+    expect(kpis).toContain('1 de 2');
+    expect(kpis).toContain('1 de 3 pedidos respondidos');
+    expect(kpis).toContain('30,0 h');
+    const all = text(el(fixture));
+    expect(all).toContain('Banco Alfa');
+    expect(all).toContain('Fraude');
+    const backlog = el(fixture).querySelector('[data-tour="analytics-disputes-backlog"]')!;
+    expect(text(backlog)).toContain('Ana Analista');
+    expect(backlog.querySelector('a')?.getAttribute('href')).toBe('/cobranca/contestacoes?fila=supervisao');
   });
 });

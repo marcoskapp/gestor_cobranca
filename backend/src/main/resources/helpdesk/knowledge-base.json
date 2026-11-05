@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "da74705a6abd726e",
+ "contentVersion": "d3c6c0366c735188",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -1802,42 +1802,144 @@
    "id": "collection.disputes",
    "module": "cobranca",
    "title": "Contestações",
-   "objective": "Acompanhe as dívidas contestadas, com prazo de resposta, evidências e a resolução com parecer.",
+   "objective": "Fila das dívidas contestadas, do prazo mais próximo ao mais distante, com o responsável de cada uma.",
    "purpose": [
-    "A contestação bloqueante tira os títulos de réguas e negociações e suspende o contato até a resolução. Envie para análise, resolva (procedente, improcedente ou parcial) ou registre a desistência.",
-    "Se a contestação for procedente, o ajuste no título é feito em seguida no detalhe do título."
+    "A contestação bloqueante tira os títulos de réguas e negociações e suspende o contato de cobrança até a resolução.",
+    "Cada contestação tem um responsável. Quem trabalha contestações assume as sem responsável com \"Pegar para mim\"; a gestão atribui, redistribui ou liga a distribuição automática.",
+    "Os indicadores mostram vencidas, as suas, as sem responsável, as que aguardam o credor e as respostas ao devedor pendentes."
    ],
    "profiles": [
+    "OPERADOR",
     "SUPERVISOR",
     "GESTOR",
     "JURIDICO",
     "AUDITOR"
    ],
    "inputs": [
-    "Contestações abertas na estação, no portal ou pelo jurídico, com evidências anexadas."
+    "Contestações abertas na estação, no portal, pelo credor ou pelo jurídico, com evidências anexadas."
    ],
    "outputs": [
-    "Títulos liberados ou ajustados e o caso reavaliado; a resolução fica no histórico."
+    "Contestações atribuídas e abertas para análise."
    ],
    "related": [
     {
-     "screen": "debt.titles",
-     "why": "Ajustar ou cancelar títulos após a resolução."
+     "screen": "collection.dispute",
+     "why": "Trabalhar uma contestação."
     },
     {
-     "screen": "collection.settings",
-     "why": "Prazo padrão de resposta."
+     "screen": "collection.dispute-config",
+     "why": "Prazos, distribuição e modelos."
+    },
+    {
+     "screen": "analytics.disputes",
+     "why": "Indicadores das contestações."
     }
    ],
    "terms": [
     "contestacao",
+    "prazo-interno",
     "elegibilidade"
    ],
    "path": "/cobranca/contestacoes",
    "access": {
     "kind": "MENU",
     "permissions": [
-     "DISPUTE_MANAGE"
+     "DISPUTE_MANAGE",
+     "DISPUTE_WORK"
+    ]
+   }
+  },
+  {
+   "id": "collection.dispute",
+   "module": "cobranca",
+   "title": "Contestação",
+   "objective": "Trabalhe a contestação do pedido ao credor até a resposta ao devedor, sem perder o prazo.",
+   "purpose": [
+    "Três prazos: o interno da equipe, o de resposta ao devedor e o pedido ao credor. O prazo do devedor nunca é pausado enquanto se aguarda o credor.",
+    "\"Solicitar ao credor\" envia um e-mail formal pelo modelo do tipo, editável, aos contatos de contestação do credor. As evidências vão por link de acesso restrito com validade; lembrete e cobrança do retorno são automáticos. A resposta do credor é registrada aqui ou chega pela integração dele.",
+    "Procedente sugere um ajuste no título, pendente até ser feito pelo fluxo do título ou do pagamento, ou dispensado com motivo. A resposta ao devedor sai por e-mail ou WhatsApp como comunicação de serviço: descadastro, restrições e horário continuam valendo."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "JURIDICO",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Contestação, títulos, evidências e contatos de contestação do credor."
+   ],
+   "outputs": [
+    "Pedidos e respostas do credor, resolução com parecer, ajuste no título e resposta ao devedor registrados no histórico."
+   ],
+   "related": [
+    {
+     "screen": "debt.title-detail",
+     "why": "Cancelar o título após a contestação procedente."
+    },
+    {
+     "screen": "payment.list",
+     "why": "Informar o pagamento comprovado."
+    },
+    {
+     "screen": "organization.creditor-detail",
+     "why": "Contatos de contestação do credor."
+    }
+   ],
+   "terms": [
+    "contestacao",
+    "prazo-interno",
+    "comunicacao-de-servico"
+   ],
+   "path": "/cobranca/contestacoes/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "DISPUTE_MANAGE",
+     "DISPUTE_WORK"
+    ]
+   }
+  },
+  {
+   "id": "collection.dispute-config",
+   "module": "cobranca",
+   "title": "Configuração das contestações",
+   "objective": "Defina prazos por tipo e por credor, a distribuição entre os analistas e os modelos de texto.",
+   "purpose": [
+    "Vale a regra de prazo mais específica: credor e tipo, depois credor, depois tipo, depois o padrão. Contestações já abertas mantêm o prazo calculado na abertura.",
+    "Na distribuição automática, a nova contestação vai ao analista do grupo com menos contestações em aberto. Redistribua a carteira de quem se ausentar.",
+    "Cada gravação de modelo cria uma versão; pedidos e respostas guardam a versão usada. O pedido ao credor não leva o nome do devedor."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Acordos de nível de serviço com os credores e a equipe que trabalha contestações."
+   ],
+   "outputs": [
+    "Prazos, distribuição e textos usados nas novas contestações."
+   ],
+   "related": [
+    {
+     "screen": "collection.disputes",
+     "why": "Fila de contestações."
+    },
+    {
+     "screen": "collection.settings",
+     "why": "Prazo padrão de resposta ao devedor."
+    }
+   ],
+   "terms": [
+    "prazo-interno",
+    "contestacao"
+   ],
+   "path": "/cobranca/contestacoes/configuracao",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "DISPUTE_MANAGE",
+     "DISPUTE_WORK"
     ]
    }
   },
@@ -5688,6 +5790,51 @@
    }
   },
   {
+   "id": "analytics.disputes",
+   "module": "paineis",
+   "title": "Contestações",
+   "objective": "Volume, prazos, procedência e retorno do credor das contestações, com a fila de cada responsável.",
+   "purpose": [
+    "Base da conversa de nível de serviço com o credor: quanto ele demora a responder e quanto das contestações dá razão ao devedor.",
+    "A fila por responsável mostra a carga e as vencidas de cada analista. Quem não gerencia contestações vê só as pessoas do próprio escopo."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR",
+    "JURIDICO"
+   ],
+   "inputs": [
+    "Contestações, pedidos ao credor e respostas registradas."
+   ],
+   "outputs": [
+    "Redistribuição da fila e pauta com os credores."
+   ],
+   "related": [
+    {
+     "screen": "collection.disputes",
+     "why": "Fila de contestações."
+    },
+    {
+     "screen": "collection.dispute-config",
+     "why": "Prazos e distribuição."
+    }
+   ],
+   "terms": [
+    "contestacao",
+    "prazo-interno",
+    "base-do-indicador"
+   ],
+   "path": "/paineis/contestacoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DASHBOARD_VIEW",
+     "REPORT_VIEW",
+     "DISPUTE_MANAGE"
+    ]
+   }
+  },
+  {
    "id": "analytics.reliability",
    "module": "paineis",
    "title": "Confiabilidade",
@@ -5777,7 +5924,8 @@
    "objective": "Ficha do credor: dados, contratos vigentes, carteiras e histórico de alterações.",
    "purpose": [
     "O contrato de serviço define vigência e o dia de fechamento da prestação de contas.",
-    "No contrato também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões: a primeira vale já no ciclo em andamento e as alterações, a partir do próximo ciclo."
+    "No contrato também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões: a primeira vale já no ciclo em andamento e as alterações, a partir do próximo ciclo.",
+    "Os contatos para contestações recebem os pedidos formais de análise, os lembretes e a cobrança do retorno. Contatos de uma carteira substituem os do credor naquela carteira."
    ],
    "profiles": [
     "ADMIN",
@@ -6562,6 +6710,16 @@
    "id": "contestacao",
    "term": "Contestação",
    "definition": "Questionamento da dívida pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução."
+  },
+  {
+   "id": "prazo-interno",
+   "term": "Prazo interno",
+   "definition": "Meta da equipe para resolver a contestação, antes do prazo de resposta ao devedor, que nunca é pausado."
+  },
+  {
+   "id": "comunicacao-de-servico",
+   "term": "Comunicação de serviço",
+   "definition": "Mensagem que não é cobrança, como a resposta a uma contestação. Não conta nos limites de tentativas, mas respeita descadastro, restrições e horário."
   },
   {
    "id": "porteiro-de-contato",
@@ -7458,6 +7616,94 @@
    "use": "Devedor sem resposta esfria a negociação. Subindo, reforce a equipe da caixa de conversas ou amplie o atendimento do assistente.",
    "screens": [
     "analytics.reliability"
+   ]
+  },
+  {
+   "id": "analytics.disputes.opened",
+   "module": "paineis",
+   "title": "Contestações abertas no período",
+   "what": "Quantas contestações foram registradas no período, por qualquer origem: devedor, operador, credor ou jurídico.",
+   "how": "Contagem das contestações com data de abertura no período e nos credores e carteiras filtrados.",
+   "use": "Alta repentina num credor ou carteira costuma indicar problema na carga ou no produto: confira os motivos mais frequentes e converse com o credor.",
+   "screens": [
+    "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.disputes.open-now",
+   "module": "paineis",
+   "title": "Em aberto agora",
+   "what": "Contestações ainda abertas ou em análise na data de referência, com as que já passaram do prazo de resposta ao devedor.",
+   "how": "Contagem das contestações pendentes na data de referência; vencidas são as pendentes cujo prazo de resposta já passou.",
+   "use": "Vencidas acima de zero são risco de reclamação e de cobrança indevida: redistribua a fila ou peça prioridade ao credor.",
+   "screens": [
+    "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.disputes.within-deadline",
+   "module": "paineis",
+   "title": "Resolvidas no prazo",
+   "what": "Percentual das contestações resolvidas no período cuja resolução saiu até o prazo de resposta ao devedor.",
+   "how": "Resolvidas até o prazo de resposta divididas pelas resolvidas no período; desistências não entram na conta.",
+   "use": "Queda indica fila acumulada ou espera longa pelo credor: compare com o tempo de resposta do credor e com o backlog por responsável.",
+   "screens": [
+    "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.disputes.resolution-time",
+   "module": "paineis",
+   "title": "Tempo médio de resolução",
+   "what": "Quantos dias, em média, as contestações resolvidas no período levaram da abertura até a resolução.",
+   "how": "Soma dos dias entre abertura e resolução das contestações resolvidas no período, dividida pela quantidade delas.",
+   "use": "Tempo subindo antecipa perda de prazo. Veja por motivo e por credor qual parte da operação está demorando mais.",
+   "screens": [
+    "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.disputes.upheld-rate",
+   "module": "paineis",
+   "title": "Procedência",
+   "what": "Percentual das contestações resolvidas no período que deram razão ao devedor, total ou parcialmente.",
+   "how": "Resolvidas como procedentes ou parcialmente procedentes divididas pelas resolvidas no período.",
+   "use": "Procedência alta num credor aponta dívida enviada com erro: leve os casos ao credor para corrigir a origem e evitar cobrança indevida.",
+   "screens": [
+    "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.disputes.creditor-response",
+   "module": "paineis",
+   "title": "Retorno do credor",
+   "what": "Pedidos formais enviados ao credor no período, quantos ele respondeu e em quanto tempo, em média.",
+   "how": "Pedidos enviados no período; respondidos são os que receberam resposta, pela tela ou pela integração do credor; o tempo médio vai do envio à resposta, em horas.",
+   "use": "Tempo alto ou muitos pedidos sem resposta mostram onde a contestação para: use os números na conversa de nível de serviço com o credor.",
+   "screens": [
+    "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.disputes.creditor-awaiting",
+   "module": "paineis",
+   "title": "Aguardando o credor",
+   "what": "Pedidos ao credor ainda sem resposta na data de referência, com os que já passaram do prazo pedido ao credor.",
+   "how": "Contagem dos pedidos enviados e não respondidos; vencidos são os que passaram do prazo pedido. O prazo ao devedor continua correndo.",
+   "use": "Pedidos vencidos recebem cobrança automática por e-mail; se continuarem parados, escale ao contato do credor antes do prazo do devedor.",
+   "screens": [
+    "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.disputes.backlog",
+   "module": "paineis",
+   "title": "Fila por responsável",
+   "what": "Contestações em aberto de cada analista e as sem responsável, com as vencidas no prazo interno e no prazo de resposta e as que aguardam o credor.",
+   "how": "Contagem das contestações pendentes na data de referência por responsável atual. Quem não gerencia contestações vê só as pessoas do próprio escopo.",
+   "use": "Carga desigual ou vencidas concentradas em uma pessoa pedem redistribuição; muitas sem responsável pedem distribuição automática ou atribuição.",
+   "screens": [
+    "analytics.disputes"
    ]
   },
   {

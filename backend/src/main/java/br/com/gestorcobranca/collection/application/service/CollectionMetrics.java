@@ -113,7 +113,7 @@ class CollectionMetrics {
         registry.counter("collection.disputes.adjustments", "action", action, "status", status).increment();
     }
 
-    /** @param outcome served, expired, unknown, rate_limited */
+    /** @param outcome served, expired, exhausted, unknown, malformed, rate_limited */
     void disputeLinkDownload(String outcome) {
         registry.counter("collection.disputes.evidence_link", "outcome", outcome).increment();
     }

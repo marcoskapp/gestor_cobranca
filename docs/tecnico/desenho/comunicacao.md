@@ -126,6 +126,14 @@ WhatsApp exige contato marcado como WhatsApp); caso: o informado ou o único ati
    `failureDetail`), `message.blocked`, sem job.
 4. `QUEUED`, espera da conversa encerrada (SLA `communication.inbox.first_response`), job `communication.send`.
 
+**Mensagem transacional (`MessageService#queueTransactional`)** — resposta da contestação ao devedor, pela porta
+`collection :: spi` `DisputeDebtorMessenger` (implementação `DisputeNoticeMessenger`): e-mail ou WhatsApp com **texto
+livre** (WhatsApp só na janela de 24 h), autor = operador, sem assumir a conversa, `contact_category = TRANSACTIONAL` e
+referência `dispute` na mensagem (`V1005`). O porteiro avalia na categoria transacional (compliance: sem limites de
+tentativas da cobrança nem restrições pedidas pelo credor; descadastro, restrições do devedor/legais, janela e feriados
+valem) na verificação prévia e no envio; o restante (fila, job, conversa, timeline, `MessageStatusChanged`) é o fluxo
+normal.
+
 **Job `communication.send`** (`JobQueue`, retentativas com backoff, DEAD): mensagem não `QUEUED` → nada; conta
 inativa/sem adaptador → `FAILED/ACCOUNT_UNAVAILABLE`; janela fechada para texto → `FAILED/WHATSAPP_WINDOW_CLOSED`;
 **`ContactGate#authorizeAndRecord` imediatamente antes do envio** (negado → `FAILED/CONTACT_DENIED`); provedor:

@@ -7,6 +7,7 @@ import {
   AnalyticsFilter,
   ConversionReport,
   DatasetFreshness,
+  DisputeReport,
   PortfolioReport,
   ProductivityReport,
   RecoveryReport,
@@ -61,6 +62,10 @@ export class AnalyticsApi {
 
   reliability(filter: AnalyticsFilter): Observable<ReliabilityReport> {
     return this.http.get<ReliabilityReport>(`${BASE}/reliability`, { params: analyticsParams(filter, false) });
+  }
+
+  disputes(filter: AnalyticsFilter): Observable<DisputeReport> {
+    return this.http.get<DisputeReport>(`${BASE}/disputes`, { params: analyticsParams(filter, false) });
   }
 
   freshness(): Observable<DatasetFreshness[]> {

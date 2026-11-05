@@ -243,4 +243,56 @@ export interface AnalyticsFilter {
   groupBy: string | null;
 }
 
-export type ReportName = 'portfolio' | 'recovery' | 'conversion' | 'productivity' | 'reliability';
+/** Contestações (F21): volume, prazos, procedência, canal com o credor e backlog por responsável. */
+export interface DisputeTotals {
+  opened: number;
+  resolved: number;
+  withdrawn: number;
+  openNow: number;
+  overdueNow: number;
+  averageResolutionDays: Money | null;
+  withinDeadline: Ratio;
+  upheldRate: Ratio;
+  creditorRequestsSent: number;
+  creditorRequestsAnswered: number;
+  averageCreditorResponseHours: Money | null;
+  creditorAwaitingNow: number;
+  creditorOverdueNow: number;
+}
+
+export interface DisputeRow {
+  key: string;
+  label: string;
+  opened: number;
+  resolved: number;
+  upheld: number;
+  upheldRate: Ratio;
+  withinDeadline: Ratio;
+  averageResolutionDays: Money | null;
+  openNow: number;
+  overdueNow: number;
+  creditorRequestsAnswered: number;
+  averageCreditorResponseHours: Money | null;
+}
+
+/** `key`: id do responsável ou `-` (sem responsável). */
+export interface DisputeBacklogRow {
+  key: string;
+  label: string;
+  open: number;
+  overdue: number;
+  internalOverdue: number;
+  awaitingCreditor: number;
+}
+
+export interface DisputeReport {
+  meta: ReportMeta;
+  referenceDate: string;
+  totals: DisputeTotals;
+  byType: DisputeRow[];
+  byOrigin: DisputeRow[];
+  byCreditor: DisputeRow[];
+  backlog: DisputeBacklogRow[];
+}
+
+export type ReportName = 'portfolio' | 'recovery' | 'conversion' | 'productivity' | 'reliability' | 'disputes';

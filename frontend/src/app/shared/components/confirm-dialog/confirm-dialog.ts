@@ -17,6 +17,8 @@ export interface ConfirmDialogData {
   /** Solicita motivo (registrado na auditoria). */
   reason?: 'required' | 'optional';
   reasonLabel?: string;
+  /** Motivo sugerido já preenchido (editável), ex.: o atalho do ajuste sugerido pela contestação. */
+  reasonInitial?: string;
   /** Limite do motivo quando o endpoint aceita menos que o padrão (`Limits.reason`). */
   reasonMaxLength?: number;
   /**
@@ -101,7 +103,7 @@ export class ConfirmDialog {
   protected readonly data = inject<ConfirmDialogData>(DIALOG_DATA);
   private readonly ref = inject<DialogRef<ConfirmDialogResult>>(DialogRef);
   protected readonly maxReason = Math.min(this.data.reasonMaxLength ?? Limits.reason, Limits.reason);
-  protected readonly reason = new FormControl('', {
+  protected readonly reason = new FormControl((this.data.reasonInitial ?? '').slice(0, this.maxReason), {
     nonNullable: true,
     validators: [
       ...(this.data.reason === 'required' ? [AppValidators.notBlank] : []),

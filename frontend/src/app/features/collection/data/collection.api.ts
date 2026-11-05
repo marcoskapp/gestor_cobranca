@@ -13,9 +13,28 @@ import {
   CaseSheet,
   CaseView,
   ContactAvailability,
+  AdjustmentAction,
+  AssigneeOption,
+  CreditorRequestDraft,
+  CreditorRequestRequest,
+  CreditorRequestView,
+  CreditorResponseRequest,
+  CreditorResponseView,
+  DeadlinePreview,
+  DeadlineRuleView,
+  DebtorNoticeDraft,
+  DebtorNoticeRequest,
+  DebtorNoticeView,
+  DisputeDetail,
   DisputeFilter,
   DisputeOutcome,
+  DisputeSettingsRequest,
+  DisputeSettingsView,
+  DisputeTemplateKind,
+  DisputeTemplateView,
   DisputeView,
+  PoolMemberView,
+  RedistributionResult,
   DistributionResult,
   EvidenceView,
   InteractionRequest,
@@ -271,8 +290,58 @@ export class DisputesApi {
     return this.http.post<DisputeView>(`${BASE}/disputes/${id}/review`, null);
   }
 
-  resolve(id: string, outcome: DisputeOutcome, note: string): Observable<DisputeView> {
-    return this.http.post<DisputeView>(`${BASE}/disputes/${id}/resolve`, { outcome, note });
+  /** @param adjustmentAction nulo = a sugerida pelo tipo; NONE = nenhuma */
+  resolve(id: string, outcome: DisputeOutcome, note: string, adjustmentAction: AdjustmentAction | 'NONE' | null = null): Observable<DisputeView> {
+    return this.http.post<DisputeView>(`${BASE}/disputes/${id}/resolve`, { outcome, note, adjustmentAction });
+  }
+
+  detail(id: string): Observable<DisputeDetail> {
+    return this.http.get<DisputeDetail>(`${BASE}/disputes/${id}/detail`);
+  }
+
+  /** @param assigneeId nulo devolve sem responsável */
+  assign(id: string, assigneeId: string | null, reason: string | null): Observable<DisputeView> {
+    return this.http.post<DisputeView>(`${BASE}/disputes/${id}/assign`, { assigneeId, reason });
+  }
+
+  take(id: string): Observable<DisputeView> {
+    return this.http.post<DisputeView>(`${BASE}/disputes/${id}/take`, null);
+  }
+
+  assigneeOptions(id: string): Observable<AssigneeOption[]> {
+    return this.http.get<AssigneeOption[]>(`${BASE}/disputes/${id}/assignee-options`);
+  }
+
+  redistribute(fromAssigneeId: string, toAssigneeId: string | null, reason: string): Observable<RedistributionResult> {
+    return this.http.post<RedistributionResult>(`${BASE}/disputes/redistributions`, { fromAssigneeId, toAssigneeId, reason });
+  }
+
+  creditorRequestDraft(id: string): Observable<CreditorRequestDraft> {
+    return this.http.get<CreditorRequestDraft>(`${BASE}/disputes/${id}/creditor-request-draft`);
+  }
+
+  requestCreditor(id: string, request: CreditorRequestRequest): Observable<CreditorRequestView> {
+    return this.http.post<CreditorRequestView>(`${BASE}/disputes/${id}/creditor-requests`, request);
+  }
+
+  /** Resposta do credor com os documentos recebidos (multipart: `response` em JSON + `files`). */
+  registerCreditorResponse(id: string, request: CreditorResponseRequest, files: File[]): Observable<CreditorResponseView> {
+    const body = new FormData();
+    body.append('response', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    files.forEach((f) => body.append('files', f, f.name));
+    return this.http.post<CreditorResponseView>(`${BASE}/disputes/${id}/creditor-responses`, body);
+  }
+
+  debtorNoticeDraft(id: string): Observable<DebtorNoticeDraft> {
+    return this.http.get<DebtorNoticeDraft>(`${BASE}/disputes/${id}/debtor-notice-draft`);
+  }
+
+  notifyDebtor(id: string, request: DebtorNoticeRequest): Observable<DebtorNoticeView> {
+    return this.http.post<DebtorNoticeView>(`${BASE}/disputes/${id}/debtor-notices`, request);
+  }
+
+  dismissAdjustment(id: string, note: string): Observable<DisputeView> {
+    return this.http.post<DisputeView>(`${BASE}/disputes/${id}/adjustment/dismiss`, { note });
   }
 
   withdraw(id: string, note: string): Observable<DisputeView> {
@@ -291,6 +360,69 @@ export class DisputesApi {
 
   downloadEvidence(id: string, evidence: EvidenceView): Observable<string> {
     return this.files.download(`${BASE}/disputes/${id}/evidences/${evidence.id}`, evidence.fileName);
+  }
+}
+
+/** Configuração das contestações: parâmetros, prazos por tipo/credor, analistas da distribuição e modelos. */
+@Injectable({ providedIn: 'root' })
+export class DisputeConfigApi {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${BASE}/dispute-config`;
+
+  settings(): Observable<DisputeSettingsView> {
+    return this.http.get<DisputeSettingsView>(`${this.base}/settings`);
+  }
+
+  updateSettings(request: DisputeSettingsRequest): Observable<DisputeSettingsView> {
+    return this.http.put<DisputeSettingsView>(`${this.base}/settings`, request);
+  }
+
+  rules(): Observable<DeadlineRuleView[]> {
+    return this.http.get<DeadlineRuleView[]>(`${this.base}/deadline-rules`);
+  }
+
+  createRule(request: { creditorId: string | null; type: string | null; responseDays: number; internalDays: number }): Observable<DeadlineRuleView> {
+    return this.http.post<DeadlineRuleView>(`${this.base}/deadline-rules`, request);
+  }
+
+  updateRule(id: string, responseDays: number, internalDays: number): Observable<DeadlineRuleView> {
+    return this.http.put<DeadlineRuleView>(`${this.base}/deadline-rules/${id}`, { responseDays, internalDays });
+  }
+
+  removeRule(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/deadline-rules/${id}`);
+  }
+
+  preview(creditorId: string, type: string): Observable<DeadlinePreview> {
+    return this.http.get<DeadlinePreview>(`${this.base}/deadline-preview`, { params: { creditorId, type } });
+  }
+
+  pool(): Observable<PoolMemberView[]> {
+    return this.http.get<PoolMemberView[]>(`${this.base}/pool`);
+  }
+
+  addPoolMember(creditorId: string | null, userId: string): Observable<PoolMemberView> {
+    return this.http.post<PoolMemberView>(`${this.base}/pool`, { creditorId, userId });
+  }
+
+  removePoolMember(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/pool/${id}`);
+  }
+
+  templates(): Observable<DisputeTemplateView[]> {
+    return this.http.get<DisputeTemplateView[]>(`${this.base}/templates`);
+  }
+
+  history(kind: DisputeTemplateKind, key: string): Observable<DisputeTemplateView[]> {
+    return this.http.get<DisputeTemplateView[]>(`${this.base}/templates/${kind}/${key}/history`);
+  }
+
+  saveTemplate(kind: DisputeTemplateKind, key: string, subject: string, body: string): Observable<DisputeTemplateView> {
+    return this.http.put<DisputeTemplateView>(`${this.base}/templates/${kind}/${key}`, { subject, body });
+  }
+
+  restoreDefault(kind: DisputeTemplateKind, key: string): Observable<DisputeTemplateView> {
+    return this.http.post<DisputeTemplateView>(`${this.base}/templates/${kind}/${key}/restore-default`, null);
   }
 }
 

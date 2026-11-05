@@ -174,7 +174,24 @@ descrições e pareceres nunca entram no log (ficam criptografados no banco).
 | `promise.registered` | promessa registrada | `promiseValueBand`, `daysToDue`, `coverage` (prometido ÷ saldo), `operatorId`; `channel`; `amount` = prometido |
 | `promise.kept` / `promise.broken` | promessa cumprida / quebrada | `paidAmount`, `promiseValueBand`, `daysFromDue`, `partial`, `operatorId`; `amount` = prometido; `durationMs` desde o registro |
 | `dispute.opened` | contestação aberta | `type`, `origin`, `blocksCollection`, `titles`, `responseDays`; `amount` = valor contestado |
-| `dispute.resolved` | contestação resolvida ou retirada | `type`, `origin`, `status`, `outcome`, `durationDays`, `withinDeadline`, `evidences`; `amount`; `durationMs` |
+| `dispute.resolved` | contestação resolvida ou retirada | `type`, `origin`, `status`, `outcome`, `durationDays`, `withinDeadline`, `withinInternalDeadline`, `assigned`, `creditorRequests`, `adjustmentAction`, `evidences`; `amount`; `durationMs` |
+
+Eventos do fluxo das contestações (negocio/contestacoes.md): todos levam credor, carteira, devedor, caso, `reference` =
+`dispute`, `type` e `origin`; nunca texto do pedido, da resposta ou do parecer, nem e-mail de destinatário.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `dispute.assigned` | responsável mudou | `mode` (MANUAL, TAKE, AUTOMATIC, REDISTRIBUTION, RELEASE), `hadAssignee`, `assigned`, `status` |
+| `dispute.creditor_request_sent` | pedido ao credor aceito pelo SMTP | `sequence`, `recipients`, `titles`, `evidences`, `requestedDays`, `templateVersion` |
+| `dispute.creditor_request_failed` | pedido com falha definitiva de envio | `sequence`, `errorCode` |
+| `dispute.creditor_request_overdue` | prazo pedido ao credor vencido sem resposta | `sequence`, `daysLate` |
+| `dispute.creditor_responded` | resposta do credor (tela ou API) | `position`, `source` (MANUAL, PUBLIC_API), `documents`, `withRequest`, `withinRequestedDeadline` |
+| `dispute.debtor_notified` | resposta ao devedor enviada, registrada ou bloqueada | `channel`, `outcome` (queued, registered, blocked), `disputeOutcome`, `reasons` (só se bloqueada: motivos do porteiro), `hoursAfterResolution` |
+| `dispute.adjustment_suggested` | resolução com ajuste sugerido | `action`, `outcome`; `amount` = saldo dos títulos na resolução |
+| `dispute.adjustment_closed` | ajuste feito (detectado) ou dispensado | `action`, `status` (DONE, DISMISSED), `trigger` (detected, dismissed), `daysAfterResolution` |
+
+O porteiro de contato (compliance) passa a registrar `category` (`COLLECTION`, `TRANSACTIONAL`) em `contact.denied` e na
+métrica `compliance.contact_gate.decisions{operation,outcome,category}`.
 
 ### 3.4 Atributos dos eventos de comunicação
 
@@ -516,6 +533,12 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `collection.interactions{channel,direction,effective,source}` | volume de interações e contatos efetivos |
 | `collection.callbacks{status}`, `collection.promises{status}`, `collection.disputes{status}` | retornos, promessas e contestações por situação |
 | `collection.disputes.overdue{type}` | contestações com prazo de resposta vencido (alarme) |
+| `collection.disputes.assignments{mode}` | mudanças de responsável das contestações |
+| `collection.disputes.creditor_mails{purpose,outcome}`, `collection.disputes.creditor_mail.duration` (p50/p95/p99) | e-mails ao credor (pedido, lembrete, cobrança): `sent`, `transient` (será repetido), `exhausted` (tentativas esgotadas), `rejected` (falha definitiva); duração do envio SMTP |
+| `collection.disputes.creditor_overdue{type}`, `collection.disputes.creditor_responses{source}` | pedidos ao credor vencidos; respostas do credor (tela, API) |
+| `collection.disputes.debtor_notices{channel,outcome}`, `collection.disputes.adjustments{action,status}` | respostas ao devedor; ajustes sugeridos, feitos e dispensados |
+| `collection.disputes.evidence_link{outcome}` | downloads do link de evidências (`served`, `expired`, `exhausted`, `unknown`, `malformed`, `rate_limited`) — recusas em alta podem indicar varredura |
+| `integration.calls{provider=smtp,operation=dispute_mail,outcome}` | chamadas ao SMTP dos e-mails de contestação |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
 | `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos (inclui `case_score`, do scoring) e falhas dos agendamentos (alarme) |
 | `ingestion.batches.received{source,mode}`, `ingestion.batches.finished{source,mode,status}`, `ingestion.batch.duration{source,mode,status}` | volume e duração dos lotes de importação |

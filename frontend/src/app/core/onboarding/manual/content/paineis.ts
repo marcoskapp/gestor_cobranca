@@ -69,6 +69,23 @@ export const MANUAL: ModuleManual = {
       terms: ['contato-efetivo', 'equipe'],
     },
     {
+      id: 'analytics.disputes',
+      title: 'Contestações',
+      objective: 'Volume, prazos, procedência e retorno do credor das contestações, com a fila de cada responsável.',
+      purpose: [
+        'Base da conversa de nível de serviço com o credor: quanto ele demora a responder e quanto das contestações dá razão ao devedor.',
+        'A fila por responsável mostra a carga e as vencidas de cada analista. Quem não gerencia contestações vê só as pessoas do próprio escopo.',
+      ],
+      profiles: ['GESTOR', 'SUPERVISOR', 'JURIDICO'],
+      inputs: ['Contestações, pedidos ao credor e respostas registradas.'],
+      outputs: ['Redistribuição da fila e pauta com os credores.'],
+      related: [
+        { screen: 'collection.disputes', why: 'Fila de contestações.' },
+        { screen: 'collection.dispute-config', why: 'Prazos e distribuição.' },
+      ],
+      terms: ['contestacao', 'prazo-interno', 'base-do-indicador'],
+    },
+    {
       id: 'analytics.reliability',
       title: 'Confiabilidade',
       objective: 'Falhas que afetam a operação: Pix, chamadas, mensagens, extratos, importações e divergências.',

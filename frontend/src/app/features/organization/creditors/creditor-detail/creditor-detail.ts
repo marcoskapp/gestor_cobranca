@@ -18,6 +18,7 @@ import { ContractTerminate } from '../../contracts/contract-terminate/contract-t
 import { ContractsApi, CreditorsApi } from '../../data/organization.api';
 import { ContractView, CreditorView } from '../../data/organization.models';
 import { CreditorForm } from '../creditor-form/creditor-form';
+import { CreditorDisputeContacts } from './creditor-dispute-contacts';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
@@ -32,6 +33,7 @@ import { DialogService } from '../../../../shared/dialog/dialog.service';
     CellDef,
     AppDatePipe,
     DocumentPipe,
+    CreditorDisputeContacts,
   ],
   templateUrl: './creditor-detail.html',
 })

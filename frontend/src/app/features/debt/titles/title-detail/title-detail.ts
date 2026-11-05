@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, map, of } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
@@ -42,6 +42,11 @@ type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
 })
 export class TitleDetail {
   readonly id = input.required<string>();
+  /** `?acao=cancelar&motivo=…`: abre a confirmação do cancelamento com o motivo sugerido (atalho da contestação procedente). */
+  readonly acao = input<string | undefined>();
+  readonly motivo = input<string | undefined>();
+  private shortcutHandled = false;
+  private readonly router = inject(Router);
 
   private readonly api = inject(TitlesApi);
   private readonly auth = inject(AuthService);
@@ -81,9 +86,21 @@ export class TitleDetail {
       const t = this.current();
       this.breadcrumbs.setCurrentLabel(t ? `Título ${titleLabel(t)}` : null);
     });
+    effect(() => {
+      const t = this.current();
+      if (!t || this.shortcutHandled || this.acao() !== 'cancelar') {
+        return;
+      }
+      this.shortcutHandled = true;
+      // a URL não reabre a confirmação ao voltar; sem a ação disponível (situação ou permissão), nada acontece
+      this.router.navigate([], { queryParams: { acao: null, motivo: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      if (this.actions().includes('cancel')) {
+        this.run('cancel', t, this.motivo());
+      }
+    });
   }
 
-  protected run(action: ManualAction, t: TitleView): void {
+  protected run(action: ManualAction, t: TitleView, suggestedReason?: string): void {
     const details = this.impact(t);
     const configs: Record<ManualAction, () => Observable<string>> = {
       suspend: () =>
@@ -108,6 +125,7 @@ export class TitleDetail {
           confirmLabel: 'Cancelar título',
           destructive: true,
           reason: 'required',
+          reasonInitial: suggestedReason,
           warning: 'Esta ação não pode ser desfeita.',
           confirmationText: 'CANCELAR',
           details,

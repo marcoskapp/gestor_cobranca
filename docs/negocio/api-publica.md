@@ -48,7 +48,7 @@ Cada token **enxerga um único credor**. Dados de outros credores da assessoria 
 | `collection:read` | consultar a situação da cobrança (casos) |
 | `agreements:read` | consultar acordos e parcelas |
 | `payments:read` / `payments:write` | consultar pagamentos / informar pagamento recebido pelo credor |
-| `disputes:read` / `disputes:write` | consultar / abrir contestações |
+| `disputes:read` / `disputes:write` | consultar contestações e os pedidos de análise da assessoria / abrir contestações e responder aos pedidos de análise |
 | `billing:read` | consumo do ciclo atual da API (valor até agora, franquias, projeção) e extratos fechados |
 | `settlement:read` | repasse estimado do período em aberto e demonstrativos já enviados ao credor |
 
@@ -81,6 +81,7 @@ Sem esperar o fechamento, a tela **Posição do credor** (e a API, com os escopo
 - **PDF** (`POST /imports/pdf`): para o credor que só tem PDF. O sistema encontra os títulos e a importação fica **aguardando a validação de uma pessoa da assessoria** na tela "Importação PDF inteligente" — a API nunca importa um PDF sozinha. O credor acompanha a situação por `GET /imports/pdf/{id}` (sem dados do devedor).
 - **Sincronização incremental**: as listas vêm em ordem de atualização com um cursor; o credor guarda o cursor e continua dele na próxima sincronização. Alterações do último minuto aparecem na chamada seguinte.
 - **Alteração concorrente**: carteiras e títulos têm versão (`ETag`). Se o credor enviar a versão lida (`If-Match`) e alguém tiver alterado antes, a alteração é recusada (412) para não sobrescrever.
+- **Pedidos de análise de contestação**: a assessoria pede a análise ao credor por e-mail (contatos de contestação do cadastro do credor) e o mesmo pedido fica em `GET /disputes/{id}/creditor-requests` (protocolo, texto, títulos, prazo pedido, situação). O credor responde por `POST /disputes/{id}/creditor-responses` com a posição (`CONFIRMS_DEBT`, `ACCEPTS_CLAIM`, `PARTIAL`, `INFORMATION`) e um resumo — só texto; documentos vão pelo link/e-mail. `awaitingCreditor` na contestação indica pedido sem resposta. Regras em contestacoes.md §4.
 - **Baixa de título**: não há "baixar" direto — o credor informa o pagamento com comprovante (regra de baixa com evidência).
 - **Token pausado pela plataforma**: toda chamada recebe **403** com `code` = `auth.token_paused` (`application/problem+json`, com `requestId`). O token continua existindo e volta a funcionar, sem troca de segredo, quando a pausa terminar. Não é cobrada. O sistema do credor deve tratar como erro definitivo até contato com a assessoria — não repetir em laço (as tentativas são medidas e ficam visíveis à plataforma).
 

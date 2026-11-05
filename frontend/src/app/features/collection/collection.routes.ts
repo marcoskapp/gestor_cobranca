@@ -10,7 +10,8 @@ export const COLLECTION_PERMISSIONS = {
   queues: [Permission.QUEUE_MANAGE, Permission.CASE_ASSIGN],
   tabulations: [Permission.TABULATION_MANAGE],
   settings: [Permission.QUEUE_MANAGE],
-  disputes: [Permission.DISPUTE_MANAGE],
+  disputes: [Permission.DISPUTE_MANAGE, Permission.DISPUTE_WORK],
+  disputeConfig: [Permission.DISPUTE_MANAGE],
 } as const;
 
 const station = () => import('./station/collection-station').then((m) => m.CollectionStation);
@@ -73,5 +74,19 @@ export const COLLECTION_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: COLLECTION_PERMISSIONS.disputes },
     loadComponent: () => import('./disputes/dispute-list').then((m) => m.DisputeList),
+  },
+  {
+    path: 'contestacoes/configuracao',
+    title: 'Configuração das contestações',
+    canActivate: [permissionGuard],
+    data: { permissions: COLLECTION_PERMISSIONS.disputeConfig },
+    loadComponent: () => import('./disputes/dispute-config').then((m) => m.DisputeConfigPage),
+  },
+  {
+    path: 'contestacoes/:id',
+    title: 'Contestação',
+    canActivate: [permissionGuard],
+    data: { permissions: COLLECTION_PERMISSIONS.disputes },
+    loadComponent: () => import('./disputes/dispute-page').then((m) => m.DisputePage),
   },
 ];

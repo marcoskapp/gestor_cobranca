@@ -214,14 +214,80 @@ valor contestado, prazo de resposta (informado ou `disputeResponseDays`, padrão
   (`EVIDENCE`) com SHA-256; append-only; download registra `FILE_DOWNLOADED`; arquivo de transação desfeita é removido.
 * Análise (`UNDER_REVIEW`), resolução (`UPHELD`, `REJECTED`, `PARTIALLY_UPHELD`) ou desistência (`WITHDRAWN`) com parecer:
   `DebtLedgerPort#clearDispute`, retirada da retenção (se não houver outra bloqueante) e reavaliação; `dispute.resolved`.
-  O efeito financeiro de uma contestação procedente (cancelar/ajustar o título) é ação explícita no módulo debt.
-* Prazo: o job diário marca `overdue` (WARN + `collection.disputes.overdue` para alarme).
+  O efeito financeiro de uma contestação procedente (cancelar/ajustar o título) é ação explícita no módulo debt
+  (ajuste sugerido, §7.5).
+* Prazo: o job diário marca `overdue` (WARN + `collection.disputes.overdue` para alarme). O prazo de resposta e o
+  interno vêm das regras de prazo (§7.2) quando não informados.
 
 Publica `DisputeStatusChanged` em cada mudança.
 
 **Views.** `DisputeView.titles` traz os dados mínimos de cada título contestado (número, parcela, vencimento, valor original
 e saldo), lidos no debt uma vez por devedor (`DebtTitleUseCases#listByDebtor`, com o escopo do ator; na ficha, dos títulos
 já carregados). `EvidenceView.createdByName` é o nome de quem anexou (diretório do identity, só a própria assessoria).
+
+### 7.1 Responsável, fila e distribuição
+
+Regras de negócio em [negocio/contestacoes.md](../../negocio/contestacoes.md). Colunas `assignee_id`/`assigned_at` em
+`collection.dispute`; histórico append-only `collection.dispute_assignment` (anterior, novo, modo `MANUAL|TAKE|AUTOMATIC|
+REDISTRIBUTION|RELEASE`, motivo, quem). `DisputeAccess#requireWork`: `DISPUTE_MANAGE` trabalha qualquer uma;
+`DISPUTE_WORK` só as próprias (sem responsável → `TAKE` implícito); outra pessoa → `409 dispute.assigned_to_other`.
+Responsável elegível: ativo, com `DISPUTE_WORK`/`DISPUTE_MANAGE` e acesso ao credor (`UserDirectory`). Distribuição
+`LEAST_LOADED` (`DisputeDistributor`): menos abertas, depois atribuição mais antiga, entre os membros de
+`collection.dispute_pool_member` (gerais ou do credor). `POST /disputes/redistributions` move em lote (com motivo).
+
+### 7.2 Prazos
+
+`internal_due_date` (≤ `response_due_date`) e `deadline_source` (`INFORMED|CREDITOR_TYPE|CREDITOR|TYPE|TENANT_DEFAULT`)
+calculados na abertura por `DisputeDeadlines.resolve` sobre `collection.dispute_deadline_rule` (únicos por credor/tipo,
+nulos = qualquer) e `collection.dispute_settings` (`DisputeSettings.Values.DEFAULTS`: manual, interno 7, credor 5,
+lembrete 1, link 7). Nenhum prazo é pausado; "aguardando o credor" é `awaiting_creditor_since` (derivado do pedido em
+aberto, sem status novo).
+
+### 7.3 Canal formal com o credor
+
+* Contatos: `organization.creditor_dispute_contact` (`CreditorDisputeContactUseCases#recipients`: contatos da carteira
+  com PRIMARY ativo substituem os do credor).
+* Pedido: `collection.dispute_creditor_request` (+ `_title`, `_evidence`), modelo do tipo (`DisputeTemplateProvider`,
+  versionado em `collection.dispute_template`, append-only; padrão em `DisputeTemplates`; sem nome/documento do devedor).
+* Link das evidências: token aleatório (só o SHA-256 em `collection.dispute_link_route`, tabela global sem RLS que só
+  resolve o tenant; a leitura do pacote roda no tenant), validade `evidenceLinkDays`, até
+  `app.collection.disputes.link-max-downloads` (20) downloads e `link-requests-per-minute` (30) por IP;
+  `GET /api/v1/dispute-files/{token}` é `PublicEndpoint`; ZIP com as evidências escolhidas; `FILE_DOWNLOADED` no log de
+  acesso; recusa → `DISPUTE_LINK_REJECTED`. Links vencidos são removidos pela manutenção diária.
+* E-mail: `collection.dispute_mail` (`REQUEST|REMINDER|OVERDUE`, `QUEUED|SENT|FAILED|SKIPPED`) enviado pelo job
+  `collection.dispute_mail` (`DisputeMailer` → `SmtpDisputeMailer`, `app.mail.from`, *reply-to* do responsável), até
+  `mail-max-attempts` (6) com espera crescente; falha definitiva marca o pedido `FAILED` (`DisputeMailFailures`,
+  `REQUIRES_NEW`).
+* Acompanhamento: `collection.dispute-follow-up` (cron `app.collection.disputes.follow-up-cron`, padrão `0 5 8 * * *`,
+  ShedLock): lembrete até `reminderDaysBefore` antes do prazo pedido e cobrança no dia seguinte ao vencimento, uma vez
+  cada.
+* Resposta: `collection.dispute_creditor_response` (append-only, `MANUAL|PUBLIC_API`, posição, resumo criptografado);
+  documentos manuais viram `dispute_evidence` com `creditor_response_id`. API pública em `publicapi` (escopos
+  `disputes:read`/`disputes:write`, ator `INTEGRATION`).
+
+### 7.4 Resposta ao devedor
+
+`DisputeOrigin.expectsDebtorResponse` (DEBTOR, OPERATOR) → `debtor_notice_status = PENDING` na resolução.
+`collection.dispute_debtor_notice` (canal `EMAIL|WHATSAPP|OTHER`, situação, texto criptografado). Envio pela porta SPI
+`DisputeDebtorMessenger` (ADR-0010), implementada no communication (`DisputeNoticeMessenger` →
+`MessageService#queueTransactional`), com `ContactGate` na categoria `TRANSACTIONAL` (ver compliance: não aplica
+limites/intervalo da cobrança nem restrições `CREDITOR_REQUEST`; aplica as demais, janela e feriados). A situação
+acompanha `MessageStatusChanged` (consumidor `collection.dispute-notice-status`; nunca regride).
+
+### 7.5 Ajuste sugerido
+
+`DisputeAdjustmentAction.suggestedFor(type, outcome)` (editável na resolução, `NONE` = sem ajuste);
+`adjustment_status` `PENDING → DONE|DISMISSED`, `adjustment_baseline` = saldo dos títulos na resolução.
+`DisputeAdjustments#reconcile` reage a `TitleStatusChanged` e à varredura diária: cancelados (cancelar), quitados
+(pagamento) ou saldo ≠ base (corrigir). Dispensa com motivo (`POST /disputes/{id}/adjustment/dismiss`). O frontend leva
+aos fluxos existentes (título com `?acao=cancelar&motivo=`; "Informar pagamento" com os títulos marcados).
+
+### 7.6 Pendências e indicadores
+
+`PendingWorkSource`: `collection.disputes_mine`, `collection.disputes_due` (supervisão: sem responsável ou vencidas),
+`collection.dispute_debtor_notices`, `collection.dispute_adjustments`. Analytics: visões `src_dispute` e
+`src_dispute_creditor_request` (`security_invoker`), `GET /analytics/disputes` e exportação `disputes`
+([indicadores.md §7](../../negocio/indicadores.md#7-contestações)).
 
 ## 8. Ficha do caso
 
@@ -299,7 +365,8 @@ acordo guarda o `caseId` e a equipe do caso. `DebtorAnonymized` (novo, publicado
 
 * Permissões: `CASE_VIEW`, `CASE_WORK`, `CASE_ASSIGN`, `CASE_MANAGE` (**nova**: suspender, jurídico, encerrar),
   `QUEUE_MANAGE` (filas e parâmetros), `TABULATION_MANAGE` (**nova**), `INTERACTION_REGISTER`, `TASK_MANAGE`,
-  `DISPUTE_MANAGE`. Perfis padrão: operador (trabalho), supervisor (+ atribuição, gestão de casos, filas, contestações),
+  `DISPUTE_MANAGE` e `DISPUTE_WORK` (**nova**: trabalhar as contestações atribuídas a si e assumir as sem responsável;
+  operador e, por herança, supervisor). Perfis padrão: operador (trabalho), supervisor (+ atribuição, gestão de casos, filas, contestações),
   gestor (+ tabulações). `V0601` concede as novas aos perfis existentes.
 * Escopo por credor em todos os casos de uso (`AccessScope`: 404 leitura, 403 comando, listagens filtradas); filas e
   tabulações/parâmetros sem credor exigem acesso a todos os credores.
@@ -330,6 +397,11 @@ descrições só no banco, criptografadas).
 | `/cases/{id}/tasks` · `/agenda` · `/tasks/{id}/complete|cancel|reschedule|reassign` | `GET`, `POST` |
 | `/cases/{id}/promises` · `/promises/{id}` · `/promises/{id}/cancel` | `GET`, `POST` |
 | `/cases/{id}/disputes` · `/disputes` · `/disputes/{id}` · `/review|resolve|withdraw` · `/evidences` · `/evidences/{eid}` | `GET`, `POST` (multipart) |
+| `/disputes/{id}/detail` · `/assign` · `/take` · `/assignee-options` · `/disputes/redistributions` | `GET`, `POST` (§7.1) |
+| `/disputes/{id}/creditor-request-draft` · `/creditor-requests` · `/creditor-responses` (multipart `response` + `files`) | `GET`, `POST` (§7.3) |
+| `/disputes/{id}/debtor-notice-draft` · `/debtor-notices` · `/adjustment/dismiss` | `GET`, `POST` (§7.4, §7.5) |
+| `/dispute-config/settings` · `/deadline-rules[/{id}]` · `/deadline-preview` · `/pool[/{id}]` · `/templates[/{kind}/{key}[/history|/restore-default]]` | `GET`, `PUT`, `POST`, `DELETE` (`DISPUTE_MANAGE`; leitura também `DISPUTE_WORK`) |
+| `/api/v1/dispute-files/{token}` (público, fora de `/collection`) | `GET` — ZIP das evidências do pedido ao credor |
 | `/settings` | `GET`, `PUT` |
 
 ## 14. Decisões

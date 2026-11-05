@@ -142,3 +142,24 @@ export interface UpdatePortfolioRequest {
   receivedOn: string;
   validUntil: string | null;
 }
+
+/** Contato do credor para os pedidos de contestação (canal formal). Contatos da carteira substituem os do credor. */
+export interface DisputeContactView {
+  id: string;
+  creditorId: string;
+  portfolioId: string | null;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: 'PRIMARY' | 'COPY';
+  active: boolean;
+  version: number;
+}
+
+export interface DisputeContactRequest {
+  portfolioId: string | null;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: 'PRIMARY' | 'COPY';
+}

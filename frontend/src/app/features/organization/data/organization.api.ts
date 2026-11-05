@@ -13,6 +13,8 @@ import {
   CreatePortfolioRequest,
   CreditorRequest,
   CreditorView,
+  DisputeContactRequest,
+  DisputeContactView,
   IntegrationPricingRequest,
   IntegrationPricingView,
   PortfolioView,
@@ -78,6 +80,29 @@ export class CreditorsApi {
 
   setActive(id: string, active: boolean): Observable<CreditorView> {
     return this.http.post<CreditorView>(`${this.base}/${id}/${active ? 'activate' : 'deactivate'}`, null);
+  }
+}
+
+/** Contatos de contestação do credor (`CreditorDisputeContactController`). */
+@Injectable({ providedIn: 'root' })
+export class CreditorDisputeContactsApi {
+  private readonly http = inject(HttpClient);
+  private readonly base = (creditorId: string) => `${API_V1}/creditors/${creditorId}/dispute-contacts`;
+
+  list(creditorId: string): Observable<DisputeContactView[]> {
+    return this.http.get<DisputeContactView[]>(this.base(creditorId));
+  }
+
+  create(creditorId: string, request: DisputeContactRequest): Observable<DisputeContactView> {
+    return this.http.post<DisputeContactView>(this.base(creditorId), request);
+  }
+
+  update(creditorId: string, id: string, request: DisputeContactRequest): Observable<DisputeContactView> {
+    return this.http.put<DisputeContactView>(`${this.base(creditorId)}/${id}`, request);
+  }
+
+  deactivate(creditorId: string, id: string): Observable<DisputeContactView> {
+    return this.http.post<DisputeContactView>(`${this.base(creditorId)}/${id}/deactivate`, null);
   }
 }
 

@@ -34,6 +34,7 @@ docs/
 | [perfis-de-acesso.md](negocio/perfis-de-acesso.md) | Perfis de acesso padrão por tipo de usuário e como se mantêm atualizados |
 | [templates-cobranca.md](negocio/templates-cobranca.md) | Modelos iniciais de mensagens de cobrança (WhatsApp, e-mail e SMS) e templates exigidos pelo portal — para revisão do jurídico |
 | [api-publica.md](negocio/api-publica.md) | API pública de integração dos credores: conexão por token, escopos, segurança, consumo e faturamento ao credor, versões e política de compatibilidade; cobrança da plataforma às assessorias pelo consumo de todos os seus tokens (§9), com assessorias suspensas, tráfego recusado e controle dos tokens pela plataforma (§9.1–§9.3) |
+| [contestacoes.md](negocio/contestacoes.md) | Contestações (F21): responsável e fila, prazos (interno, ao devedor, ao credor), canal formal com o credor (link seguro das evidências, lembretes, resposta pela tela ou API), resposta ao devedor como comunicação de serviço e ajuste sugerido no título |
 | [decisoes-autonomas.md](negocio/decisoes-autonomas.md) | Decisões de produto tomadas sem consulta, para revisão |
 
 Regras de negócio que só existem no desenho técnico, por enquanto: remuneração variável dos negociadores ([tecnico/desenho/remuneracao-variavel.md](tecnico/desenho/remuneracao-variavel.md)) e negociação e alçadas ([tecnico/desenho/negociacao-e-alcadas.md](tecnico/desenho/negociacao-e-alcadas.md)).

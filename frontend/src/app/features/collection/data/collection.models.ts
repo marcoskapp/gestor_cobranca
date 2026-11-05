@@ -402,7 +402,244 @@ export interface DisputeView {
   resolvedAt: string | null;
   resolvedBy: string | null;
   evidenceCount: number;
+  /** Analista responsável (nulo = sem responsável). */
+  assigneeId: string | null;
+  assigneeName: string | null;
+  assignedAt: string | null;
+  /** Prazo interno (SLA da equipe), nunca depois do prazo de resposta. */
+  internalDueDate: string;
+  deadlineSource: DeadlineSource;
+  /** Desde quando aguarda o retorno do credor. */
+  awaitingCreditorSince: string | null;
+  debtorNoticeStatus: DebtorNoticeStatus | null;
+  adjustmentAction: AdjustmentAction | null;
+  adjustmentStatus: AdjustmentStatus | null;
+  adjustmentBaseline: Amount | null;
+  adjustmentNote: string | null;
+  adjustmentClosedAt: string | null;
   version: number;
+}
+
+export type DeadlineSource = 'INFORMED' | 'CREDITOR_TYPE' | 'CREDITOR' | 'TYPE' | 'TENANT_DEFAULT';
+export type DebtorNoticeStatus = 'PENDING' | 'SENT' | 'NOT_REQUIRED';
+export type AdjustmentAction = 'CANCEL_TITLES' | 'ADJUST_AMOUNT' | 'SETTLE_BY_PAYMENT';
+export type AdjustmentStatus = 'PENDING' | 'DONE' | 'DISMISSED';
+export type DisputeAssignmentMode = 'MANUAL' | 'TAKE' | 'AUTOMATIC' | 'REDISTRIBUTION' | 'RELEASE';
+export type CreditorRequestStatus = 'QUEUED' | 'SENT' | 'FAILED' | 'ANSWERED' | 'CANCELLED';
+export type CreditorPosition = 'CONFIRMS_DEBT' | 'ACCEPTS_CLAIM' | 'PARTIAL' | 'INFORMATION';
+export type NoticeChannel = 'EMAIL' | 'WHATSAPP' | 'OTHER';
+export type NoticeDelivery = 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'BLOCKED' | 'REGISTERED';
+
+/** `DisputeUseCases.DisputeDetail` */
+export interface DisputeDetail {
+  dispute: DisputeView;
+  assignments: DisputeAssignmentView[];
+  creditorRequests: CreditorRequestView[];
+  creditorResponses: CreditorResponseView[];
+  debtorNotices: DebtorNoticeView[];
+}
+
+export interface DisputeAssignmentView {
+  id: string;
+  previousAssigneeId: string | null;
+  previousAssigneeName: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  mode: DisputeAssignmentMode;
+  reason: string | null;
+  assignedBy: string;
+  assignedByName: string | null;
+  assignedAt: string;
+}
+
+export interface AssigneeOption {
+  userId: string;
+  name: string;
+  openDisputes: number;
+}
+
+export interface CreditorRequestDraft {
+  templateKey: string;
+  templateVersion: number;
+  subject: string;
+  body: string;
+  to: string[];
+  cc: string[];
+  replyTo: string | null;
+  copyAssignee: boolean;
+  requestedDueDate: string;
+  titles: DisputedTitle[];
+  evidences: EvidenceView[];
+  linkExpiresAt: string;
+  recipientsFromPortfolio: boolean;
+}
+
+export interface CreditorRequestRequest {
+  subject: string;
+  body: string;
+  requestedDueDate: string | null;
+  titleIds: string[];
+  evidenceIds: string[];
+  copyAssignee: boolean;
+}
+
+export interface DisputeMailView {
+  id: string;
+  purpose: 'REQUEST' | 'REMINDER' | 'OVERDUE';
+  status: 'QUEUED' | 'SENT' | 'FAILED' | 'SKIPPED';
+  attempts: number;
+  sentAt: string | null;
+  failedAt: string | null;
+  failureCode: string | null;
+}
+
+export interface CreditorRequestView {
+  id: string;
+  disputeId: string;
+  sequenceNumber: number;
+  templateKey: string;
+  templateVersion: number;
+  to: string[];
+  cc: string[];
+  replyTo: string | null;
+  subject: string;
+  body: string;
+  requestedDueDate: string;
+  status: CreditorRequestStatus;
+  overdue: boolean;
+  sentAt: string | null;
+  answeredAt: string | null;
+  linkExpiresAt: string | null;
+  linkDownloads: number;
+  titleIds: string[];
+  evidenceIds: string[];
+  requestedBy: string;
+  requestedByName: string | null;
+  createdAt: string;
+  mails: DisputeMailView[];
+}
+
+export interface CreditorResponseRequest {
+  position: CreditorPosition;
+  note: string;
+  requestId: string | null;
+  receivedAt: string | null;
+}
+
+export interface CreditorResponseView {
+  id: string;
+  disputeId: string;
+  requestId: string | null;
+  source: 'MANUAL' | 'PUBLIC_API';
+  position: CreditorPosition;
+  note: string;
+  receivedAt: string;
+  recordedBy: string;
+  recordedByName: string | null;
+  evidenceIds: string[];
+}
+
+export interface NoticeChannelOption {
+  channel: 'EMAIL' | 'WHATSAPP';
+  allowed: boolean;
+  reasons: string[];
+  nextAllowedAt: string | null;
+  contactId: string | null;
+  maskedContact: string | null;
+}
+
+export interface DebtorNoticeDraft {
+  templateKey: string;
+  templateVersion: number;
+  subject: string;
+  body: string;
+  channels: NoticeChannelOption[];
+}
+
+export interface DebtorNoticeRequest {
+  channel: NoticeChannel;
+  contactId: string | null;
+  subject: string | null;
+  body: string;
+}
+
+export interface DebtorNoticeView {
+  id: string;
+  disputeId: string;
+  channel: NoticeChannel;
+  messageId: string | null;
+  status: NoticeDelivery;
+  failureDetail: string | null;
+  subject: string | null;
+  body: string;
+  sentBy: string;
+  sentByName: string | null;
+  createdAt: string;
+  statusAt: string;
+}
+
+export interface RedistributionResult {
+  moved: number;
+  unassigned: number;
+}
+
+// ---- configuração das contestações
+
+export interface DisputeSettingsView {
+  distributionMode: 'MANUAL' | 'LEAST_LOADED';
+  internalDays: number;
+  creditorRequestDays: number;
+  reminderDaysBefore: number;
+  evidenceLinkDays: number;
+  /** Prazo padrão de resposta ao devedor (parâmetros da operação). */
+  responseDays: number;
+  customized: boolean;
+  updatedAt: string | null;
+}
+
+export type DisputeSettingsRequest = Pick<DisputeSettingsView, 'distributionMode' | 'internalDays' | 'creditorRequestDays' | 'reminderDaysBefore' | 'evidenceLinkDays'>;
+
+export interface DeadlineRuleView {
+  id: string;
+  creditorId: string | null;
+  type: DisputeType | null;
+  responseDays: number;
+  internalDays: number;
+  source: DeadlineSource;
+  updatedAt: string;
+  version: number;
+}
+
+export interface DeadlinePreview {
+  responseDueDate: string;
+  internalDueDate: string;
+  responseDays: number;
+  internalDays: number;
+  source: DeadlineSource;
+}
+
+export interface PoolMemberView {
+  id: string;
+  creditorId: string | null;
+  userId: string;
+  userName: string | null;
+  eligible: boolean;
+  openDisputes: number;
+}
+
+export type DisputeTemplateKind = 'CREDITOR_REQUEST' | 'DEBTOR_RESPONSE';
+
+export interface DisputeTemplateView {
+  kind: DisputeTemplateKind;
+  key: string;
+  /** 0 = padrão do sistema. */
+  version: number;
+  subject: string;
+  body: string;
+  customized: boolean;
+  variables: string[];
+  createdAt: string | null;
+  createdBy: string | null;
 }
 
 export interface OpenDisputeRequest {
@@ -418,6 +655,17 @@ export interface DisputeFilter {
   creditorId?: string | null;
   status?: string | null;
   overdue?: boolean | null;
+  type?: string | null;
+  origin?: string | null;
+  /** `me` ou id do analista. */
+  assignee?: string | null;
+  unassigned?: boolean | null;
+  dueUntil?: string | null;
+  awaitingCreditor?: boolean | null;
+  noticePending?: boolean | null;
+  adjustmentPending?: boolean | null;
+  /** Visão do supervisor: sem responsável ou com prazo vencido. */
+  supervision?: boolean | null;
 }
 
 /** `DisputeUseCases.EvidenceView` */
@@ -432,6 +680,8 @@ export interface EvidenceView {
   createdBy: string | null;
   /** Nome de quem anexou; nulo para sistema/integração. */
   createdByName: string | null;
+  /** Resposta do credor que trouxe o documento (nulo = anexado pela assessoria). */
+  creditorResponseId: string | null;
 }
 
 /** `DisputeUseCases.DisputedTitle` */
@@ -442,6 +692,8 @@ export interface DisputedTitle {
   dueDate: string;
   principalAmount: Amount;
   openBalance: Amount | null;
+  /** Situação atual do título (OPEN, SUSPENDED, SETTLED, CANCELLED…). */
+  status: string | null;
 }
 
 // --------------------------------------------------------------------- posso contatar agora?

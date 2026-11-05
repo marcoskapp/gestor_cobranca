@@ -89,6 +89,7 @@ class AnalyticsController {
 
     @GetMapping("/disputes")
     @PreAuthorize("hasAuthority('DASHBOARD_VIEW') or hasAuthority('REPORT_VIEW') or hasAuthority('DISPUTE_MANAGE')")
+    @Operation(summary = "Contestações: volume, prazos, procedência, canal com o credor e backlog por responsável")
     DisputeReport disputes(FilterParams params) {
         return queries.disputes(params.toFilter());
     }

@@ -153,6 +153,8 @@ export class PaymentTarget {
   readonly mode = input<'single' | 'allocation'>('single');
   /** Kind inicial ao abrir. */
   readonly initialKind = input<'AGREEMENT' | 'TITLES'>('AGREEMENT');
+  /** Títulos já marcados ao abrir em "Títulos avulsos" (ex.: atalho do ajuste sugerido da contestação). */
+  readonly initialTitleIds = input<readonly string[]>([]);
   readonly selection = model<TargetSelection | null>(null);
 
   private readonly auth = inject(AuthService);
@@ -166,6 +168,7 @@ export class PaymentTarget {
   protected readonly titleId = signal<string | null>(null);
   protected readonly itemIds = signal<string[]>([]);
   protected readonly strategy = signal<TitleStrategy>('OLDEST_FIRST');
+  private initialApplied = false;
   protected readonly canReadAgreements = computed(() => this.auth.hasPermission(Permission.AGREEMENT_VIEW));
 
   protected readonly agreements = rxResource({
@@ -201,6 +204,21 @@ export class PaymentTarget {
 
   constructor() {
     effect(() => this.kind.set(this.initialKind()));
+    // marca uma única vez os títulos sugeridos que estão de fato pagáveis (em aberto, com saldo e fora de acordo)
+    effect(() => {
+      const wanted = this.initialTitleIds();
+      const payable = this.payableTitles();
+      if (this.initialApplied || !wanted.length || this.mode() !== 'allocation' || this.kind() !== 'TITLES' || !payable.length) {
+        return;
+      }
+      this.initialApplied = true;
+      const first = payable.find((t) => wanted.includes(t.id));
+      const ids = payable.filter((t) => wanted.includes(t.id) && t.creditorId === first?.creditorId).map((t) => t.id);
+      if (ids.length) {
+        this.itemIds.set(ids);
+        this.emitTitles();
+      }
+    });
     // em alocação com um único acordo em vigor, já o escolhe
     effect(() => {
       const list = this.activeAgreements();

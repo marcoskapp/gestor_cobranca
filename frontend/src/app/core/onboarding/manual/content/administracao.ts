@@ -44,6 +44,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'O contrato de serviço define vigência e o dia de fechamento da prestação de contas.',
         'No contrato também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões: a primeira vale já no ciclo em andamento e as alterações, a partir do próximo ciclo.',
+        'Os contatos para contestações recebem os pedidos formais de análise, os lembretes e a cobrança do retorno. Contatos de uma carteira substituem os do credor naquela carteira.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'AUDITOR'],
       inputs: ['Cadastro do credor.'],

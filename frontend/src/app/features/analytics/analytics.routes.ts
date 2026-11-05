@@ -34,6 +34,13 @@ export const ANALYTICS_ROUTES: Routes = [
     loadComponent: () => import('./pages/productivity-panel').then((m) => m.ProductivityPanel),
   },
   {
+    path: 'contestacoes',
+    title: 'Contestações',
+    canActivate: [permissionGuard],
+    data: { permissions: ANALYTICS_PERMISSIONS.disputes },
+    loadComponent: () => import('./pages/disputes-panel').then((m) => m.DisputesPanel),
+  },
+  {
     path: 'confiabilidade',
     title: 'Confiabilidade',
     canActivate: [permissionGuard],

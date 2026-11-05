@@ -15,6 +15,12 @@ public interface DisputeEvidenceLinkUseCases {
     /** Valida o token e reserva um download. @throws br.com.gestorcobranca.shared.domain.ResourceNotFoundException */
     Package open(String token, String clientIp);
 
+    /**
+     * Registra a recusa por excesso de tentativas do mesmo IP (antes de validar o token): métrica e log de acesso,
+     * para alarme de varredura de tokens.
+     */
+    void rateLimited(String clientIp);
+
     /** Escreve o ZIP do pacote (no contexto da assessoria). */
     void write(Package pack, OutputStream out) throws IOException;
 

@@ -14,6 +14,7 @@ export const ANALYTICS_PERMISSIONS = {
     Permission.COMMISSION_STATEMENT_APPROVE,
   ],
   reliability: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW],
+  disputes: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW, Permission.DISPUTE_MANAGE],
 } as const;
 
 export const ANALYTICS_PANELS: readonly { label: string; icon: string; route: string; permissions: readonly string[] }[] = [
@@ -21,5 +22,6 @@ export const ANALYTICS_PANELS: readonly { label: string; icon: string; route: st
   { label: 'Recuperação', icon: 'cash-stack', route: '/paineis/recuperacao', permissions: ANALYTICS_PERMISSIONS.recovery },
   { label: 'Conversão', icon: 'funnel', route: '/paineis/conversao', permissions: ANALYTICS_PERMISSIONS.conversion },
   { label: 'Produtividade', icon: 'people-fill', route: '/paineis/produtividade', permissions: ANALYTICS_PERMISSIONS.productivity },
+  { label: 'Contestações', icon: 'hammer', route: '/paineis/contestacoes', permissions: ANALYTICS_PERMISSIONS.disputes },
   { label: 'Confiabilidade', icon: 'activity', route: '/paineis/confiabilidade', permissions: ANALYTICS_PERMISSIONS.reliability },
 ];

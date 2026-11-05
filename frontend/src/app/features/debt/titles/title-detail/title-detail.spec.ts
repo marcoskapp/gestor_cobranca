@@ -74,9 +74,12 @@ describe('TitleDetail', () => {
     }
   }
 
-  async function render(title: TitleView): Promise<ComponentFixture<TitleDetail>> {
+  async function render(title: TitleView, query: Record<string, string> = {}): Promise<ComponentFixture<TitleDetail>> {
     const fixture = TestBed.createComponent(TitleDetail);
     fixture.componentRef.setInput('id', 't-1');
+    for (const [k, v] of Object.entries(query)) {
+      fixture.componentRef.setInput(k, v);
+    }
     fixture.detectChanges();
     http.expectOne('/api/v1/titles/t-1').flush(title);
     for (let i = 0; i < 3; i++) {
@@ -130,5 +133,19 @@ describe('TitleDetail', () => {
     cancel.click();
     expect(confirmations[0]).toMatchObject({ destructive: true, confirmationText: 'CANCELAR', reason: 'required' });
     http.expectOne({ method: 'POST', url: '/api/v1/titles/t-1/cancel' }).flush({ ...base, status: 'CANCELLED' });
+  });
+
+  it('atalho da contestação procedente (?acao=cancelar) abre o cancelamento com o motivo sugerido', async () => {
+    permissions.set(['DEBTOR_VIEW', 'DEBT_TITLE_MANAGE']);
+    await render(base, { acao: 'cancelar', motivo: 'Contestação ABC12345 procedente' });
+    expect(confirmations).toHaveLength(1);
+    expect(confirmations[0]).toMatchObject({ confirmationText: 'CANCELAR', reasonInitial: 'Contestação ABC12345 procedente' });
+    http.expectOne({ method: 'POST', url: '/api/v1/titles/t-1/cancel' }).flush({ ...base, status: 'CANCELLED' });
+  });
+
+  it('atalho sem permissão de gerir títulos não abre nada', async () => {
+    permissions.set(['DEBTOR_VIEW']);
+    await render(base, { acao: 'cancelar', motivo: 'x' });
+    expect(confirmations).toHaveLength(0);
   });
 });

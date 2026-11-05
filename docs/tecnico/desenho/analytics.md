@@ -37,6 +37,8 @@ Escopo: M08, F11 (painel operacional básico) e F18 (relatórios de recuperaçã
 | `src_team`, `src_team_member` | `identity.team`, `identity.team_member` | `id`, `name`, `supervisor_id`, `active`; `team_id`, `user_id` |
 | `src_title` | `debt.debt_title` | `creditor_id`, `portfolio_id`, `due_date`, `status`, `open_balance` |
 | `src_case` | `collection.collection_case` | `creditor_id`, `portfolio_id`, `status`, `eligible`, `open_balance`, `eligible_balance`, `oldest_due_date`, `owner_type`, `queue_id`, `assignee_user_id`, `assignee_team_id` |
+| `src_dispute` | `collection.dispute` | `dispute_id`, `creditor_id`, `portfolio_id`, `type`, `origin`, `status`, `outcome`, `opened_at`, `resolved_at`, `response_due_date`, `internal_due_date`, `assignee_id`, `awaiting_creditor_since`, `adjustment_status` (nunca descrição, parecer ou devedor) |
+| `src_dispute_creditor_request` | `collection.dispute_creditor_request` + `dispute` | `request_id`, `dispute_id`, `creditor_id`, `portfolio_id`, `type`, `origin`, `status`, `requested_due_date`, `overdue`, `sent_at`, `answered_at` (nunca destinatários nem texto) |
 | `src_interaction` | `collection.interaction` | `case_id`, `creditor_id`, `portfolio_id`, `channel`, `direction`, `effective_contact`, `operator_id`, `actor_type`, `started_at` |
 | `src_queue` | `collection.queue` | `id`, `code`, `name`, `creditor_id`, `active` |
 | `src_proposal` | `negotiation.proposal` | `creditor_id`, `portfolio_id`, `team_id`, `channel`, `actor_type`, `actor_id`, `status`, `created_at` |
@@ -111,18 +113,19 @@ Filtros comuns por query string (listas repetidas): `from`, `to` (ISO, obrigató
 | recovery | `CREDITOR`, `PORTFOLIO`, `OPERATOR`, `TEAM`, `CHANNEL`, `ORIGIN`, `DELAY_BUCKET`, `DAY`, `WEEK`, `MONTH` |
 | conversion | os mesmos, exceto `DELAY_BUCKET` |
 | productivity | `OPERATOR`, `TEAM` |
+| disputes | — (cortes fixos por motivo, origem, credor e fila por responsável; `channel` não se aplica) |
 
 Exportação: formato longo (`secao;chave;rotulo;indicador;valor;numerador;denominador;observacao`), CSV UTF-8 com BOM e `;`, XLSX com números em célula numérica; texto iniciado por `= + - @`, tabulação ou retorno de carro recebe apóstrofo (`SpreadsheetSafety`); célula de texto nunca é fórmula. O arquivo é gerado na hora e **não é guardado** (reproduzível pelos filtros e pelo "dados até"); limite `app.analytics.export-max-rows` (100 mil linhas); cabeçalhos `Cache-Control: no-store` e `X-Content-SHA256`.
 
 ## 7. Frontend
 
-- Rotas sob demanda em `/paineis` (operacional, `recuperacao`, `conversao`, `produtividade`, `confiabilidade`), menu "Painéis" filtrado por permissão, e resumo da operação na página inicial carregado com `@defer (on idle)` (não entra no bundle inicial: +7 kB no inicial — navegação, tour e notas de versão —, 786,9 kB para o aviso de 800 kB).
+- Rotas sob demanda em `/paineis` (operacional, `recuperacao`, `conversao`, `produtividade`, `contestacoes`, `confiabilidade`), menu "Painéis" filtrado por permissão, e resumo da operação na página inicial carregado com `@defer (on idle)` (não entra no bundle inicial: +7 kB no inicial — navegação, tour e notas de versão —, 786,9 kB para o aviso de 800 kB).
 - **Gráficos em SVG/HTML próprios** (`bar-chart`, `column-chart`, `funnel-chart`), sem biblioteca: ECharts modular custaria ~150–300 kB no chunk dos painéis e Chart.js ~70 kB, ambos com canvas (sem DOM acessível por marca); três formas simples (barras horizontais, colunas por período, funil) cabem em ~400 linhas com acessibilidade completa. Revisitar se surgirem dispersão, mapas ou séries densas.
 - Acessibilidade (skill de visualização adotada no projeto): `figure` com título e resumo textual (`aria-describedby`), tabela equivalente em todo gráfico ("Ver tabela"), valor escrito na ponta de cada barra, legenda com 2 séries, cada marca focável com rótulo (`role="img"`, `aria-label`) e dica no foco e no ponteiro, nunca só cor. Cores `--app-chart-1/2` (azul/laranja) validadas com o validador da skill (CVD ΔE ≥ 24, contraste ≥ 3:1 no claro e no escuro); grade e eixo recessivos; colunas ≤ 24 px com ponta arredondada de 4 px.
 - Cartões de KPI sempre com a base ("R$ 1.100,00 de R$ 4.000,00"); indicador indisponível mostra o motivo.
 - Filtros numa barra única acima dos gráficos, **persistidos na URL** (`de`, `ate`, `credor`, `carteira`, `operador`, `equipe`, `canal`, `agrupar`; valores malformados descartados), preservados ao trocar de painel; seletor de pessoas só para quem vê usuários. Recarga mantém o conteúdo anterior com opacidade reduzida (sem salto de layout).
 - Carimbo "Dados até …" com "Atualizar agora"; exportação XLSX/CSV no cabeçalho para quem tem `REPORT_EXPORT`.
-- Tour próprio por painel (`analytics.operational`, `analytics.recovery`, `analytics.conversion`, `analytics.productivity`, `analytics.reliability`, até 6 passos cada, com passos nos cartões e no "i"), que substituiu o tour único `analytics.panels`; notas de versão 6 e 12.
+- Tour próprio por painel (`analytics.operational`, `analytics.recovery`, `analytics.conversion`, `analytics.productivity`, `analytics.disputes`, `analytics.reliability`, até 6 passos cada, com passos nos cartões e no "i"), que substituiu o tour único `analytics.panels`; notas de versão 6 e 12.
 - Informação contextual ("i") em cada cartão, gráfico e coluna de tabela, com os textos do catálogo `analytics.*` (ux.md §8.6).
 
 ## 8. Logs e métricas

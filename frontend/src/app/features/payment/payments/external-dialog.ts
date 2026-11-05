@@ -27,6 +27,8 @@ export interface ExternalDialogData {
   debtorName?: string | null;
   /** Abre já em "Parcela de acordo" ou "Títulos avulsos". */
   initialKind?: 'AGREEMENT' | 'TITLES';
+  /** Títulos já marcados em "Títulos avulsos". */
+  titleIds?: readonly string[];
 }
 
 /**
@@ -53,7 +55,7 @@ export interface ExternalDialogData {
         }
         @if (debtorId(); as d) {
           <h3 class="app-section-title">Destino do valor</h3>
-          <app-payment-target [debtorId]="d" mode="allocation" [initialKind]="data.initialKind ?? 'AGREEMENT'" [(selection)]="target" />
+          <app-payment-target [debtorId]="d" mode="allocation" [initialKind]="data.initialKind ?? 'AGREEMENT'" [initialTitleIds]="data.titleIds ?? []" [(selection)]="target" />
           @if (submitted() && !target()) {
             <div class="invalid-feedback d-block" role="alert">Escolha o acordo ou os títulos que recebem o valor.</div>
           }

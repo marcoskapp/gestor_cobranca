@@ -104,6 +104,23 @@ Equipe = composição atual (o cadastro de equipes não guarda histórico); uma 
 
 Processamentos não têm credor: só aparecem para quem vê todos os credores. **Mensagens duplicadas do provedor** são descartadas na entrada (só existe a métrica técnica `communication.webhook.requests{outcome=DUPLICATE}`) e estão listadas como indicador sem fonte no produto.
 
-## 7. Exportação
+## 7. Contestações
+
+Painel `/paineis/contestacoes` (`DASHBOARD_VIEW`, `REPORT_VIEW` ou `DISPUTE_MANAGE`), filtros de período, credor e carteira (canal não se aplica). Regras de negócio em [contestacoes.md](contestacoes.md). "Agora" = data de referência (hoje no fuso da operação ou o fim do período, se anterior).
+
+| Indicador | Fórmula | Denominador |
+| --- | --- | --- |
+| Abertas no período | contestações com abertura no período (todas as origens); também resolvidas e desistências no período | — |
+| Em aberto agora / vencidas | contestações abertas ou em análise na data de referência; vencidas = com prazo de resposta ao devedor já passado | — |
+| Resolvidas no prazo | resolvidas no período com resolução até o prazo de resposta ao devedor (desistências fora) | resolvidas no período |
+| Tempo médio de resolução | média de dias entre abertura e resolução | resolvidas no período |
+| Procedência | resolvidas como procedentes ou parcialmente procedentes | resolvidas no período |
+| Retorno do credor | pedidos ao credor enviados no período, respondidos (tela ou API) e média de horas do envio à resposta | pedidos respondidos |
+| Aguardando o credor / vencidos | pedidos enviados sem resposta na data de referência; vencidos = passaram do prazo pedido ao credor | — |
+| Fila por responsável | por responsável atual (e "sem responsável"): em aberto, prazo interno vencido, prazo de resposta vencido, aguardando o credor | — |
+
+Por motivo, origem e credor: abertas, resolvidas, procedentes, procedência, no prazo, tempo médio, em aberto/vencidas e retorno do credor. **Escopo de pessoas** na fila por responsável: quem tem `DISPUTE_MANAGE` vê todos; os demais, só as pessoas do próprio escopo de desempenho (próprio ou equipe; o painel avisa). Exportação: relatório `disputes`.
+
+## 8. Exportação
 
 Todo relatório pode ser exportado (permissão `REPORT_EXPORT`) em XLSX ou CSV (UTF-8 com BOM, separador `;`, números com ponto decimal), com os mesmos filtros e escopo da tela, em formato longo: seção, chave, rótulo, indicador, valor, numerador, denominador e observação (motivo de indisponibilidade). Cada exportação fica no log de acesso (`DATA_EXPORTED`, com o SHA-256 do arquivo).

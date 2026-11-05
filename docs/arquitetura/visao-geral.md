@@ -66,7 +66,7 @@ shared ◄── organization ◄── identity
               ├── payment            (→ negotiation [usecases e spi, ADR-0010], debt, organization)
               │       ▲
               ├── settlement         (→ payment, negotiation, organization)
-              ├── communication      (→ collection, debt, compliance, organization)
+              ├── communication      (→ collection [usecases e spi, ADR-0010], debt, compliance, organization)
               ├── campaign           (→ communication, collection, negotiation, portal [link de acesso], debt, compliance, organization)
               ├── telephony          (→ collection, compliance, debt, organization)
               ├── portal             (→ negotiation, payment, communication, debt, organization)
@@ -82,7 +82,7 @@ shared ◄── organization ◄── identity
 
 Todo módulo pode depender de `shared`. A dependência é declarada em `package-info.java` com `@ApplicationModule(allowedDependencies = …)` e verificada por teste (`ModularityTest`).
 
-**Portas declaradas pelo dono da regra** (`<modulo> :: spi`, ADR-0010): quando um módulo precisa, *de forma síncrona*, de um dado que só um módulo acima dele no grafo tem, ele declara a porta em `application.port.spi` (`@NamedInterface("spi")`) e esse módulo — que já depende dele — a implementa. Exemplo: `negotiation.application.port.spi.PaymentReviewHolds`, implementada pelo payment, para suspender a quebra do acordo enquanto há pagamento em revisão.
+**Portas declaradas pelo dono da regra** (`<modulo> :: spi`, ADR-0010): quando um módulo precisa, *de forma síncrona*, de um dado que só um módulo acima dele no grafo tem, ele declara a porta em `application.port.spi` (`@NamedInterface("spi")`) e esse módulo — que já depende dele — a implementa. Exemplo: `negotiation.application.port.spi.PaymentReviewHolds`, implementada pelo payment, para suspender a quebra do acordo enquanto há pagamento em revisão; `collection.application.port.spi.DisputeDebtorMessenger`, implementada pelo communication, para a resposta da contestação ao devedor (mensagem transacional).
 
 **Reações no sentido contrário ao grafo** (ex.: `collection` precisa saber que um pagamento foi confirmado) acontecem **somente** por *eventos de integração* definidos em `shared.events` (linguagem publicada). Nunca se cria dependência cíclica para isso.
 

@@ -124,6 +124,13 @@ class DisputeEvidenceLinkService implements DisputeEvidenceLinkUseCases {
         });
     }
 
+    @Override
+    public void rateLimited(String clientIp) {
+        metrics.disputeLinkDownload("rate_limited");
+        accessLogger.log(AccessEvent.anonymous(AccessEventType.DISPUTE_LINK_REJECTED, null, null,
+                Map.of("reason", "rate_limited", "ip", String.valueOf(clientIp))));
+    }
+
     private void reject(UUID tenantId, String reason, String clientIp) {
         metrics.disputeLinkDownload(reason);
         accessLogger.log(AccessEvent.anonymous(AccessEventType.DISPUTE_LINK_REJECTED, tenantId, null,

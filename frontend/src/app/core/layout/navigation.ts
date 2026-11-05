@@ -46,6 +46,7 @@ export const NAVIGATION: readonly NavSection[] = [
           Permission.COMMISSION_STATEMENT_APPROVE,
         ],
       },
+      { label: 'Contestações', icon: 'hammer', route: '/paineis/contestacoes', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW, Permission.DISPUTE_MANAGE] },
       { label: 'Confiabilidade', icon: 'activity', route: '/paineis/confiabilidade', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW] },
     ],
   },
@@ -111,7 +112,7 @@ export const NAVIGATION: readonly NavSection[] = [
     label: 'Gestão da cobrança',
     items: [
       { label: 'Filas e distribuição', icon: 'view-list', route: '/cobranca/filas', permissions: [Permission.QUEUE_MANAGE, Permission.CASE_ASSIGN] },
-      { label: 'Contestações', icon: 'hammer', route: '/cobranca/contestacoes', permissions: [Permission.DISPUTE_MANAGE] },
+      { label: 'Contestações', icon: 'hammer', route: '/cobranca/contestacoes', permissions: [Permission.DISPUTE_MANAGE, Permission.DISPUTE_WORK] },
       { label: 'Tabulações', icon: 'tag', route: '/cobranca/tabulacoes', permissions: [Permission.TABULATION_MANAGE] },
       { label: 'Parâmetros da operação', icon: 'sliders', route: '/cobranca/parametros', permissions: [Permission.QUEUE_MANAGE] },
     ],

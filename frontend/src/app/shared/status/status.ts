@@ -31,6 +31,9 @@ export type StatusDomain =
   | 'task'
   | 'promise'
   | 'dispute'
+  | 'disputeCreditorRequest'
+  | 'disputeNotice'
+  | 'disputeAdjustment'
   | 'collectionPolicy'
   | 'negotiationOutcome'
   | 'importBatch'
@@ -201,6 +204,30 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     UNDER_REVIEW: { label: 'Em análise', tone: 'info' },
     RESOLVED: { label: 'Resolvida', tone: 'success' },
     WITHDRAWN: { label: 'Retirada', tone: 'neutral' },
+  },
+  /** Pedido da assessoria ao credor na contestação. */
+  disputeCreditorRequest: {
+    QUEUED: { label: 'Na fila de envio', tone: 'info' },
+    SENT: { label: 'Aguardando o credor', tone: 'warning' },
+    FAILED: { label: 'Falha no envio', tone: 'danger' },
+    ANSWERED: { label: 'Respondido', tone: 'success' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
+  },
+  /** Resposta da contestação ao devedor. */
+  disputeNotice: {
+    QUEUED: { label: 'Na fila de envio', tone: 'info' },
+    SENT: { label: 'Enviada', tone: 'success' },
+    DELIVERED: { label: 'Entregue', tone: 'success' },
+    READ: { label: 'Lida', tone: 'success' },
+    FAILED: { label: 'Falha no envio', tone: 'danger' },
+    BLOCKED: { label: 'Bloqueada pelo porteiro', tone: 'danger' },
+    REGISTERED: { label: 'Registrada (outro meio)', tone: 'success' },
+  },
+  /** Ajuste sugerido no título após contestação procedente. */
+  disputeAdjustment: {
+    PENDING: { label: 'Ajuste pendente', tone: 'warning' },
+    DONE: { label: 'Ajuste feito', tone: 'success' },
+    DISMISSED: { label: 'Ajuste dispensado', tone: 'neutral' },
   },
   /** Versões da política de cobrança e negociação (`PolicyStatus`). */
   collectionPolicy: {

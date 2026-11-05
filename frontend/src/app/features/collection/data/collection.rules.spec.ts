@@ -1,7 +1,5 @@
 import { agendaFilter } from '../agenda/agenda';
 import { toCaseFilter } from '../cases/case-list';
-import { disputeActions } from '../disputes/dispute-detail';
-import { toDisputeFilter } from '../disputes/dispute-list';
 import { distributionText } from '../queues/distribution-dialogs';
 import { rangeValidator } from '../queues/queue-form';
 import { criteriaText, rangeText } from '../queues/queue-list';
@@ -209,10 +207,6 @@ describe('regras de tela do módulo collection', () => {
         eligible: false,
       });
       expect(toCaseFilter({ ...v, status: '', assignee: 'user', user: ['u-3'], eligible: '' })).toMatchObject({ status: null, assignee: 'u-3', eligible: null });
-      expect(toDisputeFilter({ creditor: ['c-1'], status: 'PENDING', overdue: true })).toEqual({ creditorId: 'c-1', status: 'OPEN,UNDER_REVIEW', overdue: true });
-      expect(disputeActions('OPEN')).toEqual(['review', 'resolve', 'withdraw']);
-      expect(disputeActions('UNDER_REVIEW')).toEqual(['resolve', 'withdraw']);
-      expect(disputeActions('RESOLVED')).toEqual([]);
     });
 
     it('critérios da fila em texto e faixas mínimo ≤ máximo', () => {

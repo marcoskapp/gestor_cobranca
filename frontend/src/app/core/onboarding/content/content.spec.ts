@@ -87,6 +87,10 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/cobranca/casos/k-1')?.tourId).toBe('collection.station');
     expect(findScreen('/cobranca/casos')?.key).toBe('collection.cases');
     expect(findScreen('/cobranca/contestacoes')?.tourId).toBe('collection.disputes');
+    // a configuração vem antes do detalhe (":id" casaria "configuracao")
+    expect(findScreen('/cobranca/contestacoes/configuracao')?.key).toBe('collection.dispute-config');
+    expect(findScreen('/cobranca/contestacoes/x-1')?.tourId).toBe('collection.dispute');
+    expect(findScreen('/paineis/contestacoes?de=2026-06-01')?.tourId).toBe('analytics.disputes');
     expect(findScreen('/negociacao/simulador?credor=c-1')?.tourId).toBe('negotiation.simulator');
     expect(findScreen('/negociacao/politicas/pol-1')?.key).toBe('negotiation.policy-detail');
     expect(findScreen('/importacao/layouts')?.key).toBe('ingestion.layouts');

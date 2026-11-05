@@ -1,16 +1,22 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
+import { NotificationService } from '../../../core/notification/notification.service';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { dueText } from '../../compliance/data/compliance.labels';
@@ -20,40 +26,51 @@ import { DisputesApi } from '../data/collection.api';
 import { DISPUTE_ORIGIN_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DisputeFilter, DisputeView } from '../data/collection.models';
 import { daysBetween, zonedNow } from '../data/collection.rules';
-import { DisputeDetail, DisputeDetailData } from './dispute-detail';
-import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
-import { Icon } from '../../../shared/components/icon/icon';
-import { FORM_FIELD } from '../../../shared/forms/field';
-import { DialogService } from '../../../shared/dialog/dialog.service';
+import { canWorkDispute, dueTone, formFromQuery, isPending, nearestDue, toDisputeFilter } from './dispute.rules';
 
-export function toDisputeFilter(v: { creditor: string[]; status: string; overdue: boolean }): DisputeFilter {
-  return {
-    creditorId: v.creditor[0] ?? null,
-    status: v.status === 'PENDING' ? 'OPEN,UNDER_REVIEW' : v.status || null,
-    overdue: v.overdue ? true : null,
-  };
-}
+export { toDisputeFilter } from './dispute.rules';
 
-/** Fila de contestações (F21) com prazo de resposta em destaque, evidências e resolução. */
+/**
+ * Fila de contestações (F21): prazo mais próximo (interno ou de resposta ao devedor) em destaque, responsável,
+ * aguardando o credor, resposta ao devedor e ajuste pendentes; "pegar para mim" na linha. O detalhe abre a página da
+ * contestação com o pedido ao credor, a resolução e a resposta ao devedor.
+ */
 @Component({
   selector: 'app-dispute-list',
   imports: [ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
   template: `
-    <app-page-header title="Contestações" subtitle="Dívidas contestadas pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução." />
+    <app-page-header title="Contestações" subtitle="Dívidas contestadas pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução.">
+      @if (canManage()) {
+        <a class="btn btn-outline-primary" routerLink="/cobranca/contestacoes/configuracao" data-tour="dispute-config-link">
+          <app-icon name="sliders" />
+          Prazos, distribuição e modelos
+        </a>
+      }
+    </app-page-header>
 
     <section class="dl-kpis" aria-label="Situação das contestações" data-tour="dispute-kpis">
       @let k = counters.hasValue() ? counters.value() : null;
-      <button type="button" class="dl-kpi" (click)="show('PENDING', true)">
-        <span class="dl-kpi__label">Prazo vencido</span>
+      <button type="button" class="dl-kpi" (click)="show({ status: 'PENDING', due: 'overdue', assignee: '' })">
+        <span class="dl-kpi__label">Prazo de resposta vencido</span>
         <span class="dl-kpi__value" [class.dl-late]="(k?.overdue ?? 0) > 0">{{ k?.overdue ?? '—' }}</span>
       </button>
-      <button type="button" class="dl-kpi" (click)="show('OPEN', false)">
-        <span class="dl-kpi__label">Abertas</span>
-        <span class="dl-kpi__value">{{ k?.open ?? '—' }}</span>
+      @if (canWork()) {
+        <button type="button" class="dl-kpi" (click)="show({ status: 'PENDING', due: '', assignee: 'me' })" data-tour="dispute-mine">
+          <span class="dl-kpi__label">Minhas em aberto</span>
+          <span class="dl-kpi__value">{{ k?.mine ?? '—' }}</span>
+        </button>
+      }
+      <button type="button" class="dl-kpi" (click)="show({ status: 'PENDING', due: '', assignee: 'none' })">
+        <span class="dl-kpi__label">Sem responsável</span>
+        <span class="dl-kpi__value" [class.dl-soon]="(k?.unassigned ?? 0) > 0">{{ k?.unassigned ?? '—' }}</span>
       </button>
-      <button type="button" class="dl-kpi" (click)="show('UNDER_REVIEW', false)">
-        <span class="dl-kpi__label">Em análise</span>
-        <span class="dl-kpi__value">{{ k?.review ?? '—' }}</span>
+      <button type="button" class="dl-kpi" (click)="show({ status: 'PENDING', due: '', assignee: '', awaiting: true })">
+        <span class="dl-kpi__label">Aguardando o credor</span>
+        <span class="dl-kpi__value">{{ k?.awaiting ?? '—' }}</span>
+      </button>
+      <button type="button" class="dl-kpi" (click)="show({ status: 'RESOLVED', due: '', assignee: '', noticePending: true })">
+        <span class="dl-kpi__label">Resposta ao devedor pendente</span>
+        <span class="dl-kpi__value">{{ k?.notice ?? '—' }}</span>
       </button>
     </section>
 
@@ -70,14 +87,51 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
           }
         </select>
       </app-field>
-      <div class="form-check form-switch dl-toggle">
-        <input class="form-check-input" type="checkbox" role="switch" id="dispute-list-overdue" formControlName="overdue" />
-        <label class="form-check-label" for="dispute-list-overdue">Somente com prazo vencido</label>
+      <app-field label="Motivo">
+        <select appInput formControlName="type">
+          <option value="">Todos</option>
+          @for (t of typeOptions; track t.value) {
+            <option [ngValue]="t.value">{{ t.label }}</option>
+          }
+        </select>
+      </app-field>
+      <app-field label="Responsável">
+        <select appInput formControlName="assignee">
+          <option value="">Todos</option>
+          @if (canWork()) {
+            <option value="me">Minhas</option>
+          }
+          <option value="none">Sem responsável</option>
+          @if (canManage()) {
+            <option value="supervision">Sem responsável ou vencidas</option>
+          }
+        </select>
+      </app-field>
+      <app-field label="Prazo">
+        <select appInput formControlName="due">
+          <option value="">Qualquer</option>
+          <option value="overdue">Resposta vencida</option>
+          <option value="week">Vence em até 7 dias</option>
+        </select>
+      </app-field>
+      <div class="dl-toggles">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="dl-awaiting" formControlName="awaiting" />
+          <label class="form-check-label" for="dl-awaiting">Aguardando o credor</label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="dl-notice" formControlName="noticePending" />
+          <label class="form-check-label" for="dl-notice">Resposta ao devedor pendente</label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="dl-adjustment" formControlName="adjustmentPending" />
+          <label class="form-check-label" for="dl-adjustment">Ajuste no título pendente</label>
+        </div>
       </div>
     </form>
 
     <app-data-table
-      caption="Contestações"
+      caption="Contestações, do prazo mais próximo ao mais distante"
       [rows]="query.rows()"
       [columns]="columns"
       [loading]="query.loading()"
@@ -90,34 +144,52 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
     >
       <ng-template appCell="due" [appCellOf]="query.rows()" let-d>
         @if (pending(d)) {
-          <span [class.dl-late]="d.overdue || days(d) < 0" [class.dl-soon]="!d.overdue && days(d) >= 0 && days(d) <= 2">
-            @if (d.overdue || days(d) < 0) {
+          @let dueTone = tone(d);
+          <span [class.dl-late]="dueTone === 'late'" [class.dl-soon]="dueTone === 'soon'">
+            @if (dueTone === 'late') {
               <app-icon class="dl-icon" name="alarm" />
             }
             {{ due(d) }}
           </span>
         }
-        <div class="app-muted">{{ d.responseDueDate | appDate: 'date' }}</div>
+        <div class="app-muted">resposta {{ d.responseDueDate | appDate: 'date' }}</div>
       </ng-template>
       <ng-template appCell="type" [appCellOf]="query.rows()" let-d>
-        <a href="" (click)="$event.preventDefault(); openDetail(d)">{{ types[d.type] }}</a>
+        <a [routerLink]="['/cobranca/contestacoes', d.id]">{{ types[d.type] }}</a>
         <div class="app-muted">{{ origins[d.origin] }} · {{ d.openedAt | appDate: 'date' }}</div>
       </ng-template>
       <ng-template appCell="debtor" [appCellOf]="query.rows()" let-d>
         <a [routerLink]="['/cobranca/casos', d.caseId]">{{ debtors.name(d.debtorId) }}</a>
         <div class="app-muted">{{ creditors.name(d.creditorId) }}</div>
       </ng-template>
+      <ng-template appCell="assignee" [appCellOf]="query.rows()" let-d>
+        @if (d.assigneeName) {
+          {{ d.assigneeName }}
+        } @else if (pending(d) && canTake(d)) {
+          <button class="btn btn-sm btn-outline-primary" type="button" (click)="take(d)" [attr.aria-label]="'Pegar para mim a contestação de ' + debtors.name(d.debtorId)">Pegar para mim</button>
+        } @else {
+          <span class="app-muted">Sem responsável</span>
+        }
+      </ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-d>
         <app-status-chip domain="dispute" [status]="d.status" />
-        @if (d.blocksCollection && pending(d)) {
+        @if (d.awaitingCreditorSince) {
+          <div class="app-muted">aguardando o credor</div>
+        } @else if (d.blocksCollection && pending(d)) {
           <div class="app-muted">cobrança suspensa</div>
+        }
+        @if (d.debtorNoticeStatus === 'PENDING') {
+          <div class="dl-soon">resposta ao devedor pendente</div>
+        }
+        @if (d.adjustmentStatus === 'PENDING') {
+          <div class="dl-soon">ajuste no título pendente</div>
         }
       </ng-template>
       <ng-template appCell="evidence" [appCellOf]="query.rows()" let-d><span class="app-numeric">{{ d.evidenceCount }}</span></ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-d>
-        <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="openDetail(d)" aria-label="Abrir contestação" ngbTooltip="Abrir">
+        <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/cobranca/contestacoes', d.id]" aria-label="Abrir contestação" ngbTooltip="Abrir">
           <app-icon name="chevron-right" />
-        </button>
+        </a>
       </ng-template>
     </app-data-table>
   `,
@@ -163,7 +235,10 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
     .dl-soon {
       color: var(--app-warning-fg);
     }
-    .dl-toggle {
+    .dl-toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 16px;
       align-self: center;
     }
     .dl-icon {
@@ -176,25 +251,40 @@ export function toDisputeFilter(v: { creditor: string[]; status: string; overdue
 })
 export class DisputeList {
   private readonly api = inject(DisputesApi);
-  private readonly dialog = inject(DialogService);
+  private readonly auth = inject(AuthService);
+  private readonly notifications = inject(NotificationService);
+  private readonly router = inject(Router);
   protected readonly creditorSource = inject(CreditorLookup);
 
   protected readonly types = DISPUTE_TYPE_LABELS;
   protected readonly origins = DISPUTE_ORIGIN_LABELS;
   protected readonly statuses = statusOptions('dispute');
+  protected readonly typeOptions = Object.entries(DISPUTE_TYPE_LABELS).map(([value, label]) => ({ value, label }));
   private readonly today = zonedNow().date;
+  protected readonly canManage = computed(() => this.auth.hasPermission(Permission.DISPUTE_MANAGE));
+  protected readonly canWork = computed(() => this.auth.hasAnyPermission([Permission.DISPUTE_MANAGE, Permission.DISPUTE_WORK]));
+  private readonly userId = computed(() => this.auth.user()?.id ?? null);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** `?vencidas=true` abre só as vencidas (ex.: vindo de "Minhas pendências"). */
-  private readonly overdueOnly = inject(ActivatedRoute).snapshot.queryParamMap.get('vencidas') === 'true';
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: ['PENDING'], overdue: [this.overdueOnly] });
+  /** Filtro inicial pela URL (ex.: vindo de "Minhas pendências"). */
+  private readonly initial = formFromQuery(inject(ActivatedRoute).snapshot.queryParamMap);
+  protected readonly filters = this.fb.group({
+    creditor: this.fb.control<string[]>([]),
+    status: [this.initial.status ?? 'PENDING'],
+    type: [''],
+    assignee: [this.initial.assignee ?? ''],
+    due: [this.initial.overdue ? 'overdue' : ''],
+    awaiting: [false],
+    noticePending: [this.initial.noticePending ?? false],
+    adjustmentPending: [this.initial.adjustmentPending ?? false],
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(250),
-      map(() => toDisputeFilter(this.filters.getRawValue())),
+      map(() => toDisputeFilter(this.filters.getRawValue(), this.today)),
     ),
-    { initialValue: toDisputeFilter(this.filters.getRawValue()), equal: sameValue },
+    { initialValue: toDisputeFilter(this.filters.getRawValue(), this.today), equal: sameValue },
   );
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((d) => d.debtorId));
@@ -209,7 +299,14 @@ export class DisputeList {
           map((p) => p.totalElements),
           catchError(() => of(null)),
         );
-      return forkJoin({ overdue: total({ status: 'OPEN,UNDER_REVIEW', overdue: true }), open: total({ status: 'OPEN' }), review: total({ status: 'UNDER_REVIEW' }) });
+      const pending = 'OPEN,UNDER_REVIEW';
+      return forkJoin({
+        overdue: total({ status: pending, overdue: true }),
+        mine: this.canWork() ? total({ status: pending, assignee: 'me' }) : of(null),
+        unassigned: total({ status: pending, unassigned: true }),
+        awaiting: total({ status: pending, awaitingCreditor: true }),
+        notice: total({ noticePending: true }),
+      });
     },
   });
 
@@ -217,36 +314,36 @@ export class DisputeList {
     { key: 'due', header: 'Prazo' },
     { key: 'type', header: 'Motivo' },
     { key: 'debtor', header: 'Devedor' },
+    { key: 'assignee', header: 'Responsável' },
     { key: 'status', header: 'Situação' },
     { key: 'evidence', header: 'Evidências', align: 'end' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 
   protected pending(d: DisputeView): boolean {
-    return d.status === 'OPEN' || d.status === 'UNDER_REVIEW';
+    return isPending(d);
   }
 
-  protected days(d: DisputeView): number {
-    return daysBetween(this.today, d.responseDueDate);
+  protected tone(d: DisputeView) {
+    return dueTone(d, this.today);
   }
 
   protected due(d: DisputeView): string {
-    return dueText(this.days(d), d.overdue);
+    return dueText(daysBetween(this.today, nearestDue(d)), d.overdue);
   }
 
-  protected show(status: string, overdue: boolean): void {
-    this.filters.patchValue({ status, overdue });
+  protected canTake(d: DisputeView): boolean {
+    return canWorkDispute(d, this.userId(), this.canManage(), this.canWork());
   }
 
-  protected openDetail(d: DisputeView): void {
-    this.dialog
-      .open<DisputeDetail, DisputeDetailData, boolean>(DisputeDetail, { data: { dispute: d, debtorName: this.debtors.name(d.debtorId) }, size: 'lg' })
-      .afterClosed()
-      .subscribe((changed) => {
-        if (changed) {
-          this.query.reload();
-          this.counters.reload();
-        }
-      });
+  protected show(patch: Partial<ReturnType<typeof this.filters.getRawValue>>): void {
+    this.filters.patchValue({ awaiting: false, noticePending: false, adjustmentPending: false, ...patch });
+  }
+
+  protected take(d: DisputeView): void {
+    this.api.take(d.id).subscribe(() => {
+      this.notifications.success('Contestação atribuída a você.');
+      void this.router.navigate(['/cobranca/contestacoes', d.id]);
+    });
   }
 }

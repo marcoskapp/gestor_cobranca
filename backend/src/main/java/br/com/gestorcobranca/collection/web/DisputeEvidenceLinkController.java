@@ -48,6 +48,7 @@ class DisputeEvidenceLinkController {
             throws IOException {
         String ip = request.getRemoteAddr();
         if (!tryAcquire(ip)) {
+            links.rateLimited(ip);
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas; aguarde um minuto");
         }
         Package pack = links.open(token, ip);
