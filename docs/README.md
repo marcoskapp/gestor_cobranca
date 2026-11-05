@@ -56,6 +56,7 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [convencoes.md](tecnico/convencoes.md) | Convenções de código, pacotes, persistência, testes |
 | [seguranca.md](tecnico/seguranca.md) | Controles de segurança, LGPD, segregação de funções |
 | [logs-e-metricas.md](tecnico/logs-e-metricas.md) | Fluxos de log (técnico, negócio, acesso), catálogo de eventos e métricas |
+| [claude-code.md](tecnico/claude-code.md) | Desenvolvimento com o Claude Code no ambiente local: arquivos do projeto, pré-requisitos e roteiro de testes da migração |
 | [operacao/api-publica-publicacao.md](tecnico/operacao/api-publica-publicacao.md) | API pública: fluxo de mudança do contrato, publicação de release com diff (openapi-diff), nova versão e depreciação, segredo do hash dos tokens |
 | [operacao/ativacao-aws.md](tecnico/operacao/ativacao-aws.md) | Guia operacional de ativação na AWS: pré-requisitos, Terraform, segredos, banco, implantação, primeiro acesso, integrações, operação e checklists de segurança e go-live |
 | [operacao/sandbox.md](tecnico/operacao/sandbox.md) | Sandbox de demonstração com dados fictícios subindo com um comando: scripts, URLs, usuários e senhas por perfil, o que vem carregado, roteiro de demonstração e proteções contra ativação em produção |
