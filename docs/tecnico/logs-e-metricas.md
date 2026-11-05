@@ -529,7 +529,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `access.events{type,success}`, `access.log.write_failures` | segurança e integridade do log de acesso |
 | `http.forwarded.invalid_client_ip` | proxy confiável informou IP de cliente que não é IP literal (evento gravado sem IP, `clientIpInvalid=true`); deve ser zero |
 | `crypto.legacy_format_reads` | leituras de campos cifrados no formato anterior ao v2 (sem vínculo com a assessoria); tende a zero conforme os registros são regravados |
-| `jobs.pending`, `jobs.dead`, `jobs.duration{type,outcome}`, `jobs.executed`, `jobs.recovered` | fila de trabalho |
+| `jobs.pending`, `jobs.dead`, `jobs.duration{type,outcome}`, `jobs.executed{type,outcome}`, `jobs.recovered`, `jobs.lease_renewed` | fila de trabalho; `outcome` = `success`, `retry`, `dead` ou `lease_lost` (outra instância reivindicou o job depois do lease expirado: a execução antiga é desfeita, decisão 852) |
 | `events.publications.incomplete`, `executor.*{name=events}` | eventos de integração (consumidores repetem conflitos de concorrência transitórios até 4 vezes) |
 | `executor.*{name=mail}` | envio de e-mail (executor próprio, não ocupa as threads de eventos) |
 | `executor.*{name=portal_code_dispatch}` | envio do código de acesso do portal fora da requisição (fila cheia = códigos não enviados) |

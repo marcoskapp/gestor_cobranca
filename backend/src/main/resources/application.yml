@@ -218,6 +218,8 @@ app:
     concurrency: ${JOBS_CONCURRENCY:8}
     poll-interval: PT1S
     lease: PT15M
+    # renovação do lease dos jobs em execução (bem abaixo do lease): job longo não volta à fila enquanto roda
+    heartbeat-interval: PT1M
 
   scheduling:
     enabled: true

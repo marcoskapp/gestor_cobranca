@@ -1,6 +1,8 @@
 package br.com.gestorcobranca.shared.jobs;
 
+import br.com.gestorcobranca.shared.domain.DomainException;
 import br.com.gestorcobranca.shared.json.JsonCodec;
+import br.com.gestorcobranca.shared.logging.SensitiveDataMasker;
 import br.com.gestorcobranca.shared.logging.MdcKeys;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import io.micrometer.core.instrument.Gauge;
@@ -23,6 +25,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -34,7 +37,14 @@ import java.util.stream.Collectors;
  * Consome {@code shared.processing_job}. Cada instância reivindica jobs com
  * {@code FOR UPDATE SKIP LOCKED} (sem disputa entre instâncias), respeitando um limite de
  * concorrência local. A execução do handler e a marcação {@code DONE} ocorrem na mesma
- * transação, no tenant do job.
+ * transação, no tenant do job (ou em sequência, para handler não transacional).
+ * <p>
+ * Posse do job (decisão 852): enquanto o handler roda, o lease é renovado a cada
+ * {@code app.jobs.heartbeat-interval}; toda baixa (DONE, nova tentativa, DEAD) confere que esta
+ * instância ainda detém aquela tentativa ({@code locked_by} e {@code attempts}). Se outro worker
+ * reivindicou o job (lease expirado), a execução antiga é desfeita ({@code outcome=lease_lost}).
+ * Job reivindicado de novo além de {@link JobHandler#maxAttempts()} (quedas sucessivas da
+ * instância) vai para DEAD sem rodar.
  * <p>
  * Falhas transitórias são reagendadas com backoff exponencial (10 s, 20 s, 40 s… até 1 h);
  * falhas permanentes ou excesso de tentativas movem o job para {@code DEAD}, contabilizado na
@@ -56,6 +66,8 @@ class JobWorker {
     private final int concurrency;
     private final Duration lease;
     private final String workerId;
+    /** Jobs em execução nesta instância (id → tentativa reivindicada), para renovar o lease. */
+    private final Map<UUID, Integer> running = new ConcurrentHashMap<>();
 
     JobWorker(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager, TenantExecution tenantExecution,
               JsonCodec json, MeterRegistry meterRegistry, List<JobHandler<?>> handlers,
@@ -127,19 +139,41 @@ class JobWorker {
         MDC.put(MdcKeys.PROCESS, "job:" + job.type());
         Timer.Sample sample = Timer.start(meterRegistry);
         String outcome = "success";
+        running.put(job.id(), job.attempt());
         try {
             if (handler == null) {
                 outcome = "dead";
                 markDead(job, "Nenhum handler registrado para o tipo " + job.type());
                 return;
             }
+            if (job.attempt() > handler.maxAttempts()) {
+                // reivindicado de novo depois de quedas da instância (lease expirado) além do limite
+                outcome = "dead";
+                LOG.error("Job {} ({}) movido para DEAD: {} tentativas interrompidas", job.id(), job.type(), job.attempt() - 1);
+                markDead(job, "Tentativas esgotadas: instância interrompida durante a execução");
+                return;
+            }
             Object payload = json.fromJson(job.payload(), handler.payloadType());
             JobContext context = new JobContext(job.id(), job.tenantId(), job.type(), job.attempt());
-            tenantExecution.inTenant(job.tenantId(), "job:" + job.type(), () -> {
-                handler.handle(context, payload);
-                jdbcTemplate.update("update shared.processing_job set status = 'DONE', finished_at = now(), last_error = null where id = ?",
-                        job.id());
-            });
+            if (handler.transactional()) {
+                tenantExecution.inTenant(job.tenantId(), "job:" + job.type(), () -> {
+                    handler.handle(context, payload);
+                    // fencing: só conclui quem ainda detém esta tentativa; senão desfaz o efeito do handler
+                    if (!markDone(job)) {
+                        throw new LeaseLostException();
+                    }
+                });
+            } else {
+                tenantExecution.withTenantContext(job.tenantId(), "job:" + job.type(), () -> handler.handle(context, payload));
+                if (!Boolean.TRUE.equals(transaction.execute(s -> markDone(job)))) {
+                    // sem transação externa não há o que desfazer: as etapas do handler já são idempotentes
+                    throw new LeaseLostException();
+                }
+            }
+        } catch (LeaseLostException e) {
+            outcome = "lease_lost";
+            LOG.warn("Job {} ({}) perdeu o lease na tentativa {}: outra instância o reivindicou", job.id(), job.type(),
+                    job.attempt());
         } catch (RuntimeException e) {
             boolean permanent = handler != null && handler.isPermanent(e);
             int maxAttempts = handler == null ? 1 : handler.maxAttempts();
@@ -151,27 +185,58 @@ class JobWorker {
                 outcome = "retry";
                 long backoffSeconds = Math.min(3600, 10L * (1L << Math.min(job.attempt() - 1, 9)));
                 LOG.warn("Job {} ({}) falhou na tentativa {}; nova tentativa em {}s: {}", job.id(), job.type(),
-                        job.attempt(), backoffSeconds, e.toString());
+                        job.attempt(), backoffSeconds, e.getClass().getName());
                 transaction.executeWithoutResult(s -> jdbcTemplate.update("""
                         update shared.processing_job
                            set status = 'PENDING', run_at = now() + cast(? as interval), locked_by = null,
                                locked_until = null, last_error = ?
-                         where id = ?
-                        """, backoffSeconds + " seconds", describe(e), job.id()));
+                         where id = ? and status = 'RUNNING' and locked_by = ? and attempts = ?
+                        """, backoffSeconds + " seconds", describe(e), job.id(), workerId, job.attempt()));
             }
         } finally {
+            running.remove(job.id());
             sample.stop(meterRegistry.timer("jobs.duration", "type", job.type(), "outcome", outcome));
             meterRegistry.counter("jobs.executed", "type", job.type(), "outcome", outcome).increment();
             MDC.remove(MdcKeys.PROCESS);
         }
     }
 
+    /** @return {@code false} se esta instância não detém mais a tentativa (outro worker reivindicou o job) */
+    private boolean markDone(ClaimedJob job) {
+        return jdbcTemplate.update("""
+                update shared.processing_job set status = 'DONE', finished_at = now(), last_error = null
+                 where id = ? and status = 'RUNNING' and locked_by = ? and attempts = ?
+                """, job.id(), workerId, job.attempt()) == 1;
+    }
+
     private void markDead(ClaimedJob job, String error) {
         transaction.executeWithoutResult(s -> jdbcTemplate.update("""
                 update shared.processing_job
                    set status = 'DEAD', finished_at = now(), locked_by = null, locked_until = null, last_error = ?
-                 where id = ?
-                """, error, job.id()));
+                 where id = ? and status = 'RUNNING' and locked_by = ? and attempts = ?
+                """, error, job.id(), workerId, job.attempt()));
+    }
+
+    /** Renova o lease dos jobs em execução nesta instância: job longo não volta para a fila enquanto roda. */
+    @Scheduled(fixedDelayString = "${app.jobs.heartbeat-interval:PT1M}", initialDelayString = "${app.jobs.heartbeat-interval:PT1M}")
+    void renewLeases() {
+        if (running.isEmpty()) {
+            return;
+        }
+        UUID[] ids = running.keySet().toArray(UUID[]::new);
+        Integer renewed = transaction.execute(s -> jdbcTemplate.update(con -> {
+            var statement = con.prepareStatement("""
+                    update shared.processing_job set locked_until = now() + cast(? as interval)
+                     where id = any(?) and status = 'RUNNING' and locked_by = ?
+                    """);
+            statement.setString(1, lease.toSeconds() + " seconds");
+            statement.setArray(2, con.createArrayOf("uuid", ids));
+            statement.setString(3, workerId);
+            return statement;
+        }));
+        if (renewed != null && renewed > 0) {
+            meterRegistry.counter("jobs.lease_renewed").increment(renewed);
+        }
     }
 
     /** Recupera jobs de instâncias que caíram durante a execução (lease expirado). */
@@ -190,9 +255,23 @@ class JobWorker {
         }
     }
 
-    private static String describe(RuntimeException e) {
-        String message = e.getClass().getName() + ": " + e.getMessage();
+    /**
+     * Motivo gravado em {@code last_error} (tabela sem RLS, lida por todos os tenants, DEAD guardado sem prazo):
+     * código estável para erro de domínio; para os demais, a mensagem mascarada (decisão 853). O detalhe completo
+     * fica no log técnico, que já passa pelo mascaramento.
+     */
+    static String describe(RuntimeException e) {
+        String detail = e instanceof DomainException domain ? domain.code()
+                : SensitiveDataMasker.mask(String.valueOf(e.getMessage()));
+        String message = e.getClass().getName() + ": " + detail;
         return message.length() > 2000 ? message.substring(0, 2000) : message;
+    }
+
+    /** A tentativa deixou de ser desta instância (lease expirado e job reivindicado por outra). */
+    private static final class LeaseLostException extends RuntimeException {
+        LeaseLostException() {
+            super("lease perdido", null, false, false);
+        }
     }
 
     @PreDestroy

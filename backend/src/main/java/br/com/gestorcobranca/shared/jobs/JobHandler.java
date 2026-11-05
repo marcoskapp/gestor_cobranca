@@ -2,8 +2,8 @@ package br.com.gestorcobranca.shared.jobs;
 
 /**
  * Processador de um tipo de job. Executado pelo {@link JobWorker} no tenant do job, como ator
- * de sistema, dentro de uma transação. Deve ser idempotente: um job pode ser reexecutado se a
- * instância cair durante o processamento.
+ * de sistema, dentro de uma transação (ou sem ela, com {@link #transactional()} falso). Deve ser
+ * idempotente: um job pode ser reexecutado se a instância cair durante o processamento.
  *
  * @param <P> tipo do payload (desserializado de JSON)
  */
@@ -26,5 +26,16 @@ public interface JobHandler<P> {
      */
     default boolean isPermanent(RuntimeException e) {
         return e instanceof PermanentJobFailure;
+    }
+
+    /**
+     * {@code true} (padrão): o handler roda numa transação do worker, confirmada junto com a baixa do job
+     * ({@code DONE}). {@code false}: o handler roda só com o tenant e o ator definidos, sem transação, e abre
+     * as próprias transações curtas — para chamadas longas a provedores externos (telefonia, IA, armazenamento)
+     * que não devem segurar conexão nem lock do banco (decisão 852). Nesse modo a baixa do job é feita depois,
+     * em transação própria; o handler continua idempotente por etapa.
+     */
+    default boolean transactional() {
+        return true;
     }
 }

@@ -33,4 +33,22 @@ public final class JobDrain {
         }
         throw new IllegalStateException("Jobs " + typePrefix + "* não terminaram a tempo");
     }
+
+    /** Executa o worker até a condição valer (jobs que, de propósito, não terminam). */
+    public static void drainUntil(ApplicationContext context, java.util.function.BooleanSupplier condition) {
+        JobWorker worker = context.getBean(JobWorker.class);
+        long deadline = System.currentTimeMillis() + 30_000;
+        while (!condition.getAsBoolean()) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new IllegalStateException("Condição não atingida a tempo");
+            }
+            worker.poll();
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
 }
