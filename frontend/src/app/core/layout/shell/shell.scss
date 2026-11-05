@@ -49,14 +49,9 @@
 .app-topbar__brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   margin-left: 4px;
   color: inherit;
   text-decoration: none;
-  font-size: 15px;
-  font-weight: var(--bs-body-font-weight);
-  letter-spacing: 0.01em;
-  white-space: nowrap;
   border-radius: var(--bs-border-radius-sm);
 
   &:hover {
@@ -76,7 +71,8 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin-left: 8px;
+  /* ocupa o lugar do antigo título do portal: mesmo espaço depois do logo */
+  margin-left: 10px;
   padding: 4px 14px 4px 10px;
   border-radius: var(--bs-border-radius-pill);
   background: var(--app-topbar-subtle);
@@ -193,7 +189,6 @@
 }
 
 @media (max-width: 599.98px) {
-  .app-topbar__brand-name,
   .app-topbar__user-name,
   .app-topbar__chevron,
   .app-context {
