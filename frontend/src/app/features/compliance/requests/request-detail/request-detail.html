@@ -144,10 +144,14 @@
       @if (r.hasResultFile) {
         <dt>Arquivo do titular</dt>
         <dd>
-          <button class="btn btn-outline-primary" type="button" (click)="downloadResult(r)">
-            <app-icon name="download" />
-            Baixar dados do titular
-          </button>
+          @if (canDownloadResult()) {
+            <button class="btn btn-outline-primary" type="button" (click)="downloadResult(r)">
+              <app-icon name="download" />
+              Baixar dados do titular
+            </button>
+          } @else {
+            <span>Gerado</span>
+          }
           @if (r.resultSha256) {
             <div class="app-mono app-muted" title="Resumo SHA-256 para comprovar a integridade do arquivo entregue">SHA-256 {{ r.resultSha256 }}</div>
           }

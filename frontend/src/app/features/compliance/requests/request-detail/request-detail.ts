@@ -105,6 +105,8 @@ export class RequestDetail {
   protected readonly canOpenDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
   protected readonly canViewUsers = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
   protected readonly canManageRestrictions = computed(() => this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE));
+  /** O arquivo reúne o titular em todos os credores, sem máscara: baixar exige acesso a todos (como gerar). */
+  protected readonly canDownloadResult = computed(() => this.auth.user()?.allCreditors ?? false);
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
   protected readonly users = nameMap(this.userLookup, () =>
