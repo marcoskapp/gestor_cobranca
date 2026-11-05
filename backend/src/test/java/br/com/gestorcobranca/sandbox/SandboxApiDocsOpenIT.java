@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "app.environment=sandbox",
         "app.storage.local-root=./target/test-storage-sandbox",
+        "app.logging.dir=./target/test-logs-sandbox",
         "spring.mail.host=127.0.0.1",
         "spring.mail.port=9"})
 class SandboxApiDocsOpenIT extends IntegrationTest {

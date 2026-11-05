@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
-import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -20,20 +19,17 @@ class JdbcJobQueue implements JobQueue {
     private final JdbcTemplate jdbcTemplate;
     private final CurrentActor currentActor;
     private final JsonCodec json;
-    private final Clock clock;
 
-    JdbcJobQueue(JdbcTemplate jdbcTemplate, CurrentActor currentActor, JsonCodec json, Clock clock) {
+    JdbcJobQueue(JdbcTemplate jdbcTemplate, CurrentActor currentActor, JsonCodec json) {
         this.jdbcTemplate = jdbcTemplate;
         this.currentActor = currentActor;
         this.json = json;
-        this.clock = clock;
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public UUID enqueue(String type, Object payload, Instant runAt, String deduplicationKey) {
         UUID tenantId = currentActor.tenantId();
-        Instant when = runAt == null ? Instant.now(clock) : runAt;
         if (deduplicationKey != null) {
             List<UUID> existing = jdbcTemplate.queryForList("""
                     select id from shared.processing_job
@@ -45,14 +41,16 @@ class JdbcJobQueue implements JobQueue {
             }
         }
         UUID id = Ids.newId();
+        // Job imediato usa o relógio do banco, o mesmo do claim (run_at <= now()): com a hora da JVM, uma
+        // diferença de relógio entre aplicação e banco deixaria o job "no futuro" até as horas se alcançarem.
         // o índice único parcial (tenant, type, dedup_key) para jobs ativos protege contra corrida
         int inserted = jdbcTemplate.update("""
                         insert into shared.processing_job
                           (id, tenant_id, type, payload, status, run_at, attempts, dedup_key, created_at, created_by)
-                        values (?, ?, ?, cast(? as jsonb), 'PENDING', ?, 0, ?, now(), ?)
+                        values (?, ?, ?, cast(? as jsonb), 'PENDING', coalesce(?, now()), 0, ?, now(), ?)
                         on conflict do nothing
                         """,
-                id, tenantId, type, json.toJson(payload), Timestamp.from(when), deduplicationKey, currentActor.actorId());
+                id, tenantId, type, json.toJson(payload), runAt == null ? null : Timestamp.from(runAt), deduplicationKey, currentActor.actorId());
         if (inserted == 0) {
             return jdbcTemplate.queryForObject("""
                     select id from shared.processing_job

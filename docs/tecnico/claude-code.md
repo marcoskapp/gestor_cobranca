@@ -57,11 +57,11 @@ Execute na ordem e registre o resultado (tempo e observações) na tabela da §4
 | --- | --- | --- | --- | --- |
 | 1 | Instruções carregadas | | | |
 | 2 | `mvn test` | | | |
-| 3 | `mvn verify` | | | |
+| 3 | `mvn verify` | ok (05/11/2026) | ~6min40s | 1191 unitários + 341 de integração, sem falhas, após duas correções. (1) Testes desatualizados desde a `V0603`: os inserts SQL de `AnalyticsTestSupport` e `CollectionIsolationIT` não passavam `follow_up`; e o `SandboxApiDocsOpenIT` tentava gravar logs em `/var/lib/gestor-cobranca/logs`, que só existe na imagem Docker (agora usa `./target`). (2) Falha intermitente nos ITs de telefonia: o relógio da VM do Docker ficava 0,3–0,5 s atrás do Mac e o job imediato, com `run_at` pela hora da JVM, ficava "no futuro" para o banco; corrigido na fila (decisão 801, `JobQueueIT`) |
 | 4 | Frontend build + testes | | | |
 | 5 | Sandbox reset + verify | | | |
 | 6 | `audit.sh` | | | |
-| 7 | Navegação pelo Claude Code | | | |
+| 7 | Navegação pelo Claude Code | ok (05/11/2026) | ~10 min | Playwright da imagem da auditoria (`--network host`), `aurora/operador`: a tabulação "Informado falecimento" mostra o aviso da ação automática, o registro cria a restrição `DECEASED` ativa em todos os credores, ligada à interação, e a estação passa a mostrar "Todos os canais com restrição de contato" (4 canais restritos, caso inelegível). O popup "Primeira vez por aqui?" cobre o botão de registrar em 1280×1000 e precisa ser fechado antes |
 | 8 | Tarefa de ponta a ponta | | | |
 | 9 | AWS (somente leitura) | | | |
 

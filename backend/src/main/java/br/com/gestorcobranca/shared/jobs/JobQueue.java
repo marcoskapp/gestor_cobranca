@@ -16,7 +16,7 @@ public interface JobQueue {
     /**
      * @param type          tipo do job, atendido por um {@link JobHandler} com o mesmo {@code type()}
      * @param payload       objeto serializável em JSON (somente ids e parâmetros, sem dados pessoais)
-     * @param runAt         execução a partir de (null = imediatamente)
+     * @param runAt         execução a partir de (null = imediatamente, pelo relógio do banco — o mesmo do claim)
      * @param deduplicationKey chave opcional: se já houver job pendente com a mesma chave e tipo, não duplica
      * @return id do job (o existente, em caso de deduplicação)
      */

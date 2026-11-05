@@ -177,8 +177,8 @@ class CollectionIsolationIT extends CollectionTestSupport {
         // escrita com tenant de outra assessoria é recusada pelo RLS
         assertThatThrownBy(() -> system(() -> jdbcTemplate.update("""
                 insert into collection.tabulation (id, tenant_id, version, created_at, updated_at, code, name,
-                    effective_contact, promise, callback, requires_note, display_order, active)
-                values (?, ?, 0, now(), now(), 'INTRUSO', 'Intruso', false, false, false, false, 1, true)
+                    effective_contact, promise, callback, requires_note, display_order, active, follow_up)
+                values (?, ?, 0, now(), now(), 'INTRUSO', 'Intruso', false, false, false, false, 1, true, 'NONE')
                 """, Ids.newId(), otherTenant))).isInstanceOf(DataAccessException.class);
         // sem tenant, nenhuma linha visível
         assertThat(jdbcTemplate.queryForObject("select count(*) from collection.collection_case", Long.class)).isZero();
