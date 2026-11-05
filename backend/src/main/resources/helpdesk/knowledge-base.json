@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "7d79f01602c3c1c4",
+ "contentVersion": "76be02d837fa9ccf",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -5444,7 +5444,9 @@
    "title": "Restrições de contato",
    "objective": "Pedidos de não contato, bloqueios e contatos inválidos que impedem ligações, mensagens e campanhas.",
    "purpose": [
-    "Registre a restrição com devedor, tipo, origem e alcance e anexe o comprovante do pedido. Ela vale na hora para todos os canais e ferramentas."
+    "Registre a restrição com devedor, tipo, origem e alcance e anexe o comprovante do pedido. Ela vale na hora para todos os canais e ferramentas.",
+    "O campo Credor lista só os credores com quem o devedor tem dívida. Pedido do devedor e descadastro começam valendo para todos os credores; quem não tem acesso a todos escolhe um credor do seu acesso.",
+    "Antes de salvar, o quadro \"Alcance\" resume o que será bloqueado: canal, contato, credor e vigência."
    ],
    "profiles": [
     "COMPLIANCE",

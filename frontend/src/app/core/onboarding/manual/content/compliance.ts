@@ -27,7 +27,11 @@ export const MANUAL: ModuleManual = {
       id: 'compliance.restrictions',
       title: 'Restrições de contato',
       objective: 'Pedidos de não contato, bloqueios e contatos inválidos que impedem ligações, mensagens e campanhas.',
-      purpose: ['Registre a restrição com devedor, tipo, origem e alcance e anexe o comprovante do pedido. Ela vale na hora para todos os canais e ferramentas.'],
+      purpose: [
+        'Registre a restrição com devedor, tipo, origem e alcance e anexe o comprovante do pedido. Ela vale na hora para todos os canais e ferramentas.',
+        'O campo Credor lista só os credores com quem o devedor tem dívida. Pedido do devedor e descadastro começam valendo para todos os credores; quem não tem acesso a todos escolhe um credor do seu acesso.',
+        'Antes de salvar, o quadro "Alcance" resume o que será bloqueado: canal, contato, credor e vigência.',
+      ],
       profiles: ['COMPLIANCE', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
       inputs: ['Pedidos do devedor, do credor, do jurídico ou exigências legais.'],
       outputs: ['Contato bloqueado e casos reavaliados.'],
