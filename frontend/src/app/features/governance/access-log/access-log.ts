@@ -1,6 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
@@ -35,6 +37,9 @@ export class AccessLog {
   private readonly api = inject(GovernanceApi);
   private readonly dialog = inject(DialogService);
   protected readonly users = inject(UserLookup);
+  private readonly auth = inject(AuthService);
+  /** O filtro por usuário consulta o cadastro de usuários: só aparece para quem pode consultá-lo. */
+  protected readonly canFilterByActor = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
   protected readonly eventTypes = Object.entries(ACCESS_EVENT_LABELS).map(([value, label]) => ({ value, label }));
 
   private readonly fb = inject(FormBuilder);

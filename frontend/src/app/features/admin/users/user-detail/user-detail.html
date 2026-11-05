@@ -29,10 +29,12 @@
           <app-icon name="person-vcard" />
           <span>Alterar perfis</span>
         </button>
-        <button ngbDropdownItem type="button" (click)="editScope(u)">
-          <app-icon name="buildings" />
-          <span>Alterar escopo de credores</span>
-        </button>
+        @if (canViewCreditors()) {
+          <button ngbDropdownItem type="button" (click)="editScope(u)">
+            <app-icon name="buildings" />
+            <span>Alterar escopo de credores</span>
+          </button>
+        }
         <button ngbDropdownItem type="button" (click)="sendLink(u)" [disabled]="u.status === 'DISABLED'">
           <app-icon name="forward" />
           <span>{{ u.status === 'PENDING_ACTIVATION' ? 'Reenviar link de ativação' : 'Enviar link de redefinição' }}</span>
@@ -90,8 +92,10 @@
           Todos os credores
         } @else if (u.creditorIds.length === 0) {
           <span class="app-muted">Nenhum credor</span>
-        } @else {
+        } @else if (canViewCreditors()) {
           {{ creditorNames().join('; ') }}
+        } @else {
+          {{ u.creditorIds.length === 1 ? '1 credor' : u.creditorIds.length + ' credores' }}
         }
       </dd>
       <dt>MFA</dt>

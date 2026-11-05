@@ -178,7 +178,13 @@ export class CaseSheetPanel {
   }
 
   protected revealDocument(): void {
-    this.debtorsApi.revealDocument(this.debtor().id).subscribe((r) => this.revealedDocument.set(r.document));
+    // a resposta só vale para o caso que pediu: trocado o caso no meio, o documento de outro devedor não aparece
+    const caseId = this.caseId();
+    this.debtorsApi.revealDocument(this.debtor().id).subscribe((r) => {
+      if (this.caseId() === caseId) {
+        this.revealedDocument.set(r.document);
+      }
+    });
   }
 
   protected revealContact(contact: SheetContact): void {

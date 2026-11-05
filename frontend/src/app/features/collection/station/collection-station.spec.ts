@@ -17,6 +17,8 @@ import { DEFAULT_UI_STATE, UiState } from '../../../core/preferences/ui-state.mo
 import { UiStateStore } from '../../../core/preferences/ui-state.store';
 import { CaseSheet, CaseView, ContactAvailability, TabulationView } from '../data/collection.models';
 import { addDays, zonedNow } from '../data/collection.rules';
+import { NameMap } from '../../../shared/data/name-map';
+import { CaseSheetPanel } from './case-sheet-panel';
 import { CollectionStation } from './collection-station';
 import { DENSITY_INVITE_ID } from './density-invite';
 
@@ -267,6 +269,40 @@ describe('CollectionStation', () => {
     const active = (fixture.nativeElement as HTMLElement).querySelector('[data-tour="case-tabs"] .nav-link.active');
     expect(active?.textContent).toContain('Conversas');
     expect(text(fixture)).toContain('Nenhuma conversa neste caso.');
+  });
+
+  it('ficha reaproveitada entre casos: a revelação do documento que chega depois da troca é descartada', async () => {
+    // a estação recria a ficha ao trocar de caso; o painel também se protege quando é reaproveitado
+    permissions.update((p) => [...p, 'DEBTOR_SENSITIVE_VIEW']);
+    const names: NameMap = { name: () => 'Horizonte', names: signal(new Map()) };
+    const fixture = TestBed.createComponent(CaseSheetPanel);
+    fixture.componentRef.setInput('sheet', sheet());
+    fixture.componentRef.setInput('creditors', names);
+    fixture.componentRef.setInput('portfolios', names);
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      respond(sheet());
+    }
+    ((fixture.nativeElement as HTMLElement).querySelector('.app-document__reveal') as HTMLButtonElement).click();
+    const pending = http.expectOne({ method: 'GET', url: '/api/v1/debtors/d-1/document' });
+
+    fixture.componentRef.setInput(
+      'sheet',
+      sheet({
+        collectionCase: caseView({ id: 'k-2', debtorId: 'd-2' }),
+        debtor: { ...sheet().debtor, id: 'd-2', name: 'Bruno Costa Lima', maskedDocument: '***.111.444-**', contacts: [] },
+      }),
+    );
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      respond(sheet());
+    }
+    pending.flush({ debtorId: 'd-1', documentType: 'CPF', document: '529.982.247-25' });
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('***.111.444-**');
+    expect(text(fixture)).not.toContain('529.982.247-25');
   });
 
   it('registra os atalhos do grupo "Estação de cobrança" e os remove ao sair', async () => {

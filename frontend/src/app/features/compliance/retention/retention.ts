@@ -65,17 +65,19 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
               <app-icon name="eyedropper" />
               Simular
             </button>
-            <button
-             
-              type="button"
-              class="btn btn-danger"
-              (click)="execute(p)"
-              [disabled]="running() || !p.enabled || !canAnonymize()"
-              [ngbTooltip]="!p.enabled ? 'Habilite a política para executar' : !canAnonymize() ? 'Exige a permissão de atendimento a titulares' : ''"
-            >
-              <app-icon name="trash3" />
-              Executar
-            </button>
+            <!-- executar anonimiza dados de titulares: sem a permissão de atendimento a titulares, a ação nem aparece -->
+            @if (canAnonymize()) {
+              <button
+                type="button"
+                class="btn btn-danger"
+                (click)="execute(p)"
+                [disabled]="running() || !p.enabled"
+                [ngbTooltip]="p.enabled ? '' : 'Habilite a política para executar'"
+              >
+                <app-icon name="trash3" />
+                Executar
+              </button>
+            }
           }
         </ng-template>
       </app-data-table>

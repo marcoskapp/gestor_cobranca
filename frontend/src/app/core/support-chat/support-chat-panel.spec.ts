@@ -4,6 +4,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NgbActiveOffcanvas } from '@ng-bootstrap/ng-bootstrap';
+import { fakeUser } from '../../../testing/auth-fixtures';
 import { AuthService } from '../auth/auth.service';
 import { HelpService } from '../layout/help/help.service';
 import { findScreen } from '../onboarding/content/screens';
@@ -78,7 +79,7 @@ describe('SupportChatPanel', () => {
         provideRouter([{ path: '**', component: Blank }]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: AuthService, useValue: { hasAnyPermission: (ps: readonly string[]) => ps.length === 0 || ps.some((p) => permissions().includes(p)) } },
+        { provide: AuthService, useValue: { user: signal(fakeUser()), hasAnyPermission: (ps: readonly string[]) => ps.length === 0 || ps.some((p) => permissions().includes(p)) } },
         { provide: OnboardingService, useValue: { screen, hasScreenHelp: () => true, startScreenTour } },
         { provide: HelpService, useValue: { openScreenManual } },
         { provide: NgbActiveOffcanvas, useValue: offcanvas },

@@ -158,6 +158,36 @@ describe('StartConversationDialog (mensagem pela estação)', () => {
     expect(navigate).toHaveBeenCalledWith(['/conversas', 'cv-9']);
   });
 
+  it('sem INBOX_VIEW: não consulta as conversas abertas nem oferece "Abrir conversa" (troca de canal inclusive)', async () => {
+    const { http } = setup(StartConversationDialog, ['MESSAGE_SEND'], 'u-1', [
+      { provide: DIALOG_DATA, useValue: { caseId: 'k-1', debtorId: 'd-1', creditorId: 'c-1', debtorName: 'Ana Paula Ribeiro', contacts } },
+      { provide: DialogRef, useValue: { close } },
+    ]);
+    const urls: string[] = [];
+    const answer = respond({ open: [openConversation] });
+    const fixture = await render(StartConversationDialog, http, (url) => {
+      urls.push(url);
+      return answer(url);
+    });
+    expect(text(fixture)).toContain('use um template aprovado');
+    expect(button(fixture, 'Abrir conversa')).toBeUndefined();
+
+    const email = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#sc-channel-EMAIL')!;
+    expect(email).not.toBeNull();
+    email.dispatchEvent(new Event('change'));
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      for (const req of http.match((r) => r.method === 'GET')) {
+        urls.push(req.request.url);
+        req.flush(answer(req.request.url) ?? {});
+      }
+    }
+    expect(urls.some((u) => u.endsWith('/communication/conversations'))).toBe(false);
+    expect(urls.some((u) => u.endsWith('/communication/templates'))).toBe(true);
+    http.verify();
+  });
+
   it('sem contato utilizável: explica e não oferece envio', async () => {
     const { http } = setup(StartConversationDialog, ['MESSAGE_SEND'], 'u-1', [
       { provide: DIALOG_DATA, useValue: { caseId: 'k-1', debtorId: 'd-1', creditorId: 'c-1', debtorName: 'Ana', contacts: [contacts[1]] } },

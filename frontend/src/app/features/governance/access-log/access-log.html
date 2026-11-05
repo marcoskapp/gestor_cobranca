@@ -38,9 +38,11 @@
   <app-field label="IP">
     <input appInput formControlName="clientIp" maxlength="45" />
   </app-field>
-  <div class="app-filters__wide">
-    <app-entity-picker [control]="filters.controls.actor" [source]="users" label="Usuário" [single]="true" />
-  </div>
+  @if (canFilterByActor()) {
+    <div class="app-filters__wide">
+      <app-entity-picker [control]="filters.controls.actor" [source]="users" label="Usuário" [single]="true" />
+    </div>
+  }
   <div class="app-filters__actions">
     <button class="btn btn-primary" type="submit">Filtrar</button>
     <button class="btn btn-link" type="button" (click)="clear()">Limpar</button>
