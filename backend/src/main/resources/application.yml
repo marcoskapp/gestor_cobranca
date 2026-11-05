@@ -436,6 +436,10 @@ app:
   telephony:
     # tentativas do job de discagem (falhas transitórias do provedor) antes de FAILED
     dial-max-attempts: 3
+    # comandos à chamada em andamento (bridge/hangup) pedidos depois do commit, fora da thread que confirmou
+    command-executor:
+      size: ${TELEPHONY_COMMAND_EXECUTOR_SIZE:8}
+      queue-capacity: 500
     # prazo do pós-atendimento: sem tabulação do operador, a chamada é tabulada automaticamente
     tabulation-deadline: PT15M
     # operador sem sinal do cliente (heartbeat) além deste prazo sai automaticamente
@@ -518,8 +522,9 @@ app:
     history-messages: 12
     # tentativas do job de turno (falha de infraestrutura; falha do modelo transfere para humano sem repetir)
     turn-max-attempts: 3
-    # turno sem conclusão além deste prazo é recuperado (instância caiu): registra falha e transfere
-    stale-turn-after: PT10M
+    # turno sem conclusão além deste prazo é recuperado (instância caiu): registra falha e transfere. Antes
+    # dele o turno está em andamento (sem lock); mínimo validado: pior turno (13 min de modelo) + 5 min
+    stale-turn-after: PT20M
     # janela da quebra precoce nas métricas de qualidade (acordos do assistente × humanos)
     early-break-days: 60
     # descarte diário do conteúdo da trilha (política MESSAGE_CONTENT do compliance)

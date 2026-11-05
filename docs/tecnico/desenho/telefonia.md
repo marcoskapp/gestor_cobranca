@@ -63,12 +63,14 @@ Falha/cancelamento depois do atendimento vira `COMPLETED` (a chamada foi atendid
 | Momento | Chamada | Efeito |
 | --- | --- | --- |
 | clique para ligar | `ContactGate#evaluate` (verificação prévia, não registra tentativa) | negado → chamada `FAILED/CONTACT_DENIED` com motivos e próximo instante permitido na resposta, sem discar e sem reservar o operador; `call.blocked` (`stage=precheck`) |
-| job de discagem (`telephony.dial`) | `ContactGate#authorizeAndRecord` (origem `OPERATOR`, referência `call`) imediatamente antes de `originate` | negado → `FAILED/CONTACT_DENIED`, operador liberado; permitido → tentativa registrada na mesma transação da discagem |
+| job de discagem (`telephony.dial`) | `ContactGate#authorizeAndRecord` (origem `OPERATOR`, referência `call`) imediatamente antes de `originate` | negado → `FAILED/CONTACT_DENIED`, operador liberado; permitido → tentativa registrada na transação curta do pedido de discagem, antes do HTTP ao provedor (§3.1) |
 | ciclo do discador (`telephony.dialer_tick`) | `ContactGate#authorizeAndRecord` (origem `CAMPAIGN`) por item | negado com `nextAllowedAt` (horário, feriado, limites, intervalo) → item adiado **sem consumir tentativa**; sem fim previsto (restrição) → item `EXCLUDED/CONTACT_RESTRICTED`; `call.blocked` (`stage=dial`) |
 | chamada recebida | — | o devedor ligou: não há tentativa de contato |
 
-Falha transitória do provedor desfaz a transação inteira — inclusive a tentativa registrada no compliance. O porteiro
-aplica janelas, dias, feriados, limites diário/semanal e intervalo mínimo no canal `PHONE` (RB02).
+A tentativa registrada vale mesmo que o provedor falhe depois: o pedido é confirmado antes do HTTP (§3.1) e nada desfaz
+essa transação. Recusa, indisponibilidade ou tentativas esgotadas encerram a chamada como **não discada**, com a tentativa
+contada no compliance — conta a mais, pelo lado seguro (decisões 860 e 861). O porteiro aplica janelas, dias, feriados,
+limites diário/semanal e intervalo mínimo no canal `PHONE` (RB02).
 
 ## 3. Clique para ligar
 
@@ -77,11 +79,58 @@ aplica janelas, dias, feriados, limites diário/semanal e intervalo mínimo no c
    escolhido ou o de maior prioridade), conta do credor ou a padrão.
 2. Verificação prévia do porteiro (§2). Permitido → chamada `QUEUED`, operador `ON_CALL` (reservado: o discador não
    entrega outra chamada a ele), job `telephony.dial`.
-3. Job: autoriza e registra a tentativa e pede ao provedor `originate` (operador primeiro, depois o devedor — padrão
-   *agent first*). Aceite → `DIALING`.
+3. Job (§3.1): autoriza e registra a tentativa, grava o pedido (`DIALING` sem id do provedor) e pede ao provedor
+   `originate` (operador primeiro, depois o devedor — padrão *agent first*). Aceite → id do provedor gravado.
 4. Eventos do provedor (§9): toque, atendimento (conexão imediata: o operador já está na linha), fim.
 5. Fim → operador em `WRAP_UP` (pós-atendimento) até tabular (§6). `POST /calls/{id}/hangup` encerra (o próprio
-   operador ou a supervisão, auditado).
+   operador ou a supervisão, auditado); o pedido ao provedor sai depois do commit (§3.2).
+
+### 3.1 Discagem em fases, sem transação durante o HTTP (TEL-02, decisões 860 e 862)
+
+Os jobs `telephony.dial` e `telephony.dialer_tick` são handlers **sem transação** (`JobHandler.transactional() = false`,
+decisão 852) e trabalham em três fases:
+
+| Fase | Transação | O que faz |
+| --- | --- | --- |
+| preparo | curta, chamada (ou campanha) em `FOR UPDATE` | validações, `ContactGate#authorizeAndRecord`, `Call#dialRequested` (`QUEUED → DIALING`, sem `providerCallId`, com a tentativa e `dial_started_at`) e commit |
+| provedor | nenhuma, sem lock | `originate`/`dialBatch`; contingência: o desvio (`Call#switchToFallback`) é gravado numa transação curta antes do novo pedido, para os eventos da conta de contingência acharem a chamada |
+| resultado | curta por pedido/lote | aceite → `Call#providerAccepted` (grava o id; a chamada pode já ter avançado pelos eventos); recusa → `Call#providerRejected` (`FAILED` como não discada: sem resultado de tentativa, interação `SKIPPED`) |
+
+Como o pedido é confirmado antes do HTTP, os eventos e os pedidos de instrução (TwiML/XML) que o provedor mandar enquanto
+responde encontram a chamada pela referência (o id interno) já em `DIALING`: `RINGING`/`ANSWERED` são aplicados, o
+devedor que atende nos primeiros segundos de um lote não é desligado, e o processador grava o id do provedor trazido no
+evento (`providerAccepted`) quando ele chega antes da resposta. `DIALING` sem id = **pedido sem resposta**
+(`Call#isAwaitingProvider`): é nesse estado que valem a contingência e a recusa.
+
+* **Clique para ligar**: falha transitória ambígua (ou queda da instância) deixa o pedido sem resposta; a nova execução do
+  job repete o `originate` na mesma conta **com a mesma tentativa do compliance** (sem novo registro). Se um evento já
+  trouxe o id, a nova execução não disca. Na última tentativa → `FAILED/RETRIES_EXHAUSTED`. Chamada encerrada aqui
+  enquanto o provedor discava (operador desligou) → ao receber o aceite, o encerramento é pedido ao provedor (§3.2).
+* **Discador**: o lote não discado por falha transitória (sem contingência, ou com ela também indisponível) fica
+  recusado com `PROVIDER_UNAVAILABLE` (retentativa pela política); falha inesperada do adaptador → `PROVIDER_ERROR`; os
+  lotes já aceitos nunca são desfeitos e a falha de um lote não impede os seguintes (TEL-01, decisão 861).
+* **Aceite tardio**: aceite para chamada já final sem o pedido (recusada pela conciliação ou nas tentativas esgotadas) ou
+  com outro id → só o encerramento no provedor, sem exceção (no discador ela desfaria o resultado do lote inteiro).
+* Pedido que o provedor nunca confirmou (instância caiu entre as fases do discador) → a conciliação de chamadas paradas
+  encerra como `FAILED/STALE` não discada (`staleCallAfter`).
+
+Simulador: destino terminado em `7777` entrega o toque e o atendimento por pessoa (como webhooks, em transação própria)
+**antes** da resposta ao pedido — `TelephonyDialPhasesIT`.
+
+### 3.2 Comandos à chamada em andamento depois do commit (decisão 862)
+
+`bridge` (conectar a atendida ao operador) e `hangup` saem **depois do commit** da transação que decidiu o estado local
+(`ProviderCalls`, sincronização `afterCommit` que entrega o comando ao executor `telephonyCommandExecutor`, sem lock da
+chamada e sem a conexão da transação de origem — que o Spring só devolve ao pool depois das sincronizações):
+
+* `hangup` do operador/supervisão (`CallService#hangup`), da secretária eletrônica e do abandono (`CallEventProcessor`):
+  falha transitória → nova tentativa pelo job `telephony.hangup` (4 tentativas, sem transação durante o HTTP); recusa →
+  só registrada (a chamada já terminou no provedor). Antes o operador recebia erro e a chamada seguia aberta no banco.
+* `bridge`: a conexão (operador `ON_CALL`, `connected_at`) é confirmada na transação do evento; se o provedor não
+  conectar, ela é desfeita em transação própria (`Call#bridgeFailed`): operador liberado, discador → abandono
+  (`ABANDONED`), recebida → perdida (`NO_ANSWER/NO_AGENT`), e o encerramento é pedido ao provedor.
+* Provedores que pedem instruções no próprio webhook (Twilio, Plivo) seguem respondendo a conexão e o encerramento no
+  corpo da resposta, sem API.
 
 ## 4. Campanhas de discagem (`dialer_campaign`, `dialer_entry`)
 
@@ -92,7 +141,8 @@ até 50 mil casos por carga; `reload` acrescenta os que entraram na fila depois.
 sem credor exige acesso a todos os credores.
 
 **Ciclo** (`telephony.dialer_tick`, um pendente por campanha): pedido na ativação, quando um operador da campanha fica
-disponível, quando uma chamada da campanha termina e a cada 3 s pelo agendamento (ShedLock). Sob lock da campanha:
+disponível, quando uma chamada da campanha termina e a cada 3 s pelo agendamento (ShedLock). Preparo numa transação
+curta sob lock da campanha (o HTTP ao provedor e o resultado vêm depois, §3.1):
 
 1. fora da janela própria (opcional, fuso de operação) → nada; a política do compliance continua valendo;
 2. ritmo (`DialerPacing`, domínio puro):
@@ -104,7 +154,8 @@ disponível, quando uma chamada da campanha termina e a cada 3 s pelo agendament
 3. itens vencidos por prioridade (`FOR UPDATE SKIP LOCKED`): caso encerrado → `EXCLUDED/CASE_CLOSED`; atribuído a
    operador sem `includeAssigned` → `EXCLUDED/CASE_ASSIGNED`; inelegível ou fora de `OPEN`/`IN_NEGOTIATION` → adiado
    pelo intervalo; sem telefone → `EXCLUDED/NO_PHONE`; telefone em rodízio pela prioridade dos contatos a cada tentativa;
-4. porteiro por item (§2) e `dialBatch` por conta; recusa do provedor → tentativa `FAILED` (retentativa).
+4. porteiro por item (§2), pedido gravado (`DIALING` sem id) e, depois do commit, `dialBatch` por conta; recusa do
+   provedor ou lote indisponível → tentativa `FAILED` (retentativa).
 
 **Abandono** = atendidas por pessoa sem operador ÷ atendidas por pessoa (conectadas + abandonadas), no dia de operação.
 Padrão de mercado: **máximo de 3%** (Ofcom/FTC; adotado como padrão configurável, 0–10%). Sem operador livre no
@@ -116,7 +167,8 @@ intervalo (5 min a 7 dias, padrão 120 min; ocupado em metade do intervalo, mín
 
 **Distribuição** (`CallDistributor`): atendimento por pessoa → operador `AVAILABLE` da campanha **livre há mais tempo**
 (`last_available_at`), escolhido com `SKIP LOCKED` e reservado (`ON_CALL`) na mesma transação — duas chamadas atendidas
-ao mesmo tempo nunca vão ao mesmo operador — e `bridge` no provedor. AMD `MACHINE` → encerra (`VOICEMAIL`).
+ao mesmo tempo nunca vão ao mesmo operador — e `bridge` no provedor depois do commit (§3.2). AMD `MACHINE` → encerra
+(`VOICEMAIL`).
 
 Ciclo de vida: `DRAFT → ACTIVE ⇄ PAUSED → FINISHED`; parâmetros só mudam fora de `ACTIVE`; pausar para de discar
 (chamadas em andamento seguem); encerrar exclui os itens pendentes (`CAMPAIGN_FINISHED`). Indicadores do dia:
@@ -278,6 +330,8 @@ Métricas (`telephony.*`, §5): chamadas por resultado, pedidos de discagem, neg
 no discador (`connected`/`abandoned` → **taxa de abandono**), tempos de toque/conversação/pós-atendimento/distribuição
 (p50/p95/p99), chamadas curtas (≤ 3 s encerradas pelo sistema, acompanhamento da Anatel), ciclos e chamadas colocadas
 pelo ritmo, itens da lista, presença, tabulações, interações, gravações, acessos a gravações, webhooks e falhas de jobs.
+Comandos ao provedor depois do commit (§3.2): `telephony.provider.commands{provider,operation=bridge|hangup,outcome}`
+(`success`, `rejected`, `transient`, `skipped`); `telephony.dialer.live{outcome=bridge_failed}` conta a conexão desfeita.
 **ASR** = `telephony.calls{result ∈ ANSWERED, VOICEMAIL, ABANDONED}` ÷ `telephony.calls` (discadas).
 
 ## 12. Pendências
@@ -295,6 +349,9 @@ pelo ritmo, itens da lista, presença, tabulações, interações, gravações, 
   da remuneração variável); evento ou view a definir.
 * Monitoria ao vivo (escuta/sussurro) e transferência de chamada dependem do provedor.
 * Validar com o jurídico o texto do aviso de gravação e a retenção das gravações por credor.
+* Discador: pedido de lote que o provedor nunca confirmou (instância caiu entre o preparo e o resultado) só é encerrado
+  pela conciliação (`staleCallAfter`, 4 h) e, até lá, conta como chamada em andamento no ritmo da campanha. Uma
+  conciliação mais curta, só para pedidos sem resposta, fica para avaliar com dados de produção (§3.1).
 
 ## 13. Ambiente multiprovedor
 
@@ -371,10 +428,11 @@ conexão esgotado, host não resolvido, 429 ou 503, falha ao obter o token. Só 
 `app.telephony.routing.fallback-enabled` (padrão `true`):
 
 * clique para ligar (`telephony.dial`): a **mesma chamada** (mesmo id, mesma tentativa no compliance) passa para a conta de
-  contingência da regra (`Call#switchToFallback`, uma única vez, só em `QUEUED` sem id do provedor), com o ramal do
-  operador nela; falha também na contingência → exceção, transação desfeita (inclusive o desvio e a tentativa) e o job
-  tenta de novo pela principal;
-* discador: o lote inteiro vai para a contingência da regra; nova falha desfaz o ciclo.
+  contingência da regra (`Call#switchToFallback`, uma única vez, só antes do aceite: `QUEUED` ou pedido sem resposta),
+  com o ramal do operador nela; o desvio é gravado antes do novo pedido. Falha também na contingência → exceção e o job
+  tenta de novo **pela contingência** (o desvio e a tentativa ficam; decisão 860);
+* discador: o lote inteiro vai para a contingência da regra; nova falha → lote recusado com `PROVIDER_UNAVAILABLE`, sem
+  desfazer o ciclo (decisão 861).
 
 Tempo de leitura esgotado e outros 5xx são **ambíguos** (o provedor pode ter discado): repetem na mesma conta com a mesma
 referência do cliente e `Idempotency-Key` (deduplicação no fornecedor a confirmar — anexo A). A chamada guarda

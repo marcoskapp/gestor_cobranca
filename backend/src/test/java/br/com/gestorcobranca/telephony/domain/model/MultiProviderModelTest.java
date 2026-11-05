@@ -42,7 +42,8 @@ class MultiProviderModelTest {
     void fallbackIsRefusedAfterTheProviderAcceptedTheCall() {
         TelephonyAccount primary = account(ProviderType.SANDBOX, null, false);
         Call call = Call.outbound(CallOrigin.CLICK_TO_CALL, primary, CallTest.target(), UUID.randomUUID(), null, null, 1, T0);
-        call.dialing("prov-1", UUID.randomUUID(), T0);
+        call.dialRequested(UUID.randomUUID(), T0);
+        call.providerAccepted("prov-1");
 
         assertThatThrownBy(() -> call.switchToFallback(account(ProviderType.ALVARIA, null, false)))
                 .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "call.fallback_not_queued");

@@ -5,16 +5,14 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseVie
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases.ContactFingerprint;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
+import br.com.gestorcobranca.shared.security.CurrentActor;
+import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.telephony.application.port.in.ProviderEventUseCases;
 import br.com.gestorcobranca.telephony.application.port.out.CallInstruction;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent.Type;
-import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.BridgeRequest;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupReason;
-import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupRequest;
-import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.ProviderRejectedException;
-import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.TransientProviderException;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter.InstructionRequest;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookReceiptLog;
 import br.com.gestorcobranca.telephony.domain.model.Agent;
@@ -26,6 +24,7 @@ import br.com.gestorcobranca.telephony.domain.model.CallStatus;
 import br.com.gestorcobranca.telephony.domain.model.DialerCampaign;
 import br.com.gestorcobranca.telephony.domain.model.HangupSide;
 import br.com.gestorcobranca.telephony.domain.model.TelephonyAccount;
+import br.com.gestorcobranca.telephony.domain.repository.AgentRepository;
 import br.com.gestorcobranca.telephony.domain.repository.CallRecordingRepository;
 import br.com.gestorcobranca.telephony.domain.repository.CallRepository;
 import br.com.gestorcobranca.telephony.domain.repository.DialerCampaignRepository;
@@ -56,6 +55,10 @@ import java.util.UUID;
  *       index) e distribui (o responsável pelo caso primeiro); sem operador → perdida;</li>
  *   <li>gravação disponível → cópia para o armazenamento próprio (job).</li>
  * </ul>
+ * O estado local (conexão, abandono, encerramento) é decidido na transação do evento; os pedidos à API
+ * do provedor ({@code bridge}/{@code hangup}) saem só depois do commit ({@link ProviderCalls}). Se a
+ * conexão falhar no provedor, ela é desfeita em transação própria ({@link #bridgeFailed}): operador
+ * liberado, abandono (discador) ou recebida perdida, e encerramento no provedor.
  */
 @Service
 @Transactional
@@ -77,13 +80,18 @@ class CallEventProcessor implements ProviderEventUseCases {
     private final JobQueue jobQueue;
     private final TelephonyMetrics metrics;
     private final CallInstructions instructions;
+    private final ProviderCalls providerCalls;
+    private final AgentRepository agents;
+    private final TenantExecution tenantExecution;
+    private final CurrentActor currentActor;
     private final Clock clock;
 
     CallEventProcessor(TelephonyAccountRepository accounts, CallRepository calls, CallRecordingRepository recordings,
                        DialerCampaignRepository campaigns, WebhookReceiptLog receipts, CallDistributor distributor,
                        CallLifecycle lifecycle, ProviderResolver resolver, AgentEndpoints endpoints, CaseUseCases cases,
                        DebtorContactUseCases debtorContacts, JobQueue jobQueue, TelephonyMetrics metrics,
-                       CallInstructions instructions, Clock clock) {
+                       CallInstructions instructions, ProviderCalls providerCalls, AgentRepository agents,
+                       TenantExecution tenantExecution, CurrentActor currentActor, Clock clock) {
         this.accounts = accounts;
         this.calls = calls;
         this.recordings = recordings;
@@ -98,6 +106,10 @@ class CallEventProcessor implements ProviderEventUseCases {
         this.jobQueue = jobQueue;
         this.metrics = metrics;
         this.instructions = instructions;
+        this.providerCalls = providerCalls;
+        this.agents = agents;
+        this.tenantExecution = tenantExecution;
+        this.currentActor = currentActor;
         this.clock = clock;
     }
 
@@ -143,7 +155,12 @@ class CallEventProcessor implements ProviderEventUseCases {
             return "unknown_call";
         }
         Call call = calls.findByIdForUpdate(found.get().getId()).orElseThrow();
-        if (call.bindProviderLeg(e.providerLegId())) {
+        boolean bound = call.bindProviderLeg(e.providerLegId());
+        if (call.isAwaitingProvider() && e.providerCallId() != null && !e.providerCallId().isBlank()) {
+            // evento antes da resposta do pedido de discagem: o id do provedor já vale para conectar/encerrar
+            bound |= call.providerAccepted(e.providerCallId());
+        }
+        if (bound) {
             calls.save(call);
         }
         Instant at = e.occurredAt() == null ? Instant.now(clock) : e.occurredAt();
@@ -281,25 +298,60 @@ class CallEventProcessor implements ProviderEventUseCases {
         return last.getPortfolioId() == null ? Optional.empty() : cases.findActive(last.getDebtorId(), last.getPortfolioId());
     }
 
+    /**
+     * Conexão ao operador: a decisão vale nesta transação; o pedido à API do provedor sai depois do commit e,
+     * se o provedor não conectar, a conexão é desfeita em transação própria ({@link #bridgeFailed}).
+     *
+     * @return false se o operador não é alcançável pela conta (a chamada segue como abandono/perdida aqui)
+     */
     private boolean bridge(TelephonyAccount account, Call call, Agent agent, boolean awaiting) {
-        Optional<TelephonyProvider> provider = resolver.provider(account.getProvider());
+        ProviderCalls.ProviderLine line = providerCalls.line(account);
         Optional<String> extension = endpoints.extensionFor(agent, account.getId());
-        if (provider.isEmpty() || extension.isEmpty()) {
+        if (line.adapter().isEmpty() || extension.isEmpty()) {
             return false;
         }
         if (awaiting) {
             // a conexão vai na resposta do próprio webhook (CallInstructions)
             return true;
         }
-        try {
-            provider.get().bridge(new BridgeRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
-                    extension.get(), call.getProviderLegId(), agent.getUserId()));
-            return true;
-        } catch (TransientProviderException | ProviderRejectedException e) {
-            LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("provider", account.getProvider())
-                    .log("Falha ao conectar a chamada ao operador");
-            return false;
+        BridgeRequest request = new BridgeRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
+                extension.get(), call.getProviderLegId(), agent.getUserId());
+        UUID tenantId = currentActor.tenantId();
+        UUID callId = call.getId();
+        UUID operatorId = agent.getUserId();
+        providerCalls.afterCommit("bridge", callId, () -> {
+            if (!providerCalls.bridge(line, request)) {
+                tenantExecution.inTenant(tenantId, "telephony.bridge_failed", () -> bridgeFailed(callId, operatorId));
+            }
+        });
+        return true;
+    }
+
+    /**
+     * O provedor não conectou a chamada ao operador (depois do commit da conexão): operador liberado, chamada
+     * sem operador (abandono no discador; perdida na recebida) e encerramento no provedor. Sem efeito se a
+     * chamada já terminou ou mudou de operador.
+     */
+    private void bridgeFailed(UUID callId, UUID operatorId) {
+        Call call = calls.findByIdForUpdate(callId).orElseThrow();
+        if (call.getStatus() != CallStatus.ANSWERED || call.getConnectedAt() == null
+                || !operatorId.equals(call.getOperatorId())) {
+            return;
         }
+        TelephonyAccount account = accounts.findById(call.getAccountId()).orElseThrow();
+        agents.findByUserIdForUpdate(operatorId).ifPresent(agent -> lifecycle.releaseAfterFailedBridge(agent, callId));
+        call.bridgeFailed();
+        Instant now = Instant.now(clock);
+        if (call.getOrigin() == CallOrigin.DIALER) {
+            String mode = campaigns.findById(call.getCampaignId()).map(DialerCampaign::getMode).map(Enum::name)
+                    .orElse("UNKNOWN");
+            metrics.live(mode, "bridge_failed");
+            call.end(CallStatus.COMPLETED, now, HangupSide.SYSTEM, null);
+        } else {
+            call.end(CallStatus.NO_ANSWER, now, HangupSide.SYSTEM, CallInstructions.NO_AGENT);
+        }
+        providerCalls.hangupAfterCommit(account, call, HangupReason.ABANDONED);
+        lifecycle.ended(call);
     }
 
     private void hangup(TelephonyAccount account, Call call, HangupReason reason, boolean awaiting) {
@@ -307,16 +359,8 @@ class CallEventProcessor implements ProviderEventUseCases {
             // o encerramento (com a mensagem de abandono) vai na resposta do próprio webhook
             return;
         }
-        resolver.provider(account.getProvider()).ifPresent(p -> {
-            try {
-                p.hangup(new HangupRequest(resolver.context(account), call.getId(), call.getProviderCallId(), reason,
-                        call.getProviderLegId()));
-            } catch (TransientProviderException | ProviderRejectedException e) {
-                // o provedor encerra a chamada pelo próprio tempo limite (ou ela já terminou); o estado local já é final
-                LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("reason", reason)
-                        .log("Falha ao pedir o encerramento da chamada ao provedor");
-            }
-        });
+        // depois do commit: o estado local já é final; o provedor encerra pelo próprio tempo limite se falhar
+        providerCalls.hangupAfterCommit(account, call, reason);
     }
 
     private String save(Call call, boolean applied) {

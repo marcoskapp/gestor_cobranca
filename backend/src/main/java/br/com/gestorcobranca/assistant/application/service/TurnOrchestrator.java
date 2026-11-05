@@ -60,7 +60,13 @@ import java.util.UUID;
 
 /**
  * Orquestração de um turno do assistente ("a IA conversa, o motor decide"), executada pelo job
- * {@code assistant.turn} sob lock consultivo da conversa:
+ * {@code assistant.turn} (sem transação, decisão 852; INC-03). O lock consultivo da conversa vale só numa
+ * transação curta de início: decisão, sessão e a marca do turno em andamento ({@code pending_turn_id} /
+ * {@code pending_since}, o lease do turno). Com a marca gravada, o lock é solto e o resto do turno — modelo,
+ * ferramentas, envio — corre fora de transação (cada chamada a outro módulo com a própria). Outro job da
+ * mesma conversa que encontrar a marca dentro de {@code app.assistant.stale-turn-after} não inicia turno: o
+ * turno em andamento agenda, ao terminar, o seguinte se chegaram mensagens novas, e o job adiado fica como
+ * rede de segurança para depois do prazo (quando a marca vencida é recuperada como turno interrompido).
  * <ol>
  *   <li>decide pela política vigente e pelo dono da conversa: responder (dono {@code ASSISTANT}, modos
  *       autônomos), rascunhar (dono humano, modos sombra/copiloto), transferir (política desligada ou
@@ -138,34 +144,71 @@ class TurnOrchestrator {
     }
 
     /**
-     * Executa o turno da conversa (na transação do job, como sistema). As chamadas aos outros módulos e
-     * as gravações do turno usam transações próprias.
+     * Executa o turno da conversa (fora de transação, como sistema): início curto sob lock, conversa com o
+     * modelo sem transação e registro final em transação própria.
      */
     void run(UUID tenantId, UUID conversationId) {
+        Optional<Started> started = actors.system(tenantId, () -> start(tenantId, conversationId));
+        if (started.isEmpty()) {
+            return;
+        }
+        TurnContext ctx = started.get().ctx();
+        Decision decision = started.get().decision();
+        try {
+            switch (decision.action()) {
+                case HANDOFF -> handoff(ctx, decision.reason(), TriggerSource.POLICY, null, null, null, false);
+                case AUTONOMOUS -> autonomous(ctx, started.get().history());
+                case DRAFT -> draft(ctx, started.get().history());
+                default -> throw new IllegalStateException("Ação inesperada: " + decision.action());
+            }
+        } catch (RuntimeException e) {
+            fail(ctx, e, decision.action() != Action.DRAFT);
+        }
+        settlePix(ctx);
+        store.record(ctx);
+        followUp(ctx);
+    }
+
+    /**
+     * Início do turno, na transação curta do lock consultivo (solto no commit). Devolve vazio quando não há turno
+     * a executar agora (conversa fora do assistente, adiada, turno em andamento, turno interrompido recuperado
+     * ou nenhuma mensagem nova).
+     */
+    private Optional<Started> start(UUID tenantId, UUID conversationId) {
         locks.lockConversation(conversationId);
         ConversationView c = conversations.get(conversationId).conversation();
         if (!"OPEN".equals(c.status()) || c.debtorId() == null || c.creditorId() == null) {
             metrics.scheduled("skipped_conversation");
-            return;
+            return Optional.empty();
         }
         Optional<PolicyLookup.Effective> policy = lookup.effective(c.creditorId(), c.portfolioId());
         Instant now = Instant.now(clock);
         Decision decision = decide(c, policy, now);
         if (decision.action() == Action.NONE) {
             metrics.scheduled("not_applicable");
-            return;
+            return Optional.empty();
         }
         if (decision.action() == Action.DEFER) {
             jobQueue.enqueue(AssistantTurnJob.TYPE, new AssistantTurnJob.Payload(conversationId, null),
                     decision.deferUntil(), "deferred:" + conversationId);
             metrics.scheduled("deferred");
-            return;
+            return Optional.empty();
+        }
+        Optional<AssistantSession> current = store.find(conversationId);
+        if (current.isPresent() && inProgress(current.get(), now)) {
+            // outro turno conversa com o modelo agora: ele agenda o seguinte ao terminar; este job só deixa uma
+            // retomada para depois do prazo, caso aquele turno não termine (instância caiu)
+            AssistantSession busy = current.get();
+            store.schedule(conversationId, busy.getPendingSince().plus(properties.staleTurnAfter()).plusSeconds(30),
+                    "busy:" + conversationId + ":" + busy.getPendingTurnId());
+            metrics.scheduled("turn_in_progress");
+            return Optional.empty();
         }
         boolean identityRequired = policy.map(p -> p.settings().requireIdentityVerification()).orElse(true);
         AssistantSession session = store.session(c, identityRequired);
         if (session.getPendingTurnId() != null) {
             recover(tenantId, c, policy.orElse(null), session);
-            return;
+            return Optional.empty();
         }
         if (decision.action() == Action.AUTONOMOUS && session.getStatus() == SessionStatus.HANDED_OFF) {
             session = store.reopen(session, identityRequired);
@@ -174,7 +217,7 @@ class TurnOrchestrator {
         List<MessageView> pending = unprocessed(history, session);
         if (pending.isEmpty()) {
             metrics.scheduled("no_new_messages");
-            return;
+            return Optional.empty();
         }
         AssistantMode mode = policy.map(p -> p.settings().mode()).orElse(AssistantMode.OFF);
         TurnContext ctx = new TurnContext(tenantId, c, policy.orElse(null), mode,
@@ -187,18 +230,33 @@ class TurnOrchestrator {
         ctx.inputMessageIds = pending.stream().map(MessageView::id).toList();
         ctx.triggerMessageId = pending.getLast().id();
         ctx.inputText = String.join("\n", pending.stream().map(MessageView::content).toList());
+        return Optional.of(new Started(ctx, decision, history));
+    }
+
+    /** Marca de turno ainda dentro do prazo: o turno está em andamento (o lock não o protege mais). */
+    private boolean inProgress(AssistantSession session, Instant now) {
+        return session.turnInProgress(now, properties.staleTurnAfter());
+    }
+
+    /**
+     * Mensagens do devedor que chegaram enquanto o turno conversava com o modelo: os jobs delas encontraram o turno
+     * em andamento, então o turno seguinte é agendado agora.
+     */
+    private void followUp(TurnContext ctx) {
         try {
-            switch (decision.action()) {
-                case HANDOFF -> handoff(ctx, decision.reason(), TriggerSource.POLICY, null, null, null, false);
-                case AUTONOMOUS -> autonomous(ctx, history);
-                case DRAFT -> draft(ctx, history);
-                default -> throw new IllegalStateException("Ação inesperada: " + decision.action());
+            if (!unprocessed(history(ctx.conversation.id()), ctx.session).isEmpty()) {
+                store.schedule(ctx.conversation.id(), null, "followup:" + ctx.token);
+                metrics.scheduled("follow_up");
             }
         } catch (RuntimeException e) {
-            fail(ctx, e, decision.action() != Action.DRAFT);
+            // a retomada adiada deixada pelos jobs dessas mensagens cobre a falha
+            LOG.atError().addKeyValue("conversationId", ctx.conversation.id()).setCause(e)
+                    .log("Falha ao agendar o turno seguinte do assistente");
         }
-        settlePix(ctx);
-        store.record(ctx);
+    }
+
+    /** Turno iniciado: contexto com a marca gravada, decisão e histórico lido no início. */
+    private record Started(TurnContext ctx, Decision decision, List<MessageView> history) {
     }
 
     /** Pix gerado num turno que não respondeu ao devedor é cancelado (nunca falha o registro do turno). */
@@ -221,6 +279,11 @@ class TurnOrchestrator {
      */
     void recoverStale(UUID tenantId, UUID conversationId) {
         locks.lockConversation(conversationId);
+        Optional<AssistantSession> current = store.find(conversationId);
+        if (current.isEmpty() || current.get().getPendingTurnId() == null || inProgress(current.get(), Instant.now(clock))) {
+            // já concluído, ou um turno novo começou depois da varredura
+            return;
+        }
         ConversationView c = conversations.get(conversationId).conversation();
         if (c.debtorId() == null || c.creditorId() == null) {
             return;

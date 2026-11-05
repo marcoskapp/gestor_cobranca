@@ -8,10 +8,12 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * Turno do assistente numa conversa (job {@code assistant.turn}, um por mensagem recebida). Os turnos de
- * uma conversa são serializados por lock consultivo e cada um trata todas as mensagens ainda não
- * processadas: mensagens em sequência viram um único turno e os jobs seguintes terminam sem efeito. Falhas do modelo não são repetidas — o orquestrador
- * transfere para humanos —; só falhas de infraestrutura (banco) tentam de novo.
+ * Turno do assistente numa conversa (job {@code assistant.turn}, um por mensagem recebida). Cada turno trata todas
+ * as mensagens ainda não processadas: mensagens em sequência viram um único turno e os jobs seguintes terminam sem
+ * efeito. Sem transação do worker (decisão 852): o orquestrador abre só uma transação curta de início, sob lock
+ * consultivo, e conversa com o modelo fora dela; job que encontra outro turno da conversa em andamento não inicia
+ * turno. Falhas do modelo não são repetidas — o orquestrador transfere para humanos —; só falhas de infraestrutura
+ * (banco) tentam de novo.
  */
 @Component
 class AssistantTurnJob implements JobHandler<AssistantTurnJob.Payload> {
@@ -43,6 +45,11 @@ class AssistantTurnJob implements JobHandler<AssistantTurnJob.Payload> {
     @Override
     public int maxAttempts() {
         return properties.turnMaxAttempts();
+    }
+
+    @Override
+    public boolean transactional() {
+        return false;
     }
 
     @Override

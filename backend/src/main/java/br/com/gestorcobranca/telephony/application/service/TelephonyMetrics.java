@@ -57,6 +57,16 @@ class TelephonyMetrics {
     }
 
     /** Pedido de discagem: accepted, rejected, transient, blocked, account_unavailable, exhausted. */
+    /**
+     * Comando ao provedor depois do commit ({@code bridge}/{@code hangup}): {@code success}, {@code rejected},
+     * {@code transient} (encerramento reagendado no job {@code telephony.hangup}) ou {@code skipped} (sem id do
+     * provedor ainda).
+     */
+    void providerCommand(String provider, String operation, String outcome) {
+        registry.counter("telephony.provider.commands", "provider", provider, "operation", operation, "outcome", outcome)
+                .increment();
+    }
+
     void dial(String origin, String outcome) {
         registry.counter("telephony.dial.requests", "origin", origin, "outcome", outcome).increment();
     }

@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.assistant.application.service;
 
+import br.com.gestorcobranca.assistant.application.AssistantProperties;
 import br.com.gestorcobranca.assistant.application.port.out.ConversationLocks;
 import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort.PixInstruction;
 import br.com.gestorcobranca.assistant.application.port.out.PaymentInstructionPort;
@@ -29,13 +30,17 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Entrega do Pix gerado pelo assistente (job {@code assistant.pix_delivery}): agendada quando o turno
  * respondeu ao devedor e de novo a cada mudança da instrução no payment ({@code PaymentInstructionStatusChanged}).
- * Sob o lock da conversa (serializa com os turnos), como o ator {@code ASSISTANT} da política do pedido:
+ * Sob o lock da conversa, como o ator {@code ASSISTANT} da política do pedido. O turno solta o lock enquanto
+ * conversa com o modelo (INC-03): com um turno da conversa em andamento (marca dentro de
+ * {@code app.assistant.stale-turn-after}), a entrega é reagendada para logo depois, e a mensagem do Pix nunca sai no
+ * meio de um turno:
  * <ul>
  *   <li>cobrança ainda {@code PENDING} no PSP → aguarda o evento de ativação;</li>
  *   <li>{@code ACTIVE} → mensagem do {@link PixMessage} (código validado, valor do motor, validade e aviso de
@@ -49,6 +54,8 @@ import java.util.UUID;
 class AssistantPixDelivery implements JobHandler<AssistantPixDelivery.Payload> {
 
     static final String TYPE = "assistant.pix_delivery";
+    /** Espera pela conclusão do turno em andamento antes de nova tentativa de entrega. */
+    static final Duration BUSY_RETRY = Duration.ofSeconds(15);
     private static final Logger LOG = LoggerFactory.getLogger(AssistantPixDelivery.class);
 
     record Payload(UUID pixRequestId) {
@@ -64,12 +71,15 @@ class AssistantPixDelivery implements JobHandler<AssistantPixDelivery.Payload> {
     private final AssistantCodec codec;
     private final ConversationLocks locks;
     private final AssistantPixRecorder recorder;
+    private final JobQueue jobs;
+    private final AssistantProperties properties;
     private final Clock clock;
 
     AssistantPixDelivery(PixRequestRepository requests, AssistantPolicyRepository policies,
                          AssistantSessionRepository sessions, ObjectProvider<PaymentInstructionPort> payments,
                          MessageUseCases messages, ConversationUseCases conversations, AssistantActors actors,
-                         AssistantCodec codec, ConversationLocks locks, AssistantPixRecorder recorder, Clock clock) {
+                         AssistantCodec codec, ConversationLocks locks, AssistantPixRecorder recorder, JobQueue jobs,
+                         AssistantProperties properties, Clock clock) {
         this.requests = requests;
         this.policies = policies;
         this.sessions = sessions;
@@ -80,6 +90,8 @@ class AssistantPixDelivery implements JobHandler<AssistantPixDelivery.Payload> {
         this.codec = codec;
         this.locks = locks;
         this.recorder = recorder;
+        this.jobs = jobs;
+        this.properties = properties;
         this.clock = clock;
     }
 
@@ -105,6 +117,12 @@ class AssistantPixDelivery implements JobHandler<AssistantPixDelivery.Payload> {
         }
         // serializa com os turnos da conversa (a mensagem do Pix nunca sai no meio de um turno)
         locks.lockConversation(r.getConversationId());
+        if (sessions.findByConversationId(r.getConversationId())
+                .filter(s -> s.turnInProgress(Instant.now(clock), properties.staleTurnAfter())).isPresent()) {
+            // o turno em andamento não segura o lock: entrega logo depois dele (chave nova por job, sem colidir com este)
+            jobs.enqueue(TYPE, payload, Instant.now(clock).plus(BUSY_RETRY), "pix:" + r.getId() + ":after:" + context.jobId());
+            return;
+        }
         AssistantPolicy policy = policies.findById(r.getPolicyId()).orElseThrow();
         PolicySettings settings = codec.settings(policy.getSettings());
         Actor actor = actors.forPolicy(context.tenantId(), policy, r.getMode(), r.getCreditorId(), true);

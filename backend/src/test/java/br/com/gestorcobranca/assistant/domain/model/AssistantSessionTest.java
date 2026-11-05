@@ -3,6 +3,7 @@ package br.com.gestorcobranca.assistant.domain.model;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -36,6 +37,28 @@ class AssistantSessionTest {
         assertThat(s.getTurns()).isEqualTo(1);
         assertThat(s.getCostAmount()).isEqualByComparingTo("0.01");
         assertThat(s.getPendingTurnId()).isNull();
+    }
+
+    @Test
+    void pendingMarkIsTheLeaseOfTheTurnUntilItGoesStale() {
+        AssistantSession s = session();
+        Instant start = Instant.parse("2026-11-05T12:00:00Z");
+        Duration stale = Duration.ofMinutes(20);
+        assertThat(s.turnInProgress(start, stale)).isFalse();
+        UUID turn = UUID.randomUUID();
+        s.begin(turn, start, start, null);
+        assertThat(s.turnInProgress(start.plus(Duration.ofMinutes(13)), stale)).isTrue();
+        assertThat(s.turnInProgress(start.plus(stale), stale)).isFalse();
+        s.finish(turn, 0, 0, null, null);
+        assertThat(s.turnInProgress(start.plusSeconds(1), stale)).isFalse();
+    }
+
+    @Test
+    void staleTurnRecoveryMustOutlastTheWorstTurn() {
+        assertThat(PolicySettings.Limits.worstTurnModelTime()).isEqualTo(Duration.ofMinutes(13));
+        PolicySettings.Limits limits = PolicySettings.defaults(AssistantMode.AUTONOMOUS).limits();
+        assertThat(Duration.ofSeconds((long) (limits.maxToolCallsPerTurn() + 1) * limits.timeoutSeconds()))
+                .isLessThanOrEqualTo(PolicySettings.Limits.worstTurnModelTime());
     }
 
     @Test

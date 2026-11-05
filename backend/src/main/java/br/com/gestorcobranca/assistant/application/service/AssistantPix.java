@@ -161,19 +161,23 @@ class AssistantPix {
                 && ctx.conversation.creditorId().equals(agreement.creditorId())
                 && (ctx.conversation.portfolioId() == null || ctx.conversation.portfolioId().equals(agreement.portfolioId()));
         Instant since = now.minus(Duration.ofDays(settings.riskLookbackDays()));
+        LocalDate today = LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
+        // o turno roda fora de transação (decisão 852): as consultas da trilha abrem a própria, no tenant (RLS)
+        History history = actors.system(ctx.tenantId, () -> new History(
+                turns.handoffReasonsSince(ctx.session.getId(), since),
+                turns.countGuardrailsSince(ctx.session.getId(), since),
+                requests.countIssuedSince(ctx.conversation.id(), today.atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant())));
         Set<String> risks = new LinkedHashSet<>();
-        turns.handoffReasonsSince(ctx.session.getId(), since).stream()
+        history.handoffReasons().stream()
                 .filter(r -> HandoffReason.parse(r).map(HandoffReason::conversationRisk).orElse(false))
                 .forEach(risks::add);
         HandoffDetector.detect(ctx.inputText, ctx.policy.settings().extraTriggers()).forEach(d -> risks.add(d.reason().name()));
         if (ctx.alert != null) {
             risks.add(ctx.alert);
         }
-        boolean guardrail = !ctx.guardrails.isEmpty() || turns.countGuardrailsSince(ctx.session.getId(), since) > 0;
+        boolean guardrail = !ctx.guardrails.isEmpty() || history.guardrails() > 0;
         boolean dispute = openDispute(ctx, agreement);
-        LocalDate today = LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
-        long issuedToday = requests.countIssuedSince(ctx.conversation.id(), today.atStartOfDay(TimeConfig.BUSINESS_ZONE)
-                .toInstant());
+        long issuedToday = history.issuedToday();
         Evaluation evaluation = PixEligibility.evaluate(new PixEligibility.Facts(settings, ctx.mode,
                 ctx.session.getIdentityStatus(), installment == null ? null : new PixEligibility.Agreement(
                 agreement.status(), agreement.origin(), installment.status(), amount), sameParties, risks, guardrail,
@@ -370,5 +374,9 @@ class AssistantPix {
     private static BigDecimal remaining(InstallmentView i) {
         BigDecimal paid = i.paidAmount() == null ? BigDecimal.ZERO : i.paidAmount();
         return i.amount().subtract(paid).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_EVEN);
+    }
+
+    /** Fatos da trilha da conversa para a elegibilidade do Pix (lidos numa transação própria). */
+    private record History(List<String> handoffReasons, long guardrails, long issuedToday) {
     }
 }

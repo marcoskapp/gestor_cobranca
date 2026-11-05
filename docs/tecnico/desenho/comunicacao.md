@@ -310,3 +310,9 @@ templates sem `DELETE`.
 * SLA em horário comercial (calendário por canal) e meta por credor, se a operação pedir.
 * Mídias (imagens, documentos) recebidas: registradas sem o arquivo (só legenda); download pela Cloud API e
   armazenamento no S3 quando houver demanda.
+* Envio fora de transação (TEL-02, como a telefonia em `telefonia.md` §3.1): o `communication.send` ainda chama o
+  provedor dentro da transação do job, então um status `DELIVERED` que chegue antes do commit cai em `unknown_message`
+  e a conexão fica presa durante o HTTP. A mudança pede um estado de pedido enviado sem id do provedor (`QUEUED → SENDING`)
+  — valor novo no `check` de `message.status` (migration do communication), no status por webhook, nos filtros e na
+  caixa de entrada — e a decisão sobre a tentativa do compliance na falha transitória (hoje desfeita com a transação).
+  Fica para uma etapa própria, fora da frente de telefonia/assistente.
