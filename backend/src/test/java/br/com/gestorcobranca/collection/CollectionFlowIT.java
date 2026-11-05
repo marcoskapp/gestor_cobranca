@@ -4,6 +4,7 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseShe
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.collection.application.port.in.CollectionSettingsUseCases.SettingsCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.ResolveCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.EvidenceUpload;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.EvidenceView;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.OpenDisputeCommand;
@@ -92,7 +93,7 @@ class CollectionFlowIT extends CollectionTestSupport {
         CaseView pending = activeCase(debtor, draft);
         assertThat(pending.eligible()).isFalse();
         assertThat(pending.eligibilityReasons()).containsExactly("PORTFOLIO_NOT_OPERABLE");
-        system(() -> portfolios.changeStatus(draft, "ACTIVE", "Início da operação"));
+        system(() -> portfolios.changeStatus(draft, "ACTIVE", "Início da operação", null));
         awaitTrue("varredura da carteira", () -> count("select count(*) from shared.processing_job "
                 + "where type = 'collection.case_sweep' and payload ->> 'portfolioId' = ?", draft.toString()) >= 1);
         drainJobs();
@@ -296,7 +297,8 @@ class CollectionFlowIT extends CollectionTestSupport {
         assertThat(system(() -> CollectionTestHooks.flagOverdueDisputes(applicationContext))).isEqualTo(1);
         clock.reset();
 
-        DisputeView resolved = asSupervisor(() -> disputes.resolve(dispute.id(), "REJECTED", "Pagamento não localizado"));
+        DisputeView resolved = asSupervisor(() -> disputes.resolve(dispute.id(),
+                new ResolveCommand("REJECTED", "Pagamento não localizado", null)));
         assertThat(resolved.status()).isEqualTo("RESOLVED");
         assertThat(resolved.overdue()).isTrue();
         CaseView back = system(() -> cases.get(c.id()));

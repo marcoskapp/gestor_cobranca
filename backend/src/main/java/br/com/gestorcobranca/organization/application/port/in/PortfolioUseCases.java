@@ -16,19 +16,11 @@ public interface PortfolioUseCases {
 
     PortfolioView create(CreatePortfolioCommand command);
 
-    default PortfolioView update(UUID portfolioId, UpdatePortfolioCommand command) {
-        return update(portfolioId, command, null);
-    }
-
     /**
      * @param expectedVersion versão lida pelo chamador ({@code If-Match} da API pública); diferente da atual →
      *                        {@code PreconditionFailedException}; nulo = sem verificação
      */
     PortfolioView update(UUID portfolioId, UpdatePortfolioCommand command, Long expectedVersion);
-
-    default PortfolioView changeStatus(UUID portfolioId, String targetStatus, String reason) {
-        return changeStatus(portfolioId, targetStatus, reason, null);
-    }
 
     /**
      * Ativa, suspende, devolve ou encerra a carteira. Publica {@code PortfolioStatusChanged}.

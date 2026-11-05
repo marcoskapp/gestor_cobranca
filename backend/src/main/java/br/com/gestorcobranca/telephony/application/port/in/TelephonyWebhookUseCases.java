@@ -14,11 +14,6 @@ public interface TelephonyWebhookUseCases {
 
     Reply handle(WebhookHttpRequest request);
 
-    /** Provedores que assinam só o corpo (sem URL nem consulta). */
-    default Outcome receive(String routingKey, Map<String, String> headers, byte[] body, String clientIp) {
-        return handle(new WebhookHttpRequest(routingKey, null, Map.of(), headers, body, null, clientIp)).outcome();
-    }
-
     /**
      * @param url         URL pública exatamente como chamada pelo provedor (assinaturas que cobrem a URL)
      * @param query       consulta decodificada (primeiro valor por nome)

@@ -259,7 +259,7 @@ class DebtModuleIT extends IntegrationTest {
         assertThat(asUserOf(creditorA, () -> titles.search(new TitleSearch(null, null, null, null, null, null, null, null),
                 PageQuery.of(0, 50)).content())).extracting(TitleView::id).containsExactly(titleA);
         assertThatThrownBy(() -> asUserOf(creditorA, () -> titles.get(titleB))).isInstanceOf(ResourceNotFoundException.class);
-        assertThatThrownBy(() -> asUserOf(creditorA, () -> titles.suspend(titleB, "x")))
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> titles.suspend(titleB, "x", null)))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         assertThat(asUserOf(creditorA, () -> debtors.search(null, null, null, PageQuery.of(0, 50)).content()))

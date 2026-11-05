@@ -65,13 +65,13 @@ class PortfolioController {
     @PreAuthorize("hasAuthority('PORTFOLIO_MANAGE')")
     PortfolioView update(@PathVariable UUID id, @Valid @RequestBody UpdatePortfolioRequest request) {
         return portfolios.update(id, new UpdatePortfolioCommand(request.name(), request.description(),
-                request.receivedOn(), request.validUntil()));
+                request.receivedOn(), request.validUntil()), null);
     }
 
     @PostMapping("/{id}/status")
     @PreAuthorize("hasAuthority('PORTFOLIO_MANAGE')")
     PortfolioView changeStatus(@PathVariable UUID id, @Valid @RequestBody ChangeStatusRequest request) {
-        return portfolios.changeStatus(id, request.status(), request.reason());
+        return portfolios.changeStatus(id, request.status(), request.reason(), null);
     }
 
     record CreatePortfolioRequest(@NotNull UUID creditorId, @NotNull UUID contractId,

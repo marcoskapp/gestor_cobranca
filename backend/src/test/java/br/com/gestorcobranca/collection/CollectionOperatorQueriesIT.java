@@ -4,6 +4,7 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseVie
 import br.com.gestorcobranca.collection.application.port.in.ContactAvailabilityQueries;
 import br.com.gestorcobranca.collection.application.port.in.ContactAvailabilityQueries.ChannelAvailability;
 import br.com.gestorcobranca.collection.application.port.in.ContactAvailabilityQueries.ContactAvailability;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeQuery;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.EvidenceUpload;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.EvidenceView;
@@ -262,7 +263,8 @@ class CollectionOperatorQueriesIT extends CollectionTestSupport {
         assertThat(asSupervisor(() -> disputes.listEvidence(dispute.id()))).singleElement()
                 .extracting(EvidenceView::createdByName).isEqualTo("Operador X");
 
-        assertThat(asSupervisor(() -> disputes.search(null, Set.of(), null, PageQuery.of(0, 20))).content())
+        assertThat(asSupervisor(() -> disputes.search(new DisputeQuery(null, Set.of(), null, null, null, false,
+                false, null, null, null, false, false, false), PageQuery.of(0, 20))).content())
                 .singleElement().satisfies(d -> assertThat(d.titles()).hasSize(1));
         assertThat(asSupervisor(() -> cases.sheet(caseA.id())).openDisputes()).singleElement()
                 .satisfies(d -> assertThat(d.titles()).extracting(t -> t.titleId()).containsExactly(titles.getFirst()));

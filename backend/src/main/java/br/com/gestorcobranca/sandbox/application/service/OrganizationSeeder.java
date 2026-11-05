@@ -94,7 +94,7 @@ class OrganizationSeeder {
                                 portfolio.name(), "Carteira fictícia de demonstração — " + portfolio.product(),
                                 receivedOn, seed.today.plusYears(1)))));
                 if (!"ACTIVE".equals(view.status())) {
-                    rt.as(admin, () -> portfolios.changeStatus(view.id(), "ACTIVE", "Início da operação (sandbox)"));
+                    rt.as(admin, () -> portfolios.changeStatus(view.id(), "ACTIVE", "Início da operação (sandbox)", null));
                 }
                 seed.portfolios.put(code, view.id());
             }

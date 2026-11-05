@@ -142,7 +142,7 @@ abstract class NegotiationTestSupport extends IntegrationTest {
                     new ContractTermsCommand(LocalDate.of(2026, 1, 1), null, null, 10, null))).id();
             UUID id = portfolios.create(new CreatePortfolioCommand(creditorId, contract, code, "Carteira " + code, null,
                     LocalDate.of(2026, 1, 1), null)).id();
-            return portfolios.changeStatus(id, "ACTIVE", null).id();
+            return portfolios.changeStatus(id, "ACTIVE", null, null).id();
         });
     }
 

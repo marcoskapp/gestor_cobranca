@@ -146,8 +146,14 @@ class TelephonyMultiProviderIT extends TelephonyTestSupport {
                 + (hangupBy == null ? "" : ",\"hangupBy\":\"" + hangupBy + "\"") + "}]}";
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         String routingKey = alvariaAccount.webhookPath().substring(alvariaAccount.webhookPath().lastIndexOf('/') + 1);
-        return webhooks.receive(routingKey, Map.of("x-gestor-signature",
+        return receive(routingKey, Map.of("x-gestor-signature",
                 TimestampedHmac.header(ALVARIA_SECRET, Instant.now().getEpochSecond(), bytes)), bytes, "127.0.0.1");
+    }
+
+    /** Provedores que assinam só o corpo (sem URL nem consulta). */
+    private Outcome receive(String routingKey, Map<String, String> headers, byte[] body, String clientIp) {
+        return webhooks.handle(new TelephonyWebhookUseCases.WebhookHttpRequest(routingKey, null, Map.of(), headers, body,
+                null, clientIp)).outcome();
     }
 
     private String providerCallId(UUID callId) {
@@ -190,7 +196,7 @@ class TelephonyMultiProviderIT extends TelephonyTestSupport {
         // evento assinado com o segredo de outra conta é recusado
         String routingKey = alvariaAccount.webhookPath().substring(alvariaAccount.webhookPath().lastIndexOf('/') + 1);
         byte[] forged = "{\"events\":[]}".getBytes(StandardCharsets.UTF_8);
-        assertThat(webhooks.receive(routingKey, Map.of("x-gestor-signature", TimestampedHmac.header(WEBHOOK_SECRET,
+        assertThat(receive(routingKey, Map.of("x-gestor-signature", TimestampedHmac.header(WEBHOOK_SECRET,
                 Instant.now().getEpochSecond(), forged)), forged, "127.0.0.1")).isEqualTo(Outcome.INVALID_SIGNATURE);
 
         asOperator(operatorX, () -> calls.tabulate(viaAlvaria.id(),

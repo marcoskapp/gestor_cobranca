@@ -264,7 +264,7 @@ abstract class SettlementTestSupport extends IntegrationTest {
         return system(() -> {
             UUID id = portfolios.create(new CreatePortfolioCommand(creditorId, contractId, code, "Carteira " + code, null,
                     LocalDate.of(2026, 1, 1), null)).id();
-            return portfolios.changeStatus(id, "ACTIVE", null).id();
+            return portfolios.changeStatus(id, "ACTIVE", null, null).id();
         });
     }
 

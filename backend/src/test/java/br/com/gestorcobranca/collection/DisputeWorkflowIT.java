@@ -342,7 +342,7 @@ class DisputeWorkflowIT extends CollectionTestSupport {
         // sem efeito financeiro automático: o título continua em aberto até o cancelamento pelo fluxo do debt
         UUID titleId = resolved.titleIds().iterator().next();
         assertThat(system(() -> titleUseCases.get(titleId)).status()).isEqualTo("OPEN");
-        asManager(() -> titleUseCases.cancel(titleId, "Fraude confirmada na contestação"));
+        asManager(() -> titleUseCases.cancel(titleId, "Fraude confirmada na contestação", null));
         awaitIdle("collection.title-status");
         awaitTrue("ajuste detectado", () -> "DONE".equals(asSupervisor(() -> disputes.get(dispute.id())).adjustmentStatus()));
         assertThat(count("select count(*) from shared.business_event where event_type = 'dispute.adjustment_closed'"))

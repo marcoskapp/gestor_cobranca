@@ -137,7 +137,7 @@ class RowWriter {
                 titleId == null ? null : debtTitles.get(titleId).status());
         if (!decision.write()) {
             if (decision.suspendExisting()) {
-                debtTitles.suspend(titleId, TitleSituationPolicy.suspensionReason(row.situation(), target.batchReference()));
+                debtTitles.suspend(titleId, TitleSituationPolicy.suspensionReason(row.situation(), target.batchReference()), null);
             }
             if (decision.warningCode() != null) {
                 rowIssues.add(RowIssue.of(row.rowNumber(), IssueSeverity.WARNING,
@@ -154,7 +154,8 @@ class RowWriter {
             boolean suspended = false;
             if (row.situation().holdsCollection()
                     && TitleSituationPolicy.suspendAfterWrite(row.situation(), debtTitles.get(title.id()).status())) {
-                debtTitles.suspend(title.id(), TitleSituationPolicy.suspensionReason(row.situation(), target.batchReference()));
+                debtTitles.suspend(title.id(), TitleSituationPolicy.suspensionReason(row.situation(), target.batchReference()),
+                        null);
                 suspended = true;
                 rowIssues.add(RowIssue.of(row.rowNumber(), IssueSeverity.WARNING,
                         CanonicalField.TITLE_SITUATION.column(), TitleSituationPolicy.suspensionWarning(row.situation()),

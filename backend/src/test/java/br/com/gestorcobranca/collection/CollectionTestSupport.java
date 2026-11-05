@@ -224,7 +224,7 @@ abstract class CollectionTestSupport extends IntegrationTest {
     /** Carteira ativa (em operação). */
     private UUID portfolio(UUID creditorId, String code) {
         UUID id = draftPortfolio(creditorId, code);
-        system(() -> portfolios.changeStatus(id, "ACTIVE", "Início da operação"));
+        system(() -> portfolios.changeStatus(id, "ACTIVE", "Início da operação", null));
         return id;
     }
 

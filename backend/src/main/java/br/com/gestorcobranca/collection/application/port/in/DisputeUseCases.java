@@ -36,11 +36,6 @@ public interface DisputeUseCases {
     /** Encaminha para análise (credor / jurídico). */
     DisputeView startReview(UUID disputeId);
 
-    /** @param outcome UPHELD, REJECTED ou PARTIALLY_UPHELD */
-    default DisputeView resolve(UUID disputeId, String outcome, String note) {
-        return resolve(disputeId, new ResolveCommand(outcome, note, null));
-    }
-
     /** Resolve; procedente ou parcial sugere a ação no título (pendência até ser feita ou dispensada). */
     DisputeView resolve(UUID disputeId, ResolveCommand command);
 
@@ -66,12 +61,6 @@ public interface DisputeUseCases {
 
     /** Fila de contestações, por prazo (o mais próximo entre o interno e o de resposta) e id. */
     PageResponse<DisputeView> search(DisputeQuery query, PageQuery page);
-
-    /** Compatibilidade: filtros por credor, situação e vencimento. */
-    default PageResponse<DisputeView> search(UUID creditorId, Set<String> statuses, Boolean overdue, PageQuery page) {
-        return search(new DisputeQuery(creditorId, statuses, null, null, null, false, false, overdue, null, null, false,
-                false, false), page);
-    }
 
     // ------------------------------------------------------------------ responsável
 

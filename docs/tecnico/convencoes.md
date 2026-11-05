@@ -53,6 +53,7 @@ interface AgreementJpaRepository extends JpaRepository<Agreement, UUID>, Agreeme
 
 - Interface em `port/in` + records `XxxCommand`/`XxxView` aninhados ou no mesmo pacote. Views nunca expõem entidades.
 - Serviço `@Service @Transactional` package-private, consultas com `@Transactional(readOnly = true)`.
+- **Sem métodos `default` na interface do caso de uso** (`ArchitectureTest.useCasePortsHaveNoDefaultMethods`, decisão 848): o `default` roda no objeto-alvo, fora do proxy, e a chamada interna escapa do `@Transactional` do serviço. Parâmetro opcional (ex.: `expectedVersion`) o chamador passa como `null`.
 - Escopo por credor **sempre**: leitura por id → `accessScope.requireVisible(recurso, id, creditorId)` (404); comandos → `accessScope.requireCreditor(creditorId)` (403); listagens → filtrar por `accessScope.restrictCreditors(...)`/`hasAllCreditors()`.
 - Toda alteração relevante grava `AuditEntry` (antes/depois) na mesma transação.
 - Fatos de negócio relevantes → `BusinessEventLogger.log(BusinessEvent.of(BusinessEventTypes.X)...)` com credor, carteira, devedor, caso, valor, canal.

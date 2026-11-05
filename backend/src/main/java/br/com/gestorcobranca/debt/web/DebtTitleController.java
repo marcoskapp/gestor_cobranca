@@ -93,19 +93,19 @@ class DebtTitleController {
     @PostMapping("/titles/{id}/suspend")
     @PreAuthorize("hasAuthority('DEBT_TITLE_MANAGE')")
     TitleView suspend(@PathVariable UUID id, @Valid @RequestBody ReasonRequest request) {
-        return titles.suspend(id, request.reason());
+        return titles.suspend(id, request.reason(), null);
     }
 
     @PostMapping("/titles/{id}/reactivate")
     @PreAuthorize("hasAuthority('DEBT_TITLE_MANAGE')")
     TitleView reactivate(@PathVariable UUID id) {
-        return titles.reactivate(id);
+        return titles.reactivate(id, null);
     }
 
     @PostMapping("/titles/{id}/cancel")
     @PreAuthorize("hasAuthority('DEBT_TITLE_MANAGE')")
     TitleView cancel(@PathVariable UUID id, @Valid @RequestBody ReasonRequest request) {
-        return titles.cancel(id, request.reason());
+        return titles.cancel(id, request.reason(), null);
     }
 
     @PostMapping("/titles/return")

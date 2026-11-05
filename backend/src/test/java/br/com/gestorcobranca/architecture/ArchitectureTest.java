@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.architecture;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -51,6 +53,23 @@ class ArchitectureTest {
                 .should().dependOnClassesThat().resideInAnyPackage(
                         ROOT + ".(*).domain.repository..", ROOT + ".(*).infrastructure..",
                         ROOT + ".(*).application.service..", "org.springframework.data.jpa..")
+                .check(classes);
+    }
+
+    /**
+     * Método {@code default} numa interface de caso de uso roda no objeto-alvo, não no proxy do Spring: a chamada
+     * interna que ele faz ao método implementado escapa do {@code @Transactional} (e de qualquer outro aspecto) da
+     * classe de serviço. Overloads de conveniência ficam no chamador ou na implementação, nunca na porta.
+     */
+    @Test
+    void useCasePortsHaveNoDefaultMethods() {
+        methods().that().areDeclaredInClassesThat().resideInAPackage(ROOT + ".(*).application.port.in..")
+                .and().areDeclaredInClassesThat().areInterfaces()
+                .and().doNotHaveModifier(JavaModifier.STATIC)
+                .and().doNotHaveModifier(JavaModifier.SYNTHETIC)
+                .should().haveModifier(JavaModifier.ABSTRACT)
+                .because("default em porta de caso de uso escapa do proxy transacional (decisão 848)")
+                .allowEmptyShould(true)
                 .check(classes);
     }
 

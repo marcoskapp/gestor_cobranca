@@ -162,7 +162,7 @@ abstract class LegalTestSupport extends IntegrationTest {
             return portfolios.create(new CreatePortfolioCommand(creditorId, contract, code, "Carteira " + code, null,
                     LocalDate.of(2019, 1, 1), null)).id();
         });
-        system(() -> portfolios.changeStatus(id, "ACTIVE", "Início da operação"));
+        system(() -> portfolios.changeStatus(id, "ACTIVE", "Início da operação", null));
         return id;
     }
 

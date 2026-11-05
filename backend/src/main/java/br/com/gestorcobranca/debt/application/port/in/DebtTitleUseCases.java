@@ -47,25 +47,13 @@ public interface DebtTitleUseCases {
      */
     ChangePage<TitleView> changes(UUID creditorId, UUID portfolioId, ChangeQuery query);
 
-    default TitleView suspend(UUID titleId, String reason) {
-        return suspend(titleId, reason, null);
-    }
-
     /**
      * @param expectedVersion versão que o chamador leu (concorrência otimista, {@code If-Match}); diferente da atual →
      *                        {@code PreconditionFailedException}; nulo = sem verificação
      */
     TitleView suspend(UUID titleId, String reason, Long expectedVersion);
 
-    default TitleView reactivate(UUID titleId) {
-        return reactivate(titleId, null);
-    }
-
     TitleView reactivate(UUID titleId, Long expectedVersion);
-
-    default TitleView cancel(UUID titleId, String reason) {
-        return cancel(titleId, reason, null);
-    }
 
     TitleView cancel(UUID titleId, String reason, Long expectedVersion);
 
