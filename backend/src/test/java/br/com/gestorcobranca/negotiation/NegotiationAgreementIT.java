@@ -30,6 +30,7 @@ import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -79,6 +80,19 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
     private UUID simulation(Integer level, JustificationInput why, PlanInput... plans) {
         return asOperator(() -> simulations.simulate(new SimulateCommand(creditorA, debtor, List.of(), null, level, why,
                 List.of(plans), "PHONE")).id());
+    }
+
+    private UUID simulationOf(List<UUID> titleIds, PlanInput plan) {
+        return asOperator(() -> simulations.simulate(new SimulateCommand(creditorA, debtor, titleIds, null, null, null,
+                List.of(plan), "PHONE")).id());
+    }
+
+    private static void assertRenegotiationRequired(Throwable e) {
+        assertThat(e).isInstanceOf(BusinessRuleException.class);
+        BusinessRuleException rejected = (BusinessRuleException) e;
+        assertThat(rejected.code()).isEqualTo("proposal.conditions_rejected");
+        assertThat(rejected.details().get("violations")).asInstanceOf(InstanceOfAssertFactories.LIST)
+                .contains("proposal.renegotiation_required");
     }
 
     private ProposalView propose(UUID simulationId, int level, ComponentsView discounts, PlanInput plan, UUID replaced) {
@@ -249,6 +263,11 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         assertThat(broken.installments()).extracting(InstallmentView::status).containsExactly("PAID", "CANCELLED", "CANCELLED");
         awaitTrue("caso volta a IN_NEGOTIATION", () -> "IN_NEGOTIATION".equals(caseStatus()));
 
+        // os títulos liberados pela quebra não voltam como acordo original (sem o acordo quebrado: recusada)
+        UUID bypass = simulation(null, null, new PlanInput(1, null, null));
+        assertThatThrownBy(() -> propose(bypass, 0, null, new PlanInput(1, null, null), null))
+                .satisfies(NegotiationAgreementIT::assertRenegotiationRequired);
+
         // renegociação: o júnior não tem renegociações na alçada → aprovação do gestor
         UUID resim = simulation(null, null, new PlanInput(1, null, null));
         ProposalView reneg = propose(resim, 0, null, new PlanInput(1, null, null), agreement.id());
@@ -271,6 +290,31 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
                 .isEqualTo(1);
         // um título nunca em dois acordos em vigor
         assertThat(count("select count(*) from negotiation.agreement_title where active")).isEqualTo(2);
+    }
+
+    @Test
+    void titlesOfTwoBrokenAgreementsRenegotiateTheMostRecentOne() {
+        provisionTenant("brokentwo");
+        publishPolicy(creditorA, StandardPolicyTerms.marketDefault());
+        assignProfile(manager, "GESTOR");
+        PlanInput three = new PlanInput(3, null, null);
+        AgreementView older = acceptAndFormalize(propose(simulationOf(List.of(title60), three), 0, null, three, null).id());
+        AgreementView newer = acceptAndFormalize(propose(simulationOf(List.of(title30), three), 0, null, three, null).id());
+        system(() -> NegotiationTestHooks.sweepAgreements(applicationContext, today.plusDays(75)));
+        assertThat(agreement(older.id()).status()).isEqualTo("BROKEN");
+        assertThat(agreement(newer.id()).status()).isEqualTo("BROKEN");
+
+        PlanInput single = new PlanInput(1, null, null);
+        UUID both = simulationOf(List.of(title60, title30), single);
+        // sem acordo substituído, ou substituindo o mais antigo: o título do mais recente exige renegociá-lo
+        assertThatThrownBy(() -> propose(both, 0, null, single, null))
+                .satisfies(NegotiationAgreementIT::assertRenegotiationRequired);
+        assertThatThrownBy(() -> propose(both, 0, null, single, older.id()))
+                .satisfies(NegotiationAgreementIT::assertRenegotiationRequired);
+
+        ProposalView reneg = propose(both, 0, null, single, newer.id());
+        assertThat(reneg.renegotiationNumber()).isEqualTo(1);
+        assertThat(reneg.authorityViolations()).contains("authority.renegotiations_exceeded");
     }
 
     @Test

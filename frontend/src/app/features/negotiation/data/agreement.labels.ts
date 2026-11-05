@@ -57,6 +57,14 @@ export const AUTHORITY_VIOLATION_LABELS: Record<string, string> = {
   'authority.approve_requires_formalize': 'Perfil não pode formalizar',
 };
 
+/** Violações de elegibilidade que só existem para propostas (`ProposalEvaluator`), devolvidas em `details.violations`. */
+export const ELIGIBILITY_VIOLATION_LABELS: Record<string, string> = {
+  'proposal.renegotiation_required':
+    'Há título de um acordo quebrado: abra o acordo quebrado mais recente e use "Renegociar" para a proposta substituí-lo.',
+  'title.under_agreement': 'Há título coberto por outro acordo em vigor.',
+  'proposal.multiple_portfolios': 'A proposta deve cobrir títulos de uma única carteira.',
+};
+
 export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   APPLIED: 'Aplicado',
   UNAPPLIED: 'Não aplicado',

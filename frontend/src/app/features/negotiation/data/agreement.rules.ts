@@ -3,7 +3,7 @@
  * revalida tudo (guard, alçada, escopo e situação) a cada comando.
  */
 import type { IconName } from '../../../shared/components/icon/icon-names';
-import { ACCEPTANCE_CHANNEL_LABELS, ACTOR_TYPE_LABELS, AUTHORITY_VIOLATION_LABELS } from './agreement.labels';
+import { ACCEPTANCE_CHANNEL_LABELS, ACTOR_TYPE_LABELS, AUTHORITY_VIOLATION_LABELS, ELIGIBILITY_VIOLATION_LABELS } from './agreement.labels';
 import { AcceptanceChannel, AgreementStatus, AgreementView, InstallmentView, ProposalStatus, ProposalView } from './agreement.models';
 import { ValidationOutcome } from './negotiation.models';
 
@@ -152,6 +152,30 @@ export function actorText(actorType: string, id: string | null, userId: string |
 
 export function violationText(code: string): string {
   return AUTHORITY_VIOLATION_LABELS[code] ?? code;
+}
+
+/** Recusas de proposta cuja causa vem em `details.violations` (criação e revalidação no aprovar, aceitar e formalizar). */
+const PROPOSAL_REJECTION_CODES = new Set(['proposal.conditions_rejected', 'proposal.no_longer_valid']);
+
+/**
+ * Mensagem traduzida para a recusa de uma proposta quando há violação de elegibilidade conhecida (ex.: título de acordo
+ * quebrado sem renegociar o acordo); `null` mantém a mensagem padrão do servidor.
+ */
+export function proposalRejectionMessage(problem: unknown): string | null {
+  if (typeof problem !== 'object' || problem === null) {
+    return null;
+  }
+  const { code, details } = problem as { code?: unknown; details?: { violations?: unknown } };
+  const violations = details?.violations;
+  if (typeof code !== 'string' || !PROPOSAL_REJECTION_CODES.has(code) || !Array.isArray(violations)) {
+    return null;
+  }
+  const known = violations.filter((v): v is string => typeof v === 'string' && v in ELIGIBILITY_VIOLATION_LABELS);
+  if (!known.length) {
+    return null;
+  }
+  const prefix = code === 'proposal.no_longer_valid' ? 'A proposta não vale mais.' : 'Proposta recusada.';
+  return [prefix, ...known.map((v) => ELIGIBILITY_VIOLATION_LABELS[v])].join(' ');
 }
 
 /** SHA-256 abreviado para conferência visual (o completo fica no título). */

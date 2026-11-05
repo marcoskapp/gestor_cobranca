@@ -1,8 +1,11 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, catchError, throwError } from 'rxjs';
 import { API_V1 } from '../../../core/config/api';
+import { silentErrorContext } from '../../../core/http/http-context';
 import { toHttpParams } from '../../../core/http/http-params';
+import { toApiError, userMessage } from '../../../core/http/problem';
+import { NotificationService } from '../../../core/notification/notification.service';
 import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
@@ -14,6 +17,7 @@ import {
   ProposalFilter,
   ProposalView,
 } from './agreement.models';
+import { proposalRejectionMessage } from './agreement.rules';
 
 const BASE = `${API_V1}/negotiation`;
 
@@ -22,10 +26,11 @@ const BASE = `${API_V1}/negotiation`;
 export class ProposalsApi {
   private readonly http = inject(HttpClient);
   private readonly files = inject(FileDownloadService);
+  private readonly notifications = inject(NotificationService);
   private readonly base = `${BASE}/proposals`;
 
   create(request: CreateProposalRequest): Observable<ProposalView> {
-    return this.http.post<ProposalView>(this.base, request);
+    return this.validated(this.http.post<ProposalView>(this.base, request, { context: silentErrorContext() }));
   }
 
   /** Assume a sugestão transferida pelo assistente (mesmas condições, revalidadas com a sua alçada). */
@@ -46,7 +51,7 @@ export class ProposalsApi {
   }
 
   approve(id: string, note: string | null): Observable<ProposalView> {
-    return this.http.post<ProposalView>(`${this.base}/${id}/approve`, { note });
+    return this.validated(this.http.post<ProposalView>(`${this.base}/${id}/approve`, { note }, { context: silentErrorContext() }));
   }
 
   reject(id: string, reason: string): Observable<ProposalView> {
@@ -54,11 +59,26 @@ export class ProposalsApi {
   }
 
   accept(id: string, request: AcceptRequest): Observable<ProposalView> {
-    return this.http.post<ProposalView>(`${this.base}/${id}/accept`, request);
+    return this.validated(this.http.post<ProposalView>(`${this.base}/${id}/accept`, request, { context: silentErrorContext() }));
   }
 
   formalize(id: string): Observable<AgreementView> {
-    return this.http.post<AgreementView>(`${this.base}/${id}/formalize`, null);
+    return this.validated(this.http.post<AgreementView>(`${this.base}/${id}/formalize`, null, { context: silentErrorContext() }));
+  }
+
+  /**
+   * Comandos revalidados no servidor: a recusa por elegibilidade (ex.: `proposal.renegotiation_required`) vem traduzida;
+   * os demais erros têm a mensagem padrão. O erro segue para a tela reagir.
+   */
+  private validated<T>(call: Observable<T>): Observable<T> {
+    return call.pipe(
+      catchError((error: unknown) => {
+        if (error instanceof HttpErrorResponse && error.status !== 401) {
+          this.notifications.error(proposalRejectionMessage(error.error) ?? userMessage(toApiError(error)));
+        }
+        return throwError(() => error);
+      }),
+    );
   }
 
   /** Termo aceito (PDF); o nome vem do `Content-Disposition`. */
