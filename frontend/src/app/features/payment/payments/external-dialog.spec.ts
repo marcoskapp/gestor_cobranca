@@ -19,9 +19,13 @@ describe('ExternalDialog', () => {
   let http: HttpTestingController;
   const close = vi.fn();
   const notifications = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
-  const permissions = ['PAYMENT_VIEW', 'PAYMENT_REGISTER_EXTERNAL', 'AGREEMENT_VIEW', 'DEBTOR_VIEW'];
+  const ALL = ['PAYMENT_VIEW', 'PAYMENT_REGISTER_EXTERNAL', 'AGREEMENT_VIEW', 'DEBTOR_VIEW'];
+  let permissions = ALL;
+  const requested: string[] = [];
 
   beforeEach(() => {
+    permissions = ALL;
+    requested.length = 0;
     TestBed.configureTestingModule({
       imports: [ExternalDialog],
       providers: [
@@ -53,6 +57,7 @@ describe('ExternalDialog', () => {
       await tick();
       for (const req of http.match((r) => r.method === 'GET')) {
         const url = req.request.url;
+        requested.push(url);
         if (url === '/api/v1/payment/settings') req.flush({ externalReviewThreshold: 500, pixExpirationSeconds: 86400, pixDueValidityDays: 30, reconciliationDateToleranceDays: 3, customized: false, updatedAt: null });
         else if (url === '/api/v1/negotiation/agreements') req.flush({ content: [agreement()], page: 0, size: 50, totalElements: 1, totalPages: 1 });
         else if (url === '/api/v1/titles') req.flush({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
@@ -87,6 +92,17 @@ describe('ExternalDialog', () => {
     fixture.componentInstance['pick']([new File(['x'], 'nota.docx', { type: 'application/msword' })] as unknown as FileList);
     fixture.detectChanges();
     expect(el(fixture).textContent).toContain('PDF, PNG ou JPEG');
+  });
+
+  it('sem permissão de ler as configurações de pagamento: não as consulta e não avisa a segunda aprovação', async () => {
+    permissions = ['PAYMENT_REGISTER_EXTERNAL', 'AGREEMENT_VIEW', 'DEBTOR_VIEW'];
+    const fixture = await render();
+    expect(requested).not.toContain('/api/v1/payment/settings');
+    const amount = el(fixture).querySelector<HTMLInputElement>('input[formcontrolname="amount"]')!;
+    amount.value = '80000';
+    amount.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(el(fixture).textContent).not.toContain('outra pessoa');
   });
 
   it('envia o multipart com o pagamento em JSON e o comprovante, com o acordo escolhido', async () => {

@@ -78,6 +78,11 @@ export class AssistantPolicyDetail {
   protected readonly defaultProfiles = DEFAULT_PROFILES;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.ASSISTANT_MANAGE));
   protected readonly canAssignAuthority = computed(() => this.auth.hasPermission(Permission.AUTHORITY_MANAGE));
+  /**
+   * Publicar uma versão com perfil de alçada próprio vincula o perfil no módulo de negociação, o que exige
+   * também `AUTHORITY_MANAGE`: sem ela, "Publicar" não aparece para essa versão (o servidor recusaria).
+   */
+  protected readonly canPublish = computed(() => !this.policy()?.settings.authorityProfileId || this.canAssignAuthority());
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly policy = valueOr(this.resource, undefined);
@@ -124,9 +129,6 @@ export class AssistantPolicyDetail {
   });
   protected readonly profileHint = computed(() => {
     const sp = this.selectedProfile();
-    if (!sp && !this.canAssignAuthority()) {
-      return 'Escolher o perfil de alçada exige a permissão de gestão de alçadas.';
-    }
     return sp ? `até ${sp.maxInstallments} parcelas · ${sp.canFormalize ? 'formaliza' : 'não formaliza'}` : '';
   });
 
@@ -320,7 +322,7 @@ export class AssistantPolicyDetail {
 
   protected publish(): void {
     const p = this.policy();
-    if (!p) {
+    if (!p || !this.canPublish()) {
       return;
     }
     const current = this.versions().find((v) => v.status === 'PUBLISHED');
@@ -338,7 +340,6 @@ export class AssistantPolicyDetail {
           { label: 'Prompt', value: `${p.promptCode} v${p.promptVersion}` },
           { label: 'Versão atual', value: current ? `v${current.policyVersion} · ${MODE_LABELS[current.mode]} (será aposentada)` : 'nenhuma' },
         ],
-        warning: p.settings.authorityProfileId && !this.canAssignAuthority() ? 'Vincular um perfil de alçada exige também a permissão de gestão de alçadas: o servidor recusará se você não a tiver.' : undefined,
       })
       .subscribe(() => this.run(this.api.publish(p.id), `Versão ${p.policyVersion} publicada.`, true));
   }

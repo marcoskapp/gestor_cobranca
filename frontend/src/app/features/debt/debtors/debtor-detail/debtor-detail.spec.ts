@@ -154,4 +154,27 @@ describe('DebtorDetail', () => {
     expect(fixture.nativeElement.textContent).not.toContain('529.982.247-25');
     expect(fixture.nativeElement.textContent).toContain('Editar dados');
   });
+
+  it('descarta a revelação que chega depois da troca de devedor (o CPF de um não aparece na ficha do outro)', async () => {
+    permissions.set(['DEBTOR_VIEW', 'DEBTOR_SENSITIVE_VIEW']);
+    const fixture = await render();
+    (fixture.nativeElement.querySelector('.app-document__reveal') as HTMLButtonElement).click();
+    const pending = http.expectOne({ method: 'GET', url: '/api/v1/debtors/d-1/document' });
+
+    fixture.componentRef.setInput('id', 'd-2');
+    fixture.detectChanges();
+    const other = { ...debtor, id: 'd-2', name: 'Bruno Costa Lima', maskedDocument: '***.111.444-**' };
+    http.expectOne('/api/v1/debtors/d-2').flush(other);
+    http.expectOne('/api/v1/debtors/d-2/summary').flush({ ...summary, debtorId: 'd-2', name: other.name, maskedDocument: other.maskedDocument });
+    http.expectOne('/api/v1/debtors/d-2/titles').flush([]);
+    http.expectOne('/api/v1/debtors/d-2/contacts').flush([]);
+    await settle(fixture);
+
+    pending.flush({ debtorId: 'd-1', documentType: 'CPF', document: '529.982.247-25' });
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Bruno Costa Lima');
+    expect(text).not.toContain('529.982.247-25');
+    expect(text).toContain('***.111.444-**');
+  });
 });

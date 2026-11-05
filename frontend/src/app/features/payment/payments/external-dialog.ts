@@ -3,6 +3,8 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbCalendar, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, finalize, of } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
@@ -182,7 +184,17 @@ export class ExternalDialog {
   protected readonly debtorId = computed(() => this.debtorValue()[0] ?? null);
   private readonly amountValue = toSignal(this.form.controls.amount.valueChanges, { initialValue: null });
 
-  private readonly settings = rxResource({ stream: () => this.settingsApi.get().pipe(catchError(() => of(undefined))) });
+  private readonly auth = inject(AuthService);
+  /**
+   * O limite da segunda conferência vem das configurações de pagamento, que exigem `PAYMENT_VIEW` ou
+   * `ORG_SETTINGS_MANAGE`; quem só registra pagamento externo (a partir do acordo) não as consulta e o
+   * aviso de segunda conferência não aparece (o servidor continua decidindo).
+   */
+  private readonly canReadSettings = computed(() => this.auth.hasAnyPermission([Permission.PAYMENT_VIEW, Permission.ORG_SETTINGS_MANAGE]));
+  private readonly settings = rxResource({
+    params: () => (this.canReadSettings() ? true : undefined),
+    stream: () => this.settingsApi.get().pipe(catchError(() => of(undefined))),
+  });
   private readonly settingsValue = valueOr(this.settings, undefined);
   protected readonly threshold = computed(() => this.settingsValue()?.externalReviewThreshold ?? null);
   protected readonly needsReview = computed(() => requiresSecondReview(this.amountValue(), this.threshold()));

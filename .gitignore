@@ -50,3 +50,6 @@ backend/config/dev/
 # Claude Code: preferências pessoais (as regras do projeto ficam em CLAUDE.md e .claude/settings.json)
 CLAUDE.local.md
 .claude/settings.local.json
+
+# worktrees temporários dos subagentes do Claude Code
+.claude/worktrees/

@@ -27,7 +27,7 @@
             <app-icon name="floppy" />
             Salvar rascunho
           </button>
-        } @else {
+        } @else if (canPublish()) {
           <button class="btn btn-primary" type="button" (click)="publish()" [disabled]="problems().length > 0" data-tour="assistant-publish">
             <app-icon name="upload" />
             Publicar
@@ -142,17 +142,21 @@
         <section class="app-card" aria-labelledby="ap-conv" data-tour="assistant-authority">
           <h2 class="app-card__title" id="ap-conv">Alçada, prompt e conversa</h2>
           <div class="app-form-grid row-gap-3">
-            <app-field label="Perfil de alçada" [hint]="profileHint()">
-              <select appInput [ngModel]="d.authorityProfileId ?? ''" (ngModelChange)="set('authorityProfileId', $event || null)" [disabled]="!editable() || !canAssignAuthority()">
-                <option value="">Padrão (ASSISTENTE_INICIAL)</option>
-                @if (!canAssignAuthority() && d.authorityProfileId) {
-                  <option [ngValue]="d.authorityProfileId">Perfil de alçada escolhido</option>
-                }
-                @for (pr of profiles(); track pr.id) {
-                  <option [ngValue]="pr.id">{{ pr.name }} ({{ pr.code }})</option>
-                }
-              </select>
-            </app-field>
+            @if (canAssignAuthority()) {
+              <app-field label="Perfil de alçada" [hint]="profileHint()">
+                <select appInput [ngModel]="d.authorityProfileId ?? ''" (ngModelChange)="set('authorityProfileId', $event || null)" [disabled]="!editable()">
+                  <option value="">Padrão (ASSISTENTE_INICIAL)</option>
+                  @for (pr of profiles(); track pr.id) {
+                    <option [ngValue]="pr.id">{{ pr.name }} ({{ pr.code }})</option>
+                  }
+                </select>
+              </app-field>
+            } @else {
+              <!-- sem gestão de alçadas, o perfil só é informado (a escolha e a lista de perfis ficam com quem gerencia alçadas) -->
+              <app-field label="Perfil de alçada">
+                <input appInput readonly [value]="d.authorityProfileId ? 'Perfil próprio da política' : 'Padrão (ASSISTENTE_INICIAL)'" />
+              </app-field>
+            }
             <app-field label="Prompt" hint="Versões imutáveis, revisadas no código">
               <select appInput [ngModel]="(d.promptCode ?? p.promptCode) + '@' + (d.promptVersion ?? p.promptVersion)" (ngModelChange)="setPrompt($event)" [disabled]="!editable()">
                 @for (pr of prompts(); track pr.code + pr.version) {

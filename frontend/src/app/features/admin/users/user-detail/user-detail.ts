@@ -52,6 +52,8 @@ export class UserDetail {
   protected readonly permission = Permission;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.USER_MANAGE));
   protected readonly isSelf = computed(() => this.auth.user()?.id === this.id());
+  /** Nomes de credores e a troca de escopo consultam o cadastro de credores: só com `CREDITOR_VIEW`. */
+  protected readonly canViewCreditors = computed(() => this.auth.hasPermission(Permission.CREDITOR_VIEW));
 
   protected readonly user = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.user, undefined);
@@ -66,7 +68,7 @@ export class UserDetail {
     rxResource({
       params: () => {
         const user = this.current();
-        return user && !user.allCreditors ? user.creditorIds : undefined;
+        return this.canViewCreditors() && user && !user.allCreditors && user.creditorIds.length ? user.creditorIds : undefined;
       },
       stream: ({ params }) => this.creditorLookup.resolve(params),
     }),

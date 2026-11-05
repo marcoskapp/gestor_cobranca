@@ -41,7 +41,10 @@ export const MANUAL: ModuleManual = {
       id: 'assistant.policy',
       title: 'Versão da política do assistente',
       objective: 'Modo, horários, alçada, gatilhos de transferência e limites de uma versão da política do assistente.',
-      purpose: ['Edite o rascunho e publique. A versão publicada não muda e aposenta a anterior do mesmo escopo.'],
+      purpose: [
+        'Edite o rascunho e publique. A versão publicada não muda e aposenta a anterior do mesmo escopo.',
+        'O perfil de alçada é escolhido e publicado por quem gerencia alçadas; sem essa permissão, a tela só informa o perfil da versão.',
+      ],
       profiles: ['GESTOR'],
       inputs: ['Perfil de alçada e templates dos canais.'],
       outputs: ['Regras seguidas pelo assistente em cada conversa.'],

@@ -160,7 +160,12 @@ export class DebtorDetail {
   }
 
   protected revealDocument(debtor: DebtorView): void {
-    this.debtorsApi.revealDocument(debtor.id).subscribe((revealed) => this.revealedDocument.set(revealed.document));
+    // a resposta só vale para o devedor que pediu: trocada a rota no meio, o documento não aparece em outra ficha
+    this.debtorsApi.revealDocument(debtor.id).subscribe((revealed) => {
+      if (this.id() === debtor.id) {
+        this.revealedDocument.set(revealed.document);
+      }
+    });
   }
 
   protected revealContact(contact: ContactView): void {

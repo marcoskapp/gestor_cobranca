@@ -3,26 +3,35 @@ import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 import { EntitySource } from '../../../shared/components/entity-picker/entity-picker';
 import { NameSource } from '../../../shared/data/name-map';
 import { Option } from '../../../shared/models/lookup';
-import { isValidDocument } from '../../../shared/validation/document';
+import { isValidDocument, onlyDigits } from '../../../shared/validation/document';
 import { DebtorsApi } from './debt.api';
 import { DebtorView } from './debt.models';
 
+/** Só dígitos e pontuação de CPF/CNPJ: é um documento (completo ou não), nunca um trecho de nome. */
+const DOCUMENT_LIKE = /^[\d.\-/\s]+$/;
+
 /**
- * Fonte de devedores para seletores. Texto que é um CPF/CNPJ válido é buscado por
- * `POST /debtors/lookup` (documento fora da URL); qualquer outro texto, por trecho do nome.
+ * Fonte de devedores para seletores. Texto com cara de documento só consulta quando é um CPF/CNPJ
+ * completo e válido, por `POST /debtors/lookup` (documento fora da URL); parcial ou com dígito
+ * verificador errado não consulta nada (nem parcial vai para a URL, que fica em logs de proxy e no
+ * histórico). Qualquer outro texto é buscado por trecho do nome.
  */
 @Injectable({ providedIn: 'root' })
 export class DebtorLookup implements EntitySource {
   private readonly api = inject(DebtorsApi);
 
   search(q: string): Observable<Option[]> {
-    if (isValidDocument(q)) {
-      return this.api.lookup(q).pipe(
-        map((debtor) => [debtorOption(debtor)]),
-        catchError(() => of<Option[]>([])),
-      );
+    const term = q.trim();
+    if (term && DOCUMENT_LIKE.test(term)) {
+      const digits = onlyDigits(term);
+      return isValidDocument(digits)
+        ? this.api.lookup(digits).pipe(
+            map((debtor) => [debtorOption(debtor)]),
+            catchError(() => of<Option[]>([])),
+          )
+        : of<Option[]>([]);
     }
-    return this.api.search({ q: q || null }, { page: 0, size: 20 }).pipe(map((page) => page.content.map(debtorOption)));
+    return this.api.search({ q: term || null }, { page: 0, size: 20 }).pipe(map((page) => page.content.map(debtorOption)));
   }
 
   resolve(ids: string[]): Observable<Option[]> {

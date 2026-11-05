@@ -1,7 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
@@ -40,6 +42,10 @@ export class AuditTrail {
   private readonly dialog = inject(DialogService);
   protected readonly users = inject(UserLookup);
   protected readonly creditors = inject(CreditorLookup);
+  private readonly auth = inject(AuthService);
+  /** Filtros que consultam outros cadastros só aparecem para quem pode consultá-los (nunca "Acesso negado"). */
+  protected readonly canFilterByActor = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
+  protected readonly canFilterByCreditor = computed(() => this.auth.hasPermission(Permission.CREDITOR_VIEW));
   protected readonly entityTypes = Object.entries(AUDIT_ENTITY_LABELS).map(([value, label]) => ({ value, label }));
 
   private readonly fb = inject(FormBuilder);

@@ -103,7 +103,10 @@ export const MANUAL: ModuleManual = {
       id: 'compliance.retention',
       title: 'Retenção de dados',
       objective: 'Prazos de guarda por categoria, simulação e anonimização dos dados que já cumpriram o prazo.',
-      purpose: ['A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados.'],
+      purpose: [
+        'A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados.',
+        'Executar anonimiza dados: a ação aparece para quem também atende solicitações de titulares.',
+      ],
       profiles: ['COMPLIANCE'],
       inputs: ['Bases legais e prazos de guarda.'],
       outputs: ['Dados anonimizados e evidência de cada execução.'],

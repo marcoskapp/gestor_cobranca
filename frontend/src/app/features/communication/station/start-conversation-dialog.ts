@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { silentErrorContext } from '../../../core/http/http-context';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -276,9 +277,13 @@ export class StartConversationDialog {
     this.contacts().map((contact) => ({ contact, state: this.gateValue().find((g) => g.id === contact.contactId)?.state ?? null })),
   );
 
-  /** Conversas abertas do caso no canal escolhido. */
+  /**
+   * Conversas abertas do caso no canal escolhido: só para quem vê a caixa de entrada (`INBOX_VIEW`).
+   * Sem ela, nem a consulta nem o atalho "Abrir conversa" (que leva à caixa de entrada) aparecem.
+   */
+  private readonly canSeeInbox = computed(() => this.auth.hasPermission(Permission.INBOX_VIEW));
   private readonly open = rxResource({
-    params: () => this.channel(),
+    params: () => (this.canSeeInbox() ? this.channel() : undefined),
     stream: ({ params }) =>
       this.conversationsApi.inbox({ caseId: this.data.caseId, channel: params, status: 'OPEN' }, { page: 0, size: 10 }).pipe(
         map((p) => p.content),
