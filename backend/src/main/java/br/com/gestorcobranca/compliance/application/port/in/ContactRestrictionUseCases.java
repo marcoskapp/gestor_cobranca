@@ -46,6 +46,19 @@ public interface ContactRestrictionUseCases {
     RestrictionView registerOptOutFromChannel(UUID debtorId, String channel, String contactValue, String keyword);
 
     /**
+     * <strong>Uso interno do módulo collection; não exposto via web.</strong> Registra o falecimento
+     * do devedor informado num atendimento (tabulação com ação automática {@code REPORT_DECEASED}):
+     * restrição {@code DECEASED} do devedor em todos os canais e credores, origem {@code OPERATOR},
+     * vinculada à interação, até um gestor de restrições rever (anexar a certidão ou revogar). Não
+     * exige {@code CONTACT_RESTRICTION_MANAGE} nem acesso a todos os credores: bloquear o contato
+     * não expõe dado e protege a família de cobrança indevida (decisão 777). Idempotente: uma
+     * restrição {@code DECEASED} vigente do devedor nesse alcance é devolvida sem nova restrição.
+     *
+     * @param interactionId interação de origem (rastreio nos dois sentidos)
+     */
+    RestrictionView registerDeceasedReport(UUID debtorId, UUID interactionId);
+
+    /**
      * Dossiê de evidências do devedor (JSON): restrições, inclusive revogadas, e tentativas de
      * contato nos credores do escopo. Registra {@code DATA_EXPORTED}.
      */
@@ -77,11 +90,12 @@ public interface ContactRestrictionUseCases {
     /**
      * @param contactMasked valor de contato restrito, mascarado
      * @param effective     produz efeito agora (ativa e dentro da vigência)
+     * @param originInteractionId interação de cobrança que originou a restrição (falecimento informado), se houver
      */
     record RestrictionView(UUID id, UUID debtorId, UUID creditorId, String channel, String type, String contactType,
                            String contactMasked, String reason, String source, Instant startsAt, Instant endsAt,
                            String status, boolean effective, Instant revokedAt, UUID revokedBy, String revokedReason,
-                           UUID originRequestId, boolean hasEvidence, String evidenceFileName, String evidenceSha256,
-                           Instant createdAt, UUID createdBy) {
+                           UUID originRequestId, UUID originInteractionId, boolean hasEvidence, String evidenceFileName,
+                           String evidenceSha256, Instant createdAt, UUID createdBy) {
     }
 }

@@ -48,6 +48,7 @@ function dispute(o: Partial<DisputeView> = {}): DisputeView {
     adjustmentBaseline: null,
     adjustmentNote: null,
     adjustmentClosedAt: null,
+    originInteractionId: null,
     version: 1,
     ...o,
   };

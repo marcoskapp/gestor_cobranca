@@ -4,6 +4,7 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.CallbackInput;
+import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.FollowUpInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.PromiseInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.RecordInteractionCommand;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.RecordResult;
@@ -47,8 +48,9 @@ class CaseInteractions {
     }
 
     /** Tabulação do operador: erros do collection (tabulação inexistente, exigências) sobem ao operador. */
-    RecordResult recordByOperator(Call call, String note, PromiseInput promise, CallbackInput callback) {
-        RecordResult result = interactions.record(call.getCaseId(), command(call, note, promise, callback));
+    RecordResult recordByOperator(Call call, String note, PromiseInput promise, CallbackInput callback,
+                                  FollowUpInput followUp) {
+        RecordResult result = interactions.record(call.getCaseId(), command(call, note, promise, callback, followUp));
         metrics.interaction(result.duplicate() ? "duplicate" : "recorded");
         return result;
     }
@@ -76,15 +78,16 @@ class CaseInteractions {
             metrics.interaction("skipped_tabulation");
             return Optional.empty();
         }
-        RecordResult result = interactions.record(call.getCaseId(), command(call, null, null, null));
+        RecordResult result = interactions.record(call.getCaseId(), command(call, null, null, null, null));
         metrics.interaction(result.duplicate() ? "duplicate" : "recorded");
         return Optional.of(result);
     }
 
-    private static RecordInteractionCommand command(Call call, String note, PromiseInput promise, CallbackInput callback) {
+    private static RecordInteractionCommand command(Call call, String note, PromiseInput promise, CallbackInput callback,
+                                                    FollowUpInput followUp) {
         return new RecordInteractionCommand("PHONE", call.getDirection().name(), null, call.getTabulationCode(), note,
                 call.getContactId(), startedAt(call), call.getEndedAt(), promise, callback, null, "TELEPHONY",
-                "call:" + call.getId());
+                "call:" + call.getId(), followUp);
     }
 
     private static Instant startedAt(Call call) {

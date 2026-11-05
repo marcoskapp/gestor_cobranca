@@ -24,7 +24,7 @@ class DisputeWorkflowTest {
         CollectionCase c = new CollectionCase(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 new CaseBalance(Money.of("500.00"), Money.of("500.00"), 1, 0, 0, LocalDate.of(2026, 6, 1)), T0);
         return new Dispute(c, Set.of(UUID.randomUUID()), DisputeType.ALREADY_PAID, origin, "Pagou no caixa", true,
-                Money.of("500.00"), TODAY.plusDays(10), TODAY.plusDays(12), DeadlineSource.TYPE, T0);
+                Money.of("500.00"), TODAY.plusDays(10), TODAY.plusDays(12), DeadlineSource.TYPE, null, T0);
     }
 
     @Test

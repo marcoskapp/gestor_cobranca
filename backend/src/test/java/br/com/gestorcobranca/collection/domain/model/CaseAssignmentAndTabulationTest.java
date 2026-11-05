@@ -50,6 +50,28 @@ class CaseAssignmentAndTabulationTest {
     }
 
     @Test
+    void followUpRulesKeepTheActionSafe() {
+        assertThatThrownBy(() -> new Tabulation("OBITO", new Tabulation.Definition("x", false, false, false, false, 1,
+                TabulationFollowUp.REPORT_DECEASED, null)))
+                .extracting("code").isEqualTo("tabulation.follow_up_requires_note");
+        assertThatThrownBy(() -> new Tabulation("CB", new Tabulation.Definition("x", true, false, true, true, 1,
+                TabulationFollowUp.INVALIDATE_CONTACT, null)))
+                .extracting("code").isEqualTo("tabulation.follow_up_with_commitment");
+        assertThatThrownBy(() -> new Tabulation("CONTESTA", new Tabulation.Definition("x", false, false, false, true, 1,
+                TabulationFollowUp.OPEN_DISPUTE, null)))
+                .extracting("code").isEqualTo("tabulation.dispute_requires_contact");
+        assertThatThrownBy(() -> new Tabulation("TIPO", new Tabulation.Definition("x", true, false, false, true, 1,
+                TabulationFollowUp.REPORT_DECEASED, DisputeType.FRAUD)))
+                .extracting("code").isEqualTo("tabulation.dispute_type_not_allowed");
+        Tabulation none = new Tabulation("SEM_ACAO", new Tabulation.Definition("x", true, false, false, false, 1,
+                null, null));
+        assertThat(none.getFollowUp()).isEqualTo(TabulationFollowUp.NONE);
+        assertThat(DefaultTabulations.catalog()).filteredOn(e -> !e.definition().followUp().isNone())
+                .extracting(DefaultTabulations.Entry::code)
+                .containsExactlyInAnyOrder("ALREADY_PAID", "DISPUTE", "WRONG_CONTACT", "DECEASED");
+    }
+
+    @Test
     void settingsValuesAreBounded() {
         assertThatThrownBy(() -> new CollectionSettings.Values(31, 30, 30, 10)).isInstanceOf(BusinessRuleException.class);
         assertThatThrownBy(() -> new CollectionSettings.Values(2, 0, 30, 10)).isInstanceOf(BusinessRuleException.class);

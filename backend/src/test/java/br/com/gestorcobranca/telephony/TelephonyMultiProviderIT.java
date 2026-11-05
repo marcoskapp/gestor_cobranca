@@ -195,7 +195,7 @@ class TelephonyMultiProviderIT extends TelephonyTestSupport {
 
         asOperator(operatorX, () -> calls.tabulate(viaAlvaria.id(),
                 new br.com.gestorcobranca.telephony.application.port.in.CallUseCases.TabulateCommand("CPC_NEGOTIATING",
-                        null, null, null, null)));
+                        null, null, null, null, null)));
         CallView viaSandbox = clickToCall(operatorX, caseB.id());
         assertThat(viaSandbox.provider()).isEqualTo("SANDBOX");
         drainTelephony();

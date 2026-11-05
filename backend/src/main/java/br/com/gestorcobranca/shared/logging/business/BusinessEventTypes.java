@@ -52,6 +52,8 @@ public final class BusinessEventTypes {
     public static final String CASE_CLOSED = "case.closed";
     public static final String INTERACTION_RECORDED = "interaction.recorded";
     public static final String CONTACT_EFFECTIVE = "contact.effective";
+    /** Ação automática da tabulação executada (contestação, falecimento informado, contato inválido). */
+    public static final String INTERACTION_FOLLOW_UP = "interaction.follow_up";
     public static final String CALLBACK_SCHEDULED = "callback.scheduled";
     public static final String PROMISE_REGISTERED = "promise.registered";
     public static final String DISPUTE_OPENED = "dispute.opened";

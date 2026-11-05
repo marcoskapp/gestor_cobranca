@@ -20,7 +20,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
   { id: 'elegibilidade', term: 'Elegibilidade', definition: 'Se o caso pode ser cobrado agora. Contestação, carteira suspensa, jurídico ou restrição em todos os canais tornam o caso inelegível, com o motivo.' },
   { id: 'fila', term: 'Fila', definition: 'Conjunto de casos com os mesmos critérios (credor, atraso, saldo, score), entregue aos operadores em uma ordem definida.' },
   { id: 'proximo-caso', term: 'Próximo caso', definition: 'Botão da estação que entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro.' },
-  { id: 'tabulacao', term: 'Tabulação', definition: 'Resultado do contato escolhido ao registrar a interação. Define o que é exigido (observação, promessa, retorno) e se houve contato efetivo.' },
+  { id: 'tabulacao', term: 'Tabulação', definition: 'Resultado do contato escolhido ao registrar a interação. Define o que é exigido (observação, promessa, retorno), se houve contato efetivo e, em algumas, uma ação automática (abrir contestação, bloquear o contato por falecimento, invalidar o contato usado).' },
   { id: 'contato-efetivo', term: 'Contato efetivo', definition: 'Conversa com a pessoa certa (o próprio devedor). É a base de vários indicadores de produtividade.' },
   { id: 'promessa', term: 'Promessa de pagamento', definition: 'Compromisso do devedor de pagar um valor até uma data, sem acordo formal. É quebrada se o pagamento não chegar na tolerância.' },
   { id: 'retorno', term: 'Retorno', definition: 'Contato combinado com o devedor para data e hora marcadas. Aparece na agenda e volta como próxima ação do caso.' },

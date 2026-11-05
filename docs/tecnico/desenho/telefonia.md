@@ -133,7 +133,7 @@ o responsável pelo caso, se disponível; senão o operador disponível há mais
 
 | Situação | Tabulação | Registro no caso |
 | --- | --- | --- |
-| chamada com operador (clique para ligar, discador conectado, recebida atendida) | **operador**, no pós-atendimento (`POST /calls/{id}/tabulation`, exige `INTERACTION_REGISTER`): qualquer tabulação ativa, com promessa/retorno quando exigidos; sugestão pelo resultado | síncrono, no contexto do operador (a interação é dele: tentativas e CPC do incentive) |
+| chamada com operador (clique para ligar, discador conectado, recebida atendida) | **operador**, no pós-atendimento (`POST /calls/{id}/tabulation`, exige `INTERACTION_REGISTER`): qualquer tabulação ativa, com promessa/retorno quando exigidos e o tipo da contestação (`disputeType`) quando a tabulação abre contestação (ação automática, `collection.md` §4.1; o contato da chamada vai junto); sugestão pelo resultado | síncrono, no contexto do operador (a interação é dele: tentativas e CPC do incentive) |
 | prazo do pós-atendimento vencido (padrão 15 min) | automática pela sugestão (`TabulationDeadlineJob`) | job, como sistema |
 | sem operador (discador não atendido/ocupado/AMD/abandono, falha, recebida perdida) | automática | job `telephony.record_interaction` |
 | nunca discada (porteiro, recusa do provedor) | — | não registra (não houve contato) |

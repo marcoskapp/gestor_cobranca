@@ -277,7 +277,9 @@ class CallService implements CallUseCases {
                 command.promise() == null ? null
                         : new InteractionUseCases.PromiseInput(command.promise().amount(), command.promise().dueDate()),
                 command.callback() == null ? null : new InteractionUseCases.CallbackInput(command.callback().dueAt(),
-                        command.callback().assigneeUserId(), command.callback().note()));
+                        command.callback().assigneeUserId(), command.callback().note()),
+                command.disputeType() == null || command.disputeType().isBlank() ? null
+                        : new InteractionUseCases.FollowUpInput(command.disputeType().trim(), null));
         call.interactionRecorded(result.interaction().id());
         calls.save(call);
         jobQueue.cancelPending(TabulationDeadlineJob.TYPE, TabulationDeadlineJob.key(call.getId()));
@@ -297,6 +299,7 @@ class CallService implements CallUseCases {
                 .attr("result", call.getResult()).attr("origin", call.getOrigin())
                 .attr("effectiveContact", result.interaction().effectiveContact())
                 .attr("promise", result.promise() != null).attr("callback", result.callback() != null)
+                .attr("followUp", result.followUp() == null ? null : result.followUp().action())
                 .attr("operatorId", call.getOperatorId()).attr("wrapUpSeconds", call.getWrapUpSeconds()));
         return CallViews.call(call, recordings.findByCallId(callId).orElse(null), null);
     }

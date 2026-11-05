@@ -2,7 +2,7 @@
  * Regras de tela da operação de cobrança (funções puras, testadas em `collection.rules.spec.ts`).
  * Datas e horas de retorno são do **fuso de operação** (`America/Sao_Paulo`, `TimeConfig.BUSINESS_ZONE`).
  */
-import { CaseView, ChannelAvailability, ContactDenialReason, TabulationView, TaskView } from './collection.models';
+import { CaseView, ChannelAvailability, ContactDenialReason, DisputeType, FollowUpResult, TabulationView, TaskView } from './collection.models';
 
 export const BUSINESS_ZONE = 'America/Sao_Paulo';
 
@@ -134,6 +134,10 @@ export interface InteractionDraft {
   promiseAmount: number | null;
   promiseDate: string | null;
   callbackAt: string | null;
+  /** Tipo da contestação (ação automática `OPEN_DISPUTE`). */
+  disputeType?: DisputeType | null;
+  /** Contato usado (ação automática `INVALIDATE_CONTACT` exige). */
+  contactId?: string | null;
 }
 
 export interface InteractionLimits {
@@ -177,7 +181,32 @@ export function interactionProblems(draft: InteractionDraft, limits: Interaction
       problems.push('O retorno precisa ser em data e hora futuras.');
     }
   }
+  if (t.followUp === 'OPEN_DISPUTE' && !draft.disputeType) {
+    problems.push('Escolha o tipo da contestação.');
+  }
+  if (t.followUp === 'INVALIDATE_CONTACT' && !draft.contactId) {
+    problems.push('Informe o contato usado: ele será marcado como inválido.');
+  }
   return problems;
+}
+
+/** Complemento da mensagem de sucesso com o resultado da ação automática da tabulação. */
+export function followUpText(result: FollowUpResult | null | undefined): string | null {
+  if (!result) {
+    return null;
+  }
+  switch (result.action) {
+    case 'OPEN_DISPUTE':
+      return result.outcome === 'DONE'
+        ? 'contestação aberta: cobrança e contato suspensos até a análise'
+        : result.outcome === 'NO_TITLES'
+          ? 'sem títulos em cobrança para contestar'
+          : 'o caso já tem contestação em aberto';
+    case 'REPORT_DECEASED':
+      return result.outcome === 'DONE' ? 'contato com o devedor bloqueado por falecimento informado' : 'falecimento já registrado';
+    case 'INVALIDATE_CONTACT':
+      return result.outcome === 'DONE' ? 'contato marcado como inválido' : 'o contato já estava inválido';
+  }
 }
 
 /** Dias corridos entre duas `LocalDate` (b − a). */

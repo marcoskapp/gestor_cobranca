@@ -226,6 +226,24 @@ class ContactRestrictionService implements ContactRestrictionUseCases {
     }
 
     @Override
+    public RestrictionView registerDeceasedReport(UUID debtorId, UUID interactionId) {
+        Guard.require(debtorId != null, "restriction.debtor_required", "Devedor obrigatório");
+        Guard.require(interactionId != null, "restriction.interaction_required", "Interação de origem obrigatória");
+        debtors.get(debtorId);
+        Instant now = Instant.now(clock);
+        for (ContactRestriction existing : restrictions.findByDebtorIdOrderByCreatedAtAsc(debtorId)) {
+            if (existing.getType() == RestrictionType.DECEASED && existing.isDebtorWide() && existing.isEffectiveAt(now)) {
+                return RestrictionViews.view(existing, now);
+            }
+        }
+        ContactRestriction restriction = new ContactRestriction(debtorId, null, null, RestrictionType.DECEASED, null,
+                "Falecimento do devedor informado em atendimento de cobrança; aguarda comprovação (certidão de óbito)",
+                RestrictionSource.OPERATOR, now, null, null);
+        restriction.originatedFromInteraction(interactionId);
+        return RestrictionViews.view(recorder.created(restriction), now);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public FileContent exportDebtorEvidence(UUID debtorId) {
         debtors.get(debtorId);

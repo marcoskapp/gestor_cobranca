@@ -40,6 +40,26 @@
     </select>
   </app-field>
 
+  @if (followUpNotice(); as notice) {
+    <fieldset class="ip__group" data-tour="interaction-follow-up">
+      <legend>Ação automática</legend>
+      <p class="app-alert app-alert--warning ip__notice" role="note">
+        <app-icon name="exclamation-triangle" />
+        <span>{{ notice }}</span>
+      </p>
+      @if (tabulation()?.followUp === 'OPEN_DISPUTE') {
+        <app-field label="Tipo da contestação">
+          <select appInput formControlName="disputeType" required>
+            <option value="" disabled>Selecione o tipo</option>
+            @for (d of disputeTypes; track d.value) {
+              <option [ngValue]="d.value">{{ d.label }}</option>
+            }
+          </select>
+        </app-field>
+      }
+    </fieldset>
+  }
+
   @if (tabulation()?.promise) {
     <fieldset class="ip__group">
       <legend>Promessa de pagamento</legend>

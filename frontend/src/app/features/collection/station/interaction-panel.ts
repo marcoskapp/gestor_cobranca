@@ -11,9 +11,17 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { toDateStruct } from '../../../shared/models/dates';
 import { CONTACT_LABEL_LABELS } from '../../debt/data/debt.labels';
 import { InteractionsApi } from '../data/collection.api';
-import { CHANNEL_LABELS, DIRECTION_LABELS } from '../data/collection.labels';
-import { CaseSheet, InteractionChannel, InteractionDirection, RecordResult, SheetContact, TabulationView } from '../data/collection.models';
-import { addDays, formatLocalDateTime, interactionProblems, toLocalDateTime, zonedNow } from '../data/collection.rules';
+import { CHANNEL_LABELS, DIRECTION_LABELS, DISPUTE_TYPE_LABELS, FOLLOW_UP_NOTICES } from '../data/collection.labels';
+import {
+  CaseSheet,
+  DisputeType,
+  InteractionChannel,
+  InteractionDirection,
+  RecordResult,
+  SheetContact,
+  TabulationView,
+} from '../data/collection.models';
+import { addDays, followUpText, formatLocalDateTime, interactionProblems, toLocalDateTime, zonedNow } from '../data/collection.rules';
 
 const NOTE_MAX = 2000;
 
@@ -27,8 +35,10 @@ export function contactsForChannel(contacts: readonly SheetContact[], channel: I
 
 /**
  * Registro de interação com tabulação: as flags da tabulação definem os campos exigidos
- * (observação, promessa com valor e data, retorno com data e hora). A validação da tela orienta;
- * o servidor repete todas as regras.
+ * (observação, promessa com valor e data, retorno com data e hora). Tabulação com ação automática
+ * avisa o efeito antes do registro (contestação, bloqueio por falecimento, contato inválido) e pede o
+ * que a ação precisa (tipo da contestação, contato usado). A validação da tela orienta; o servidor
+ * repete todas as regras.
  */
 @Component({
   selector: 'app-interaction-panel',
@@ -53,6 +63,7 @@ export class InteractionPanel {
   protected readonly channels = Object.entries(CHANNEL_LABELS).map(([value, label]) => ({ value: value as InteractionChannel, label }));
   protected readonly directions = Object.entries(DIRECTION_LABELS).map(([value, label]) => ({ value: value as InteractionDirection, label }));
   protected readonly contactLabels = CONTACT_LABEL_LABELS;
+  protected readonly disputeTypes = Object.entries(DISPUTE_TYPE_LABELS).map(([value, label]) => ({ value: value as DisputeType, label }));
   protected readonly noteMax = NOTE_MAX;
   protected readonly saving = signal(false);
   protected readonly submitted = signal(false);
@@ -71,6 +82,8 @@ export class InteractionPanel {
     callbackDate: this.fb.control<string | null>(null),
     callbackTime: [''],
     completesTaskId: [''],
+    /** Tipo da contestação aberta pela ação automática (pré-selecionado pela tabulação). */
+    disputeType: this.fb.control<DisputeType | ''>(''),
   });
 
   private readonly values = toSignal(this.form.valueChanges.pipe(startWith(null)), { initialValue: null });
@@ -97,6 +110,8 @@ export class InteractionPanel {
         promiseAmount: v.promiseAmount,
         promiseDate: v.promiseDate,
         callbackAt: toLocalDateTime(v.callbackDate, v.callbackTime),
+        disputeType: v.disputeType || null,
+        contactId: v.contactId || null,
       },
       { openBalance: this.openBalance(), today: this.today(), promiseMaxDays: this.promiseMaxDays() },
       zonedNow(),
@@ -105,6 +120,12 @@ export class InteractionPanel {
 
   protected readonly balanceText = computed(() => formatAmount(this.openBalance()));
 
+  /** Aviso do efeito da ação automática da tabulação escolhida. */
+  protected readonly followUpNotice = computed(() => {
+    const t = this.tabulation();
+    return t && t.followUp !== 'NONE' ? FOLLOW_UP_NOTICES[t.followUp] : null;
+  });
+
   protected readonly tabulationHint = computed(() => {
     const t = this.tabulation();
     return t ? `${t.effectiveContact ? 'Contato efetivo.' : 'Sem contato efetivo.'}${t.requiresNote ? ' Observação obrigatória.' : ''}` : undefined;
@@ -112,7 +133,14 @@ export class InteractionPanel {
 
   /** Texto da opção com as marcas da tabulação (CPC, promessa, retorno). */
   protected tabulationOption(t: TabulationView): string {
-    const flags = [t.effectiveContact ? 'CPC' : null, t.promise ? 'promessa' : null, t.callback ? 'retorno' : null].filter(Boolean);
+    const flags = [
+      t.effectiveContact ? 'CPC' : null,
+      t.promise ? 'promessa' : null,
+      t.callback ? 'retorno' : null,
+      t.followUp === 'OPEN_DISPUTE' ? 'abre contestação' : null,
+      t.followUp === 'REPORT_DECEASED' ? 'bloqueia o contato' : null,
+      t.followUp === 'INVALIDATE_CONTACT' ? 'invalida o contato' : null,
+    ].filter(Boolean);
     return flags.length ? `${t.name} · ${flags.join(' · ')}` : t.name;
   }
 
@@ -121,6 +149,11 @@ export class InteractionPanel {
     effect(() => {
       this.caseId();
       untracked(() => this.reset());
+    });
+    // Tipo da contestação: o padrão da tabulação escolhida (o operador pode trocar).
+    effect(() => {
+      const t = this.tabulation();
+      untracked(() => this.form.controls.disputeType.setValue(t?.followUp === 'OPEN_DISPUTE' ? (t.disputeType ?? '') : '', { emitEvent: false }));
     });
     // Contato padrão: o de maior prioridade do canal escolhido.
     effect(() => {
@@ -183,6 +216,7 @@ export class InteractionPanel {
         promise: t.promise && v.promiseAmount && v.promiseDate ? { amount: v.promiseAmount, dueDate: v.promiseDate } : null,
         callback: t.callback && callbackAt ? { dueAt: callbackAt, assigneeUserId: null, note: null } : null,
         completesTaskId: v.completesTaskId || null,
+        followUp: t.followUp === 'OPEN_DISPUTE' && v.disputeType ? { disputeType: v.disputeType, titleIds: [] } : null,
       })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe((result) => {
@@ -190,7 +224,8 @@ export class InteractionPanel {
           result.promise ? `promessa de ${formatAmount(result.promise.amount)}` : null,
           result.callback ? `retorno em ${formatLocalDateTime(result.callback.dueAtLocal)}` : null,
         ].filter(Boolean);
-        this.notifications.success(`Interação registrada${extras.length ? ' com ' + extras.join(' e ') : ''}.`);
+        const followUp = followUpText(result.followUp);
+        this.notifications.success(`Interação registrada${extras.length ? ' com ' + extras.join(' e ') : ''}${followUp ? '; ' + followUp : ''}.`);
         this.reset();
         this.recorded.emit(result);
       });

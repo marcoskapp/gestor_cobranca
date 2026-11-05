@@ -70,10 +70,13 @@ class TabulationController {
                              boolean promise,
                              boolean callback,
                              boolean requiresNote,
+                             @Size(max = 30) String followUp,
+                             @Size(max = 30) String disputeType,
                              int displayOrder) {
 
         TabulationCommand toCommand() {
-            return new TabulationCommand(code, name, effectiveContact, promise, callback, requiresNote, displayOrder);
+            return new TabulationCommand(code, name, effectiveContact, promise, callback, requiresNote, followUp,
+                    disputeType, displayOrder);
         }
     }
 }

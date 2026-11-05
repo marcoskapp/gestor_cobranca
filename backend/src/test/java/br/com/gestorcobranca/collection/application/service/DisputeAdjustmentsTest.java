@@ -31,7 +31,7 @@ class DisputeAdjustmentsTest {
         CollectionCase c = new CollectionCase(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 new CaseBalance(Money.of("300.00"), Money.of("300.00"), 1, 0, 0, LocalDate.of(2026, 6, 1)), T0);
         Dispute d = new Dispute(c, Set.of(TITLE), DisputeType.WRONG_AMOUNT, DisputeOrigin.OPERATOR, "x", true,
-                Money.of("300.00"), LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 12), DeadlineSource.TENANT_DEFAULT, T0);
+                Money.of("300.00"), LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 12), DeadlineSource.TENANT_DEFAULT, null, T0);
         d.resolve(DisputeOutcome.UPHELD, "ok", UUID.randomUUID(), T0, action, Money.of("300.00"));
         return d;
     }

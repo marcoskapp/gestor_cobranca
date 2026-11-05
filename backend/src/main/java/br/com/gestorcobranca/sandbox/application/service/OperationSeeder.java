@@ -484,7 +484,7 @@ class OperationSeeder {
         var started = rt.now().minus(ago);
         rt.as(seed.actor(actorKey), () -> interactions.record(t.collectionCase().id(), new RecordInteractionCommand(
                 "PHONE", "OUTBOUND", null, tabulation, note + " (cenário fictício)", null, started, started.plusSeconds(95),
-                promise, callback, null, "MANUAL", "sandbox-" + seed.spec.slug() + "-" + t.ref() + "-" + tabulation)));
+                promise, callback, null, "MANUAL", "sandbox-" + seed.spec.slug() + "-" + t.ref() + "-" + tabulation, null)));
     }
 
     /** Acordo do devedor no credor (reaproveita o existente): simulação → proposta na alçada → aceite → formalização. */

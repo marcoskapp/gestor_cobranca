@@ -1,4 +1,5 @@
 /** Contratos do módulo telephony (`telephony.application.port.in` e records de `telephony.web`). */
+import { DisputeType } from '../../collection/data/collection.models';
 
 export type PresenceStatus = 'OFFLINE' | 'AVAILABLE' | 'ON_CALL' | 'WRAP_UP' | 'PAUSED';
 export type PauseReason = 'BREAK' | 'LUNCH' | 'RESTROOM' | 'TRAINING' | 'FEEDBACK' | 'MEETING' | 'BACKOFFICE' | 'TECHNICAL_ISSUE' | 'OTHER';
@@ -104,6 +105,8 @@ export interface TabulationRequest {
   callback: { dueAt: string; assigneeUserId: string | null; note: string | null } | null;
   /** Chamada recebida ainda não identificada. */
   caseId: string | null;
+  /** Tipo da contestação quando a tabulação abre contestação (nulo = o padrão da tabulação). */
+  disputeType?: DisputeType | null;
 }
 
 // --------------------------------------------------------------------------- campanhas de discagem

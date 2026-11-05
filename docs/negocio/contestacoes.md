@@ -33,6 +33,7 @@ stateDiagram-v2
 - **Redistribuir** move todas as contestações em aberto de uma pessoa (férias, desligamento) para outra ou de volta à fila/distribuição automática, com motivo.
 - Toda mudança de responsável fica no histórico da contestação (quem, quando, modo e motivo), na trilha de auditoria e no log de negócio (`dispute.assigned`).
 - **Minhas pendências**: "Contestações sob minha responsabilidade" (analista), "Contestações sem responsável ou vencidas" (gestão), "Respostas ao devedor pendentes" e "Ajustes de título pendentes".
+- Contestação aberta **pela tabulação** do atendimento ("Alega pagamento", "Contesta a dívida") segue as mesmas regras: prazos pela regra aplicável e responsável pela distribuição configurada — quem tabulou não vira responsável sozinho (pode assumir com "Pegar para mim").
 - A fila vem ordenada pelo **prazo mais próximo** (o interno ou o de resposta ao devedor, o que vencer primeiro).
 
 ## 3. Prazos

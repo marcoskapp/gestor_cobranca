@@ -70,6 +70,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -169,6 +170,17 @@ class DisputeService implements DisputeUseCases {
         if (!currentActor.get().has(Permission.DISPUTE_MANAGE)) {
             access.requireWorkable(c);
         }
+        return view(openFor(c, command, null));
+    }
+
+    /**
+     * Abre a contestação no caso já carregado e validado pelo chamador. Uso interno do módulo: a ação
+     * automática da tabulação ({@code InteractionService}) chama com a interação de origem, na mesma
+     * transação do registro.
+     */
+    Dispute openFor(CollectionCase c, OpenDisputeCommand command, UUID originInteractionId) {
+        Guard.require(command != null, "dispute.required", "Dados da contestação obrigatórios");
+        Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
         DisputeType type = CollectionEnums.parse(DisputeType.class, command.type(), "dispute.type_invalid", "Tipo");
         DisputeOrigin origin = CollectionEnums.parse(DisputeOrigin.class, command.origin(), "dispute.origin_invalid",
                 "Origem");
@@ -185,7 +197,8 @@ class DisputeService implements DisputeUseCases {
         Deadlines deadlines = deadlines(c.getCreditorId(), type, command.responseDueDate(), today);
         boolean blocks = command.blocksCollection() == null || command.blocksCollection();
         Dispute dispute = disputes.save(new Dispute(c, titleIds, type, origin, command.description(), blocks, amount,
-                deadlines.responseDue(), deadlines.internalDue(), deadlines.source(), Instant.now(clock)));
+                deadlines.responseDue(), deadlines.internalDue(), deadlines.source(), originInteractionId,
+                Instant.now(clock)));
         ledger.markDisputed(titleIds, dispute.getId(), blocks);
 
         CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
@@ -206,7 +219,8 @@ class DisputeService implements DisputeUseCases {
                 .created("disputedAmount", dispute.getDisputedAmount())
                 .created("responseDueDate", dispute.getResponseDueDate())
                 .created("internalDueDate", dispute.getInternalDueDate())
-                .created("deadlineSource", dispute.getDeadlineSource()));
+                .created("deadlineSource", dispute.getDeadlineSource())
+                .created("originInteractionId", originInteractionId));
         businessEvents.log(CaseRecorder.base(BusinessEventTypes.DISPUTE_OPENED, c, today)
                 .reference("dispute", dispute.getId())
                 .amount(dispute.getDisputedAmount())
@@ -216,9 +230,25 @@ class DisputeService implements DisputeUseCases {
                 .attr("titles", titleIds.size())
                 .attr("responseDays", ChronoUnit.DAYS.between(today, dispute.getResponseDueDate()))
                 .attr("internalDays", ChronoUnit.DAYS.between(today, dispute.getInternalDueDate()))
-                .attr("deadlineSource", dispute.getDeadlineSource()));
+                .attr("deadlineSource", dispute.getDeadlineSource())
+                .attr("trigger", originInteractionId == null ? "manual" : "tabulation"));
+        // a abertura pela tabulação segue a mesma distribuição (manual = sem responsável; automática = menos carregado)
         assignments.autoAssign(dispute);
         publish(dispute);
+        return dispute;
+    }
+
+    /** Contestação ainda em aberto (aberta ou em análise) no caso, a mais recente. */
+    Optional<Dispute> openOn(UUID caseId) {
+        return disputes.findByCaseIdOrderByOpenedAtDesc(caseId).stream().filter(d -> d.getStatus().isOpen()).findFirst();
+    }
+
+    /** O caso ainda tem títulos em cobrança que podem ser contestados. */
+    boolean hasTitlesToDispute(CollectionCase c) {
+        return !synchronizer.titlesInCollection(c).isEmpty();
+    }
+
+    DisputeView viewOf(Dispute dispute) {
         return view(dispute);
     }
 

@@ -78,7 +78,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.title-detail', version: 1, path: '/titulos/:id', tourId: 'debt.title-detail' },
   {
     key: 'collection.queue',
-    version: 5,
+    version: 6,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -86,11 +86,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Aba Negociação (Alt + 6): propostas em andamento e acordos do caso, com o cronograma.'] },
       { version: 4, items: ['Gerar Pix da próxima parcela do acordo (aba Negociação) ou de um título avulso (aba Títulos).'] },
       { version: 5, items: ['Ligar (Alt + L) com a decisão do porteiro por telefone antes de discar.', 'Barra de presença na telefonia (disponível, pausa com motivo) e tabulação obrigatória ao fim da chamada.'] },
+      { version: 6, items: ['Tabulações com ação automática avisam o efeito antes do registro: contestação aberta (com o tipo), contato bloqueado por falecimento ou contato marcado como inválido.'] },
     ],
   },
   {
     key: 'collection.case',
-    version: 5,
+    version: 6,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -98,12 +99,18 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Aba Negociação (Alt + 6): propostas em andamento e acordos do caso, com o cronograma.'] },
       { version: 4, items: ['Gerar Pix da próxima parcela do acordo (aba Negociação) ou de um título avulso (aba Títulos).'] },
       { version: 5, items: ['Ligar (Alt + L) com a decisão do porteiro por telefone antes de discar.', 'Barra de presença na telefonia (disponível, pausa com motivo) e tabulação obrigatória ao fim da chamada.'] },
+      { version: 6, items: ['Tabulações com ação automática avisam o efeito antes do registro: contestação aberta (com o tipo), contato bloqueado por falecimento ou contato marcado como inválido.'] },
     ],
   },
   { key: 'collection.cases', version: 1, path: '/cobranca/casos', tourId: 'collection.cases' },
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   { key: 'collection.queues', version: 1, path: '/cobranca/filas', tourId: 'collection.queues' },
-  { key: 'collection.tabulations', version: 1, path: '/cobranca/tabulacoes' },
+  {
+    key: 'collection.tabulations',
+    version: 2,
+    path: '/cobranca/tabulacoes',
+    changes: [{ version: 2, items: ['Ação automática por tabulação: abrir contestação, registrar falecimento (bloqueia o contato) ou invalidar o contato usado.'] }],
+  },
   { key: 'collection.settings', version: 1, path: '/cobranca/parametros' },
   {
     key: 'collection.disputes',

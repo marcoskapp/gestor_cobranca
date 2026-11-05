@@ -13,7 +13,8 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators } from '../../../shared/validation/validators';
 import { TabulationsApi } from '../data/collection.api';
-import { TabulationRequest, TabulationView } from '../data/collection.models';
+import { DISPUTE_TYPE_LABELS, FOLLOW_UP_LABELS } from '../data/collection.labels';
+import { DisputeType, TabulationFollowUp, TabulationRequest, TabulationView } from '../data/collection.models';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
@@ -22,19 +23,56 @@ import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 
 /** Efeitos da tabulação em texto (lista e formulário). */
-export function tabulationEffects(t: Pick<TabulationView, 'effectiveContact' | 'promise' | 'callback' | 'requiresNote'>): string[] {
+export function tabulationEffects(
+  t: Pick<TabulationView, 'effectiveContact' | 'promise' | 'callback' | 'requiresNote'> & Partial<Pick<TabulationView, 'followUp' | 'disputeType'>>,
+): string[] {
+  const followUp =
+    t.followUp && t.followUp !== 'NONE'
+      ? `Ação automática: ${FOLLOW_UP_LABELS[t.followUp].toLowerCase()}${t.followUp === 'OPEN_DISPUTE' && t.disputeType ? ` (${DISPUTE_TYPE_LABELS[t.disputeType].toLowerCase()})` : ''}`
+      : null;
   return [
     t.effectiveContact ? 'Contato efetivo (leva o caso a "Em negociação")' : null,
     t.promise ? 'Exige promessa (valor e data)' : null,
     t.callback ? 'Exige retorno (data e hora)' : null,
     t.requiresNote ? 'Observação obrigatória' : null,
+    followUp,
   ].filter((e): e is string => !!e);
 }
 
-/** Cadastro de tabulação. Promessa e retorno são exclusivos; promessa pressupõe contato efetivo. */
+/** Conflitos entre os efeitos (as mesmas regras do servidor), na ordem do formulário. */
+export function tabulationConflict(v: {
+  effectiveContact: boolean;
+  promise: boolean;
+  callback: boolean;
+  requiresNote: boolean;
+  followUp: TabulationFollowUp;
+}): string | null {
+  if (v.promise && !v.effectiveContact) {
+    return 'Promessa exige contato efetivo.';
+  }
+  if (v.promise && v.callback) {
+    return 'Promessa e retorno são exclusivos.';
+  }
+  if (v.followUp !== 'NONE' && (v.promise || v.callback)) {
+    return 'Tabulação com ação automática não registra promessa nem retorno.';
+  }
+  if (v.followUp !== 'NONE' && !v.requiresNote) {
+    return 'Tabulação com ação automática exige observação (a justificativa fica com a interação).';
+  }
+  if (v.followUp === 'OPEN_DISPUTE' && !v.effectiveContact) {
+    return 'Abrir contestação pressupõe contato efetivo com o devedor.';
+  }
+  return null;
+}
+
+/**
+ * Cadastro de tabulação. Promessa e retorno são exclusivos; promessa pressupõe contato efetivo. A ação
+ * automática executa o efeito do fato relatado no próprio registro (contestação, bloqueio por
+ * falecimento, contato inválido): exige observação e não se combina com promessa ou retorno.
+ */
 @Component({
   selector: 'app-tabulation-form',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, ...DIALOG_DIRECTIVES, Icon],
   host: { class: 'd-flex flex-column overflow-hidden' },
   template: `
     <div class="modal-header">
@@ -75,6 +113,31 @@ export function tabulationEffects(t: Pick<TabulationView, 'effectiveContact' | '
             <label class="form-check-label" for="tabulation-list-requiresNote">Observação obrigatória</label>
           </div>
         </div>
+        <div class="app-form-grid gap-3 mt-3">
+          <app-field label="Ação automática" hint="Executada no próprio registro da interação.">
+            <select appInput formControlName="followUp">
+              @for (f of followUps; track f.value) {
+                <option [ngValue]="f.value">{{ f.label }}</option>
+              }
+            </select>
+          </app-field>
+          @if (followUp() === 'OPEN_DISPUTE') {
+            <app-field label="Tipo de contestação pré-selecionado" hint="Vazio = o operador escolhe no registro.">
+              <select appInput formControlName="disputeType">
+                <option [ngValue]="null">O operador escolhe</option>
+                @for (d of disputeTypes; track d.value) {
+                  <option [ngValue]="d.value">{{ d.label }}</option>
+                }
+              </select>
+            </app-field>
+          }
+        </div>
+        @if (followUp() === 'REPORT_DECEASED') {
+          <p class="app-alert app-alert--warning mt-3 mb-0" role="note">
+            <app-icon name="exclamation-triangle" />
+            <span>Bloqueia o contato com o devedor em todos os canais e credores até a supervisão rever. Use só para o falecimento informado.</span>
+          </p>
+        }
         @if (conflict()) {
           <p class="app-field-error" role="alert">{{ conflict() }}</p>
         }
@@ -110,7 +173,12 @@ export class TabulationForm {
     promise: [this.data?.promise ?? false],
     callback: [this.data?.callback ?? false],
     requiresNote: [this.data?.requiresNote ?? false],
+    followUp: this.fb.control<TabulationFollowUp>(this.data?.followUp ?? 'NONE'),
+    disputeType: this.fb.control<DisputeType | null>(this.data?.disputeType ?? null),
   });
+  protected readonly followUps = Object.entries(FOLLOW_UP_LABELS).map(([value, label]) => ({ value: value as TabulationFollowUp, label }));
+  protected readonly disputeTypes = Object.entries(DISPUTE_TYPE_LABELS).map(([value, label]) => ({ value: value as DisputeType, label }));
+  protected readonly followUp = signal<TabulationFollowUp>(this.data?.followUp ?? 'NONE');
 
   constructor() {
     // promessa pressupõe contato efetivo; promessa e retorno são exclusivos
@@ -120,16 +188,32 @@ export class TabulationForm {
       }
     });
     this.form.controls.callback.valueChanges.subscribe((on) => on && this.form.controls.promise.setValue(false, { emitEvent: false }));
+    // ação automática: exige observação; contestação pressupõe contato efetivo; sem promessa e retorno
+    this.form.controls.followUp.valueChanges.subscribe((f) => {
+      this.followUp.set(f);
+      if (f !== 'NONE') {
+        this.form.patchValue({ requiresNote: true, promise: false, callback: false, ...(f === 'OPEN_DISPUTE' ? { effectiveContact: true } : {}) }, { emitEvent: false });
+      }
+      if (f !== 'OPEN_DISPUTE') {
+        this.form.controls.disputeType.setValue(null, { emitEvent: false });
+      }
+    });
   }
 
   protected save(): void {
     const v = this.form.getRawValue();
-    this.conflict.set(v.promise && !v.effectiveContact ? 'Promessa exige contato efetivo.' : v.promise && v.callback ? 'Promessa e retorno são exclusivos.' : null);
+    this.conflict.set(tabulationConflict(v));
     if (this.form.invalid || this.conflict() || this.saving()) {
       this.form.markAllAsTouched();
       return;
     }
-    const request: TabulationRequest = { ...v, code: this.data ? null : v.code.trim() || null, name: v.name.trim(), displayOrder: Number(v.displayOrder) || 0 };
+    const request: TabulationRequest = {
+      ...v,
+      code: this.data ? null : v.code.trim() || null,
+      name: v.name.trim(),
+      disputeType: v.followUp === 'OPEN_DISPUTE' ? v.disputeType : null,
+      displayOrder: Number(v.displayOrder) || 0,
+    };
     this.saving.set(true);
     (this.data ? this.api.update(this.data.id, request) : this.api.create(request))
       .pipe(finalize(() => this.saving.set(false)))

@@ -173,6 +173,7 @@ public interface DisputeUseCases {
      * @param debtorNoticeStatus PENDING, SENT ou NOT_REQUIRED (nulo enquanto aberta)
      * @param adjustmentAction   ação sugerida no título (CANCEL_TITLES, ADJUST_AMOUNT, SETTLE_BY_PAYMENT) ou nulo
      * @param adjustmentStatus   PENDING, DONE ou DISMISSED
+     * @param originInteractionId interação cuja tabulação abriu a contestação (ação automática), se houver
      */
     record DisputeView(UUID id, UUID caseId, UUID debtorId, UUID creditorId, UUID portfolioId, Set<UUID> titleIds,
                        List<DisputedTitle> titles, String type, String origin, String status, String description,
@@ -181,7 +182,8 @@ public interface DisputeUseCases {
                        int evidenceCount, UUID assigneeId, String assigneeName, Instant assignedAt,
                        LocalDate internalDueDate, String deadlineSource, Instant awaitingCreditorSince,
                        String debtorNoticeStatus, String adjustmentAction, String adjustmentStatus,
-                       BigDecimal adjustmentBaseline, String adjustmentNote, Instant adjustmentClosedAt, long version) {
+                       BigDecimal adjustmentBaseline, String adjustmentNote, Instant adjustmentClosedAt,
+                       UUID originInteractionId, long version) {
     }
 
     /**

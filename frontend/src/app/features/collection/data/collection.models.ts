@@ -232,6 +232,12 @@ export interface QueueSummary {
 
 // --------------------------------------------------------------------- tabulações e interações
 
+/**
+ * Ação automática da tabulação, executada no próprio registro da interação (`TabulationFollowUp`):
+ * abrir contestação, registrar o falecimento informado (bloqueia o contato) ou invalidar o contato usado.
+ */
+export type TabulationFollowUp = 'NONE' | 'OPEN_DISPUTE' | 'REPORT_DECEASED' | 'INVALIDATE_CONTACT';
+
 /** `TabulationUseCases.TabulationView` */
 export interface TabulationView {
   id: string;
@@ -241,6 +247,9 @@ export interface TabulationView {
   promise: boolean;
   callback: boolean;
   requiresNote: boolean;
+  followUp: TabulationFollowUp;
+  /** Tipo de contestação pré-selecionado (só com `OPEN_DISPUTE`; nulo = o operador escolhe). */
+  disputeType: DisputeType | null;
   displayOrder: number;
   active: boolean;
   version: number;
@@ -253,6 +262,8 @@ export interface TabulationRequest {
   promise: boolean;
   callback: boolean;
   requiresNote: boolean;
+  followUp: TabulationFollowUp;
+  disputeType: DisputeType | null;
   displayOrder: number;
 }
 
@@ -269,6 +280,8 @@ export interface InteractionRequest {
   /** `dueAt` em `LocalDateTime` no fuso de operação (America/Sao_Paulo), sem deslocamento. */
   callback: { dueAt: string; assigneeUserId: string | null; note: string | null } | null;
   completesTaskId: string | null;
+  /** Ação de abrir contestação: tipo (nulo = o padrão da tabulação) e títulos (vazio = todos em cobrança). */
+  followUp?: { disputeType: DisputeType | null; titleIds: string[] } | null;
 }
 
 /** `InteractionUseCases.InteractionView` */
@@ -283,6 +296,8 @@ export interface InteractionView {
   tabulationId: string | null;
   outcomeCode: string | null;
   effectiveContact: boolean;
+  /** Ação automática da tabulação vigente no registro. */
+  followUp: TabulationFollowUp;
   note: string | null;
   contactId: string | null;
   startedAt: string;
@@ -302,6 +317,17 @@ export interface RecordResult {
   promise: PromiseView | null;
   callback: TaskView | null;
   collectionCase: CaseView;
+  /** Resultado da ação automática, quando a tabulação tem ação. */
+  followUp: FollowUpResult | null;
+}
+
+/** `InteractionUseCases.FollowUpResult` */
+export interface FollowUpResult {
+  action: Exclude<TabulationFollowUp, 'NONE'>;
+  /** Executada, já em vigor (contestação aberta, falecimento registrado, contato já inválido) ou sem títulos. */
+  outcome: 'DONE' | 'ALREADY_IN_EFFECT' | 'NO_TITLES';
+  referenceType: 'dispute' | 'contact_restriction' | 'debtor_contact' | null;
+  referenceId: string | null;
 }
 
 // --------------------------------------------------------------------- tarefas, promessas
@@ -417,6 +443,8 @@ export interface DisputeView {
   adjustmentBaseline: Amount | null;
   adjustmentNote: string | null;
   adjustmentClosedAt: string | null;
+  /** Interação cuja tabulação abriu a contestação (ação automática), se houver. */
+  originInteractionId: string | null;
   version: number;
 }
 

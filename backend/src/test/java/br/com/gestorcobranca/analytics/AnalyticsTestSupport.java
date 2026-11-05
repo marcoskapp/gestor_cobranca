@@ -156,8 +156,8 @@ abstract class AnalyticsTestSupport extends IntegrationTest {
             for (Object[] t : new Object[][]{{tabulationCpc, "CPC_TESTE", true}, {tabulationNoAnswer, "NA_TESTE", false}}) {
                 jdbc.update("""
                         insert into collection.tabulation (id, tenant_id, version, created_at, updated_at, code, name,
-                            effective_contact, promise, callback, requires_note, display_order, active)
-                        values (?, ?, 0, ?, ?, ?, ?, ?, false, false, false, 99, true)""",
+                            effective_contact, promise, callback, requires_note, display_order, active, follow_up)
+                        values (?, ?, 0, ?, ?, ?, ?, ?, false, false, false, 99, true, 'NONE')""",
                         t[0], tenant, ts(now), ts(now), t[1], t[1], t[2]);
             }
         }
@@ -249,8 +249,8 @@ abstract class AnalyticsTestSupport extends IntegrationTest {
             jdbc.update("""
                     insert into collection.interaction (id, tenant_id, version, created_at, updated_at, case_id, debtor_id,
                         creditor_id, portfolio_id, channel, direction, tabulation_id, outcome_code, effective_contact,
-                        started_at, operator_id, actor_type, source)
-                    values (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, 'OUTBOUND', ?, ?, ?, ?, ?, ?, 'MANUAL')""",
+                        started_at, operator_id, actor_type, source, follow_up)
+                    values (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, 'OUTBOUND', ?, ?, ?, ?, ?, ?, 'MANUAL', 'NONE')""",
                     Ids.newId(), tenant, ts(now), ts(now), caseId, debtorId, creditorId, portfolioId, channel,
                     effective ? tabulationCpc : tabulationNoAnswer, effective ? "CPC_TESTE" : "NA_TESTE", effective,
                     ts(at), operatorId, actorType);

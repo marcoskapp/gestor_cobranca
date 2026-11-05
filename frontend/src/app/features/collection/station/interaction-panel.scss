@@ -60,3 +60,12 @@
   font-size: var(--app-text-xs);
   text-align: center;
 }
+
+// aviso da ação automática: sem margem própria (o espaçamento é o `gap` do grupo)
+.ip__notice {
+  margin: 0 0 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}

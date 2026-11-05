@@ -55,6 +55,11 @@ public class Interaction extends TenantScopedEntity {
     @Column(name = "effective_contact", nullable = false, updatable = false)
     private boolean effectiveContact;
 
+    /** Ação automática da tabulação vigente no registro. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "follow_up", nullable = false, length = 30, updatable = false)
+    private TabulationFollowUp followUp;
+
     @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "note_encrypted", length = 12000, updatable = false)
     private String note;
@@ -117,6 +122,7 @@ public class Interaction extends TenantScopedEntity {
         this.tabulationId = tabulation.getId();
         this.outcomeCode = tabulation.getCode();
         this.effectiveContact = tabulation.isEffectiveContact();
+        this.followUp = tabulation.getFollowUp();
         this.note = cleanNote;
         this.contactId = contactId;
         this.startedAt = startedAt;
@@ -162,6 +168,10 @@ public class Interaction extends TenantScopedEntity {
 
     public boolean isEffectiveContact() {
         return effectiveContact;
+    }
+
+    public TabulationFollowUp getFollowUp() {
+        return followUp;
     }
 
     public String getNote() {

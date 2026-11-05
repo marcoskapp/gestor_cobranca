@@ -56,7 +56,8 @@ class RestrictionRecorder {
                 .created("source", saved.getSource())
                 .created("startsAt", saved.getStartsAt())
                 .created("endsAt", saved.getEndsAt())
-                .meta("originRequestId", saved.getOriginRequestId()));
+                .meta("originRequestId", saved.getOriginRequestId())
+                .meta("originInteractionId", saved.getOriginInteractionId()));
         businessEvents.log(BusinessEvent.of(saved.getType() == RestrictionType.OPT_OUT
                         ? BusinessEventTypes.CONTACT_OPT_OUT : BusinessEventTypes.CONTACT_RESTRICTED)
                 .creditor(saved.getCreditorId()).debtor(saved.getDebtorId())
@@ -65,7 +66,8 @@ class RestrictionRecorder {
                 .attr("type", saved.getType())
                 .attr("source", saved.getSource())
                 .attr("temporary", saved.isTemporary())
-                .attr("contactSpecific", saved.getContactValueHash() != null));
+                .attr("contactSpecific", saved.getContactValueHash() != null)
+                .attr("fromInteraction", saved.getOriginInteractionId() != null));
         publish(saved, true);
         return saved;
     }
