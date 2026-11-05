@@ -29,7 +29,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
 | Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled`, `import.format_confirmed`, `import.totals_matched`, `import.totals_mismatch`, `import.alerts_detected`, `import.outliers_reviewed`, `import.review_committed`, `import.review_approved`, `import.review_rejected`, `pdf_import.received`, `pdf_import.map_proposed`, `pdf_import.map_reused`, `pdf_import.map_edited`, `pdf_import.map_approved`, `pdf_import.imported`, `pdf_import.discarded`, `pdf_import.mapping_failed` |
 | Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching` |
-| Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
+| Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `interaction.follow_up`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `agreement.break_suspended`, `agreement.break_suspension_ended`, `installment.overdue`, `installment.paid` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.rejected`, `payment.reconciled`, `payment.reallocated`, `payment.divergence`, `payment.reversed` |
 | Prestação de contas (settlement) | `commission.accrued`, `commission.reversed`, `commission.rules_published`, `settlement.receipt_pending_rules`, `settlement.calculated`, `settlement.adjusted`, `settlement.closed`, `settlement.exported`, `settlement.sent`, `settlement.acknowledged`, `settlement.contested`, `settlement.transfer_recorded` |
@@ -51,7 +51,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |
-| `contact.opt_out` / `contact.restricted` | restrição de contato criada (opt-out ou demais tipos) | `type`, `source`, `temporary`, `contactSpecific`; `channel` |
+| `contact.opt_out` / `contact.restricted` | restrição de contato criada (opt-out ou demais tipos) | `type`, `source`, `temporary`, `contactSpecific`, `fromInteraction` (falecimento informado no atendimento); `channel` |
 | `contact.restriction_revoked` | restrição revogada | `type`, `activeDays` |
 | `contact.denied` | `ContactGate.authorizeAndRecord` negou um contato | `origin`, `reasons` (lista separada por vírgula); `channel` |
 | `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs` |
@@ -166,14 +166,15 @@ descrições e pareceres nunca entram no log (ficam criptografados no banco).
 | `case.status_changed` | mudança de status (exceto encerramento) | `from`, `to`, `trigger`, `assigneeId` |
 | `case.eligibility_changed` | caso passou a elegível ou inelegível | `eligible`, `reasons`, `previousReasons`, `trigger`; `amount` = saldo elegível |
 | `case.closed` | encerramento | `reason`, `from`, `trigger`, `durationDays`, `interactions`, `effectiveContacts`, `assigneeId`; `durationMs` desde a abertura |
-| `interaction.recorded` | interação registrada | `direction`, `outcomeCode` (tabulação), `effectiveContact`, `promise`, `callback`, `source`, `actorType`, `operatorId`, `caseStatus`, `interactionNumber`; `channel`; `durationMs` quando informada |
+| `interaction.follow_up` | ação automática da tabulação executada (`collection.md` §4.1) | `action` (OPEN_DISPUTE, REPORT_DECEASED, INVALIDATE_CONTACT), `outcome` (DONE, ALREADY_IN_EFFECT, NO_TITLES), `outcomeCode`, `source`, `operatorId`, `referenceType`, `referenceId`; `channel`; referência = interação |
+| `interaction.recorded` | interação registrada | `direction`, `outcomeCode` (tabulação), `effectiveContact`, `promise`, `callback`, `followUp`, `source`, `actorType`, `operatorId`, `caseStatus`, `interactionNumber`; `channel`; `durationMs` quando informada |
 | `contact.effective` | interação com contato efetivo (CPC) | `direction`, `outcomeCode`, `operatorId`, `attemptsUntilContact`, `firstEffectiveContact`; `channel`; `amount` = saldo elegível; `durationMs` |
 | `callback.scheduled` | retorno agendado | `assigneeId`, `leadHours`, `dueHour` (hora local), `originInteractionId` |
 | `callback.kept` | retorno cumprido até a tolerância | `assigneeId`, `completedBy`, `minutesFromDue`; `durationMs` após o horário |
 | `callback.missed` | retorno atrasado (tolerância vencida) | `assigneeId`, `minutesLate` |
 | `promise.registered` | promessa registrada | `promiseValueBand`, `daysToDue`, `coverage` (prometido ÷ saldo), `operatorId`; `channel`; `amount` = prometido |
 | `promise.kept` / `promise.broken` | promessa cumprida / quebrada | `paidAmount`, `promiseValueBand`, `daysFromDue`, `partial`, `operatorId`; `amount` = prometido; `durationMs` desde o registro |
-| `dispute.opened` | contestação aberta | `type`, `origin`, `blocksCollection`, `titles`, `responseDays`; `amount` = valor contestado |
+| `dispute.opened` | contestação aberta | `type`, `origin`, `blocksCollection`, `titles`, `responseDays`, `trigger` (manual ou tabulation); `amount` = valor contestado |
 | `dispute.resolved` | contestação resolvida ou retirada | `type`, `origin`, `status`, `outcome`, `durationDays`, `withinDeadline`, `evidences`; `amount`; `durationMs` |
 
 ### 3.4 Atributos dos eventos de comunicação
@@ -514,6 +515,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `collection.assignments{mode,owner}`, `collection.distribution.cases{strategy,outcome}` | mudanças de dono e distribuição em lote (casos sem destino = `unassigned`) |
 | `collection.next_case{outcome}`, `collection.next_case.duration{outcome}` (p50/p95/p99) | "próximo caso": `own_callback`, `queue`, `empty`, `capacity` |
 | `collection.interactions{channel,direction,effective,source}` | volume de interações e contatos efetivos |
+| `collection.tabulation_follow_ups{action,outcome}` | ações automáticas das tabulações (contestação, falecimento, contato inválido) |
 | `collection.callbacks{status}`, `collection.promises{status}`, `collection.disputes{status}` | retornos, promessas e contestações por situação |
 | `collection.disputes.overdue{type}` | contestações com prazo de resposta vencido (alarme) |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |

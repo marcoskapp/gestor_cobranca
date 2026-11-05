@@ -57,6 +57,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -128,6 +129,17 @@ class DisputeService implements DisputeUseCases {
         if (!currentActor.get().has(Permission.DISPUTE_MANAGE)) {
             access.requireWorkable(c);
         }
+        return view(openFor(c, command, null));
+    }
+
+    /**
+     * Abre a contestação no caso já carregado e validado pelo chamador. Uso interno do módulo: a ação
+     * automática da tabulação ({@code InteractionService}) chama com a interação de origem, na mesma
+     * transação do registro.
+     */
+    Dispute openFor(CollectionCase c, OpenDisputeCommand command, UUID originInteractionId) {
+        Guard.require(command != null, "dispute.required", "Dados da contestação obrigatórios");
+        Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
         DisputeType type = CollectionEnums.parse(DisputeType.class, command.type(), "dispute.type_invalid", "Tipo");
         DisputeOrigin origin = CollectionEnums.parse(DisputeOrigin.class, command.origin(), "dispute.origin_invalid",
                 "Origem");
@@ -144,7 +156,7 @@ class DisputeService implements DisputeUseCases {
         Guard.require(!due.isBefore(today), "dispute.due_in_past", "Prazo de resposta no passado");
         boolean blocks = command.blocksCollection() == null || command.blocksCollection();
         Dispute dispute = disputes.save(new Dispute(c, titleIds, type, origin, command.description(), blocks, amount, due,
-                Instant.now(clock)));
+                originInteractionId, Instant.now(clock)));
         ledger.markDisputed(titleIds, dispute.getId(), blocks);
 
         CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
@@ -163,7 +175,8 @@ class DisputeService implements DisputeUseCases {
                 .created("titleIds", dispute.getTitleIds().stream().sorted().toList().toString())
                 .created("blocksCollection", blocks)
                 .created("disputedAmount", dispute.getDisputedAmount())
-                .created("responseDueDate", dispute.getResponseDueDate()));
+                .created("responseDueDate", dispute.getResponseDueDate())
+                .created("originInteractionId", originInteractionId));
         businessEvents.log(CaseRecorder.base(BusinessEventTypes.DISPUTE_OPENED, c, today)
                 .reference("dispute", dispute.getId())
                 .amount(dispute.getDisputedAmount())
@@ -171,8 +184,23 @@ class DisputeService implements DisputeUseCases {
                 .attr("origin", origin)
                 .attr("blocksCollection", blocks)
                 .attr("titles", titleIds.size())
-                .attr("responseDays", ChronoUnit.DAYS.between(today, due)));
+                .attr("responseDays", ChronoUnit.DAYS.between(today, due))
+                .attr("trigger", originInteractionId == null ? "manual" : "tabulation"));
         publish(dispute);
+        return dispute;
+    }
+
+    /** Contestação ainda em aberto (aberta ou em análise) no caso, a mais recente. */
+    Optional<Dispute> openOn(UUID caseId) {
+        return disputes.findByCaseIdOrderByOpenedAtDesc(caseId).stream().filter(d -> d.getStatus().isOpen()).findFirst();
+    }
+
+    /** O caso ainda tem títulos em cobrança que podem ser contestados. */
+    boolean hasTitlesToDispute(CollectionCase c) {
+        return !synchronizer.titlesInCollection(c).isEmpty();
+    }
+
+    DisputeView viewOf(Dispute dispute) {
         return view(dispute);
     }
 

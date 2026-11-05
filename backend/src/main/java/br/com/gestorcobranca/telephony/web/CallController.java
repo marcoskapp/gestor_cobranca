@@ -114,7 +114,7 @@ class CallController {
                 request.promise() == null ? null : new PromiseInput(request.promise().amount(), request.promise().dueDate()),
                 request.callback() == null ? null : new CallbackInput(request.callback().dueAt(),
                         request.callback().assigneeUserId(), request.callback().note()),
-                request.caseId()));
+                request.caseId(), request.disputeType()));
     }
 
     /** Gravação para ouvir/baixar: registra {@code FILE_DOWNLOADED} com a finalidade no log de acesso. */
@@ -147,7 +147,8 @@ class CallController {
     }
 
     record TabulationRequest(@NotBlank @Size(max = 60) String tabulationCode, @Size(max = 4000) String note,
-                             @Valid PromiseRequest promise, @Valid CallbackRequest callback, UUID caseId) {
+                             @Valid PromiseRequest promise, @Valid CallbackRequest callback, UUID caseId,
+                             @Size(max = 30) String disputeType) {
     }
 
     record PromiseRequest(@NotNull @DecimalMin("0.01") BigDecimal amount, @NotNull LocalDate dueDate) {

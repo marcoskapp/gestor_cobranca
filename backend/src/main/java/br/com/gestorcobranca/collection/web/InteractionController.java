@@ -2,6 +2,7 @@ package br.com.gestorcobranca.collection.web;
 
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.CallbackInput;
+import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.FollowUpInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.InteractionView;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.PromiseInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.RecordInteractionCommand;
@@ -28,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 /** Interações e tabulação do caso. Datas do retorno no fuso de operação. */
@@ -68,14 +70,20 @@ class InteractionController {
                               @Valid CallbackRequest callback,
                               UUID completesTaskId,
                               @Size(max = 20) String source,
-                              @Size(max = 120) String externalRef) {
+                              @Size(max = 120) String externalRef,
+                              @Valid FollowUpRequest followUp) {
 
         RecordInteractionCommand toCommand() {
             return new RecordInteractionCommand(channel, direction, tabulationId, tabulationCode, note, contactId,
                     startedAt, endedAt, promise == null ? null : new PromiseInput(promise.amount(), promise.dueDate()),
                     callback == null ? null : new CallbackInput(callback.dueAt(), callback.assigneeUserId(), callback.note()),
-                    completesTaskId, source, externalRef);
+                    completesTaskId, source, externalRef,
+                    followUp == null ? null : new FollowUpInput(followUp.disputeType(), followUp.titleIds()));
         }
+    }
+
+    /** Detalhes da ação automática de abrir contestação (tipo e títulos; vazio = todos em cobrança). */
+    record FollowUpRequest(@Size(max = 30) String disputeType, @Size(max = 500) Set<UUID> titleIds) {
     }
 
     record PromiseRequest(@NotNull @DecimalMin(value = "0.01") BigDecimal amount, @NotNull LocalDate dueDate) {

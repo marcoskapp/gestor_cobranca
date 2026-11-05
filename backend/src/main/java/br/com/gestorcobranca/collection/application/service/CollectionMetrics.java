@@ -63,6 +63,11 @@ class CollectionMetrics {
                 "effective", Boolean.toString(effective), "source", source).increment();
     }
 
+    /** Ação automática da tabulação: {@code action} × {@code outcome} (DONE, ALREADY_IN_EFFECT, NO_TITLES). */
+    void followUp(String action, String outcome) {
+        registry.counter("collection.tabulation_follow_ups", "action", action, "outcome", outcome).increment();
+    }
+
     void callback(String status) {
         registry.counter("collection.callbacks", "status", status).increment();
     }

@@ -1,7 +1,8 @@
 # Desenho — módulo `collection` (operação de cobrança)
 
 Escopo: M03, F06 (caso de cobrança), F07 (filas, atribuição e distribuição), F21 (contestações), RB02 (elegibilidade).
-Schema `collection`, migrations V0600–V0699 (`V0600` tabelas, `V0601` permissões e catálogo padrão de tabulações).
+Schema `collection`, migrations V0600–V0699 (`V0600` tabelas, `V0601` permissões e catálogo padrão de tabulações,
+`V0603` ação automática da tabulação).
 Dependências: `shared`, `organization :: usecases`, `identity :: usecases`, `debt :: usecases`, `compliance :: usecases`.
 Os demais fatos chegam por eventos de integração (`shared.events.*`).
 
@@ -167,6 +168,37 @@ padrão (14 tabulações) semeado no provisionamento (`TenantProvisioned`) e pel
 Registrar uma interação conclui, na mesma transação, os retornos em aberto do caso cujo horário já chegou (com a
 tolerância antes do horário) ou a tarefa indicada em `completesTaskId`.
 
+### 4.1 Ação automática da tabulação (decisões 776–780)
+
+O fato relatado no atendimento produz o efeito devido **no próprio registro**, sem depender de um segundo passo manual.
+A tabulação tem `followUp` (`TabulationFollowUp`) e, para contestação, um tipo pré-selecionado (`disputeType`, nulo = o
+operador escolhe). `TabulationFollowUps` valida os dados antes de gravar a interação e executa a ação depois de gravar a
+interação e o caso, **na mesma transação**: se a ação falha, nada é registrado.
+
+| Ação | Catálogo padrão | Efeito | Já em vigor (`ALREADY_IN_EFFECT`) |
+| --- | --- | --- | --- |
+| `OPEN_DISPUTE` | `ALREADY_PAID` (tipo `ALREADY_PAID`), `DISPUTE` (operador escolhe o tipo) | contestação de origem `OPERATOR`, bloqueante, com os títulos em cobrança do caso (ou os informados em `followUp.titleIds`); a observação vira a descrição; o caso vai a `DISPUTED` (§7) | já há contestação aberta ou em análise no caso: aponta a existente. Sem títulos em cobrança → `NO_TITLES` |
+| `REPORT_DECEASED` | `DECEASED` | restrição de contato `DECEASED` do devedor em **todos os canais e credores** (compliance, `registerDeceasedReport`), origem `OPERATOR`, motivo fixo "aguarda comprovação"; elegibilidade do caso reavaliada no ato, os demais casos do devedor pelo `ContactRestrictionChanged` | restrição `DECEASED` vigente do devedor no mesmo alcance |
+| `INVALIDATE_CONTACT` | `WRONG_CONTACT` | o contato usado na interação (`contactId`, obrigatório) passa a `INVALID` no debt com motivo fixo; discador e envios deixam de usá-lo (a elegibilidade do caso é por restrição de canal e não muda) | contato já inválido |
+
+Regras da tabulação (domínio e `ck_tabulation_*`): ação exige observação e não se combina com promessa ou retorno;
+`OPEN_DISPUTE` exige contato efetivo; `disputeType` só com `OPEN_DISPUTE`. Detalhes da ação (`followUp` no registro) só
+com tabulação que tem ação; `OPEN_DISPUTE` sem tipo informado nem padrão → `interaction.dispute_type_required`.
+
+A observação do operador fica só na interação (criptografada) e na descrição da contestação (também criptografada): o
+motivo da restrição e da invalidação é um texto fixo, sem copiar o relato (em geral dado de terceiro, como quem atendeu).
+
+Rastreio nos dois sentidos: a interação guarda a ação vigente no registro (`interaction.follow_up`, como o código e as
+flags); a contestação guarda `origin_interaction_id` e a restrição, `compliance.contact_restriction.origin_interaction_id`
+(`V0501`). Cada execução registra a auditoria `interaction.follow_up_executed` (ação, resultado, registro criado ou
+existente), o evento de negócio `interaction.follow_up` e a métrica `collection.tabulation_follow_ups{action,outcome}`.
+O `RecordResult` devolve `followUp` (ação, resultado, tipo e id do registro); a telefonia aceita `disputeType` na
+tabulação do operador (`POST /telephony/calls/{id}/tabulation`) e repassa o contato da chamada.
+
+Reenvio de integração com a mesma `externalRef` devolve a interação já registrada sem executar a ação de novo. As
+integrações automáticas (telefonia sem operador, comunicação, assistente) usam tabulações sem ação; o assistente
+transfere ao humano os sinais de contestação e falecimento (`assistente.md`).
+
 ## 5. Retornos (callbacks) e tarefas
 
 Data e hora informadas e exibidas no fuso `TimeConfig.BUSINESS_ZONE` (`LocalDateTime` na API), gravadas em UTC. A
@@ -325,7 +357,7 @@ descrições só no banco, criptografadas).
 | `/next-case` (200 caso / 204 vazio) · `/my-cases` | `POST` · `GET` |
 | `/queues` · `/queues/{id}` · `/queues/{id}/summary` · `/queues/{id}/activate|deactivate` · `/queues/reroute` · `/queues/{id}/distribute` | CRUD + ações |
 | `/redistributions` | `POST` |
-| `/tabulations` · `/tabulations/{id}` · `/activate|deactivate` | CRUD + ações |
+| `/tabulations` · `/tabulations/{id}` · `/activate|deactivate` | CRUD + ações (com `followUp` e `disputeType`, §4.1) |
 | `/cases/{id}/interactions` | `GET`, `POST` (201; 200 se reenvio de integração) |
 | `/cases/{id}/tasks` · `/agenda` · `/tasks/{id}/complete|cancel|reschedule|reassign` | `GET`, `POST` |
 | `/cases/{id}/promises` · `/promises/{id}` · `/promises/{id}/cancel` | `GET`, `POST` |

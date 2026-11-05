@@ -25,6 +25,7 @@ export const MANUAL: ModuleManual = {
     'O caso entra na primeira fila ativa, por prioridade, cujos critérios satisfaz.',
     'Promessa vale até a data combinada mais a tolerância da assessoria; depois é quebrada automaticamente.',
     'Contestação tem prazo de resposta; a bloqueante suspende contato e negociação dos títulos contestados.',
+    'Algumas tabulações executam uma ação automática no próprio registro: "Alega pagamento" e "Contesta a dívida" abrem contestação, "Informado falecimento" bloqueia o contato com o devedor em todos os credores e "Contato errado" invalida o telefone ou e-mail usado.',
     'Ver o documento completo do devedor exige permissão e fica no log de acesso.',
   ],
   screens: [
@@ -114,12 +115,16 @@ export const MANUAL: ModuleManual = {
       objective: 'Mantenha os resultados de contato que os operadores escolhem e o que cada um exige e provoca.',
       purpose: [
         'Cada tabulação diz se houve contato efetivo e se exige observação, promessa (valor e data) ou retorno (data e hora). Os indicadores de produtividade dependem dessa marcação.',
+        'A ação automática executa o efeito do fato relatado no próprio registro: abrir contestação (com um tipo pré-selecionado ou escolhido pelo operador), registrar o falecimento informado (bloqueia o contato até a supervisão rever) ou invalidar o contato usado. Toda ação exige observação e não se combina com promessa ou retorno.',
       ],
       profiles: ['GESTOR', 'SUPERVISOR'],
       inputs: ['Catálogo padrão criado com a assessoria, ajustável.'],
       outputs: ['Opções do registro de interação na estação e ao fim das ligações.'],
-      related: [{ screen: 'collection.queue', why: 'Onde as tabulações são usadas.' }],
-      terms: ['tabulacao', 'contato-efetivo', 'promessa', 'retorno'],
+      related: [
+        { screen: 'collection.queue', why: 'Onde as tabulações são usadas.' },
+        { screen: 'collection.disputes', why: 'Contestações abertas pelas tabulações.' },
+      ],
+      terms: ['tabulacao', 'contato-efetivo', 'promessa', 'retorno', 'contestacao'],
     },
     {
       id: 'collection.settings',

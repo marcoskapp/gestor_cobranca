@@ -4,6 +4,8 @@ import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
 import java.util.Locale;
@@ -18,6 +20,10 @@ import java.util.Locale;
  *   <li>{@code callback} — exige o agendamento de um retorno;</li>
  *   <li>{@code requiresNote} — exige observação.</li>
  * </ul>
+ * A ação automática ({@link TabulationFollowUp}) executa o efeito do fato relatado na mesma
+ * transação do registro: abrir contestação, bloquear o contato por falecimento ou invalidar o
+ * contato usado. Toda ação exige observação (a justificativa fica com a interação) e não se combina
+ * com promessa ou retorno; abrir contestação pressupõe contato efetivo (só o devedor contesta).
  * O código é imutável (as interações guardam o código e as flags vigentes no registro);
  * tabulações não são apagadas, apenas desativadas.
  */
@@ -43,6 +49,15 @@ public class Tabulation extends TenantScopedEntity {
     @Column(name = "requires_note", nullable = false)
     private boolean requiresNote;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "follow_up", nullable = false, length = 30)
+    private TabulationFollowUp followUp = TabulationFollowUp.NONE;
+
+    /** Tipo de contestação pré-selecionado (só com {@code OPEN_DISPUTE}; nulo = o operador escolhe). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dispute_type", length = 30)
+    private DisputeType disputeType;
+
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
@@ -60,8 +75,23 @@ public class Tabulation extends TenantScopedEntity {
         define(definition);
     }
 
+    /**
+     * @param followUp    ação automática (nulo = {@code NONE})
+     * @param disputeType tipo de contestação pré-selecionado, só com {@code OPEN_DISPUTE}
+     */
     public record Definition(String name, boolean effectiveContact, boolean promise, boolean callback,
-                             boolean requiresNote, int displayOrder) {
+                             boolean requiresNote, int displayOrder, TabulationFollowUp followUp,
+                             DisputeType disputeType) {
+
+        public Definition {
+            followUp = followUp == null ? TabulationFollowUp.NONE : followUp;
+        }
+
+        /** Tabulação sem ação automática. */
+        public Definition(String name, boolean effectiveContact, boolean promise, boolean callback,
+                          boolean requiresNote, int displayOrder) {
+            this(name, effectiveContact, promise, callback, requiresNote, displayOrder, TabulationFollowUp.NONE, null);
+        }
     }
 
     public void define(Definition d) {
@@ -71,12 +101,24 @@ public class Tabulation extends TenantScopedEntity {
                 "Promessa de pagamento pressupõe contato efetivo");
         Guard.require(!(d.promise() && d.callback()), "tabulation.promise_and_callback",
                 "Tabulação não pode exigir promessa e retorno ao mesmo tempo");
+        if (!d.followUp().isNone()) {
+            Guard.require(!d.promise() && !d.callback(), "tabulation.follow_up_with_commitment",
+                    "Tabulação com ação automática não registra promessa nem retorno");
+            Guard.require(d.requiresNote(), "tabulation.follow_up_requires_note",
+                    "Tabulação com ação automática exige observação");
+        }
+        Guard.require(d.followUp() != TabulationFollowUp.OPEN_DISPUTE || d.effectiveContact(),
+                "tabulation.dispute_requires_contact", "Abrir contestação pressupõe contato efetivo com o devedor");
+        Guard.require(d.disputeType() == null || d.followUp() == TabulationFollowUp.OPEN_DISPUTE,
+                "tabulation.dispute_type_not_allowed", "Tipo de contestação só se aplica à ação de abrir contestação");
         this.name = d.name().trim();
         this.effectiveContact = d.effectiveContact();
         this.promise = d.promise();
         this.callback = d.callback();
         this.requiresNote = d.requiresNote();
         this.displayOrder = d.displayOrder();
+        this.followUp = d.followUp();
+        this.disputeType = d.disputeType();
     }
 
     public void activate() {
@@ -109,6 +151,14 @@ public class Tabulation extends TenantScopedEntity {
 
     public boolean isRequiresNote() {
         return requiresNote;
+    }
+
+    public TabulationFollowUp getFollowUp() {
+        return followUp;
+    }
+
+    public DisputeType getDisputeType() {
+        return disputeType;
     }
 
     public int getDisplayOrder() {

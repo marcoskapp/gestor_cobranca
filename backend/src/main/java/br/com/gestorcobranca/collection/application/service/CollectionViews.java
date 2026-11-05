@@ -72,13 +72,14 @@ final class CollectionViews {
 
     static TabulationView tabulation(Tabulation t) {
         return new TabulationView(t.getId(), t.getCode(), t.getName(), t.isEffectiveContact(), t.isPromise(),
-                t.isCallback(), t.isRequiresNote(), t.getDisplayOrder(), t.isActive(), version(t.getVersion()));
+                t.isCallback(), t.isRequiresNote(), t.getFollowUp().name(), CollectionEnums.name(t.getDisputeType()),
+                t.getDisplayOrder(), t.isActive(), version(t.getVersion()));
     }
 
     static InteractionView interaction(Interaction i) {
         return new InteractionView(i.getId(), i.getCaseId(), i.getDebtorId(), i.getCreditorId(), i.getPortfolioId(),
                 i.getChannel().name(), i.getDirection().name(), i.getTabulationId(), i.getOutcomeCode(),
-                i.isEffectiveContact(), i.getNote(), i.getContactId(), i.getStartedAt(), i.getEndedAt(),
+                i.isEffectiveContact(), i.getFollowUp().name(), i.getNote(), i.getContactId(), i.getStartedAt(), i.getEndedAt(),
                 i.getDurationSeconds(), i.getOperatorId(), i.getActorType(), i.getSource().name(), i.getExternalRef(),
                 i.getCreatedAt());
     }
@@ -110,7 +111,7 @@ final class CollectionViews {
                 d.getTitleIds(), titles, d.getType().name(), d.getOrigin().name(), d.getStatus().name(), d.getDescription(),
                 d.isBlocksCollection(), amount(d.getDisputedAmount()), d.getOpenedAt(), d.getResponseDueDate(),
                 d.isOverdue(), CollectionEnums.name(d.getOutcome()), d.getResolutionNote(), d.getResolvedAt(),
-                d.getResolvedBy(), evidenceCount, version(d.getVersion()));
+                d.getResolvedBy(), evidenceCount, d.getOriginInteractionId(), version(d.getVersion()));
     }
 
     static EvidenceView evidence(DisputeEvidence e, String createdByName) {

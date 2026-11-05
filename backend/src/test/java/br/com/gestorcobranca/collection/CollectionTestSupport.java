@@ -292,7 +292,7 @@ abstract class CollectionTestSupport extends IntegrationTest {
     RecordInteractionCommand interaction(String tabulation, InteractionUseCases.PromiseInput promise,
                                          InteractionUseCases.CallbackInput callback, String note) {
         return new RecordInteractionCommand("PHONE", "OUTBOUND", null, tabulation, note, null, null, null, promise, callback,
-                null, null, null);
+                null, null, null, null);
     }
 
     RecordResult record(UUID userId, UUID caseId, RecordInteractionCommand command) {

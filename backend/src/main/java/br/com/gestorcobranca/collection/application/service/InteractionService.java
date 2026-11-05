@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.collection.application.service;
 
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
+import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.FollowUpResult;
 import br.com.gestorcobranca.collection.application.port.in.PromiseUseCases.PromiseView;
 import br.com.gestorcobranca.collection.application.port.in.TaskUseCases.TaskView;
 import br.com.gestorcobranca.collection.domain.model.AssignmentMode;
@@ -72,6 +73,7 @@ class InteractionService implements InteractionUseCases {
     private final ApplicationEventPublisher events;
     private final CurrentActor currentActor;
     private final CollectionMetrics metrics;
+    private final TabulationFollowUps followUps;
     private final Clock clock;
 
     InteractionService(InteractionRepository interactions, TabulationRepository tabulations,
@@ -79,7 +81,8 @@ class InteractionService implements InteractionUseCases {
                        CaseRecorder caseRecorder, CaseAgenda agenda, TaskService taskService,
                        PromiseService promiseService, PromiseRecorder promiseRecorder, SettingsProvider settings,
                        UserDirectory users, BusinessEventLogger businessEvents, ApplicationEventPublisher events,
-                       CurrentActor currentActor, CollectionMetrics metrics, Clock clock) {
+                       CurrentActor currentActor, CollectionMetrics metrics, TabulationFollowUps followUps,
+                       Clock clock) {
         this.interactions = interactions;
         this.tabulations = tabulations;
         this.tasks = tasks;
@@ -96,6 +99,7 @@ class InteractionService implements InteractionUseCases {
         this.events = events;
         this.currentActor = currentActor;
         this.metrics = metrics;
+        this.followUps = followUps;
         this.clock = clock;
     }
 
@@ -112,7 +116,7 @@ class InteractionService implements InteractionUseCases {
                 Guard.requireState(existing.get().getCaseId().equals(c.getId()), "interaction.external_ref_conflict",
                         "A referência externa já foi registrada em outro caso");
                 return new RecordResult(CollectionViews.interaction(existing.get()), true, null, null,
-                        CollectionViews.caseView(c, CollectionViews.today(clock)));
+                        CollectionViews.caseView(c, CollectionViews.today(clock)), null);
             }
         }
         Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
@@ -122,6 +126,7 @@ class InteractionService implements InteractionUseCases {
                 "interaction.direction_invalid", "Sentido");
         Tabulation tabulation = tabulation(cmd);
         requireFlagData(tabulation, cmd);
+        TabulationFollowUps.Plan followUpPlan = TabulationFollowUps.plan(tabulation, cmd);
         Actor actor = currentActor.get();
         OwnerType ownerBefore = c.getOwnerType();
         boolean assume = access.requireWorkable(c);
@@ -171,8 +176,9 @@ class InteractionService implements InteractionUseCases {
         CollectionCase saved = caseRecorder.commit(c, before, mode, null, "interaction");
 
         publish(saved, interaction, tabulation);
+        FollowUpResult followUp = followUps.execute(saved, interaction, followUpPlan).orElse(null);
         return new RecordResult(CollectionViews.interaction(interaction), false, promiseView, callbackView,
-                CollectionViews.caseView(saved, CollectionViews.today(clock)));
+                CollectionViews.caseView(saved, CollectionViews.today(clock)), followUp);
     }
 
     @Override
@@ -216,6 +222,7 @@ class InteractionService implements InteractionUseCases {
                 .attr("effectiveContact", i.isEffectiveContact())
                 .attr("promise", t.isPromise())
                 .attr("callback", t.isCallback())
+                .attr("followUp", i.getFollowUp())
                 .attr("source", i.getSource())
                 .attr("actorType", i.getActorType())
                 .attr("operatorId", i.getOperatorId())

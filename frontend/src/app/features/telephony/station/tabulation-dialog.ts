@@ -13,6 +13,8 @@ import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { fromLocalDate } from '../../../shared/models/dates';
 import { CaseWorkApi, CasesApi, CollectionSettingsApi, TabulationsApi } from '../../collection/data/collection.api';
+import { DISPUTE_TYPE_LABELS, FOLLOW_UP_NOTICES } from '../../collection/data/collection.labels';
+import { DisputeType } from '../../collection/data/collection.models';
 import { interactionProblems, toLocalDateTime, zonedNow } from '../../collection/data/collection.rules';
 import { CallsApi } from '../data/telephony.api';
 import { AUTO_TABULATION_LABELS, CALL_RESULT_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
@@ -82,6 +84,22 @@ export interface TabulationDialogData {
               }
             </select>
           </app-field>
+          @if (followUpNotice(); as notice) {
+            <p class="alert alert-warning d-flex gap-2 mb-0" role="note" data-tour="tabulation-follow-up">
+              <app-icon name="exclamation-triangle" />
+              <span>{{ notice }}</span>
+            </p>
+            @if (tabulation()?.followUp === 'OPEN_DISPUTE') {
+              <app-field label="Tipo da contestação">
+                <select appInput formControlName="disputeType" required>
+                  <option value="" disabled>Selecione o tipo</option>
+                  @for (d of disputeTypes; track d.value) {
+                    <option [value]="d.value">{{ d.label }}</option>
+                  }
+                </select>
+              </app-field>
+            }
+          }
           @if (tabulation()?.promise) {
             <div class="row g-3">
               <div class="col-sm-6">
@@ -184,18 +202,33 @@ export class TabulationDialog {
     promiseDate: this.fb.control<string | null>(null),
     callbackDate: this.fb.control<string | null>(null),
     callbackTime: [''],
+    disputeType: this.fb.control<DisputeType | ''>(''),
   });
   private readonly values = toSignal(this.form.valueChanges.pipe(startWith(null)), { initialValue: null });
   protected readonly tabulation = computed(() => {
     this.values();
     return this.tabulations().find((t) => t.id === this.form.controls.tabulationId.value) ?? null;
   });
+  protected readonly disputeTypes = Object.entries(DISPUTE_TYPE_LABELS).map(([value, label]) => ({ value: value as DisputeType, label }));
+  /** Aviso do efeito da ação automática da tabulação escolhida (contestação, falecimento, contato inválido). */
+  protected readonly followUpNotice = computed(() => {
+    const t = this.tabulation();
+    return t && t.followUp !== 'NONE' ? FOLLOW_UP_NOTICES[t.followUp] : null;
+  });
   protected readonly suggestion = computed(() => this.tabulations().find((t) => t.code === this.call().suggestedTabulation)?.name ?? AUTO_TABULATION_LABELS[this.call().suggestedTabulation ?? ''] ?? 'atendida sem tabulação');
   protected readonly problems = computed(() => {
     this.values();
     const v = this.form.getRawValue();
     const out = interactionProblems(
-      { tabulation: this.tabulation(), note: v.note, promiseAmount: v.promiseAmount, promiseDate: this.date('promiseDate'), callbackAt: toLocalDateTime(fromLocalDate(this.date('callbackDate')), v.callbackTime) },
+      {
+        tabulation: this.tabulation(),
+        note: v.note,
+        promiseAmount: v.promiseAmount,
+        promiseDate: this.date('promiseDate'),
+        callbackAt: toLocalDateTime(fromLocalDate(this.date('callbackDate')), v.callbackTime),
+        disputeType: v.disputeType || null,
+        contactId: this.call().contactId,
+      },
       { openBalance: this.balance() ?? Number.MAX_SAFE_INTEGER, today: zonedNow().date, promiseMaxDays: this.settings.hasValue() ? (this.settings.value()?.promiseMaxDays ?? 30) : 30 },
       zonedNow(),
     );
@@ -223,6 +256,11 @@ export class TabulationDialog {
       }
     }, 1000);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    // tipo da contestação: o padrão da tabulação escolhida (o operador pode trocar)
+    effect(() => {
+      const t = this.tabulation();
+      untracked(() => this.form.controls.disputeType.setValue(t?.followUp === 'OPEN_DISPUTE' ? (t.disputeType ?? '') : '', { emitEvent: false }));
+    });
     // sugestão do resultado pré-selecionada (o operador troca se quiser)
     effect(() => {
       const suggested = this.tabulations().find((t) => t.code === this.call().suggestedTabulation);
@@ -263,6 +301,7 @@ export class TabulationDialog {
         promise: t.promise && amount && due ? { amount, dueDate: due } : null,
         callback: t.callback && callbackAt ? { dueAt: callbackAt, assigneeUserId: null, note: null } : null,
         caseId: this.call().caseId ? null : v.caseId || null,
+        disputeType: t.followUp === 'OPEN_DISPUTE' && v.disputeType ? v.disputeType : null,
       })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({

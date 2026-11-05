@@ -92,6 +92,10 @@ public class Dispute extends TenantScopedEntity {
     @Column(name = "resolved_by")
     private UUID resolvedBy;
 
+    /** Interação cuja tabulação abriu a contestação (ação automática), se houver. */
+    @Column(name = "origin_interaction_id", updatable = false)
+    private UUID originInteractionId;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "dispute_title", schema = "collection", joinColumns = @JoinColumn(name = "dispute_id"))
     @Column(name = "title_id", nullable = false)
@@ -102,7 +106,7 @@ public class Dispute extends TenantScopedEntity {
 
     public Dispute(CollectionCase c, Collection<UUID> titleIds, DisputeType type, DisputeOrigin origin,
                    String description, boolean blocksCollection, Money disputedAmount, LocalDate responseDueDate,
-                   Instant now) {
+                   UUID originInteractionId, Instant now) {
         Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
         Guard.require(titleIds != null && !titleIds.isEmpty(), "dispute.titles_required", "Informe os títulos contestados");
         Guard.require(type != null, "dispute.type_required", "Tipo da contestação obrigatório");
@@ -123,6 +127,7 @@ public class Dispute extends TenantScopedEntity {
         this.status = DisputeStatus.OPEN;
         this.openedAt = now;
         this.responseDueDate = responseDueDate;
+        this.originInteractionId = originInteractionId;
     }
 
     public void startReview() {
@@ -240,5 +245,9 @@ public class Dispute extends TenantScopedEntity {
 
     public Set<UUID> getTitleIds() {
         return Set.copyOf(titleIds);
+    }
+
+    public UUID getOriginInteractionId() {
+        return originInteractionId;
     }
 }

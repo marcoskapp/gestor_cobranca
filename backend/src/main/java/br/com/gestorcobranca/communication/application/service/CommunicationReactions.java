@@ -97,7 +97,7 @@ class CommunicationReactions {
         }
         var result = interactions.record(e.caseId(), new RecordInteractionCommand(e.channel(), direction, null, code, null,
                 conversation.get().getContactId(), e.occurredAt(), null, null, null, null, "COMMUNICATION",
-                "message:" + e.messageId()));
+                "message:" + e.messageId(), null));
         metrics.interaction(direction, result.duplicate() ? "duplicate" : "recorded");
     }
 

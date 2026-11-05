@@ -66,9 +66,10 @@ public interface CallUseCases {
     /**
      * @param tabulationCode código da tabulação do collection
      * @param caseId         caso da chamada recebida ainda não identificada
+     * @param disputeType    tipo da contestação quando a tabulação abre contestação (nulo = o padrão da tabulação)
      */
     record TabulateCommand(String tabulationCode, String note, PromiseInput promise, CallbackInput callback,
-                           UUID caseId) {
+                           UUID caseId, String disputeType) {
     }
 
     record PromiseInput(BigDecimal amount, LocalDate dueDate) {

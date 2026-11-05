@@ -155,7 +155,7 @@ class CollectionIsolationIT extends CollectionTestSupport {
         // configuração global exige acesso a todos os credores
         assertThatThrownBy(() -> as(operatorZ, "GESTOR", br.com.gestorcobranca.shared.security.CreditorScope.of(
                 Set.of(creditorB)), () -> tabulations.create(new TabulationCommand("NEW_ONE", "Nova", false, false, false,
-                false, 1)))).isInstanceOf(ScopeAccessDeniedException.class);
+                false, null, null, 1)))).isInstanceOf(ScopeAccessDeniedException.class);
         assertThatThrownBy(() -> as(operatorZ, "GESTOR", br.com.gestorcobranca.shared.security.CreditorScope.of(
                 Set.of(creditorB)), () -> queues.create(queue("ANY", 1, creditorA, "PULL", null, Set.of()))))
                 .isInstanceOf(ScopeAccessDeniedException.class);

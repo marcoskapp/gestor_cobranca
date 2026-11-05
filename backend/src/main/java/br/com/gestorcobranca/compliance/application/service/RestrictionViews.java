@@ -15,7 +15,7 @@ final class RestrictionViews {
         return new RestrictionView(r.getId(), r.getDebtorId(), r.getCreditorId(), ComplianceEnums.name(r.getChannel()),
                 r.getType().name(), ComplianceEnums.name(r.getContactValueType()), r.getContactValueMasked(), r.getReason(),
                 r.getSource().name(), r.getStartsAt(), r.getEndsAt(), r.getStatus().name(), r.isEffectiveAt(now),
-                r.getRevokedAt(), r.getRevokedBy(), r.getRevokedReason(), r.getOriginRequestId(),
+                r.getRevokedAt(), r.getRevokedBy(), r.getRevokedReason(), r.getOriginRequestId(), r.getOriginInteractionId(),
                 r.getEvidenceFileKey() != null, r.getEvidenceFileName(), r.getEvidenceSha256(), r.getCreatedAt(),
                 r.getCreatedBy());
     }

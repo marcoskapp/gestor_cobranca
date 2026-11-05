@@ -92,7 +92,7 @@ class TelephonyDialerIT extends TelephonyTestSupport {
         event(dialing.id(), "COMPLETED", null, "DEBTOR");
         assertThat(asOperator(operatorX, agents::me).status()).isEqualTo("WRAP_UP");
         asOperator(operatorX, () -> calls.tabulate(dialing.id(), new TabulateCommand("CPC_NEGOTIATING", null, null, null,
-                null)));
+                null, null)));
         assertThat(entries(campaign.id()).getFirst().status()).isEqualTo("COMPLETED");
         assertThat(count("select count(*) from collection.interaction where external_ref = ? and operator_id = ?",
                 "call:" + dialing.id(), operatorX)).isEqualTo(1);

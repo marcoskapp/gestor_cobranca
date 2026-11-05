@@ -336,7 +336,7 @@ class TelephonyCpaasIT extends TelephonyTestSupport {
         // segundo caso: secretária eletrônica → encerrado pela API (DELETE /Call/{CallUUID}/)
         asOperator(operatorX, () -> calls.tabulate(callId,
                 new br.com.gestorcobranca.telephony.application.port.in.CallUseCases.TabulateCommand("CPC_NEGOTIATING",
-                        null, null, null, null)));
+                        null, null, null, null, null)));
         CaseView second = loadCase(creditorA, portfolioA, debtor("111.444.777-35", "(11) 97777-1234"), "300.00");
         asSupervisor(() -> dialer.reload(campaign.id()));
         drainTelephony();

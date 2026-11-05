@@ -74,7 +74,7 @@ class TelephonyCallFlowIT extends TelephonyTestSupport {
                 + "and status = 'PENDING' and dedup_key = ?", "tabulation:" + queued.id())).isEqualTo(1);
 
         CallView tabulated = asOperator(operatorX, () -> calls.tabulate(queued.id(), new TabulateCommand("PROMISE", null,
-                new PromiseInput(new BigDecimal("300.00"), LocalDate.now().plusDays(5)), null, null)));
+                new PromiseInput(new BigDecimal("300.00"), LocalDate.now().plusDays(5)), null, null, null)));
         assertThat(tabulated.interactionState()).isEqualTo("RECORDED");
         assertThat(tabulated.tabulationCode()).isEqualTo("PROMISE");
         assertThat(tabulated.wrapUpSeconds()).isNotNull();
@@ -144,12 +144,12 @@ class TelephonyCallFlowIT extends TelephonyTestSupport {
         assertThat(noAnswer.result()).isEqualTo("NO_ANSWER");
         assertThat(noAnswer.suggestedTabulation()).isEqualTo("NO_ANSWER");
         assertThatThrownBy(() -> asOperator(operatorY, () -> calls.tabulate(first.id(),
-                new TabulateCommand("NO_ANSWER", null, null, null, null))))
+                new TabulateCommand("NO_ANSWER", null, null, null, null, null))))
                 .isInstanceOf(br.com.gestorcobranca.shared.security.ScopeAccessDeniedException.class);
         assertThatThrownBy(() -> asOperator(operatorX, () -> calls.clickToCall(new ClickToCallCommand(kase.id(), null), null)))
                 .isInstanceOf(ConflictException.class).hasMessageContaining("Tabule");
         CallView tabulated = asOperator(operatorX, () -> calls.tabulate(first.id(),
-                new TabulateCommand("NO_ANSWER", null, null, null, null)));
+                new TabulateCommand("NO_ANSWER", null, null, null, null, null)));
         assertThat(count("select count(*) from collection.interaction where id = ? and not effective_contact",
                 tabulated.interactionId())).isEqualTo(1);
 
@@ -162,7 +162,7 @@ class TelephonyCallFlowIT extends TelephonyTestSupport {
         assertThat(asOperator(operatorX, agents::me).status()).isEqualTo("WRAP_UP");
         // pause e saída só depois da tabulação
         assertThatThrownBy(() -> asOperator(operatorX, () -> agents.pause("BREAK"))).isInstanceOf(ConflictException.class);
-        asOperator(operatorX, () -> calls.tabulate(second.id(), new TabulateCommand("NO_ANSWER", null, null, null, null)));
+        asOperator(operatorX, () -> calls.tabulate(second.id(), new TabulateCommand("NO_ANSWER", null, null, null, null, null)));
         assertThat(asOperator(operatorX, () -> agents.pause("LUNCH")).pauseReason()).isEqualTo("LUNCH");
         assertThat(asOperator(operatorX, agents::logout).status()).isEqualTo("OFFLINE");
     }
@@ -173,7 +173,7 @@ class TelephonyCallFlowIT extends TelephonyTestSupport {
         CallView outbound = asOperator(operatorX, () -> calls.clickToCall(new ClickToCallCommand(kase.id(), null), null));
         drainTelephony();
         event(outbound.id(), "BUSY", null, null);
-        asOperator(operatorX, () -> calls.tabulate(outbound.id(), new TabulateCommand("BUSY", null, null, null, null)));
+        asOperator(operatorX, () -> calls.tabulate(outbound.id(), new TabulateCommand("BUSY", null, null, null, null, null)));
 
         UUID inbound = asAdmin(() -> sandbox.simulateInbound(account.id(), "+5511987654321"));
         CallView received = call(inbound);
@@ -183,7 +183,7 @@ class TelephonyCallFlowIT extends TelephonyTestSupport {
         assertThat(received.operatorId()).isEqualTo(operatorX);
         event(inbound, "COMPLETED", null, "DEBTOR");
         CallView tabulated = asOperator(operatorX, () -> calls.tabulate(inbound,
-                new TabulateCommand("CPC_NEGOTIATING", null, null, null, null)));
+                new TabulateCommand("CPC_NEGOTIATING", null, null, null, null, null)));
         assertThat(count("select count(*) from collection.interaction where id = ? and direction = 'INBOUND'",
                 tabulated.interactionId())).isEqualTo(1);
         assertThat(count("select count(*) from compliance.contact_attempt where reference_id = ?", inbound)).isZero();

@@ -31,6 +31,8 @@ export interface RestrictionView {
   revokedBy: string | null;
   revokedReason: string | null;
   originRequestId: string | null;
+  /** Interação de cobrança que originou a restrição (falecimento informado no atendimento), se houver. */
+  originInteractionId: string | null;
   hasEvidence: boolean;
   evidenceFileName: string | null;
   evidenceSha256: string | null;

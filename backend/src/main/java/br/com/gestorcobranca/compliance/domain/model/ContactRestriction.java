@@ -86,6 +86,10 @@ public class ContactRestriction extends TenantScopedEntity {
     @Column(name = "origin_request_id", updatable = false)
     private UUID originRequestId;
 
+    /** Interação de cobrança (collection) que originou a restrição, se houver. */
+    @Column(name = "origin_interaction_id", updatable = false)
+    private UUID originInteractionId;
+
     @Column(name = "evidence_file_key", length = 512)
     private String evidenceFileKey;
 
@@ -141,6 +145,19 @@ public class ContactRestriction extends TenantScopedEntity {
     }
 
     /** Vigente no instante: ativa (não revogada) e dentro de {@code [startsAt, endsAt)}. */
+    /** Vincula a restrição recém-criada à interação de cobrança que a originou (antes de gravar). */
+    public void originatedFromInteraction(UUID interactionId) {
+        Guard.require(interactionId != null, "restriction.interaction_required", "Interação de origem obrigatória");
+        Guard.requireState(this.originInteractionId == null && this.originRequestId == null,
+                "restriction.origin_already_set", "Origem da restrição já definida");
+        this.originInteractionId = interactionId;
+    }
+
+    /** Restrição do devedor inteiro: todos os credores, todos os canais, sem contato específico. */
+    public boolean isDebtorWide() {
+        return creditorId == null && channel == null && contactValueHash == null;
+    }
+
     public boolean isEffectiveAt(Instant at) {
         return status == RestrictionStatus.ACTIVE && !at.isBefore(startsAt) && (endsAt == null || at.isBefore(endsAt));
     }
@@ -298,6 +315,10 @@ public class ContactRestriction extends TenantScopedEntity {
 
     public UUID getOriginRequestId() {
         return originRequestId;
+    }
+
+    public UUID getOriginInteractionId() {
+        return originInteractionId;
     }
 
     public String getEvidenceFileKey() {

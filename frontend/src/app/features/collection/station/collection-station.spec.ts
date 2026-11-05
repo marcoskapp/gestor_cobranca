@@ -84,9 +84,9 @@ export function sheet(overrides: Partial<CaseSheet> = {}): CaseSheet {
 }
 
 const tabulations: TabulationView[] = [
-  { id: 'tb-1', code: 'CPC_NEGOCIANDO', name: 'Em negociação', effectiveContact: true, promise: false, callback: false, requiresNote: true, displayOrder: 1, active: true, version: 0 },
-  { id: 'tb-2', code: 'PROMESSA', name: 'Promessa de pagamento', effectiveContact: true, promise: true, callback: false, requiresNote: false, displayOrder: 2, active: true, version: 0 },
-  { id: 'tb-3', code: 'ANTIGA', name: 'Desativada', effectiveContact: false, promise: false, callback: false, requiresNote: false, displayOrder: 3, active: false, version: 0 },
+  { id: 'tb-1', code: 'CPC_NEGOCIANDO', name: 'Em negociação', effectiveContact: true, promise: false, callback: false, requiresNote: true, followUp: 'NONE', disputeType: null, displayOrder: 1, active: true, version: 0 },
+  { id: 'tb-2', code: 'PROMESSA', name: 'Promessa de pagamento', effectiveContact: true, promise: true, callback: false, requiresNote: false, followUp: 'NONE', disputeType: null, displayOrder: 2, active: true, version: 0 },
+  { id: 'tb-3', code: 'ANTIGA', name: 'Desativada', effectiveContact: false, promise: false, callback: false, requiresNote: false, followUp: 'NONE', disputeType: null, displayOrder: 3, active: false, version: 0 },
 ];
 
 const availability: ContactAvailability = {

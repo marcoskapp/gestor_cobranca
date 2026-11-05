@@ -411,7 +411,7 @@ class AssistantToolbox {
         }
         var result = actors.as(ctx.actor, () -> interactions.record(ctx.conversation.caseId(), new RecordInteractionCommand(
                 ctx.conversation.channel(), "INBOUND", null, "PROMISE", null, null, null, null,
-                new PromiseInput(amount, date), null, null, "ASSISTANT", externalRef(ctx, "promise"))));
+                new PromiseInput(amount, date), null, null, "ASSISTANT", externalRef(ctx, "promise"), null)));
         ctx.memory = ctx.memory.withFacts(ctx.memory.facts().withDates(List.of(date)));
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("registered", !result.duplicate());
@@ -439,7 +439,7 @@ class AssistantToolbox {
         var result = actors.as(ctx.actor, () -> interactions.record(ctx.conversation.caseId(), new RecordInteractionCommand(
                 ctx.conversation.channel(), "INBOUND", null, "CALLBACK", null, null, null, null, null,
                 new CallbackInput(dueAt, null, "Retorno combinado com o assistente virtual"), null, "ASSISTANT",
-                externalRef(ctx, "callback"))));
+                externalRef(ctx, "callback"), null)));
         ctx.memory = ctx.memory.withFacts(ctx.memory.facts().withDates(List.of(dueAt.toLocalDate())));
         return new ToolOutcome(ToolCallOutcome.OK, codec.toJson(Map.of("scheduled", true, "dateTime", dueAt.toString())),
                 null, "task", result.callback() == null ? null : result.callback().id(), null);

@@ -79,12 +79,13 @@ public interface DisputeUseCases {
      * @param titles dados mínimos dos títulos contestados (número, parcela, vencimento, valores),
      *               na ordem de vencimento; títulos que deixaram o escopo do ator não aparecem
      *               (continuam em {@code titleIds})
+     * @param originInteractionId interação cuja tabulação abriu a contestação (ação automática), se houver
      */
     record DisputeView(UUID id, UUID caseId, UUID debtorId, UUID creditorId, UUID portfolioId, Set<UUID> titleIds,
                        List<DisputedTitle> titles, String type, String origin, String status, String description, boolean blocksCollection,
                        BigDecimal disputedAmount, Instant openedAt, LocalDate responseDueDate, boolean overdue,
                        String outcome, String resolutionNote, Instant resolvedAt, UUID resolvedBy, int evidenceCount,
-                       long version) {
+                       UUID originInteractionId, long version) {
     }
 
     /**

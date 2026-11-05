@@ -1,7 +1,9 @@
 package br.com.gestorcobranca.collection.application.service;
 
 import br.com.gestorcobranca.collection.application.port.in.TabulationUseCases;
+import br.com.gestorcobranca.collection.domain.model.DisputeType;
 import br.com.gestorcobranca.collection.domain.model.Tabulation;
+import br.com.gestorcobranca.collection.domain.model.TabulationFollowUp;
 import br.com.gestorcobranca.collection.domain.repository.TabulationRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
@@ -102,11 +104,16 @@ class TabulationService implements TabulationUseCases {
     private static Tabulation.Definition definition(TabulationCommand c) {
         Guard.require(c != null, "tabulation.definition_required", "Definição obrigatória");
         return new Tabulation.Definition(c.name(), c.effectiveContact(), c.promise(), c.callback(), c.requiresNote(),
-                c.displayOrder());
+                c.displayOrder(),
+                CollectionEnums.parseOptional(TabulationFollowUp.class, c.followUp(), "tabulation.follow_up_invalid",
+                        "Ação automática"),
+                CollectionEnums.parseOptional(DisputeType.class, c.disputeType(), "tabulation.dispute_type_invalid",
+                        "Tipo de contestação"));
     }
 
     private static String flags(Tabulation t) {
-        return "effectiveContact=%s;promise=%s;callback=%s;requiresNote=%s".formatted(t.isEffectiveContact(),
-                t.isPromise(), t.isCallback(), t.isRequiresNote());
+        return "effectiveContact=%s;promise=%s;callback=%s;requiresNote=%s;followUp=%s;disputeType=%s".formatted(
+                t.isEffectiveContact(), t.isPromise(), t.isCallback(), t.isRequiresNote(), t.getFollowUp(),
+                t.getDisputeType());
     }
 }

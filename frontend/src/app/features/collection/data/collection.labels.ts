@@ -10,6 +10,7 @@ import {
   OwnerType,
   QueueOrdering,
   QueueStrategy,
+  TabulationFollowUp,
   TaskType,
 } from './collection.models';
 
@@ -103,6 +104,22 @@ export const DISPUTE_TYPE_LABELS: Record<DisputeType, string> = {
   PRESCRIBED: 'Dívida prescrita',
   PRODUCT_OR_SERVICE: 'Problema com produto ou serviço',
   OTHER: 'Outro motivo',
+};
+
+export const FOLLOW_UP_LABELS: Record<TabulationFollowUp, string> = {
+  NONE: 'Nenhuma',
+  OPEN_DISPUTE: 'Abrir contestação',
+  REPORT_DECEASED: 'Registrar falecimento (bloqueia o contato)',
+  INVALIDATE_CONTACT: 'Invalidar o contato usado',
+};
+
+/** O que a ação automática faz ao registrar a interação (aviso na tela de atendimento). */
+export const FOLLOW_UP_NOTICES: Record<Exclude<TabulationFollowUp, 'NONE'>, string> = {
+  OPEN_DISPUTE:
+    'Ao registrar, abre uma contestação com os títulos em cobrança do caso e suspende a cobrança e o contato até a análise. A observação vira a descrição da contestação.',
+  REPORT_DECEASED:
+    'Ao registrar, o contato com este devedor fica bloqueado em todos os canais e credores até a supervisão rever (anexar a certidão de óbito ou revogar).',
+  INVALIDATE_CONTACT: 'Ao registrar, o contato usado é marcado como inválido e deixa de ser usado em ligações e mensagens.',
 };
 
 export const DISPUTE_ORIGIN_LABELS: Record<DisputeOrigin, string> = {

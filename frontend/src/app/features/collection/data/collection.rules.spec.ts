@@ -6,7 +6,7 @@ import { distributionText } from '../queues/distribution-dialogs';
 import { rangeValidator } from '../queues/queue-form';
 import { criteriaText, rangeText } from '../queues/queue-list';
 import { contactsForChannel } from '../station/interaction-panel';
-import { tabulationEffects } from '../tabulations/tabulation-list';
+import { tabulationConflict, tabulationEffects } from '../tabulations/tabulation-list';
 import { FormControl, FormGroup } from '@angular/forms';
 import { caseActions, eligibilityText } from './collection.labels';
 import { ChannelAvailability, QueueView, SheetContact, TabulationView, TaskView } from './collection.models';
@@ -15,6 +15,7 @@ import {
   canWorkCase,
   daysBetween,
   formatDuration,
+  followUpText,
   formatLocalDateTime,
   interactionProblems,
   isPastLocal,
@@ -33,6 +34,8 @@ const tab = (overrides: Partial<TabulationView> = {}): TabulationView => ({
   promise: false,
   callback: false,
   requiresNote: false,
+  followUp: 'NONE',
+  disputeType: null,
   displayOrder: 1,
   active: true,
   version: 0,
@@ -133,6 +136,40 @@ describe('regras de tela do módulo collection', () => {
         'O retorno precisa ser em data e hora futuras.',
       ]);
       expect(interactionProblems({ ...draft, tabulation: callback, callbackAt: '2026-10-23T15:00:00' }, limits, now)).toEqual([]);
+    });
+
+    it('ação automática: contestação exige o tipo e invalidar exige o contato usado', () => {
+      const dispute = tab({ followUp: 'OPEN_DISPUTE', requiresNote: true });
+      expect(interactionProblems({ ...draft, tabulation: dispute, note: 'Não reconhece' }, limits, now)).toEqual(['Escolha o tipo da contestação.']);
+      expect(interactionProblems({ ...draft, tabulation: dispute, note: 'Não reconhece', disputeType: 'FRAUD' }, limits, now)).toEqual([]);
+      const wrong = tab({ followUp: 'INVALIDATE_CONTACT', effectiveContact: false, requiresNote: true });
+      expect(interactionProblems({ ...draft, tabulation: wrong, note: 'Outra pessoa' }, limits, now)).toEqual([
+        'Informe o contato usado: ele será marcado como inválido.',
+      ]);
+      expect(interactionProblems({ ...draft, tabulation: wrong, note: 'Outra pessoa', contactId: 'c-1' }, limits, now)).toEqual([]);
+      const deceased = tab({ followUp: 'REPORT_DECEASED', effectiveContact: false, requiresNote: true });
+      expect(interactionProblems({ ...draft, tabulation: deceased, note: 'Informado pela filha' }, limits, now)).toEqual([]);
+    });
+
+    it('resultado da ação automática na mensagem de sucesso', () => {
+      expect(followUpText(null)).toBeNull();
+      expect(followUpText({ action: 'OPEN_DISPUTE', outcome: 'DONE', referenceType: 'dispute', referenceId: 'd-1' })).toContain('contestação aberta');
+      expect(followUpText({ action: 'OPEN_DISPUTE', outcome: 'ALREADY_IN_EFFECT', referenceType: 'dispute', referenceId: 'd-1' })).toContain('já tem contestação');
+      expect(followUpText({ action: 'OPEN_DISPUTE', outcome: 'NO_TITLES', referenceType: null, referenceId: null })).toContain('sem títulos');
+      expect(followUpText({ action: 'REPORT_DECEASED', outcome: 'DONE', referenceType: 'contact_restriction', referenceId: 'r-1' })).toContain('bloqueado');
+      expect(followUpText({ action: 'INVALIDATE_CONTACT', outcome: 'ALREADY_IN_EFFECT', referenceType: 'debtor_contact', referenceId: 'c-1' })).toContain('já estava inválido');
+    });
+
+    it('catálogo: regras da ação automática iguais às do servidor', () => {
+      const base = { effectiveContact: true, promise: false, callback: false, requiresNote: true };
+      expect(tabulationConflict({ ...base, followUp: 'OPEN_DISPUTE' })).toBeNull();
+      expect(tabulationConflict({ ...base, followUp: 'OPEN_DISPUTE', effectiveContact: false })).toContain('contato efetivo');
+      expect(tabulationConflict({ ...base, followUp: 'REPORT_DECEASED', requiresNote: false })).toContain('exige observação');
+      expect(tabulationConflict({ ...base, followUp: 'INVALIDATE_CONTACT', callback: true })).toContain('promessa nem retorno');
+      expect(tabulationConflict({ ...base, followUp: 'NONE', promise: true, effectiveContact: false })).toBe('Promessa exige contato efetivo.');
+      expect(tabulationEffects({ ...base, followUp: 'OPEN_DISPUTE', disputeType: 'ALREADY_PAID' })).toContain(
+        'Ação automática: abrir contestação (já pagou)',
+      );
     });
 
     it('contatos do canal: telefone para voz/SMS, só WhatsApp para WhatsApp, sem inválidos', () => {

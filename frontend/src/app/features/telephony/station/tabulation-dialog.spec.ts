@@ -10,7 +10,7 @@ import { TabulationDialog } from './tabulation-dialog';
 import { TelephonySession } from './telephony-session';
 
 const tabulation = (o: Partial<TabulationView>): TabulationView => ({
-  id: 't-1', code: 'CALL_ANSWERED', name: 'Atendida', effectiveContact: true, promise: false, callback: false, requiresNote: false, displayOrder: 1, active: true, version: 1, ...o,
+  id: 't-1', code: 'CALL_ANSWERED', name: 'Atendida', effectiveContact: true, promise: false, callback: false, requiresNote: false, followUp: 'NONE', disputeType: null, displayOrder: 1, active: true, version: 1, ...o,
 });
 
 const tabulations = [tabulation({}), tabulation({ id: 't-2', code: 'PROMISE', name: 'Promessa de pagamento', promise: true, displayOrder: 2 })];
