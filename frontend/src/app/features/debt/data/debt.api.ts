@@ -181,8 +181,9 @@ export class TitleAmountApi {
     return this.http.put<AmountAdjustmentSettings>(`${API_V1}/title-amount-adjustments/settings`, { approvalThreshold });
   }
 
-  confirmSettings(): Observable<AmountAdjustmentSettings> {
-    return this.http.post<AmountAdjustmentSettings>(`${API_V1}/title-amount-adjustments/settings/confirm`, {});
+  /** Confirma o aumento proposto no valor que a pessoa revisou (proposta alterada nesse meio-tempo → 409). */
+  confirmSettings(proposedThreshold: number): Observable<AmountAdjustmentSettings> {
+    return this.http.post<AmountAdjustmentSettings>(`${API_V1}/title-amount-adjustments/settings/confirm`, { proposedThreshold });
   }
 }
 

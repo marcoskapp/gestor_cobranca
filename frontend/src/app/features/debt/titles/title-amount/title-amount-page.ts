@@ -189,9 +189,13 @@ export class TitleAmountPage {
   }
 
   protected confirmThreshold(): void {
+    const proposed = this.settingsValue()?.proposedThreshold;
+    if (proposed === null || proposed === undefined) {
+      return;
+    }
     this.busy.set(true);
     this.api
-      .confirmSettings()
+      .confirmSettings(proposed)
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe(() => {
         this.notifications.success('Aumento do limite confirmado.');

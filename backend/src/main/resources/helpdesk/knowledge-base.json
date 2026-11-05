@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "ca3c99967b58c306",
+ "contentVersion": "b2cffa30cc1c3f1b",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -2155,7 +2155,7 @@
    "purpose": [
     "Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois.",
     "A carga do credor não sobrescreve um valor corrigido: a divergência fica aqui até alguém manter a correção ou aceitar o valor do credor.",
-    "O limite define até quanto uma redução é aplicada sem segunda pessoa. Aumentos do saldo sempre passam por aprovação."
+    "O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa."
    ],
    "profiles": [
     "GESTOR",
@@ -2972,7 +2972,8 @@
    "title": "Versão da política do assistente",
    "objective": "Modo, horários, alçada, gatilhos de transferência e limites de uma versão da política do assistente.",
    "purpose": [
-    "Edite o rascunho e publique. A versão publicada não muda e aposenta a anterior do mesmo escopo."
+    "Edite o rascunho e publique. A versão publicada não muda e aposenta a anterior do mesmo escopo.",
+    "O perfil de alçada é escolhido e publicado por quem gerencia alçadas; sem essa permissão, a tela só informa o perfil da versão."
    ],
    "profiles": [
     "GESTOR"
@@ -5632,7 +5633,8 @@
    "title": "Atendimento ao titular",
    "objective": "Etapas do atendimento de um pedido do titular: identidade, ação, resposta e evidências.",
    "purpose": [
-    "Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada."
+    "Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.",
+    "O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores."
    ],
    "profiles": [
     "COMPLIANCE"
@@ -5667,7 +5669,8 @@
    "title": "Retenção de dados",
    "objective": "Prazos de guarda por categoria, simulação e anonimização dos dados que já cumpriram o prazo.",
    "purpose": [
-    "A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados."
+    "A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados.",
+    "Executar anonimiza dados: a ação aparece para quem também atende solicitações de titulares."
    ],
    "profiles": [
     "COMPLIANCE"
@@ -6143,7 +6146,8 @@
    "title": "Usuário",
    "objective": "Perfis, escopo de credores, situação e verificação em duas etapas de uma conta.",
    "purpose": [
-    "Ajuste perfis e escopo, bloqueie o acesso ou reenvie o link de ativação. Toda mudança fica na trilha de auditoria."
+    "Ajuste perfis e escopo, bloqueie o acesso ou reenvie o link de ativação. Toda mudança fica na trilha de auditoria.",
+    "Os nomes dos credores do escopo e a troca de escopo dependem da permissão de consultar credores; sem ela, aparece só a contagem."
    ],
    "profiles": [
     "ADMIN",
@@ -6287,7 +6291,8 @@
    "title": "Log de acesso",
    "objective": "Quem entrou, quando, de onde, o que foi negado e quais dados sensíveis foram vistos ou exportados.",
    "purpose": [
-    "Combine período, tipo de evento e resultado. Falhas de login repetidas merecem atenção."
+    "Combine período, tipo de evento e resultado. Falhas de login repetidas merecem atenção.",
+    "O filtro por usuário aparece para quem pode consultar o cadastro de usuários."
    ],
    "profiles": [
     "AUDITOR",
@@ -6323,7 +6328,8 @@
    "title": "Trilha de auditoria",
    "objective": "Alterações relevantes com autor, motivo e valores antes e depois, com verificação de integridade.",
    "purpose": [
-    "Abra um registro para comparar os valores. A verificação mostra se algum registro foi alterado fora do sistema."
+    "Abra um registro para comparar os valores. A verificação mostra se algum registro foi alterado fora do sistema.",
+    "Os filtros por autor e por credor aparecem para quem pode consultar usuários e credores."
    ],
    "profiles": [
     "AUDITOR",

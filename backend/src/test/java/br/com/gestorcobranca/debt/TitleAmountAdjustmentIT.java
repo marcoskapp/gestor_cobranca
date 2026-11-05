@@ -341,22 +341,25 @@ class TitleAmountAdjustmentIT extends IntegrationTest {
         assertThatThrownBy(() -> as(gestor, () -> adjustments.request(t, principalTo("6000.00"), null)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("evidência");
         // quem propôs não confirma (nem vê a pendência); outra pessoa vê
-        assertThatThrownBy(() -> as(gestor, () -> adjustments.confirmSettings()))
+        assertThatThrownBy(() -> as(gestor, () -> adjustments.confirmSettings(new BigDecimal("5000.00"))))
                 .isInstanceOf(ConflictException.class).hasMessageContaining("Quem propôs");
         assertThat(thresholdPending(gestor)).isZero();
         assertThat(thresholdPending(financeiro)).isEqualTo(1);
         // escopo restrito não confirma
         Actor restricted = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "Restrita",
                 EnumSet.of(Permission.TITLE_AMOUNT_APPROVE), CreditorScope.of(List.of(creditor)));
-        assertThatThrownBy(() -> as(restricted, () -> adjustments.confirmSettings()))
+        assertThatThrownBy(() -> as(restricted, () -> adjustments.confirmSettings(new BigDecimal("5000.00"))))
                 .isInstanceOf(ScopeAccessDeniedException.class);
 
-        SettingsView confirmed = as(financeiro, () -> adjustments.confirmSettings());
+        // a proposta mudou depois de a pessoa abrir a tela: confirmar o valor antigo é recusado
+        assertThatThrownBy(() -> as(financeiro, () -> adjustments.confirmSettings(new BigDecimal("500.00"))))
+                .isInstanceOf(ConflictException.class).hasMessageContaining("mudou");
+        SettingsView confirmed = as(financeiro, () -> adjustments.confirmSettings(new BigDecimal("5000.00")));
         assertThat(confirmed.approvalThreshold()).isEqualByComparingTo("5000.00");
         assertThat(confirmed.proposedThreshold()).isNull();
         assertThat(thresholdPending(financeiro)).isZero();
         assertThat(as(gestor, () -> adjustments.request(t, principalTo("6000.00"), null)).status()).isEqualTo("APPLIED");
-        assertThatThrownBy(() -> as(financeiro, () -> adjustments.confirmSettings()))
+        assertThatThrownBy(() -> as(financeiro, () -> adjustments.confirmSettings(new BigDecimal("5000.00"))))
                 .isInstanceOf(ConflictException.class).hasMessageContaining("Não há aumento");
 
         // reduzir vale na hora e descarta a proposta em aberto

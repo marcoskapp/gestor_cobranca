@@ -60,12 +60,16 @@ public interface TitleAmountAdjustmentUseCases {
 
     /**
      * Define o limite. Reduzir ou manter vale na hora (e descarta a proposta de aumento em aberto); <b>aumentar</b> fica
-     * proposto até outra pessoa com {@code TITLE_AMOUNT_APPROVE} confirmar ({@link #confirmSettings()}).
+     * proposto até outra pessoa com {@code TITLE_AMOUNT_APPROVE} confirmar ({@link #confirmSettings(BigDecimal)}).
      */
     SettingsView updateSettings(BigDecimal approvalThreshold);
 
-    /** Confirma o aumento de limite proposto por <b>outra</b> pessoa (409 sem proposta ou para quem propôs). */
-    SettingsView confirmSettings();
+    /**
+     * Confirma o aumento de limite proposto por <b>outra</b> pessoa. {@code reviewedThreshold} é o valor proposto que
+     * quem confirma viu; diferente do gravado → 409 {@code title_amount.proposal_changed}. Também 409 sem proposta ou
+     * para quem propôs.
+     */
+    SettingsView confirmSettings(BigDecimal reviewedThreshold);
 
     /**
      * @param components novo saldo por componente (PRINCIPAL, INTEREST, FINE, FEES, HONORARIUM); os omitidos não mudam

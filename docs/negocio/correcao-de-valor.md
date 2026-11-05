@@ -71,7 +71,7 @@ A divergência é decidida por quem tem `TITLE_AMOUNT_ADJUST`, sempre com motivo
   - "Correções de valor de título para aprovar" (`TITLE_AMOUNT_APPROVE`, sem os próprios pedidos);
   - "Aumento do limite de correção de valor para confirmar" (`TITLE_AMOUNT_APPROVE` com todos os credores, sem a própria proposta);
   - "Cargas do credor diferentes do valor corrigido" (`TITLE_AMOUNT_ADJUST`).
-- **Telas**: botão "Corrigir valor" no detalhe do título; página `/titulos/correcoes-de-valor` (para aprovar, divergências e limite, com a proposta de aumento e o botão "Confirmar aumento" para outra pessoa). API: `GET`/`PUT /title-amount-adjustments/settings` e `POST /title-amount-adjustments/settings/confirm`.
+- **Telas**: botão "Corrigir valor" no detalhe do título; página `/titulos/correcoes-de-valor` (para aprovar, divergências e limite, com a proposta de aumento e o botão "Confirmar aumento" para outra pessoa). API: `GET`/`PUT /title-amount-adjustments/settings` e `POST /title-amount-adjustments/settings/confirm` (o corpo leva o valor proposto que a pessoa revisou; se a proposta mudou desde a leitura, 409 `title_amount.proposal_changed`).
 
 ## 7. Contestação procedente
 

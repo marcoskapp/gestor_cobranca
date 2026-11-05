@@ -401,14 +401,14 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
     }
 
     @Override
-    public SettingsView confirmSettings() {
+    public SettingsView confirmSettings(BigDecimal reviewedThreshold) {
         requireSettingsManager();
         AmountAdjustmentSettings current = settings.findCurrent()
                 .orElseThrow(() -> new ConflictException("title_amount.no_threshold_proposal",
                         "Não há aumento de limite aguardando confirmação", Map.of()));
         Money previous = current.getApprovalThreshold();
         UUID proposedBy = current.getProposedBy();
-        current.confirmProposal(currentActor.get().id());
+        current.confirmProposal(currentActor.get().id(), Money.ofNullable(reviewedThreshold));
         AmountAdjustmentSettings saved = settings.save(current);
         auditTrail.record(AuditEntry.of("title_amount.settings_confirmed", "amount_adjustment_settings", saved.getId())
                 .change("approvalThreshold", previous, saved.getApprovalThreshold())

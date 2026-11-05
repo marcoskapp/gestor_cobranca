@@ -76,12 +76,18 @@ public class AmountAdjustmentSettings extends TenantScopedEntity {
         return false;
     }
 
-    /** Confirma o aumento proposto: só outra pessoa (nem o administrador confirma a própria proposta). */
-    public void confirmProposal(UUID by) {
+    /**
+     * Confirma o aumento proposto: só outra pessoa (nem o administrador confirma a própria proposta) e só o valor que ela
+     * revisou — se a proposta mudou entre a leitura e a confirmação, recusa (409) para nova conferência.
+     */
+    public void confirmProposal(UUID by, Money reviewedThreshold) {
         Guard.requireState(proposedThreshold != null, "title_amount.no_threshold_proposal",
                 "Não há aumento de limite aguardando confirmação");
         Guard.requireState(!proposedBy.equals(by), "title_amount.self_approval",
                 "Quem propôs o aumento do limite não pode confirmá-lo");
+        Guard.requireState(reviewedThreshold != null && proposedThreshold.compareTo(reviewedThreshold) == 0,
+                "title_amount.proposal_changed",
+                "A proposta de aumento do limite mudou desde que você a abriu; confira o novo valor");
         this.approvalThreshold = proposedThreshold;
         clearProposal();
     }
