@@ -1,6 +1,7 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, finalize } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -18,6 +19,7 @@ import { AppValidators } from '../../../shared/validation/validators';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { DisputeConfigApi, DisputesApi } from '../data/collection.api';
+import { DisputeMailQuarantine } from './dispute-mail-quarantine';
 import { DEADLINE_SOURCE_LABELS, DISPUTE_OUTCOME_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DeadlineRuleView, DisputeSettingsRequest, DisputeTemplateView, DisputeType } from '../data/collection.models';
 
@@ -39,12 +41,12 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
  */
 @Component({
   selector: 'app-dispute-config',
-  imports: [ReactiveFormsModule, NgbNavModule, EmptyState, EntityPicker, PageHeader, Skeleton, AppDatePipe, Icon, ...FORM_FIELD],
+  imports: [ReactiveFormsModule, NgbNavModule, EmptyState, EntityPicker, PageHeader, Skeleton, AppDatePipe, Icon, DisputeMailQuarantine, ...FORM_FIELD],
   template: `
     <app-page-header title="Configuração das contestações" subtitle="Prazos, distribuição entre os analistas e modelos de texto. Contestações já abertas mantêm os prazos calculados na abertura." />
 
-    <ul ngbNav #tabs="ngbNav" class="nav-tabs mb-3" data-tour="dispute-config-tabs">
-      <li ngbNavItem>
+    <ul ngbNav #tabs="ngbNav" [(activeId)]="tab" class="nav-tabs mb-3" data-tour="dispute-config-tabs">
+      <li ngbNavItem="prazos">
         <button ngbNavLink type="button">Prazos</button>
         <ng-template ngbNavContent>
           @if (settings.status() === 'error') {
@@ -148,7 +150,7 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li ngbNavItem="distribuicao">
         <button ngbNavLink type="button">Distribuição</button>
         <ng-template ngbNavContent>
           <section class="app-card" aria-labelledby="dc-pool" data-tour="dispute-config-pool">
@@ -199,7 +201,7 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li ngbNavItem="modelos">
         <button ngbNavLink type="button">Modelos</button>
         <ng-template ngbNavContent>
           <div class="dc-templates" data-tour="dispute-config-templates">
@@ -261,6 +263,13 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
           </div>
         </ng-template>
       </li>
+
+      <li ngbNavItem="emails">
+        <button ngbNavLink type="button">E-mails em quarentena</button>
+        <ng-template ngbNavContent>
+          <app-dispute-mail-quarantine />
+        </ng-template>
+      </li>
     </ul>
     <div [ngbNavOutlet]="tabs"></div>
   `,
@@ -290,6 +299,8 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
   `,
 })
 export class DisputeConfigPage {
+  /** Aba aberta (`?aba=emails` vem da pendência de quarentena). */
+  protected tab: string = inject(ActivatedRoute).snapshot.queryParamMap.get('aba') ?? 'prazos';
   private readonly api = inject(DisputeConfigApi);
   private readonly disputes = inject(DisputesApi);
   private readonly confirm = inject(ConfirmService);

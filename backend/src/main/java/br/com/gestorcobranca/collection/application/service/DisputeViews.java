@@ -117,6 +117,8 @@ class DisputeViews {
     /** @param quarantined documentos do credor pela API (em verificação ou recusados) */
     List<CreditorResponseView> creditorResponses(List<DisputeCreditorResponse> list, List<DisputeEvidence> disputeEvidence,
                                                  List<br.com.gestorcobranca.collection.domain.model.DisputeDocumentQuarantine> quarantined) {
+        // anexos de e-mail (sem resposta) contam no e-mail, não na resposta
+        quarantined = quarantined.stream().filter(q -> q.getCreditorResponseId() != null).toList();
         Map<UUID, Long> pending = quarantined.stream().filter(q -> q.isPending())
                 .collect(Collectors.groupingBy(q -> q.getCreditorResponseId(), Collectors.counting()));
         Map<UUID, Long> rejected = quarantined.stream()

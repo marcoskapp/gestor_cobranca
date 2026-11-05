@@ -97,6 +97,15 @@ interface DisputeJpaRepository extends JpaRepository<Dispute, UUID>, JpaSpecific
         if (c.adjustmentPending()) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("adjustmentStatus"), DisputeAdjustmentStatus.PENDING));
         }
+        if (c.mailReplyPending()) {
+            spec = spec.and((root, query, cb) -> {
+                var sub = query.subquery(Integer.class);
+                var reply = sub.from(br.com.gestorcobranca.collection.domain.model.DisputeMailReply.class);
+                sub.select(cb.literal(1)).where(cb.equal(reply.get("disputeId"), root.get("id")),
+                        cb.equal(reply.get("status"), br.com.gestorcobranca.collection.domain.model.MailReplyStatus.PENDING_CONFIRMATION));
+                return cb.exists(sub);
+            });
+        }
         if (c.supervisionAsOf() != null) {
             spec = spec.and((root, query, cb) -> cb.or(cb.isNull(root.get("assigneeId")),
                     cb.lessThan(root.get("internalDueDate"), c.supervisionAsOf()),

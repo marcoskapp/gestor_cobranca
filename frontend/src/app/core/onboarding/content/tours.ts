@@ -730,24 +730,34 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'collection.dispute',
-    version: 1,
+    version: 2,
     title: 'Contestação',
     summary: 'Do pedido ao credor à resposta ao devedor, sem perder o prazo.',
     steps: [
       { anchor: 'dispute-summary', title: 'Três prazos', body: 'Interno da equipe, resposta ao devedor e o pedido ao credor. O prazo do devedor nunca é pausado.' },
       { anchor: 'dispute-actions', title: 'Ações', body: 'Só o responsável ou a gestão trabalha a contestação. Sem responsável, assumir é o primeiro passo.' },
       { anchor: 'dispute-creditor-channel', title: 'Canal com o credor', body: 'Pedidos com modelo por tipo, evidências por link seguro, lembrete e cobrança automáticos e a resposta do credor.' },
+      {
+        anchor: 'dispute-creditor-channel',
+        title: 'Resposta por e-mail',
+        body: 'A resposta do credor chega aqui "a confirmar", com anexos verificados. Confirme a posição para encerrar o aguardo, ou descarte com motivo.',
+      },
       { anchor: 'dispute-resolution', title: 'Ajuste no título', body: 'Procedente sugere o ajuste. Use o atalho para o fluxo do título ou dispense com motivo.' },
       { anchor: 'dispute-notify', title: 'Resposta ao devedor', body: 'Texto pelo modelo do resultado, por e-mail ou WhatsApp, respeitando descadastro, restrições e horário.' },
     ],
   },
   {
     id: 'collection.dispute-config',
-    version: 1,
+    version: 2,
     title: 'Configuração das contestações',
     summary: 'Prazos, distribuição e modelos de texto das contestações.',
     steps: [
       { anchor: 'dispute-config-tabs', title: 'Prazos, distribuição e modelos', body: 'Cada aba vale para contestações abertas ou textos gerados depois da alteração.' },
+      {
+        anchor: 'dispute-config-tabs',
+        title: 'E-mails em quarentena',
+        body: 'Respostas por e-mail que falharam numa verificação (remetente, autenticação, vírus, limites). Confira o original e libere ou descarte com motivo.',
+      },
       { anchor: 'dispute-config-settings', title: 'Padrões', body: 'Prazo interno, prazo pedido ao credor, lembrete, validade do link e distribuição manual ou automática.' },
       { anchor: 'dispute-config-rules', title: 'Por tipo e credor', body: 'A regra mais específica vale: credor e tipo, credor, tipo e, por fim, o padrão.' },
     ],

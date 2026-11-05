@@ -102,11 +102,13 @@ class DisputeController {
                                      @RequestParam(required = false) Boolean noticePending,
                                      @RequestParam(required = false) Boolean adjustmentPending,
                                      @RequestParam(required = false) Boolean supervision,
+                                     @RequestParam(required = false) Boolean mailReplyPending,
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size) {
         return disputes.search(new DisputeQuery(creditorId, status, type, origin, assignee, Boolean.TRUE.equals(unassigned),
                 false, overdue, dueUntil, awaitingCreditor, Boolean.TRUE.equals(noticePending),
-                Boolean.TRUE.equals(adjustmentPending), Boolean.TRUE.equals(supervision)), PageQuery.of(page, size));
+                Boolean.TRUE.equals(adjustmentPending), Boolean.TRUE.equals(supervision),
+                Boolean.TRUE.equals(mailReplyPending)), PageQuery.of(page, size));
     }
 
     @GetMapping("/disputes/{id}")

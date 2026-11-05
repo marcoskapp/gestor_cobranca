@@ -23,6 +23,7 @@ mock_provider "aws" {
   mock_resource "aws_cloudwatch_metric_alarm" { defaults = { arn = "arn:aws:cloudwatch:sa-east-1:123456789012:alarm:x" } }
   mock_resource "aws_launch_template" { defaults = { latest_version = 1, id = "lt-0123456789abcdef0" } }
   mock_resource "aws_kms_key" { defaults = { arn = "arn:aws:kms:sa-east-1:123456789012:key/1" } }
+  mock_resource "aws_sqs_queue" { defaults = { arn = "arn:aws:sqs:sa-east-1:123456789012:x", id = "https://sqs.sa-east-1.amazonaws.com/123456789012/x" } }
 }
 
 variables {
@@ -271,4 +272,34 @@ run "chat_suporte_so_com_o_haiku" {
     condition     = output.bedrock_denies_global_routing
     error_message = "sem perfil global, o roteamento global é negado também para o chat"
   }
+}
+
+run "email_de_entrada_desligado_por_padrao" {
+  command = plan
+  assert {
+    condition     = output.inbound_mail_mx_record == null && module.compute[0].instance_conf_public["GC_INBOUND_MAIL_DOMAIN"] == ""
+    error_message = "sem enable_inbound_mail, nada do SES é criado e a aplicação não lê e-mail"
+  }
+}
+
+run "email_de_entrada_ligado" {
+  command = plan
+  variables {
+    enable_inbound_mail = true
+    inbound_mail_domain = "respostas.gestorcobranca.com.br"
+  }
+  assert {
+    condition     = output.inbound_mail_mx_record == "10 inbound-smtp.sa-east-1.amazonaws.com"
+    error_message = "MX do subdomínio no SES de São Paulo"
+  }
+  assert {
+    condition     = module.compute[0].instance_conf_public["GC_INBOUND_MAIL_DOMAIN"] == "respostas.gestorcobranca.com.br"
+    error_message = "o subdomínio vai ao app.env (INBOUND_MAIL_DOMAIN)"
+  }
+}
+
+run "guarda_email_de_entrada_sem_dominio" {
+  command = plan
+  variables { enable_inbound_mail = true }
+  expect_failures = [terraform_data.guards]
 }

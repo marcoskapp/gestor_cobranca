@@ -178,6 +178,13 @@ unset secrets_content value
   # Pix: hosts de PSP permitidos (decisão 313) e webhook com mTLS só com o ALB verificando o cliente (316)
   echo "PAYMENT_PIX_ALLOWED_HOSTS=${GC_PAYMENT_PIX_ALLOWED_HOSTS:-}"
   echo "PAYMENT_WEBHOOK_MTLS_ENABLED=${GC_PAYMENT_WEBHOOK_MTLS_ENABLED:-false}"
+  # respostas do credor por e-mail (decisões 819–835): SES → S3 → SNS → SQS, consumidas pela aplicação
+  if [[ -n "${GC_INBOUND_MAIL_DOMAIN:-}" ]]; then
+    echo "INBOUND_MAIL_MODE=ses"
+    echo "INBOUND_MAIL_DOMAIN=${GC_INBOUND_MAIL_DOMAIN}"
+    echo "INBOUND_MAIL_BUCKET=${GC_INBOUND_MAIL_BUCKET}"
+    echo "INBOUND_MAIL_QUEUE_URL=${GC_INBOUND_MAIL_QUEUE_URL}"
+  fi
   # Primeiro administrador da plataforma (decisão 520): só quando configurado; o PlatformBootstrap é
   # idempotente e, existindo um administrador da plataforma, ignora estes valores.
   if [[ -n "${GC_PLATFORM_ADMIN_EMAIL:-}" ]]; then

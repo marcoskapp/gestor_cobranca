@@ -102,8 +102,10 @@ class DisputeMailJob implements JobHandler<DisputeMailJob.Payload> {
         Instant started = Instant.now(clock);
         DisputeMailer.Result result;
         try {
+            // com a leitura por e-mail ligada, a resposta vai ao endereço próprio do pedido (o responsável está em cópia)
+            String replyTo = request.getReplyAddress() != null ? request.getReplyAddress() : request.getReplyTo();
             result = mailer.send(new OutgoingMail(channel.senderName(), request.getTo(), request.getCc(),
-                    request.getReplyTo(), subject(mail.getPurpose(), request), text(mail.getPurpose(), request),
+                    replyTo, subject(mail.getPurpose(), request), text(mail.getPurpose(), request),
                     mail.getId()));
         } catch (TransientMailException e) {
             metrics.disputeMail(mail.getPurpose().name(), "transient");
@@ -156,7 +158,16 @@ class DisputeMailJob implements JobHandler<DisputeMailJob.Payload> {
         };
     }
 
+    /** Orientação ao credor quando a resposta é lida pela plataforma (anexos aceitos e limites). */
+    static final String REPLY_FOOTER = "\n\n--\nResponda a este e-mail para registrar o seu retorno na contestação. "
+            + "Anexos aceitos: PDF, PNG ou JPEG. Mantenha este endereço de resposta: ele identifica o pedido.";
+
     static String text(DisputeMailPurpose purpose, DisputeCreditorRequest r) {
+        String body = baseText(purpose, r);
+        return r.getReplyAddress() == null ? body : body + REPLY_FOOTER;
+    }
+
+    private static String baseText(DisputeMailPurpose purpose, DisputeCreditorRequest r) {
         String due = DisputeTexts.date(r.getRequestedDueDate());
         return switch (purpose) {
             case REQUEST -> r.getBody();

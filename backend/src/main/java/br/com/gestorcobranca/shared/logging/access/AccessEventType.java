@@ -46,6 +46,11 @@ public enum AccessEventType {
     DISPUTE_LINK_REJECTED,
     /** Arquivo recebido de sistema externo com malware detectado na quarentena (conteúdo apagado). */
     MALWARE_DETECTED,
+    /**
+     * E-mail recebido no endereço de resposta de um pedido ao credor e retido na quarentena por motivo de segurança
+     * (autenticação SPF/DKIM/DMARC, vírus ou remetente não cadastrado).
+     */
+    INBOUND_MAIL_REJECTED,
     /** Acesso do devedor ao portal de autonegociação (sessão aberta por link ou documento + código). */
     PORTAL_LOGIN_SUCCESS,
     /** Código, link ou desafio de conhecimento inválido no portal (sem revelar se o documento existe). */

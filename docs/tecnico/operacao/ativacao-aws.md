@@ -563,6 +563,12 @@ O que o sistema suporta: um servidor SMTP da plataforma (Spring Mail, STARTTLS o
 
 **Se der errado:** tempo esgotado na conexão → porta bloqueada no provedor ou `smtp_port` diferente do liberado no `sg-app`; `535 Authentication failed` → credenciais (regrave com `set` e faça `release.sh --env <env> --version <atual> --skip-migrations` para as instâncias relerem).
 
+### 7.1a Respostas do credor por e-mail (SES inbound)
+
+Aprovado em 05/11/2026 (decisões 819–835). Subdomínio dedicado verificado no SES em `sa-east-1`, `enable_inbound_mail = true` + `inbound_mail_domain`, `terraform apply`, MX `10 inbound-smtp.sa-east-1.amazonaws.com` e *instance refresh*. Passo a passo, alarmes e operação: [email-entrada.md](email-entrada.md).
+
+**Conferir:** responder a um pedido de contestação de teste a partir de um contato de contestação cadastrado e ver a resposta "a confirmar" na página da contestação; a métrica `collection.disputes.mail_replies.received{outcome=accepted}` sobe.
+
 ### 7.2 WhatsApp Cloud API (Meta)
 
 O que o sistema suporta: provedor `WHATSAPP_CLOUD` por conta da assessoria (ou por credor), com credenciais `accessToken`, `appSecret` e `verifyToken` cifradas no banco e nunca devolvidas pela API; webhook em `/api/v1/webhooks/whatsapp/{routingKey}` (rota aleatória de 256 bits) com assinatura `X-Hub-Signature-256` validada sobre o corpo bruto; templates aprovados para iniciar contato e texto livre só na janela de 24 h. A URL da Graph API vem de `WHATSAPP_API_BASE_URL` (padrão `https://graph.facebook.com/v21.0`).

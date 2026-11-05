@@ -95,6 +95,44 @@ class DisputeEvidenceStore {
         return document;
     }
 
+    /**
+     * Anexo do e-mail do credor: mesmo pipeline dos documentos da API (tipo pelo conteúdo, tamanho, limite da
+     * contestação, quarentena e verificação de malware). Anexo fora das regras não interrompe o e-mail: é recusado e
+     * fica só no original.
+     *
+     * @return {@code accepted}, {@code rejected_type}, {@code rejected_size} ou {@code rejected_limit}
+     */
+    String quarantineMailAttachment(Dispute dispute, String fileName, byte[] content, UUID mailReplyId) {
+        if (content == null || content.length == 0 || content.length > properties.disputes().apiMaxDocumentBytes()) {
+            return "rejected_size";
+        }
+        long inUse = evidences.countByDisputeId(dispute.getId())
+                + quarantine.countByDisputeIdAndStatus(dispute.getId(), DisputeDocumentQuarantine.Status.PENDING);
+        if (inUse >= DisputeEvidence.MAX_PER_DISPUTE) {
+            return "rejected_limit";
+        }
+        FileSignatures.Sniffed sniffed = FileSignatures.sniff(new java.io.ByteArrayInputStream(content));
+        if (sniffed.contentType().isEmpty()) {
+            return "rejected_type";
+        }
+        String contentType = sniffed.contentType().get();
+        StoredFile stored = fileStorage.store(FileCategory.QUARANTINE, fileName, contentType, sniffed.content(),
+                content.length);
+        fileCleanup.deleteOnRollback(stored.key());
+        DisputeDocumentQuarantine document = quarantine.save(DisputeDocumentQuarantine.ofMailReply(dispute, mailReplyId,
+                stored.key(), stored.originalName(), contentType, stored.size(), stored.sha256()));
+        auditTrail.record(AuditEntry.of("dispute.document_quarantined", "dispute", dispute.getId())
+                .creditor(dispute.getCreditorId())
+                .created("documentId", document.getId())
+                .created("fileName", document.getFileName())
+                .created("sha256", document.getSha256())
+                .meta("size", document.getSize())
+                .meta("mailReplyId", mailReplyId));
+        jobQueue.enqueue(DisputeDocumentScanJob.TYPE, new DisputeDocumentScanJob.Payload(document.getId()), null,
+                "dispute_document_scan:" + document.getId());
+        return "accepted";
+    }
+
     /** Documento limpo (ou verificação desligada): copia para EVIDENCE e cria a evidência (append-only). */
     DisputeEvidence release(Dispute dispute, DisputeDocumentQuarantine document) {
         StoredFile stored;
@@ -109,7 +147,7 @@ class DisputeEvidenceStore {
                 "O documento mudou na quarentena");
         DisputeEvidence evidence = evidences.save(DisputeEvidence.fromQuarantine(dispute, stored.key(),
                 document.getFileName(), document.getContentType(), stored.size(), stored.sha256(),
-                document.getCreditorResponseId()));
+                document.getCreditorResponseId(), document.getMailReplyId()));
         auditTrail.record(AuditEntry.of("dispute.evidence_attached", "dispute", dispute.getId())
                 .creditor(dispute.getCreditorId())
                 .created("evidenceId", evidence.getId())
@@ -117,6 +155,7 @@ class DisputeEvidenceStore {
                 .created("sha256", evidence.getSha256())
                 .meta("size", evidence.getSize())
                 .meta("creditorResponseId", document.getCreditorResponseId())
+                .meta("mailReplyId", document.getMailReplyId())
                 .meta("quarantineId", document.getId()));
         return evidence;
     }

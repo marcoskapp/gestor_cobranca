@@ -127,6 +127,10 @@ export { toDisputeFilter } from './dispute.rules';
           <input class="form-check-input" type="checkbox" role="switch" id="dl-adjustment" formControlName="adjustmentPending" />
           <label class="form-check-label" for="dl-adjustment">Ajuste no título pendente</label>
         </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="dl-mail" formControlName="mailReplyPending" />
+          <label class="form-check-label" for="dl-mail">Resposta por e-mail a confirmar</label>
+        </div>
       </div>
     </form>
 
@@ -277,6 +281,7 @@ export class DisputeList {
     awaiting: [false],
     noticePending: [this.initial.noticePending ?? false],
     adjustmentPending: [this.initial.adjustmentPending ?? false],
+    mailReplyPending: [this.initial.mailReplyPending ?? false],
   });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -337,7 +342,7 @@ export class DisputeList {
   }
 
   protected show(patch: Partial<ReturnType<typeof this.filters.getRawValue>>): void {
-    this.filters.patchValue({ awaiting: false, noticePending: false, adjustmentPending: false, ...patch });
+    this.filters.patchValue({ awaiting: false, noticePending: false, adjustmentPending: false, mailReplyPending: false, ...patch });
   }
 
   protected take(d: DisputeView): void {

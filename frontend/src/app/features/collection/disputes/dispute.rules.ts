@@ -51,6 +51,8 @@ export interface DisputeListForm {
   awaiting: boolean;
   noticePending: boolean;
   adjustmentPending: boolean;
+  /** Com resposta do credor por e-mail a confirmar. */
+  mailReplyPending?: boolean;
 }
 
 /**
@@ -85,22 +87,27 @@ export function toDisputeFilter(v: Partial<DisputeListForm> & { creditor: string
   if (v.adjustmentPending) {
     filter.adjustmentPending = true;
   }
+  if (v.mailReplyPending) {
+    filter.mailReplyPending = true;
+  }
   return filter;
 }
 
 /**
  * Filtro inicial a partir da URL ("Minhas pendências"): `responsavel=me`, `fila=supervisao`, `resposta=pendente`,
- * `ajuste=pendente`, `vencidas=true`.
+ * `ajuste=pendente`, `email=pendente`, `vencidas=true`.
  */
 export function formFromQuery(params: { get(name: string): string | null }): Partial<DisputeListForm> & { overdue: boolean } {
   const notice = params.get('resposta') === 'pendente';
   const adjustment = params.get('ajuste') === 'pendente';
+  const mail = params.get('email') === 'pendente';
   const assignee = params.get('fila') === 'supervisao' ? 'supervision' : params.get('responsavel') === 'me' ? 'me' : '';
   return {
     status: notice || adjustment ? 'RESOLVED' : 'PENDING',
     assignee,
     noticePending: notice,
     adjustmentPending: adjustment,
+    mailReplyPending: mail,
     overdue: params.get('vencidas') === 'true',
   };
 }

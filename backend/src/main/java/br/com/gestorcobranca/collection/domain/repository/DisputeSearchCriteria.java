@@ -20,9 +20,19 @@ import java.util.UUID;
  * @param noticePending      resolvidas com resposta ao devedor pendente
  * @param adjustmentPending  ajuste sugerido no título pendente
  * @param supervisionAsOf    visão do supervisor: sem responsável ou com prazo (interno ou de resposta) antes desta data
+ * @param mailReplyPending   com resposta do credor por e-mail aguardando a confirmação do analista
  */
 public record DisputeSearchCriteria(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses,
                                     Set<DisputeType> types, Set<DisputeOrigin> origins, UUID assigneeId,
                                     boolean unassigned, Boolean overdue, LocalDate dueUntil, Boolean awaitingCreditor,
-                                    boolean noticePending, boolean adjustmentPending, LocalDate supervisionAsOf) {
+                                    boolean noticePending, boolean adjustmentPending, LocalDate supervisionAsOf,
+                                    boolean mailReplyPending) {
+
+    public DisputeSearchCriteria(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses,
+                                 Set<DisputeType> types, Set<DisputeOrigin> origins, UUID assigneeId,
+                                 boolean unassigned, Boolean overdue, LocalDate dueUntil, Boolean awaitingCreditor,
+                                 boolean noticePending, boolean adjustmentPending, LocalDate supervisionAsOf) {
+        this(allowedCreditorIds, creditorId, statuses, types, origins, assigneeId, unassigned, overdue, dueUntil,
+                awaitingCreditor, noticePending, adjustmentPending, supervisionAsOf, false);
+    }
 }

@@ -191,13 +191,17 @@ Eventos do fluxo das contestações (negocio/contestacoes.md): todos levam credo
 | `dispute.creditor_request_sent` | pedido ao credor aceito pelo SMTP | `sequence`, `recipients`, `titles`, `evidences`, `requestedDays`, `templateVersion` |
 | `dispute.creditor_request_failed` | pedido com falha definitiva de envio | `sequence`, `errorCode` |
 | `dispute.creditor_request_overdue` | prazo pedido ao credor vencido sem resposta | `sequence`, `daysLate` |
-| `dispute.creditor_responded` | resposta do credor (tela ou API) | `position`, `source` (MANUAL, PUBLIC_API), `documents`, `withRequest`, `withinRequestedDeadline` |
-| `dispute.creditor_document_scanned` | documento do credor pela API verificado na quarentena | `verdict` (CLEAN, NOT_SCANNED, INFECTED), `engine` (clamav, disabled), `attempts`, `minutesInQuarantine` |
+| `dispute.creditor_responded` | resposta do credor (tela, API ou e-mail confirmado) | `position`, `source` (MANUAL, PUBLIC_API, EMAIL), `documents`, `withRequest`, `withinRequestedDeadline`, `responseHours` |
+| `dispute.creditor_mail_received` | e-mail do credor recebido no endereço de resposta de um pedido | `outcome` (ACCEPTED, QUARANTINED), `quarantineReason`, `sequence`, `attachments`, `attachmentsRejected`, `withinRequestedDeadline`, `responseHours` (do envio do pedido ao e-mail) |
+| `dispute.creditor_mail_confirmed` | analista confirmou a posição do credor a partir do e-mail | `position`, `released` (passou pela quarentena), `evidences`, `hoursToConfirmation` (duração = recebimento → confirmação) |
+| `dispute.creditor_mail_dismissed` | e-mail do credor descartado com motivo | `from` (PENDING_CONFIRMATION, QUARANTINED), `quarantineReason` |
+| `dispute.creditor_mail_released` | gestão liberou da quarentena para o analista | `quarantineReason`, `minutesInQuarantine` |
+| `dispute.creditor_document_scanned` | documento do credor (API ou anexo de e-mail) verificado na quarentena | `verdict` (CLEAN, NOT_SCANNED, INFECTED), `engine` (clamav, disabled), `attempts`, `minutesInQuarantine` |
 | `dispute.debtor_notified` | resposta ao devedor enviada, registrada ou bloqueada | `channel`, `outcome` (queued, registered, blocked), `disputeOutcome`, `reasons` (só se bloqueada: motivos do porteiro), `hoursAfterResolution` |
 | `dispute.adjustment_suggested` | resolução com ajuste sugerido | `action`, `outcome`; `amount` = saldo dos títulos na resolução |
 | `dispute.adjustment_closed` | ajuste feito (detectado) ou dispensado | `action`, `status` (DONE, DISMISSED), `trigger` (detected, dismissed), `daysAfterResolution` |
 
-Log de acesso: `MALWARE_DETECTED` (documento externo infectado: recurso, credor, SHA-256 e assinatura, sem o conteúdo), `RATE_LIMITED` com `scope=document_upload`, `FILE_DOWNLOADED` da evidência da correção de valor (`resource=title_amount_adjustment`).
+Log de acesso: `INBOUND_MAIL_REJECTED` (e-mail do credor retido por autenticação SPF/DKIM/DMARC, vírus ou remetente fora do cadastro: e-mail, pedido, motivo, domínio do remetente e veredictos, sem conteúdo nem endereço completo), `FILE_DOWNLOADED` do original (`resource=dispute_mail_reply`, SHA-256), `MALWARE_DETECTED` (documento externo infectado: recurso, credor, SHA-256 e assinatura, sem o conteúdo), `RATE_LIMITED` com `scope=document_upload`, `FILE_DOWNLOADED` da evidência da correção de valor (`resource=title_amount_adjustment`).
 
 O porteiro de contato (compliance) passa a registrar `category` (`COLLECTION`, `TRANSACTIONAL`) em `contact.denied` e na
 métrica `compliance.contact_gate.decisions{operation,outcome,category}`.
@@ -547,6 +551,10 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `collection.disputes.creditor_mails{purpose,outcome}`, `collection.disputes.creditor_mail.duration` (p50/p95/p99) | e-mails ao credor (pedido, lembrete, cobrança): `sent`, `transient` (será repetido), `exhausted` (tentativas esgotadas), `rejected` (falha definitiva); duração do envio SMTP |
 | `collection.disputes.creditor_overdue{type}`, `collection.disputes.creditor_responses{source}` | pedidos ao credor vencidos; respostas do credor (tela, API) |
 | `collection.disputes.debtor_notices{channel,outcome}`, `collection.disputes.adjustments{action,status}` | respostas ao devedor; ajustes sugeridos, feitos e dispensados |
+| `collection.disputes.mail_replies.received{outcome,reason}` | e-mails ao subdomínio de respostas: `accepted`, `quarantined` (motivo: `sender_not_registered`, `authentication_failed`, `virus`, `spam`, `rate_limited`, `too_large`, `too_many_attachments`, `route_expired`, `dispute_closed`, `malformed`), `unrouted` (`no_reply_address`, `unknown_token`), `duplicate` — `authentication_failed`/`virus` em alta pedem atenção (falsificação) |
+| `collection.disputes.mail_replies.attachments{outcome}` | anexos dos e-mails aceitos: `accepted`, `rejected_type`, `rejected_size`, `rejected_limit` |
+| `collection.disputes.mail_replies.decisions{outcome}`, `collection.disputes.mail_replies.time_to_confirmation` | `confirmed`, `dismissed`, `released`; tempo do recebimento à confirmação (p50/p95) — fila de e-mails sem leitura |
+| `integration.calls{provider=sqs\|s3,operation=inbound_mail,outcome}` | leitura da fila e do bucket do SES inbound; erros contínuos = fila parada (veja também a DLQ no CloudWatch) |
 | `collection.disputes.document_scans{engine,outcome}`, `collection.disputes.document_scan.duration{engine}` | verificação de malware dos documentos do credor pela API: `clean`, `not_scanned`, `infected`, `unavailable` (daemon fora; job tenta de novo) — `infected` > 0 e `unavailable` contínuo pedem alarme |
 | `publicapi.document_uploads.rejected{operation}` | envios com documentos recusados pelo limite próprio por token (429) |
 | `collection.disputes.evidence_link{outcome}` | downloads do link de evidências (`served`, `expired`, `exhausted`, `unknown`, `malformed`, `rate_limited`) — recusas em alta podem indicar varredura |

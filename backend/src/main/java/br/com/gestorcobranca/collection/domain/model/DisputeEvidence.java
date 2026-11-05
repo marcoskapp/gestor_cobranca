@@ -43,6 +43,10 @@ public class DisputeEvidence extends TenantScopedEntity {
     @Column(name = "creditor_response_id", updatable = false)
     private UUID creditorResponseId;
 
+    /** E-mail do credor que trouxe o documento como anexo (nulo = não veio por e-mail). */
+    @Column(name = "mail_reply_id", updatable = false)
+    private UUID mailReplyId;
+
     protected DisputeEvidence() {
     }
 
@@ -59,10 +63,15 @@ public class DisputeEvidence extends TenantScopedEntity {
     /**
      * Documento do credor liberado da quarentena: chegou com a contestação aberta (conferido no recebimento) e vira
      * evidência mesmo que a contestação tenha sido resolvida durante a verificação.
+     *
+     * @param mailReplyId e-mail do credor que trouxe o anexo (nulo = documento enviado pela API)
      */
     public static DisputeEvidence fromQuarantine(Dispute dispute, String fileKey, String fileName, String contentType,
-                                                 long size, String sha256, UUID creditorResponseId) {
-        return new DisputeEvidence(dispute, fileKey, fileName, contentType, size, sha256, creditorResponseId, false);
+                                                 long size, String sha256, UUID creditorResponseId, UUID mailReplyId) {
+        DisputeEvidence evidence = new DisputeEvidence(dispute, fileKey, fileName, contentType, size, sha256,
+                creditorResponseId, false);
+        evidence.mailReplyId = mailReplyId;
+        return evidence;
     }
 
     private DisputeEvidence(Dispute dispute, String fileKey, String fileName, String contentType, long size,
@@ -84,6 +93,10 @@ public class DisputeEvidence extends TenantScopedEntity {
 
     public UUID getCreditorResponseId() {
         return creditorResponseId;
+    }
+
+    public UUID getMailReplyId() {
+        return mailReplyId;
     }
 
     public UUID getDisputeId() {

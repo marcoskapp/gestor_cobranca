@@ -47,6 +47,8 @@ describe('regras de tela das contestações', () => {
     expect(formFromQuery(q({ fila: 'supervisao' })).assignee).toBe('supervision');
     expect(formFromQuery(q({ resposta: 'pendente' }))).toMatchObject({ status: 'RESOLVED', noticePending: true });
     expect(formFromQuery(q({ ajuste: 'pendente', vencidas: 'true' }))).toMatchObject({ adjustmentPending: true, overdue: true });
+    expect(formFromQuery(q({ email: 'pendente', responsavel: 'me' }))).toMatchObject({ mailReplyPending: true, status: 'PENDING', assignee: 'me' });
+    expect(toDisputeFilter({ creditor: [], status: '', mailReplyPending: true }).mailReplyPending).toBe(true);
   });
 
   it('atalho do ajuste leva ao fluxo existente já preenchido', () => {

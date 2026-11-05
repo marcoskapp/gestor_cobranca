@@ -58,6 +58,15 @@ app:
   payment:
     sandbox:
       enabled: true
+  # respostas do credor por e-mail sem AWS (decisão 833): os pedidos saem com contestacao+<token>@respostas.sandbox.test
+  # (veja no Mailpit) e os .eml colocados em /sandbox-data/inbound-mail entram como e-mail recebido
+  # (./scripts/sandbox/credor-responde.sh). O adaptador local é recusado no perfil prod.
+  collection:
+    inbound-mail:
+      mode: ${INBOUND_MAIL_MODE:local}
+      domain: ${INBOUND_MAIL_DOMAIN:respostas.sandbox.test}
+      local:
+        directory: ${INBOUND_MAIL_LOCAL_DIR:/sandbox-data/inbound-mail}
   sandbox:
     # Swagger e /v3/api-docs (todos os grupos) abertos no navegador sem login — só no sandbox (decisão 643)
     api-docs:

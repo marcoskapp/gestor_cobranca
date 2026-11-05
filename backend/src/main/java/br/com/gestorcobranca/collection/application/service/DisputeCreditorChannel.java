@@ -1,6 +1,8 @@
 package br.com.gestorcobranca.collection.application.service;
 
 import br.com.gestorcobranca.collection.application.CollectionProperties;
+import br.com.gestorcobranca.collection.application.InboundMailProperties;
+import br.com.gestorcobranca.collection.application.port.out.DisputeReplyRoutes;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorRequestCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorRequestDraft;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseCommand;
@@ -71,8 +73,10 @@ import java.util.UUID;
  * cadastro do credor, títulos e evidências), envio por e-mail assíncrono (job {@code collection.dispute_mail}),
  * evidências por link seguro com validade (token aleatório de 256 bits; só o hash SHA-256 fica no banco), lembrete
  * antes do prazo e cobrança do retorno vencido (acompanhamento diário) e registro da resposta do credor (manual, com
- * documentos, ou pela API pública). As respostas do credor por e-mail chegam ao responsável (resposta para o e-mail
- * dele): o sistema não tem caixa de entrada de e-mail.
+ * documentos, pela API pública ou confirmada a partir do e-mail recebido). Com a leitura por e-mail ligada
+ * ({@code app.collection.inbound-mail}), cada pedido sai com um endereço de resposta próprio
+ * ({@code contestacao+<token>@<subdomínio>}, token de 130 bits; só o hash fica na rota) e o responsável em cópia;
+ * desligada, as respostas chegam só ao responsável.
  */
 @Component
 @Transactional(propagation = Propagation.MANDATORY)
@@ -100,6 +104,8 @@ class DisputeCreditorChannel {
     private final BusinessEventLogger businessEvents;
     private final CollectionMetrics metrics;
     private final CollectionProperties properties;
+    private final InboundMailProperties inbound;
+    private final DisputeReplyRoutes replyRoutes;
     private final Clock clock;
     private final String baseUrl;
 
@@ -111,7 +117,8 @@ class DisputeCreditorChannel {
                            CreditorUseCases creditors, TenantAdministration tenants, UserDirectory users,
                            CurrentActor currentActor, JobQueue jobQueue, AuditTrail auditTrail,
                            BusinessEventLogger businessEvents, CollectionMetrics metrics,
-                           CollectionProperties properties, Clock clock, @Value("${app.base-url}") String baseUrl) {
+                           CollectionProperties properties, InboundMailProperties inbound,
+                           DisputeReplyRoutes replyRoutes, Clock clock, @Value("${app.base-url}") String baseUrl) {
         this.disputes = disputes;
         this.requests = requests;
         this.mails = mails;
@@ -131,6 +138,8 @@ class DisputeCreditorChannel {
         this.businessEvents = businessEvents;
         this.metrics = metrics;
         this.properties = properties;
+        this.inbound = inbound;
+        this.replyRoutes = replyRoutes;
         this.clock = clock;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
@@ -179,7 +188,8 @@ class DisputeCreditorChannel {
                 "Cadastre ao menos um contato principal de contestação no credor antes de enviar o pedido");
         Optional<String> replyTo = responsibleEmail(d);
         List<String> cc = new ArrayList<>(recipients.cc().stream().map(Recipient::email).toList());
-        if (command.copyAssignee()) {
+        if (command.copyAssignee() || inbound.enabled()) {
+            // com a leitura por e-mail, o responsável vai sempre em cópia: a resposta do credor chega também a ele
             replyTo.filter(e -> !cc.contains(e)).ifPresent(cc::add);
         }
         DisputeTemplateProvider.Current template = templates.current(DisputeTemplateKind.CREDITOR_REQUEST, d.getType().name());
@@ -195,11 +205,22 @@ class DisputeCreditorChannel {
         Guard.require(!DisputeTemplates.hasPlaceholders(subject) && !DisputeTemplates.hasPlaceholders(body),
                 "dispute_request.placeholder_left", "Há variáveis do modelo sem preencher no texto");
         int sequence = (int) requests.countByDisputeId(d.getId()) + 1;
-        DisputeCreditorRequest request = requests.save(new DisputeCreditorRequest(d, sequence, template.key(),
+        DisputeCreditorRequest created = new DisputeCreditorRequest(d, sequence, template.key(),
                 template.version(), recipients.to().stream().map(Recipient::email).toList(), cc, replyTo.orElse(null),
-                subject, body, due, titleIds, evidenceIds, linkExpiresAt, currentActor.actorId()));
+                subject, body, due, titleIds, evidenceIds, linkExpiresAt, currentActor.actorId());
+        String replyToken = null;
+        if (inbound.enabled()) {
+            replyToken = newReplyToken();
+            created.useReplyAddress(inbound.localPart() + "+" + replyToken + "@" + inbound.domain());
+        }
+        DisputeCreditorRequest request = requests.save(created);
         if (token != null) {
             linkRoutes.register(sha256(token), currentActor.tenantId(), request.getId(), linkExpiresAt);
+        }
+        if (replyToken != null) {
+            Instant replyUntil = due.plusDays(1).atStartOfDay(br.com.gestorcobranca.shared.config.TimeConfig.BUSINESS_ZONE)
+                    .toInstant().plus(inbound.routeValidity());
+            replyRoutes.register(sha256(replyToken), currentActor.tenantId(), request.getId(), replyUntil);
         }
         queueMail(request, DisputeMailPurpose.REQUEST);
         d.awaitCreditor(now);
@@ -215,7 +236,8 @@ class DisputeCreditorChannel {
                 .created("evidences", evidenceIds.size())
                 .meta("templateKey", template.key())
                 .meta("templateVersion", template.version())
-                .meta("linkExpiresAt", linkExpiresAt));
+                .meta("linkExpiresAt", linkExpiresAt)
+                .meta("replyByMail", replyToken != null));
         return request;
     }
 
@@ -411,10 +433,36 @@ class DisputeCreditorChannel {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    /**
+     * Token do endereço de resposta: 130 bits em base32 minúsculo (26 caracteres; partes locais de e-mail podem perder
+     * maiúsculas no caminho).
+     */
+    static String newReplyToken() {
+        byte[] bytes = new byte[17];
+        RANDOM.nextBytes(bytes);
+        StringBuilder out = new StringBuilder(27);
+        int buffer = 0;
+        int bits = 0;
+        for (byte b : bytes) {
+            buffer = (buffer << 8) | (b & 0xff);
+            bits += 8;
+            while (bits >= 5) {
+                out.append(BASE32.charAt((buffer >> (bits - 5)) & 31));
+                bits -= 5;
+            }
+        }
+        return out.substring(0, 26);
+    }
+
+    private static final String BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
+
     static String sha256(String token) {
+        return sha256Bytes(token.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    static String sha256Bytes(byte[] content) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(token.getBytes(StandardCharsets.US_ASCII)));
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

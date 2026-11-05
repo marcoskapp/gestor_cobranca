@@ -120,7 +120,8 @@ final class CollectionViews {
 
     static EvidenceView evidence(DisputeEvidence e, String createdByName) {
         return new EvidenceView(e.getId(), e.getDisputeId(), e.getFileName(), e.getContentType(), e.getSize(),
-                e.getSha256(), e.getCreatedAt(), e.getCreatedBy(), createdByName, e.getCreditorResponseId());
+                e.getSha256(), e.getCreatedAt(), e.getCreatedBy(), createdByName, e.getCreditorResponseId(),
+                e.getMailReplyId());
     }
 
     static BigDecimal amount(Money money) {

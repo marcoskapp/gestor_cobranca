@@ -48,4 +48,15 @@ public interface CollectionPendingWorkQueries {
      * @param userId responsável (nulo = todas do escopo)
      */
     PendingWorkCount adjustmentsPending(Set<UUID> creditorScope, UUID userId);
+
+    /**
+     * Respostas do credor recebidas por e-mail aguardando a confirmação do analista (idade desde o recebimento; o item
+     * único leva à contestação).
+     *
+     * @param userId responsável pela contestação (nulo = todas do escopo)
+     */
+    PendingWorkCount mailRepliesPending(Set<UUID> creditorScope, UUID userId);
+
+    /** E-mails do credor em quarentena (gestão; idade desde o recebimento; o item único leva à contestação). */
+    PendingWorkCount mailRepliesQuarantined(Set<UUID> creditorScope);
 }

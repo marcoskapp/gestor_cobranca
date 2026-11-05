@@ -15,6 +15,7 @@ import {
   ContactAvailability,
   AdjustmentAction,
   AssigneeOption,
+  CreditorPosition,
   CreditorRequestDraft,
   CreditorRequestRequest,
   CreditorRequestView,
@@ -39,6 +40,7 @@ import {
   EvidenceView,
   InteractionRequest,
   InteractionView,
+  MailReplyView,
   OpenDisputeRequest,
   PromiseView,
   QueueRequest,
@@ -360,6 +362,33 @@ export class DisputesApi {
 
   downloadEvidence(id: string, evidence: EvidenceView): Observable<string> {
     return this.files.download(`${BASE}/disputes/${id}/evidences/${evidence.id}`, evidence.fileName);
+  }
+
+  // ------------------------------------------------------------ respostas por e-mail
+
+  mailReplies(id: string): Observable<MailReplyView[]> {
+    return this.http.get<MailReplyView[]>(`${BASE}/disputes/${id}/mail-replies`);
+  }
+
+  confirmMailReply(id: string, replyId: string, position: CreditorPosition, note: string): Observable<CreditorResponseView> {
+    return this.http.post<CreditorResponseView>(`${BASE}/disputes/${id}/mail-replies/${replyId}/confirm`, { position, note });
+  }
+
+  dismissMailReply(id: string, replyId: string, note: string): Observable<MailReplyView> {
+    return this.http.post<MailReplyView>(`${BASE}/disputes/${id}/mail-replies/${replyId}/dismiss`, { note });
+  }
+
+  releaseMailReply(id: string, replyId: string, note: string): Observable<MailReplyView> {
+    return this.http.post<MailReplyView>(`${BASE}/disputes/${id}/mail-replies/${replyId}/release`, { note });
+  }
+
+  mailQuarantine(page: PageRequest): Observable<PageResponse<MailReplyView>> {
+    return this.http.get<PageResponse<MailReplyView>>(`${BASE}/dispute-mail-quarantine`, { params: toHttpParams({ page: page.page, size: page.size }) });
+  }
+
+  /** Original (.eml) para conferência: download registrado no log de acesso. */
+  downloadMailOriginal(id: string, reply: MailReplyView): Observable<string> {
+    return this.files.download(`${BASE}/disputes/${id}/mail-replies/${reply.id}/original`, `email-credor-${reply.receivedAt.slice(0, 10)}.eml`);
   }
 }
 

@@ -558,7 +558,7 @@ export interface CreditorResponseView {
   id: string;
   disputeId: string;
   requestId: string | null;
-  source: 'MANUAL' | 'PUBLIC_API';
+  source: 'MANUAL' | 'PUBLIC_API' | 'EMAIL';
   position: CreditorPosition;
   note: string;
   receivedAt: string;
@@ -698,6 +698,8 @@ export interface DisputeFilter {
   adjustmentPending?: boolean | null;
   /** Visão do supervisor: sem responsável ou com prazo vencido. */
   supervision?: boolean | null;
+  /** Com resposta do credor por e-mail aguardando confirmação. */
+  mailReplyPending?: boolean | null;
 }
 
 /** `DisputeUseCases.EvidenceView` */
@@ -714,6 +716,61 @@ export interface EvidenceView {
   createdByName: string | null;
   /** Resposta do credor que trouxe o documento (nulo = anexado pela assessoria). */
   creditorResponseId: string | null;
+  /** E-mail do credor que trouxe o anexo (nulo = não veio por e-mail). */
+  mailReplyId: string | null;
+}
+
+export type MailReplyStatus = 'PENDING_CONFIRMATION' | 'QUARANTINED' | 'CONFIRMED' | 'DISMISSED';
+export type MailQuarantineReason =
+  | 'SENDER_NOT_REGISTERED'
+  | 'AUTHENTICATION_FAILED'
+  | 'VIRUS'
+  | 'SPAM'
+  | 'RATE_LIMITED'
+  | 'TOO_LARGE'
+  | 'TOO_MANY_ATTACHMENTS'
+  | 'ROUTE_EXPIRED'
+  | 'DISPUTE_CLOSED'
+  | 'MALFORMED';
+
+/** `DisputeMailReplyUseCases.MailReplyView`: resposta do credor recebida por e-mail, a confirmar pelo analista. */
+export interface MailReplyView {
+  id: string;
+  disputeId: string;
+  requestId: string;
+  requestSequence: number;
+  creditorId: string;
+  sender: string;
+  subject: string | null;
+  /** Texto puro (o HTML do e-mail nunca é exibido). */
+  text: string | null;
+  textTruncated: boolean;
+  receivedAt: string;
+  status: MailReplyStatus;
+  quarantineReason: MailQuarantineReason | null;
+  /** A gestão pode liberar para o analista. */
+  releasable: boolean;
+  /** DMARC (ou SPF + DKIM) aprovado. */
+  authenticated: boolean;
+  spf: string;
+  dkim: string;
+  dmarc: string;
+  virus: string;
+  spam: string;
+  rawSha256: string;
+  rawSize: number;
+  attachments: number;
+  evidenceIds: string[];
+  attachmentsInVerification: number;
+  attachmentsRejected: number;
+  responseId: string | null;
+  decidedBy: string | null;
+  decidedByName: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  releasedByName: string | null;
+  releasedAt: string | null;
+  releaseNote: string | null;
 }
 
 /** `DisputeUseCases.DisputedTitle` */

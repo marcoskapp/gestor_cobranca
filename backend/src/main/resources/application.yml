@@ -633,6 +633,21 @@ app:
     batch-size: 200
     evidence:
       max-size-bytes: 20971520
+    # respostas do credor por e-mail (decisões 819–835): disabled | ses (SES → S3 → SNS → SQS) | local (pasta .eml,
+    # só desenvolvimento/sandbox). Ligada, cada pedido ao credor sai com contestacao+<token>@<domain> como resposta.
+    inbound-mail:
+      mode: ${INBOUND_MAIL_MODE:disabled}
+      domain: ${INBOUND_MAIL_DOMAIN:}
+      route-validity: P180D
+      max-message-bytes: 26214400
+      max-attachments: 10
+      per-sender-per-hour: 20
+      ses:
+        queue-url: ${INBOUND_MAIL_QUEUE_URL:}
+        bucket: ${INBOUND_MAIL_BUCKET:}
+        region: ${INBOUND_MAIL_REGION:}
+      local:
+        directory: ${INBOUND_MAIL_LOCAL_DIR:}
   settlement:
     # ajuste de demonstrativo acima deste valor (absoluto) exige segunda aprovação (SETTLEMENT_APPROVE)
     adjustment-dual-approval-threshold: 1000.00

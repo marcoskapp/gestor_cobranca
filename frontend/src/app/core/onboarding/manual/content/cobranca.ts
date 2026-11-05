@@ -165,7 +165,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Trabalhe a contestação do pedido ao credor até a resposta ao devedor, sem perder o prazo.',
       purpose: [
         'Três prazos: o interno da equipe, o de resposta ao devedor e o pedido ao credor. O prazo do devedor nunca é pausado enquanto se aguarda o credor.',
-        '"Solicitar ao credor" envia um e-mail formal pelo modelo do tipo, editável, aos contatos de contestação do credor. As evidências vão por link de acesso restrito com validade; lembrete e cobrança do retorno são automáticos. A resposta do credor é registrada aqui ou chega pela integração dele.',
+        '"Solicitar ao credor" envia um e-mail formal pelo modelo do tipo, editável, aos contatos de contestação do credor. As evidências vão por link de acesso restrito com validade; lembrete e cobrança do retorno são automáticos. A resposta do credor é registrada aqui ou chega pela integração dele. Com a leitura de e-mail ligada, a resposta por e-mail aparece "a confirmar", em texto puro e com os anexos verificados: confirme a posição do credor ou descarte com motivo; o que falha nas verificações vai para a quarentena da gestão.',
         'Procedente sugere um ajuste no título, pendente até ser feito pelo fluxo do título ou do pagamento, ou dispensado com motivo. A resposta ao devedor sai por e-mail ou WhatsApp como comunicação de serviço: descadastro, restrições e horário continuam valendo.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'JURIDICO', 'AUDITOR'],
@@ -176,7 +176,7 @@ export const MANUAL: ModuleManual = {
         { screen: 'payment.list', why: 'Informar o pagamento comprovado.' },
         { screen: 'organization.creditor-detail', why: 'Contatos de contestação do credor.' },
       ],
-      terms: ['contestacao', 'prazo-interno', 'comunicacao-de-servico'],
+      terms: ['contestacao', 'prazo-interno', 'comunicacao-de-servico', 'quarentena-de-email'],
     },
     {
       id: 'collection.dispute-config',
@@ -185,7 +185,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Vale a regra de prazo mais específica: credor e tipo, depois credor, depois tipo, depois o padrão. Contestações já abertas mantêm o prazo calculado na abertura.',
         'Na distribuição automática, a nova contestação vai ao analista do grupo com menos contestações em aberto. Redistribua a carteira de quem se ausentar.',
-        'Cada gravação de modelo cria uma versão; pedidos e respostas guardam a versão usada. O pedido ao credor não leva o nome do devedor.',
+        'Cada gravação de modelo cria uma versão; pedidos e respostas guardam a versão usada. O pedido ao credor não leva o nome do devedor. Na aba "E-mails em quarentena", libere para o analista ou descarte com motivo as respostas por e-mail que falharam numa verificação; falha de autenticação e vírus nunca são liberados.',
       ],
       profiles: ['SUPERVISOR', 'GESTOR'],
       inputs: ['Acordos de nível de serviço com os credores e a equipe que trabalha contestações.'],
@@ -194,7 +194,7 @@ export const MANUAL: ModuleManual = {
         { screen: 'collection.disputes', why: 'Fila de contestações.' },
         { screen: 'collection.settings', why: 'Prazo padrão de resposta ao devedor.' },
       ],
-      terms: ['prazo-interno', 'contestacao'],
+      terms: ['prazo-interno', 'contestacao', 'quarentena-de-email'],
     },
     {
       id: 'debt.debtors',

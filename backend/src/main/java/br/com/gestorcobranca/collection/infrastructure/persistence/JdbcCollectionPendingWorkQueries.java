@@ -108,6 +108,36 @@ class JdbcCollectionPendingWorkQueries implements CollectionPendingWorkQueries {
                 """ + (userId == null ? "" : " and assignee_id = :me"));
     }
 
+    @Override
+    public PendingWorkCount mailRepliesPending(Set<UUID> creditorScope, UUID userId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("me", userId);
+        return mailReplies(creditorScope, params, "r.status = 'PENDING_CONFIRMATION'"
+                + (userId == null ? "" : " and d.assignee_id = :me"));
+    }
+
+    @Override
+    public PendingWorkCount mailRepliesQuarantined(Set<UUID> creditorScope) {
+        return mailReplies(creditorScope, new MapSqlParameterSource(), "r.status = 'QUARANTINED'");
+    }
+
+    private PendingWorkCount mailReplies(Set<UUID> creditorScope, MapSqlParameterSource params, String filter) {
+        if (creditorScope != null && creditorScope.isEmpty()) {
+            return PendingWorkCount.NONE;
+        }
+        StringBuilder sql = new StringBuilder("""
+                select count(*) as total, 0 as overdue, 0 as due_today, min(r.received_at) as oldest_at,
+                       null::date as next_due,
+                       case when count(distinct r.dispute_id) = 1 then (array_agg(r.dispute_id))[1] end as single_id
+                  from collection.dispute_mail_reply r
+                  join collection.dispute d on d.id = r.dispute_id
+                 where\s""").append(filter);
+        if (creditorScope != null) {
+            sql.append(" and r.creditor_id in (:scope)");
+            params.addValue("scope", creditorScope);
+        }
+        return jdbc.queryForObject(sql.toString(), params, PendingWorkRows.COUNT);
+    }
+
     private PendingWorkCount disputes(Set<UUID> creditorScope, MapSqlParameterSource params, String base) {
         if (creditorScope != null && creditorScope.isEmpty()) {
             return PendingWorkCount.NONE;

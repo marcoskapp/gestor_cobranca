@@ -23,4 +23,7 @@ interface DisputeDocumentQuarantineJpaRepository extends Repository<DisputeDocum
 
     @Override
     long countByDisputeIdAndStatus(UUID disputeId, DisputeDocumentQuarantine.Status status);
+
+    @Override
+    List<DisputeDocumentQuarantine> findByMailReplyId(UUID mailReplyId);
 }

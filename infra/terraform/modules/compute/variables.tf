@@ -583,3 +583,21 @@ variable "helpdesk_github_require_private_repository" {
   type        = bool
   default     = false
 }
+
+variable "inbound_mail_domain" {
+  description = "Subdomínio das respostas dos credores por e-mail (módulo mail_inbound); vazio desliga a leitura."
+  type        = string
+  default     = ""
+}
+
+variable "inbound_mail_bucket_name" {
+  description = "Bucket do e-mail bruto recebido pelo SES (módulo mail_inbound)."
+  type        = string
+  default     = ""
+}
+
+variable "inbound_mail_queue_url" {
+  description = "Fila SQS das notificações de e-mail recebido (módulo mail_inbound)."
+  type        = string
+  default     = ""
+}

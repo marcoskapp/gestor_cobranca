@@ -36,6 +36,7 @@ export type StatusDomain =
   | 'disputeAdjustment'
   | 'titleAmountAdjustment'
   | 'titleAmountDivergence'
+  | 'disputeMailReply'
   | 'collectionPolicy'
   | 'negotiationOutcome'
   | 'importBatch'
@@ -245,6 +246,13 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     ACCEPTED_CREDITOR: { label: 'Valor do credor aceito', tone: 'info' },
     RESOLVED_BY_CREDITOR: { label: 'Credor passou a informar o valor corrigido', tone: 'success' },
     SUPERSEDED: { label: 'Substituída', tone: 'neutral' },
+  },
+  /** Resposta do credor recebida por e-mail (`MailReplyStatus`). */
+  disputeMailReply: {
+    PENDING_CONFIRMATION: { label: 'Recebida por e-mail, a confirmar', tone: 'warning' },
+    QUARANTINED: { label: 'Em quarentena', tone: 'danger' },
+    CONFIRMED: { label: 'Confirmada', tone: 'success' },
+    DISMISSED: { label: 'Descartada', tone: 'neutral' },
   },
   /** Versões da política de cobrança e negociação (`PolicyStatus`). */
   collectionPolicy: {

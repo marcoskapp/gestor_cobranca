@@ -50,11 +50,9 @@ public record CollectionProperties(Defaults defaults, Duration callbackCheckInte
      * @param linkMaxDownloads       downloads permitidos por link seguro de evidências
      * @param linkRequestsPerMinute  limite de acessos ao link por IP e minuto, por instância
      * @param mailMaxAttempts        tentativas de envio de cada e-mail ao credor
-     */
-    /**
-     * @param apiMaxDocuments     documentos por resposta do credor pela API (padrão 5)
-     * @param apiMaxDocumentBytes tamanho máximo de cada documento pela API (padrão 10 MB)
-     * @param scanMaxAttempts     tentativas da verificação de malware antes de desistir (padrão 8)
+     * @param apiMaxDocuments        documentos por resposta do credor pela API (padrão 5)
+     * @param apiMaxDocumentBytes    tamanho máximo de cada documento pela API e de cada anexo de e-mail (padrão 10 MB)
+     * @param scanMaxAttempts        tentativas da verificação de malware antes de desistir (padrão 8)
      */
     public record Disputes(String followUpCron, Integer linkMaxDownloads, Integer linkRequestsPerMinute,
                            Integer mailMaxAttempts, Integer apiMaxDocuments, Long apiMaxDocumentBytes,

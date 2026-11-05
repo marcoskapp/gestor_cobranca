@@ -28,6 +28,8 @@ class CollectionPendingWork implements PendingWorkSource {
     static final String MY_DISPUTES = "collection.disputes_mine";
     static final String DEBTOR_NOTICES = "collection.dispute_debtor_notices";
     static final String ADJUSTMENTS = "collection.dispute_adjustments";
+    static final String MAIL_REPLIES = "collection.dispute_mail_replies";
+    static final String MAIL_QUARANTINE = "collection.dispute_mail_quarantine";
     /** Retornos perdidos continuam na agenda ("Atrasados") por 30 dias. */
     static final Duration MISSED_WINDOW = Duration.ofDays(30);
 
@@ -102,12 +104,28 @@ class CollectionPendingWork implements PendingWorkSource {
                     .hint("Faça o ajuste sugerido no título ou dispense com o motivo.")
                     .route("/cobranca/contestacoes").param("ajuste", "pendente")
                     .singleRoute(id -> "/cobranca/contestacoes/" + id);
+            PendingWorkCount mailReplies = queries.mailRepliesPending(scope, owner);
+            PendingWorkItem.Builder mail = PendingWorkItem.of(MAIL_REPLIES,
+                            "Respostas do credor por e-mail a confirmar", mailReplies)
+                    .hint("Leia o e-mail, confira os anexos e confirme a posição do credor (ou descarte com o motivo).")
+                    .route("/cobranca/contestacoes").param("email", "pendente")
+                    .singleRoute(id -> "/cobranca/contestacoes/" + id);
             if (!manage) {
                 notice.param("responsavel", "me");
                 adjustment.param("responsavel", "me");
+                mail.param("responsavel", "me");
             }
             items.add(notice.build());
             items.add(adjustment.build());
+            items.add(mail.build());
+        }
+        if (manage) {
+            PendingWorkCount quarantined = queries.mailRepliesQuarantined(scope);
+            items.add(PendingWorkItem.of(MAIL_QUARANTINE, "E-mails do credor em quarentena", quarantined)
+                    .hint("Confira o original: libere para o analista ou descarte com o motivo.")
+                    .route("/cobranca/contestacoes/configuracao").param("aba", "emails")
+                    .singleRoute(id -> "/cobranca/contestacoes/" + id)
+                    .build());
         }
         return items;
     }

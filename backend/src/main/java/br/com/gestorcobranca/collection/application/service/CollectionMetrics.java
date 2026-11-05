@@ -145,4 +145,30 @@ class CollectionMetrics {
         Timer.builder("collection.disputes.document_scan.duration").tag("engine", engine)
                 .publishPercentiles(0.5, 0.95, 0.99).register(registry).record(duration);
     }
+
+    /**
+     * E-mail recebido no subdomínio de entrada.
+     *
+     * @param outcome accepted, quarantined, unrouted ou duplicate
+     * @param reason  motivo da quarentena ou da falta de rota (none quando aceito)
+     */
+    void disputeMailReceived(String outcome, String reason) {
+        registry.counter("collection.disputes.mail_replies.received", "outcome", outcome, "reason", reason).increment();
+    }
+
+    /** @param outcome accepted, rejected_type, rejected_size ou rejected_limit */
+    void disputeMailAttachment(String outcome) {
+        registry.counter("collection.disputes.mail_replies.attachments", "outcome", outcome).increment();
+    }
+
+    /** @param outcome confirmed, dismissed ou released */
+    void disputeMailDecision(String outcome) {
+        registry.counter("collection.disputes.mail_replies.decisions", "outcome", outcome).increment();
+    }
+
+    /** Tempo do recebimento do e-mail à confirmação da posição pelo analista. */
+    void disputeMailConfirmationTime(Duration duration) {
+        Timer.builder("collection.disputes.mail_replies.time_to_confirmation")
+                .publishPercentiles(0.5, 0.95).register(registry).record(duration);
+    }
 }

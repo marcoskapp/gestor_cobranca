@@ -151,3 +151,8 @@ output "bedrock_denies_global_routing" {
   description = "O papel das instâncias nega o roteamento global do Bedrock."
   value       = var.enable_compute ? module.compute[0].bedrock_denies_global_routing : null
 }
+
+output "inbound_mail_mx_record" {
+  description = "Registro MX a criar no subdomínio de entrada (null com a leitura desligada)."
+  value       = var.enable_inbound_mail ? module.mail_inbound[0].mx_record : null
+}

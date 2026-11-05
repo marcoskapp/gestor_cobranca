@@ -6,6 +6,7 @@
 #   enable_waf               AWS WAF      regras gerenciadas e limite de taxa no ALB
 #   use_ssm_parameters       SSM + KMS    segredos em SecureString com chave KMS dedicada
 #   enable_sns_notifications SNS          notificação dos alarmes (módulo observability)
+#   enable_inbound_mail      SES/SNS/SQS  respostas dos credores por e-mail (aprovado em 05/11/2026; módulo mail_inbound)
 # =============================================================================
 
 # --- ACM ---------------------------------------------------------------------------------
@@ -266,4 +267,22 @@ resource "aws_wafv2_web_acl_logging_configuration" "app" {
       name = "cookie"
     }
   }
+}
+
+# --- Respostas dos credores por e-mail (SES inbound → S3 → SNS → SQS) -------------------
+# Aprovado pelo responsável em 05/11/2026 (decisões 819–835). Antes de ligar: o MX do subdomínio
+# (docs/tecnico/operacao/email-entrada.md) e a verificação do domínio no SES.
+
+module "mail_inbound" {
+  source = "../../modules/mail_inbound"
+  count  = var.enable_inbound_mail ? 1 : 0
+
+  name_prefix        = local.name_prefix
+  account_id         = local.account_id
+  region             = var.region
+  partition          = local.partition
+  inbound_domain     = var.inbound_mail_domain
+  instance_role_name = local.instance_role_name
+  raw_retention_days = var.inbound_mail_raw_retention_days
+  kms_key_arn        = var.data_kms_key_arn
 }

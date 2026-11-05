@@ -59,6 +59,14 @@ public class DisputeCreditorRequest extends TenantScopedEntity {
     @Column(name = "reply_to", length = 200, updatable = false)
     private String replyTo;
 
+    /**
+     * Endereço de resposta próprio do pedido (contestacao+token@subdomínio de entrada), quando a leitura das respostas
+     * por e-mail está ligada; criptografado (o token só existe aqui e, como hash, na rota).
+     */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "reply_address_encrypted", length = 2000, updatable = false)
+    private String replyAddress;
+
     @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "subject_encrypted", nullable = false, length = 2000, updatable = false)
     private String subject;
@@ -153,6 +161,15 @@ public class DisputeCreditorRequest extends TenantScopedEntity {
         }
         this.linkExpiresAt = this.evidenceIds.isEmpty() ? null : linkExpiresAt;
         this.requestedBy = requestedBy;
+    }
+
+    /** Endereço de resposta próprio do pedido (só antes de gravar). */
+    public void useReplyAddress(String address) {
+        Guard.requireState(getVersion() == null && replyAddress == null, "dispute_request.reply_address_set",
+                "Endereço de resposta já definido");
+        Guard.require(address != null && address.contains("@") && address.length() <= 254,
+                "dispute_request.reply_address_invalid", "Endereço de resposta inválido");
+        this.replyAddress = address;
     }
 
     /** O e-mail do pedido foi aceito pelo servidor de e-mail. */
@@ -251,6 +268,11 @@ public class DisputeCreditorRequest extends TenantScopedEntity {
 
     public String getReplyTo() {
         return replyTo;
+    }
+
+    /** Endereço de resposta do pedido na caixa de entrada da plataforma (nulo = respostas só para o responsável). */
+    public String getReplyAddress() {
+        return replyAddress;
     }
 
     public String getSubject() {

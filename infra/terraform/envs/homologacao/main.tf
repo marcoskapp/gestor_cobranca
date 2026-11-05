@@ -52,6 +52,11 @@ resource "terraform_data" "guards" {
     }
 
     precondition {
+      condition     = !var.enable_inbound_mail || var.inbound_mail_domain != null
+      error_message = "enable_inbound_mail exige inbound_mail_domain."
+    }
+
+    precondition {
       condition     = !var.enable_route53 || var.route53_zone_id != null
       error_message = "enable_route53 exige route53_zone_id."
     }
@@ -235,6 +240,10 @@ module "compute" {
   business_hours_schedule  = var.business_hours_schedule
   ebs_kms_key_arn          = var.data_kms_key_arn
   initial_artifact_version = var.initial_artifact_version
+
+  inbound_mail_domain      = var.enable_inbound_mail ? var.inbound_mail_domain : ""
+  inbound_mail_bucket_name = var.enable_inbound_mail ? module.mail_inbound[0].bucket_name : ""
+  inbound_mail_queue_url   = var.enable_inbound_mail ? module.mail_inbound[0].queue_url : ""
 
   artifacts_bucket_name = module.storage.artifacts_bucket_name
   artifacts_bucket_arn  = module.storage.artifacts_bucket_arn

@@ -8,7 +8,7 @@ import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
-import { DisputeDetail, DisputeView } from '../data/collection.models';
+import { DisputeDetail, DisputeView, MailReplyView } from '../data/collection.models';
 import { DisputePage } from './dispute-page';
 
 const ID = 'abcdef12-0000-4000-8000-000000000001';
@@ -93,7 +93,7 @@ describe('DisputePage', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  async function render(value: DisputeDetail): Promise<ComponentFixture<DisputePage>> {
+  async function render(value: DisputeDetail, mailReplies: MailReplyView[] = []): Promise<ComponentFixture<DisputePage>> {
     const fixture = TestBed.createComponent(DisputePage);
     fixture.componentRef.setInput('id', ID);
     fixture.detectChanges();
@@ -103,7 +103,8 @@ describe('DisputePage', () => {
       fixture.detectChanges();
       await Promise.resolve();
       for (const req of http.match((r) => r.method === 'GET')) {
-        req.flush(req.request.url.includes('/debtors') ? [{ id: 'd-1', name: 'João Devedor' }] : { id: 'c-1', tradeName: 'Banco Alfa', legalName: 'Banco Alfa S.A.' });
+        const url = req.request.url;
+        req.flush(url.includes('/mail-replies') ? mailReplies : url.includes('/debtors') ? [{ id: 'd-1', name: 'João Devedor' }] : { id: 'c-1', tradeName: 'Banco Alfa', legalName: 'Banco Alfa S.A.' });
       }
     }
     fixture.detectChanges();
@@ -182,6 +183,58 @@ describe('DisputePage', () => {
     expect(card).toContain('retorno vencido');
     expect(card).toContain('Cobrança do retorno vencido: enviado');
     expect(actions(f)).toContain('Registrar resposta do credor');
+  });
+
+  it('resposta do credor por e-mail: a confirmar pelo responsável; quarentena só a gestão decide', async () => {
+    permissions.set(['DISPUTE_WORK']);
+    const reply = (over: Partial<MailReplyView>): MailReplyView => ({
+      id: 'mr-1',
+      disputeId: ID,
+      requestId: 'r-1',
+      requestSequence: 1,
+      creditorId: 'c-1',
+      sender: 'contestacoes@alfa.test',
+      subject: 'Re: Contestação ABCDEF12',
+      text: 'Confirmamos a baixa.',
+      textTruncated: false,
+      receivedAt: '2026-11-04T10:00:00Z',
+      status: 'PENDING_CONFIRMATION',
+      quarantineReason: null,
+      releasable: false,
+      authenticated: true,
+      spf: 'PASS',
+      dkim: 'PASS',
+      dmarc: 'PASS',
+      virus: 'PASS',
+      spam: 'PASS',
+      rawSha256: 'a'.repeat(64),
+      rawSize: 1200,
+      attachments: 1,
+      evidenceIds: ['e-1'],
+      attachmentsInVerification: 0,
+      attachmentsRejected: 0,
+      responseId: null,
+      decidedBy: null,
+      decidedByName: null,
+      decidedAt: null,
+      decisionNote: null,
+      releasedByName: null,
+      releasedAt: null,
+      releaseNote: null,
+      ...over,
+    });
+    const f = await render(detail(dispute({ assigneeId: 'u-1', assigneeName: 'Eu' })), [
+      reply({}),
+      reply({ id: 'mr-2', status: 'QUARANTINED', quarantineReason: 'SENDER_NOT_REGISTERED', releasable: true, sender: 'x@golpe.test' }),
+    ]);
+    const items = [...(f.nativeElement as HTMLElement).querySelectorAll('[data-tour="dispute-mail-reply"]')];
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toContain('Remetente autenticado');
+    expect(items[0].textContent).toContain('1 nas evidências');
+    expect([...items[0].querySelectorAll('button')].map((b) => b.textContent!.trim())).toEqual(['Confirmar posição', 'Descartar', 'Original']);
+    expect(items[1].textContent).toContain('Remetente não é contato de contestação do credor');
+    // o analista não libera nem descarta a quarentena
+    expect([...items[1].querySelectorAll('button')].map((b) => b.textContent!.trim())).toEqual(['Original']);
   });
 
   it('ajuste pendente: atalho leva ao cancelamento no título com o motivo sugerido', async () => {

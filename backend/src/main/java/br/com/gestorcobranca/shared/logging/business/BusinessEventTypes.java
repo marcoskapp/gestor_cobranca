@@ -69,6 +69,14 @@ public final class BusinessEventTypes {
     public static final String DISPUTE_CREDITOR_REQUEST_OVERDUE = "dispute.creditor_request_overdue";
     public static final String DISPUTE_CREDITOR_RESPONDED = "dispute.creditor_responded";
     public static final String DISPUTE_CREDITOR_DOCUMENT_SCANNED = "dispute.creditor_document_scanned";
+    /** E-mail do credor recebido no endereço de resposta de um pedido (aceito para confirmação ou em quarentena). */
+    public static final String DISPUTE_CREDITOR_MAIL_RECEIVED = "dispute.creditor_mail_received";
+    /** O analista confirmou a posição do credor a partir do e-mail (virou resposta do credor). */
+    public static final String DISPUTE_CREDITOR_MAIL_CONFIRMED = "dispute.creditor_mail_confirmed";
+    /** E-mail do credor descartado com motivo (pelo analista ou pela gestão, na quarentena). */
+    public static final String DISPUTE_CREDITOR_MAIL_DISMISSED = "dispute.creditor_mail_dismissed";
+    /** A gestão liberou da quarentena um e-mail do credor para o analista. */
+    public static final String DISPUTE_CREDITOR_MAIL_RELEASED = "dispute.creditor_mail_released";
     public static final String DISPUTE_DEBTOR_NOTIFIED = "dispute.debtor_notified";
     public static final String DISPUTE_ADJUSTMENT_SUGGESTED = "dispute.adjustment_suggested";
     public static final String DISPUTE_ADJUSTMENT_CLOSED = "dispute.adjustment_closed";

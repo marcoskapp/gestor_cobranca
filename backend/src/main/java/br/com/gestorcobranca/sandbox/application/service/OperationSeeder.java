@@ -13,6 +13,9 @@ import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.Cred
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.OpenDisputeCommand;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.ResolveCommand;
+import br.com.gestorcobranca.collection.application.port.in.InboundMailUseCases;
+import br.com.gestorcobranca.collection.application.port.in.InboundMailUseCases.InboundMessage;
+import br.com.gestorcobranca.collection.application.port.in.InboundMailUseCases.Verdicts;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.CallbackInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.PromiseInput;
@@ -54,6 +57,7 @@ import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.Externa
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.PaymentView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReverseCommand;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.TargetInput;
+import br.com.gestorcobranca.sandbox.application.port.out.DisputeReplyMailbox;
 import br.com.gestorcobranca.sandbox.domain.model.DemoPortfolioData.Debt;
 import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases;
 import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.CreateStatementCommand;
@@ -110,6 +114,8 @@ class OperationSeeder {
     private final ConversationUseCases conversations;
     private final SettlementStatementUseCases statements;
     private final AnalyticsRefreshUseCases analytics;
+    private final InboundMailUseCases inboundMail;
+    private final DisputeReplyMailbox replyMailbox;
     private final SeedRuntime rt;
 
     OperationSeeder(DebtorUseCases debtors, CaseUseCases cases, CaseWorkUseCases caseWork, QueueUseCases queues,
@@ -119,7 +125,8 @@ class OperationSeeder {
                     ContactRestrictionUseCases restrictions, DataSubjectRequestUseCases dataSubjectRequests,
                     SandboxUseCases messagingSandbox, MessageUseCases messages, ConversationUseCases conversations,
                     SettlementStatementUseCases statements,
-                    AnalyticsRefreshUseCases analytics, SeedRuntime rt) {
+                    AnalyticsRefreshUseCases analytics, InboundMailUseCases inboundMail, DisputeReplyMailbox replyMailbox,
+                    SeedRuntime rt) {
         this.debtors = debtors;
         this.cases = cases;
         this.caseWork = caseWork;
@@ -140,6 +147,8 @@ class OperationSeeder {
         this.conversations = conversations;
         this.statements = statements;
         this.analytics = analytics;
+        this.inboundMail = inboundMail;
+        this.replyMailbox = replyMailbox;
         this.rt = rt;
     }
 
@@ -373,8 +382,10 @@ class OperationSeeder {
             if (d.awaitingCreditorSince() == null && rt.as(supervisor, () -> disputes.creditorRequests(d.id())).isEmpty()) {
                 Actor operador = seed.actor("operador");
                 var draft = rt.as(operador, () -> disputes.draftCreditorRequest(d.id()));
-                rt.as(operador, () -> disputes.requestCreditor(d.id(), new CreditorRequestCommand(draft.subject(),
-                        draft.body(), null, Set.of(), Set.of(), true)));
+                java.time.Instant sentAfter = java.time.Instant.now();
+                var request = rt.as(operador, () -> disputes.requestCreditor(d.id(), new CreditorRequestCommand(
+                        draft.subject(), draft.body(), null, Set.of(), Set.of(), true)));
+                creditorMailReplies(d, request.to().getFirst(), sentAfter);
             }
         });
         Target answered = target(seed, 1, 0, 3);
@@ -405,6 +416,46 @@ class OperationSeeder {
                         "Credor confirmou a fraude na contratação; cobrança encerrada (cenário fictício)", null)));
             }
         });
+    }
+
+    /**
+     * Respostas do credor por e-mail (leitura ligada no sandbox, adaptador local): o endereço de resposta é lido no
+     * Mailpit, como o credor o veria, e duas respostas fictícias entram pelo mesmo caso de uso do SES — uma do contato
+     * cadastrado, com um PDF, aguardando o analista confirmar, e uma de remetente fora do cadastro, na quarentena.
+     */
+    private void creditorMailReplies(DisputeView d, String contact, java.time.Instant sentAfter) {
+        rt.optional("respostas do credor por e-mail", () -> {
+            String protocol = d.id().toString().substring(0, 8).toUpperCase(java.util.Locale.ROOT);
+            var address = replyMailbox.awaitReplyAddress(contact, protocol, sentAfter, java.time.Duration.ofMinutes(2));
+            if (address.isEmpty() || !address.get().contains("+")) {
+                return; // leitura de e-mail desligada: as respostas vão só ao responsável
+            }
+            Verdicts pass = new Verdicts("PASS", "PASS", "PASS", "PASS", "PASS");
+            inboundMail.receive(new InboundMessage("sandbox-seed:" + d.id() + ":1", demoReply(contact, address.get(),
+                    protocol, "Segue o comprovante de entrega assinado. Confirmamos a dívida (texto fictício).", true),
+                    List.of(address.get()), pass, java.time.Instant.now(), "sandbox-seed"));
+            inboundMail.receive(new InboundMessage("sandbox-seed:" + d.id() + ":2", demoReply("cobranca@desconhecido.exemplo.test",
+                    address.get(), protocol, "Pague pelo boleto anexo para encerrar (exemplo de golpe, fictício).", false),
+                    List.of(address.get()), pass, java.time.Instant.now(), "sandbox-seed"));
+        });
+    }
+
+    private static byte[] demoReply(String from, String to, String protocol, String text, boolean pdf) {
+        StringBuilder s = new StringBuilder()
+                .append("From: <").append(from).append(">\r\nTo: <").append(to).append(">\r\n")
+                .append("Subject: Re: Contestacao ").append(protocol).append("\r\n")
+                .append("Message-ID: <").append(UUID.randomUUID()).append("@sandbox.exemplo.test>\r\n")
+                .append("MIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"sb\"\r\n\r\n")
+                .append("--sb\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n").append(text).append("\r\n");
+        if (pdf) {
+            s.append("--sb\r\nContent-Type: application/pdf\r\n")
+                    .append("Content-Disposition: attachment; filename=\"comprovante-entrega-ficticio.pdf\"\r\n")
+                    .append("Content-Transfer-Encoding: base64\r\n\r\n")
+                    .append(java.util.Base64.getMimeEncoder().encodeToString(
+                            "%PDF-1.4\n% documento ficticio do sandbox\n%%EOF\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII)))
+                    .append("\r\n");
+        }
+        return s.append("--sb--\r\n").toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private void optOut(TenantSeed seed, Target t) {

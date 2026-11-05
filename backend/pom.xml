@@ -19,6 +19,7 @@
 
     <properties>
         <java.version>21</java.version>
+        <jsoup.version>1.21.2</jsoup.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-modulith.version>2.1.2</spring-modulith.version>
         <shedlock.version>7.10.1</shedlock.version>
@@ -150,6 +151,11 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>bedrockruntime</artifactId>
         </dependency>
+        <!-- respostas do credor por e-mail: notificações do SES inbound (SES → S3 → SNS → SQS), decisões 819–835 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+        </dependency>
         <!-- cliente HTTP síncrono com timeouts explícitos (já vinha transitivo em runtime) -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -160,6 +166,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <!-- HTML do e-mail recebido convertido em texto com lista de permissões (nada é renderizado) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>${jsoup.version}</version>
         </dependency>
 
         <!-- Arquivos: importação/exportação e termos -->

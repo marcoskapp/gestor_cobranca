@@ -15,4 +15,6 @@ public interface DisputeDocumentQuarantineRepository {
     List<DisputeDocumentQuarantine> findByDisputeId(UUID disputeId);
 
     long countByDisputeIdAndStatus(UUID disputeId, DisputeDocumentQuarantine.Status status);
+
+    List<DisputeDocumentQuarantine> findByMailReplyId(UUID mailReplyId);
 }

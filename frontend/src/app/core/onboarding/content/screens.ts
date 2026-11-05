@@ -130,7 +130,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.settings', version: 1, path: '/cobranca/parametros' },
   {
     key: 'collection.disputes',
-    version: 3,
+    version: 4,
     path: '/cobranca/contestacoes',
     tourId: 'collection.disputes',
     changes: [
@@ -143,10 +143,33 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Página da contestação com pedido formal ao credor, resposta do credor, resposta ao devedor e ajuste sugerido no título.',
         ],
       },
+      { version: 4, items: ['Filtro "Resposta por e-mail a confirmar" e pendência das respostas do credor recebidas por e-mail.'] },
     ],
   },
-  { key: 'collection.dispute-config', version: 1, path: '/cobranca/contestacoes/configuracao', tourId: 'collection.dispute-config' },
-  { key: 'collection.dispute', version: 1, path: '/cobranca/contestacoes/:id', tourId: 'collection.dispute' },
+  {
+    key: 'collection.dispute-config',
+    version: 2,
+    path: '/cobranca/contestacoes/configuracao',
+    tourId: 'collection.dispute-config',
+    changes: [{ version: 2, items: ['Aba "E-mails em quarentena": respostas do credor por e-mail que falharam numa verificação, para liberar ao analista ou descartar com motivo.'] }],
+  },
+  {
+    key: 'collection.dispute',
+    version: 2,
+    path: '/cobranca/contestacoes/:id',
+    tourId: 'collection.dispute',
+    changes: [
+      {
+        version: 2,
+        items: [
+          'Respostas do credor por e-mail no canal com o credor, "a confirmar": texto sem formatação, anexos verificados como evidências do credor e o original para conferência.',
+          'Confirme a posição do credor a partir do e-mail; só então o pedido deixa de aguardar o credor.',
+          'Documentos enviados pelo credor pela integração mostram quantos estão em verificação de segurança ou foram recusados.',
+          'Contestação procedente com valor a corrigir abre a correção no título já vinculada.',
+        ],
+      },
+    ],
+  },
   {
     key: 'negotiation.simulator',
     version: 3,

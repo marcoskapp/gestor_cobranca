@@ -191,6 +191,14 @@ Listas usam paginação por cursor e não trazem o último minuto (janela de est
 
 **Faturamento.** O contrato de cada credor tem condições de cobrança das integrações (organization, `ContractIntegrationPricing`, definidas pelo gestor): dia de fechamento do ciclo de consumo variado — HZN 5, EST 15, TVC 31 (último dia), CSR 10, ELT 20, UMC 31 —, mensalidade (R$ 190 a R$ 490 por segmento), franquias de chamadas, MB recebidos/enviados e registros, e preço do excedente. Elas aparecem na ficha do credor (contrato). Os ciclos seguem o calendário do contrato, que começou há 12 meses (decisão 624), e as condições são registradas pela carga no dia em que o sandbox sobe. Como o **primeiro cadastro vale já no ciclo em andamento** (decisões 608 e 624, do responsável), num sandbox recém-criado: a **Posição do credor** (tela e `GET /public-api/v1/billing/position`) mostra o ciclo em curso de cada credor já com as condições — mensalidade cheia (o contrato começou antes do ciclo), franquias e o consumo do dia, com a nota "condições cadastradas em …: o primeiro cadastro vale para o ciclo inteiro"; **nenhum extrato** de ciclos passados (o fechamento automático não alcança ciclos encerrados antes do cadastro); ao fim do ciclo em curso (job diário às 02h20) sai o primeiro extrato de cada credor, com a mensalidade, **mesmo sem uso da API**, e depois um por ciclo. O consumo do dia aparece em **Consumo da API**.
 
+## 4a2. Respostas do credor por e-mail (sem AWS)
+
+O sandbox sobe com a leitura de e-mail ligada no adaptador local (domínio `respostas.sandbox.test`, decisão 833).
+
+1. A carga deixa, na contestação "aguardando o credor" de cada assessoria, uma resposta **a confirmar** (do contato de contestação, com um PDF fictício que vira evidência depois da verificação) e uma **em quarentena** (remetente fora do cadastro).
+2. Para simular outra: abra o pedido no Mailpit (http://localhost:58025), copie o `Reply-To` (`contestacao+…@respostas.sandbox.test`) e rode `./scripts/sandbox/credor-responde.sh <endereço>`; `--de outra@pessoa.test` cai em "remetente não cadastrado", `--falha-dmarc` em "falha de autenticação" e `--virus` em "vírus".
+3. Como analista responsável, confirme a posição na página da contestação; como supervisor ou gestor, veja Contestações → Configuração → **E-mails em quarentena**.
+
 ## 4b. Importação PDF inteligente (sem IA)
 
 No sandbox o provedor de IA da Importação PDF fica **desligado** (`INGESTION_PDF_BEDROCK_ENABLED=false`). Mesmo assim o fluxo completo é demonstrável: a carga salvou, pelo caso de uso e como o analista, o mapa do layout "Histórico Financeiro por Cliente" no **1º credor** de cada assessoria (Banco Horizonte na `aurora`, Coop Sertão na `boreal`), e gerou PDFs **fictícios** (PDFBox; devedores inventados, CNPJ/CPF com dígito válido gerado ao acaso, e-mails em `exemplo.test`, datas relativas ao dia da carga). Nenhum PDF real é usado nem versionado.

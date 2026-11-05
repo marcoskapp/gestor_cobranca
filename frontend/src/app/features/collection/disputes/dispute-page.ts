@@ -48,6 +48,7 @@ import {
   ResolveDisputeData,
   ResolveDisputeDialog,
 } from './dispute-dialogs';
+import { DisputeMailReplies } from './dispute-mail-replies';
 import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending, nearestDue, protocolOf } from './dispute.rules';
 
 /**
@@ -57,7 +58,7 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
  */
 @Component({
   selector: 'app-dispute-page',
-  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, Icon],
+  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, Icon, DisputeMailReplies],
   template: `
     @if (detail.error()) {
       <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a contestação." message="Ela pode não existir ou não estar no seu escopo de credores.">
@@ -253,7 +254,8 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
                   <strong>Resposta do credor</strong>
                   <span>{{ positions[resp.position] }}</span>
                   <span class="app-muted">
-                    {{ resp.receivedAt | appDate }} · {{ resp.source === 'PUBLIC_API' ? 'pela API' : 'registrada por ' + (resp.recordedByName ?? 'usuário') }}
+                    {{ resp.receivedAt | appDate }} ·
+                    {{ resp.source === 'PUBLIC_API' ? 'pela API' : (resp.source === 'EMAIL' ? 'por e-mail, confirmada por ' : 'registrada por ') + (resp.recordedByName ?? 'usuário') }}
                   </span>
                 </header>
                 <p class="dp-pre mb-0">{{ resp.note }}</p>
@@ -268,6 +270,7 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
                 }
               </article>
             }
+            <app-dispute-mail-replies [disputeId]="d.id" [workable]="workable()" [canManage]="canManage()" [canWork]="canWork()" (changed)="reload()" />
           </section>
 
           <section class="app-card" aria-labelledby="dp-evidence">
@@ -277,8 +280,8 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
                 <li>
                   <app-icon name="file-earmark-text" />
                   <span>{{ e.fileName }}</span>
-                  @if (e.creditorResponseId) {
-                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis">do credor</span>
+                  @if (e.creditorResponseId || e.mailReplyId) {
+                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis">{{ e.mailReplyId ? 'do credor, por e-mail' : 'do credor' }}</span>
                   }
                   <span class="app-muted">{{ size(e) }} · {{ e.createdAt | appDate }}{{ e.createdByName ? ' · ' + e.createdByName : '' }}</span>
                   <span class="app-muted app-mono" [attr.title]="'SHA-256 ' + e.sha256">{{ e.sha256.slice(0, 12) }}…</span>
@@ -610,7 +613,7 @@ export class DisputePage {
     });
   }
 
-  private reload(): void {
+  protected reload(): void {
     this.detail.reload();
     this.evidences.reload();
   }

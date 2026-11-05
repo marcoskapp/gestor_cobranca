@@ -53,11 +53,17 @@ O prazo de resposta ao devedor **não é pausado** enquanto se aguarda o credor:
 ## 4. Canal formal com o credor
 
 1. **Contatos de contestação** no cadastro do credor: principal (destinatário) e cópias; opcionalmente por carteira — uma carteira com contato principal ativo usa os seus contatos no lugar dos do credor. Sem contato principal, o pedido não pode ser enviado.
-2. **Solicitar ao credor** (na página da contestação): o texto vem do **modelo do tipo** (editável antes de enviar), com o protocolo, os títulos citados (todos ou os escolhidos), o prazo pedido e, se houver evidências escolhidas, o **link seguro** delas. Cópia opcional ao responsável. As respostas por e-mail vão ao responsável (*reply-to*); a assessoria **não lê e-mail de entrada**.
+2. **Solicitar ao credor** (na página da contestação): o texto vem do **modelo do tipo** (editável antes de enviar), com o protocolo, os títulos citados (todos ou os escolhidos), o prazo pedido e, se houver evidências escolhidas, o **link seguro** delas. Cópia opcional ao responsável. Sem a leitura de e-mail ligada, as respostas vão ao responsável (*reply-to*); com ela, cada pedido sai com um **endereço de resposta próprio** e o responsável sempre em cópia (item 7).
 3. **LGPD**: o pedido **não leva nome nem documento do devedor** — o credor localiza pelo protocolo e pelos títulos. As evidências **não vão anexadas**: vão num link com **validade** (padrão 7 dias, configurável até 30) e **limite de downloads** (20), que entrega um ZIP só com as evidências escolhidas; cada download fica no log de acesso; link vencido, esgotado ou inválido é recusado e registrado.
 4. **Lembrete** antes do prazo (padrão 1 dia; 0 desliga) e **cobrança do retorno vencido** no dia seguinte ao prazo, ambos automáticos (todos os dias às 08:05), uma vez por pedido.
 5. **Resposta do credor**: registrada na tela (posição + resumo + documentos, que entram como evidências marcadas "do credor") ou enviada pelo próprio credor pela **API pública** (`POST /public-api/v1/disputes/{id}/creditor-responses`, escopo `disputes:write`), com até 5 documentos PDF, PNG ou JPEG de até 10 MB (tipo conferido pelo conteúdo). Os documentos da API passam pela **quarentena** (verificação de malware) antes de virar evidência; infectado tem o conteúdo apagado e é recusado, e o credor acompanha a situação pela API. A resposta encerra o "aguardando o credor" do pedido.
 6. **Histórico**: cada pedido guarda o texto enviado, a versão do modelo, destinatários, títulos, evidências, downloads do link e cada e-mail (pedido, lembrete, cobrança) com a situação de envio.
+7. **Resposta do credor por e-mail** (leitura automática, aprovada em 05/11/2026; decisões 819–835; configuração em [email-entrada.md](../tecnico/operacao/email-entrada.md)):
+   - o pedido sai com `Reply-To: contestacao+<código>@<subdomínio de entrada>`; o código (130 bits, só o hash no banco) aponta só para o pedido, sem dado do devedor, e vale até 180 dias depois do prazo pedido;
+   - o e-mail recebido entra no pedido como **"recebido por e-mail, a confirmar"**: texto puro (o HTML nunca é exibido), original guardado com SHA-256 para a cadeia de custódia, anexos PDF, PNG ou JPEG de até 10 MB pela mesma quarentena e antivírus da API, virando evidências **"do credor, por e-mail"**; outros anexos ficam só no original;
+   - **o sistema nunca resolve sozinho**: o analista lê e **confirma a posição** do credor (confirma a dívida, reconhece, reconhece em parte ou só informa) — só então a resposta do credor é registrada (origem e-mail, com a data do e-mail) e o pedido deixa de aguardar o credor —, ou **descarta** com motivo. Respostas seguintes no mesmo endereço entram no histórico, cada uma a confirmar;
+   - aceita só **contatos de contestação ativos** do credor, com **autenticação** (DMARC, ou SPF e DKIM sem política DMARC) e **sem vírus** apontado pelo provedor; limites de 25 MB, 10 anexos e 20 e-mails por remetente por hora. O que falha vai para a **quarentena** da gestão (Configuração → E-mails em quarentena), nunca é descartado em silêncio: a gestão confere o original e **libera** para o analista (remetente fora do cadastro, excesso, tamanho, endereço vencido, spam) ou **descarta** com motivo; falha de autenticação, vírus, e-mail ilegível e contestação encerrada nunca são liberados;
+   - pendências: "Respostas do credor por e-mail a confirmar" (responsável) e "E-mails do credor em quarentena" (gestão); filtro na fila.
 
 Envio por SMTP: "enviado" significa aceito pelo servidor de e-mail; não há confirmação de entrega. Falha temporária é repetida (até 6 tentativas, espera crescente); falha definitiva aparece no pedido.
 
@@ -92,10 +98,12 @@ Atalhos para os fluxos existentes, com as regras e permissões deles: **cancelar
 ## 7. Indicadores e logs
 
 - Painel **Contestações** (`/paineis/contestacoes`): abertas, em aberto e vencidas, resolvidas no prazo, tempo médio, procedência, retorno do credor e fila por responsável — definições em [indicadores.md §7](indicadores.md#7-contestações).
-- Eventos de negócio (sem dado pessoal): `dispute.opened`, `dispute.assigned`, `dispute.creditor_request_sent`/`_failed`/`_overdue`, `dispute.creditor_responded`, `dispute.resolved`, `dispute.debtor_notified`, `dispute.adjustment_suggested`/`_closed` — atributos em [logs-e-metricas.md §3.3](../tecnico/logs-e-metricas.md).
+- Eventos de negócio (sem dado pessoal): `dispute.opened`, `dispute.assigned`, `dispute.creditor_request_sent`/`_failed`/`_overdue`, `dispute.creditor_responded`, `dispute.creditor_mail_received`/`_confirmed`/`_dismissed`/`_released`, `dispute.resolved`, `dispute.debtor_notified`, `dispute.adjustment_suggested`/`_closed` — atributos em [logs-e-metricas.md §3.3](../tecnico/logs-e-metricas.md).
+- Respostas por e-mail: recebidas, aceitas, em quarentena por motivo e tempo até a confirmação em `collection.disputes.mail_replies.*`; retenções por segurança no log de acesso (`INBOUND_MAIL_REJECTED`).
 
 ## 8. O que ainda depende do responsável
 
-- Ligar a verificação de malware (daemon ClamAV) dos documentos recebidos pela API (decisão 815).
+- Ligar a verificação de malware (daemon ClamAV) dos documentos recebidos pela API e por e-mail (decisão 815).
+- Leitura de e-mail: escolher o subdomínio, verificar no SES e criar o MX ([email-entrada.md §2](../tecnico/operacao/email-entrada.md)); revisar os limites (826), a cópia obrigatória ao responsável (820) e uma tela para os e-mails sem rota (830).
 
 - Revisão jurídica dos **textos padrão** dos modelos (pedido ao credor por tipo e resposta ao devedor por resultado).

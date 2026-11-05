@@ -153,10 +153,20 @@ public interface DisputeUseCases {
      * @param unassigned só sem responsável
      * @param dueUntil   prazo (interno ou de resposta) até a data
      * @param supervision visão do supervisor: sem responsável ou com prazo vencido
+     * @param mailReplyPending com resposta do credor por e-mail aguardando confirmação
      */
     record DisputeQuery(UUID creditorId, Set<String> statuses, Set<String> types, Set<String> origins, String assignee,
                         boolean unassigned, boolean mine, Boolean overdue, LocalDate dueUntil, Boolean awaitingCreditor,
-                        boolean noticePending, boolean adjustmentPending, boolean supervision) {
+                        boolean noticePending, boolean adjustmentPending, boolean supervision,
+                        boolean mailReplyPending) {
+
+        public DisputeQuery(UUID creditorId, Set<String> statuses, Set<String> types, Set<String> origins,
+                            String assignee, boolean unassigned, boolean mine, Boolean overdue, LocalDate dueUntil,
+                            Boolean awaitingCreditor, boolean noticePending, boolean adjustmentPending,
+                            boolean supervision) {
+            this(creditorId, statuses, types, origins, assignee, unassigned, mine, overdue, dueUntil, awaitingCreditor,
+                    noticePending, adjustmentPending, supervision, false);
+        }
     }
 
     record EvidenceUpload(String fileName, String contentType, long size, InputStream content) {
@@ -202,9 +212,11 @@ public interface DisputeUseCases {
     /**
      * @param createdByName        nome de exibição de quem anexou (nulo para atores de sistema/integração)
      * @param creditorResponseId   resposta do credor que trouxe o documento (nulo = anexado pela assessoria)
+     * @param mailReplyId          e-mail do credor que trouxe o anexo (nulo = não veio por e-mail)
      */
     record EvidenceView(UUID id, UUID disputeId, String fileName, String contentType, long size, String sha256,
-                        Instant createdAt, UUID createdBy, String createdByName, UUID creditorResponseId) {
+                        Instant createdAt, UUID createdBy, String createdByName, UUID creditorResponseId,
+                        UUID mailReplyId) {
     }
 
     record DisputeDetail(DisputeView dispute, List<AssignmentView> assignments, List<CreditorRequestView> creditorRequests,

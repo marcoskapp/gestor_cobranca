@@ -14,7 +14,9 @@ public enum FileCategory {
     /** Marca do credor exibida no portal de autonegociação (logotipo público controlado). */
     PORTAL_BRANDING("portal-branding"),
     /** Arquivo vindo de sistema externo aguardando a verificação de malware; nunca é servido daqui. */
-    QUARANTINE("quarantine");
+    QUARANTINE("quarantine"),
+    /** Original (.eml) do e-mail do credor recebido na contestação: cadeia de custódia, servido só para conferência. */
+    INBOUND_MAIL("inbound-mail");
 
     private final String prefix;
 

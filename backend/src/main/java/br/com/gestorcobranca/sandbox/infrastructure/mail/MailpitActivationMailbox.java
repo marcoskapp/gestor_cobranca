@@ -3,6 +3,7 @@ package br.com.gestorcobranca.sandbox.infrastructure.mail;
 import br.com.gestorcobranca.sandbox.application.SandboxSeedComponent;
 import br.com.gestorcobranca.sandbox.application.SandboxProperties;
 import br.com.gestorcobranca.sandbox.application.port.out.ActivationMailbox;
+import br.com.gestorcobranca.sandbox.application.port.out.DisputeReplyMailbox;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ import java.util.regex.Pattern;
  * {@code #token=} do link, como o navegador do usuário o leria.
  */
 @SandboxSeedComponent
-class MailpitActivationMailbox implements ActivationMailbox {
+class MailpitActivationMailbox implements ActivationMailbox, DisputeReplyMailbox {
 
     private static final Logger LOG = LoggerFactory.getLogger(MailpitActivationMailbox.class);
     private static final Pattern TOKEN = Pattern.compile("#token=([A-Za-z0-9_\\-.]+)");
@@ -83,6 +84,37 @@ class MailpitActivationMailbox implements ActivationMailbox {
         } catch (RestClientException e) {
             LOG.atWarn().addKeyValue("provider", "mailpit").log("Falha ao consultar o Mailpit; nova tentativa em seguida");
             return Optional.empty();
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Optional<String> awaitReplyAddress(String to, String protocol, Instant sentAfter, Duration timeout) {
+        Instant deadline = Instant.now().plus(timeout);
+        while (true) {
+            try {
+                String uri = UriComponentsBuilder.fromPath("/api/v1/search")
+                        .queryParam("query", "to:\"" + to + "\" subject:\"" + protocol + "\"").queryParam("limit", 5)
+                        .build().toUriString();
+                Map<String, Object> result = json.toMap(client.get().uri(uri).retrieve().body(String.class));
+                List<Map<String, Object>> messages = (List<Map<String, Object>>) result.getOrDefault("messages", List.of());
+                Optional<Map<String, Object>> newest = messages.stream()
+                        .filter(m -> !Instant.parse(String.valueOf(m.get("Created"))).isBefore(sentAfter.minus(SKEW)))
+                        .max(Comparator.comparing(m -> Instant.parse(String.valueOf(m.get("Created")))));
+                if (newest.isPresent()) {
+                    Object replyTo = newest.get().get("ReplyTo");
+                    if (replyTo instanceof List<?> list && !list.isEmpty() && list.getFirst() instanceof Map<?, ?> a) {
+                        return Optional.ofNullable((String) ((Map<String, Object>) a).get("Address"));
+                    }
+                    return Optional.empty();
+                }
+            } catch (RestClientException e) {
+                LOG.atWarn().addKeyValue("provider", "mailpit").log("Falha ao consultar o Mailpit; nova tentativa em seguida");
+            }
+            if (Instant.now().isAfter(deadline)) {
+                return Optional.empty();
+            }
+            sleep();
         }
     }
 

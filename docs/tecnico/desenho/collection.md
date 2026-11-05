@@ -287,13 +287,14 @@ aberto, sem status novo).
   `GET /api/v1/dispute-files/{token}` é `PublicEndpoint`; ZIP com as evidências escolhidas; `FILE_DOWNLOADED` no log de
   acesso; recusa → `DISPUTE_LINK_REJECTED`. Links vencidos são removidos pela manutenção diária.
 * E-mail: `collection.dispute_mail` (`REQUEST|REMINDER|OVERDUE`, `QUEUED|SENT|FAILED|SKIPPED`) enviado pelo job
-  `collection.dispute_mail` (`DisputeMailer` → `SmtpDisputeMailer`, `app.mail.from`, *reply-to* do responsável), até
+  `collection.dispute_mail` (`DisputeMailer` → `SmtpDisputeMailer`, `app.mail.from`, *reply-to* do responsável ou, com a
+  leitura de e-mail ligada, o endereço próprio do pedido — §7.6), até
   `mail-max-attempts` (6) com espera crescente; falha definitiva marca o pedido `FAILED` (`DisputeMailFailures`,
   `REQUIRES_NEW`).
 * Acompanhamento: `collection.dispute-follow-up` (cron `app.collection.disputes.follow-up-cron`, padrão `0 5 8 * * *`,
   ShedLock): lembrete até `reminderDaysBefore` antes do prazo pedido e cobrança no dia seguinte ao vencimento, uma vez
   cada.
-* Resposta: `collection.dispute_creditor_response` (append-only, `MANUAL|PUBLIC_API`, posição, resumo criptografado);
+* Resposta: `collection.dispute_creditor_response` (append-only, `MANUAL|PUBLIC_API|EMAIL`, posição, resumo criptografado);
   documentos manuais viram `dispute_evidence` com `creditor_response_id`. API pública em `publicapi` (escopos
   `disputes:read`/`disputes:write`, ator `INTEGRATION`).
 * Documentos da API (decisões 813–818): tipo pelo conteúdo (`FileSignatures`: PDF, PNG, JPEG), até
@@ -323,10 +324,42 @@ acompanha `MessageStatusChanged` (consumidor `collection.dispute-notice-status`;
 aos fluxos existentes (título com `?acao=cancelar&motivo=`; "Informar pagamento" com os títulos marcados; corrigir o
 valor com `?acao=corrigir-valor&contestacao=<id>&motivo=`, a correção manual do debt — docs/negocio/correcao-de-valor.md).
 
-### 7.6 Pendências e indicadores
+### 7.6 Respostas do credor por e-mail
+
+Decisões 819–835; operação em [email-entrada.md](../operacao/email-entrada.md). Migration `V0606`.
+
+* **Endereço de resposta**: `DisputeCreditorChannel#send`, com `app.collection.inbound-mail.mode` ≠ `disabled`, gera o
+  token (`newReplyToken`, 130 bits base32), grava `contestacao+<token>@<domain>` criptografado em
+  `dispute_creditor_request.reply_address_encrypted` e a rota em `collection.dispute_reply_route` (global, sem RLS; só
+  o SHA-256, tenant, pedido e validade = prazo pedido + `route-validity`). `DisputeMailJob` usa esse endereço como
+  *reply-to* e acrescenta a orientação ao credor; o responsável vai sempre em cópia.
+* **Entrada** (`InboundMailUseCases#receive`, idempotente pelo id do provedor): adaptadores em
+  `collection.infrastructure.inbound` — `SesInboundMailConsumer` (modo `ses`: SQS em leitura longa, envelope SNS com a
+  notificação do SES e os veredictos, e-mail lido do bucket; só apaga da fila depois do registro) e
+  `LocalDirectoryInboundMailSource` (modo `local`, pasta de `.eml`, veredictos por `X-Sandbox-*`, recusado no perfil
+  prod). `InboundMailService` acha o endereço entre os destinatários do envelope (ou dos cabeçalhos no modo local),
+  resolve a rota e registra no tenant (`TenantExecution`, ator de sistema); sem rota → `collection.inbound_mail_unrouted`.
+* **Leitura** (`InboundMailParser` → `JakartaInboundMailParser`): Jakarta Mail sem rede; texto da parte `text/plain` ou
+  HTML → texto com `jsoup` `Safelist.none()`; anexos por disposição/nome de arquivo (profundidade máxima 8); nunca lança
+  por conteúdo inválido (`malformed`).
+* **Registro** (`DisputeMailReplyIntake`): original na categoria `INBOUND_MAIL` (SHA-256), remetente e assunto
+  criptografados (+ hash do remetente para o limite por hora), triagem por `MailReplyScreening` (domínio) e
+  `collection.dispute_mail_reply` (`PENDING_CONFIRMATION|QUARANTINED|CONFIRMED|DISMISSED`, motivo, veredictos). Gatilho
+  `dispute_mail_reply_guard`: sem remoção, conteúdo imutável, decisão única. Aprovado → anexos por
+  `DisputeEvidenceStore#quarantineMailAttachment` (mesma quarentena e job `collection.dispute_document_scan`;
+  `dispute_document_quarantine.mail_reply_id`; evidência com `dispute_evidence.mail_reply_id`).
+* **Decisões** (`DisputeMailReplyUseCases`, `DisputeMailReplyController`):
+  `GET /collection/disputes/{id}/mail-replies`, `POST …/{replyId}/confirm` (posição + resumo →
+  `DisputeCreditorChannel#respond` com origem `EMAIL` e a data do e-mail), `POST …/dismiss`, `POST …/release`
+  (`DISPUTE_MANAGE`, só motivos liberáveis; processa os anexos relendo o original e conferindo o SHA-256),
+  `GET …/original` (.eml, `FILE_DOWNLOADED`), `GET /collection/dispute-mail-quarantine` (`DISPUTE_MANAGE`). Fila:
+  `mailReplyPending` em `GET /collection/disputes`.
+
+### 7.7 Pendências e indicadores
 
 `PendingWorkSource`: `collection.disputes_mine`, `collection.disputes_due` (supervisão: sem responsável ou vencidas),
-`collection.dispute_debtor_notices`, `collection.dispute_adjustments`. Analytics: visões `src_dispute` e
+`collection.dispute_debtor_notices`, `collection.dispute_adjustments`, `collection.dispute_mail_replies` (respostas por
+e-mail a confirmar; responsável, ou todas para a gestão) e `collection.dispute_mail_quarantine` (gestão). Analytics: visões `src_dispute` e
 `src_dispute_creditor_request` (`security_invoker`), `GET /analytics/disputes` e exportação `disputes`
 ([indicadores.md §7](../../negocio/indicadores.md#7-contestações)).
 

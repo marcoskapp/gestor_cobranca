@@ -440,3 +440,26 @@ variable "alarm_email_endpoints" {
   type        = list(string)
   default     = []
 }
+
+variable "enable_inbound_mail" {
+  description = "Respostas dos credores por e-mail (SES inbound, S3, SNS, SQS). Aprovado em 05/11/2026; exige o MX do subdomínio."
+  type        = bool
+  default     = false
+}
+
+variable "inbound_mail_domain" {
+  description = "Subdomínio dedicado às respostas (ex.: respostas.gestorcobranca.com.br)."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.inbound_mail_domain == null || can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$", var.inbound_mail_domain))
+    error_message = "Informe um nome de domínio em minúsculas."
+  }
+}
+
+variable "inbound_mail_raw_retention_days" {
+  description = "Dias de retenção do e-mail bruto no bucket de entrada."
+  type        = number
+  default     = 30
+}

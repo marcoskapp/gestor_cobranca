@@ -13,7 +13,7 @@ import {
   TabulationFollowUp,
   TaskType,
 } from './collection.models';
-import type { AdjustmentAction, CreditorPosition, DeadlineSource, DisputeAssignmentMode, NoticeChannel } from './collection.models';
+import type { AdjustmentAction, CreditorPosition, DeadlineSource, DisputeAssignmentMode, MailQuarantineReason, NoticeChannel } from './collection.models';
 
 export const CHANNEL_LABELS: Record<InteractionChannel, string> = {
   PHONE: 'Telefone',
@@ -150,6 +150,20 @@ export const DISPUTE_ASSIGNMENT_MODE_LABELS: Record<DisputeAssignmentMode, strin
   AUTOMATIC: 'Distribuição automática',
   REDISTRIBUTION: 'Redistribuída',
   RELEASE: 'Devolvida sem responsável',
+};
+
+/** Por que o e-mail do credor ficou em quarentena (`MailQuarantineReason`). */
+export const MAIL_QUARANTINE_REASON_LABELS: Record<MailQuarantineReason, string> = {
+  SENDER_NOT_REGISTERED: 'Remetente não é contato de contestação do credor',
+  AUTHENTICATION_FAILED: 'Falha de autenticação (SPF/DKIM/DMARC): possível falsificação',
+  VIRUS: 'Vírus apontado na varredura do e-mail',
+  SPAM: 'Marcado como spam',
+  RATE_LIMITED: 'Excesso de e-mails do remetente',
+  TOO_LARGE: 'E-mail acima do tamanho máximo',
+  TOO_MANY_ATTACHMENTS: 'Anexos acima do limite',
+  ROUTE_EXPIRED: 'Endereço de resposta vencido',
+  DISPUTE_CLOSED: 'Contestação já encerrada',
+  MALFORMED: 'E-mail ilegível',
 };
 
 export const CREDITOR_POSITION_LABELS: Record<CreditorPosition, string> = {

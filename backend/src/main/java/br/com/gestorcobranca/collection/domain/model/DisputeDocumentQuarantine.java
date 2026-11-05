@@ -29,8 +29,13 @@ public class DisputeDocumentQuarantine extends TenantScopedEntity {
     @Column(name = "creditor_id", nullable = false, updatable = false)
     private UUID creditorId;
 
-    @Column(name = "creditor_response_id", nullable = false, updatable = false)
+    /** Resposta do credor pela API que trouxe o documento (nulo = anexo de e-mail). */
+    @Column(name = "creditor_response_id", updatable = false)
     private UUID creditorResponseId;
+
+    /** E-mail do credor que trouxe o anexo (nulo = documento da API). */
+    @Column(name = "mail_reply_id", updatable = false)
+    private UUID mailReplyId;
 
     @Column(name = "file_key", nullable = false, length = 500, updatable = false)
     private String fileKey;
@@ -75,10 +80,25 @@ public class DisputeDocumentQuarantine extends TenantScopedEntity {
 
     public DisputeDocumentQuarantine(Dispute dispute, UUID creditorResponseId, String fileKey, String fileName,
                                      String contentType, long size, String sha256) {
+        this(dispute, creditorResponseId, null, fileKey, fileName, contentType, size, sha256);
+    }
+
+    /** Anexo do e-mail do credor ({@code mailReplyId}) ou documento da resposta pela API ({@code creditorResponseId}). */
+    public static DisputeDocumentQuarantine ofMailReply(Dispute dispute, UUID mailReplyId, String fileKey,
+                                                        String fileName, String contentType, long size, String sha256) {
+        Guard.require(mailReplyId != null, "dispute.evidence_invalid", "E-mail obrigatório");
+        return new DisputeDocumentQuarantine(dispute, null, mailReplyId, fileKey, fileName, contentType, size, sha256);
+    }
+
+    private DisputeDocumentQuarantine(Dispute dispute, UUID creditorResponseId, UUID mailReplyId, String fileKey,
+                                      String fileName, String contentType, long size, String sha256) {
         Guard.require(fileKey != null && sha256 != null && size > 0, "dispute.evidence_invalid", "Arquivo inválido");
+        Guard.require((creditorResponseId == null) != (mailReplyId == null), "dispute.evidence_invalid",
+                "Documento vem da resposta pela API ou de um e-mail");
         this.disputeId = dispute.getId();
         this.creditorId = dispute.getCreditorId();
         this.creditorResponseId = creditorResponseId;
+        this.mailReplyId = mailReplyId;
         this.fileKey = fileKey;
         this.fileName = fileName == null || fileName.isBlank() ? "documento"
                 : fileName.length() > 200 ? fileName.substring(0, 200) : fileName;
@@ -135,6 +155,10 @@ public class DisputeDocumentQuarantine extends TenantScopedEntity {
 
     public UUID getCreditorResponseId() {
         return creditorResponseId;
+    }
+
+    public UUID getMailReplyId() {
+        return mailReplyId;
     }
 
     public String getFileKey() {
