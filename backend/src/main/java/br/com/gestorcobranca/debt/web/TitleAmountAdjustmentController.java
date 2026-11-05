@@ -160,6 +160,13 @@ class TitleAmountAdjustmentController {
         return adjustments.updateSettings(request.approvalThreshold());
     }
 
+    /** Confirma o aumento de limite proposto por outra pessoa. */
+    @PostMapping("/title-amount-adjustments/settings/confirm")
+    @PreAuthorize(APPROVE)
+    SettingsView confirmSettings() {
+        return adjustments.confirmSettings();
+    }
+
     record AdjustmentRequest(@NotEmpty @Size(max = 5) Map<@NotBlank String, @NotNull @DecimalMin("0.00") BigDecimal> components,
                              @NotBlank @Size(max = 30) String reason,
                              @NotBlank @Size(max = 2000) String note,

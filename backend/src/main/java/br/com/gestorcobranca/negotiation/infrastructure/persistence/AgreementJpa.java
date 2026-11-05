@@ -51,6 +51,15 @@ interface AgreementJpa extends JpaRepository<Agreement, UUID>, JpaSpecificationE
             """)
     List<Agreement> activeCovering(@Param("titleIds") Collection<UUID> titleIds);
 
+    /** Índice {@code ix_agreement_title_title} (V0754): vínculos por título, inclusive os liberados. */
+    @Query("""
+            select distinct a from Agreement a join a.titles t
+            where a.status = br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementStatus.BROKEN
+              and a.replacedByAgreementId is null
+              and t.titleId in :titleIds
+            """)
+    List<Agreement> brokenNotReplacedCovering(@Param("titleIds") Collection<UUID> titleIds);
+
     List<Agreement> findByDebtorId(UUID debtorId);
 }
 
@@ -135,6 +144,11 @@ class JpaAgreementRepository implements AgreementRepository {
     @Override
     public List<Agreement> findActiveCovering(Collection<UUID> titleIds) {
         return titleIds.isEmpty() ? List.of() : agreements.activeCovering(titleIds);
+    }
+
+    @Override
+    public List<Agreement> findBrokenNotReplacedCovering(Collection<UUID> titleIds) {
+        return titleIds.isEmpty() ? List.of() : agreements.brokenNotReplacedCovering(titleIds);
     }
 
     @Override

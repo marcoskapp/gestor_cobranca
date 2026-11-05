@@ -142,10 +142,11 @@ class AuthenticationService implements AuthenticationUseCases {
             return Outcome.failure(user.getId(), AccessEventType.LOGIN_FAILURE, "bad_password");
         }
         if (passwordEncoder.upgradeEncoding(user.getPasswordHash())) {
-            user.definePassword(passwordEncoder.encode(command.password()), user.getPasswordChangedAt());
+            user.rehashPassword(passwordEncoder.encode(command.password()));
+            users.save(user);
         }
-        user.unlock();
-        users.save(user);
+        // O contador de falhas só zera quando a autenticação termina (registerSuccessfulLogin, ao abrir a sessão).
+        // Zerar aqui deixaria tentar o segundo fator sem limite, refazendo o login com a senha a cada 4 erros.
         return nextStepAfterPassword(user, tenant, command.client(), now);
     }
 

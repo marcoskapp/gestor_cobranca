@@ -136,6 +136,16 @@ public class User extends TenantScopedEntity {
         unlock();
     }
 
+    /**
+     * Troca o hash da mesma senha por um com parâmetros atuais (atualização do Argon2 no login). Não é troca de
+     * senha: a data da senha e o contador de falhas ficam como estão — a autenticação ainda pode exigir o segundo
+     * fator, e o contador só zera quando ela termina.
+     */
+    public void rehashPassword(String newHash) {
+        Guard.require(newHash != null, "user.password_required", "Senha obrigatória");
+        this.passwordHash = newHash;
+    }
+
     public void requirePasswordChange() {
         this.mustChangePassword = true;
     }

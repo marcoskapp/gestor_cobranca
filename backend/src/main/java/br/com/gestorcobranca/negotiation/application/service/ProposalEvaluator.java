@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +31,10 @@ import java.util.UUID;
  *       caso de cobrança (uma carteira);</li>
  *   <li>{@code title.under_agreement} (ELIGIBILITY): título já coberto por acordo em vigor que não é o
  *       substituído pela renegociação;</li>
+ *   <li>{@code proposal.renegotiation_required} (ELIGIBILITY): título de acordo quebrado ainda não renegociado —
+ *       a proposta precisa informar esse acordo como substituído (com mais de um acordo quebrado, o mais
+ *       recente); sem isso, os títulos liberados pela quebra voltariam como acordo original e escapariam do
+ *       limite de renegociações e do ganho incremental;</li>
  *   <li>{@code authority.renegotiations_exceeded} (AUTHORITY): renegociações acima de
  *       {@code maxRenegotiations} do perfil do ator.</li>
  * </ul>
@@ -64,6 +69,11 @@ class ProposalEvaluator {
         }
     }
 
+    /** Acordo mais recente: o de formalização mais nova (id como desempate). */
+    private static final Comparator<Agreement> MOST_RECENT = Comparator
+            .comparing(Agreement::getFormalizedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+            .thenComparing(Agreement::getId);
+
     private final NegotiationGuard guard;
     private final AgreementRepository agreements;
     private final CaseEligibilityPort eligibility;
@@ -87,14 +97,24 @@ class ProposalEvaluator {
             violations.add(Violation.of(ViolationKind.ELIGIBILITY, "proposal.multiple_portfolios",
                     "A proposta deve cobrir títulos de uma única carteira (um caso de cobrança)"));
         }
-        for (Agreement active : agreements.findActiveCovering(ctx.composition().titleIds())) {
+        List<UUID> composed = ctx.composition().titleIds();
+        for (Agreement active : agreements.findActiveCovering(composed)) {
             if (active.getId().equals(t.replacedAgreementId())) {
                 continue;
             }
-            active.titleIds().stream().filter(ctx.composition().titleIds()::contains).forEach(titleId -> violations.add(
+            active.titleIds().stream().filter(composed::contains).forEach(titleId -> violations.add(
                     new Violation(ViolationKind.ELIGIBILITY, "title.under_agreement",
                             "Título coberto por acordo em vigor", null, titleId)));
         }
+        // título de acordo quebrado ainda não renegociado: a nova proposta é a renegociação desse acordo (conta na
+        // cadeia de renegociações e no ganho incremental). Com mais de um, vale o mais recente.
+        agreements.findBrokenNotReplacedCovering(composed).stream()
+                .max(MOST_RECENT)
+                .filter(latest -> !latest.getId().equals(t.replacedAgreementId()))
+                .ifPresent(latest -> latest.titleIds().stream().filter(composed::contains).forEach(titleId ->
+                        violations.add(new Violation(ViolationKind.ELIGIBILITY, "proposal.renegotiation_required",
+                                "Título de acordo quebrado: a proposta deve renegociar o acordo quebrado mais recente",
+                                null, titleId))));
         if (t.renegotiationNumber() > ctx.limits().maxRenegotiations()) {
             violations.add(Violation.of(ViolationKind.AUTHORITY, "authority.renegotiations_exceeded",
                     "Renegociações acima da alçada (máximo " + ctx.limits().maxRenegotiations() + ")"));

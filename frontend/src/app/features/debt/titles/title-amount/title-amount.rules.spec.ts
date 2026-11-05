@@ -1,4 +1,4 @@
-import { adjustmentPreview, canDecide, canWithdraw } from './title-amount.rules';
+import { adjustmentPreview, canConfirmThreshold, canDecide, canWithdraw } from './title-amount.rules';
 
 describe('regras da correção de valor', () => {
   const current = [
@@ -13,6 +13,30 @@ describe('regras da correção de valor', () => {
     expect(adjustmentPreview(current, { PRINCIPAL: 1000 }, 1000, 200).changed).toBe(false);
     // limite zero: tudo passa por aprovação
     expect(adjustmentPreview(current, { PRINCIPAL: 999 }, 1000, 0).mode).toBe('DUAL_CONTROL');
+  });
+
+  it('dentro do limite só a redução pura: troca entre componentes ou soma das reduções acima do limite vai para aprovação', () => {
+    const three = [
+      { component: 'PRINCIPAL' as const, balance: 10000 },
+      { component: 'FINE' as const, balance: 300 },
+      { component: 'HONORARIUM' as const, balance: 0 },
+    ];
+    // principal para baixo e honorários para cima: líquido −0,01, mas um componente sobe
+    expect(adjustmentPreview(three, { PRINCIPAL: 1000, HONORARIUM: 8999.99 }, 10300, 200)).toMatchObject({ delta: -0.01, mode: 'DUAL_CONTROL' });
+    // aumento de um componente com redução maior em outro
+    expect(adjustmentPreview(three, { PRINCIPAL: 9850, FINE: 350 }, 10300, 200)).toMatchObject({ delta: -100, mode: 'DUAL_CONTROL' });
+    // duas reduções de 150 (soma 300 > 200)
+    expect(adjustmentPreview(three, { PRINCIPAL: 9850, FINE: 150 }, 10300, 200).mode).toBe('DUAL_CONTROL');
+    // duas reduções cuja soma cabe no limite
+    expect(adjustmentPreview(three, { PRINCIPAL: 9900, FINE: 200 }, 10300, 200).mode).toBe('WITHIN_LIMIT');
+  });
+
+  it('aumento do limite: confirma outra pessoa que aprova e vê todos os credores', () => {
+    const proposal = { proposedThreshold: 5000, proposedBy: 'u-1' };
+    expect(canConfirmThreshold(proposal, 'u-1', true)).toBe(false);
+    expect(canConfirmThreshold(proposal, 'u-2', true)).toBe(true);
+    expect(canConfirmThreshold(proposal, 'u-2', false)).toBe(false);
+    expect(canConfirmThreshold({ proposedThreshold: null, proposedBy: null }, 'u-2', true)).toBe(false);
   });
 
   it('segregação: quem pediu não decide, só retira', () => {

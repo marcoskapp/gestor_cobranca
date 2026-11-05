@@ -55,6 +55,19 @@ class UserTest {
     }
 
     @Test
+    void rehashKeepsFailureCounterAndPasswordDate() {
+        User user = activeUser();
+        user.registerFailedLogin(now, policy);
+        user.registerFailedLogin(now, policy);
+
+        user.rehashPassword("novo-hash");
+
+        assertThat(user.getPasswordHash()).isEqualTo("novo-hash");
+        assertThat(user.getFailedAttempts()).as("só a autenticação concluída zera o contador").isEqualTo(2);
+        assertThat(user.getPasswordChangedAt()).isEqualTo(now);
+    }
+
+    @Test
     void rejectsReusedTotpStep() {
         User user = activeUser();
         user.startMfaEnrollment("SECRET");

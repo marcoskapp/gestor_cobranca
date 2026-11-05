@@ -145,6 +145,8 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
                 "Informe o novo valor de ao menos um componente");
         Guard.require(threshold != null && !threshold.isNegative(), "title_amount.threshold_invalid", "Limite inválido");
         Money deltaTotal = Money.ZERO;
+        Money increases = Money.ZERO;
+        Money decreases = Money.ZERO;
         List<Line> created = new ArrayList<>();
         for (Map.Entry<LedgerComponent, Money> target : new EnumMap<>(targets).entrySet()) {
             Money current = balances.getOrDefault(target.getKey(), Money.ZERO);
@@ -154,8 +156,14 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
             if (wanted.equals(current)) {
                 continue;
             }
+            Money change = wanted.minus(current);
             created.add(new Line(target.getKey(), current, wanted));
-            deltaTotal = deltaTotal.plus(wanted.minus(current));
+            deltaTotal = deltaTotal.plus(change);
+            if (change.isPositive()) {
+                increases = increases.plus(change);
+            } else {
+                decreases = decreases.plus(change.negate());
+            }
         }
         Guard.require(!created.isEmpty(), "title_amount.no_change", "Os valores informados são iguais aos atuais");
         Guard.require(!deltaTotal.isZero(), "title_amount.zero_delta",
@@ -167,11 +175,13 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
                 .map(l -> l.newBalance.minus(l.previousBalance)).findFirst().orElse(Money.ZERO);
         Money principalAfter = title.getPrincipalAmount().plus(principalDelta);
         Guard.require(!principalAfter.isNegative(), "title_amount.principal_negative", "Principal não pode ficar negativo");
-        this.approvalMode = deltaTotal.isNegative() && deltaTotal.negate().compareTo(threshold) <= 0
+        // dentro do limite só a redução pura: nenhum componente sobe e a soma das reduções cabe no limite. O líquido
+        // esconderia a troca entre componentes (ex.: principal por honorários, receita da assessoria) — decisões 803 e 806
+        this.approvalMode = isPureReductionWithin(increases, decreases, threshold)
                 ? AmountAdjustmentMode.WITHIN_LIMIT : AmountAdjustmentMode.DUAL_CONTROL;
         if (approvalMode == AmountAdjustmentMode.DUAL_CONTROL) {
             Guard.require(evidence != null || disputeId != null, "title_amount.evidence_required",
-                    "Acima do limite ou com aumento do saldo, anexe a evidência ou vincule a contestação");
+                    "Acima do limite ou com aumento de algum componente, anexe a evidência ou vincule a contestação");
         }
         this.titleId = title.getId();
         this.creditorId = title.getCreditorId();
@@ -195,6 +205,14 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
         this.requestedAt = now;
         this.lines = created;
         this.status = AmountAdjustmentStatus.PENDING_APPROVAL;
+    }
+
+    /**
+     * Regra da alçada (RB06): aplica sem segunda pessoa só a redução pura — nenhum componente aumenta e a soma das
+     * reduções (não o líquido) cabe no limite. A prévia da tela segue a mesma regra.
+     */
+    public static boolean isPureReductionWithin(Money increases, Money decreases, Money threshold) {
+        return increases.isZero() && decreases.isPositive() && decreases.compareTo(threshold) <= 0;
     }
 
     /** Aplicada no registro (dentro do limite) ou na aprovação. */

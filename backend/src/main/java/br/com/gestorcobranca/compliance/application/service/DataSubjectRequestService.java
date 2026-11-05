@@ -324,7 +324,9 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
     @Override
     @Transactional(readOnly = true)
     public FileContent openResult(UUID requestId) {
-        DataSubjectRequest request = loadVisible(requestId);
+        // O arquivo reúne o titular em todos os credores, com documento e contatos sem máscara:
+        // baixá-lo exige o mesmo alcance exigido para gerá-lo (execute).
+        DataSubjectRequest request = loadForCommand(requestId);
         if (request.getResultFileKey() == null) {
             throw new ResourceNotFoundException("data_subject_request_result", requestId);
         }

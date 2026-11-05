@@ -16,10 +16,12 @@ import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { CreditorNames } from '../../../organization/data/organization.lookups';
 import { TitleAmountApi } from '../../data/debt.api';
 import { AMOUNT_REASON_LABELS } from '../../data/debt.labels';
+import { canConfirmThreshold } from './title-amount.rules';
 
 /**
  * Correções de valor de título: pedidos aguardando a aprovação de outra pessoa (a fila não mostra os próprios), cargas
- * do credor divergentes do valor corrigido e o limite da assessoria para aplicar redução sem segunda pessoa.
+ * do credor divergentes do valor corrigido e o limite da assessoria para aplicar redução sem segunda pessoa (aumento do
+ * limite só vale depois da confirmação de outra pessoa).
  */
 @Component({
   selector: 'app-title-amount-page',
@@ -77,24 +79,36 @@ import { AMOUNT_REASON_LABELS } from '../../data/debt.labels';
           <section class="app-card" aria-labelledby="ta-limit" data-tour="title-amount-limit">
             <h2 class="app-card__title" id="ta-limit">Limite para aplicar sem segunda pessoa</h2>
             <p class="app-muted">
-              Reduções até este valor são aplicadas por quem corrige; acima dele, e em qualquer aumento do saldo, outra pessoa com permissão de aprovação decide, com evidência. Zero:
-              toda correção passa por aprovação.
+              Reduções até este valor (somando os componentes reduzidos, sem nenhum componente aumentar) são aplicadas por quem corrige; acima dele, e quando algum componente
+              aumenta, outra pessoa com permissão de aprovação decide, com evidência. Zero: toda correção passa por aprovação. Reduzir o limite vale na hora; aumentar só vale
+              depois da confirmação de outra pessoa.
             </p>
             <div class="row g-3 align-items-start">
               <app-field class="col-sm-6 col-lg-4" label="Limite por correção">
                 <div class="input-group">
                   <span class="input-group-text" aria-hidden="true">R$</span>
-                  <input appInput appMoney [formControl]="threshold" [readonly]="!canApprove()" />
+                  <input appInput appMoney [formControl]="threshold" [readonly]="!canManageLimit()" />
                 </div>
               </app-field>
-              @if (canApprove()) {
+              @if (canManageLimit()) {
                 <div class="col-sm-6 app-control-offset">
                   <button class="btn btn-primary" type="button" (click)="saveThreshold()" [disabled]="busy() || threshold.pristine || threshold.invalid">Salvar limite</button>
                 </div>
               }
             </div>
             @if (settingsValue(); as s) {
-              <p class="app-muted mb-0">{{ s.customized ? 'Definido pela assessoria em ' + (s.updatedAt | appDate) + '.' : 'Valendo o padrão da plataforma.' }}</p>
+              <p class="app-muted">{{ s.customized ? 'Definido pela assessoria em ' + (s.updatedAt | appDate) + '.' : 'Valendo o padrão da plataforma.' }}</p>
+              @if (s.proposedThreshold !== null) {
+                <div class="alert alert-warning mb-0 d-flex flex-wrap align-items-center gap-2" role="status" data-tour="title-amount-proposal">
+                  <span class="me-auto">
+                    Aumento para <app-amount [value]="s.proposedThreshold" /> proposto por {{ s.proposedByName ?? 'usuário' }} em {{ s.proposedAt | appDate }}.
+                    {{ ownProposal() ? 'Aguardando a confirmação de outra pessoa com permissão de aprovação.' : 'O limite atual vale até a confirmação.' }}
+                  </span>
+                  @if (canConfirm()) {
+                    <button class="btn btn-warning" type="button" (click)="confirmThreshold()" [disabled]="busy()">Confirmar aumento</button>
+                  }
+                </div>
+              }
             }
           </section>
         </ng-template>
@@ -123,6 +137,8 @@ export class TitleAmountPage {
   protected readonly reasons = AMOUNT_REASON_LABELS;
   protected readonly canApprove = computed(() => this.auth.hasPermission(Permission.TITLE_AMOUNT_APPROVE));
   protected readonly canAdjust = computed(() => this.auth.hasPermission(Permission.TITLE_AMOUNT_ADJUST));
+  /** O limite vale para toda a assessoria: altera e confirma quem aprova e vê todos os credores (como no servidor). */
+  protected readonly canManageLimit = computed(() => this.canApprove() && (this.auth.user()?.allCreditors ?? false));
   protected tab = inject(ActivatedRoute).snapshot.queryParamMap.get('aba') ?? (this.canApprove() ? 'aprovacoes' : 'divergencias');
   protected readonly busy = signal(false);
 
@@ -132,6 +148,15 @@ export class TitleAmountPage {
   protected readonly divergenceRows = computed(() => (this.divergences.hasValue() ? this.divergences.value().content : []));
   private readonly settings = rxResource({ stream: () => this.api.settings() });
   protected readonly settingsValue = valueOr(this.settings, undefined);
+  private readonly userId = computed(() => this.auth.user()?.id ?? null);
+  protected readonly ownProposal = computed(() => {
+    const s = this.settingsValue();
+    return !!s && s.proposedThreshold !== null && s.proposedBy === this.userId();
+  });
+  protected readonly canConfirm = computed(() => {
+    const s = this.settingsValue();
+    return !!s && canConfirmThreshold(s, this.userId(), this.canManageLimit());
+  });
   protected readonly threshold = new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(0), Validators.max(100000)] });
   protected readonly creditors = nameMap(inject(CreditorNames), () => [...this.pendingRows().map((a) => a.creditorId), ...this.divergenceRows().map((d) => d.creditorId)]);
 
@@ -153,8 +178,23 @@ export class TitleAmountPage {
     this.api
       .updateSettings(value)
       .pipe(finalize(() => this.busy.set(false)))
+      .subscribe((s) => {
+        this.notifications.success(
+          s.proposedThreshold !== null && s.proposedThreshold === value
+            ? 'Aumento proposto: o novo limite vale depois da confirmação de outra pessoa com permissão de aprovação.'
+            : 'Limite salvo.',
+        );
+        this.settings.reload();
+      });
+  }
+
+  protected confirmThreshold(): void {
+    this.busy.set(true);
+    this.api
+      .confirmSettings()
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe(() => {
-        this.notifications.success('Limite salvo.');
+        this.notifications.success('Aumento do limite confirmado.');
         this.settings.reload();
       });
   }

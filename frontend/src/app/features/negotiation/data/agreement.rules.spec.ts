@@ -5,6 +5,7 @@ import {
   agreementActions,
   installmentBalance,
   proposalActions,
+  proposalRejectionMessage,
   proposalTimeline,
   scheduleSummary,
   shortHash,
@@ -98,5 +99,18 @@ describe('regras de propostas e acordos', () => {
     expect(violationText('outro.codigo')).toBe('outro.codigo');
     expect(shortHash('0123456789abcdef0123456789abcdef')).toBe('0123456789ab…abcdef');
     expect(shortHash(null)).toBe('—');
+  });
+
+  it('traduz a recusa por título de acordo quebrado (criação e revalidação); outras recusas ficam com a mensagem do servidor', () => {
+    const created = proposalRejectionMessage({ code: 'proposal.conditions_rejected', details: { violations: ['proposal.renegotiation_required'] } });
+    expect(created).toContain('Proposta recusada.');
+    expect(created).toContain('acordo quebrado mais recente');
+    expect(created).toContain('Renegociar');
+    expect(proposalRejectionMessage({ code: 'proposal.no_longer_valid', details: { violations: ['proposal.renegotiation_required', 'policy.x'] } })).toMatch(
+      /^A proposta não vale mais\. Há título de um acordo quebrado/,
+    );
+    expect(proposalRejectionMessage({ code: 'proposal.conditions_rejected', details: { violations: ['policy.discount_exceeded'] } })).toBeNull();
+    expect(proposalRejectionMessage({ code: 'proposal.expired' })).toBeNull();
+    expect(proposalRejectionMessage(null)).toBeNull();
   });
 });

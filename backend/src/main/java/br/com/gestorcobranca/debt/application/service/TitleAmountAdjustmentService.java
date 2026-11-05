@@ -362,28 +362,70 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         if (!currentActor.get().has(Permission.TITLE_AMOUNT_APPROVE)) {
             accessScope.requirePermission(Permission.TITLE_AMOUNT_ADJUST);
         }
-        return settings.findCurrent().map(s -> new SettingsView(s.getApprovalThreshold().amount(), true, s.getUpdatedAt()))
-                .orElse(new SettingsView(AmountAdjustmentSettings.DEFAULT_THRESHOLD.amount(), false, null));
+        return settings.findCurrent().map(TitleAmountAdjustmentService::settingsView)
+                .orElse(new SettingsView(AmountAdjustmentSettings.DEFAULT_THRESHOLD.amount(), false, null, null, null,
+                        null, null));
     }
 
     @Override
     public SettingsView updateSettings(BigDecimal approvalThreshold) {
-        accessScope.requirePermission(Permission.TITLE_AMOUNT_APPROVE);
-        // o limite vale para toda a assessoria: só quem vê todos os credores o altera
-        accessScope.requireAllCreditors("amount_adjustment_settings");
+        requireSettingsManager();
         Guard.require(approvalThreshold != null, "title_amount.threshold_invalid", "Informe o limite");
         Money value = Money.of(approvalThreshold);
-        UUID by = currentActor.get().id();
+        Actor actor = currentActor.get();
+        Instant now = Instant.now(clock);
         Optional<AmountAdjustmentSettings> current = settings.findCurrent();
         Money previous = current.map(AmountAdjustmentSettings::getApprovalThreshold)
                 .orElse(AmountAdjustmentSettings.DEFAULT_THRESHOLD);
-        AmountAdjustmentSettings saved = current.map(s -> {
-            s.change(value, by);
-            return settings.save(s);
-        }).orElseGet(() -> settings.save(new AmountAdjustmentSettings(value, by)));
-        auditTrail.record(AuditEntry.of("title_amount.settings_updated", "amount_adjustment_settings", saved.getId())
-                .change("approvalThreshold", previous, saved.getApprovalThreshold()));
-        return new SettingsView(saved.getApprovalThreshold().amount(), true, saved.getUpdatedAt());
+        Money discarded = current.map(AmountAdjustmentSettings::getProposedThreshold).orElse(null);
+        AmountAdjustmentSettings target = current.orElse(null);
+        boolean applied;
+        if (target == null) {
+            target = new AmountAdjustmentSettings(value, actor.id(), actor.name(), now);
+            applied = !target.hasProposal();
+        } else {
+            applied = target.change(value, actor.id(), actor.name(), now);
+        }
+        AmountAdjustmentSettings saved = settings.save(target);
+        if (applied) {
+            auditTrail.record(AuditEntry.of("title_amount.settings_updated", "amount_adjustment_settings", saved.getId())
+                    .change("approvalThreshold", previous, saved.getApprovalThreshold())
+                    .meta("discardedProposal", discarded));
+        } else {
+            // aumento: o limite vigente não muda até outra pessoa confirmar
+            auditTrail.record(AuditEntry.of("title_amount.settings_proposed", "amount_adjustment_settings", saved.getId())
+                    .change("proposedThreshold", discarded, saved.getProposedThreshold())
+                    .meta("approvalThreshold", saved.getApprovalThreshold()));
+        }
+        return settingsView(saved);
+    }
+
+    @Override
+    public SettingsView confirmSettings() {
+        requireSettingsManager();
+        AmountAdjustmentSettings current = settings.findCurrent()
+                .orElseThrow(() -> new ConflictException("title_amount.no_threshold_proposal",
+                        "Não há aumento de limite aguardando confirmação", Map.of()));
+        Money previous = current.getApprovalThreshold();
+        UUID proposedBy = current.getProposedBy();
+        current.confirmProposal(currentActor.get().id());
+        AmountAdjustmentSettings saved = settings.save(current);
+        auditTrail.record(AuditEntry.of("title_amount.settings_confirmed", "amount_adjustment_settings", saved.getId())
+                .change("approvalThreshold", previous, saved.getApprovalThreshold())
+                .meta("proposedBy", proposedBy));
+        return settingsView(saved);
+    }
+
+    /** O limite vale para toda a assessoria: só quem aprova e vê todos os credores o altera ou confirma. */
+    private void requireSettingsManager() {
+        accessScope.requirePermission(Permission.TITLE_AMOUNT_APPROVE);
+        accessScope.requireAllCreditors("amount_adjustment_settings");
+    }
+
+    private static SettingsView settingsView(AmountAdjustmentSettings s) {
+        return new SettingsView(s.getApprovalThreshold().amount(), true, s.getUpdatedAt(),
+                s.getProposedThreshold() == null ? null : s.getProposedThreshold().amount(), s.getProposedBy(),
+                s.getProposedByName(), s.getProposedAt());
     }
 
     // =================================================================== auxiliares

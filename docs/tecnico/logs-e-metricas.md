@@ -75,6 +75,8 @@ Nenhum evento leva placa, RENAVAM, chassi, matrícula, documento ou nome: apenas
 | `title.amount_divergence_resolved` | divergência decidida (`KEPT_MANUAL`, `ACCEPTED_CREDITOR`) ou encerrada pela carga (`RESOLVED_BY_CREDITOR`) | `divergenceId`, `decision`, `daysOpen`, `occurrences` |
 | `title.prescription_approaching` | varredura diária: data estimada entrou na janela da regra (uma vez por data) | `claim` (`EXECUTION`/`COLLECTION`), `instrumentType`, `executiveTitle`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `titleStatus`; `amount` = saldo em aberto |
 
+Auditoria da correção de valor (decisão 810): `title_amount.requested`, `adjusted`, `applied`, `rejected`, `cancelled`, `divergence_detected`, `divergence_resolved`; do limite da assessoria: `title_amount.settings_updated` (redução ou manutenção do limite, que vale na hora; `discardedProposal` quando descarta uma proposta de aumento em aberto), `title_amount.settings_proposed` (aumento proposto, que **não** muda o limite vigente: antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente) e `title_amount.settings_confirmed` (outra pessoa confirmou: antes e depois de `approvalThreshold`, `proposedBy`).
+
 ### 3.2a Atributos dos eventos de ingestão
 
 Referência `import_batch`/id do lote, `creditorId`, `portfolioId`; nenhum dado de devedor. Ator: sistema (o processamento é assíncrono); quem enviou o lote vai em `requestedBy`.

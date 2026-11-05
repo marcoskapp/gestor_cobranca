@@ -38,6 +38,9 @@ public interface AgreementRepository {
     /** Acordos em vigor que cobrem algum dos títulos. */
     List<Agreement> findActiveCovering(Collection<UUID> titleIds);
 
+    /** Acordos quebrados e ainda não renegociados que cobriam algum dos títulos (vínculos já liberados pela quebra). */
+    List<Agreement> findBrokenNotReplacedCovering(Collection<UUID> titleIds);
+
     List<Agreement> findByDebtorId(UUID debtorId);
 
     /** Leitura incremental: até {@code limit + 1} acordos do credor alterados na janela, depois do cursor. */

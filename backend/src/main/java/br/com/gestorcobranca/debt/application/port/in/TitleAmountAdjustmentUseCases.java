@@ -58,7 +58,14 @@ public interface TitleAmountAdjustmentUseCases {
 
     SettingsView settings();
 
+    /**
+     * Define o limite. Reduzir ou manter vale na hora (e descarta a proposta de aumento em aberto); <b>aumentar</b> fica
+     * proposto até outra pessoa com {@code TITLE_AMOUNT_APPROVE} confirmar ({@link #confirmSettings()}).
+     */
     SettingsView updateSettings(BigDecimal approvalThreshold);
+
+    /** Confirma o aumento de limite proposto por <b>outra</b> pessoa (409 sem proposta ou para quem propôs). */
+    SettingsView confirmSettings();
 
     /**
      * @param components novo saldo por componente (PRINCIPAL, INTEREST, FINE, FEES, HONORARIUM); os omitidos não mudam
@@ -115,7 +122,12 @@ public interface TitleAmountAdjustmentUseCases {
     record TitleAmountHistory(UUID titleId, List<AdjustmentView> adjustments, List<DivergenceView> divergences) {
     }
 
-    /** @param customized limite gravado pela assessoria (falso = padrão da plataforma) */
-    record SettingsView(BigDecimal approvalThreshold, boolean customized, Instant updatedAt) {
+    /**
+     * @param customized        limite gravado pela assessoria (falso = padrão da plataforma)
+     * @param proposedThreshold aumento aguardando a confirmação de outra pessoa (nulo = nenhum)
+     * @param proposedByName    retrato do nome de quem propôs
+     */
+    record SettingsView(BigDecimal approvalThreshold, boolean customized, Instant updatedAt,
+                        BigDecimal proposedThreshold, UUID proposedBy, String proposedByName, Instant proposedAt) {
     }
 }

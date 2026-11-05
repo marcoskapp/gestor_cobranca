@@ -384,6 +384,27 @@ class ComplianceModuleIT extends IntegrationTest {
     }
 
     @Test
+    void exportFileIsDownloadedOnlyWithAccessToAllCreditors() {
+        // titular com títulos nos credores A e B: o arquivo traz os dois, sem máscara
+        title(creditorB, portfolioB, debtor, "B-7", "50.00");
+        RequestView started = openAndStart("ACCESS");
+        system(() -> requests.execute(started.id()));
+
+        // usuário que enxerga o titular só pelo credor A não baixa o arquivo (vazaria o credor B)
+        assertThat(asUserOf(creditorA, () -> requests.get(started.id())).hasResultFile()).isTrue();
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> requests.openResult(started.id())))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThat(count("""
+                select count(*) from shared.access_log where event_type = 'SCOPE_DENIED'
+                 and details->>'resource' = 'data_subject_request' and details->>'scope' = 'all_creditors'""")).isEqualTo(1);
+        assertThat(count("select count(*) from shared.access_log where event_type = 'FILE_DOWNLOADED'")).isZero();
+
+        // com todos os credores, baixa normalmente
+        assertThat(system(() -> read(requests.openResult(started.id())))).contains("Banco A S.A.", "Loja B S.A.");
+        assertThat(count("select count(*) from shared.access_log where event_type = 'FILE_DOWNLOADED'")).isEqualTo(1);
+    }
+
+    @Test
     void oppositionCreatesDebtorRequestRestriction() {
         RequestView started = openAndStart("OPPOSITION");
         system(() -> requests.execute(started.id()));

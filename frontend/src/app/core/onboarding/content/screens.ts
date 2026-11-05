@@ -87,10 +87,24 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   { key: 'debt.titles', version: 1, path: '/titulos', tourId: 'debt.titles' },
   // "correções de valor" antes do detalhe (":id" casaria o caminho)
-  { key: 'debt.title-amounts', version: 1, path: '/titulos/correcoes-de-valor', tourId: 'debt.title-amounts' },
+  {
+    key: 'debt.title-amounts',
+    version: 2,
+    path: '/titulos/correcoes-de-valor',
+    tourId: 'debt.title-amounts',
+    changes: [
+      {
+        version: 2,
+        items: [
+          'Aumentar o limite agora fica proposto até outra pessoa com permissão de aprovação confirmar na aba Limite; reduzir continua valendo na hora.',
+          'Correção que aumenta algum componente, ou cuja soma das reduções passa do limite, vai para aprovação mesmo com o saldo final menor.',
+        ],
+      },
+    ],
+  },
   {
     key: 'debt.title-detail',
-    version: 2,
+    version: 3,
     path: '/titulos/:id',
     tourId: 'debt.title-detail',
     changes: [
@@ -100,6 +114,10 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Corrigir valor: novo saldo por componente com motivo e evidência; acima do limite ou em aumento do saldo, outra pessoa aprova.',
           'Aba "Correções de valor" com o histórico do título e as cargas do credor diferentes do valor corrigido, para decidir qual vale.',
         ],
+      },
+      {
+        version: 3,
+        items: ['Corrigir valor: se algum componente aumenta, ou se a soma das reduções passa do limite, a correção vai para aprovação de outra pessoa mesmo com o saldo final menor.'],
       },
     ],
   },
@@ -469,7 +487,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.holidays', version: 1, path: '/compliance/feriados' },
   { key: 'compliance.legal-bases', version: 1, path: '/compliance/bases-legais', tourId: 'compliance.legal-bases' },
   { key: 'compliance.requests', version: 1, path: '/compliance/solicitacoes-titulares', tourId: 'compliance.requests' },
-  { key: 'compliance.request-detail', version: 1, path: '/compliance/solicitacoes-titulares/:id', tourId: 'compliance.request-detail' },
+  {
+    key: 'compliance.request-detail',
+    version: 2,
+    path: '/compliance/solicitacoes-titulares/:id',
+    tourId: 'compliance.request-detail',
+    changes: [{ version: 2, items: ['O botão "Baixar dados do titular" aparece só para quem tem acesso a todos os credores: o arquivo traz o titular em todos eles, sem máscara.'] }],
+  },
   {
     key: 'compliance.retention',
     version: 2,

@@ -180,6 +180,10 @@ export class TitleAmountApi {
   updateSettings(approvalThreshold: number): Observable<AmountAdjustmentSettings> {
     return this.http.put<AmountAdjustmentSettings>(`${API_V1}/title-amount-adjustments/settings`, { approvalThreshold });
   }
+
+  confirmSettings(): Observable<AmountAdjustmentSettings> {
+    return this.http.post<AmountAdjustmentSettings>(`${API_V1}/title-amount-adjustments/settings/confirm`, {});
+  }
 }
 
 @Injectable({ providedIn: 'root' })

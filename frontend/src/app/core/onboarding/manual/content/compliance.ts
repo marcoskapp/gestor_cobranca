@@ -92,7 +92,10 @@ export const MANUAL: ModuleManual = {
       id: 'compliance.request-detail',
       title: 'Atendimento ao titular',
       objective: 'Etapas do atendimento de um pedido do titular: identidade, ação, resposta e evidências.',
-      purpose: ['Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.'],
+      purpose: [
+        'Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.',
+        'O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores.',
+      ],
       profiles: ['COMPLIANCE'],
       inputs: ['Pedido registrado e documentos do titular.'],
       outputs: ['Resposta ao titular; restrições ou anonimização quando o pedido exige.'],

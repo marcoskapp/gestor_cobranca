@@ -12,6 +12,7 @@ import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCa
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.AdjustmentCommand;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.AdjustmentView;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.DivergenceView;
+import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.SettingsView;
 import br.com.gestorcobranca.debt.application.port.in.TitlePrescriptionUseCases.EvidenceUpload;
 import br.com.gestorcobranca.debt.application.port.spi.TitleAgreementGuard;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
@@ -23,6 +24,7 @@ import br.com.gestorcobranca.organization.application.port.in.ServiceContractUse
 import br.com.gestorcobranca.organization.application.port.in.ServiceContractUseCases.CreateContractCommand;
 import br.com.gestorcobranca.organization.application.port.in.TenantAdministration;
 import br.com.gestorcobranca.organization.application.port.in.TenantAdministration.CreateTenantCommand;
+import br.com.gestorcobranca.pendingwork.application.port.in.PendingWorkUseCases;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
@@ -96,6 +98,8 @@ class TitleAmountAdjustmentIT extends IntegrationTest {
     DebtTitleUseCases titles;
     @Autowired
     TitleAmountAdjustmentUseCases adjustments;
+    @Autowired
+    PendingWorkUseCases pendingWork;
     @Autowired
     JdbcTemplate jdbc;
 
@@ -307,6 +311,76 @@ class TitleAmountAdjustmentIT extends IntegrationTest {
                 EnumSet.of(Permission.TITLE_AMOUNT_ADJUST), CreditorScope.ALL);
         assertThatThrownBy(() -> as(adjustOnly, () -> adjustments.updateSettings(new BigDecimal("500.00"))))
                 .isInstanceOf(ScopeAccessDeniedException.class);
+    }
+
+    @Test
+    void movingValueBetweenComponentsNeedsASecondPersonEvenWithANegativeNet() {
+        UUID t = title("T-8", "10000.00");
+        // principal 10.000 → 1.000 e honorários 0 → 8.999,99: líquido −0,01, mas sobe a receita da assessoria
+        AdjustmentCommand swap = new AdjustmentCommand(Map.of("PRINCIPAL", new BigDecimal("1000.00"),
+                "HONORARIUM", new BigDecimal("8999.99")), "CALCULATION_ERROR", "Reclassificação de componentes", null);
+        assertThatThrownBy(() -> as(gestor, () -> adjustments.request(t, swap, null)))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("evidência");
+        AdjustmentView pending = as(gestor, () -> adjustments.request(t, swap, pdf()));
+        assertThat(pending.status()).isEqualTo("PENDING_APPROVAL");
+        assertThat(pending.approvalMode()).isEqualTo("DUAL_CONTROL");
+        assertThat(pending.delta()).isEqualByComparingTo("-0.01");
+        assertThat(system(() -> titles.get(t)).openBalance()).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    void raisingTheThresholdOnlyCountsAfterAnotherPersonConfirms() {
+        UUID t = title("T-9", "10000.00");
+        SettingsView proposed = as(gestor, () -> adjustments.updateSettings(new BigDecimal("5000.00")));
+        assertThat(proposed.approvalThreshold()).isEqualByComparingTo("200.00");
+        assertThat(proposed.proposedThreshold()).isEqualByComparingTo("5000.00");
+        assertThat(proposed.proposedBy()).isEqualTo(gestor.id());
+        assertThat(proposed.proposedByName()).isEqualTo("Gestora");
+
+        // enquanto não confirmado, a própria redução grande ainda exige segunda pessoa
+        assertThatThrownBy(() -> as(gestor, () -> adjustments.request(t, principalTo("6000.00"), null)))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("evidência");
+        // quem propôs não confirma (nem vê a pendência); outra pessoa vê
+        assertThatThrownBy(() -> as(gestor, () -> adjustments.confirmSettings()))
+                .isInstanceOf(ConflictException.class).hasMessageContaining("Quem propôs");
+        assertThat(thresholdPending(gestor)).isZero();
+        assertThat(thresholdPending(financeiro)).isEqualTo(1);
+        // escopo restrito não confirma
+        Actor restricted = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "Restrita",
+                EnumSet.of(Permission.TITLE_AMOUNT_APPROVE), CreditorScope.of(List.of(creditor)));
+        assertThatThrownBy(() -> as(restricted, () -> adjustments.confirmSettings()))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+
+        SettingsView confirmed = as(financeiro, () -> adjustments.confirmSettings());
+        assertThat(confirmed.approvalThreshold()).isEqualByComparingTo("5000.00");
+        assertThat(confirmed.proposedThreshold()).isNull();
+        assertThat(thresholdPending(financeiro)).isZero();
+        assertThat(as(gestor, () -> adjustments.request(t, principalTo("6000.00"), null)).status()).isEqualTo("APPLIED");
+        assertThatThrownBy(() -> as(financeiro, () -> adjustments.confirmSettings()))
+                .isInstanceOf(ConflictException.class).hasMessageContaining("Não há aumento");
+
+        // reduzir vale na hora e descarta a proposta em aberto
+        as(gestor, () -> adjustments.updateSettings(new BigDecimal("90000.00")));
+        SettingsView reduced = as(gestor, () -> adjustments.updateSettings(new BigDecimal("100.00")));
+        assertThat(reduced.approvalThreshold()).isEqualByComparingTo("100.00");
+        assertThat(reduced.proposedThreshold()).isNull();
+
+        assertThat(count("select count(*) from shared.audit_event where action = 'title_amount.settings_proposed'", null))
+                .isEqualTo(2);
+        assertThat(count("select count(*) from shared.audit_event where action = 'title_amount.settings_confirmed'", null))
+                .isEqualTo(1);
+        assertThat(count("select count(*) from shared.audit_event where action = 'title_amount.settings_updated'", null))
+                .isEqualTo(1);
+        // coerência da proposta no banco: aumento sem quem propôs é recusado
+        assertThatThrownBy(() -> system(() -> jdbc.update("update debt.amount_adjustment_settings"
+                + " set proposed_threshold = 500.00")))
+                .rootCause().hasMessageContaining("ck_amount_adjustment_proposal");
+    }
+
+    private long thresholdPending(Actor actor) {
+        return as(actor, () -> pendingWork.mine()).items().stream()
+                .filter(i -> i.type().equals("debt.amount_threshold_proposal"))
+                .mapToLong(PendingWorkUseCases.ItemView::count).sum();
     }
 
     private long count(String sql, UUID arg) {
