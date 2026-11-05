@@ -759,3 +759,20 @@ Achado no sandbox: "Cancelar no título" (a partir da contestação) respondia 5
 | # | Módulo | Decisão | Alternativas consideradas | Motivo |
 | --- | --- | --- | --- | --- |
 | 848 | arquitetura | **Portas `application.port.in` sem métodos `default`**: removidos os overloads de conveniência (`DebtTitleUseCases.suspend/reactivate/cancel`, `PortfolioUseCases.update/changeStatus`, `DisputeUseCases.resolve/search`, `TelephonyWebhookUseCases.receive`); os chamadores passam a assinatura completa (`expectedVersion = null`). Regra nova no `ArchitectureTest` (`useCasePortsHaveNoDefaultMethods`). | Implementar os overloads na classe de serviço; anotar a interface com `@Transactional`; trocar só o `DebtTitleController`. | Corrige a causa em todos os pontos e impede a volta do padrão; `@Transactional` na porta acoplaria a camada de aplicação ao Spring na interface e não cobre outros aspectos. |
+
+## Migration da correção de valor em banco com títulos (05/11/2026, master)
+
+Achado ao subir o sandbox com a correção de valor (decisões 802–813): `debt/V0304__debt_title_amount_adjustment.sql` preenchia `creditor_principal` com um `update` sem tenant na sessão; com a RLS forçada de `debt.debt_title`, nenhuma linha era atualizada e o `set not null` seguinte falhava (`column "creditor_principal" ... contains null values`). Em banco vazio (ITs, sandbox novo) passava, por isso não apareceu antes; em qualquer banco com títulos, inclusive produção, a aplicação não subiria. Opção escolhida pelo responsável em 05/11/2026.
+
+| # | Módulo | Decisão | Alternativas consideradas | Motivo |
+| --- | --- | --- | --- | --- |
+| 849 | debt | **Exceção à regra de não alterar migration publicada**: o preenchimento em V0304 passa a percorrer as assessorias com `set_config('app.tenant_id', …)` (mesmo padrão de V0603, V1004, V1806). Bancos onde a V0304 já foi aplicada (tabela vazia no momento, resultado idêntico) precisam de `flyway repair` ou de recriar o banco (`reset.sh --yes` no sandbox), por causa do checksum. | Manter a V0304 e corrigir numa migration nova (impossível: a própria V0304 falha); só recriar o sandbox e abrir issue. | A migration não aplica em nenhum banco com dados; corrigir a causa na origem é a única solução que não deixa a produção travada. |
+
+## Revisão de código completa: primeiras correções (05/11/2026, master)
+
+Achados da revisão do projeto inteiro pelo subagente `revisor-de-codigo` (API-01, COL-02/INF-01). Correções autorizadas pelo responsável em 05/11/2026.
+
+| # | Módulo | Decisão | Alternativas consideradas | Motivo |
+| --- | --- | --- | --- | --- |
+| 850 | publicapi | **Rotacionar e editar um token exigem as permissões de todos os escopos dele** (a mesma regra de `issue`, `requireGrantable`): sem elas, 422 `integration_token.scope_not_grantable` e `ACCESS_DENIED` (`scope_outranks_actor`) no log de acesso; a tela oculta Editar e Rotacionar (Revogar continua). A auditoria de `integration_token.updated` passa a registrar a descrição. Teste: `PublicApiIT.userCannotRotateNorLoosenTokenWithScopesBeyondOwnPermissions`. | Só ocultar na tela; exigir `PUBLIC_API_TOKEN_MANAGE` + todos os credores. | Rotacionar entrega o segredo novo: o perfil Integrações (sem acesso a devedores) ganhava `debtors:read`, `payments:read` etc. de um token do administrador; editar afrouxava IPs e limite. Revogar só reduz acesso e fica liberado. |
+| 851 | collection | **Segunda exceção à regra de não alterar migration publicada**: o preenchimento em `collection/V0604` passa a percorrer as assessorias com `set_config('app.tenant_id', …)`, como na V0304 (decisão 849). Bancos onde a V0604 já foi aplicada (tabela vazia na hora, resultado idêntico) precisam de `flyway repair` ou de recriar o banco. A `identity/V0202` tem o mesmo padrão (INF-03) e fica pendente de conferência nos bancos persistentes. | Corrigir numa migration nova (impossível: a própria V0604 falha antes); manter e recriar só o sandbox. | Em qualquer banco com contestações a V0604 falha e a aplicação não sobe. |

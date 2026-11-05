@@ -248,10 +248,10 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'publicapi.token',
-    version: 2,
+    version: 3,
     path: '/integracoes/tokens/:id',
     tourId: 'publicapi.token',
-    changes: [{ version: 2, items: ['Aviso de pausa pela plataforma, com motivo e retomada agendada; você continua podendo editar, rotacionar e revogar.', 'Revogação feita pela plataforma identificada na ficha.'] }],
+    changes: [{ version: 2, items: ['Aviso de pausa pela plataforma, com motivo e retomada agendada; você continua podendo editar, rotacionar e revogar.', 'Revogação feita pela plataforma identificada na ficha.'] }, { version: 3, items: ['Editar e Rotacionar só aparecem se o seu perfil tem as permissões de todos os escopos do token (as mesmas exigidas para criá-lo); Revogar continua disponível.'] }],
   },
   {
     key: 'publicapi.usage',

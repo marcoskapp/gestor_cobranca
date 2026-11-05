@@ -175,10 +175,15 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
         accessScope.requirePermission(Permission.PUBLIC_API_TOKEN_MANAGE);
         Guard.require(command != null, "integration_token.required", "Dados obrigatórios");
         IntegrationToken token = loadForCommand(tokenId);
+        // quem não poderia criar o token também não afrouxa os IPs nem o limite dele (prevenção de escalada, decisão 850)
+        requireGrantable(token.getScopes());
         List<String> ips = addressRules.normalize(command.allowedIps());
+        String description = command.description() == null || command.description().isBlank() ? null
+                : command.description().strip();
         AuditEntry audit = AuditEntry.of("integration_token.updated", "integration_token", tokenId)
                 .creditor(token.getCreditorId())
                 .change("name", token.getName(), command.name() == null ? null : command.name().strip())
+                .change("description", token.getDescription(), description)
                 .change("rateLimitPerMinute", token.getRateLimitPerMinute(), command.rateLimitPerMinute())
                 .change("allowedIps", String.join(",", token.getAllowedIps()), String.join(",", ips));
         token.updateSettings(command.name(), command.description(), command.rateLimitPerMinute(), ips);
@@ -220,6 +225,8 @@ class IntegrationTokenService implements IntegrationTokenUseCases, IssueIntegrat
             throw new BusinessRuleException("integration_token.grace_invalid", "Carência entre 0 e 1440 minutos");
         }
         IntegrationToken token = loadForCommand(tokenId);
+        // o novo segredo dá acesso a todos os escopos do token: só o recebe quem poderia concedê-los (decisão 850)
+        requireGrantable(token.getScopes());
         Instant now = Instant.now(clock);
         TokenSecret secret = new TokenSecret(token.getPrefix(), "").rotate(hashing.random());
         token.rotate(hashing.hasher().hash(secret), hashing.hasher().activeKeyId(), Duration.ofMinutes(graceMinutes), now);

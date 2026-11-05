@@ -29,9 +29,21 @@ alter table collection.dispute
     add column adjustment_closed_by       uuid;
 
 -- contestações existentes: prazo interno igual ao de resposta; resposta ao devedor não exigida
--- retroativamente (as resolvidas antes desta versão não tinham o fluxo)
-update collection.dispute set internal_due_date = response_due_date, deadline_source = 'TENANT_DEFAULT';
-update collection.dispute set debtor_notice_status = 'NOT_REQUIRED' where status in ('RESOLVED', 'WITHDRAWN');
+-- retroativamente (as resolvidas antes desta versão não tinham o fluxo).
+-- dispute tem RLS forçada: sem app.tenant_id o update não enxerga nenhuma linha e o "set not null" abaixo
+-- falha. O preenchimento percorre as assessorias, como a aplicação faria (decisões 849 e 851).
+do $$
+declare
+    t record;
+begin
+    for t in select id from organization.tenant loop
+        perform set_config('app.tenant_id', t.id::text, true);
+        update collection.dispute set internal_due_date = response_due_date, deadline_source = 'TENANT_DEFAULT';
+        update collection.dispute set debtor_notice_status = 'NOT_REQUIRED' where status in ('RESOLVED', 'WITHDRAWN');
+    end loop;
+    perform set_config('app.tenant_id', '', true);
+end
+$$;
 
 alter table collection.dispute
     alter column internal_due_date set not null,

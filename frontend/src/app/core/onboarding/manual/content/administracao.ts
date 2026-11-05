@@ -192,7 +192,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Identificação, uso, rotação sem parada e revogação imediata de um token de integração.',
       purpose: [
         'Rotacione periodicamente ou quando a equipe do credor mudar: o segredo anterior continua aceito durante a carência. Em caso de vazamento, rotacione sem carência ou revogue.',
-        'A revogação é imediata e definitiva e exige motivo.',
+        'A revogação é imediata e definitiva e exige motivo. Editar e rotacionar exigem as permissões de todos os escopos do token (as mesmas de criá-lo); sem elas, só Revogar aparece.',
         'Pausado pela plataforma: a ficha mostra desde quando, o motivo e a retomada agendada, se houver. Você não retoma, mas pode editar, rotacionar (segredo exposto) e revogar; para retomar antes, procure a plataforma.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'INTEGRACAO'],

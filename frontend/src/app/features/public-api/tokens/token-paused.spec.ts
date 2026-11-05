@@ -53,7 +53,7 @@ describe('token pausado pela plataforma (visão da assessoria)', () => {
   it('mostra motivo e retomada agendada; a assessoria não retoma, mas edita, rotaciona e revoga', async () => {
     const el = await render(token({
       state: 'PAUSED', pausedAt: '2026-11-04T10:00:00Z', pauseReason: 'laço de chamadas', resumeAt: '2026-11-05T10:00:00Z',
-    }), ['PUBLIC_API_TOKEN_VIEW', 'PUBLIC_API_TOKEN_MANAGE']);
+    }), ['PUBLIC_API_TOKEN_VIEW', 'PUBLIC_API_TOKEN_MANAGE', 'DEBTOR_VIEW']);
     const text = el.textContent ?? '';
     expect(text).toContain('Pausado pela plataforma');
     expect(text).toContain('laço de chamadas');
@@ -61,6 +61,14 @@ describe('token pausado pela plataforma (visão da assessoria)', () => {
     const labels = [...el.querySelectorAll('button')].map((b) => b.textContent?.trim());
     expect(labels).toEqual(expect.arrayContaining(['Editar', 'Rotacionar', 'Revogar']));
     expect(labels.some((l) => l?.includes('Retomar'))).toBe(false);
+  });
+
+  it('sem as permissões dos escopos do token, Editar e Rotacionar ficam ocultos e Revogar continua (decisão 850)', async () => {
+    const el = await render(token({ state: 'ACTIVE' }), ['PUBLIC_API_TOKEN_VIEW', 'PUBLIC_API_TOKEN_MANAGE']);
+    const labels = [...el.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(labels).toContain('Revogar');
+    expect(labels).not.toContain('Editar');
+    expect(labels).not.toContain('Rotacionar');
   });
 
   it('revogação pela plataforma identificada sem expor o usuário da plataforma', async () => {

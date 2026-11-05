@@ -172,6 +172,33 @@ class PublicApiIT extends PublicApiTestSupport {
     }
 
     @Test
+    void userCannotRotateNorLoosenTokenWithScopesBeyondOwnPermissions() throws Exception {
+        UUID integrador = UUID.randomUUID();
+        Set<Permission> integracao = EnumSet.of(Permission.PUBLIC_API_TOKEN_MANAGE, Permission.PUBLIC_API_TOKEN_VIEW,
+                Permission.IMPORT_VIEW, Permission.IMPORT_EXECUTE, Permission.CREDITOR_VIEW, Permission.PORTFOLIO_VIEW);
+        // token criado pelo administrador com acesso a devedores: rotacionar entregaria o segredo (decisão 850)
+        IssuedToken ofAdmin = issue(creditorA, Set.of("debtors:read", "portfolios:read"), null, List.of("203.0.113.0/24"));
+        assertThatThrownBy(() -> asUser(integrador, integracao, CreditorScope.ALL,
+                () -> tokens.rotate(ofAdmin.details().id(), 0)))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("DEBTOR_VIEW");
+        assertThatThrownBy(() -> asUser(integrador, integracao, CreditorScope.ALL,
+                () -> tokens.updateSettings(ofAdmin.details().id(),
+                        new IntegrationTokenUseCases.UpdateTokenCommand("x", null, 600, List.of()))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("DEBTOR_VIEW");
+        // o segredo original continua valendo e as faixas de IP não mudaram
+        assertThat(asManager(() -> tokens.get(ofAdmin.details().id())).rotationCount()).isZero();
+        assertThat(asManager(() -> tokens.get(ofAdmin.details().id())).allowedIps()).containsExactly("203.0.113.0/24");
+        long denied = system(() -> jdbc.queryForObject("""
+                select count(*) from shared.access_log where tenant_id = ? and event_type = 'ACCESS_DENIED'
+                   and details->>'reason' = 'scope_outranks_actor'""", Long.class, tenant));
+        assertThat(denied).isGreaterThanOrEqualTo(2);
+        // token dentro do próprio perfil: rotação liberada
+        IssuedToken ofImports = issue(creditorA, Set.of("imports:read"), null, List.of());
+        IssuedToken rotated = asUser(integrador, integracao, CreditorScope.ALL, () -> tokens.rotate(ofImports.details().id(), 0));
+        assertThat(rotated.token()).isNotEqualTo(ofImports.token());
+    }
+
+    @Test
     void versionsDocumentationAndUnknownRoutesArePublicOrProblemDetails() throws Exception {
         assertThat(get("/public-api/versions", null).body()).contains("\"v1\"").contains("CURRENT");
         assertThat(get("/public-api/changelog", null).body()).contains("1.0.0");

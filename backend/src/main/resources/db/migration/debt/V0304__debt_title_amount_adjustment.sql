@@ -16,7 +16,19 @@ alter table debt.debt_title
     add column manual_principal       boolean       not null default false,
     add column creditor_principal     numeric(19, 2),
     add column acknowledged_principal numeric(19, 2);
-update debt.debt_title set creditor_principal = principal_amount;
+-- debt_title tem RLS forçada: sem app.tenant_id o update não enxerga nenhuma linha. O preenchimento
+-- percorre as assessorias definindo o tenant da transação, como a aplicação faria (decisão 849).
+do $$
+declare
+    t record;
+begin
+    for t in select id from organization.tenant loop
+        perform set_config('app.tenant_id', t.id::text, true);
+        update debt.debt_title set creditor_principal = principal_amount;
+    end loop;
+    perform set_config('app.tenant_id', '', true);
+end
+$$;
 alter table debt.debt_title alter column creditor_principal set not null;
 
 create table debt.amount_adjustment_settings (

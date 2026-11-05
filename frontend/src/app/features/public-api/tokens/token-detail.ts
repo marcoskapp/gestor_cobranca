@@ -20,7 +20,7 @@ import { IntegrationTokensApi } from '../data/public-api.api';
 import { PUBLIC_API_ERROR_LABELS, TOKEN_STATE_LABELS } from '../data/public-api.labels';
 import { TokenView } from '../data/public-api.models';
 import { RotateTokenDialog, RotateTokenDialogData } from './rotate-token-dialog';
-import { TokenDialog, TokenDialogData } from './token-dialog';
+import { SCOPE_PERMISSIONS, TokenDialog, TokenDialogData } from './token-dialog';
 
 /**
  * Ficha do token: identificação, escopos, limite, IPs, uso, rotação e revogação (com motivo, imediata). Token pausado
@@ -39,14 +39,16 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
     } @else if (token(); as t) {
       <app-page-header [title]="t.name" [subtitle]="creditors.name(t.creditorId) + ' · ' + t.prefix">
         @if (canManage() && (t.state === 'ACTIVE' || t.state === 'PAUSED')) {
-          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="edit(t)" [disabled]="busy()">
-            <app-icon name="pencil" />
-            Editar
-          </button>
-          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="rotate(t)" [disabled]="busy()" data-tour="token-rotate">
-            <app-icon name="arrow-repeat" />
-            Rotacionar
-          </button>
+          @if (canChange(t)) {
+            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="edit(t)" [disabled]="busy()">
+              <app-icon name="pencil" />
+              Editar
+            </button>
+            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="rotate(t)" [disabled]="busy()" data-tour="token-rotate">
+              <app-icon name="arrow-repeat" />
+              Rotacionar
+            </button>
+          }
           <button class="btn btn-outline-danger d-inline-flex align-items-center gap-2" type="button" (click)="revoke(t)" [disabled]="busy()" data-tour="token-revoke">
             <app-icon name="slash-circle" />
             Revogar
@@ -158,6 +160,14 @@ export class TokenDetail {
   protected readonly stateLabels = TOKEN_STATE_LABELS;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.PUBLIC_API_TOKEN_MANAGE));
   protected readonly busy = signal(false);
+
+  /**
+   * Editar e rotacionar só para quem poderia conceder todos os escopos do token (o servidor recusa o resto, decisão 850):
+   * rotacionar entrega o segredo, editar afrouxa IPs e limite. Revogar continua liberado.
+   */
+  protected canChange(t: TokenView): boolean {
+    return t.scopes.every((s) => (SCOPE_PERMISSIONS[s] ?? []).every((p) => this.auth.hasPermission(p)));
+  }
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly token = computed(() => (this.resource.hasValue() ? this.resource.value() : null));
