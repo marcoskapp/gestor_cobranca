@@ -204,7 +204,9 @@
             <dd>{{ m.validationFrom | appDate: 'date' }} a {{ m.validationTo | appDate: 'date' }} · {{ int(m.validationRows) }} obs. ({{ int(m.validationPositives) }} pagaram)</dd>
           }
           <dt>Cortes das faixas <app-info-hint indicator="scoring.case.score" label="Score e faixa" /></dt>
-          <dd class="app-numeric">A ≥ {{ m.bandCutoffs[0] }} · B ≥ {{ m.bandCutoffs[1] }} · C ≥ {{ m.bandCutoffs[2] }} · D ≥ {{ m.bandCutoffs[3] }}</dd>
+          <!-- cada corte sem quebra interna; a linha quebra entre as faixas -->
+          <dd><span class="app-numeric">A ≥ {{ m.bandCutoffs[0] }}</span> · <span class="app-numeric">B ≥ {{ m.bandCutoffs[1] }}</span> ·
+            <span class="app-numeric">C ≥ {{ m.bandCutoffs[2] }}</span> · <span class="app-numeric">D ≥ {{ m.bandCutoffs[3] }}</span></dd>
           <dt>Fração paga típica <app-info-hint indicator="scoring.model.paid-share" label="Fração paga típica" /></dt>
           <dd>{{ percent(m.paidShare) }} do saldo (recuperado × esperado)</dd>
           @if (m.promotedAt) {

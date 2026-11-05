@@ -232,7 +232,8 @@ body {
 
 .app-definition-list {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  // minmax(0, 1fr): um valor sem quebra (ex.: .app-numeric) não alarga a coluna além do card
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 6px 24px;
   margin: 0;
 
