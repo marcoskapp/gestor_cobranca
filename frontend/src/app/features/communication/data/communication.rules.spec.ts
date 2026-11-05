@@ -1,7 +1,13 @@
 import { applicableTemplates } from '../inbox/composer';
-import { HandoffView, MessageView, TemplateView } from './communication.models';
+import { HandoffView, MessageView, TemplateView, VariableInput } from './communication.models';
 import {
+  StationContact,
   blockText,
+  channelContacts,
+  firstName,
+  ownerText,
+  prefillVariables,
+  stationChannels,
   categoryProblems,
   charCount,
   composerMode,
@@ -146,5 +152,58 @@ describe('regras da caixa de entrada', () => {
     const list = [template('1', 'LEMBRETE', null, 'Lembrete'), template('2', 'LEMBRETE', 'c-1', 'Lembrete Horizonte'), template('3', 'BOAS_VINDAS', null, 'Boas-vindas'), template('4', 'OUTRO', 'c-2')];
     expect(applicableTemplates(list, 'c-1').map((t) => t.id)).toEqual(['3', '2']);
     expect(applicableTemplates(list, null).map((t) => t.id)).toEqual(['3', '1']);
+  });
+
+  describe('contato ativo pela estação', () => {
+    const phone = (id: string, o: Partial<StationContact> = {}): StationContact => ({ contactId: id, type: 'PHONE', label: 'MOBILE', whatsapp: false, status: 'VALID', priority: 1, ...o });
+    const contacts: StationContact[] = [
+      phone('wa-2', { whatsapp: true, priority: 2 }),
+      phone('wa-1', { whatsapp: true, priority: 1, status: 'UNVERIFIED' }),
+      phone('home', { label: 'HOME', priority: 3 }),
+      phone('dead', { whatsapp: true, status: 'INVALID', priority: 0 }),
+      { contactId: 'mail', type: 'EMAIL', label: 'OTHER', whatsapp: false, status: 'VALID', priority: 1 },
+      { contactId: 'addr', type: 'ADDRESS', label: 'HOME', whatsapp: false, status: 'VALID', priority: 1 },
+    ];
+
+    it('contatos por canal seguem a regra do servidor, por prioridade e sem contato inválido', () => {
+      expect(channelContacts(contacts, 'WHATSAPP').map((c) => c.contactId)).toEqual(['wa-1', 'wa-2']);
+      // SMS: celular ou WhatsApp; telefone fixo não
+      expect(channelContacts(contacts, 'SMS').map((c) => c.contactId)).toEqual(['wa-1', 'wa-2']);
+      expect(channelContacts(contacts, 'EMAIL').map((c) => c.contactId)).toEqual(['mail']);
+    });
+
+    it('oferece só os canais com contato utilizável, na ordem WhatsApp, SMS, e-mail', () => {
+      expect(stationChannels(contacts)).toEqual(['WHATSAPP', 'SMS', 'EMAIL']);
+      expect(stationChannels([phone('fixo', { label: 'HOME' })])).toEqual([]);
+      expect(stationChannels([contacts[4]])).toEqual(['EMAIL']);
+    });
+
+    it('primeiro nome como no envio das campanhas', () => {
+      expect(firstName('  Ana Paula Ribeiro')).toBe('Ana');
+      expect(firstName("D'Ávila Souza")).toBe("D'Ávila");
+      expect(firstName('-João')).toBe('João');
+      expect(firstName('123')).toBeNull();
+      expect(firstName(null)).toBeNull();
+    });
+
+    it('pré-preenche só o primeiro nome; valores, datas e links ficam com o operador', () => {
+      const vars: VariableInput[] = [
+        { name: 'nome', type: 'FIRST_NAME', required: true, maxLength: null },
+        { name: 'curto', type: 'FIRST_NAME', required: false, maxLength: 2 },
+        { name: 'valor', type: 'MONEY', required: true, maxLength: null },
+      ];
+      expect(prefillVariables(vars, 'Maria Clara')).toEqual({ nome: 'Maria', curto: 'Ma' });
+      expect(prefillVariables(vars, '')).toEqual({});
+    });
+
+    it('quem atende a conversa', () => {
+      const name = (id: string) => (id === 'u-2' ? 'Bruno' : '…');
+      const base = { status: 'OPEN' as const, ownerType: 'USER' as const, ownerUserId: 'u-1', requiredProfile: null };
+      expect(ownerText(base, 'u-1', name)).toBe('Com você');
+      expect(ownerText({ ...base, ownerUserId: 'u-2' }, 'u-1', name)).toBe('Com Bruno');
+      expect(ownerText({ ...base, ownerType: 'QUEUE', requiredProfile: 'SUPERVISOR' }, 'u-1', name)).toBe('Na fila (exige SUPERVISOR)');
+      expect(ownerText({ ...base, ownerType: 'ASSISTANT' }, 'u-1', name)).toBe('Com o assistente');
+      expect(ownerText({ ...base, status: 'CLOSED' }, 'u-1', name)).toBe('Encerrada');
+    });
   });
 });

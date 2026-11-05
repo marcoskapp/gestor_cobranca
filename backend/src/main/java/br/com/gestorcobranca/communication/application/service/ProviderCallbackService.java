@@ -180,11 +180,17 @@ class ProviderCallbackService implements ProviderCallbackUseCases {
             Optional<CaseView> kase = cases.singleActive(p.getDebtorId(), p.getCreditorId());
             Conversation.Owner owner = kase.map(k -> ConversationOwnership.fromCase(k, (String) null, true))
                     .orElse(Conversation.Owner.queue(null, null));
-            return conversations.saveAndFlush(new Conversation(p.getDebtorId(), p.getCreditorId(),
+            return started(conversations.saveAndFlush(new Conversation(p.getDebtorId(), p.getCreditorId(),
                     kase.map(CaseView::portfolioId).orElse(null), kase.map(CaseView::id).orElse(null), account.getChannel(),
-                    account.getId(), p.getContactId(), contact, owner, now));
+                    account.getId(), p.getContactId(), contact, owner, now)));
         }
-        return conversations.saveAndFlush(new Conversation(null, account.getCreditorId(), null, null, account.getChannel(),
-                account.getId(), null, contact, Conversation.Owner.queue(null, null), now));
+        return started(conversations.saveAndFlush(new Conversation(null, account.getCreditorId(), null, null,
+                account.getChannel(), account.getId(), null, contact, Conversation.Owner.queue(null, null), now)));
+    }
+
+    /** Conversa nova aberta por mensagem do devedor (contato receptivo). */
+    private Conversation started(Conversation c) {
+        recorder.conversationStarted(c, "DEBTOR");
+        return c;
     }
 }

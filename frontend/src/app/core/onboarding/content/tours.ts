@@ -619,7 +619,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'collection.station',
-    version: 2,
+    version: 3,
     title: 'Estação de cobrança',
     summary: 'Fila, ficha do caso e registro do atendimento em uma só tela, pelo teclado.',
     steps: [
@@ -637,7 +637,7 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'case-tabs',
         title: 'Ficha do caso',
-        body: 'Títulos, contatos mascarados, histórico, agenda, contestações e negociação. Alterne as abas com Alt + 1 a Alt + 6.',
+        body: 'Títulos, contatos mascarados, histórico, agenda, contestações, negociação e conversas do caso. Alterne as abas com Alt + 1 a Alt + 7.',
       },
       {
         anchor: 'contact-window',
@@ -653,8 +653,8 @@ export const TOURS: readonly TourDefinition[] = [
       },
       {
         anchor: 'case-actions',
-        title: 'Ligar, retorno e simulação',
-        body: 'Alt + L liga mostrando antes a decisão do porteiro por telefone. Alt + A agenda retorno e Alt + S abre a simulação.',
+        title: 'Ligar, mensagem, retorno e simulação',
+        body: 'Alt + L liga e Alt + W manda mensagem, com a decisão do porteiro antes. Alt + A agenda retorno; Alt + S simula.',
         placement: 'start',
       },
     ],

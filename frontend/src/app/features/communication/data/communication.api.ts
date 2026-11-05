@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_V1 } from '../../../core/config/api';
@@ -18,6 +18,7 @@ import {
   MessageView,
   ResponseTargetView,
   SendMessageRequest,
+  StartConversationRequest,
   TemplateContent,
   TemplateFilter,
   TemplatePreview,
@@ -115,6 +116,15 @@ export class MessagesApi {
       `${BASE}/messages`,
       { ...request, debtorId: null, creditorId: null, caseId: null, channel: null, contactId: null },
       { headers: new HttpHeaders({ 'Idempotency-Key': idempotencyKey }) },
+    );
+  }
+
+  /** Contato ativo a partir do caso: abre (ou reaproveita) a conversa do contato no credor e envia o template. */
+  start(request: StartConversationRequest, idempotencyKey: string, context?: HttpContext): Observable<MessageView> {
+    return this.http.post<MessageView>(
+      `${BASE}/messages`,
+      { ...request, conversationId: null, text: null },
+      { headers: new HttpHeaders({ 'Idempotency-Key': idempotencyKey }), context },
     );
   }
 }

@@ -30,9 +30,10 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta.',
         'Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar.',
+        'Para iniciar um contato com um devedor, use "Mensagem" na estação de cobrança: a conversa nasce vinculada ao caso e com você, e continua aqui quando o devedor responder.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR'],
-      inputs: ['Mensagens recebidas pelos canais da assessoria.', 'Transferências do assistente e pedidos do portal.'],
+      inputs: ['Mensagens recebidas pelos canais da assessoria.', 'Transferências do assistente e pedidos do portal.', 'Conversas iniciadas pelos operadores na estação de cobrança.'],
       outputs: ['Respostas enviadas e conversas assumidas, devolvidas ou encerradas.', 'Interações registradas no caso.'],
       related: [
         { screen: 'collection.queue', why: 'Atender o caso do devedor.' },

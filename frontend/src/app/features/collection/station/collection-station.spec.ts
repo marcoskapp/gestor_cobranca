@@ -175,6 +175,7 @@ describe('CollectionStation', () => {
     if (url.startsWith('/api/v1/portfolios/')) return req.flush({ id: 'p-1', name: 'Cartões setembro' });
     if (url === '/api/v1/payment/review-status/debtors/d-1') return req.flush(reviewStatus);
     if (url === '/api/v1/users/display-names') return req.flush([{ id: 'u-2', name: 'Carla Operadora' }]);
+    if (url === '/api/v1/communication/conversations') return req.flush(page([]));
     throw new Error(`requisição inesperada: ${req.request.method} ${url}`);
   }
 
@@ -242,11 +243,37 @@ describe('CollectionStation', () => {
     expect(alert.querySelector('a[href="/negociacao/acordos/a-1"]')).not.toBeNull();
   });
 
+  it('Mensagem e aba Conversas: aparecem só com as permissões de comunicação', async () => {
+    let fixture = await render('k-1');
+    expect([...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-tour="case-actions"] button')].map((b) => b.textContent?.trim())).not.toContain('Mensagem');
+    expect(text(fixture)).not.toContain('Conversas');
+    // sem INBOX_VIEW o atalho da aba oculta não faz nada
+    press('7');
+    fixture.detectChanges();
+    expect(fixture.componentInstance['tab']()).toBe(0);
+    fixture.destroy();
+
+    permissions.update((p) => [...p, 'MESSAGE_SEND', 'INBOX_VIEW']);
+    fixture = await render('k-1');
+    const actions = [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-tour="case-actions"] button')].map((b) => b.textContent?.trim());
+    expect(actions).toContain('Mensagem');
+    press('7');
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      respond(sheet());
+    }
+    fixture.detectChanges();
+    const active = (fixture.nativeElement as HTMLElement).querySelector('[data-tour="case-tabs"] .nav-link.active');
+    expect(active?.textContent).toContain('Conversas');
+    expect(text(fixture)).toContain('Nenhuma conversa neste caso.');
+  });
+
   it('registra os atalhos do grupo "Estação de cobrança" e os remove ao sair', async () => {
     const fixture = await render('k-1');
     const keys = TestBed.inject(KeyboardShortcuts);
     const ids = keys.shortcuts().filter((s) => s.group === 'Estação de cobrança').map((s) => s.keys);
-    expect(ids).toEqual(expect.arrayContaining(['alt+n', 'alt+r', 'alt+a', 'alt+s', 'alt+1', 'alt+5', 'alt+6']));
+    expect(ids).toEqual(expect.arrayContaining(['alt+n', 'alt+r', 'alt+a', 'alt+s', 'alt+w', 'alt+1', 'alt+5', 'alt+6', 'alt+7']));
     press('3');
     fixture.detectChanges();
     expect(fixture.componentInstance['tab']()).toBe(2);

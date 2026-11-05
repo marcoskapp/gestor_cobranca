@@ -138,6 +138,7 @@
           [creditors]="creditors"
           [portfolios]="portfolios"
           [(tab)]="tab"
+          [conversationsRevision]="conversationsRevision()"
           (changed)="refreshAll()"
         />
       }
@@ -157,6 +158,14 @@
         <div class="st-quick" data-tour="case-actions">
           @if (workable() && c.status !== 'CLOSED') {
             <app-call-button [caseId]="c.id" [debtorName]="s.debtor.name" [contacts]="s.debtor.contacts" />
+            <app-message-button
+              [caseId]="c.id"
+              [debtorId]="c.debtorId"
+              [creditorId]="c.creditorId"
+              [debtorName]="s.debtor.name"
+              [contacts]="s.debtor.contacts"
+              (sent)="messageSent()"
+            />
           }
           @if (canSchedule() && workable()) {
             <button type="button" class="btn btn-outline-primary btn-sm" (click)="schedule()" ngbTooltip="Agendar retorno (Alt + A)">

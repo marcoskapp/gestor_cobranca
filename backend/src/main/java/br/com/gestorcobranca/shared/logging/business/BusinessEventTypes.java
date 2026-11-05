@@ -154,6 +154,7 @@ public final class BusinessEventTypes {
     public static final String MESSAGE_REPLIED = "message.replied";
     public static final String MESSAGE_BLOCKED = "message.blocked";
     public static final String MESSAGE_RECEIVED = "message.received";
+    public static final String CONVERSATION_STARTED = "conversation.started";
     public static final String CONVERSATION_HANDOFF = "conversation.handoff";
     public static final String CONVERSATION_CLOSED = "conversation.closed";
     public static final String CONVERSATION_SLA_BREACHED = "conversation.sla_breached";

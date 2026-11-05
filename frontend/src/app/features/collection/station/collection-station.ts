@@ -30,13 +30,14 @@ import { CASE_ACTIONS, CaseAction, caseActions } from '../data/collection.labels
 import { QueueNames } from '../data/collection.lookups';
 import { CaseView, DisputeView, RecordResult, TaskView } from '../data/collection.models';
 import { canWorkCase, formatDuration, isWorkable, nextActionText } from '../data/collection.rules';
-import { CaseSheetPanel, SHEET_TABS } from './case-sheet-panel';
+import { CONVERSATIONS_TAB, CaseSheetPanel, SHEET_TABS } from './case-sheet-panel';
 import { ContactWindowPanel } from './contact-window';
 import { DensityInvite } from './density-invite';
 import { DisputeDialog, DisputeDialogData } from './dispute-dialog';
 import { InteractionPanel } from './interaction-panel';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
 import { CallButton } from '../../telephony/station/call-button';
+import { MessageButton } from '../../communication/station/message-button';
 import { PresenceBar } from '../../telephony/station/presence-bar';
 
 const GROUP = 'Estação de cobrança';
@@ -45,7 +46,7 @@ const GROUP = 'Estação de cobrança';
  * Estação de cobrança em três zonas com rolagem própria: fila e "próximo caso" (esquerda,
  * recolhível), ficha do caso (centro) e painel de ação (direita) com o "posso contatar agora?" sempre
  * visível. Atalhos do grupo "Estação de cobrança" (`Alt + N`, `Alt + R`, `Alt + A`, `Alt + S`,
- * `Alt + 1…6`) ficam ativos só nesta tela.
+ * `Alt + W`, `Alt + 1…7`) ficam ativos só nesta tela.
  *
  * Rotas: `/cobranca/fila[?caso=id]` (operador) e `/cobranca/casos/:id` (abrir um caso específico).
  */
@@ -67,6 +68,7 @@ const GROUP = 'Estação de cobrança';
     DensityInvite,
     InteractionPanel,
     CallButton,
+    MessageButton,
     PresenceBar,
   ],
   templateUrl: './collection-station.html',
@@ -92,6 +94,7 @@ export class CollectionStation {
   private readonly breadcrumbs = inject(BreadcrumbService);
   private readonly interactionPanel = viewChild(InteractionPanel);
   private readonly callButton = viewChild(CallButton);
+  private readonly messageButton = viewChild(MessageButton);
 
   protected readonly caseActions = CASE_ACTIONS;
   protected readonly nextActionText = nextActionText;
@@ -103,6 +106,8 @@ export class CollectionStation {
   protected readonly canSchedule = computed(() => this.auth.hasPermission(Permission.TASK_MANAGE));
   protected readonly canDispute = computed(() => this.auth.hasAnyPermission([Permission.DISPUTE_MANAGE, Permission.CASE_WORK]));
   protected readonly canSimulate = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_SIMULATE));
+  /** Aba "Conversas" da ficha: só para quem vê a caixa de entrada. */
+  protected readonly canSeeConversations = computed(() => this.auth.hasPermission(Permission.INBOX_VIEW));
   private readonly userId = computed(() => this.auth.user()?.id ?? null);
 
   /** Zona da fila recolhida (mais espaço para a ficha). */
@@ -110,6 +115,8 @@ export class CollectionStation {
   protected readonly queueId = signal<string>('');
   protected readonly nextLoading = signal(false);
   protected readonly tab = signal(0);
+  /** Incrementado a cada mensagem enviada pela estação: a aba Conversas recarrega. */
+  protected readonly conversationsRevision = signal(0);
 
   protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? this.caso() ?? null);
 
@@ -196,9 +203,17 @@ export class CollectionStation {
       keys.register({ id: 'collection.callback', keys: 'alt+a', group: GROUP, description: 'Agendar retorno', handler: () => this.schedule() }),
       keys.register({ id: 'collection.simulate', keys: 'alt+s', group: GROUP, description: 'Abrir simulação de negociação', handler: () => this.simulate() }),
       keys.register({ id: 'collection.call', keys: 'alt+l', group: GROUP, description: 'Ligar para o devedor (clique para ligar)', handler: () => this.callButton()?.open() }),
+      keys.register({ id: 'collection.message', keys: 'alt+w', group: GROUP, description: 'Enviar mensagem ao devedor (WhatsApp, SMS ou e-mail)', handler: () => this.messageButton()?.open() }),
       keys.register({ id: 'collection.queue', keys: 'alt+q', group: GROUP, description: 'Recolher ou expandir a fila', handler: () => this.queueCollapsed.update((v) => !v) }),
       ...SHEET_TABS.map((label, i) =>
-        keys.register({ id: `collection.tab-${i + 1}`, keys: `alt+${i + 1}`, group: GROUP, description: `Aba ${label}`, handler: () => this.tab.set(i) }),
+        keys.register({
+          id: `collection.tab-${i + 1}`,
+          keys: `alt+${i + 1}`,
+          group: GROUP,
+          description: `Aba ${label}`,
+          // aba oculta sem permissão: o atalho não faz nada
+          handler: () => (i === CONVERSATIONS_TAB && !this.canSeeConversations() ? undefined : this.tab.set(i)),
+        }),
       ),
     ];
     const palette = inject(CommandPaletteService).register([
@@ -213,6 +228,12 @@ export class CollectionStation {
   }
 
   // ------------------------------------------------------------------ ações
+
+  /** Mensagem enviada pela estação: atualiza as conversas e o histórico do caso. */
+  protected messageSent(): void {
+    this.conversationsRevision.update((v) => v + 1);
+    this.sheet.reload();
+  }
 
   protected select(c: CaseView): void {
     this.open(c.id);

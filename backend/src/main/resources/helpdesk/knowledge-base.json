@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "dec51813f78ab2f8",
+ "contentVersion": "7d79f01602c3c1c4",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -215,7 +215,9 @@
     "Promessa vale até a data combinada mais a tolerância da assessoria; depois é quebrada automaticamente.",
     "Contestação tem prazo de resposta; a bloqueante suspende contato e negociação dos títulos contestados.",
     "Algumas tabulações executam uma ação automática no próprio registro: \"Alega pagamento\" e \"Contesta a dívida\" abrem contestação, \"Informado falecimento\" bloqueia o contato com o devedor em todos os credores e \"Contato errado\" invalida o telefone ou e-mail usado.",
-    "Ver o documento completo do devedor exige permissão e fica no log de acesso."
+    "Ver o documento completo do devedor exige permissão e fica no log de acesso.",
+    "A mensagem que inicia o contato usa sempre um template aprovado. No WhatsApp, o texto livre só é possível depois que o devedor responde, dentro da janela de 24 h, e a conversa segue em Conversas.",
+    "Mensagens enviadas e recebidas entram sozinhas no histórico do caso (\"Mensagem enviada\" e \"Mensagem recebida\"). Tabule só quando a conversa tiver um resultado, como promessa ou contestação."
    ],
    "terms": [
     "caso",
@@ -1497,8 +1499,9 @@
    "title": "Estação de cobrança",
    "objective": "Seu posto de atendimento: pegue o próximo caso, veja a ficha, confira se pode contatar e registre o resultado, tudo pelo teclado.",
    "purpose": [
-    "Reúne em uma tela a fila de casos, a ficha do caso (títulos, contatos, histórico, agenda, contestações e negociação) e o registro da interação.",
-    "O \"Próximo caso\" entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro. Atalhos de teclado aparecem nos botões e na ajuda."
+    "Reúne em uma tela a fila de casos, a ficha do caso (títulos, contatos, histórico, agenda, contestações, negociação e conversas) e o registro da interação.",
+    "O \"Próximo caso\" entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro. Atalhos de teclado aparecem nos botões e na ajuda.",
+    "O contato sai da própria estação: \"Ligar\" (Alt + L) e \"Mensagem\" (Alt + W) por WhatsApp, SMS ou e-mail, com a decisão do porteiro por contato antes. As respostas chegam em Conversas e na aba Conversas do caso (Alt + 7)."
    ],
    "profiles": [
     "OPERADOR",
@@ -1512,7 +1515,8 @@
    "outputs": [
     "Interações tabuladas, promessas e retornos no histórico do caso.",
     "Simulações, propostas e Pix a partir da aba Negociação.",
-    "Ligações registradas no caso."
+    "Ligações registradas no caso.",
+    "Mensagens de contato ativo por WhatsApp, SMS ou e-mail, com a conversa vinculada ao caso."
    ],
    "related": [
     {
@@ -2193,7 +2197,8 @@
    "objective": "Conversas com os devedores por dono e tempo de espera, para responder, assumir ou transferir.",
    "purpose": [
     "Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta.",
-    "Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar."
+    "Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar.",
+    "Para iniciar um contato com um devedor, use \"Mensagem\" na estação de cobrança: a conversa nasce vinculada ao caso e com você, e continua aqui quando o devedor responder."
    ],
    "profiles": [
     "OPERADOR",
@@ -2202,7 +2207,8 @@
    ],
    "inputs": [
     "Mensagens recebidas pelos canais da assessoria.",
-    "Transferências do assistente e pedidos do portal."
+    "Transferências do assistente e pedidos do portal.",
+    "Conversas iniciadas pelos operadores na estação de cobrança."
    ],
    "outputs": [
     "Respostas enviadas e conversas assumidas, devolvidas ou encerradas.",

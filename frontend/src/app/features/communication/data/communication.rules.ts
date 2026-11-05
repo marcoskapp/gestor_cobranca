@@ -219,3 +219,93 @@ export function idempotencyKey(): string {
   const c = globalThis.crypto;
   return c?.randomUUID ? c.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
+
+// --------------------------------------------------------------------- contato ativo pela estação
+
+/** Contato da ficha do caso usado no contato ativo (`SheetContact` do collection, sem acoplar o tipo). */
+export interface StationContact {
+  contactId: string;
+  type: 'PHONE' | 'EMAIL' | 'ADDRESS';
+  label: 'MOBILE' | 'HOME' | 'WORK' | 'OTHER';
+  whatsapp: boolean;
+  status: 'UNVERIFIED' | 'VALID' | 'INVALID';
+  priority: number;
+}
+
+/** Ordem de oferta dos canais na estação. */
+export const STATION_CHANNELS: readonly ChannelType[] = ['WHATSAPP', 'SMS', 'EMAIL'];
+
+/**
+ * Contatos do devedor utilizáveis no canal, por prioridade, com a mesma regra do servidor: WhatsApp
+ * só em telefone marcado como WhatsApp; SMS em celular (ou WhatsApp); e-mail nos e-mails; nunca
+ * contato inválido.
+ */
+export function channelContacts<T extends StationContact>(contacts: readonly T[], channel: ChannelType): T[] {
+  return contacts
+    .filter((c) => c.status !== 'INVALID')
+    .filter((c) => {
+      switch (channel) {
+        case 'WHATSAPP':
+          return c.type === 'PHONE' && c.whatsapp;
+        case 'SMS':
+          return c.type === 'PHONE' && (c.label === 'MOBILE' || c.whatsapp);
+        case 'EMAIL':
+          return c.type === 'EMAIL';
+      }
+    })
+    .sort((a, b) => a.priority - b.priority);
+}
+
+/** Canais em que o devedor tem ao menos um contato utilizável. */
+export function stationChannels(contacts: readonly StationContact[]): ChannelType[] {
+  return STATION_CHANNELS.filter((ch) => channelContacts(contacts, ch).length > 0);
+}
+
+/**
+ * Primeiro nome no formato do tipo `FIRST_NAME` (primeira palavra, só letras, apóstrofo e hífen, até
+ * 30 caracteres), como no envio das campanhas; nulo se o nome não tiver letras.
+ */
+export function firstName(fullName: string | null | undefined): string | null {
+  let first = (fullName ?? '').trim().split(/\s+/)[0]?.replace(/[^\p{L}'-]/gu, '') ?? '';
+  while (first && !/\p{L}/u.test(first[0])) {
+    first = first.slice(1);
+  }
+  return first ? first.slice(0, 30) : null;
+}
+
+/**
+ * Valores iniciais das variáveis do template no contato ativo: só o que a ficha já sabe sem
+ * ambiguidade (primeiro nome do devedor). Valores, datas e links ficam com o operador, que confere
+ * na prévia antes de enviar.
+ */
+export function prefillVariables(variables: readonly VariableInput[], debtorName: string | null | undefined): Record<string, string> {
+  const name = firstName(debtorName);
+  const values: Record<string, string> = {};
+  for (const v of variables) {
+    if (v.type === 'FIRST_NAME' && name) {
+      values[v.name] = v.maxLength ? name.slice(0, v.maxLength) : name;
+    }
+  }
+  return values;
+}
+
+/** Quem atende a conversa, em linguagem da estação. */
+export function ownerText(
+  c: Pick<ConversationView, 'status' | 'ownerType' | 'ownerUserId' | 'requiredProfile'>,
+  userId: string | null,
+  userName: (id: string) => string,
+): string {
+  if (c.status === 'CLOSED') {
+    return 'Encerrada';
+  }
+  switch (c.ownerType) {
+    case 'USER':
+      return c.ownerUserId === userId ? 'Com você' : c.ownerUserId ? `Com ${userName(c.ownerUserId)}` : 'Com operador';
+    case 'QUEUE':
+      return c.requiredProfile ? `Na fila (exige ${c.requiredProfile})` : 'Na fila';
+    case 'ASSISTANT':
+      return 'Com o assistente';
+    default:
+      return 'Sem atendimento';
+  }
+}

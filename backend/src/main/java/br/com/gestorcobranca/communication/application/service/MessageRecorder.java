@@ -43,6 +43,26 @@ class MessageRecorder {
         this.currentActor = currentActor;
     }
 
+    /**
+     * Conversa nova, com quem a iniciou: {@code USER} (operador, contato ativo pela estação ou pela caixa de entrada),
+     * {@code ASSISTANT}, {@code CAMPAIGN}, {@code SYSTEM} ou {@code DEBTOR} (mensagem recebida). Distingue o contato
+     * ativo do operador do receptivo e do automático nos painéis de efetividade.
+     */
+    void conversationStarted(Conversation c, String initiator) {
+        metrics.conversationStarted(c.getChannel().name(), initiator);
+        BusinessEvent event = BusinessEvent.of(BusinessEventTypes.CONVERSATION_STARTED)
+                .creditor(c.getCreditorId())
+                .portfolio(c.getPortfolioId())
+                .debtor(c.getDebtorId())
+                .collectionCase(c.getCaseId())
+                .reference("conversation", c.getId())
+                .channel(c.getChannel().name())
+                .attr("initiatorType", initiator)
+                .attr("ownerType", c.getOwnerType())
+                .attr("identified", c.getDebtorId() != null);
+        businessEvents.log(event);
+    }
+
     void queued(Message m, Conversation c) {
         count(m);
         publish(m, c);

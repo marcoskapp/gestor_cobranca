@@ -65,6 +65,11 @@ class CommunicationMetrics {
         registry.counter("communication.opt_out", "channel", channel).increment();
     }
 
+    /** Conversa nova: quem a iniciou (USER, ASSISTANT, CAMPAIGN, SYSTEM ou DEBTOR). */
+    void conversationStarted(String channel, String initiator) {
+        registry.counter("communication.conversations.started", "channel", channel, "initiator", initiator).increment();
+    }
+
     void handoff(String kind, String from, String to) {
         registry.counter("communication.handoffs", "kind", kind, "from", from, "to", to).increment();
     }

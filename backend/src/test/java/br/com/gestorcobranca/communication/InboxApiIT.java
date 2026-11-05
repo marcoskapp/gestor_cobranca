@@ -45,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
@@ -285,6 +286,73 @@ class InboxApiIT extends CommunicationTestSupport {
                 throw new IllegalStateException(e);
             }
         });
+    }
+
+    @Test
+    void operatorStartsConversationFromCaseAndCaseListsItInAnyStatus() throws Exception {
+        // estação: o operador inicia a conversa do caso com template (sem conversa prévia)
+        String body = """
+                {"debtorId":"%s","creditorId":"%s","caseId":"%s","channel":"WHATSAPP","templateCode":"COBRANCA",
+                 "variables":{"nome":"Maria","valor":"500.00"}}""".formatted(debtor, creditorA, caseA.id());
+        MvcResult sent = mvc.perform(post("/api/v1/communication/messages").header("Idempotency-Key", "station-1")
+                        .contentType(MediaType.APPLICATION_JSON).content(body).with(authentication(operator(operatorX))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("QUEUED"))
+                .andExpect(jsonPath("$.senderType").value("USER"))
+                .andReturn();
+        UUID conversationId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(sent.getResponse().getContentAsString(),
+                "$.conversationId"));
+        ConversationView started = conversation(conversationId);
+        assertThat(started.caseId()).isEqualTo(caseA.id());
+        assertThat(started.ownerType()).isEqualTo("USER");
+        assertThat(started.ownerUserId()).isEqualTo(operatorX);
+        // mesma chave de idempotência: nenhuma conversa ou mensagem nova
+        mvc.perform(post("/api/v1/communication/messages").header("Idempotency-Key", "station-1")
+                        .contentType(MediaType.APPLICATION_JSON).content(body).with(authentication(operator(operatorX))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.conversationId").value(conversationId.toString()));
+        assertThat(count("select count(*) from communication.message where conversation_id = ?", conversationId))
+                .isEqualTo(1);
+
+        // log de negócio: conversa iniciada pelo operador (contato ativo), uma única vez
+        assertThat(count("select count(*) from shared.business_event where event_type = 'conversation.started' "
+                + "and reference_id = ? and case_id = ? and channel = 'WHATSAPP' and actor_id = ? "
+                + "and attributes ->> 'initiatorType' = 'USER'", conversationId, caseA.id(), operatorX)).isEqualTo(1);
+        // um segundo envio reaproveita a conversa aberta: não há outro início
+        asOperator(operatorX, () -> messages.send(template(creditorA, "station-2")));
+        assertThat(count("select count(*) from shared.business_event where event_type = 'conversation.started' "
+                + "and reference_id = ?", conversationId)).isEqualTo(1);
+
+        // conversas do caso: o padrão traz só as abertas; ALL inclui as encerradas
+        asOperator(operatorX, () -> conversations.close(conversationId, "Atendimento concluído"));
+        mvc.perform(get("/api/v1/communication/conversations").param("caseId", caseA.id().toString())
+                        .with(authentication(operator(operatorX))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        mvc.perform(get("/api/v1/communication/conversations").param("caseId", caseA.id().toString())
+                        .param("status", "ALL").with(authentication(operator(operatorX))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(conversationId.toString()))
+                .andExpect(jsonPath("$.content[0].status").value("CLOSED"));
+        // escopo por credor: Z (só credor B) não vê as conversas do caso do credor A, nem com ALL
+        mvc.perform(get("/api/v1/communication/conversations").param("caseId", caseA.id().toString())
+                        .param("status", "ALL").with(authentication(operator(operatorZ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        // Z não inicia conversa no credor A
+        mvc.perform(post("/api/v1/communication/messages").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .with(authentication(operator(operatorZ))))
+                .andExpect(status().isForbidden());
+
+        // contato receptivo: mensagem do devedor sem conversa aberta abre outra, iniciada pelo devedor
+        asAdmin(() -> {
+            sandbox.simulateInbound(whatsapp.id(), "5511987654321", "Quero negociar");
+            return null;
+        });
+        assertThat(count("select count(*) from shared.business_event where event_type = 'conversation.started' "
+                + "and channel = 'WHATSAPP' and attributes ->> 'initiatorType' = 'DEBTOR' "
+                + "and reference_id <> ?", conversationId)).isEqualTo(1);
     }
 
     private void awaiting(UUID conversationId, Instant since) {

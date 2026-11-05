@@ -213,8 +213,8 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/assistente/turnos/t-1?revisao=r-1')?.tourId).toBe('assistant.turn');
     expect(findScreen('/assistente/qualidade')?.tourId).toBe('assistant.quality');
     // estação ganhou o clique para ligar e a presença: novidades na tela e tour revisado
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(6);
-    expect(findTour('collection.station')?.version).toBe(2);
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(7);
+    expect(findTour('collection.station')?.version).toBe(3);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES.find((n) => n.version === 8)?.title).toContain('Prestação de contas');

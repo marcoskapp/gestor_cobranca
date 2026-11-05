@@ -27,6 +27,8 @@ export const MANUAL: ModuleManual = {
     'Contestação tem prazo de resposta; a bloqueante suspende contato e negociação dos títulos contestados.',
     'Algumas tabulações executam uma ação automática no próprio registro: "Alega pagamento" e "Contesta a dívida" abrem contestação, "Informado falecimento" bloqueia o contato com o devedor em todos os credores e "Contato errado" invalida o telefone ou e-mail usado.',
     'Ver o documento completo do devedor exige permissão e fica no log de acesso.',
+    'A mensagem que inicia o contato usa sempre um template aprovado. No WhatsApp, o texto livre só é possível depois que o devedor responde, dentro da janela de 24 h, e a conversa segue em Conversas.',
+    'Mensagens enviadas e recebidas entram sozinhas no histórico do caso ("Mensagem enviada" e "Mensagem recebida"). Tabule só quando a conversa tiver um resultado, como promessa ou contestação.',
   ],
   screens: [
     {
@@ -34,12 +36,18 @@ export const MANUAL: ModuleManual = {
       title: 'Estação de cobrança',
       objective: 'Seu posto de atendimento: pegue o próximo caso, veja a ficha, confira se pode contatar e registre o resultado, tudo pelo teclado.',
       purpose: [
-        'Reúne em uma tela a fila de casos, a ficha do caso (títulos, contatos, histórico, agenda, contestações e negociação) e o registro da interação.',
+        'Reúne em uma tela a fila de casos, a ficha do caso (títulos, contatos, histórico, agenda, contestações, negociação e conversas) e o registro da interação.',
         'O "Próximo caso" entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro. Atalhos de teclado aparecem nos botões e na ajuda.',
+        'O contato sai da própria estação: "Ligar" (Alt + L) e "Mensagem" (Alt + W) por WhatsApp, SMS ou e-mail, com a decisão do porteiro por contato antes. As respostas chegam em Conversas e na aba Conversas do caso (Alt + 7).',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR'],
       inputs: ['Casos das filas atendidas pela sua equipe e casos atribuídos a você.', 'Decisão de contato do compliance por canal.', 'Score do caso, quando há modelo em uso.'],
-      outputs: ['Interações tabuladas, promessas e retornos no histórico do caso.', 'Simulações, propostas e Pix a partir da aba Negociação.', 'Ligações registradas no caso.'],
+      outputs: [
+        'Interações tabuladas, promessas e retornos no histórico do caso.',
+        'Simulações, propostas e Pix a partir da aba Negociação.',
+        'Ligações registradas no caso.',
+        'Mensagens de contato ativo por WhatsApp, SMS ou e-mail, com a conversa vinculada ao caso.',
+      ],
       related: [
         { screen: 'collection.agenda', why: 'Retornos combinados por dia.' },
         { screen: 'negotiation.simulator', why: 'Simular condições fora da estação.' },

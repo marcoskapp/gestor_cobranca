@@ -262,6 +262,7 @@ export interface InboxFilter {
   debtorId?: string | null;
   caseId?: string | null;
   channel?: string | null;
+  /** `OPEN` (padrão do servidor), `CLOSED` ou `ALL` (qualquer situação: conversas do caso na estação). */
   status?: string | null;
   /** Donos separados por vírgula (`QUEUE,USER`). */
   owner?: string | null;
@@ -276,4 +277,19 @@ export interface SendMessageRequest {
   templateCode: string | null;
   variables: Record<string, string> | null;
   text: string | null;
+}
+
+/**
+ * Contato ativo do operador a partir do caso (estação de cobrança): o servidor reaproveita a conversa
+ * aberta do contato no credor ou abre uma nova vinculada ao caso, sempre com template aprovado
+ * (conversa nova não tem janela de 24 h aberta) e pelo porteiro de contato.
+ */
+export interface StartConversationRequest {
+  debtorId: string;
+  creditorId: string;
+  caseId: string;
+  channel: ChannelType;
+  contactId: string;
+  templateCode: string;
+  variables: Record<string, string>;
 }

@@ -126,6 +126,17 @@ WhatsApp exige contato marcado como WhatsApp); caso: o informado ou o único ati
    `failureDetail`), `message.blocked`, sem job.
 4. `QUEUED`, espera da conversa encerrada (SLA `communication.inbox.first_response`), job `communication.send`.
 
+**Contato ativo pela estação de cobrança** — botão "Mensagem" (`Alt + W`, `MESSAGE_SEND`) na estação: o cliente envia
+`POST /communication/messages` com devedor, credor, **caso**, canal, contato escolhido e template (sem `conversationId`).
+O servidor reaproveita a conversa aberta do contato na conta do credor (ou abre uma nova vinculada ao caso) e o
+operador passa a ser o dono (passo 1). Conversa nova não tem janela do WhatsApp aberta, então o diálogo só oferece
+template; texto livre continua na caixa de entrada depois da resposta do devedor. Antes do envio o diálogo mostra, por
+contato do canal, a decisão de `GET /collection/cases/{id}/contact-availability` (sem registrar tentativa) e as
+conversas abertas do caso no canal, com atalho para a caixa de entrada. Variáveis: o cliente pré-preenche só
+`FIRST_NAME` com o primeiro nome do devedor (mesma regra das campanhas); valores usam a máscara monetária e o operador
+confere na prévia. Abertura de conversa → `conversation.started` (`initiatorType`) e
+`communication.conversations.started{channel,initiator}`.
+
 **Mensagem transacional (`MessageService#queueTransactional`)** — resposta da contestação ao devedor, pela porta
 `collection :: spi` `DisputeDebtorMessenger` (implementação `DisputeNoticeMessenger`): e-mail ou WhatsApp com **texto
 livre** (WhatsApp só na janela de 24 h), autor = operador, sem assumir a conversa, `contact_category = TRANSACTIONAL` e
@@ -189,6 +200,8 @@ caso, canal, situação e "aguardando resposta" (ordenado pela espera mais antig
   conversas e canais do devedor, mais recentes primeiro, só das conversas nos credores do escopo (credor fora do escopo →
   página vazia). Substitui a montagem no cliente (duas listagens + uma consulta por conversa).
 * **Nome do devedor** na caixa de entrada: `GET /api/v1/debtors/names` (debt), em lote, com `INBOX_VIEW`.
+* **Conversas do caso** (aba Conversas da ficha, na estação): `GET /conversations?caseId=&status=ALL` — `status`
+  aceita `OPEN` (padrão), `CLOSED` ou `ALL` (qualquer situação), sob o mesmo escopo de credores.
 
 ### 6.1 SLA de primeira resposta
 
@@ -244,7 +257,7 @@ templates sem `DELETE`.
   usados pelo incentive — tempo de resposta de humanos).
 * Consumidos: `MessageStatusChanged` (interação), `HandoffRequested`, `CaseAssignmentChanged`, `CaseStatusChanged`
   (abertura vincula conversas sem caso do devedor no credor).
-* Negócio: `message.sent|delivered|read|failed|blocked|replied|received`, `conversation.handoff`,
+* Negócio: `message.sent|delivered|read|failed|blocked|replied|received`, `conversation.started`, `conversation.handoff`,
   `conversation.closed`, `conversation.sla_breached`, `assistant.handoff`, `template.published` — ver `docs/tecnico/logs-e-metricas.md` §3.4. Nunca conteúdo,
   contato ou nome.
 * Métricas `communication.*` — `docs/tecnico/logs-e-metricas.md` §5. Auditoria: contas (sem credenciais), templates, aprovação,
@@ -279,6 +292,8 @@ templates sem `DELETE`.
 | 23 | Categoria do template no provedor como enum (`UTILITY`, `MARKETING`, `AUTHENTICATION`) na versão do template | marcador booleano "é autenticação" | é o conceito da Meta (custo, formato e reclassificação); o formato de envio sai da categoria; existentes = `UTILITY` (decisão 510) |
 | 24 | Template de autenticação: uma variável `CODE` (até 15) enviada no corpo e no botão `url` índice `"0"` | manter `codigo` + `minutos` | a Meta recusa/reclassifica parâmetros extras; validade é do template na Meta (decisão 511) |
 | 25 | `TemplateUseCases#findEffective` para quem envia montar só as variáveis declaradas | variáveis opcionais ignoradas pelo renderizador | o renderizador continua recusando variável não prevista (erro de configuração aparece); o portal decide pelo template (decisão 512) |
+| 26 | Contato ativo da estação usa o envio existente (`POST /messages` com caso, canal e contato) | endpoint novo "iniciar conversa" | o envio já resolve conta, contato, caso, dono, porteiro e idempotência; um segundo caminho duplicaria regras (decisão 837) |
+| 27 | `conversation.started` com `initiatorType` (USER, ASSISTANT, CAMPAIGN, SYSTEM, DEBTOR) | inferir do primeiro `message.*` | separa contato ativo do operador, receptivo e automático nos painéis sem cruzar eventos (decisão 838) |
 
 ## 9. Pendências
 

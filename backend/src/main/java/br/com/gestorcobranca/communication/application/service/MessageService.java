@@ -104,7 +104,7 @@ class MessageService implements MessageUseCases {
         Guard.require(command.campaignExecutionId() == null || sender == SenderType.CAMPAIGN,
                 "message.campaign_requires_system", "Envio de campanha é feito pelo processo da campanha");
         Conversation conversation = command.conversationId() != null ? access.forCommand(command.conversationId())
-                : openConversation(command);
+                : openConversation(command, sender);
         Content content = content(conversation, sender, command.templateCode(), command.variables(), command.text());
         Message message = queue(conversation, sender, content, command.campaignExecutionId(), null, idempotencyKey);
         return CommunicationViews.message(message);
@@ -216,7 +216,7 @@ class MessageService implements MessageUseCases {
         Guard.require(channelType != ChannelType.EMAIL || (subject != null && !subject.isBlank()),
                 "message.subject_required", "Assunto obrigatório no e-mail");
         Conversation c = openConversation(new SendMessageCommand(null, debtorId, creditorId, caseId, channelType.name(),
-                contactId, null, null, body, null, null));
+                contactId, null, null, body, null, null), SenderType.USER);
         Guard.requireState(c.isOpen(), "conversation.closed", "Conversa encerrada; inicie uma nova");
         Actor actor = access.actor();
         Guard.requireState(actor.isUser(), "message.transactional_requires_user",
@@ -277,8 +277,12 @@ class MessageService implements MessageUseCases {
         return new Content(template, rendered.subject(), rendered.body(), templateVariables.valuesToJson(values));
     }
 
-    /** Conversa aberta do contato do devedor no credor (ou nova), na conta do credor ou da assessoria. */
-    private Conversation openConversation(SendMessageCommand command) {
+    /**
+     * Conversa aberta do contato do devedor no credor (ou nova), na conta do credor ou da assessoria.
+     *
+     * @param initiator autor da primeira mensagem, registrado no evento {@code conversation.started} da conversa nova
+     */
+    private Conversation openConversation(SendMessageCommand command, SenderType initiator) {
         Guard.require(command.debtorId() != null && command.creditorId() != null, "message.target_required",
                 "Informe a conversa ou o devedor e o credor");
         ChannelType channel = CommunicationEnums.parse(ChannelType.class, command.channel(), "message.channel_invalid",
@@ -302,10 +306,12 @@ class MessageService implements MessageUseCases {
         }
         Conversation.Owner owner = kase.map(k -> ConversationOwnership.fromCase(k, (String) null, false))
                 .orElse(Conversation.Owner.NONE);
-        return conversations.saveAndFlush(new Conversation(command.debtorId(), command.creditorId(),
+        Conversation created = conversations.saveAndFlush(new Conversation(command.debtorId(), command.creditorId(),
                 kase.map(CaseView::portfolioId).orElse(null), kase.map(CaseView::id).orElse(null), channel,
                 account.getId(), contact.contactId(), new Conversation.Contact(contact.value(), fingerprint.hash(),
                 fingerprint.maskedValue()), owner, Instant.now(clock)));
+        recorder.conversationStarted(created, initiator.name());
+        return created;
     }
 
     private ChannelContact contact(UUID debtorId, ChannelType channel, UUID contactId) {

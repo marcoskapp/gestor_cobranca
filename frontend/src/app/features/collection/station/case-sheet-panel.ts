@@ -20,6 +20,7 @@ import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
 import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
+import { CaseConversations } from '../../communication/station/case-conversations';
 import { CaseScoreCard } from '../../scoring/case/case-score-card';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_ICONS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
@@ -32,8 +33,10 @@ import { CaseSheet, PromiseView, SheetContact, SheetTitle, TabulationView, TaskV
 import { formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
 
-/** Abas da ficha na ordem dos atalhos `Alt + 1…6`. */
-export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação'] as const;
+/** Abas da ficha na ordem dos atalhos `Alt + 1…7`. */
+export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação', 'Conversas'] as const;
+/** Índice da aba "Conversas" (oculta sem `INBOX_VIEW`). */
+export const CONVERSATIONS_TAB = 6;
 
 /**
  * Ficha do caso no centro da estação: devedor (documento e contatos mascarados, revelação
@@ -43,7 +46,7 @@ export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e prome
  */
 @Component({
   selector: 'app-case-sheet-panel',
-  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation, CaseScoreCard, PaymentReviewAlert],
+  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation, CaseConversations, CaseScoreCard, PaymentReviewAlert],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
 })
@@ -53,6 +56,8 @@ export class CaseSheetPanel {
   readonly creditors = input.required<NameMap>();
   readonly portfolios = input.required<NameMap>();
   readonly tab = model(0);
+  /** Muda quando a estação envia uma mensagem (a aba Conversas recarrega). */
+  readonly conversationsRevision = input(0);
   /** A ficha mudou (tarefa, promessa): a estação recarrega. */
   readonly changed = output<void>();
 
@@ -83,6 +88,8 @@ export class CaseSheetPanel {
   protected readonly canReveal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
   protected readonly canManageTasks = computed(() => this.auth.hasPermission(Permission.TASK_MANAGE));
   protected readonly canCancelPromise = computed(() => this.auth.hasPermission(Permission.INTERACTION_REGISTER));
+  /** Aba "Conversas": só para quem vê a caixa de entrada. */
+  protected readonly canSeeConversations = computed(() => this.auth.hasPermission(Permission.INBOX_VIEW));
   /** Pix de título avulso; com acordo em vigor, o Pix é da parcela (aba Negociação). */
   protected readonly canPix = computed(() => this.auth.hasPermission(Permission.PAYMENT_INSTRUCTION_CREATE) && this.sheet().collectionCase.status !== 'AGREEMENT');
   protected readonly userId = computed(() => this.auth.user()?.id ?? null);

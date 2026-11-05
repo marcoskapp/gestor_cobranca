@@ -46,7 +46,10 @@ class ConversationController {
         this.currentActor = currentActor;
     }
 
-    /** @param assignee {@code me} ou id do operador dono */
+    /**
+     * @param assignee {@code me} ou id do operador dono
+     * @param status   {@code OPEN} (padrão), {@code CLOSED} ou {@code ALL}
+     */
     @GetMapping
     @PreAuthorize("hasAuthority('INBOX_VIEW')")
     PageResponse<ConversationView> inbox(@RequestParam(required = false) UUID creditorId,
@@ -64,7 +67,9 @@ class ConversationController {
                                          @RequestParam(required = false) Integer size) {
         UUID ownerUserId = assignee == null || assignee.isBlank() ? null
                 : "me".equalsIgnoreCase(assignee) ? currentActor.actorId() : parseId(assignee);
-        return conversations.inbox(new InboxFilter(creditorId, portfolioId, debtorId, caseId, channel, status, owner,
+        // ALL = qualquer situação (ex.: conversas do caso na estação); o padrão continua só as abertas
+        String statusFilter = "ALL".equalsIgnoreCase(status) ? null : status;
+        return conversations.inbox(new InboxFilter(creditorId, portfolioId, debtorId, caseId, channel, statusFilter, owner,
                 ownerUserId, teamId, requiredProfile, awaitingReply), PageQuery.of(page, size));
     }
 

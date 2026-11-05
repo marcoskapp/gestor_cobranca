@@ -374,6 +374,12 @@ Na estação, a ficha mostra também um aviso compacto dos pagamentos externos d
 de outra pessoa ou foram recusados recentemente — lido do payment (`GET /payment/review-status/debtors/{id}`, `AGREEMENT_VIEW`),
 não da ficha, porque o collection não depende do payment (decisão 436).
 
+A aba **Conversas** (`Alt + 7`, só com `INBOX_VIEW`) lista as conversas do caso em qualquer situação, lidas do
+communication (`GET /communication/conversations?caseId=&status=ALL`), e o botão **Mensagem** (`Alt + W`,
+`MESSAGE_SEND`) inicia o contato ativo por WhatsApp, SMS ou e-mail (`comunicacao.md` §4). As mensagens enviadas e
+recebidas já entram no histórico como interações `MESSAGE_SENT`/`MESSAGE_RECEIVED` (`comunicacao.md` §8, decisões 8 e 9);
+a estação não cria interação própria para o envio.
+
 ### 8.1 "Posso contatar agora?" (operador)
 
 `GET /cases/{id}/contact-availability[?channel=&contactId=]` (`CASE_WORK`), `ContactAvailabilityQueries`. Fica no

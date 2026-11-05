@@ -112,3 +112,16 @@ export const HANDOFF_REASON_LABELS: Record<string, string> = {
   DEBTOR_REQUESTED_HUMAN: 'Devedor pediu atendimento humano',
   UNSPECIFIED: 'Motivo não informado',
 };
+
+/** Erros do contato ativo pela estação (`POST /communication/messages` com o caso) em linguagem clara. */
+export const START_ERROR_LABELS: Record<string, string> = {
+  'channel.not_configured': 'Não há conta ativa deste canal para o credor nem para a assessoria. Peça ao gestor para configurar o canal.',
+  'message.template_not_found': 'O template deixou de estar publicado. Escolha outro template.',
+  'message.template_channel_mismatch': 'O template escolhido é de outro canal. Escolha um template deste canal.',
+  'message.no_contact': 'O devedor não tem contato utilizável neste canal.',
+  'message.contact_unusable': 'O contato escolhido deixou de ser válido para este canal. Recarregue o caso e escolha outro contato.',
+  'message.case_mismatch': 'O caso não pertence a este devedor e credor. Recarregue o caso.',
+  'case.closed': 'O caso foi encerrado. Não é possível iniciar contato por ele.',
+  'conversation.contact_of_other_debtor': 'Este contato está numa conversa de outro devedor. Avise a supervisão para revisar o cadastro.',
+  'conversation.unidentified': 'A conversa deste contato ainda não foi identificada. Identifique-a na caixa de entrada.',
+};

@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 13,
+    date: '2026-11-05',
+    title: 'Mensagem pela estação de cobrança',
+    items: [
+      { text: 'Botão Mensagem (Alt + W) na estação: inicie o contato por WhatsApp, SMS ou e-mail com um template aprovado, sem sair do caso.', route: '/cobranca/fila' },
+      { text: 'Antes de enviar, a decisão do porteiro para cada contato; se o caso já tem conversa aberta no canal, um atalho leva até ela.', route: '/cobranca/fila' },
+      { text: 'Aba Conversas na ficha do caso (Alt + 7): todas as conversas do caso, com quem atende e mensagens não lidas.', route: '/cobranca/fila' },
+    ],
+  },
+  {
     version: 12,
     date: '2026-11-03',
     title: 'Entenda cada número sem sair da tela',

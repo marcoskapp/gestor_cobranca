@@ -94,7 +94,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 6,
+    version: 7,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -103,11 +103,18 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['Gerar Pix da próxima parcela do acordo (aba Negociação) ou de um título avulso (aba Títulos).'] },
       { version: 5, items: ['Ligar (Alt + L) com a decisão do porteiro por telefone antes de discar.', 'Barra de presença na telefonia (disponível, pausa com motivo) e tabulação obrigatória ao fim da chamada.'] },
       { version: 6, items: ['Tabulações com ação automática avisam o efeito antes do registro: contestação aberta (com o tipo), contato bloqueado por falecimento ou contato marcado como inválido.'] },
+      {
+        version: 7,
+        items: [
+          'Mensagem (Alt + W): contato ativo por WhatsApp, SMS ou e-mail a partir do caso, com template aprovado e a decisão do porteiro por contato antes do envio.',
+          'Aba Conversas (Alt + 7): conversas do caso, abertas e encerradas, com quem atende e atalho para a caixa de entrada.',
+        ],
+      },
     ],
   },
   {
     key: 'collection.case',
-    version: 6,
+    version: 7,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -116,6 +123,13 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['Gerar Pix da próxima parcela do acordo (aba Negociação) ou de um título avulso (aba Títulos).'] },
       { version: 5, items: ['Ligar (Alt + L) com a decisão do porteiro por telefone antes de discar.', 'Barra de presença na telefonia (disponível, pausa com motivo) e tabulação obrigatória ao fim da chamada.'] },
       { version: 6, items: ['Tabulações com ação automática avisam o efeito antes do registro: contestação aberta (com o tipo), contato bloqueado por falecimento ou contato marcado como inválido.'] },
+      {
+        version: 7,
+        items: [
+          'Mensagem (Alt + W): contato ativo por WhatsApp, SMS ou e-mail a partir do caso, com template aprovado e a decisão do porteiro por contato antes do envio.',
+          'Aba Conversas (Alt + 7): conversas do caso, abertas e encerradas, com quem atende e atalho para a caixa de entrada.',
+        ],
+      },
     ],
   },
   { key: 'collection.cases', version: 1, path: '/cobranca/casos', tourId: 'collection.cases' },

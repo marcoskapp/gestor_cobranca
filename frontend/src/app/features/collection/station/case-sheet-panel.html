@@ -321,5 +321,16 @@
       </div>
     </ng-template>
   </li>
+
+  @if (canSeeConversations()) {
+    <li [ngbNavItem]="6">
+      <button ngbNavLink type="button">Conversas<kbd class="sp-kbd" aria-hidden="true">Alt 7</kbd></button>
+      <ng-template ngbNavContent>
+        <div data-tour="case-conversations">
+          <app-case-conversations [caseId]="cs.id" [revision]="conversationsRevision()" />
+        </div>
+      </ng-template>
+    </li>
+  }
 </ul>
 <div [ngbNavOutlet]="nav" class="sp-tab"></div>
