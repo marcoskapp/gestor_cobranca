@@ -297,7 +297,7 @@ aberto, sem status novo).
 * Resposta: `collection.dispute_creditor_response` (append-only, `MANUAL|PUBLIC_API|EMAIL`, posição, resumo criptografado);
   documentos manuais viram `dispute_evidence` com `creditor_response_id`. API pública em `publicapi` (escopos
   `disputes:read`/`disputes:write`, ator `INTEGRATION`).
-* Documentos da API (decisões 813–818): tipo pelo conteúdo (`FileSignatures`: PDF, PNG, JPEG), até
+* Documentos da API (decisões 814–819): tipo pelo conteúdo (`FileSignatures`: PDF, PNG, JPEG), até
   `app.collection.disputes.api-max-documents` (5) por resposta e `api-max-document-bytes` (10 MB) cada, gravados na
   categoria `QUARANTINE` em `collection.dispute_document_quarantine` (`V0605`) e verificados pelo job
   `collection.dispute_document_scan` (`MalwareScanner`, `app.storage.malware-scan.mode` = `disabled` | `clamd`; até
@@ -326,7 +326,7 @@ valor com `?acao=corrigir-valor&contestacao=<id>&motivo=`, a correção manual d
 
 ### 7.6 Respostas do credor por e-mail
 
-Decisões 819–835; operação em [email-entrada.md](../operacao/email-entrada.md). Migration `V0606`.
+Decisões 820–836; operação em [email-entrada.md](../operacao/email-entrada.md). Migration `V0606`.
 
 * **Endereço de resposta**: `DisputeCreditorChannel#send`, com `app.collection.inbound-mail.mode` ≠ `disabled`, gera o
   token (`newReplyToken`, 130 bits base32), grava `contestacao+<token>@<domain>` criptografado em

@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Correção manual do valor do título pela assessoria (decisões 801–812, docs/negocio/correcao-de-valor.md): pedido com
+ * Correção manual do valor do título pela assessoria (decisões 802–813, docs/negocio/correcao-de-valor.md): pedido com
  * motivo, componentes afetados e evidência; aplicado no registro até o limite da assessoria ou depois da aprovação de
  * outra pessoa (RB06); histórico no próprio título; divergência com a carga do credor tratada por alguém.
  * <p>

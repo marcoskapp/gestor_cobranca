@@ -92,7 +92,7 @@ locals {
     # Pix (decisões 313 e 316)
     GC_PAYMENT_PIX_ALLOWED_HOSTS    = join(",", var.payment_pix_allowed_hosts)
     GC_PAYMENT_WEBHOOK_MTLS_ENABLED = tostring(var.payment_webhook_mtls_enabled)
-    # respostas do credor por e-mail (decisões 819–835): vazios = leitura desligada
+    # respostas do credor por e-mail (decisões 820–836): vazios = leitura desligada
     GC_INBOUND_MAIL_DOMAIN    = var.inbound_mail_domain
     GC_INBOUND_MAIL_BUCKET    = var.inbound_mail_bucket_name
     GC_INBOUND_MAIL_QUEUE_URL = var.inbound_mail_queue_url

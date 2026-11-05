@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Simula, no sandbox, a resposta do credor por e-mail a um pedido de contestação (sem AWS: adaptador local da
-# leitura de e-mail, decisões 819–835). O e-mail FICTÍCIO entra pelo mesmo caminho do SES: triagem de remetente e
+# leitura de e-mail, decisões 820–836). O e-mail FICTÍCIO entra pelo mesmo caminho do SES: triagem de remetente e
 # autenticação, quarentena, anexos pela verificação de segurança e "a confirmar" na página da contestação.
 #
 #   ./scripts/sandbox/credor-responde.sh <endereço de resposta> [opções]

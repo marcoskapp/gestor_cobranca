@@ -58,7 +58,7 @@ O prazo de resposta ao devedor **não é pausado** enquanto se aguarda o credor:
 4. **Lembrete** antes do prazo (padrão 1 dia; 0 desliga) e **cobrança do retorno vencido** no dia seguinte ao prazo, ambos automáticos (todos os dias às 08:05), uma vez por pedido.
 5. **Resposta do credor**: registrada na tela (posição + resumo + documentos, que entram como evidências marcadas "do credor") ou enviada pelo próprio credor pela **API pública** (`POST /public-api/v1/disputes/{id}/creditor-responses`, escopo `disputes:write`), com até 5 documentos PDF, PNG ou JPEG de até 10 MB (tipo conferido pelo conteúdo). Os documentos da API passam pela **quarentena** (verificação de malware) antes de virar evidência; infectado tem o conteúdo apagado e é recusado, e o credor acompanha a situação pela API. A resposta encerra o "aguardando o credor" do pedido.
 6. **Histórico**: cada pedido guarda o texto enviado, a versão do modelo, destinatários, títulos, evidências, downloads do link e cada e-mail (pedido, lembrete, cobrança) com a situação de envio.
-7. **Resposta do credor por e-mail** (leitura automática, aprovada em 05/11/2026; decisões 819–835; configuração em [email-entrada.md](../tecnico/operacao/email-entrada.md)):
+7. **Resposta do credor por e-mail** (leitura automática, aprovada em 05/11/2026; decisões 820–836; configuração em [email-entrada.md](../tecnico/operacao/email-entrada.md)):
    - o pedido sai com `Reply-To: contestacao+<código>@<subdomínio de entrada>`; o código (130 bits, só o hash no banco) aponta só para o pedido, sem dado do devedor, e vale até 180 dias depois do prazo pedido;
    - o e-mail recebido entra no pedido como **"recebido por e-mail, a confirmar"**: texto puro (o HTML nunca é exibido), original guardado com SHA-256 para a cadeia de custódia, anexos PDF, PNG ou JPEG de até 10 MB pela mesma quarentena e antivírus da API, virando evidências **"do credor, por e-mail"**; outros anexos ficam só no original;
    - **o sistema nunca resolve sozinho**: o analista lê e **confirma a posição** do credor (confirma a dívida, reconhece, reconhece em parte ou só informa) — só então a resposta do credor é registrada (origem e-mail, com a data do e-mail) e o pedido deixa de aguardar o credor —, ou **descarta** com motivo. Respostas seguintes no mesmo endereço entram no histórico, cada uma a confirmar;
@@ -103,7 +103,7 @@ Atalhos para os fluxos existentes, com as regras e permissões deles: **cancelar
 
 ## 8. O que ainda depende do responsável
 
-- Ligar a verificação de malware (daemon ClamAV) dos documentos recebidos pela API e por e-mail (decisão 815).
-- Leitura de e-mail: escolher o subdomínio, verificar no SES e criar o MX ([email-entrada.md §2](../tecnico/operacao/email-entrada.md)); revisar os limites (826), a cópia obrigatória ao responsável (820) e uma tela para os e-mails sem rota (830).
+- Ligar a verificação de malware (daemon ClamAV) dos documentos recebidos pela API e por e-mail (decisão 816).
+- Leitura de e-mail: escolher o subdomínio, verificar no SES e criar o MX ([email-entrada.md §2](../tecnico/operacao/email-entrada.md)); revisar os limites (827), a cópia obrigatória ao responsável (821) e uma tela para os e-mails sem rota (831).
 
 - Revisão jurídica dos **textos padrão** dos modelos (pedido ao credor por tipo e resposta ao devedor por resultado).

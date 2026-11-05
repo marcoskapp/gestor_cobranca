@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Recebimento das respostas dos credores por e-mail (docs/tecnico/operacao/email-entrada.md, decisões 819–835).
+# Recebimento das respostas dos credores por e-mail (docs/tecnico/operacao/email-entrada.md, decisões 820–836).
 #   SES (regra de recebimento do subdomínio, varredura de spam/vírus ligada)
 #     → S3 (bucket próprio, criptografado, sem acesso público, ciclo de vida curto)
 #     → SNS (notificação do objeto gravado) → SQS (fila + DLQ) → consumidor Java na aplicação.

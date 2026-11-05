@@ -6,7 +6,7 @@ import java.time.Duration;
 import java.util.Locale;
 
 /**
- * Leitura das respostas do credor por e-mail ({@code app.collection.inbound-mail.*}, decisões 819–835).
+ * Leitura das respostas do credor por e-mail ({@code app.collection.inbound-mail.*}, decisões 820–836).
  *
  * @param mode               {@code disabled} (padrão: respostas só para o responsável), {@code ses} (SES → S3 → SNS →
  *                           SQS) ou {@code local} (pasta de arquivos .eml, para desenvolvimento e sandbox)

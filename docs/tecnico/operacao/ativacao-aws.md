@@ -565,7 +565,7 @@ O que o sistema suporta: um servidor SMTP da plataforma (Spring Mail, STARTTLS o
 
 ### 7.1a Respostas do credor por e-mail (SES inbound)
 
-Aprovado em 05/11/2026 (decisões 819–835). Subdomínio dedicado verificado no SES em `sa-east-1`, `enable_inbound_mail = true` + `inbound_mail_domain`, `terraform apply`, MX `10 inbound-smtp.sa-east-1.amazonaws.com` e *instance refresh*. Passo a passo, alarmes e operação: [email-entrada.md](email-entrada.md).
+Aprovado em 05/11/2026 (decisões 820–836). Subdomínio dedicado verificado no SES em `sa-east-1`, `enable_inbound_mail = true` + `inbound_mail_domain`, `terraform apply`, MX `10 inbound-smtp.sa-east-1.amazonaws.com` e *instance refresh*. Passo a passo, alarmes e operação: [email-entrada.md](email-entrada.md).
 
 **Conferir:** responder a um pedido de contestação de teste a partir de um contato de contestação cadastrado e ver a resposta "a confirmar" na página da contestação; a métrica `collection.disputes.mail_replies.received{outcome=accepted}` sobe.
 

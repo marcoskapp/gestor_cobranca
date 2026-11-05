@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Correção manual do valor do título pela assessoria (docs/negocio/correcao-de-valor.md,
--- decisões 801–812).
+-- decisões 802–813).
 --   * title_amount_adjustment: pedido de correção com motivo (lista + texto), componentes
 --     afetados (valor anterior e novo por componente), vínculo opcional com a contestação
 --     e a evidência; aplicado na hora até o limite da assessoria ou depois da aprovação de

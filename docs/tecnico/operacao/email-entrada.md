@@ -1,6 +1,6 @@
 # Respostas do credor por e-mail — configuração e operação
 
-Como ligar a leitura automática das respostas do credor aos pedidos de contestação (aprovada pelo responsável em 05/11/2026; decisões 819–835 em [decisoes-autonomas.md](../../negocio/decisoes-autonomas.md)). Regras de negócio em [contestacoes.md §4](../../negocio/contestacoes.md); desenho do módulo em [collection.md §7.6](../desenho/collection.md).
+Como ligar a leitura automática das respostas do credor aos pedidos de contestação (aprovada pelo responsável em 05/11/2026; decisões 820–836 em [decisoes-autonomas.md](../../negocio/decisoes-autonomas.md)). Regras de negócio em [contestacoes.md §4](../../negocio/contestacoes.md); desenho do módulo em [collection.md §7.6](../desenho/collection.md).
 
 ## 1. Como funciona
 
@@ -70,7 +70,7 @@ Limites em `app.collection.inbound-mail.*` (`application.yml`): `max-message-byt
 | 9 | Até 25 MB | `TOO_LARGE` | sim |
 | 10 | Até 10 anexos | `TOO_MANY_ATTACHMENTS` | sim |
 
-Aprovado, o e-mail fica **a confirmar** no pedido; os anexos PDF, PNG ou JPEG de até 10 MB vão para a quarentena de documentos e o antivírus (decisões 814–815) e viram evidências "do credor, por e-mail"; os demais ficam só no original. A quarentena de e-mails é decidida pela gestão (Contestações → Configuração → E-mails em quarentena). Nada é descartado em silêncio: e-mail sem token conhecido vai para `collection.inbound_mail_unrouted` (só metadados e a chave do original no bucket, que expira com o ciclo de vida).
+Aprovado, o e-mail fica **a confirmar** no pedido; os anexos PDF, PNG ou JPEG de até 10 MB vão para a quarentena de documentos e o antivírus (decisões 815–816) e viram evidências "do credor, por e-mail"; os demais ficam só no original. A quarentena de e-mails é decidida pela gestão (Contestações → Configuração → E-mails em quarentena). Nada é descartado em silêncio: e-mail sem token conhecido vai para `collection.inbound_mail_unrouted` (só metadados e a chave do original no bucket, que expira com o ciclo de vida).
 
 ## 4. Operação
 

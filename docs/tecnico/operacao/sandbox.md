@@ -193,7 +193,7 @@ Listas usam paginação por cursor e não trazem o último minuto (janela de est
 
 ## 4a2. Respostas do credor por e-mail (sem AWS)
 
-O sandbox sobe com a leitura de e-mail ligada no adaptador local (domínio `respostas.sandbox.test`, decisão 833).
+O sandbox sobe com a leitura de e-mail ligada no adaptador local (domínio `respostas.sandbox.test`, decisão 834).
 
 1. A carga deixa, na contestação "aguardando o credor" de cada assessoria, uma resposta **a confirmar** (do contato de contestação, com um PDF fictício que vira evidência depois da verificação) e uma **em quarentena** (remetente fora do cadastro).
 2. Para simular outra: abra o pedido no Mailpit (http://localhost:58025), copie o `Reply-To` (`contestacao+…@respostas.sandbox.test`) e rode `./scripts/sandbox/credor-responde.sh <endereço>`; `--de outra@pessoa.test` cai em "remetente não cadastrado", `--falha-dmarc` em "falha de autenticação" e `--virus` em "vírus".

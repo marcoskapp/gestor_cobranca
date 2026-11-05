@@ -255,7 +255,7 @@ class DebtIngestionService implements DebtIngestionPort {
         boolean termsChanged = title.updateTerms(contractId, record.installmentNumber(), record.dueDate());
         Money previousPrincipal = title.getPrincipalAmount();
         Money previousCreditorPrincipal = title.getCreditorPrincipal();
-        // principal corrigido manualmente: a carga não o sobrescreve em silêncio (decisão 806)
+        // principal corrigido manualmente: a carga não o sobrescreve em silêncio (decisão 807)
         DebtTitle.CreditorPrincipal decision = title.receiveCreditorPrincipal(principal);
         boolean creditorPrincipalChanged = !principal.equals(previousCreditorPrincipal);
         Posting adjustment;

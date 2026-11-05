@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Quarentena dos documentos enviados pelo credor pela API pública na resposta da
--- contestação (decisões 813–818). O arquivo fica na categoria QUARANTINE do
+-- contestação (decisões 814–819). O arquivo fica na categoria QUARANTINE do
 -- armazenamento até a verificação de malware; limpo (ou com a verificação
 -- desligada, NOT_SCANNED) vira evidência da contestação (dispute_evidence, append-only);
 -- infectado tem o conteúdo apagado e o registro fica com a assinatura detectada.

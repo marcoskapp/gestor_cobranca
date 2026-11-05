@@ -58,7 +58,7 @@ app:
   payment:
     sandbox:
       enabled: true
-  # respostas do credor por e-mail sem AWS (decisão 833): os pedidos saem com contestacao+<token>@respostas.sandbox.test
+  # respostas do credor por e-mail sem AWS (decisão 834): os pedidos saem com contestacao+<token>@respostas.sandbox.test
   # (veja no Mailpit) e os .eml colocados em /sandbox-data/inbound-mail entram como e-mail recebido
   # (./scripts/sandbox/credor-responde.sh). O adaptador local é recusado no perfil prod.
   collection:

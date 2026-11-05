@@ -270,7 +270,7 @@ resource "aws_wafv2_web_acl_logging_configuration" "app" {
 }
 
 # --- Respostas dos credores por e-mail (SES inbound → S3 → SNS → SQS) -------------------
-# Aprovado pelo responsável em 05/11/2026 (decisões 819–835). Antes de ligar: o MX do subdomínio
+# Aprovado pelo responsável em 05/11/2026 (decisões 820–836). Antes de ligar: o MX do subdomínio
 # (docs/tecnico/operacao/email-entrada.md) e a verificação do domínio no SES.
 
 module "mail_inbound" {

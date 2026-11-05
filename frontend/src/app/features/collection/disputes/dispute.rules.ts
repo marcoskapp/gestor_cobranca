@@ -142,7 +142,7 @@ export function adjustmentShortcut(action: AdjustmentAction, titleIds: string[],
   return {
     kind: 'title',
     titleId: titleIds[0],
-    // corrigir o valor: abre a correção manual vinculada à contestação (decisão 810)
+    // corrigir o valor: abre a correção manual vinculada à contestação (decisão 811)
     queryParams: action === 'CANCEL_TITLES' ? { acao: 'cancelar', motivo } : { acao: 'corrigir-valor', contestacao: disputeId, motivo },
   };
 }

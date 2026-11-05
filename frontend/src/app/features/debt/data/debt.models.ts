@@ -334,7 +334,7 @@ export interface PrescriptionInterruptionView {
   recordedBy: string | null;
 }
 
-// ---------------------------------------------------------------- correção manual do valor (decisões 801–812)
+// ---------------------------------------------------------------- correção manual do valor (decisões 802–813)
 
 export type AmountComponent = 'PRINCIPAL' | 'INTEREST' | 'FINE' | 'FEES' | 'HONORARIUM';
 export type AmountAdjustmentReason = 'CALCULATION_ERROR' | 'CREDITOR_CONFIRMATION' | 'DISPUTE_UPHELD' | 'DUPLICATE_CHARGE' | 'CONTRACT_TERMS' | 'PARTIAL_WAIVER' | 'OTHER';

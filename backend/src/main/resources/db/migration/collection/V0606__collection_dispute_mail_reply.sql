@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Leitura das respostas do credor por e-mail (docs/tecnico/operacao/email-entrada.md,
--- decisões 819–835).
+-- decisões 820–836).
 --   * dispute_reply_route: endereço de resposta próprio de cada pedido ao credor
 --     (contestacao+<token>@<subdomínio>). Tabela global, sem RLS: o e-mail chega sem
 --     assessoria. Só o hash SHA-256 do token, ids e a validade; nenhum dado do devedor.

@@ -151,7 +151,7 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>bedrockruntime</artifactId>
         </dependency>
-        <!-- respostas do credor por e-mail: notificações do SES inbound (SES → S3 → SNS → SQS), decisões 819–835 -->
+        <!-- respostas do credor por e-mail: notificações do SES inbound (SES → S3 → SNS → SQS), decisões 820–836 -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sqs</artifactId>

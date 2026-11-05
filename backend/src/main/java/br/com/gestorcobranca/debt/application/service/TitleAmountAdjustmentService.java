@@ -65,7 +65,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Correção manual do valor do título (decisões 801–812). O título é travado (lock pessimista) em toda operação que mexe
+ * Correção manual do valor do título (decisões 802–813). O título é travado (lock pessimista) em toda operação que mexe
  * no razão; a aprovação confere que os saldos ainda são os do pedido (senão, recusa e pede um pedido novo).
  */
 @Service

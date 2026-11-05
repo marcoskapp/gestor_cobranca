@@ -178,7 +178,7 @@ unset secrets_content value
   # Pix: hosts de PSP permitidos (decisão 313) e webhook com mTLS só com o ALB verificando o cliente (316)
   echo "PAYMENT_PIX_ALLOWED_HOSTS=${GC_PAYMENT_PIX_ALLOWED_HOSTS:-}"
   echo "PAYMENT_WEBHOOK_MTLS_ENABLED=${GC_PAYMENT_WEBHOOK_MTLS_ENABLED:-false}"
-  # respostas do credor por e-mail (decisões 819–835): SES → S3 → SNS → SQS, consumidas pela aplicação
+  # respostas do credor por e-mail (decisões 820–836): SES → S3 → SNS → SQS, consumidas pela aplicação
   if [[ -n "${GC_INBOUND_MAIL_DOMAIN:-}" ]]; then
     echo "INBOUND_MAIL_MODE=ses"
     echo "INBOUND_MAIL_DOMAIN=${GC_INBOUND_MAIL_DOMAIN}"
