@@ -33,6 +33,11 @@ Responda e documente sempre em **português do Brasil**.
 
 - **Atual**: commits direto na `master`, até o responsável avisar que passa a valer branch + PR.
 - **Depois**: branches `feature/*` a partir da `master` e pull request com aprovação do responsável.
+- **Todo commit passa antes pelo subagente `revisor-de-codigo`** ([.claude/agents/revisor-de-codigo.md](.claude/agents/revisor-de-codigo.md)),
+  inclusive quando o pedido é só "faça o commit" ou o commit não passa pela skill `concluir-tarefa`. Alvo: o que vai
+  ser commitado (`git diff --cached`/`git diff HEAD` e arquivos novos). Tratamento do relatório como na etapa 7 da
+  skill: Crítica/Alta confirmada no que a mudança alterou se corrige antes de commitar (ou se para e avisa o
+  responsável); Média/Baixa vira sugestão no resumo. Subagente indisponível → não commitar e avisar.
 - Mensagens de commit em português, descrevendo o quê e o porquê. Nunca `push --force` na `master`.
 - Não comente sobre commits "Unverified" no GitHub.
 
@@ -92,4 +97,5 @@ Senha dos usuários do sandbox e demais detalhes: [README.md](README.md) (seçã
 1. `mvn test` (e os ITs dos módulos tocados) e `npm run build && npm test` quando houver frontend.
 2. Telas alteradas: confira no sandbox (`audit.sh` cobre acesso por perfil, alinhamento e rolagem).
 3. Docs, decisões e base de conhecimento atualizadas.
-4. Resumo curto ao responsável: o que mudou, decisões a revisar, como testar.
+4. Revisão pelo subagente `revisor-de-codigo` antes do commit (obrigatória; veja "Fluxo de git").
+5. Resumo curto ao responsável: o que mudou, decisões a revisar, como testar.

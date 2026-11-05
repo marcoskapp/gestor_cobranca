@@ -11,7 +11,8 @@ produto, decisões de PO, apresentações e relatórios.
 | [`CLAUDE.md`](../../CLAUDE.md) | Instruções do projeto lidas pelo Claude Code em toda sessão: regras obrigatórias (stack, arquitetura, segurança, logs, aprovações), fluxo de git, comandos, convenções e o que conferir antes de concluir |
 | [`.claude/settings.json`](../../.claude/settings.json) | Permissões compartilhadas: comandos de build/teste liberados sem confirmação; leitura de segredos (`.env`, chaves, `*.tfvars`, `backend/config/dev`), `git push --force` e `terraform apply/destroy` bloqueados |
 | [`.claude/skills/sandbox`](../../.claude/skills/sandbox/SKILL.md) | Skill `/sandbox`: subir, resetar, verificar, auditar e derrubar o sandbox de demonstração e conferir telas alteradas perfil a perfil |
-| [`.claude/skills/concluir-tarefa`](../../.claude/skills/concluir-tarefa/SKILL.md) | Skill `/concluir-tarefa`: checklist do "Antes de concluir" do `CLAUDE.md` (testes, ITs dos módulos tocados, sandbox, docs, decisões, base de conhecimento, commit e resumo ao responsável) |
+| [`.claude/skills/concluir-tarefa`](../../.claude/skills/concluir-tarefa/SKILL.md) | Skill `/concluir-tarefa`: checklist do "Antes de concluir" do `CLAUDE.md` (testes, ITs dos módulos tocados, sandbox, docs, decisões, base de conhecimento, revisão obrigatória pelo subagente `revisor-de-codigo` antes do commit, commit e resumo ao responsável) |
+| [`.claude/agents/revisor-de-codigo.md`](../../.claude/agents/revisor-de-codigo.md) | Subagente `revisor-de-codigo`: revisa arquivos, módulo ou diff e sugere melhorias de desempenho, boas práticas, segurança e compliance; para cada issue traz explicação, escopo da alteração e versão melhorada (só leitura, não altera arquivos) |
 | `CLAUDE.local.md`, `.claude/settings.local.json` | Preferências pessoais de cada desenvolvedor (ignorados pelo git) |
 
 As regras de `CLAUDE.md` vieram das instruções do projeto no claude.ai e das decisões do responsável ao longo do

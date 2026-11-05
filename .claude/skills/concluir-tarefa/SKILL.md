@@ -1,6 +1,6 @@
 ---
 name: concluir-tarefa
-description: Checklist de conclusão de uma tarefa no Gestor de Cobrança — testes do backend e frontend, ITs dos módulos tocados, sandbox, documentação, decisões autônomas, base de conhecimento, commit e resumo ao responsável (PO). Use ao terminar uma mudança, antes de commitar, ou quando o usuário pedir para "fechar", "concluir" ou "finalizar" a tarefa.
+description: Checklist de conclusão de uma tarefa no Gestor de Cobrança — testes do backend e frontend, ITs dos módulos tocados, sandbox, documentação, decisões autônomas, base de conhecimento, revisão pelo subagente revisor-de-codigo, commit e resumo ao responsável (PO). Use ao terminar uma mudança, antes de commitar, ou quando o usuário pedir para "fechar", "concluir" ou "finalizar" a tarefa.
 ---
 
 # Concluir uma tarefa
@@ -87,17 +87,41 @@ Use a skill `sandbox`: subir com build (`./scripts/sandbox/up.sh`; `reset.sh --y
   (repositório público). Fixtures só com dados fictícios (`exemplo.test`, documentos gerados).
 - Nada de `sandbox-audit/`, `sandbox-pdfs/` ou artefatos de build.
 
-## 7. Commit (só se o usuário pedir)
+## 7. Revisão de código (sempre, antes de qualquer commit — regra do `CLAUDE.md`, "Fluxo de git")
 
+Obrigatória antes de commitar, mesmo em mudança pequena. Chame o subagente **`revisor-de-codigo`**
+([.claude/agents/revisor-de-codigo.md](../../agents/revisor-de-codigo.md)) pela ferramenta Agent, com
+`subagent_type: "revisor-de-codigo"`. No prompt, passe:
+- o alvo: as mudanças desta tarefa (`git diff HEAD` mais os arquivos novos, listados por caminho);
+- em uma ou duas frases, o objetivo da mudança e os módulos tocados.
+
+Não passe a sua conclusão sobre a mudança nem peça que confirme que "está tudo certo": a revisão vale justamente por
+não partir da sua leitura.
+
+Com o relatório em mãos:
+- Confira cada issue no código antes de agir. Issue que não se confirma → descarte e diga por quê no resumo.
+- **Crítica** ou **Alta** confirmada no que a tarefa alterou → corrija na causa e volte às etapas 2–4 dos trechos
+  tocados (testes, build, sandbox). Se não der para corrigir agora (depende de aprovação, foge do escopo), pare,
+  registre (issue no GitHub ou decisão autônoma) e avise o responsável antes de commitar.
+- **Média** ou **Baixa**, ou achado em código que a tarefa não tocou → não corrija por conta própria; liste no resumo
+  ao responsável como sugestão.
+- Correção que mudou o diff de forma relevante → rode o revisor de novo, só sobre os arquivos corrigidos.
+
+Se o subagente não estiver disponível ou falhar, não commite: diga isso ao usuário e pergunte como seguir.
+
+## 8. Commit (só se o usuário pedir)
+
+- Só depois da etapa 7 concluída, sem issue Crítica ou Alta pendente no que a tarefa alterou.
 - Fluxo atual: commit direto na `master` (até o responsável liberar branch + PR). Nunca `push --force`.
 - Mensagem em português, dizendo o quê e o porquê; cite as decisões novas (ex.: "decisão 802").
 - Não comente sobre commits "Unverified".
 
-## 8. Resumo ao responsável
+## 9. Resumo ao responsável
 
 Curto, em português:
 1. **O que mudou** — por módulo/tela.
 2. **Testes** — o que rodou e o resultado (contagens quando houver); o que não rodou e por quê.
 3. **Decisões a revisar** — números e uma linha cada.
-4. **Issues abertas** — se houver.
-5. **Como testar** — perfil do sandbox, tela e passos.
+4. **Revisão de código** — issues do `revisor-de-codigo` corrigidas, descartadas (com motivo) e sugestões pendentes.
+5. **Issues abertas** — se houver.
+6. **Como testar** — perfil do sandbox, tela e passos.
