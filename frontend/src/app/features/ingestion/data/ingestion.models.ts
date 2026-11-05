@@ -69,6 +69,8 @@ export interface ImportBatchView {
   reviewId: string | null;
   /** Interpretação aplicada às colunas monetárias (coluna → COMMA, DOT, PER_VALUE_*). */
   numberFormat: Record<string, FormatOption>;
+  /** Arquivo descartado pela política de retenção IMPORT_FILES (o lote, os contadores e a trilha ficam). */
+  fileDeletedAt: string | null;
 }
 
 export interface BatchFilter {

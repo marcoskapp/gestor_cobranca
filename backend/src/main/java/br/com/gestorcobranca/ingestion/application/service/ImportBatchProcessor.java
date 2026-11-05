@@ -218,7 +218,7 @@ class ImportBatchProcessor {
                 readTx.executeWithoutResult(s -> portfolios.requireAcceptingImports(batch.getPortfolioId()));
             }
             SliceRun run = new SliceRun(load(batchId), deadline);
-            try (InputStream content = fileStorage.open(batch.getFileKey())) {
+            try (InputStream content = fileStorage.open(fileKey(batch))) {
                 reader.read(content, layout, run);
                 run.flush();
             } catch (StopSlice stop) {
@@ -282,7 +282,7 @@ class ImportBatchProcessor {
      */
     private boolean start(ImportBatch batch, FileLayout layout) {
         PreScan scan = new PreScan(properties.maxRows());
-        try (InputStream content = fileStorage.open(batch.getFileKey())) {
+        try (InputStream content = fileStorage.open(fileKey(batch))) {
             reader.read(content, layout, scan);
         } catch (IOException e) {
             throw new UncheckedIOException("Falha de leitura do arquivo de importação", e);
@@ -796,6 +796,14 @@ class ImportBatchProcessor {
         return read(() -> layouts.findById(batch.getLayoutId())
                 .orElseThrow(() -> new PermanentJobFailure("Layout do lote não encontrado: " + batch.getLayoutId()))
                 .toFileLayout());
+    }
+
+    /** Arquivo descartado pela retenção: o lote não tem como ser lido (falha definitiva, sem novas tentativas). */
+    private static String fileKey(ImportBatch batch) {
+        if (!batch.isFileAvailable()) {
+            throw new PermanentJobFailure("Arquivo do lote descartado pela política de retenção: " + batch.getId());
+        }
+        return batch.getFileKey();
     }
 
     private ImportBatch load(UUID batchId) {

@@ -424,6 +424,15 @@ app:
       access-link: PORTAL_LINK
       service-request: PORTAL_ATENDIMENTO
     session-expiry-interval: PT10M
+    # retenção dos dados de acesso (LGPD, minimização; prazos a confirmar com o encarregado — decisões autônomas)
+    retention:
+      # desafios de acesso vencidos (HMAC do documento digitado, inclusive de quem não é devedor)
+      challenges: P30D
+      # contadores do bloqueio progressivo (HMAC do documento e do IP) sem uso e sem bloqueio vigente
+      throttles: P30D
+      # IP e agente do navegador das sessões encerradas (a sessão continua para o funil)
+      session-client-data: P180D
+    retention-cron: "0 20 3 * * *"
   telephony:
     # tentativas do job de discagem (falhas transitórias do provedor) antes de FAILED
     dial-max-attempts: 3

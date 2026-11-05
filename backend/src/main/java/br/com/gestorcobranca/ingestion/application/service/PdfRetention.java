@@ -25,12 +25,15 @@ import java.util.UUID;
 /**
  * Retenção dos PDFs ({@code app.ingestion.pdf.retention}, padrão 120 dias): importações aprovadas, descartadas ou com
  * falha há mais tempo têm o arquivo apagado do armazenamento e a leitura visual removida; ficam o hash, o mapa, o
- * resumo e a trilha. O lote canônico gerado segue a retenção dos arquivos de importação. Uma instância por vez.
+ * resumo e a trilha. O lote canônico gerado segue a retenção dos arquivos de importação ({@code IMPORT_FILES},
+ * {@link ImportFileRetention}). Rodadas de {@code retention-batch}, cada uma na própria transação, até esvaziar (teto de
+ * {@link #MAX_ROUNDS}), para o atraso não crescer quando mais de um lote encerra por dia. Uma instância por vez.
  */
 @Component
 class PdfRetention {
 
     private static final Logger LOG = LoggerFactory.getLogger(PdfRetention.class);
+    static final int MAX_ROUNDS = 50;
     private static final List<PdfImportStatus> CLOSED = List.of(PdfImportStatus.APPROVED, PdfImportStatus.DISCARDED,
             PdfImportStatus.FAILED);
 
@@ -67,31 +70,40 @@ class PdfRetention {
     /** Uma assessoria (também usado pelos testes). */
     int runFor(UUID tenantId) {
         Instant before = clock.instant().minus(properties.retention());
+        int total = 0;
         try {
-            int deleted = tenantExecution.callInTenant(tenantId, "ingestion.pdf-retention", () -> {
-                int count = 0;
-                for (PdfImport pdf : imports.findRetentionCandidates(CLOSED, before,
-                        PageRequest.of(0, properties.retentionBatch()))) {
-                    String key = pdf.getFileKey();
-                    pdf.fileDeleted(clock.instant());
-                    imports.save(pdf);
-                    storage.delete(key);
-                    auditTrail.record(AuditEntry.of("pdf_import.file_deleted", PdfImportService.RESOURCE, pdf.getId())
-                            .creditor(pdf.getCreditorId()).meta("fileSha256", pdf.getFileSha256())
-                            .reason("retenção de " + properties.retention().toDays() + " dias"));
-                    count++;
+            for (int round = 0; round < MAX_ROUNDS; round++) {
+                int deleted = tenantExecution.callInTenant(tenantId, "ingestion.pdf-retention", () -> purge(before));
+                total += deleted;
+                if (deleted < properties.retentionBatch()) {
+                    break;
                 }
-                return count;
-            });
-            metrics.filesDeleted(deleted);
-            if (deleted > 0) {
-                LOG.atInfo().addKeyValue("tenantId", tenantId).addKeyValue("deleted", deleted)
-                        .log("Retenção dos PDFs da importação executada");
             }
-            return deleted;
         } catch (RuntimeException e) {
             LOG.atError().addKeyValue("tenantId", tenantId).setCause(e).log("Falha na retenção dos PDFs da importação");
-            return 0;
         }
+        metrics.filesDeleted(total);
+        if (total > 0) {
+            LOG.atInfo().addKeyValue("tenantId", tenantId).addKeyValue("deleted", total)
+                    .log("Retenção dos PDFs da importação executada");
+        }
+        return total;
+    }
+
+    /** Uma rodada (até {@code retention-batch} PDFs), na transação do tenant. */
+    private int purge(Instant before) {
+        int count = 0;
+        for (PdfImport pdf : imports.findRetentionCandidates(CLOSED, before,
+                PageRequest.of(0, properties.retentionBatch()))) {
+            String key = pdf.getFileKey();
+            pdf.fileDeleted(clock.instant());
+            imports.save(pdf);
+            storage.delete(key);
+            auditTrail.record(AuditEntry.of("pdf_import.file_deleted", PdfImportService.RESOURCE, pdf.getId())
+                    .creditor(pdf.getCreditorId()).meta("fileSha256", pdf.getFileSha256())
+                    .reason("retenção de " + properties.retention().toDays() + " dias"));
+            count++;
+        }
+        return count;
     }
 }

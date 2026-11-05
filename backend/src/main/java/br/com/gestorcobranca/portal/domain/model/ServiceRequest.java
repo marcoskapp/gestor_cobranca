@@ -121,6 +121,7 @@ public class ServiceRequest extends TenantScopedEntity {
     public ServiceRequestReason getReason() { return reason; }
     public PortalChannel getPreferredChannel() { return preferredChannel; }
     public String getNote() { return note; }
+    public boolean hasNote() { return note != null; }
     public ServiceRequestStatus getStatus() { return status; }
     public UUID getConversationId() { return conversationId; }
     public UUID getMessageId() { return messageId; }

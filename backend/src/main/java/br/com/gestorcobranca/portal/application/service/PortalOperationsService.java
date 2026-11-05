@@ -14,9 +14,14 @@ import br.com.gestorcobranca.portal.domain.repository.PortalConfigurationReposit
 import br.com.gestorcobranca.portal.domain.repository.ServiceRequestRepository;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
+import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.logging.access.AccessEvent;
+import br.com.gestorcobranca.shared.logging.access.AccessEventType;
+import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
+import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -30,6 +35,8 @@ import java.util.UUID;
 @Transactional
 class PortalOperationsService implements PortalOperationsUseCases {
 
+    static final String RESOURCE = "portal_service_request";
+
     private final PortalConfigurationRepository configurations;
     private final ServiceRequestRepository serviceRequests;
     private final PortalDebts debts;
@@ -37,10 +44,13 @@ class PortalOperationsService implements PortalOperationsUseCases {
     private final AccessScope accessScope;
     private final AccessLinkIssuer issuer;
     private final PortalProperties properties;
+    private final AccessLogger accessLogger;
+    private final CurrentActor currentActor;
 
     PortalOperationsService(PortalConfigurationRepository configurations, ServiceRequestRepository serviceRequests,
                             PortalDebts debts, MessageUseCases messages, AccessScope accessScope,
-                            AccessLinkIssuer issuer, PortalProperties properties) {
+                            AccessLinkIssuer issuer, PortalProperties properties, AccessLogger accessLogger,
+                            CurrentActor currentActor) {
         this.configurations = configurations;
         this.serviceRequests = serviceRequests;
         this.debts = debts;
@@ -48,6 +58,8 @@ class PortalOperationsService implements PortalOperationsUseCases {
         this.accessScope = accessScope;
         this.issuer = issuer;
         this.properties = properties;
+        this.accessLogger = accessLogger;
+        this.currentActor = currentActor;
     }
 
     /**
@@ -92,9 +104,29 @@ class PortalOperationsService implements PortalOperationsUseCases {
                 page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))), PortalOperationsService::summary);
     }
 
+    /**
+     * Detalhe com a mensagem livre do devedor (pode ter dado de saúde ou de terceiros): decifrada só aqui, com
+     * {@code SENSITIVE_DATA_VIEWED} no log de acesso (ids, sem conteúdo).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ServiceRequestDetail serviceRequest(UUID requestId) {
+        accessScope.requirePermission(Permission.INBOX_VIEW);
+        ServiceRequest r = serviceRequests.findById(requestId)
+                .orElseThrow(() -> ResourceNotFoundException.of(RESOURCE, requestId));
+        accessScope.requireVisible(RESOURCE, requestId, r.getCreditorId());
+        String note = r.getNote();
+        if (note != null) {
+            accessLogger.log(AccessEvent.of(AccessEventType.SENSITIVE_DATA_VIEWED, currentActor.get(), Map.of(
+                    "resource", RESOURCE, "resourceId", requestId.toString(), "field", "note")));
+        }
+        return new ServiceRequestDetail(summary(r), note);
+    }
+
+    /** Listagem sem a mensagem do devedor (minimização): só se ela existe. */
     private static ServiceRequestSummary summary(ServiceRequest r) {
         return new ServiceRequestSummary(r.getId(), r.getProtocol(), r.getCreditorId(), r.getPortfolioId(), r.getDebtorId(),
-                r.getReason().name(), r.getPreferredChannel().name(), r.getStatus().name(), r.getNote(),
+                r.getReason().name(), r.getPreferredChannel().name(), r.getStatus().name(), r.hasNote(),
                 r.getConversationId(), r.getFailureCode(), r.getCreatedAt(), r.getForwardedAt());
     }
 }

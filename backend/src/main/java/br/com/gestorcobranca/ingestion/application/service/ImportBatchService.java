@@ -177,6 +177,7 @@ class ImportBatchService implements ImportBatchUseCases {
         PortfolioView portfolio = creation.requirePortfolio(original.getPortfolioId());
         Guard.requireState(original.getStatus().isTerminal(), "import_batch.not_finished",
                 "Somente lotes encerrados podem ser reprocessados");
+        BatchCreation.requireFile(original);
         ImportMode mode = parseMode(command == null ? null : command.mode());
         String reason = command == null ? null : command.reason();
         FileLayout layout = creation.layoutOf(original);
@@ -285,6 +286,7 @@ class ImportBatchService implements ImportBatchUseCases {
     public DownloadableFile originalFile(UUID batchId) {
         ImportBatch batch = loadVisible(batchId);
         accessScope.requirePermission(Permission.DEBTOR_SENSITIVE_VIEW);
+        BatchCreation.requireFile(batch);
         accessLogger.log(AccessEvent.of(AccessEventType.FILE_DOWNLOADED, currentActor.get(),
                 Map.of("resource", RESOURCE, "resourceId", batchId.toString(), "category", FileCategory.IMPORT.name())));
         return new DownloadableFile(batch.getFileName(),

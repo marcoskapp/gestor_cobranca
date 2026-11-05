@@ -57,6 +57,17 @@ class JdbcAccessThrottleStore implements AccessThrottleStore {
         return next;
     }
 
+    @Override
+    public int deleteIdleBefore(Instant cutoff, Instant now, int limit) {
+        return jdbc.update("""
+                delete from portal.access_throttle
+                 where id in (select id from portal.access_throttle
+                               where tenant_id = shared.current_tenant_id() and updated_at < ?
+                                 and (locked_until is null or locked_until < ?)
+                               limit ?)
+                """, Timestamp.from(cutoff), Timestamp.from(now), limit);
+    }
+
     private static State state(java.sql.ResultSet rs) throws java.sql.SQLException {
         Timestamp window = rs.getTimestamp(1);
         Timestamp locked = rs.getTimestamp(5);

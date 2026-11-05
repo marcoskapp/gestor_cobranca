@@ -68,6 +68,13 @@ class PortalMetrics {
         registry.counter("portal.service_requests", "reason", reason, "outcome", outcome).increment();
     }
 
+    /** Descarte de dados de acesso: {@code kind} CHALLENGE, THROTTLE, SESSION_CLIENT_DATA. */
+    void retention(String kind, int purged) {
+        if (purged > 0) {
+            registry.counter("portal.retention.purged", "kind", kind).increment(purged);
+        }
+    }
+
     void jobFailure(String job) {
         Counter.builder("portal.job.failures").tag("job", job).register(registry).increment();
     }

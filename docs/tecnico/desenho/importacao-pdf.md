@@ -316,7 +316,11 @@ justificativa, conferência), `discarded`, `file_deleted`; `pdf_layout_template.
 
 `PdfRetention` (diário, `retention-cron`, ShedLock): importações aprovadas, descartadas ou com falha há mais de
 `retention` (120 dias) têm o PDF apagado do armazenamento e a leitura visual removida; ficam hash, mapa, resumo e
-trilha. O CSV canônico gerado segue a guarda dos arquivos de importação.
+trilha. A execução repete rodadas de `retention-batch` (200), cada uma na própria transação, até esvaziar (teto de 50
+rodadas por assessoria), para o atraso não crescer quando mais de 200 importações encerram por dia. O bucket é
+versionado: o PDF é gravado com a tag `retention-class=import` e a regra de lifecycle `imports-noncurrent-expiration`
+expira a versão anterior 1 dia depois do descarte (antes ficava mais 365 dias como versão não corrente; decisão 876).
+O CSV canônico gerado segue a política `IMPORT_FILES` dos arquivos de importação (importacao.md §8.1).
 
 ## 12. Testes
 

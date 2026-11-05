@@ -16,4 +16,12 @@ public interface AccessThrottleStore {
 
     /** Aplica a transição (pura) sob lock e grava; devolve o novo estado. */
     State update(KeyType type, String keyHash, Instant now, UnaryOperator<State> transition);
+
+    /**
+     * Retenção (LGPD): apaga até {@code limit} contadores sem uso desde o corte e sem bloqueio vigente em
+     * {@code now}.
+     *
+     * @return contadores apagados
+     */
+    int deleteIdleBefore(Instant cutoff, Instant now, int limit);
 }

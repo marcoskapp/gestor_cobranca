@@ -10,6 +10,7 @@ import br.com.gestorcobranca.portal.application.port.in.PortalConfigurationUseCa
 import br.com.gestorcobranca.portal.application.port.in.PortalOperationsUseCases;
 import br.com.gestorcobranca.portal.application.port.in.PortalOperationsUseCases.AccessLinkView;
 import br.com.gestorcobranca.portal.application.port.in.PortalOperationsUseCases.SendLinkCommand;
+import br.com.gestorcobranca.portal.application.port.in.PortalOperationsUseCases.ServiceRequestDetail;
 import br.com.gestorcobranca.portal.application.port.in.PortalOperationsUseCases.ServiceRequestSummary;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
@@ -172,5 +173,11 @@ class PortalAdminController {
                                                         @RequestParam(required = false) Integer page,
                                                         @RequestParam(required = false) Integer size) {
         return operations.serviceRequests(creditorId, status, PageQuery.of(page, size));
+    }
+
+    @GetMapping("/service-requests/{requestId}")
+    @PreAuthorize("hasAuthority('INBOX_VIEW')")
+    ServiceRequestDetail serviceRequest(@PathVariable UUID requestId) {
+        return operations.serviceRequest(requestId);
     }
 }

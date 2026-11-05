@@ -261,6 +261,7 @@ ambíguas.
 | `import_totals_check` | append-only (gatilho + privilégio) |
 | `import_review_alert` | só as colunas de decisão são atualizáveis (privilégio de coluna); sem `DELETE` |
 | `import_row_value` | append-only; chave (tenant, lote, linha); valores, vencimento, situação, produto, contrato, `id_titulo`, chave do devedor (blind index HMAC — nunca o documento) |
+| `import_batch.file_key` / `file_deleted_at` (`V2303`) | chave anulável depois do descarte pela retenção; `check` (chave nula ⇔ descartado) e índice parcial `(tenant_id, file_key)` para a varredura |
 
 Todas com `tenant_id` e RLS forçado. Os lotes antigos continuam válidos (colunas novas anuláveis ou com padrão).
 
@@ -279,12 +280,41 @@ Auditoria: `import_review.created`, `import_review.format_confirmed` (decisões 
 (informados × calculados), `import_review.alerts_decided` (quantidade, tipo/filtro, decisão, justificativa),
 `import_review.committed`, `import_review.approved`/`rejected`, `import_review.cancelled`.
 
+### 8.1 Retenção dos arquivos de importação (LGPD)
+
+O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico gerado do PDF aprovado) fica na categoria
+`IMPORT` do armazenamento e tem CPF/CNPJ, nome, contatos, endereço e garantias em claro. O descarte segue a política
+**`IMPORT_FILES`** do compliance (Compliance → Retenção; nasce desabilitada, prazo em meses), consultada por
+`RetentionUseCases.policyFor` — o ingestion passa a depender de `compliance :: usecases` (decisão 874).
+
+- Job `ImportFileRetention` (diário, `app.ingestion.file-retention-cron`, 03:40, ShedLock `ingestion.file-retention`,
+  por assessoria): rodadas de 200 arquivos, cada uma na própria transação, até esvaziar (teto de 50).
+- Um arquivo é compartilhado por vários lotes (prévia, importação e reprocessamento usam a mesma chave): só sai quando
+  **todos** os lotes com a chave estão encerrados (`VALIDATED`, `COMPLETED`, `COMPLETED_WITH_ERRORS`, `FAILED`,
+  `CANCELLED`) antes do corte (`finished_at`, ou `updated_at` sem ele) e **nenhuma conferência aberta** (`OPEN`,
+  `AWAITING_APPROVAL`) usa um deles. A marcação confere de novo essas condições na mesma instrução.
+- Efeito: `file_key` nulo e `file_deleted_at` em todos os lotes da chave, objeto apagado do armazenamento e uma
+  auditoria `import_batch.file_deleted` por arquivo (lote mais antigo, credor, `batches`, `fileSha256`, motivo com o
+  prazo). O lote fica: contadores, hash, ocorrências mascaradas e trilha. Métrica `ingestion.files.deleted`.
+- Sem o arquivo: download do original, nova conferência a partir do lote e reprocessamento respondem
+  **409 `import_batch.file_deleted`**; um job de processamento que encontre o lote sem arquivo falha de forma
+  definitiva. A tela do lote mostra a data do descarte e esconde o download e o reprocessamento (`fileDeletedAt` na
+  view).
+- Armazenamento versionado: o objeto recebe a tag `retention-class=import` na gravação e a regra de lifecycle
+  `imports-noncurrent-expiration` expira a versão anterior ao delete marker em 1 dia (decisão 876; objetos antigos:
+  `scripts/ops/tag-import-objects.sh`).
+- O PDF da importação inteligente tem retenção própria de 120 dias (importacao-pdf.md §11); o CSV canônico que ele gera
+  segue esta política.
+
 ## 9. Testes
 
 - Unitários: tabela de casos do `AmountParser` (`1.00`, `1,00`, `1.000`, `1,000`, `1.000,00`, `1,000.00`, `1.000.000`,
   `1 000,00`, `R$ 1.234,56`, `-1,5`, `(1,50)`, `1e3`, …), `ColumnFormatAnalyzer` (colunas mistas, só ambíguas, inferidas,
   tipadas), `ControlTotals` (tolerâncias, razão 10ⁿ), `LogScaleStats` (mediana/MAD conferidos à mão),
   `AmountOutlierPolicy`, `ImportReview` (bloqueios, segregação), leitores (tipado × texto no XLSX, números JSON).
+- Integração (`ImportFileRetentionIT`): política desabilitada não descarta; habilitada descarta o arquivo compartilhado
+  pelo lote e pelo reprocessamento (uma auditoria, os dois lotes marcados), preserva o arquivo da conferência aberta e
+  responde 409 no download, na nova conferência e no reprocessamento. Unitário `PdfRetentionTest` (rodadas até esvaziar).
 - Integração (`IngestionReviewIT`): separador misturado barrado até a decisão; totais divergentes bloqueiam e apontam
   a razão 10ⁿ; alertas revisados liberam; linha excluída não é gravada; aprovação de segunda pessoa; API com strings
   ambíguas falha sem decisão e importa com `numberFormat`; totais de controle da API.

@@ -31,7 +31,8 @@ final class ImportViews {
                 b.getDuplicateOfBatchId(), b.getReprocessOfBatchId(), counters, b.getIssuesRecorded(),
                 b.isIssuesTruncated(), b.getTotalRows(), b.progressPercent(), b.getLastProcessedRow(),
                 b.getCancelRequestedAt(), b.getCreatedBy(), b.getCreatedAt(), b.getStartedAt(), b.getFinishedAt(),
-                b.getReviewId(), NumberFormats.summary(NumberFormats.fromJson(json, b.getNumberFormat())));
+                b.getReviewId(), NumberFormats.summary(NumberFormats.fromJson(json, b.getNumberFormat())),
+                b.getFileDeletedAt());
     }
 
     static ImportIssueView issue(ImportRowIssue i) {

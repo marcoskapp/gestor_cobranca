@@ -142,7 +142,8 @@ public interface ImportBatchUseCases {
                            UUID duplicateOfBatchId, UUID reprocessOfBatchId, Counters counters, int issuesRecorded,
                            boolean issuesTruncated, Long totalRows, Integer progressPercent, long lastProcessedRow,
                            Instant cancelRequestedAt, UUID requestedBy, Instant createdAt, Instant startedAt,
-                           Instant finishedAt, UUID reviewId, Map<String, String> numberFormat) {
+                           Instant finishedAt, UUID reviewId, Map<String, String> numberFormat,
+                           Instant fileDeletedAt) {
     }
 
     /**

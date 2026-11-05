@@ -23,7 +23,8 @@ import java.time.Duration;
  * @param visualMaxOutputTokens tokens de saída de uma chamada de leitura visual (padrão 12.000)
  * @param repairAttempts       novas tentativas quando a proposta da IA não passa na validação do mapa (padrão 1)
  * @param retention            tempo que o PDF fica guardado depois de aprovado, descartado ou com falha (padrão 120 dias)
- * @param retentionBatch       arquivos descartados por execução da retenção (padrão 200)
+ * @param retentionBatch       arquivos descartados por rodada da retenção (padrão 200; cada rodada na própria
+ *                             transação, até esvaziar)
  */
 @ConfigurationProperties(prefix = "app.ingestion.pdf")
 public record PdfImportProperties(@DefaultValue("20MB") DataSize maxFileSize,

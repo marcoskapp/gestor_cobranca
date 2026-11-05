@@ -87,7 +87,8 @@ class WhatsAppCloudGateway implements ChannelGateway {
             HttpStatusCode status = e.getStatusCode();
             if (status.value() == 429 || status.is5xxServerError()) {
                 outcome = "transient";
-                throw new TransientSendException("WhatsApp HTTP " + status.value(), e);
+                // sem a causa: o corpo da resposta da Meta pode trazer o número do destinatário
+                throw new TransientSendException("WhatsApp HTTP " + status.value());
             }
             outcome = "rejected";
             String code = errorCode(e.getResponseBodyAsString());
@@ -96,7 +97,8 @@ class WhatsAppCloudGateway implements ChannelGateway {
             return SendResult.rejected("WHATSAPP_" + code, "HTTP " + status.value());
         } catch (ResourceAccessException e) {
             outcome = "timeout";
-            throw new TransientSendException("Falha de comunicação com o WhatsApp", e);
+            throw new TransientSendException("Falha de comunicação com o WhatsApp ("
+                    + (e.getCause() == null ? e.getClass() : e.getCause().getClass()).getSimpleName() + ")");
         } finally {
             meterRegistry.counter("integration.calls", "provider", PROVIDER, "operation", OPERATION, "outcome", outcome)
                     .increment();

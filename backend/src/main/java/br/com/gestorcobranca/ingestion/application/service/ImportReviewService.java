@@ -145,6 +145,7 @@ class ImportReviewService implements ImportReviewUseCases {
         accessScope.requireVisible(BatchCreation.RESOURCE, batchId, original.getCreditorId());
         Guard.requireState(original.getStatus().isTerminal(), "import_batch.not_finished",
                 "Somente lotes encerrados podem ser conferidos novamente");
+        BatchCreation.requireFile(original);
         PortfolioView portfolio = creation.requirePortfolio(original.getPortfolioId());
         return open(portfolio, creation.layoutOf(original), original.getSource(), BatchCreation.storedOf(original),
                 original.getId());

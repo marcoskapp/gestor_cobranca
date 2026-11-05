@@ -30,16 +30,19 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
  * Ações disponíveis pela situação do lote. Importar uma prévia ou reprocessar um arquivo passa sempre pela conferência
- * (formato, totais e alertas); a prévia de uma conferência é acompanhada pela própria conferência.
+ * (formato, totais e alertas); a prévia de uma conferência é acompanhada pela própria conferência. Arquivo descartado
+ * pela retenção: não há o que importar nem reprocessar (só abrir a conferência que já existe).
  */
-export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'source' | 'cancelRequestedAt' | 'reviewId'>): ('cancel' | 'review' | 'import' | 'reprocess')[] {
+export function batchActions(
+  b: Pick<ImportBatchView, 'status' | 'mode' | 'source' | 'cancelRequestedAt' | 'reviewId'> & Partial<Pick<ImportBatchView, 'fileDeletedAt'>>,
+): ('cancel' | 'review' | 'import' | 'reprocess')[] {
   if (b.reviewId && b.mode === 'VALIDATE_ONLY') {
     return ['review'];
   }
   if (!isTerminal(b.status)) {
     return b.cancelRequestedAt || b.status === 'AWAITING_FORMAT' ? [] : ['cancel'];
   }
-  if (b.source === 'API') {
+  if (b.source === 'API' || b.fileDeletedAt) {
     return b.reviewId ? ['review'] : [];
   }
   const own: ('review' | 'import' | 'reprocess')[] = b.status === 'VALIDATED' ? ['import'] : ['reprocess'];
@@ -86,7 +89,7 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
             Relatório de ocorrências
           </button>
         }
-        @if (canOriginal() && b.fileName) {
+        @if (canOriginal() && b.fileName && !b.fileDeletedAt) {
           <button class="btn btn-outline-primary" type="button" (click)="original(b)">
             <app-icon name="unlock" />
             Arquivo original
@@ -151,6 +154,10 @@ export function batchActions(b: Pick<ImportBatchView, 'status' | 'mode' | 'sourc
           @if (b.fileName) {
             <dt>Arquivo</dt>
             <dd>{{ b.fileName }} · {{ size(b.fileSize) }}</dd>
+          }
+          @if (b.fileDeletedAt) {
+            <dt>Arquivo original</dt>
+            <dd>Descartado em {{ b.fileDeletedAt | appDate }} pela política de retenção (os contadores e as ocorrências ficam)</dd>
           }
           @if (b.fileSha256) {
             <dt>SHA-256</dt>

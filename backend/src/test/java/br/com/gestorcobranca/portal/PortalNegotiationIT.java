@@ -277,12 +277,21 @@ class PortalNegotiationIT extends PortalTestSupport {
                 "select count(*) from communication.conversation where id = ? and owner_type = 'QUEUE'", conversation) == 1);
         assertThat(count("select count(*) from communication.conversation_handoff where conversation_id = ? "
                 + "and reason_code = 'DISPUTE'", conversation)).isEqualTo(1);
-        // lista interna dos pedidos (INBOX_VIEW), com a mensagem do devedor
+        // lista interna dos pedidos (INBOX_VIEW): sem a mensagem do devedor, só se ela existe; sem log de acesso
         var listed = asOperator(() -> portalOperations.serviceRequests(creditorA, null, PageQuery.of(0, 10)));
         assertThat(listed.content()).singleElement().satisfies(r -> {
             assertThat(r.protocol()).isEqualTo(protocol);
-            assertThat(r.note()).contains("agosto");
+            assertThat(r.hasNote()).isTrue();
         });
+        String sensitiveViews = "select count(*) from shared.access_log where event_type = 'SENSITIVE_DATA_VIEWED' "
+                + "and details ->> 'resource' = 'portal_service_request' and details ->> 'resourceId' = ?";
+        assertThat(count(sensitiveViews, requestId.toString())).isZero();
+        // detalhe: a mensagem decifrada, com SENSITIVE_DATA_VIEWED (ids, sem conteúdo)
+        var detail = asOperator(() -> portalOperations.serviceRequest(requestId));
+        assertThat(detail.note()).contains("agosto");
+        assertThat(detail.request().protocol()).isEqualTo(protocol);
+        assertThat(count(sensitiveViews, requestId.toString())).isEqualTo(1);
+        assertThat(count("select count(*) from shared.access_log where details::text like '%agosto%'")).isZero();
         assertThat(get("/api/portal/v1/me/service-requests", token).json().get(0).get("status").asString())
                 .isEqualTo("FORWARDED");
     }

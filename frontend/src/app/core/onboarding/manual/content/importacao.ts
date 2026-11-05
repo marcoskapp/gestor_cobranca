@@ -116,6 +116,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Mostra quantas linhas foram lidas, aceitas e recusadas e quantos devedores e títulos foram criados ou atualizados.',
         'Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção.',
+        'Com a retenção de arquivos de importação ligada (Compliance → Retenção), o arquivo original é descartado no prazo: o lote, os contadores e as ocorrências ficam, sem download nem reprocessamento.',
       ],
       profiles: ['ANALISTA_CARTEIRA', 'GESTOR', 'INTEGRACAO', 'AUDITOR'],
       inputs: ['Processamento do arquivo conferido ou do envio por integração.'],
