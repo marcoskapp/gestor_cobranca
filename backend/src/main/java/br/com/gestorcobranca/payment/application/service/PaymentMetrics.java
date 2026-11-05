@@ -89,6 +89,11 @@ class PaymentMetrics {
         registry.counter("payment.reconciliation.imports", "format", format, "status", status).increment();
     }
 
+    /** Linhas já gravadas numa tentativa anterior e puladas na retomada do extrato (decisão 866). */
+    void statementLinesResumed(int lines) {
+        registry.counter("payment.reconciliation.lines_resumed").increment(lines);
+    }
+
     void divergence(String type, String status) {
         registry.counter("payment.divergences", "type", type, "status", status).increment();
     }

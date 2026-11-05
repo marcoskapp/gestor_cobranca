@@ -167,12 +167,22 @@ abstract class IngestionTestSupport extends IntegrationTest {
             JobHandler handler = jobHandlers.stream().filter(h -> h.type().equals(type)).findFirst().orElseThrow();
             int attempt = ((Number) claimed.getFirst().get("attempts")).intValue();
             Object payload = json.fromJson((String) claimed.getFirst().get("payload"), handler.payloadType());
-            tenantExecution.inTenant(tenant, "job:" + type, () -> {
-                handler.handle(new JobContext(id, tenant, type, attempt), payload);
-                // a próxima fatia, enfileirada nesta transação, também fica sob controle do teste
-                deferPendingJobs();
-                jdbcTemplate.update("update shared.processing_job set status = 'DONE', finished_at = now() where id = ?", id);
-            });
+            JobContext context = new JobContext(id, tenant, type, attempt);
+            if (handler.transactional()) {
+                tenantExecution.inTenant(tenant, "job:" + type, () -> {
+                    handler.handle(context, payload);
+                    // a próxima fatia, enfileirada nesta transação, também fica sob controle do teste
+                    deferPendingJobs();
+                    jdbcTemplate.update("update shared.processing_job set status = 'DONE', finished_at = now() where id = ?", id);
+                });
+            } else {
+                // como o JobWorker (decisão 852): sem transação externa, e a baixa do job depois, na sua
+                tenantExecution.withTenantContext(tenant, "job:" + type, () -> handler.handle(context, payload));
+                tenantExecution.inTenant(tenant, "job:" + type, () -> {
+                    deferPendingJobs();
+                    jdbcTemplate.update("update shared.processing_job set status = 'DONE', finished_at = now() where id = ?", id);
+                });
+            }
             executed++;
         }
         return executed;

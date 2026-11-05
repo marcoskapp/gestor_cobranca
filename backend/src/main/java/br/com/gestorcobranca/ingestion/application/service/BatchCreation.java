@@ -151,14 +151,31 @@ class BatchCreation {
     }
 
     StoredFile store(FileContent content, String name, String contentType, long size) {
-        StoredFile stored;
+        StoredFile stored = storeOutsideTransaction(content, name, contentType, size);
+        deleteOnRollback(stored.key());
+        return stored;
+    }
+
+    /**
+     * Grava no armazenamento sem transação aberta (o envio ao S3 não prende conexão do banco). Quem chama remove o
+     * arquivo com {@link #discardStored} se o registro no banco não for confirmado.
+     */
+    StoredFile storeOutsideTransaction(FileContent content, String name, String contentType, long size) {
         try (InputStream in = content.open()) {
-            stored = fileStorage.store(FileCategory.IMPORT, name, contentType, in, size);
+            return fileStorage.store(FileCategory.IMPORT, name, contentType, in, size);
         } catch (IOException e) {
             throw new UncheckedIOException("Falha ao ler o arquivo enviado", e);
         }
-        deleteOnRollback(stored.key());
-        return stored;
+    }
+
+    /** Remove o arquivo gravado por {@link #storeOutsideTransaction} cujo registro não chegou ao banco. */
+    void discardStored(String key) {
+        try {
+            fileStorage.delete(key);
+        } catch (RuntimeException e) {
+            LOG.atError().addKeyValue("storageKey", key).setCause(e)
+                    .log("Arquivo de importação sem registro no banco não pôde ser removido");
+        }
     }
 
     /** O arquivo já armazenado de um lote existente (sem nova cópia). */

@@ -2,12 +2,17 @@ package br.com.gestorcobranca.payment.infrastructure.persistence;
 
 import br.com.gestorcobranca.payment.domain.model.StatementImport;
 import br.com.gestorcobranca.payment.domain.model.BankStatementLine;
+import br.com.gestorcobranca.payment.domain.model.StatementLineStatus;
 import br.com.gestorcobranca.payment.domain.repository.BankStatementRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** Repositório de extratos sobre dois repositórios Spring Data (importação e linhas). */
@@ -70,5 +75,19 @@ class JpaBankStatementRepository implements BankStatementRepository {
     @Override
     public Page<BankStatementLine> lines(UUID importId, Pageable pageable) {
         return lines.findByImportId(importId, pageable);
+    }
+
+    @Override
+    public Set<Integer> lineNumbers(UUID importId, int fromLine, int toLine) {
+        return new HashSet<>(lines.lineNumbers(importId, fromLine, toLine));
+    }
+
+    @Override
+    public Map<StatementLineStatus, Long> countLinesByStatus(UUID importId) {
+        Map<StatementLineStatus, Long> counts = new EnumMap<>(StatementLineStatus.class);
+        for (Object[] row : lines.countByStatus(importId)) {
+            counts.put((StatementLineStatus) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 }

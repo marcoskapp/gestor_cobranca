@@ -21,13 +21,18 @@ import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.security.Permission;
+import br.com.gestorcobranca.shared.storage.FileStorage;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.ByteArrayInputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -35,9 +40,16 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,6 +83,8 @@ class PdfImportIT extends IngestionTestSupport {
         final Deque<Object> responses = new ArrayDeque<>();
         final AtomicInteger calls = new AtomicInteger();
         volatile LanguageModel.ModelRequest lastRequest;
+        /** Executado durante a chamada (simula o tempo de resposta do modelo, com o job no meio do mapeamento). */
+        volatile Runnable duringCall;
 
         @Override
         public String provider() {
@@ -81,6 +95,10 @@ class PdfImportIT extends IngestionTestSupport {
         public ModelResponse complete(ModelRequest request) {
             calls.incrementAndGet();
             lastRequest = request;
+            Runnable hook = duringCall;
+            if (hook != null) {
+                hook.run();
+            }
             Object next = responses.poll();
             if (next instanceof RuntimeException e) {
                 throw e;
@@ -103,11 +121,39 @@ class PdfImportIT extends IngestionTestSupport {
         }
     }
 
+    /** Chamadas ao armazenamento ({@code método:transação ativa}), registradas pela sonda do contexto deste teste. */
+    static final Queue<String> STORAGE_CALLS = new ConcurrentLinkedQueue<>();
+
     @TestConfiguration
     static class FakeModelConfig {
         @Bean
         FakePdfModel fakePdfModel() {
             return new FakePdfModel();
+        }
+
+        /** Sonda do armazenamento: registra se havia transação aberta em cada gravação e leitura (decisões 867–868). */
+        @Bean
+        static BeanPostProcessor storageProbe() {
+            return new BeanPostProcessor() {
+                @Override
+                public Object postProcessAfterInitialization(Object bean, String beanName) {
+                    if (!(bean instanceof FileStorage storage)) {
+                        return bean;
+                    }
+                    return Proxy.newProxyInstance(FileStorage.class.getClassLoader(), new Class<?>[]{FileStorage.class},
+                            (proxy, method, args) -> {
+                                if (method.getName().equals("store") || method.getName().equals("open")) {
+                                    STORAGE_CALLS.add(method.getName() + ":"
+                                            + TransactionSynchronizationManager.isActualTransactionActive());
+                                }
+                                try {
+                                    return method.invoke(storage, args);
+                                } catch (InvocationTargetException e) {
+                                    throw e.getCause();
+                                }
+                            });
+                }
+            };
         }
     }
 
@@ -393,6 +439,82 @@ class PdfImportIT extends IngestionTestSupport {
         // descartado: o mesmo PDF pode ser enviado de novo
         model.willPropose("registrar_mapa", mapJson(PdfFixtures.simpleMap()));
         assertThat(upload(PdfFixtures.simpleTable(PdfFixtures.simpleTitles()), "carteira.pdf").status()).isEqualTo("RECEIVED");
+    }
+
+    /**
+     * A IA é chamada sem transação e sem o lock da importação (decisão 867): um descarte durante a chamada conclui na
+     * hora — com a linha travada pelo job, ele esperaria a resposta do modelo — e o resultado que chega depois é
+     * ignorado.
+     */
+    @Test
+    void discardDuringTheModelCallDoesNotWaitAndTheLateResultIsIgnored() {
+        model.responses.clear();
+        model.willPropose("registrar_mapa", mapJson(PdfFixtures.simpleMap()));
+        PdfImportView received = upload(PdfFixtures.simpleTable(PdfFixtures.simpleTitles()), "lento.pdf");
+        STORAGE_CALLS.clear();
+        AtomicBoolean transactionDuringCall = new AtomicBoolean(true);
+        AtomicReference<String> discardedDuringCall = new AtomicReference<>();
+        ExecutorService otherUser = Executors.newSingleThreadExecutor();
+        model.duringCall = () -> {
+            transactionDuringCall.set(TransactionSynchronizationManager.isActualTransactionActive());
+            try {
+                discardedDuringCall.set(otherUser.submit(() -> asAna(() -> pdfImports.discard(received.id(),
+                        "Credor reenviou em planilha")).status()).get(10, TimeUnit.SECONDS));
+            } catch (Exception e) {
+                throw new IllegalStateException("Descarte durante a chamada à IA não concluiu", e);
+            }
+        };
+        try {
+            runJobs();
+        } finally {
+            model.duringCall = null;
+            otherUser.shutdownNow();
+        }
+        assertThat(transactionDuringCall.get()).isFalse();
+        assertThat(discardedDuringCall.get()).isEqualTo("DISCARDED");
+        // a leitura do arquivo pelo job (texto fora do cache) também fica fora de transação
+        assertThat(STORAGE_CALLS).filteredOn(c -> c.startsWith("open:")).allMatch(c -> c.equals("open:false"));
+        PdfImportView after = get(received.id());
+        assertThat(after.status()).isEqualTo("DISCARDED");
+        assertThat(after.mapRevision()).isZero();
+        assertThat(after.usage().calls()).isZero();
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? and entity_id = ? "
+                + "and action = 'pdf_import.map_applied'", tenant, received.id())).isZero();
+        assertThat(count("select count(*) from shared.processing_job where tenant_id = ? and type = ? and status = 'DONE'",
+                tenant, PDF_JOB_TYPE)).isEqualTo(1);
+    }
+
+    /**
+     * Envio sem transação longa (decisão 868): o arquivo vai ao armazenamento sem transação aberta — mesmo chamado de
+     * dentro de uma —, e idempotência e duplicidade seguem como antes (o reenvio com a mesma chave não grava outra
+     * cópia).
+     */
+    @Test
+    void uploadStoresTheFileOutsideATransactionKeepingIdempotencyAndDuplicateChecks() {
+        model.responses.clear();
+        STORAGE_CALLS.clear();
+        byte[] pdf = PdfFixtures.simpleTable(PdfFixtures.simpleTitles());
+        Supplier<PdfImportView> withKey = () -> pdfImports.upload(new UploadPdfCommand(portfolioA, "idem.pdf",
+                "application/pdf", pdf.length, () -> new ByteArrayInputStream(pdf), "SCREEN", "envio-idem-0001"));
+        PdfImportView first = asAna(withKey);
+        assertThat(first.status()).isEqualTo("RECEIVED");
+        assertThat(STORAGE_CALLS).containsExactly("store:false");
+
+        PdfImportView again = asAna(withKey);
+        assertThat(again.id()).isEqualTo(first.id());
+        assertThat(STORAGE_CALLS).containsExactly("store:false");
+        assertThatThrownBy(() -> upload(pdf, "copia.pdf"))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "pdf_import.duplicate_file");
+        // mesma chave com outro conteúdo: recusado antes de abrir o PDF ou gravar qualquer coisa
+        byte[] other = PdfFixtures.history(PdfFixtures.historyTitles(2), null);
+        assertThatThrownBy(() -> asAna(() -> pdfImports.upload(new UploadPdfCommand(portfolioA, "outro.pdf",
+                "application/pdf", other.length, () -> new ByteArrayInputStream(other), "SCREEN", "envio-idem-0001"))))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasFieldOrPropertyWithValue("code", "pdf_import.idempotency_conflict");
+        assertThat(STORAGE_CALLS).containsExactly("store:false");
+        assertThat(count("select count(*) from ingestion.pdf_import where tenant_id = ?", tenant)).isEqualTo(1);
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? and action = 'pdf_import.received'",
+                tenant)).isEqualTo(1);
     }
 
     @Test

@@ -285,7 +285,10 @@ aberto, sem status novo).
   resolve o tenant; a leitura do pacote roda no tenant), validade `evidenceLinkDays`, até
   `app.collection.disputes.link-max-downloads` (20) downloads e `link-requests-per-minute` (30) por IP;
   `GET /api/v1/dispute-files/{token}` é `PublicEndpoint`; ZIP com as evidências escolhidas; `FILE_DOWNLOADED` no log de
-  acesso; recusa → `DISPUTE_LINK_REJECTED`. Links vencidos são removidos pela manutenção diária.
+  acesso; recusa → `DISPUTE_LINK_REJECTED`. Links vencidos são removidos pela manutenção diária. O envio do ZIP não
+  segura transação (decisão 869): a contagem do download e os metadados das evidências são lidos em transações curtas,
+  e a leitura do armazenamento e a escrita para o cliente anônimo (que pode ser lento) correm só com o tenant definido,
+  sem conexão do banco presa (`DisputeWorkflowIT` confere que nenhuma escrita acontece com transação ativa).
 * E-mail: `collection.dispute_mail` (`REQUEST|REMINDER|OVERDUE`, `QUEUED|SENT|FAILED|SKIPPED`) enviado pelo job
   `collection.dispute_mail` (`DisputeMailer` → `SmtpDisputeMailer`, `app.mail.from`, *reply-to* do responsável ou, com a
   leitura de e-mail ligada, o endereço próprio do pedido — §7.6), até

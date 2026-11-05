@@ -47,6 +47,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -60,6 +61,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipInputStream;
@@ -270,8 +272,20 @@ class DisputeWorkflowIT extends CollectionTestSupport {
         String token = m.group(1);
         assertThat(count("select count(*) from collection.dispute_link_route where token_hash = ?", token)).isZero();
         var pack = evidenceLinks.open(token, "127.0.0.1");
-        ByteArrayOutputStream zip = new ByteArrayOutputStream();
+        // o envio ao cliente anônimo corre sem transação (nem conexão do banco presa) durante a escrita (decisão 869)
+        AtomicInteger writesInTransaction = new AtomicInteger();
+        ByteArrayOutputStream zip = new ByteArrayOutputStream() {
+            @Override
+            public synchronized void write(byte[] b, int off, int len) {
+                if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                    writesInTransaction.incrementAndGet();
+                }
+                super.write(b, off, len);
+            }
+        };
         evidenceLinks.write(pack, zip);
+        assertThat(zip.size()).isPositive();
+        assertThat(writesInTransaction.get()).isZero();
         try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip.toByteArray()))) {
             assertThat(in.getNextEntry().getName()).isEqualTo("comprovante.pdf");
         }

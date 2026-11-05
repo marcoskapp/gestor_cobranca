@@ -1,12 +1,10 @@
 package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.payment.application.PaymentProperties;
-import br.com.gestorcobranca.payment.application.port.out.StatementParser;
 import br.com.gestorcobranca.payment.application.port.out.StatementParser.ParsedLine;
 import br.com.gestorcobranca.payment.application.port.out.StatementParser.StatementFormatException;
 import br.com.gestorcobranca.payment.domain.model.StatementImport;
 import br.com.gestorcobranca.payment.domain.model.StatementImportStatus;
-import br.com.gestorcobranca.payment.domain.model.StatementLineStatus;
 import br.com.gestorcobranca.payment.domain.repository.BankStatementRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
@@ -17,6 +15,9 @@ import br.com.gestorcobranca.shared.storage.FileStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,17 +27,29 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Processamento de um extrato importado ({@code payment.statement_import}), numa transação: lê o
- * arquivo com o leitor do formato, concilia linha a linha ({@link StatementMatcher}) e grava as
- * contagens. Arquivo ilegível → importação {@code FAILED} com o código do erro (sem nenhuma baixa).
+ * Processamento de um extrato importado ({@code payment.statement_import}) sem transação longa (decisão 866):
+ * <ol>
+ *   <li>transação curta: marca a importação {@code PROCESSING} (ou retoma uma tentativa interrompida);</li>
+ *   <li>sem transação: lê o arquivo no armazenamento e interpreta com o leitor do formato;</li>
+ *   <li>lotes de {@code app.payment.statement.chunk-size} linhas, cada um na própria transação: concilia linha a
+ *       linha ({@link StatementMatcher}) e grava. Os locks de pagamentos e instruções duram só o lote, e as baixas
+ *       confirmadas seguem para a negociação a cada lote;</li>
+ *   <li>transação curta: contagens apuradas sobre as linhas gravadas e conclusão.</li>
+ * </ol>
+ * Falha no meio desfaz só o lote corrente; a nova tentativa pula as linhas já gravadas ({@code (import_id,
+ * line_number)} único), sem baixa duplicada, e refaz a impressão digital das linhas repetidas na ordem do arquivo.
+ * Esgotadas as tentativas, a importação fica {@code FAILED} ({@code statement.processing_failed}) com as linhas já
+ * gravadas. Arquivo ilegível → {@code FAILED} com o código do erro (sem nenhuma baixa).
  */
 @Component
 class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
 
     static final String TYPE = "payment.statement_import";
+    static final String PROCESSING_FAILED = "statement.processing_failed";
     private static final Logger LOG = LoggerFactory.getLogger(StatementImportJob.class);
 
     private final BankStatementRepository statements;
@@ -46,11 +59,12 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
     private final AuditTrail auditTrail;
     private final PaymentMetrics metrics;
     private final PaymentProperties properties;
+    private final TransactionTemplate tx;
     private final Clock clock;
 
     StatementImportJob(BankStatementRepository statements, ReconciliationService reconciliation, StatementMatcher matcher,
                        FileStorage fileStorage, AuditTrail auditTrail, PaymentMetrics metrics,
-                       PaymentProperties properties, Clock clock) {
+                       PaymentProperties properties, PlatformTransactionManager transactionManager, Clock clock) {
         this.statements = statements;
         this.reconciliation = reconciliation;
         this.matcher = matcher;
@@ -58,6 +72,8 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
         this.auditTrail = auditTrail;
         this.metrics = metrics;
         this.properties = properties;
+        this.tx = new TransactionTemplate(transactionManager);
+        this.tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.clock = clock;
     }
 
@@ -83,42 +99,158 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
         return 3;
     }
 
+    /** Abre as próprias transações curtas: leitura do arquivo fora delas e cada lote na sua (decisão 852). */
+    @Override
+    public boolean transactional() {
+        return false;
+    }
+
     @Override
     public void handle(JobContext context, Payload payload) {
-        StatementImport source = statements.findImportForUpdate(payload.importId()).orElse(null);
-        if (source == null || !source.start(Instant.now(clock))) {
+        UUID importId = payload.importId();
+        StatementImport source = tx.execute(s -> statements.findImportForUpdate(importId)
+                .filter(i -> i.startOrResume(Instant.now(clock)))
+                .map(statements::save)
+                .orElse(null));
+        if (source == null) {
             return;
         }
-        StatementParser parser = reconciliation.parser(source.getFormat());
-        List<ParsedLine> lines;
-        try (InputStream in = fileStorage.open(source.getFileKey())) {
-            lines = parser.parse(in, properties.statement().maxLines());
-        } catch (StatementFormatException e) {
+        try {
+            List<ParsedLine> lines;
+            try (InputStream in = fileStorage.open(source.getFileKey())) {
+                lines = reconciliation.parser(source.getFormat()).parse(in, properties.statement().maxLines());
+            } catch (StatementFormatException e) {
+                rejectFile(importId, e);
+                return;
+            } catch (IOException e) {
+                throw new UncheckedIOException("Falha ao ler o extrato armazenado", e);
+            }
+            if (processInChunks(importId, lines)) {
+                finish(importId);
+            }
+        } catch (RuntimeException e) {
+            // o PROCESSING já foi confirmado: sem nova tentativa, a importação não pode ficar em processamento
+            if (context.attempt() >= maxAttempts() || isPermanent(e)) {
+                failProcessing(importId);
+            }
+            throw e;
+        }
+    }
+
+    /** Resultado de um lote: se a importação segue em processamento e quantas linhas já gravadas foram puladas. */
+    private record ChunkResult(boolean processing, int resumed) {
+    }
+
+    /** @return {@code false} se a importação saiu de processamento no meio (outra execução a concluiu) */
+    private boolean processInChunks(UUID importId, List<ParsedLine> lines) {
+        // a impressão digital das linhas repetidas depende da ordem no arquivo: calculada para todas, gravadas ou não
+        Map<String, Integer> occurrences = new HashMap<>();
+        int[] order = new int[lines.size()];
+        for (int i = 0; i < lines.size(); i++) {
+            order[i] = StatementMatcher.occurrence(lines.get(i), occurrences);
+        }
+        int chunkSize = properties.statement().chunkSize();
+        for (int from = 0; from < lines.size(); from += chunkSize) {
+            int start = from;
+            int end = Math.min(from + chunkSize, lines.size());
+            ChunkResult result = tx.execute(s -> processChunk(importId, lines, order, start, end));
+            if (result == null || !result.processing()) {
+                return false;
+            }
+            // contado só depois do commit do lote: lote desfeito não infla a métrica
+            if (result.resumed() > 0) {
+                metrics.statementLinesResumed(result.resumed());
+            }
+        }
+        return true;
+    }
+
+    private ChunkResult processChunk(UUID importId, List<ParsedLine> lines, int[] order, int start, int end) {
+        // o lock da importação serializa execuções concorrentes (lease perdido) e firma a leitura das já gravadas
+        StatementImport current = statements.findImportForUpdate(importId).orElse(null);
+        if (current == null || !current.isProcessing()) {
+            return new ChunkResult(false, 0);
+        }
+        int first = Integer.MAX_VALUE;
+        int last = Integer.MIN_VALUE;
+        for (int i = start; i < end; i++) {
+            first = Math.min(first, lines.get(i).lineNumber());
+            last = Math.max(last, lines.get(i).lineNumber());
+        }
+        Set<Integer> done = statements.lineNumbers(importId, first, last);
+        int resumed = 0;
+        for (int i = start; i < end; i++) {
+            ParsedLine line = lines.get(i);
+            if (done.contains(line.lineNumber())) {
+                resumed++;
+            } else {
+                matcher.process(current, line, order[i]);
+            }
+        }
+        return new ChunkResult(true, resumed);
+    }
+
+    private void finish(UUID importId) {
+        tx.executeWithoutResult(s -> {
+            StatementImport source = statements.findImportForUpdate(importId).orElse(null);
+            if (source == null || !source.isProcessing()) {
+                return;
+            }
+            source.finish(statements.countLinesByStatus(importId), Instant.now(clock));
+            statements.save(source);
+            metrics.statementImport(source.getFormat().name(), StatementImportStatus.PROCESSED.name());
+            auditTrail.record(AuditEntry.of("statement_import.processed", ReconciliationService.RESOURCE, source.getId())
+                    .creditor(source.getCreditorId()).change("status", StatementImportStatus.PROCESSING,
+                            StatementImportStatus.PROCESSED)
+                    .meta("totalLines", source.getTotalLines()).meta("reconciledLines", source.getReconciledLines())
+                    .meta("createdPayments", source.getCreatedPayments()).meta("divergentLines", source.getDivergentLines())
+                    .meta("ignoredLines", source.getIgnoredLines()));
+            LOG.atInfo().addKeyValue("importId", source.getId()).addKeyValue("lines", source.getTotalLines())
+                    .addKeyValue("reconciled", source.getReconciledLines())
+                    .addKeyValue("divergent", source.getDivergentLines()).log("Extrato conciliado");
+        });
+    }
+
+    private void rejectFile(UUID importId, StatementFormatException e) {
+        tx.executeWithoutResult(s -> {
+            StatementImport source = statements.findImportForUpdate(importId).orElse(null);
+            if (source == null || !source.isProcessing()) {
+                return;
+            }
             source.fail(e.code(), Instant.now(clock));
             statements.save(source);
             metrics.statementImport(source.getFormat().name(), StatementImportStatus.FAILED.name());
             LOG.atWarn().addKeyValue("importId", source.getId()).addKeyValue("code", e.code())
                     .addKeyValue("line", e.lineNumber()).log("Extrato recusado: arquivo inválido");
-            return;
-        } catch (IOException e) {
-            throw new UncheckedIOException("Falha ao ler o extrato armazenado", e);
+        });
+    }
+
+    /**
+     * Última tentativa falhou no meio: as linhas (e baixas) já gravadas ficam e a importação sai de processamento
+     * (decisão 871).
+     */
+    private void failProcessing(UUID importId) {
+        try {
+            tx.executeWithoutResult(s -> {
+                StatementImport source = statements.findImportForUpdate(importId).orElse(null);
+                if (source == null || !source.isProcessing()) {
+                    return;
+                }
+                source.failProcessing(PROCESSING_FAILED, statements.countLinesByStatus(importId), Instant.now(clock));
+                statements.save(source);
+                metrics.statementImport(source.getFormat().name(), StatementImportStatus.FAILED.name());
+                auditTrail.record(AuditEntry.of("statement_import.failed", ReconciliationService.RESOURCE, source.getId())
+                        .creditor(source.getCreditorId()).change("status", StatementImportStatus.PROCESSING,
+                                StatementImportStatus.FAILED)
+                        .meta("failureCode", PROCESSING_FAILED).meta("totalLines", source.getTotalLines())
+                        .meta("reconciledLines", source.getReconciledLines())
+                        .meta("createdPayments", source.getCreatedPayments())
+                        .meta("divergentLines", source.getDivergentLines()));
+                LOG.atError().addKeyValue("importId", source.getId()).addKeyValue("lines", source.getTotalLines())
+                        .log("Extrato interrompido: tentativas esgotadas com parte das linhas gravadas");
+            });
+        } catch (RuntimeException e) {
+            LOG.atError().addKeyValue("importId", importId).setCause(e).log("Falha ao registrar a interrupção do extrato");
         }
-        Map<String, Integer> occurrences = new HashMap<>();
-        for (ParsedLine line : lines) {
-            StatementLineStatus status = matcher.process(source, line, occurrences);
-            source.count(status);
-        }
-        source.finish(Instant.now(clock));
-        statements.save(source);
-        metrics.statementImport(source.getFormat().name(), StatementImportStatus.PROCESSED.name());
-        auditTrail.record(AuditEntry.of("statement_import.processed", ReconciliationService.RESOURCE, source.getId())
-                .creditor(source.getCreditorId()).change("status", StatementImportStatus.PROCESSING,
-                        StatementImportStatus.PROCESSED)
-                .meta("totalLines", source.getTotalLines()).meta("reconciledLines", source.getReconciledLines())
-                .meta("createdPayments", source.getCreatedPayments()).meta("divergentLines", source.getDivergentLines())
-                .meta("ignoredLines", source.getIgnoredLines()));
-        LOG.atInfo().addKeyValue("importId", source.getId()).addKeyValue("lines", source.getTotalLines())
-                .addKeyValue("reconciled", source.getReconciledLines()).addKeyValue("divergent", source.getDivergentLines())
-                .log("Extrato conciliado");
     }
 }

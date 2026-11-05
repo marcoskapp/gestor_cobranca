@@ -76,13 +76,27 @@ class StatementMatcher {
         this.clock = clock;
     }
 
-    /** @param occurrences contagem de linhas idênticas sem identificador no arquivo (para a impressão digital) */
-    StatementLineStatus process(StatementImport source, ParsedLine parsed, Map<String, Integer> occurrences) {
+    /**
+     * Ordem da linha entre as idênticas sem identificador no arquivo (1 para a primeira), usada na impressão digital.
+     * Chamado para todas as linhas, na ordem do arquivo — inclusive as já gravadas numa tentativa anterior, para que a
+     * retomada produza a mesma impressão digital.
+     *
+     * @param occurrences contagem acumulada das linhas anteriores do arquivo
+     */
+    static int occurrence(ParsedLine parsed, Map<String, Integer> occurrences) {
+        if (blankToNull(parsed.transactionId()) != null) {
+            return 1;
+        }
+        String key = parsed.paidOn() + "|" + Money.of(parsed.amount()) + "|" + parsed.credit() + "|"
+                + blankToNull(parsed.reference());
+        return occurrences.merge(key, 1, Integer::sum);
+    }
+
+    /** @param occurrence ordem da linha entre as idênticas sem identificador ({@link #occurrence}) */
+    StatementLineStatus process(StatementImport source, ParsedLine parsed, int occurrence) {
         Money amount = Money.of(parsed.amount());
         String txId = blankToNull(parsed.transactionId());
         String reference = blankToNull(parsed.reference());
-        String key = parsed.paidOn() + "|" + amount + "|" + parsed.credit() + "|" + reference;
-        int occurrence = txId == null ? occurrences.merge(key, 1, Integer::sum) : 1;
         String fingerprint = StatementFingerprint.of(parsed.paidOn(), amount, parsed.credit(), txId, reference, occurrence);
         StatementLineStatus initial = !parsed.credit() ? StatementLineStatus.IGNORED_DEBIT
                 : statements.existsLineByFingerprint(fingerprint) ? StatementLineStatus.IGNORED_DUPLICATE

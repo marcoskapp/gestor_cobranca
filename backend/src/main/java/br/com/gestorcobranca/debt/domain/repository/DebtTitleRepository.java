@@ -20,6 +20,9 @@ public interface DebtTitleRepository {
     /** Lock pessimista: serializa lançamentos e mudanças de status concorrentes no mesmo título. */
     Optional<DebtTitle> findByIdForUpdate(UUID id);
 
+    /** Credor do título, sem carregar a entidade nem travar a linha (conferência de escopo antes de um lock). */
+    Optional<UUID> findCreditorIdById(UUID id);
+
     /** Lock pessimista em lote, sempre na ordem do id (evita deadlock entre operações em lote). */
     List<DebtTitle> findAllByIdInForUpdate(Collection<UUID> ids);
 
