@@ -48,6 +48,17 @@ variable "app_noncurrent_expiration_days" {
   default     = 365
 }
 
+variable "app_import_noncurrent_expiration_days" {
+  description = "Dias até expirar a versão anterior de arquivos de importação (tag retention-class=import) depois do descarte pela aplicação (LGPD)."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.app_import_noncurrent_expiration_days >= 1 && var.app_import_noncurrent_expiration_days <= 7
+    error_message = "Use de 1 a 7 dias: a versão anterior guarda o dado pessoal já descartado."
+  }
+}
+
 variable "alb_logs_expiration_days" {
   description = "Retenção dos access logs do ALB e dos logs de acesso do S3 (dias)."
   type        = number

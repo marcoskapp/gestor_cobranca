@@ -195,7 +195,10 @@ export const MANUAL: ModuleManual = {
       id: 'portal.requests',
       title: 'Pedidos do portal',
       objective: 'Devedores que pediram atendimento humano no portal e ainda precisam de retorno da operação.',
-      purpose: ['Os pedidos encaminhados como conversa estão na caixa de entrada. Aqui ficam os que não puderam virar conversa, por exemplo sem contato no canal.'],
+      purpose: [
+        'Os pedidos encaminhados como conversa estão na caixa de entrada. Aqui ficam os que não puderam virar conversa, por exemplo sem contato no canal.',
+        'A mensagem escrita pelo devedor abre em "Ver mensagem do devedor", e cada consulta fica registrada no log de acesso.',
+      ],
       profiles: ['OPERADOR', 'SUPERVISOR'],
       inputs: ['Pedidos de ajuda feitos no portal.'],
       outputs: ['Retorno ao devedor pela operação.'],

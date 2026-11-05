@@ -388,7 +388,12 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'negotiation.indexes', version: 1, path: '/negociacao/indices' },
   { key: 'negotiation.authority', version: 1, path: '/negociacao/alcadas', tourId: 'negotiation.authority' },
   { key: 'portal.configs', version: 1, path: '/autonegociacao' },
-  { key: 'portal.requests', version: 1, path: '/autonegociacao/pedidos' },
+  {
+    key: 'portal.requests',
+    version: 2,
+    path: '/autonegociacao/pedidos',
+    changes: [{ version: 2, items: ['A mensagem escrita pelo devedor não aparece mais na lista: abra em "Ver mensagem do devedor". Cada consulta fica registrada no log de acesso.'] }],
+  },
   { key: 'portal.config', version: 1, path: '/autonegociacao/:id' },
   {
     key: 'ingestion.batches',
@@ -436,10 +441,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'ingestion.batch-detail',
-    version: 2,
+    version: 3,
     path: '/importacao/:id',
     tourId: 'ingestion.batch-detail',
-    changes: [{ version: 2, items: ['Importar a prévia ou reprocessar o arquivo passa pela conferência; a leitura aplicada aos valores aparece no recebimento.'] }],
+    changes: [
+      { version: 2, items: ['Importar a prévia ou reprocessar o arquivo passa pela conferência; a leitura aplicada aos valores aparece no recebimento.'] },
+      { version: 3, items: ['Com a retenção de arquivos de importação ligada, o lote mostra quando o arquivo original foi descartado; sem ele, não há download nem reprocessamento.'] },
+    ],
   },
   { key: 'compliance.restrictions', version: 1, path: '/compliance/restricoes', tourId: 'compliance.restrictions' },
   { key: 'compliance.contact-policy', version: 1, path: '/compliance/politica-de-contato', tourId: 'compliance.contact-policy' },

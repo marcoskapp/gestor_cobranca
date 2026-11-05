@@ -67,6 +67,10 @@ public class S3FileStorage implements FileStorage {
             if (category == FileCategory.EVIDENCE) {
                 // regra de lifecycle do bucket move evidências antigas para o Glacier (infra/terraform, módulo storage)
                 request.tagging("retention-class=evidence");
+            } else if (category == FileCategory.IMPORT) {
+                // LGPD: o bucket é versionado e o delete só cria o delete marker; a regra de lifecycle por esta tag
+                // expira a versão anterior 1 dia depois do descarte (infra/terraform, módulo storage)
+                request.tagging("retention-class=import");
             }
             if (properties.kmsKeyId() != null && !properties.kmsKeyId().isBlank()) {
                 request.serverSideEncryption(ServerSideEncryption.AWS_KMS).ssekmsKeyId(properties.kmsKeyId());

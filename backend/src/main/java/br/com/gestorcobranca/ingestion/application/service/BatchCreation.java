@@ -161,10 +161,19 @@ class BatchCreation {
         return stored;
     }
 
-    /** O arquivo já armazenado de um lote existente (sem nova cópia). */
+    /**
+     * O arquivo já armazenado de um lote existente (sem nova cópia). Arquivo descartado pela política de retenção →
+     * 409 {@code import_batch.file_deleted} (conferir de novo, importar a prévia e reprocessar dependem dele).
+     */
     static StoredFile storedOf(ImportBatch batch) {
+        requireFile(batch);
         return new StoredFile(null, batch.getFileKey(), batch.getFileName(), batch.getFileContentType(),
                 batch.getFileSize(), batch.getFileSha256());
+    }
+
+    static void requireFile(ImportBatch batch) {
+        Guard.requireState(batch.isFileAvailable(), "import_batch.file_deleted",
+                "O arquivo deste lote já foi descartado pela política de retenção");
     }
 
     /**

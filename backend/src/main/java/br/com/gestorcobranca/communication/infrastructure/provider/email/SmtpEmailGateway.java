@@ -5,6 +5,7 @@ import br.com.gestorcobranca.communication.domain.model.ProviderType;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.mail.MessagingException;
+import jakarta.mail.SendFailedException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailParseException;
 import org.springframework.mail.MailPreparationException;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
@@ -24,8 +26,11 @@ import java.nio.charset.StandardCharsets;
  * E-mail pelo SMTP da plataforma (Spring Mail, timeouts em {@code spring.mail.properties}); o
  * remetente e a resposta são os da conta de canal do credor (ou da assessoria). O SMTP não informa
  * entrega nem leitura: a mensagem fica {@code SENT}. Bounces e reclamações dependem do provedor de
- * e-mail com notificações (Amazon SES, issue #9). Erro de autenticação ou de endereço é definitivo;
- * os demais são transitórios.
+ * e-mail com notificações (Amazon SES, issue #9). Erro de autenticação ou de endereço é definitivo,
+ * inclusive a recusa do destinatário pelo servidor (5xx, {@code SMTP_RECIPIENT_REJECTED}); os demais
+ * são transitórios. A exceção do Spring Mail nunca vai como causa da falha transitória: a resposta do
+ * servidor SMTP costuma ecoar o endereço do destinatário, que acabaria no log técnico e no
+ * {@code last_error} do job (LGPD: nada de e-mail do devedor em logs).
  */
 @Component
 class SmtpEmailGateway implements ChannelGateway {
@@ -74,13 +79,38 @@ class SmtpEmailGateway implements ChannelGateway {
         } catch (MessagingException | UnsupportedEncodingException e) {
             outcome = "rejected";
             return SendResult.rejected("SMTP_INVALID_MESSAGE", "Remetente ou destinatário inválido");
+        } catch (MailSendException e) {
+            if (recipientRejected(e)) {
+                outcome = "rejected";
+                LOG.atWarn().addKeyValue("provider", PROVIDER).addKeyValue("error", "recipient_rejected")
+                        .log("E-mail recusado pelo SMTP (destinatário)");
+                return SendResult.rejected("SMTP_RECIPIENT_REJECTED", "Destinatário recusado pelo servidor de e-mail");
+            }
+            outcome = "transient";
+            throw new TransientSendException("Falha transitória no SMTP (envio)");
         } catch (MailException e) {
             outcome = "transient";
-            throw new TransientSendException("Falha transitória no SMTP", e);
+            throw new TransientSendException("Falha transitória no SMTP (" + e.getClass().getSimpleName() + ")");
         } finally {
             meterRegistry.counter("integration.calls", "provider", PROVIDER, "operation", OPERATION, "outcome", outcome)
                     .increment();
             sample.stop(meterRegistry.timer("integration.calls.duration", "provider", PROVIDER, "operation", OPERATION));
         }
+    }
+
+    /**
+     * Recusa definitiva do destinatário: o Jakarta Mail marca como endereço inválido a resposta 5xx ao
+     * {@code RCPT TO}; a 4xx fica como "válido, não enviado" e segue transitória.
+     */
+    private static boolean recipientRejected(MailSendException e) {
+        for (Exception failure : e.getMessageExceptions()) {
+            for (Throwable t = failure; t != null; t = t.getCause()) {
+                if (t instanceof SendFailedException sfe && sfe.getInvalidAddresses() != null
+                        && sfe.getInvalidAddresses().length > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

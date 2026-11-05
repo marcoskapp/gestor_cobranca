@@ -133,6 +133,25 @@ resource "aws_s3_bucket_lifecycle_configuration" "app" {
     }
   }
 
+  # Descarte de dado pessoal (LGPD): o bucket é versionado e o delete da aplicação só cria o delete
+  # marker. Arquivos de importação (tag retention-class=import, contrato com o backend; ver README)
+  # não ficam guardados como versão anterior depois do descarte pela retenção.
+  rule {
+    id     = "imports-noncurrent-expiration"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "retention-class"
+        value = "import"
+      }
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.app_import_noncurrent_expiration_days
+    }
+  }
+
   rule {
     id     = "noncurrent-versions"
     status = "Enabled"

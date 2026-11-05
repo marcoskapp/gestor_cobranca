@@ -3,10 +3,11 @@
  * por arquivo (CSV/XLSX) ou API, validação linha a linha, relatório de erros mascarado e
  * processamento assíncrono, em blocos, retomável e idempotente. A gravação de devedores e títulos
  * é delegada ao módulo debt ({@code DebtIngestionPort}); este módulo guarda a origem e o histórico
- * de cada carga.
+ * de cada carga. Os arquivos de importação seguem a política {@code IMPORT_FILES} do compliance
+ * ({@code RetentionUseCases.policyFor}).
  */
 @ApplicationModule(displayName = "Ingestion",
-        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases"})
+        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "compliance :: usecases"})
 package br.com.gestorcobranca.ingestion;
 
 import org.springframework.modulith.ApplicationModule;

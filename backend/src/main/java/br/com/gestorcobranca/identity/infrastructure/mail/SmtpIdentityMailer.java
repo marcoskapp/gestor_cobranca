@@ -103,7 +103,8 @@ class SmtpIdentityMailer implements IdentityMailer {
             meterRegistry.counter("mail.sent", "type", type, "outcome", "success").increment();
         } catch (MessagingException | MailException e) {
             meterRegistry.counter("mail.sent", "type", type, "outcome", "error").increment();
-            LOG.error("Falha ao enviar e-mail de identidade ({}) para {}", type, to, e);
+            // sem o destinatário: o MDC (tenantId, actorId, requestId) basta para correlacionar
+            LOG.error("Falha ao enviar e-mail de identidade ({})", type, e);
         }
     }
 

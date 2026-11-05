@@ -37,6 +37,10 @@ describe('regras de tela do módulo ingestion', () => {
     expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1' })).toEqual(['review']);
     // importação gerada pela conferência: link para ela e reprocessar de novo pela conferência
     expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1' })).toEqual(['review', 'reprocess']);
+    // arquivo descartado pela retenção: nada a importar ou reprocessar
+    expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null, fileDeletedAt: '2026-11-05T06:40:00Z' })).toEqual([]);
+    expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'CSV', cancelRequestedAt: null, reviewId: null, fileDeletedAt: '2026-11-05T06:40:00Z' })).toEqual([]);
+    expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1', fileDeletedAt: '2026-11-05T06:40:00Z' })).toEqual(['review']);
     expect(toBatchFilter({ creditor: ['c-1'], portfolio: [], status: '', source: 'API' })).toEqual({ creditorId: 'c-1', portfolioId: null, status: null, source: 'API' });
   });
 

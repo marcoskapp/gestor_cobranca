@@ -88,11 +88,18 @@ export interface ServiceRequestSummary {
   reason: string;
   preferredChannel: string;
   status: string;
-  note: string | null;
+  /** O devedor escreveu uma mensagem; o texto só vem no detalhe ({@link PortalAdminApi.serviceRequest}). */
+  hasNote: boolean;
   conversationId: string | null;
   failureCode: string | null;
   createdAt: string;
   forwardedAt: string | null;
+}
+
+/** Pedido com a mensagem livre do devedor (a consulta fica registrada no log de acesso). */
+export interface ServiceRequestDetail {
+  request: ServiceRequestSummary;
+  note: string | null;
 }
 
 const BASE = `${API_V1}/portal`;
@@ -154,6 +161,10 @@ export class PortalAdminApi {
     return this.http.get<PageResponse<ServiceRequestSummary>>(`${BASE}/service-requests`, {
       params: toHttpParams({ creditorId, status, page: page.page, size: page.size }),
     });
+  }
+
+  serviceRequest(id: string): Observable<ServiceRequestDetail> {
+    return this.http.get<ServiceRequestDetail>(`${BASE}/service-requests/${id}`);
   }
 }
 

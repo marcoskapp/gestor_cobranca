@@ -4,7 +4,9 @@ import br.com.gestorcobranca.communication.application.port.out.ChannelGateway.O
 import br.com.gestorcobranca.communication.application.port.out.ChannelGateway.SendResult;
 import br.com.gestorcobranca.communication.application.port.out.ChannelGateway.TransientSendException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import jakarta.mail.SendFailedException;
 import jakarta.mail.Session;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -12,6 +14,7 @@ import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
@@ -57,5 +60,39 @@ class SmtpEmailGatewayTest {
         assertThat(gateway.send(request()).accepted()).isFalse();
         doThrow(new MailSendException("down")).when(sender).send(any(MimeMessage.class));
         assertThatThrownBy(() -> gateway.send(request())).isInstanceOf(TransientSendException.class);
+    }
+
+    @Test
+    void recipientRefusedByTheServerIsDefinitiveRejection() throws Exception {
+        when(sender.createMimeMessage()).thenAnswer(i -> new MimeMessage(Session.getInstance(new Properties())));
+        InternetAddress[] invalid = {new InternetAddress("devedor@exemplo.com")};
+        SendFailedException refused = new SendFailedException("550 5.1.1 <devedor@exemplo.com> User unknown",
+                null, new InternetAddress[0], new InternetAddress[0], invalid);
+        Map<Object, Exception> failures = new LinkedHashMap<>();
+        failures.put(new Object(), refused);
+        doThrow(new MailSendException(failures)).when(sender).send(any(MimeMessage.class));
+
+        SendResult result = gateway.send(request());
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("SMTP_RECIPIENT_REJECTED");
+        assertThat(result.errorDetail()).doesNotContain("devedor@exemplo.com");
+    }
+
+    @Test
+    void transientFailureDoesNotCarryTheServerResponse() throws Exception {
+        when(sender.createMimeMessage()).thenAnswer(i -> new MimeMessage(Session.getInstance(new Properties())));
+        // 4xx: endereço válido não enviado (sem inválidos) — segue transitória, sem a resposta do servidor
+        SendFailedException deferred = new SendFailedException("451 4.3.0 <devedor@exemplo.com> try later",
+                null, new InternetAddress[0], new InternetAddress[]{new InternetAddress("devedor@exemplo.com")},
+                new InternetAddress[0]);
+        Map<Object, Exception> failures = new LinkedHashMap<>();
+        failures.put(new Object(), deferred);
+        doThrow(new MailSendException(failures)).when(sender).send(any(MimeMessage.class));
+
+        assertThatThrownBy(() -> gateway.send(request()))
+                .isInstanceOf(TransientSendException.class)
+                .hasNoCause()
+                .satisfies(e -> assertThat(e.getMessage()).doesNotContain("devedor@exemplo.com"));
     }
 }

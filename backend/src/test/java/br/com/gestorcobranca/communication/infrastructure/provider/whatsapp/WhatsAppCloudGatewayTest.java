@@ -148,4 +148,19 @@ class WhatsAppCloudGatewayTest {
         assertThatThrownBy(() -> gateway.send(request(null))).isInstanceOf(TransientSendException.class);
         assertThat(registry.get("integration.calls").tag("outcome", "timeout").counter().count()).isEqualTo(1);
     }
+
+    @Test
+    void transientFailureDoesNotCarryTheProviderResponse() {
+        status.set(503);
+        response.set("{\"error\":{\"message\":\"recipient 5511987654321 unavailable\"}}");
+        assertThatThrownBy(() -> gateway.send(request(null)))
+                .isInstanceOf(TransientSendException.class)
+                .hasNoCause()
+                .hasMessage("WhatsApp HTTP 503");
+        status.set(200);
+        delayMs.set(1500L);
+        assertThatThrownBy(() -> gateway.send(request(null)))
+                .isInstanceOf(TransientSendException.class)
+                .hasNoCause();
+    }
 }

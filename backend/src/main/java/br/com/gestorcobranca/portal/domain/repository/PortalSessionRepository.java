@@ -28,4 +28,12 @@ public interface PortalSessionRepository {
 
     /** Atualização pontual do último acesso (sem versão) para não conflitar com requisições paralelas. */
     int touch(UUID sessionId, Instant at);
+
+    /**
+     * Retenção (LGPD): apaga IP e agente do navegador de até {@code limit} sessões encerradas antes do corte; a
+     * sessão continua (funil e trilha).
+     *
+     * @return sessões alteradas
+     */
+    int clearClientDataEndedBefore(Instant cutoff, int limit);
 }

@@ -153,6 +153,13 @@ compliance; job reagendado). Na última tentativa (`app.communication.send-max-a
 marcada `FAILED/RETRIES_EXHAUSTED` em transação própria e o job vai para `DEAD`. Entrega "ao menos uma vez": aceite do
 provedor seguido de falha no commit pode reenviar (a Cloud API não tem chave de idempotência no envio).
 
+**Classificação das falhas do SMTP e do WhatsApp (LGPD, sem dado do destinatário em log).** No SMTP, a recusa do
+destinatário pelo servidor (5xx no `RCPT TO`, que o Jakarta Mail marca como endereço inválido) é **definitiva**:
+`FAILED/SMTP_RECIPIENT_REJECTED`, sem repetir até as 6 tentativas (`send-max-attempts`); 4xx e falhas de conexão seguem transitórias. A falha
+transitória nunca leva a exceção do Spring Mail como causa — a resposta do servidor ecoa o endereço do devedor e iria
+para o log técnico e o `last_error` do job. No WhatsApp Cloud, 429/5xx e tempo esgotado viram falha transitória sem a
+causa (o corpo da resposta da Meta pode trazer o número).
+
 **Webhooks e status:** `DELIVERED`/`READ`/`FAILED` do provedor nunca regridem (fora de ordem é absorvido); status de
 mensagem desconhecida é ignorado (métrica).
 

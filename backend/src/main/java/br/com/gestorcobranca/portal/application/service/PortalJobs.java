@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.portal.application.service;
 
+import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.tenancy.TenantDirectory;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -10,12 +11,18 @@ import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/** Expiração das sessões do portal vencidas (uma instância por vez, por assessoria ativa). */
+/**
+ * Jobs do portal (uma instância por vez, por assessoria ativa): expiração das sessões vencidas e retenção dos
+ * dados de acesso (desafios, contadores do bloqueio progressivo e IP/agente das sessões encerradas).
+ */
 @Component
 class PortalJobs {
 
     private static final Logger LOG = LoggerFactory.getLogger(PortalJobs.class);
     private static final String JOB = "portal.session_expiry";
+    private static final String RETENTION_JOB = "portal.retention";
+    /** Teto de rodadas por assessoria e execução (cada rodada na própria transação). */
+    static final int MAX_RETENTION_ROUNDS = 50;
 
     private final TenantDirectory tenants;
     private final TenantExecution tenantExecution;
@@ -45,5 +52,37 @@ class PortalJobs {
                         .log("Falha ao expirar sessões do portal");
             }
         }
+    }
+
+    @Scheduled(cron = "${app.portal.retention-cron:0 20 3 * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
+    @SchedulerLock(name = RETENTION_JOB, lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
+    void purgeAccessData() {
+        for (UUID tenantId : tenants.activeTenantIds()) {
+            purgeAccessData(tenantId);
+        }
+    }
+
+    /** @return registros descartados ou limpos na assessoria */
+    int purgeAccessData(UUID tenantId) {
+        int total = 0;
+        try {
+            for (int round = 0; round < MAX_RETENTION_ROUNDS; round++) {
+                PortalMaintenance.Purged purged = tenantExecution.callInTenant(tenantId, RETENTION_JOB,
+                        maintenance::purgeAccessData);
+                total += purged.total();
+                if (!purged.full()) {
+                    break;
+                }
+            }
+        } catch (RuntimeException e) {
+            metrics.jobFailure(RETENTION_JOB);
+            LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("job", RETENTION_JOB).setCause(e)
+                    .log("Falha no descarte dos dados de acesso do portal");
+        }
+        if (total > 0) {
+            LOG.atInfo().addKeyValue("tenantId", tenantId).addKeyValue("job", RETENTION_JOB).addKeyValue("purged", total)
+                    .log("Retenção dos dados de acesso do portal executada");
+        }
+        return total;
     }
 }

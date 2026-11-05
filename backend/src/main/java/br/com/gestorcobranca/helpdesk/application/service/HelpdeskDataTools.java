@@ -7,6 +7,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorView;
 import br.com.gestorcobranca.helpdesk.application.port.in.HelpdeskChatUseCases.CardView;
 import br.com.gestorcobranca.helpdesk.application.port.in.HelpdeskChatUseCases.FieldView;
 import br.com.gestorcobranca.helpdesk.application.port.out.KnowledgeBase;
+import br.com.gestorcobranca.helpdesk.domain.service.PersonalData;
 import br.com.gestorcobranca.helpdesk.domain.service.ReferenceBook.Kind;
 import br.com.gestorcobranca.incentive.application.port.in.StatementUseCases;
 import br.com.gestorcobranca.incentive.application.port.in.StatementUseCases.StatementSummary;
@@ -56,11 +57,17 @@ import java.util.stream.Collectors;
  * explicar a situação; nome e documento do devedor vão apenas para os cartões montados aqui e exibidos direto ao
  * usuário (documento já mascarado pelo módulo dono — a revelação, que exige {@code DEBTOR_SENSITIVE_VIEW}, nunca é
  * usada). Nunca vão: contatos, endereço, observações, evidências, referências externas, chaves e nomes de arquivo.
+ * Texto livre escrito por outras pessoas (motivo de suspensão, de envio ao jurídico, nota de encerramento, motivo do
+ * acordo) também não vai: o modelo recebe só que existe motivo registrado ({@code motivoRegistrado}) e a pessoa lê o
+ * texto na tela do registro, pelo cartão — o texto pode ter nome de terceiro, telefone, situação de saúde ou
+ * instruções. O motivo da importação, quase sempre mensagem do sistema, vai mascarado ({@link PersonalData#mask}) e
+ * curto.
  */
 @Component
 class HelpdeskDataTools {
 
     static final int MAX_RESULTS = 5;
+    static final int MAX_NOTE_LENGTH = 200;
 
     private final DebtorUseCases debtors;
     private final CaseUseCases cases;
@@ -153,7 +160,7 @@ class HelpdeskDataTools {
         for (CaseView c : list.stream().limit(MAX_RESULTS).toList()) {
             String ref = state.references.refFor(Kind.CASE, c.id());
             Map<String, Object> m = map("ref", ref, "devedor", debtorRef, "credor", names.get(c.creditorId()),
-                    "situacao", c.status(), "motivoSituacao", c.statusReason(), "elegivel", c.eligible(),
+                    "situacao", c.status(), "motivoRegistrado", noteRecorded(c.statusReason()), "elegivel", c.eligible(),
                     "motivosInelegibilidade", c.eligibilityReasons(), "canaisContataveis", c.contactableChannels(),
                     "saldoEmAberto", c.openBalance(), "saldoElegivel", c.eligibleBalance(), "diasDeAtraso", c.daysOverdue(),
                     "titulosEmAberto", c.openTitles(), "titulosContestados", c.disputedTitles(),
@@ -193,7 +200,7 @@ class HelpdeskDataTools {
             Optional<InstallmentView> next = open.stream().min(java.util.Comparator.comparing(InstallmentView::number));
             long overdue = a.installments().stream().filter(i -> "OVERDUE".equals(i.status())).count();
             Map<String, Object> m = map("ref", ref, "devedor", debtor, "credor", names.get(a.creditorId()),
-                    "situacao", a.status(), "motivoSituacao", a.statusReason(), "origem", a.origin(),
+                    "situacao", a.status(), "motivoRegistrado", noteRecorded(a.statusReason()), "origem", a.origin(),
                     "valorTotal", a.totalAmount(), "entrada", a.downPayment(), "pago", a.paidAmount(),
                     "restante", a.remainingAmount(), "desconto", a.discountAmount(), "parcelas", a.installments().size(),
                     "parcelasEmAberto", open.size(), "parcelasVencidas", overdue,
@@ -262,7 +269,7 @@ class HelpdeskDataTools {
         for (ImportBatchView b : list) {
             String ref = state.references.refFor(Kind.IMPORT, b.id());
             ImportBatchUseCases.Counters c = b.counters();
-            out.add(map("ref", ref, "situacao", b.status(), "motivoSituacao", b.statusReason(), "origem", b.source(),
+            out.add(map("ref", ref, "situacao", b.status(), "motivoSituacao", maskedNote(b.statusReason()), "origem", b.source(),
                     "modo", b.mode(), "layout", b.layoutCode(), "progressoPercentual", b.progressPercent(),
                     "linhas", b.totalRows(), "linhasLidas", c == null ? null : c.rowsRead(),
                     "linhasValidas", c == null ? null : c.rowsValid(), "linhasComErro", c == null ? null : c.rowsWithError(),
@@ -377,6 +384,20 @@ class HelpdeskDataTools {
         } catch (DomainException | br.com.gestorcobranca.shared.security.ScopeAccessDeniedException e) {
             return Map.of();
         }
+    }
+
+    /** Motivo escrito por uma pessoa (texto livre): ao modelo vai só a existência. */
+    static Boolean noteRecorded(String note) {
+        return note == null || note.isBlank() ? null : Boolean.TRUE;
+    }
+
+    /** Motivo que costuma ser mensagem do sistema: vai mascarado (documento, e-mail, telefone, CEP) e curto. */
+    static String maskedNote(String note) {
+        if (note == null || note.isBlank()) {
+            return null;
+        }
+        String masked = PersonalData.mask(note.strip());
+        return masked.length() <= MAX_NOTE_LENGTH ? masked : masked.substring(0, MAX_NOTE_LENGTH - 1) + "…";
     }
 
     private static String blankToNull(String s) {

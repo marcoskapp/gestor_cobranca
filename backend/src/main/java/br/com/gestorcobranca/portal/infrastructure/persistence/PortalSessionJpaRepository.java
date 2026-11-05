@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
@@ -55,4 +56,15 @@ interface PortalSessionJpaRepository extends JpaRepository<PortalSession, UUID>,
                and s.lastSeenAt < :at
             """)
     int touch(UUID sessionId, Instant at);
+
+    @Override
+    @Modifying
+    @Query(value = """
+            update portal.portal_session set client_ip = null, user_agent = null
+             where id in (select id from portal.portal_session
+                           where tenant_id = shared.current_tenant_id() and ended_at < :cutoff
+                             and (client_ip is not null or user_agent is not null)
+                           limit :max)
+            """, nativeQuery = true)
+    int clearClientDataEndedBefore(Instant cutoff, @Param("max") int limit);
 }

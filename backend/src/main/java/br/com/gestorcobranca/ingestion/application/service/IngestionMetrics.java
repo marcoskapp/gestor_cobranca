@@ -21,6 +21,13 @@ class IngestionMetrics {
         this.registry = registry;
     }
 
+    /** Arquivos de importação descartados pela política {@code IMPORT_FILES}. */
+    void filesDeleted(int count) {
+        if (count > 0) {
+            registry.counter("ingestion.files.deleted").increment(count);
+        }
+    }
+
     void received(ImportBatch batch) {
         registry.counter("ingestion.batches.received", "source", batch.getSource().name(), "mode", batch.getMode().name())
                 .increment();

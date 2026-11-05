@@ -12,15 +12,18 @@ import java.time.Duration;
  * @param session       sessão do devedor
  * @param access        código de acesso, limites e bloqueio progressivo
  * @param templates     prefixos dos templates do communication (sufixo = canal)
+ * @param retention     prazos de descarte dos dados de acesso (LGPD, minimização)
  */
 @ConfigurationProperties(prefix = "app.portal")
-public record PortalProperties(String publicBaseUrl, Session session, Access access, Templates templates) {
+public record PortalProperties(String publicBaseUrl, Session session, Access access, Templates templates,
+                               Retention retention) {
 
     public PortalProperties {
         publicBaseUrl = publicBaseUrl == null ? "https://localhost:8443" : stripSlash(publicBaseUrl);
         session = session == null ? new Session(null, null, null, null) : session;
         access = access == null ? new Access(null, null, null, null, null, null, null, null, null, null, null, null) : access;
         templates = templates == null ? new Templates(null, null, null) : templates;
+        retention = retention == null ? new Retention(null, null, null) : retention;
     }
 
     private static String stripSlash(String url) {
@@ -75,6 +78,26 @@ public record PortalProperties(String publicBaseUrl, Session session, Access acc
             baseLock = baseLock == null ? Duration.ofMinutes(15) : baseLock;
             maxLock = maxLock == null ? Duration.ofHours(24) : maxLock;
             minResponseTime = minResponseTime == null ? Duration.ofMillis(400) : minResponseTime;
+        }
+    }
+
+    /**
+     * Descarte dos dados de acesso ao portal (job diário {@code portal.retention}). Os prazos são decisão a
+     * combinar com o encarregado (docs/negocio/decisoes-autonomas.md).
+     *
+     * @param challenges        desafios de acesso (HMAC do documento digitado, inclusive de quem não é devedor) são
+     *                          apagados depois deste prazo do vencimento
+     * @param throttles         contadores do bloqueio progressivo (HMAC do documento e do IP) sem uso há este prazo
+     *                          e sem bloqueio vigente são apagados
+     * @param sessionClientData IP e agente do navegador das sessões encerradas há este prazo são apagados (a sessão
+     *                          continua, sem eles, para o funil e a trilha)
+     */
+    public record Retention(Duration challenges, Duration throttles, Duration sessionClientData) {
+
+        public Retention {
+            challenges = challenges == null ? Duration.ofDays(30) : challenges;
+            throttles = throttles == null ? Duration.ofDays(30) : throttles;
+            sessionClientData = sessionClientData == null ? Duration.ofDays(180) : sessionClientData;
         }
     }
 

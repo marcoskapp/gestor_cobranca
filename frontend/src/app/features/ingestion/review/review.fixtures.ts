@@ -48,6 +48,7 @@ export function previewBatch(overrides: Partial<ImportBatchView> = {}): ImportBa
     finishedAt: null,
     reviewId: 'r-1',
     numberFormat: {},
+    fileDeletedAt: null,
     ...overrides,
   };
 }

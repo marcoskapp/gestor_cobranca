@@ -64,8 +64,12 @@ public class ImportBatch extends TenantScopedEntity {
     @Column(name = "status_reason", length = REASON_MAX)
     private String statusReason;
 
-    @Column(name = "file_key", nullable = false, length = 300, updatable = false)
+    /** Nula depois do descarte pela política IMPORT_FILES (a coluna é limpa pelo job de retenção, em lote). */
+    @Column(name = "file_key", length = 300, updatable = false)
     private String fileKey;
+
+    @Column(name = "file_deleted_at", insertable = false, updatable = false)
+    private Instant fileDeletedAt;
 
     @Column(name = "file_name", nullable = false, length = 200, updatable = false)
     private String fileName;
@@ -477,6 +481,15 @@ public class ImportBatch extends TenantScopedEntity {
 
     public String getFileKey() {
         return fileKey;
+    }
+
+    /** Quando o arquivo foi descartado pela política de retenção (nulo = ainda armazenado). */
+    public Instant getFileDeletedAt() {
+        return fileDeletedAt;
+    }
+
+    public boolean isFileAvailable() {
+        return fileKey != null;
     }
 
     public String getFileName() {
