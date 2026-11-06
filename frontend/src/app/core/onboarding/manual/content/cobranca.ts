@@ -257,7 +257,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque.',
         'Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.',
-        'Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes.',
+        'Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria (somando as reduções do mesmo título nos últimos 30 dias) aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes.',
       ],
       profiles: ['SUPERVISOR', 'GESTOR', 'FINANCEIRO', 'ANALISTA_CARTEIRA', 'AUDITOR'],
       inputs: ['Importação, pagamentos, acordos e descontos aplicados ao título.'],
@@ -276,7 +276,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois.',
         'A carga do credor não sobrescreve um valor corrigido: a divergência fica aqui até alguém manter a correção ou aceitar o valor do credor.',
-        'O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa.',
+        'O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir, mais as do mesmo título nos últimos 30 dias) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa em até 15 dias, senão a proposta vence.',
       ],
       profiles: ['GESTOR', 'FINANCEIRO'],
       inputs: ['Correções pedidas no detalhe do título e cargas do credor.'],

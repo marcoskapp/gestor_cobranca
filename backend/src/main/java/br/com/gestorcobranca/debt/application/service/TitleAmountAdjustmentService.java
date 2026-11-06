@@ -49,7 +49,11 @@ import br.com.gestorcobranca.shared.storage.FileStorage.StoredFile;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -66,7 +70,10 @@ import java.util.UUID;
 
 /**
  * Correção manual do valor do título (decisões 802–813). O título é travado (lock pessimista) em toda operação que mexe
- * no razão; a aprovação confere que os saldos ainda são os do pedido (senão, recusa e pede um pedido novo).
+ * no razão; a aprovação confere que os saldos ainda são os do pedido (senão, recusa e pede um pedido novo). O limite é
+ * acumulado por título numa janela (a soma das reduções recentes é lida com o título travado) e a proposta de aumento do
+ * limite vence (decisões do responsável sobre as 864 e 865). O pedido não tem transação longa: a evidência vai ao
+ * armazenamento sem transação aberta e o registro acontece numa transação curta (decisão do responsável sobre a 872).
  */
 @Service
 @Transactional
@@ -93,6 +100,9 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
     private final DebtProperties properties;
     private final DebtMetrics metrics;
     private final Clock clock;
+    /** Transações curtas do pedido (o método roda sem transação; decisão do responsável sobre a 872). */
+    private final TransactionTemplate shortTx;
+    private final TransactionTemplate shortReadTx;
 
     TitleAmountAdjustmentService(DebtTitleRepository titles, LedgerRecorder ledgerRecorder,
                                  TitleAmountAdjustmentRepository adjustments, TitleAmountDivergenceRepository divergences,
@@ -100,7 +110,8 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
                                  ObjectProvider<TitleAgreementGuard> agreementGuard, AccessScope accessScope,
                                  CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                                  AccessLogger accessLogger, FileStorage fileStorage, EvidenceFileCleanup fileCleanup,
-                                 DebtProperties properties, DebtMetrics metrics, Clock clock) {
+                                 DebtProperties properties, DebtMetrics metrics, Clock clock,
+                                 PlatformTransactionManager transactionManager) {
         this.titles = titles;
         this.ledgerRecorder = ledgerRecorder;
         this.adjustments = adjustments;
@@ -117,6 +128,11 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         this.properties = properties;
         this.metrics = metrics;
         this.clock = clock;
+        this.shortTx = new TransactionTemplate(transactionManager);
+        this.shortTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.shortReadTx = new TransactionTemplate(transactionManager);
+        this.shortReadTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.shortReadTx.setReadOnly(true);
     }
 
     // =================================================================== consultas
@@ -137,11 +153,13 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         }
         agreement.ifPresent(a -> blockers.add("AGREEMENT"));
         pending.ifPresent(p -> blockers.add("PENDING"));
+        // prévia da alçada (sem lock): o pedido relê a soma com o título travado
         return new AdjustmentContext(titleId, components, title.getPrincipalAmount().amount(),
                 title.getOpenBalance().amount(), threshold().amount(), title.isManualPrincipal(),
                 title.getCreditorPrincipal().amount(), blockers, agreement.orElse(null),
                 pending.map(a -> view(a, title)).orElse(null),
-                divergences.findOpenByTitleId(titleId).map(d -> view(d, title)).orElse(null));
+                divergences.findOpenByTitleId(titleId).map(d -> view(d, title)).orElse(null),
+                recentReductions(titleId, Instant.now(clock)).amount(), cumulativeWindowDays());
     }
 
     @Override
@@ -173,21 +191,44 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
 
     // =================================================================== pedido e decisão
 
+    /**
+     * Sem transação longa (decisão do responsável sobre a 872, no padrão do envio de PDF, decisão 870): o escopo é
+     * conferido numa transação curta de leitura (com a recusa antecipada do pedido pendente), sem carregar nem travar o
+     * título; a evidência vai ao armazenamento sem
+     * transação aberta (não prende conexão nem a linha do título, que pagamentos, estornos e cargas também travam); o
+     * registro acontece numa transação curta com o título travado. Se o registro é desfeito (falha ou a regra recusa o
+     * pedido), o arquivo gravado é removido; se o commit pode ter acontecido (desfecho incerto), o arquivo é mantido.
+     */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AdjustmentView request(UUID titleId, AdjustmentCommand command, EvidenceUpload upload) {
         accessScope.requirePermission(Permission.TITLE_AMOUNT_ADJUST);
         Guard.require(command != null, "title_amount.required", "Dados da correção obrigatórios");
-        // upload antes do lock (decisão 872): o envio ao armazenamento não segura a linha do título, que pagamentos,
-        // estornos e cargas também travam. O escopo é conferido antes, sem carregar o título; o arquivo de um pedido
-        // recusado depois é removido no rollback.
-        UUID creditorId = titles.findCreditorIdById(titleId).orElseThrow(() -> ResourceNotFoundException.of(TITLE, titleId));
-        accessScope.requireVisible(TITLE, titleId, creditorId);
-        accessScope.requireCreditor(creditorId);
-        TitleAmountAdjustment.Evidence evidence = upload == null ? null : store(upload);
-        DebtTitle title = lockForCommand(titleId);
-        requireAdjustable(title);
+        if (upload == null) {
+            return shortTx.execute(s -> register(titleId, command, null));
+        }
+        shortReadTx.executeWithoutResult(s -> {
+            UUID creditorId = titles.findCreditorIdById(titleId)
+                    .orElseThrow(() -> ResourceNotFoundException.of(TITLE, titleId));
+            accessScope.requireVisible(TITLE, titleId, creditorId);
+            accessScope.requireCreditor(creditorId);
+            // recusa barata antes do envio; o registro confere de novo com o título travado
+            requireNoPending(titleId);
+        });
+        TitleAmountAdjustment.Evidence evidence = storeOutsideTransaction(upload);
+        return fileCleanup.registerOrDiscard(evidence.key(), shortTx, () -> register(titleId, command, evidence));
+    }
+
+    private void requireNoPending(UUID titleId) {
         Guard.requireState(!adjustments.existsByTitleIdAndStatus(titleId, AmountAdjustmentStatus.PENDING_APPROVAL),
                 "title_amount.pending_exists", "Já há um pedido de correção aguardando aprovação neste título");
+    }
+
+    /** Registro do pedido, na transação curta e com o título travado. */
+    private AdjustmentView register(UUID titleId, AdjustmentCommand command, TitleAmountAdjustment.Evidence evidence) {
+        DebtTitle title = lockForCommand(titleId);
+        requireAdjustable(title);
+        requireNoPending(titleId);
         AmountAdjustmentReason reason = DebtViews.parseEnum(AmountAdjustmentReason.class, command.reason(),
                 "title_amount.reason_invalid", "Motivo");
         Map<LedgerComponent, Money> targets = new EnumMap<>(LedgerComponent.class);
@@ -198,8 +239,10 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         Map<LedgerComponent, Money> balances = balances(existing);
         Instant now = Instant.now(clock);
         Actor actor = currentActor.get();
+        // limite acumulado: lido depois do lock do título, então pedidos concorrentes no mesmo título se enxergam
         TitleAmountAdjustment adjustment = new TitleAmountAdjustment(title, balances, targets, reason, command.note(),
-                command.disputeId(), evidence, threshold(), actor.id(), actor.name(), now);
+                command.disputeId(), evidence, threshold(), recentReductions(titleId, now), actor.id(), actor.name(),
+                now);
         if (adjustment.getApprovalMode() == AmountAdjustmentMode.WITHIN_LIMIT) {
             adjustment.markApplied(actor.id(), actor.name(), null, now);
             TitleAmountAdjustment saved = adjustments.save(adjustment);
@@ -214,9 +257,14 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
                 .meta("delta", saved.getDelta())
                 .meta("disputeId", saved.getDisputeId())
                 .meta("evidenceSha256", evidence == null ? null : evidence.sha256())
-                .meta("approvalMode", saved.getApprovalMode()));
-        businessEvents.log(base(BusinessEventTypes.TITLE_AMOUNT_ADJUSTMENT_REQUESTED, title, saved));
+                .meta("approvalMode", saved.getApprovalMode())
+                .meta("cumulativeLimit", adjustment.isCumulativeLimitReached()));
+        businessEvents.log(base(BusinessEventTypes.TITLE_AMOUNT_ADJUSTMENT_REQUESTED, title, saved)
+                .attr("cumulativeLimit", adjustment.isCumulativeLimitReached()));
         metrics.amountAdjustment("requested", saved.getApprovalMode().name());
+        if (adjustment.isCumulativeLimitReached()) {
+            metrics.amountAdjustmentCumulativeLimit();
+        }
         return view(saved, title);
     }
 
@@ -368,9 +416,9 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         if (!currentActor.get().has(Permission.TITLE_AMOUNT_APPROVE)) {
             accessScope.requirePermission(Permission.TITLE_AMOUNT_ADJUST);
         }
-        return settings.findCurrent().map(TitleAmountAdjustmentService::settingsView)
+        return settings.findCurrent().map(this::settingsView)
                 .orElse(new SettingsView(AmountAdjustmentSettings.DEFAULT_THRESHOLD.amount(), false, null, null, null,
-                        null, null));
+                        null, null, null, false, cumulativeWindowDays()));
     }
 
     @Override
@@ -414,12 +462,42 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
                         "Não há aumento de limite aguardando confirmação", Map.of()));
         Money previous = current.getApprovalThreshold();
         UUID proposedBy = current.getProposedBy();
-        current.confirmProposal(currentActor.get().id(), Money.ofNullable(reviewedThreshold));
+        current.confirmProposal(currentActor.get().id(), Money.ofNullable(reviewedThreshold), Instant.now(clock),
+                proposalValidity());
         AmountAdjustmentSettings saved = settings.save(current);
         auditTrail.record(AuditEntry.of("title_amount.settings_confirmed", "amount_adjustment_settings", saved.getId())
                 .change("approvalThreshold", previous, saved.getApprovalThreshold())
                 .meta("proposedBy", proposedBy));
         return settingsView(saved);
+    }
+
+    /**
+     * Descarta a proposta de aumento do limite vencida (job diário {@code debt.amount_threshold_proposal_expiry}, como ator
+     * de sistema, na transação do job). O limite vigente não muda; a pendência some com a proposta.
+     *
+     * @return {@code true} se havia proposta vencida
+     */
+    public boolean discardExpiredProposal() {
+        Optional<AmountAdjustmentSettings> current = settings.findCurrent();
+        if (current.isEmpty()) {
+            return false;
+        }
+        AmountAdjustmentSettings s = current.get();
+        Money proposed = s.getProposedThreshold();
+        UUID proposedBy = s.getProposedBy();
+        Instant proposedAt = s.getProposedAt();
+        if (!s.discardExpiredProposal(Instant.now(clock), proposalValidity())) {
+            return false;
+        }
+        AmountAdjustmentSettings saved = settings.save(s);
+        auditTrail.record(AuditEntry.of("title_amount.settings_proposal_expired", "amount_adjustment_settings",
+                        saved.getId())
+                .change("proposedThreshold", proposed, null)
+                .meta("approvalThreshold", saved.getApprovalThreshold())
+                .meta("proposedBy", proposedBy)
+                .meta("proposedAt", proposedAt));
+        metrics.thresholdProposalExpired();
+        return true;
     }
 
     /** O limite vale para toda a assessoria: só quem aprova e vê todos os credores o altera ou confirma. */
@@ -428,10 +506,25 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         accessScope.requireAllCreditors("amount_adjustment_settings");
     }
 
-    private static SettingsView settingsView(AmountAdjustmentSettings s) {
+    private SettingsView settingsView(AmountAdjustmentSettings s) {
         return new SettingsView(s.getApprovalThreshold().amount(), true, s.getUpdatedAt(),
                 s.getProposedThreshold() == null ? null : s.getProposedThreshold().amount(), s.getProposedBy(),
-                s.getProposedByName(), s.getProposedAt());
+                s.getProposedByName(), s.getProposedAt(), s.proposalExpiresAt(proposalValidity()),
+                s.isProposalExpired(Instant.now(clock), proposalValidity()), cumulativeWindowDays());
+    }
+
+    private Duration proposalValidity() {
+        return properties.amountAdjustment().proposalValidity();
+    }
+
+    private long cumulativeWindowDays() {
+        return properties.amountAdjustment().cumulativeWindow().toDays();
+    }
+
+    /** Reduções aplicadas sem segunda pessoa no título dentro da janela do limite acumulado. */
+    private Money recentReductions(UUID titleId, Instant now) {
+        return Money.of(adjustments.sumWithinLimitReductionsSince(titleId,
+                now.minus(properties.amountAdjustment().cumulativeWindow())));
     }
 
     // =================================================================== auxiliares
@@ -469,7 +562,8 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         return out;
     }
 
-    private TitleAmountAdjustment.Evidence store(EvidenceUpload upload) {
+    /** Grava sem transação aberta; quem chama remove o arquivo ({@code EvidenceFileCleanup#discard}) se o registro falhar. */
+    private TitleAmountAdjustment.Evidence storeOutsideTransaction(EvidenceUpload upload) {
         Guard.require(upload.content() != null && upload.size() > 0, "title_amount.evidence_empty",
                 "Arquivo de evidência vazio");
         Guard.require(upload.size() <= properties.evidence().maxSizeBytes(), "title_amount.evidence_too_large",
@@ -479,7 +573,6 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
                 "title_amount.evidence_type_invalid", "Evidência deve ser PDF, PNG ou JPEG (conferido pelo conteúdo)"));
         StoredFile stored = fileStorage.store(FileCategory.EVIDENCE, upload.fileName(), contentType, sniffed.content(),
                 upload.size());
-        fileCleanup.deleteOnRollback(stored.key());
         return new TitleAmountAdjustment.Evidence(stored.key(), stored.originalName(), contentType, stored.size(),
                 stored.sha256());
     }

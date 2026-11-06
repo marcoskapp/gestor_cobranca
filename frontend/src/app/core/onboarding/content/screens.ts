@@ -89,7 +89,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   // "correções de valor" antes do detalhe (":id" casaria o caminho)
   {
     key: 'debt.title-amounts',
-    version: 2,
+    version: 3,
     path: '/titulos/correcoes-de-valor',
     tourId: 'debt.title-amounts',
     changes: [
@@ -100,11 +100,18 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Correção que aumenta algum componente, ou cuja soma das reduções passa do limite, vai para aprovação mesmo com o saldo final menor.',
         ],
       },
+      {
+        version: 3,
+        items: [
+          'A proposta de aumento do limite vence em 15 dias: a aba Limite mostra a data; vencida, não pode mais ser confirmada e é descartada.',
+          'O limite vale também por título: reduções aplicadas sem segunda pessoa no mesmo título nos últimos 30 dias somam com a nova.',
+        ],
+      },
     ],
   },
   {
     key: 'debt.title-detail',
-    version: 3,
+    version: 4,
     path: '/titulos/:id',
     tourId: 'debt.title-detail',
     changes: [
@@ -118,6 +125,10 @@ export const SCREENS: readonly ScreenGuide[] = [
       {
         version: 3,
         items: ['Corrigir valor: se algum componente aumenta, ou se a soma das reduções passa do limite, a correção vai para aprovação de outra pessoa mesmo com o saldo final menor.'],
+      },
+      {
+        version: 4,
+        items: ['Corrigir valor: reduções já aplicadas sem segunda pessoa no mesmo título nos últimos 30 dias somam com a nova; passando do limite, a prévia avisa que vai para aprovação.'],
       },
     ],
   },

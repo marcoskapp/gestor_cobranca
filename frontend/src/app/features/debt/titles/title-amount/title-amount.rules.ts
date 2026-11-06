@@ -10,13 +10,16 @@ export interface AdjustmentPreview {
   absDelta: number;
   newOpenBalance: number;
   mode: AmountAdjustmentMode;
+  /** A redução caberia sozinha no limite, mas não somada às reduções recentes do título: vai para aprovação. */
+  cumulative: boolean;
 }
 
 const cents = (v: number) => Math.round(v * 100);
 
 /**
- * Redução pura (nenhum componente sobe) com a soma das reduções até o limite → aplicada já; acima do limite ou com
- * aumento de qualquer componente (mesmo com o líquido negativo) → aprovação de outra pessoa (RB06; espelho de
+ * Redução pura (nenhum componente sobe) com a soma das reduções, mais as reduções já aplicadas sem segunda pessoa no
+ * mesmo título na janela do limite acumulado, até o limite → aplicada já; acima do limite ou com aumento de qualquer
+ * componente (mesmo com o líquido negativo) → aprovação de outra pessoa (RB06; espelho de
  * `TitleAmountAdjustment.isPureReductionWithin`).
  */
 export function adjustmentPreview(
@@ -24,6 +27,7 @@ export function adjustmentPreview(
   targets: Partial<Record<AmountComponent, number>>,
   openBalance: number,
   threshold: number,
+  recentReductions: number,
 ): AdjustmentPreview {
   let delta = 0;
   let increases = 0;
@@ -43,8 +47,17 @@ export function adjustmentPreview(
       decreases -= change;
     }
   }
-  const mode: AmountAdjustmentMode = increases === 0 && decreases > 0 && decreases <= cents(threshold) ? 'WITHIN_LIMIT' : 'DUAL_CONTROL';
-  return { changed: changed && delta !== 0, delta: delta / 100, absDelta: Math.abs(delta) / 100, newOpenBalance: (cents(openBalance) + delta) / 100, mode };
+  const pure = increases === 0 && decreases > 0;
+  const withinAlone = pure && decreases <= cents(threshold);
+  const mode: AmountAdjustmentMode = pure && decreases + cents(recentReductions) <= cents(threshold) ? 'WITHIN_LIMIT' : 'DUAL_CONTROL';
+  return {
+    changed: changed && delta !== 0,
+    delta: delta / 100,
+    absDelta: Math.abs(delta) / 100,
+    newOpenBalance: (cents(openBalance) + delta) / 100,
+    mode,
+    cumulative: withinAlone && mode === 'DUAL_CONTROL',
+  };
 }
 
 /** Quem pode decidir o pedido: aprovador que não é quem pediu. */
@@ -56,11 +69,11 @@ export function canWithdraw(a: Pick<AmountAdjustmentView, 'status' | 'requestedB
   return a.status === 'PENDING_APPROVAL' && a.requestedBy === userId;
 }
 
-/** Quem pode confirmar o aumento de limite proposto: aprovador com todos os credores que não é quem propôs. */
+/** Quem pode confirmar o aumento de limite proposto: aprovador com todos os credores que não é quem propôs, no prazo. */
 export function canConfirmThreshold(
-  s: Pick<AmountAdjustmentSettings, 'proposedThreshold' | 'proposedBy'>,
+  s: Pick<AmountAdjustmentSettings, 'proposedThreshold' | 'proposedBy' | 'proposalExpired'>,
   userId: string | null,
   canManageLimit: boolean,
 ): boolean {
-  return canManageLimit && s.proposedThreshold !== null && s.proposedBy !== userId;
+  return canManageLimit && s.proposedThreshold !== null && !s.proposalExpired && s.proposedBy !== userId;
 }

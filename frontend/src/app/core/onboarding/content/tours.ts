@@ -367,7 +367,7 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'title-amount-limit',
         title: 'Limite',
-        body: 'Redução pura até o limite é aplicada já; acima dele ou com componente aumentando, outra pessoa aprova. Aumentar o limite exige confirmação de outra pessoa.',
+        body: 'Redução pura no limite (somando as do título em 30 dias) aplica já; senão, outra pessoa aprova. Proposta de aumento vence em 15 dias.',
       },
     ],
   },

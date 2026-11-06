@@ -232,6 +232,12 @@ app:
       recalculation-batch: 200
     evidence:
       max-size-bytes: 20971520
+    amount-adjustment:
+      # limite acumulado por título: reduções aplicadas sem segunda pessoa no mesmo título nesta janela somam com a atual
+      cumulative-window: P30D
+      # prazo para outra pessoa confirmar o aumento do limite; depois, a proposta vence e o job diário a descarta
+      proposal-validity: P15D
+      proposal-expiry-cron: "0 50 3 * * *"
 
   compliance:
     data-subject-request:

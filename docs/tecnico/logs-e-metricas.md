@@ -68,14 +68,14 @@ Nenhum evento leva placa, RENAVAM, chassi, matrícula, documento ou nome: apenas
 | `collateral.appraised` | avaliação registrada | `type`, `appraisalSource`, `appraisalDate`, `estimatedValue`; `amount` = valor da avaliação |
 | `obligation_party.registered` | coobrigado incluído no contrato | `role`, `originContractId`, `principalDebtorId`, `personType`, `source`; `debtorId` = coobrigado |
 | `title.prescription_interrupted` | interrupção registrada (manual ou módulo legal) | `type`, `origin` (`MANUAL`/`LEGAL`), `hasEvidence`, `executionEstimatedDate`, `collectionEstimatedDate`, `extended` (alguma data estimada foi adiada); `amount` = saldo em aberto |
-| `title.amount_adjustment_requested` | correção manual do valor aguardando aprovação (acima do limite ou aumento) | `adjustmentId`, `reason`, `approvalMode`, `direction` (decrease/increase), `principalChanged`, `withDispute`, `withEvidence`; `amount` = variação do saldo |
+| `title.amount_adjustment_requested` | correção manual do valor aguardando aprovação (acima do limite, sozinha ou somada às reduções recentes do título, ou aumento) | `adjustmentId`, `reason`, `approvalMode`, `direction` (decrease/increase), `principalChanged`, `withDispute`, `withEvidence`, `cumulativeLimit` (a redução caberia sozinha, mas não somada às aplicadas sem segunda pessoa no título na janela); `amount` = variação do saldo |
 | `title.amount_adjusted` | correção aplicada (no registro ou na aprovação) | os mesmos + `components` (lista), `hoursPending` (só com aprovação) |
 | `title.amount_adjustment_rejected` | correção recusada por quem aprova | os mesmos + `hoursPending` |
 | `title.amount_divergence_detected` | carga com principal diferente do corrigido manualmente (correção mantida) | `divergenceId`, `occurrences`, `importBatchId`; `amount` = informado − corrigido |
 | `title.amount_divergence_resolved` | divergência decidida (`KEPT_MANUAL`, `ACCEPTED_CREDITOR`) ou encerrada pela carga (`RESOLVED_BY_CREDITOR`) | `divergenceId`, `decision`, `daysOpen`, `occurrences` |
 | `title.prescription_approaching` | varredura diária: data estimada entrou na janela da regra (uma vez por data) | `claim` (`EXECUTION`/`COLLECTION`), `instrumentType`, `executiveTitle`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `titleStatus`; `amount` = saldo em aberto |
 
-Auditoria da correção de valor (decisão 810): `title_amount.requested`, `adjusted`, `applied`, `rejected`, `cancelled`, `divergence_detected`, `divergence_resolved`; do limite da assessoria: `title_amount.settings_updated` (redução ou manutenção do limite, que vale na hora; `discardedProposal` quando descarta uma proposta de aumento em aberto), `title_amount.settings_proposed` (aumento proposto, que **não** muda o limite vigente: antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente) e `title_amount.settings_confirmed` (outra pessoa confirmou: antes e depois de `approvalThreshold`, `proposedBy`).
+Auditoria da correção de valor (decisão 810): `title_amount.requested`, `adjusted`, `applied`, `rejected`, `cancelled`, `divergence_detected`, `divergence_resolved`; do limite da assessoria: `title_amount.settings_updated` (redução ou manutenção do limite, que vale na hora; `discardedProposal` quando descarta uma proposta de aumento em aberto), `title_amount.settings_proposed` (aumento proposto, que **não** muda o limite vigente: antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente), `title_amount.settings_confirmed` (outra pessoa confirmou: antes e depois de `approvalThreshold`, `proposedBy`) e `title_amount.settings_proposal_expired` (job diário `debt.amount_threshold_proposal_expiry`, ator sistema: proposta vencida sem confirmação descartada; antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente, `proposedBy` e `proposedAt`). `title_amount.requested` leva `cumulativeLimit` (limite acumulado por título).
 
 ### 3.2a Atributos dos eventos de ingestão
 
@@ -620,12 +620,14 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `debt.collateral.registered{type,source}`, `debt.collateral.transitions{type,to}`, `debt.collateral.appraisals{source}` | garantias cadastradas, mudanças de situação e avaliações |
 | `debt.obligation_parties.registered{role,source}` | coobrigados incluídos |
 | `debt.title_amount.adjustments{outcome,mode}` | correções de valor: `requested`, `applied`, `rejected`, `cancelled` por `WITHIN_LIMIT`/`DUAL_CONTROL` |
+| `debt.title_amount.cumulative_limit` | reduções que caberiam sozinhas no limite, mas foram para aprovação pelo limite acumulado do título (janela `app.debt.amount-adjustment.cumulative-window`); crescimento contínuo indica fracionamento de reduções ou limite baixo para a operação |
+| `debt.title_amount.threshold_proposals_expired` | propostas de aumento do limite descartadas por vencer sem confirmação (`proposal-validity`, padrão 15 dias) |
 | `debt.title_amount.divergences{outcome}` | divergências com a carga: `detected`, `seen_again`, `KEPT_MANUAL`, `ACCEPTED_CREDITOR`, `RESOLVED_BY_CREDITOR` |
 | `debt.prescription.interruptions{type,origin}` | interrupções de prescrição registradas |
 | `debt.prescription.recalculated{trigger}` | linhas de prescrição criadas/alteradas/removidas por recálculo (`IMPORT`, `CLASSIFICATION`, `INTERRUPTION`, `RULE_CHANGE`, `RECONCILIATION`); `RECONCILIATION` contínuo indica recálculo que não está acontecendo na origem |
 | `debt.prescription.alerts{claim,instrumentType}` | alertas de prescrição próxima emitidos |
 | `debt.prescription.scan.duration{phase}` | duração da varredura diária por fase (`reconcile`, `alert`) |
-| `debt.jobs.failures{job}` | falhas dos agendamentos do módulo debt (alarme) |
+| `debt.jobs.failures{job}` | falhas dos agendamentos do módulo debt (alarme): `prescription_daily`, `debt.amount_threshold_proposal_expiry` |
 | `legal.matters.referred{origin}`, `legal.matters.transitions{from,to}` | indicações e ciclo dos casos jurídicos |
 | `legal.eligibility.evaluations{outcome}`, `legal.eligibility.reasons{reason}` | avaliações de elegibilidade (`eligible`, `ineligible`, `already_open`, `cooldown`, `case_status`, `no_rule`) e motivos |
 | `legal.viability.assessments{viable,economicallyViable}`, `legal.authorizations{decision}` | triagem e decisões do credor |

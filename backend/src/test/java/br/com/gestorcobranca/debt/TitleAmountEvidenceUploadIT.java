@@ -36,6 +36,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -54,16 +55,18 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Evidência da correção de valor enviada ao armazenamento antes do lock do título (decisão 872), contra PostgreSQL
- * real: um pagamento que trava o mesmo título durante o envio conclui na hora (com o título travado, ele esperaria o
- * fim do upload), o pedido considera o saldo já com o pagamento, e o arquivo de um pedido recusado depois do envio é
- * removido.
+ * Evidência da correção de valor enviada ao armazenamento sem transação aberta (decisão 872 revista pelo responsável),
+ * contra PostgreSQL real: o envio acontece fora de qualquer transação (não prende conexão nem o título); um pagamento
+ * que trava o mesmo título durante o envio conclui na hora; o pedido considera o saldo já com o pagamento; e o arquivo
+ * de um pedido recusado depois do envio (pela regra ou por falha no registro) é removido; com pedido já pendente, a
+ * recusa vem antes do envio.
  */
 @Import(TitleAmountEvidenceUploadIT.StorageProbeConfig.class)
 class TitleAmountEvidenceUploadIT extends IntegrationTest {
@@ -177,8 +180,11 @@ class TitleAmountEvidenceUploadIT extends IntegrationTest {
         UUID t = system(() -> ingestion.upsertTitle(new TitleRecord(creditor, portfolio, debtor, "T-UP", null, 1,
                 LocalDate.of(2026, 3, 10), new BigDecimal("2000.00"), null, null), Ids.newId())).id();
         ExecutorService ledger = Executors.newSingleThreadExecutor();
+        AtomicReference<Boolean> transactionDuringStore = new AtomicReference<>();
         try {
             duringStore = () -> {
+                // o chamador do teste abre uma transação (callAs); o pedido a suspende durante o envio
+                transactionDuringStore.set(TransactionSynchronizationManager.isActualTransactionActive());
                 try {
                     ledger.submit(() -> system(() -> {
                         ledgerPort.applyPayment(new PaymentApplication(t, Ids.newId(),
@@ -192,6 +198,7 @@ class TitleAmountEvidenceUploadIT extends IntegrationTest {
             AdjustmentView pending = tenantExecution.callAs(gestor,
                     () -> adjustments.request(t, principalTo("1000.00"), pdf()));
             duringStore = null;
+            assertThat(transactionDuringStore.get()).isFalse();
             assertThat(pending.status()).isEqualTo("PENDING_APPROVAL");
             // o saldo do pedido (lido com o título já travado) considera o pagamento que entrou durante o envio
             assertThat(pending.delta()).isEqualByComparingTo("-900.00");
@@ -202,10 +209,25 @@ class TitleAmountEvidenceUploadIT extends IntegrationTest {
             ledger.shutdownNow();
         }
 
-        // pedido recusado depois do envio (já há um pendente): o arquivo enviado é removido no rollback
+        // já há um pedido pendente: recusado antes do envio, sem gravar arquivo
         assertThatThrownBy(() -> tenantExecution.callAs(gestor, () -> adjustments.request(t, principalTo("1500.00"),
-                pdf()))).isInstanceOf(ConflictException.class);
-        assertThat(STORED).hasSize(2);
-        assertThat(DELETED).containsExactly(List.copyOf(STORED).get(1));
+                pdf()))).isInstanceOf(ConflictException.class).hasMessageContaining("aguardando aprovação");
+        assertThat(STORED).hasSize(1);
+        assertThat(DELETED).isEmpty();
+        // o arquivo do pedido registrado continua lá
+        assertThat(system(() -> adjustments.history(t)).adjustments()).singleElement()
+                .satisfies(a -> assertThat(a.evidence()).isNotNull());
+    }
+
+    @Test
+    void requestRefusedByTheRuleAfterTheUploadRemovesTheFile() {
+        UUID t = system(() -> ingestion.upsertTitle(new TitleRecord(creditor, portfolio, debtor, "T-UP2", null, 1,
+                LocalDate.of(2026, 3, 10), new BigDecimal("500.00"), null, null), Ids.newId())).id();
+        // zerar o saldo não é correção: a regra recusa já com o arquivo gravado
+        assertThatThrownBy(() -> tenantExecution.callAs(gestor, () -> adjustments.request(t, principalTo("0.00"),
+                pdf()))).hasMessageContaining("cancele o título");
+        assertThat(STORED).hasSize(1);
+        assertThat(DELETED).containsExactlyElementsOf(STORED);
+        assertThat(system(() -> adjustments.history(t)).adjustments()).isEmpty();
     }
 }

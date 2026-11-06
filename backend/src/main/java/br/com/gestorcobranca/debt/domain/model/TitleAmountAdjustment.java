@@ -15,6 +15,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,7 +33,9 @@ import java.util.UUID;
  * <p>
  * Regra de autorização (RB06): redução até o limite da assessoria é aplicada no registro; redução acima do limite e
  * qualquer aumento do saldo ficam aguardando outra pessoa com {@code TITLE_AMOUNT_APPROVE}, com evidência (arquivo ou
- * contestação). Quem pede nunca aprova o próprio pedido.
+ * contestação). O limite é também <b>acumulado por título</b> numa janela: as reduções já aplicadas sem segunda pessoa
+ * no mesmo título contam junto com a atual (decisão do responsável sobre a 864). Quem pede nunca aprova o próprio
+ * pedido.
  */
 @Entity
 @Table(name = "title_amount_adjustment", schema = "debt")
@@ -121,6 +124,10 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
     @Column(name = "applied_at")
     private Instant appliedAt;
 
+    /** Só no pedido: a redução cabia sozinha no limite, mas não somada às recentes do título (não persistido). */
+    @Transient
+    private boolean cumulativeLimitReached;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "title_amount_adjustment_line", schema = "debt",
             joinColumns = @JoinColumn(name = "adjustment_id"))
@@ -132,18 +139,22 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
     /**
      * @param balances saldo atual de cada componente do título (do razão)
      * @param targets  novo saldo pedido para cada componente alterado
-     * @param threshold limite da assessoria para aplicar redução sem segunda pessoa
+     * @param threshold         limite da assessoria para aplicar redução sem segunda pessoa
+     * @param recentReductions  soma das reduções já aplicadas sem segunda pessoa ({@code WITHIN_LIMIT}) neste título na
+     *                          janela do limite acumulado, lida com o título travado
      */
     public TitleAmountAdjustment(DebtTitle title, Map<LedgerComponent, Money> balances,
                                  Map<LedgerComponent, Money> targets, AmountAdjustmentReason reason, String note,
-                                 UUID disputeId, Evidence evidence, Money threshold, UUID requestedBy,
-                                 String requestedByName, Instant now) {
+                                 UUID disputeId, Evidence evidence, Money threshold, Money recentReductions,
+                                 UUID requestedBy, String requestedByName, Instant now) {
         Guard.require(reason != null, "title_amount.reason_required", "Escolha o motivo da correção");
         Guard.require(note != null && !note.isBlank() && note.trim().length() <= NOTE_MAX,
                 "title_amount.note_required", "Descreva a correção (até %d caracteres)".formatted(NOTE_MAX));
         Guard.require(targets != null && !targets.isEmpty(), "title_amount.components_required",
                 "Informe o novo valor de ao menos um componente");
         Guard.require(threshold != null && !threshold.isNegative(), "title_amount.threshold_invalid", "Limite inválido");
+        Guard.require(recentReductions != null && !recentReductions.isNegative(), "title_amount.recent_invalid",
+                "Reduções recentes inválidas");
         Money deltaTotal = Money.ZERO;
         Money increases = Money.ZERO;
         Money decreases = Money.ZERO;
@@ -176,12 +187,19 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
         Money principalAfter = title.getPrincipalAmount().plus(principalDelta);
         Guard.require(!principalAfter.isNegative(), "title_amount.principal_negative", "Principal não pode ficar negativo");
         // dentro do limite só a redução pura: nenhum componente sobe e a soma das reduções cabe no limite. O líquido
-        // esconderia a troca entre componentes (ex.: principal por honorários, receita da assessoria) — decisões 803 e 806
-        this.approvalMode = isPureReductionWithin(increases, decreases, threshold)
+        // esconderia a troca entre componentes (ex.: principal por honorários, receita da assessoria) — decisões 803 e 806.
+        // Somada às reduções recentes do título: sem isso, reduções sucessivas de até o limite somariam qualquer valor
+        // sem segunda pessoa (decisão do responsável sobre a 864, no modelo do pagamento externo fracionado, decisão 309)
+        boolean withinAlone = isPureReductionWithin(increases, decreases, Money.ZERO, threshold);
+        this.approvalMode = isPureReductionWithin(increases, decreases, recentReductions, threshold)
                 ? AmountAdjustmentMode.WITHIN_LIMIT : AmountAdjustmentMode.DUAL_CONTROL;
+        this.cumulativeLimitReached = withinAlone && approvalMode == AmountAdjustmentMode.DUAL_CONTROL;
         if (approvalMode == AmountAdjustmentMode.DUAL_CONTROL) {
             Guard.require(evidence != null || disputeId != null, "title_amount.evidence_required",
-                    "Acima do limite ou com aumento de algum componente, anexe a evidência ou vincule a contestação");
+                    cumulativeLimitReached
+                            ? "Somada às reduções já aplicadas neste título nos últimos dias, a correção passa do limite"
+                            + " da assessoria: vai para aprovação de outra pessoa; anexe a evidência ou vincule a contestação"
+                            : "Acima do limite ou com aumento de algum componente, anexe a evidência ou vincule a contestação");
         }
         this.titleId = title.getId();
         this.creditorId = title.getCreditorId();
@@ -209,10 +227,18 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
 
     /**
      * Regra da alçada (RB06): aplica sem segunda pessoa só a redução pura — nenhum componente aumenta e a soma das
-     * reduções (não o líquido) cabe no limite. A prévia da tela segue a mesma regra.
+     * reduções (não o líquido), mais as reduções já aplicadas sem segunda pessoa no mesmo título na janela do limite
+     * acumulado, cabe no limite. A prévia da tela segue a mesma regra.
      */
-    public static boolean isPureReductionWithin(Money increases, Money decreases, Money threshold) {
-        return increases.isZero() && decreases.isPositive() && decreases.compareTo(threshold) <= 0;
+    public static boolean isPureReductionWithin(Money increases, Money decreases, Money recentReductions,
+                                                Money threshold) {
+        return increases.isZero() && decreases.isPositive()
+                && decreases.plus(recentReductions).compareTo(threshold) <= 0;
+    }
+
+    /** A redução caberia sozinha no limite, mas não somada às recentes do título (só no pedido recém-criado). */
+    public boolean isCumulativeLimitReached() {
+        return cumulativeLimitReached;
     }
 
     /** Aplicada no registro (dentro do limite) ou na aprovação. */

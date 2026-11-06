@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.debt.application.service;
 
+import br.com.gestorcobranca.debt.application.DebtProperties;
 import br.com.gestorcobranca.debt.application.port.out.DebtPendingWorkQueries;
 import br.com.gestorcobranca.shared.pendingwork.PendingWorkItem;
 import br.com.gestorcobranca.shared.pendingwork.PendingWorkRequest;
@@ -9,6 +10,8 @@ import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -16,7 +19,8 @@ import java.util.UUID;
 
 /**
  * Pendências do debt: correções de valor de título aguardando aprovação (quem pediu não vê o próprio pedido), aumento
- * do limite de correção aguardando a confirmação de outra pessoa e divergências entre a correção e a carga do credor. Mesmos critérios de {@code TitleAmountAdjustmentService}.
+ * do limite de correção aguardando a confirmação de outra pessoa (só enquanto a proposta não vence) e divergências entre a
+ * correção e a carga do credor. Mesmos critérios de {@code TitleAmountAdjustmentService}.
  */
 @Component
 class DebtPendingWork implements PendingWorkSource {
@@ -27,10 +31,14 @@ class DebtPendingWork implements PendingWorkSource {
 
     private final DebtPendingWorkQueries queries;
     private final AccessScope accessScope;
+    private final DebtProperties properties;
+    private final Clock clock;
 
-    DebtPendingWork(DebtPendingWorkQueries queries, AccessScope accessScope) {
+    DebtPendingWork(DebtPendingWorkQueries queries, AccessScope accessScope, DebtProperties properties, Clock clock) {
         this.queries = queries;
         this.accessScope = accessScope;
+        this.properties = properties;
+        this.clock = clock;
     }
 
     @Override
@@ -64,7 +72,8 @@ class DebtPendingWork implements PendingWorkSource {
         // o limite vale para toda a assessoria: confirma quem aprova, vê todos os credores e não propôs
         if (actor.has(Permission.TITLE_AMOUNT_APPROVE) && accessScope.hasAllCreditors()) {
             items.add(PendingWorkItem.of(THRESHOLD_PROPOSAL, "Aumento do limite de correção de valor para confirmar",
-                            queries.thresholdProposal(actor.id()))
+                            queries.thresholdProposal(actor.id(),
+                                    Instant.now(clock).minus(properties.amountAdjustment().proposalValidity())))
                     .hint("Outra pessoa propôs aumentar o limite para aplicar reduções sem segunda pessoa; confirme se concordar.")
                     .route("/titulos/correcoes-de-valor").param("aba", "limite")
                     .build());

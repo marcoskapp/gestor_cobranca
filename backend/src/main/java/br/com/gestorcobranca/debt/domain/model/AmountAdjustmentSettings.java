@@ -7,6 +7,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -17,7 +18,8 @@ import java.util.UUID;
  * <p>
  * Reduzir o limite (mais restritivo) vale na hora. <b>Aumentar</b> fica proposto até <b>outra pessoa</b> confirmar
  * (decisão 805: a segregação vale também para o administrador); sem isso, quem aprova subiria o limite, aplicaria a
- * própria redução sem segunda pessoa e voltaria o limite.
+ * própria redução sem segunda pessoa e voltaria o limite. A proposta <b>vence</b> depois de um prazo (padrão 15 dias,
+ * decisão do responsável sobre a 865): vencida, não é mais confirmada e é descartada pelo job diário.
  */
 @Entity
 @Table(name = "amount_adjustment_settings", schema = "debt")
@@ -77,14 +79,18 @@ public class AmountAdjustmentSettings extends TenantScopedEntity {
     }
 
     /**
-     * Confirma o aumento proposto: só outra pessoa (nem o administrador confirma a própria proposta) e só o valor que ela
-     * revisou — se a proposta mudou entre a leitura e a confirmação, recusa (409) para nova conferência.
+     * Confirma o aumento proposto: só outra pessoa (nem o administrador confirma a própria proposta), só o valor que ela
+     * revisou — se a proposta mudou entre a leitura e a confirmação, recusa (409) para nova conferência — e só enquanto a
+     * proposta não venceu ({@code validity} depois de {@code proposedAt}; vencida → 409
+     * {@code title_amount.proposal_expired}).
      */
-    public void confirmProposal(UUID by, Money reviewedThreshold) {
+    public void confirmProposal(UUID by, Money reviewedThreshold, Instant now, Duration validity) {
         Guard.requireState(proposedThreshold != null, "title_amount.no_threshold_proposal",
                 "Não há aumento de limite aguardando confirmação");
         Guard.requireState(!proposedBy.equals(by), "title_amount.self_approval",
                 "Quem propôs o aumento do limite não pode confirmá-lo");
+        Guard.requireState(!isProposalExpired(now, validity), "title_amount.proposal_expired",
+                "A proposta de aumento do limite venceu sem confirmação; quem quiser o aumento precisa propor de novo");
         Guard.requireState(reviewedThreshold != null && proposedThreshold.compareTo(reviewedThreshold) == 0,
                 "title_amount.proposal_changed",
                 "A proposta de aumento do limite mudou desde que você a abriu; confira o novo valor");
@@ -94,6 +100,29 @@ public class AmountAdjustmentSettings extends TenantScopedEntity {
 
     public boolean hasProposal() {
         return proposedThreshold != null;
+    }
+
+    /** Fim do prazo para confirmar a proposta em aberto (nulo sem proposta). */
+    public Instant proposalExpiresAt(Duration validity) {
+        return proposedAt == null ? null : proposedAt.plus(validity);
+    }
+
+    /** Proposta em aberto cujo prazo para confirmar já passou. */
+    public boolean isProposalExpired(Instant now, Duration validity) {
+        return proposedAt != null && !now.isBefore(proposedAt.plus(validity));
+    }
+
+    /**
+     * Descarta a proposta vencida (job diário); o limite vigente não muda.
+     *
+     * @return {@code true} se havia proposta vencida e ela foi descartada
+     */
+    public boolean discardExpiredProposal(Instant now, Duration validity) {
+        if (!isProposalExpired(now, validity)) {
+            return false;
+        }
+        clearProposal();
+        return true;
     }
 
     private void clearProposal() {

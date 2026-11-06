@@ -1,4 +1,4 @@
-package br.com.gestorcobranca.incentive;
+package br.com.gestorcobranca.support;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -8,18 +8,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Relógio controlável dos testes de integração: permite provisionar a assessoria "no passado"
- * (plano vigente desde então) e depois avançar até depois da carência para fechar o período.
- * {@code null} = hora real.
+ * (plano vigente desde então) e depois avançar até depois da carência para fechar o período, ou
+ * avançar além de um prazo (janela do limite acumulado, validade de proposta). {@code null} = hora real.
  */
-final class MutableClock extends Clock {
+public final class MutableClock extends Clock {
 
     private final AtomicReference<Instant> fixed = new AtomicReference<>();
 
-    void set(Instant instant) {
+    public void set(Instant instant) {
         fixed.set(instant);
     }
 
-    void reset() {
+    public void reset() {
         fixed.set(null);
     }
 

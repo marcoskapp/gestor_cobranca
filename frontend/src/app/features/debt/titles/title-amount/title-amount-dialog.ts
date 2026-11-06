@@ -30,7 +30,8 @@ const EVIDENCE_MAX = 20 * 1024 * 1024;
 /**
  * Correção manual do valor do título: novo saldo por componente (máscara monetária), motivo da lista com descrição,
  * evidência e vínculo com a contestação. Mostra antes de enviar se a correção será aplicada já (redução até o limite)
- * ou irá para aprovação de outra pessoa (soma das reduções acima do limite ou algum componente aumentando), com evidência obrigatória.
+ * ou irá para aprovação de outra pessoa (soma das reduções acima do limite, sozinha ou somada às reduções aplicadas no
+ * título nos últimos dias, ou algum componente aumentando), com evidência obrigatória.
  */
 @Component({
   selector: 'app-title-amount-dialog',
@@ -94,11 +95,14 @@ const EVIDENCE_MAX = 20 * 1024 * 1024;
               } @else {
                 Saldo de <app-amount [value]="c.openBalance" /> para <app-amount [value]="p.newOpenBalance" /> ({{ p.delta > 0 ? 'aumento' : 'redução' }} de
                 <app-amount [value]="p.absDelta" />).
-                {{
-                  p.mode === 'WITHIN_LIMIT'
-                    ? 'Redução até o limite da assessoria, sem nenhum componente aumentar: aplicada ao salvar.'
-                    : 'Reduções acima do limite ou algum componente aumentando: vai para aprovação de outra pessoa e exige evidência ou contestação.'
-                }}
+                @if (p.mode === 'WITHIN_LIMIT') {
+                  Redução até o limite da assessoria, sem nenhum componente aumentar: aplicada ao salvar.
+                } @else if (p.cumulative) {
+                  Somada às reduções de <app-amount [value]="c.recentReductions" /> já aplicadas neste título nos últimos {{ c.cumulativeWindowDays }} dias, passa do limite de
+                  <app-amount [value]="c.approvalThreshold" />: vai para aprovação de outra pessoa e exige evidência ou contestação.
+                } @else {
+                  Reduções acima do limite ou algum componente aumentando: vai para aprovação de outra pessoa e exige evidência ou contestação.
+                }
               }
             </span>
           </div>
@@ -184,7 +188,7 @@ export class TitleAmountDialog {
   protected readonly preview = computed(() => {
     this.changes();
     const c = this.ctx();
-    return adjustmentPreview(c?.components ?? [], this.targets(), c?.openBalance ?? 0, c?.approvalThreshold ?? 0);
+    return adjustmentPreview(c?.components ?? [], this.targets(), c?.openBalance ?? 0, c?.approvalThreshold ?? 0, c?.recentReductions ?? 0);
   });
 
   protected valueOf(component: AmountComponent): FormControl<number | null> {
@@ -220,7 +224,11 @@ export class TitleAmountDialog {
       return;
     }
     if (p.mode === 'DUAL_CONTROL' && !this.evidence() && !this.data.disputeId) {
-      this.error.set('Acima do limite ou com aumento de algum componente, anexe a evidência ou abra a correção pela contestação.');
+      this.error.set(
+        p.cumulative
+          ? 'Somada às reduções já aplicadas neste título nos últimos dias, a correção passa do limite: anexe a evidência ou abra a correção pela contestação.'
+          : 'Acima do limite ou com aumento de algum componente, anexe a evidência ou abra a correção pela contestação.',
+      );
       return;
     }
     const changed: Partial<Record<AmountComponent, number>> = {};
