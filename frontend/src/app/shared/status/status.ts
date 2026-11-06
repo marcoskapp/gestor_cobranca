@@ -518,6 +518,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     PROCESSING: { label: 'Processando', tone: 'info' },
     PROCESSED: { label: 'Processado', tone: 'success' },
     FAILED: { label: 'Com falha', tone: 'danger' },
+    CANCELLED: { label: 'Cancelado', tone: 'warning' },
   },
   /** Linha do extrato (`StatementLineStatus`). */
   statementLine: {

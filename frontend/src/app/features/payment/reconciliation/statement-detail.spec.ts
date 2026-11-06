@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { statementImport } from '../../../../testing/payment-fixtures';
@@ -10,6 +11,7 @@ import { provideAppLocale } from '../../../core/config/app-locale';
 import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { NotificationService } from '../../../core/notification/notification.service';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { StatementImportView } from '../data/payment.models';
 import { StatementDetail } from './statement-detail';
 
@@ -19,6 +21,7 @@ describe('StatementDetail', () => {
   let http: HttpTestingController;
   let permissions: string[] = [];
   const notifications = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+  const confirm = { confirm: vi.fn(() => of('Extrato errado enviado')) };
 
   beforeEach(() => {
     permissions = ['RECONCILIATION_MANAGE'];
@@ -31,6 +34,7 @@ describe('StatementDetail', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: NotificationService, useValue: notifications },
+        { provide: ConfirmService, useValue: confirm },
         {
           provide: AuthService,
           useFactory: () => ({
@@ -73,6 +77,8 @@ describe('StatementDetail', () => {
   const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
   const retryButton = (f: ComponentFixture<unknown>) => [...el(f).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Tentar novamente') && b.closest('app-page-header'));
 
+  const cancelButton = (f: ComponentFixture<unknown>) => [...el(f).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Cancelar processamento') && b.closest('app-page-header'));
+
   const interrupted = statementImport({ status: 'FAILED', failureCode: 'statement.processing_failed', failureLine: 502, totalLines: 500, finishedAt: '2026-10-23T10:05:00Z' });
 
   it('importação interrompida: mostra onde parou e envia a nova tentativa', async () => {
@@ -106,7 +112,7 @@ describe('StatementDetail', () => {
     retryButton(fixture)!.click();
     http
       .expectOne((r) => r.method === 'POST' && r.url.endsWith('/retry'))
-      .flush({ type: 'about:blank', status: 409, code: 'statement.not_failed', detail: 'x' }, { status: 409, statusText: 'Conflict' });
+      .flush({ type: 'about:blank', status: 409, code: 'statement.not_retryable', detail: 'x' }, { status: 409, statusText: 'Conflict' });
     await flushGets(fixture, { ...interrupted, status: 'PROCESSING' });
     expect(notifications.error).toHaveBeenCalledWith(expect.stringContaining('não está com falha'));
   });
@@ -119,5 +125,66 @@ describe('StatementDetail', () => {
     permissions = ['RECONCILIATION_MANAGE'];
     const processed = await render(statementImport());
     expect(retryButton(processed)).toBeUndefined();
+  });
+
+  // na 1ª tentativa as contagens só são apuradas no fim: durante o processamento ficam em 0
+  const processing = statementImport({ status: 'PROCESSING', finishedAt: null, totalLines: 0, reconciledLines: 0, createdPayments: 0, divergentLines: 0, ignoredLines: 0 });
+
+  it('em processamento: cancela com confirmação e motivo, e a tela mostra o cancelamento e o "Tentar novamente"', async () => {
+    const fixture = await render(processing);
+    expect(retryButton(fixture)).toBeUndefined();
+    const button = cancelButton(fixture)!;
+    expect(button).toBeDefined();
+
+    button.click();
+    expect(confirm.confirm).toHaveBeenCalledWith(expect.objectContaining({ destructive: true, reason: 'required', details: expect.arrayContaining([{ label: 'Situação', value: 'Em processamento' }]) }));
+    const req = http.expectOne((r) => r.method === 'POST' && r.url === `/api/v1/payment/reconciliation/statements/${processing.id}/cancel`);
+    expect(req.request.body).toEqual({ reason: 'Extrato errado enviado' });
+    const cancelled = { ...processing, status: 'CANCELLED' as const, finishedAt: '2026-10-23T10:03:00Z', totalLines: 500, reconciledLines: 1, createdPayments: 1, ignoredLines: 499 };
+    req.flush(cancelled);
+    await flushGets(fixture, cancelled);
+
+    expect(notifications.success).toHaveBeenCalled();
+    const text = el(fixture).textContent ?? '';
+    expect(text).toContain('O processamento foi cancelado');
+    expect(text).toContain('500 linhas já gravadas');
+    expect(text).toContain('cancelado em');
+    expect(cancelButton(fixture)).toBeUndefined();
+    expect(retryButton(fixture)).toBeDefined();
+  });
+
+  it('importação cancelada: "Tentar novamente" continua de onde parou', async () => {
+    const cancelled = statementImport({ status: 'CANCELLED', totalLines: 500 });
+    const fixture = await render(cancelled);
+    retryButton(fixture)!.click();
+    http
+      .expectOne((r) => r.method === 'POST' && r.url.endsWith(`/statements/${cancelled.id}/retry`))
+      .flush({ ...cancelled, status: 'RECEIVED', finishedAt: null, retryCount: 1 }, { status: 202, statusText: 'Accepted' });
+    await flushGets(fixture, { ...cancelled, status: 'PROCESSING', finishedAt: null, retryCount: 1 });
+    expect(retryButton(fixture)).toBeUndefined();
+    expect(cancelButton(fixture)).toBeDefined();
+  });
+
+  it('cancelamento recusado (já terminou): avisa e recarrega', async () => {
+    const fixture = await render(processing);
+    cancelButton(fixture)!.click();
+    http
+      .expectOne((r) => r.method === 'POST' && r.url.endsWith('/cancel'))
+      .flush({ type: 'about:blank', status: 409, code: 'statement.not_cancellable', detail: 'x' }, { status: 409, statusText: 'Conflict' });
+    await flushGets(fixture, statementImport());
+    expect(notifications.error).toHaveBeenCalledWith(expect.stringContaining('já terminou'));
+    expect(cancelButton(fixture)).toBeUndefined();
+  });
+
+  it('sem a permissão, ou fora da fila e do processamento, o cancelamento não aparece', async () => {
+    permissions = [];
+    const fixture = await render(processing);
+    expect(cancelButton(fixture)).toBeUndefined();
+    expect(el(fixture).textContent).toContain('Conciliando as linhas');
+
+    permissions = ['RECONCILIATION_MANAGE'];
+    expect(cancelButton(await render(statementImport({ status: 'RECEIVED', finishedAt: null })))).toBeDefined();
+    expect(cancelButton(await render(statementImport()))).toBeUndefined();
+    expect(cancelButton(await render(interrupted))).toBeUndefined();
   });
 });

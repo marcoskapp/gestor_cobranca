@@ -148,9 +148,20 @@ export class ReconciliationApi {
     return this.http.get<StatementImportView>(`${this.base}/statements/${id}`);
   }
 
-  /** 202: nova tentativa da importação com falha, de onde parou. Fora de `FAILED` → 409 (`statement.not_failed`). */
+  /**
+   * 202: nova tentativa da importação com falha ou cancelada, de onde parou. Fora de `FAILED`/`CANCELLED` → 409
+   * (`statement.not_retryable`).
+   */
   retryImport(id: string): Observable<StatementImportView> {
     return this.http.post<StatementImportView>(`${this.base}/statements/${id}/retry`, null, { context: silentErrorContext() });
+  }
+
+  /**
+   * Cancela o processamento onde está (na fila ou em andamento), mantendo as linhas e baixas já gravadas. Já terminada
+   * → 409 (`statement.not_cancellable`).
+   */
+  cancelImport(id: string, reason: string): Observable<StatementImportView> {
+    return this.http.post<StatementImportView>(`${this.base}/statements/${id}/cancel`, { reason }, { context: silentErrorContext() });
   }
 
   lines(id: string, page: PageRequest): Observable<PageResponse<StatementLineView>> {

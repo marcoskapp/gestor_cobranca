@@ -1218,10 +1218,12 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'payment.statement',
-    version: 2,
+    version: 3,
     title: 'Extrato importado',
     summary: 'Indicadores do lote e o tratamento de cada linha.',
     steps: [
+      { anchor: 'statement-cancel', title: 'Cancelar processamento', body: 'Para a importação onde está, com motivo. As linhas e baixas já gravadas ficam valendo.' },
+      { anchor: 'statement-retry', title: 'Tentar novamente', body: 'Na importação com falha ou cancelada: continua de onde parou, sem baixa repetida.' },
       { anchor: 'statement-indicators', title: 'Indicadores', body: 'Taxa de conciliação sobre os créditos; débitos e repetidas são ignorados.' },
       { anchor: 'data-table', title: 'Linhas', body: 'Cada linha com o tratamento e o pagamento vinculado.', placement: 'above' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },

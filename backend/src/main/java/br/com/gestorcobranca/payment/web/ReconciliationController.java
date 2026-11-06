@@ -67,11 +67,17 @@ class ReconciliationController {
         return reconciliation.getImport(id);
     }
 
-    /** Nova tentativa da importação com falha, de onde parou (decisão do responsável à 873). */
+    /** Nova tentativa da importação com falha ou cancelada, de onde parou (decisão do responsável à 873). */
     @PostMapping("/statements/{id}/retry")
     @ResponseStatus(HttpStatus.ACCEPTED)
     StatementImportView retryImport(@PathVariable UUID id) {
         return reconciliation.retryImport(id);
+    }
+
+    /** Cancela o processamento onde está, mantendo o que já foi gravado; depois aceita "Tentar novamente". */
+    @PostMapping("/statements/{id}/cancel")
+    StatementImportView cancelImport(@PathVariable UUID id, @Valid @RequestBody CancelRequest request) {
+        return reconciliation.cancelImport(id, request.reason());
     }
 
     @GetMapping("/statements/{id}/lines")
@@ -100,5 +106,8 @@ class ReconciliationController {
 
     record ResolveRequest(@NotBlank @Size(max = 30) String resolution, UUID paymentId,
                           @NotBlank @Size(max = 1000) String note) {
+    }
+
+    record CancelRequest(@NotBlank @Size(max = 200) String reason) {
     }
 }

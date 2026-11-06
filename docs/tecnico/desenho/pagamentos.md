@@ -128,8 +128,9 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
   em andamento (onde parou). Só o número — nada do conteúdo da linha. Arquivo recusado também grava a auditoria
   `statement_import.failed` (com `failureCode` e `failureLine`).
 - **Nova tentativa** (decisão do responsável à 873; decisão 894): `POST /payment/reconciliation/statements/{id}/retry`
-  (`RECONCILIATION_MANAGE`, mesmo escopo da importação: sem credor exige todos os credores) só aceita `FAILED`
-  (`statement.not_failed` → 409, sob o lock da importação, então dois pedidos simultâneos não enfileiram dois jobs);
+  (`RECONCILIATION_MANAGE`, mesmo escopo da importação: sem credor exige todos os credores) só aceita `FAILED` ou
+  `CANCELLED` (`statement.not_retryable` → 409, sob o lock da importação, então dois pedidos simultâneos não enfileiram
+  dois jobs);
   volta a `RECEIVED` (limpa motivo, linha e fim; mantém as contagens parciais até a nova apuração; `retry_count` + 1),
   enfileira `payment.statement_import` com chave de deduplicação própria da tentativa
   (`statement:<id>:retry:<n>` — o job anterior pode ainda estar `RUNNING` quando a importação já está `FAILED`), com o
@@ -141,8 +142,27 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
   se repete e volta a `FAILED` com a mesma linha. Tela: botão "Tentar novamente" no extrato importado, só em `FAILED`
   e só com a permissão. Testes: `StatementImportTest` (transição) e `PaymentStatementResumeIT` (falha → nova tentativa
   → conclusão sem baixa duplicada; job da tentativa anterior ignorado; arquivo com linha inválida volta a falhar
-  apontando a linha). Pendência: importação presa em `PROCESSING` sem job ativo (falha ao gravar o `FAILED` ou job
-  `DEAD` sem rodar) não é coberta pelo retry, que só aceita `FAILED`.
+  apontando a linha). A importação presa em `PROCESSING` sem job ativo (falha ao gravar o `FAILED` ou job `DEAD` sem
+  rodar) sai pelo cancelamento abaixo e depois aceita a nova tentativa.
+- **Cancelar processamento** (pedido do responsável; decisões 909–912):
+  `POST /payment/reconciliation/statements/{id}/cancel` com `{ reason }` (`RECONCILIATION_MANAGE`, mesmo escopo da
+  importação; motivo obrigatório, até 200 caracteres — `statement.cancel_reason_required`/`_too_long` → 422). Aceita
+  `RECEIVED` (na fila) e `PROCESSING`; outra situação → 409 `statement.not_cancellable`. Leva a `CANCELLED` (`V0807`),
+  terminal: contagens apuradas sobre as linhas já gravadas, `finished_at` = instante do cancelamento, sem motivo nem linha
+  de falha. **Sem condição de corrida**: o cancelamento pega o lock da importação (`for update`), que cada lote do job
+  segura durante a sua transação; ele espera o lote em andamento confirmar (até `statement.chunk-size` linhas) e, depois
+  do commit, a barreira já existente (`owns`: `PROCESSING` **e** `retry_count` do job) recusa o lote seguinte, a conclusão
+  e o registro de falha — o job termina `DONE` sem gravar mais nada. O job pendente da tentativa atual (primeira execução
+  ou retentativa automática agendada) sai da fila (`cancelPending` pela chave `statement:<id>` ou
+  `statement:<id>:retry:<n>`); o que já estiver rodando para pela barreira. Auditoria `statement_import.cancelled`
+  (antes/depois de `status`, motivo, `retryCount` e contagens), métrica `payment.reconciliation.imports{status=CANCELLED}` (após o commit)
+  e log técnico só com o id e a situação anterior. "Tentar novamente" depois do cancelamento retoma como depois da falha
+  (pula as linhas gravadas, sem baixa duplicada). Na confiabilidade do analytics, `CANCELLED` não conta como extrato com
+  falha (é ação de uma pessoa). Tela: botão "Cancelar processamento" no cabeçalho do extrato importado, na fila ou em
+  processamento, só com a permissão, com confirmação destrutiva e motivo; cancelada, a tela mostra o aviso e "Tentar
+  novamente". Testes: `StatementImportTest` (transições) e `PaymentStatementCancelIT` (cancelamento com o job preso no
+  meio do segundo lote: espera o lote, nada é gravado depois e a nova tentativa conclui sem baixa duplicada; importação
+  presa com job `DEAD`; cancelada na fila nunca começa; permissão, escopo por credor e motivo).
 - Falha depois do último lote (na conclusão) não aponta linha: todos os lotes já foram confirmados.
 - Por linha (`StatementMatcher`): débito → ignorado; mesma transação já importada (impressão digital: `id_transacao` + sentido, ou data+valor+sentido+referência+ocorrência no arquivo) → `IGNORED_DUPLICATE`, sem nova baixa; `id_transacao` = `endToEndId`/id do provedor ou referência externa de pagamento confirmado → concilia; `referencia` = `txid` ou id de instrução (sem pagamento ainda: **o arquivo de retorno é a confirmação** — cria pagamento integrado `STATEMENT`, aloca e concilia), id de pagamento ou id de parcela (pagamento confirmado com mesmo valor e data na tolerância `reconciliationDateToleranceDays`); sem correspondência → `UNMATCHED`.
 - Divergências (`payment.divergence`): `AMOUNT_MISMATCH`, `DUPLICATE_PAYMENT`, `UNMATCHED`, `NOT_CONFIRMED`, `PARTIAL_REFUND`. Resolução com justificativa obrigatória e auditoria: `MATCHED_PAYMENT` (concilia manualmente o pagamento indicado e vincula a linha; **quem informou o pagamento externo não o concilia** — `payment.self_reconciliation`), `ACCEPTED` ou `DISMISSED`. Divergência sem credor só é visível a quem tem todos os credores. A descrição da linha do banco (pode conter nome/documento do pagador) fica criptografada e é exibida mascarada.

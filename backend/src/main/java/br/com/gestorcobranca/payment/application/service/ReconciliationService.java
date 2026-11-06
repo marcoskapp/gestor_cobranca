@@ -31,9 +31,13 @@ import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.storage.FileCategory;
 import br.com.gestorcobranca.shared.storage.FileStorage;
 import br.com.gestorcobranca.shared.storage.FileStorage.StoredFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -50,6 +54,9 @@ import java.util.stream.Collectors;
 class ReconciliationService implements ReconciliationUseCases {
 
     static final String RESOURCE = "statement_import";
+    /** Limite do motivo do cancelamento (o mesmo do cancelamento de instrução). */
+    static final int CANCEL_REASON_MAX = 200;
+    private static final Logger LOG = LoggerFactory.getLogger(ReconciliationService.class);
     private static final String DIVERGENCE = "payment_divergence";
 
     private final BankStatementRepository statements;
@@ -64,12 +71,13 @@ class ReconciliationService implements ReconciliationUseCases {
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
     private final PaymentProperties properties;
+    private final PaymentMetrics metrics;
     private final Clock clock;
 
     ReconciliationService(BankStatementRepository statements, DivergenceRepository divergences, PaymentRepository payments,
                           List<StatementParser> parsers, PaymentRecorder recorder, FileStorage fileStorage,
                           FileCleanup cleanup, JobQueue jobs, AccessScope accessScope, CurrentActor currentActor,
-                          AuditTrail auditTrail, PaymentProperties properties, Clock clock) {
+                          AuditTrail auditTrail, PaymentProperties properties, PaymentMetrics metrics, Clock clock) {
         this.statements = statements;
         this.divergences = divergences;
         this.payments = payments;
@@ -82,6 +90,7 @@ class ReconciliationService implements ReconciliationUseCases {
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
         this.properties = properties;
+        this.metrics = metrics;
         this.clock = clock;
     }
 
@@ -130,10 +139,8 @@ class ReconciliationService implements ReconciliationUseCases {
     @Override
     public StatementImportView retryImport(UUID importId) {
         accessScope.requirePermission(Permission.RECONCILIATION_MANAGE);
-        StatementImport source = statements.findImportForUpdate(importId)
-                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, importId));
-        requireVisible(source);
-        requireScope(source.getCreditorId());
+        StatementImport source = lockInScope(importId);
+        StatementImportStatus previousStatus = source.getStatus();
         String previousCode = source.getFailureCode();
         Integer previousLine = source.getFailureLine();
         source.retry();
@@ -141,11 +148,46 @@ class ReconciliationService implements ReconciliationUseCases {
         StatementImportJob.enqueueRetry(jobs, saved.getId(), saved.getRetryCount());
         auditTrail.record(AuditEntry.of("statement_import.retried", RESOURCE, saved.getId())
                 .creditor(saved.getCreditorId())
-                .change("status", StatementImportStatus.FAILED, StatementImportStatus.RECEIVED)
+                .change("status", previousStatus, StatementImportStatus.RECEIVED)
                 .change("failureCode", previousCode, null)
                 .change("failureLine", previousLine, null)
                 .meta("retryCount", saved.getRetryCount())
                 .meta("totalLines", saved.getTotalLines()));
+        return PaymentViews.statementImport(saved);
+    }
+
+    @Override
+    public StatementImportView cancelImport(UUID importId, String reason) {
+        accessScope.requirePermission(Permission.RECONCILIATION_MANAGE);
+        String why = reason == null ? null : reason.strip();
+        Guard.require(why != null && !why.isEmpty(), "statement.cancel_reason_required", "Motivo obrigatório");
+        Guard.require(why.length() <= CANCEL_REASON_MAX, "statement.cancel_reason_too_long",
+                "Motivo com mais de " + CANCEL_REASON_MAX + " caracteres");
+        // o lock espera o lote em andamento confirmar; depois dele, nenhum lote do job passa pela barreira
+        StatementImport source = lockInScope(importId);
+        StatementImportStatus previousStatus = source.getStatus();
+        source.cancel(statements.countLinesByStatus(source.getId()), Instant.now(clock));
+        StatementImport saved = statements.save(source);
+        StatementImportJob.cancelPending(jobs, saved.getId(), saved.getRetryCount());
+        // contada só depois do commit: cancelamento desfeito (falha ao gravar a auditoria, por exemplo) não infla a métrica
+        String format = saved.getFormat().name();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                metrics.statementImport(format, StatementImportStatus.CANCELLED.name());
+            }
+        });
+        auditTrail.record(AuditEntry.of("statement_import.cancelled", RESOURCE, saved.getId())
+                .creditor(saved.getCreditorId())
+                .change("status", previousStatus, StatementImportStatus.CANCELLED)
+                .reason(why)
+                .meta("retryCount", saved.getRetryCount())
+                .meta("totalLines", saved.getTotalLines())
+                .meta("reconciledLines", saved.getReconciledLines())
+                .meta("createdPayments", saved.getCreatedPayments())
+                .meta("divergentLines", saved.getDivergentLines()));
+        LOG.atInfo().addKeyValue("importId", saved.getId()).addKeyValue("previousStatus", previousStatus)
+                .addKeyValue("lines", saved.getTotalLines()).log("Processamento do extrato cancelado");
         return PaymentViews.statementImport(saved);
     }
 
@@ -224,6 +266,15 @@ class ReconciliationService implements ReconciliationUseCases {
         divergences.save(d);
         recorder.divergenceResolved(d);
         return view(d);
+    }
+
+    /** Importação travada para mudar de situação, no escopo de quem pede (sem credor exige todos os credores). */
+    private StatementImport lockInScope(UUID importId) {
+        StatementImport source = statements.findImportForUpdate(importId)
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, importId));
+        requireVisible(source);
+        requireScope(source.getCreditorId());
+        return source;
     }
 
     private StatementImport loadImport(UUID importId) {

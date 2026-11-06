@@ -287,12 +287,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.reconciliation', version: 1, path: '/pagamentos/conciliacao', tourId: 'payment.reconciliation' },
   {
     key: 'payment.statement',
-    version: 3,
+    version: 4,
     path: '/pagamentos/conciliacao/:id',
     tourId: 'payment.statement',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
       { version: 3, items: ['Botão "Tentar novamente" na importação com falha: continua de onde parou, sem baixa repetida.', 'A falha mostra a linha do arquivo onde o problema apareceu.'] },
+      { version: 4, items: ['Botão "Cancelar processamento" na importação na fila ou em processamento: para onde está, com motivo, e o que já foi gravado fica valendo.', 'A importação cancelada aceita "Tentar novamente", que continua de onde parou.'] },
     ],
   },
   { key: 'payment.divergences', version: 1, path: '/pagamentos/divergencias', tourId: 'payment.divergences' },

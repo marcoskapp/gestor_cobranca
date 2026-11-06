@@ -23,10 +23,19 @@ public interface ReconciliationUseCases {
     StatementImportView getImport(UUID importId);
 
     /**
-     * Nova tentativa da importação com falha ({@code FAILED} → {@code RECEIVED}), retomando de onde parou: as linhas
-     * já gravadas são puladas, sem baixa duplicada. Outra situação → 409 ({@code statement.not_failed}).
+     * Nova tentativa da importação com falha ou cancelada ({@code FAILED}/{@code CANCELLED} → {@code RECEIVED}),
+     * retomando de onde parou: as linhas já gravadas são puladas, sem baixa duplicada. Outra situação → 409
+     * ({@code statement.not_retryable}).
      */
     StatementImportView retryImport(UUID importId);
+
+    /**
+     * Cancela o processamento da importação na fila ou em andamento ({@code RECEIVED}/{@code PROCESSING} →
+     * {@code CANCELLED}), parando onde está: as linhas e baixas já gravadas ficam, e o job em andamento não grava mais
+     * nada. Outra situação → 409 ({@code statement.not_cancellable}). Motivo obrigatório (até 200 caracteres), só na
+     * auditoria.
+     */
+    StatementImportView cancelImport(UUID importId, String reason);
 
     PageResponse<StatementImportView> imports(PageQuery page);
 
@@ -50,7 +59,7 @@ public interface ReconciliationUseCases {
     /**
      * @param failureLine linha do arquivo apontada na falha: a linha inválida (arquivo recusado) ou a primeira do lote
      *                    interrompido ({@code statement.processing_failed}); nula se não se sabe
-     * @param retryCount  novas tentativas pedidas depois de falha
+     * @param retryCount  novas tentativas pedidas depois de falha ou cancelamento
      */
     record StatementImportView(UUID id, String format, String status, UUID creditorId, String fileName, long fileSize,
                                String fileSha256, UUID requestedBy, Instant createdAt, Instant startedAt,
