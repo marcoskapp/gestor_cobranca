@@ -11,7 +11,7 @@ describe('Base de conhecimento do chat de suporte (exportação do manual)', () 
 
   it('exporta todas as telas do manual com caminho, acesso e só dados (nada de HTML)', async () => {
     const kb = await buildKnowledgeExport();
-    expect(kb.schemaVersion).toBe(1);
+    expect(kb.schemaVersion).toBe(2);
     const queue = kb.screens.find((s) => s.id === 'collection.queue')!;
     expect(queue.path).toBe('/cobranca/fila');
     expect(queue.module).toBe('cobranca');

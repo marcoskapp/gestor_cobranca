@@ -1,7 +1,7 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "5853e8c4a258ee94",
- "schemaVersion": 1,
+ "contentVersion": "759cd01a428772b3",
+ "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
   "ADMIN": "Administrador",
@@ -478,7 +478,7 @@
     "A proposta vale até a data indicada; depois, simule de novo.",
     "Formalizar exige o aceite do devedor com evidência; o termo em PDF é guardado com código de integridade.",
     "A quebra segue a regra da política fixada na formalização; atraso dentro da tolerância não quebra.",
-    "Com pagamento informado aguardando aprovação, a quebra fica suspensa até a revisão, por no máximo 7 dias. Recusado o pagamento, a quebra volta a valer depois de 3 dias.",
+    "Com pagamento informado aguardando aprovação, a quebra fica suspensa até a revisão, {{negotiation.breakSuspensionMax}}. Recusado o pagamento, a quebra volta a valer {{negotiation.breakSuspensionGrace}}.",
     "Políticas publicadas não mudam: para alterar, crie nova versão. Ninguém atribui a própria alçada.",
     "No portal, o devedor só vê condições do perfil de alçada do portal e só as carteiras habilitadas."
    ],
@@ -534,7 +534,7 @@
     "Valor recuperado é só pagamento confirmado, líquido de estornos.",
     "Pagamento informado exige comprovante e destino; acima do limite da assessoria, aprovação de outra pessoa.",
     "Quem informou um pagamento não o aprova nem o concilia.",
-    "Enquanto um pagamento informado aguarda aprovação, a quebra do acordo fica suspensa, por no máximo 7 dias. Depois disso, a quebra volta a valer.",
+    "Enquanto um pagamento informado aguarda aprovação, a quebra do acordo fica suspensa, {{negotiation.breakSuspensionMax}}. Depois disso, a quebra volta a valer.",
     "Estorno pede motivo e a palavra de confirmação; o histórico continua visível.",
     "Toda decisão sobre divergência e toda realocação exigem justificativa e ficam registradas.",
     "O Pix usa a conta ativa do credor; sem ela, a conta da assessoria. Segredos da conta nunca voltam à tela."
@@ -1299,7 +1299,7 @@
     "GESTOR"
    ],
    "inputs": [
-    "PDF do credor (com texto ou digitalizado), sem senha, até 20 MB.",
+    "PDF do credor (com texto ou digitalizado), sem senha, {{ingestion.pdfMaxFileSize}}.",
     "Carteira de destino."
    ],
    "outputs": [
@@ -2104,7 +2104,7 @@
    "purpose": [
     "O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque.",
     "Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.",
-    "Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria (somando as reduções do mesmo título nos últimos 30 dias) aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes."
+    "Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria (somando as reduções do mesmo título {{debt.cumulativeWindow}}) aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes."
    ],
    "profiles": [
     "SUPERVISOR",
@@ -2156,7 +2156,7 @@
    "purpose": [
     "Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois.",
     "A carga do credor não sobrescreve um valor corrigido: a divergência fica aqui até alguém manter a correção ou aceitar o valor do credor.",
-    "O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir, mais as do mesmo título nos últimos 30 dias) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa em até 15 dias, senão a proposta vence."
+    "O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir, mais as do mesmo título {{debt.cumulativeWindow}}) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa, e a proposta sem confirmação vence {{debt.proposalValidity}}."
    ],
    "profiles": [
     "GESTOR",
@@ -7177,7 +7177,7 @@
    "module": "geral",
    "title": "Suas pendências",
    "what": "Quantidade de itens que dependem de você agora: aprovações, retornos agendados, conversas aguardando resposta, prazos e outras tarefas, conforme o seu perfil e o seu escopo de credores.",
-   "how": "Soma dos itens de cada área que você pode resolver. Prazos que só aparecem quando estão perto (solicitações de titulares, contestações, prazos jurídicos) entram a partir de 3 dias do vencimento. Atualiza a cada minuto enquanto a tela está aberta.",
+   "how": "Soma dos itens de cada área que você pode resolver. Prazos que só aparecem quando estão perto (solicitações de titulares, contestações, prazos jurídicos) entram {{pendingwork.dueSoon}}. Atualiza a cada minuto enquanto a tela está aberta.",
    "use": "Comece pelos vencidos e pelos que vencem hoje; cada item leva à tela de ação já filtrada. Lista vazia significa que você está em dia.",
    "screens": [
     "app.pending-work",
@@ -7811,7 +7811,7 @@
    "id": "scoring.case.probability",
    "module": "score",
    "title": "Chance de pagamento",
-   "what": "Probabilidade estimada de haver pagamento confirmado do devedor nesta carteira dentro da janela do modelo (padrão 30 dias).",
+   "what": "Probabilidade estimada de haver pagamento confirmado do devedor nesta carteira dentro da janela do modelo ({{scoring.outcomeWindow}}).",
    "how": "Resultado do modelo campeão para o caso no último cálculo, que acontece na escoragem diária e depois de contato efetivo, promessa, acordo, pagamento ou estorno.",
    "use": "Ajuda a ordenar o trabalho do dia. Uma chance baixa não significa que o devedor não vai pagar: é um retrato estatístico, não um julgamento.",
    "screens": [
@@ -7847,7 +7847,7 @@
    "module": "score",
    "title": "PSI do score",
    "what": "Índice de estabilidade: quanto a distribuição dos scores do retrato mudou em relação à referência do modelo campeão.",
-   "how": "Compara a proporção de casos em cada décimo do score com a da referência (o treino ou, para scorecard, a primeira população escorada). Até 0,10 é estável; a partir de 0,10 pede atenção; a partir de 0,25 é alerta (limites ajustáveis nos parâmetros).",
+   "how": "Compara a proporção de casos em cada décimo do score com a da referência (o treino ou, para scorecard, a primeira população escorada). Abaixo do limite de atenção ({{scoring.psiWarning}}) é estável; a partir dele pede atenção; a partir do limite de alerta ({{scoring.psiAlert}}) é alerta. Os limites são ajustáveis nos parâmetros.",
    "use": "Em atenção ou alerta, a carteira mudou e o modelo pode estar descalibrado: compare com o desafiante e avalie um novo treino ou scorecard.",
    "screens": [
     "scoring.monitoring"
@@ -7870,7 +7870,7 @@
    "title": "AUC realizada",
    "what": "Capacidade real do score de separar quem pagou de quem não pagou numa safra já apurada.",
    "how": "Para os casos de um retrato que completaram a janela de desfecho, a chance de um caso que pagou ter score maior que um caso que não pagou. 0,50 é sorteio; quanto mais perto de 1, melhor.",
-   "use": "Caindo safra a safra ou abaixo do mínimo (padrão 0,60), o modelo deixou de ordenar bem: priorize o desafiante ou um novo treino.",
+   "use": "Caindo safra a safra ou abaixo do mínimo ({{scoring.minAuc}}), o modelo deixou de ordenar bem: priorize o desafiante ou um novo treino.",
    "screens": [
     "scoring.monitoring"
    ]
@@ -7914,7 +7914,7 @@
    "module": "score",
    "title": "Recuperado na janela",
    "what": "Valor pago e confirmado pelos casos da safra dentro da janela de desfecho, líquido de estornos.",
-   "how": "Soma dos pagamentos confirmados entre a data do retrato e o fim da janela (padrão 30 dias, apurados 5 dias depois para pegar confirmações tardias).",
+   "how": "Soma dos pagamentos confirmados entre a data do retrato e o fim da janela ({{scoring.outcomeWindow}}, apurados {{scoring.outcomeGrace}} para pegar confirmações tardias).",
    "use": "É o lado real da comparação com o esperado. Use os dois juntos, nunca só um deles.",
    "screens": [
     "scoring.monitoring"
@@ -7948,7 +7948,7 @@
    "title": "AUC",
    "what": "Capacidade do modelo de colocar quem paga acima de quem não paga, medida no período de validação, que o treino não viu.",
    "how": "Chance de um caso que pagou ter score maior que um caso que não pagou. 0,50 é sorteio, 1,00 é perfeito. O Gini (2 × AUC − 1) é a mesma medida em outra escala.",
-   "use": "Um modelo só vira desafiante com AUC de validação a partir do mínimo (padrão 0,60). Para promover, compare com o campeão nas mesmas observações.",
+   "use": "Um modelo só vira desafiante com AUC de validação a partir do mínimo ({{scoring.minAuc}}). Para promover, compare com o campeão nas mesmas observações.",
    "screens": [
     "scoring.model",
     "scoring.models"
@@ -8115,7 +8115,7 @@
    "title": "AUC de validação",
    "what": "Qualidade do novo modelo medida num período posterior ao do treino.",
    "how": "Mesma AUC da ficha do modelo, calculada nas observações de validação.",
-   "use": "A partir do mínimo (padrão 0,60) o modelo vira desafiante; abaixo, é reprovado e nunca pode ser promovido.",
+   "use": "A partir do mínimo ({{scoring.minAuc}}) o modelo vira desafiante; abaixo, é reprovado e nunca pode ser promovido.",
    "screens": [
     "scoring.run"
    ]
@@ -8431,7 +8431,7 @@
    "module": "prestacao-de-contas",
    "title": "Ajustes",
    "what": "Correções aprovadas do valor, sempre com motivo (por exemplo, contestação do credor no período anterior).",
-   "how": "Soma dos ajustes do demonstrativo, positivos ou negativos. Acima de R$ 1.000,00 precisam da aprovação de outra pessoa.",
+   "how": "Soma dos ajustes do demonstrativo, positivos ou negativos. Os ajustes {{settlement.adjustmentDualApproval}} precisam da aprovação de outra pessoa.",
    "use": "Ajustes frequentes indicam erro recorrente em regras ou baixas: corrija a causa em vez de ajustar todo mês.",
    "screens": [
     "settlement.statement",
@@ -9166,7 +9166,7 @@
    "module": "telefonia",
    "title": "Presença na telefonia",
    "what": "Seu estado para o discador: disponível, em chamada, pós-atendimento, em pausa (com motivo) ou fora, e há quanto tempo.",
-   "how": "Você escolhe entrar, ficar disponível, pausar ou sair; em chamada e pós-atendimento são definidos pelas ligações. Sem sinal do navegador por 90 segundos, o sistema tira você da telefonia (exceto em chamada).",
+   "how": "Você escolhe entrar, ficar disponível, pausar ou sair; em chamada e pós-atendimento são definidos pelas ligações. Sem sinal do navegador {{telephony.presenceTimeout}}, o sistema tira você da telefonia (exceto em chamada).",
    "use": "Só quem está disponível recebe ligações do discador. Use o motivo certo na pausa: treino, monitoria, reunião e retaguarda contam como pausas produtivas.",
    "screens": [
     "collection.queue",
@@ -9279,7 +9279,7 @@
    "module": "compliance",
    "title": "Prazo legal da solicitação",
    "what": "Data limite para responder ao titular dos dados (acesso, correção, eliminação, portabilidade, oposição e outros pedidos da LGPD), com os dias que faltam.",
-   "how": "Dias corridos a partir do recebimento (padrão 15 dias, prazo da LGPD para a declaração completa; pode haver prazo próprio por tipo de pedido). O prazo termina ao fim do último dia: recebida em 03/03 com 15 dias, vence ao fim de 18/03.",
+   "how": "Dias corridos a partir do recebimento ({{compliance.dataSubjectRequestDue}}; a LGPD dá 15 dias para a declaração completa; pode haver prazo próprio por tipo de pedido). O prazo termina ao fim do último dia: recebida em 03/03 com 15 dias, vence ao fim de 18/03.",
    "use": "Atenda primeiro as vencidas e as que vencem em breve; elas também aparecem em Minhas pendências. Perder o prazo expõe a assessoria a sanções da autoridade de proteção de dados.",
    "screens": [
     "compliance.requests",
@@ -9679,5 +9679,120 @@
     "platform.billing-tenant"
    ]
   }
- ]
+ ],
+ "parameters": {
+  "debt.cumulativeWindowDays": "integer",
+  "debt.proposalValidityDays": "integer",
+  "negotiation.breakSuspensionMaxDays": "integer",
+  "negotiation.breakSuspensionGraceDays": "integer",
+  "payment.rejectedReviewWindowDays": "integer",
+  "compliance.dataSubjectRequestDueDays": "integer",
+  "pendingwork.dueSoonDays": "integer",
+  "telephony.presenceTimeoutSeconds": "integer",
+  "ingestion.pdfMaxFileSizeMb": "integer",
+  "scoring.outcomeDays": "integer",
+  "scoring.outcomeGraceDays": "integer",
+  "scoring.minAuc": "decimal",
+  "scoring.psiWarning": "decimal",
+  "scoring.psiAlert": "decimal",
+  "settlement.adjustmentDualApprovalThreshold": "money"
+ },
+ "phrases": {
+  "debt.cumulativeWindow": {
+   "parameter": "debt.cumulativeWindowDays",
+   "one": "no último dia",
+   "other": "nos últimos {n} dias",
+   "neutral": "no período configurado"
+  },
+  "debt.proposalValidity": {
+   "parameter": "debt.proposalValidityDays",
+   "one": "em 1 dia",
+   "other": "em {n} dias",
+   "neutral": "no prazo configurado"
+  },
+  "negotiation.breakSuspensionMax": {
+   "parameter": "negotiation.breakSuspensionMaxDays",
+   "one": "por no máximo 1 dia",
+   "other": "por no máximo {n} dias",
+   "neutral": "pelo prazo máximo configurado"
+  },
+  "negotiation.breakSuspensionGrace": {
+   "parameter": "negotiation.breakSuspensionGraceDays",
+   "zero": "no mesmo dia",
+   "one": "depois de 1 dia",
+   "other": "depois de {n} dias",
+   "neutral": "depois da carência configurada"
+  },
+  "payment.rejectedReviewWindow": {
+   "parameter": "payment.rejectedReviewWindowDays",
+   "one": "no último dia",
+   "other": "nos últimos {n} dias",
+   "neutral": "no período recente"
+  },
+  "compliance.dataSubjectRequestDue": {
+   "parameter": "compliance.dataSubjectRequestDueDays",
+   "one": "padrão de 1 dia",
+   "other": "padrão de {n} dias",
+   "neutral": "prazo padrão configurado"
+  },
+  "pendingwork.dueSoon": {
+   "parameter": "pendingwork.dueSoonDays",
+   "zero": "no dia do vencimento",
+   "one": "a partir de 1 dia do vencimento",
+   "other": "a partir de {n} dias do vencimento",
+   "neutral": "quando o vencimento se aproxima"
+  },
+  "telephony.presenceTimeout": {
+   "parameter": "telephony.presenceTimeoutSeconds",
+   "one": "por 1 segundo",
+   "other": "por {n} segundos",
+   "neutral": "pelo tempo configurado"
+  },
+  "ingestion.pdfMaxFileSize": {
+   "parameter": "ingestion.pdfMaxFileSizeMb",
+   "one": "até 1 MB",
+   "other": "até {n} MB",
+   "neutral": "dentro do tamanho máximo aceito"
+  },
+  "scoring.outcomeWindow": {
+   "parameter": "scoring.outcomeDays",
+   "one": "padrão 1 dia",
+   "other": "padrão {n} dias",
+   "neutral": "definida nos parâmetros"
+  },
+  "scoring.outcomeGrace": {
+   "parameter": "scoring.outcomeGraceDays",
+   "zero": "logo no fim da janela",
+   "one": "1 dia depois",
+   "other": "{n} dias depois",
+   "neutral": "depois de uma carência"
+  },
+  "scoring.outcomeGraceExtra": {
+   "parameter": "scoring.outcomeGraceDays",
+   "zero": "sem carência",
+   "one": "mais 1 dia de carência",
+   "other": "mais {n} dias de carência",
+   "neutral": "mais a carência da apuração"
+  },
+  "scoring.minAuc": {
+   "parameter": "scoring.minAuc",
+   "other": "padrão {n}",
+   "neutral": "definido nos parâmetros"
+  },
+  "scoring.psiWarning": {
+   "parameter": "scoring.psiWarning",
+   "other": "padrão {n}",
+   "neutral": "definido nos parâmetros"
+  },
+  "scoring.psiAlert": {
+   "parameter": "scoring.psiAlert",
+   "other": "padrão {n}",
+   "neutral": "definido nos parâmetros"
+  },
+  "settlement.adjustmentDualApproval": {
+   "parameter": "settlement.adjustmentDualApprovalThreshold",
+   "other": "acima de {n}",
+   "neutral": "acima do valor configurado"
+  }
+ }
 }

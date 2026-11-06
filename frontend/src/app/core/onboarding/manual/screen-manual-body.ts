@@ -1,24 +1,25 @@
 import { Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ManualTextPipe } from './manual-text.pipe';
 import { PROFILE_LABELS } from './manual.models';
 import { ScreenManualView } from './manual.service';
 
 /**
  * Conteúdo do manual rápido de uma tela: para que serve, quem usa, encaixe no todo, telas
  * relacionadas, indicadores da tela (os mesmos textos do "i", ux.md §8.6) e termos. Usado no painel "Sobre esta tela" e em cada tela do manual do módulo.
- * Texto só por interpolação (o conteúdo é dado, nunca HTML).
+ * Texto só por interpolação (o conteúdo é dado, nunca HTML), com os marcadores de parâmetro resolvidos (`manualText`).
  */
 @Component({
   selector: 'app-screen-manual-body',
-  imports: [RouterLink],
+  imports: [RouterLink, ManualTextPipe],
   template: `
     @let v = view();
-    <p class="manual__objective">{{ v.manual.objective }}</p>
+    <p class="manual__objective">{{ v.manual.objective | manualText }}</p>
 
     <section class="manual__section" [attr.aria-labelledby]="ids().purpose">
       <div role="heading" [attr.aria-level]="level()" class="manual__heading" [id]="ids().purpose">Para que serve</div>
       @for (paragraph of v.manual.purpose; track $index) {
-        <p class="manual__text">{{ paragraph }}</p>
+        <p class="manual__text">{{ paragraph | manualText }}</p>
       }
     </section>
 
@@ -38,7 +39,7 @@ import { ScreenManualView } from './manual.service';
           <p class="manual__label">De onde vêm os dados</p>
           <ul class="manual__list">
             @for (item of v.manual.inputs; track $index) {
-              <li>{{ item }}</li>
+              <li>{{ item | manualText }}</li>
             }
           </ul>
         </div>
@@ -46,7 +47,7 @@ import { ScreenManualView } from './manual.service';
           <p class="manual__label">Para onde vai o resultado</p>
           <ul class="manual__list">
             @for (item of v.manual.outputs; track $index) {
-              <li>{{ item }}</li>
+              <li>{{ item | manualText }}</li>
             }
           </ul>
         </div>
@@ -64,7 +65,7 @@ import { ScreenManualView } from './manual.service';
               } @else {
                 <span class="manual__related-title">{{ item.title }}</span>
               }
-              <span class="app-muted"> — {{ item.why }}</span>
+              <span class="app-muted"> — {{ item.why | manualText }}</span>
             </li>
           }
         </ul>
@@ -77,7 +78,7 @@ import { ScreenManualView } from './manual.service';
         <dl class="manual__terms">
           @for (indicator of v.indicators; track indicator.id) {
             <dt>{{ indicator.title }}</dt>
-            <dd>{{ indicator.what }} {{ indicator.use }}</dd>
+            <dd>{{ indicator.what | manualText }} {{ indicator.use | manualText }}</dd>
           }
         </dl>
       </section>
@@ -89,7 +90,7 @@ import { ScreenManualView } from './manual.service';
         <dl class="manual__terms">
           @for (term of v.terms; track term.id) {
             <dt>{{ term.term }}</dt>
-            <dd>{{ term.definition }}</dd>
+            <dd>{{ term.definition | manualText }}</dd>
           }
         </dl>
       </section>

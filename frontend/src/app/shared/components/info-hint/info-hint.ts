@@ -5,6 +5,7 @@ import { NgbPopover } from '@ng-bootstrap/ng-bootstrap';
 import type { Options } from '@popperjs/core';
 import { IndicatorHelp } from '../../../core/onboarding/manual/indicators/indicator.models';
 import { indicatorManualLink, loadIndicator } from '../../../core/onboarding/manual/indicators/indicator-index';
+import { ManualTextPipe } from '../../../core/onboarding/manual/manual-text.pipe';
 import { Icon } from '../icon/icon';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'missing' | 'error';
@@ -32,7 +33,7 @@ const POINTER_FOCUS_MS = 600;
  */
 @Component({
   selector: 'app-info-hint',
-  imports: [NgbPopover, RouterLink, Icon],
+  imports: [NgbPopover, RouterLink, Icon, ManualTextPipe],
   // âncora dos tours ("o i de cada número"): o motor destaca o primeiro visível da tela
   host: { class: 'info-hint', 'data-tour': 'info-hint' },
   template: `
@@ -75,9 +76,9 @@ const POINTER_FOCUS_MS = 600;
           @case ('ready') {
             @let h = help()!;
             <p class="info-hint__title">{{ h.title }}</p>
-            <p class="info-hint__section"><span class="info-hint__label">O que é</span>{{ h.what }}</p>
-            <p class="info-hint__section"><span class="info-hint__label">Como é calculado</span>{{ h.how }}</p>
-            <p class="info-hint__section"><span class="info-hint__label">Como usar</span>{{ h.use }}</p>
+            <p class="info-hint__section"><span class="info-hint__label">O que é</span>{{ h.what | manualText }}</p>
+            <p class="info-hint__section"><span class="info-hint__label">Como é calculado</span>{{ h.how | manualText }}</p>
+            <p class="info-hint__section"><span class="info-hint__label">Como usar</span>{{ h.use | manualText }}</p>
             @if (link(); as l) {
               <a class="info-hint__more" [routerLink]="l.path" [fragment]="l.fragment" (click)="close()">
                 Saiba mais no manual

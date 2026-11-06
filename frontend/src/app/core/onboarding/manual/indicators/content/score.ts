@@ -19,7 +19,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
   {
     id: 'scoring.case.probability',
     title: 'Chance de pagamento',
-    what: 'Probabilidade estimada de haver pagamento confirmado do devedor nesta carteira dentro da janela do modelo (padrão 30 dias).',
+    what: 'Probabilidade estimada de haver pagamento confirmado do devedor nesta carteira dentro da janela do modelo ({{scoring.outcomeWindow}}).',
     how: 'Resultado do modelo campeão para o caso no último cálculo, que acontece na escoragem diária e depois de contato efetivo, promessa, acordo, pagamento ou estorno.',
     use: 'Ajuda a ordenar o trabalho do dia. Uma chance baixa não significa que o devedor não vai pagar: é um retrato estatístico, não um julgamento.',
     screens: ['collection.case', 'collection.queue'],
@@ -45,7 +45,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     id: 'scoring.monitoring.psi',
     title: 'PSI do score',
     what: 'Índice de estabilidade: quanto a distribuição dos scores do retrato mudou em relação à referência do modelo campeão.',
-    how: 'Compara a proporção de casos em cada décimo do score com a da referência (o treino ou, para scorecard, a primeira população escorada). Até 0,10 é estável; a partir de 0,10 pede atenção; a partir de 0,25 é alerta (limites ajustáveis nos parâmetros).',
+    how: 'Compara a proporção de casos em cada décimo do score com a da referência (o treino ou, para scorecard, a primeira população escorada). Abaixo do limite de atenção ({{scoring.psiWarning}}) é estável; a partir dele pede atenção; a partir do limite de alerta ({{scoring.psiAlert}}) é alerta. Os limites são ajustáveis nos parâmetros.',
     use: 'Em atenção ou alerta, a carteira mudou e o modelo pode estar descalibrado: compare com o desafiante e avalie um novo treino ou scorecard.',
     screens: ['scoring.monitoring'],
   },
@@ -62,7 +62,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     title: 'AUC realizada',
     what: 'Capacidade real do score de separar quem pagou de quem não pagou numa safra já apurada.',
     how: 'Para os casos de um retrato que completaram a janela de desfecho, a chance de um caso que pagou ter score maior que um caso que não pagou. 0,50 é sorteio; quanto mais perto de 1, melhor.',
-    use: 'Caindo safra a safra ou abaixo do mínimo (padrão 0,60), o modelo deixou de ordenar bem: priorize o desafiante ou um novo treino.',
+    use: 'Caindo safra a safra ou abaixo do mínimo ({{scoring.minAuc}}), o modelo deixou de ordenar bem: priorize o desafiante ou um novo treino.',
     screens: ['scoring.monitoring'],
   },
   {
@@ -93,7 +93,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     id: 'scoring.expected.realized',
     title: 'Recuperado na janela',
     what: 'Valor pago e confirmado pelos casos da safra dentro da janela de desfecho, líquido de estornos.',
-    how: 'Soma dos pagamentos confirmados entre a data do retrato e o fim da janela (padrão 30 dias, apurados 5 dias depois para pegar confirmações tardias).',
+    how: 'Soma dos pagamentos confirmados entre a data do retrato e o fim da janela ({{scoring.outcomeWindow}}, apurados {{scoring.outcomeGrace}} para pegar confirmações tardias).',
     use: 'É o lado real da comparação com o esperado. Use os dois juntos, nunca só um deles.',
     screens: ['scoring.monitoring'],
   },
@@ -119,7 +119,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     title: 'AUC',
     what: 'Capacidade do modelo de colocar quem paga acima de quem não paga, medida no período de validação, que o treino não viu.',
     how: 'Chance de um caso que pagou ter score maior que um caso que não pagou. 0,50 é sorteio, 1,00 é perfeito. O Gini (2 × AUC − 1) é a mesma medida em outra escala.',
-    use: 'Um modelo só vira desafiante com AUC de validação a partir do mínimo (padrão 0,60). Para promover, compare com o campeão nas mesmas observações.',
+    use: 'Um modelo só vira desafiante com AUC de validação a partir do mínimo ({{scoring.minAuc}}). Para promover, compare com o campeão nas mesmas observações.',
     screens: ['scoring.model', 'scoring.models'],
   },
   {
@@ -240,7 +240,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     title: 'AUC de validação',
     what: 'Qualidade do novo modelo medida num período posterior ao do treino.',
     how: 'Mesma AUC da ficha do modelo, calculada nas observações de validação.',
-    use: 'A partir do mínimo (padrão 0,60) o modelo vira desafiante; abaixo, é reprovado e nunca pode ser promovido.',
+    use: 'A partir do mínimo ({{scoring.minAuc}}) o modelo vira desafiante; abaixo, é reprovado e nunca pode ser promovido.',
     screens: ['scoring.run'],
   },
 ];

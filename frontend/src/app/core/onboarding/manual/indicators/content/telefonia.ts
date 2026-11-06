@@ -85,7 +85,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     id: 'telephony.presence.status',
     title: 'Presença na telefonia',
     what: 'Seu estado para o discador: disponível, em chamada, pós-atendimento, em pausa (com motivo) ou fora, e há quanto tempo.',
-    how: 'Você escolhe entrar, ficar disponível, pausar ou sair; em chamada e pós-atendimento são definidos pelas ligações. Sem sinal do navegador por 90 segundos, o sistema tira você da telefonia (exceto em chamada).',
+    how: 'Você escolhe entrar, ficar disponível, pausar ou sair; em chamada e pós-atendimento são definidos pelas ligações. Sem sinal do navegador {{telephony.presenceTimeout}}, o sistema tira você da telefonia (exceto em chamada).',
     use: 'Só quem está disponível recebe ligações do discador. Use o motivo certo na pausa: treino, monitoria, reunião e retaguarda contam como pausas produtivas.',
     screens: ['collection.queue', 'collection.case', 'telephony.agents'],
   },

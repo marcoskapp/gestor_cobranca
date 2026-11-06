@@ -10,7 +10,8 @@ describe('manual do sistema (/ajuda)', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([{ path: 'ajuda', children: HELP_ROUTES }]),
-        { provide: AuthService, useValue: { hasAnyPermission: (ps: readonly string[]) => ps.length === 0 || ps.includes('CASE_WORK') } },
+        // sem sessão no dublê: os parâmetros do manual não são lidos e as frases saem no texto neutro
+        { provide: AuthService, useValue: { user: () => null, hasAnyPermission: (ps: readonly string[]) => ps.length === 0 || ps.includes('CASE_WORK') } },
       ],
     });
   });

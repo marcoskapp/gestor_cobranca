@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { MANUAL_MODULES, findModuleInfo } from '../../core/onboarding/manual/manual-index';
 import { GlossaryTerm, ModuleManual } from '../../core/onboarding/manual/manual.models';
 import { ManualService } from '../../core/onboarding/manual/manual.service';
+import { ManualTextPipe } from '../../core/onboarding/manual/manual-text.pipe';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { Icon } from '../../shared/components/icon/icon';
 import { PageHeader } from '../../shared/components/page-header/page-header';
@@ -14,7 +15,7 @@ import { Skeleton } from '../../shared/components/skeleton/skeleton';
  */
 @Component({
   selector: 'app-help-center',
-  imports: [RouterLink, PageHeader, Icon, Skeleton, EmptyState],
+  imports: [RouterLink, PageHeader, Icon, Skeleton, EmptyState, ManualTextPipe],
   template: `
     <app-page-header title="Manual do sistema" subtitle="Para que serve cada parte do Gestor de Cobrança, como elas se encaixam e os termos usados." />
 
@@ -28,13 +29,13 @@ import { Skeleton } from '../../shared/components/skeleton/skeleton';
       <section class="app-card" aria-labelledby="ajuda-todo">
         <h2 class="app-card__title" id="ajuda-todo">Como o sistema se encaixa</h2>
         @for (p of o.overview; track $index) {
-          <p class="help__text">{{ p }}</p>
+          <p class="help__text">{{ p | manualText }}</p>
         }
         <ol class="help__flow">
           @for (c of o.connections; track c.module) {
             <li>
               <a [routerLink]="['/ajuda', c.module]">{{ moduleTitle(c.module) }}</a>
-              <span class="app-muted"> — {{ c.text }}</span>
+              <span class="app-muted"> — {{ c.text | manualText }}</span>
             </li>
           }
         </ol>
@@ -63,7 +64,7 @@ import { Skeleton } from '../../shared/components/skeleton/skeleton';
           @for (t of glossary(); track t.id) {
             <div class="help__term" [id]="'termo-' + t.id">
               <dt>{{ t.term }}</dt>
-              <dd>{{ t.definition }}</dd>
+              <dd>{{ t.definition | manualText }}</dd>
             </div>
           }
         </dl>

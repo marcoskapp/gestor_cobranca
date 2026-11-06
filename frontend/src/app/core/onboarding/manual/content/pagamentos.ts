@@ -19,7 +19,7 @@ export const MANUAL: ModuleManual = {
     'Valor recuperado é só pagamento confirmado, líquido de estornos.',
     'Pagamento informado exige comprovante e destino; acima do limite da assessoria, aprovação de outra pessoa.',
     'Quem informou um pagamento não o aprova nem o concilia.',
-    'Enquanto um pagamento informado aguarda aprovação, a quebra do acordo fica suspensa, por no máximo 7 dias. Depois disso, a quebra volta a valer.',
+    'Enquanto um pagamento informado aguarda aprovação, a quebra do acordo fica suspensa, {{negotiation.breakSuspensionMax}}. Depois disso, a quebra volta a valer.',
     'Estorno pede motivo e a palavra de confirmação; o histórico continua visível.',
     'Toda decisão sobre divergência e toda realocação exigem justificativa e ficam registradas.',
     'O Pix usa a conta ativa do credor; sem ela, a conta da assessoria. Segredos da conta nunca voltam à tela.',

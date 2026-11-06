@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { manualParameter, manualPhrase } from '../../../core/onboarding/manual/manual-parameters.service';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, map, startWith } from 'rxjs';
@@ -45,7 +46,7 @@ import { PDF_ACCEPT, UPLOAD_ERROR_LABELS, pdfFileProblem } from '../data/pdf-imp
         @if (file(); as f) {
           <span><strong>{{ f.name }}</strong> · {{ size(f.size) }}</span>
         } @else {
-          <span class="app-muted">PDF de até 20 MB, sem senha</span>
+          <span class="app-muted">PDF {{ maxSize() }}, sem senha</span>
         }
       </div>
       <p class="app-muted ps-small">
@@ -103,6 +104,9 @@ import { PDF_ACCEPT, UPLOAD_ERROR_LABELS, pdfFileProblem } from '../data/pdf-imp
 })
 export class PdfImportStart {
   private readonly api = inject(PdfImportsApi);
+  /** Tamanho máximo (`app.ingestion.pdf.max-file-size`), do servidor. */
+  protected readonly maxSize = manualPhrase('ingestion.pdfMaxFileSize');
+  private readonly maxMb = manualParameter('ingestion.pdfMaxFileSizeMb');
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
   protected readonly portfolios = inject(PortfolioLookup).source();
@@ -123,7 +127,7 @@ export class PdfImportStart {
     const f = list?.[0] ?? null;
     this.error.set(null);
     if (f) {
-      const problem = pdfFileProblem(f);
+      const problem = pdfFileProblem(f, this.maxMb());
       this.error.set(problem);
       this.file.set(problem ? null : f);
     }

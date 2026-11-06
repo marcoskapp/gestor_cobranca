@@ -39,6 +39,11 @@ public record TelephonyProperties(Integer dialMaxAttempts, Duration tabulationDe
         dialMaxAttempts = dialMaxAttempts == null ? 3 : dialMaxAttempts;
         tabulationDeadline = tabulationDeadline == null ? Duration.ofMinutes(15) : tabulationDeadline;
         presenceTimeout = presenceTimeout == null ? Duration.ofSeconds(90) : presenceTimeout;
+        // em segundos inteiros: o manual fala em "sem sinal do navegador por N segundos" (parâmetros do manual)
+        if (presenceTimeout.isNegative() || presenceTimeout.isZero() || presenceTimeout.getNano() != 0) {
+            throw new IllegalArgumentException(
+                    "app.telephony.presence-timeout deve ser um número positivo de segundos inteiros (ex.: PT90S)");
+        }
         staleCallAfter = staleCallAfter == null ? Duration.ofHours(4) : staleCallAfter;
         retentionCron = retentionCron == null ? "0 50 2 * * *" : retentionCron;
         retentionBatch = retentionBatch == null ? 200 : retentionBatch;

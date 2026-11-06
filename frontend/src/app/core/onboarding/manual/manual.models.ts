@@ -4,13 +4,18 @@
  * docs/tecnico/desenho/ux.md §8.5.
  *
  * Os arquivos de conteúdo (`content/*.ts`) são só dados: sem Angular, sem HTML e sem Markdown. Cada
- * texto é exibido por interpolação (escapado). A mesma estrutura serve de base de conhecimento para o
+ * texto é exibido por interpolação (escapado). Prazos e limites da configuração nunca aparecem escritos à mão:
+ * usam marcadores de parâmetro (`{{debt.cumulativeWindow}}`), resolvidos com o valor do servidor
+ * (`manual-parameters.ts`, pipe `manualText`). A mesma estrutura serve de base de conhecimento para o
  * futuro chat de suporte: identificadores estáveis por tela (`ScreenManual.id` = chave da tela em
  * `screens.ts`) e por módulo (`ManualModuleId`), versão do formato em `MANUAL_SCHEMA_VERSION`.
  */
 
-/** Versão do formato do conteúdo. Incrementar só em mudança incompatível da estrutura. */
-export const MANUAL_SCHEMA_VERSION = 1;
+/**
+ * Versão do formato do conteúdo. Incrementar só em mudança incompatível da estrutura.
+ * 2: textos com marcadores de parâmetro (`{{debt.cumulativeWindow}}`, `manual-parameters.ts`).
+ */
+export const MANUAL_SCHEMA_VERSION = 2;
 
 /** Módulos do manual (identificador estável, usado na URL `/ajuda/<id>`). */
 export type ManualModuleId =

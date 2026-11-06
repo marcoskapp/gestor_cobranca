@@ -7,6 +7,7 @@ import { findModuleInfo } from '../../core/onboarding/manual/manual-index';
 import { GlossaryTerm, ManualModuleId, ModuleManual } from '../../core/onboarding/manual/manual.models';
 import { ManualService, ScreenManualView } from '../../core/onboarding/manual/manual.service';
 import { ScreenManualBody } from '../../core/onboarding/manual/screen-manual-body';
+import { ManualTextPipe } from '../../core/onboarding/manual/manual-text.pipe';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Skeleton } from '../../shared/components/skeleton/skeleton';
@@ -25,7 +26,7 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
  */
 @Component({
   selector: 'app-module-manual',
-  imports: [RouterLink, PageHeader, Skeleton, EmptyState, ScreenManualBody],
+  imports: [RouterLink, PageHeader, Skeleton, EmptyState, ScreenManualBody, ManualTextPipe],
   template: `
     <app-page-header [title]="title()" [subtitle]="summary()">
       <a class="btn btn-outline-secondary" routerLink="/ajuda">Todos os módulos</a>
@@ -65,7 +66,7 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
               <section class="app-card" aria-labelledby="manual-visao">
                 <h2 class="app-card__title" id="manual-visao">Visão geral</h2>
                 @for (p of d.manual.overview; track $index) {
-                  <p class="module-manual__text">{{ p }}</p>
+                  <p class="module-manual__text">{{ p | manualText }}</p>
                 }
               </section>
 
@@ -75,7 +76,7 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
                   @for (c of d.manual.connections; track c.module) {
                     <li>
                       <a [routerLink]="['/ajuda', c.module]">{{ moduleTitle(c.module) }}</a>
-                      <span class="app-muted"> — {{ c.text }}</span>
+                      <span class="app-muted"> — {{ c.text | manualText }}</span>
                     </li>
                   }
                 </ul>
@@ -85,7 +86,7 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
                 <h2 class="app-card__title" id="manual-regras">Regras importantes</h2>
                 <ul class="module-manual__list">
                   @for (r of d.manual.rules; track $index) {
-                    <li>{{ r }}</li>
+                    <li>{{ r | manualText }}</li>
                   }
                 </ul>
               </section>
@@ -102,7 +103,7 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
                 <dl class="module-manual__terms">
                   @for (t of d.terms; track t.id) {
                     <dt>{{ t.term }}</dt>
-                    <dd>{{ t.definition }}</dd>
+                    <dd>{{ t.definition | manualText }}</dd>
                   }
                 </dl>
               </section>

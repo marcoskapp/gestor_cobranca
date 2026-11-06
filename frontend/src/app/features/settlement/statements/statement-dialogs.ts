@@ -3,12 +3,13 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, startWith } from 'rxjs';
 import { toApiError, userMessage } from '../../../core/http/problem';
+import { manualParameter } from '../../../core/onboarding/manual/manual-parameters.service';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { StatementsApi } from '../data/settlement.api';
 import { ADJUSTMENT_CATEGORY_LABELS, EXPORT_FORMAT_LABELS, SEND_CHANNEL_LABELS, SETTLEMENT_ERROR_LABELS } from '../data/settlement.labels';
 import { AdjustmentCategory, AdjustmentView, ExportView, SendChannel, StatementView } from '../data/settlement.models';
-import { ADJUSTMENT_DUAL_APPROVAL_THRESHOLD, ADJUSTMENT_REASON_MIN, needsSecondApproval } from '../data/settlement.rules';
+import { ADJUSTMENT_REASON_MIN, needsSecondApproval } from '../data/settlement.rules';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
@@ -186,10 +187,15 @@ export interface AdjustmentDialogData {
         @if (amount() !== null) {
           <p class="app-dialog-message">Efeito: <app-amount [value]="amount()" [signed]="true" /> no líquido a repassar.</p>
         }
-        @if (dual()) {
+        @if (dual() === null) {
+          <div class="alert alert-secondary d-flex align-items-start gap-2" role="note">
+            <app-icon name="info-circle" />
+            <span>Acima do valor configurado, o ajuste fica aguardando a segunda aprovação de outra pessoa; abaixo dele, é aplicado na hora e o demonstrativo volta a "calculado". O sistema confirma ao enviar. Quem pede ajuste não aprova o demonstrativo.</span>
+          </div>
+        } @else if (dual()) {
           <div class="alert alert-warning d-flex align-items-start gap-2" role="note" data-tour="adjustment-dual">
             <app-icon name="people" />
-            <span>Acima de {{ threshold }}, o ajuste fica <strong>aguardando a segunda aprovação de outra pessoa</strong> com permissão de aprovação. Você não poderá aprová-lo, nem aprovar o demonstrativo depois de pedir ajuste.</span>
+            <span>Acima de {{ threshold() }}, o ajuste fica <strong>aguardando a segunda aprovação de outra pessoa</strong> com permissão de aprovação. Você não poderá aprová-lo, nem aprovar o demonstrativo depois de pedir ajuste.</span>
           </div>
         } @else {
           <div class="alert alert-secondary d-flex align-items-start gap-2" role="note">
@@ -203,7 +209,7 @@ export interface AdjustmentDialogData {
       </div>
       <div class="modal-footer">
         <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
-        <button class="btn btn-primary" type="submit" [disabled]="sending()">{{ dual() ? 'Pedir segunda aprovação' : 'Aplicar ajuste' }}</button>
+        <button class="btn btn-primary" type="submit" [disabled]="sending()">{{ dual() === null ? 'Enviar ajuste' : dual() ? 'Pedir segunda aprovação' : 'Aplicar ajuste' }}</button>
       </div>
     </form>
   `,
@@ -214,7 +220,9 @@ export class AdjustmentDialog {
   private readonly api = inject(StatementsApi);
   protected readonly categories = Object.entries(ADJUSTMENT_CATEGORY_LABELS) as [AdjustmentCategory, string][];
   protected readonly minReason = ADJUSTMENT_REASON_MIN;
-  protected readonly threshold = formatAmount(ADJUSTMENT_DUAL_APPROVAL_THRESHOLD);
+  /** Limite da segunda aprovação que o servidor aplica; `null` enquanto não chegou. */
+  private readonly limit = manualParameter('settlement.adjustmentDualApprovalThreshold');
+  protected readonly threshold = computed(() => formatAmount(this.limit() ?? 0));
   protected readonly sending = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -231,7 +239,7 @@ export class AdjustmentDialog {
     return this.form.getRawValue();
   });
   protected readonly amount = computed(() => this.value().amount);
-  protected readonly dual = computed(() => needsSecondApproval(this.amount()));
+  protected readonly dual = computed(() => needsSecondApproval(this.amount(), this.limit()));
 
   protected save(): void {
     const v = this.form.getRawValue();

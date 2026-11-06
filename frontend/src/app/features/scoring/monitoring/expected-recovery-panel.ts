@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { manualPhrase } from '../../../core/onboarding/manual/manual-parameters.service';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
@@ -79,7 +80,7 @@ const GROUPS: readonly RecoveryGroupBy[] = ['NONE', 'CREDITOR', 'PORTFOLIO', 'AS
       <app-empty-state
         icon="cash-stack"
         title="Nenhuma safra apurada no período."
-        message="O indicador aparece quando os casos escorados num retrato completam a janela de desfecho (padrão 30 dias, mais 5 de carência)."
+        [message]="'O indicador aparece quando os casos escorados num retrato completam a janela de desfecho (' + outcomeWindow() + ', ' + outcomeGrace() + ').'"
       />
     } @else {
       @let t = totals();
@@ -152,6 +153,9 @@ const GROUPS: readonly RecoveryGroupBy[] = ['NONE', 'CREDITOR', 'PORTFOLIO', 'AS
 })
 export class ExpectedRecoveryPanel {
   private readonly api = inject(ScoringMonitoringApi);
+  /** Janela de desfecho e carência padrão (`app.scoring.defaults.outcome-days`, `app.scoring.outcome-grace-days`). */
+  protected readonly outcomeWindow = manualPhrase('scoring.outcomeWindow');
+  protected readonly outcomeGrace = manualPhrase('scoring.outcomeGraceExtra');
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly groups = GROUPS;
   protected readonly groupLabels = GROUP_BY_LABELS;

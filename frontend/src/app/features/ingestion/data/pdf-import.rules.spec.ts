@@ -5,6 +5,7 @@ import {
   emptyMap,
   needsPolling,
   parseLabels,
+  pdfFileProblem,
   regionBox,
   targetLabel,
   totalsDiffer,
@@ -39,6 +40,17 @@ function historyMap(): ExtractionMap {
 }
 
 describe('regras da importação PDF', () => {
+  it('tamanho do PDF pelo limite do servidor; sem o limite, só o servidor confere', () => {
+    const MB = 1024 * 1024;
+    expect(pdfFileProblem({ name: 'carteira.pdf', size: 20 * MB }, 20)).toBeNull();
+    expect(pdfFileProblem({ name: 'carteira.pdf', size: 20 * MB + 1 }, 20)).toBe('O PDF passa do limite de 20 MB.');
+    expect(pdfFileProblem({ name: 'carteira.pdf', size: 31 * MB }, 30)).toBe('O PDF passa do limite de 30 MB.');
+    // limite ainda não chegou (ou a leitura falhou): nada de número chutado; o servidor responde se passar
+    expect(pdfFileProblem({ name: 'carteira.pdf', size: 500 * MB }, null)).toBeNull();
+    expect(pdfFileProblem({ name: 'carteira.pdf', size: 0 }, null)).toBe('O arquivo está vazio.');
+    expect(pdfFileProblem({ name: 'carteira.txt', size: MB }, 20)).toBe('Envie um arquivo .pdf.');
+  });
+
   it('lista todos os rótulos do cabeçalho no editor, inclusive os sem destino', () => {
     const cols = editorColumns(historyMap());
     expect(cols.map((c) => c.header)).toEqual(['Emp', 'Número', 'Vencto', 'Valor', 'Pendente', 'Avul', 'Conta']);
