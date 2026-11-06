@@ -89,15 +89,15 @@ public record PortalProperties(String publicBaseUrl, Session session, Access acc
      *                          apagados depois deste prazo do vencimento
      * @param throttles         contadores do bloqueio progressivo (HMAC do documento e do IP) sem uso há este prazo
      *                          e sem bloqueio vigente são apagados
-     * @param sessionClientData IP e agente do navegador das sessões encerradas há este prazo são apagados (a sessão
-     *                          continua, sem eles, para o funil e a trilha)
+     * @param sessionClientData IP e agente do navegador das sessões encerradas há este prazo (padrão 1 ano) são
+     *                          apagados (a sessão continua, sem eles, para o funil e a trilha)
      */
     public record Retention(Duration challenges, Duration throttles, Duration sessionClientData) {
 
         public Retention {
             challenges = challenges == null ? Duration.ofDays(30) : challenges;
             throttles = throttles == null ? Duration.ofDays(30) : throttles;
-            sessionClientData = sessionClientData == null ? Duration.ofDays(180) : sessionClientData;
+            sessionClientData = sessionClientData == null ? Duration.ofDays(365) : sessionClientData;
         }
     }
 

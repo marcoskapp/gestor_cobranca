@@ -94,7 +94,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Etapas do atendimento de um pedido do titular: identidade, ação, resposta e evidências.',
       purpose: [
         'Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.',
-        'O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores.',
+        'O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores; para os demais, o botão aparece desabilitado com o motivo.',
       ],
       profiles: ['COMPLIANCE'],
       inputs: ['Pedido registrado e documentos do titular.'],
@@ -108,7 +108,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Prazos de guarda por categoria, simulação e anonimização dos dados que já cumpriram o prazo.',
       purpose: [
         'A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados.',
-        'Executar anonimiza dados: a ação aparece para quem também atende solicitações de titulares.',
+        'Executar anonimiza dados: só executa quem também atende solicitações de titulares; para os demais, o botão aparece desabilitado com o motivo.',
       ],
       profiles: ['COMPLIANCE'],
       inputs: ['Bases legais e prazos de guarda.'],

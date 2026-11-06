@@ -32,7 +32,7 @@ export interface ConversationDialogData {
         <p class="app-dialog-message mb-0">
           Contato {{ data.conversation.contactMasked }}. Escolha o devedor que tem este contato no cadastro; a conversa passa a fazer parte do caso dele.
         </p>
-        <app-entity-picker [control]="form.controls.debtor" [source]="debtors" label="Devedor" [single]="true" hint="Nome ou CPF/CNPJ completo." />
+        <app-entity-picker [control]="form.controls.debtor" [source]="debtors" label="Devedor" [single]="true" />
         @if (!data.conversation.creditorId) {
           <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" hint="Credor da dívida tratada nesta conversa." />
         }

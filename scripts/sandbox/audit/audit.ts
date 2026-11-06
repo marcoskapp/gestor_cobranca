@@ -10,6 +10,8 @@
 //   - rolagem      o documento rola (scrollHeight > innerHeight ou scrollWidth > innerWidth): só a área de
 //                  conteúdo (`main.app-content`) pode rolar;
 //   - erro-js      exceção não tratada no navegador.
+// Ação visível e desabilitada com o motivo (`app-disabled-action`, exceção decidida pelo responsável) não é problema:
+// ela não chama o servidor nem mostra "Acesso negado"; só os 403 e os avisos "Acesso negado" contam.
 // Saída: relatorio.md (perfil × página) e resultado.json em AUDIT_OUT; código de saída 0 sem problemas, 1 com
 // problemas, 2 quando a auditoria não conseguiu rodar (login, sandbox fora do ar).
 //

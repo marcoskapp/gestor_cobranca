@@ -81,7 +81,7 @@ export interface InstructionDialogData {
             </dl>
           } @else {
             @if (!data.debtorId) {
-              <app-entity-picker [control]="form.controls.debtor" [source]="debtors" label="Devedor" [single]="true" hint="Nome ou CPF/CNPJ." />
+              <app-entity-picker [control]="form.controls.debtor" [source]="debtors" label="Devedor" [single]="true" />
             }
             @if (debtorId(); as d) {
               <app-payment-target [debtorId]="d" mode="single" [(selection)]="picked" />

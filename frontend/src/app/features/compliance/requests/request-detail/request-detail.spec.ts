@@ -74,11 +74,19 @@ describe('RequestDetail', () => {
     expect(downloadButton(fixture)).toBeDefined();
   });
 
-  it('sem acesso a todos os credores oculta o download (o arquivo traz todos os credores)', async () => {
+  it('sem acesso a todos os credores o download fica visível, desabilitado e explicado, sem chamar o servidor', async () => {
     user.set(fakeUser({ permissions: ['DATA_SUBJECT_REQUEST_MANAGE'], allCreditors: false }));
     const fixture = await render();
-    expect(downloadButton(fixture)).toBeUndefined();
+    const download = downloadButton(fixture)!;
+    expect(download).toBeDefined();
+    expect(download.getAttribute('aria-disabled')).toBe('true');
     expect(fixture.nativeElement.textContent).toContain('Arquivo do titular');
     expect(fixture.nativeElement.textContent).toContain('SHA-256');
+    expect(fixture.nativeElement.textContent).toContain('Para baixar o arquivo do titular é preciso ter acesso a todos os credores.');
+
+    download.click();
+    fixture.detectChanges();
+    expect(document.querySelector('ngb-tooltip-window')?.textContent).toContain('acesso a todos os credores');
+    http.expectNone((r) => r.url.includes('/result'));
   });
 });

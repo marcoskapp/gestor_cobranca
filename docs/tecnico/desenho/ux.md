@@ -41,6 +41,7 @@ O **desktop operacional** é o alvo primário (1366–1920 px). Tablet e celular
 | 2.1.1 teclado | Tour (← → Esc), paleta (padrão combobox/listbox com `aria-activedescendant`), menus `ngbDropdown` (setas, Home/End, Esc), diálogos `NgbModal` (foco preso e devolvido), typeahead (combobox), atalhos |
 | 2.2.1 tempo | Convites não somem sozinhos; nada com tempo limite |
 | 1.4.13 conteúdo em hover ou foco | `app-info-hint`: o balão pode receber o ponteiro, fica aberto enquanto ponteiro ou foco estiverem nele e fecha com Esc sem mover o foco (§8.6) |
+| 4.1.2 / 1.4.13 ação desabilitada com motivo | `app-disabled-action` (exceção à regra de ocultar ações sem permissão, só por decisão do responsável): botão com `aria-disabled` (continua focável), motivo como `aria-describedby` e num balão ao passar o mouse, ao receber o foco e ao tocar ou clicar; Esc fecha; o clique nunca executa a ação nem chama o servidor |
 | 2.3.3 / `prefers-reduced-motion` | Animações e transições reduzidas a 0,01 ms; esqueleto sem pulsação |
 | 4.1.3 mensagens de status | Convites em região `aria-live="polite"`; estados vazio/erro com `role=status/alert`; tabela com `aria-busy` |
 | Leitores de tela | Trilha com `aria-current="page"`; itens do menu em trilho com `aria-label`; valores compactos com o valor exato em texto oculto; menus de tema com `menuitemradio`/`aria-checked` |

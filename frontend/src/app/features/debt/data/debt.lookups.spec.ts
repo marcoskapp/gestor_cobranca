@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { DEBTOR_NAMES_BATCH, DebtorLookup, DebtorNames } from './debt.lookups';
+import { DEBTOR_NAMES_BATCH, DEBTOR_SEARCH_PLACEHOLDER, DebtorLookup, DebtorNames } from './debt.lookups';
 
 describe('DebtorNames', () => {
   it('resolve nomes em lote pelo endpoint leve (sem documento) e declara o tamanho do lote', async () => {
@@ -61,5 +61,25 @@ describe('DebtorLookup', () => {
     expect(req.request.params.get('q')).toBe('Ana Paula');
     req.flush({ content: [debtor], page: 0, size: 20, totalElements: 1, totalPages: 1 });
     expect(await result).toEqual([{ value: 'd-1', label: 'Ana Paula Ribeiro (***.982.247-**)' }]);
+  });
+
+  it('dica do seletor: documento completo ou nome', () => {
+    expect(lookup.placeholder).toBe(DEBTOR_SEARCH_PLACEHOLDER);
+    expect(DEBTOR_SEARCH_PLACEHOLDER).toBe('Informe o CPF/CNPJ completo ou o nome');
+  });
+
+  it('explica por que documento parcial ou inválido não traz resultados', () => {
+    expect(lookup.emptyReason('529.982.24')).toContain('CPF/CNPJ incompleto');
+    expect(lookup.emptyReason('529.982.247-24')).toContain('CPF inválido');
+    expect(lookup.emptyReason('11.222.333/0001')).toContain('CNPJ incompleto');
+    expect(lookup.emptyReason('11.222.333/0001-82')).toContain('CNPJ inválido');
+    expect(lookup.emptyReason('112223330001819')).toContain('dígitos a mais');
+  });
+
+  it('documento válido ou nome sem resultados ficam com a mensagem padrão', () => {
+    expect(lookup.emptyReason('529.982.247-25')).toBeNull();
+    expect(lookup.emptyReason('11.222.333/0001-81')).toBeNull();
+    expect(lookup.emptyReason('Ana Paula')).toBeNull();
+    expect(lookup.emptyReason('')).toBeNull();
   });
 });

@@ -232,7 +232,7 @@ Todos sob `/public-api/v1`, JSON, token obrigatório, escopo indicado. Listas us
 
 **Concorrência otimista**: leituras de carteira e título trazem `ETag: "<versão>"`; comandos aceitam `If-Match` (forte ou fraco); diferente → `412 <recurso>.version_mismatch`. A conferência é feita **dentro do caso de uso dono**, sob o lock do título (debt) ou antes do `@Version` (organization). A resposta do comando traz o ETag da versão confirmada.
 
-**LGPD (minimização)**: DTOs próprios (`PublicApiModels`), separados das visões internas — devedor com nome e documento mascarado; contatos mascarados; nada de observações internas, operadores, IP/agente de aceite ou dados de outros credores; documento de busca só no corpo (`POST /debtors/search`), nunca na URL.
+**LGPD (minimização)**: DTOs próprios (`PublicApiModels`), separados das visões internas — devedor com nome e documento mascarado; contatos mascarados; nada de observações internas, operadores, IP/agente de aceite ou dados de outros credores — com uma exceção: os **contatos do devedor** são da assessoria e compartilhados entre os credores dela, então a integração de um credor lista e invalida também o contato que veio da carga de outro credor da mesma assessoria (devedor visível só com título no credor do token), nunca de outra assessoria (RLS em `debt.debtor_contact`; regressão em `PublicApiContactTenantIsolationIT`; decisão do responsável, achado API-07); documento de busca só no corpo (`POST /debtors/search`), nunca na URL.
 
 Baixa de título por pagamento **não** é endpoint: segue a regra RB06 (pagamento com evidência e confirmação) via `POST /payments`.
 

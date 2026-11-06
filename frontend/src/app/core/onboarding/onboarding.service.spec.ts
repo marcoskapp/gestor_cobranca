@@ -8,12 +8,16 @@ import { DEFAULT_UI_STATE, UiState, UiStatePatch } from '../preferences/ui-state
 import { applyPatch } from '../preferences/ui-state.patch';
 import { UiStateStore } from '../preferences/ui-state.store';
 import { LATEST_RELEASE, RELEASE_NOTES_SCREEN } from './content/release-notes';
+import { SCREENS } from './content/screens';
 import { findTour } from './content/tours';
 import { loadScreenManual } from './manual/manual-index';
 import { OBJECTIVE_STEP_TITLE } from './manual/screen-tour';
 import { TourDefinition } from './onboarding.models';
 import { OnboardingService, WELCOME_TOUR } from './onboarding.service';
 import { TourEngine } from './tour/tour-engine.service';
+
+/** Versão atual da tela de usuários (sobe a cada novidade publicada). */
+const usersVersion = () => SCREENS.find((s) => s.key === 'admin.users')!.version;
 
 @Component({ template: '' })
 class Blank {}
@@ -113,7 +117,7 @@ describe('OnboardingService', () => {
     await visit('/admin/usuarios');
     const hint = service.hint();
     expect(hint?.kind === 'tour' && hint.tour.id).toBe('admin.users');
-    expect(store.state().screens['admin.users']?.version).toBe(1);
+    expect(store.state().screens['admin.users']?.version).toBe(usersVersion());
 
     await visit('/');
     await visit('/admin/usuarios');
@@ -145,7 +149,7 @@ describe('OnboardingService', () => {
     store.ready.set(true);
     await visit('/admin/usuarios');
     expect(service.hint()).toBeNull();
-    expect(store.state().screens['admin.users']?.version).toBe(1);
+    expect(store.state().screens['admin.users']?.version).toBe(usersVersion());
   });
 
   it('checklist do perfil: oculta itens sem rota no menu e conclui automaticamente', async () => {
