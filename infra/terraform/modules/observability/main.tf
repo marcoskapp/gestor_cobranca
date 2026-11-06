@@ -237,6 +237,20 @@ resource "aws_cloudwatch_query_definition" "slow_requests" {
   EOT
 }
 
+# Conexões ao operador interrompidas (alarme telephony-bridge-interrupted): chamada, assessoria e
+# instância que retomou o job e registrou a interrupção (não a que caiu), sem dado pessoal (o log só leva ids).
+resource "aws_cloudwatch_query_definition" "telephony_bridge_interrupted" {
+  name            = "${var.name_prefix}/tecnico/conexoes-interrompidas"
+  log_group_names = [aws_cloudwatch_log_group.app["technical"].name]
+
+  query_string = <<-EOT
+    fields @timestamp, tenantId, callId, instance, process
+    | filter logger like /ProviderBridgeJob/ and level = "WARN" and ispresent(callId)
+    | sort @timestamp desc
+    | limit 100
+  EOT
+}
+
 resource "aws_cloudwatch_query_definition" "access_by_actor" {
   name            = "${var.name_prefix}/acesso/falhas-por-tipo"
   log_group_names = [aws_cloudwatch_log_group.app["access"].name]

@@ -51,7 +51,11 @@ Execute na ordem e registre o resultado (tempo e observações) na tabela da §4
    "alterar → subir → ver na tela" sem intermediário.
 8. **Tarefa de ponta a ponta** — uma mudança pequena real (ex.: texto de uma tela), com testes, commit e push. Confirma
    o fluxo de git e as permissões.
-9. **AWS (quando houver homologação)** — `aws sts get-caller-identity` e `terraform plan` em `infra/terraform`.
+9. **Terraform sem conta AWS** — `./scripts/infra/terraform-check.sh`. Confirma, só com o Docker (imagem oficial do
+   Terraform), formatação, `validate` e os testes de plano com provider simulado de todos os ambientes e módulos
+   ([infra/terraform/README.md §8](../../infra/terraform/README.md)). Rode sempre que alterar `infra/terraform` ou os
+   scripts lidos pelo módulo `compute` (`scripts/instance`, `scripts/db`).
+10. **AWS (quando houver homologação)** — `aws sts get-caller-identity` e `terraform plan` em `infra/terraform`.
    Somente leitura: `terraform apply` segue bloqueado nas permissões e só roda com o responsável.
 
 ## 4. Registro dos resultados
@@ -66,7 +70,8 @@ Execute na ordem e registre o resultado (tempo e observações) na tabela da §4
 | 6 | `audit.sh` | | | |
 | 7 | Navegação pelo Claude Code | ok (05/11/2026) | ~10 min | Playwright da imagem da auditoria (`--network host`), `aurora/operador`: a tabulação "Informado falecimento" mostra o aviso da ação automática, o registro cria a restrição `DECEASED` ativa em todos os credores, ligada à interação, e a estação passa a mostrar "Todos os canais com restrição de contato" (4 canais restritos, caso inelegível). O popup "Primeira vez por aqui?" cobre o botão de registrar em 1280×1000 e precisa ser fechado antes |
 | 8 | Tarefa de ponta a ponta | | | |
-| 9 | AWS (somente leitura) | | | |
+| 9 | Terraform sem conta AWS | ok (06/11/2026) | ~1 min (primeira vez: + download de ~700 MB do provider) | Primeira validação do Terraform do projeto. `fmt`, `init` e `validate` passaram nos 2 ambientes e 8 módulos; os testes de plano dos ambientes não avaliavam (atributos simulados ficavam desconhecidos no plano) até ligar `override_during = plan` no `mock_provider`. Gerados os `.terraform.lock.hcl` (decisões 527 e 915) e criados testes de módulo (compute, database, observability, security, storage): 61 runs, sem falhas (decisões 913–917) |
+| 10 | AWS (somente leitura) | | | |
 
 Critério para adotar o ambiente local: etapas 1 a 8 sem erro, com tempos aceitáveis para o dia a dia. Falha em alguma
 etapa → registrar aqui e corrigir o script ou a instrução (sem contorno), antes de mudar o fluxo de trabalho.
