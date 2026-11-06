@@ -125,6 +125,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados.',
         'Importação com falha mostra o motivo e a linha do arquivo. "Tentar novamente" continua de onde parou: as linhas já gravadas e as baixas delas não se repetem. Se o problema estiver no arquivo, a falha volta com a mesma linha: corrija e importe um arquivo novo.',
+        '"Cancelar processamento" (na fila ou em processamento, com motivo) para a importação onde está: o lote em andamento termina, nenhum outro é gravado e as linhas e baixas já gravadas ficam valendo. Use quando o arquivo estiver errado ou a importação parar de avançar; depois, "Tentar novamente" continua de onde parou.',
       ],
       profiles: ['FINANCEIRO', 'AUDITOR'],
       inputs: ['Arquivo enviado em Conciliação.'],

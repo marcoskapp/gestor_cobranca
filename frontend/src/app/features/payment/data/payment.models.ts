@@ -223,7 +223,7 @@ export interface PaymentView {
 // --------------------------------------------------------------------------- conciliação (F15)
 
 export type StatementFormat = 'CSV_GENERIC' | 'CNAB_240' | 'CNAB_400';
-export type StatementImportStatus = 'RECEIVED' | 'PROCESSING' | 'PROCESSED' | 'FAILED';
+export type StatementImportStatus = 'RECEIVED' | 'PROCESSING' | 'PROCESSED' | 'FAILED' | 'CANCELLED';
 export type StatementLineStatus = 'RECONCILED' | 'CREATED_PAYMENT' | 'DIVERGENT' | 'ALREADY_RECONCILED' | 'IGNORED_DUPLICATE' | 'IGNORED_DEBIT';
 export type DivergenceType = 'AMOUNT_MISMATCH' | 'DUPLICATE_PAYMENT' | 'UNMATCHED' | 'NOT_CONFIRMED' | 'PARTIAL_REFUND';
 export type DivergenceStatus = 'OPEN' | 'RESOLVED' | 'DISMISSED';

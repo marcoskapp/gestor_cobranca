@@ -46,6 +46,9 @@ import java.util.UUID;
  * gravadas e a primeira linha do lote interrompido ({@code failureLine}). Arquivo ilegível → {@code FAILED} com o
  * código do erro e a linha apontada pelo leitor (sem nenhuma baixa). A nova tentativa pedida por uma pessoa
  * ({@link ReconciliationService#retryImport}) volta a importação a {@code RECEIVED} e enfileira este job de novo.
+ * O cancelamento pedido por uma pessoa ({@link ReconciliationService#cancelImport}) leva a importação a
+ * {@code CANCELLED} sob o mesmo lock: o lote em andamento termina antes (o cancelamento espera o lock) e os seguintes
+ * não começam, porque cada lote confere a barreira ({@link #owns}) com a importação travada.
  */
 @Component
 class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
@@ -91,7 +94,7 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
     }
 
     static void enqueue(JobQueue jobs, UUID importId) {
-        jobs.enqueue(TYPE, new Payload(importId, 0), null, "statement:" + importId);
+        jobs.enqueue(TYPE, new Payload(importId, 0), null, deduplicationKey(importId, 0));
     }
 
     /**
@@ -101,7 +104,20 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
      * não mexe na importação da tentativa nova (barreira por {@code retry_count}).
      */
     static void enqueueRetry(JobQueue jobs, UUID importId, int retry) {
-        jobs.enqueue(TYPE, new Payload(importId, retry), null, "statement:" + importId + ":retry:" + retry);
+        jobs.enqueue(TYPE, new Payload(importId, retry), null, deduplicationKey(importId, retry));
+    }
+
+    /**
+     * Cancelamento: tira da fila o job pendente da tentativa atual (aguardando a primeira execução ou a retentativa
+     * automática). O que já estiver rodando não sai da fila por aqui: para pela barreira ({@link #owns}).
+     */
+    static void cancelPending(JobQueue jobs, UUID importId, int retry) {
+        jobs.cancelPending(TYPE, deduplicationKey(importId, retry));
+    }
+
+    /** Chave de deduplicação da tentativa: {@code statement:<id>} na primeira e {@code statement:<id>:retry:<n>} depois. */
+    private static String deduplicationKey(UUID importId, int retry) {
+        return retry == 0 ? "statement:" + importId : "statement:" + importId + ":retry:" + retry;
     }
 
     @Override
@@ -218,7 +234,10 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
         return new ChunkResult(true, resumed);
     }
 
-    /** A importação está em processamento e na tentativa deste job (job de tentativa anterior não mexe nela). */
+    /**
+     * A importação está em processamento e na tentativa deste job: job de tentativa anterior não mexe nela, e a
+     * importação cancelada ({@code CANCELLED}) não recebe mais linhas, conclusão nem falha.
+     */
     private static boolean owns(StatementImport source, int attempt) {
         return source != null && source.isProcessing() && source.getRetryCount() == attempt;
     }

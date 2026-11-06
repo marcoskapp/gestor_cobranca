@@ -220,6 +220,10 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/pagamentos')?.changes?.find((c) => c.version === 2)).toBeDefined();
     expect(findScreen('/negociacao/acordos/a-1')?.changes?.find((c) => c.version === 3)).toBeDefined();
     expect(findScreen('/pagamentos/conciliacao/st-1')?.changes?.find((c) => c.version === 3)?.items.join(' ')).toContain('Tentar novamente');
+    // pedido do responsável: cancelar o processamento do extrato, com novidade na tela e tour revisado
+    expect(findScreen('/pagamentos/conciliacao/st-1')?.version).toBe(4);
+    expect(findScreen('/pagamentos/conciliacao/st-1')?.changes?.find((c) => c.version === 4)?.items.join(' ')).toContain('Cancelar processamento');
+    expect(findTour('payment.statement')?.version).toBe(3);
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES.find((n) => n.version === 8)?.title).toContain('Prestação de contas');
     // checklists: itens de visita apontam para telas registradas; supervisão antes do negociador

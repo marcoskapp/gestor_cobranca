@@ -75,7 +75,7 @@ class StatementImportTest {
     void retryOnlyFromFailedGoesBackToReceivedAndResumesFromTheRecordedLines() {
         StatementImport source = received();
         // recebida, em processamento e processada não aceitam nova tentativa
-        assertThatThrownBy(source::retry).isInstanceOf(DomainException.class).hasMessageContaining("falha");
+        assertThatThrownBy(source::retry).isInstanceOf(DomainException.class).hasMessageContaining("falha ou cancelada");
         source.startOrResume(now);
         assertThatThrownBy(source::retry).isInstanceOf(DomainException.class);
         source.failProcessing("statement.date_invalid", 7, Map.of(StatementLineStatus.RECONCILED, 3L), now);
@@ -96,5 +96,67 @@ class StatementImportTest {
         assertThat(source.getStatus()).isEqualTo(StatementImportStatus.PROCESSED);
         assertThat(source.getTotalLines()).isEqualTo(5);
         assertThatThrownBy(source::retry).isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void cancelStopsAQueuedOrRunningImportKeepingWhatWasRecorded() {
+        StatementImport queued = received();
+        queued.cancel(Map.of(), now);
+        assertThat(queued.getStatus()).isEqualTo(StatementImportStatus.CANCELLED);
+        assertThat(queued.getFinishedAt()).isEqualTo(now);
+        // cancelada antes de o job começar: o job não a inicia
+        assertThat(queued.startOrResume(now.plusSeconds(1))).isFalse();
+
+        StatementImport running = received();
+        running.startOrResume(now);
+        running.cancel(Map.of(StatementLineStatus.CREATED_PAYMENT, 1L, StatementLineStatus.IGNORED_DEBIT, 499L),
+                now.plusSeconds(30));
+        assertThat(running.getStatus()).isEqualTo(StatementImportStatus.CANCELLED);
+        assertThat(running.isProcessing()).isFalse();
+        assertThat(running.isCancellable()).isFalse();
+        // as contagens refletem as linhas já gravadas
+        assertThat(running.getTotalLines()).isEqualTo(500);
+        assertThat(running.getCreatedPayments()).isEqualTo(1);
+        assertThat(running.getIgnoredLines()).isEqualTo(499);
+        assertThat(running.getFailureCode()).isNull();
+        // terminal: o job não retoma, não conclui nem registra falha
+        assertThat(running.startOrResume(now.plusSeconds(60))).isFalse();
+        assertThatThrownBy(() -> running.finish(Map.of(), now)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> running.failProcessing("x", null, Map.of(), now)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> running.cancel(Map.of(), now)).isInstanceOf(DomainException.class)
+                .hasMessageContaining("cancelada");
+    }
+
+    @Test
+    void cancelIsRefusedOnceTheImportHasEnded() {
+        StatementImport processed = received();
+        processed.startOrResume(now);
+        processed.finish(Map.of(StatementLineStatus.RECONCILED, 1L), now);
+        assertThatThrownBy(() -> processed.cancel(Map.of(), now)).isInstanceOf(DomainException.class);
+        assertThat(processed.getStatus()).isEqualTo(StatementImportStatus.PROCESSED);
+
+        StatementImport failed = received();
+        failed.startOrResume(now);
+        failed.failProcessing("statement.processing_failed", 502, Map.of(), now);
+        assertThatThrownBy(() -> failed.cancel(Map.of(), now)).isInstanceOf(DomainException.class);
+        assertThat(failed.getFailureLine()).isEqualTo(502);
+    }
+
+    @Test
+    void cancelledImportCanBeRetriedAndCancelledAgain() {
+        StatementImport source = received();
+        source.startOrResume(now);
+        source.cancel(Map.of(StatementLineStatus.RECONCILED, 2L), now);
+
+        source.retry();
+        assertThat(source.getStatus()).isEqualTo(StatementImportStatus.RECEIVED);
+        assertThat(source.getFinishedAt()).isNull();
+        assertThat(source.getRetryCount()).isEqualTo(1);
+        assertThat(source.getTotalLines()).isEqualTo(2);
+        assertThat(source.startOrResume(now.plusSeconds(60))).isTrue();
+        source.cancel(Map.of(StatementLineStatus.RECONCILED, 3L), now.plusSeconds(90));
+        assertThat(source.getTotalLines()).isEqualTo(3);
+        source.retry();
+        assertThat(source.getRetryCount()).isEqualTo(2);
     }
 }

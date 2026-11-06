@@ -75,7 +75,7 @@ public class StatementImport extends TenantScopedEntity {
     @Column(name = "failure_line")
     private Integer failureLine;
 
-    /** Quantas vezes alguém pediu uma nova tentativa depois de {@code FAILED}. */
+    /** Quantas vezes alguém pediu uma nova tentativa depois de {@code FAILED} ou {@code CANCELLED}. */
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
@@ -102,7 +102,7 @@ public class StatementImport extends TenantScopedEntity {
      * Inicia o processamento ou o retoma depois de uma tentativa interrompida (o processamento grava as linhas em
      * lotes, cada um na própria transação, e a retomada pula as linhas já gravadas).
      *
-     * @return {@code false} se a importação já terminou (processada ou com falha)
+     * @return {@code false} se a importação já terminou (processada, com falha ou cancelada)
      */
     public boolean startOrResume(Instant now) {
         if (status == StatementImportStatus.PROCESSING) {
@@ -145,13 +145,33 @@ public class StatementImport extends TenantScopedEntity {
     }
 
     /**
-     * Nova tentativa pedida por uma pessoa (decisão do responsável à 873): volta a {@code RECEIVED} para o job
-     * retomar de onde parou — as linhas já gravadas são puladas, sem baixa duplicada. O motivo da falha anterior sai
-     * da importação (fica na auditoria); as contagens parciais ficam até a nova apuração.
+     * Cancelamento pedido por uma pessoa: para o processamento onde está (na fila ou em andamento) e leva a importação
+     * a {@code CANCELLED}, terminal. As linhas e baixas já gravadas ficam, e as contagens refletem só elas. O job que
+     * ainda rodar percebe, sob o lock da importação, que ela não está mais em processamento e não grava mais nada.
+     */
+    public void cancel(Map<StatementLineStatus, Long> lines, Instant now) {
+        Guard.requireState(isCancellable(), "statement.not_cancellable",
+                "Só a importação na fila ou em processamento pode ser cancelada");
+        tally(lines);
+        this.status = StatementImportStatus.CANCELLED;
+        this.failureCode = null;
+        this.failureLine = null;
+        this.finishedAt = now;
+    }
+
+    /** Na fila ou em processamento: ainda pode ser cancelada. */
+    public boolean isCancellable() {
+        return status == StatementImportStatus.RECEIVED || status == StatementImportStatus.PROCESSING;
+    }
+
+    /**
+     * Nova tentativa pedida por uma pessoa (decisão do responsável à 873), depois de falha ou cancelamento: volta a
+     * {@code RECEIVED} para o job retomar de onde parou — as linhas já gravadas são puladas, sem baixa duplicada. O
+     * motivo da falha anterior sai da importação (fica na auditoria); as contagens parciais ficam até a nova apuração.
      */
     public void retry() {
-        Guard.requireState(status == StatementImportStatus.FAILED, "statement.not_failed",
-                "Só a importação com falha pode ser tentada de novo");
+        Guard.requireState(status == StatementImportStatus.FAILED || status == StatementImportStatus.CANCELLED,
+                "statement.not_retryable", "Só a importação com falha ou cancelada pode ser tentada de novo");
         this.status = StatementImportStatus.RECEIVED;
         this.failureCode = null;
         this.failureLine = null;

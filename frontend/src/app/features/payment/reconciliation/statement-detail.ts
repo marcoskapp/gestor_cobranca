@@ -8,6 +8,7 @@ import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs';
 import { Amount } from '../../../shared/components/amount/amount';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
@@ -44,7 +45,13 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
     } @else if (statement(); as s) {
       @let ind = indicators()!;
       <app-page-header [title]="s.fileName ?? 'Extrato importado'" [subtitle]="'Importado em ' + (s.createdAt | appDate) + ' por ' + users.name(s.requestedBy) + ' · ' + (s.creditorId ? creditors.name(s.creditorId) : 'todos os credores')">
-        @if (s.status === 'FAILED' && canRetry()) {
+        @if (running() && canManage()) {
+          <button class="btn btn-outline-danger d-inline-flex align-items-center gap-2" type="button" data-tour="statement-cancel" [disabled]="cancelling()" (click)="cancel(s)">
+            <app-icon name="stop-circle" />
+            {{ cancelling() ? 'Cancelando…' : 'Cancelar processamento' }}
+          </button>
+        }
+        @if (retryable(s) && canManage()) {
           <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" data-tour="statement-retry" [disabled]="retrying()" (click)="retry(s)">
             <app-icon name="arrow-clockwise" />
             {{ retrying() ? 'Enviando…' : 'Tentar novamente' }}
@@ -61,12 +68,28 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
         <app-status-chip domain="statementImport" [status]="s.status" />
         <span class="app-muted">{{ size(s.fileSize) }} · SHA-256 <span class="app-mono" [attr.title]="s.fileSha256">{{ s.fileSha256.slice(0, 12) }}…</span></span>
         @if (s.finishedAt) {
-          <span class="app-muted">· concluído em {{ s.finishedAt | appDate }}</span>
+          <span class="app-muted">· {{ s.status === 'CANCELLED' ? 'cancelado' : 'concluído' }} em {{ s.finishedAt | appDate }}</span>
         }
       </div>
       @if (running()) {
         <div class="progress" role="progressbar" aria-label="Conciliando"><div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div></div>
         <p class="app-muted" role="status">Conciliando as linhas. Esta tela se atualiza sozinha.</p>
+      }
+      @if (s.status === 'CANCELLED') {
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="status">
+          <app-icon name="stop-circle" />
+          <span>
+            O processamento foi cancelado.
+            @if (s.totalLines > 0) {
+              As {{ s.totalLines }} linhas já gravadas e as baixas delas ficam valendo.
+            } @else {
+              Nenhuma linha chegou a ser gravada.
+            }
+            @if (canManage()) {
+              Use <strong>Tentar novamente</strong> para continuar de onde parou, sem baixa repetida.
+            }
+          </span>
+        </div>
       }
       @if (s.status === 'FAILED') {
         <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
@@ -77,7 +100,7 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
               @if (s.totalLines > 0) {
                 As {{ s.totalLines }} linhas já gravadas e as baixas delas ficam valendo.
               }
-              @if (canRetry()) {
+              @if (canManage()) {
                 Use <strong>Tentar novamente</strong> para continuar de onde parou, sem baixa repetida.
               }
             </span>
@@ -88,7 +111,7 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
                 Nenhuma linha foi conciliada.
               }
               Corrija e importe de novo (a prévia aponta as linhas com problema).
-              @if (canRetry()) {
+              @if (canManage()) {
                 Se o arquivo estiver certo, <strong>Tentar novamente</strong> lê o mesmo arquivo outra vez.
               }
             </span>
@@ -200,10 +223,12 @@ export class StatementDetail {
   private readonly breadcrumbs = inject(BreadcrumbService);
   private readonly notifications = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
-  /** Nova tentativa: mesma permissão de importar extrato; sem ela o botão não aparece. */
+  private readonly confirm = inject(ConfirmService);
+  /** Cancelar e tentar de novo: mesma permissão de importar extrato; sem ela os botões não aparecem. */
   private readonly auth = inject(AuthService);
-  protected readonly canRetry = computed(() => this.auth.hasPermission(Permission.RECONCILIATION_MANAGE));
+  protected readonly canManage = computed(() => this.auth.hasPermission(Permission.RECONCILIATION_MANAGE));
   protected readonly retrying = signal(false);
+  protected readonly cancelling = signal(false);
   protected readonly processingFailed = 'statement.processing_failed';
   protected readonly size = sizeText;
   protected readonly directions = DIRECTION_LABELS;
@@ -240,7 +265,7 @@ export class StatementDetail {
     this.destroyRef.onDestroy(() => refresh.unsubscribe());
   }
 
-  /** Volta a importação com falha para a fila; o job retoma de onde parou e a tela acompanha o processamento. */
+  /** Volta a importação com falha ou cancelada para a fila; o job retoma de onde parou e a tela acompanha o processamento. */
   protected retry(s: StatementImportView): void {
     if (this.retrying()) {
       return;
@@ -264,6 +289,59 @@ export class StatementDetail {
           this.notifications.error((e.code && PAYMENT_ERROR_LABELS[e.code]) || userMessage(e));
           this.resource.reload();
         },
+      });
+  }
+
+  /** Com falha ou cancelada: aceita nova tentativa, que continua de onde parou. */
+  protected retryable(s: StatementImportView): boolean {
+    return s.status === 'FAILED' || s.status === 'CANCELLED';
+  }
+
+  /**
+   * Para o processamento onde está (ação sensível: confirmação com motivo, que vai para a auditoria). O que já foi
+   * gravado fica; o servidor espera o lote em andamento terminar e nenhum outro é gravado depois.
+   */
+  protected cancel(s: StatementImportView): void {
+    if (this.cancelling()) {
+      return;
+    }
+    this.confirm
+      .confirm({
+        title: 'Cancelar processamento',
+        message: 'O processamento para onde está. As linhas já gravadas e as baixas delas ficam valendo; o restante do arquivo não é conciliado. A contagem do que foi gravado aparece na tela depois de cancelar.',
+        warning: 'Depois de cancelar, "Tentar novamente" continua de onde parou, sem baixa repetida.',
+        confirmLabel: 'Cancelar processamento',
+        destructive: true,
+        reason: 'required',
+        reasonLabel: 'Motivo do cancelamento',
+        reasonMaxLength: 200,
+        details: [
+          { label: 'Arquivo', value: s.fileName ?? 'Extrato importado' },
+          // as contagens só são apuradas no fim (ou no cancelamento): durante o processamento estariam desatualizadas
+          { label: 'Situação', value: s.status === 'RECEIVED' ? 'Na fila' : 'Em processamento' },
+        ],
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((reason) => {
+        this.cancelling.set(true);
+        this.api
+          .cancelImport(s.id, reason)
+          .pipe(
+            finalize(() => this.cancelling.set(false)),
+            takeUntilDestroyed(this.destroyRef),
+          )
+          .subscribe({
+            next: (view) => {
+              this.notifications.success('Processamento cancelado. O que já foi gravado continua valendo.');
+              // a resposta já é a importação cancelada, com as contagens das linhas gravadas
+              this.resource.set(view);
+            },
+            error: (err: unknown) => {
+              const e = toApiError(err);
+              this.notifications.error((e.code && PAYMENT_ERROR_LABELS[e.code]) || userMessage(e));
+              this.resource.reload();
+            },
+          });
       });
   }
 
