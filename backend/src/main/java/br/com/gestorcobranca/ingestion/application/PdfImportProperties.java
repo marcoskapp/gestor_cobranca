@@ -42,6 +42,13 @@ public record PdfImportProperties(@DefaultValue("20MB") DataSize maxFileSize,
                                   @DefaultValue("P120D") Duration retention,
                                   @DefaultValue("200") int retentionBatch) {
 
+    public PdfImportProperties {
+        // em MB inteiros: a tela e o manual falam em "até N MB" (parâmetros do manual)
+        if (maxFileSize == null || maxFileSize.toBytes() <= 0 || maxFileSize.toBytes() % DataSize.ofMegabytes(1).toBytes() != 0) {
+            throw new IllegalArgumentException("app.ingestion.pdf.max-file-size deve ser um número positivo de MB inteiros (ex.: 20MB)");
+        }
+    }
+
     public static PdfImportProperties defaults() {
         return new PdfImportProperties(DataSize.ofMegabytes(20), 200, 30, 5, 150, 110, 0.85, 220,
                 Duration.ofSeconds(90), 6000, 12000, 1, Duration.ofDays(120), 200);

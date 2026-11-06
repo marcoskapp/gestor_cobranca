@@ -204,15 +204,18 @@ export function confidenceText(confidence: number | null): string {
 }
 
 export const PDF_ACCEPT = '.pdf,application/pdf';
-export const PDF_MAX_BYTES = 20 * 1024 * 1024;
-
-/** Validação local do PDF antes do envio (o servidor repete e confere o conteúdo). */
-export function pdfFileProblem(file: Pick<File, 'name' | 'size'>): string | null {
+/**
+ * Validação local do PDF antes do envio (o servidor repete e confere o conteúdo).
+ *
+ * @param maxMb limite em MB que o servidor aplica (`app.ingestion.pdf.max-file-size`, lido dos parâmetros do
+ *              manual); `null` enquanto não chegou — aí o tamanho fica só com o servidor, sem número chutado
+ */
+export function pdfFileProblem(file: Pick<File, 'name' | 'size'>, maxMb: number | null): string | null {
   if (file.size <= 0) {
     return 'O arquivo está vazio.';
   }
-  if (file.size > PDF_MAX_BYTES) {
-    return 'O PDF passa do limite de 20 MB.';
+  if (maxMb !== null && file.size > maxMb * 1024 * 1024) {
+    return `O PDF passa do limite de ${maxMb} MB.`;
   }
   if (!/\.pdf$/i.test(file.name)) {
     return 'Envie um arquivo .pdf.';

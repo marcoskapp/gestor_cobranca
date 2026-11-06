@@ -3,12 +3,18 @@ import { SCREENS } from '../content/screens';
 import { MANUAL_SCHEMA_VERSION, PROFILE_LABELS } from './manual.models';
 import { OPEN_ROUTES, loadKnowledgeBase, moduleOfScreen } from './manual-index';
 import { loadAllIndicators } from './indicators/indicator-index';
+import { MANUAL_PARAMETERS, MANUAL_PHRASES, ManualParameterFormat, ManualPhrase, unknownMarkers } from './manual-parameters';
 
 /**
  * Base de conhecimento do chat de suporte, gerada a partir do manual (fonte única) por
  * `npm run knowledge` e gravada em `backend/src/main/resources/helpdesk/knowledge-base.json`
  * (docs/tecnico/desenho/chat-suporte.md §4). O backend só lê esse arquivo: o navegador envia a chave da
  * tela e nunca o texto do manual, então não consegue injetar instruções no prompt de sistema.
+ *
+ * Parâmetros de configuração citados no texto (prazos, limites) seguem como marcadores (`{{debt.cumulativeWindow}}`,
+ * ux.md §8.7), com o catálogo de frases (`phrases`) e o formato de cada parâmetro (`parameters`): o backend os
+ * resolve na carga com os valores que aplica, para o chat citar o mesmo número da tela. Marcador desconhecido
+ * interrompe a exportação (e, com ela, o `knowledge:check` do build).
  *
  * Acesso de cada tela (para a IA ensinar só o que a pessoa pode fazer):
  * - `OPEN`: qualquer usuário autenticado;
@@ -61,6 +67,10 @@ export interface KnowledgeExport {
     use: string;
     screens: readonly string[];
   }[];
+  /** Formato de cada parâmetro citado (`integer`, `decimal`, `money`). */
+  parameters: Readonly<Record<string, ManualParameterFormat>>;
+  /** Frases dos marcadores: parâmetro, formas no zero/singular/geral (`{n}`) e texto neutro. */
+  phrases: Readonly<Record<string, ManualPhrase>>;
 }
 
 const MENU_ITEMS = NAVIGATION.flatMap((s) => s.items);
@@ -80,10 +90,28 @@ export function screenAccess(path: string | null): KnowledgeScreenAccess {
   return { kind: 'CONTEXT', permissions: parent ? [...parent.permissions] : [] };
 }
 
+/** Falha com a lista de marcadores desconhecidos ou mal formados em qualquer texto exportado. */
+function assertKnownMarkers(data: object): void {
+  const problems = new Set<string>();
+  const visit = (value: unknown): void => {
+    if (typeof value === 'string') {
+      unknownMarkers(value).forEach((p) => problems.add(p));
+    } else if (Array.isArray(value)) {
+      value.forEach(visit);
+    } else if (value && typeof value === 'object') {
+      Object.values(value).forEach(visit);
+    }
+  };
+  visit(data);
+  if (problems.size > 0) {
+    throw new Error(`Marcadores de parâmetro desconhecidos no manual: ${[...problems].join(', ')} (veja manual-parameters.ts)`);
+  }
+}
+
 export async function buildKnowledgeExport(): Promise<KnowledgeExport> {
   const [kb, indicators] = await Promise.all([loadKnowledgeBase(), loadAllIndicators()]);
   const paths = new Map(SCREENS.map((s) => [s.key, s.path]));
-  return {
+  const data: Omit<KnowledgeExport, 'parameters' | 'phrases'> = {
     schemaVersion: MANUAL_SCHEMA_VERSION,
     profiles: PROFILE_LABELS,
     modules: kb.modules.map((m) => ({
@@ -125,4 +153,6 @@ export async function buildKnowledgeExport(): Promise<KnowledgeExport> {
       screens: [...i.screens],
     })),
   };
+  assertKnownMarkers(data);
+  return { ...data, parameters: MANUAL_PARAMETERS, phrases: MANUAL_PHRASES };
 }

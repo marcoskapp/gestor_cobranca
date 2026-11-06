@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { manualPhrase } from '../../../core/onboarding/manual/manual-parameters.service';
 import { RouterLink } from '@angular/router';
 import { Observable, finalize, map } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -47,6 +48,8 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 })
 export class StatementDetail {
   readonly id = input.required<string>();
+  /** Limite da segunda aprovação do ajuste (`app.settlement.adjustment-dual-approval-threshold`), do servidor. */
+  protected readonly dualApproval = manualPhrase('settlement.adjustmentDualApproval');
 
   private readonly api = inject(StatementsApi);
   private readonly transfersApi = inject(TransfersApi);

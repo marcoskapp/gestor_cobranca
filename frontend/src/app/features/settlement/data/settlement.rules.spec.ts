@@ -78,9 +78,11 @@ describe('regras da prestação de contas', () => {
     expect(statementActions(approved, ctx()).cancel).toBe(false);
   });
 
-  it('ajuste acima de R$ 1.000,00 exige segunda pessoa; quem pediu não decide', () => {
-    expect(needsSecondApproval(1000)).toBe(false);
-    expect(needsSecondApproval(-1000.01)).toBe(true);
+  it('ajuste acima do limite do servidor exige segunda pessoa; sem o limite, não antecipa; quem pediu não decide', () => {
+    expect(needsSecondApproval(1000, 1000)).toBe(false);
+    expect(needsSecondApproval(-1000.01, 1000)).toBe(true);
+    expect(needsSecondApproval(600, 500)).toBe(true);
+    expect(needsSecondApproval(5000, null)).toBeNull();
     const pending = adjustment({ status: 'PENDING_SECOND_APPROVAL', requestedBy: 'u-1' });
     expect(canDecideAdjustment(pending, 'u-1', true)).toBe(false);
     expect(canDecideAdjustment(pending, 'u-2', true)).toBe(true);

@@ -50,8 +50,11 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
         public ReviewStatus {
             rejectedWindow = rejectedWindow == null ? Duration.ofDays(30) : rejectedWindow;
             maxRejected = maxRejected == null ? 5 : maxRejected;
-            if (rejectedWindow.isNegative() || rejectedWindow.isZero()) {
-                throw new IllegalArgumentException("app.payment.review-status.rejected-window deve ser positiva");
+            // em dias inteiros: a tela e o manual falam em "nos últimos N dias" (parâmetros do manual)
+            if (rejectedWindow.isNegative() || rejectedWindow.isZero()
+                    || rejectedWindow.toSeconds() % Duration.ofDays(1).toSeconds() != 0 || rejectedWindow.getNano() != 0) {
+                throw new IllegalArgumentException(
+                        "app.payment.review-status.rejected-window deve ser um número positivo de dias inteiros (ex.: P30D)");
             }
             if (maxRejected < 1) {
                 throw new IllegalArgumentException("app.payment.review-status.max-rejected deve ser >= 1");

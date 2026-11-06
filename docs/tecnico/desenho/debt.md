@@ -32,7 +32,10 @@ quando nenhum componente aumenta e `decreases + recentReductions <= threshold`.
   dois pedidos simultâneos em componentes diferentes, cada um dentro do limite sozinho → um `WITHIN_LIMIT` e o outro
   recusado com `title_amount.evidence_required`).
 - Janela e validade da proposta só em **dias inteiros** (`DebtProperties` recusa subir com outro valor), porque telas,
-  manual e tour falam em dias; o manual, o tour e as novidades citam os padrões de 30 e 15 dias.
+  manual e tour falam em dias. O manual, o tour e as novidades **não** escrevem 30 e 15 dias à mão: usam os
+  marcadores `{{debt.cumulativeWindow}}` e `{{debt.proposalValidity}}`, resolvidos com os valores que
+  `DebtManualParameters` (`shared.manual.ManualParameterSource`) publica em `GET /api/v1/helpdesk/manual-parameters`
+  — e, na base do chat de suporte, na subida do backend ([ux.md](ux.md) §8.7). Mudar a configuração muda o texto.
 - O pedido guarda em memória (`@Transient`) se foi o acumulado que levou a `DUAL_CONTROL` (`isCumulativeLimitReached`):
   mensagem própria em `title_amount.evidence_required`, `cumulativeLimit` na auditoria `title_amount.requested` e no
   evento `title.amount_adjustment_requested`, métrica `debt.title_amount.cumulative_limit`.

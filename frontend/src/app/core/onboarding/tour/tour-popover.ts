@@ -1,4 +1,5 @@
 import { Component, ElementRef, inject, viewChild } from '@angular/core';
+import { ManualTextPipe } from '../manual/manual-text.pipe';
 import { TourEngine } from './tour-engine.service';
 
 let nextId = 0;
@@ -9,6 +10,7 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-tour-popover',
+  imports: [ManualTextPipe],
   template: `
     @if (engine.view(); as v) {
       <section
@@ -26,7 +28,7 @@ let nextId = 0;
           <button type="button" class="btn-close tour__close" aria-label="Fechar tour" (click)="engine.dismiss()"></button>
         </header>
         <h2 class="tour__title" [id]="id + '-title'">{{ v.step.title }}</h2>
-        <p class="tour__body" [id]="id + '-body'">{{ v.step.body }}</p>
+        <p class="tour__body" [id]="id + '-body'">{{ v.step.body | manualText }}</p>
         <div class="tour__dots" aria-hidden="true">
           @for (dot of dots(v.total); track dot) {
             <span class="tour__dot" [class.tour__dot--active]="dot === v.index"></span>

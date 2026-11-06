@@ -5,8 +5,12 @@ import br.com.gestorcobranca.shared.json.JsonCodec;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.math.BigDecimal;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
+import static br.com.gestorcobranca.helpdesk.ManualParameterDefaults.DEFAULTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -15,10 +19,15 @@ class ClasspathKnowledgeBaseTest {
 
     private final JsonCodec json = new JsonCodec(JsonMapper.builder().build());
 
+    private ClasspathKnowledgeBase exported(Map<String, BigDecimal> values) {
+        return new ClasspathKnowledgeBase(json, ClasspathKnowledgeBase.readExport(), values);
+    }
+
     @Test
     void loadsTheExportedManualWithAccessPerScreen() {
-        ClasspathKnowledgeBase kb = new ClasspathKnowledgeBase(json);
-        assertThat(kb.contentVersion()).hasSize(16);
+        ClasspathKnowledgeBase kb = exported(DEFAULTS);
+        // versão do JSON (16 hex) + "." + 8 hex dos valores usados nas frases: cabe em knowledge_version varchar(32)
+        assertThat(kb.contentVersion()).matches("[0-9a-f]{16}\\.[0-9a-f]{8}").hasSizeLessThanOrEqualTo(32);
         Screen queue = kb.screen("collection.queue").orElseThrow();
         assertThat(queue.title()).isEqualTo("Estação de cobrança");
         assertThat(queue.module()).isEqualTo("cobranca");
@@ -38,7 +47,7 @@ class ClasspathKnowledgeBaseTest {
 
     @Test
     void loadsTheIndicatorHelpOfEachScreen() {
-        ClasspathKnowledgeBase kb = new ClasspathKnowledgeBase(json);
+        ClasspathKnowledgeBase kb = exported(DEFAULTS);
         var rate = kb.indicator("analytics.recovery.rate").orElseThrow();
         assertThat(rate.title()).isEqualTo("Taxa de recuperação");
         assertThat(rate.module()).isEqualTo("paineis");
@@ -56,7 +65,7 @@ class ClasspathKnowledgeBaseTest {
     @Test
     void exportWithoutIndicatorsStillLoads() {
         ClasspathKnowledgeBase kb = new ClasspathKnowledgeBase(json, """
-                {"contentVersion":"x","schemaVersion":1,"profiles":{},"modules":[],"screens":[],"glossary":[]}""");
+                {"contentVersion":"x","schemaVersion":2,"profiles":{},"modules":[],"screens":[],"glossary":[]}""", Map.of());
         assertThat(kb.indicator("analytics.recovery.rate")).isEmpty();
         assertThat(kb.screenIndicators("analytics.recovery")).isEmpty();
     }
@@ -64,8 +73,51 @@ class ClasspathKnowledgeBaseTest {
     @Test
     void incompatibleSchemaPreventsStartup() {
         assertThatThrownBy(() -> new ClasspathKnowledgeBase(json, """
-                {"contentVersion":"x","schemaVersion":99,"profiles":{},"modules":[],"screens":[],"glossary":[]}"""))
+                {"contentVersion":"x","schemaVersion":99,"profiles":{},"modules":[],"screens":[],"glossary":[]}""", Map.of()))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("formato 99");
+    }
+
+    @Test
+    void parameterMarkersAreResolvedWithTheApplicationValues() {
+        ClasspathKnowledgeBase kb = exported(DEFAULTS);
+        assertThat(kb.screen("debt.title-amounts").orElseThrow().purpose())
+                .anySatisfy(r -> assertThat(r).contains("do mesmo título nos últimos 30 dias").contains("vence em 15 dias"));
+        assertThat(kb.indicator("settlement.statement.adjustments").map(i -> i.how()).orElse(""))
+                .contains("acima de R$ 1.000,00");
+        // valor diferente do padrão: o chat cita o número configurado, no singular quando é 1
+        Map<String, BigDecimal> changed = new java.util.HashMap<>(DEFAULTS);
+        changed.put("debt.cumulativeWindowDays", BigDecimal.ONE);
+        // mesmo JSON, outra configuração: outra versão efetiva (a parte do JSON é a mesma); valor igual, mesma versão
+        ClasspathKnowledgeBase other = exported(changed);
+        assertThat(other.contentVersion()).isNotEqualTo(kb.contentVersion())
+                .startsWith(kb.contentVersion().substring(0, 17));
+        Map<String, BigDecimal> sameValues = new java.util.HashMap<>(DEFAULTS);
+        sameValues.put("scoring.minAuc", new BigDecimal("0.6000"));
+        assertThat(exported(sameValues).contentVersion()).isEqualTo(kb.contentVersion());
+        assertThat(exported(changed).screen("debt.title-amounts").orElseThrow().purpose())
+                .anySatisfy(r -> assertThat(r).contains("do mesmo título no último dia"));
+        // nenhum marcador sobra em texto algum
+        Stream<String> texts = Stream.concat(kb.screens().stream().flatMap(sc -> Stream.concat(
+                        Stream.of(sc.title(), sc.objective()), Stream.of(sc.purpose(), sc.inputs(), sc.outputs()).flatMap(java.util.List::stream))),
+                Stream.of("cobranca", "negociacao", "pagamentos", "score", "importacao").map(id -> kb.module(id).orElseThrow())
+                        .flatMap(m -> Stream.concat(m.overview().stream(), m.rules().stream())));
+        assertThat(texts).noneMatch(t -> t.contains("{{"));
+        assertThat(kb.moduleIndicators("score")).allSatisfy(i -> assertThat(i.what() + i.how() + i.use()).doesNotContain("{{"));
+    }
+
+    @Test
+    void parameterWithoutValueOrUnknownMarkerPreventsStartup() {
+        Map<String, BigDecimal> missing = new java.util.HashMap<>(DEFAULTS);
+        missing.remove("debt.proposalValidityDays");
+        assertThatThrownBy(() -> exported(missing)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("debt.proposalValidityDays");
+        assertThatThrownBy(() -> new ClasspathKnowledgeBase(json, """
+                {"contentVersion":"x","schemaVersion":2,"profiles":{},"modules":[],"glossary":[],
+                 "screens":[{"id":"a.b","module":"geral","title":"T","objective":"Vence {{debt.naoExiste}}.","purpose":[],
+                   "profiles":[],"inputs":[],"outputs":[],"related":[],"terms":[],"path":null,
+                   "access":{"kind":"OPEN","permissions":[]}}],
+                 "parameters":{},"phrases":{}}""", Map.of()))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("{{debt.naoExiste}}");
     }
 
     @Test

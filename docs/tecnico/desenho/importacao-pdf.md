@@ -59,7 +59,7 @@ flowchart LR
 | Verificação | Código |
 | --- | --- |
 | Assinatura `%PDF-` nos primeiros 1.024 bytes (tipo pelo conteúdo, não pela extensão) | `import.file_type_invalid` |
-| Tamanho (padrão 20 MB, `app.ingestion.pdf.max-file-size`) | `pdf_import.file_too_large` |
+| Tamanho (padrão 20 MB, `app.ingestion.pdf.max-file-size`, só MB inteiros — tela e manual citam o valor por `IngestionManualParameters`, [ux.md](ux.md) §8.7) | `pdf_import.file_too_large` |
 | Pede senha para abrir (`InvalidPasswordException`) | `pdf_import.password_protected` |
 | JavaScript em qualquer objeto: árvore de nomes `/JavaScript`, `/JS`, `/S /JavaScript` (catálogo, páginas, anotações, formulários — percorre a tabela de referências inteira) | `pdf_import.javascript` |
 | Estrutura que o parser não abre | `pdf_import.malformed` |

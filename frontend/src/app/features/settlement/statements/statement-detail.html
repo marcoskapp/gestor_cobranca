@@ -224,7 +224,7 @@
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-adjustments">
           <div class="st-head">
-            <p class="app-muted st-small">Motivo obrigatório; acima de R$ 1.000,00 exige a segunda aprovação de outra pessoa. Quem pede ajuste não aprova o demonstrativo.</p>
+            <p class="app-muted st-small">Motivo obrigatório; {{ dualApproval() }} exige a segunda aprovação de outra pessoa. Quem pede ajuste não aprova o demonstrativo.</p>
             @if (act.adjust) {
               <button class="btn btn-outline-primary" type="button" (click)="requestAdjustment()">
                 <app-icon name="plus-lg" />

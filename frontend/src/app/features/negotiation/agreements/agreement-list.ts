@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { manualPhrase } from '../../../core/onboarding/manual/manual-parameters.service';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -115,7 +116,7 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
             @if (b.rejectedCount) {
               <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-danger-subtle text-danger-emphasis border-danger-subtle">
                 <app-icon name="x-circle" />Pagamento recusado
-                <span class="visually-hidden">: {{ b.rejectedCount }} nos últimos 30 dias</span>
+                <span class="visually-hidden">: {{ b.rejectedCount }} {{ rejectedWindow() }}</span>
               </span>
             }
           </div>
@@ -143,6 +144,8 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
 })
 export class AgreementList {
   private readonly api = inject(AgreementsApi);
+  /** Janela dos recusados (`app.payment.review-status.rejected-window`), do servidor. */
+  protected readonly rejectedWindow = manualPhrase('payment.rejectedReviewWindow');
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly statuses = statusOptions('agreement');
   protected readonly origins = AGREEMENT_ORIGIN_LABELS;

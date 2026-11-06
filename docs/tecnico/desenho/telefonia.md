@@ -246,7 +246,7 @@ tabulação desativada ou interação com mais de 7 dias → não registra (mét
 `BACKOFFICE`, `TECHNICAL_ISSUE`, `OTHER`; os quatro do meio são pausas produtivas). O operador escolhe entrar
 (opcionalmente numa campanha ativa do seu escopo), disponível, pausa e sair; `ON_CALL`/`WRAP_UP` são conduzidos pelas
 chamadas (não há pausa nem saída voluntária no pós-atendimento: tabule primeiro). Sinal do cliente
-(`POST /presence/me/heartbeat`) a cada 30 s; sem sinal por 90 s o operador sai (exceto em chamada). Cada mudança
+(`POST /presence/me/heartbeat`) a cada 30 s; sem sinal por 90 s (`app.telephony.presence-timeout`, só segundos inteiros; o manual cita o valor por `TelephonyManualParameters`, [ux.md](ux.md) §8.7) o operador sai (exceto em chamada). Cada mudança
 grava um intervalo **append-only** (`presence_interval`) e `agent.presence_changed`.
 
 **Por que no telephony e não no identity.** O estado é do discador: muda a cada chamada (subsegundo), é lido e

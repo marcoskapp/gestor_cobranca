@@ -122,8 +122,8 @@ export const SCREENS: readonly ScreenGuide[] = [
       {
         version: 3,
         items: [
-          'A proposta de aumento do limite vence em 15 dias: a aba Limite mostra a data; vencida, não pode mais ser confirmada e é descartada.',
-          'O limite vale também por título: reduções aplicadas sem segunda pessoa no mesmo título nos últimos 30 dias somam com a nova.',
+          'A proposta de aumento do limite vence {{debt.proposalValidity}}: a aba Limite mostra a data; vencida, não pode mais ser confirmada e é descartada.',
+          'O limite vale também por título: reduções aplicadas sem segunda pessoa no mesmo título {{debt.cumulativeWindow}} somam com a nova.',
         ],
       },
     ],
@@ -147,7 +147,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
       {
         version: 4,
-        items: ['Corrigir valor: reduções já aplicadas sem segunda pessoa no mesmo título nos últimos 30 dias somam com a nova; passando do limite, a prévia avisa que vai para aprovação.'],
+        items: ['Corrigir valor: reduções já aplicadas sem segunda pessoa no mesmo título {{debt.cumulativeWindow}} somam com a nova; passando do limite, a prévia avisa que vai para aprovação.'],
       },
     ],
   },

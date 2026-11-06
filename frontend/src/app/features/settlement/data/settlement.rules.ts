@@ -9,8 +9,6 @@ import { AdjustmentView, CommissionRules, RateRule, StatementView } from './sett
 export const DEFAULT_RULE_CODE = 'PADRAO';
 export const RULE_CODE_PATTERN = /^[A-Z0-9_]{1,40}$/;
 export const MAX_RATE_RULES = 100;
-/** `app.settlement.adjustment-dual-approval-threshold` (padrão R$ 1.000,00). */
-export const ADJUSTMENT_DUAL_APPROVAL_THRESHOLD = 1000;
 export const ADJUSTMENT_REASON_MIN = 10;
 
 const decimals = (value: number) => {
@@ -215,9 +213,15 @@ export function statementActions(s: StatementView, ctx: StatementContext): State
   };
 }
 
-/** Ajuste acima do limite fica aguardando a segunda aprovação de outra pessoa. */
-export function needsSecondApproval(amount: number | null | undefined, threshold = ADJUSTMENT_DUAL_APPROVAL_THRESHOLD): boolean {
-  return Math.abs(amount ?? 0) > threshold;
+/**
+ * Ajuste acima do limite fica aguardando a segunda aprovação de outra pessoa.
+ *
+ * @param threshold limite que o servidor aplica (`app.settlement.adjustment-dual-approval-threshold`, lido dos
+ *                  parâmetros do manual); `null` enquanto não chegou — o resultado também é `null` (a tela não
+ *                  antecipa a decisão, que fica com o servidor)
+ */
+export function needsSecondApproval(amount: number | null | undefined, threshold: number | null): boolean | null {
+  return threshold === null ? null : Math.abs(amount ?? 0) > threshold;
 }
 
 /** O usuário pode decidir (segunda aprovação) o ajuste pendente? Quem pediu não decide. */

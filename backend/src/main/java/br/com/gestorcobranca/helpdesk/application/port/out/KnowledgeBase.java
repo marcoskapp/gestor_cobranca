@@ -13,10 +13,16 @@ import java.util.Set;
  */
 public interface KnowledgeBase {
 
-    /** Versão do formato aceito ({@code MANUAL_SCHEMA_VERSION} do frontend). */
-    int SUPPORTED_SCHEMA_VERSION = 1;
+    /**
+     * Versão do formato aceito ({@code MANUAL_SCHEMA_VERSION} do frontend). 2: textos com marcadores de parâmetro
+     * ({@code {{debt.cumulativeWindow}}}), resolvidos na carga com os valores da aplicação.
+     */
+    int SUPPORTED_SCHEMA_VERSION = 2;
 
-    /** Versão do conteúdo (hash do JSON), registrada em cada resposta. */
+    /**
+     * Versão efetiva do conteúdo, registrada em cada resposta: hash do JSON (16 hex) + {@code .} + 8 hex do SHA-256 dos
+     * valores de configuração usados nas frases do manual (ex.: {@code fb4eccfcc0f84512.1a2b3c4d}; 25 caracteres).
+     */
     String contentVersion();
 
     Optional<Screen> screen(String id);

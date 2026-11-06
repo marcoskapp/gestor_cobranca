@@ -401,7 +401,7 @@ Nunca o texto da pergunta, da resposta ou do chamado, nome, documento ou contato
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |
-| `helpdesk.question_answered` / `helpdesk.question_unanswered` | resposta gravada (`ANSWERED` × `UNANSWERED`, `OUT_OF_SCOPE` ou `FAILED`) | `conversationId`, `turn`, `outcome`, `topic` (`HOW_TO`, `DATA_LOOKUP`, `BUSINESS_RULE`, `ACCESS`, `SYSTEM_ERROR`, `OUT_OF_SCOPE`, `OTHER`), `screen` (chave da tela do manual), `module`, `ticketDrafted`, `toolCalls`, `modelCalls`, `inputTokens`, `outputTokens`, `cost`, `costCurrency`, `model`, `promptVersion`, `knowledgeVersion`, `errorCode`; `durationMs` |
+| `helpdesk.question_answered` / `helpdesk.question_unanswered` | resposta gravada (`ANSWERED` × `UNANSWERED`, `OUT_OF_SCOPE` ou `FAILED`) | `conversationId`, `turn`, `outcome`, `topic` (`HOW_TO`, `DATA_LOOKUP`, `BUSINESS_RULE`, `ACCESS`, `SYSTEM_ERROR`, `OUT_OF_SCOPE`, `OTHER`), `screen` (chave da tela do manual), `module`, `ticketDrafted`, `toolCalls`, `modelCalls`, `inputTokens`, `outputTokens`, `cost`, `costCurrency`, `model`, `promptVersion`, `knowledgeVersion` (versão do JSON do manual + `.` + 8 hex dos valores de configuração usados nas frases, ex.: `759cd01a428772b3.1a2b3c4d`), `errorCode`; `durationMs` |
 | `helpdesk.feedback_recorded` | avaliação 👍/👎 (inclusive troca) | `conversationId`, `rating` (`UP`/`DOWN`), `reason` (catálogo), `screen`, `topic`, `outcome` |
 | `helpdesk.ticket_drafted` | IA preparou o chamado | `conversationId`, `screen` |
 | `helpdesk.ticket_opened` | issue aberta (ou duplicado de uma aberta) | `conversationId`, `screen`, `duplicate`, `duplicateOf`, `attempts`, `recovered` (encontrada pelo marcador), `minutesToConfirm`, `issueNumber` |

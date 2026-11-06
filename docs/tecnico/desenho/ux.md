@@ -163,7 +163,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 
 **Acesso**: menu de ajuda ("Tour desta tela", "Sobre esta tela", "Manual do sistema") e busca rápida (`help.about`, `help.manual`). O manual é visível a todos os autenticados; só os links para telas seguem as permissões.
 
-**Conteúdo**: pt-BR para o usuário final, sem códigos internos nem jargão técnico (o teste recusa HTML, identificadores em caixa alta com sublinhado e termos como "API" ou "endpoint"); coerente com os documentos de negócio e com as regras que o sistema aplica. Ao mudar uma regra de negócio que aparece no manual, atualize o texto no mesmo PR.
+**Conteúdo**: pt-BR para o usuário final, sem códigos internos nem jargão técnico (o teste recusa HTML, identificadores em caixa alta com sublinhado e termos como "API" ou "endpoint"); coerente com os documentos de negócio e com as regras que o sistema aplica. Ao mudar uma regra de negócio que aparece no manual, atualize o texto no mesmo PR. Prazo, limite ou quantidade que vem da configuração nunca é escrito à mão: use o marcador de parâmetro (§8.7).
 
 **Base do chat de suporte** ([`chat-suporte.md`](chat-suporte.md) §7): `npm run knowledge` exporta o manual (`knowledge-export.ts`: módulos, telas com caminho e acesso pelo menu, glossário, versão) para `backend/src/main/resources/helpdesk/knowledge-base.json`; `knowledge:check` roda antes do build e dos testes e falha com o arquivo desatualizado — **ao mudar o manual, rode `npm run knowledge` e versione o JSON**. O chat (`core/support-chat/`, botão na barra superior, painel `NgbOffcanvas` como "Sobre esta tela") envia só a chave da tela; o texto do manual vem do servidor.
 
@@ -204,6 +204,78 @@ Pedido do responsável: *"trazer contexto de negócio para cada valor exibido, i
 **Verificação**: `hints:check` (todo id usado existe; todo cartão tem `info`; `app-info-hint` com `indicator` e `label`), `indicator-content.spec.ts` (ids, módulo, campos e tamanhos, telas existentes, "Saiba mais" com manual, a mesma regra anti-jargão do manual — `content-rules.ts`), `info-hint.spec.ts` (hover, foco, Enter, Tab, toque, clique fora, Esc, ARIA), `knowledge-export.spec.ts` e `ClasspathKnowledgeBaseTest`/`HelpdeskIT` no backend.
 
 **Inventário** (195 indicadores, 15 módulos do manual): painéis (operacional, recuperação, conversão, produtividade, confiabilidade e a tela inicial), Minhas pendências, score (cartão do caso, monitoramento, modelo, execuções), remuneração variável (desempenho, extratos, prévia, metas, monitoria), prestação de contas (demonstrativo, posição do credor, repasses), pagamentos e conciliação, negociação (simulador, propostas, acordos), importação (validação, totais de controle, alertas, impacto, lote, PDF), campanhas (execução e testes A/B), comunicação (SLA e janela de 24 h), telefonia (comparação, discador, presença), assistente (qualidade), compliance (prazo LGPD), jurídico (painel e prazos) e consumo da integração dos credores.
+
+### 8.7 Parâmetros da configuração no texto (decisões 918–926)
+
+Pedido do responsável: *"Texto fixo no manual: ajustar para ficar dinâmico conforme eventuais mudanças."* Prazos,
+limites e quantidades que vêm de `app.*` no backend (janela do limite acumulado da correção de valor, validade da
+proposta, suspensão da quebra, tamanho do PDF…) não são mais escritos à mão no manual, no tour, nas novidades, no "i"
+dos indicadores nem nos textos de tela: o texto usa um **marcador** resolvido com o valor que o servidor aplica.
+
+| Opção avaliada | Decisão |
+| --- | --- |
+| Endpoint de cada módulo (ex.: `GET /title-amount-adjustments/settings`, que já traz `cumulativeWindowDays`) | **Descartado**: exige a permissão da tela (o manual é lido por todos os perfis → 403 ou texto errado) e traria dados da assessoria |
+| Endpoint único autenticado com só números de configuração, alimentado por um contrato do kernel | **Adotado**: `GET /api/v1/helpdesk/manual-parameters` (`ACTOR_USER`), agregando `shared.manual.ManualParameterSource` de cada módulo dono, como `PendingWorkSource` |
+| Marcador = número (`{{debt.cumulativeWindowDays}}`) | **Descartado**: "nos últimos 1 dias", e sem texto neutro possível enquanto carrega ("nos últimos dias"?) |
+| Marcador = **frase** do catálogo (`{{debt.cumulativeWindow}}` → "nos últimos 30 dias" · "no último dia" · "no período configurado") | **Adotado**: singular, zero e texto neutro corretos na mesma frase |
+| Base do chat com texto neutro | **Descartado**: o chat responderia "o período configurado" sem saber o número |
+| Base do chat com marcadores resolvidos no backend, na subida | **Adotado**: mesmo valor da tela; marcador desconhecido ou parâmetro sem valor impedem a subida |
+
+**Peças**
+
+- Backend: `shared.manual.ManualParameterSource` (contrato publicado do kernel: `module()` + `parameters()` com
+  `BigDecimal`; só números de configuração da aplicação, iguais para todas as assessorias, nunca dado de assessoria ou
+  pessoa); uma implementação por módulo dono (`DebtManualParameters`, `NegotiationManualParameters`,
+  `PaymentManualParameters`, `ComplianceManualParameters`, `PendingWorkManualParameters`, `TelephonyManualParameters`,
+  `IngestionManualParameters`, `ScoringManualParameters`, `SettlementManualParameters`, em `application/service`);
+  agregador `helpdesk.application.service.ManualParameterService` (`ManualParameterUseCases`, chave
+  `<modulo>.<nome>`, valida padrão, repetição e sinal na subida); `ManualParametersController` (`ACTOR_USER`,
+  `no-store`). O helpdesk não depende dos módulos: recebe as fontes por injeção.
+- Unidade exata: as `*Properties` recusam subir com prazo que não cabe na unidade citada (dias inteiros em
+  `app.debt.amount-adjustment.*` e `app.payment.review-status.rejected-window`, segundos inteiros em
+  `app.telephony.presence-timeout`, MB inteiros em `app.ingestion.pdf.max-file-size`) — o texto nunca mostra número
+  arredondado.
+- Frontend: `core/onboarding/manual/manual-parameters.ts` (só dados e funções puras: `MANUAL_PARAMETERS` com o
+  formato `integer`/`decimal` (casas que o valor tem, de 2 a 4, sem arredondar)/`money` (2 casas), `MANUAL_PHRASES` com `zero`/`one`/`other` (`{n}`)/`neutral`,
+  `resolveManualText`, `renderPhrase`, `unknownMarkers`); `ManualParameters` (serviço: lê uma vez por sessão, sob
+  demanda, só com usuário autenticado, sem notificação de erro; falha → nova tentativa só depois de 30 s; valor que não
+  é número finito vira texto neutro); pipe impuro `manualText` (com memória do último resultado) nos templates do
+  manual rápido, manual do módulo, central de ajuda, tour, novidades da tela e "i"; `manualPhrase('<frase>')` para
+  textos de tela montados no componente; `manualParameter('<parâmetro>')` (valor ou `null`) para regras de tela
+  que dependem da configuração — sem valor, a tela não antecipa e a decisão fica com o servidor (limite do PDF,
+  prévia da segunda aprovação do ajuste do demonstrativo).
+- Base do chat: `npm run knowledge` exporta os textos com os marcadores mais `parameters` e `phrases` (formato 2); a
+  exportação falha com marcador desconhecido (e com ela o `knowledge:check` do build); `ClasspathKnowledgeBase`
+  resolve tudo na carga com `helpdesk.domain.service.ManualText` (mesmas regras de formato do frontend); a versão
+  efetiva da base é a do JSON + `.` + 8 hex do SHA-256 dos valores usados (decisão 926).
+
+**Onde o marcador pode aparecer**: objetivo, para que serve, entradas, saídas e motivo das relacionadas do manual
+rápido; visão geral, encaixe e regras do módulo; definição do glossário; o que é, como é calculado e como usar do
+indicador; texto dos passos do tour; itens das novidades das telas. **Não** em títulos, nomes de termos, resumo de
+tour, notas de versão nem checklists (não são resolvidos; o teste recusa).
+
+**Enquanto carrega ou se a leitura falhar**: a frase sai no texto neutro ("no período configurado", "pelo prazo
+máximo configurado") — nunca um número chutado. Quando o valor chega, o texto atualiza sozinho (sinal).
+
+**Contrato para texto novo que cite configuração**
+1. Backend: o módulo dono publica o valor no seu `ManualParameterSource` (chave nova em camelCase, com a unidade no
+   nome: `...Days`, `...Seconds`, `...Mb`); se a unidade puder não ser exata, a `*Properties` recusa na subida.
+2. Frontend: parâmetro em `MANUAL_PARAMETERS` e frase em `MANUAL_PHRASES` (as quatro formas encaixando na mesma
+   frase); texto com `{{<modulo>.<frase>}}`.
+3. Atualize `ManualParameterDefaults` (testes do backend) e rode `npm run knowledge`.
+
+**Testes**: `manual-parameters.spec.ts` (resolução, singular/zero, texto neutro sem dígitos, marcador desconhecido e
+mal formado, catálogo coerente, todo marcador do conteúdo conhecido e só onde é resolvido, tamanho e jargão com os
+padrões e com o texto neutro), `manual-parameters.service.spec.ts` (carga única, neutro → número, falha, valor
+inválido, sem sessão), `knowledge-export.spec.ts`; backend `ManualTextTest`, `ManualParameterServiceTest`,
+`ManualParametersControllerTest`, `ClasspathKnowledgeBaseTest` (resolução com outros valores, parâmetro sem valor e
+marcador desconhecido impedem a subida), testes das `*Properties` e `ManualParametersIT` (todo usuário interno, mesmo
+sem permissão, lê os valores aplicados; devedor e integração 403; sem sessão 401; base do chat resolvida).
+
+**Inventário** (15 parâmetros, 16 frases): correção de valor (janela do acumulado, validade da proposta), suspensão da
+quebra (prazo máximo e carência), janela dos pagamentos recusados, prazo padrão das solicitações de titulares, "perto
+do prazo" das pendências, tempo sem sinal na telefonia, tamanho do PDF, padrões do score (janela de desfecho, carência,
+AUC mínima, limites de PSI) e limite da segunda aprovação do ajuste do demonstrativo.
 
 ## 9. Estado de interface no servidor (módulo `identity`)
 

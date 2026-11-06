@@ -74,7 +74,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     id: 'settlement.statement.adjustments',
     title: 'Ajustes',
     what: 'Correções aprovadas do valor, sempre com motivo (por exemplo, contestação do credor no período anterior).',
-    how: 'Soma dos ajustes do demonstrativo, positivos ou negativos. Acima de R$ 1.000,00 precisam da aprovação de outra pessoa.',
+    how: 'Soma dos ajustes do demonstrativo, positivos ou negativos. Os ajustes {{settlement.adjustmentDualApproval}} precisam da aprovação de outra pessoa.',
     use: 'Ajustes frequentes indicam erro recorrente em regras ou baixas: corrija a causa em vez de ajustar todo mês.',
     screens: ['settlement.statement', 'settlement.position'],
   },

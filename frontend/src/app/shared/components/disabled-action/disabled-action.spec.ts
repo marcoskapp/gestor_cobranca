@@ -2,10 +2,12 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DisabledAction } from './disabled-action';
 
+/** Conta os cliques que borbulham até o host (escuta no próprio host: um `div` com `(click)` não seria acessível). */
 @Component({
   imports: [DisabledAction],
+  host: { '(click)': 'clicks = clicks + 1' },
   template: `
-    <div (click)="clicks = clicks + 1">
+    <div>
       <app-disabled-action buttonClass="btn btn-danger" reason="Para executar é preciso ter a permissão X.">Executar</app-disabled-action>
     </div>
     <button type="button" id="outside">Fora</button>

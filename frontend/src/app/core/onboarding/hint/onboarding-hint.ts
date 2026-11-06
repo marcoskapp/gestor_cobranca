@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { Icon } from '../../../shared/components/icon/icon';
 import { IconName } from '../../../shared/components/icon/icon-names';
+import { ManualTextPipe } from '../manual/manual-text.pipe';
 import { OnboardingService } from '../onboarding.service';
 
 /**
@@ -9,7 +10,7 @@ import { OnboardingService } from '../onboarding.service';
  */
 @Component({
   selector: 'app-onboarding-hint',
-  imports: [Icon],
+  imports: [Icon, ManualTextPipe],
   template: `
     <div class="hint-region" role="region" aria-label="Dica de uso" aria-live="polite">
       @if (onboarding.hint(); as hint) {
@@ -29,7 +30,7 @@ import { OnboardingService } from '../onboarding.service';
                 <h2 class="hint__title">Novidades nesta tela</h2>
                 <ul class="hint__list">
                   @for (item of hint.items; track item) {
-                    <li>{{ item }}</li>
+                    <li>{{ item | manualText }}</li>
                   }
                 </ul>
               }

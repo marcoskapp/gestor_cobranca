@@ -66,7 +66,7 @@ export const MANUAL: ModuleManual = {
         'Nada é gravado na carteira nesta etapa: a seguir você valida o mapa e, ao concordar, o lote segue para a conferência da importação de sempre.',
       ],
       profiles: ['ANALISTA_CARTEIRA', 'GESTOR'],
-      inputs: ['PDF do credor (com texto ou digitalizado), sem senha, até 20 MB.', 'Carteira de destino.'],
+      inputs: ['PDF do credor (com texto ou digitalizado), sem senha, {{ingestion.pdfMaxFileSize}}.', 'Carteira de destino.'],
       outputs: ['Uma importação PDF aguardando a sua validação.'],
       related: [
         { screen: 'ingestion.pdf-import', why: 'Validar o mapa e os títulos.' },

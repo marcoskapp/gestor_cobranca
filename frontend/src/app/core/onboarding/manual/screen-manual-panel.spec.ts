@@ -25,7 +25,8 @@ describe('ManualService e painel "Sobre esta tela"', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([{ path: '**', component: Blank }]),
-        { provide: AuthService, useValue: { hasAnyPermission: (ps: readonly string[]) => ps.length === 0 || ps.some((p) => permissions().includes(p)) } },
+        // sem sessão no dublê: os parâmetros do manual não são lidos e as frases saem no texto neutro (manual-parameters.service.spec.ts cobre a leitura)
+        { provide: AuthService, useValue: { user: () => null, hasAnyPermission: (ps: readonly string[]) => ps.length === 0 || ps.some((p) => permissions().includes(p)) } },
         { provide: OnboardingService, useValue: { screen, hasScreenHelp: () => !!screen(), startScreenTour } },
         { provide: NgbActiveOffcanvas, useValue: offcanvas },
       ],
