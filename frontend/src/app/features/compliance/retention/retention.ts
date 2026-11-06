@@ -19,6 +19,7 @@ import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Icon } from '../../../shared/components/icon/icon';
 import { DialogService } from '../../../shared/dialog/dialog.service';
+import { DisabledAction } from '../../../shared/components/disabled-action/disabled-action';
 
 /**
  * Retenção e descarte (LGPD): políticas por categoria, simulação (relatório dos elegíveis sem
@@ -26,7 +27,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
  */
 @Component({
   selector: 'app-retention',
-  imports: [DataTable, CellDef, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip],
+  imports: [DataTable, CellDef, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip, DisabledAction],
   template: `
     <app-page-header
       title="Retenção de dados"
@@ -65,7 +66,8 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
               <app-icon name="eyedropper" />
               Simular
             </button>
-            <!-- executar anonimiza dados de titulares: sem a permissão de atendimento a titulares, a ação nem aparece -->
+            <!-- executar anonimiza dados de titulares: sem a permissão de atendimento a titulares, a ação fica visível,
+                 desabilitada e explicada (exceção decidida pelo responsável), sem nenhuma chamada ao servidor -->
             @if (canAnonymize()) {
               <button
                 type="button"
@@ -77,6 +79,11 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
                 <app-icon name="trash3" />
                 Executar
               </button>
+            } @else {
+              <app-disabled-action buttonClass="btn btn-danger" [reason]="anonymizeDeniedReason">
+                <app-icon name="trash3" />
+                Executar
+              </app-disabled-action>
             }
           }
         </ng-template>
@@ -134,6 +141,7 @@ export class RetentionPage {
   protected readonly actions = RETENTION_ACTION_LABELS;
   /** A execução efetiva anonimiza devedores: exige também a permissão de titulares. */
   protected readonly canAnonymize = computed(() => this.auth.hasPermission(Permission.DATA_SUBJECT_REQUEST_MANAGE));
+  protected readonly anonymizeDeniedReason = 'Para executar o descarte é preciso ter a permissão de atender solicitações de titulares (LGPD).';
   protected readonly running = signal(false);
 
   protected readonly policies = rxResource({ stream: () => this.api.policies() });

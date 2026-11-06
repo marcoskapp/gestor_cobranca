@@ -53,7 +53,7 @@ export interface ExternalDialogData {
           <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
         @if (!data.debtorId) {
-          <app-entity-picker [control]="form.controls.debtor" [source]="debtors" label="Devedor" [single]="true" hint="Nome ou CPF/CNPJ de quem pagou." />
+          <app-entity-picker [control]="form.controls.debtor" [source]="debtors" label="Devedor" [single]="true" hint="Devedor que fez o pagamento." />
         }
         @if (debtorId(); as d) {
           <h3 class="app-section-title">Destino do valor</h3>

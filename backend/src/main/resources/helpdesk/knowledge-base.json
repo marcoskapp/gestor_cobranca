@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "907e068b676eaa25",
+ "contentVersion": "8844641ef2ed8ddb",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -3337,7 +3337,7 @@
    "title": "Acordo",
    "objective": "Cronograma de parcelas, Pix por parcela, pagamentos, termo do acordo e renegociação.",
    "purpose": [
-    "Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito. Ao informar um valor acima do limite da assessoria, a tela avisa que ele vai para a aprovação de outra pessoa.",
+    "Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito.",
     "Renegociar volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização."
    ],
    "profiles": [
@@ -3657,8 +3657,7 @@
    "title": "Pagamentos",
    "objective": "Tudo o que entrou: Pix integrado, confirmações por extrato e pagamentos informados com comprovante.",
    "purpose": [
-    "Filtre por situação, origem, meio, credor e período. Informe aqui o dinheiro que entrou fora do Pix integrado.",
-    "Ao informar um valor acima do limite da assessoria, a tela avisa antes do envio que ele vai para a aprovação de outra pessoa; o aviso aparece para todos que informam pagamento."
+    "Filtre por situação, origem, meio, credor e período. Informe aqui o dinheiro que entrou fora do Pix integrado."
    ],
    "profiles": [
     "FINANCEIRO",
@@ -3933,8 +3932,7 @@
    "title": "Extrato importado",
    "objective": "Indicadores de um extrato importado e o tratamento de cada linha.",
    "purpose": [
-    "A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados.",
-    "Importação com falha mostra o motivo e a linha do arquivo. \"Tentar novamente\" continua de onde parou: as linhas já gravadas e as baixas delas não se repetem. Se o problema estiver no arquivo, a falha volta com a mesma linha: corrija e importe um arquivo novo."
+    "A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados."
    ],
    "profiles": [
     "FINANCEIRO",
@@ -5638,7 +5636,7 @@
    "objective": "Etapas do atendimento de um pedido do titular: identidade, ação, resposta e evidências.",
    "purpose": [
     "Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.",
-    "O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores."
+    "O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores; para os demais, o botão aparece desabilitado com o motivo."
    ],
    "profiles": [
     "COMPLIANCE"
@@ -5674,7 +5672,7 @@
    "objective": "Prazos de guarda por categoria, simulação e anonimização dos dados que já cumpriram o prazo.",
    "purpose": [
     "A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados.",
-    "Executar anonimiza dados: a ação aparece para quem também atende solicitações de titulares."
+    "Executar anonimiza dados: só executa quem também atende solicitações de titulares; para os demais, o botão aparece desabilitado com o motivo."
    ],
    "profiles": [
     "COMPLIANCE"
@@ -6108,7 +6106,8 @@
    "title": "Usuários",
    "objective": "Contas de acesso da assessoria, com perfis e escopo de credores de cada pessoa.",
    "purpose": [
-    "Informe nome, e-mail e perfil: a pessoa recebe um link de ativação e define a própria senha."
+    "Informe nome, e-mail e perfil: a pessoa recebe um link de ativação e define a própria senha.",
+    "Sem a permissão de consultar credores, o novo usuário é criado sem credores (ou com todos, se você tiver todos); o escopo é definido depois, no detalhe do usuário."
    ],
    "profiles": [
     "ADMIN",
@@ -6151,7 +6150,7 @@
    "objective": "Perfis, escopo de credores, situação e verificação em duas etapas de uma conta.",
    "purpose": [
     "Ajuste perfis e escopo, bloqueie o acesso ou reenvie o link de ativação. Toda mudança fica na trilha de auditoria.",
-    "Os nomes dos credores do escopo e a troca de escopo dependem da permissão de consultar credores; sem ela, aparece só a contagem."
+    "Os nomes dos credores do escopo e a troca de escopo dependem da permissão de consultar credores; sem ela, aparece só a contagem. Conceder ou retirar todos os credores é só para quem tem todos."
    ],
    "profiles": [
     "ADMIN",

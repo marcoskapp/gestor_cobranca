@@ -37,6 +37,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
 import { InfoHint } from '../../../../shared/components/info-hint/info-hint';
+import { DisabledAction } from '../../../../shared/components/disabled-action/disabled-action';
 
 /** Próximas ações possíveis no estado atual (espelho de `RequestStatus.allowedTransitions` e das guardas do agregado). */
 export function requestActions(r: DataSubjectRequestView): {
@@ -72,7 +73,7 @@ export function requestActions(r: DataSubjectRequestView): {
 
 @Component({
   selector: 'app-request-detail',
-  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, InfoHint],
+  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, InfoHint, DisabledAction],
   templateUrl: './request-detail.html',
   styleUrl: '../../compliance.scss',
 })
@@ -156,7 +157,6 @@ export class RequestDetail {
         ? `Confira os documentos apresentados. Sem escolher o devedor, o titular é localizado pelo documento informado (${r.maskedDocument}).`
         : 'Confira os documentos apresentados e escolha o devedor correspondente.',
       label: 'Devedor (opcional)',
-      hint: 'Nome ou CPF/CNPJ completo.',
       confirmLabel: 'Confirmar identidade',
       source: this.debtorLookup,
       required: !r.maskedDocument,

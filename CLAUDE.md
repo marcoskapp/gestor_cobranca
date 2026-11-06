@@ -27,6 +27,8 @@ Responda e documente sempre em **português do Brasil**.
 - **Repositório público por ora**: nunca versionar dados reais (de clientes, devedores ou empresas), segredos, chaves
   ou arquivos de exemplo enviados pelo responsável. Fixtures e sandbox usam só dados fictícios.
 - **Menus e telas sem permissão ficam ocultos** (nunca exibir e responder "acesso negado").
+  Exceção (só quando o responsável decide): ação irreversível ou sensível que a pessoa precisa saber que existe fica
+  visível e desabilitada com o motivo (`app-disabled-action`, em `shared/components`), sem nenhuma chamada ao servidor.
 - **Campos monetários** sempre com máscara (`appMoney`), sem o usuário digitar separadores.
 
 ## Fluxo de git

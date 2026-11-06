@@ -78,7 +78,10 @@ export const MANUAL: ModuleManual = {
       id: 'admin.users',
       title: 'Usuários',
       objective: 'Contas de acesso da assessoria, com perfis e escopo de credores de cada pessoa.',
-      purpose: ['Informe nome, e-mail e perfil: a pessoa recebe um link de ativação e define a própria senha.'],
+      purpose: [
+        'Informe nome, e-mail e perfil: a pessoa recebe um link de ativação e define a própria senha.',
+        'Sem a permissão de consultar credores, o novo usuário é criado sem credores (ou com todos, se você tiver todos); o escopo é definido depois, no detalhe do usuário.',
+      ],
       profiles: ['ADMIN', 'GESTOR', 'AUDITOR'],
       inputs: ['Quem entra ou sai da equipe.'],
       outputs: ['Contas ativas com o acesso certo; bloqueios imediatos quando alguém sai.'],
@@ -94,7 +97,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Perfis, escopo de credores, situação e verificação em duas etapas de uma conta.',
       purpose: [
         'Ajuste perfis e escopo, bloqueie o acesso ou reenvie o link de ativação. Toda mudança fica na trilha de auditoria.',
-        'Os nomes dos credores do escopo e a troca de escopo dependem da permissão de consultar credores; sem ela, aparece só a contagem.',
+        'Os nomes dos credores do escopo e a troca de escopo dependem da permissão de consultar credores; sem ela, aparece só a contagem. Conceder ou retirar todos os credores é só para quem tem todos.',
       ],
       profiles: ['ADMIN', 'GESTOR'],
       inputs: ['Cadastro do usuário.'],

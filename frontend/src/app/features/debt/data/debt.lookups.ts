@@ -3,22 +3,27 @@ import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 import { EntitySource } from '../../../shared/components/entity-picker/entity-picker';
 import { NameSource } from '../../../shared/data/name-map';
 import { Option } from '../../../shared/models/lookup';
-import { isValidDocument, onlyDigits } from '../../../shared/validation/document';
+import { isValidCnpj, isValidCpf, isValidDocument, onlyDigits } from '../../../shared/validation/document';
 import { DebtorsApi } from './debt.api';
 import { DebtorView } from './debt.models';
 
 /** Só dígitos e pontuação de CPF/CNPJ: é um documento (completo ou não), nunca um trecho de nome. */
 const DOCUMENT_LIKE = /^[\d.\-/\s]+$/;
 
+/** Dica do seletor de devedor: a busca por documento só funciona com o número completo (decisão 854). */
+export const DEBTOR_SEARCH_PLACEHOLDER = 'Informe o CPF/CNPJ completo ou o nome';
+
 /**
  * Fonte de devedores para seletores. Texto com cara de documento só consulta quando é um CPF/CNPJ
  * completo e válido, por `POST /debtors/lookup` (documento fora da URL); parcial ou com dígito
  * verificador errado não consulta nada (nem parcial vai para a URL, que fica em logs de proxy e no
- * histórico). Qualquer outro texto é buscado por trecho do nome.
+ * histórico) e o seletor explica por que não há resultados (`emptyReason`). Qualquer outro texto é
+ * buscado por trecho do nome.
  */
 @Injectable({ providedIn: 'root' })
 export class DebtorLookup implements EntitySource {
   private readonly api = inject(DebtorsApi);
+  readonly placeholder = DEBTOR_SEARCH_PLACEHOLDER;
 
   search(q: string): Observable<Option[]> {
     const term = q.trim();
@@ -32,6 +37,28 @@ export class DebtorLookup implements EntitySource {
         : of<Option[]>([]);
     }
     return this.api.search({ q: term || null }, { page: 0, size: 20 }).pipe(map((page) => page.content.map(debtorOption)));
+  }
+
+  /** Documento incompleto ou com dígito verificador errado não é consultado: diz por quê. */
+  emptyReason(q: string): string | null {
+    const term = q.trim();
+    if (!term || !DOCUMENT_LIKE.test(term)) {
+      return null;
+    }
+    const digits = onlyDigits(term);
+    if (digits.length < 11) {
+      return 'CPF/CNPJ incompleto: a busca por documento precisa do número completo (11 dígitos do CPF ou 14 do CNPJ).';
+    }
+    if (digits.length === 11) {
+      return isValidCpf(digits) ? null : 'CPF inválido: confira os dígitos. Se for CNPJ, informe os 14 dígitos.';
+    }
+    if (digits.length < 14) {
+      return 'CNPJ incompleto: informe os 14 dígitos.';
+    }
+    if (digits.length === 14) {
+      return isValidCnpj(digits) ? null : 'CNPJ inválido: confira os dígitos.';
+    }
+    return 'Número com dígitos a mais: o CPF tem 11 dígitos e o CNPJ, 14.';
   }
 
   resolve(ids: string[]): Observable<Option[]> {

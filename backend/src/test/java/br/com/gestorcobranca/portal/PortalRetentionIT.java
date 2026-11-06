@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Retenção dos dados de acesso ao portal (LGPD, minimização) contra PostgreSQL real: desafios vencidos — inclusive
  * o fictício, com o HMAC do documento de quem não é devedor — e contadores do bloqueio progressivo sem uso são
- * apagados; IP e agente das sessões encerradas há mais do prazo são apagados e a sessão continua (funil).
+ * apagados; IP e agente das sessões encerradas há mais do prazo (1 ano) são apagados e a sessão continua (funil).
  */
 class PortalRetentionIT extends PortalTestSupport {
 
@@ -34,16 +34,17 @@ class PortalRetentionIT extends PortalTestSupport {
         assertThat(count("select count(*) from portal.portal_session where tenant_id = ? and client_ip is not null "
                 + "and user_agent is not null", tenant)).isEqualTo(2);
 
-        // tudo o que existe até aqui envelhece além dos prazos (30 dias desafios/contadores; 180 dias IP e agente)
+        // tudo o que existe até aqui envelhece além dos prazos (30 dias desafios/contadores; 1 ano IP e agente); a
+        // segunda sessão passa dos 180 dias do prazo anterior, mas não de 1 ano (decisão do responsável sobre a 874)
         system(() -> {
             jdbcTemplate.update("update portal.access_challenge set expires_at = now() - interval '31 days' "
                     + "where tenant_id = ?", tenant);
             jdbcTemplate.update("update portal.access_throttle set updated_at = now() - interval '31 days' "
                     + "where tenant_id = ?", tenant);
             jdbcTemplate.update("update portal.portal_session set status = 'ENDED', end_reason = 'logout', "
-                    + "ended_at = now() - interval '181 days' where id = ?", sessions.get(0));
+                    + "ended_at = now() - interval '366 days' where id = ?", sessions.get(0));
             jdbcTemplate.update("update portal.portal_session set status = 'ENDED', end_reason = 'logout', "
-                    + "ended_at = now() - interval '10 days' where id = ?", sessions.get(1));
+                    + "ended_at = now() - interval '200 days' where id = ?", sessions.get(1));
             return null;
         });
         // desafio fictício recente (dentro do prazo): fica, e os contadores que ele tocou ficam recentes
@@ -69,7 +70,7 @@ class PortalRetentionIT extends PortalTestSupport {
         assertThat(count("select count(*) from portal.access_throttle where tenant_id = ? "
                 + "and updated_at < now() - interval '30 days' and (locked_until is null or locked_until < now())",
                 tenant)).isZero();
-        // a sessão antiga continua (funil), sem IP nem agente; a recente fica intacta
+        // a sessão de mais de 1 ano continua (funil), sem IP nem agente; a de 200 dias fica intacta
         assertThat(count("select count(*) from portal.portal_session where id = ? and client_ip is null "
                 + "and user_agent is null", sessions.get(0))).isEqualTo(1);
         assertThat(count("select count(*) from portal.portal_session where id = ? and client_ip is not null "

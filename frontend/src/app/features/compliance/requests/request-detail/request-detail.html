@@ -150,7 +150,11 @@
               Baixar dados do titular
             </button>
           } @else {
-            <span>Gerado</span>
+            <!-- o arquivo reúne o titular em todos os credores: visível, desabilitado e explicado (exceção decidida pelo responsável) -->
+            <app-disabled-action buttonClass="btn btn-outline-primary" reason="Para baixar o arquivo do titular é preciso ter acesso a todos os credores.">
+              <app-icon name="download" />
+              Baixar dados do titular
+            </app-disabled-action>
           }
           @if (r.resultSha256) {
             <div class="app-mono app-muted" title="Resumo SHA-256 para comprovar a integridade do arquivo entregue">SHA-256 {{ r.resultSha256 }}</div>

@@ -76,7 +76,6 @@ function brDate(value: string): string {
             [control]="form.controls.debtor"
             [source]="debtorSource"
             label="Devedor"
-            hint="Nome ou CPF/CNPJ completo."
             [single]="true"
           />
           @if (form.controls.debtor.touched && form.controls.debtor.invalid) {

@@ -52,20 +52,30 @@
           }
         </fieldset>
 
-        <div class="col-12">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="user-form-allCreditors" formControlName="allCreditors" />
-            <label class="form-check-label" for="user-form-allCreditors">Acesso a todos os credores</label>
+        @if (canGrantAllCreditors()) {
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="user-form-allCreditors" formControlName="allCreditors" />
+              <label class="form-check-label" for="user-form-allCreditors">Acesso a todos os credores</label>
+            </div>
           </div>
-        </div>
+        }
         @if (!form.controls.allCreditors.value) {
           <div class="col-12">
-            <app-entity-picker
-              [control]="form.controls.creditorIds"
-              [source]="creditorSource"
-              label="Credores permitidos"
-              hint="Sem credores selecionados, o usuário não verá carteiras nem devedores."
-            />
+            @if (canViewCreditors()) {
+              <app-entity-picker
+                [control]="form.controls.creditorIds"
+                [source]="creditorSource"
+                label="Credores permitidos"
+                hint="Sem credores selecionados, o usuário não verá carteiras nem devedores."
+              />
+            } @else {
+              <!-- sem CREDITOR_VIEW o seletor não aparece nem consulta /creditors (decisão do responsável sobre a 860) -->
+              <p class="form-text mb-0" data-testid="user-form-no-creditors">
+                O usuário será criado sem credores. O escopo de credores é definido depois, no detalhe do usuário, por quem
+                tem acesso ao cadastro de credores.
+              </p>
+            }
           </div>
         }
       }

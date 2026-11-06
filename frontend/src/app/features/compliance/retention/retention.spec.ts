@@ -26,11 +26,19 @@ describe('RetentionPage', () => {
     expect(button(fixture, 'Executar')!.disabled).toBe(false);
   });
 
-  it('sem a permissão de atendimento a titulares, "Executar" não aparece (nem desabilitado)', async () => {
+  it('sem a permissão de atendimento a titulares, "Executar" fica visível, desabilitado e explicado, sem chamar o servidor', async () => {
     const { http } = setup(RetentionPage, ['RETENTION_MANAGE']);
     const fixture = await render(RetentionPage, http, respond);
     expect(button(fixture, 'Simular')).toBeDefined();
-    expect(button(fixture, 'Executar')).toBeUndefined();
-    expect(text(fixture)).not.toContain('Exige a permissão');
+    const execute = button(fixture, 'Executar')!;
+    expect(execute).toBeDefined();
+    expect(execute.getAttribute('aria-disabled')).toBe('true');
+    expect(text(fixture)).toContain('Para executar o descarte é preciso ter a permissão de atender solicitações de titulares (LGPD).');
+
+    execute.click();
+    fixture.detectChanges();
+    expect(document.querySelector('ngb-tooltip-window')?.textContent).toContain('atender solicitações de titulares');
+    expect(document.querySelector('.modal'), 'nenhuma confirmação de execução').toBeNull();
+    http.expectNone((r) => r.method === 'POST');
   });
 });

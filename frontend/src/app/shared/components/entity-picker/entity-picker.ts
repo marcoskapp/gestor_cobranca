@@ -10,6 +10,13 @@ import { Option } from '../../models/lookup';
 export interface EntitySource {
   search(query: string): Observable<Option[]>;
   resolve(ids: string[]): Observable<Option[]>;
+  /** Dica do campo de busca da fonte (ex.: o que pode ser digitado), usada quando o seletor não define `placeholder`. */
+  readonly placeholder?: string;
+  /**
+   * Por que a busca não trouxe resultados, quando a fonte sabe explicar (ex.: documento incompleto).
+   * `null` mantém a mensagem padrão "Nenhum resultado para a busca.".
+   */
+  emptyReason?(query: string): string | null;
 }
 
 let nextId = 0;
@@ -56,8 +63,8 @@ let nextId = 0;
         [resultFormatter]="formatOption"
         [inputFormatter]="formatOption"
         [editable]="false"
-        [placeholder]="placeholder()"
-        [attr.aria-describedby]="hint() || empty() ? hintId : null"
+        [placeholder]="searchPlaceholder()"
+        [attr.aria-describedby]="hint() || emptyMessage() ? hintId : null"
         [attr.aria-invalid]="invalid() ? 'true' : null"
         autocomplete="off"
         (focus)="focus$.next(query.value)"
@@ -65,8 +72,8 @@ let nextId = 0;
       />
     </div>
     <div class="form-text" [id]="hintId" aria-live="polite">
-      @if (empty()) {
-        Nenhum resultado para a busca.
+      @if (emptyMessage(); as message) {
+        {{ message }}
       } @else {
         {{ hint() }}
       }
@@ -139,7 +146,8 @@ export class EntityPicker implements OnInit {
   readonly control = input.required<FormControl<string[]>>();
   readonly source = input.required<EntitySource>();
   readonly label = input.required<string>();
-  readonly placeholder = input('Pesquisar…');
+  /** Dica do campo de busca; sem ela, vale a da fonte (`EntitySource.placeholder`) ou "Pesquisar…". */
+  readonly placeholder = input<string>();
   readonly hint = input<string>();
   readonly single = input(false);
 
@@ -152,7 +160,13 @@ export class EntityPicker implements OnInit {
   private readonly labels = signal<ReadonlyMap<string, string>>(new Map());
   private readonly ids = signal<string[]>([]);
   private readonly state = signal(0);
-  protected readonly empty = signal(false);
+  /** Mensagem da busca sem resultados (null enquanto há resultados ou nada foi buscado). */
+  protected readonly emptyMessage = signal<string | null>(null);
+
+  /** Em seleção única com um item escolhido, a dica longa não cabe ao lado do selo: fica sem dica. */
+  protected readonly searchPlaceholder = computed(() =>
+    this.single() && this.ids().length > 0 ? '' : (this.placeholder() ?? this.source().placeholder ?? 'Pesquisar…'),
+  );
 
   protected readonly selected = computed(() =>
     this.ids().map((id) => ({ value: id, label: this.labels().get(id) ?? 'Carregando…' })),
@@ -172,13 +186,21 @@ export class EntityPicker implements OnInit {
   /** Busca no servidor ao digitar ou focar; opções já escolhidas ficam de fora. */
   protected readonly search = (text$: Observable<string>): Observable<readonly Option[]> =>
     merge(text$.pipe(debounceTime(300), distinctUntilChanged()), this.focus$.pipe(map((v) => (typeof v === 'string' ? v : '')))).pipe(
-      switchMap((term) => this.source().search(term.trim()).pipe(catchError(() => of<Option[]>([])))),
-      tap((options) => this.remember(options)),
-      map((options) => {
+      switchMap((term) =>
+        this.source()
+          .search(term.trim())
+          .pipe(
+            catchError(() => of<Option[]>([])),
+            map((options) => ({ term: term.trim(), options })),
+          ),
+      ),
+      tap(({ options }) => this.remember(options)),
+      map(({ term, options }) => {
         const chosen = new Set(this.ids());
-        return options.filter((o) => !chosen.has(o.value));
+        const available = options.filter((o) => !chosen.has(o.value));
+        this.emptyMessage.set(available.length === 0 ? (this.source().emptyReason?.(term) ?? 'Nenhum resultado para a busca.') : null);
+        return available;
       }),
-      tap((options) => this.empty.set(options.length === 0)),
     );
 
   ngOnInit(): void {
@@ -202,7 +224,7 @@ export class EntityPicker implements OnInit {
     const next = this.single() ? [option.value] : [...this.ids().filter((id) => id !== option.value), option.value];
     this.commit(next);
     this.query.setValue('');
-    this.empty.set(false);
+    this.emptyMessage.set(null);
   }
 
   protected remove(id: string): void {

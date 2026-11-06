@@ -2,6 +2,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { Permission } from '../../../../core/auth/permission';
 import { toApiError } from '../../../../core/http/problem';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { EntityPicker } from '../../../../shared/components/entity-picker/entity-picker';
@@ -41,6 +43,12 @@ export class UserForm {
   protected readonly data = inject<UserFormData>(DIALOG_DATA);
   private readonly unitsApi = inject(BusinessUnitsApi);
   private readonly rolesApi = inject(RolesApi);
+  private readonly auth = inject(AuthService);
+
+  /** O seletor de credores consulta o cadastro de credores: só com `CREDITOR_VIEW`. */
+  protected readonly canViewCreditors = computed(() => this.auth.hasPermission(Permission.CREDITOR_VIEW));
+  /** Só quem tem todos os credores pode concedê-los (o servidor recusa os demais). */
+  protected readonly canGrantAllCreditors = computed(() => this.auth.user()?.allCreditors ?? false);
 
   protected readonly limits = Limits;
   protected readonly editing = this.data.user !== null;
@@ -99,7 +107,7 @@ export class UserForm {
           businessUnitId,
           roleIds: v.roleIds,
           allCreditors: v.allCreditors,
-          creditorIds: v.allCreditors ? [] : v.creditorIds,
+          creditorIds: v.allCreditors || !this.canViewCreditors() ? [] : v.creditorIds,
         });
     this.saving.set(true);
     this.generalErrors.set([]);

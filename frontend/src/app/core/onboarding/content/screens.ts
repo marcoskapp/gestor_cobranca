@@ -67,12 +67,31 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   { key: 'scoring.transparency', version: 1, path: '/score/transparencia' },
   { key: 'scoring.settings', version: 1, path: '/score/parametros', tourId: 'scoring.settings' },
-  { key: 'admin.users', version: 1, path: '/admin/usuarios', tourId: 'admin.users' },
+  {
+    key: 'admin.users',
+    version: 2,
+    path: '/admin/usuarios',
+    tourId: 'admin.users',
+    changes: [
+      {
+        version: 2,
+        items: [
+          'Novo usuário sem a permissão de consultar credores: o seletor de credores não aparece e o usuário é criado sem credores (ou com todos, se você tiver todos); o escopo é definido depois, no detalhe do usuário.',
+        ],
+      },
+    ],
+  },
   {
     key: 'admin.user-detail',
-    version: 2,
+    version: 3,
     path: '/admin/usuarios/:id',
-    changes: [{ version: 2, items: ['Sem a permissão de consultar credores, o escopo mostra só quantos credores a pessoa acessa e a ação "Alterar escopo de credores" não aparece.'] }],
+    changes: [
+      { version: 2, items: ['Sem a permissão de consultar credores, o escopo mostra só quantos credores a pessoa acessa e a ação "Alterar escopo de credores" não aparece.'] },
+      {
+        version: 3,
+        items: ['"Alterar escopo de credores": a opção "Acesso a todos os credores" aparece só para quem tem todos; se o usuário já tem todos, ela fica marcada e só quem tem todos pode retirá-la.'],
+      },
+    ],
   },
   { key: 'admin.roles', version: 1, path: '/admin/perfis', tourId: 'admin.roles' },
   { key: 'admin.teams', version: 1, path: '/admin/equipes', tourId: 'admin.teams' },
@@ -520,17 +539,29 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.requests', version: 1, path: '/compliance/solicitacoes-titulares', tourId: 'compliance.requests' },
   {
     key: 'compliance.request-detail',
-    version: 2,
+    version: 3,
     path: '/compliance/solicitacoes-titulares/:id',
     tourId: 'compliance.request-detail',
-    changes: [{ version: 2, items: ['O botão "Baixar dados do titular" aparece só para quem tem acesso a todos os credores: o arquivo traz o titular em todos eles, sem máscara.'] }],
+    changes: [
+      { version: 2, items: ['O botão "Baixar dados do titular" aparece só para quem tem acesso a todos os credores: o arquivo traz o titular em todos eles, sem máscara.'] },
+      {
+        version: 3,
+        items: ['Sem acesso a todos os credores, "Baixar dados do titular" aparece desabilitado e explica o motivo ao passar o mouse, tocar ou chegar pelo teclado.'],
+      },
+    ],
   },
   {
     key: 'compliance.retention',
-    version: 2,
+    version: 3,
     path: '/compliance/retencao',
     tourId: 'compliance.retention',
-    changes: [{ version: 2, items: ['"Executar" só aparece para quem também atende titulares, porque a execução anonimiza dados; "Simular" continua para todos que gerenciam a retenção.'] }],
+    changes: [
+      { version: 2, items: ['"Executar" só aparece para quem também atende titulares, porque a execução anonimiza dados; "Simular" continua para todos que gerenciam a retenção.'] },
+      {
+        version: 3,
+        items: ['Sem a permissão de atender titulares, "Executar" volta a aparecer, desabilitado, e explica o motivo ao passar o mouse, tocar ou chegar pelo teclado.'],
+      },
+    ],
   },
   { key: 'organization.creditors', version: 1, path: '/organizacao/credores', tourId: 'organization.creditors' },
   { key: 'organization.creditor-detail', version: 2, path: '/organizacao/credores/:id' },

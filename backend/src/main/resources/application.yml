@@ -436,8 +436,8 @@ app:
       challenges: P30D
       # contadores do bloqueio progressivo (HMAC do documento e do IP) sem uso e sem bloqueio vigente
       throttles: P30D
-      # IP e agente do navegador das sessões encerradas (a sessão continua para o funil)
-      session-client-data: P180D
+      # IP e agente do navegador das sessões encerradas, por 1 ano (a sessão continua para o funil)
+      session-client-data: P365D
     retention-cron: "0 20 3 * * *"
   telephony:
     # tentativas do job de discagem (falhas transitórias do provedor) antes de FAILED

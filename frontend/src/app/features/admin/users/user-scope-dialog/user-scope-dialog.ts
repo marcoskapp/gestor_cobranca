@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notification/notification.service';
 import { EntityPicker } from '../../../../shared/components/entity-picker/entity-picker';
 import { CreditorLookup } from '../../../organization/data/organization.lookups';
@@ -20,7 +21,22 @@ import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         <p class="app-muted">O usuário só acessa carteiras, devedores e operações dos credores do seu escopo.</p>
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="usersc-allCreditors" formControlName="allCreditors"  /><label class="form-check-label" for="usersc-allCreditors">Acesso a todos os credores</label></div>
+        <!-- só quem tem todos os credores pode concedê-los; se o usuário já os tem, a opção fica visível e marcada -->
+        @if (showAllCreditors) {
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="usersc-allCreditors"
+              formControlName="allCreditors"
+              [attr.aria-describedby]="canGrantAll ? null : 'usersc-allCreditors-hint'"
+            />
+            <label class="form-check-label" for="usersc-allCreditors">Acesso a todos os credores</label>
+            @if (!canGrantAll) {
+              <div class="form-text" id="usersc-allCreditors-hint">Só quem tem acesso a todos os credores pode alterar esta opção.</div>
+            }
+          </div>
+        }
         @if (!form.controls.allCreditors.value) {
           <app-entity-picker [control]="form.controls.creditorIds" [source]="creditors" label="Credores permitidos" />
         }
@@ -39,8 +55,13 @@ export class UserScopeDialog {
   private readonly notifications = inject(NotificationService);
   protected readonly creditors = inject(CreditorLookup);
   protected readonly saving = signal(false);
+  /** Só quem tem todos os credores pode concedê-los (ou retirá-los): o servidor recusa os demais. */
+  protected readonly canGrantAll = inject(AuthService).user()?.allCreditors ?? false;
+  /** A opção aparece para quem pode concedê-la e, desabilitada, quando o usuário editado já tem todos. */
+  protected readonly showAllCreditors = this.canGrantAll || this.user.allCreditors;
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    allCreditors: [this.user.allCreditors],
+    // desabilitada sem a condição: o valor atual vai no envio (getRawValue) e o "todos" nunca sai sem pedido
+    allCreditors: [{ value: this.user.allCreditors, disabled: !this.canGrantAll }],
     creditorIds: [[...this.user.creditorIds]],
   });
 
