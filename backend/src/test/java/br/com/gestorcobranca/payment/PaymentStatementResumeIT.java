@@ -7,6 +7,9 @@ import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.Payment
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.TargetInput;
 import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.StatementImportView;
 import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.StatementUpload;
+import br.com.gestorcobranca.shared.domain.ConflictException;
+import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
+import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.shared.storage.FileStorage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -22,20 +25,26 @@ import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Extrato processado em lotes com transação própria (decisão 868) contra PostgreSQL real: uma falha forçada no
  * segundo lote (gatilho no banco) desfaz só aquele lote — a baixa do primeiro já está confirmada —, a nova tentativa
  * pula as linhas gravadas sem baixa duplicada e mantém a impressão digital das linhas repetidas; esgotadas as
- * tentativas, a importação fica {@code FAILED} com as linhas já gravadas.
+ * tentativas, a importação fica {@code FAILED} com as linhas já gravadas; a nova tentativa pedida por uma pessoa
+ * (decisão do responsável à 873) retoma de onde parou e conclui sem baixa duplicada, e um arquivo com linha inválida
+ * volta a {@code FAILED} apontando a linha.
  */
 class PaymentStatementResumeIT extends PaymentTestSupport {
 
     @Autowired
     FileStorage fileStorage;
+    @Autowired
+    JobQueue jobQueue;
 
     /** Linhas de débito entre os créditos: empurram os últimos créditos para o segundo lote (500 linhas por lote). */
     private static final int DEBITS = 598;
@@ -117,6 +126,112 @@ class PaymentStatementResumeIT extends PaymentTestSupport {
         assertThat(count("select count(*) from shared.audit_event where action = 'statement_import.failed' "
                 + "and entity_id = ?", received.id())).isEqualTo(1);
         assertThat(job(received.id())).isEqualTo("DEAD");
+    }
+
+    @Test
+    void retryOfAFailedImportResumesFromWhereItStoppedWithoutDuplicatedSettlement() throws SQLException {
+        provision("resume-retry");
+        Fixture fixture = fixture();
+        StatementImportView received = upload(fixture.csv());
+        failOnLine(received.id(), FAILING_LINE);
+        settle();
+        for (int attempt = 2; attempt <= 3; attempt++) {
+            retryNow(received.id());
+            settle();
+        }
+        StatementImportView failed = asFinance2(() -> reconciliation.getImport(received.id()));
+        assertThat(failed.status()).isEqualTo("FAILED");
+        // parou no segundo lote: a primeira linha dele é a 502 (cabeçalho = 1, 500 linhas no primeiro lote)
+        assertThat(failed.failureLine()).isEqualTo(502);
+        assertThat(job(received.id())).isEqualTo("DEAD");
+
+        // só quem importa extrato, só no escopo e só em FAILED
+        assertThatThrownBy(() -> asOperator(() -> reconciliation.retryImport(received.id())))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+
+        dropFailureTrigger();
+        StatementImportView retried = asFinance2(() -> reconciliation.retryImport(received.id()));
+        assertThat(retried.status()).isEqualTo("RECEIVED");
+        assertThat(retried.failureCode()).isNull();
+        assertThat(retried.failureLine()).isNull();
+        assertThat(retried.retryCount()).isEqualTo(1);
+        assertThatThrownBy(() -> asFinance2(() -> reconciliation.retryImport(received.id())))
+                .isInstanceOf(ConflictException.class);
+
+        // barreira por tentativa: um job da tentativa anterior (attempt 0) que ainda rodar não mexe na importação
+        String retryKey = "statement:" + received.id() + ":retry:1";
+        system(() -> jobQueue.cancelPending("payment.statement_import", retryKey));
+        long auditBefore = count("select count(*) from shared.audit_event where entity_id = ?", received.id());
+        system(() -> jobQueue.enqueue("payment.statement_import", Map.of("importId", received.id(), "attempt", 0), null,
+                "it-stale:" + received.id()));
+        settle();
+        StatementImportView untouched = asFinance2(() -> reconciliation.getImport(received.id()));
+        assertThat(untouched.status()).isEqualTo("RECEIVED");
+        assertThat(untouched.startedAt()).isEqualTo(retried.startedAt());
+        assertThat(lines(received.id())).isEqualTo(500);
+        assertThat(count("select count(*) from shared.audit_event where entity_id = ?", received.id()))
+                .isEqualTo(auditBefore);
+        assertThat(job(received.id())).isEqualTo("DONE");
+        // o job da tentativa 1 (recolocado na fila) é o que conclui
+        system(() -> jobQueue.enqueue("payment.statement_import", Map.of("importId", received.id(), "attempt", 1), null,
+                retryKey));
+
+        settle();
+        StatementImportView processed = asFinance2(() -> reconciliation.getImport(received.id()));
+        assertThat(processed.status()).isEqualTo("PROCESSED");
+        assertThat(processed.failureCode()).isNull();
+        assertThat(processed.totalLines()).isEqualTo(FAILING_LINE - 1);
+        assertThat(processed.createdPayments()).isEqualTo(1);
+        assertThat(processed.reconciledLines()).isEqualTo(2);
+        assertThat(processed.divergentLines()).isEqualTo(3);
+        assertThat(lines(received.id())).isEqualTo(FAILING_LINE - 1);
+        // sem baixa duplicada: um só pagamento da instrução e a TED conciliada uma vez
+        assertThat(count("select count(*) from payment.payment where instruction_id = ?", fixture.pix().id())).isEqualTo(1);
+        assertThat(asFinance1(() -> payments.get(fixture.doc1().id())).status()).isEqualTo("RECONCILED");
+        assertThat(count("select count(*) from shared.business_event where event_type = 'payment.reconciled' "
+                + "and attributes ->> 'mode' = 'STATEMENT'")).isEqualTo(2);
+        assertThat(count("select count(*) from payment.divergence where statement_line_id in "
+                + "(select id from payment.statement_line where import_id = ?)", received.id())).isEqualTo(3);
+        // auditoria da nova tentativa com o antes e o depois
+        assertThat(count("""
+                select count(*) from shared.audit_event
+                 where action = 'statement_import.retried' and entity_id = ? and actor_id = ?
+                   and before_state ->> 'status' = 'FAILED' and after_state ->> 'status' = 'RECEIVED'
+                   and before_state ->> 'failureCode' = 'statement.processing_failed'
+                   and before_state ->> 'failureLine' = '502'
+                """, received.id(), finance2)).isEqualTo(1);
+        assertThat(count("select count(*) from shared.audit_event where action = 'statement_import.processed' "
+                + "and entity_id = ?", received.id())).isEqualTo(1);
+        assertThat(job(received.id())).isEqualTo("DONE");
+        assertThatThrownBy(() -> asFinance2(() -> reconciliation.retryImport(received.id())))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void retryOfAFileWithAnInvalidLineFailsAgainPointingToTheLine() {
+        provision("resume-invalid");
+        StatementImportView received = upload("data;valor;tipo;id_transacao;referencia;descricao\n"
+                + today + ";10,00;D;;;TARIFA\n"
+                + "2026-13-01;20,00;C;;;CREDITO\n");
+        settle();
+        StatementImportView failed = asFinance2(() -> reconciliation.getImport(received.id()));
+        assertThat(failed.status()).isEqualTo("FAILED");
+        assertThat(failed.failureCode()).isEqualTo("statement.date_invalid");
+        assertThat(failed.failureLine()).isEqualTo(3);
+        assertThat(failed.totalLines()).isZero();
+
+        asFinance2(() -> reconciliation.retryImport(received.id()));
+        settle();
+        StatementImportView again = asFinance2(() -> reconciliation.getImport(received.id()));
+        assertThat(again.status()).isEqualTo("FAILED");
+        assertThat(again.failureCode()).isEqualTo("statement.date_invalid");
+        assertThat(again.failureLine()).isEqualTo(3);
+        assertThat(again.retryCount()).isEqualTo(1);
+        assertThat(lines(received.id())).isZero();
+        assertThat(count("select count(*) from shared.audit_event where action = 'statement_import.failed' "
+                + "and entity_id = ?", received.id())).isEqualTo(2);
+        assertThat(count("select count(*) from shared.audit_event where action = 'statement_import.retried' "
+                + "and entity_id = ?", received.id())).isEqualTo(1);
     }
 
     @Test
@@ -208,10 +323,12 @@ class PaymentStatementResumeIT extends PaymentTestSupport {
                 """, importId.toString());
     }
 
+    /** Situação do job mais recente da importação (a nova tentativa enfileira outro). */
     private String job(UUID importId) {
         return jdbcTemplate.queryForObject("""
                 select status from shared.processing_job
                  where type = 'payment.statement_import' and payload ->> 'importId' = ?
+                 order by created_at desc limit 1
                 """, String.class, importId.toString());
     }
 

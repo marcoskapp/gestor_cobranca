@@ -40,6 +40,13 @@ class PaymentSettingsService implements PaymentSettingsUseCases {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ExternalReviewLimitView externalReviewLimit() {
+        accessScope.requirePermission(Permission.PAYMENT_REGISTER_EXTERNAL);
+        return new ExternalReviewLimitView(provider.current().externalReviewThreshold().amount());
+    }
+
+    @Override
     public SettingsView update(SettingsCommand command) {
         accessScope.requirePermission(Permission.ORG_SETTINGS_MANAGE);
         accessScope.requireAllCreditors("payment_settings");

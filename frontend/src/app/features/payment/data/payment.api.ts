@@ -13,6 +13,7 @@ import {
   DivergenceFilter,
   DivergenceView,
   ExternalPaymentRequest,
+  ExternalReviewLimitView,
   InstructionFilter,
   InstructionView,
   PaymentFilter,
@@ -147,6 +148,11 @@ export class ReconciliationApi {
     return this.http.get<StatementImportView>(`${this.base}/statements/${id}`);
   }
 
+  /** 202: nova tentativa da importação com falha, de onde parou. Fora de `FAILED` → 409 (`statement.not_failed`). */
+  retryImport(id: string): Observable<StatementImportView> {
+    return this.http.post<StatementImportView>(`${this.base}/statements/${id}/retry`, null, { context: silentErrorContext() });
+  }
+
   lines(id: string, page: PageRequest): Observable<PageResponse<StatementLineView>> {
     return this.http.get<PageResponse<StatementLineView>>(`${this.base}/statements/${id}/lines`, { params: toHttpParams({ page: page.page, size: page.size }) });
   }
@@ -219,5 +225,10 @@ export class PaymentSettingsApi {
 
   update(request: PaymentSettingsRequest): Observable<PaymentSettingsView> {
     return this.http.put<PaymentSettingsView>(this.base, request, { context: silentErrorContext() });
+  }
+
+  /** Só o limite da segunda conferência (`PAYMENT_REGISTER_EXTERNAL`), para o aviso ao informar pagamento externo. */
+  externalReviewLimit(): Observable<ExternalReviewLimitView> {
+    return this.http.get<ExternalReviewLimitView>(`${this.base}/external-review`, { context: silentErrorContext() });
   }
 }

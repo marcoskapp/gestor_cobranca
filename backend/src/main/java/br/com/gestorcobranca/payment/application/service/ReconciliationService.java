@@ -11,6 +11,7 @@ import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.ReconciliationMode;
 import br.com.gestorcobranca.payment.domain.model.StatementFormat;
 import br.com.gestorcobranca.payment.domain.model.StatementImport;
+import br.com.gestorcobranca.payment.domain.model.StatementImportStatus;
 import br.com.gestorcobranca.payment.domain.model.BankStatementLine;
 import br.com.gestorcobranca.payment.domain.repository.DivergenceRepository;
 import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
@@ -127,6 +128,28 @@ class ReconciliationService implements ReconciliationUseCases {
     }
 
     @Override
+    public StatementImportView retryImport(UUID importId) {
+        accessScope.requirePermission(Permission.RECONCILIATION_MANAGE);
+        StatementImport source = statements.findImportForUpdate(importId)
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, importId));
+        requireVisible(source);
+        requireScope(source.getCreditorId());
+        String previousCode = source.getFailureCode();
+        Integer previousLine = source.getFailureLine();
+        source.retry();
+        StatementImport saved = statements.save(source);
+        StatementImportJob.enqueueRetry(jobs, saved.getId(), saved.getRetryCount());
+        auditTrail.record(AuditEntry.of("statement_import.retried", RESOURCE, saved.getId())
+                .creditor(saved.getCreditorId())
+                .change("status", StatementImportStatus.FAILED, StatementImportStatus.RECEIVED)
+                .change("failureCode", previousCode, null)
+                .change("failureLine", previousLine, null)
+                .meta("retryCount", saved.getRetryCount())
+                .meta("totalLines", saved.getTotalLines()));
+        return PaymentViews.statementImport(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponse<StatementImportView> imports(PageQuery page) {
         accessScope.requirePermission(Permission.RECONCILIATION_MANAGE);
@@ -206,14 +229,18 @@ class ReconciliationService implements ReconciliationUseCases {
     private StatementImport loadImport(UUID importId) {
         StatementImport source = statements.findImport(importId)
                 .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, importId));
+        requireVisible(source);
+        return source;
+    }
+
+    private void requireVisible(StatementImport source) {
         if (source.getCreditorId() == null) {
             if (!accessScope.hasAllCreditors()) {
-                throw new ResourceNotFoundException(RESOURCE, importId);
+                throw new ResourceNotFoundException(RESOURCE, source.getId());
             }
         } else {
-            accessScope.requireVisible(RESOURCE, importId, source.getCreditorId());
+            accessScope.requireVisible(RESOURCE, source.getId(), source.getCreditorId());
         }
-        return source;
     }
 
     private Divergence loadDivergence(UUID id) {

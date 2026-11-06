@@ -18,6 +18,14 @@ import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.Test;
 import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.shared.security.ActorAuthentication;
+import br.com.gestorcobranca.shared.security.CreditorScope;
+import br.com.gestorcobranca.shared.security.Permission;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -26,7 +34,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +46,12 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Pagamentos externos contra PostgreSQL real: evidência obrigatória (tipo conferido pelo conteúdo),
@@ -49,6 +65,8 @@ class PaymentExternalIT extends PaymentTestSupport {
     PaymentSettingsUseCases settings;
     @Autowired
     PaymentRepository paymentRepository;
+    @Autowired
+    WebApplicationContext webApplicationContext;
 
     private final Instant paidAt = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
 
@@ -163,6 +181,43 @@ class PaymentExternalIT extends PaymentTestSupport {
         String attributes = system(() -> jdbcTemplate.queryForObject("select string_agg(attributes::text, ' ') "
                 + "from shared.business_event where event_type like 'payment%'", String.class));
         assertThat(attributes).doesNotContain("Depósito identificado", "Maria", "529");
+    }
+
+    /**
+     * Decisão do responsável à 856: quem só informa pagamento externo (perfil personalizado sem {@code PAYMENT_VIEW}
+     * nem {@code ORG_SETTINGS_MANAGE}) recebe o limite da segunda conferência — e só ele — para a tela avisar antes
+     * do envio; os demais parâmetros continuam fechados.
+     */
+    @Test
+    void registerOnlyProfileReceivesJustTheSecondReviewThreshold() throws Exception {
+        provision("limite");
+        asAdmin(() -> settings.update(new SettingsCommand(new BigDecimal("750.00"), 86_400, 30, 3)));
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
+        ActorAuthentication registerOnly = auth(EnumSet.of(Permission.PAYMENT_REGISTER_EXTERNAL, Permission.AGREEMENT_VIEW,
+                Permission.DEBTOR_VIEW));
+
+        mvc.perform(get("/api/v1/payment/settings/external-review").with(authentication(registerOnly)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.externalReviewThreshold").value(750.0))
+                .andExpect(jsonPath("$.*", hasSize(1)));
+        // os parâmetros completos continuam exigindo PAYMENT_VIEW ou ORG_SETTINGS_MANAGE
+        mvc.perform(get("/api/v1/payment/settings").with(authentication(registerOnly)))
+                .andExpect(status().isForbidden());
+        // sem a permissão de informar pagamento externo, nem o limite
+        mvc.perform(get("/api/v1/payment/settings/external-review")
+                        .with(authentication(auth(EnumSet.of(Permission.PAYMENT_VIEW, Permission.AGREEMENT_VIEW)))))
+                .andExpect(status().isForbidden());
+        // o caso de uso também confere a permissão (chamada fora da web)
+        assertThat(asOperator(() -> settings.externalReviewLimit()).externalReviewThreshold())
+                .isEqualByComparingTo("750.00");
+        assertThatThrownBy(() -> tenantExecution.callAs(new Actor(Actor.ActorType.USER, manager, tenant, Ids.newId(),
+                "PERSONALIZADO", EnumSet.of(Permission.PAYMENT_VIEW), CreditorScope.ALL), settings::externalReviewLimit))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+    }
+
+    private ActorAuthentication auth(Set<Permission> permissions) {
+        return ActorAuthentication.of(new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "PERSONALIZADO",
+                permissions, CreditorScope.ALL));
     }
 
     @Test

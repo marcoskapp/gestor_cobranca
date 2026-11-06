@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.payment.web;
 
 import br.com.gestorcobranca.payment.application.port.in.PaymentSettingsUseCases;
+import br.com.gestorcobranca.payment.application.port.in.PaymentSettingsUseCases.ExternalReviewLimitView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentSettingsUseCases.SettingsCommand;
 import br.com.gestorcobranca.payment.application.port.in.PaymentSettingsUseCases.SettingsView;
 import br.com.gestorcobranca.shared.web.ApiPaths;
@@ -34,6 +35,13 @@ class PaymentSettingsController {
     @PreAuthorize("hasAuthority('PAYMENT_VIEW') or hasAuthority('ORG_SETTINGS_MANAGE')")
     SettingsView get() {
         return settings.get();
+    }
+
+    /** Só o limite da segunda conferência, para a tela de informar pagamento externo (decisão do responsável à 856). */
+    @GetMapping("/external-review")
+    @PreAuthorize("hasAuthority('PAYMENT_REGISTER_EXTERNAL')")
+    ExternalReviewLimitView externalReviewLimit() {
+        return settings.externalReviewLimit();
     }
 
     @PutMapping

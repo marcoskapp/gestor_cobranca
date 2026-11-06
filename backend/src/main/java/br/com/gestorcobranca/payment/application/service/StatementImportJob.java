@@ -43,7 +43,9 @@ import java.util.UUID;
  * Falha no meio desfaz só o lote corrente; a nova tentativa pula as linhas já gravadas ({@code (import_id,
  * line_number)} único), sem baixa duplicada, e refaz a impressão digital das linhas repetidas na ordem do arquivo.
  * Esgotadas as tentativas, a importação fica {@code FAILED} ({@code statement.processing_failed}) com as linhas já
- * gravadas. Arquivo ilegível → {@code FAILED} com o código do erro (sem nenhuma baixa).
+ * gravadas e a primeira linha do lote interrompido ({@code failureLine}). Arquivo ilegível → {@code FAILED} com o
+ * código do erro e a linha apontada pelo leitor (sem nenhuma baixa). A nova tentativa pedida por uma pessoa
+ * ({@link ReconciliationService#retryImport}) volta a importação a {@code RECEIVED} e enfileira este job de novo.
  */
 @Component
 class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
@@ -77,11 +79,29 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
         this.clock = clock;
     }
 
-    record Payload(UUID importId) {
+    /**
+     * @param attempt nova tentativa a que o job pertence ({@code retry_count} da importação quando foi enfileirado);
+     *                nulo nos jobs anteriores a este campo, tratado como 0
+     */
+    record Payload(UUID importId, Integer attempt) {
+
+        int attemptOrZero() {
+            return attempt == null ? 0 : attempt;
+        }
     }
 
     static void enqueue(JobQueue jobs, UUID importId) {
-        jobs.enqueue(TYPE, new Payload(importId), null, "statement:" + importId);
+        jobs.enqueue(TYPE, new Payload(importId, 0), null, "statement:" + importId);
+    }
+
+    /**
+     * Nova tentativa pedida depois de {@code FAILED}: chave própria por tentativa, para não ser absorvida pelo job
+     * anterior que ainda não saiu de {@code RUNNING} (a importação já está {@code FAILED} antes de o job morrer). O
+     * job leva o número da tentativa: o de uma tentativa anterior que ainda rodar (retentativa automática atrasada)
+     * não mexe na importação da tentativa nova (barreira por {@code retry_count}).
+     */
+    static void enqueueRetry(JobQueue jobs, UUID importId, int retry) {
+        jobs.enqueue(TYPE, new Payload(importId, retry), null, "statement:" + importId + ":retry:" + retry);
     }
 
     @Override
@@ -108,30 +128,34 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
     @Override
     public void handle(JobContext context, Payload payload) {
         UUID importId = payload.importId();
+        int attempt = payload.attemptOrZero();
         StatementImport source = tx.execute(s -> statements.findImportForUpdate(importId)
+                .filter(i -> i.getRetryCount() == attempt)
                 .filter(i -> i.startOrResume(Instant.now(clock)))
                 .map(statements::save)
                 .orElse(null));
         if (source == null) {
             return;
         }
+        // primeira linha do lote em andamento: onde a importação parou se a falha a interromper
+        int[] stoppedAt = {0};
         try {
             List<ParsedLine> lines;
             try (InputStream in = fileStorage.open(source.getFileKey())) {
                 lines = reconciliation.parser(source.getFormat()).parse(in, properties.statement().maxLines());
             } catch (StatementFormatException e) {
-                rejectFile(importId, e);
+                rejectFile(importId, attempt, e);
                 return;
             } catch (IOException e) {
                 throw new UncheckedIOException("Falha ao ler o extrato armazenado", e);
             }
-            if (processInChunks(importId, lines)) {
-                finish(importId);
+            if (processInChunks(importId, attempt, lines, stoppedAt)) {
+                finish(importId, attempt);
             }
         } catch (RuntimeException e) {
             // o PROCESSING já foi confirmado: sem nova tentativa, a importação não pode ficar em processamento
             if (context.attempt() >= maxAttempts() || isPermanent(e)) {
-                failProcessing(importId);
+                failProcessing(importId, attempt, stoppedAt[0]);
             }
             throw e;
         }
@@ -142,7 +166,7 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
     }
 
     /** @return {@code false} se a importação saiu de processamento no meio (outra execução a concluiu) */
-    private boolean processInChunks(UUID importId, List<ParsedLine> lines) {
+    private boolean processInChunks(UUID importId, int attempt, List<ParsedLine> lines, int[] stoppedAt) {
         // a impressão digital das linhas repetidas depende da ordem no arquivo: calculada para todas, gravadas ou não
         Map<String, Integer> occurrences = new HashMap<>();
         int[] order = new int[lines.size()];
@@ -153,7 +177,8 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
         for (int from = 0; from < lines.size(); from += chunkSize) {
             int start = from;
             int end = Math.min(from + chunkSize, lines.size());
-            ChunkResult result = tx.execute(s -> processChunk(importId, lines, order, start, end));
+            stoppedAt[0] = lines.get(start).lineNumber();
+            ChunkResult result = tx.execute(s -> processChunk(importId, attempt, lines, order, start, end));
             if (result == null || !result.processing()) {
                 return false;
             }
@@ -162,13 +187,16 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
                 metrics.statementLinesResumed(result.resumed());
             }
         }
+        // todos os lotes confirmados: falha na conclusão não aponta linha
+        stoppedAt[0] = 0;
         return true;
     }
 
-    private ChunkResult processChunk(UUID importId, List<ParsedLine> lines, int[] order, int start, int end) {
+    private ChunkResult processChunk(UUID importId, int attempt, List<ParsedLine> lines, int[] order, int start,
+                                     int end) {
         // o lock da importação serializa execuções concorrentes (lease perdido) e firma a leitura das já gravadas
         StatementImport current = statements.findImportForUpdate(importId).orElse(null);
-        if (current == null || !current.isProcessing()) {
+        if (!owns(current, attempt)) {
             return new ChunkResult(false, 0);
         }
         int first = Integer.MAX_VALUE;
@@ -190,10 +218,15 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
         return new ChunkResult(true, resumed);
     }
 
-    private void finish(UUID importId) {
+    /** A importação está em processamento e na tentativa deste job (job de tentativa anterior não mexe nela). */
+    private static boolean owns(StatementImport source, int attempt) {
+        return source != null && source.isProcessing() && source.getRetryCount() == attempt;
+    }
+
+    private void finish(UUID importId, int attempt) {
         tx.executeWithoutResult(s -> {
             StatementImport source = statements.findImportForUpdate(importId).orElse(null);
-            if (source == null || !source.isProcessing()) {
+            if (!owns(source, attempt)) {
                 return;
             }
             source.finish(statements.countLinesByStatus(importId), Instant.now(clock));
@@ -211,15 +244,20 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
         });
     }
 
-    private void rejectFile(UUID importId, StatementFormatException e) {
+    private void rejectFile(UUID importId, int attempt, StatementFormatException e) {
         tx.executeWithoutResult(s -> {
             StatementImport source = statements.findImportForUpdate(importId).orElse(null);
-            if (source == null || !source.isProcessing()) {
+            if (!owns(source, attempt)) {
                 return;
             }
-            source.fail(e.code(), Instant.now(clock));
+            source.failProcessing(e.code(), e.lineNumber(), statements.countLinesByStatus(importId), Instant.now(clock));
             statements.save(source);
             metrics.statementImport(source.getFormat().name(), StatementImportStatus.FAILED.name());
+            auditTrail.record(AuditEntry.of("statement_import.failed", ReconciliationService.RESOURCE, source.getId())
+                    .creditor(source.getCreditorId()).change("status", StatementImportStatus.PROCESSING,
+                            StatementImportStatus.FAILED)
+                    .meta("failureCode", source.getFailureCode()).meta("failureLine", source.getFailureLine())
+                    .meta("totalLines", source.getTotalLines()));
             LOG.atWarn().addKeyValue("importId", source.getId()).addKeyValue("code", e.code())
                     .addKeyValue("line", e.lineNumber()).log("Extrato recusado: arquivo inválido");
         });
@@ -229,20 +267,22 @@ class StatementImportJob implements JobHandler<StatementImportJob.Payload> {
      * Última tentativa falhou no meio: as linhas (e baixas) já gravadas ficam e a importação sai de processamento
      * (decisão 873).
      */
-    private void failProcessing(UUID importId) {
+    private void failProcessing(UUID importId, int attempt, int stoppedAt) {
         try {
             tx.executeWithoutResult(s -> {
                 StatementImport source = statements.findImportForUpdate(importId).orElse(null);
-                if (source == null || !source.isProcessing()) {
+                if (!owns(source, attempt)) {
                     return;
                 }
-                source.failProcessing(PROCESSING_FAILED, statements.countLinesByStatus(importId), Instant.now(clock));
+                source.failProcessing(PROCESSING_FAILED, stoppedAt, statements.countLinesByStatus(importId),
+                        Instant.now(clock));
                 statements.save(source);
                 metrics.statementImport(source.getFormat().name(), StatementImportStatus.FAILED.name());
                 auditTrail.record(AuditEntry.of("statement_import.failed", ReconciliationService.RESOURCE, source.getId())
                         .creditor(source.getCreditorId()).change("status", StatementImportStatus.PROCESSING,
                                 StatementImportStatus.FAILED)
-                        .meta("failureCode", PROCESSING_FAILED).meta("totalLines", source.getTotalLines())
+                        .meta("failureCode", PROCESSING_FAILED).meta("failureLine", source.getFailureLine())
+                        .meta("totalLines", source.getTotalLines())
                         .meta("reconciledLines", source.getReconciledLines())
                         .meta("createdPayments", source.getCreatedPayments())
                         .meta("divergentLines", source.getDivergentLines()));

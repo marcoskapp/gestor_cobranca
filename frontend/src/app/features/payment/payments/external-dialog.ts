@@ -186,17 +186,17 @@ export class ExternalDialog {
 
   private readonly auth = inject(AuthService);
   /**
-   * O limite da segunda conferência vem das configurações de pagamento, que exigem `PAYMENT_VIEW` ou
-   * `ORG_SETTINGS_MANAGE`; quem só registra pagamento externo (a partir do acordo) não as consulta e o
-   * aviso de segunda conferência não aparece (o servidor continua decidindo).
+   * Só o limite da segunda conferência, liberado a quem informa pagamento externo (decisão do responsável à 856):
+   * o aviso aparece para todos que registram, mesmo sem acesso às configurações de pagamento. O servidor continua
+   * decidindo (inclusive pelos limites acumulados); sem o limite, o aviso apenas não aparece.
    */
-  private readonly canReadSettings = computed(() => this.auth.hasAnyPermission([Permission.PAYMENT_VIEW, Permission.ORG_SETTINGS_MANAGE]));
-  private readonly settings = rxResource({
-    params: () => (this.canReadSettings() ? true : undefined),
-    stream: () => this.settingsApi.get().pipe(catchError(() => of(undefined))),
+  private readonly canRegister = computed(() => this.auth.hasPermission(Permission.PAYMENT_REGISTER_EXTERNAL));
+  private readonly limit = rxResource({
+    params: () => (this.canRegister() ? true : undefined),
+    stream: () => this.settingsApi.externalReviewLimit().pipe(catchError(() => of(undefined))),
   });
-  private readonly settingsValue = valueOr(this.settings, undefined);
-  protected readonly threshold = computed(() => this.settingsValue()?.externalReviewThreshold ?? null);
+  private readonly limitValue = valueOr(this.limit, undefined);
+  protected readonly threshold = computed(() => this.limitValue()?.externalReviewThreshold ?? null);
   protected readonly needsReview = computed(() => requiresSecondReview(this.amountValue(), this.threshold()));
 
   constructor() {

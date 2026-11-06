@@ -53,11 +53,48 @@ class StatementImportTest {
         StatementImport source = received();
         assertThatThrownBy(() -> source.finish(Map.of(), now)).isInstanceOf(DomainException.class);
         source.startOrResume(now);
-        source.failProcessing("statement.processing_failed", Map.of(StatementLineStatus.RECONCILED, 2L), now);
+        source.failProcessing("statement.processing_failed", 501, Map.of(StatementLineStatus.RECONCILED, 2L), now);
         assertThat(source.getStatus()).isEqualTo(StatementImportStatus.FAILED);
         assertThat(source.getFailureCode()).isEqualTo("statement.processing_failed");
+        assertThat(source.getFailureLine()).isEqualTo(501);
         assertThat(source.getTotalLines()).isEqualTo(2);
         assertThat(source.getReconciledLines()).isEqualTo(2);
-        assertThatThrownBy(() -> source.failProcessing("x", Map.of(), now)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> source.failProcessing("x", null, Map.of(), now)).isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void wholeFileFailureHasNoLine() {
+        StatementImport source = received();
+        source.startOrResume(now);
+        source.failProcessing("statement.unreadable", 0, Map.of(), now);
+        assertThat(source.getFailureCode()).isEqualTo("statement.unreadable");
+        assertThat(source.getFailureLine()).isNull();
+    }
+
+    @Test
+    void retryOnlyFromFailedGoesBackToReceivedAndResumesFromTheRecordedLines() {
+        StatementImport source = received();
+        // recebida, em processamento e processada não aceitam nova tentativa
+        assertThatThrownBy(source::retry).isInstanceOf(DomainException.class).hasMessageContaining("falha");
+        source.startOrResume(now);
+        assertThatThrownBy(source::retry).isInstanceOf(DomainException.class);
+        source.failProcessing("statement.date_invalid", 7, Map.of(StatementLineStatus.RECONCILED, 3L), now);
+
+        source.retry();
+        assertThat(source.getStatus()).isEqualTo(StatementImportStatus.RECEIVED);
+        assertThat(source.getFailureCode()).isNull();
+        assertThat(source.getFailureLine()).isNull();
+        assertThat(source.getFinishedAt()).isNull();
+        assertThat(source.getRetryCount()).isEqualTo(1);
+        // contagens parciais ficam até a nova apuração
+        assertThat(source.getTotalLines()).isEqualTo(3);
+        assertThatThrownBy(source::retry).isInstanceOf(DomainException.class);
+
+        // o job retoma e conclui; a importação processada não volta
+        assertThat(source.startOrResume(now.plusSeconds(60))).isTrue();
+        source.finish(Map.of(StatementLineStatus.RECONCILED, 5L), now.plusSeconds(90));
+        assertThat(source.getStatus()).isEqualTo(StatementImportStatus.PROCESSED);
+        assertThat(source.getTotalLines()).isEqualTo(5);
+        assertThatThrownBy(source::retry).isInstanceOf(DomainException.class);
     }
 }

@@ -22,6 +22,12 @@ public interface ReconciliationUseCases {
 
     StatementImportView getImport(UUID importId);
 
+    /**
+     * Nova tentativa da importação com falha ({@code FAILED} → {@code RECEIVED}), retomando de onde parou: as linhas
+     * já gravadas são puladas, sem baixa duplicada. Outra situação → 409 ({@code statement.not_failed}).
+     */
+    StatementImportView retryImport(UUID importId);
+
     PageResponse<StatementImportView> imports(PageQuery page);
 
     PageResponse<StatementLineView> lines(UUID importId, PageQuery page);
@@ -41,10 +47,16 @@ public interface ReconciliationUseCases {
                            InputStream content) {
     }
 
+    /**
+     * @param failureLine linha do arquivo apontada na falha: a linha inválida (arquivo recusado) ou a primeira do lote
+     *                    interrompido ({@code statement.processing_failed}); nula se não se sabe
+     * @param retryCount  novas tentativas pedidas depois de falha
+     */
     record StatementImportView(UUID id, String format, String status, UUID creditorId, String fileName, long fileSize,
                                String fileSha256, UUID requestedBy, Instant createdAt, Instant startedAt,
                                Instant finishedAt, int totalLines, int reconciledLines, int createdPayments,
-                               int divergentLines, int ignoredLines, String failureCode) {
+                               int divergentLines, int ignoredLines, String failureCode, Integer failureLine,
+                               int retryCount) {
     }
 
     record StatementLineView(UUID id, int lineNumber, LocalDate paidOn, BigDecimal amount, String direction,

@@ -58,7 +58,7 @@ describe('ExternalDialog', () => {
       for (const req of http.match((r) => r.method === 'GET')) {
         const url = req.request.url;
         requested.push(url);
-        if (url === '/api/v1/payment/settings') req.flush({ externalReviewThreshold: 500, pixExpirationSeconds: 86400, pixDueValidityDays: 30, reconciliationDateToleranceDays: 3, customized: false, updatedAt: null });
+        if (url === '/api/v1/payment/settings/external-review') req.flush({ externalReviewThreshold: 500 });
         else if (url === '/api/v1/negotiation/agreements') req.flush({ content: [agreement()], page: 0, size: 50, totalElements: 1, totalPages: 1 });
         else if (url === '/api/v1/titles') req.flush({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
         else if (url === '/api/v1/creditors/c-1') req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
@@ -94,13 +94,32 @@ describe('ExternalDialog', () => {
     expect(el(fixture).textContent).toContain('PDF, PNG ou JPEG');
   });
 
-  it('sem permissão de ler as configurações de pagamento: não as consulta e não avisa a segunda aprovação', async () => {
+  it('sem permissão de ler as configurações de pagamento: consulta só o limite e avisa a segunda aprovação', async () => {
     permissions = ['PAYMENT_REGISTER_EXTERNAL', 'AGREEMENT_VIEW', 'DEBTOR_VIEW'];
     const fixture = await render();
     expect(requested).not.toContain('/api/v1/payment/settings');
+    expect(requested).toContain('/api/v1/payment/settings/external-review');
     const amount = el(fixture).querySelector<HTMLInputElement>('input[formcontrolname="amount"]')!;
     amount.value = '80000';
     amount.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(el(fixture).textContent).toContain('outra pessoa');
+    expect(submit(fixture).textContent).toContain('Enviar para aprovação');
+  });
+
+  it('limite indisponível: não avisa e deixa a decisão ao servidor', async () => {
+    const fixture = TestBed.createComponent(ExternalDialog);
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await tick();
+      for (const req of http.match((r) => r.method === 'GET')) {
+        if (req.request.url === '/api/v1/payment/settings/external-review') req.flush({}, { status: 500, statusText: 'Erro' });
+        else if (req.request.url === '/api/v1/negotiation/agreements') req.flush({ content: [], page: 0, size: 50, totalElements: 0, totalPages: 0 });
+        else if (req.request.url === '/api/v1/titles') req.flush({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
+        else req.flush({});
+      }
+    }
+    fixture.componentInstance['form'].patchValue({ amount: 800 });
     fixture.detectChanges();
     expect(el(fixture).textContent).not.toContain('outra pessoa');
   });

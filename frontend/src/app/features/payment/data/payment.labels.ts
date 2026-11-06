@@ -147,6 +147,7 @@ export const PAYMENT_ERROR_LABELS: Record<string, string> = {
   'statement.already_imported': 'Este arquivo já foi importado. Importar de novo não geraria baixas, mas o sistema recusa o mesmo arquivo.',
   'statement.format_unavailable': 'Ainda não há leitor para este formato. Use o CSV genérico.',
   'statement.file_too_large': 'O arquivo passa do limite de 10 MB.',
+  'statement.not_failed': 'Esta importação não está com falha (já foi retomada ou concluída). A tela foi atualizada.',
   'pix_account.certificate_invalid': 'Não foi possível abrir o certificado: confira o arquivo PKCS#12 e a senha.',
   'pix_account.certificate_expired': 'O certificado está vencido. Envie um certificado válido.',
   'pix_account.fingerprint_required': 'Webhook com mTLS exige a impressão digital do certificado do PSP.',
@@ -172,4 +173,5 @@ export const STATEMENT_FAILURE_LABELS: Record<string, string> = {
   'statement.formula_rejected': 'Descrição começando com fórmula (=, +, - ou @).',
   'statement.identifier_invalid': 'Identificador com caracteres inválidos ou longo demais.',
   'statement.format_unavailable': 'Formato sem leitor disponível.',
+  'statement.processing_failed': 'A importação parou depois de várias tentativas.',
 };

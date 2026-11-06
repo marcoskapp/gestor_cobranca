@@ -100,7 +100,7 @@ export const MANUAL: ModuleManual = {
       title: 'Acordo',
       objective: 'Cronograma de parcelas, Pix por parcela, pagamentos, termo do acordo e renegociação.',
       purpose: [
-        'Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito.',
+        'Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito. Ao informar um valor acima do limite da assessoria, a tela avisa que ele vai para a aprovação de outra pessoa.',
         'Renegociar volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'FINANCEIRO', 'AUDITOR'],

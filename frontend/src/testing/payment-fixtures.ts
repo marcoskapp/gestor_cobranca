@@ -119,6 +119,8 @@ export function statementImport(overrides: Partial<StatementImportView> = {}): S
     divergentLines: 6,
     ignoredLines: 10,
     failureCode: null,
+    failureLine: null,
+    retryCount: 0,
     ...overrides,
   };
 }
