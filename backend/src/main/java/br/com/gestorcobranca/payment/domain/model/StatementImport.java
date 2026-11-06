@@ -71,6 +71,14 @@ public class StatementImport extends TenantScopedEntity {
     @Column(name = "failure_code", length = 60)
     private String failureCode;
 
+    /** Linha do arquivo onde a falha ocorreu, quando se sabe (só o número: nada do conteúdo da linha). */
+    @Column(name = "failure_line")
+    private Integer failureLine;
+
+    /** Quantas vezes alguém pediu uma nova tentativa depois de {@code FAILED}. */
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
+
     protected StatementImport() {
     }
 
@@ -121,13 +129,34 @@ public class StatementImport extends TenantScopedEntity {
     }
 
     /**
-     * Falha depois de parte das linhas gravadas (tentativas esgotadas): as linhas e baixas já confirmadas ficam,
-     * e as contagens refletem só elas (decisão 873).
+     * Falha (tentativas esgotadas, falha permanente ou arquivo recusado pelo leitor): as linhas e baixas já
+     * confirmadas ficam, e as contagens refletem só elas (decisão 873).
+     *
+     * @param failureLine linha do arquivo onde a falha ocorreu ({@code null} ou {@code <= 0}: não se sabe ou é o
+     *                    arquivo inteiro)
      */
-    public void failProcessing(String code, Map<StatementLineStatus, Long> lines, Instant now) {
+    public void failProcessing(String code, Integer failureLine, Map<StatementLineStatus, Long> lines, Instant now) {
         Guard.require(isProcessing(), "statement.not_processing", "Importação não está em processamento");
         tally(lines);
-        fail(code, now);
+        this.status = StatementImportStatus.FAILED;
+        this.failureCode = code == null ? "FAILED" : code.length() > 60 ? code.substring(0, 60) : code;
+        this.failureLine = failureLine == null || failureLine <= 0 ? null : failureLine;
+        this.finishedAt = now;
+    }
+
+    /**
+     * Nova tentativa pedida por uma pessoa (decisão do responsável à 873): volta a {@code RECEIVED} para o job
+     * retomar de onde parou — as linhas já gravadas são puladas, sem baixa duplicada. O motivo da falha anterior sai
+     * da importação (fica na auditoria); as contagens parciais ficam até a nova apuração.
+     */
+    public void retry() {
+        Guard.requireState(status == StatementImportStatus.FAILED, "statement.not_failed",
+                "Só a importação com falha pode ser tentada de novo");
+        this.status = StatementImportStatus.RECEIVED;
+        this.failureCode = null;
+        this.failureLine = null;
+        this.finishedAt = null;
+        this.retryCount++;
     }
 
     private void tally(Map<StatementLineStatus, Long> lines) {
@@ -149,12 +178,6 @@ public class StatementImport extends TenantScopedEntity {
                 case ALREADY_RECONCILED, IGNORED_DUPLICATE, IGNORED_DEBIT -> ignoredLines += n;
             }
         });
-    }
-
-    public void fail(String code, Instant now) {
-        this.status = StatementImportStatus.FAILED;
-        this.failureCode = code == null ? "FAILED" : code.length() > 60 ? code.substring(0, 60) : code;
-        this.finishedAt = now;
     }
 
     public StatementFormat getFormat() {
@@ -219,5 +242,13 @@ public class StatementImport extends TenantScopedEntity {
 
     public String getFailureCode() {
         return failureCode;
+    }
+
+    public Integer getFailureLine() {
+        return failureLine;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
     }
 }

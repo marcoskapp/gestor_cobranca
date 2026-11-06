@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "2c960e3d4ea54b17",
+ "contentVersion": "907e068b676eaa25",
  "schemaVersion": 1,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -3337,7 +3337,7 @@
    "title": "Acordo",
    "objective": "Cronograma de parcelas, Pix por parcela, pagamentos, termo do acordo e renegociação.",
    "purpose": [
-    "Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito.",
+    "Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito. Ao informar um valor acima do limite da assessoria, a tela avisa que ele vai para a aprovação de outra pessoa.",
     "Renegociar volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização."
    ],
    "profiles": [
@@ -3657,7 +3657,8 @@
    "title": "Pagamentos",
    "objective": "Tudo o que entrou: Pix integrado, confirmações por extrato e pagamentos informados com comprovante.",
    "purpose": [
-    "Filtre por situação, origem, meio, credor e período. Informe aqui o dinheiro que entrou fora do Pix integrado."
+    "Filtre por situação, origem, meio, credor e período. Informe aqui o dinheiro que entrou fora do Pix integrado.",
+    "Ao informar um valor acima do limite da assessoria, a tela avisa antes do envio que ele vai para a aprovação de outra pessoa; o aviso aparece para todos que informam pagamento."
    ],
    "profiles": [
     "FINANCEIRO",
@@ -3932,7 +3933,8 @@
    "title": "Extrato importado",
    "objective": "Indicadores de um extrato importado e o tratamento de cada linha.",
    "purpose": [
-    "A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados."
+    "A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados.",
+    "Importação com falha mostra o motivo e a linha do arquivo. \"Tentar novamente\" continua de onde parou: as linhas já gravadas e as baixas delas não se repetem. Se o problema estiver no arquivo, a falha volta com a mesma linha: corrija e importe um arquivo novo."
    ],
    "profiles": [
     "FINANCEIRO",

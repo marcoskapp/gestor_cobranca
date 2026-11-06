@@ -29,7 +29,10 @@ export const MANUAL: ModuleManual = {
       id: 'payment.list',
       title: 'Pagamentos',
       objective: 'Tudo o que entrou: Pix integrado, confirmações por extrato e pagamentos informados com comprovante.',
-      purpose: ['Filtre por situação, origem, meio, credor e período. Informe aqui o dinheiro que entrou fora do Pix integrado.'],
+      purpose: [
+        'Filtre por situação, origem, meio, credor e período. Informe aqui o dinheiro que entrou fora do Pix integrado.',
+        'Ao informar um valor acima do limite da assessoria, a tela avisa antes do envio que ele vai para a aprovação de outra pessoa; o aviso aparece para todos que informam pagamento.',
+      ],
       profiles: ['FINANCEIRO', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
       inputs: ['Avisos do PSP, extratos importados e pagamentos informados pela equipe.'],
       outputs: ['Parcelas e títulos baixados; base do recuperado e da prestação de contas.'],
@@ -119,7 +122,10 @@ export const MANUAL: ModuleManual = {
       id: 'payment.statement',
       title: 'Extrato importado',
       objective: 'Indicadores de um extrato importado e o tratamento de cada linha.',
-      purpose: ['A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados.'],
+      purpose: [
+        'A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados.',
+        'Importação com falha mostra o motivo e a linha do arquivo. "Tentar novamente" continua de onde parou: as linhas já gravadas e as baixas delas não se repetem. Se o problema estiver no arquivo, a falha volta com a mesma linha: corrija e importe um arquivo novo.',
+      ],
       profiles: ['FINANCEIRO', 'AUDITOR'],
       inputs: ['Arquivo enviado em Conciliação.'],
       outputs: ['Linhas conciliadas, ignoradas ou em divergência.'],

@@ -72,6 +72,7 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 - Informados por operador (`PAYMENT_REGISTER_EXTERNAL`): credor, devedor, valor, data (não futura), meio, fonte (`AGENCY_ACCOUNT`, `CREDITOR_DIRECT`, `CREDITOR_REPORT`, `OTHER`), referência, observação (criptografada) e **destino obrigatório** (parcelas de um acordo ou títulos).
 - **Evidência obrigatória**: PDF, PNG ou JPEG até 10 MB, tipo conferido pela assinatura do conteúdo; `FileStorage` (`EVIDENCE`) com SHA-256; removida se a transação for desfeita; download com `FILE_DOWNLOADED`.
 - **Revisão conforme risco**: valor ≤ `externalReviewThreshold` (padrão R$ 500,00, por assessoria) → confirmado no registro (`AUTO_LOW_RISK`); acima → `INFORMED` até aprovação por **outra pessoa** com `PAYMENT_REVIEW` (`DUAL_CONTROL`); a fila de revisão não mostra ao revisor os próprios pagamentos e o domínio recusa `payment.self_review`. Recusa exige motivo (`REJECTED`, sem baixa). A `PaymentView` traz o **destino solicitado** (`requestedTarget`: tipo, acordo, parcelas/títulos em ordem e estratégia) do pagamento externo, para quem aprova ver para onde o valor vai antes de a confirmação gerar as alocações (nulo nos integrados).
+- **Aviso antecipado na tela** (decisão do responsável à 856; decisão 9201): `GET /payment/settings/external-review` (`PAYMENT_REGISTER_EXTERNAL`, `PaymentSettingsUseCases.externalReviewLimit`) devolve só `externalReviewThreshold` — nada mais dos parâmetros, que seguem exigindo `PAYMENT_VIEW` ou `ORG_SETTINGS_MANAGE`. O diálogo "Informar pagamento" (lista de pagamentos, acordo, contestação) consulta esse endpoint para todos que registram e avisa acima do limite; o aviso é só antecipação: o registro no servidor continua decidindo, inclusive pelos limites acumulados, que a tela não mostra. Teste: `PaymentExternalIT.registerOnlyProfileReceivesJustTheSecondReviewThreshold`.
 - `Idempotency-Key` (escopo `payment.external`): mesma chave e conteúdo → mesmo pagamento.
 
 ### 5.1 Situação de revisão no acordo e no caso (decisões 430–438, 540–549)
@@ -122,6 +123,27 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
   (`statement.processing_failed`) com as linhas e baixas já gravadas e as contagens delas (auditoria
   `statement_import.failed`). Teste: `PaymentStatementResumeIT` (falha forçada por gatilho no segundo lote, retomada
   sem baixa duplicada; tentativas esgotadas).
+- **Linha da falha** (`failure_line`, `V0806`; decisão 9203): arquivo recusado pelo leitor → a linha apontada pelo
+  leitor (nula quando é o arquivo inteiro: codificação, ilegível); processamento interrompido → a primeira linha do lote
+  em andamento (onde parou). Só o número — nada do conteúdo da linha. Arquivo recusado também grava a auditoria
+  `statement_import.failed` (com `failureCode` e `failureLine`).
+- **Nova tentativa** (decisão do responsável à 873; decisão 9202): `POST /payment/reconciliation/statements/{id}/retry`
+  (`RECONCILIATION_MANAGE`, mesmo escopo da importação: sem credor exige todos os credores) só aceita `FAILED`
+  (`statement.not_failed` → 409, sob o lock da importação, então dois pedidos simultâneos não enfileiram dois jobs);
+  volta a `RECEIVED` (limpa motivo, linha e fim; mantém as contagens parciais até a nova apuração; `retry_count` + 1),
+  enfileira `payment.statement_import` com chave de deduplicação própria da tentativa
+  (`statement:<id>:retry:<n>` — o job anterior pode ainda estar `RUNNING` quando a importação já está `FAILED`), com o
+  número da tentativa no payload (`attempt`; nulo = 0 nos jobs antigos). **Barreira por `retry_count`**: início, lotes,
+  conclusão e registro de falha só valem se a importação estiver `PROCESSING` na tentativa do job — job de tentativa
+  anterior que ainda rodar não altera situação, linhas nem auditoria —, e
+  grava a auditoria `statement_import.retried` (antes/depois de `status`, `failureCode`, `failureLine`; `retryCount`).
+  O job retoma como na retentativa automática: pula as linhas gravadas, sem baixa duplicada. Falha no próprio arquivo
+  se repete e volta a `FAILED` com a mesma linha. Tela: botão "Tentar novamente" no extrato importado, só em `FAILED`
+  e só com a permissão. Testes: `StatementImportTest` (transição) e `PaymentStatementResumeIT` (falha → nova tentativa
+  → conclusão sem baixa duplicada; job da tentativa anterior ignorado; arquivo com linha inválida volta a falhar
+  apontando a linha). Pendência: importação presa em `PROCESSING` sem job ativo (falha ao gravar o `FAILED` ou job
+  `DEAD` sem rodar) não é coberta pelo retry, que só aceita `FAILED`.
+- Falha depois do último lote (na conclusão) não aponta linha: todos os lotes já foram confirmados.
 - Por linha (`StatementMatcher`): débito → ignorado; mesma transação já importada (impressão digital: `id_transacao` + sentido, ou data+valor+sentido+referência+ocorrência no arquivo) → `IGNORED_DUPLICATE`, sem nova baixa; `id_transacao` = `endToEndId`/id do provedor ou referência externa de pagamento confirmado → concilia; `referencia` = `txid` ou id de instrução (sem pagamento ainda: **o arquivo de retorno é a confirmação** — cria pagamento integrado `STATEMENT`, aloca e concilia), id de pagamento ou id de parcela (pagamento confirmado com mesmo valor e data na tolerância `reconciliationDateToleranceDays`); sem correspondência → `UNMATCHED`.
 - Divergências (`payment.divergence`): `AMOUNT_MISMATCH`, `DUPLICATE_PAYMENT`, `UNMATCHED`, `NOT_CONFIRMED`, `PARTIAL_REFUND`. Resolução com justificativa obrigatória e auditoria: `MATCHED_PAYMENT` (concilia manualmente o pagamento indicado e vincula a linha; **quem informou o pagamento externo não o concilia** — `payment.self_reconciliation`), `ACCEPTED` ou `DISMISSED`. Divergência sem credor só é visível a quem tem todos os credores. A descrição da linha do banco (pode conter nome/documento do pagador) fica criptografada e é exibida mascarada.
 
@@ -141,12 +163,12 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
 | --- | --- |
 | consultar pagamentos/instruções, fila de realocação, evidência | `PAYMENT_VIEW` |
 | gerar/cancelar instrução | `PAYMENT_INSTRUCTION_CREATE` |
-| informar pagamento externo | `PAYMENT_REGISTER_EXTERNAL` |
+| informar pagamento externo; limite da segunda conferência (só o valor) | `PAYMENT_REGISTER_EXTERNAL` |
 | aprovar/recusar informado | `PAYMENT_REVIEW` (nunca o próprio) |
 | situação de revisão no acordo, na listagem e no caso (§5.1), com a suspensão da quebra | `AGREEMENT_VIEW` (motivo da recusa: quem informou ou `PAYMENT_VIEW`) |
 | suspensão da quebra na fila de revisão e no detalhe (§5.2) | `PAYMENT_REVIEW`/`PAYMENT_VIEW` + `AGREEMENT_VIEW` |
 | estornar | `PAYMENT_REVERSE` |
-| importar extrato, resolver divergência, realocar | `RECONCILIATION_MANAGE` |
+| importar extrato (e a nova tentativa), resolver divergência, realocar | `RECONCILIATION_MANAGE` |
 | contas Pix, simulador | `INTEGRATION_MANAGE` (contas da assessoria exigem todos os credores) |
 | parâmetros | leitura `PAYMENT_VIEW`; alteração `ORG_SETTINGS_MANAGE` + todos os credores |
 
@@ -162,9 +184,9 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 | `/payments/external` (multipart `payment` + `evidence`, `Idempotency-Key`) | `POST` |
 | `/payments/review-queue` · `/payments/{id}/approve` · `/reject` | `GET` · `POST` |
 | `/payments/{id}/reverse` · `/payments/pending-reallocation` · `/payments/{id}/reallocations` | `POST` · `GET` · `POST` |
-| `/reconciliation/statements` · `/{id}` · `/{id}/lines` · `/reconciliation/divergences` · `/{id}` · `/{id}/resolve` | `POST`/`GET` · `GET` · `GET` · `GET` · `GET` · `POST` |
+| `/reconciliation/statements` · `/{id}` · `/{id}/retry` · `/{id}/lines` · `/reconciliation/divergences` · `/{id}` · `/{id}/resolve` | `POST`/`GET` · `GET` · `POST` · `GET` · `GET` · `GET` · `POST` |
 | `/pix-accounts` · `/{id}` · `/{id}/credentials` · `/{id}/webhook` · `/{id}/activate` · `/deactivate` | CRUD |
-| `/settings` | `GET`, `PUT` |
+| `/settings` · `/settings/external-review` | `GET`, `PUT` · `GET` (`PAYMENT_REGISTER_EXTERNAL`) |
 | `/sandbox/instructions/{id}/pay` · `/sandbox/pix/refund` | `POST` (só com sandbox) |
 
 ## 12. Parâmetros (`app.payment.*`)

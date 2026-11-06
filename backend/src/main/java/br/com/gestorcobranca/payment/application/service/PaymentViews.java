@@ -99,7 +99,7 @@ final class PaymentViews {
         return new StatementImportView(s.getId(), s.getFormat().name(), s.getStatus().name(), s.getCreditorId(),
                 s.getFileName(), s.getFileSize(), s.getFileSha256(), s.getRequestedBy(), s.getCreatedAt(), s.getStartedAt(),
                 s.getFinishedAt(), s.getTotalLines(), s.getReconciledLines(), s.getCreatedPayments(), s.getDivergentLines(),
-                s.getIgnoredLines(), s.getFailureCode());
+                s.getIgnoredLines(), s.getFailureCode(), s.getFailureLine(), s.getRetryCount());
     }
 
     static StatementLineView line(BankStatementLine l) {

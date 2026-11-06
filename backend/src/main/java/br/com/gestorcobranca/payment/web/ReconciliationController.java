@@ -67,6 +67,13 @@ class ReconciliationController {
         return reconciliation.getImport(id);
     }
 
+    /** Nova tentativa da importação com falha, de onde parou (decisão do responsável à 873). */
+    @PostMapping("/statements/{id}/retry")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    StatementImportView retryImport(@PathVariable UUID id) {
+        return reconciliation.retryImport(id);
+    }
+
     @GetMapping("/statements/{id}/lines")
     PageResponse<StatementLineView> lines(@PathVariable UUID id, @RequestParam(required = false) Integer page,
                                           @RequestParam(required = false) Integer size) {

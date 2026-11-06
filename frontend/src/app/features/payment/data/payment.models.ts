@@ -247,6 +247,10 @@ export interface StatementImportView {
   divergentLines: number;
   ignoredLines: number;
   failureCode: string | null;
+  /** Linha do arquivo apontada na falha: a linha inválida ou a primeira do lote interrompido; nula se não se sabe. */
+  failureLine: number | null;
+  /** Novas tentativas pedidas depois de falha. */
+  retryCount: number;
 }
 
 export interface StatementLineView {
@@ -376,6 +380,11 @@ export interface PaymentSettingsView {
   /** Falso enquanto valem os padrões da plataforma. */
   customized: boolean;
   updatedAt: string | null;
+}
+
+/** Só o limite da segunda conferência, para quem informa pagamento externo. */
+export interface ExternalReviewLimitView {
+  externalReviewThreshold: Amount;
 }
 
 export interface PaymentSettingsRequest {

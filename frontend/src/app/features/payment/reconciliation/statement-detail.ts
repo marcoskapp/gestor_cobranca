@@ -1,7 +1,11 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { timer } from 'rxjs';
+import { finalize, timer } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
+import { toApiError, userMessage } from '../../../core/http/problem';
+import { NotificationService } from '../../../core/notification/notification.service';
 import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
@@ -19,7 +23,7 @@ import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { sizeText } from '../../ingestion/data/ingestion.labels';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { ReconciliationApi } from '../data/payment.api';
-import { DIRECTION_LABELS, STATEMENT_FAILURE_LABELS } from '../data/payment.labels';
+import { DIRECTION_LABELS, PAYMENT_ERROR_LABELS, STATEMENT_FAILURE_LABELS } from '../data/payment.labels';
 import { StatementImportView } from '../data/payment.models';
 import { importIndicators, isImportRunning } from '../data/payment.rules';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
@@ -40,6 +44,12 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
     } @else if (statement(); as s) {
       @let ind = indicators()!;
       <app-page-header [title]="s.fileName ?? 'Extrato importado'" [subtitle]="'Importado em ' + (s.createdAt | appDate) + ' por ' + users.name(s.requestedBy) + ' · ' + (s.creditorId ? creditors.name(s.creditorId) : 'todos os credores')">
+        @if (s.status === 'FAILED' && canRetry()) {
+          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" data-tour="statement-retry" [disabled]="retrying()" (click)="retry(s)">
+            <app-icon name="arrow-clockwise" />
+            {{ retrying() ? 'Enviando…' : 'Tentar novamente' }}
+          </button>
+        }
         @if (s.divergentLines > 0) {
           <a class="btn btn-primary d-inline-flex align-items-center gap-2" routerLink="/pagamentos/divergencias" [queryParams]="{ situacao: 'OPEN' }">
             <app-icon name="list-check" />
@@ -61,7 +71,28 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
       @if (s.status === 'FAILED') {
         <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
           <app-icon name="exclamation-circle" />
-          <span>O arquivo foi recusado: {{ failure(s.failureCode) }} Nenhuma linha foi conciliada. Corrija e importe de novo (a prévia aponta as linhas com problema).</span>
+          @if (s.failureCode === processingFailed) {
+            <span>
+              A importação parou{{ s.failureLine ? ' na linha ' + s.failureLine : '' }} depois de várias tentativas.
+              @if (s.totalLines > 0) {
+                As {{ s.totalLines }} linhas já gravadas e as baixas delas ficam valendo.
+              }
+              @if (canRetry()) {
+                Use <strong>Tentar novamente</strong> para continuar de onde parou, sem baixa repetida.
+              }
+            </span>
+          } @else {
+            <span>
+              O arquivo foi recusado{{ s.failureLine ? ' na linha ' + s.failureLine : '' }}: {{ failure(s.failureCode) }}
+              @if (s.totalLines === 0) {
+                Nenhuma linha foi conciliada.
+              }
+              Corrija e importe de novo (a prévia aponta as linhas com problema).
+              @if (canRetry()) {
+                Se o arquivo estiver certo, <strong>Tentar novamente</strong> lê o mesmo arquivo outra vez.
+              }
+            </span>
+          }
         </div>
       }
 
@@ -167,6 +198,13 @@ export class StatementDetail {
 
   private readonly api = inject(ReconciliationApi);
   private readonly breadcrumbs = inject(BreadcrumbService);
+  private readonly notifications = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
+  /** Nova tentativa: mesma permissão de importar extrato; sem ela o botão não aparece. */
+  private readonly auth = inject(AuthService);
+  protected readonly canRetry = computed(() => this.auth.hasPermission(Permission.RECONCILIATION_MANAGE));
+  protected readonly retrying = signal(false);
+  protected readonly processingFailed = 'statement.processing_failed';
   protected readonly size = sizeText;
   protected readonly directions = DIRECTION_LABELS;
   protected readonly pct = (v: number) => percent.format(v);
@@ -199,7 +237,34 @@ export class StatementDetail {
         this.resource.reload();
       }
     });
-    inject(DestroyRef).onDestroy(() => refresh.unsubscribe());
+    this.destroyRef.onDestroy(() => refresh.unsubscribe());
+  }
+
+  /** Volta a importação com falha para a fila; o job retoma de onde parou e a tela acompanha o processamento. */
+  protected retry(s: StatementImportView): void {
+    if (this.retrying()) {
+      return;
+    }
+    this.retrying.set(true);
+    this.api
+      .retryImport(s.id)
+      .pipe(
+        finalize(() => this.retrying.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (view) => {
+          this.polls.set(0);
+          this.notifications.success('Nova tentativa enviada. A importação continua de onde parou.');
+          // a resposta já é a importação atualizada (RECEIVED): a tela passa a acompanhar o processamento
+          this.resource.set(view);
+        },
+        error: (err: unknown) => {
+          const e = toApiError(err);
+          this.notifications.error((e.code && PAYMENT_ERROR_LABELS[e.code]) || userMessage(e));
+          this.resource.reload();
+        },
+      });
   }
 
   protected failure(code: string | null): string {

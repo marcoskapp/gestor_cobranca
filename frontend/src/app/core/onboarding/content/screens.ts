@@ -229,12 +229,21 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'negotiation.agreements', version: 1, path: '/negociacao/acordos' },
   {
     key: 'negotiation.agreement-detail',
-    version: 2,
+    version: 3,
     path: '/negociacao/acordos/:id',
     tourId: 'negotiation.agreement-detail',
-    changes: [{ version: 2, items: ['Gerar Pix por parcela (QR Code e copia e cola) e informar pagamento recebido fora do Pix.'] }],
+    changes: [
+      { version: 2, items: ['Gerar Pix por parcela (QR Code e copia e cola) e informar pagamento recebido fora do Pix.'] },
+      { version: 3, items: ['Ao informar pagamento, o aviso de que o valor vai para a aprovação de outra pessoa aparece para todos que informam, mesmo sem acesso aos parâmetros de pagamentos.'] },
+    ],
   },
-  { key: 'payment.list', version: 1, path: '/pagamentos', tourId: 'payment.list' },
+  {
+    key: 'payment.list',
+    version: 2,
+    path: '/pagamentos',
+    tourId: 'payment.list',
+    changes: [{ version: 2, items: ['Ao informar pagamento, o aviso de que o valor vai para a aprovação de outra pessoa aparece para todos que informam, mesmo sem acesso aos parâmetros de pagamentos.'] }],
+  },
   { key: 'payment.instructions', version: 1, path: '/pagamentos/instrucoes', tourId: 'payment.instructions' },
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
@@ -248,10 +257,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.reconciliation', version: 1, path: '/pagamentos/conciliacao', tourId: 'payment.reconciliation' },
   {
     key: 'payment.statement',
-    version: 2,
+    version: 3,
     path: '/pagamentos/conciliacao/:id',
     tourId: 'payment.statement',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
+      { version: 3, items: ['Botão "Tentar novamente" na importação com falha: continua de onde parou, sem baixa repetida.', 'A falha mostra a linha do arquivo onde o problema apareceu.'] },
+    ],
   },
   { key: 'payment.divergences', version: 1, path: '/pagamentos/divergencias', tourId: 'payment.divergences' },
   {

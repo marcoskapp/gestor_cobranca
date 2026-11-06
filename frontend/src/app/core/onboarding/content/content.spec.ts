@@ -181,7 +181,7 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/pagamentos/parametros')?.key).toBe('payment.settings');
     expect(findScreen('/pagamentos/pg-1')?.tourId).toBe('payment.detail');
     // a ficha do acordo e a estação ganharam o Pix: novidades na tela e tour revisado
-    expect(findScreen('/negociacao/acordos/a-1')?.version).toBe(2);
+    expect(findScreen('/negociacao/acordos/a-1')?.version).toBeGreaterThanOrEqual(2);
     expect(findTour('negotiation.agreement-detail')?.version).toBe(2);
     expect(findScreen('/cobranca/fila')?.changes?.find((c) => c.version === 4)).toBeDefined();
     // nota de versão nova, a mais recente primeiro
@@ -216,6 +216,10 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(7);
     expect(findTour('collection.station')?.version).toBe(3);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
+    // decisões do responsável às 856 e 873: aviso da segunda conferência para quem informa e nova tentativa do extrato
+    expect(findScreen('/pagamentos')?.changes?.find((c) => c.version === 2)).toBeDefined();
+    expect(findScreen('/negociacao/acordos/a-1')?.changes?.find((c) => c.version === 3)).toBeDefined();
+    expect(findScreen('/pagamentos/conciliacao/st-1')?.changes?.find((c) => c.version === 3)?.items.join(' ')).toContain('Tentar novamente');
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES.find((n) => n.version === 8)?.title).toContain('Prestação de contas');
     // checklists: itens de visita apontam para telas registradas; supervisão antes do negociador
