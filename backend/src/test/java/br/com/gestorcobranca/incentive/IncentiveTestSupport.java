@@ -22,6 +22,7 @@ import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.support.IntegrationTest;
+import br.com.gestorcobranca.support.MutableClock;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;

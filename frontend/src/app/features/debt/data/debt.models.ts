@@ -408,6 +408,9 @@ export interface AmountAdjustmentContext {
   agreementId: string | null;
   pending: AmountAdjustmentView | null;
   openDivergence: AmountDivergenceView | null;
+  /** Reduções aplicadas sem segunda pessoa neste título na janela do limite acumulado (somam com a nova correção). */
+  recentReductions: number;
+  cumulativeWindowDays: number;
 }
 
 export interface AmountAdjustmentHistory {
@@ -432,4 +435,9 @@ export interface AmountAdjustmentSettings {
   proposedBy: string | null;
   proposedByName: string | null;
   proposedAt: string | null;
+  /** Fim do prazo para confirmar a proposta; vencida, não é mais confirmada e o job diário a descarta. */
+  proposalExpiresAt: string | null;
+  proposalExpired: boolean;
+  /** Janela do limite acumulado por título, em dias. */
+  cumulativeWindowDays: number;
 }

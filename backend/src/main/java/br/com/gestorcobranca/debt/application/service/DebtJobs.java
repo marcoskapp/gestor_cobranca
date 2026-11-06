@@ -21,18 +21,21 @@ import java.util.UUID;
 class DebtJobs {
 
     static final String JOB_PRESCRIPTION_DAILY = "prescription_daily";
+    static final String JOB_THRESHOLD_PROPOSAL_EXPIRY = "debt.amount_threshold_proposal_expiry";
     private static final Logger LOG = LoggerFactory.getLogger(DebtJobs.class);
 
     private final TenantDirectory tenantDirectory;
     private final TenantExecution tenantExecution;
     private final PrescriptionAlertService prescriptionAlerts;
+    private final TitleAmountAdjustmentService amountAdjustments;
     private final DebtMetrics metrics;
 
     DebtJobs(TenantDirectory tenantDirectory, TenantExecution tenantExecution, PrescriptionAlertService prescriptionAlerts,
-             DebtMetrics metrics) {
+             TitleAmountAdjustmentService amountAdjustments, DebtMetrics metrics) {
         this.tenantDirectory = tenantDirectory;
         this.tenantExecution = tenantExecution;
         this.prescriptionAlerts = prescriptionAlerts;
+        this.amountAdjustments = amountAdjustments;
         this.metrics = metrics;
     }
 
@@ -48,6 +51,31 @@ class DebtJobs {
                 LOG.atError().addKeyValue("tenantId", tenantId).setCause(e)
                         .log("Falha na varredura diária de prescrição");
             }
+        }
+    }
+
+    /**
+     * Descarte das propostas de aumento do limite da correção de valor vencidas sem confirmação (decisão do responsável
+     * sobre a 865), uma transação por assessoria (uma linha de configuração por assessoria).
+     */
+    @Scheduled(cron = "${app.debt.amount-adjustment.proposal-expiry-cron:0 50 3 * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
+    @SchedulerLock(name = "debt.amount-threshold-proposal-expiry", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
+    void expireThresholdProposals() {
+        for (UUID tenantId : tenantDirectory.activeTenantIds()) {
+            expireThresholdProposal(tenantId);
+        }
+    }
+
+    /** @return {@code true} se a assessoria tinha proposta vencida e ela foi descartada */
+    boolean expireThresholdProposal(UUID tenantId) {
+        try {
+            return tenantExecution.callInTenant(tenantId, JOB_THRESHOLD_PROPOSAL_EXPIRY,
+                    amountAdjustments::discardExpiredProposal);
+        } catch (RuntimeException e) {
+            metrics.jobFailure(JOB_THRESHOLD_PROPOSAL_EXPIRY);
+            LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("job", JOB_THRESHOLD_PROPOSAL_EXPIRY).setCause(e)
+                    .log("Falha no descarte da proposta de aumento do limite vencida");
+            return false;
         }
     }
 

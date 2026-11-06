@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +31,19 @@ interface TitleAmountAdjustmentJpaRepository extends Repository<TitleAmountAdjus
 
     @Override
     boolean existsByTitleIdAndStatus(UUID titleId, AmountAdjustmentStatus status);
+
+    @Override
+    @Query(value = """
+            select coalesce(sum(l.previous_balance - l.new_balance), 0)
+              from debt.title_amount_adjustment a
+              join debt.title_amount_adjustment_line l on l.adjustment_id = a.id
+             where a.title_id = :titleId
+               and a.requested_at >= :since
+               and a.approval_mode = 'WITHIN_LIMIT'
+               and a.status = 'APPLIED'
+               and l.new_balance < l.previous_balance
+            """, nativeQuery = true)
+    BigDecimal sumWithinLimitReductionsSince(@Param("titleId") UUID titleId, @Param("since") Instant since);
 
     @Override
     @Query("""

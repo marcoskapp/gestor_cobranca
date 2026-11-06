@@ -29,8 +29,10 @@ public interface TitleAmountAdjustmentUseCases {
     TitleAmountHistory history(UUID titleId);
 
     /**
-     * Pede a correção. Redução até o limite: aplicada já ({@code APPLIED}). Acima do limite ou aumento:
-     * {@code PENDING_APPROVAL}, com evidência ou contestação obrigatória.
+     * Pede a correção. Redução pura até o limite, somada às reduções aplicadas sem segunda pessoa no mesmo título na
+     * janela do limite acumulado: aplicada já ({@code APPLIED}). Acima do limite (sozinha ou somada), ou aumento:
+     * {@code PENDING_APPROVAL}, com evidência ou contestação obrigatória. Sem transação longa: o arquivo é gravado fora de
+     * transação e removido se o registro falhar ou a regra recusar o pedido.
      *
      * @param evidence arquivo opcional (PDF, PNG ou JPEG, conferido pelo conteúdo)
      */
@@ -66,8 +68,9 @@ public interface TitleAmountAdjustmentUseCases {
 
     /**
      * Confirma o aumento de limite proposto por <b>outra</b> pessoa. {@code reviewedThreshold} é o valor proposto que
-     * quem confirma viu; diferente do gravado → 409 {@code title_amount.proposal_changed}. Também 409 sem proposta ou
-     * para quem propôs.
+     * quem confirma viu; diferente do gravado → 409 {@code title_amount.proposal_changed}. Proposta vencida (prazo
+     * {@code app.debt.amount-adjustment.proposal-validity}) → 409 {@code title_amount.proposal_expired}. Também 409 sem
+     * proposta ou para quem propôs.
      */
     SettingsView confirmSettings(BigDecimal reviewedThreshold);
 
@@ -88,11 +91,15 @@ public interface TitleAmountAdjustmentUseCases {
      * @param blockers motivos que impedem a correção agora: {@code STATUS} (título fora de cobrança),
      *                 {@code AGREEMENT} (acordo em vigor — renegociar ou cancelar), {@code PENDING} (pedido aguardando
      *                 aprovação)
+     * @param recentReductions     soma das reduções aplicadas sem segunda pessoa neste título na janela do limite
+     *                             acumulado (somam com a correção nova para a prévia da alçada)
+     * @param cumulativeWindowDays janela do limite acumulado, em dias
      */
     record AdjustmentContext(UUID titleId, List<ComponentAmount> components, BigDecimal principalAmount,
                              BigDecimal openBalance, BigDecimal approvalThreshold, boolean manualPrincipal,
                              BigDecimal creditorPrincipal, List<String> blockers, UUID agreementId,
-                             AdjustmentView pending, DivergenceView openDivergence) {
+                             AdjustmentView pending, DivergenceView openDivergence, BigDecimal recentReductions,
+                             long cumulativeWindowDays) {
     }
 
     record ComponentAmount(String component, BigDecimal balance) {
@@ -130,8 +137,12 @@ public interface TitleAmountAdjustmentUseCases {
      * @param customized        limite gravado pela assessoria (falso = padrão da plataforma)
      * @param proposedThreshold aumento aguardando a confirmação de outra pessoa (nulo = nenhum)
      * @param proposedByName    retrato do nome de quem propôs
+     * @param proposalExpiresAt fim do prazo para confirmar a proposta (nulo sem proposta)
+     * @param proposalExpired   a proposta venceu e não pode mais ser confirmada (o job diário a descarta)
+     * @param cumulativeWindowDays janela do limite acumulado por título, em dias
      */
     record SettingsView(BigDecimal approvalThreshold, boolean customized, Instant updatedAt,
-                        BigDecimal proposedThreshold, UUID proposedBy, String proposedByName, Instant proposedAt) {
+                        BigDecimal proposedThreshold, UUID proposedBy, String proposedByName, Instant proposedAt,
+                        Instant proposalExpiresAt, boolean proposalExpired, long cumulativeWindowDays) {
     }
 }

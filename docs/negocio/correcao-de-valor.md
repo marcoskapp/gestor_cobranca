@@ -1,6 +1,6 @@
 # Correção manual do valor do título
 
-Como a assessoria corrige o valor de um título (erro de cálculo, cobrança em duplicidade, encargo acima do contrato, contestação procedente…), com motivo, evidência, revisão por segunda pessoa acima de um limite (RB06) e histórico no próprio título. Aprovado pelo responsável em 05/11/2026; decisões 802–813 em [decisoes-autonomas.md](decisoes-autonomas.md).
+Como a assessoria corrige o valor de um título (erro de cálculo, cobrança em duplicidade, encargo acima do contrato, contestação procedente…), com motivo, evidência, revisão por segunda pessoa acima de um limite (RB06) e histórico no próprio título. Aprovado pelo responsável em 05/11/2026; decisões 802–813 em [decisoes-autonomas.md](decisoes-autonomas.md), com as revisões do responsável às decisões 864, 865 e 872 (decisões 9101–9105, numeração provisória). Desenho técnico: [tecnico/desenho/debt.md](../tecnico/desenho/debt.md).
 
 ## 1. Quem pode
 
@@ -15,7 +15,7 @@ O **operador nunca recebe** essas permissões por padrão. O histórico de corre
 
 - O usuário informa o **novo saldo de cada componente** a corrigir (principal, juros, multa, encargos, honorários), com a máscara monetária.
 - **Motivo** da lista — erro de cálculo ou digitação, valor confirmado pelo credor, contestação procedente, cobrança em duplicidade, encargo acima do contrato, dispensa parcial autorizada pelo credor, outro — mais **descrição** obrigatória (texto livre, guardado criptografado).
-- **Evidência** opcional (PDF, PNG ou JPEG até 20 MB, tipo conferido pelo conteúdo) e **vínculo opcional com a contestação** (o atalho da contestação já preenche). A evidência é enviada ao armazenamento **antes** de o título ser travado para o pedido (decisão 872): pagamentos, estornos e cargas do mesmo título não esperam o upload; o saldo do pedido é lido já com o título travado, e o arquivo de um pedido recusado é removido.
+- **Evidência** opcional (PDF, PNG ou JPEG até 20 MB, tipo conferido pelo conteúdo) e **vínculo opcional com a contestação** (o atalho da contestação já preenche). A evidência é enviada ao armazenamento **sem transação aberta** e antes de o título ser travado para o pedido (decisão 872, revista pelo responsável): pagamentos, estornos e cargas do mesmo título não esperam o upload e o envio não prende conexão do banco; o saldo do pedido é lido já com o título travado, e o arquivo de um pedido recusado (pela regra ou por falha no registro) é removido; com pedido já pendente no título, a recusa vem antes do envio.
 - Regras:
   - nenhum componente fica negativo;
   - a correção não pode zerar o saldo: para encerrar a cobrança, cancele o título;
@@ -25,8 +25,8 @@ O **operador nunca recebe** essas permissões por padrão. O histórico de corre
 
 | Situação | O que acontece |
 | --- | --- |
-| **Redução pura até o limite** da assessoria (padrão R$ 200,00): nenhum componente sobe e a **soma das reduções** cabe no limite | aplicada no registro, por quem pediu |
-| **Redução acima do limite** (a soma das reduções dos componentes, não o líquido) | aguarda a aprovação de **outra pessoa** com `TITLE_AMOUNT_APPROVE`; evidência ou contestação obrigatória |
+| **Redução pura até o limite** da assessoria (padrão R$ 200,00): nenhum componente sobe e a **soma das reduções**, mais as reduções já aplicadas sem segunda pessoa **no mesmo título nos últimos 30 dias**, cabe no limite | aplicada no registro, por quem pediu |
+| **Redução acima do limite** (a soma das reduções dos componentes, não o líquido), sozinha ou **somada às reduções recentes do título** | aguarda a aprovação de **outra pessoa** com `TITLE_AMOUNT_APPROVE`; evidência ou contestação obrigatória |
 | **Qualquer aumento** do saldo ou de **algum componente** (mesmo com o saldo final menor, ex.: principal para baixo e honorários para cima) | sempre aguarda a aprovação de outra pessoa, com evidência ou contestação |
 
 - **Segregação de funções**: quem pede nunca aprova nem recusa o próprio pedido, nem o administrador. A regra vale no domínio e no banco, e a fila de aprovação não mostra os próprios pedidos.
@@ -34,7 +34,8 @@ O **operador nunca recebe** essas permissões por padrão. O histórico de corre
 - **Aprovação sobre a base do pedido**: se o saldo mudou depois do pedido (pagamento, carga ou outra correção), a aprovação é recusada. O pedido é então recusado e feito de novo sobre os valores atuais, para não aplicar uma correção sobre outra base.
 - **Recusa** exige motivo.
 - O **limite** é por assessoria. Zero faz toda correção passar por aprovação; o máximo é R$ 100.000,00. **Reduzir** o limite vale na hora; **aumentar** fica proposto até **outra pessoa** com `TITLE_AMOUNT_APPROVE` e acesso a todos os credores confirmar (pendência "Aumento do limite de correção de valor para confirmar"), para que ninguém suba o limite, aplique a própria redução e volte o limite. Salvar o limite atual ou um menor descarta a proposta em aberto.
-- Pendente de decisão: **limite acumulado por título** numa janela de tempo (reduções sucessivas dentro do limite no mesmo título), no modelo do pagamento externo fracionado (decisão 309).
+- **Limite acumulado por título** (decisão do responsável): as reduções aplicadas **sem segunda pessoa** no mesmo título nos últimos **30 dias** (configurável) somam com a nova. Ex.: com o limite de R$ 200,00, uma redução de R$ 150,00 é aplicada na hora; uma segunda de R$ 100,00 no mesmo título, dentro dos 30 dias, vai para aprovação de outra pessoa (com evidência), e uma de R$ 50,00 ainda cabe. Reduções aprovadas por outra pessoa não entram na soma (já tiveram segunda pessoa); outro título não soma. O teto é o próprio limite da assessoria. Evita fracionar uma redução grande em várias pequenas, como no pagamento externo fracionado (decisão 309). A prévia da tela avisa quando a correção vai para aprovação por causa do acumulado e mostra quanto já foi reduzido no título.
+- **A proposta de aumento do limite vence em 15 dias** (decisão do responsável; configurável): vencida, não pode mais ser confirmada (409 `title_amount.proposal_expired`), sai de "Minhas pendências" e é descartada por um job diário, com auditoria; o limite atual continua valendo. Para aumentar, alguém propõe de novo. A aba Limite mostra até quando a proposta pode ser confirmada.
 
 ## 4. Efeito no título, em acordos e saldos
 
@@ -65,13 +66,13 @@ A divergência é decidida por quem tem `TITLE_AMOUNT_ADJUST`, sempre com motivo
 
 - **No título** (aba "Correções de valor"): cada pedido com valor anterior e novo, componentes afetados, motivo e descrição, quem pediu e quando, quem aprovou ou recusou e quando, evidência (download registrado no log de acesso) e contestação vinculada. As divergências ficam na mesma aba.
 - **Banco**: os pedidos nunca são removidos; o desfecho é gravado uma única vez (gatilho) e as linhas por componente são imutáveis.
-- **Auditoria**: `title_amount.requested`, `adjusted`, `applied` (lançamento), `rejected`, `cancelled`, `divergence_detected`, `divergence_resolved`, `settings_updated`, `settings_proposed` e `settings_confirmed`.
+- **Auditoria**: `title_amount.requested` (com `cumulativeLimit` quando foi o acumulado do título que levou à aprovação), `adjusted`, `applied` (lançamento), `rejected`, `cancelled`, `divergence_detected`, `divergence_resolved`, `settings_updated`, `settings_proposed`, `settings_confirmed` e `settings_proposal_expired` (proposta vencida descartada pelo job diário).
 - **Eventos de negócio** e **métricas**: [logs-e-metricas.md](../tecnico/logs-e-metricas.md).
 - **Minhas pendências**:
   - "Correções de valor de título para aprovar" (`TITLE_AMOUNT_APPROVE`, sem os próprios pedidos);
-  - "Aumento do limite de correção de valor para confirmar" (`TITLE_AMOUNT_APPROVE` com todos os credores, sem a própria proposta);
+  - "Aumento do limite de correção de valor para confirmar" (`TITLE_AMOUNT_APPROVE` com todos os credores, sem a própria proposta; some quando a proposta vence);
   - "Cargas do credor diferentes do valor corrigido" (`TITLE_AMOUNT_ADJUST`).
-- **Telas**: botão "Corrigir valor" no detalhe do título; página `/titulos/correcoes-de-valor` (para aprovar, divergências e limite, com a proposta de aumento e o botão "Confirmar aumento" para outra pessoa). API: `GET`/`PUT /title-amount-adjustments/settings` e `POST /title-amount-adjustments/settings/confirm` (o corpo leva o valor proposto que a pessoa revisou; se a proposta mudou desde a leitura, 409 `title_amount.proposal_changed`).
+- **Telas**: botão "Corrigir valor" no detalhe do título; página `/titulos/correcoes-de-valor` (para aprovar, divergências e limite, com a proposta de aumento e o botão "Confirmar aumento" para outra pessoa). API: `GET`/`PUT /title-amount-adjustments/settings` e `POST /title-amount-adjustments/settings/confirm` (o corpo leva o valor proposto que a pessoa revisou; se a proposta mudou desde a leitura, 409 `title_amount.proposal_changed`; se venceu, 409 `title_amount.proposal_expired`).
 
 ## 7. Contestação procedente
 

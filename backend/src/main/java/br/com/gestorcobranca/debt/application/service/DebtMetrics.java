@@ -67,6 +67,16 @@ class DebtMetrics {
         registry.counter("debt.title_amount.adjustments", "outcome", outcome, "mode", mode).increment();
     }
 
+    /** Redução que caberia sozinha no limite, mas foi para aprovação pelo limite acumulado do título. */
+    void amountAdjustmentCumulativeLimit() {
+        registry.counter("debt.title_amount.cumulative_limit").increment();
+    }
+
+    /** Proposta de aumento do limite descartada por vencer sem confirmação. */
+    void thresholdProposalExpired() {
+        registry.counter("debt.title_amount.threshold_proposals_expired").increment();
+    }
+
     /** @param outcome detected, seen_again, KEPT_MANUAL, ACCEPTED_CREDITOR, RESOLVED_BY_CREDITOR */
     void amountDivergence(String outcome) {
         registry.counter("debt.title_amount.divergences", "outcome", outcome).increment();

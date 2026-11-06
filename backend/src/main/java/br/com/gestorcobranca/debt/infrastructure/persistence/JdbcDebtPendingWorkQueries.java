@@ -7,6 +7,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -39,14 +41,15 @@ class JdbcDebtPendingWorkQueries implements DebtPendingWorkQueries {
     }
 
     @Override
-    public PendingWorkCount thresholdProposal(UUID confirmerId) {
+    public PendingWorkCount thresholdProposal(UUID confirmerId, Instant proposedAfter) {
         String sql = """
                 select count(*) as total, 0 as overdue, 0 as due_today, min(proposed_at) as oldest_at,
                        null::date as next_due, null::uuid as single_id
                   from debt.amount_adjustment_settings
-                 where proposed_threshold is not null and proposed_by <> :me
+                 where proposed_threshold is not null and proposed_by <> :me and proposed_at > :after
                 """;
-        return jdbc.queryForObject(sql, new MapSqlParameterSource("me", confirmerId), PendingWorkRows.COUNT);
+        return jdbc.queryForObject(sql, new MapSqlParameterSource("me", confirmerId)
+                .addValue("after", Timestamp.from(proposedAfter)), PendingWorkRows.COUNT);
     }
 
     @Override

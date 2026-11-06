@@ -80,8 +80,9 @@ import { canConfirmThreshold } from './title-amount.rules';
             <h2 class="app-card__title" id="ta-limit">Limite para aplicar sem segunda pessoa</h2>
             <p class="app-muted">
               Reduções até este valor (somando os componentes reduzidos, sem nenhum componente aumentar) são aplicadas por quem corrige; acima dele, e quando algum componente
-              aumenta, outra pessoa com permissão de aprovação decide, com evidência. Zero: toda correção passa por aprovação. Reduzir o limite vale na hora; aumentar só vale
-              depois da confirmação de outra pessoa.
+              aumenta, outra pessoa com permissão de aprovação decide, com evidência. O limite vale também por título: as reduções aplicadas sem segunda pessoa no mesmo título
+              nos últimos {{ settingsValue()?.cumulativeWindowDays ?? 30 }} dias somam com a nova. Zero: toda correção passa por aprovação. Reduzir o limite vale na hora;
+              aumentar só vale depois da confirmação de outra pessoa, dentro do prazo da proposta.
             </p>
             <div class="row g-3 align-items-start">
               <app-field class="col-sm-6 col-lg-4" label="Limite por correção">
@@ -102,7 +103,12 @@ import { canConfirmThreshold } from './title-amount.rules';
                 <div class="alert alert-warning mb-0 d-flex flex-wrap align-items-center gap-2" role="status" data-tour="title-amount-proposal">
                   <span class="me-auto">
                     Aumento para <app-amount [value]="s.proposedThreshold" /> proposto por {{ s.proposedByName ?? 'usuário' }} em {{ s.proposedAt | appDate }}.
-                    {{ ownProposal() ? 'Aguardando a confirmação de outra pessoa com permissão de aprovação.' : 'O limite atual vale até a confirmação.' }}
+                    @if (s.proposalExpired) {
+                      Venceu em {{ s.proposalExpiresAt | appDate }} sem confirmação e não pode mais ser confirmado; o limite atual continua valendo. Para aumentar, proponha de novo.
+                    } @else {
+                      {{ ownProposal() ? 'Aguardando a confirmação de outra pessoa com permissão de aprovação' : 'O limite atual vale até a confirmação' }}, até
+                      {{ s.proposalExpiresAt | appDate }}; depois disso a proposta vence.
+                    }
                   </span>
                   @if (canConfirm()) {
                     <button class="btn btn-warning" type="button" (click)="confirmThreshold()" [disabled]="busy()">Confirmar aumento</button>

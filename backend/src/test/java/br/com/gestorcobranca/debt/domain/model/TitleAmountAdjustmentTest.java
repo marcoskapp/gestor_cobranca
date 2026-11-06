@@ -45,7 +45,8 @@ class TitleAmountAdjustmentTest {
 
     private TitleAmountAdjustment request(String principal, TitleAmountAdjustment.Evidence evidence) {
         return new TitleAmountAdjustment(title, balances(), Map.of(LedgerComponent.PRINCIPAL, Money.of(principal)),
-                AmountAdjustmentReason.CALCULATION_ERROR, "Erro de cálculo", null, evidence, LIMIT, requester, "Ana", T0);
+                AmountAdjustmentReason.CALCULATION_ERROR, "Erro de cálculo", null, evidence, LIMIT, Money.ZERO, requester,
+                "Ana", T0);
     }
 
     @Test
@@ -60,7 +61,7 @@ class TitleAmountAdjustmentTest {
         b.put(LedgerComponent.FINE, Money.of("300.00"));
         b.put(LedgerComponent.HONORARIUM, Money.ZERO);
         return new TitleAmountAdjustment(title, b, targets, AmountAdjustmentReason.CALCULATION_ERROR, "Erro de cálculo",
-                null, evidence, LIMIT, requester, "Ana", T0);
+                null, evidence, LIMIT, Money.ZERO, requester, "Ana", T0);
     }
 
     @Test
@@ -85,6 +86,33 @@ class TitleAmountAdjustmentTest {
                 .isEqualTo(AmountAdjustmentMode.WITHIN_LIMIT);
     }
 
+    private TitleAmountAdjustment requestAfter(String recent, String principal, TitleAmountAdjustment.Evidence evidence) {
+        return new TitleAmountAdjustment(title, balances(), Map.of(LedgerComponent.PRINCIPAL, Money.of(principal)),
+                AmountAdjustmentReason.CALCULATION_ERROR, "Erro de cálculo", null, evidence, LIMIT, Money.of(recent),
+                requester, "Ana", T0);
+    }
+
+    @Test
+    void recentReductionsOnTheSameTitleCountTowardsTheLimit() {
+        // limite 200: 150 já aplicados sem segunda pessoa na janela; 50 ainda cabem, 50,01 não
+        assertThat(requestAfter("150.00", "950.00", null).getApprovalMode()).isEqualTo(AmountAdjustmentMode.WITHIN_LIMIT);
+        TitleAmountAdjustment over = requestAfter("150.00", "949.99", EVIDENCE);
+        assertThat(over.getApprovalMode()).isEqualTo(AmountAdjustmentMode.DUAL_CONTROL);
+        assertThat(over.isCumulativeLimitReached()).isTrue();
+        // sem evidência, a mensagem explica que foi o acumulado do título
+        assertThatThrownBy(() -> requestAfter("150.00", "900.00", null)).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("já aplicadas neste título").hasMessageContaining("evidência");
+        // acima do limite sozinha: não é o acumulado que manda
+        TitleAmountAdjustment alone = requestAfter("150.00", "700.00", EVIDENCE);
+        assertThat(alone.getApprovalMode()).isEqualTo(AmountAdjustmentMode.DUAL_CONTROL);
+        assertThat(alone.isCumulativeLimitReached()).isFalse();
+        assertThat(request("900.00", null).isCumulativeLimitReached()).isFalse();
+        assertThat(TitleAmountAdjustment.isPureReductionWithin(Money.ZERO, Money.of("50.00"), Money.of("150.00"), LIMIT))
+                .isTrue();
+        assertThat(TitleAmountAdjustment.isPureReductionWithin(Money.ZERO, Money.of("0.01"), Money.of("200.00"), LIMIT))
+                .isFalse();
+    }
+
     @Test
     void dualControlNeedsEvidenceOrDisputeAndTheRequesterNeverApproves() {
         assertThatThrownBy(() -> request("500.00", null)).isInstanceOf(BusinessRuleException.class)
@@ -104,7 +132,8 @@ class TitleAmountAdjustmentTest {
         assertThatThrownBy(() -> request("1000.00", null)).hasMessageContaining("iguais aos atuais");
         assertThatThrownBy(() -> request("0.00", EVIDENCE)).hasMessageContaining("cancele o título");
         assertThatThrownBy(() -> new TitleAmountAdjustment(title, balances(), Map.of(LedgerComponent.PRINCIPAL,
-                Money.of("900.00")), AmountAdjustmentReason.OTHER, " ", null, null, LIMIT, requester, "Ana", T0))
+                Money.of("900.00")), AmountAdjustmentReason.OTHER, " ", null, null, LIMIT, Money.ZERO, requester, "Ana",
+                T0))
                 .hasMessageContaining("Descreva");
     }
 
