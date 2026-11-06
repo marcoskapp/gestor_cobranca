@@ -4,7 +4,8 @@ Escopo: chamadas vinculadas ao caso, clique para ligar da estação de cobrança
 preditiva), presença do operador para o discador, tabulação e registro no caso, gravações e webhooks do provedor.
 Schema `telephony`, migrations V1200–V1299 (`V1200` tabelas, `V1201` permissões novas nos perfis existentes e
 tabulações de chamada no collection, `V1202` ambiente multiprovedor: roteamento, ramal por plataforma e contingência,
-`V1203` provedores Twilio e Plivo e id da perna da chamada no provedor).
+`V1203` provedores Twilio e Plivo e id da perna da chamada no provedor, `V1204` marca do pedido de conexão ao
+operador, `bridge_requested_at`, §3.2).
 Dependências: `shared`, `organization :: usecases`, `debt :: usecases`, `compliance :: usecases`,
 `collection :: usecases`. Reações no sentido contrário chegam por eventos (`DebtorAnonymized`); o encerramento publica
 `CallCompleted` (consumido pelo incentive).
@@ -83,7 +84,8 @@ limites diário/semanal e intervalo mínimo no canal `PHONE` (RB02).
    `originate` (operador primeiro, depois o devedor — padrão *agent first*). Aceite → id do provedor gravado.
 4. Eventos do provedor (§9): toque, atendimento (conexão imediata: o operador já está na linha), fim.
 5. Fim → operador em `WRAP_UP` (pós-atendimento) até tabular (§6). `POST /calls/{id}/hangup` encerra (o próprio
-   operador ou a supervisão, auditado); o pedido ao provedor sai depois do commit (§3.2).
+   operador ou a supervisão, auditado); o pedido ao provedor é gravado como job na mesma transação e executado
+   logo após o commit (§3.2).
 
 ### 3.1 Discagem em fases, sem transação durante o HTTP (TEL-02, decisões 882 e 884)
 
@@ -115,22 +117,58 @@ evento (`providerAccepted`) quando ele chega antes da resposta. `DIALING` sem id
   encerra como `FAILED/STALE` não discada (`staleCallAfter`).
 
 Simulador: destino terminado em `7777` entrega o toque e o atendimento por pessoa (como webhooks, em transação própria)
-**antes** da resposta ao pedido — `TelephonyDialPhasesIT`.
+**antes** da resposta ao pedido; em `8888`, a discagem é aceita e a conexão ao operador falha (falha transitória do
+`bridge`) — `TelephonyDialPhasesIT`.
 
-### 3.2 Comandos à chamada em andamento depois do commit (decisão 884)
+### 3.2 Comandos à chamada em andamento como jobs duráveis (decisões 884 e 9301–9305)
 
-`bridge` (conectar a atendida ao operador) e `hangup` saem **depois do commit** da transação que decidiu o estado local
-(`ProviderCalls`, sincronização `afterCommit` que entrega o comando ao executor `telephonyCommandExecutor`, sem lock da
-chamada e sem a conexão da transação de origem — que o Spring só devolve ao pool depois das sincronizações):
+`bridge` (conectar a atendida ao operador) e `hangup` são gravados como **jobs duráveis na mesma transação** que decide
+o estado local (`ProviderCalls` → `JobQueue#enqueueAndDispatch`): o comando existe se, e só se, o estado local foi
+confirmado. Transação desfeita → nenhum comando; instância que cai entre o commit e o envio → o comando continua na
+fila. Para não somar latência (o devedor esperando o operador), **logo após o commit** a própria instância reivindica e
+executa aquele job (execução imediata do `shared.jobs`, §3.3); sem ela, o ciclo normal do worker (1 s) o executa. O HTTP
+roda na thread do job, sem transação e sem o lock da chamada (decisão 852):
 
-* `hangup` do operador/supervisão (`CallService#hangup`), da secretária eletrônica e do abandono (`CallEventProcessor`):
-  falha transitória → nova tentativa pelo job `telephony.hangup` (4 tentativas, sem transação durante o HTTP); recusa →
-  só registrada (a chamada já terminou no provedor). Antes o operador recebia erro e a chamada seguia aberta no banco.
-* `bridge`: a conexão (operador `ON_CALL`, `connected_at`) é confirmada na transação do evento; se o provedor não
-  conectar, ela é desfeita em transação própria (`Call#bridgeFailed`): operador liberado, discador → abandono
-  (`ABANDONED`), recebida → perdida (`NO_ANSWER/NO_AGENT`), e o encerramento é pedido ao provedor.
+* `telephony.hangup` (`ProviderHangupJob`, 5 tentativas = a imediata + 4 com backoff de ~2,5 min): encerramento do
+  operador/supervisão (`CallService#hangup`), da secretária eletrônica e do abandono (`CallEventProcessor`), do aceite
+  de chamada já encerrada aqui (`DialJob#accepted`) e da conexão desfeita. Payload só com ids (chamada, conta, id e
+  perna no provedor, motivo); chave `hangup:<chamada>:<id no provedor>` (SHA-256 do id quando longo), para que o
+  encerramento de um aceite tardio com outro id não seja absorvido pelo encerramento pendente da mesma chamada. Falha
+  transitória → nova tentativa do job; recusa (a chamada já terminou no provedor) → concluído, só registrado — por isso
+  repetir o pedido (retentativa, ou nova execução depois de queda) não tem efeito duplo. Sem id do provedor ainda
+  (pedido de discagem sem resposta) → nenhum job; a fase de resultado da discagem encerra ao receber o id (§3.1).
+* `telephony.bridge` (`ProviderBridgeJob`, chave `bridge:<chamada>`, 3 tentativas): a conexão (operador `ON_CALL`,
+  `connected_at`) é confirmada na transação do evento. O preparo, sob o lock da chamada, só pede a conexão se ela ainda
+  estiver conectada àquele operador (`stale` se terminou, foi desfeita ou mudou de operador) e grava a **marca durável
+  `phone_call.bridge_requested_at`** (`Call#bridgeRequested`, V1204) antes do HTTP. O pedido nunca se repete — repetir
+  a conexão num provedor que já a fez recolocaria a chamada no ramal e derrubaria a conversa — e é a marca que decide:
+  * falha antes da marca confirmada (no preparo) → a nova tentativa do job pede normalmente;
+  * marca existente (instância caiu durante o pedido, lease expirado) → não reenvia nem desfaz: registra `interrupted`
+    e deixa a chamada para os eventos do provedor e a conciliação;
+  * provedor que não conecta (falha transitória ou recusa), operador sem ramal ou provedor indisponível → a conexão é
+    desfeita em transação própria (`Call#bridgeFailed`, que limpa a marca): operador liberado, discador → abandono
+    (`ABANDONED`), recebida → perdida (`NO_ANSWER/NO_AGENT`), e o encerramento é gravado como job;
+  * falha ao desfazer → `PermanentJobFailure`: o job vai para `DEAD` (alarme `jobs.dead`,
+    `telephony.jobs.failures{job=telephony.bridge}`) sem novo pedido — operador e chamada podem ficar presos até a
+    conciliação ou intervenção.
 * Provedores que pedem instruções no próprio webhook (Twilio, Plivo) seguem respondendo a conexão e o encerramento no
-  corpo da resposta, sem API.
+  corpo da resposta, sem API e sem job.
+
+### 3.3 Execução imediata do job depois do commit (`shared.jobs`)
+
+`JobQueue#enqueueAndDispatch(tipo, payload, dedupKey)` grava o job imediato na transação corrente (obrigatória) e
+registra uma sincronização `afterCommit` que só entrega o id ao `JobWorker#dispatch` — a thread que confirmou ainda
+segura a conexão da transação até o fim das sincronizações. O worker reivindica **aquele** job com o mesmo
+`UPDATE … WHERE status = 'PENDING' AND run_at <= now() … FOR UPDATE SKIP LOCKED` do ciclo normal (incrementa `attempts`,
+grava `locked_by` e o lease) e o executa num executor próprio (`app.jobs.dispatch-concurrency`, padrão 8 por
+instância), separado do ciclo normal para que jobs longos (importação, turno do assistente) não atrasem comandos
+curtos. Execução imediata, ciclo normal e outras instâncias disputam o mesmo job pela reivindicação: só uma roda, e as
+baixas continuam com o fencing por `locked_by`/`attempts` (decisão 852). Sem vaga no executor, instância ou contexto
+em desligamento ou falha ao reivindicar → nada; o job segue `PENDING` para o ciclo normal. Falha ao gravar a baixa
+depois de executar → o job fica `RUNNING` e volta pelo lease expirado (`jobs.dispatched{outcome}`). Os logs da
+execução imediata levam o MDC de correlação da thread que confirmou. No desligamento, os dois executores (ciclo normal
+e execução imediata) param juntos, com prazo único de 30 s. Testes: `JdbcJobQueueTest`, `JobWorkerIT`,
+`TelephonyDialPhasesIT`.
 
 ## 4. Campanhas de discagem (`dialer_campaign`, `dialer_entry`)
 
@@ -167,8 +205,8 @@ intervalo (5 min a 7 dias, padrão 120 min; ocupado em metade do intervalo, mín
 
 **Distribuição** (`CallDistributor`): atendimento por pessoa → operador `AVAILABLE` da campanha **livre há mais tempo**
 (`last_available_at`), escolhido com `SKIP LOCKED` e reservado (`ON_CALL`) na mesma transação — duas chamadas atendidas
-ao mesmo tempo nunca vão ao mesmo operador — e `bridge` no provedor depois do commit (§3.2). AMD `MACHINE` → encerra
-(`VOICEMAIL`).
+ao mesmo tempo nunca vão ao mesmo operador — e `bridge` no provedor como job gravado na mesma transação, executado
+logo após o commit (§3.2). AMD `MACHINE` → encerra (`VOICEMAIL`).
 
 Ciclo de vida: `DRAFT → ACTIVE ⇄ PAUSED → FINISHED`; parâmetros só mudam fora de `ACTIVE`; pausar para de discar
 (chamadas em andamento seguem); encerrar exclui os itens pendentes (`CAMPAIGN_FINISHED`). Indicadores do dia:
@@ -330,8 +368,8 @@ Métricas (`telephony.*`, §5): chamadas por resultado, pedidos de discagem, neg
 no discador (`connected`/`abandoned` → **taxa de abandono**), tempos de toque/conversação/pós-atendimento/distribuição
 (p50/p95/p99), chamadas curtas (≤ 3 s encerradas pelo sistema, acompanhamento da Anatel), ciclos e chamadas colocadas
 pelo ritmo, itens da lista, presença, tabulações, interações, gravações, acessos a gravações, webhooks e falhas de jobs.
-Comandos ao provedor depois do commit (§3.2): `telephony.provider.commands{provider,operation=bridge|hangup,outcome}`
-(`success`, `rejected`, `transient`, `skipped`); `telephony.dialer.live{outcome=bridge_failed}` conta a conexão desfeita.
+Comandos ao provedor como jobs duráveis (§3.2): `telephony.provider.commands{provider,operation=bridge|hangup,outcome}`
+(`success`, `rejected`, `transient`, `skipped`, `stale`, `interrupted`); `telephony.dialer.live{outcome=bridge_failed}` conta a conexão desfeita.
 **ASR** = `telephony.calls{result ∈ ANSWERED, VOICEMAIL, ABANDONED}` ÷ `telephony.calls` (discadas).
 
 ## 12. Pendências

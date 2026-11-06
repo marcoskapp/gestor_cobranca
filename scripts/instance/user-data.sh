@@ -156,6 +156,8 @@ unset secrets_content value
   echo "SMTP_HOST=${GC_SMTP_HOST}"
   echo "SMTP_PORT=${GC_SMTP_PORT}"
   echo "JOBS_CONCURRENCY=${GC_JOBS_CONCURRENCY}"
+  # execução imediata de jobs depois do commit (comandos da telefonia), separada do ciclo normal
+  echo "JOBS_DISPATCH_CONCURRENCY=${GC_JOBS_DISPATCH_CONCURRENCY:-8}"
   echo "JVM_MAX_RAM_PERCENTAGE=${GC_JVM_MAX_RAM_PERCENTAGE}"
   # assistente de IA (Amazon Bedrock): sem credenciais — o SDK usa o papel da instância
   echo "ASSISTANT_BEDROCK_ENABLED=${GC_BEDROCK_ENABLED:-false}"

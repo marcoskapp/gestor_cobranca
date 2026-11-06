@@ -1,8 +1,6 @@
 package br.com.gestorcobranca.telephony.application.service;
 
 import br.com.gestorcobranca.shared.jobs.JobQueue;
-import br.com.gestorcobranca.shared.security.CurrentActor;
-import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.BridgeRequest;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupReason;
@@ -13,29 +11,25 @@ import br.com.gestorcobranca.telephony.domain.model.Call;
 import br.com.gestorcobranca.telephony.domain.model.TelephonyAccount;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Comandos de chamada em andamento ao provedor ({@code bridge} e {@code hangup}) <b>depois do commit</b>
- * da transação que decidiu o estado local (TEL-02). Assim o HTTP ao provedor não segura conexão nem o
- * lock da chamada, e os eventos que o provedor mandar em resposta já encontram o estado confirmado.
+ * Comandos à chamada em andamento no provedor ({@code bridge} e {@code hangup}) como <b>jobs duráveis</b> gravados na
+ * mesma transação que decidiu o estado local (decisão do responsável à 884): o comando existe se, e só se, o estado
+ * local foi confirmado — transação desfeita, nenhum comando; instância que cai entre o commit e o envio, o comando
+ * fica na fila. Depois do commit a própria instância executa o job na hora ({@link JobQueue#enqueueAndDispatch},
+ * reivindicando-o como o worker: nunca roda duas vezes); sem essa execução, o ciclo normal do worker o executa.
  * <ul>
- *   <li>encerramento: falha transitória reagenda o pedido no job {@code telephony.hangup} (com
- *       retentativas); recusa (a chamada já terminou no provedor) só é registrada;</li>
- *   <li>conexão ao operador: o resultado volta ao chamador, que desfaz a conexão em transação própria
- *       quando o provedor não conecta.</li>
+ *   <li>encerramento ({@link ProviderHangupJob}): falha transitória → nova tentativa pelo próprio job; recusa (a
+ *       chamada já terminou no provedor) → concluído, só registrado;</li>
+ *   <li>conexão ao operador ({@link ProviderBridgeJob}): sem nova tentativa; o provedor não conectando, a conexão é
+ *       desfeita em transação própria.</li>
  * </ul>
- * Os comandos rodam logo após o commit numa thread do executor {@code telephonyCommandExecutor} (a thread que
- * confirmou ainda segura a conexão JDBC até o fim da sincronização), como ator de sistema do tenant; nenhuma
- * exceção escapa para quem confirmou a transação.
+ * O HTTP ao provedor roda na thread do job, sem transação e sem o lock da chamada.
  */
 @Component
 class ProviderCalls {
@@ -43,72 +37,43 @@ class ProviderCalls {
     private static final Logger LOG = LoggerFactory.getLogger(ProviderCalls.class);
 
     private final ProviderResolver resolver;
-    private final TenantExecution tenantExecution;
-    private final CurrentActor currentActor;
     private final JobQueue jobQueue;
     private final TelephonyMetrics metrics;
-    private final TaskExecutor executor;
 
-    ProviderCalls(ProviderResolver resolver, TenantExecution tenantExecution, CurrentActor currentActor,
-                  JobQueue jobQueue, TelephonyMetrics metrics,
-                  @Qualifier("telephonyCommandExecutor") TaskExecutor executor) {
+    ProviderCalls(ProviderResolver resolver, JobQueue jobQueue, TelephonyMetrics metrics) {
         this.resolver = resolver;
-        this.tenantExecution = tenantExecution;
-        this.currentActor = currentActor;
         this.jobQueue = jobQueue;
         this.metrics = metrics;
-        this.executor = executor;
     }
 
-    /**
-     * Executa {@code action} depois do commit da transação corrente (obrigatória), no executor de comandos e no
-     * tenant corrente. Exceções são registradas no log técnico e não propagam.
-     */
-    void afterCommit(String operation, UUID callId, Runnable action) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            throw new IllegalStateException("Comando ao provedor sem transação ativa: " + operation);
-        }
-        UUID tenantId = currentActor.tenantId();
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                executor.execute(() -> tenantExecution.withTenantContext(tenantId, "telephony." + operation, () -> {
-                    try {
-                        action.run();
-                    } catch (RuntimeException e) {
-                        LOG.atError().addKeyValue("callId", callId).addKeyValue("operation", operation).setCause(e)
-                                .log("Falha no comando ao provedor depois do commit");
-                    }
-                }));
-            }
-        });
-    }
-
-    /** Pede o encerramento ao provedor depois do commit (o estado local já foi decidido na transação). */
-    void hangupAfterCommit(TelephonyAccount account, Call call, HangupReason reason) {
-        hangupAfterCommit(account, call.getId(), call.getProviderCallId(), call.getProviderLegId(), reason);
+    /** Grava o encerramento no provedor (transação corrente, obrigatória); executado logo após o commit. */
+    void hangup(TelephonyAccount account, Call call, HangupReason reason) {
+        hangup(account, call.getId(), call.getProviderCallId(), call.getProviderLegId(), reason);
     }
 
     /** Idem, pelos ids (aceite do provedor que não pôde ser gravado na chamada). */
-    void hangupAfterCommit(TelephonyAccount account, UUID callId, String providerCallId, String legId,
-                           HangupReason reason) {
+    void hangup(TelephonyAccount account, UUID callId, String providerCallId, String legId, HangupReason reason) {
         if (providerCallId == null) {
             // pedido ainda sem resposta: a fase de resultado da discagem encerra no provedor ao receber o id
             metrics.providerCommand(name(account), "hangup", "skipped");
             return;
         }
-        HangupRequest request = new HangupRequest(resolver.context(account), callId, providerCallId, reason, legId);
-        ProviderLine line = line(account);
-        afterCommit("hangup", callId, () -> hangup(line, request, true));
+        jobQueue.enqueueAndDispatch(ProviderHangupJob.TYPE, new ProviderHangupJob.Payload(callId, reason.name(),
+                account.getId(), providerCallId, legId), ProviderHangupJob.key(callId, providerCallId));
+    }
+
+    /** Grava a conexão da chamada atendida ao operador (transação corrente, obrigatória); executada logo após o commit. */
+    void bridge(TelephonyAccount account, Call call, UUID operatorId) {
+        jobQueue.enqueueAndDispatch(ProviderBridgeJob.TYPE, new ProviderBridgeJob.Payload(call.getId(), account.getId(),
+                operatorId), ProviderBridgeJob.key(call.getId()));
     }
 
     /**
-     * Encerramento no provedor, fora de transação.
+     * Encerramento no provedor, fora de transação (thread do job). Recusa → a chamada já terminou lá: concluído.
      *
-     * @param retryOnFailure falha transitória agenda o job {@code telephony.hangup}; {@code false} relança
-     *                       (a própria execução do job é a retentativa)
+     * @throws TransientProviderException falha transitória (o worker tenta de novo)
      */
-    void hangup(ProviderLine line, HangupRequest request, boolean retryOnFailure) {
+    void sendHangup(ProviderLine line, HangupRequest request) {
         if (line.adapter().isEmpty()) {
             metrics.providerCommand(line.name(), "hangup", "skipped");
             return;
@@ -117,26 +82,20 @@ class ProviderCalls {
             line.adapter().get().hangup(request);
             metrics.providerCommand(line.name(), "hangup", "success");
         } catch (ProviderRejectedException e) {
-            // a chamada já terminou no provedor: o estado local já é final
+            // a chamada já terminou no provedor (ou não existe mais lá): o estado local já é final, nada a repetir
             metrics.providerCommand(line.name(), "hangup", "rejected");
             LOG.atWarn().addKeyValue("callId", request.callId()).addKeyValue("code", e.code())
                     .log("Provedor recusou o encerramento da chamada");
         } catch (TransientProviderException e) {
             metrics.providerCommand(line.name(), "hangup", "transient");
-            if (!retryOnFailure) {
-                throw e;
-            }
             LOG.atWarn().addKeyValue("callId", request.callId()).addKeyValue("reason", request.reason())
                     .log("Falha transitória ao encerrar a chamada no provedor; nova tentativa pelo job");
-            UUID tenantId = currentActor.tenantId();
-            tenantExecution.inTenant(tenantId, "telephony.hangup_retry", () -> jobQueue.enqueue(ProviderHangupJob.TYPE,
-                    new ProviderHangupJob.Payload(request.callId(), request.reason().name()), null,
-                    ProviderHangupJob.key(request.callId())));
+            throw e;
         }
     }
 
-    /** Conexão ao operador, fora de transação. @return o provedor aceitou a conexão */
-    boolean bridge(ProviderLine line, BridgeRequest request) {
+    /** Conexão ao operador, fora de transação (thread do job). @return o provedor aceitou a conexão */
+    boolean sendBridge(ProviderLine line, BridgeRequest request) {
         if (line.adapter().isEmpty()) {
             metrics.providerCommand(line.name(), "bridge", "skipped");
             return false;
@@ -158,7 +117,7 @@ class ProviderCalls {
         return new ProviderLine(name(account), resolver.provider(account.getProvider()));
     }
 
-    private static String name(TelephonyAccount account) {
+    static String name(TelephonyAccount account) {
         return account.getProvider().name().toLowerCase(Locale.ROOT);
     }
 

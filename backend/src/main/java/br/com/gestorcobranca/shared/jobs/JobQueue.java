@@ -26,6 +26,20 @@ public interface JobQueue {
         return enqueue(type, payload, null, null);
     }
 
+    /**
+     * Enfileira um job imediato (como {@link #enqueue}, na transação corrente, obrigatória) e, <b>depois do
+     * commit</b>, pede a esta instância que o execute já, sem esperar o próximo ciclo do worker. A execução imediata
+     * reivindica o job pelo mesmo mecanismo do ciclo normal ({@code PENDING → RUNNING}, {@code locked_by} e
+     * {@code attempts}, {@code SKIP LOCKED}): o job roda uma única vez mesmo que o ciclo normal ou outra instância o
+     * alcance ao mesmo tempo. Sem capacidade de execução imediata na instância, ou se ela cair entre o commit e a
+     * execução, o job continua {@code PENDING} e o ciclo normal o executa. Transação desfeita → nem job nem execução.
+     * <p>
+     * Para comandos curtos em que a latência importa (ex.: comandos à chamada em andamento na telefonia).
+     *
+     * @return id do job (o existente, em caso de deduplicação; job existente que não esteja pronto não é antecipado)
+     */
+    UUID enqueueAndDispatch(String type, Object payload, String deduplicationKey);
+
     /** Cancela jobs pendentes do tipo com a chave de deduplicação informada. */
     int cancelPending(String type, String deduplicationKey);
 }

@@ -250,6 +250,28 @@ class CallTest {
     }
 
     @Test
+    void bridgeRequestIsMarkedOncePerConnectionAndClearedWhenTheConnectionIsUndone() {
+        Call dialed = dialer();
+        dialed.dialRequested(UUID.randomUUID(), T0);
+        dialed.providerAccepted("p-13");
+        dialed.answered(T0.plusSeconds(5), AmdResult.HUMAN);
+        // sem operador conectado não há conexão a pedir
+        assertThatThrownBy(() -> dialed.bridgeRequested(T0.plusSeconds(5))).isInstanceOf(ConflictException.class);
+
+        dialed.connect(OPERATOR, T0.plusSeconds(6));
+        assertThat(dialed.isBridgeRequested()).isFalse();
+        dialed.bridgeRequested(T0.plusSeconds(6));
+        assertThat(dialed.isBridgeRequested()).isTrue();
+        assertThat(dialed.getBridgeRequestedAt()).isEqualTo(T0.plusSeconds(6));
+        // a marca indica que o pedido pode ter chegado ao provedor: não se pede de novo
+        assertThatThrownBy(() -> dialed.bridgeRequested(T0.plusSeconds(7))).isInstanceOf(ConflictException.class);
+
+        dialed.bridgeFailed();
+        assertThat(dialed.isBridgeRequested()).isFalse();
+        assertThatThrownBy(() -> dialed.bridgeRequested(T0.plusSeconds(8))).isInstanceOf(ConflictException.class);
+    }
+
+    @Test
     void inboundIsIdentifiedConnectedAndRequiresCaseBeforeTabulation() {
         Call call = Call.inbound(account(true), "in-1", "+5511987654321", "hash", "(11) *****-4321", T0);
         assertThat(call.getStatus()).isEqualTo(CallStatus.RINGING);

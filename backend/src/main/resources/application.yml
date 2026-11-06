@@ -220,6 +220,9 @@ app:
     lease: PT15M
     # renovação do lease dos jobs em execução (bem abaixo do lease): job longo não volta à fila enquanto roda
     heartbeat-interval: PT1M
+    # execução imediata depois do commit (JobQueue#enqueueAndDispatch, ex.: comandos à chamada em andamento), em
+    # executor separado do ciclo normal; sem vaga, o job fica para o ciclo normal
+    dispatch-concurrency: ${JOBS_DISPATCH_CONCURRENCY:8}
 
   scheduling:
     enabled: true
@@ -436,10 +439,6 @@ app:
   telephony:
     # tentativas do job de discagem (falhas transitórias do provedor) antes de FAILED
     dial-max-attempts: 3
-    # comandos à chamada em andamento (bridge/hangup) pedidos depois do commit, fora da thread que confirmou
-    command-executor:
-      size: ${TELEPHONY_COMMAND_EXECUTOR_SIZE:8}
-      queue-capacity: 500
     # prazo do pós-atendimento: sem tabulação do operador, a chamada é tabulada automaticamente
     tabulation-deadline: PT15M
     # operador sem sinal do cliente (heartbeat) além deste prazo sai automaticamente

@@ -65,6 +65,7 @@ locals {
     GC_SMTP_HOST                 = var.smtp_host
     GC_SMTP_PORT                 = tostring(var.smtp_port)
     GC_JOBS_CONCURRENCY          = tostring(var.jobs_concurrency)
+    GC_JOBS_DISPATCH_CONCURRENCY = tostring(var.jobs_dispatch_concurrency)
     GC_JVM_MAX_RAM_PERCENTAGE    = tostring(var.jvm_max_ram_percentage)
     GC_JAVA_OPTS_EXTRA           = var.java_opts_extra
     GC_HOST_METRICS_NAMESPACE    = var.host_metrics_namespace

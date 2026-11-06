@@ -334,6 +334,17 @@ variable "jobs_concurrency" {
   default     = 8
 }
 
+variable "jobs_dispatch_concurrency" {
+  description = "Vagas por instância da execução imediata de jobs depois do commit, separadas do ciclo normal (JOBS_DISPATCH_CONCURRENCY; comandos à chamada em andamento da telefonia)."
+  type        = number
+  default     = 8
+
+  validation {
+    condition     = var.jobs_dispatch_concurrency >= 1
+    error_message = "jobs_dispatch_concurrency deve ser ao menos 1."
+  }
+}
+
 variable "jvm_max_ram_percentage" {
   description = "Percentual da memória da instância destinado ao heap (-XX:MaxRAMPercentage)."
   type        = number
