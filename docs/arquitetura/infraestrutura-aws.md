@@ -106,6 +106,7 @@ Retenção curta no CloudWatch e arquivamento no S3 reduzem o custo de armazenam
 | Picos de login negado (`access.events{type=LOGIN_FAILURE}`) | acima do padrão histórico |
 | SLA da caixa de entrada (`communication.inbox.sla.breaches`) | soma > `inbox_sla_breaches_threshold` (padrão 10) em 15 min |
 | Tempo real da caixa de entrada (`communication.realtime.listener.failures`) | > 3 em 5 min (ADR-0008) |
+| Conexão ao operador interrompida (`telephony.provider.commands{operation=bridge,outcome=interrupted}`) | > 0 em 5 min, todos os provedores (decisões 906 e 917; procedimento em [logs-e-metricas.md §6.1](../tecnico/logs-e-metricas.md)) |
 
 Tempo real da caixa de entrada (ADR-0008): conexões SSE atravessam o ALB sem configuração especial — o *heartbeat* de 20 s fica abaixo do `idle_timeout` (120 s); cada instância mantém uma conexão a mais com o RDS (fora do pool) para o `LISTEN`; nenhum serviço adicional.
 

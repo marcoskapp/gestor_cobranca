@@ -183,9 +183,13 @@ O plano também mostra **avisos** (blocos `check`, que não bloqueiam): computa�
 
 ### 2.2 Validar antes de aplicar
 
+Sem conta AWS e sem o Terraform instalado (só Docker), a checagem completa — `fmt`, `init -lockfile=readonly`,
+`validate` e os testes de plano de ambientes e módulos — é `scripts/infra/terraform-check.sh`
+([infra/terraform/README.md §8](../../../infra/terraform/README.md)). Com o Terraform local:
+
 ```bash
 terraform fmt -check -recursive infra/terraform
-terraform -chdir=infra/terraform/envs/<env> init -backend=false
+terraform -chdir=infra/terraform/envs/<env> init -backend=false -lockfile=readonly
 terraform -chdir=infra/terraform/envs/<env> validate
 terraform -chdir=infra/terraform/envs/<env> test      # planos com provider simulado (tests/plan.tftest.hcl)
 diff -r infra/terraform/envs/homologacao infra/terraform/envs/producao   # só .example, tests/ e seus arquivos locais
@@ -193,7 +197,7 @@ diff -r infra/terraform/envs/homologacao infra/terraform/envs/producao   # só .
 
 **Conferir:** `validate` sem erros e `test` com todos os `run` em `pass`.
 
-**Trava do provider (primeira vez e a cada atualização do provider; decisão 527).** O repositório ainda não traz o `.terraform.lock.hcl` dos ambientes: gere-o com acesso ao registro e versione-o no mesmo PR.
+**Trava do provider (a cada atualização do provider; decisões 527 e 915).** O `.terraform.lock.hcl` dos dois ambientes está versionado (`hashicorp/aws` 6.72.0, quatro plataformas). Para atualizar o provider, regere-o com acesso ao registro e versione-o no mesmo PR.
 
 ```bash
 for e in homologacao producao; do
@@ -788,6 +792,7 @@ Criados pelo módulo `observability`, com nome `gestor-cobranca-<env>-<alarme>`:
 | ALB e instâncias | `alb-5xx-rate` (> 1% em 5 min), `alb-latency-p95` (> 1,5 s por 10 min), `unhealthy-hosts`, `no-healthy-hosts`, `host-memory`, `host-disk`, `bootstrap-failures` |
 | RDS | `rds-cpu`, `rds-connections`, `rds-free-storage` (< 20%), `rds-freeable-memory` |
 | Aplicação | `jobs-dead`, `events-incomplete-growth`, `access-log-write-failures`, `audit-seal-failures`, `inbox-sla-breaches`, `inbox-realtime-listener` |
+| Telefonia | `telephony-bridge-interrupted` (conexão ao operador interrompida — queda da instância, perda do lease ou exceção inesperada do adaptador durante o pedido —, > 0 em 5 min; o que fazer: [logs-e-metricas.md §6.1](../logs-e-metricas.md)) |
 | Segurança | `login-failure-anomaly` (anomalia de `LOGIN_FAILURE`), `token-reuse` (reuso de refresh token) |
 
 `alb-5xx-rate` e `unhealthy-hosts` são os alarmes de **reversão automática** do instance refresh (`terraform output rollback_alarm_names`).
@@ -806,7 +811,7 @@ Criados pelo módulo `observability`, com nome `gestor-cobranca-<env>-<alarme>`:
 | `/gestor-cobranca/<env>/run-command` | saída do SSM Run Command (migrations, `db-admin`) | 400 dias | quem executou o quê no banco, e quando |
 | `aws-waf-logs-gestor-cobranca-<env>` | requisições avaliadas pelo WAF (sem `authorization` e `cookie`) | 90 dias | ataques e falsos positivos |
 
-Consultas salvas no Logs Insights: `gestor-cobranca-<env>/tecnico/erros-por-rota`, `gestor-cobranca-<env>/acesso/falhas-por-tipo` e `gestor-cobranca-<env>/negocio/eventos-por-tipo`. O catálogo de eventos e métricas está em [`logs-e-metricas.md`](../logs-e-metricas.md). As métricas da aplicação vão ao namespace `GestorCobranca`; as do host (memória, disco), a `GestorCobranca/Host`.
+Consultas salvas no Logs Insights: `gestor-cobranca-<env>/tecnico/erros-por-rota`, `gestor-cobranca-<env>/tecnico/conexoes-interrompidas` (alarme `telephony-bridge-interrupted`), `gestor-cobranca-<env>/acesso/falhas-por-tipo` e `gestor-cobranca-<env>/negocio/eventos-por-tipo`. O catálogo de eventos e métricas está em [`logs-e-metricas.md`](../logs-e-metricas.md). As métricas da aplicação vão ao namespace `GestorCobranca`; as do host (memória, disco), a `GestorCobranca/Host`.
 
 ### 8.3 Rotinas mensais
 

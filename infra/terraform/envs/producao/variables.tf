@@ -299,6 +299,12 @@ variable "jobs_concurrency" {
   default     = 8
 }
 
+variable "jobs_dispatch_concurrency" {
+  description = "Vagas por instância da execução imediata de jobs depois do commit, separadas do ciclo normal (JOBS_DISPATCH_CONCURRENCY; decisões 904 e 907). Aumente se jobs.dispatched{outcome=busy} ficar sustentado."
+  type        = number
+  default     = 8
+}
+
 variable "jvm_max_ram_percentage" {
   description = "Percentual da RAM para o heap da JVM."
   type        = number

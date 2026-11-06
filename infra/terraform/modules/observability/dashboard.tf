@@ -114,5 +114,8 @@ locals {
     aws_cloudwatch_metric_alarm.bootstrap_failures.arn,
     aws_cloudwatch_metric_alarm.host_memory.arn,
     aws_cloudwatch_metric_alarm.host_disk.arn,
+    aws_cloudwatch_metric_alarm.inbox_sla_breaches.arn,
+    aws_cloudwatch_metric_alarm.inbox_realtime_listener.arn,
+    aws_cloudwatch_metric_alarm.telephony_bridge_interrupted.arn,
   ]
 }

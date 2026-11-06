@@ -418,3 +418,34 @@ resource "aws_cloudwatch_metric_alarm" "inbox_realtime_listener" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
 }
+
+# --- Telefonia (telephony) ------------------------------------------------------------------
+
+# Conexão ao operador interrompida (decisões 906 e 917): uma execução do job telephony.bridge gravou
+# a marca bridge_requested_at e não chegou ao desfecho do pedido ao provedor (queda da instância,
+# perda do lease ou exceção inesperada do adaptador). A execução seguinte não reenvia nem desfaz
+# (outcome=interrupted) e a chamada fica para os eventos do provedor e a conciliação: qualquer
+# ocorrência pede conferência no provedor (docs/tecnico/logs-e-metricas.md §6.1). Na última tentativa
+# não há execução seguinte: o job vai a DEAD e quem avisa é o alarme jobs-dead.
+# A métrica tem as dimensões provider/operation/outcome: o alarme soma os provedores por Metrics Insights.
+resource "aws_cloudwatch_metric_alarm" "telephony_bridge_interrupted" {
+  alarm_name          = "${local.alarm_prefix}-telephony-bridge-interrupted"
+  alarm_description   = "Conexao ao operador interrompida (telephony.bridge, outcome=interrupted; decisoes 906 e 917): execucao anterior caiu, perdeu o lease ou teve excecao inesperada do adaptador depois da marca. Conferir a chamada no provedor; consulta salva ${var.name_prefix}/tecnico/conexoes-interrompidas (instancia = a que retomou o job). Runbook: docs/tecnico/logs-e-metricas.md 6.1."
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+
+  metric_query {
+    id          = "interrupted"
+    label       = "telephony.provider.commands bridge/interrupted (soma)"
+    period      = 300
+    return_data = true
+    expression  = <<-EOT
+      SELECT SUM("telephony.provider.commands.count") FROM SCHEMA("${var.metrics_namespace}", application, env, provider, operation, outcome) WHERE application = '${var.application_name}' AND env = '${var.environment}' AND operation = 'bridge' AND outcome = 'interrupted'
+    EOT
+  }
+}

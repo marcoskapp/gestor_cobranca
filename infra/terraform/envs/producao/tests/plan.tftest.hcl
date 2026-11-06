@@ -1,8 +1,11 @@
 # Testes de plano com provider simulado (sem credenciais AWS): combinações de fase e de
 # serviços que requerem aprovação, e as regras de guarda entre variáveis.
-#   terraform init -backend=false && terraform test
+#   scripts/infra/terraform-check.sh   (ou: terraform init -backend=false && terraform test)
+# override_during = plan (Terraform >= 1.11): os valores simulados valem já no plano; sem ele, os
+# atributos calculados (ARNs, ids) ficam desconhecidos e as asserções sobre eles não avaliam.
 
 mock_provider "aws" {
+  override_during = plan
   mock_data "aws_caller_identity" { defaults = { account_id = "123456789012" } }
   mock_data "aws_partition" { defaults = { partition = "aws" } }
   mock_data "aws_availability_zones" { defaults = { names = ["sa-east-1a", "sa-east-1b", "sa-east-1c"] } }
@@ -58,6 +61,19 @@ run "fase1_sem_aprovacoes" {
   assert {
     condition     = endswith(output.migration_secret_resources[0], "/migration/*") && length(output.migration_secret_resources) == 1
     error_message = "o segredo de migração fica num caminho próprio, fora do alcance do runtime (app/*)"
+  }
+  assert {
+    condition     = module.compute[0].instance_conf_public["GC_JOBS_DISPATCH_CONCURRENCY"] == "8"
+    error_message = "execução imediata de jobs com 8 vagas por instância por padrão (decisões 904 e 907)"
+  }
+}
+
+run "execucao_imediata_de_jobs_configuravel" {
+  command = plan
+  variables { jobs_dispatch_concurrency = 12 }
+  assert {
+    condition     = module.compute[0].instance_conf_public["GC_JOBS_DISPATCH_CONCURRENCY"] == "12"
+    error_message = "jobs_dispatch_concurrency do ambiente chega ao instance.conf (JOBS_DISPATCH_CONCURRENCY no app.env; decisões 904, 907 e 916)"
   }
 }
 

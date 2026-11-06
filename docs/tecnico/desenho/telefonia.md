@@ -144,7 +144,8 @@ roda na thread do job, sem transação e sem o lock da chamada (decisão 852):
   a conexão num provedor que já a fez recolocaria a chamada no ramal e derrubaria a conversa — e é a marca que decide:
   * falha antes da marca confirmada (no preparo) → a nova tentativa do job pede normalmente;
   * marca existente (instância caiu durante o pedido, lease expirado) → não reenvia nem desfaz: registra `interrupted`
-    e deixa a chamada para os eventos do provedor e a conciliação;
+    e deixa a chamada para os eventos do provedor e a conciliação (alarme `telephony-bridge-interrupted` em qualquer
+    ocorrência; procedimento em [logs-e-metricas.md §6.1](../logs-e-metricas.md));
   * provedor que não conecta (falha transitória ou recusa), operador sem ramal ou provedor indisponível → a conexão é
     desfeita em transação própria (`Call#bridgeFailed`, que limpa a marca): operador liberado, discador → abandono
     (`ABANDONED`), recebida → perdida (`NO_ANSWER/NO_AGENT`), e o encerramento é gravado como job;

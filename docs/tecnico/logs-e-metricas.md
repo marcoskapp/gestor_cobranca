@@ -509,6 +509,13 @@ filter event = "ui.onboarding.tour_recorded"
 # tentativas de login negadas por IP (acesso)
 filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | stats count(*) as falhas by clientIp | sort falhas desc
+
+# conexões ao operador interrompidas (técnico — alarme telephony-bridge-interrupted, §6.1); instance = quem retomou o job
+# salva como gestor-cobranca-<env>/tecnico/conexoes-interrompidas
+fields @timestamp, tenantId, callId, instance, process
+| filter logger like /ProviderBridgeJob/ and level = "WARN" and ispresent(callId)
+| sort @timestamp desc
+| limit 100
 ```
 
 ## 5. Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`)
@@ -717,7 +724,7 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `telephony.provider.calls{provider,origin,result}`, `telephony.provider.talk_time{provider}` (p50/p95/p99) | multiprovedor: chamadas encerradas e conversação **por plataforma** (ASR por provedor = atendidas ÷ discadas); série separada para não mudar as dimensões de `telephony.calls` |
 | `telephony.provider.dial{provider,origin,outcome}` | pedidos à plataforma: `accepted`, `rejected`, `transient` (ambíguo), `transient_not_processed` (não criou a chamada), `error` (falha inesperada do adaptador: o lote do discador fica recusado com `PROVIDER_ERROR`; no clique para ligar, nova tentativa) |
 | `telephony.provider.fallbacks{from,to,origin}` | discagens desviadas para a conta de contingência (alarme sugerido: qualquer valor sustentado por 15 min = plataforma principal fora do ar) |
-| `telephony.provider.commands{provider,operation,outcome}` | comandos à chamada em andamento, executados pelos jobs duráveis `telephony.bridge`/`telephony.hangup` (gravados na transação que decide o estado local e executados logo após o commit; `operation` = `bridge`, `hangup`; tags inalteradas, decisão 905): `success`, `rejected` (encerramento: a chamada já terminou no provedor — job concluído; conexão: desfeita), `transient` (encerramento: nova tentativa do job; conexão: desfeita), `skipped` (sem adaptador, sem ramal ou sem id do provedor ainda) e os novos `stale` (conexão: a chamada já não estava com aquele operador quando o job rodou) e `interrupted` (conexão: a marca `bridge_requested_at` mostra que uma execução anterior já pode ter pedido a conexão; não reenviada) — alarme sugerido em `transient` sustentado e em qualquer `interrupted`. Falha ao desfazer uma conexão que o provedor não fez leva o job `telephony.bridge` a `DEAD` (alarme `jobs.dead`) e conta em `telephony.jobs.failures{job=telephony.bridge}`. A latência e o volume dos jobs aparecem em `jobs.duration`/`jobs.executed{type=telephony.bridge|telephony.hangup}` e `jobs.dispatched`. O executor `executor.*{name=telephony_commands}` deixou de existir |
+| `telephony.provider.commands{provider,operation,outcome}` | comandos à chamada em andamento, executados pelos jobs duráveis `telephony.bridge`/`telephony.hangup` (gravados na transação que decide o estado local e executados logo após o commit; `operation` = `bridge`, `hangup`; tags inalteradas, decisão 905): `success`, `rejected` (encerramento: a chamada já terminou no provedor — job concluído; conexão: desfeita), `transient` (encerramento: nova tentativa do job; conexão: desfeita), `skipped` (sem adaptador, sem ramal ou sem id do provedor ainda) e os novos `stale` (conexão: a chamada já não estava com aquele operador quando o job rodou) e `interrupted` (conexão: a marca `bridge_requested_at` mostra que uma execução anterior já pode ter pedido a conexão; não reenviada) — alarme sugerido em `transient` sustentado; qualquer `interrupted` dispara o alarme `telephony-bridge-interrupted` (soma de todos os provedores em 5 min, §6.1). Falha ao desfazer uma conexão que o provedor não fez leva o job `telephony.bridge` a `DEAD` (alarme `jobs.dead`) e conta em `telephony.jobs.failures{job=telephony.bridge}`. A latência e o volume dos jobs aparecem em `jobs.duration`/`jobs.executed{type=telephony.bridge|telephony.hangup}` e `jobs.dispatched`. O executor `executor.*{name=telephony_commands}` deixou de existir |
 | `integration.calls{provider=alvaria,operation,outcome}`, `integration.calls.duration{provider=alvaria,operation}` | API da Alvaria CX (`oauth_token`, `originate`, `dial_batch`, `bridge`, `hangup`, `fetch_recording`, `delete_recording`; `success`, `rejected`, `transient`, `timeout`, `unreachable`) |
 | `integration.calls{provider=twilio|plivo,operation,outcome}`, `integration.calls.duration{provider=twilio|plivo,operation}` | APIs da Twilio e da Plivo (`originate`, `dial`, `bridge`, `hangup`, `fetch_recording`, `fetch_recording_media` (Plivo), `delete_recording`, `verify_credentials`; mesmos resultados) — alarme sugerido em `rejected` sustentado (credencial revogada) |
 | `telephony.webhook.instructions{provider,kind,instruction}` | respostas TwiML/Plivo XML: `kind` = `DIAL_DEBTOR`, `CALL_ANSWERED`, `CONNECT_OPERATOR`, `ANNOUNCE`, `ABANDON`, `END`; `instruction` = `DialDebtor`, `Hold`, `ConnectAgent`, `Announce`, `Hangup` |
@@ -750,3 +757,59 @@ filter eventType in ["LOGIN_FAILURE", "LOGIN_BLOCKED"]
 | `sandbox.seed.step{step}`, `sandbox.seed.duration{outcome}` | somente no sandbox de demonstração: duração de cada etapa da carga de dados fictícios e da carga inteira (`completed`/`failed`); avisos e falha também em `/actuator/health/readiness` (`sandboxSeed`) e no log técnico (`docs/tecnico/operacao/sandbox.md`) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |
+
+## 6. Alarmes com procedimento de resposta
+
+Os alarmes do CloudWatch são criados pelo módulo `observability` do Terraform (`gestor-cobranca-<env>-<alarme>`; lista
+completa em [ativacao-aws.md §8.1](operacao/ativacao-aws.md)) e notificam pelo mesmo tópico SNS de todos os alarmes
+quando `enable_sns_notifications` está aprovado; sem SNS, ficam no console e no painel. As métricas da aplicação chegam
+pelo registro Micrometer → CloudWatch (namespace `GestorCobranca`, dimensões `application`, `env` e as tags da métrica;
+contadores com o sufixo `.count`, gauges com `.value`). Métrica com tags próprias (ex.: `provider`, `operation`,
+`outcome`) é somada por uma consulta Metrics Insights no próprio alarme, filtrando as tags que interessam.
+
+### 6.1 `telephony-bridge-interrupted` — conexão ao operador interrompida (decisões 906 e 917)
+
+**Condição:** `telephony.provider.commands{operation=bridge,outcome=interrupted}` > 0 em 5 min, somando todos os
+provedores (`SUM("telephony.provider.commands.count")` por Metrics Insights, filtrado por `application` e `env`). Sem
+ocorrência não há dado e o alarme fica em OK; ele volta a OK sozinho no período seguinte sem ocorrência (a notificação
+de ALARM já foi enviada). Aparece também no painel operacional.
+
+**O que significa:** uma execução do job `telephony.bridge` gravou a marca `phone_call.bridge_requested_at` e não chegou
+ao desfecho do pedido de conexão ao provedor. A execução seguinte encontra a marca, **não reenvia nem desfaz** —
+reenviar derrubaria uma conversa que o provedor talvez já tenha conectado — registra `interrupted` e deixa a chamada
+para os eventos do provedor e a conciliação. O sistema não sabe se o devedor foi conectado ao operador. Há duas origens:
+
+* **queda da instância ou perda do lease** durante o pedido: o job volta pelo lease expirado e outra instância (ou a
+  mesma, depois de reiniciar) o retoma;
+* **exceção inesperada do adaptador** do provedor (nem falha transitória nem recusa, que desfazem a conexão): o job
+  falha, o worker agenda nova tentativa e ela encontra a marca.
+
+Se a interrupção acontecer na **última tentativa** do job (`maxAttempts = 3`), não há execução seguinte: o job vai direto
+a `DEAD` sem registrar `interrupted` e quem avisa é o alarme `jobs-dead` (`telephony.bridge` em
+`shared.processing_job`). O procedimento abaixo vale também para esse caso.
+
+**O que fazer:**
+
+1. **Identifique as chamadas.** No Logs Insights, a consulta salva `gestor-cobranca-<env>/tecnico/conexoes-interrompidas`
+   (§4) lista `callId`, `tenantId`, horário e a instância que **retomou** o job e registrou a interrupção (não a que
+   caiu). Os logs só têm ids; o id da chamada no provedor (`provider_call_id`) e a conta ficam no registro da chamada.
+2. **Confira cada chamada no console do provedor** (Twilio/Plivo, pela conta da chamada), pelo horário:
+   * **conectada e encerrada normalmente** → nada a fazer: os webhooks do provedor encerram a chamada no sistema e
+     liberam o operador;
+   * **ainda em andamento sem o operador** (devedor esperando na linha) → encerre a chamada no console do provedor; o
+     webhook de fim encerra a chamada no sistema e libera o operador;
+   * **encerrada no provedor, mas aberta no sistema** → os webhooks não chegaram: confira
+     `telephony.webhook.requests{outcome}` (`INVALID_SIGNATURE`, `UNKNOWN_ROUTE`) e o alarme de 5xx do ALB. A conciliação
+     encerra a chamada parada depois de `app.telephony.stale-call-after` (4 h); até lá o operador segue em chamada e a
+     chamada conta no ritmo da campanha.
+3. **Descubra a origem.** Procure no log técnico a execução **anterior** do job, antes do horário da interrupção
+   (`process = "job:telephony.bridge"`; o log do worker cita o id do job, não o `callId`):
+   * aviso do `JobWorker` "falhou na tentativa … nova tentativa" com a mensagem da exceção → falha inesperada do
+     provedor ou do adaptador: analise a exceção e `integration.calls{provider,operation=bridge,outcome}`; repetida,
+     abra correção no adaptador;
+   * nenhum desfecho registrado → a instância caiu ou perdeu o lease: no mesmo horário, confira os alarmes
+     `unhealthy-hosts`, `no-healthy-hosts`, `host-memory` e `bootstrap-failures`, o histórico de atividades do Auto
+     Scaling Group (substituição, *instance refresh*, agendamento de homologação) e `jobs.recovered`. Ocorrências isoladas
+     num *instance refresh* ou numa substituição são esperadas; repetidas sem queda de instância pedem análise do lease
+     (`app.jobs.lease`, `jobs.lease_renewed`) e de `jobs.dispatched{outcome}`.
+4. **Registre** a ocorrência (chamadas conferidas, resultado e origem) no acompanhamento da operação.

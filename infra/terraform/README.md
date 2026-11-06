@@ -12,10 +12,12 @@ infra/terraform/
     compute/        IAM da instância, launch template (user-data), ASG, escala, agendamento
     loadbalancer/   ALB, target group, listeners 80→443 e 443
     observability/  grupos de log, metric filters, alarmes, painel, SNS (opcional)
+    */tests/        testes de plano com provider simulado (compute, database, observability, security, storage)
   envs/
-    homologacao/    composição + terraform.tfvars.example + backend.hcl.example + tests/
+    homologacao/    composição + terraform.tfvars.example + backend.hcl.example + .terraform.lock.hcl + tests/
     producao/       idem; parâmetros da fase 2 comentados no tfvars.example
 scripts/
+  infra/            terraform-check.sh: fmt, validate e testes de plano via Docker, sem conta AWS (§8)
   instance/         executados NA instância (user-data, systemd, CloudWatch Agent, migrations, db-admin)
   deploy/           build.sh, migrate.sh, release.sh, db-admin.sh (executados pelo operador; decisão 474)
   ops/              bootstrap-state.sh, provision-secrets.sh, export-access-logs.sh
@@ -65,7 +67,7 @@ Nas instâncias, o user-data grava os PEM em `/etc/gestor-cobranca/` (0600, dono
 
 ## Pré-requisitos
 
-- Terraform ≥ 1.10 (ou OpenTofu ≥ 1.10), AWS CLI v2, `jq`, `openssl`; para o build: JDK 21, Maven 3.9+, Node/npm (frontend).
+- Terraform ≥ 1.10 (ou OpenTofu ≥ 1.10; os testes de plano exigem Terraform ≥ 1.11 — a checagem local do §8 usa a imagem Docker 1.13.5), AWS CLI v2, `jq`, `openssl`; para o build: JDK 21, Maven 3.9+, Node/npm (frontend).
 - Credenciais AWS com permissão de administração da infraestrutura (de preferência SSO), na região `sa-east-1`.
 - Certificado TLS do domínio (ARN no ACM) ou aprovação de `enable_acm_certificate`.
 - Plugin do Session Manager na AWS CLI, para sessões interativas.
@@ -80,7 +82,7 @@ cp terraform.tfvars.example terraform.tfvars # ajustar (não versionado: *.tfvar
 terraform init -backend-config=backend.hcl
 ```
 
-**Trava das versões do provider** (uma vez, e a cada atualização do provider; decisão 527). O `.terraform.lock.hcl` de cada ambiente é versionado, com os hashes das plataformas de quem executa o Terraform:
+**Trava das versões do provider** (decisão 527). O `.terraform.lock.hcl` de cada ambiente é versionado, com os hashes das plataformas de quem executa o Terraform; hoje trava o `hashicorp/aws` 6.72.0 para `linux_amd64`, `linux_arm64`, `darwin_amd64` e `darwin_arm64` (gerado com o Terraform 1.13.5). A cada atualização do provider, regere nos dois ambientes:
 
 ```bash
 for e in homologacao producao; do
@@ -161,12 +163,12 @@ O rollback cria uma versão nova do launch template com o conteúdo da anterior 
 | Encerramento | `SIGTERM` → `server.shutdown=graceful`; o systemd espera até 60 s |
 | Frontend | `build.sh` localiza o `index.html` em `frontend/dist/` (hoje `dist/gestor-cobranca-web`, `outputPath.browser` vazio no `angular.json`) e copia a pasta para `static/` do JAR (servido em `/`) |
 | Logs | `${LOG_DIR}` = `/var/log/gestor-cobranca`: `technical.log`, `business.log`, `access.log` (JSON, uma linha por evento, com `env`, `eventType`, `success`) |
-| Métricas | Micrometer → CloudWatch, namespace `GestorCobranca`, tags comuns `application` e `env`. Os alarmes usam `jobs.dead`, `events.publications.incomplete`, `access.log.write_failures`, `audit.seal.failures` e `access.events{type,success}` (com os sufixos `.value` e `.count` do registro CloudWatch) |
+| Métricas | Micrometer → CloudWatch, namespace `GestorCobranca`, tags comuns `application` e `env`. Os alarmes usam `jobs.dead`, `events.publications.incomplete`, `access.log.write_failures`, `audit.seal.failures`, `access.events{type,success}`, `communication.inbox.sla.breaches`, `communication.realtime.listener.failures` e `telephony.provider.commands{provider,operation,outcome}` (com os sufixos `.value` e `.count` do registro CloudWatch; métricas com tags próprias são somadas por Metrics Insights no alarme) |
 | Runtime | `SPRING_FLYWAY_ENABLED=false`; conecta como `app_runtime_login` |
 | S3 | objetos somente sob `tenants/` (é o que o IAM permite). Arquivos de evidência recebem a tag `retention-class=evidence`, que o lifecycle move para Glacier. Arquivos de importação (CSV, XLSX, registros da API, PDF e o CSV canônico gerado do PDF) recebem a tag `retention-class=import`: depois do descarte pela retenção da aplicação, a versão anterior ao delete marker expira em `app_import_noncurrent_expiration_days` (padrão 1 dia), em vez dos 365 dias das demais versões. Objetos gravados antes dessa tag: marque uma vez com `scripts/ops/tag-import-objects.sh` |
 | **Modo migrate** | `java -jar gestor-cobranca.jar --spring.main.web-application-type=none --app.mode=migrate --app.scheduling.enabled=false`, com o mesmo ambiente das instâncias acrescido de `SPRING_FLYWAY_ENABLED=true`, `DB_MIGRATION_USERNAME=app_owner`, `DB_MIGRATION_PASSWORD`, `LOG_DIR=/var/log/gestor-cobranca/migrate` e `CLOUDWATCH_METRICS_ENABLED=false`. O processo aplica o Flyway e **termina** com código 0, ou ≠ 0 em qualquer falha. Não pode abrir porta, executar jobs nem publicar eventos, e precisa concluir dentro de `migration_timeout_seconds` (padrão 55 min) com heap de 512 MiB |
 
-Variáveis de ambiente entregues às instâncias: `SPRING_PROFILES_ACTIVE=prod`, `SPRING_FLYWAY_ENABLED=false`, `APP_ENV`, `APP_BASE_URL`, `APP_INSTANCE_ID` (IMDSv2), `DB_URL` (`…?sslmode=verify-full&sslrootcert=/etc/gestor-cobranca/rds-ca.pem`, bundle global de CA do RDS baixado no boot), `DB_USERNAME=app_runtime_login`, `DB_PASSWORD`, `DB_POOL_SIZE`, `APP_CRYPTO_KEY_K1` (e `APP_CRYPTO_KEYS_<ID>`), `APP_CRYPTO_ACTIVE_KEY_ID`, `APP_CRYPTO_BLIND_INDEX_KEY`, `JWT_ISSUER`, `APP_SECURITY_JWT_PRIVATE_KEY=file:/etc/gestor-cobranca/jwt-private.pem`, `APP_SECURITY_JWT_PUBLIC_KEY=file:/etc/gestor-cobranca/jwt-public.pem`, `S3_BUCKET`, `S3_KMS_KEY_ID`, `AWS_REGION`, `CLOUDWATCH_METRICS_ENABLED=true`, `LOG_DIR`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`, `APP_HTTP_TRUSTED_PROXIES` (sub-redes públicas do ALB; o user-data recusa subir sem elas), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `JOBS_CONCURRENCY`, `JOBS_DISPATCH_CONCURRENCY` (`jobs_dispatch_concurrency` do módulo `compute`, padrão 8: vagas da execução imediata de jobs depois do commit; decisão 904), `JVM_MAX_RAM_PERCENTAGE`, `ASSISTANT_BEDROCK_ENABLED`, `ASSISTANT_BEDROCK_REGION`, `ASSISTANT_BEDROCK_STANDARD_MODEL_ID`, `ASSISTANT_BEDROCK_ADVANCED_MODEL_ID`, `ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_BEDROCK_ENABLED`, `HELPDESK_BEDROCK_REGION`, `HELPDESK_BEDROCK_MODEL_ID`, `HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_GITHUB_REPOSITORY`, `HELPDESK_GITHUB_REQUIRE_PRIVATE`, com os chamados ligados `HELPDESK_GITHUB_TOKEN` (segredo) (sem credenciais da AWS: o SDK usa o papel da instância), `PAYMENT_PIX_ALLOWED_HOSTS` (`payment_pix_allowed_hosts`; decisão 313), `PAYMENT_WEBHOOK_MTLS_ENABLED` (`payment_webhook_mtls_enabled`, hoje sempre `false`; decisão 316), `APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL`, `APP_BOOTSTRAP_PLATFORM_CNPJ` e `APP_BOOTSTRAP_PLATFORM_ADMIN_NAME` (só quando `platform_admin_*`/`platform_cnpj` estão no tfvars; decisão 520) e `JAVA_OPTS` (`java_opts_extra` do módulo `compute`, vazio por padrão).
+Variáveis de ambiente entregues às instâncias: `SPRING_PROFILES_ACTIVE=prod`, `SPRING_FLYWAY_ENABLED=false`, `APP_ENV`, `APP_BASE_URL`, `APP_INSTANCE_ID` (IMDSv2), `DB_URL` (`…?sslmode=verify-full&sslrootcert=/etc/gestor-cobranca/rds-ca.pem`, bundle global de CA do RDS baixado no boot), `DB_USERNAME=app_runtime_login`, `DB_PASSWORD`, `DB_POOL_SIZE`, `APP_CRYPTO_KEY_K1` (e `APP_CRYPTO_KEYS_<ID>`), `APP_CRYPTO_ACTIVE_KEY_ID`, `APP_CRYPTO_BLIND_INDEX_KEY`, `JWT_ISSUER`, `APP_SECURITY_JWT_PRIVATE_KEY=file:/etc/gestor-cobranca/jwt-private.pem`, `APP_SECURITY_JWT_PUBLIC_KEY=file:/etc/gestor-cobranca/jwt-public.pem`, `S3_BUCKET`, `S3_KMS_KEY_ID`, `AWS_REGION`, `CLOUDWATCH_METRICS_ENABLED=true`, `LOG_DIR`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`, `APP_HTTP_TRUSTED_PROXIES` (sub-redes públicas do ALB; o user-data recusa subir sem elas), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `JOBS_CONCURRENCY`, `JOBS_DISPATCH_CONCURRENCY` (`jobs_dispatch_concurrency` do ambiente, repassada ao módulo `compute`, padrão 8: vagas da execução imediata de jobs depois do commit; decisão 904), `JVM_MAX_RAM_PERCENTAGE`, `ASSISTANT_BEDROCK_ENABLED`, `ASSISTANT_BEDROCK_REGION`, `ASSISTANT_BEDROCK_STANDARD_MODEL_ID`, `ASSISTANT_BEDROCK_ADVANCED_MODEL_ID`, `ASSISTANT_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_BEDROCK_ENABLED`, `HELPDESK_BEDROCK_REGION`, `HELPDESK_BEDROCK_MODEL_ID`, `HELPDESK_BEDROCK_INTERNATIONAL_TRANSFER_APPROVED`, `HELPDESK_GITHUB_REPOSITORY`, `HELPDESK_GITHUB_REQUIRE_PRIVATE`, com os chamados ligados `HELPDESK_GITHUB_TOKEN` (segredo) (sem credenciais da AWS: o SDK usa o papel da instância), `PAYMENT_PIX_ALLOWED_HOSTS` (`payment_pix_allowed_hosts`; decisão 313), `PAYMENT_WEBHOOK_MTLS_ENABLED` (`payment_webhook_mtls_enabled`, hoje sempre `false`; decisão 316), `APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL`, `APP_BOOTSTRAP_PLATFORM_CNPJ` e `APP_BOOTSTRAP_PLATFORM_ADMIN_NAME` (só quando `platform_admin_*`/`platform_cnpj` estão no tfvars; decisão 520) e `JAVA_OPTS` (`java_opts_extra` do módulo `compute`, vazio por padrão).
 
 **Dado pessoal no state:** `platform_admin_email` é marcado `sensitive` (não aparece no plano nem nas saídas), mas vai ao user-data do launch template e, portanto, ao state, que fica no bucket cifrado e de acesso restrito do §1. Use uma caixa funcional da operação e, depois de criado o administrador, as variáveis podem sair do tfvars (decisão 520).
 
@@ -215,12 +217,44 @@ Principais alavancas: Savings Plans e instância reservada do RDS na fase 2; des
 
 ## 8. Validação
 
+Sem conta nem credenciais da AWS e sem instalar o Terraform (só Docker):
+
 ```bash
-terraform fmt -check -recursive infra/terraform
-for e in homologacao producao; do
-  terraform -chdir=infra/terraform/envs/$e init -backend=false
-  terraform -chdir=infra/terraform/envs/$e validate
-  terraform -chdir=infra/terraform/envs/$e test     # planos com provider simulado (tests/plan.tftest.hcl)
-done
-bash -n scripts/{instance,deploy,ops}/*.sh && shellcheck -x -P SCRIPTDIR scripts/{instance,deploy,ops}/*.sh
+scripts/infra/terraform-check.sh                         # toda a árvore: envs/* e modules/*
+scripts/infra/terraform-check.sh modules/observability   # só os diretórios indicados (relativos a infra/terraform)
 ```
+
+O script roda a imagem oficial `hashicorp/terraform:1.13.5`, fixada por digest (troque com `TF_IMAGE=...`), numa cópia temporária em `~/.cache/gestor-cobranca/terraform-check.*` (pasta compartilhada com o Docker Desktop; apagada ao fim). Isolamento (decisão 913):
+
+- **o que vai para a cópia:** só os arquivos que o git lista (`git ls-files --cached --others --exclude-standard`) em `infra/terraform`, `scripts/instance` e `scripts/db` (estes lidos pelo módulo `compute`). Uma segunda barreira descarta, mesmo que estejam no índice, `.terraform/`, `*.tfstate*`, `*.tfvars`, `*.tfvars.json`, `backend.hcl`, `override.tf`/`*_override.tf(.json)`, `*.tfplan`/`tfplan`, `.env*`, `*.pem` e `*.key`;
+- **lock:** o `.terraform.lock.hcl` dos ambientes também é usado nos módulos, que não têm lock próprio; todo `init` roda com `-lockfile=readonly` (versão ou hash divergente falha);
+- **rede:** só o `init` acessa a rede (`registry.terraform.io`); `fmt`, `validate` e `test` rodam com `--network none`;
+- **contêiner:** `--cap-drop ALL`, `--security-opt no-new-privileges`, usuário de quem executa; nenhuma variável de ambiente nem credencial da máquina é repassada.
+
+Etapas:
+
+1. `terraform fmt -check -recursive` em toda a árvore;
+2. `terraform init -backend=false -lockfile=readonly` em cada ambiente e módulo;
+3. `terraform validate`;
+4. `terraform test` onde houver `*.tftest.hcl`: planos (`command = plan`) com `mock_provider "aws"` e `override_during = plan` (Terraform ≥ 1.11), sem chamar a AWS.
+
+Termina com um resumo por diretório e código ≠ 0 em qualquer falha. Na primeira execução baixa o provider do `registry.terraform.io` para `~/.cache/gestor-cobranca/terraform-plugins` (`TF_PLUGIN_CACHE=...`; cerca de 700 MB); as seguintes levam cerca de 1 min.
+
+Limites do provider simulado: os atributos calculados que o teste não fixa (ARNs, ids) ficam desconhecidos no plano, e o JSON das políticas IAM é simulado. Por isso os testes conferem os documentos de origem das políticas (e não o JSON aplicado) e fixam ARNs com `mock_resource`/`override_resource` onde a asserção depende deles.
+
+| Testes | O que garantem |
+| --- | --- |
+| `envs/*/tests/plan.tftest.hcl` | combinações de fase e de serviços que requerem aprovação, guardas entre variáveis (conexões, certificado, Bedrock, Pix, e-mail de entrada), segredos de migração fora do runtime, primeiro administrador, `jobs_dispatch_concurrency` no `instance.conf` |
+| `modules/storage/tests` | bloqueio público completo, ACLs desativadas, SSE (SSE-S3 ou KMS, logs sempre SSE-S3), versionamento, sem `force_destroy`, todo bucket com política; nos documentos de origem da política, negação de requisição sem TLS ou com TLS < 1.2 e escrita no bucket de segredos só pelos administradores (o documento combinado só é lido depois do apply) |
+| `modules/database/tests` | RDS não público, só pelo `sg-db`, criptografado (chave do cliente também no Performance Insights), senha mestre gerenciada pelo RDS, proteção contra exclusão e snapshot final, `rds.force_ssl` e TLS ≥ 1.2, PostgreSQL 16 |
+| `modules/security/tests` | entrada da internet só no `sg-alb` (80/443); `sg-app` só do `sg-alb`; `sg-db` só do `sg-app`; saída do `sg-app` para a internet só 443 e 587; todas as regras TCP (protocolo `-1` ignoraria as portas) |
+| `modules/compute/tests` | IMDSv2 obrigatório (hop limit 1), volumes do launch template com `encrypted = true`, launch template sem interface de rede própria, user-data com a configuração (`jobs_dispatch_concurrency`, `jobs_concurrency`, proxies confiáveis) e sem marcadores de segredo (senha, chave privada, chaves de cifra), papel do runtime sem `migration/*` nem a senha mestre (salvo com `db_admin_access`) |
+| `modules/observability/tests` | alarme `telephony-bridge-interrupted` (métrica, filtros, janela, ações no tópico SNS dos alarmes), alarmes da aplicação e da telefonia no painel, consulta salva do runbook, retenção e preservação dos grupos de log |
+
+Scripts de shell (sem Docker: `bash -n`; o `shellcheck` também roda pela imagem `koalaman/shellcheck`):
+
+```bash
+bash -n scripts/{infra,instance,deploy,ops}/*.sh && shellcheck -x -P SCRIPTDIR scripts/{infra,instance,deploy,ops}/*.sh
+```
+
+Fora do alcance da checagem local (precisam de conta AWS ou de ferramenta nova): `terraform plan` real contra a conta, limites e cotas da conta, validação de políticas IAM pelo IAM Access Analyzer e análise estática de segurança (tflint/checkov).

@@ -265,8 +265,10 @@ module "compute" {
   log_level              = var.log_level
   smtp_host              = var.smtp_host
   smtp_port              = var.smtp_port
-  jobs_concurrency       = var.jobs_concurrency
   jvm_max_ram_percentage = var.jvm_max_ram_percentage
+
+  jobs_concurrency          = var.jobs_concurrency
+  jobs_dispatch_concurrency = var.jobs_dispatch_concurrency
 
   platform_admin_email         = var.platform_admin_email
   platform_admin_name          = var.platform_admin_name
