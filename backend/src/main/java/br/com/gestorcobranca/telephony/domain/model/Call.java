@@ -128,6 +128,10 @@ public class Call extends TenantScopedEntity {
     @Column(name = "connected_at")
     private Instant connectedAt;
 
+    /** Pedido de conexão ao operador feito (ou prestes a ser feito) ao provedor: não reenviar. */
+    @Column(name = "bridge_requested_at")
+    private Instant bridgeRequestedAt;
+
     @Column(name = "ended_at")
     private Instant endedAt;
 
@@ -358,6 +362,28 @@ public class Call extends TenantScopedEntity {
     }
 
     /**
+     * Marca, antes do HTTP, que a conexão ao operador vai ser pedida ao provedor (job {@code telephony.bridge}).
+     * Uma única vez por conexão: a marca existente indica que o pedido pode ter chegado ao provedor e não deve ser
+     * repetido (derrubaria a conversa). Exige a chamada atendida e conectada a um operador.
+     */
+    public void bridgeRequested(Instant at) {
+        Guard.requireState(status == CallStatus.ANSWERED && connectedAt != null && operatorId != null,
+                "call.not_connected", "Chamada não está conectada a um operador");
+        Guard.requireState(bridgeRequestedAt == null, "call.bridge_already_requested",
+                "Conexão ao operador já pedida ao provedor");
+        Guard.require(at != null, "call.bridge_requested_at_required", "Instante do pedido obrigatório");
+        this.bridgeRequestedAt = at;
+    }
+
+    public boolean isBridgeRequested() {
+        return bridgeRequestedAt != null;
+    }
+
+    public Instant getBridgeRequestedAt() {
+        return bridgeRequestedAt;
+    }
+
+    /**
      * A conexão ao operador decidida pelo domínio (e já confirmada no banco) falhou no provedor: a
      * chamada volta a ficar sem operador. No discador ela é abandono (o chamador encerra); na recebida,
      * volta a tocar sem atendimento (o chamador encerra como perdida).
@@ -367,6 +393,7 @@ public class Call extends TenantScopedEntity {
                 "call.not_bridged", "Chamada não está conectada a um operador pelo sistema");
         this.connectedAt = null;
         this.operatorId = null;
+        this.bridgeRequestedAt = null;
         if (direction == CallDirection.INBOUND) {
             this.answeredAt = null;
             this.status = CallStatus.RINGING;

@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.shared.jobs;
 
+import br.com.gestorcobranca.shared.config.AsyncConfig;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.SensitiveDataMasker;
@@ -24,10 +25,12 @@ import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -46,12 +49,18 @@ import java.util.stream.Collectors;
  * Job reivindicado de novo além de {@link JobHandler#maxAttempts()} (quedas sucessivas da
  * instância) vai para DEAD sem rodar.
  * <p>
+ * Execução imediata ({@link JobQueue#enqueueAndDispatch}, {@link #dispatch}): depois do commit, o job recém-criado
+ * é reivindicado pelo id, com o mesmo {@code UPDATE … SKIP LOCKED} do ciclo normal, e executado num executor próprio
+ * ({@code app.jobs.dispatch-concurrency}), separado do ciclo normal para que jobs longos não atrasem comandos curtos.
+ * Sem vaga nesse executor, ou com o job já reivindicado, nada acontece: o ciclo normal o executa
+ * ({@code jobs.dispatched{outcome}}).
+ * <p>
  * Falhas transitórias são reagendadas com backoff exponencial (10 s, 20 s, 40 s… até 1 h);
  * falhas permanentes ou excesso de tentativas movem o job para {@code DEAD}, contabilizado na
  * métrica {@code jobs.executed{outcome=dead}} com alarme no CloudWatch.
  */
 @Component
-class JobWorker {
+class JobWorker implements JobDispatcher {
 
     private static final Logger LOG = LoggerFactory.getLogger(JobWorker.class);
 
@@ -64,6 +73,9 @@ class JobWorker {
     private final ExecutorService executor;
     private final Semaphore capacity;
     private final int concurrency;
+    /** Execução imediata pedida depois do commit (separada do ciclo normal). */
+    private final ExecutorService dispatchExecutor;
+    private final Semaphore dispatchCapacity;
     private final Duration lease;
     private final String workerId;
     /** Jobs em execução nesta instância (id → tentativa reivindicada), para renovar o lease. */
@@ -72,7 +84,8 @@ class JobWorker {
     JobWorker(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager, TenantExecution tenantExecution,
               JsonCodec json, MeterRegistry meterRegistry, List<JobHandler<?>> handlers,
               @Value("${app.jobs.concurrency:8}") int concurrency,
-              @Value("${app.jobs.lease:PT15M}") Duration lease) {
+              @Value("${app.jobs.lease:PT15M}") Duration lease,
+              @Value("${app.jobs.dispatch-concurrency:8}") int dispatchConcurrency) {
         this.jdbcTemplate = jdbcTemplate;
         this.transaction = new TransactionTemplate(transactionManager);
         this.tenantExecution = tenantExecution;
@@ -82,6 +95,9 @@ class JobWorker {
         this.concurrency = concurrency;
         this.capacity = new Semaphore(concurrency);
         this.executor = Executors.newFixedThreadPool(concurrency, Thread.ofPlatform().name("job-worker-", 0).factory());
+        this.dispatchCapacity = new Semaphore(dispatchConcurrency);
+        this.dispatchExecutor = Executors.newFixedThreadPool(dispatchConcurrency,
+                Thread.ofPlatform().name("job-dispatch-", 0).factory());
         this.lease = lease;
         this.workerId = ManagementFactory.getRuntimeMXBean().getName();
         Gauge.builder("jobs.pending", jdbcTemplate, jdbc -> {
@@ -115,6 +131,82 @@ class JobWorker {
                 }
             });
         }
+    }
+
+    /**
+     * Executa já o job informado, se ele estiver pronto ({@code PENDING}, {@code run_at <= now()}) e houver vaga no
+     * executor da execução imediata. A reivindicação e a execução correm na thread desse executor, nunca na de quem
+     * chamou. Sem vaga, executor encerrado ou job já reivindicado → nada (o ciclo normal o executa).
+     */
+    @Override
+    public void dispatch(UUID jobId) {
+        if (!dispatchCapacity.tryAcquire()) {
+            dispatched("busy");
+            return;
+        }
+        // a correlação (requestId etc.) da thread que confirmou segue para os logs da execução imediata
+        Runnable task = AsyncConfig.mdcPropagation().decorate(() -> {
+            try {
+                runDispatched(jobId);
+            } finally {
+                dispatchCapacity.release();
+            }
+        });
+        try {
+            dispatchExecutor.execute(task);
+        } catch (RejectedExecutionException e) {
+            // instância em desligamento: o ciclo normal (desta ou de outra instância) executa o job
+            dispatchCapacity.release();
+            dispatched("rejected");
+        }
+    }
+
+    private void runDispatched(UUID jobId) {
+        Optional<ClaimedJob> job;
+        try {
+            job = claimOne(jobId);
+        } catch (RuntimeException e) {
+            // nada foi reivindicado (ex.: banco indisponível): o job segue PENDING para o ciclo normal
+            dispatched("claim_error");
+            LOG.warn("Falha ao reivindicar o job {} para execução imediata; fica para o ciclo normal: {}", jobId,
+                    e.getClass().getName());
+            return;
+        }
+        if (job.isEmpty()) {
+            dispatched("missed");
+            return;
+        }
+        dispatched("claimed");
+        try {
+            execute(job.get());
+        } catch (RuntimeException e) {
+            // o handler já rodou (ou falhou) e a baixa (nova tentativa/DEAD) não foi gravada: o job continua RUNNING
+            // e volta pelo lease expirado, como numa queda da instância
+            dispatched("finish_error");
+            LOG.error("Falha ao registrar o resultado do job {} ({}) executado na hora; recuperado pelo lease", jobId,
+                    job.get().type(), e);
+        }
+    }
+
+    private void dispatched(String outcome) {
+        meterRegistry.counter("jobs.dispatched", "outcome", outcome).increment();
+    }
+
+    /** Reivindica um job específico pelo id, com as mesmas condições e o mesmo efeito de {@link #claim}. */
+    private Optional<ClaimedJob> claimOne(UUID jobId) {
+        List<ClaimedJob> claimed = transaction.execute(status -> jdbcTemplate.query("""
+                        update shared.processing_job j
+                           set status = 'RUNNING', attempts = attempts + 1, locked_by = ?,
+                               locked_until = now() + cast(? as interval), started_at = now()
+                         where j.id in (select id from shared.processing_job
+                                         where id = ? and status = 'PENDING' and run_at <= now()
+                                         for update skip locked)
+                        returning j.id, j.tenant_id, j.type, j.payload::text, j.attempts
+                        """,
+                (rs, i) -> new ClaimedJob(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
+                        rs.getString(4), rs.getInt(5)),
+                workerId, lease.toSeconds() + " seconds", jobId));
+        return claimed == null || claimed.isEmpty() ? Optional.empty() : Optional.of(claimed.getFirst());
     }
 
     private List<ClaimedJob> claim(int limit) {
@@ -276,9 +368,16 @@ class JobWorker {
 
     @PreDestroy
     void shutdown() throws InterruptedException {
+        // os dois executores param juntos, com um prazo único de 30 s
+        dispatchExecutor.shutdown();
         executor.shutdown();
-        if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        boolean dispatchDone = dispatchExecutor.awaitTermination(Math.max(0, deadline - System.nanoTime()),
+                TimeUnit.NANOSECONDS);
+        boolean workersDone = executor.awaitTermination(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+        if (!dispatchDone || !workersDone) {
             LOG.warn("Jobs ainda em execução no desligamento; serão recuperados pelo lease ({} workers)", concurrency);
+            dispatchExecutor.shutdownNow();
             executor.shutdownNow();
         }
     }

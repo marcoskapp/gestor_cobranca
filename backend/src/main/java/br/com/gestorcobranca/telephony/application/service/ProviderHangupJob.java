@@ -7,19 +7,23 @@ import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.Ha
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupRequest;
 import br.com.gestorcobranca.telephony.application.service.ProviderCalls.ProviderLine;
 import br.com.gestorcobranca.telephony.domain.model.Call;
-import br.com.gestorcobranca.telephony.domain.model.TelephonyAccount;
 import br.com.gestorcobranca.telephony.domain.repository.CallRepository;
 import br.com.gestorcobranca.telephony.domain.repository.TelephonyAccountRepository;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Nova tentativa de encerrar a chamada no provedor ({@code telephony.hangup}) depois de uma falha
- * transitória no pedido feito logo após o commit ({@link ProviderCalls}). Sem transação durante o HTTP
- * (decisão 852): lê a chamada numa transação curta e chama o provedor fora dela; falha transitória
- * relança (backoff do worker), recusa encerra o job (a chamada já terminou no provedor).
+ * Encerramento da chamada no provedor ({@code telephony.hangup}), gravado na transação que encerrou a chamada aqui
+ * e executado logo após o commit ({@link ProviderCalls}). Sem transação durante o HTTP (decisão 852): lê a conta
+ * numa transação curta e chama o provedor fora dela. Idempotente: o estado local já é final; repetir o pedido numa
+ * chamada que já terminou no provedor resulta em recusa, tratada como concluída. Falha transitória relança (backoff
+ * do worker).
  */
 @Component
 class ProviderHangupJob implements JobHandler<ProviderHangupJob.Payload> {
@@ -41,12 +45,36 @@ class ProviderHangupJob implements JobHandler<ProviderHangupJob.Payload> {
         this.tenantExecution = tenantExecution;
     }
 
-    /** @param reason {@link HangupReason} */
-    record Payload(UUID callId, String reason) {
+    /**
+     * Somente ids (sem dado pessoal).
+     *
+     * @param reason         {@link HangupReason}
+     * @param accountId      conta que encerra (a da chamada, ou a que aceitou um pedido que não pôde ser gravado)
+     * @param providerCallId id no provedor; pode diferir do gravado na chamada (aceite tardio com outro id)
+     * @param providerLegId  perna no provedor; pode faltar
+     */
+    record Payload(UUID callId, String reason, UUID accountId, String providerCallId, String providerLegId) {
     }
 
-    static String key(UUID callId) {
-        return "hangup:" + callId;
+    /**
+     * Um encerramento ativo por chamada <b>e</b> id no provedor: o aceite tardio com outro id (outra chamada criada
+     * lá) é encerrado por um job próprio, sem ser absorvido pelo encerramento pendente da chamada. Id longo demais para
+     * a chave ({@code dedup_key varchar(200)}) entra pelo SHA-256.
+     */
+    static String key(UUID callId, String providerCallId) {
+        String id = providerCallId.length() <= MAX_RAW_PROVIDER_ID ? providerCallId
+                : "sha256-" + HexFormat.of().formatHex(sha256(providerCallId));
+        return "hangup:" + callId + ":" + id;
+    }
+
+    private static final int MAX_RAW_PROVIDER_ID = 120;
+
+    private static byte[] sha256(String value) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponível", e);
+        }
     }
 
     @Override
@@ -61,8 +89,8 @@ class ProviderHangupJob implements JobHandler<ProviderHangupJob.Payload> {
 
     @Override
     public int maxAttempts() {
-        // o provedor encerra pelo próprio tempo limite; depois de ~2,5 min de tentativas não há o que insistir
-        return 4;
+        // o pedido imediato e mais 4 tentativas (~2,5 min): depois disso o provedor já encerrou pelo próprio tempo limite
+        return 5;
     }
 
     @Override
@@ -72,16 +100,26 @@ class ProviderHangupJob implements JobHandler<ProviderHangupJob.Payload> {
 
     @Override
     public void handle(JobContext context, Payload payload) {
-        Optional<Pending> pending = tenantExecution.callInTenant(context.tenantId(), "telephony.hangup.prepare", () ->
-                calls.findById(payload.callId()).filter(c -> c.getProviderCallId() != null).flatMap(call ->
-                        accounts.findById(call.getAccountId()).map(account -> pending(account, call,
-                                HangupReason.valueOf(payload.reason())))));
-        pending.ifPresent(p -> providerCalls.hangup(p.line(), p.request(), false));
+        Optional<Pending> pending = tenantExecution.callInTenant(context.tenantId(), "telephony.hangup.prepare",
+                () -> prepare(payload));
+        pending.ifPresent(p -> providerCalls.sendHangup(p.line(), p.request()));
     }
 
-    private Pending pending(TelephonyAccount account, Call call, HangupReason reason) {
-        return new Pending(providerCalls.line(account), new HangupRequest(resolver.context(account), call.getId(),
-                call.getProviderCallId(), reason, call.getProviderLegId()));
+    private Optional<Pending> prepare(Payload payload) {
+        // jobs gravados antes de o payload levar conta e ids do provedor: valem os da chamada
+        Optional<Call> call = payload.accountId() != null && payload.providerCallId() != null ? Optional.empty()
+                : calls.findById(payload.callId());
+        UUID accountId = payload.accountId() != null ? payload.accountId() : call.map(Call::getAccountId).orElse(null);
+        String providerCallId = payload.providerCallId() != null ? payload.providerCallId()
+                : call.map(Call::getProviderCallId).orElse(null);
+        String legId = payload.providerLegId() != null ? payload.providerLegId()
+                : call.map(Call::getProviderLegId).orElse(null);
+        if (accountId == null || providerCallId == null) {
+            return Optional.empty();
+        }
+        HangupReason reason = HangupReason.valueOf(payload.reason());
+        return accounts.findById(accountId).map(account -> new Pending(providerCalls.line(account),
+                new HangupRequest(resolver.context(account), payload.callId(), providerCallId, reason, legId)));
     }
 
     private record Pending(ProviderLine line, HangupRequest request) {

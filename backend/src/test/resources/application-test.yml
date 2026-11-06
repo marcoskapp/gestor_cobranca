@@ -6,6 +6,7 @@ app:
       max-size: 4
   jobs:
     concurrency: 4
+    dispatch-concurrency: 4
   base-url: http://localhost
   http:
     # nos ITs a conexão vem de 127.0.0.1 e faz o papel do ALB (proxy confiável)
@@ -97,12 +98,12 @@ app:
 
 spring:
   # Cada contexto de teste tem banco e pool próprios e vários contextos ficam vivos no cache do Spring.
-  # O pool acompanha a concorrência configurada abaixo (4 consumidores de eventos + 4 workers de jobs,
-  # cada um podendo segurar duas conexões em transações aninhadas, + requisições do teste) e encolhe
-  # para 1 conexão quando o contexto fica ocioso.
+  # O pool acompanha a concorrência configurada abaixo (4 consumidores de eventos + 4 workers de jobs
+  # + 4 de execução imediata, cada um podendo segurar duas conexões em transações aninhadas, + requisições
+  # do teste) e encolhe para 1 conexão quando o contexto fica ocioso.
   datasource:
     hikari:
-      maximum-pool-size: 18
+      maximum-pool-size: 26
       minimum-idle: 1
       idle-timeout: 10000
   mail:

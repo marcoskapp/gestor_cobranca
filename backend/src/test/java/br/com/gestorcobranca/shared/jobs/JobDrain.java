@@ -34,6 +34,16 @@ public final class JobDrain {
         throw new IllegalStateException("Jobs " + typePrefix + "* não terminaram a tempo");
     }
 
+    /** Um ciclo normal do worker (reivindica os jobs prontos, de qualquer tipo). */
+    public static void pollOnce(ApplicationContext context) {
+        context.getBean(JobWorker.class).poll();
+    }
+
+    /** Pede a execução imediata do job, como faz {@link JobQueue#enqueueAndDispatch} depois do commit. */
+    public static void dispatch(ApplicationContext context, java.util.UUID jobId) {
+        context.getBean(JobWorker.class).dispatch(jobId);
+    }
+
     /** Executa o worker até a condição valer (jobs que, de propósito, não terminam). */
     public static void drainUntil(ApplicationContext context, java.util.function.BooleanSupplier condition) {
         JobWorker worker = context.getBean(JobWorker.class);

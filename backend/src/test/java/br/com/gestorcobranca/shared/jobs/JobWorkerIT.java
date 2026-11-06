@@ -6,24 +6,38 @@ import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Posse do job no {@link JobWorker} (decisão 852): handler sem transação, renovação do lease, fencing quando
  * outra instância reivindica o job e teto de tentativas para quedas sucessivas. E o {@code last_error} sem dado
- * pessoal (decisão 853).
+ * pessoal (decisão 853). Execução imediata depois do commit ({@link JobQueue#enqueueAndDispatch}): roda sem o ciclo
+ * do worker, nada roda com a transação desfeita, uma só execução com reivindicações concorrentes e, sem vaga na
+ * execução imediata, o ciclo normal executa o job.
  */
 @Import(JobWorkerIT.Handlers.class)
 class JobWorkerIT extends IntegrationTest {
@@ -91,6 +105,121 @@ class JobWorkerIT extends IntegrationTest {
                 .doesNotContain("12345678909");
     }
 
+    @Test
+    void dispatchedJobRunsRightAfterCommitWithoutTheWorkerCycle() {
+        String key = Ids.newId().toString();
+        UUID id = tenantExecution.callInTenant(tenant, "test", () -> {
+            UUID created = jobQueue.enqueueAndDispatch(Command.TYPE, new Key(key), null);
+            // antes do commit nada é executado
+            assertThat(Command.EXECUTIONS.get(key)).isNull();
+            return created;
+        });
+        // o ciclo do worker não roda (agendamento desligado nos testes): só a execução imediata conclui o job
+        await(() -> "DONE".equals(status(id)));
+        assertThat(Command.EXECUTIONS.get(key)).hasValue(1);
+        assertThat(attempts(id)).isEqualTo(1);
+    }
+
+    @Test
+    void rolledBackTransactionNeitherKeepsNorRunsTheJob() {
+        String key = Ids.newId().toString();
+        assertThatThrownBy(() -> tenantExecution.inTenant(tenant, "test", () -> {
+            jobQueue.enqueueAndDispatch(Command.TYPE, new Key(key), null);
+            throw new IllegalStateException("desfaz a operação");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("select count(*) from shared.processing_job where payload ->> 'key' = ?",
+                Long.class, key)).isZero();
+        assertThat(Command.EXECUTIONS.get(key)).isNull();
+    }
+
+    @Test
+    void concurrentDispatchesAndWorkerCyclesRunTheJobOnce() throws Exception {
+        String key = Ids.newId().toString();
+        // job confirmado e ainda não executado (ex.: o pedido imediato não chegou a ser feito)
+        UUID id = tenantExecution.callInTenant(tenant, "test", () -> jobQueue.enqueue(Command.TYPE, new Key(key), null, null));
+        JobWorker worker = applicationContext.getBean(JobWorker.class);
+        int contenders = 6;
+        CyclicBarrier start = new CyclicBarrier(contenders);
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < contenders; i++) {
+            boolean dispatch = i % 2 == 0;
+            Thread thread = new Thread(() -> {
+                try {
+                    start.await(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+                if (dispatch) {
+                    worker.dispatch(id);
+                } else {
+                    worker.poll();
+                }
+            });
+            thread.start();
+            threads.add(thread);
+        }
+        for (Thread thread : threads) {
+            thread.join(10_000);
+        }
+        await(() -> "DONE".equals(status(id)));
+        assertThat(Command.EXECUTIONS.get(key)).hasValue(1);
+        assertThat(attempts(id)).isEqualTo(1);
+    }
+
+    @Test
+    void jobWithoutRoomForImmediateExecutionRunsInTheWorkerCycle() {
+        // ocupa todas as vagas da execução imediata
+        Blocking.RELEASE.set(new CountDownLatch(1));
+        List<UUID> blocking = new ArrayList<>();
+        try {
+            for (int i = 0; i < dispatchConcurrency; i++) {
+                blocking.add(dispatchNow(Blocking.TYPE, Ids.newId().toString()));
+            }
+            await(() -> blocking.stream().allMatch(b -> "RUNNING".equals(status(b))));
+            double busyBefore = meterRegistry.counter("jobs.dispatched", "outcome", "busy").count();
+            String key = Ids.newId().toString();
+            UUID id = dispatchNow(Command.TYPE, key);
+            assertThat(meterRegistry.counter("jobs.dispatched", "outcome", "busy").count()).isEqualTo(busyBefore + 1);
+            assertThat(status(id)).isEqualTo("PENDING");
+
+            JobDrain.drain(applicationContext, jdbc, Command.TYPE);
+            assertThat(status(id)).isEqualTo("DONE");
+            assertThat(Command.EXECUTIONS.get(key)).hasValue(1);
+        } finally {
+            Blocking.RELEASE.get().countDown();
+        }
+        await(() -> blocking.stream().allMatch(b -> "DONE".equals(status(b))));
+    }
+
+    @Autowired
+    MeterRegistry meterRegistry;
+    @Value("${app.jobs.dispatch-concurrency}")
+    int dispatchConcurrency;
+
+    private UUID dispatchNow(String type, String key) {
+        return tenantExecution.callInTenant(tenant, "test", () -> jobQueue.enqueueAndDispatch(type, new Key(key), null));
+    }
+
+    private int attempts(UUID id) {
+        Integer value = jdbc.queryForObject("select attempts from shared.processing_job where id = ?", Integer.class, id);
+        return value == null ? 0 : value;
+    }
+
+    private static void await(BooleanSupplier condition) {
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (!condition.getAsBoolean()) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new AssertionError("condição não atingida a tempo");
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("interrompido");
+            }
+        }
+    }
+
     private UUID enqueue(String type) {
         return tenantExecution.callInTenant(tenant, "test", () -> jobQueue.enqueue(type, Map.of(), null, null));
     }
@@ -109,6 +238,16 @@ class JobWorkerIT extends IntegrationTest {
         }
 
         @Bean
+        Command commandTestHandler() {
+            return new Command();
+        }
+
+        @Bean
+        Blocking blockingTestHandler() {
+            return new Blocking();
+        }
+
+        @Bean
         Renewing renewingTestHandler(JdbcTemplate jdbc, org.springframework.context.ApplicationContext context) {
             return new Renewing(jdbc, context);
         }
@@ -120,6 +259,64 @@ class JobWorkerIT extends IntegrationTest {
     }
 
     record Empty() {
+    }
+
+    record Key(String key) {
+    }
+
+    /** Comando curto sem transação (como os da telefonia): conta as execuções por chave. */
+    static final class Command implements JobHandler<Key> {
+        static final String TYPE = "test.command";
+        static final Map<String, AtomicInteger> EXECUTIONS = new ConcurrentHashMap<>();
+
+        public String type() {
+            return TYPE;
+        }
+
+        public Class<Key> payloadType() {
+            return Key.class;
+        }
+
+        public void handle(JobContext context, Key payload) {
+            EXECUTIONS.computeIfAbsent(payload.key(), k -> new AtomicInteger()).incrementAndGet();
+            try {
+                Thread.sleep(200); // alarga a janela em que outra reivindicação poderia pegar o mesmo job
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        @Override
+        public boolean transactional() {
+            return false;
+        }
+    }
+
+    /** Ocupa uma vaga de execução até ser liberado. */
+    static final class Blocking implements JobHandler<Key> {
+        static final String TYPE = "test.blocking";
+        static final AtomicReference<CountDownLatch> RELEASE = new AtomicReference<>(new CountDownLatch(0));
+
+        public String type() {
+            return TYPE;
+        }
+
+        public Class<Key> payloadType() {
+            return Key.class;
+        }
+
+        public void handle(JobContext context, Key payload) {
+            try {
+                RELEASE.get().await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        @Override
+        public boolean transactional() {
+            return false;
+        }
     }
 
     static final class NonTransactional implements JobHandler<Empty> {

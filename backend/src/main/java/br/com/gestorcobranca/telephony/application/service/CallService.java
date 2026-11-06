@@ -225,9 +225,10 @@ class CallService implements CallUseCases {
         Guard.requireState(call.getStatus().isActive(), "call.not_active", "A chamada já terminou");
         Instant now = Instant.now(clock);
         if (call.getStatus() != CallStatus.QUEUED) {
-            // depois do commit e sem o lock da chamada; falha transitória vira retentativa (telephony.hangup). Pedido
-            // de discagem ainda sem resposta: a fase de resultado do DialJob encerra no provedor ao receber o id.
-            providerCalls.hangupAfterCommit(accounts.findById(call.getAccountId()).orElseThrow(), call,
+            // job telephony.hangup gravado nesta transação e executado logo após o commit, sem o lock da chamada (falha
+            // transitória → nova tentativa do job). Pedido de discagem ainda sem resposta: a fase de resultado do
+            // DialJob encerra no provedor ao receber o id.
+            providerCalls.hangup(accounts.findById(call.getAccountId()).orElseThrow(), call,
                     HangupReason.OPERATOR);
         }
         HangupSide side = callAccess.actorId().equals(call.getOperatorId()) ? HangupSide.OPERATOR : HangupSide.SYSTEM;

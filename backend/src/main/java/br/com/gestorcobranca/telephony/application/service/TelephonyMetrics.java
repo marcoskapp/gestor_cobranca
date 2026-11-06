@@ -56,17 +56,18 @@ class TelephonyMetrics {
                 .increment(calls);
     }
 
-    /** Pedido de discagem: accepted, rejected, transient, blocked, account_unavailable, exhausted. */
     /**
-     * Comando ao provedor depois do commit ({@code bridge}/{@code hangup}): {@code success}, {@code rejected},
-     * {@code transient} (encerramento reagendado no job {@code telephony.hangup}) ou {@code skipped} (sem id do
-     * provedor ainda).
+     * Comando ao provedor pelos jobs {@code telephony.bridge}/{@code telephony.hangup}: {@code success},
+     * {@code rejected}, {@code transient} (encerramento: nova tentativa do job; conexão: desfeita), {@code skipped}
+     * (sem adaptador, ramal ou id do provedor ainda), {@code stale} (conexão: a chamada já não está com aquele
+     * operador) ou {@code interrupted} (conexão: tentativa anterior interrompida pela queda da instância; não reenviada).
      */
     void providerCommand(String provider, String operation, String outcome) {
         registry.counter("telephony.provider.commands", "provider", provider, "operation", operation, "outcome", outcome)
                 .increment();
     }
 
+    /** Pedido de discagem: accepted, rejected, transient, blocked, account_unavailable, exhausted. */
     void dial(String origin, String outcome) {
         registry.counter("telephony.dial.requests", "origin", origin, "outcome", outcome).increment();
     }

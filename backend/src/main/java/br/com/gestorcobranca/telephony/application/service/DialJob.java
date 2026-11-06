@@ -49,7 +49,7 @@ import java.util.UUID;
  *       encerrada como {@code FAILED/RETRIES_EXHAUSTED};</li>
  *   <li><b>resultado</b> (transação curta): aceite → id do provedor gravado (a chamada pode já ter avançado
  *       pelos eventos); se ela foi encerrada aqui enquanto o provedor discava (operador desligou), o
- *       encerramento é pedido ao provedor depois do commit; recusa → {@code FAILED} como não discada.</li>
+ *       encerramento no provedor é gravado como job ({@code telephony.hangup}, executado logo após o commit); recusa → {@code FAILED} como não discada.</li>
  * </ol>
  * O ramal enviado ao provedor é o do operador na conta que disca ({@link AgentEndpoints}).
  */
@@ -303,14 +303,14 @@ class DialJob implements JobHandler<DialJob.Payload> {
         if (!bindable) {
             LOG.atWarn().addKeyValue("callId", call.getId()).addKeyValue("status", call.getStatus())
                     .log("Aceite do provedor para chamada já encerrada ou com outro id; encerrando no provedor");
-            providerCalls.hangupAfterCommit(account, call.getId(), providerCallId, null, reason);
+            providerCalls.hangup(account, call.getId(), providerCallId, null, reason);
             return;
         }
         boolean bound = call.providerAccepted(providerCallId);
         calls.save(call);
         lifecycle.dialed(call);
         if (bound && call.getStatus().isTerminal()) {
-            providerCalls.hangupAfterCommit(account, call, reason);
+            providerCalls.hangup(account, call, reason);
         }
     }
 

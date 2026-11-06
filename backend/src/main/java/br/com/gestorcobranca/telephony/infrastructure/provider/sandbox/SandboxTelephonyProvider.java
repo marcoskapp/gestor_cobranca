@@ -32,13 +32,17 @@ import java.util.UUID;
  * transitória ambígua (o provedor pode ter discado: repete na mesma conta); em {@code 9998}, falha
  * transitória que comprovadamente não criou a chamada (provedor fora do ar: a contingência pode
  * assumir); em {@code 7777}, provedor rápido: o toque e o atendimento por pessoa chegam (como webhooks,
- * em transação própria) <b>antes</b> da resposta ao pedido de discagem. A gravação devolvida é um WAV de
+ * em transação própria) <b>antes</b> da resposta ao pedido de discagem; em {@code 8888}, a discagem é aceita
+ * (id {@code sbx-call-nobridge-*}) e a conexão ao operador falha (falha transitória). A gravação devolvida é um WAV de
  * 1 s de silêncio. Como o adaptador real, roda fora de transação: o andamento automático é agendado em
  * transação própria.
  */
 @Component
 @ConditionalOnProperty(prefix = "app.telephony.sandbox", name = "enabled", havingValue = "true")
 class SandboxTelephonyProvider implements TelephonyProvider {
+
+    /** Chamadas cuja conexão ao operador falha (destino terminado em {@code 8888}). */
+    static final String NO_BRIDGE_PREFIX = "sbx-call-nobridge-";
 
     private final JobQueue jobQueue;
     private final TenantExecution tenantExecution;
@@ -97,7 +101,7 @@ class SandboxTelephonyProvider implements TelephonyProvider {
             count(operation, "rejected");
             return DialResult.rejected(callId, "SANDBOX_INVALID_NUMBER", "Número inexistente (simulado)");
         }
-        String providerCallId = "sbx-call-" + UUID.randomUUID();
+        String providerCallId = (destination.endsWith("8888") ? NO_BRIDGE_PREFIX : "sbx-call-") + UUID.randomUUID();
         UUID tenantId = currentActor.tenantId();
         if (destination.endsWith("7777")) {
             // provedor rápido: os eventos chegam antes da resposta ao pedido (cada um na transação do "webhook")
@@ -119,6 +123,10 @@ class SandboxTelephonyProvider implements TelephonyProvider {
 
     @Override
     public void bridge(BridgeRequest request) {
+        if (request.providerCallId() != null && request.providerCallId().startsWith(NO_BRIDGE_PREFIX)) {
+            count("bridge", "transient");
+            throw new TransientProviderException("Falha transitória simulada na conexão ao operador");
+        }
         count("bridge", "success");
     }
 

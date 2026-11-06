@@ -5,13 +5,10 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseVie
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases.ContactFingerprint;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
-import br.com.gestorcobranca.shared.security.CurrentActor;
-import br.com.gestorcobranca.shared.tenancy.TenantExecution;
 import br.com.gestorcobranca.telephony.application.port.in.ProviderEventUseCases;
 import br.com.gestorcobranca.telephony.application.port.out.CallInstruction;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent;
 import br.com.gestorcobranca.telephony.application.port.out.ProviderCallEvent.Type;
-import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.BridgeRequest;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyProvider.HangupReason;
 import br.com.gestorcobranca.telephony.application.port.out.TelephonyWebhookAdapter.InstructionRequest;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookReceiptLog;
@@ -24,7 +21,6 @@ import br.com.gestorcobranca.telephony.domain.model.CallStatus;
 import br.com.gestorcobranca.telephony.domain.model.DialerCampaign;
 import br.com.gestorcobranca.telephony.domain.model.HangupSide;
 import br.com.gestorcobranca.telephony.domain.model.TelephonyAccount;
-import br.com.gestorcobranca.telephony.domain.repository.AgentRepository;
 import br.com.gestorcobranca.telephony.domain.repository.CallRecordingRepository;
 import br.com.gestorcobranca.telephony.domain.repository.CallRepository;
 import br.com.gestorcobranca.telephony.domain.repository.DialerCampaignRepository;
@@ -55,10 +51,11 @@ import java.util.UUID;
  *       index) e distribui (o responsável pelo caso primeiro); sem operador → perdida;</li>
  *   <li>gravação disponível → cópia para o armazenamento próprio (job).</li>
  * </ul>
- * O estado local (conexão, abandono, encerramento) é decidido na transação do evento; os pedidos à API
- * do provedor ({@code bridge}/{@code hangup}) saem só depois do commit ({@link ProviderCalls}). Se a
- * conexão falhar no provedor, ela é desfeita em transação própria ({@link #bridgeFailed}): operador
- * liberado, abandono (discador) ou recebida perdida, e encerramento no provedor.
+ * O estado local (conexão, abandono, encerramento) é decidido na transação do evento, e os comandos à API
+ * do provedor ({@code bridge}/{@code hangup}) são gravados nela como jobs duráveis, executados logo após o
+ * commit ({@link ProviderCalls}). Se a conexão falhar no provedor, o job a desfaz em transação própria
+ * ({@link ProviderBridgeJob}): operador liberado, abandono (discador) ou recebida perdida, e encerramento no
+ * provedor.
  */
 @Service
 @Transactional
@@ -73,7 +70,6 @@ class CallEventProcessor implements ProviderEventUseCases {
     private final WebhookReceiptLog receipts;
     private final CallDistributor distributor;
     private final CallLifecycle lifecycle;
-    private final ProviderResolver resolver;
     private final AgentEndpoints endpoints;
     private final CaseUseCases cases;
     private final DebtorContactUseCases debtorContacts;
@@ -81,17 +77,13 @@ class CallEventProcessor implements ProviderEventUseCases {
     private final TelephonyMetrics metrics;
     private final CallInstructions instructions;
     private final ProviderCalls providerCalls;
-    private final AgentRepository agents;
-    private final TenantExecution tenantExecution;
-    private final CurrentActor currentActor;
     private final Clock clock;
 
     CallEventProcessor(TelephonyAccountRepository accounts, CallRepository calls, CallRecordingRepository recordings,
                        DialerCampaignRepository campaigns, WebhookReceiptLog receipts, CallDistributor distributor,
-                       CallLifecycle lifecycle, ProviderResolver resolver, AgentEndpoints endpoints, CaseUseCases cases,
+                       CallLifecycle lifecycle, AgentEndpoints endpoints, CaseUseCases cases,
                        DebtorContactUseCases debtorContacts, JobQueue jobQueue, TelephonyMetrics metrics,
-                       CallInstructions instructions, ProviderCalls providerCalls, AgentRepository agents,
-                       TenantExecution tenantExecution, CurrentActor currentActor, Clock clock) {
+                       CallInstructions instructions, ProviderCalls providerCalls, Clock clock) {
         this.accounts = accounts;
         this.calls = calls;
         this.recordings = recordings;
@@ -99,7 +91,6 @@ class CallEventProcessor implements ProviderEventUseCases {
         this.receipts = receipts;
         this.distributor = distributor;
         this.lifecycle = lifecycle;
-        this.resolver = resolver;
         this.endpoints = endpoints;
         this.cases = cases;
         this.debtorContacts = debtorContacts;
@@ -107,9 +98,6 @@ class CallEventProcessor implements ProviderEventUseCases {
         this.metrics = metrics;
         this.instructions = instructions;
         this.providerCalls = providerCalls;
-        this.agents = agents;
-        this.tenantExecution = tenantExecution;
-        this.currentActor = currentActor;
         this.clock = clock;
     }
 
@@ -299,8 +287,9 @@ class CallEventProcessor implements ProviderEventUseCases {
     }
 
     /**
-     * Conexão ao operador: a decisão vale nesta transação; o pedido à API do provedor sai depois do commit e,
-     * se o provedor não conectar, a conexão é desfeita em transação própria ({@link #bridgeFailed}).
+     * Conexão ao operador: a decisão vale nesta transação, e o comando ao provedor é gravado nela como job
+     * ({@link ProviderBridgeJob}, executado logo após o commit); se o provedor não conectar, o job desfaz a conexão
+     * em transação própria.
      *
      * @return false se o operador não é alcançável pela conta (a chamada segue como abandono/perdida aqui)
      */
@@ -314,44 +303,8 @@ class CallEventProcessor implements ProviderEventUseCases {
             // a conexão vai na resposta do próprio webhook (CallInstructions)
             return true;
         }
-        BridgeRequest request = new BridgeRequest(resolver.context(account), call.getId(), call.getProviderCallId(),
-                extension.get(), call.getProviderLegId(), agent.getUserId());
-        UUID tenantId = currentActor.tenantId();
-        UUID callId = call.getId();
-        UUID operatorId = agent.getUserId();
-        providerCalls.afterCommit("bridge", callId, () -> {
-            if (!providerCalls.bridge(line, request)) {
-                tenantExecution.inTenant(tenantId, "telephony.bridge_failed", () -> bridgeFailed(callId, operatorId));
-            }
-        });
+        providerCalls.bridge(account, call, agent.getUserId());
         return true;
-    }
-
-    /**
-     * O provedor não conectou a chamada ao operador (depois do commit da conexão): operador liberado, chamada
-     * sem operador (abandono no discador; perdida na recebida) e encerramento no provedor. Sem efeito se a
-     * chamada já terminou ou mudou de operador.
-     */
-    private void bridgeFailed(UUID callId, UUID operatorId) {
-        Call call = calls.findByIdForUpdate(callId).orElseThrow();
-        if (call.getStatus() != CallStatus.ANSWERED || call.getConnectedAt() == null
-                || !operatorId.equals(call.getOperatorId())) {
-            return;
-        }
-        TelephonyAccount account = accounts.findById(call.getAccountId()).orElseThrow();
-        agents.findByUserIdForUpdate(operatorId).ifPresent(agent -> lifecycle.releaseAfterFailedBridge(agent, callId));
-        call.bridgeFailed();
-        Instant now = Instant.now(clock);
-        if (call.getOrigin() == CallOrigin.DIALER) {
-            String mode = campaigns.findById(call.getCampaignId()).map(DialerCampaign::getMode).map(Enum::name)
-                    .orElse("UNKNOWN");
-            metrics.live(mode, "bridge_failed");
-            call.end(CallStatus.COMPLETED, now, HangupSide.SYSTEM, null);
-        } else {
-            call.end(CallStatus.NO_ANSWER, now, HangupSide.SYSTEM, CallInstructions.NO_AGENT);
-        }
-        providerCalls.hangupAfterCommit(account, call, HangupReason.ABANDONED);
-        lifecycle.ended(call);
     }
 
     private void hangup(TelephonyAccount account, Call call, HangupReason reason, boolean awaiting) {
@@ -359,8 +312,8 @@ class CallEventProcessor implements ProviderEventUseCases {
             // o encerramento (com a mensagem de abandono) vai na resposta do próprio webhook
             return;
         }
-        // depois do commit: o estado local já é final; o provedor encerra pelo próprio tempo limite se falhar
-        providerCalls.hangupAfterCommit(account, call, reason);
+        // job gravado nesta transação e executado logo após o commit: o estado local já é final
+        providerCalls.hangup(account, call, reason);
     }
 
     private String save(Call call, boolean applied) {
