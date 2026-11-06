@@ -1,6 +1,6 @@
 # Correção manual do valor do título
 
-Como a assessoria corrige o valor de um título (erro de cálculo, cobrança em duplicidade, encargo acima do contrato, contestação procedente…), com motivo, evidência, revisão por segunda pessoa acima de um limite (RB06) e histórico no próprio título. Aprovado pelo responsável em 05/11/2026; decisões 802–813 em [decisoes-autonomas.md](decisoes-autonomas.md), com as revisões do responsável às decisões 864, 865 e 872 (decisões 9101–9105, numeração provisória). Desenho técnico: [tecnico/desenho/debt.md](../tecnico/desenho/debt.md).
+Como a assessoria corrige o valor de um título (erro de cálculo, cobrança em duplicidade, encargo acima do contrato, contestação procedente…), com motivo, evidência, revisão por segunda pessoa acima de um limite (RB06) e histórico no próprio título. Aprovado pelo responsável em 05/11/2026; decisões 802–813 em [decisoes-autonomas.md](decisoes-autonomas.md), com as revisões do responsável às decisões 864, 865 e 872 (decisões 888–892). Desenho técnico: [tecnico/desenho/debt.md](../tecnico/desenho/debt.md).
 
 ## 1. Quem pode
 

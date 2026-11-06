@@ -63,7 +63,7 @@ public record DebtProperties(Prescription prescription, Evidence evidence, Amoun
             cumulativeWindow = cumulativeWindow == null ? Duration.ofDays(30) : cumulativeWindow;
             proposalValidity = proposalValidity == null ? Duration.ofDays(15) : proposalValidity;
             proposalExpiryCron = proposalExpiryCron == null ? "0 50 3 * * *" : proposalExpiryCron;
-            // em dias inteiros: telas, manual e tour falam em dias (decisões 9102 e 9104)
+            // em dias inteiros: telas, manual e tour falam em dias (decisões 889 e 891)
             requireWholeDays(cumulativeWindow, "app.debt.amount-adjustment.cumulative-window");
             requireWholeDays(proposalValidity, "app.debt.amount-adjustment.proposal-validity");
         }

@@ -120,7 +120,7 @@ Simulador: destino terminado em `7777` entrega o toque e o atendimento por pesso
 **antes** da resposta ao pedido; em `8888`, a discagem é aceita e a conexão ao operador falha (falha transitória do
 `bridge`) — `TelephonyDialPhasesIT`.
 
-### 3.2 Comandos à chamada em andamento como jobs duráveis (decisões 884 e 9301–9305)
+### 3.2 Comandos à chamada em andamento como jobs duráveis (decisões 884 e 904–908)
 
 `bridge` (conectar a atendida ao operador) e `hangup` são gravados como **jobs duráveis na mesma transação** que decide
 o estado local (`ProviderCalls` → `JobQueue#enqueueAndDispatch`): o comando existe se, e só se, o estado local foi

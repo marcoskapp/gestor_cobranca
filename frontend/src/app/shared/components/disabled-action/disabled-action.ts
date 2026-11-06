@@ -8,7 +8,7 @@ const HOVER_CLOSE_MS = 250;
 
 /**
  * Ação visível, desabilitada e com a explicação de por que não está disponível. É a exceção à regra
- * "menus e telas sem permissão ficam ocultos" (`CLAUDE.md` e `docs/tecnico/desenho/ux.md`, decisão 9402):
+ * "menus e telas sem permissão ficam ocultos" (`CLAUDE.md` e `docs/tecnico/desenho/ux.md`, decisão 897):
  * vale só para ação irreversível ou sensível que a pessoa precisa saber que existe (ex.: "Executar" da
  * retenção, "Baixar dados do titular"), decidida pelo responsável.
  *

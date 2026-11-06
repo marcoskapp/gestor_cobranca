@@ -72,7 +72,7 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 - Informados por operador (`PAYMENT_REGISTER_EXTERNAL`): credor, devedor, valor, data (não futura), meio, fonte (`AGENCY_ACCOUNT`, `CREDITOR_DIRECT`, `CREDITOR_REPORT`, `OTHER`), referência, observação (criptografada) e **destino obrigatório** (parcelas de um acordo ou títulos).
 - **Evidência obrigatória**: PDF, PNG ou JPEG até 10 MB, tipo conferido pela assinatura do conteúdo; `FileStorage` (`EVIDENCE`) com SHA-256; removida se a transação for desfeita; download com `FILE_DOWNLOADED`.
 - **Revisão conforme risco**: valor ≤ `externalReviewThreshold` (padrão R$ 500,00, por assessoria) → confirmado no registro (`AUTO_LOW_RISK`); acima → `INFORMED` até aprovação por **outra pessoa** com `PAYMENT_REVIEW` (`DUAL_CONTROL`); a fila de revisão não mostra ao revisor os próprios pagamentos e o domínio recusa `payment.self_review`. Recusa exige motivo (`REJECTED`, sem baixa). A `PaymentView` traz o **destino solicitado** (`requestedTarget`: tipo, acordo, parcelas/títulos em ordem e estratégia) do pagamento externo, para quem aprova ver para onde o valor vai antes de a confirmação gerar as alocações (nulo nos integrados).
-- **Aviso antecipado na tela** (decisão do responsável à 856; decisão 9201): `GET /payment/settings/external-review` (`PAYMENT_REGISTER_EXTERNAL`, `PaymentSettingsUseCases.externalReviewLimit`) devolve só `externalReviewThreshold` — nada mais dos parâmetros, que seguem exigindo `PAYMENT_VIEW` ou `ORG_SETTINGS_MANAGE`. O diálogo "Informar pagamento" (lista de pagamentos, acordo, contestação) consulta esse endpoint para todos que registram e avisa acima do limite; o aviso é só antecipação: o registro no servidor continua decidindo, inclusive pelos limites acumulados, que a tela não mostra. Teste: `PaymentExternalIT.registerOnlyProfileReceivesJustTheSecondReviewThreshold`.
+- **Aviso antecipado na tela** (decisão do responsável à 856; decisão 893): `GET /payment/settings/external-review` (`PAYMENT_REGISTER_EXTERNAL`, `PaymentSettingsUseCases.externalReviewLimit`) devolve só `externalReviewThreshold` — nada mais dos parâmetros, que seguem exigindo `PAYMENT_VIEW` ou `ORG_SETTINGS_MANAGE`. O diálogo "Informar pagamento" (lista de pagamentos, acordo, contestação) consulta esse endpoint para todos que registram e avisa acima do limite; o aviso é só antecipação: o registro no servidor continua decidindo, inclusive pelos limites acumulados, que a tela não mostra. Teste: `PaymentExternalIT.registerOnlyProfileReceivesJustTheSecondReviewThreshold`.
 - `Idempotency-Key` (escopo `payment.external`): mesma chave e conteúdo → mesmo pagamento.
 
 ### 5.1 Situação de revisão no acordo e no caso (decisões 430–438, 540–549)
@@ -123,11 +123,11 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
   (`statement.processing_failed`) com as linhas e baixas já gravadas e as contagens delas (auditoria
   `statement_import.failed`). Teste: `PaymentStatementResumeIT` (falha forçada por gatilho no segundo lote, retomada
   sem baixa duplicada; tentativas esgotadas).
-- **Linha da falha** (`failure_line`, `V0806`; decisão 9203): arquivo recusado pelo leitor → a linha apontada pelo
+- **Linha da falha** (`failure_line`, `V0806`; decisão 895): arquivo recusado pelo leitor → a linha apontada pelo
   leitor (nula quando é o arquivo inteiro: codificação, ilegível); processamento interrompido → a primeira linha do lote
   em andamento (onde parou). Só o número — nada do conteúdo da linha. Arquivo recusado também grava a auditoria
   `statement_import.failed` (com `failureCode` e `failureLine`).
-- **Nova tentativa** (decisão do responsável à 873; decisão 9202): `POST /payment/reconciliation/statements/{id}/retry`
+- **Nova tentativa** (decisão do responsável à 873; decisão 894): `POST /payment/reconciliation/statements/{id}/retry`
   (`RECONCILIATION_MANAGE`, mesmo escopo da importação: sem credor exige todos os credores) só aceita `FAILED`
   (`statement.not_failed` → 409, sob o lock da importação, então dois pedidos simultâneos não enfileiram dois jobs);
   volta a `RECEIVED` (limpa motivo, linha e fim; mantém as contagens parciais até a nova apuração; `retry_count` + 1),

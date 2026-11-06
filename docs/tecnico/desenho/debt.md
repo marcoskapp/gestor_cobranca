@@ -2,7 +2,7 @@
 
 Desenho técnico da correção manual do valor do título. As regras de negócio estão em
 [negocio/correcao-de-valor.md](../../negocio/correcao-de-valor.md) (decisões 802–813, 864, 865, 872 e as revisões do
-responsável 9101–9105, numeração provisória). Este documento cobre, por enquanto, só a correção de valor; o restante do
+responsável 888–892). Este documento cobre, por enquanto, só a correção de valor; o restante do
 módulo (devedores, títulos, razão, garantias, prescrição) segue descrito no código e nas decisões.
 
 ## 1. Agregados e tabelas
