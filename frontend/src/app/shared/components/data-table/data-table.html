@@ -4,56 +4,103 @@
       <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
     </div>
   }
-  <div class="table-responsive">
-    <table class="table table-hover mb-0" [class.table-sm]="density.compact()" [attr.aria-label]="caption()">
-      <thead class="app-table__head">
-        <tr>
-          @for (column of columns(); track column.key) {
-            <th
-              scope="col"
-              [class.text-end]="column.align === 'end' || column.actions"
-              [class.text-center]="column.align === 'center'"
-              [attr.aria-sort]="ariaSort(column)"
-            >
-              @if (column.actions) {
-                <span class="visually-hidden">{{ column.header }}</span>
-              } @else if (column.sortable) {
-                <button type="button" class="app-table__sort" (click)="toggleSort(column)">
-                  {{ column.header }}
-                  <app-icon class="app-table__sort-icon" [name]="sortIcon(column)" />
-                </button>
-              } @else {
-                {{ column.header }}
+  @if (stacked()) {
+    <!-- celular: lista empilhada (título, metadados com rótulo, selo à direita, linha clicável) -->
+    @let s = stack();
+    <ul class="app-table__stack" [attr.aria-label]="caption()">
+      @for (row of rows(); track trackRow(row)) {
+        <li class="app-table__item" [class.app-table__item--link]="s.title?.mobile === 'title'">
+          <div class="app-table__item-head">
+            @if (s.title; as c) {
+              <div class="app-table__item-title">
+                <ng-container *ngTemplateOutlet="cell; context: { $implicit: row, column: c }" />
+              </div>
+            }
+            @if (s.badge; as c) {
+              <div class="app-table__item-badge">
+                <ng-container *ngTemplateOutlet="cell; context: { $implicit: row, column: c }" />
+              </div>
+            }
+          </div>
+          @if (s.meta.length) {
+            <dl class="app-table__item-meta">
+              @for (c of s.meta; track c.key) {
+                <div>
+                  <dt>{{ c.header }}</dt>
+                  <dd><ng-container *ngTemplateOutlet="cell; context: { $implicit: row, column: c }" /></dd>
+                </div>
               }
-              @if (column.info && !column.actions) {
-                <app-info-hint [indicator]="column.info" [label]="column.header" />
-              }
-            </th>
+            </dl>
           }
-        </tr>
-      </thead>
-      <tbody>
-        @for (row of rows(); track trackRow(row)) {
+          @if (s.actions; as c) {
+            <div class="app-table__item-actions">
+              <ng-container *ngTemplateOutlet="cell; context: { $implicit: row, column: c }" />
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" [class.table-sm]="density.compact()" [attr.aria-label]="caption()">
+        <thead class="app-table__head">
           <tr>
             @for (column of columns(); track column.key) {
-              <td
+              <th
+                scope="col"
                 [class.text-end]="column.align === 'end' || column.actions"
                 [class.text-center]="column.align === 'center'"
-                [class.app-table__cell--actions]="column.actions"
+                [attr.aria-sort]="ariaSort(column)"
               >
-                @let template = templates().get(column.key);
-                @if (template) {
-                  <ng-container *ngTemplateOutlet="template; context: { $implicit: row }" />
+                @if (column.actions) {
+                  <span class="visually-hidden">{{ column.header }}</span>
+                } @else if (column.sortable) {
+                  <button type="button" class="app-table__sort" (click)="toggleSort(column)">
+                    {{ column.header }}
+                    <app-icon class="app-table__sort-icon" [name]="sortIcon(column)" />
+                  </button>
                 } @else {
-                  {{ text(row, column.key) }}
+                  {{ column.header }}
                 }
-              </td>
+                @if (column.info && !column.actions) {
+                  <app-info-hint [indicator]="column.info" [label]="column.header" />
+                }
+              </th>
             }
           </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          @for (row of rows(); track trackRow(row)) {
+            <tr>
+              @for (column of columns(); track column.key) {
+                <td
+                  [class.text-end]="column.align === 'end' || column.actions"
+                  [class.text-center]="column.align === 'center'"
+                  [class.app-table__cell--actions]="column.actions"
+                >
+                  @let template = templates().get(column.key);
+                  @if (template) {
+                    <ng-container *ngTemplateOutlet="template; context: { $implicit: row }" />
+                  } @else {
+                    {{ text(row, column.key) }}
+                  }
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <ng-template #cell let-row let-column="column">
+    @let template = templates().get(column.key);
+    @if (template) {
+      <ng-container *ngTemplateOutlet="template; context: { $implicit: row }" />
+    } @else {
+      {{ text(row, column.key) }}
+    }
+  </ng-template>
 
   @if (loading() && rows().length === 0) {
     <app-skeleton variant="table" [rows]="5" [columns]="skeletonColumns()" />
@@ -74,25 +121,30 @@
   }
 
   @if (page(); as p) {
-    <div class="app-table__footer">
-      <div class="d-flex align-items-center gap-2">
-        <label class="small text-body-secondary text-nowrap" [for]="sizeId">Itens por página</label>
-        <select class="form-select form-select-sm w-auto" [id]="sizeId" [disabled]="loading()" (change)="onSize($event)">
-          @for (size of pageSizeOptions; track size) {
-            <option [value]="size" [selected]="size === p.size">{{ size }}</option>
-          }
-        </select>
+    @if (showFooter(p)) {
+      <div class="app-table__footer">
+        <div class="d-flex align-items-center gap-2">
+          <label class="small text-body-secondary text-nowrap" [for]="sizeId">Itens por página</label>
+          <select class="form-select form-select-sm w-auto" [id]="sizeId" [disabled]="loading()" (change)="onSize($event)">
+            @for (size of pageSizeOptions; track size) {
+              <option [value]="size" [selected]="size === p.size">{{ size }}</option>
+            }
+          </select>
+        </div>
+        <span class="small text-body-secondary app-numeric" aria-live="polite">{{ range(p) }}</span>
+        @if (showPager(p)) {
+          <ngb-pagination
+            class="app-table__pagination"
+            [collectionSize]="p.total"
+            [page]="p.index + 1"
+            [pageSize]="p.size"
+            [disabled]="loading()"
+            [maxSize]="stacked() ? 3 : 5"
+            (pageChange)="onPage($event)"
+            aria-label="Paginação"
+          />
+        }
       </div>
-      <span class="small text-body-secondary app-numeric" aria-live="polite">{{ range(p) }}</span>
-      <ngb-pagination
-        class="app-table__pagination"
-        [collectionSize]="p.total"
-        [page]="p.index + 1"
-        [pageSize]="p.size"
-        [disabled]="loading()"
-        (pageChange)="onPage($event)"
-        aria-label="Paginação"
-      />
-    </div>
+    }
   }
 </div>

@@ -149,7 +149,7 @@ const POINTER_FOCUS_MS = 600;
     }
     .info-hint__title {
       margin: 0;
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-emphasis-color);
     }
     .info-hint__section {
@@ -157,8 +157,8 @@ const POINTER_FOCUS_MS = 600;
     }
     .info-hint__label {
       display: block;
-      font-size: var(--app-text-xs, 0.75rem);
-      font-weight: 600;
+      font-size: var(--app-text-xs);
+      font-weight: var(--app-weight-semibold);
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--bs-secondary-color);

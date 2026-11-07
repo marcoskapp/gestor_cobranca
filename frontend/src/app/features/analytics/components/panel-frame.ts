@@ -40,7 +40,7 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
     <app-page-header [title]="title()" [subtitle]="subtitle()">
       @if (report() && canExport()) {
         <div ngbDropdown class="d-inline-flex" placement="bottom-end">
-          <button class="btn btn-outline-primary" type="button" ngbDropdownToggle [disabled]="exporting()" data-tour="analytics-export">
+          <button class="btn btn-outline-secondary" type="button" ngbDropdownToggle [disabled]="exporting()" data-tour="analytics-export">
             <app-icon name="download" />
             Exportar
             <app-icon name="chevron-down" />
@@ -53,19 +53,18 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
       }
     </app-page-header>
 
-    <nav class="mb-3" aria-label="Painéis" data-tour="analytics-tabs">
-      <ul class="nav nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden">
+    <nav aria-label="Painéis" data-tour="analytics-tabs">
+      <ul class="nav nav-underline app-tabs">
         @for (p of panels(); track p.route) {
-          <li class="nav-item flex-shrink-0">
+          <li class="nav-item">
             <a
-              class="nav-link d-inline-flex align-items-center gap-2"
+              class="nav-link"
               [routerLink]="p.route"
               [queryParams]="queryParams()"
               routerLinkActive="active"
               [routerLinkActiveOptions]="activeOptions"
               ariaCurrentWhenActive="page"
             >
-              <app-icon [name]="p.icon" />
               {{ p.label }}
             </a>
           </li>

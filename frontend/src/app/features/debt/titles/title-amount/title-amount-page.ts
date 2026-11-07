@@ -28,7 +28,7 @@ import { canConfirmThreshold } from './title-amount.rules';
   imports: [ReactiveFormsModule, RouterLink, NgbNavModule, Amount, PageHeader, AppDatePipe, ...FORM_FIELD],
   template: `
     <app-page-header title="Correções de valor" subtitle="Aprovação das correções manuais e divergências com a carga do credor." />
-    <ul ngbNav #tabs="ngbNav" [(activeId)]="tab" class="nav-tabs mb-3" data-tour="title-amount-tabs">
+    <ul ngbNav #tabs="ngbNav" [(activeId)]="tab" class="nav-underline app-tabs" data-tour="title-amount-tabs">
       @if (canApprove()) {
         <li ngbNavItem="aprovacoes">
           <button ngbNavLink type="button">Para aprovar ({{ pendingRows().length }})</button>

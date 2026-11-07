@@ -228,7 +228,7 @@ export function infoTarget(header: string): string {
     .me-title {
       margin: 8px 0 4px;
       font-size: var(--app-text-sm);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .me-sub {
       font-weight: 400;

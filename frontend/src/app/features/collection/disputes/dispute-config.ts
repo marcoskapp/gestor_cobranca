@@ -45,7 +45,7 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
   template: `
     <app-page-header title="Configuração das contestações" subtitle="Prazos, distribuição entre os analistas e modelos de texto. Contestações já abertas mantêm os prazos calculados na abertura." />
 
-    <ul ngbNav #tabs="ngbNav" [(activeId)]="tab" class="nav-tabs mb-3" data-tour="dispute-config-tabs">
+    <ul ngbNav #tabs="ngbNav" [(activeId)]="tab" class="nav-underline app-tabs" data-tour="dispute-config-tabs">
       <li ngbNavItem="prazos">
         <button ngbNavLink type="button">Prazos</button>
         <ng-template ngbNavContent>

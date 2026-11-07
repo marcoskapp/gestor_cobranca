@@ -48,7 +48,7 @@ import { ScoreBand } from '../data/scoring.models';
       opacity: 1;
     }
     .sb__text strong {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     @media (forced-colors: active) {
       .sb__seg--on {

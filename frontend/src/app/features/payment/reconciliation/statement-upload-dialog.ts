@@ -17,7 +17,7 @@ import { PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { StatementImportView } from '../data/payment.models';
 import { STATEMENT_ACCEPT, statementFileProblem } from '../data/payment.rules';
 import { StatementPreview, decodeUtf8, previewStatement } from '../data/statement-preview';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /**
  * Importação de extrato CSV em duas etapas: prévia local (mesmas regras do servidor, nada é
@@ -26,7 +26,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-statement-upload-dialog',
-  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, Amount, AppDatePipe, EntityPicker, InfoHint],
+  imports: [Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES, ReactiveFormsModule, Amount, AppDatePipe, EntityPicker, KpiCard],
   template: `
     <div class="modal-header">
       <h2 appDialogTitle class="h5 mb-0" tabindex="-1" ngbAutofocus>Importar extrato</h2>
@@ -65,11 +65,11 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
       @if (preview(); as p) {
         <section class="su-preview" aria-labelledby="su-preview-title" data-tour="statement-preview">
           <h3 class="app-section-title" id="su-preview-title">Prévia</h3>
-          <div class="su-kpis">
-            <div class="su-kpi"><span class="su-kpi__label">Linhas</span><span class="su-kpi__value">{{ p.lines }}</span></div>
-            <div class="su-kpi"><span class="su-kpi__label">Créditos</span><span class="su-kpi__value">{{ p.credits }}</span></div>
-            <div class="su-kpi"><span class="su-kpi__label">Total creditado <app-info-hint indicator="payment.statement.preview" label="Prévia do arquivo" /></span><span class="su-kpi__value"><app-amount [value]="p.creditTotal" /></span></div>
-            <div class="su-kpi"><span class="su-kpi__label">Débitos (ignorados)</span><span class="su-kpi__value">{{ p.debits }}</span></div>
+          <div class="app-kpi-grid">
+            <app-kpi-card label="Linhas" record>{{ p.lines }}</app-kpi-card>
+            <app-kpi-card label="Créditos" record>{{ p.credits }}</app-kpi-card>
+            <app-kpi-card label="Total creditado" info="payment.statement.preview"><app-amount [value]="p.creditTotal" /></app-kpi-card>
+            <app-kpi-card label="Débitos (ignorados)" record>{{ p.debits }}</app-kpi-card>
           </div>
           @if (p.firstDate) {
             <p class="app-muted su-small">
@@ -149,30 +149,6 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
       align-items: center;
       gap: 8px 12px;
       margin-bottom: 12px;
-    }
-    .su-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .su-kpi {
-      display: flex;
-      flex-direction: column;
-      padding: 8px 10px;
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-tertiary-bg);
-    }
-    .su-kpi__label {
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--bs-secondary-color);
-    }
-    .su-kpi__value {
-      font-size: var(--app-text-lg);
-      font-weight: 600;
     }
     .su-small {
       font-size: var(--app-text-sm);

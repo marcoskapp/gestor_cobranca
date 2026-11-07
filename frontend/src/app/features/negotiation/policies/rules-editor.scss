@@ -12,7 +12,7 @@
     margin: 0;
     padding: 0 4px;
     font-size: var(--app-text-md);
-    font-weight: 500;
+    font-weight: var(--app-weight-medium);
   }
 }
 
@@ -42,7 +42,7 @@
 .re-sub {
   margin: 4px 0;
   font-size: var(--app-text-sm);
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
 }
 
 .re-small {
@@ -69,7 +69,7 @@
 
   th {
     font-size: var(--app-text-xs);
-    font-weight: 600;
+    font-weight: var(--app-weight-semibold);
     color: var(--bs-secondary-color);
   }
 }

@@ -73,23 +73,23 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
         <div class="d-flex flex-wrap gap-2" data-tour="dispute-actions">
           @if (pending()) {
             @if (canAssign()) {
-              <button class="btn btn-outline-primary" type="button" (click)="assign(d)" [disabled]="busy()">
+              <button class="btn btn-outline-secondary" type="button" (click)="assign(d)" [disabled]="busy()">
                 <app-icon name="person-check" />
                 Responsável
               </button>
             } @else if (!d.assigneeId && canWork()) {
-              <button class="btn btn-outline-primary" type="button" (click)="take(d)" [disabled]="busy()">Pegar para mim</button>
+              <button class="btn btn-outline-secondary" type="button" (click)="take(d)" [disabled]="busy()">Pegar para mim</button>
             }
             @if (workable()) {
-              <button class="btn btn-outline-primary" type="button" (click)="requestCreditor(d)" data-tour="dispute-request-creditor">
+              <button class="btn btn-outline-secondary" type="button" (click)="requestCreditor(d)" data-tour="dispute-request-creditor">
                 <app-icon name="send" />
                 Solicitar ao credor
               </button>
               @if (v.creditorRequests.length) {
-                <button class="btn btn-outline-primary" type="button" (click)="creditorResponse(v)">Registrar resposta do credor</button>
+                <button class="btn btn-outline-secondary" type="button" (click)="creditorResponse(v)">Registrar resposta do credor</button>
               }
               @if (actions().includes('review')) {
-                <button class="btn btn-outline-primary" type="button" (click)="review(d)" [disabled]="busy()">Enviar para análise</button>
+                <button class="btn btn-outline-secondary" type="button" (click)="review(d)" [disabled]="busy()">Enviar para análise</button>
               }
               @if (actions().includes('withdraw')) {
                 <button class="btn btn-outline-secondary" type="button" (click)="withdraw(d)" [disabled]="busy()">Registrar desistência</button>
@@ -355,7 +355,7 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
       }
     }
     .dp-late {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--app-danger-fg);
     }
     .dp-soon {

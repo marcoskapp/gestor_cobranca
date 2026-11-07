@@ -24,7 +24,7 @@ interface AreaGroup {
   imports: [PageHeader, Icon, EmptyState, Skeleton, AppDatePipe, PendingWorkList, InfoHint],
   template: `
     <app-page-header title="Minhas pendências" subtitle="O que depende de você agora, conforme o seu perfil e o seu escopo de credores.">
-      <button type="button" class="btn btn-outline-primary" (click)="store.refresh()" [disabled]="store.status() === 'loading'">
+      <button type="button" class="btn btn-outline-secondary" (click)="store.refresh()" [disabled]="store.status() === 'loading'">
         <app-icon name="arrow-clockwise" /> Atualizar
       </button>
     </app-page-header>

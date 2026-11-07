@@ -22,6 +22,7 @@ import { DeadlineView } from '../data/legal.models';
 import { addDays, deadlineText, deadlineTone } from '../data/legal.rules';
 import { Icon } from '../../../shared/components/icon/icon';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /**
  * Painel jurídico: casos por fase com dívida, custas e valor liberado judicialmente; prazos que vencem nos
@@ -29,7 +30,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-legal-dashboard',
-  imports: [Icon, ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, InfoHint],
+  imports: [Icon, ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, InfoHint, KpiCard],
   template: `
     <app-page-header title="Jurídico" subtitle="Casos por fase, prazos a vencer e perdidos, custas e valores liberados judicialmente.">
       <a class="btn btn-primary" routerLink="/juridico/casos">
@@ -60,31 +61,13 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
     @if (dashboard.isLoading() && !board()) {
       <app-skeleton variant="card" [rows]="4" />
     } @else if (board(); as b) {
-      <section class="ld-kpis" aria-label="Indicadores do jurídico" data-tour="legal-kpis">
-        <a class="ld-kpi" routerLink="/juridico/casos">
-          <span class="ld-kpi__label">Casos em aberto</span>
-          <span class="ld-kpi__value app-numeric">{{ b.openMatters }}</span>
-        </a>
-        <div class="ld-kpi">
-          <span class="ld-kpi__label">Dívida em aberto <app-info-hint indicator="legal.dashboard.open-debt" label="Dívida em aberto" /></span>
-          <span class="ld-kpi__value"><app-amount [value]="b.openDebtAmount" [compact]="true" /></span>
-        </div>
-        <div class="ld-kpi">
-          <span class="ld-kpi__label">Custas e despesas <app-info-hint indicator="legal.dashboard.expenses" label="Custas e despesas" /></span>
-          <span class="ld-kpi__value"><app-amount [value]="b.expensesTotal" [compact]="true" /></span>
-        </div>
-        <div class="ld-kpi">
-          <span class="ld-kpi__label">Valor liberado judicialmente <app-info-hint indicator="legal.dashboard.recovered" label="Valor liberado judicialmente" /></span>
-          <span class="ld-kpi__value"><app-amount [value]="b.recoveredAmount" [compact]="true" /></span>
-        </div>
-        <div class="ld-kpi" [class.ld-kpi--warn]="b.deadlinesDueSoon > 0">
-          <span class="ld-kpi__label">Prazos próximos <app-info-hint indicator="legal.dashboard.deadlines-soon" label="Prazos próximos" /></span>
-          <span class="ld-kpi__value app-numeric">{{ b.deadlinesDueSoon }}</span>
-        </div>
-        <div class="ld-kpi" [class.ld-kpi--late]="b.deadlinesMissed > 0">
-          <span class="ld-kpi__label">Prazos perdidos <app-info-hint indicator="legal.dashboard.deadlines-missed" label="Prazos perdidos" /></span>
-          <span class="ld-kpi__value app-numeric">{{ b.deadlinesMissed }}</span>
-        </div>
+      <section class="app-kpi-grid" aria-label="Indicadores do jurídico" data-tour="legal-kpis">
+        <app-kpi-card label="Casos em aberto" record><a class="link-body-emphasis" routerLink="/juridico/casos" [attr.aria-label]="'Ver os ' + b.openMatters + ' casos em aberto'">{{ b.openMatters }}</a></app-kpi-card>
+        <app-kpi-card label="Dívida em aberto" info="legal.dashboard.open-debt"><app-amount [value]="b.openDebtAmount" [compact]="true" /></app-kpi-card>
+        <app-kpi-card label="Custas e despesas" info="legal.dashboard.expenses"><app-amount [value]="b.expensesTotal" [compact]="true" /></app-kpi-card>
+        <app-kpi-card label="Valor liberado judicialmente" info="legal.dashboard.recovered"><app-amount [value]="b.recoveredAmount" [compact]="true" /></app-kpi-card>
+        <app-kpi-card label="Prazos próximos" info="legal.dashboard.deadlines-soon" [tone]="b.deadlinesDueSoon > 0 ? 'warning' : null">{{ b.deadlinesDueSoon }}</app-kpi-card>
+        <app-kpi-card label="Prazos perdidos" info="legal.dashboard.deadlines-missed" [tone]="b.deadlinesMissed > 0 ? 'danger' : null">{{ b.deadlinesMissed }}</app-kpi-card>
       </section>
 
       <div class="ld-grid app-columns">
@@ -148,40 +131,8 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
     .ld-toggle {
       align-self: center;
     }
-    .ld-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: var(--app-gap);
-      margin-bottom: var(--app-gap);
-    }
-    .ld-kpi {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      padding: 12px 16px;
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-body-bg);
-      color: inherit;
-      text-decoration: none;
-    }
-    .ld-kpi__label {
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--bs-secondary-color);
-    }
-    .ld-kpi__value {
-      font-size: var(--app-text-lg);
-      font-weight: 600;
-    }
-    .ld-kpi--warn .ld-kpi__value {
-      color: var(--bs-warning-text-emphasis);
-    }
-    .ld-kpi--late .ld-kpi__value,
     .ld-late {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-danger-text-emphasis);
     }
     .ld-soon {

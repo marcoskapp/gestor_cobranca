@@ -1,9 +1,3 @@
-.pn__kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--app-gap);
-  margin-bottom: var(--app-gap);
-}
 .pn__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
@@ -26,7 +20,7 @@
   }
   thead th {
     font-size: var(--app-text-xs);
-    font-weight: 600;
+    font-weight: var(--app-weight-semibold);
     color: var(--bs-secondary-color);
   }
   .num {
@@ -37,12 +31,6 @@
     display: block;
     font-size: var(--app-text-xs);
     color: var(--bs-secondary-color);
-  }
-}
-@media (max-width: 599.98px) {
-  .pn__kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
   }
 }
 .pn__hint {

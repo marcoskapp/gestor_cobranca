@@ -31,7 +31,7 @@ import { criteriaSummary } from '../data/campaign.rules';
   template: `
     <app-page-header title="Segmentos" subtitle="Públicos salvos com filtros combinados sobre os casos de cobrança, usados pelas campanhas.">
       @if (canRebuild()) {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="rebuild()" ngbTooltip="Recalcula a audiência a partir dos casos (necessário só para casos anteriores ao módulo)">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="rebuild()" ngbTooltip="Recalcula a audiência a partir dos casos (necessário só para casos anteriores ao módulo)">
           <app-icon name="arrow-repeat" />
           Atualizar audiência
         </button>

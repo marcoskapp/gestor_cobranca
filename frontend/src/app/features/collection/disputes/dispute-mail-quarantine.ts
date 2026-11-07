@@ -74,7 +74,7 @@ import { protocolOf } from './dispute.rules';
       align-items: baseline;
     }
     .dq-reason {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--app-danger-fg);
     }
   `,

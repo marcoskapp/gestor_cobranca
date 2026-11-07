@@ -42,7 +42,7 @@
 
 .totp-setup__secret {
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-  font-size: 15px;
+  font-size: var(--app-text-md);
   letter-spacing: 0.05em;
   word-break: break-all;
   padding: 8px 12px;

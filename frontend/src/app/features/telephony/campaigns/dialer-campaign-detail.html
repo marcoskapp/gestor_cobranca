@@ -9,14 +9,10 @@
 
 @if (campaign(); as c) {
   <app-page-header [title]="c.name" [subtitle]="c.code + ' · fila ' + queues.name(c.queueId) + (c.creditorId ? ' · ' + creditors.name(c.creditorId) : '')">
-    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/telefonia/campanhas">
-      <app-icon name="arrow-left" />
-      Campanhas
-    </a>
     @if (canSupervise() && c.status !== 'FINISHED') {
-      <button class="btn btn-outline-primary" type="button" (click)="finish()" [disabled]="busy()">Encerrar</button>
+      <button class="btn btn-outline-secondary" type="button" (click)="finish()" [disabled]="busy()">Encerrar</button>
       @if (c.status === 'ACTIVE' || c.status === 'PAUSED') {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="reload()" [disabled]="busy()" ngbTooltip="Acrescenta os casos que entraram na fila desde a última carga">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="reload()" [disabled]="busy()" ngbTooltip="Acrescenta os casos que entraram na fila desde a última carga">
           <app-icon name="list-check" />
           Recarregar lista
         </button>
@@ -58,20 +54,15 @@
             <h2 class="app-card__title" id="dc-today">Hoje</h2>
             <span class="app-muted tl-small">desde {{ s.since | appDate }}</span>
           </div>
-          <div class="tl-kpis">
-            <div class="tl-kpi">
-              <span class="tl-kpi__label">ASR <app-info-hint indicator="telephony.comparison.asr" label="Atendimento (ASR)" /></span>
-              <span class="tl-kpi__value app-numeric">{{ percent(s.asr) }}</span>
-              <span class="tl-kpi__hint">{{ s.answered }} atendidas de {{ s.dialed }} discadas</span>
-            </div>
-            <div class="tl-kpi" data-tour="dialer-abandon">
-              <span class="tl-kpi__label">Abandono <app-info-hint indicator="telephony.dialer.abandon" label="Abandono" /></span>
-              <span class="tl-kpi__value app-numeric">{{ percent(s.abandonRate) }}</span>
-              <div class="tl-meter" role="meter" [attr.aria-valuenow]="s.abandonRate ?? 0" aria-valuemin="0" [attr.aria-valuemax]="s.maxAbandonRate * 2" [attr.aria-label]="'Abandono ' + percent(s.abandonRate) + ' de máximo ' + percent(s.maxAbandonRate)">
+          <div class="app-kpi-grid">
+            <app-kpi-card label="Atendimento (ASR)" info="telephony.comparison.asr" [detail]="s.answered + ' atendidas de ' + s.dialed + ' discadas'">{{ percent(s.asr) }}</app-kpi-card>
+            <app-kpi-card label="Abandono" info="telephony.dialer.abandon" data-tour="dialer-abandon">
+              {{ percent(s.abandonRate) }}
+              <div appKpiExtra class="tl-meter" role="meter" [attr.aria-valuenow]="s.abandonRate ?? 0" aria-valuemin="0" [attr.aria-valuemax]="s.maxAbandonRate * 2" [attr.aria-label]="'Abandono ' + percent(s.abandonRate) + ' de máximo ' + percent(s.maxAbandonRate)">
                 <div class="tl-meter__bar" [class.tl-meter__bar--near]="abandon() === 'near'" [class.tl-meter__bar--limit]="abandon() === 'limit'" [style.width.%]="abandonWidth()"></div>
                 <div class="tl-meter__limit" style="left: 50%"></div>
               </div>
-              <span class="tl-kpi__hint">
+              <span appKpiExtra class="app-kpi__detail">
                 @if (abandon() === 'limit') {
                   <span class="badge rounded-pill border bg-danger-subtle text-danger-emphasis border-danger-subtle fw-normal"><app-icon name="exclamation-circle" />No máximo</span>
                 } @else if (abandon() === 'near') {
@@ -80,27 +71,11 @@
                   máximo {{ percent(s.maxAbandonRate) }} · {{ s.abandoned }} de {{ s.live }} por pessoa
                 }
               </span>
-            </div>
-            <div class="tl-kpi">
-              <span class="tl-kpi__label">Conectadas <app-info-hint indicator="telephony.dialer.connected" label="Conectadas" /></span>
-              <span class="tl-kpi__value app-numeric">{{ s.connected }}</span>
-              <span class="tl-kpi__hint">{{ s.machine }} caixa postal (AMD)</span>
-            </div>
-            <div class="tl-kpi">
-              <span class="tl-kpi__label">Ritmo agora <app-info-hint indicator="telephony.dialer.ratio" label="Ritmo agora" /></span>
-              <span class="tl-kpi__value app-numeric">{{ s.currentRatio ?? '—' }}</span>
-              <span class="tl-kpi__hint">{{ pacing[s.pacingReason ?? ''] || s.pacingReason || '—' }}</span>
-            </div>
-            <div class="tl-kpi">
-              <span class="tl-kpi__label">Operadores livres <app-info-hint indicator="telephony.dialer.agents" label="Operadores livres" /></span>
-              <span class="tl-kpi__value app-numeric">{{ s.availableAgents }}</span>
-              <span class="tl-kpi__hint">{{ s.callsInProgress }} chamada(s) em andamento</span>
-            </div>
-            <div class="tl-kpi">
-              <span class="tl-kpi__label">Tempos médios <app-info-hint indicator="telephony.comparison.times" label="Toque e conversa (média)" /></span>
-              <span class="tl-kpi__value tl-small">conversa {{ duration(s.averageTalkSeconds) }}</span>
-              <span class="tl-kpi__hint">toque {{ duration(s.averageRingSeconds) }} · pós {{ duration(s.averageWrapUpSeconds) }}</span>
-            </div>
+            </app-kpi-card>
+            <app-kpi-card label="Conectadas" info="telephony.dialer.connected" [detail]="s.machine + ' caixa postal (AMD)'">{{ s.connected }}</app-kpi-card>
+            <app-kpi-card label="Ritmo agora" info="telephony.dialer.ratio" [detail]="pacing[s.pacingReason ?? ''] || s.pacingReason || '—'">{{ s.currentRatio ?? '—' }}</app-kpi-card>
+            <app-kpi-card label="Operadores livres" info="telephony.dialer.agents" [detail]="s.callsInProgress + ' chamada(s) em andamento'">{{ s.availableAgents }}</app-kpi-card>
+            <app-kpi-card label="Tempos médios de conversa" info="telephony.comparison.times" variant="text" [detail]="'toque ' + duration(s.averageRingSeconds) + ' · pós ' + duration(s.averageWrapUpSeconds)">{{ duration(s.averageTalkSeconds) }}</app-kpi-card>
           </div>
           <h3 class="app-section-title">Lista</h3>
           <ul class="tl-funnel" aria-label="Situação dos itens da lista">

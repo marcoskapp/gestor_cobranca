@@ -13,8 +13,8 @@
   gap: 8px;
 }
 .bc__title {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--app-text-lg);
+  font-weight: var(--app-weight-semibold);
 }
 .bc__summary,
 .bc__empty {

@@ -136,7 +136,7 @@ import { Icon } from '../../../shared/components/icon/icon';
     .lc-cnj {
       margin: 0;
       font-size: var(--app-text-md);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .lc-meta,
     .lc-actions,

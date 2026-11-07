@@ -8,19 +8,19 @@
   @let a = actions()!;
   <app-page-header [title]="'Proposta · ' + (debtorName() ?? creditors.name(p.creditorId))" [subtitle]="'Criada em ' + (p.createdAt | appDate) + ' por ' + actorName(p.actor.type, p.actor.id)">
     @if (a.term) {
-      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="downloadTerm()">
+      <button class="btn btn-outline-secondary" type="button" (click)="downloadTerm()">
         <app-icon name="file-earmark-pdf" />
         Baixar termo
       </button>
     }
     @if (p.agreementId && canViewAgreement()) {
-      <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" [routerLink]="['/negociacao/acordos', p.agreementId]">
+      <a class="btn btn-outline-secondary" [routerLink]="['/negociacao/acordos', p.agreementId]">
         <app-icon name="person-hearts" />
         Ver acordo
       </a>
     }
     @if (a.reject) {
-      <button class="btn btn-outline-primary" type="button" (click)="reject()" [disabled]="busy()">Reprovar</button>
+      <button class="btn btn-outline-secondary" type="button" (click)="reject()" [disabled]="busy()">Reprovar</button>
     }
     @if (a.approve) {
       <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="approve()" [disabled]="busy()" data-tour="proposal-decide">
@@ -42,7 +42,7 @@
     }
     @if (a.adopt) {
       @if (canSimulate()) {
-        <button class="btn btn-outline-primary" type="button" (click)="negotiateOther()">Negociar outras condições</button>
+        <button class="btn btn-outline-secondary" type="button" (click)="negotiateOther()">Negociar outras condições</button>
       }
       <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="adopt()" [disabled]="busy()" data-tour="proposal-adopt">
         <app-icon name="robot" />
@@ -100,11 +100,11 @@
     <div class="pd-main app-stack">
       <section class="app-card" aria-labelledby="pd-conditions" data-tour="proposal-conditions">
         <h2 class="app-card__title" id="pd-conditions">Condições</h2>
-        <div class="pd-kpis">
-          <div class="pd-kpi"><span class="pd-kpi__label">Total a pagar <app-info-hint indicator="negotiation.sim.offer-total" label="Total a pagar" /></span><span class="pd-kpi__value"><app-amount [value]="p.totalAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Dívida atualizada <app-info-hint indicator="negotiation.sim.updated-debt" label="Dívida atualizada" /></span><span class="pd-kpi__value"><app-amount [value]="p.updatedAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Desconto <app-info-hint indicator="negotiation.sim.discount" label="Desconto" /></span><span class="pd-kpi__value"><app-amount [value]="p.discountAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Forma</span><span class="pd-kpi__value pd-kpi__text">{{ plan(p) }}</span></div>
+        <div class="app-kpi-grid">
+          <app-kpi-card label="Total a pagar" info="negotiation.sim.offer-total"><app-amount [value]="p.totalAmount" /></app-kpi-card>
+          <app-kpi-card label="Dívida atualizada" info="negotiation.sim.updated-debt"><app-amount [value]="p.updatedAmount" /></app-kpi-card>
+          <app-kpi-card label="Desconto" info="negotiation.sim.discount"><app-amount [value]="p.discountAmount" /></app-kpi-card>
+          <app-kpi-card label="Forma" record variant="text">{{ plan(p) }}</app-kpi-card>
         </div>
         <dl class="app-definition-list">
           <dt>Valor negociado</dt>

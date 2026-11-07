@@ -57,9 +57,8 @@ import { Icon } from '../../../shared/components/icon/icon';
     }
     @if (current(); as r) {
       <app-page-header title="Conferência da importação" [subtitle]="(r.batch.fileName || 'Registros') + ' · ' + creditors.name(r.creditorId) + ' · ' + portfolios.name(r.portfolioId)">
-        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
         @if (canExecute() && (r.status === 'OPEN' || r.status === 'AWAITING_APPROVAL')) {
-          <button class="btn btn-outline-primary" type="button" (click)="cancel(r)"><app-icon name="x-circle" /> Cancelar conferência</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="cancel(r)"><app-icon name="x-circle" /> Cancelar conferência</button>
         }
       </app-page-header>
 
@@ -202,7 +201,7 @@ import { Icon } from '../../../shared/components/icon/icon';
       border-radius: 50%;
       background: var(--bs-secondary-bg);
       color: var(--bs-secondary-color);
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .rw-step--active .rw-step__mark {
       background: var(--bs-primary);
@@ -221,7 +220,7 @@ import { Icon } from '../../../shared/components/icon/icon';
     }
     .rw-label {
       display: block;
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .rw-label__state {
       display: block;

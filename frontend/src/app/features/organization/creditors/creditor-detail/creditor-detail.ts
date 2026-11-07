@@ -22,6 +22,7 @@ import { CreditorDisputeContacts } from './creditor-dispute-contacts';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
+import { MoreAction, MoreActions } from '../../../../shared/components/more-actions/more-actions';
 
 @Component({
   selector: 'app-creditor-detail',
@@ -34,6 +35,7 @@ import { DialogService } from '../../../../shared/dialog/dialog.service';
     AppDatePipe,
     DocumentPipe,
     CreditorDisputeContacts,
+    MoreActions,
   ],
   templateUrl: './creditor-detail.html',
 })
@@ -53,6 +55,13 @@ export class CreditorDetail {
 
   protected readonly creditor = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.creditor, undefined);
+  /** Inativar fica no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2); ativar é a ação primária. */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const c = this.current();
+    return c && this.canManage() && c.status === 'ACTIVE'
+      ? [{ id: 'deactivate', label: 'Inativar credor', icon: 'pause-circle', danger: true, run: () => this.setActive(c, false) }]
+      : [];
+  });
   protected readonly contracts = rxResource({
     params: () => this.id(),
     stream: ({ params }) => this.contractsApi.listByCreditor(params),

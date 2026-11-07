@@ -119,7 +119,7 @@ import {
       margin: 0;
     }
     .pra__title {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .pra__list {
       margin: 0;

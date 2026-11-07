@@ -29,7 +29,7 @@ import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
   template: `
     <app-page-header title="Razão de comissão" subtitle="Cada recebimento confirmado vira um lançamento com a regra vigente na data do pagamento. Lançamentos não mudam: estornos compensam.">
       @if (canManage()) {
-        <button class="btn btn-outline-primary" type="button" (click)="ratePending()" [disabled]="!creditorId() || rating()" [ngbTooltip]="creditorId() ? 'Tenta apurar os recebimentos que aguardam regra' : 'Escolha um credor'" data-tour="ledger-rate">
+        <button class="btn btn-outline-secondary" type="button" (click)="ratePending()" [disabled]="!creditorId() || rating()" [ngbTooltip]="creditorId() ? 'Tenta apurar os recebimentos que aguardam regra' : 'Escolha um credor'" data-tour="ledger-rate">
           <app-icon name="arrow-repeat" />
           Reapurar pendentes
         </button>

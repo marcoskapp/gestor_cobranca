@@ -56,7 +56,7 @@ import { CalculationView } from '../data/settlement.models';
         vertical-align: top;
       }
       thead th {
-        font-weight: 600;
+        font-weight: var(--app-weight-semibold);
         color: var(--bs-secondary-color);
       }
     }
@@ -64,7 +64,7 @@ import { CalculationView } from '../data/settlement.models';
       text-align: right !important;
     }
     .cm-total {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       background: var(--bs-tertiary-bg);
     }
     .cm-small {

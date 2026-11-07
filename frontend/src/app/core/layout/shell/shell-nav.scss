@@ -35,7 +35,7 @@
 .app-sidenav__section {
   margin: 16px 20px 4px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--bs-secondary-color);
@@ -67,7 +67,7 @@
   }
 
   &.active {
-    font-weight: 500;
+    font-weight: var(--app-weight-medium);
   }
 }
 

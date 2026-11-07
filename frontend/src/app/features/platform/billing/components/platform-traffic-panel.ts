@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { InfoHint } from '../../../../shared/components/info-hint/info-hint';
-import { KpiCard } from '../../../analytics/components/kpi-card';
+import { KpiCard } from '../../../../shared/components/kpi-card/kpi-card';
 import { TOKEN_STATE_LABELS, tokenStateTone } from '../../../public-api/data/public-api.labels';
 import { TokenState } from '../../../public-api/data/public-api.models';
 import { TrafficView } from '../../data/platform-billing.models';
@@ -19,7 +19,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
   imports: [InfoHint, KpiCard],
   template: `
     @let t = traffic().totals;
-    <div class="ptp-kpis" data-tour="traffic">
+    <div class="app-kpi-grid" data-tour="traffic">
       <app-kpi-card label="Chamadas autenticadas" info="platform.traffic.requests" [detail]="n(t.mbIn) + ' MB recebidos · ' + n(t.mbOut) + ' MB enviados'">{{ n(t.requests) }}</app-kpi-card>
       <app-kpi-card label="Cobráveis" info="platform.billing.billable-requests" [detail]="n(t.billableMbIn) + '/' + n(t.billableMbOut) + ' MB cobráveis'">{{ n(t.billableRequests) }}</app-kpi-card>
       <app-kpi-card label="Não cobráveis" info="platform.traffic.non-billable" detail="Excesso (429), erros do credor (4xx) e falhas (5xx)">{{ n(t.nonBillableRequests) }}</app-kpi-card>
@@ -94,12 +94,6 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
     }
   `,
   styles: `
-    .ptp-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-    }
     .ptp-title {
       display: flex;
       align-items: center;
@@ -119,7 +113,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
       gap: 8px;
     }
     .ptp-creditor th {
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .ptp-token {
       padding-left: 1.5rem;

@@ -34,6 +34,7 @@ import { ContactChannel, EnrollmentFilter, EnrollmentView } from '../data/campai
 import { breakdown, count, enrollmentReason, failureText, share } from '../data/campaign.rules';
 import { EnrollmentDialog, EnrollmentDialogData } from './enrollment-dialog';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /**
  * Painel de execução da campanha (denominadores explícitos) e lista de inscrições com estado e
@@ -41,7 +42,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-execution-page',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, Amount, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs, InfoHint],
+  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, Amount, CellDef, DataTable, EmptyState, EntityPicker, PageHeader, Skeleton, StatusChip, AppDatePipe, CampaignTabs, InfoHint, KpiCard],
   templateUrl: './execution-page.html',
   styleUrl: './execution-page.scss',
 })

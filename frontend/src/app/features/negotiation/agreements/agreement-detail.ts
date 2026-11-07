@@ -36,6 +36,8 @@ import { AcceptanceChannel, InstallmentView } from '../data/agreement.models';
 import { actorText, agreementActions, installmentBalance, scheduleSummary, shortHash } from '../data/agreement.rules';
 import { percent } from '../data/negotiation.labels';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
 
 const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse().join('/') : '—');
 
@@ -46,7 +48,7 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-agreement-detail',
-  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, PaymentReviewAlert, InfoHint],
+  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, PaymentReviewAlert, InfoHint, KpiCard, MoreActions],
   templateUrl: './agreement-detail.html',
   styleUrl: '../detail-page.scss',
 })
@@ -89,6 +91,10 @@ export class AgreementDetail {
     () => new Map((this.agreement()?.installments ?? []).map((i) => [i.id, this.installmentLabel(i)] as const)),
   );
   protected readonly busy = signal(false);
+  /** O cancelamento (destrutivo) fica no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2). */
+  protected readonly moreActions = computed<MoreAction[]>(() =>
+    this.actions()?.cancel ? [{ id: 'cancel', label: 'Cancelar acordo', icon: 'slash-circle', danger: true, disabled: this.busy(), run: () => this.cancel() }] : [],
+  );
 
   private readonly debtor = rxResource({
     params: () => (this.auth.hasPermission(Permission.DEBTOR_VIEW) ? this.agreement()?.debtorId : undefined),

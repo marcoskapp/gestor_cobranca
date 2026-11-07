@@ -10,7 +10,7 @@ import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
 import { ChartRow } from '../components/chart.models';
 import { ColumnChart } from '../components/column-chart';
-import { KpiCard } from '../components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, days, num, percent, ratioDetail, unavailable } from '../data/analytics.format';
@@ -43,7 +43,7 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
       } @else {
         @let r = report()!;
         @let t = r.totals;
-        <section class="pn__kpis" aria-label="Indicadores de recuperação" data-tour="analytics-kpis">
+        <section class="app-kpi-grid" aria-label="Indicadores de recuperação" data-tour="analytics-kpis">
           <app-kpi-card label="Recuperado líquido" info="analytics.recovery.net" data-tour="kpi-recovered" [detail]="count(t.receipts) + ' recebimentos confirmados'">
             <app-amount [value]="t.recoveredNet" [compact]="true" />
           </app-kpi-card>

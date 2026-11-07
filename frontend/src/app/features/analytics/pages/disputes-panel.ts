@@ -10,7 +10,7 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
 import { ChartRow } from '../components/chart.models';
-import { KpiCard } from '../components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, days, decimal, num, percent, ratioDetail } from '../data/analytics.format';
@@ -54,7 +54,7 @@ const ORIGIN_LABELS: Record<string, string> = {
       } @else {
         @let r = report()!;
         @let t = r.totals;
-        <section class="pn__kpis" aria-label="Indicadores de contestações" data-tour="analytics-kpis">
+        <section class="app-kpi-grid" aria-label="Indicadores de contestações" data-tour="analytics-kpis">
           <app-kpi-card label="Abertas no período" info="analytics.disputes.opened" [detail]="count(t.resolved) + ' resolvidas · ' + count(t.withdrawn) + ' desistências'">{{ count(t.opened) }}</app-kpi-card>
           <app-kpi-card label="Em aberto agora" info="analytics.disputes.open-now" data-tour="kpi-disputes-open" [detail]="count(t.overdueNow) + ' com prazo de resposta vencido'">{{ count(t.openNow) }}</app-kpi-card>
           <app-kpi-card label="Resolvidas no prazo" info="analytics.disputes.within-deadline" data-tour="kpi-disputes-deadline" [detail]="ratioDetail(t.withinDeadline) + ' resolvidas'">{{ percent(t.withinDeadline) }}</app-kpi-card>

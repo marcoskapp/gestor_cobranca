@@ -12,7 +12,7 @@ import { Icon } from '../../shared/components/icon/icon';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { FORM_FIELD } from '../../shared/forms/field';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
-import { KpiCard } from '../analytics/components/kpi-card';
+import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
 import { CreditorLookup } from '../organization/data/organization.lookups';
 import { PublicApiUsageApi } from '../public-api/data/public-api.api';
 import { CYCLE_KIND_LABELS, METRIC_LABELS, formatCycle, prorationLabel } from '../public-api/data/public-api.labels';
@@ -78,7 +78,7 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
               @if (registeredDuringCycle(b); as when) { · condições cadastradas em {{ when }}: o primeiro cadastro vale para o ciclo inteiro }
               @if (proration(b); as p) { · {{ cycleKind(b) }}: mensalidade e franquias proporcionais a {{ p }} }
             </p>
-            <div class="cp-kpis">
+            <div class="app-kpi-grid">
               <app-kpi-card label="Valor até agora" info="publicapi.billing.amount" detail="Mensalidade do ciclo + excedente consumido"><app-amount [value]="b.amountSoFar" /></app-kpi-card>
               <app-kpi-card label="Projeção no fechamento" info="publicapi.billing.projection" detail="Uso até agora + média diária × dias restantes, pelo contrato"><app-amount [value]="b.projection.amount" /></app-kpi-card>
               <app-kpi-card label="Chamadas cobráveis" info="publicapi.usage.billable-requests" detail="Respostas 2xx/3xx">{{ n(b.billableRequests) }}</app-kpi-card>
@@ -150,7 +150,7 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
               @if (s.openStatementId) { · inclui o demonstrativo em aberto ({{ statusLabel(s.openStatementStatus) }}) }
               · estimativa: calculada como o demonstrativo calcularia se fechado agora; pode mudar até o fechamento.
             </p>
-            <div class="cp-kpis">
+            <div class="app-kpi-grid">
               <app-kpi-card label="Líquido estimado" info="settlement.position.net" [detail]="direction(s)"><app-amount [value]="s.totals.netTransfer" /></app-kpi-card>
               <app-kpi-card label="Recuperado" info="settlement.statement.recovered" [detail]="'Na assessoria · direto ao credor: ' + money(s.totals.receivedByCreditor)"><app-amount [value]="s.totals.recovered" /></app-kpi-card>
               <app-kpi-card label="Comissão apurada" info="settlement.statement.commission" [detail]="'Valores fixos: ' + money(s.totals.fixedFees)"><app-amount [value]="s.totals.commission" /></app-kpi-card>
@@ -204,7 +204,6 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
   styles: `
     .cp-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
     .cp-small { font-size: var(--app-text-xs); }
-    .cp-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 12px; margin-bottom: 16px; }
     .cp-allowances { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 8px;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); font-size: var(--app-text-xs); }
     .cp-allowances li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; }

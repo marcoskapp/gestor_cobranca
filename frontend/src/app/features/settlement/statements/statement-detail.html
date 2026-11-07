@@ -13,15 +13,8 @@
 @if (statement(); as s) {
   @let act = actions()!;
   <app-page-header [title]="'Demonstrativo nº ' + s.sequenceNumber + ' · ' + creditors.name(s.creditorId)" [subtitle]="'Período ' + period(s)">
-    <a class="btn btn-link" routerLink="/prestacao-de-contas/demonstrativos">
-      <app-icon name="arrow-left" />
-      Demonstrativos
-    </a>
-    @if (act.cancel) {
-      <button class="btn btn-outline-primary" type="button" (click)="cancel()" [disabled]="busy()">Cancelar</button>
-    }
     @if (act.contest) {
-      <button class="btn btn-outline-primary" type="button" (click)="contest()" [disabled]="busy()">Credor contestou</button>
+      <button class="btn btn-outline-secondary" type="button" (click)="contest()" [disabled]="busy()">Credor contestou</button>
     }
     @if (act.respond) {
       <button class="btn btn-primary" type="button" (click)="acknowledge()" [disabled]="busy()">
@@ -42,7 +35,7 @@
       </button>
     }
     @if (act.review) {
-      <button class="btn btn-outline-primary" type="button" (click)="calculate()" [disabled]="busy()">Recalcular</button>
+      <button class="btn btn-outline-secondary" type="button" (click)="calculate()" [disabled]="busy()">Recalcular</button>
       <button class="btn btn-primary" type="button" (click)="review()" [disabled]="busy()">
         <app-icon name="card-checklist" />
         Marcar como revisado
@@ -54,11 +47,12 @@
       </button>
     }
     @if (act.transfer) {
-      <button class="btn btn-outline-primary" type="button" (click)="registerTransfer()" [disabled]="busy()">
+      <button class="btn btn-outline-secondary" type="button" (click)="registerTransfer()" [disabled]="busy()">
         <app-icon name="bank" />
         {{ (s.totals?.outstanding ?? 0) > 0 ? 'Registrar repasse' : 'Registrar recebimento' }}
       </button>
     }
+    <app-more-actions [actions]="moreActions()" />
   </app-page-header>
 
   <section class="st-status" aria-label="Ciclo do demonstrativo" data-tour="statement-cycle">
@@ -111,20 +105,17 @@
   @if (s.totals; as t) {
     <section class="app-card" aria-labelledby="sd-totals" data-tour="statement-totals">
       <h2 class="app-card__title" id="sd-totals">Totais do período</h2>
-      <div class="st-kpis">
-        <div class="st-kpi"><span class="st-kpi__label">Recebido na assessoria <app-info-hint indicator="settlement.statement.received-agency" label="Recebido na assessoria" /></span><span class="st-kpi__value"><app-amount [value]="t.receivedByAgency" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Pago direto ao credor <app-info-hint indicator="settlement.statement.received-creditor" label="Pago direto ao credor" /></span><span class="st-kpi__value"><app-amount [value]="t.receivedByCreditor" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Estornos <app-info-hint indicator="settlement.statement.reversals" label="Estornos" /></span><span class="st-kpi__value"><app-amount [value]="t.reversed" [signed]="true" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Recuperado líquido <app-info-hint indicator="settlement.statement.recovered" label="Recuperado líquido" /></span><span class="st-kpi__value"><app-amount [value]="t.recovered" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Honorários da assessoria <app-info-hint indicator="settlement.statement.honorarium" label="Honorários da assessoria" /></span><span class="st-kpi__value"><app-amount [value]="t.agencyHonorarium" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Comissão <app-info-hint indicator="settlement.statement.commission" label="Comissão" /></span><span class="st-kpi__value"><app-amount [value]="t.commission" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Valores fixos <app-info-hint indicator="settlement.statement.fixed-fees" label="Valores fixos" /></span><span class="st-kpi__value"><app-amount [value]="t.fixedFees" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Custas deduzidas <app-info-hint indicator="settlement.statement.expenses" label="Custas deduzidas" /></span><span class="st-kpi__value"><app-amount [value]="t.expenses" /></span></div>
-        <div class="st-kpi"><span class="st-kpi__label">Ajustes <app-info-hint indicator="settlement.statement.adjustments" label="Ajustes" /></span><span class="st-kpi__value"><app-amount [value]="t.adjustments" [signed]="true" /></span></div>
-        <div class="st-kpi st-kpi--total">
-          <span class="st-kpi__label">{{ t.netTransfer < 0 ? 'Credor deve à assessoria' : 'Líquido a repassar' }} <app-info-hint indicator="settlement.statement.net" label="Líquido a repassar" /></span>
-          <span class="st-kpi__value"><app-amount [value]="t.netTransfer" [signed]="true" /></span>
-        </div>
+      <div class="app-kpi-grid">
+        <app-kpi-card label="Recebido na assessoria" info="settlement.statement.received-agency"><app-amount [value]="t.receivedByAgency" /></app-kpi-card>
+        <app-kpi-card label="Pago direto ao credor" info="settlement.statement.received-creditor"><app-amount [value]="t.receivedByCreditor" /></app-kpi-card>
+        <app-kpi-card label="Estornos" info="settlement.statement.reversals"><app-amount [value]="t.reversed" [signed]="true" /></app-kpi-card>
+        <app-kpi-card label="Recuperado líquido" info="settlement.statement.recovered"><app-amount [value]="t.recovered" /></app-kpi-card>
+        <app-kpi-card label="Honorários da assessoria" info="settlement.statement.honorarium"><app-amount [value]="t.agencyHonorarium" /></app-kpi-card>
+        <app-kpi-card label="Comissão" info="settlement.statement.commission"><app-amount [value]="t.commission" /></app-kpi-card>
+        <app-kpi-card label="Valores fixos" info="settlement.statement.fixed-fees"><app-amount [value]="t.fixedFees" /></app-kpi-card>
+        <app-kpi-card label="Custas deduzidas" info="settlement.statement.expenses"><app-amount [value]="t.expenses" /></app-kpi-card>
+        <app-kpi-card label="Ajustes" info="settlement.statement.adjustments"><app-amount [value]="t.adjustments" [signed]="true" /></app-kpi-card>
+        <app-kpi-card [label]="t.netTransfer < 0 ? 'Credor deve à assessoria' : 'Líquido a repassar'" info="settlement.statement.net" emphasis><app-amount [value]="t.netTransfer" [signed]="true" /></app-kpi-card>
       </div>
       <p class="app-muted st-small" data-tour="statement-check">
         Conferência: efeitos dos recebimentos <app-amount [value]="effectSum()" [signed]="true" /> − custas <app-amount [value]="t.expenses" /> + ajustes <app-amount [value]="t.adjustments" [signed]="true" /> =
@@ -156,7 +147,7 @@
     <app-empty-state icon="calculator" title="Ainda não calculado." message="Calcule depois do fim do período para ver recebimentos, comissão e o líquido a repassar." />
   }
 
-  <ul ngbNav #tabs="ngbNav" class="nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden sd-tabs">
+  <ul ngbNav #tabs="ngbNav" class="nav-underline app-tabs sd-tabs">
     <li [ngbNavItem]="0">
       <button type="button" class="text-nowrap" ngbNavLink>Recebimentos ({{ s.totals?.receipts ?? 0 }})</button>
       <ng-template ngbNavContent>
@@ -170,9 +161,9 @@
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-expenses">
           <p class="app-muted st-small">Adiantadas pela assessoria ou por escritório parceiro: deduzidas do repasse (o credor reembolsa). Pagas pelo credor ou não reembolsáveis: só informativas.</p>
-          <div class="st-kpis sd-gap">
-            <div class="st-kpi"><span class="st-kpi__label">Deduzidas do repasse</span><span class="st-kpi__value"><app-amount [value]="deducted()" /></span></div>
-            <div class="st-kpi"><span class="st-kpi__label">Informativas</span><span class="st-kpi__value"><app-amount [value]="informative()" /></span></div>
+          <div class="app-kpi-grid sd-gap">
+            <app-kpi-card label="Deduzidas do repasse" record><app-amount [value]="deducted()" /></app-kpi-card>
+            <app-kpi-card label="Informativas" record><app-amount [value]="informative()" /></app-kpi-card>
           </div>
           @if (expenses().length) {
             <div class="st-scroll">

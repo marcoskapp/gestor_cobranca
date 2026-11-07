@@ -74,7 +74,7 @@ import { PendingWorkItem } from './pending-work.models';
     .pwi__meta,
     .pwi__hint {
       color: var(--bs-secondary-color);
-      font-size: var(--app-text-xs, 0.75rem);
+      font-size: var(--app-text-xs);
     }
     .pwi__flag {
       display: inline-flex;

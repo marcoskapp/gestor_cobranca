@@ -114,7 +114,7 @@ import { Skeleton } from '../../shared/components/skeleton/skeleton';
     }
     .help__module-title {
       display: block;
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
       color: var(--bs-link-color);
     }
     .help__module-summary {
@@ -130,7 +130,7 @@ import { Skeleton } from '../../shared/components/skeleton/skeleton';
       margin: 0;
     }
     .help__term dt {
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .help__term dd {
       margin: 0;

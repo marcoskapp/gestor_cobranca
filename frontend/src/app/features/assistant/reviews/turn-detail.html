@@ -10,10 +10,6 @@
 @if (detail(); as d) {
   @let t = d.turn;
   <app-page-header [title]="'Turno ' + t.turnNumber + ' · etapa ' + t.episode" [subtitle]="(t.startedAt | appDate) + ' · ' + modes[t.mode] + (t.policyVersion ? ' · política v' + t.policyVersion : '')">
-    <a class="btn btn-link" routerLink="/assistente/revisao">
-      <app-icon name="arrow-left" />
-      Revisão
-    </a>
     <a class="btn btn-link" [routerLink]="['/conversas', t.conversationId]">
       <app-icon name="chat-left-text" />
       Conversa

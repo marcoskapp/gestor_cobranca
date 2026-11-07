@@ -10,12 +10,12 @@ import { ImportBatchesApi } from '../data/ingestion.api';
 import { isTerminal, progressText } from '../data/ingestion.labels';
 import { IssueSeverity, ReviewView } from '../data/ingestion.models';
 import { Icon } from '../../../shared/components/icon/icon';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /** Passo 3: validação das linhas da prévia (nada é gravado), com as ocorrências por linha já existentes. */
 @Component({
   selector: 'app-validation-step',
-  imports: [Icon, DecimalPipe, RouterLink, CellDef, DataTable, StatusChip, InfoHint],
+  imports: [Icon, DecimalPipe, RouterLink, CellDef, DataTable, StatusChip, KpiCard],
   template: `
     @let b = review().batch;
     @if (!terminal()) {
@@ -29,13 +29,11 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
     } @else if (b.status === 'FAILED' || b.status === 'CANCELLED') {
       <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ b.statusReason || 'A validação não foi concluída.' }}</span></div>
     }
-    <section class="vs-kpis" aria-label="Resultado da validação" data-tour="review-validation">
-      <div class="vs-kpi"><span class="vs-kpi__label">Linhas lidas <app-info-hint indicator="ingestion.review.validation" label="Resultado da validação" /></span><span class="vs-kpi__value app-numeric">{{ b.counters.rowsRead | number }}</span></div>
-      <div class="vs-kpi"><span class="vs-kpi__label">Válidas</span><span class="vs-kpi__value app-numeric">{{ b.counters.rowsValid | number }}</span></div>
-      <div class="vs-kpi" [class.vs-kpi--alert]="b.counters.rowsWithError > 0">
-        <span class="vs-kpi__label">Com erro (não serão importadas)</span><span class="vs-kpi__value app-numeric">{{ b.counters.rowsWithError | number }}</span>
-      </div>
-      <div class="vs-kpi"><span class="vs-kpi__label">Avisos</span><span class="vs-kpi__value app-numeric">{{ b.counters.warnings | number }}</span></div>
+    <section class="app-kpi-grid" aria-label="Resultado da validação" data-tour="review-validation">
+      <app-kpi-card label="Linhas lidas" info="ingestion.review.validation">{{ b.counters.rowsRead | number }}</app-kpi-card>
+      <app-kpi-card label="Válidas" record>{{ b.counters.rowsValid | number }}</app-kpi-card>
+      <app-kpi-card label="Com erro (não serão importadas)" record [tone]="b.counters.rowsWithError > 0 ? 'danger' : null">{{ b.counters.rowsWithError | number }}</app-kpi-card>
+      <app-kpi-card label="Avisos" record>{{ b.counters.warnings | number }}</app-kpi-card>
     </section>
     <div class="vs-head">
       <h3 class="vs-title">Ocorrências por linha</h3>
@@ -84,33 +82,6 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
     .vs-progress .progress {
       width: 240px;
     }
-    .vs-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: var(--app-gap);
-      margin-bottom: var(--app-gap);
-    }
-    .vs-kpi {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 10px 14px;
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-body-bg);
-    }
-    .vs-kpi__label {
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      color: var(--bs-secondary-color);
-    }
-    .vs-kpi__value {
-      font-size: var(--app-text-lg);
-      font-weight: 600;
-    }
-    .vs-kpi--alert .vs-kpi__value {
-      color: var(--bs-danger-text-emphasis);
-    }
     .vs-head {
       display: flex;
       flex-wrap: wrap;
@@ -122,7 +93,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
     .vs-title {
       margin: 0;
       font-size: var(--app-text-md);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .vs-tools {
       display: flex;

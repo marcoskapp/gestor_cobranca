@@ -34,7 +34,7 @@ const STATUS_ORDER: Record<string, number> = { PUBLISHED: 0, DRAFT: 1, RETIRED: 
   template: `
     <app-page-header title="Políticas do assistente" subtitle="Modo, canais, horários, alçada, temas, gatilhos de transferência e limites do assistente de IA, por assessoria, credor ou carteira.">
       @if (canManage()) {
-        <button class="btn btn-outline-primary" type="button" (click)="disable()" data-tour="assistant-disable">
+        <button class="btn btn-outline-secondary" type="button" (click)="disable()" data-tour="assistant-disable">
           <app-icon name="power" />
           Desligar numa carteira
         </button>

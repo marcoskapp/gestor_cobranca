@@ -44,11 +44,12 @@
 
   <app-pending-work-indicator />
 
-  <app-support-chat-button />
+  <!-- abaixo de 600 px, chat e tema saem da barra e ficam no menu do usuário (menos alvos no topo) -->
+  <app-support-chat-button class="app-topbar__wide" />
 
   <button
     type="button"
-    class="btn app-topbar__btn"
+    class="btn app-topbar__btn app-topbar__wide"
     (click)="theme.toggleTheme()"
     [attr.aria-label]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
     [ngbTooltip]="theme.effectiveTheme() === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'"
@@ -110,8 +111,9 @@
   </div>
 
   @if (user(); as u) {
-    <div ngbDropdown placement="bottom-end" class="d-inline-flex">
+    <div ngbDropdown #userMenu="ngbDropdown" placement="bottom-end" class="d-inline-flex">
       <button
+        #userToggle
         type="button"
         ngbDropdownToggle
         class="btn app-topbar__btn app-topbar__user"
@@ -128,6 +130,13 @@
           <span class="text-body-secondary">{{ u.email }}</span>
         </div>
         <div class="dropdown-divider" role="separator"></div>
+        @if (narrow()) {
+          <!-- só no celular: o botão do chat sai da barra abaixo de 600 px -->
+          <button ngbDropdownItem type="button" role="menuitem" (click)="openChat(userMenu, userToggle)">
+            <app-icon name="chat-dots" /> Chat de suporte
+          </button>
+          <div class="dropdown-divider" role="separator"></div>
+        }
         <h6 class="dropdown-header" role="presentation">Tema</h6>
         @for (t of themes; track t.value) {
           <button

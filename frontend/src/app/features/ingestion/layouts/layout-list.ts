@@ -1,7 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -31,10 +30,9 @@ interface LayoutFilter {
 /** Layout padrão (colunas canônicas) e layouts próprios dos credores, versionados. */
 @Component({
   selector: 'app-layout-list',
-  imports: [NgbTooltip, Icon, ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
+  imports: [NgbTooltip, Icon, ReactiveFormsModule, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Layouts de importação" subtitle="Como as colunas do arquivo de cada credor correspondem aos campos do sistema.">
-      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
       @if (canExecute()) {
         <button class="btn btn-primary" type="button" (click)="publish(null)" [disabled]="!fields().length">
           <app-icon name="plus-lg" />
@@ -135,7 +133,7 @@ interface LayoutFilter {
       }
     }
     .ll-required {
-      font-weight: 700;
+      font-weight: var(--app-weight-bold);
       outline: 1px solid var(--bs-primary);
     }
     .ll-icon {

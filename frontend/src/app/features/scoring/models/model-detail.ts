@@ -17,7 +17,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { BarChart } from '../../analytics/components/bar-chart';
-import { KpiCard } from '../../analytics/components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { ScopeNotice } from '../components/scope-notice';
 import { ScoringModelsApi } from '../data/scoring.api';
 import { MODEL_KIND_LABELS, featureLabel } from '../data/scoring.labels';

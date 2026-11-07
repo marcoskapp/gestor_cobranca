@@ -32,7 +32,7 @@ import { monthLabel, monthOptions } from '../data/incentive.rules';
   imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Amount, CellDef, DataTable, EntityPicker, Icon, PageHeader, StatusChip],
   template: `
     <app-page-header title="Extratos de comissão" subtitle="Remuneração variável apurada por período, com memória de cálculo, contestação e aprovação.">
-      <a class="btn btn-outline-primary" routerLink="/remuneracao/extratos/previa" data-tour="statement-preview">
+      <a class="btn btn-outline-secondary" routerLink="/remuneracao/extratos/previa" data-tour="statement-preview">
         <app-icon name="eye" />
         Prévia do período atual
       </a>

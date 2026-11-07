@@ -6,8 +6,8 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   selector: 'app-quality-tabs',
   imports: [RouterLink, RouterLinkActive],
   template: `
-    <nav aria-label="Telas de qualidade" class="mb-3">
-      <ul class="nav nav-tabs">
+    <nav aria-label="Telas de qualidade">
+      <ul class="nav nav-underline app-tabs">
         @for (t of tabs; track t.route) {
           <li class="nav-item">
             <a class="nav-link" [routerLink]="t.route" routerLinkActive="active" #rla="routerLinkActive" [attr.aria-current]="rla.isActive ? 'page' : null">{{ t.label }}</a>

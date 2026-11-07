@@ -121,7 +121,7 @@ export const CARD_FACTORS = 3;
       gap: 6px;
       margin: 0;
       font-size: var(--app-text-xs);
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--bs-secondary-color);
@@ -146,7 +146,7 @@ export const CARD_FACTORS = 3;
     }
     .cs__points {
       font-size: var(--app-text-xl);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       line-height: 1;
     }
     .cs__meta {

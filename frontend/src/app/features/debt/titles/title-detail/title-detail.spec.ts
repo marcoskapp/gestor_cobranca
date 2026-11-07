@@ -93,7 +93,8 @@ describe('TitleDetail', () => {
   }
 
   function buttons(fixture: ComponentFixture<TitleDetail>): string[] {
-    return [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-tour="title-actions"] button')].map((b) => b.textContent!.trim());
+    // ações de ciclo de vida: a primária (Reativar) e os itens do menu "Mais ações" (sem o botão que abre o menu)
+    return [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-tour="title-actions"] button:not(.dropdown-toggle)')].map((b) => b.textContent!.trim());
   }
 
   it('sem DEBT_TITLE_MANAGE não oferece ações de ciclo de vida', async () => {

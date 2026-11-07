@@ -155,10 +155,10 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
     .module-manual__screen-title {
       margin: 0 0 var(--app-space-2);
       font-size: var(--app-text-lg);
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .module-manual__terms dt {
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .module-manual__terms dd {
       margin: 0 0 var(--app-space-2);

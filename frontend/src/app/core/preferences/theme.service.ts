@@ -10,7 +10,7 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 /**
  * Aplica tema e densidade ao documento: `data-bs-theme` (modo de cor nativo do Bootstrap 5.3,
  * sempre o modo efetivo), `data-theme` (preferência fixada; ausente = segue o sistema, usado pelo
- * `color-scheme` e pelo tema Material transitório) e `data-density` no `<html>`.
+ * `color-scheme`) e `data-density` no `<html>`.
  * Usada também antes do bootstrap (`applyCachedAppearance`) para evitar o "piscar" de tema.
  */
 @Injectable({ providedIn: 'root' })

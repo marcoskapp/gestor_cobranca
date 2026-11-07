@@ -2,7 +2,7 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NgbDropdownModule, NgbOffcanvas, NgbOffcanvasRef, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdown, NgbDropdownModule, NgbOffcanvas, NgbOffcanvasRef, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -14,6 +14,7 @@ import { OnboardingHint } from '../../onboarding/hint/onboarding-hint';
 import { OnboardingService } from '../../onboarding/onboarding.service';
 import { PendingWorkIndicator } from '../../pending-work/pending-work-indicator';
 import { SupportChatButton } from '../../support-chat/support-chat-button';
+import { SupportChatService } from '../../support-chat/support-chat.service';
 import { ThemeService } from '../../preferences/theme.service';
 import { DensityPreference, ThemePreference } from '../../preferences/ui-state.models';
 import { UiStateStore } from '../../preferences/ui-state.store';
@@ -27,6 +28,9 @@ interface Choice<T> {
   label: string;
   icon: IconName;
 }
+
+/** Cabeçalho estreito: chat e tema saem da barra superior (ux.md §12.3). */
+export const SHELL_NARROW = '(max-width: 599.98px)';
 
 const THEMES: readonly Choice<ThemePreference>[] = [
   { value: 'SYSTEM', label: 'Seguir o sistema', icon: 'circle-half' },
@@ -74,6 +78,13 @@ export class Shell {
   protected readonly theme = inject(ThemeService);
   protected readonly onboarding = inject(OnboardingService);
   protected readonly help = inject(HelpService);
+  private readonly chat = inject(SupportChatService);
+  private readonly breakpoints = inject(BreakpointObserver);
+  /** Abaixo de 600 px o chat sai da barra e entra no menu do usuário (só renderizado nesse modo). */
+  protected readonly narrow = toSignal(
+    this.breakpoints.observe(SHELL_NARROW).pipe(map((state) => state.matches)),
+    { initialValue: false },
+  );
 
   protected readonly appName = APP_NAME;
   protected readonly user = this.auth.user;
@@ -82,7 +93,7 @@ export class Shell {
   protected readonly paletteKeys = formatKeys('mod+k').join(' ');
 
   protected readonly compact = toSignal(
-    inject(BreakpointObserver)
+    this.breakpoints
       .observe('(max-width: 959.98px)')
       .pipe(map((state) => state.matches)),
     { initialValue: false },
@@ -182,6 +193,16 @@ export class Shell {
   protected showGettingStarted(): void {
     this.onboarding.setChecklistDismissed(false);
     void this.router.navigateByUrl('/');
+  }
+
+  /**
+   * Chat pelo menu do usuário: fecha o menu e devolve o foco ao botão dele antes de abrir o painel
+   * (o menu fica no `body`; sem isso, o painel devolveria o foco a um item que deixou de existir).
+   */
+  protected openChat(menu: NgbDropdown, toggle: HTMLElement): void {
+    menu.close();
+    toggle.focus();
+    this.chat.open();
   }
 
   protected async logout(): Promise<void> {

@@ -2,8 +2,12 @@ import { Component, computed, input } from '@angular/core';
 
 const FORMATS = {
   BRL: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
-  compact: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }),
+  // 3 algarismos significativos: "R$ 1,01 mi" e "R$ 1,25 mi" não viram o mesmo "R$ 1 mi"
+  compact: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumSignificantDigits: 3 }),
 };
+
+/** Abaixo de mil o formato compacto só perderia os centavos: mostra o valor exato. */
+const COMPACT_FROM = 1000;
 
 /** Converte o valor monetário do backend (`BigDecimal` como número ou texto) em número. */
 export function toAmount(value: number | string | null | undefined): number | null {
@@ -17,13 +21,18 @@ export function toAmount(value: number | string | null | undefined): number | nu
 /** Formata em reais; espaços não separáveis entre "R$" e o número (não quebra a linha). */
 export function formatAmount(value: number | string | null | undefined, compact = false): string {
   const amount = toAmount(value);
-  return amount === null ? '—' : (compact ? FORMATS.compact : FORMATS.BRL).format(amount).replace(/\s/g, ' ');
+  if (amount === null) {
+    return '—';
+  }
+  const format = compact && Math.abs(amount) >= COMPACT_FROM ? FORMATS.compact : FORMATS.BRL;
+  return format.format(amount).replace(/\s/g, ' ');
 }
 
 /**
  * Valor monetário com algarismos tabulares (alinham em colunas). `signed` destaca negativos e
  * positivos com cor **e** sinal explícito (nunca só a cor), útil em saldos e estornos.
- * Em `compact` ("R$ 1,2 mi") o valor exato fica disponível no `title` e para leitores de tela.
+ * Em `compact` ("R$ 1,25 mi", 3 algarismos significativos; exato abaixo de R$ 1.000) o valor exato
+ * fica disponível no `title` e para leitores de tela.
  */
 @Component({
   selector: 'app-amount',

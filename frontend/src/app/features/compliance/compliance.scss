@@ -44,7 +44,7 @@
   margin: 0;
   padding: 0 4px;
   font-size: var(--app-text-md);
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
 }
 
 .cmp-rule__row {
@@ -96,7 +96,7 @@
 
 .cmp-kpi__label {
   font-size: var(--app-text-xs);
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--bs-secondary-color);
@@ -104,12 +104,12 @@
 
 .cmp-kpi__value {
   font-size: var(--app-text-lg);
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
   font-variant-numeric: tabular-nums;
 }
 
 .cmp-due--late {
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
   color: var(--bs-danger-text-emphasis);
 }
 
@@ -145,7 +145,7 @@
 .cmp-step--current {
   background: var(--app-info-bg);
   color: var(--app-info-fg);
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
 }
 
 @media (max-width: 599.98px) {

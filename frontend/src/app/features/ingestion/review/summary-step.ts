@@ -13,7 +13,7 @@ import { ImpactView, ReviewView } from '../data/ingestion.models';
 import { BLOCKER_STEPS, COLUMN_LABELS, OPTION_LABELS, REVIEW_ERROR_LABELS } from '../data/review.rules';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /** Linhas do resumo de impacto mostradas na confirmação. */
 export function impactDetails(impact: ImpactView): { label: string; value: string }[] {
@@ -41,19 +41,21 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
  */
 @Component({
   selector: 'app-summary-step',
-  imports: [...FORM_FIELD, Icon, DecimalPipe, FormsModule, RouterLink, Amount, AppDatePipe, InfoHint],
+  imports: [...FORM_FIELD, Icon, DecimalPipe, FormsModule, RouterLink, Amount, AppDatePipe, KpiCard],
   template: `
     @let r = review();
     @if (r.impact; as impact) {
-      <section class="ss-kpis" aria-label="Impacto da importação" data-tour="review-impact">
-        <div class="ss-kpi"><span class="ss-kpi__label">Linhas a importar <app-info-hint indicator="ingestion.review.impact" label="Impacto da importação" /></span><span class="ss-kpi__value app-numeric">{{ impact.rowsToImport | number }}</span></div>
-        <div class="ss-kpi"><span class="ss-kpi__label">Títulos novos</span><span class="ss-kpi__value app-numeric">{{ impact.newTitles | number }}</span></div>
-        <div class="ss-kpi"><span class="ss-kpi__label">Já existentes</span><span class="ss-kpi__value app-numeric">{{ impact.existingTitles | number }}</span></div>
-        <div class="ss-kpi"><span class="ss-kpi__label">Ficam suspensos</span><span class="ss-kpi__value app-numeric">{{ impact.holdBySituation | number }}</span></div>
-        <div class="ss-kpi"><span class="ss-kpi__label">Soma do principal</span><span class="ss-kpi__value"><app-amount [value]="impact.principalToImport" /></span></div>
+      <section class="app-kpi-grid" aria-label="Impacto da importação" data-tour="review-impact">
+        <app-kpi-card label="Linhas a importar" info="ingestion.review.impact">{{ impact.rowsToImport | number }}</app-kpi-card>
+        <app-kpi-card label="Títulos novos" record>{{ impact.newTitles | number }}</app-kpi-card>
+        <app-kpi-card label="Já existentes" record>{{ impact.existingTitles | number }}</app-kpi-card>
+        <app-kpi-card label="Ficam suspensos" record>{{ impact.holdBySituation | number }}</app-kpi-card>
+        <app-kpi-card label="Soma do principal" record><app-amount [value]="impact.principalToImport" /></app-kpi-card>
         @if (impact.rowsWithError || impact.rowsExcluded) {
-          <div class="ss-kpi ss-kpi--muted"><span class="ss-kpi__label">Não importadas</span><span class="ss-kpi__value app-numeric">{{ impact.rowsWithError + impact.rowsExcluded | number }}</span>
-            <span class="ss-kpi__note">{{ impact.rowsWithError | number }} com erro · {{ impact.rowsExcluded | number }} excluídas</span></div>
+          <app-kpi-card label="Não importadas" record>
+            {{ impact.rowsWithError + impact.rowsExcluded | number }}
+            <span appKpiExtra class="app-kpi__detail">{{ impact.rowsWithError | number }} com erro · {{ impact.rowsExcluded | number }} excluídas</span>
+          </app-kpi-card>
         }
       </section>
     } @else {
@@ -168,45 +170,17 @@ export function impactDetails(impact: ImpactView): { label: string; value: strin
     }
   `,
   styles: `
-    .ss-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: var(--app-gap);
-      margin-bottom: var(--app-gap);
-    }
-    .ss-kpi {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 10px 14px;
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-body-bg);
-    }
-    .ss-kpi__label {
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      color: var(--bs-secondary-color);
-    }
-    .ss-kpi__value {
-      font-size: var(--app-text-lg);
-      font-weight: 600;
-    }
-    .ss-kpi__note {
-      font-size: var(--app-text-xs);
-      color: var(--bs-secondary-color);
-    }
     .ss-title {
       margin: 0 0 8px;
       font-size: var(--app-text-md);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .ss-small {
       font-size: var(--app-text-sm);
     }
     .ss-pending {
       color: var(--bs-warning-text-emphasis);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .ss-blockers {
       display: grid;

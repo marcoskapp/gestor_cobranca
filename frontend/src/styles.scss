@@ -32,7 +32,16 @@ body {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  // cifras alinhadas em colunas (valores, datas, documentos)
+}
+
+// Algarismos tabulares só onde há números a alinhar (valores, datas, documentos, colunas numéricas,
+// indicadores). No corpo inteiro a Inter troca também o hífen pelo tabular ("E - mail").
+.app-numeric,
+.app-kpi__value,
+.table td.text-end,
+.table th.text-end,
+.app-definition-list dd.app-numeric,
+time {
   font-variant-numeric: tabular-nums;
 }
 
@@ -77,8 +86,12 @@ body {
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-space-4);
+}
+
+.app-page-header__text {
+  min-width: 0;
 }
 
 .app-page-header__title {
@@ -86,18 +99,22 @@ body {
   font-size: var(--app-text-xl);
   font-weight: $headings-font-weight;
   line-height: var(--app-line-tight);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--app-tracking-tight);
 }
 
 .app-page-header__subtitle {
-  margin: 4px 0 0;
+  margin: var(--app-space-1) 0 0;
   color: var(--bs-secondary-color);
 }
 
+// Ações do cabeçalho (padrão de ação: ux.md §12.2): no máximo uma `.btn-primary`, até duas
+// secundárias `.btn-outline-secondary` e o menu "Mais ações" (`app-more-actions`), com a ação
+// destrutiva dentro dele. A navegação de volta fica com a trilha, não com um botão aqui.
 .app-page-header__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: var(--app-space-2);
 }
 
 .app-card {
@@ -135,9 +152,157 @@ body {
 }
 
 .app-card__title {
-  margin: 0 0 12px;
-  font-size: 15px;
+  margin: 0 0 var(--app-space-3);
+  font-size: var(--app-text-lg);
+  font-weight: $font-weight-semibold;
+  line-height: var(--app-line-tight);
+}
+
+// --------------------------------------------------------------------- indicadores (app-kpi-card)
+
+// Grade de indicadores: `auto-fit` estica os cartões para ocupar a linha (sem órfão nem buraco à
+// direita); 2 colunas fixas no celular. Os cartões são `app-kpi-card` (shared/components/kpi-card).
+.app-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-gap);
+}
+
+// Linhas equilibradas em telas largas: com 4, 6, 9 ou 7–8 cartões o `auto-fit` sozinho deixaria um
+// cartão órfão na última linha (3 + 1 num cartão estreito, 5 + 1 na largura toda); a consulta de
+// quantidade fixa 4×1, 3×2, 3×3 ou 4×2.
+@include media-breakpoint-up(md) {
+  .app-kpi-grid:has(> :nth-child(4):last-child) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .app-kpi-grid:has(> :nth-child(6):last-child),
+  .app-kpi-grid:has(> :nth-child(9):last-child) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .app-kpi-grid:has(> :nth-child(7):last-child),
+  .app-kpi-grid:has(> :nth-child(8):last-child) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@include media-breakpoint-down(sm) {
+  .app-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--app-space-2);
+  }
+}
+
+.app-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-width: 0;
+  // o tamanho do valor acompanha a largura do próprio cartão (unidades cqi), não a da tela
+  container-type: inline-size;
+  padding: var(--app-space-3) var(--app-space-4);
+  border: var(--bs-border-width) solid var(--app-border);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--app-surface);
+}
+
+// embutido num cartão: sem borda própria e raio interno = externo − padding
+.app-card .app-kpi {
+  padding: var(--app-space-2) var(--app-space-3);
+  border-color: transparent;
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
+}
+
+.app-kpi.app-kpi--emphasis {
+  border-color: var(--bs-primary-border-subtle);
+  background: var(--bs-primary-bg-subtle);
+}
+
+.app-kpi__head {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  min-width: 0;
+}
+
+.app-kpi__label {
+  overflow: hidden;
+  min-width: 0;
+  font-size: var(--app-text-sm);
   font-weight: $font-weight-medium;
+  line-height: var(--app-line-tight);
+  color: var(--bs-secondary-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// no celular (2 cartões por linha) o rótulo pode ocupar até 2 linhas antes das reticências
+@include media-breakpoint-down(sm) {
+  .app-kpi__label {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
+}
+
+// Valor fluido e sem estouro: a fonte acompanha o cartão (18–28px); valores compostos ("12 de 40 ·
+// 30%") quebram entre as partes — sobrepõe o nowrap de .app-numeric —, e só em último caso dentro
+// de uma palavra. Valores monetários (app-amount) não quebram ao meio.
+.app-kpi__value {
+  font-size: clamp(1.125rem, 8cqi, var(--app-text-2xl));
+  font-weight: $font-weight-semibold;
+  line-height: var(--app-line-tight);
+  letter-spacing: var(--app-tracking-tighter);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-kpi--text .app-kpi__value {
+  font-size: var(--app-text-md);
+  font-weight: $font-weight-medium;
+  letter-spacing: normal;
+}
+
+.app-kpi--warning .app-kpi__value {
+  color: var(--bs-warning-text-emphasis);
+}
+
+.app-kpi--danger .app-kpi__value {
+  color: var(--bs-danger-text-emphasis);
+}
+
+.app-kpi__detail {
+  font-size: var(--app-text-xs);
+  color: var(--bs-secondary-color);
+}
+
+// --------------------------------------------------------------------- abas (.nav-underline)
+
+// Abas da aplicação: `.nav-underline` do Bootstrap (`ngbNav` ou links do roteador) com a classe
+// `.app-tabs`, que ajusta só as CSS custom properties documentadas do componente: inativas em cor
+// secundária (o azul fica para ação), linha de base e rolagem horizontal no celular (sem cortar
+// rótulos). Abas não levam ícone.
+.app-tabs {
+  --bs-nav-link-color: var(--bs-secondary-color);
+  --bs-nav-link-hover-color: var(--bs-emphasis-color);
+  --bs-nav-link-font-weight: #{$font-weight-medium};
+  --bs-nav-underline-gap: 1.25rem;
+  --bs-nav-underline-link-active-color: var(--bs-emphasis-color);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-bottom: var(--app-space-4);
+  border-bottom: var(--bs-border-width) solid var(--app-border);
+  scrollbar-width: none;
+
+  .nav-link {
+    white-space: nowrap;
+  }
 }
 
 // Item que não é campo (caixa de seleção, botão de ícone, grupo de botões) numa linha de campos
@@ -239,7 +404,7 @@ body {
 
   dt {
     color: var(--bs-secondary-color);
-    font-weight: $font-weight-base;
+    font-weight: $font-weight-normal;
   }
 
   dd {
@@ -254,7 +419,7 @@ body {
 
 .app-mono {
   font-family: var(--bs-font-monospace);
-  font-size: 12px;
+  font-size: var(--app-text-xs);
 }
 
 .app-message-page {
@@ -276,7 +441,7 @@ body {
   gap: 4px;
   padding: 1px 8px;
   border-radius: var(--bs-border-radius-pill);
-  font-size: 12px;
+  font-size: var(--app-text-xs);
   font-weight: $font-weight-medium;
   line-height: 20px;
   white-space: nowrap;
@@ -304,7 +469,7 @@ body {
   margin: 0 0 16px;
   padding: 10px 12px;
   border-radius: var(--bs-border-radius);
-  font-size: 13px;
+  font-size: var(--app-text-sm);
   line-height: 20px;
 }
 
@@ -315,16 +480,17 @@ body {
 
 .app-field-error {
   margin: -4px 0 4px;
-  font-size: 12px;
+  font-size: var(--app-text-xs);
   color: var(--bs-form-invalid-color);
 }
 
 // --------------------------------------------------------------------- telas de autenticação
 
 .app-auth-title {
-  margin: 0 0 8px;
-  font-size: 20px;
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--app-text-xl);
   font-weight: $headings-font-weight;
+  letter-spacing: var(--app-tracking-tight);
 }
 
 .app-auth-text {
@@ -339,7 +505,8 @@ body {
 
 .app-otp-input {
   letter-spacing: 0.4em;
-  font-size: 18px;
+  font-size: var(--app-text-xl);
+  font-variant-numeric: tabular-nums;
 }
 
 .app-dialog-message {
@@ -402,7 +569,7 @@ body {
 // no tamanho do corpo, pelas variáveis documentadas do popover
 .app-info-popover {
   --bs-popover-max-width: min(340px, calc(100vw - 32px));
-  --bs-popover-font-size: var(--app-text-md, 0.875rem);
+  --bs-popover-font-size: var(--app-text-md);
   --bs-popover-body-padding-x: 14px;
   --bs-popover-body-padding-y: 12px;
   --bs-popover-box-shadow: var(--bs-box-shadow);
@@ -444,7 +611,7 @@ body {
   flex-direction: column;
   gap: 2px;
   padding: 6px 12px 8px;
-  font-size: 13px;
+  font-size: var(--app-text-sm);
 }
 
 .app-avatar {
@@ -454,8 +621,8 @@ body {
   height: 30px;
   border-radius: 50%;
   background: rgb(255 255 255 / 20%);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--app-text-xs);
+  font-weight: $font-weight-medium;
 }
 
 // --------------------------------------------------------------------- ajuda contextual
@@ -463,6 +630,41 @@ body {
 // painel "Sobre esta tela" (NgbOffcanvas): largura pela variável documentada do offcanvas
 .app-manual-panel {
   --bs-offcanvas-width: min(480px, 100vw);
+}
+
+// filtros recolhidos no celular (`app-filter-bar`, NgbOffcanvas): campos em largura total e o botão
+// "Ver resultados" fixo no rodapé do painel
+.app-filter-panel {
+  --bs-offcanvas-width: min(360px, 100vw);
+
+  .app-filters {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 0;
+
+    > *,
+    .app-filters__wide {
+      width: 100% !important;
+    }
+
+    .app-filters__actions {
+      min-height: 0;
+      margin-top: 0;
+    }
+  }
+}
+
+.app-filter-panel__footer {
+  padding: var(--app-space-3) var(--bs-offcanvas-padding-x);
+  border-top: var(--bs-border-width) solid var(--app-border);
+}
+
+.app-filter-bar__toggle {
+  margin-bottom: var(--app-space-3);
+
+  .badge {
+    margin-left: var(--app-space-1);
+  }
 }
 
 // chat de suporte (NgbOffcanvas): mesma largura do painel de ajuda; largura total no celular

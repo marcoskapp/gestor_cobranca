@@ -12,9 +12,10 @@
     </app-empty-state>
   } @else if (model(); as r) {
     <app-page-header [title]="'Regras · ' + p.name + ' v' + p.version" subtitle="Rascunho: nada remunera até a publicação. Percentuais de 0 a 100 (1,5 = 1,5%); fatores multiplicam (1,2 = +20%).">
-      <a class="btn btn-link" [routerLink]="['/remuneracao/planos', p.id]">
-        <app-icon name="arrow-left" />
-        Plano
+      <!-- a trilha leva à lista de planos; a ficha deste plano (o "pai" das regras) fica como secundária -->
+      <a class="btn btn-outline-secondary" [routerLink]="['/remuneracao/planos', p.id]">
+        <app-icon name="file-earmark-text" />
+        Ficha do plano
       </a>
       <button class="btn btn-outline-secondary" type="button" (click)="revert()" [disabled]="!dirty() || saving()">Desfazer alterações</button>
       <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()" data-tour="rules-save">

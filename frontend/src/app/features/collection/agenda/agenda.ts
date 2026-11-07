@@ -165,7 +165,7 @@ export function agendaFilter(
   `,
   styles: `
     .ag-late {
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
       color: var(--bs-danger-text-emphasis);
     }
   `,

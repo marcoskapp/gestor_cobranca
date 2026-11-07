@@ -53,6 +53,14 @@ td {
   font-size: var(--app-text-sm);
 }
 
+// Nomes e códigos com link nas linhas na cor do texto, sublinhados ao passar o ponteiro (o mesmo
+// efeito de `.link-body-emphasis`, pelas variáveis do link do Bootstrap): o azul fica para ação.
+tbody,
+.app-table__stack {
+  --bs-link-color-rgb: var(--bs-emphasis-color-rgb);
+  --bs-link-hover-color-rgb: var(--bs-emphasis-color-rgb);
+}
+
 tbody tr:last-child > td {
   border-bottom-width: 0;
 }
@@ -74,4 +82,112 @@ tbody tr:last-child > td {
 
 .app-table__pagination ::ng-deep .pagination {
   margin: 0;
+}
+
+// ------------------------------------------------------------- lista empilhada (celular, < 576 px)
+
+.app-table__stack {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-table__item {
+  // com o título declarado (`mobile: 'title'`) e um link nele, a linha inteira é clicável: o
+  // `::after` do link cobre o item; metadados, selo e controles ficam acima dessa camada
+  position: relative;
+  display: grid;
+  // conteúdo à esquerda; ações (quando há) numa coluna à direita, centradas na altura do item
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--app-space-1) var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-4);
+  font-size: var(--app-text-sm);
+
+  > :not(.app-table__item-actions) {
+    grid-column: 1;
+  }
+
+  & + & {
+    border-top: var(--bs-border-width) solid var(--bs-border-color);
+  }
+
+  &.app-table__item--link:has(.app-table__item-title a:hover) {
+    background: var(--bs-tertiary-bg);
+  }
+}
+
+.app-table__item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+}
+
+.app-table__item-title {
+  min-width: 0;
+  font-size: var(--app-text-md);
+  font-weight: var(--app-weight-medium);
+  overflow-wrap: anywhere;
+
+  // mesmo recurso do `.stretched-link` do Bootstrap, aplicado ao primeiro link do título
+  .app-table__item--link & a:first-of-type::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  // outros controles no título continuam alcançáveis
+  :is(button, input, select) {
+    position: relative;
+    z-index: 2;
+  }
+}
+
+.app-table__item-badge {
+  flex: none;
+}
+
+.app-table__item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--app-space-3);
+  margin: 0;
+  color: var(--bs-secondary-color);
+
+  > div {
+    display: flex;
+    gap: var(--app-space-1);
+    min-width: 0;
+  }
+
+  dt {
+    font-weight: var(--app-weight-normal);
+
+    &::after {
+      content: ':';
+    }
+  }
+
+  dd {
+    margin: 0;
+    color: var(--bs-body-color);
+  }
+}
+
+// metadados (texto selecionável e controles), selo e ações acima do link que cobre a linha
+.app-table__item-actions,
+.app-table__item-meta dd,
+.app-table__item-badge {
+  position: relative;
+  z-index: 2;
+}
+
+.app-table__item-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--app-space-1);
 }

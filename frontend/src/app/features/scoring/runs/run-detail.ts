@@ -12,7 +12,7 @@ import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
-import { KpiCard } from '../../analytics/components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { ScopeNotice } from '../components/scope-notice';
 import { ScoringRunsApi } from '../data/scoring.api';
 import { RUN_KIND_LABELS, RUN_TRIGGER_LABELS } from '../data/scoring.labels';
@@ -38,12 +38,12 @@ export const RUN_POLL_MS = 5000;
       <app-skeleton variant="card" [rows]="5" />
     } @else if (resource.status() === 'error') {
       <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a execução." message="Verifique a conexão e tente novamente.">
-        <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+        <button class="btn btn-outline-secondary" type="button" (click)="resource.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (run(); as r) {
       <app-page-header [title]="title()" [subtitle]="triggers[r.trigger] + ' · iniciada em ' + (r.startedAt | appDate)">
         @if (r.status === 'RUNNING') {
-          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="resource.reload()">
+          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="resource.reload()">
             <app-icon name="arrow-clockwise" />
             Atualizar
           </button>
@@ -55,7 +55,7 @@ export const RUN_POLL_MS = 5000;
       </div>
 
       @if (r.kind === 'BATCH') {
-        <section class="rd-kpis" aria-label="Resultado da escoragem">
+        <section class="app-kpi-grid" aria-label="Resultado da escoragem">
           <app-kpi-card label="Casos escorados" info="scoring.run.scored" detail="Score gravado nesta execução">{{ int(r.scored) }}</app-kpi-card>
           <app-kpi-card label="Ignorados" info="scoring.run.skipped" detail="Já recalculados depois da referência">{{ int(r.skipped) }}</app-kpi-card>
           <app-kpi-card label="Publicados" info="scoring.run.published" detail="Primeiro score, mudança de faixa ou variação mínima">{{ int(r.published) }}</app-kpi-card>
@@ -70,7 +70,7 @@ export const RUN_POLL_MS = 5000;
         }
       } @else {
         @let d = training();
-        <section class="rd-kpis" aria-label="Dados do treino">
+        <section class="app-kpi-grid" aria-label="Dados do treino">
           <app-kpi-card label="Observações" info="scoring.run.training-data" detail="Retratos com desfecho apurado">{{ int(d.observations) }}</app-kpi-card>
           <app-kpi-card label="Casos com desfecho" info="scoring.run.training-data" [detail]="'mínimo ' + int(d.minCases)">{{ int(d.distinctCases) }}</app-kpi-card>
           <app-kpi-card label="Casos que pagaram" info="scoring.run.training-data" [detail]="'mínimo ' + int(d.minPositives)">{{ int(d.distinctPositiveCases) }}</app-kpi-card>
@@ -142,12 +142,6 @@ export const RUN_POLL_MS = 5000;
       flex-wrap: wrap;
       align-items: center;
       gap: 8px 16px;
-      margin-bottom: var(--app-gap);
-    }
-    .rd-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: var(--app-gap);
       margin-bottom: var(--app-gap);
     }
     .rd-card {

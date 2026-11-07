@@ -15,7 +15,7 @@
     @if (canManage() && c.status !== 'FINISHED') {
       @if (editable()) {
         @if (dirty()) {
-          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="discard()">Descartar alterações</button>
+          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="discard()">Descartar alterações</button>
           <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
             <app-icon name="floppy" />
             Salvar rascunho

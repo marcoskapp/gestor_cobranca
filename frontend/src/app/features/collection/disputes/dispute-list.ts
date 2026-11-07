@@ -41,7 +41,7 @@ export { toDisputeFilter } from './dispute.rules';
   template: `
     <app-page-header title="Contestações" subtitle="Dívidas contestadas pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução.">
       @if (canManage()) {
-        <a class="btn btn-outline-primary" routerLink="/cobranca/contestacoes/configuracao" data-tour="dispute-config-link">
+        <a class="btn btn-outline-secondary" routerLink="/cobranca/contestacoes/configuracao" data-tour="dispute-config-link">
           <app-icon name="sliders" />
           Prazos, distribuição e modelos
         </a>
@@ -222,18 +222,18 @@ export { toDisputeFilter } from './dispute.rules';
     }
     .dl-kpi__label {
       font-size: var(--app-text-xs);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--bs-secondary-color);
     }
     .dl-kpi__value {
       font-size: var(--app-text-lg);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       font-variant-numeric: tabular-nums;
     }
     .dl-late {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--app-danger-fg);
     }
     .dl-soon {
@@ -316,12 +316,12 @@ export class DisputeList {
   });
 
   protected readonly columns: TableColumn[] = [
-    { key: 'due', header: 'Prazo' },
-    { key: 'type', header: 'Motivo' },
-    { key: 'debtor', header: 'Devedor' },
-    { key: 'assignee', header: 'Responsável' },
-    { key: 'status', header: 'Situação' },
-    { key: 'evidence', header: 'Evidências', align: 'end' },
+    { key: 'due', header: 'Prazo', mobile: 'meta' },
+    { key: 'type', header: 'Motivo', mobile: 'title' },
+    { key: 'debtor', header: 'Devedor', mobile: 'meta' },
+    { key: 'assignee', header: 'Responsável', mobile: 'meta' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
+    { key: 'evidence', header: 'Evidências', align: 'end', mobile: 'hidden' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

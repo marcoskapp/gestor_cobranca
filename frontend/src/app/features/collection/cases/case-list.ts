@@ -60,7 +60,7 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
   template: `
     <app-page-header title="Casos de cobrança" subtitle="Casos por devedor e carteira, com situação, elegibilidade e responsável pelo atendimento.">
       @if (canQueues()) {
-        <a class="btn btn-outline-primary" routerLink="/cobranca/filas">
+        <a class="btn btn-outline-secondary" routerLink="/cobranca/filas">
           <app-icon name="view-list" />
           Filas e distribuição
         </a>
@@ -211,12 +211,12 @@ export class CaseList {
   protected readonly assignees = nameMap(inject(UserNames), () => (this.canPickUser() ? this.query.rows().map((c) => c.assigneeUserId) : []));
 
   protected readonly columns: TableColumn[] = [
-    { key: 'debtor', header: 'Devedor' },
-    { key: 'status', header: 'Situação' },
-    { key: 'balance', header: 'Saldo', align: 'end' },
-    { key: 'overdue', header: 'Atraso' },
-    { key: 'owner', header: 'Atendimento' },
-    { key: 'next', header: 'Próxima ação' },
+    { key: 'debtor', header: 'Devedor', mobile: 'title' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
+    { key: 'balance', header: 'Saldo', align: 'end', mobile: 'meta' },
+    { key: 'overdue', header: 'Atraso', mobile: 'meta' },
+    { key: 'owner', header: 'Atendimento', mobile: 'hidden' },
+    { key: 'next', header: 'Próxima ação', mobile: 'meta' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

@@ -115,7 +115,7 @@ import { planText } from '../data/negotiation.labels';
       margin-left: auto;
     }
     .cn-late {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-danger-text-emphasis);
     }
   `,

@@ -10,7 +10,7 @@ import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
 import { ChartRow } from '../components/chart.models';
 import { FunnelChart, FunnelStage } from '../components/funnel-chart';
-import { KpiCard } from '../components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, num, percent, ratioDetail } from '../data/analytics.format';
@@ -44,7 +44,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
       } @else {
         @let r = report()!;
         @let q = r.quality;
-        <section class="pn__kpis" aria-label="Indicadores de conversão" data-tour="analytics-kpis">
+        <section class="app-kpi-grid" aria-label="Indicadores de conversão" data-tour="analytics-kpis">
           <app-kpi-card label="Acordos formalizados" info="analytics.conversion.agreements" data-tour="kpi-agreements" [detail]="percent(r.funnel.contactToAgreement) + ' dos contatos efetivos (' + ratioDetail(r.funnel.contactToAgreement) + ')'">
             {{ count(q.agreements) }}
           </app-kpi-card>

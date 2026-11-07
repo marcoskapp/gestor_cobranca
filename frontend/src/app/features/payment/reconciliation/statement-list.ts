@@ -79,7 +79,7 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
       font-size: var(--app-text-xs);
     }
     .sl-warn {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-warning-text-emphasis);
     }
   `,

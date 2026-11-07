@@ -71,7 +71,7 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
     } @else {
       <app-page-header title="Propostas" subtitle="Condições propostas ao devedor: prontas para aceite, aguardando aprovação, aceitas e formalizadas.">
         @if (canApprove()) {
-          <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" routerLink="/negociacao/aprovacoes">
+          <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" routerLink="/negociacao/aprovacoes">
             <app-icon name="person-check" />
             Fila de aprovação
           </a>
@@ -162,7 +162,7 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
   `,
   styles: `
     .pl-late {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-danger-text-emphasis);
     }
     .pl-assistant {
@@ -212,12 +212,12 @@ export class ProposalList {
   private readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => p.actor.type === 'USER').map((p) => p.actor.id), { batch: USER_NAMES_BATCH });
 
   protected readonly columns: TableColumn[] = [
-    { key: 'createdAt', header: 'Criada em' },
-    { key: 'debtor', header: 'Devedor' },
-    { key: 'total', header: 'Total', align: 'end' },
-    { key: 'plan', header: 'Forma de pagamento' },
-    { key: 'actor', header: 'Negociador' },
-    { key: 'status', header: 'Situação' },
+    { key: 'createdAt', header: 'Criada em', mobile: 'title' },
+    { key: 'debtor', header: 'Devedor', mobile: 'meta' },
+    { key: 'total', header: 'Total', align: 'end', mobile: 'meta' },
+    { key: 'plan', header: 'Forma de pagamento', mobile: 'meta' },
+    { key: 'actor', header: 'Negociador', mobile: 'hidden' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

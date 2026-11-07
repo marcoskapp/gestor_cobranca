@@ -13,18 +13,14 @@
 @if (current(); as r) {
   @let a = actions()!;
   <app-page-header [title]="typeLabels[r.type]" [subtitle]="'Solicitação de ' + r.requesterName + ' · recebida em ' + (r.receivedAt | appDate)">
-    <a class="btn btn-link" routerLink="/compliance/solicitacoes-titulares">
-      <app-icon name="arrow-left" />
-      Fila
-    </a>
     @if (a.assign && canViewUsers()) {
-      <button class="btn btn-outline-primary" type="button" (click)="assign(r)">
+      <button class="btn btn-outline-secondary" type="button" (click)="assign(r)">
         <app-icon name="person-plus" />
         Atribuir
       </button>
     }
     @if (a.reject) {
-      <button class="btn btn-outline-primary" type="button" (click)="reject(r)">
+      <button class="btn btn-outline-secondary" type="button" (click)="reject(r)">
         <app-icon name="dash-circle" />
         Recusar
       </button>

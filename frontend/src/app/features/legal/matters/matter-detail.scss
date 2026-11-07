@@ -30,38 +30,12 @@
   padding: 16px 0;
 }
 
-.md-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
 
-.md-kpi {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: var(--bs-border-radius);
-  background: var(--bs-tertiary-bg);
-}
 
-.md-kpi__label {
-  font-size: var(--app-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--bs-secondary-color);
-}
 
-.md-kpi__value {
-  font-size: var(--app-text-lg);
-  font-weight: 600;
-}
 
-.md-kpi--warn .md-kpi__value,
 .md-late {
-  font-weight: 600;
+  font-weight: var(--app-weight-semibold);
   color: var(--bs-danger-text-emphasis);
 }
 

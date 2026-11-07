@@ -131,7 +131,7 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
   `,
   styles: `
     .al-late {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-danger-text-emphasis);
     }
     .al-review {
@@ -184,11 +184,11 @@ export class AgreementList {
   }
 
   protected readonly columns: TableColumn[] = [
-    { key: 'formalizedAt', header: 'Formalizado em' },
-    { key: 'debtor', header: 'Devedor' },
-    { key: 'total', header: 'Total', align: 'end' },
-    { key: 'progress', header: 'Parcelas' },
-    { key: 'status', header: 'Situação' },
+    { key: 'formalizedAt', header: 'Formalizado em', mobile: 'title' },
+    { key: 'debtor', header: 'Devedor', mobile: 'meta' },
+    { key: 'total', header: 'Total', align: 'end', mobile: 'meta' },
+    { key: 'progress', header: 'Parcelas', mobile: 'meta' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

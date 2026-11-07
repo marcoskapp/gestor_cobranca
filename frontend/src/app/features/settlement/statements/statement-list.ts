@@ -102,7 +102,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
     }
     .sl-warn {
       color: var(--bs-warning-text-emphasis);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
   `,
 })

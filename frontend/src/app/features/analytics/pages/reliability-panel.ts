@@ -8,7 +8,7 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
 import { ChartRow } from '../components/chart.models';
-import { KpiCard } from '../components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, decimal, percent, ratioDetail, seconds } from '../data/analytics.format';
@@ -36,7 +36,7 @@ import { urlFilter } from '../data/url-filter';
         <app-skeleton variant="card" [rows]="4" />
       } @else {
         @let r = report()!;
-        <section class="pn__kpis" aria-label="Indicadores de confiabilidade" data-tour="analytics-kpis">
+        <section class="app-kpi-grid" aria-label="Indicadores de confiabilidade" data-tour="analytics-kpis">
           <app-kpi-card label="Falha em instruções de pagamento" info="analytics.reliability.instruction-failures" data-tour="kpi-instructions" [detail]="ratioDetail(r.integrations.instructionFailureRate) + ' geradas'">{{ percent(r.integrations.instructionFailureRate) }}</app-kpi-card>
           <app-kpi-card label="Mensagens com falha" info="analytics.reliability.message-failures" data-tour="kpi-messages" [detail]="ratioDetail(r.messages.failureRate) + ' enviadas'">{{ percent(r.messages.failureRate) }}</app-kpi-card>
           <app-kpi-card label="Chamadas com falha" info="analytics.reliability.call-failures" [detail]="ratioDetail(r.integrations.callFailureRate) + ' chamadas'">{{ percent(r.integrations.callFailureRate) }}</app-kpi-card>

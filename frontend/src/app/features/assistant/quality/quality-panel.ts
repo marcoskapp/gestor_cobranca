@@ -20,7 +20,7 @@ import { BarChart } from '../components/bar-chart';
 import { AssistantReviewApi } from '../data/assistant.api';
 import { AGREEMENT_GROUP_LABELS, GUARDRAIL_LABELS, HANDOFF_REASON_LABELS, PIX_DENIAL_LABELS } from '../data/assistant.labels';
 import { Bar, bars, earlyBreakBars, earlyBreakBaseText, fractionText } from '../data/assistant.rules';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 interface QualityFilter {
   from: string | null;
@@ -36,7 +36,7 @@ interface QualityFilter {
  */
 @Component({
   selector: 'app-quality-panel',
-  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, NgbInputDatepicker, Icon, AppDatePipe, BarChart, EmptyState, EntityPicker, PageHeader, Skeleton, InfoHint],
+  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, NgbInputDatepicker, Icon, AppDatePipe, BarChart, EmptyState, EntityPicker, PageHeader, Skeleton, KpiCard],
   template: `
     <app-page-header title="Qualidade do assistente" subtitle="Resultado do assistente comparado aos humanos, para decidir carteira a carteira quando avançar de fase ou ampliar a alçada." />
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar qualidade">
@@ -74,12 +74,15 @@ interface QualityFilter {
       </app-empty-state>
     } @else if (q(); as v) {
       <p class="app-muted qp-small">{{ v.from | appDate: 'date' }} a {{ v.to | appDate: 'date' }} · {{ num(v.conversations) }} conversa(s), {{ num(v.turns) }} turno(s)</p>
-      <section class="qp-kpis" aria-label="Indicadores do período" data-tour="quality-kpis">
-        <div class="qp-kpi"><span class="qp-kpi__label">Transferência para humano <app-info-hint indicator="assistant.quality.handoff-rate" label="Transferência para humano" /></span><span class="qp-kpi__value">{{ fraction(v.handoffRate) }}</span><span class="qp-kpi__hint">das conversas atendidas</span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Reclamações <app-info-hint indicator="assistant.quality.complaints" label="Reclamações" /></span><span class="qp-kpi__value app-numeric">{{ v.complaints }}</span><span class="qp-kpi__hint">Procon, advogado, ouvidoria ou opt-out</span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Custo por acordo <app-info-hint indicator="assistant.quality.cost-per-agreement" label="Custo por acordo" /></span><span class="qp-kpi__value app-numeric">{{ money(v.costPerAgreement, v.costCurrency) }}</span><span class="qp-kpi__hint">total {{ money(v.cost, v.costCurrency) }}</span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Revisões <app-info-hint indicator="assistant.quality.reviews" label="Revisões" /></span><span class="qp-kpi__value app-numeric">{{ v.avgScore !== null ? score(v.avgScore) + '/5' : '—' }}</span><span class="qp-kpi__hint">{{ v.reviewed }} avaliadas · {{ v.outOfPolicy }} fora da política · <a routerLink="/assistente/revisao">{{ v.pendingReviews }} pendentes</a></span></div>
-        <div class="qp-kpi"><span class="qp-kpi__label">Latência média <app-info-hint indicator="assistant.quality.latency" label="Latência média" /></span><span class="qp-kpi__value app-numeric">{{ num(v.avgLatencyMs) }} ms</span><span class="qp-kpi__hint">{{ num(v.inputTokens + v.outputTokens) }} tokens</span></div>
+      <section class="app-kpi-grid" aria-label="Indicadores do período" data-tour="quality-kpis">
+        <app-kpi-card label="Transferência para humano" info="assistant.quality.handoff-rate" detail="das conversas atendidas">{{ fraction(v.handoffRate) }}</app-kpi-card>
+        <app-kpi-card label="Reclamações" info="assistant.quality.complaints" detail="Procon, advogado, ouvidoria ou opt-out">{{ v.complaints }}</app-kpi-card>
+        <app-kpi-card label="Custo por acordo" info="assistant.quality.cost-per-agreement" [detail]="'total ' + money(v.cost, v.costCurrency)">{{ money(v.costPerAgreement, v.costCurrency) }}</app-kpi-card>
+        <app-kpi-card label="Revisões" info="assistant.quality.reviews">
+          {{ v.avgScore !== null ? score(v.avgScore) + '/5' : '—' }}
+          <span appKpiExtra class="app-kpi__detail">{{ v.reviewed }} avaliadas · {{ v.outOfPolicy }} fora da política · <a routerLink="/assistente/revisao">{{ v.pendingReviews }} pendentes</a></span>
+        </app-kpi-card>
+        <app-kpi-card label="Latência média" info="assistant.quality.latency" [detail]="num(v.inputTokens + v.outputTokens) + ' tokens'">{{ num(v.avgLatencyMs) }} ms</app-kpi-card>
       </section>
       <div class="qp-grid app-columns">
         <section class="app-card" data-tour="quality-handoffs">
@@ -121,36 +124,6 @@ interface QualityFilter {
       .qp-date {
         width: calc(50% - 6px) !important;
       }
-    }
-    .qp-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 12px;
-      margin-bottom: var(--app-gap);
-    }
-    .qp-kpi {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 10px 12px;
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-body-bg);
-    }
-    .qp-kpi__label {
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--bs-secondary-color);
-    }
-    .qp-kpi__value {
-      font-size: var(--app-text-xl);
-      font-weight: 600;
-    }
-    .qp-kpi__hint {
-      font-size: var(--app-text-xs);
-      color: var(--bs-secondary-color);
     }
     .qp-grid {
       display: grid;

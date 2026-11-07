@@ -68,7 +68,7 @@ type Optional = 'recoveryRate' | 'fixedPerAgreement' | 'goal' | 'teamPool' | 'ea
     }
     .re-sub {
       margin: 12px 0 4px;
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .re-row {
       display: grid;

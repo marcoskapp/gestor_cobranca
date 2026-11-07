@@ -78,7 +78,7 @@ import { Icon } from '../icon/icon';
   `,
 })
 export class EmptyState {
-  /** Nome do Bootstrap Icons (ou, na transição, do Material Icons — ver `app-icon`). */
+  /** Nome do Bootstrap Icons (ver `app-icon`). */
   readonly icon = input('inbox');
   readonly title = input.required<string>();
   readonly message = input<string>();

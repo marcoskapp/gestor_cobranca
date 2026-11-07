@@ -10,7 +10,7 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
 import { ChartRow } from '../components/chart.models';
-import { KpiCard } from '../components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, decimal, fixed2, num, percent, ratioDetail, seconds } from '../data/analytics.format';
@@ -42,7 +42,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
       } @else {
         @let r = report()!;
         @let t = r.total;
-        <section class="pn__kpis" aria-label="Indicadores de produtividade" data-tour="analytics-kpis">
+        <section class="app-kpi-grid" aria-label="Indicadores de produtividade" data-tour="analytics-kpis">
           <app-kpi-card label="Casos trabalhados" info="analytics.productivity.worked-cases" data-tour="kpi-worked" [detail]="count(t.attempts) + ' tentativas de contato'">{{ count(t.workedCases) }}</app-kpi-card>
           <app-kpi-card label="Contatos efetivos" info="analytics.productivity.effective-contacts" [detail]="percent(t.contactRate) + ' das tentativas (' + ratioDetail(t.contactRate) + ')'">{{ count(t.effectiveContacts) }}</app-kpi-card>
           <app-kpi-card label="Tempo médio de atendimento" info="analytics.productivity.handling-time" data-tour="kpi-aht" [detail]="count(t.answeredCalls) + ' chamadas atendidas'">{{ seconds(t.averageHandlingSeconds.value) }}</app-kpi-card>

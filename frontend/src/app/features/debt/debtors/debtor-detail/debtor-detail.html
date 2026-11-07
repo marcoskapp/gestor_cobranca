@@ -18,23 +18,13 @@
 
 @if (current(); as d) {
   <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
-    <a class="btn btn-link" routerLink="/devedores">
-      <app-icon name="arrow-left" />
-      Devedores
-    </a>
-    <a class="btn btn-outline-primary" routerLink="/titulos" [queryParams]="{ devedor: d.id }">
+    <a class="btn btn-outline-secondary" routerLink="/titulos" [queryParams]="{ devedor: d.id }">
       <app-icon name="file-earmark-text" />
       Títulos
     </a>
-    @if (canExportEvidence()) {
-      <button class="btn btn-outline-primary" type="button" (click)="exportEvidence(d)" ngbTooltip="Restrições e tentativas de contato (acesso registrado)">
-        <app-icon name="download" />
-        Dossiê de contato
-      </button>
-    }
     @if (canSendPortalLink() && active() && portalCreditors().length) {
       <div ngbDropdown class="d-inline-block" placement="bottom-end">
-        <button class="btn btn-outline-primary" type="button" ngbDropdownToggle ngbTooltip="Link de uso único por WhatsApp (passa pelo porteiro de contato)">
+        <button class="btn btn-outline-secondary" type="button" ngbDropdownToggle ngbTooltip="Link de uso único por WhatsApp (passa pelo porteiro de contato)">
           <app-icon name="link" />
           Enviar link do portal
           <app-icon name="chevron-down" />
@@ -52,6 +42,7 @@
         Editar dados
       </button>
     }
+    <app-more-actions [actions]="moreActions()" />
   </app-page-header>
 
   @if (!active()) {
@@ -61,27 +52,15 @@
     </div>
   }
 
-  <section class="debt-kpis" aria-label="Posição do devedor" data-tour="debtor-summary">
+  <section class="app-kpi-grid" aria-label="Posição do devedor" data-tour="debtor-summary">
     @if (position(); as p) {
-      <div class="debt-kpi">
-        <span class="debt-kpi__label">Saldo em cobrança</span>
-        <span class="debt-kpi__value"><app-amount [value]="p.totalOpenBalance" /></span>
-      </div>
-      <div class="debt-kpi">
-        <span class="debt-kpi__label">Maior atraso</span>
-        <span class="debt-kpi__value"><app-overdue-badge [days]="p.maxDaysOverdue" /></span>
-      </div>
-      <div class="debt-kpi">
-        <span class="debt-kpi__label">Títulos</span>
-        <span class="debt-kpi__value app-numeric">{{ p.titleCount }}</span>
-      </div>
-      <div class="debt-kpi">
-        <span class="debt-kpi__label">Credores</span>
-        <span class="debt-kpi__value app-numeric">{{ p.creditors.length }}</span>
-      </div>
+      <app-kpi-card label="Saldo em cobrança" record><app-amount [value]="p.totalOpenBalance" /></app-kpi-card>
+      <app-kpi-card label="Maior atraso" record><app-overdue-badge [days]="p.maxDaysOverdue" /></app-kpi-card>
+      <app-kpi-card label="Títulos" record>{{ p.titleCount }}</app-kpi-card>
+      <app-kpi-card label="Credores" record>{{ p.creditors.length }}</app-kpi-card>
     } @else if (summary.isLoading()) {
       @for (i of [1, 2, 3, 4]; track i) {
-        <div class="debt-kpi" aria-hidden="true"><app-skeleton variant="lines" [rows]="2" /></div>
+        <div class="app-kpi" aria-hidden="true"><app-skeleton variant="lines" [rows]="2" /></div>
       }
     }
   </section>
@@ -108,7 +87,7 @@
   </section>
 
   <section class="app-card" aria-label="Títulos, contatos e histórico">
-    <ul ngbNav #tabs="ngbNav" class="nav-tabs debt-tabs" data-tour="debtor-tabs">
+    <ul ngbNav #tabs="ngbNav" class="nav-underline app-tabs" data-tour="debtor-tabs">
       <li ngbNavItem>
         <button ngbNavLink type="button">Títulos ({{ titleRows().length }})</button>
         <ng-template ngbNavContent>

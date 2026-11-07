@@ -12,18 +12,14 @@
 
 @if (current(); as p) {
   <app-page-header [title]="'v' + p.version + ' · ' + p.name" [subtitle]="creditors.name(p.creditorId) + ' · esquema v' + p.termsSchemaVersion">
-    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/negociacao/politicas">
-      <app-icon name="arrow-left" />
-      Políticas
-    </a>
     @if (canManage()) {
       @if (p.status === 'DRAFT') {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="applyTemplate()" ngbTooltip="Substitui os termos pelos parâmetros usuais de mercado">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="applyTemplate()" ngbTooltip="Substitui os termos pelos parâmetros usuais de mercado">
           <app-icon name="magic" />
           Modelo de mercado
         </button>
         @if (dirty()) {
-          <button class="btn btn-outline-primary" type="button" (click)="discard()">Descartar alterações</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="discard()">Descartar alterações</button>
           <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving()">
             <app-icon name="floppy" />
             Salvar rascunho
@@ -36,7 +32,7 @@
         }
       } @else {
         @if (p.status === 'PUBLISHED' && !p.retiredAt) {
-          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="retire()">
+          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="retire()">
             <app-icon name="calendar-x" />
             Aposentar
           </button>

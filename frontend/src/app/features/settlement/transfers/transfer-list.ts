@@ -141,7 +141,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
     }
     .tl-value {
       font-size: var(--app-text-lg);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .tl-list {
       display: grid;
