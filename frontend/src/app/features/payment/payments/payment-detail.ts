@@ -33,7 +33,8 @@ import { allocationTarget, paymentActions, paymentTimeline, requestedTargetText 
 import { breakHoldBadge } from '../data/review-status';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
 
 /**
  * Ficha do pagamento: valores e destinos (alocações com o resultado da baixa), linha do tempo dos
@@ -41,7 +42,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, InfoHint],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })
@@ -67,6 +68,10 @@ export class PaymentDetail {
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly payment = valueOr<PaymentView | undefined>(this.resource, undefined);
   protected readonly busy = signal(false);
+  /** O estorno (destrutivo) fica no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2). */
+  protected readonly moreActions = computed<MoreAction[]>(() =>
+    this.actions()?.reverse ? [{ id: 'reverse', label: 'Estornar', icon: 'arrow-counterclockwise', danger: true, disabled: this.busy(), run: () => this.reverse() }] : [],
+  );
   protected readonly reviewError = signal<string | null>(null);
 
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.payment()?.creditorId]);

@@ -39,7 +39,7 @@ import { KeyboardShortcuts, formatKeys } from '../../keyboard/keyboard-shortcuts
     .sc__group {
       margin: 8px 0 6px;
       font-size: var(--app-text-xs);
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--bs-secondary-color);

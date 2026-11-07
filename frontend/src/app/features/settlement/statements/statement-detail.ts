@@ -32,6 +32,8 @@ import { AdjustmentDialog, AdjustmentDialogData, SendDialog, SendDialogData } fr
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../shared/dialog/dialog.service';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
@@ -42,7 +44,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-statement-detail',
-  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip, InfoHint],
+  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip, InfoHint, KpiCard, MoreActions],
   templateUrl: './statement-detail.html',
   styleUrl: '../settlement.scss',
 })
@@ -141,6 +143,10 @@ export class StatementDetail {
   protected readonly informative = computed(() => round2(this.expenses().filter((e) => e.effect === 'INFORMATIVE').reduce((s, e) => s + e.amount, 0)));
   protected readonly pendingAdjustments = computed(() => this.adjustments().filter((a) => a.status === 'PENDING_SECOND_APPROVAL').length);
   protected readonly busy = signal(false);
+  /** O cancelamento (destrutivo) fica no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2). */
+  protected readonly moreActions = computed<MoreAction[]>(() =>
+    this.actions()?.cancel ? [{ id: 'cancel', label: 'Cancelar demonstrativo', icon: 'slash-circle', danger: true, disabled: this.busy(), run: () => this.cancel() }] : [],
+  );
   protected readonly actionError = signal<string | null>(null);
   protected readonly downloading = signal<string | null>(null);
   protected readonly verified = signal<ReadonlyMap<string, boolean>>(new Map());

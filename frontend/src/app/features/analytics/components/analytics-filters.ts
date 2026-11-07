@@ -16,6 +16,7 @@ import { DensityService } from '../../../core/preferences/density.service';
 import { isoDate, toDateStruct } from '../../../shared/models/dates';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
 
 /** Quais filtros a tela oferece (todos os painéis compartilham o mesmo estado na URL). */
 export interface FilterOptions {
@@ -46,105 +47,107 @@ const CHANNELS = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'PORTAL', 'IN_PERSON'];
  */
 @Component({
   selector: 'app-analytics-filters',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, NgbInputDatepicker, NgbDropdownModule, EntityPicker, Icon],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, NgbInputDatepicker, NgbDropdownModule, EntityPicker, Icon, FilterBar],
   template: `
-    <form class="app-filters af" data-tour="filters" [formGroup]="form" role="search" aria-label="Filtrar painel">
-      @if (options().period !== false) {
-        <app-field label="Período">
-          <select appInput formControlName="preset">
-            @for (p of presets; track p.value) {
-              <option [ngValue]="p.value">{{ p.label }}</option>
-            }
-          </select>
-        </app-field>
-        @if (form.controls.preset.value === 'custom') {
-          <app-field class="af__date" label="De">
-            <div class="input-group">
-              <input appInput formControlName="from" [maxDate]="bound(form.controls.to.value, maxDate)" ngbDatepicker #fromPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
-              <button class="btn btn-outline-secondary" type="button" (click)="fromPicker.toggle()" aria-label="Abrir calendário da data inicial">
-                <app-icon name="calendar-event" />
-              </button>
-            </div>
-          </app-field>
-          <app-field class="af__date" label="Até">
-            <div class="input-group">
-              <input appInput formControlName="to" [minDate]="bound(form.controls.from.value, minDate)" ngbDatepicker #toPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
-              <button class="btn btn-outline-secondary" type="button" (click)="toPicker.toggle()" aria-label="Abrir calendário da data final">
-                <app-icon name="calendar-event" />
-              </button>
-            </div>
-          </app-field>
-        }
-      }
-      @if (options().creditor && canCreditors()) {
-        <div class="af__picker">
-          <app-entity-picker [control]="form.controls.creditorIds" [source]="creditorSource" label="Credor" />
-        </div>
-      }
-      @if (options().portfolio && canPortfolios()) {
-        <div class="af__picker">
-          <app-entity-picker [control]="form.controls.portfolioIds" [source]="portfolioSource" label="Carteira" />
-        </div>
-      }
-      @if (options().people && canUsers()) {
-        <div class="af__picker">
-          <app-entity-picker [control]="form.controls.operatorIds" [source]="userSource" label="Operador" />
-        </div>
-      }
-      @if (options().people && canTeams()) {
-        <div class="af__picker">
-          <app-entity-picker [control]="form.controls.teamIds" [source]="teamSource" label="Equipe" />
-        </div>
-      }
-      @if (options().channel) {
-        <div class="af__channels">
-          <span class="form-label d-block" id="af-channel-label">Canal</span>
-          <div ngbDropdown autoClose="outside" class="d-block">
-            <button
-              class="form-select text-start text-truncate"
-              [class.form-select-sm]="density.compact()"
-              type="button"
-              ngbDropdownToggle
-              aria-labelledby="af-channel-label af-channel-value"
-            >
-              <span id="af-channel-value">{{ channelSummary() }}</span>
-            </button>
-            <div ngbDropdownMenu class="shadow px-3 py-2" role="group" aria-labelledby="af-channel-label">
-              @for (c of channels; track c) {
-                <div class="form-check my-1">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    [id]="'af-channel-' + c"
-                    [checked]="form.controls.channels.value.includes(c)"
-                    #channelBox
-                    (change)="toggleChannel(c, channelBox.checked)"
-                  />
-                  <label class="form-check-label text-nowrap" [for]="'af-channel-' + c">{{ channelLabels[c] }}</label>
-                </div>
+    <app-filter-bar [activeCount]="activeCount()">
+      <form class="app-filters af" data-tour="filters" [formGroup]="form" role="search" aria-label="Filtrar painel">
+        @if (options().period !== false) {
+          <app-field label="Período">
+            <select appInput formControlName="preset">
+              @for (p of presets; track p.value) {
+                <option [ngValue]="p.value">{{ p.label }}</option>
               }
+            </select>
+          </app-field>
+          @if (form.controls.preset.value === 'custom') {
+            <app-field class="af__date" label="De">
+              <div class="input-group">
+                <input appInput formControlName="from" [maxDate]="bound(form.controls.to.value, maxDate)" ngbDatepicker #fromPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
+                <button class="btn btn-outline-secondary" type="button" (click)="fromPicker.toggle()" aria-label="Abrir calendário da data inicial">
+                  <app-icon name="calendar-event" />
+                </button>
+              </div>
+            </app-field>
+            <app-field class="af__date" label="Até">
+              <div class="input-group">
+                <input appInput formControlName="to" [minDate]="bound(form.controls.from.value, minDate)" ngbDatepicker #toPicker="ngbDatepicker" placeholder="dd/mm/aaaa" autocomplete="off" />
+                <button class="btn btn-outline-secondary" type="button" (click)="toPicker.toggle()" aria-label="Abrir calendário da data final">
+                  <app-icon name="calendar-event" />
+                </button>
+              </div>
+            </app-field>
+          }
+        }
+        @if (options().creditor && canCreditors()) {
+          <div class="af__picker">
+            <app-entity-picker [control]="form.controls.creditorIds" [source]="creditorSource" label="Credor" />
+          </div>
+        }
+        @if (options().portfolio && canPortfolios()) {
+          <div class="af__picker">
+            <app-entity-picker [control]="form.controls.portfolioIds" [source]="portfolioSource" label="Carteira" />
+          </div>
+        }
+        @if (options().people && canUsers()) {
+          <div class="af__picker">
+            <app-entity-picker [control]="form.controls.operatorIds" [source]="userSource" label="Operador" />
+          </div>
+        }
+        @if (options().people && canTeams()) {
+          <div class="af__picker">
+            <app-entity-picker [control]="form.controls.teamIds" [source]="teamSource" label="Equipe" />
+          </div>
+        }
+        @if (options().channel) {
+          <div class="af__channels">
+            <span class="form-label d-block" id="af-channel-label">Canal</span>
+            <div ngbDropdown autoClose="outside" class="d-block">
+              <button
+                class="form-select text-start text-truncate"
+                [class.form-select-sm]="density.compact()"
+                type="button"
+                ngbDropdownToggle
+                aria-labelledby="af-channel-label af-channel-value"
+              >
+                <span id="af-channel-value">{{ channelSummary() }}</span>
+              </button>
+              <div ngbDropdownMenu class="shadow px-3 py-2" role="group" aria-labelledby="af-channel-label">
+                @for (c of channels; track c) {
+                  <div class="form-check my-1">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      [id]="'af-channel-' + c"
+                      [checked]="form.controls.channels.value.includes(c)"
+                      #channelBox
+                      (change)="toggleChannel(c, channelBox.checked)"
+                    />
+                    <label class="form-check-label text-nowrap" [for]="'af-channel-' + c">{{ channelLabels[c] }}</label>
+                  </div>
+                }
+              </div>
             </div>
           </div>
-        </div>
-      }
-      @if (groupOptions().length) {
-        <app-field label="Agrupar por">
-          <select appInput formControlName="groupBy">
-            @for (g of groupOptions(); track g) {
-              <option [ngValue]="g">{{ groupLabels[g] }}</option>
-            }
-          </select>
-        </app-field>
-      }
-      @if (hasFilters()) {
-        <div class="app-filters__actions">
-          <button class="btn btn-link" type="button" (click)="clear()">
-            <app-icon name="funnel" />
-            Limpar filtros
-          </button>
-        </div>
-      }
-    </form>
+        }
+        @if (groupOptions().length) {
+          <app-field label="Agrupar por">
+            <select appInput formControlName="groupBy">
+              @for (g of groupOptions(); track g) {
+                <option [ngValue]="g">{{ groupLabels[g] }}</option>
+              }
+            </select>
+          </app-field>
+        }
+        @if (hasFilters()) {
+          <div class="app-filters__actions">
+            <button class="btn btn-link" type="button" (click)="clear()">
+              <app-icon name="funnel" />
+              Limpar filtros
+            </button>
+          </div>
+        }
+      </form>
+    </app-filter-bar>
   `,
   styles: `
     .af__date { width: 170px !important; }
@@ -197,10 +200,12 @@ export class AnalyticsFilters implements OnInit {
     groupBy: this.fb.control<string | null>(null),
   });
 
-  protected readonly hasFilters = computed(() => {
+  /** Quantos filtros (além do período) estão aplicados: o botão "Filtros (n)" do celular mostra. */
+  protected readonly activeCount = computed(() => {
     const f = this.filter();
-    return f.creditorIds.length + f.portfolioIds.length + f.operatorIds.length + f.teamIds.length + f.channels.length > 0;
+    return [f.creditorIds, f.portfolioIds, f.operatorIds, f.teamIds, f.channels].filter((ids) => ids.length > 0).length;
   });
+  protected readonly hasFilters = computed(() => this.activeCount() > 0);
 
   constructor() {
     // URL → formulário (navegação, voltar/avançar), sem reemitir

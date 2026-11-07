@@ -154,11 +154,11 @@ export class DebtorList {
   );
 
   protected readonly columns: TableColumn[] = [
-    { key: 'name', header: 'Nome' },
-    { key: 'maskedDocument', header: 'CPF/CNPJ' },
-    { key: 'personType', header: 'Tipo' },
-    { key: 'status', header: 'Situação' },
-    { key: 'createdAt', header: 'Cadastrado em' },
+    { key: 'name', header: 'Nome', mobile: 'title' },
+    { key: 'maskedDocument', header: 'CPF/CNPJ', mobile: 'meta' },
+    { key: 'personType', header: 'Tipo', mobile: 'hidden' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
+    { key: 'createdAt', header: 'Cadastrado em', mobile: 'meta' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

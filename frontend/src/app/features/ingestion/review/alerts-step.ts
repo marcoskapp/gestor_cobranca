@@ -227,13 +227,13 @@ export class AlertsStep {
   protected readonly alerts = pagedQuery(this.filter, (f, page) => this.api.alerts(f.id, f.type, f.status, page), 20);
 
   protected readonly columns = computed<TableColumn[]>(() => [
-    ...(this.canEdit() && this.status() ? [{ key: 'select', header: 'Selecionar' }] : []),
-    { key: 'row', header: 'Linha', align: 'end' as const },
-    { key: 'type', header: 'Alerta' },
-    { key: 'amount', header: 'Valor', align: 'end' as const },
-    { key: 'range', header: 'Faixa esperada', info: 'ingestion.review.expected-range' },
-    { key: 'detail', header: 'Detalhe' },
-    { key: 'status', header: 'Situação' },
+    ...(this.canEdit() && this.status() ? [{ key: 'select', header: 'Selecionar', mobile: 'meta' as const }] : []),
+    { key: 'row', header: 'Linha', align: 'end' as const, mobile: 'meta' as const },
+    { key: 'type', header: 'Alerta', mobile: 'title' as const },
+    { key: 'amount', header: 'Valor', align: 'end' as const, mobile: 'meta' as const },
+    { key: 'range', header: 'Faixa esperada', info: 'ingestion.review.expected-range', mobile: 'hidden' as const },
+    { key: 'detail', header: 'Detalhe', mobile: 'meta' as const },
+    { key: 'status', header: 'Situação', mobile: 'badge' as const },
   ]);
 
   protected typeLabel(type: AlertType): string {

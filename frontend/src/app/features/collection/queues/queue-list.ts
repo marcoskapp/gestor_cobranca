@@ -53,13 +53,13 @@ export function criteriaText(q: QueueView): string {
   template: `
     <app-page-header title="Filas de cobrança" subtitle="Critérios, prioridade, ordem de entrega e distribuição dos casos entre os operadores.">
       @if (canAssign()) {
-        <button class="btn btn-outline-primary" type="button" (click)="redistribute()">
+        <button class="btn btn-outline-secondary" type="button" (click)="redistribute()">
           <app-icon name="arrow-left-right" />
           Redistribuir casos
         </button>
       }
       @if (canManage()) {
-        <button class="btn btn-outline-primary" type="button" (click)="reroute()" ngbTooltip="Reavalia a fila de todos os casos ativos">
+        <button class="btn btn-outline-secondary" type="button" (click)="reroute()" ngbTooltip="Reavalia a fila de todos os casos ativos">
           <app-icon name="signpost-split" />
           Reprocessar roteamento
         </button>

@@ -26,9 +26,10 @@ $color-mode-type: data; // `data-bs-theme` controlado pelo ThemeService (sistema
 $enable-deprecation-messages: false;
 
 // ----------------------------------------------------------------- cores do tema
-// Azul institucional: o navy #1d4e89 fica na barra superior e nos textos de ênfase; os
-// componentes usam um azul um tom acima, que mantém ≥ 4,5:1 com texto branco e ≥ 3:1 contra
-// a superfície escura (um único `$primary` para os dois modos, sem sobrescrever componentes).
+// Azul institucional: o navy #0f2f57 (`--app-topbar-bg`) fica na barra superior e no painel de
+// marca do login; os componentes usam um azul mais claro, que mantém ≥ 4,5:1 com texto branco e
+// ≥ 3:1 contra a superfície escura (um único `$primary` para os dois modos, sem sobrescrever
+// componentes).
 $primary: #3068b5; // branco 5.57:1 · vs. #171c23 3.08:1
 $secondary: #5b6675; // branco 5.83:1
 $success: #1e7b3f; // branco 5.30:1
@@ -63,10 +64,13 @@ $danger-border-subtle: #f4bcb8;
 $body-color: #1b2430; // 15.6:1 sobre branco
 $body-bg: #ffffff; // superfície (cartões, campos, diálogos)
 $body-secondary-bg: #eceff3; // hover, esqueleto
-$body-tertiary-bg: #f6f8fb; // fundo da página (`.bg-body-tertiary` no <body>)
+$body-tertiary-bg: #f3f5f8; // fundo da página (`.bg-body-tertiary` no <body>); cartão branco 1,09:1
 $body-emphasis-color: #0b1220;
 $box-shadow: 0 0.5rem 1.5rem rgba(#0b1220, 0.1);
-$box-shadow-sm: 0 0.125rem 0.375rem rgba(#0b1220, 0.06);
+// sombra pequena em duas camadas (contorno nítido + difusão curta), padrão das ferramentas densas
+$box-shadow-sm:
+  0 1px 2px rgba(#0b1220, 0.05),
+  0 1px 3px rgba(#0b1220, 0.06);
 $box-shadow-lg: 0 1rem 2.5rem rgba(#0b1220, 0.14);
 $border-color: #dde2e9; // decorativo (cartões, tabelas)
 $border-color-translucent: rgba(#0b1220, 0.12);
@@ -74,7 +78,10 @@ $link-color: $primary; // 5.57:1
 $link-decoration: none;
 $link-hover-decoration: underline;
 
-// ----------------------------------------------------------------- tipografia (fina e delicada)
+// ----------------------------------------------------------------- tipografia (leve, mas sólida)
+// Decisão do responsável (revisão de produto 2026-11, D4 = proposta A): corpo 400, títulos 600,
+// ênfase única 600 (`$font-weight-semibold`, `.fw-semibold`), botões e rótulos 500; o traço fino
+// (300) fica só nos textos grandes (`display`, `lead`), onde o tamanho sustenta a leitura.
 // Inter Variable (OFL, @fontsource-variable/inter), servida pela aplicação — sem CDN.
 $font-family-sans-serif: 'Inter Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 $font-family-monospace: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
@@ -84,18 +91,19 @@ $font-size-lg: 1rem;
 $font-weight-light: 300;
 $font-weight-normal: 400;
 $font-weight-medium: 500;
-$font-weight-semibold: 500; // moderado
-$font-weight-bold: 600; // moderado
-$font-weight-base: 300;
+$font-weight-semibold: 600; // o único "forte" das telas (títulos de cartão, valores de destaque)
+$font-weight-bold: 700; // uso raro
+$font-weight-base: 400;
 $line-height-base: 1.5;
 
-$h1-font-size: $font-size-base * 1.6; // 22px — título de página
-$h2-font-size: $font-size-base * 1.35; // ~19px
-$h3-font-size: $font-size-base * 1.15; // 16px — título de cartão
-$h4-font-size: $font-size-base * 1.05;
+// escala de aplicação operacional (não de site): 20 · 16 · 14 · 14 · 14 · 12 px
+$h1-font-size: $font-size-base * 1.43; // 20px — título de página
+$h2-font-size: $font-size-base * 1.143; // 16px — título de cartão
+$h3-font-size: $font-size-base; // 14px — subtítulo de seção
+$h4-font-size: $font-size-base;
 $h5-font-size: $font-size-base;
-$h6-font-size: $font-size-base * 0.9;
-$headings-font-weight: 400;
+$h6-font-size: $font-size-base * 0.857; // 12px
+$headings-font-weight: $font-weight-semibold;
 $headings-line-height: 1.25;
 $headings-margin-bottom: 0.5rem;
 $display-font-weight: 300;
@@ -104,12 +112,14 @@ $small-font-size: 0.857em; // 12px sobre 14px
 $dt-font-weight: $font-weight-medium;
 $legend-font-weight: $font-weight-normal;
 
-// ----------------------------------------------------------------- arredondamento generoso
-$border-radius: 0.75rem; // 12px — botões, campos, menus
-$border-radius-sm: 0.5rem; // 8px — botões e campos pequenos, tooltips
-$border-radius-lg: 1rem; // 16px — cartões, alertas, popovers
-$border-radius-xl: 1.25rem; // 20px — diálogos
-$border-radius-xxl: 1.75rem;
+// ----------------------------------------------------------------- arredondamento (D5: 6/8/12/16)
+// Arredondado sem virar "bolha". Regra de aninhamento: raio interno = externo − padding (mín. 6px);
+// uma tabela dentro de cartão usa `--bs-border-radius` (8px).
+$border-radius: 0.5rem; // 8px — botões, campos, menus
+$border-radius-sm: 0.375rem; // 6px — botões e campos pequenos, tooltips
+$border-radius-lg: 0.75rem; // 12px — cartões, alertas, popovers
+$border-radius-xl: 1rem; // 16px — diálogos
+$border-radius-xxl: 1.5rem;
 $border-radius-pill: 50rem; // selos, busca
 
 $btn-border-radius: var(--#{$prefix}border-radius);
@@ -142,7 +152,7 @@ $input-btn-padding-y: 0.4375rem; // altura 37px no texto de 14px
 $input-btn-padding-x: 0.875rem;
 $input-btn-padding-y-sm: 0.25rem;
 $input-btn-padding-x-sm: 0.625rem;
-$btn-font-weight: $font-weight-normal;
+$btn-font-weight: $font-weight-medium;
 $btn-padding-x: 1rem;
 
 // borda dos controles com ≥ 3:1 contra a superfície (WCAG 1.4.11) nos dois modos:
@@ -150,7 +160,7 @@ $btn-padding-x: 1rem;
 $input-border-color: var(--app-control-border);
 $form-check-input-border: var(--#{$prefix}border-width) solid var(--app-control-border);
 $form-label-margin-bottom: 0.25rem;
-$form-label-font-weight: $font-weight-normal;
+$form-label-font-weight: $font-weight-medium;
 $form-text-margin-top: 0.25rem;
 $input-placeholder-color: var(--#{$prefix}secondary-color);
 

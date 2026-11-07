@@ -1,4 +1,11 @@
-/** Rótulos e tons visuais dos estados de cada conceito do backend. */
+/**
+ * Rótulos e tons visuais dos estados de cada conceito do backend.
+ *
+ * Regra dos tons (docs/tecnico/desenho/ux.md §7): `danger` = falha, perda ou bloqueio; `warning`
+ * (amarelo) só para o que **exige atenção** — ação humana pendente (aprovar, revisar, responder) ou
+ * risco em curso; `info` = etapa normal em andamento ou aguardando um evento esperado (pagamento,
+ * prazo, fase de processo); `success` = concluído bem; `neutral` = encerrado ou inativo sem juízo.
+ */
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 
@@ -152,7 +159,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   dataSubjectRequest: {
     RECEIVED: { label: 'Recebida', tone: 'info' },
     IDENTITY_VERIFIED: { label: 'Identidade confirmada', tone: 'info' },
-    IN_PROGRESS: { label: 'Em atendimento', tone: 'warning' },
+    IN_PROGRESS: { label: 'Em atendimento', tone: 'info' },
     COMPLETED: { label: 'Concluída', tone: 'success' },
     REJECTED: { label: 'Recusada', tone: 'neutral' },
   },
@@ -164,15 +171,15 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   retentionItem: {
     ELIGIBLE: { label: 'Elegível', tone: 'info' },
     ANONYMIZED: { label: 'Anonimizado', tone: 'success' },
-    RETAINED: { label: 'Mantido (base legal)', tone: 'warning' },
+    RETAINED: { label: 'Mantido (base legal)', tone: 'info' },
     FAILED: { label: 'Falhou', tone: 'danger' },
   },
   /** Vigência calculada na tela a partir de `validFrom`/`validUntil` (`legalBasisPeriod`). */
   /** `CollateralStatus` do módulo debt. */
   collateral: {
     ACTIVE: { label: 'Vigente', tone: 'success' },
-    UNDER_ENFORCEMENT: { label: 'Em execução', tone: 'warning' },
-    SEIZED: { label: 'Apreendida', tone: 'warning' },
+    UNDER_ENFORCEMENT: { label: 'Em execução', tone: 'info' },
+    SEIZED: { label: 'Apreendida', tone: 'info' },
     CONSOLIDATED: { label: 'Propriedade consolidada', tone: 'info' },
     AUCTIONED: { label: 'Leiloada', tone: 'info' },
     RELEASED: { label: 'Liberada', tone: 'neutral' },
@@ -182,7 +189,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   case: {
     OPEN: { label: 'Em aberto', tone: 'info' },
     IN_NEGOTIATION: { label: 'Em negociação', tone: 'info' },
-    PROMISE: { label: 'Promessa', tone: 'warning' },
+    PROMISE: { label: 'Promessa', tone: 'info' },
     AGREEMENT: { label: 'Acordo', tone: 'success' },
     DISPUTED: { label: 'Contestado', tone: 'danger' },
     SUSPENDED: { label: 'Suspenso', tone: 'warning' },
@@ -197,7 +204,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     CANCELLED: { label: 'Cancelado', tone: 'neutral' },
   },
   promise: {
-    PENDING: { label: 'Aguardando pagamento', tone: 'warning' },
+    PENDING: { label: 'Aguardando pagamento', tone: 'info' },
     KEPT: { label: 'Cumprida', tone: 'success' },
     BROKEN: { label: 'Quebrada', tone: 'danger' },
     CANCELLED: { label: 'Cancelada', tone: 'neutral' },
@@ -407,7 +414,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     EXTRAJUDICIAL: { label: 'Extrajudicial', tone: 'info' },
     FILED: { label: 'Ajuizado', tone: 'info' },
     IN_PROGRESS: { label: 'Em andamento', tone: 'info' },
-    ENFORCEMENT: { label: 'Constrição', tone: 'warning' },
+    ENFORCEMENT: { label: 'Constrição', tone: 'info' },
     SETTLED_IN_COURT: { label: 'Acordo judicial', tone: 'success' },
     CLOSED: { label: 'Encerrado', tone: 'neutral' },
     NOT_VIABLE: { label: 'Inviável', tone: 'neutral' },
@@ -479,14 +486,14 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   /** Execução de etapa (`StepOutcome`). */
   stepOutcome: {
     EXECUTED: { label: 'Executada', tone: 'success' },
-    SKIPPED: { label: 'Pulada', tone: 'warning' },
+    SKIPPED: { label: 'Pulada', tone: 'neutral' },
     FAILED: { label: 'Falhou', tone: 'danger' },
   },
   /** Sessão do devedor no portal. */
   portalSession: {
     ACTIVE: { label: 'Ativa', tone: 'success' },
     ENDED: { label: 'Encerrada pelo devedor', tone: 'neutral' },
-    REVOKED: { label: 'Revogada', tone: 'warning' },
+    REVOKED: { label: 'Revogada', tone: 'neutral' },
     EXPIRED: { label: 'Expirada', tone: 'neutral' },
   },
   /** Pedido de atendimento vindo do portal. */
@@ -518,7 +525,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     PROCESSING: { label: 'Processando', tone: 'info' },
     PROCESSED: { label: 'Processado', tone: 'success' },
     FAILED: { label: 'Com falha', tone: 'danger' },
-    CANCELLED: { label: 'Cancelado', tone: 'warning' },
+    CANCELLED: { label: 'Cancelado', tone: 'neutral' },
   },
   /** Linha do extrato (`StatementLineStatus`). */
   statementLine: {
@@ -612,7 +619,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   },
   /** Lançamento do razão de comissão (`EntryStatus`). */
   commissionEntry: {
-    PENDING: { label: 'Em carência', tone: 'warning' },
+    PENDING: { label: 'Em carência', tone: 'info' },
     CLEARED: { label: 'Liberado', tone: 'success' },
     WAIVED: { label: 'Dispensado', tone: 'neutral' },
   },
@@ -638,7 +645,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     OFFLINE: { label: 'Fora da telefonia', tone: 'neutral' },
     AVAILABLE: { label: 'Disponível', tone: 'success' },
     ON_CALL: { label: 'Em chamada', tone: 'info' },
-    WRAP_UP: { label: 'Pós-atendimento', tone: 'warning' },
+    WRAP_UP: { label: 'Pós-atendimento', tone: 'info' },
     PAUSED: { label: 'Em pausa', tone: 'warning' },
   },
   /** Campanha de discagem (`DialerCampaignStatus`). */
@@ -674,7 +681,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     OFF: { label: 'Desligado', tone: 'neutral' },
     SHADOW: { label: 'Sombra', tone: 'info' },
     COPILOT: { label: 'Copiloto', tone: 'info' },
-    AUTONOMOUS_WITH_APPROVAL: { label: 'Autônomo com aprovação', tone: 'warning' },
+    AUTONOMOUS_WITH_APPROVAL: { label: 'Autônomo com aprovação', tone: 'info' },
     AUTONOMOUS: { label: 'Autônomo', tone: 'success' },
   },
   /** Revisão de turno do assistente (`ReviewStatus`). */

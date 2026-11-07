@@ -50,12 +50,11 @@ const POLL_MS = 3000;
     }
     @if (current(); as v) {
       <app-page-header title="Importação PDF inteligente" [subtitle]="v.fileName + ' · ' + creditors.name(v.creditorId) + ' · ' + portfolios.name(v.portfolioId)">
-        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
         @if (canSensitive() && v.fileAvailable) {
-          <button class="btn btn-outline-primary" type="button" (click)="download(v)"><app-icon name="download" /> PDF original</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="download(v)"><app-icon name="download" /> PDF original</button>
         }
         @if (canExecute() && editable() && v.textLayer && v.status !== 'MAPPING') {
-          <button class="btn btn-outline-primary" type="button" (click)="newMap(v)" [disabled]="busy()"><app-icon name="robot" /> Pedir novo mapa à IA</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="newMap(v)" [disabled]="busy()"><app-icon name="robot" /> Pedir novo mapa à IA</button>
         }
         @if (canExecute() && open()) {
           <button class="btn btn-outline-danger" type="button" (click)="discard(v)" [disabled]="busy()"><app-icon name="x-circle" /> Descartar</button>
@@ -309,7 +308,7 @@ const POLL_MS = 3000;
     .pd-kpis dd {
       margin: 0;
       font-size: 1.1rem;
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .pd-totals {
       font-size: var(--app-text-sm);

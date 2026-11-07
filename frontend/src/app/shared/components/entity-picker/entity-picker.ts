@@ -24,7 +24,7 @@ let nextId = 0;
 /**
  * Seleção de entidades com busca no servidor (typeahead do ng-bootstrap, padrão combobox da
  * WAI-ARIA) e selos removíveis. O valor do controle é a lista de ids; em modo `single`, no
- * máximo um id. Mesma API do componente anterior (Angular Material).
+ * máximo um id.
  */
 @Component({
   selector: 'app-entity-picker',

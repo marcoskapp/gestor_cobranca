@@ -20,7 +20,7 @@
     }
     @if (editable()) {
       @if (creating()) {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="cancelCreate()">Cancelar</button>
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="cancelCreate()">Cancelar</button>
       }
       @if (dirty()) {
         <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving() || problems().length > 0">
@@ -35,7 +35,7 @@
       }
     }
     @if (canManage() && selected()?.status === 'RUNNING') {
-      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="stop()">
+      <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="stop()">
         <app-icon name="stop-circle" />
         Encerrar teste
       </button>

@@ -119,14 +119,14 @@ export class TitleList {
   protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.query.rows().map((t) => t.portfolioId));
 
   protected readonly columns: TableColumn[] = [
-    { key: 'title', header: 'Título' },
-    { key: 'debtor', header: 'Devedor' },
-    { key: 'creditor', header: 'Credor' },
-    { key: 'portfolio', header: 'Carteira' },
-    { key: 'dueDate', header: 'Vencimento' },
-    { key: 'overdue', header: 'Atraso' },
-    { key: 'openBalance', header: 'Saldo em aberto', align: 'end' },
-    { key: 'status', header: 'Situação' },
+    { key: 'title', header: 'Título', mobile: 'title' },
+    { key: 'debtor', header: 'Devedor', mobile: 'meta' },
+    { key: 'creditor', header: 'Credor', mobile: 'hidden' },
+    { key: 'portfolio', header: 'Carteira', mobile: 'hidden' },
+    { key: 'dueDate', header: 'Vencimento', mobile: 'hidden' },
+    { key: 'overdue', header: 'Atraso', mobile: 'meta' },
+    { key: 'openBalance', header: 'Saldo em aberto', align: 'end', mobile: 'meta' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
   ];
 
   protected clearDebtor(): void {

@@ -12,7 +12,7 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
 import { ChartRow } from '../components/chart.models';
-import { KpiCard } from '../components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, num, percent, ratioDetail } from '../data/analytics.format';
@@ -43,7 +43,7 @@ import { urlFilter } from '../data/url-filter';
       } @else {
         @let r = report()!;
         @let t = r.totals;
-        <section class="pn__kpis" aria-label="Indicadores da carteira" data-tour="analytics-kpis">
+        <section class="app-kpi-grid" aria-label="Indicadores da carteira" data-tour="analytics-kpis">
           <app-kpi-card label="Valor da carteira" info="analytics.portfolio.amount" data-tour="kpi-portfolio" [detail]="count(t.openTitles) + ' títulos em cobrança'">
             <app-amount [value]="t.portfolioAmount" [compact]="true" />
           </app-kpi-card>

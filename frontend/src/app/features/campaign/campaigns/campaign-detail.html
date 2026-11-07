@@ -26,13 +26,13 @@
         </button>
       }
       @if (c.status === 'ACTIVE') {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="pause()" [disabled]="busy()">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="pause()" [disabled]="busy()">
           <app-icon name="pause" />
           Pausar
         </button>
       }
       @if (c.status !== 'FINISHED') {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="finish()" [disabled]="busy()">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="finish()" [disabled]="busy()">
           <app-icon name="stop-circle" />
           Encerrar
         </button>

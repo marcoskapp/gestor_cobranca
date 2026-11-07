@@ -109,7 +109,7 @@ export const INDICATOR_MAX_ITEMS = 6;
       margin: 0;
       padding: 6px 16px;
       color: var(--bs-secondary-color);
-      font-size: var(--app-text-sm, 0.8125rem);
+      font-size: var(--app-text-sm);
     }
     .pwind__note--ok {
       color: var(--bs-success-text-emphasis);

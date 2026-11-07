@@ -39,7 +39,7 @@ import { Bar } from '../data/assistant.rules';
     }
     .bc__title {
       margin-bottom: 8px;
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       font-size: var(--app-text-sm);
     }
     .bc__list {
@@ -78,7 +78,7 @@ import { Bar } from '../data/assistant.rules';
     .bc__value {
       min-width: 56px;
       text-align: right;
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .bc__empty {
       margin: 0;

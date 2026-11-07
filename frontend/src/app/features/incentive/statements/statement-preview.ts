@@ -1,14 +1,12 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { Amount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
-import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -18,7 +16,7 @@ import { LedgerTable } from '../components/ledger-table';
 import { StatementLines } from '../components/statement-lines';
 import { CommissionStatementsApi } from '../data/incentive.api';
 import { monthLabel } from '../data/incentive.rules';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /**
  * Prévia em tempo real do período corrente: quanto já foi liberado e quanto está em carência,
@@ -26,13 +24,9 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-incentive-statement-preview',
-  imports: [ReactiveFormsModule, RouterLink, Amount, EmptyState, EntityPicker, Icon, LedgerTable, PageHeader, Skeleton, StatementLines, StatusChip, InfoHint],
+  imports: [ReactiveFormsModule, Amount, EmptyState, EntityPicker, LedgerTable, PageHeader, Skeleton, StatementLines, StatusChip, KpiCard],
   template: `
     <app-page-header [title]="person() ? 'Prévia do período' : 'Minha prévia do período'" subtitle="Comissão do mês em curso com o que já foi pago: liberado e em carência. Valor informativo até o fechamento.">
-      <a class="btn btn-link" routerLink="/remuneracao/extratos">
-        <app-icon name="arrow-left" />
-        Extratos
-      </a>
     </app-page-header>
     @if (canPickPeople()) {
       <form class="app-filters" data-tour="filters" [formGroup]="form" role="search" aria-label="Escolher negociador">
@@ -57,11 +51,11 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
       </div>
       <section class="app-card" aria-labelledby="pv-values" data-tour="preview-values">
         <h2 class="app-card__title" id="pv-values">Valores até agora</h2>
-        <div class="in-kpis mb-2">
-          <div class="in-kpi"><span class="in-kpi__label">Recuperado liberado <app-info-hint indicator="incentive.preview.cleared" label="Recuperado liberado" /></span><span class="in-kpi__value"><app-amount [value]="p.clearedRecovery" /></span></div>
-          <div class="in-kpi"><span class="in-kpi__label">Em carência <app-info-hint indicator="incentive.preview.pending" label="Em carência" /></span><span class="in-kpi__value"><app-amount [value]="p.pendingRecovery" /></span></div>
-          <div class="in-kpi"><span class="in-kpi__label">Variável com o liberado <app-info-hint indicator="incentive.preview.cleared" label="Variável com o liberado" /></span><span class="in-kpi__value"><app-amount [value]="p.clearedAmount" /></span></div>
-          <div class="in-kpi in-kpi--total"><span class="in-kpi__label">Variável projetado <app-info-hint indicator="incentive.preview.projected" label="Variável projetado" /></span><span class="in-kpi__value"><app-amount [value]="p.projectedAmount" /></span></div>
+        <div class="app-kpi-grid mb-2">
+          <app-kpi-card label="Recuperado liberado" info="incentive.preview.cleared"><app-amount [value]="p.clearedRecovery" /></app-kpi-card>
+          <app-kpi-card label="Em carência" info="incentive.preview.pending"><app-amount [value]="p.pendingRecovery" /></app-kpi-card>
+          <app-kpi-card label="Variável com o liberado" info="incentive.preview.cleared"><app-amount [value]="p.clearedAmount" /></app-kpi-card>
+          <app-kpi-card label="Variável projetado" info="incentive.preview.projected" emphasis><app-amount [value]="p.projectedAmount" /></app-kpi-card>
         </div>
         <p class="app-muted in-small mb-0">Projetado = se todos os pagamentos em carência forem liberados sem estorno. Meta, deflatores e portão de monitoria são reavaliados no fechamento.</p>
       </section>

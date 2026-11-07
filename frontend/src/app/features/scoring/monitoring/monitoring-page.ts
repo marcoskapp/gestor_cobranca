@@ -1,7 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../../core/auth/auth.service';
-import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { ScopeNotice } from '../components/scope-notice';
 import { ExpectedRecoveryPanel } from './expected-recovery-panel';
@@ -14,12 +13,12 @@ import { StabilityPanel } from './stability-panel';
  */
 @Component({
   selector: 'app-monitoring-page',
-  imports: [Icon, NgbNavModule, PageHeader, ScopeNotice, ExpectedRecoveryPanel, StabilityPanel],
+  imports: [NgbNavModule, PageHeader, ScopeNotice, ExpectedRecoveryPanel, StabilityPanel],
   template: `
     <app-page-header title="Monitoramento do score" subtitle="Deriva da população, calibração, desempenho real das safras e recuperado × esperado." />
-    <ul ngbNav #nav="ngbNav" class="nav-tabs mb-3" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="scoring-monitoring-tabs">
+    <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="scoring-monitoring-tabs">
       <li [ngbNavItem]="'stability'">
-        <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2"><app-icon name="activity" />Estabilidade e calibração</button>
+        <button ngbNavLink type="button">Estabilidade e calibração</button>
         <ng-template ngbNavContent>
           @if (allCreditors()) {
             <app-stability-panel />
@@ -29,7 +28,7 @@ import { StabilityPanel } from './stability-panel';
         </ng-template>
       </li>
       <li [ngbNavItem]="'recovery'">
-        <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2"><app-icon name="cash-stack" />Recuperado × esperado</button>
+        <button ngbNavLink type="button">Recuperado × esperado</button>
         <ng-template ngbNavContent>
           <app-expected-recovery-panel />
         </ng-template>

@@ -1,6 +1,9 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, contentChildren, inject, input, output } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { NgbPagination } from '@ng-bootstrap/ng-bootstrap';
+import { map } from 'rxjs';
 import { DensityService } from '../../../core/preferences/density.service';
 import { PAGE_SIZE_OPTIONS, PageRequest } from '../../models/page';
 import { EmptyState } from '../empty-state/empty-state';
@@ -20,6 +23,32 @@ export interface TableColumn {
   sortable?: boolean;
   /** Id do indicador no catálogo de informação contextual: "i" ao lado do cabeçalho (ux.md §8.6). */
   info?: string;
+  /**
+   * Papel na lista empilhada do celular (< 576 px): `title` (linha principal), `meta` (até três
+   * metadados com o rótulo), `badge` (selo à direita) ou `hidden`. Sem indicação: a primeira coluna
+   * é o título, a coluna `status` é o selo e as três seguintes são metadados.
+   */
+  mobile?: 'title' | 'meta' | 'badge' | 'hidden';
+}
+
+/** Distribuição das colunas na lista empilhada do celular. */
+export interface StackLayout {
+  title: TableColumn | undefined;
+  badge: TableColumn | undefined;
+  meta: TableColumn[];
+  actions: TableColumn | undefined;
+}
+
+const STACK_META = 3;
+
+/** Papéis das colunas na lista empilhada (ver `TableColumn.mobile`). */
+export function stackLayout(columns: readonly TableColumn[]): StackLayout {
+  const content = columns.filter((c) => !c.actions && c.mobile !== 'hidden');
+  const title = content.find((c) => c.mobile === 'title') ?? content.find((c) => c.mobile === undefined && c.key !== 'status') ?? content[0];
+  const badge = content.find((c) => c.mobile === 'badge') ?? content.find((c) => c !== title && c.mobile === undefined && c.key === 'status');
+  const explicit = content.filter((c) => c.mobile === 'meta');
+  const meta = explicit.length ? explicit : content.filter((c) => c !== title && c !== badge && c.mobile === undefined).slice(0, STACK_META);
+  return { title, badge, meta, actions: columns.find((c) => c.actions) };
 }
 
 export interface TablePage {
@@ -52,6 +81,10 @@ let nextId = 0;
  * vazio pode ser projetada com o atributo `appEmptyAction`. Células personalizadas por
  * `<ng-template appCell="coluna">`; sem template, a célula exibe o valor como texto
  * (interpolação, nunca HTML). Na densidade compacta usa `.table-sm`.
+ *
+ * Celular (< 576 px): lista empilhada em vez da tabela — coluna principal como título, até três
+ * metadados com rótulo, selo à direita e a linha inteira clicável quando o título tem um link
+ * (ver `TableColumn.mobile`). A paginação some quando tudo cabe numa página.
  */
 @Component({
   selector: 'app-data-table',
@@ -85,6 +118,25 @@ export class DataTable<T> {
   protected readonly skeletonColumns = computed(() => Math.max(1, Math.min(this.columns().filter((c) => !c.actions).length, 6)));
   protected readonly templates = computed(() => new Map(this.cells().map((c) => [c.appCell(), c.template])));
   protected readonly trackRow = (row: T): unknown => this.rowKey()(row);
+
+  /** Lista empilhada abaixo de 576 px (ponto `sm` do Bootstrap). */
+  protected readonly stacked = toSignal(
+    inject(BreakpointObserver)
+      .observe('(max-width: 575.98px)')
+      .pipe(map((state) => state.matches)),
+    { initialValue: false },
+  );
+  protected readonly stack = computed(() => stackLayout(this.columns()));
+
+  /** Paginador só quando há mais de uma página (ou fora da primeira). */
+  protected showPager(p: TablePage): boolean {
+    return p.total > p.size || p.index > 0;
+  }
+
+  /** Rodapé (quantidade por página e faixa) só quando a quantidade escolhida muda algo. */
+  protected showFooter(p: TablePage): boolean {
+    return this.showPager(p) || p.total > Math.min(...this.pageSizeOptions);
+  }
 
   protected text(row: T, key: string): string {
     const value = (row as Record<string, unknown>)[key];

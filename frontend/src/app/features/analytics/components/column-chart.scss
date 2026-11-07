@@ -13,8 +13,8 @@
   gap: 8px;
 }
 .cc__title {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--app-text-lg);
+  font-weight: var(--app-weight-semibold);
 }
 .cc__summary {
   margin: 0 0 8px;
@@ -43,13 +43,13 @@
 .cc__tick,
 .cc__xlabel,
 .cc__value {
-  font-size: 11px;
+  font-size: var(--app-text-xs);
   fill: var(--bs-secondary-color);
   font-variant-numeric: tabular-nums;
 }
 .cc__value {
   fill: var(--bs-body-color);
-  font-weight: 600;
+  font-weight: var(--app-weight-semibold);
 }
 .cc__hit {
   fill: transparent;

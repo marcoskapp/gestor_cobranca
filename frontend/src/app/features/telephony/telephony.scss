@@ -6,34 +6,6 @@
   gap: 8px 16px;
   margin-bottom: var(--app-gap);
 }
-.tl-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-}
-.tl-kpi {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: var(--app-radius-md);
-  background: var(--app-surface-raised);
-}
-.tl-kpi__label {
-  font-size: var(--app-text-xs);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--bs-secondary-color);
-}
-.tl-kpi__value {
-  font-size: var(--app-text-xl);
-  font-weight: 400;
-}
-.tl-kpi__hint {
-  font-size: var(--app-text-xs);
-  color: var(--bs-secondary-color);
-}
 .tl-meter {
   position: relative;
   height: 8px;

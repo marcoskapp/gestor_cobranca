@@ -16,7 +16,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { BarChart } from '../../analytics/components/bar-chart';
 import { ChartRow } from '../../analytics/components/chart.models';
 import { ColumnChart } from '../../analytics/components/column-chart';
-import { KpiCard } from '../../analytics/components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { PublicApiUsageApi } from '../data/public-api.api';
 import { formatBytes } from '../data/public-api.labels';
@@ -41,7 +41,7 @@ function isoDay(date: Date): string {
   template: `
     <app-page-header title="Consumo da API pública" subtitle="Requisições, dados trafegados e registros processados pelos tokens dos credores. Base do extrato mensal.">
       @if (canExport()) {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="export()" [disabled]="exporting()" data-tour="usage-export">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="export()" [disabled]="exporting()" data-tour="usage-export">
           <app-icon name="download" />
           Exportar CSV
         </button>
@@ -71,7 +71,7 @@ function isoDay(date: Date): string {
         <button class="btn btn-outline-primary" type="button" (click)="report.reload()">Tentar novamente</button>
       </app-empty-state>
     } @else if (data(); as r) {
-      <div class="up-kpis" data-tour="usage-kpis">
+      <div class="app-kpi-grid" data-tour="usage-kpis">
         <app-kpi-card label="Requisições" info="publicapi.usage.requests" [detail]="count(r.totals.billableRequests) + ' cobráveis (2xx/3xx)'">{{ count(r.totals.requests) }}</app-kpi-card>
         <app-kpi-card label="Limitadas (429)" info="publicapi.usage.throttled" detail="Não cobradas">{{ count(r.totals.throttled) }}</app-kpi-card>
         <app-kpi-card label="Erros (não cobrados)" info="publicapi.usage.errors" [detail]="count(r.totals.clientErrors) + ' do cliente (4xx) · ' + count(r.totals.serverErrors) + ' da plataforma (5xx)'">{{ count(r.totals.clientErrors + r.totals.serverErrors) }}</app-kpi-card>
@@ -97,12 +97,6 @@ function isoDay(date: Date): string {
     }
   `,
   styles: `
-    .up-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
-      gap: var(--app-gap);
-      margin-bottom: var(--app-gap);
-    }
     .up-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));

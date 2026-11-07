@@ -67,7 +67,7 @@
 }
 .as-version--current {
   background: var(--bs-tertiary-bg);
-  font-weight: 600;
+  font-weight: var(--app-weight-semibold);
 }
 .as-pre {
   max-height: 320px;

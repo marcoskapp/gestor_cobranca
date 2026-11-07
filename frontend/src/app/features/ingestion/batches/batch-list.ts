@@ -57,7 +57,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
   template: `
     <app-page-header title="Importação de carteiras" subtitle="Arquivos e integrações recebidos dos credores, com prévia, progresso e ocorrências por linha.">
       <div ngbDropdown placement="bottom-end" class="d-inline-flex">
-        <button class="btn btn-outline-primary" type="button" ngbDropdownToggle>
+        <button class="btn btn-outline-secondary" type="button" ngbDropdownToggle>
           <app-icon name="download" />
           Modelo do layout padrão
         </button>
@@ -66,12 +66,12 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
           <button ngbDropdownItem type="button" (click)="template('csv')">Arquivo CSV</button>
         </div>
       </div>
-      <a class="btn btn-outline-primary" routerLink="/importacao/layouts">
+      <a class="btn btn-outline-secondary" routerLink="/importacao/layouts">
         <app-icon name="layout-three-columns" />
         Layouts
       </a>
       @if (canExecute()) {
-        <a class="btn btn-outline-primary" routerLink="/importacao/pdf/nova" [queryParams]="newParams()" data-tour="pdf-entry">
+        <a class="btn btn-outline-secondary" routerLink="/importacao/pdf/nova" [queryParams]="newParams()" data-tour="pdf-entry">
           <app-icon name="file-earmark-pdf" />
           Importação PDF inteligente
         </a>

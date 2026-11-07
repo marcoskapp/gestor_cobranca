@@ -17,7 +17,7 @@ import { UserLookup } from '../../admin/data/user.lookup';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { BarChart } from '../../analytics/components/bar-chart';
 import { ChartRow } from '../../analytics/components/chart.models';
-import { KpiCard } from '../../analytics/components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { count, fixed2, seconds } from '../../analytics/data/analytics.format';
 import { TeamLookup } from '../../collection/data/collection.lookups';
 import { zonedNow } from '../../collection/data/collection.rules';
@@ -105,7 +105,7 @@ export function monthRange(month: string, today: string): { from: string; to: st
       <app-empty-state icon="speedometer2" title="Sem atividade no período." message="Nenhum fato de desempenho para os filtros escolhidos." />
     } @else {
       @let t = total()!;
-      <section class="in-kpis" aria-label="Indicadores do período" data-tour="performance-kpis">
+      <section class="app-kpi-grid" aria-label="Indicadores do período" data-tour="performance-kpis">
         <app-kpi-card label="Casos trabalhados" info="incentive.performance.worked-cases" [detail]="count(t.effort.attempts) + ' tentativas'">{{ count(t.effort.workedCases) }}</app-kpi-card>
         <app-kpi-card label="Contatos efetivos" info="incentive.performance.effective-contacts" [detail]="pct(t.effort.effectiveContactRate) + ' das tentativas'">{{ count(t.effort.effectiveContacts) }}</app-kpi-card>
         <app-kpi-card label="Acordos" info="incentive.performance.agreements" [detail]="rate(t.conversion.agreementsPerLoggedHour) + ' por hora logada'">{{ count(t.conversion.agreements) }}</app-kpi-card>

@@ -27,14 +27,14 @@ import { ReconciliationApi } from '../data/payment.api';
 import { DIRECTION_LABELS, PAYMENT_ERROR_LABELS, STATEMENT_FAILURE_LABELS } from '../data/payment.labels';
 import { StatementImportView } from '../data/payment.models';
 import { importIndicators, isImportRunning } from '../data/payment.rules';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 });
 
 /** Resultado de um extrato importado: indicadores do lote e o tratamento de cada linha. */
 @Component({
   selector: 'app-statement-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip, InfoHint],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip, KpiCard],
   template: `
     @if (resource.isLoading() && !statement()) {
       <app-skeleton variant="card" [rows]="5" />
@@ -52,7 +52,7 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
           </button>
         }
         @if (retryable(s) && canManage()) {
-          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" data-tour="statement-retry" [disabled]="retrying()" (click)="retry(s)">
+          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" data-tour="statement-retry" [disabled]="retrying()" (click)="retry(s)">
             <app-icon name="arrow-clockwise" />
             {{ retrying() ? 'Enviando…' : 'Tentar novamente' }}
           </button>
@@ -119,15 +119,15 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
         </div>
       }
 
-      <section class="app-card" aria-labelledby="sd-kpis" data-tour="statement-indicators">
-        <h2 class="app-card__title" id="sd-kpis">Indicadores do lote</h2>
-        <div class="sd-kpis">
-          <div class="sd-kpi"><span class="sd-kpi__label">Linhas lidas <app-info-hint indicator="payment.statement.lines" label="Linhas lidas" /></span><span class="sd-kpi__value">{{ s.totalLines }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Créditos tratados <app-info-hint indicator="payment.statement.credits" label="Créditos tratados" /></span><span class="sd-kpi__value">{{ ind.credits }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Conciliadas <app-info-hint indicator="payment.statement.reconciled" label="Conciliadas" /></span><span class="sd-kpi__value">{{ s.reconciledLines }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Confirmaram pagamento <app-info-hint indicator="payment.statement.confirmed" label="Confirmaram pagamento" /></span><span class="sd-kpi__value">{{ s.createdPayments }}</span></div>
-          <div class="sd-kpi sd-kpi--warn"><span class="sd-kpi__label">Divergentes <app-info-hint indicator="payment.statement.divergent" label="Divergentes" /></span><span class="sd-kpi__value">{{ s.divergentLines }}</span></div>
-          <div class="sd-kpi"><span class="sd-kpi__label">Ignoradas <app-info-hint indicator="payment.statement.ignored" label="Ignoradas" /></span><span class="sd-kpi__value">{{ s.ignoredLines }}</span></div>
+      <section class="app-card" aria-labelledby="app-kpi-grid" data-tour="statement-indicators">
+        <h2 class="app-card__title" id="app-kpi-grid">Indicadores do lote</h2>
+        <div class="app-kpi-grid">
+          <app-kpi-card label="Linhas lidas" info="payment.statement.lines">{{ s.totalLines }}</app-kpi-card>
+          <app-kpi-card label="Créditos tratados" info="payment.statement.credits">{{ ind.credits }}</app-kpi-card>
+          <app-kpi-card label="Conciliadas" info="payment.statement.reconciled">{{ s.reconciledLines }}</app-kpi-card>
+          <app-kpi-card label="Confirmaram pagamento" info="payment.statement.confirmed">{{ s.createdPayments }}</app-kpi-card>
+          <app-kpi-card label="Divergentes" info="payment.statement.divergent" [tone]="s.divergentLines > 0 ? 'warning' : null">{{ s.divergentLines }}</app-kpi-card>
+          <app-kpi-card label="Ignoradas" info="payment.statement.ignored">{{ s.ignoredLines }}</app-kpi-card>
         </div>
         <p class="app-muted sd-small">
           Taxa de conciliação: <strong>{{ ind.reconciledShare === null ? '—' : pct(ind.reconciledShare) }}</strong> dos créditos (conciliadas + confirmações) ·
@@ -175,34 +175,6 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
       align-items: center;
       gap: 6px 12px;
       margin-bottom: var(--app-gap);
-    }
-    .sd-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px;
-    }
-    .sd-kpi {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 10px 12px;
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-tertiary-bg);
-    }
-    .sd-kpi--warn .sd-kpi__value {
-      color: var(--bs-warning-text-emphasis);
-    }
-    .sd-kpi__label {
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--bs-secondary-color);
-    }
-    .sd-kpi__value {
-      font-size: var(--app-text-lg);
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
     }
     .sd-small {
       margin: 12px 0 0;

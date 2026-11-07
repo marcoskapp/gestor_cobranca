@@ -95,7 +95,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
       background: none;
       color: var(--bs-primary-text-emphasis);
       font: inherit;
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       text-decoration: underline;
       cursor: pointer;
     }

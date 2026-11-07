@@ -9,26 +9,24 @@
   @let s = summary()!;
   <app-page-header [title]="'Acordo · ' + (debtorName() ?? creditors.name(a.creditorId))" [subtitle]="'Formalizado em ' + (a.formalizedAt | appDate) + ' · ' + origins[a.origin]">
     @if (a.termAvailable) {
-      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="downloadTerm()" data-tour="agreement-term">
+      <button class="btn btn-outline-secondary" type="button" (click)="downloadTerm()" data-tour="agreement-term">
         <app-icon name="file-earmark-pdf" />
         Baixar termo
       </button>
     }
     @if (canRegisterPayment() && active()) {
-      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="registerPayment()">
+      <button class="btn btn-outline-secondary" type="button" (click)="registerPayment()">
         <app-icon name="credit-card" />
         Informar pagamento
       </button>
     }
-    @if (act.cancel) {
-      <button type="button" class="btn btn-outline-danger" (click)="cancel()" [disabled]="busy()">Cancelar acordo</button>
-    }
     @if (act.renegotiate) {
-      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="renegotiate()" data-tour="agreement-renegotiate">
+      <button class="btn btn-primary" type="button" (click)="renegotiate()" data-tour="agreement-renegotiate">
         <app-icon name="arrow-repeat" />
         Renegociar
       </button>
     }
+    <app-more-actions [actions]="moreActions()" />
   </app-page-header>
 
   <div class="pd-status" data-tour="agreement-status">
@@ -67,11 +65,11 @@
     <div class="pd-main app-stack">
       <section class="app-card" aria-labelledby="ad-values">
         <h2 class="app-card__title" id="ad-values">Valores</h2>
-        <div class="pd-kpis">
-          <div class="pd-kpi"><span class="pd-kpi__label">Total do acordo <app-info-hint indicator="negotiation.sim.offer-total" label="Total do acordo" /></span><span class="pd-kpi__value"><app-amount [value]="a.totalAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Pago <app-info-hint indicator="negotiation.agreement.paid" label="Pago" /></span><span class="pd-kpi__value"><app-amount [value]="a.paidAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Saldo <app-info-hint indicator="negotiation.agreement.remaining" label="Saldo" /></span><span class="pd-kpi__value"><app-amount [value]="a.remainingAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Desconto <app-info-hint indicator="negotiation.sim.discount" label="Desconto" /></span><span class="pd-kpi__value"><app-amount [value]="a.discountAmount" /></span></div>
+        <div class="app-kpi-grid">
+          <app-kpi-card label="Total do acordo" info="negotiation.sim.offer-total"><app-amount [value]="a.totalAmount" /></app-kpi-card>
+          <app-kpi-card label="Pago" info="negotiation.agreement.paid"><app-amount [value]="a.paidAmount" /></app-kpi-card>
+          <app-kpi-card label="Saldo" info="negotiation.agreement.remaining"><app-amount [value]="a.remainingAmount" /></app-kpi-card>
+          <app-kpi-card label="Desconto" info="negotiation.sim.discount"><app-amount [value]="a.discountAmount" /></app-kpi-card>
         </div>
         <dl class="app-definition-list">
           <dt>Dívida atualizada <app-info-hint indicator="negotiation.sim.updated-debt" label="Dívida atualizada" /></dt>

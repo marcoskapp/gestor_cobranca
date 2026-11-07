@@ -3,8 +3,8 @@
 //
 // Desde a migração para o Bootstrap 5.3, os tokens semânticos são ALIASES das variáveis do
 // Bootstrap (`--bs-*`, geradas a partir de styles/bootstrap/_variables*.scss): a fonte da
-// verdade é a parametrização do Bootstrap. Os tokens continuam existindo porque as telas e os
-// componentes os usam (e as telas ainda em Angular Material dependem deles).
+// verdade é a parametrização do Bootstrap. Os tokens existem porque as telas e os componentes
+// compartilhados os usam (nomes semânticos estáveis sobre as variáveis do framework).
 // Cores próprias (barra superior, gráficos, borda de controles) mudam por modo com o mixin
 // documentado `color-mode()` do Bootstrap. Importado depois do Bootstrap (styles.scss).
 // Documentação: docs/tecnico/desenho/ux.md.
@@ -31,8 +31,9 @@
   // (docs/tecnico/desenho/analytics.md §7). Texto nunca usa a cor da série.
   --app-chart-1: #2a78d6;
   --app-chart-2: #eb6834;
-  --app-chart-grid: #e1e0d9;
-  --app-chart-axis: #c3c2b7;
+  // neutros frios, da mesma família das bordas da interface
+  --app-chart-grid: #e6e9ee;
+  --app-chart-axis: #c3cad4;
   --app-chart-track: #eceff3;
 
   // notificações (toasts) de tom forte
@@ -45,15 +46,16 @@
   --app-focus-color: #a7c8ff;
   --app-chart-1: #3987e5;
   --app-chart-2: #d95926;
-  --app-chart-grid: #2c2c2a;
-  --app-chart-axis: #383835;
+  --app-chart-grid: #262c34;
+  --app-chart-axis: #3a424d;
   --app-chart-track: #262b32;
   --app-snack-bg: #e2e2e9;
   --app-snack-fg: #1b1f26;
 }
 
 // barra superior: depende do modo GLOBAL (o próprio cabeçalho usa `data-bs-theme="dark"`, então
-// estes tokens são definidos só no <html>): azul institucional no claro, neutra no escuro.
+// estes tokens são definidos só no <html>): navy institucional no claro; no escuro, um navy bem
+// escuro, distinto da superfície do menu lateral (#171c23), para o "chrome" não se misturar a ele.
 :root {
   --app-topbar-bg: #0f2f57; // texto branco 13.4:1
   --app-topbar-fg: #ffffff;
@@ -61,7 +63,7 @@
 }
 
 :root[data-bs-theme='dark'] {
-  --app-topbar-bg: #161b22; // texto 14.6:1
+  --app-topbar-bg: #0d1b2e; // texto #e6edf3 14.6:1
   --app-topbar-fg: #e6edf3;
   --app-topbar-subtle: rgb(255 255 255 / 8%);
 }
@@ -83,12 +85,22 @@
   // ---------------------------------------------------------------- tipografia (Bootstrap)
   --app-font-sans: var(--bs-font-sans-serif);
   --app-font-mono: var(--bs-font-monospace);
-  --app-text-xs: 0.75rem; // 12px — rótulos auxiliares, cabeçalho de tabela
+  // Escala única de tamanhos (px sobre 16): 12 · 13 · 14 · 16 · 20 · 24 · 28. Nenhum tamanho fora
+  // dela nas telas; pesos só pelas variáveis do Bootstrap (`$font-weight-*`, `.fw-*`).
+  --app-text-xs: 0.75rem; // 12px — rótulos auxiliares, cabeçalho de tabela, legendas
   --app-text-sm: 0.8125rem; // 13px — tabelas, listas densas
   --app-text-md: 0.875rem; // 14px — texto padrão ($font-size-base)
   --app-text-lg: 1rem; // 16px — títulos de cartão
-  --app-text-xl: 1.375rem; // 22px — título de página
+  --app-text-xl: 1.25rem; // 20px — título de página
+  --app-text-kpi: 1.5rem; // 24px — valor de indicador
   --app-text-2xl: 1.75rem; // 28px — números de destaque
+  // pesos: aliases das variáveis do Bootstrap, para os estilos de componente (CSS sem Sass)
+  --app-weight-normal: #{$font-weight-normal}; // 400 — corpo
+  --app-weight-medium: #{$font-weight-medium}; // 500 — rótulos, botões, cabeçalho de tabela
+  --app-weight-semibold: #{$font-weight-semibold}; // 600 — títulos, valores de destaque
+  --app-weight-bold: #{$font-weight-bold}; // 700 — uso raro
+  --app-tracking-tight: -0.015em; // títulos de página
+  --app-tracking-tighter: -0.02em; // valores de indicador
   --app-line-tight: 1.25;
   --app-line-normal: 1.5;
 

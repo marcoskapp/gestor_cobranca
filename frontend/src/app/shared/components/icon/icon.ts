@@ -62,7 +62,7 @@ export function resolveIcon(name: string | null | undefined): IconName | null {
   `,
 })
 export class Icon {
-  /** Nome do Bootstrap Icons (ex.: `search`) ou, na transição, do Material (ex.: `person_search`). */
+  /** Nome do Bootstrap Icons (ex.: `search`), listado em `icon-names.ts`. */
   readonly name = input.required<IconName | (string & {})>();
   /** Texto alternativo quando o ícone comunica algo sozinho. */
   readonly label = input<string>();

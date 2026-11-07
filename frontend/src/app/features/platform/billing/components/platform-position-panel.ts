@@ -2,7 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { Amount } from '../../../../shared/components/amount/amount';
 import { InfoHint } from '../../../../shared/components/info-hint/info-hint';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
-import { KpiCard } from '../../../analytics/components/kpi-card';
+import { KpiCard } from '../../../../shared/components/kpi-card/kpi-card';
 import { formatCycle, prorationLabel } from '../../../public-api/data/public-api.labels';
 import { PlatformPositionView } from '../../data/platform-billing.models';
 import { PLATFORM_CYCLE_KIND_LABELS, PLATFORM_METRIC_LABELS } from '../platform-billing.labels';
@@ -28,7 +28,7 @@ const PERCENT = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
       @if (proration(); as pr) { · {{ kindLabels[p.cycleKind] }}: mensalidade e franquias proporcionais a {{ pr }} }
       · {{ p.updatedAt ? 'consumo atualizado em ' : 'sem consumo gravado no ciclo' }}{{ p.updatedAt ? (p.updatedAt | appDate: 'datetime') : '' }}
     </p>
-    <div class="pp-kpis">
+    <div class="app-kpi-grid">
       <app-kpi-card label="Valor até agora" info="platform.billing.amount" data-tour="kpi-amount" detail="Mensalidade do ciclo + excedente consumido"><app-amount [value]="p.amountSoFar" /></app-kpi-card>
       <app-kpi-card label="Projeção no fechamento" info="platform.billing.projection" data-tour="kpi-projection" detail="Consumo + média diária × dias restantes"><app-amount [value]="p.projection.amount" /></app-kpi-card>
       <app-kpi-card label="Chamadas cobráveis" info="platform.billing.billable-requests" [detail]="'de ' + n(p.requests) + ' chamadas, em ' + n(p.tokens) + ' tokens'">{{ n(p.billableRequests) }}</app-kpi-card>
@@ -71,12 +71,6 @@ const PERCENT = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
   styles: `
     .pp-small {
       font-size: var(--app-text-xs);
-    }
-    .pp-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
     }
     .pp-title {
       display: flex;

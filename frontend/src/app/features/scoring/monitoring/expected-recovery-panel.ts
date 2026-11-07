@@ -16,7 +16,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { isoDate, toLocalDate } from '../../../shared/models/dates';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { BarChart } from '../../analytics/components/bar-chart';
-import { KpiCard } from '../../analytics/components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { CreditorLookup, CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { ScoringMonitoringApi } from '../data/scoring.api';
 import { GROUP_BY_LABELS, SCORING_ERROR_LABELS } from '../data/scoring.labels';
@@ -84,7 +84,7 @@ const GROUPS: readonly RecoveryGroupBy[] = ['NONE', 'CREDITOR', 'PORTFOLIO', 'AS
       />
     } @else {
       @let t = totals();
-      <section class="er-kpis" aria-label="Recuperado × esperado no período" data-tour="scoring-expected-recovery" [attr.aria-busy]="report.isLoading()">
+      <section class="app-kpi-grid" aria-label="Recuperado × esperado no período" data-tour="scoring-expected-recovery" [attr.aria-busy]="report.isLoading()">
         <app-kpi-card label="Recuperado ÷ esperado" info="scoring.expected.ratio" [detail]="ratioDetail()">{{ ratio(t.ratio) }}</app-kpi-card>
         <app-kpi-card label="Recuperado" info="scoring.expected.realized" detail="Pago confirmado na janela, líquido de estornos"><app-amount [value]="t.realizedAmount" [compact]="true" /></app-kpi-card>
         <app-kpi-card label="Esperado pelo score" info="scoring.expected.expected" detail="Σ chance × saldo × fração paga típica"><app-amount [value]="t.expectedAmount" [compact]="true" /></app-kpi-card>
@@ -138,12 +138,6 @@ const GROUPS: readonly RecoveryGroupBy[] = ['NONE', 'CREDITOR', 'PORTFOLIO', 'AS
     }
   `,
   styles: `
-    .er-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: var(--app-gap);
-      margin-bottom: var(--app-gap);
-    }
     .er-small {
       margin: 8px 0 0;
       font-size: var(--app-text-sm);

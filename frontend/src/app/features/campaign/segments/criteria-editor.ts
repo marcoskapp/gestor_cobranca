@@ -168,7 +168,7 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
       flex: 0 0 44px;
       padding-top: 4px;
       font-size: var(--app-text-xs);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--bs-primary-text-emphasis);
@@ -183,7 +183,7 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
     .ce-label {
       margin-bottom: 4px;
       font-size: var(--app-text-sm);
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .ce-fields {
       display: flex;

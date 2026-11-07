@@ -16,7 +16,7 @@
     margin: 0;
     padding: 0 4px;
     font-size: var(--app-text-md);
-    font-weight: 500;
+    font-weight: var(--app-weight-medium);
   }
 }
 
@@ -70,7 +70,7 @@
 .se-sub {
   margin: 8px 0 4px;
   font-size: var(--app-text-sm);
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
 }
 
 .se-var {

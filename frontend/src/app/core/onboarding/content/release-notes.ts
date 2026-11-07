@@ -3,6 +3,18 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 14,
+    date: '2026-11-07',
+    title: 'Telas mais legíveis e organizadas',
+    items: [
+      { text: 'Texto mais firme e títulos em destaque; cantos e sombras mais discretos, em todos os temas.' },
+      { text: 'Nas fichas, uma ação principal em azul e as demais no menu "Mais ações" (⋯), com a ação irreversível por último; para voltar, use a trilha no topo.', route: '/titulos' },
+      { text: 'Indicadores com o mesmo cartão em todas as telas e valores compactos mais precisos ("R$ 1,25 mi").', route: '/paineis' },
+      { text: 'No celular: listas em cartões com o nome, os principais dados e a situação; filtros no botão "Filtros"; tema e chat de suporte no menu do usuário.', route: '/devedores' },
+      { text: 'Tela de entrada com a marca ao lado do formulário em telas largas.' },
+    ],
+  },
+  {
     version: 13,
     date: '2026-11-05',
     title: 'Mensagem pela estação de cobrança',

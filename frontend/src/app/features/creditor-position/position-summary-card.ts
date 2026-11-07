@@ -37,7 +37,7 @@ import { TransfersApi } from '../settlement/data/settlement.api';
     .psc__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .psc__values { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 8px 16px; margin: 0; }
     .psc__values dt { font-size: var(--app-text-xs); font-weight: normal; color: var(--bs-secondary-color); }
-    .psc__values dd { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .psc__values dd { margin: 0; font-size: 1.25rem; font-weight: var(--app-weight-semibold); }
     .psc__hint { font-size: var(--app-text-xs); margin: 8px 0 0; }
   `,
 })

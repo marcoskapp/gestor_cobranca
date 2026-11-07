@@ -33,7 +33,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
   imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, CellDef, DataTable, EntityPicker, Icon, PageHeader, AppDatePipe],
   template: `
     <app-page-header title="Tokens de integração" subtitle="Credenciais dos sistemas dos credores para a API pública. Cada token enxerga um único credor, só com os escopos concedidos.">
-      <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="/public-api/docs" target="_blank" rel="noopener">
+      <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="/public-api/docs" target="_blank" rel="noopener">
         <app-icon name="box-arrow-up-right" />
         Documentação da API
       </a>

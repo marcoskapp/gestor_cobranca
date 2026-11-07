@@ -14,24 +14,20 @@
   @let s = d.summary;
   @let act = actions()!;
   <app-page-header [title]="'Extrato de ' + (act.own ? 'comissão' : (s.userName ?? 'negociador')) + ' · ' + month(s.period)" [subtitle]="s.planCode ? 'Plano ' + s.planCode + ' v' + s.planVersion : 'Sem plano de comissão no período'">
-    <a class="btn btn-link" routerLink="/remuneracao/extratos">
-      <app-icon name="arrow-left" />
-      Extratos
-    </a>
     @if (act.dispute) {
-      <button class="btn btn-outline-primary" type="button" (click)="openDispute()" [disabled]="busy()" data-tour="statement-dispute">
+      <button class="btn btn-outline-secondary" type="button" (click)="openDispute()" [disabled]="busy()" data-tour="statement-dispute">
         <app-icon name="flag" />
         Contestar
       </button>
     }
     @if (act.recalculate) {
-      <button class="btn btn-outline-primary" type="button" (click)="recalculate()" [disabled]="busy()">
+      <button class="btn btn-outline-secondary" type="button" (click)="recalculate()" [disabled]="busy()">
         <app-icon name="arrow-repeat" />
         Recalcular
       </button>
     }
     @if (act.adjust) {
-      <button class="btn btn-outline-primary" type="button" (click)="adjust()" [disabled]="busy()">
+      <button class="btn btn-outline-secondary" type="button" (click)="adjust()" [disabled]="busy()">
         <app-icon name="pencil-square" />
         Ajustar
       </button>
@@ -92,14 +88,14 @@
 
   <section class="app-card" aria-labelledby="sd-values" data-tour="statement-values">
     <h2 class="app-card__title" id="sd-values">Valores do período</h2>
-    <div class="in-kpis mb-0">
-      <div class="in-kpi"><span class="in-kpi__label">Recuperado creditado <app-info-hint indicator="incentive.statement.credited" label="Recuperado creditado" /></span><span class="in-kpi__value"><app-amount [value]="s.creditedRecovery" /></span></div>
-      <div class="in-kpi"><span class="in-kpi__label">Calculado <app-info-hint indicator="incentive.statement.calculated" label="Calculado" /></span><span class="in-kpi__value"><app-amount [value]="s.calculatedAmount" /></span></div>
-      <div class="in-kpi"><span class="in-kpi__label">Ajustes <app-info-hint indicator="incentive.statement.adjustments" label="Ajustes" /></span><span class="in-kpi__value"><app-amount [value]="s.adjustmentsAmount" [signed]="true" /></span></div>
+    <div class="app-kpi-grid mb-0">
+      <app-kpi-card label="Recuperado creditado" info="incentive.statement.credited"><app-amount [value]="s.creditedRecovery" /></app-kpi-card>
+      <app-kpi-card label="Calculado" info="incentive.statement.calculated"><app-amount [value]="s.calculatedAmount" /></app-kpi-card>
+      <app-kpi-card label="Ajustes" info="incentive.statement.adjustments"><app-amount [value]="s.adjustmentsAmount" [signed]="true" /></app-kpi-card>
       @if (s.withheldAmount > 0) {
-        <div class="in-kpi"><span class="in-kpi__label">Retido <app-info-hint indicator="incentive.statement.withheld" label="Retido" /></span><span class="in-kpi__value"><app-amount [value]="s.withheldAmount" /></span></div>
+        <app-kpi-card label="Retido" info="incentive.statement.withheld"><app-amount [value]="s.withheldAmount" /></app-kpi-card>
       }
-      <div class="in-kpi in-kpi--total"><span class="in-kpi__label">A pagar <app-info-hint indicator="incentive.statement.payable" label="A pagar" /></span><span class="in-kpi__value"><app-amount [value]="s.payableAmount" /></span></div>
+      <app-kpi-card label="A pagar" info="incentive.statement.payable" emphasis><app-amount [value]="s.payableAmount" /></app-kpi-card>
     </div>
   </section>
 

@@ -96,7 +96,7 @@ const COUNT_AXIS = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
   styles: `
     .cum { margin: 0; }
     .cum__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-    .cum__title { font-weight: 600; }
+    .cum__title { font-weight: var(--app-weight-semibold); }
     .cum__summary { font-size: var(--app-text-xs); color: var(--bs-secondary-color); margin: 2px 0 6px; }
     .cum__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; list-style: none; padding: 0; margin: 0 0 6px;
       font-size: var(--app-text-xs); color: var(--bs-secondary-color); }
@@ -108,18 +108,18 @@ const COUNT_AXIS = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
     .cum__plot svg { width: 100%; height: 220px; display: block; overflow: visible; }
     .cum__grid { stroke: var(--app-chart-grid); stroke-width: 1; }
     .cum__axis { stroke: var(--app-chart-axis); stroke-width: 1; }
-    .cum__tick { font-size: 11px; fill: var(--bs-secondary-color); }
+    .cum__tick { font-size: var(--app-text-xs); fill: var(--bs-secondary-color); }
     .cum__line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
     .cum__line--current { stroke: var(--app-chart-1); }
     .cum__line--previous { stroke: var(--bs-secondary-color); stroke-dasharray: 4 4; }
     .cum__line--projection { stroke: var(--app-chart-1); stroke-dasharray: 6 4; opacity: 0.6; }
-    .cum__dot { fill: var(--app-chart-1); stroke: var(--app-surface, #fff); stroke-width: 2; }
+    .cum__dot { fill: var(--app-chart-1); stroke: var(--app-surface); stroke-width: 2; }
     .cum__cross { stroke: var(--bs-secondary-color); stroke-width: 1; vector-effect: non-scaling-stroke; }
     .cum__hit { fill: transparent; outline: none; }
     .cum__hit:focus-visible { fill: color-mix(in srgb, var(--app-chart-1) 12%, transparent); }
     .cum__tip { position: absolute; top: 0; transform: translateX(-50%); pointer-events: none; z-index: 1;
-      background: var(--app-surface, #fff); border: 1px solid var(--app-border); border-radius: 6px; padding: 4px 8px;
-      font-size: var(--app-text-xs); display: flex; flex-direction: column; gap: 2px; white-space: nowrap; box-shadow: var(--app-shadow-sm, none); }
+      background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 6px; padding: 4px 8px;
+      font-size: var(--app-text-xs); display: flex; flex-direction: column; gap: 2px; white-space: nowrap; box-shadow: var(--app-shadow-sm); }
     .cum__tip span { display: inline-flex; align-items: center; gap: 6px; }
   `,
 })

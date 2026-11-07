@@ -1,7 +1,7 @@
 import { Component, ElementRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { debounceTime, finalize, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -41,11 +41,22 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
  */
 @Component({
   selector: 'app-platform-tenant-billing',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, CellDef, DataTable, Icon, PageHeader, PlatformPolicyVersions,
-    PlatformPositionPanel, PlatformStatementPanel, PlatformTokensPanel, PlatformTrafficPanel, RouterLink],
+  imports: [
+    ReactiveFormsModule,
+    ...FORM_FIELD,
+    Amount,
+    CellDef,
+    DataTable,
+    Icon,
+    PageHeader,
+    PlatformPolicyVersions,
+    PlatformPositionPanel,
+    PlatformStatementPanel,
+    PlatformTokensPanel,
+    PlatformTrafficPanel,
+  ],
   template: `
     <app-page-header [title]="'Faturamento da plataforma — ' + tenantName()" subtitle="Consumo somado de todos os tokens da assessoria, de todos os credores, pela política da plataforma.">
-      <a class="btn btn-link" routerLink="/plataforma/faturamento"><app-icon name="arrow-left" /> Consolidado</a>
     </app-page-header>
 
     @if (suspended()) {

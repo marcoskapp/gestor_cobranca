@@ -33,7 +33,7 @@ import { ScorecardDialog, ScorecardDialogData } from './scorecard-dialog';
   template: `
     <app-page-header title="Modelos do score" subtitle="Campeão em uso, desafiante em avaliação e o histórico de versões, com as métricas de validação.">
       @if (canManage()) {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="createScorecard()" data-tour="scoring-scorecard">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="createScorecard()" data-tour="scoring-scorecard">
           <app-icon name="list-check" />
           Criar scorecard
         </button>
@@ -131,7 +131,7 @@ import { ScorecardDialog, ScorecardDialogData } from './scorecard-dialog';
       align-items: center;
       gap: 6px;
       font-size: var(--app-text-xs);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--bs-secondary-color);

@@ -26,7 +26,7 @@ import { ImportBatchView, IssueSeverity } from '../data/ingestion.models';
 import { POLL_MS } from './batch-list';
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /**
  * Ações disponíveis pela situação do lote. Importar uma prévia ou reprocessar um arquivo passa sempre pela conferência
@@ -69,7 +69,7 @@ export function batchActions(
     Skeleton,
     StatusChip,
     AppDatePipe,
-    InfoHint,
+    KpiCard,
   ],
   template: `
     @if (batch.isLoading() && !current()) {
@@ -82,15 +82,14 @@ export function batchActions(
     }
     @if (current(); as b) {
       <app-page-header [title]="b.fileName || 'Registros via API'" [subtitle]="creditors.name(b.creditorId) + ' · ' + portfolios.name(b.portfolioId) + ' · ' + modeLabels[b.mode]">
-        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
         @if (b.issuesRecorded) {
-          <button class="btn btn-outline-primary" type="button" (click)="report(b)" ngbTooltip="CSV com valores mascarados (exportação registrada)">
+          <button class="btn btn-outline-secondary" type="button" (click)="report(b)" ngbTooltip="CSV com valores mascarados (exportação registrada)">
             <app-icon name="download" />
             Relatório de ocorrências
           </button>
         }
         @if (canOriginal() && b.fileName && !b.fileDeletedAt) {
-          <button class="btn btn-outline-primary" type="button" (click)="original(b)">
+          <button class="btn btn-outline-secondary" type="button" (click)="original(b)">
             <app-icon name="unlock" />
             Arquivo original
           </button>
@@ -99,7 +98,7 @@ export function batchActions(
           @for (a of actions(); track a) {
             @switch (a) {
               @case ('cancel') {
-                <button class="btn btn-outline-primary" type="button" (click)="cancel(b)"><app-icon name="x-circle" /> Cancelar</button>
+                <button class="btn btn-outline-secondary" type="button" (click)="cancel(b)"><app-icon name="x-circle" /> Cancelar</button>
               }
               @case ('review') {
                 <a class="btn btn-primary" [routerLink]="['/importacao/conferencias', b.reviewId]"><app-icon name="card-checklist" /> Abrir a conferência</a>
@@ -108,7 +107,7 @@ export function batchActions(
                 <button class="btn btn-primary" type="button" (click)="review(b)"><app-icon name="card-checklist" /> Conferir e importar</button>
               }
               @case ('reprocess') {
-                <button class="btn btn-outline-primary" type="button" (click)="review(b)"><app-icon name="arrow-counterclockwise" /> Conferir e reprocessar</button>
+                <button class="btn btn-outline-secondary" type="button" (click)="review(b)"><app-icon name="arrow-counterclockwise" /> Conferir e reprocessar</button>
               }
             }
           }
@@ -133,17 +132,11 @@ export function batchActions(
         }
       </section>
 
-      <section class="bd-kpis" aria-label="Contadores do lote" data-tour="batch-counters">
+      <section class="app-kpi-grid" aria-label="Contadores do lote" data-tour="batch-counters">
         @for (k of kpis(); track k.label) {
-          <div class="bd-kpi" [class.bd-kpi--alert]="k.alert">
-            <span class="bd-kpi__label">{{ k.label }}</span>
-            <span class="bd-kpi__value app-numeric">{{ k.value }}</span>
-          </div>
+          <app-kpi-card [label]="k.label" record [tone]="k.alert ? 'danger' : null">{{ k.value }}</app-kpi-card>
         }
-        <div class="bd-kpi">
-          <span class="bd-kpi__label">Principal {{ b.mode === 'VALIDATE_ONLY' ? 'validado' : 'gravado' }} <app-info-hint indicator="ingestion.batch.principal" label="Principal do lote" /></span>
-          <span class="bd-kpi__value"><app-amount [value]="b.counters.principalTotal" /></span>
-        </div>
+        <app-kpi-card [label]="'Principal ' + (b.mode === 'VALIDATE_ONLY' ? 'validado' : 'gravado')" info="ingestion.batch.principal"><app-amount [value]="b.counters.principalTotal" /></app-kpi-card>
       </section>
 
       <section class="app-card" aria-labelledby="bd-file">
@@ -248,33 +241,6 @@ export function batchActions(
     .bd-reason {
       flex-basis: 100%;
       color: var(--bs-secondary-color);
-    }
-    .bd-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: var(--app-gap);
-      margin-bottom: var(--app-gap);
-    }
-    .bd-kpi {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 10px 14px;
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-body-bg);
-    }
-    .bd-kpi--alert .bd-kpi__value {
-      color: var(--bs-danger-text-emphasis);
-    }
-    .bd-kpi__label {
-      font-size: var(--app-text-xs);
-      font-weight: 600;
-      color: var(--bs-secondary-color);
-    }
-    .bd-kpi__value {
-      font-size: var(--app-text-lg);
-      font-weight: 600;
     }
     .bd-head {
       display: flex;

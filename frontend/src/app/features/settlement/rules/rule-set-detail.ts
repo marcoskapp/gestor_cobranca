@@ -13,6 +13,7 @@ import { ConfirmService } from '../../../shared/components/confirm-dialog/confir
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
@@ -54,6 +55,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
     PageHeader,
     Skeleton,
     StatusChip,
+    KpiCard,
   ],
   templateUrl: './rule-set-detail.html',
   styleUrl: '../settlement.scss',

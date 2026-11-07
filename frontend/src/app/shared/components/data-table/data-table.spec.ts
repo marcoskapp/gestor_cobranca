@@ -1,8 +1,10 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { Component, signal } from '@angular/core';
+import { of } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
 import { PageRequest } from '../../models/page';
 import { CellDef } from './cell-def';
-import { DataTable, TablePage, TableSort, pageRangeLabel } from './data-table';
+import { DataTable, TablePage, TableSort, pageRangeLabel, stackLayout } from './data-table';
 
 interface Row {
   id: string;
@@ -126,8 +128,94 @@ describe('DataTable (Bootstrap)', () => {
     expect(host.pages).toEqual([]);
   });
 
+  it('sem paginador quando tudo cabe numa página; sem rodapé quando o total não passa da menor página', () => {
+    const { fixture, host, el } = render();
+    host.rows.set([{ id: '1', name: 'A', amount: 1 }]);
+    host.page.set({ index: 0, size: 50, total: 30 });
+    fixture.detectChanges();
+    expect(el.querySelector('ngb-pagination')).toBeNull();
+    expect(el.textContent).toContain('1 – 30 de 30');
+    expect(el.querySelector('select')).not.toBeNull();
+
+    host.page.set({ index: 0, size: 20, total: 12 });
+    fixture.detectChanges();
+    expect(el.querySelector('.app-table__footer')).toBeNull();
+  });
+
+  it('lista empilhada do celular: título, selo da situação e até três metadados', () => {
+    const layout = stackLayout([
+      { key: 'name', header: 'Nome' },
+      { key: 'document', header: 'CPF/CNPJ' },
+      { key: 'status', header: 'Situação' },
+      { key: 'type', header: 'Tipo' },
+      { key: 'createdAt', header: 'Cadastrado em' },
+      { key: 'updatedAt', header: 'Atualizado em' },
+      { key: 'actions', header: 'Ações', actions: true },
+    ]);
+    expect(layout.title?.key).toBe('name');
+    expect(layout.badge?.key).toBe('status');
+    expect(layout.meta.map((c) => c.key)).toEqual(['document', 'type', 'createdAt']);
+    expect(layout.actions?.key).toBe('actions');
+
+    const custom = stackLayout([
+      { key: 'code', header: 'Código', mobile: 'hidden' },
+      { key: 'name', header: 'Nome', mobile: 'title' },
+      { key: 'amount', header: 'Valor', mobile: 'meta' },
+      { key: 'stage', header: 'Fase', mobile: 'badge' },
+    ]);
+    expect([custom.title?.key, custom.badge?.key, custom.meta.map((c) => c.key)]).toEqual(['name', 'stage', ['amount']]);
+  });
+
   it('textos da faixa', () => {
     expect(pageRangeLabel(0, 20, 0)).toBe('0 de 0');
     expect(pageRangeLabel(2, 20, 45)).toBe('41 – 45 de 45');
+  });
+});
+
+@Component({
+  imports: [DataTable, CellDef],
+  template: `
+    <app-data-table caption="Devedores" [rows]="rows" [columns]="columns">
+      <ng-template appCell="name" [appCellOf]="rows" let-r><a href="/devedores/1">{{ r.name }}</a></ng-template>
+      <ng-template appCell="actions" let-r><button type="button">Abrir</button></ng-template>
+    </app-data-table>
+  `,
+})
+class StackHost {
+  readonly rows = [{ id: '1', name: 'Ana Souza', document: '***.459.717-**', status: 'Ativo', type: 'Pessoa física', createdAt: '06/11/2026' }];
+  readonly columns = [
+    { key: 'document', header: 'CPF/CNPJ', mobile: 'meta' as const },
+    { key: 'name', header: 'Nome', mobile: 'title' as const },
+    { key: 'type', header: 'Tipo', mobile: 'hidden' as const },
+    { key: 'status', header: 'Situação', mobile: 'badge' as const },
+    { key: 'createdAt', header: 'Cadastrado em', mobile: 'meta' as const },
+    { key: 'actions', header: 'Ações', actions: true },
+  ];
+}
+
+describe('DataTable no celular (< 576 px)', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: BreakpointObserver, useValue: { observe: () => of({ matches: true, breakpoints: {} }), isMatched: () => true } }],
+    });
+  });
+
+  it('lista empilhada: título com link (linha clicável), selo, metadados com rótulo e ações; sem tabela', () => {
+    const fixture = TestBed.createComponent(StackHost);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('table')).toBeNull();
+    const item = el.querySelector<HTMLElement>('ul.app-table__stack > li.app-table__item')!;
+    expect(el.querySelector('ul.app-table__stack')?.getAttribute('aria-label')).toBe('Devedores');
+    expect(item.classList).toContain('app-table__item--link');
+    expect(item.querySelector('.app-table__item-title a')?.textContent).toBe('Ana Souza');
+    expect(item.querySelector('.app-table__item-badge')?.textContent?.trim()).toBe('Ativo');
+    const meta = [...item.querySelectorAll('.app-table__item-meta > div')].map((d) => [d.querySelector('dt')?.textContent, d.querySelector('dd')?.textContent?.trim()]);
+    expect(meta).toEqual([
+      ['CPF/CNPJ', '***.459.717-**'],
+      ['Cadastrado em', '06/11/2026'],
+    ]);
+    expect(item.textContent).not.toContain('Pessoa física');
+    expect(item.querySelector('.app-table__item-actions button')?.textContent).toBe('Abrir');
   });
 });

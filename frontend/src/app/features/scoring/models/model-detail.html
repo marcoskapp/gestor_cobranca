@@ -5,7 +5,7 @@
   <app-skeleton variant="card" [rows]="6" />
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o modelo." message="Verifique a conexão e tente novamente.">
-    <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <button class="btn btn-outline-secondary" type="button" (click)="resource.reload()">Tentar novamente</button>
   </app-empty-state>
 } @else if (model(); as m) {
   @let act = actions()!;
@@ -55,7 +55,7 @@
       <section class="app-card" aria-labelledby="md-validation" data-tour="scoring-validation">
         <h2 class="app-card__title" id="md-validation">Validação</h2>
         @if (validation(); as v) {
-          <div class="md-kpis">
+          <div class="app-kpi-grid">
             <app-kpi-card label="AUC" info="scoring.model.auc" [detail]="'Gini ' + metric(v.gini)">{{ metric(v.auc) }}</app-kpi-card>
             <app-kpi-card label="KS" info="scoring.model.ks" detail="Separação entre quem paga e quem não paga">{{ metric(v.ks) }}</app-kpi-card>
             <app-kpi-card label="Brier" info="scoring.model.brier" detail="Erro da probabilidade (menor é melhor)">{{ brier(v.brier) }}</app-kpi-card>

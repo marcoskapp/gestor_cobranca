@@ -57,6 +57,7 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { NgbDropdownModule, NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /** Abas da ficha (o parâmetro `?aba=` abre direto na aba). */
 export const MATTER_TABS = ['resumo', 'viabilidade', 'autorizacao', 'medidas', 'processos', 'prazos', 'custas', 'documentos'] as const;
@@ -85,6 +86,7 @@ const routeOptions = (only?: readonly string[]) => options(ROUTE_LABELS, only);
     AppDatePipe,
     LawsuitCard,
     InfoHint,
+    KpiCard,
   ],
   templateUrl: './matter-detail.html',
   styleUrl: './matter-detail.scss',

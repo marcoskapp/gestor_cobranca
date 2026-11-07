@@ -60,7 +60,7 @@
   background: var(--app-info-bg);
   color: var(--app-info-fg);
   font-size: var(--app-text-xs);
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
   white-space: nowrap;
 
   &:last-child {
@@ -115,7 +115,7 @@
 
 .xp-history--current {
   border-left-color: var(--bs-primary) !important;
-  font-weight: 500;
+  font-weight: var(--app-weight-medium);
 }
 
 .xp-link {

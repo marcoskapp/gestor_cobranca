@@ -183,7 +183,7 @@ export class MailReplyConfirmDialog {
       gap: 4px 8px;
     }
     .mr-alert {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--app-danger-fg);
     }
     .dp-pre {

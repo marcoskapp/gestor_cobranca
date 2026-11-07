@@ -14,39 +14,54 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.operational',
-    version: 2,
+    version: 3,
     path: '/paineis',
     tourId: 'analytics.operational',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
+      { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+    ],
   },
   {
     key: 'analytics.recovery',
-    version: 2,
+    version: 3,
     path: '/paineis/recuperacao',
     tourId: 'analytics.recovery',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
+      { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+    ],
   },
   {
     key: 'analytics.conversion',
-    version: 2,
+    version: 3,
     path: '/paineis/conversao',
     tourId: 'analytics.conversion',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
+      { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+    ],
   },
   {
     key: 'analytics.productivity',
-    version: 2,
+    version: 3,
     path: '/paineis/produtividade',
     tourId: 'analytics.productivity',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
+      { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+    ],
   },
-  { key: 'analytics.disputes', version: 1, path: '/paineis/contestacoes', tourId: 'analytics.disputes' },
+  { key: 'analytics.disputes', version: 2, path: '/paineis/contestacoes', tourId: 'analytics.disputes', changes: [{ version: 2, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] }] },
   {
     key: 'analytics.reliability',
-    version: 2,
+    version: 3,
     path: '/paineis/confiabilidade',
     tourId: 'analytics.reliability',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
+      { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+    ],
   },
   { key: 'scoring.models', version: 1, path: '/score/modelos', tourId: 'scoring.models' },
   {
@@ -83,7 +98,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'admin.user-detail',
-    version: 3,
+    version: 4,
     path: '/admin/usuarios/:id',
     changes: [
       { version: 2, items: ['Sem a permissão de consultar credores, o escopo mostra só quantos credores a pessoa acessa e a ação "Alterar escopo de credores" não aparece.'] },
@@ -91,6 +106,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 3,
         items: ['"Alterar escopo de credores": a opção "Acesso a todos os credores" aparece só para quem tem todos; se o usuário já tem todos, ela fica marcada e só quem tem todos pode retirá-la.'],
       },
+      { version: 4, items: ['As ações da conta (perfis, escopo, links, MFA, sessões e desativar) ficam no menu "Mais ações" (⋯); desativar fica por último, separado.'] },
     ],
   },
   { key: 'admin.roles', version: 1, path: '/admin/perfis', tourId: 'admin.roles' },
@@ -99,10 +115,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.debtors', version: 1, path: '/devedores', tourId: 'debt.debtors' },
   {
     key: 'debt.debtor-detail',
-    version: 2,
+    version: 3,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
-    changes: [{ version: 2, items: ['Nova restrição de contato: o campo Credor lista só os credores do devedor, pedido do devedor e descadastro começam valendo para todos os credores e o quadro "Alcance" resume o que será bloqueado antes de salvar.'] }],
+    changes: [
+      { version: 2, items: ['Nova restrição de contato: o campo Credor lista só os credores do devedor, pedido do devedor e descadastro começam valendo para todos os credores e o quadro "Alcance" resume o que será bloqueado antes de salvar.'] },
+      { version: 3, items: ['O dossiê de contato passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+    ],
   },
   { key: 'debt.titles', version: 1, path: '/titulos', tourId: 'debt.titles' },
   // "correções de valor" antes do detalhe (":id" casaria o caminho)
@@ -130,7 +149,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'debt.title-detail',
-    version: 4,
+    version: 5,
     path: '/titulos/:id',
     tourId: 'debt.title-detail',
     changes: [
@@ -148,6 +167,10 @@ export const SCREENS: readonly ScreenGuide[] = [
       {
         version: 4,
         items: ['Corrigir valor: reduções já aplicadas sem segunda pessoa no mesmo título {{debt.cumulativeWindow}} somam com a nova; passando do limite, a prévia avisa que vai para aprovação.'],
+      },
+      {
+        version: 5,
+        items: ['Suspender, transferir, devolver ao credor e cancelar ficam no menu "Mais ações" (⋯), com o cancelamento por último e separado; para voltar à lista, use a trilha no topo.'],
       },
     ],
   },
@@ -254,17 +277,18 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'negotiation.proposals', version: 1, path: '/negociacao/propostas', tourId: 'negotiation.proposals' },
-  { key: 'negotiation.proposal-detail', version: 1, path: '/negociacao/propostas/:id', tourId: 'negotiation.proposal-detail' },
+  { key: 'negotiation.proposal-detail', version: 2, path: '/negociacao/propostas/:id', tourId: 'negotiation.proposal-detail', changes: [{ version: 2, items: ['Uma ação principal em azul (aprovar, registrar aceite ou formalizar); as demais em cinza ao lado.'] }] },
   { key: 'negotiation.approvals', version: 1, path: '/negociacao/aprovacoes', tourId: 'negotiation.approvals' },
   { key: 'negotiation.agreements', version: 1, path: '/negociacao/acordos' },
   {
     key: 'negotiation.agreement-detail',
-    version: 3,
+    version: 4,
     path: '/negociacao/acordos/:id',
     tourId: 'negotiation.agreement-detail',
     changes: [
       { version: 2, items: ['Gerar Pix por parcela (QR Code e copia e cola) e informar pagamento recebido fora do Pix.'] },
       { version: 3, items: ['Ao informar pagamento, o aviso de que o valor vai para a aprovação de outra pessoa aparece para todos que informam, mesmo sem acesso aos parâmetros de pagamentos.'] },
+      { version: 4, items: ['Cancelar acordo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
     ],
   },
   {
@@ -336,10 +360,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'publicapi.billing', version: 2, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
   {
     key: 'payment.detail',
-    version: 2,
+    version: 3,
     path: '/pagamentos/:id',
     tourId: 'payment.detail',
-    changes: [{ version: 2, items: ['Pagamento aguardando aprovação mostra o destino solicitado por quem informou.'] }],
+    changes: [
+      { version: 2, items: ['Pagamento aguardando aprovação mostra o destino solicitado por quem informou.'] },
+      { version: 3, items: ['Estornar passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+    ],
   },
   { key: 'settlement.rules', version: 1, path: '/prestacao-de-contas/regras', tourId: 'settlement.rules' },
   { key: 'settlement.rule-set', version: 1, path: '/prestacao-de-contas/regras/:id', tourId: 'settlement.rule-set' },
@@ -347,10 +374,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.statements', version: 1, path: '/prestacao-de-contas/demonstrativos', tourId: 'settlement.statements' },
   {
     key: 'settlement.statement',
-    version: 2,
+    version: 3,
     path: '/prestacao-de-contas/demonstrativos/:id',
     tourId: 'settlement.statement',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
+      { version: 3, items: ['Cancelar demonstrativo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+    ],
   },
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },
   {
@@ -366,7 +396,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'incentive.ledger', version: 1, path: '/remuneracao/lancamentos' },
   { key: 'incentive.plans', version: 1, path: '/remuneracao/planos', tourId: 'incentive.plans' },
   { key: 'incentive.plan', version: 1, path: '/remuneracao/planos/:id', tourId: 'incentive.plan' },
-  { key: 'incentive.plan-rules', version: 1, path: '/remuneracao/planos/:id/regras', tourId: 'incentive.plan-rules' },
+  { key: 'incentive.plan-rules', version: 2, path: '/remuneracao/planos/:id/regras', tourId: 'incentive.plan-rules', changes: [{ version: 2, items: ['Botão "Ficha do plano" no cabeçalho para voltar ao plano.'] }] },
   {
     key: 'incentive.goals',
     version: 2,
@@ -457,7 +487,7 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'legal.matters', version: 1, path: '/juridico/casos' },
-  { key: 'legal.matter-detail', version: 1, path: '/juridico/casos/:id', tourId: 'legal.matter-detail' },
+  { key: 'legal.matter-detail', version: 2, path: '/juridico/casos/:id', tourId: 'legal.matter-detail', changes: [{ version: 2, items: ['Abas sem ícones e valores do caso em cartões; "Custas e despesas" fica em vermelho quando passa do orçamento.'] }] },
   { key: 'legal.rules', version: 1, path: '/juridico/regras' },
   { key: 'legal.firms', version: 1, path: '/juridico/escritorios' },
   { key: 'legal.settings', version: 1, path: '/juridico/parametros' },
@@ -540,7 +570,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.requests', version: 1, path: '/compliance/solicitacoes-titulares', tourId: 'compliance.requests' },
   {
     key: 'compliance.request-detail',
-    version: 3,
+    version: 4,
     path: '/compliance/solicitacoes-titulares/:id',
     tourId: 'compliance.request-detail',
     changes: [
@@ -549,6 +579,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 3,
         items: ['Sem acesso a todos os credores, "Baixar dados do titular" aparece desabilitado e explica o motivo ao passar o mouse, tocar ou chegar pelo teclado.'],
       },
+      { version: 4, items: ['Atribuir e Recusar em cinza ao lado da próxima ação (em azul); para voltar à lista, use a trilha no topo.'] },
     ],
   },
   {
@@ -565,7 +596,12 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'organization.creditors', version: 1, path: '/organizacao/credores', tourId: 'organization.creditors' },
-  { key: 'organization.creditor-detail', version: 2, path: '/organizacao/credores/:id' },
+  {
+    key: 'organization.creditor-detail',
+    version: 3,
+    path: '/organizacao/credores/:id',
+    changes: [{ version: 3, items: ['Inativar credor passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] }],
+  },
   { key: 'organization.portfolios', version: 1, path: '/organizacao/carteiras', tourId: 'organization.portfolios' },
   { key: 'organization.settings', version: 1, path: '/organizacao/configuracoes' },
   {

@@ -41,6 +41,8 @@ import { OriginContracts } from '../origin-contracts/origin-contracts';
 import { DebtorForm } from '../debtor-form/debtor-form';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
 import { Icon } from '../../../../shared/components/icon/icon';
+import { KpiCard } from '../../../../shared/components/kpi-card/kpi-card';
+import { MoreAction, MoreActions } from '../../../../shared/components/more-actions/more-actions';
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { NgbTooltip, NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 
@@ -51,7 +53,7 @@ import { NgbTooltip, NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bo
  */
 @Component({
   selector: 'app-debtor-detail',
-  imports: [FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule],
+  imports: [FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -87,6 +89,13 @@ export class DebtorDetail {
 
   protected readonly debtor = rxResource({ params: () => this.id(), stream: ({ params }) => this.debtorsApi.get(params) });
   protected readonly current = valueOr(this.debtor, undefined);
+  /** Ações menos frequentes no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2). */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const d = this.current();
+    return d && this.canExportEvidence()
+      ? [{ id: 'evidence', label: 'Dossiê de contato', hint: 'Restrições e tentativas de contato (acesso registrado)', icon: 'download', run: () => this.exportEvidence(d) }]
+      : [];
+  });
   protected readonly summary = rxResource({ params: () => this.id(), stream: ({ params }) => this.debtorsApi.summary(params) });
   protected readonly position = valueOr(this.summary, undefined);
   protected readonly titles = rxResource({ params: () => this.id(), stream: ({ params }) => this.titlesApi.listByDebtor(params) });
@@ -117,22 +126,22 @@ export class DebtorDetail {
   protected readonly revealedContacts = signal<ReadonlyMap<string, string>>(new Map());
 
   protected readonly titleColumns: TableColumn[] = [
-    { key: 'title', header: 'Título' },
-    { key: 'creditor', header: 'Credor' },
-    { key: 'portfolio', header: 'Carteira' },
-    { key: 'dueDate', header: 'Vencimento' },
-    { key: 'overdue', header: 'Atraso' },
-    { key: 'principalAmount', header: 'Valor original', align: 'end' },
-    { key: 'openBalance', header: 'Saldo em aberto', align: 'end' },
+    { key: 'title', header: 'Título', mobile: 'title' },
+    { key: 'creditor', header: 'Credor', mobile: 'hidden' },
+    { key: 'portfolio', header: 'Carteira', mobile: 'hidden' },
+    { key: 'dueDate', header: 'Vencimento', mobile: 'meta' },
+    { key: 'overdue', header: 'Atraso', mobile: 'meta' },
+    { key: 'principalAmount', header: 'Valor original', align: 'end', mobile: 'hidden' },
+    { key: 'openBalance', header: 'Saldo em aberto', align: 'end', mobile: 'meta' },
     { key: 'status', header: 'Situação' },
   ];
 
   protected readonly contactColumns: TableColumn[] = [
-    { key: 'type', header: 'Tipo' },
-    { key: 'value', header: 'Contato' },
-    { key: 'label', header: 'Classificação' },
-    { key: 'priority', header: 'Prioridade', align: 'end' },
-    { key: 'source', header: 'Origem' },
+    { key: 'type', header: 'Tipo', mobile: 'meta' },
+    { key: 'value', header: 'Contato', mobile: 'title' },
+    { key: 'label', header: 'Classificação', mobile: 'meta' },
+    { key: 'priority', header: 'Prioridade', align: 'end', mobile: 'hidden' },
+    { key: 'source', header: 'Origem', mobile: 'meta' },
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];

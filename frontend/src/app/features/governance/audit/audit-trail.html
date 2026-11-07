@@ -1,5 +1,5 @@
 <app-page-header title="Trilha de auditoria" subtitle="Alterações relevantes com autor, motivo e valores antes/depois.">
-  <button class="btn btn-outline-primary" type="button" (click)="verify()" [disabled]="checking()">
+  <button class="btn btn-outline-secondary" type="button" (click)="verify()" [disabled]="checking()">
     <app-icon name="patch-check" />
     {{ checking() ? 'Verificando…' : 'Verificar integridade' }}
   </button>

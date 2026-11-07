@@ -12,20 +12,16 @@
 
 @if (current(); as p) {
   <app-page-header [title]="'Regras de comissão · v' + p.ruleVersion" [subtitle]="creditors.name(p.creditorId) + (contract() ? ' · contrato ' + contract()!.number : '')">
-    <a class="btn btn-link" routerLink="/prestacao-de-contas/regras">
-      <app-icon name="arrow-left" />
-      Regras
-    </a>
     @if (canManage()) {
       @if (p.status === 'DRAFT') {
         @if (dirty()) {
-          <button class="btn btn-outline-primary" type="button" (click)="discardChanges()">Descartar alterações</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="discardChanges()">Descartar alterações</button>
           <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
             <app-icon name="floppy" />
             Salvar rascunho
           </button>
         } @else {
-          <button class="btn btn-outline-primary" type="button" (click)="discardDraft()">Descartar rascunho</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="discardDraft()">Descartar rascunho</button>
           <button class="btn btn-primary"
            
             type="button"
@@ -261,10 +257,10 @@
           }
           @if (simulation(); as calc) {
             <div aria-live="polite">
-              <div class="st-kpis">
-                <div class="st-kpi"><span class="st-kpi__label">Comissão</span><span class="st-kpi__value"><app-amount [value]="calc.commission" /></span></div>
-                <div class="st-kpi"><span class="st-kpi__label">Valor fixo</span><span class="st-kpi__value"><app-amount [value]="calc.fixedFee" /></span></div>
-                <div class="st-kpi st-kpi--total"><span class="st-kpi__label">Efeito no repasse</span><span class="st-kpi__value"><app-amount [value]="calc.transferEffect" [signed]="true" /></span></div>
+              <div class="app-kpi-grid">
+                <app-kpi-card label="Comissão" record><app-amount [value]="calc.commission" /></app-kpi-card>
+                <app-kpi-card label="Valor fixo" record><app-amount [value]="calc.fixedFee" /></app-kpi-card>
+                <app-kpi-card label="Efeito no repasse" record emphasis><app-amount [value]="calc.transferEffect" [signed]="true" /></app-kpi-card>
               </div>
               <app-calculation-memory [calculation]="calc" caption="Memória da simulação" />
             </div>

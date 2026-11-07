@@ -206,12 +206,12 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
     .ts-title {
       margin: 0 0 8px;
       font-size: var(--app-text-md);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .ts-sub {
       margin: 12px 0 4px;
       font-size: var(--app-text-sm);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .ts-table-wrap {
       overflow-x: auto;
@@ -224,7 +224,7 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
     }
     .ts-table caption {
       text-align: left;
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       padding-bottom: 4px;
     }
     .ts-table th,
@@ -235,7 +235,7 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
       vertical-align: top;
     }
     .ts-table thead th {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-secondary-color);
     }
     .ts-table .num {

@@ -25,7 +25,7 @@ import { CommissionStatementsApi } from '../data/incentive.api';
 import { AdjustmentView, DisputeView, LedgerEntryView, StatementDetail, StatementLine } from '../data/incentive.models';
 import { canDecide, canResolve, disputeTarget, linesTotal, monthLabel, statementActions } from '../data/incentive.rules';
 import { AdjustDialog, AdjustDialogData, DisputeDialog, DisputeDialogData, ResolveDialog, ResolveDialogData, incentiveError } from './statement-dialogs';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 
 /**
  * Extrato de comissão do negociador: valores, memória de cálculo linha a linha (contestável),
@@ -34,7 +34,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-incentive-statement-detail',
-  imports: [RouterLink, Amount, AppDatePipe, EmptyState, Icon, LedgerTable, PageHeader, Skeleton, StatementLines, StatusChip, InfoHint],
+  imports: [RouterLink, Amount, AppDatePipe, EmptyState, Icon, LedgerTable, PageHeader, Skeleton, StatementLines, StatusChip, KpiCard],
   templateUrl: './statement-detail.html',
   styleUrl: '../incentive.scss',
 })

@@ -42,30 +42,28 @@ import { PendingWorkItem } from '../../core/pending-work/pending-work.models';
       min-width: 0;
       min-height: 72px;
       padding: 12px 14px;
-      border: 1px solid var(--bs-border-color);
-      border-left-width: 4px;
-      border-radius: var(--app-radius-lg, 1rem);
+      border: var(--bs-border-width) solid var(--bs-border-color);
+      border-radius: var(--app-radius-lg);
       background: var(--bs-body-bg);
       color: var(--bs-body-color);
       text-decoration: none;
       transition:
-        border-color var(--app-motion-fast, 0.15s) ease,
-        box-shadow var(--app-motion-fast, 0.15s) ease;
+        border-color var(--app-motion-fast) ease,
+        box-shadow var(--app-motion-fast) ease;
     }
     .pwl__card:hover {
-      box-shadow: var(--app-elevation-1, var(--bs-box-shadow-sm));
+      box-shadow: var(--app-elevation-1);
     }
     .pwl__card:hover .pwl__go {
       opacity: 1;
     }
+    /* a severidade já aparece no contador colorido e no selo com ícone; a borda inteira só reforça
+       (sem a faixa lateral, que num cartão arredondado vira um "C" curvo) */
     .pwl__card--OVERDUE {
-      border-left-color: var(--bs-danger);
+      border-color: var(--bs-danger-border-subtle);
     }
     .pwl__card--DUE_TODAY {
-      border-left-color: var(--bs-warning);
-    }
-    .pwl__card--NORMAL {
-      border-left-color: var(--bs-primary-border-subtle);
+      border-color: var(--bs-warning-border-subtle);
     }
     .pwl__go {
       flex: none;

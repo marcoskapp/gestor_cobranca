@@ -303,8 +303,8 @@ const VERBS: Record<RecordDecision, string> = { EXCLUDE: 'excluído(s) do lote',
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      margin: 8px calc(-1 * var(--app-card-padding, 16px)) calc(-1 * var(--app-card-padding, 16px));
-      padding: 10px var(--app-card-padding, 16px);
+      margin: 8px calc(-1 * var(--app-card-padding)) calc(-1 * var(--app-card-padding));
+      padding: 10px var(--app-card-padding);
       border-top: 1px solid var(--bs-border-color);
       border-radius: 0 0 var(--bs-border-radius-lg) var(--bs-border-radius-lg);
       background: var(--app-surface);

@@ -44,12 +44,8 @@ import { SimulationDialog, VigencyDialog, VigencyDialogData } from './plan-dialo
     @if (plan(); as p) {
       @let act = actions()!;
       <app-page-header [title]="p.name + ' · v' + p.version" [subtitle]="p.code + (p.description ? ' — ' + p.description : '')">
-        <a class="btn btn-link" routerLink="/remuneracao/planos">
-          <app-icon name="arrow-left" />
-          Planos
-        </a>
         @if (act.simulate) {
-          <button class="btn btn-outline-primary" type="button" (click)="simulate()" data-tour="plan-simulate">
+          <button class="btn btn-outline-secondary" type="button" (click)="simulate()" data-tour="plan-simulate">
             <app-icon name="calculator" />
             Simular
           </button>
@@ -61,13 +57,13 @@ import { SimulationDialog, VigencyDialog, VigencyDialogData } from './plan-dialo
           <button class="btn btn-outline-danger" type="button" (click)="retire()" [disabled]="busy()">Aposentar</button>
         }
         @if (act.newVersion) {
-          <button class="btn btn-outline-primary" type="button" (click)="newVersion()" [disabled]="busy()">
+          <button class="btn btn-outline-secondary" type="button" (click)="newVersion()" [disabled]="busy()">
             <app-icon name="plus-lg" />
             Nova versão
           </button>
         }
         @if (act.edit) {
-          <a class="btn btn-outline-primary" [routerLink]="['/remuneracao/planos', p.id, 'regras']">
+          <a class="btn btn-outline-secondary" [routerLink]="['/remuneracao/planos', p.id, 'regras']">
             <app-icon name="pencil-square" />
             Editar regras
           </a>

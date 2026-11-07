@@ -39,7 +39,7 @@ export interface CaseScoreDialogData {
       <button type="button" class="btn-close" aria-label="Fechar" appDialogClose></button>
     </div>
     <div class="modal-body">
-      <ul ngbNav #nav="ngbNav" class="nav-tabs mb-3" [activeId]="tab()" (activeIdChange)="tab.set($event)">
+      <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)">
         <li [ngbNavItem]="'factors'">
           <button ngbNavLink type="button">Fatores ({{ s.factors.length }})</button>
           <ng-template ngbNavContent>

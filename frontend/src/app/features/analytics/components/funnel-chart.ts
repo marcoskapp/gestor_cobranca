@@ -64,14 +64,14 @@ let nextId = 0;
     .fn { margin: 0; }
     .fn__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .fn__head > button { flex: none; white-space: nowrap; }
-    .fn__title { font-size: 15px; font-weight: 600; }
+    .fn__title { font-size: var(--app-text-lg); font-weight: var(--app-weight-semibold); }
     .fn__summary { margin: 0 0 8px; font-size: var(--app-text-sm); color: var(--bs-secondary-color); }
     .fn__stages { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
     .fn__stage { display: grid; grid-template-columns: minmax(110px, 28%) 1fr auto; align-items: center; gap: 12px; }
     .fn__label { font-size: var(--app-text-sm); }
     .fn__track { height: 20px; }
     .fn__bar { display: block; height: 20px; border-radius: 0 4px 4px 0; background: var(--app-chart-1); }
-    .fn__value { min-width: 56px; font-size: var(--app-text-sm); font-weight: 600; text-align: right; }
+    .fn__value { min-width: 56px; font-size: var(--app-text-sm); font-weight: var(--app-weight-semibold); text-align: right; }
     .fn__conv { padding-left: calc(28% + 12px); font-size: var(--app-text-xs); color: var(--bs-secondary-color); }
     .fn__table { width: 100%; border-collapse: collapse; font-size: var(--app-text-sm); }
     .fn__table th, .fn__table td { padding: 6px 8px; border-bottom: 1px solid var(--bs-border-color); text-align: left; }

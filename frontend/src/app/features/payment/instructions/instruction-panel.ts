@@ -114,7 +114,7 @@ const MAX_POLLS = 60;
     }
     .ip__amount {
       font-size: var(--app-text-xl);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .ip__body {
       display: flex;

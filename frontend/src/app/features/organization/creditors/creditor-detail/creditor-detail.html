@@ -10,27 +10,22 @@
 
 @if (current(); as c) {
   <app-page-header [title]="c.tradeName || c.legalName" [subtitle]="c.tradeName ? c.legalName : ''">
-    <a class="btn btn-link" routerLink="/organizacao/credores">
-      <app-icon name="arrow-left" />
-      Credores
-    </a>
     @if (canViewPortfolios()) {
-      <a class="btn btn-outline-primary" routerLink="/organizacao/carteiras" [queryParams]="{ credor: c.id }">
+      <a class="btn btn-outline-secondary" routerLink="/organizacao/carteiras" [queryParams]="{ credor: c.id }">
         <app-icon name="folder2-open" />
         Carteiras
       </a>
     }
     @if (canManage()) {
-      <button class="btn btn-outline-primary" type="button" (click)="edit(c)">
+      <button class="btn btn-outline-secondary" type="button" (click)="edit(c)">
         <app-icon name="pencil" />
         Editar
       </button>
-      @if (c.status === 'ACTIVE') {
-        <button class="btn btn-outline-primary" type="button" (click)="setActive(c, false)">Inativar</button>
-      } @else {
+      @if (c.status !== 'ACTIVE') {
         <button class="btn btn-primary" type="button" (click)="setActive(c, true)">Ativar</button>
       }
     }
+    <app-more-actions [actions]="moreActions()" />
   </app-page-header>
 
   <section class="app-card" aria-labelledby="dados-credor">

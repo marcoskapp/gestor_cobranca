@@ -1,7 +1,8 @@
 // Garante a informação contextual dos indicadores (docs/tecnico/desenho/ux.md §8.6):
 //  1. todo id de indicador usado nos templates e nas colunas de tabela existe no catálogo
 //     (`src/app/core/onboarding/manual/indicators/content/`);
-//  2. todo cartão de indicador (`<app-kpi-card`) tem `info` — card de KPI novo não entra sem explicação;
+//  2. todo cartão de indicador (`<app-kpi-card`) tem `info` — card de KPI novo não entra sem explicação —,
+//     salvo o marcado com `record` (o valor é um campo do próprio registro, não um indicador calculado);
 //  3. todo `<app-info-hint>` tem `indicator` e `label`.
 // Formas reconhecidas: `indicator="x.y"`, `info="x.y"`, `[info]="'x.y'"`, `[indicator]="'x.y'"` e
 // `info: 'x.y'` (definição de coluna `TableColumn`). Ids dinâmicos (`[info]="expr"`) precisam de um
@@ -71,8 +72,8 @@ for (const file of files(app)) {
   }
   for (const match of text.matchAll(/<app-kpi-card\b[^>]*>/gs)) {
     cards++;
-    if (!/\s\[?info\]?=/.test(match[0])) {
-      problems.push(`${rel}:${lineOf(text, match.index)}: cartão de indicador sem informação contextual (acrescente info="<id do catálogo>").`);
+    if (!/\s\[?info\]?=/.test(match[0]) && !/\srecord[\s>]/.test(match[0])) {
+      problems.push(`${rel}:${lineOf(text, match.index)}: cartão de indicador sem informação contextual (acrescente info="<id do catálogo>" ou, se o valor for um campo do próprio registro, record).`);
     }
   }
   for (const match of text.matchAll(/<app-info-hint\b[^>]*>/gs)) {

@@ -11,7 +11,7 @@ import { presetRange } from '../data/analytics.filters';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, percent, ratioDetail } from '../data/analytics.format';
 import { AnalyticsFilter } from '../data/analytics.models';
-import { KpiCard } from './kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { Icon } from '../../../shared/components/icon/icon';
 
 /**
@@ -31,7 +31,7 @@ import { Icon } from '../../../shared/components/icon/icon';
         </a>
       </div>
       @if (portfolio(); as p) {
-        <div class="hk__grid" data-tour="home-kpis">
+        <div class="app-kpi-grid" data-tour="home-kpis">
           <app-kpi-card label="Valor da carteira" info="analytics.portfolio.amount" [detail]="count(p.totals.openTitles) + ' títulos'"><app-amount [value]="p.totals.portfolioAmount" [compact]="true" /></app-kpi-card>
           <app-kpi-card label="Saldo vencido" info="analytics.portfolio.overdue" [detail]="percent(p.totals.overdueShare) + ' da carteira'"><app-amount [value]="p.totals.overdueAmount" [compact]="true" /></app-kpi-card>
           <app-kpi-card label="Fila pendente" info="analytics.portfolio.pending-queue" [detail]="ratioDetail(p.totals.pendingQueueShare) + ' elegíveis'">{{ count(p.totals.pendingQueueCases) }}</app-kpi-card>
@@ -52,7 +52,6 @@ import { Icon } from '../../../shared/components/icon/icon';
   styles: `
     .hk { margin-bottom: 24px; }
     .hk__head { display: flex; align-items: center; justify-content: space-between; }
-    .hk__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--app-gap); }
     .hk__fresh { margin: 8px 0 0; font-size: var(--app-text-xs); color: var(--bs-secondary-color); }
   `,
 })

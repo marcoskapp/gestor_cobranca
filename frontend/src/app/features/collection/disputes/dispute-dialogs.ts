@@ -268,7 +268,7 @@ export interface CreditorRequestData {
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" [id]="'cr-t-' + t.titleId" #tb [checked]="titleIds().has(t.titleId)" (change)="toggleTitle(t.titleId, tb.checked)" />
                   <label class="form-check-label" [for]="'cr-t-' + t.titleId">
-                    <span class="app-numeric">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</span> · venc. {{ t.dueDate | appDate: 'date' }} ·
+                    <span class="text-nowrap">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</span> · venc. {{ t.dueDate | appDate: 'date' }} ·
                     <app-amount [value]="t.principalAmount" />
                   </label>
                 </div>

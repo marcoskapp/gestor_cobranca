@@ -1,7 +1,6 @@
 <app-page-header [title]="isNew() ? 'Configurar portal' : (current()?.displayName ?? 'Portal')" subtitle="O devedor só vê as carteiras habilitadas e só recebe condições do perfil de alçada PORTAL.">
-  <a class="btn btn-link" routerLink="/autonegociacao"><app-icon name="arrow-left" /> Portais</a>
   @if (current(); as c) {
-    <a class="btn btn-outline-primary" [href]="'/portal/' + c.slug" target="_blank" rel="noopener"><app-icon name="box-arrow-up-right" /> Abrir portal</a>
+    <a class="btn btn-outline-secondary" [href]="'/portal/' + c.slug" target="_blank" rel="noopener"><app-icon name="box-arrow-up-right" /> Abrir portal</a>
   }
   <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">Salvar</button>
 </app-page-header>

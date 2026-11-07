@@ -9,6 +9,14 @@ describe('Amount', () => {
     expect(toAmount('abc')).toBeNull();
   });
 
+  it('formato compacto com 3 algarismos significativos e exato abaixo de mil', () => {
+    expect(formatAmount(1_012_345, true)).toBe('R$ 1,01 mi');
+    expect(formatAmount(1_250_000, true)).toBe('R$ 1,25 mi');
+    expect(formatAmount(5_850, true)).toBe('R$ 5,85 mil');
+    expect(formatAmount(-2_345_678, true)).toBe('-R$ 2,35 mi');
+    expect(formatAmount(12.34, true)).toBe('R$ 12,34');
+  });
+
   it('valor com sinal: cor acompanhada de sinal explícito', () => {
     const fixture = TestBed.createComponent(Amount);
     fixture.componentRef.setInput('value', 50);

@@ -40,11 +40,11 @@ import { SCOPE_PERMISSIONS, TokenDialog, TokenDialogData } from './token-dialog'
       <app-page-header [title]="t.name" [subtitle]="creditors.name(t.creditorId) + ' · ' + t.prefix">
         @if (canManage() && (t.state === 'ACTIVE' || t.state === 'PAUSED')) {
           @if (canChange(t)) {
-            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="edit(t)" [disabled]="busy()">
+            <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="edit(t)" [disabled]="busy()">
               <app-icon name="pencil" />
               Editar
             </button>
-            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="rotate(t)" [disabled]="busy()" data-tour="token-rotate">
+            <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="rotate(t)" [disabled]="busy()" data-tour="token-rotate">
               <app-icon name="arrow-repeat" />
               Rotacionar
             </button>

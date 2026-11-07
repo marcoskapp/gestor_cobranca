@@ -174,7 +174,7 @@ import { Icon } from '../../../shared/components/icon/icon';
     .fs-title {
       margin: 0;
       font-size: var(--app-text-md);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .fs-counts {
       display: flex;
@@ -240,11 +240,11 @@ import { Icon } from '../../../shared/components/icon/icon';
       border-bottom: 1px solid var(--bs-border-color);
     }
     .fs-examples th {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       color: var(--bs-secondary-color);
     }
     .fs-ambiguous td:nth-child(2) {
-      font-weight: 700;
+      font-weight: var(--app-weight-bold);
     }
     .fs-actions {
       display: flex;

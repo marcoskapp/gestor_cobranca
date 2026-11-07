@@ -24,7 +24,6 @@ import { PDF_ACCEPT, UPLOAD_ERROR_LABELS, pdfFileProblem } from '../data/pdf-imp
   imports: [ReactiveFormsModule, RouterLink, EntityPicker, Icon, PageHeader],
   template: `
     <app-page-header title="Importação PDF inteligente" subtitle="Para quando o credor só consegue enviar PDF: o sistema encontra os títulos e você valida o mapa antes de importar.">
-      <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
     </app-page-header>
 
     <ol class="ps-how" aria-label="Como funciona" data-tour="pdf-how">
@@ -78,7 +77,7 @@ import { PDF_ACCEPT, UPLOAD_ERROR_LABELS, pdfFileProblem } from '../data/pdf-imp
     }
     .ps-how strong {
       color: var(--bs-body-color);
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .ps-form {
       max-width: 720px;

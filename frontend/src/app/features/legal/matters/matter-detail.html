@@ -8,7 +8,7 @@
   @let m = s.matter;
   <app-page-header [title]="s.debtor?.name ?? 'Caso jurídico'" [subtitle]="creditorName(m.creditorId) + ' · ' + originLabels[m.origin] + ' em ' + (m.referredAt | appDate: 'date')">
     @if (canManage() && !final()) {
-      <button class="btn btn-outline-primary" type="button" (click)="assignResponsible()" data-tour="matter-responsible">
+      <button class="btn btn-outline-secondary" type="button" (click)="assignResponsible()" data-tour="matter-responsible">
         <app-icon name="person" />
         Responsável
       </button>
@@ -54,23 +54,17 @@
     }
   }
 
-  <ul ngbNav #nav="ngbNav" class="nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="matter-tabs">
+  <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="matter-tabs">
     <li [ngbNavItem]="0">
       <button type="button" class="text-nowrap" ngbNavLink>Resumo</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
-          <div class="md-kpis">
-            <div class="md-kpi"><span class="md-kpi__label">Dívida</span><span class="md-kpi__value"><app-amount [value]="m.debtAmount" /></span></div>
-            <div class="md-kpi"><span class="md-kpi__label">Recuperável estimado</span><span class="md-kpi__value"><app-amount [value]="m.estimatedRecoverable" /></span></div>
-            <div class="md-kpi"><span class="md-kpi__label">Orçamento autorizado</span><span class="md-kpi__value"><app-amount [value]="m.authorizedBudget" /></span></div>
-            <div class="md-kpi" [class.md-kpi--warn]="(budget() ?? 0) > 100">
-              <span class="md-kpi__label">Custas e despesas</span>
-              <span class="md-kpi__value"><app-amount [value]="m.expensesTotal" /></span>
-              @if (budget() !== null) {
-                <span class="app-muted">{{ budgetText() }} do orçamento</span>
-              }
-            </div>
-            <div class="md-kpi"><span class="md-kpi__label">Liberado judicialmente</span><span class="md-kpi__value"><app-amount [value]="m.recoveredAmount" /></span></div>
+          <div class="app-kpi-grid">
+            <app-kpi-card label="Dívida" record><app-amount [value]="m.debtAmount" /></app-kpi-card>
+            <app-kpi-card label="Recuperável estimado" record><app-amount [value]="m.estimatedRecoverable" /></app-kpi-card>
+            <app-kpi-card label="Orçamento autorizado" record><app-amount [value]="m.authorizedBudget" /></app-kpi-card>
+            <app-kpi-card label="Custas e despesas" record [tone]="(budget() ?? 0) > 100 ? 'danger' : null" [detail]="budget() !== null ? budgetText() + ' do orçamento' : null"><app-amount [value]="m.expensesTotal" /></app-kpi-card>
+            <app-kpi-card label="Liberado judicialmente" record><app-amount [value]="m.recoveredAmount" /></app-kpi-card>
           </div>
           <div class="md-cols">
             <section aria-labelledby="md-titles">
@@ -89,7 +83,7 @@
                   <tbody>
                     @for (t of s.titles; track t.titleId) {
                       <tr>
-                        <td class="app-numeric">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</td>
+                        <td class="text-nowrap">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</td>
                         <td>{{ t.dueDate | appDate: 'date' }}</td>
                         <td class="md-end app-numeric">{{ t.daysOverdue }} d</td>
                         <td class="md-end"><app-amount [value]="t.openBalance" /></td>

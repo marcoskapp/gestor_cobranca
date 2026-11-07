@@ -70,7 +70,7 @@ interface ContractDetails {
       <ng-template appCell="contract" [appCellOf]="groups()" let-g>
         @let c = contractOf(g);
         @if (c) {
-          <strong class="app-numeric">{{ c.externalId }}</strong>
+          <strong class="text-nowrap">{{ c.externalId }}</strong>
           <div class="app-muted">{{ c.product || 'Produto não informado' }}</div>
         } @else if (g.contractId) {
           <span class="app-muted">Contrato indisponível</span>

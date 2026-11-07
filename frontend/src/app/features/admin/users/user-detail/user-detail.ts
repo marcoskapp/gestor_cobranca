@@ -1,6 +1,5 @@
 import { Component, Type, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { Observable, map } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -23,12 +22,13 @@ import { UserRolesDialog } from '../user-roles-dialog/user-roles-dialog';
 import { UserScopeDialog } from '../user-scope-dialog/user-scope-dialog';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
 import { Icon } from '../../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../../shared/components/more-actions/more-actions';
 
 @Component({
   selector: 'app-user-detail',
   imports: [Icon,
     RouterLink,
-    NgbDropdownModule,
+    MoreActions,
     PageHeader,
     StatusChip,
     SessionTable,
@@ -57,6 +57,40 @@ export class UserDetail {
 
   protected readonly user = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.user, undefined);
+  /**
+   * Ações da conta no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2); desativar fica por
+   * último, separado, e não vale para o próprio usuário.
+   */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const u = this.current();
+    if (!u || !this.canManage()) {
+      return [];
+    }
+    const list: MoreAction[] = [{ id: 'roles', label: 'Alterar perfis', icon: 'person-vcard', run: () => this.editRoles(u) }];
+    if (this.canViewCreditors()) {
+      list.push({ id: 'scope', label: 'Alterar escopo de credores', icon: 'buildings', run: () => this.editScope(u) });
+    }
+    list.push({
+      id: 'link',
+      label: u.status === 'PENDING_ACTIVATION' ? 'Reenviar link de ativação' : 'Enviar link de redefinição',
+      icon: 'forward',
+      disabled: u.status === 'DISABLED',
+      run: () => this.sendLink(u),
+    });
+    if (u.locked) {
+      list.push({ id: 'unlock', label: 'Desbloquear', icon: 'unlock', run: () => this.unlock(u) });
+    }
+    if (u.mfaEnabled) {
+      list.push({ id: 'mfa', label: 'Redefinir MFA', icon: 'phone', run: () => this.resetMfa(u) });
+    }
+    list.push({ id: 'sessions', label: 'Encerrar todas as sessões', icon: 'box-arrow-right', run: () => this.revokeSessions(u) });
+    list.push(
+      u.status === 'DISABLED'
+        ? { id: 'enable', label: 'Reativar', icon: 'person-check', run: () => this.enable(u) }
+        : { id: 'disable', label: 'Desativar', icon: 'person-slash', danger: true, disabled: this.isSelf(), run: () => this.disable(u) },
+    );
+    return list;
+  });
   protected readonly sessions = rxResource({
     params: () => (this.canManage() ? this.id() : undefined),
     stream: ({ params }) => this.api.sessions(params),

@@ -8,29 +8,26 @@
   @let act = actions()!;
   <app-page-header [title]="'Pagamento · ' + (debtorName() ?? creditors.name(p.creditorId))" [subtitle]="'Pago em ' + (p.paidAt | appDate) + ' · ' + creditors.name(p.creditorId)">
     @if (p.evidenceAvailable) {
-      <button class="btn btn-link d-inline-flex align-items-center gap-2" type="button" (click)="downloadEvidence()" data-tour="payment-evidence">
+      <button class="btn btn-outline-secondary" type="button" (click)="downloadEvidence()" data-tour="payment-evidence">
         <app-icon name="paperclip" />
         Baixar comprovante
       </button>
     }
-    @if (act.reverse) {
-      <button type="button" class="btn btn-outline-danger d-inline-flex align-items-center gap-2" (click)="reverse()" [disabled]="busy()" data-tour="payment-reverse">
-        <app-icon name="arrow-counterclockwise" />
-        Estornar
-      </button>
-    }
     @if (act.reallocate) {
-      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="reallocate()" [disabled]="busy()">
+      <button class="btn btn-outline-secondary" type="button" (click)="reallocate()" [disabled]="busy()">
         <app-icon name="signpost-split" />
         Realocar
       </button>
     }
     @if (act.review) {
-      <button type="button" class="btn btn-outline-danger" (click)="reject()" [disabled]="busy()">Recusar</button>
-      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="approve()" [disabled]="busy()" data-tour="payment-approve">
+      <button type="button" class="btn btn-outline-secondary" (click)="reject()" [disabled]="busy()">Recusar</button>
+      <button class="btn btn-primary" type="button" (click)="approve()" [disabled]="busy()" data-tour="payment-approve">
         <app-icon name="person-check" />
         Aprovar
       </button>
+    }
+    @if (act.reverse) {
+      <span data-tour="payment-reverse"><app-more-actions [actions]="moreActions()" /></span>
     }
   </app-page-header>
 
@@ -77,11 +74,11 @@
     <div class="pd-main app-stack">
       <section class="app-card" aria-labelledby="pm-values">
         <h2 class="app-card__title" id="pm-values">Valores</h2>
-        <div class="pd-kpis">
-          <div class="pd-kpi"><span class="pd-kpi__label">Valor pago <app-info-hint indicator="payment.detail.amount" label="Valor pago" /></span><span class="pd-kpi__value"><app-amount [value]="p.amount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Alocado <app-info-hint indicator="payment.detail.allocated" label="Alocado" /></span><span class="pd-kpi__value"><app-amount [value]="p.allocatedAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">Sobra <app-info-hint indicator="payment.detail.unallocated" label="Sobra" /></span><span class="pd-kpi__value"><app-amount [value]="p.unallocatedAmount" /></span></div>
-          <div class="pd-kpi"><span class="pd-kpi__label">A realocar <app-info-hint indicator="payment.detail.pending-reallocation" label="A realocar" /></span><span class="pd-kpi__value"><app-amount [value]="p.pendingReallocation" /></span></div>
+        <div class="app-kpi-grid">
+          <app-kpi-card label="Valor pago" info="payment.detail.amount"><app-amount [value]="p.amount" /></app-kpi-card>
+          <app-kpi-card label="Alocado" info="payment.detail.allocated"><app-amount [value]="p.allocatedAmount" /></app-kpi-card>
+          <app-kpi-card label="Sobra" info="payment.detail.unallocated"><app-amount [value]="p.unallocatedAmount" /></app-kpi-card>
+          <app-kpi-card label="A realocar" info="payment.detail.pending-reallocation"><app-amount [value]="p.pendingReallocation" /></app-kpi-card>
         </div>
       </section>
 

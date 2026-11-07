@@ -67,9 +67,9 @@ type Tab = 'accounts' | 'routes' | 'comparison';
       }
     </app-page-header>
 
-    <ul ngbNav #nav="ngbNav" class="nav-tabs mb-3" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="telephony-accounts-tabs">
+    <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="telephony-accounts-tabs">
       <li [ngbNavItem]="'accounts'">
-        <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2"><app-icon name="plug" />Contas</button>
+        <button ngbNavLink type="button">Contas</button>
         <ng-template ngbNavContent>
           <app-data-table
             caption="Contas de telefonia"
@@ -134,7 +134,7 @@ type Tab = 'accounts' | 'routes' | 'comparison';
         </ng-template>
       </li>
       <li [ngbNavItem]="'routes'">
-        <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2"><app-icon name="signpost-split" />Roteamento</button>
+        <button ngbNavLink type="button">Roteamento</button>
         <ng-template ngbNavContent>
           <p class="app-muted">
             Cada chamada usa a regra mais específica: campanha, depois carteira, credor e o padrão da assessoria. Conta inativa ou fora do ar
@@ -167,7 +167,7 @@ type Tab = 'accounts' | 'routes' | 'comparison';
         </ng-template>
       </li>
       <li [ngbNavItem]="'comparison'">
-        <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2" data-tour="telephony-comparison-tab"><app-icon name="bar-chart" />Comparação</button>
+        <button ngbNavLink type="button" data-tour="telephony-comparison-tab">Comparação</button>
         <ng-template ngbNavContent>
           <p class="app-muted">Últimos 30 dias, chamadas de saída. Custo estimado = minutos do atendimento ao fim × tarifa informada na conta (a fatura do fornecedor é a referência).</p>
           <app-data-table

@@ -73,7 +73,7 @@
 .pd-tab--on {
   border-color: var(--bs-primary);
   background: var(--bs-info-bg-subtle);
-  font-weight: 600;
+  font-weight: var(--app-weight-semibold);
 }
 
 .pd-override {
@@ -106,7 +106,7 @@
 
 .pd-version--current {
   border-left-color: var(--bs-primary) !important;
-  font-weight: 600;
+  font-weight: var(--app-weight-semibold);
 }
 
 .pd-small {

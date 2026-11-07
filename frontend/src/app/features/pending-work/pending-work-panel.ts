@@ -78,7 +78,7 @@ import { InfoHint } from '../../shared/components/info-hint/info-hint';
     }
     .pwp__empty {
       border: 1px dashed var(--bs-border-color);
-      border-radius: var(--app-radius-lg, 1rem);
+      border-radius: var(--app-radius-lg);
       background: var(--bs-body-bg);
     }
     .pwp__more {
@@ -90,7 +90,7 @@ import { InfoHint } from '../../shared/components/info-hint/info-hint';
       gap: 8px;
       margin: 8px 0 0;
       color: var(--bs-warning-text-emphasis);
-      font-size: var(--app-text-sm, 0.8125rem);
+      font-size: var(--app-text-sm);
     }
   `,
 })

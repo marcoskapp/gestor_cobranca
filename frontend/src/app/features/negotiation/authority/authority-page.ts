@@ -42,7 +42,7 @@ export function levelText(level: number): string {
   imports: [Icon, NgbNavModule, NgbTooltip, ReactiveFormsModule, Amount, CellDef, DataTable, EntityPicker, PageHeader],
   template: `
     <app-page-header title="Alçadas de negociação" subtitle="Perfis de alçada e quem usa cada um. Humanos e o assistente de IA passam pela mesma validação.">
-      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="editProfile(null)">
+      <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="editProfile(null)">
         <app-icon name="plus-lg" />
         Novo perfil
       </button>
@@ -52,7 +52,7 @@ export function levelText(level: number): string {
       </button>
     </app-page-header>
 
-    <ul ngbNav #nav="ngbNav" class="nav-tabs" data-tour="authority-tabs">
+    <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs" data-tour="authority-tabs">
       <li ngbNavItem="profiles">
         <button type="button" ngbNavLink>Perfis ({{ profileRows().length }})</button>
         <ng-template ngbNavContent>

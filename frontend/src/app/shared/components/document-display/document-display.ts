@@ -14,7 +14,7 @@ import { documentType, formatDocument, maskDocument, onlyDigits } from '../../va
   imports: [Icon, NgbTooltip],
   host: { class: 'app-document' },
   template: `
-    <span class="app-numeric">
+    <span class="text-nowrap">
       @if (kind(); as k) {
         <span class="app-document__kind">{{ k }}</span>
       }

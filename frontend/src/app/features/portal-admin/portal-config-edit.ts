@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { map, of, startWith } from 'rxjs';
 import { toApiError } from '../../core/http/problem';
 import { NotificationService } from '../../core/notification/notification.service';
@@ -29,8 +29,16 @@ const DEFAULT_NOTICE =
 /** Configuração do portal de um credor, com prévia da marca, funil e sessões. */
 @Component({
   selector: 'app-portal-config-edit',
-  imports: [...FORM_FIELD, Icon,
-    ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, AppDatePipe,
+  imports: [
+    ...FORM_FIELD,
+    Icon,
+    ReactiveFormsModule,
+    DataTable,
+    CellDef,
+    EntityPicker,
+    PageHeader,
+    StatusChip,
+    AppDatePipe,
   ],
   templateUrl: './portal-config-edit.html',
   styleUrl: './portal-config-edit.scss',

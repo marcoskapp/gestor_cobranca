@@ -151,7 +151,7 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
     }
     .pl-warn {
       color: var(--bs-warning-text-emphasis);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
   `,
 })
@@ -196,11 +196,11 @@ export class PaymentList {
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId), { batch: 100 });
 
   protected readonly columns: TableColumn[] = [
-    { key: 'paidAt', header: 'Pago em' },
-    { key: 'debtor', header: 'Devedor e credor' },
-    { key: 'amount', header: 'Valor', align: 'end' },
-    { key: 'source', header: 'Meio e origem' },
-    { key: 'status', header: 'Situação' },
+    { key: 'paidAt', header: 'Pago em', mobile: 'meta' },
+    { key: 'debtor', header: 'Devedor e credor', mobile: 'title' },
+    { key: 'amount', header: 'Valor', align: 'end', mobile: 'meta' },
+    { key: 'source', header: 'Meio e origem', mobile: 'meta' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

@@ -12,7 +12,7 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { BarChart } from '../../analytics/components/bar-chart';
 import { ColumnChart } from '../../analytics/components/column-chart';
-import { KpiCard } from '../../analytics/components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { ScoringModelsApi, ScoringMonitoringApi, ScoringSettingsApi } from '../data/scoring.api';
 import { FeatureCatalog, MonitoringView, ScoringSettingsView } from '../data/scoring.models';
 import {
@@ -64,7 +64,7 @@ export const MONITORING_REPORTS = 26;
           <h2 class="app-card__title mb-0" id="st-latest">Último retrato · {{ l.referenceDate | appDate: 'date' }}</h2>
           <app-status-chip domain="scoringMonitoring" [status]="l.status" />
         </div>
-        <div class="st-kpis">
+        <div class="app-kpi-grid">
           <app-kpi-card label="População" info="scoring.monitoring.population" detail="Casos escorados no retrato">{{ int(l.population) }}</app-kpi-card>
           <app-kpi-card label="PSI do score" info="scoring.monitoring.psi" data-tour="kpi-psi" [detail]="scorePsiDetail()">{{ metric(l.scorePsi) }}</app-kpi-card>
           <app-kpi-card label="Alertas" info="scoring.monitoring.alerts" [detail]="'Atenção ≥ ' + metric(warning()) + ' · alerta ≥ ' + metric(alert())">{{ int(l.alerts.length) }}</app-kpi-card>
@@ -162,11 +162,6 @@ export const MONITORING_REPORTS = 26;
       justify-content: space-between;
       gap: 8px;
       margin-bottom: 12px;
-    }
-    .st-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 12px;
     }
     .st-grid {
       display: grid;

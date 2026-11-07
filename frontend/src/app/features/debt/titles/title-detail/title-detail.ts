@@ -33,13 +33,15 @@ import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { TitleAmountDialog, TitleAmountDialogData } from '../title-amount/title-amount-dialog';
 import { TitleAmountHistory } from '../title-amount/title-amount-history';
 import { AmountAdjustmentView } from '../../data/debt.models';
+import { KpiCard } from '../../../../shared/components/kpi-card/kpi-card';
+import { MoreAction, MoreActions } from '../../../../shared/components/more-actions/more-actions';
 
 type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
 
 /** Detalhe do título: dados, saldo por componente, razão, titularidade e ações de ciclo de vida. */
 @Component({
   selector: 'app-title-detail',
-  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, TitleAmountHistory, OverdueBadge, Icon, NgbNavModule],
+  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, TitleAmountHistory, OverdueBadge, Icon, NgbNavModule, KpiCard, MoreActions],
   templateUrl: './title-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -85,6 +87,32 @@ export class TitleDetail {
     return !!t && (t.status === 'OPEN' || t.status === 'SUSPENDED') && this.auth.hasPermission(Permission.TITLE_AMOUNT_ADJUST);
   });
   protected readonly amountHistory = viewChild(TitleAmountHistory);
+
+  /**
+   * Ciclo de vida no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2): a reativação, quando
+   * houver, é a ação primária no cabeçalho; o cancelamento (irreversível) fica por último, separado.
+   */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const t = this.current();
+    const actions = this.actions();
+    if (!t) {
+      return [];
+    }
+    const list: MoreAction[] = [];
+    if (actions.includes('suspend')) {
+      list.push({ id: 'suspend', label: 'Suspender', icon: 'pause-circle', run: () => this.run('suspend', t) });
+    }
+    if (this.canTransfer()) {
+      list.push({ id: 'transfer', label: 'Transferir', icon: 'folder-symlink', run: () => this.transfer(t) });
+    }
+    if (actions.includes('return')) {
+      list.push({ id: 'return', label: 'Devolver ao credor', icon: 'arrow-return-left', run: () => this.run('return', t) });
+    }
+    if (actions.includes('cancel')) {
+      list.push({ id: 'cancel', label: 'Cancelar', icon: 'slash-circle', danger: true, run: () => this.run('cancel', t) });
+    }
+    return list;
+  });
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.current()?.creditorId]);

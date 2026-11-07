@@ -6,7 +6,7 @@ import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
-import { KpiCard } from '../../analytics/components/kpi-card';
+import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { formatCycle } from '../../public-api/data/public-api.labels';
 import { PlatformBillingApi } from '../data/platform-billing.api';
 import { TenantSummary } from '../data/platform-billing.models';
@@ -24,7 +24,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
   imports: [Amount, CellDef, DataTable, Icon, KpiCard, PageHeader, RouterLink],
   template: `
     <app-page-header title="Faturamento da plataforma" subtitle="Cobrança das assessorias pelo consumo de todos os seus tokens de integração — independente da cobrança delas aos credores.">
-      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="overview.reload()" [disabled]="overview.isLoading()">
+      <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="overview.reload()" [disabled]="overview.isLoading()">
         <app-icon name="arrow-clockwise" />
         Atualizar
       </button>
@@ -34,7 +34,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
       <div class="alert alert-danger" role="alert">Não foi possível carregar o faturamento da plataforma.</div>
     }
     @if (overview.value(); as o) {
-      <div class="pbo-kpis" data-tour="overview-kpis">
+      <div class="app-kpi-grid" data-tour="overview-kpis">
         <app-kpi-card label="Receita até agora" info="platform.overview.revenue" data-tour="kpi-revenue" [detail]="'Ciclos em andamento de ' + o.totals.withPolicy + ' assessorias com política'"><app-amount [value]="o.totals.amountSoFar" /></app-kpi-card>
         <app-kpi-card label="Receita projetada" info="platform.overview.projection" detail="Pela média diária de cada assessoria"><app-amount [value]="o.totals.projectedAmount" /></app-kpi-card>
         <app-kpi-card label="Últimos extratos fechados" info="platform.overview.last-closed" detail="Soma do último extrato de cada assessoria"><app-amount [value]="o.totals.lastClosedAmount" /></app-kpi-card>
@@ -83,12 +83,6 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
     </section>
   `,
   styles: `
-    .pbo-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-    }
     .pbo-small {
       font-size: var(--app-text-xs);
     }

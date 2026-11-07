@@ -22,8 +22,9 @@ Uma interface **leve e fácil de operar** durante turnos longos, que funcione no
 - **Cores**: azul institucional como cor principal, cinzas frios nas superfícies. Cores de estado (verde, amarelo, vermelho, azul, cinza) **sempre acompanhadas de texto e ícone**, para quem tem daltonismo e para leitura rápida.
 - **Tema claro e escuro**: segue o sistema operacional por padrão; cada pessoa pode fixar claro ou escuro. O escuro reduz o brilho em jornadas longas e ambientes com pouca luz.
 - **Densidade**: *confortável* (padrão) ou *compacta*, que mostra mais linhas por tela para quem trabalha com alto volume. Em telas de toque a densidade compacta é ignorada para manter os alvos grandes.
-- **Tipografia**: Inter, fonte de código aberto projetada para telas, servida pela própria aplicação (sem serviços externos), em traço fino e delicado. Números alinhados em colunas para facilitar a conferência de valores.
-- **Forma**: componentes arredondados (botões, campos, cartões e diálogos com cantos suaves), construídos com o **Bootstrap 5.3**, ajustado só pelos parâmetros oficiais do framework para facilitar a atualização para versões futuras.
+- **Tipografia**: Inter, fonte de código aberto projetada para telas, servida pela própria aplicação (sem serviços externos), leve mas sólida: texto em peso regular, títulos e valores em destaque, e o traço fino reservado aos textos grandes (revisão de produto de novembro de 2026; o traço fino no texto corrido ficava acinzentado em monitores comuns). Números alinhados em colunas para facilitar a conferência de valores.
+- **Forma**: componentes arredondados sem exagero (cantos de 8 px em botões e campos, 12 px em cartões, 16 px em diálogos), construídos com o **Bootstrap 5.3**, ajustado só pelos parâmetros oficiais do framework para facilitar a atualização para versões futuras.
+- **Ações**: em cada tela, uma ação principal em azul; as demais em cinza e, nas fichas, as menos usadas e as irreversíveis no menu "Mais ações".
 - **Preferências que acompanham a pessoa**: tema, densidade e menu recolhido ficam salvos na conta e valem em qualquer computador ou celular.
 
 ## Navegação

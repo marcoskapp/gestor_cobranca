@@ -13,22 +13,18 @@
     [title]="isNew() ? (copiar() ? 'Duplicar segmento' : 'Novo segmento') : name() || 'Segmento'"
     [subtitle]="isNew() ? 'Combine filtros sobre os casos de cobrança. A contagem atualiza a cada alteração.' : (segment()?.creditorId ? creditors.name(segment()?.creditorId) : 'Segmento da assessoria (todos os credores)') + ' · ' + segment()?.code"
   >
-    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas/segmentos">
-      <app-icon name="arrow-left" />
-      Segmentos
-    </a>
     @if (canManage()) {
       @if (segment(); as s) {
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="duplicate()" ngbTooltip="Novo segmento com os mesmos filtros">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="duplicate()" ngbTooltip="Novo segmento com os mesmos filtros">
           <app-icon name="copy" />
           Duplicar
         </button>
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="toggleActive()">
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="toggleActive()">
           <app-icon [name]="s.active ? 'toggle-off' : 'toggle-on'" />
           {{ s.active ? 'Desativar' : 'Ativar' }}
         </button>
         @if (dirty()) {
-          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="discard()">Descartar alterações</button>
+          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="discard()">Descartar alterações</button>
         }
       }
       <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="save()" [disabled]="saving() || (!dirty() && !isNew()) || problems().length > 0">

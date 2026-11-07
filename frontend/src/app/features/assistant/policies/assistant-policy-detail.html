@@ -9,20 +9,16 @@
 
 @if (policy(); as p) {
   <app-page-header [title]="p.name + ' · v' + p.policyVersion" [subtitle]="scope() + ' · ' + p.code">
-    <a class="btn btn-link" routerLink="/assistente/politicas">
-      <app-icon name="arrow-left" />
-      Políticas
-    </a>
     @if (canManage()) {
       @if (p.portfolioId) {
-        <button class="btn btn-outline-primary" type="button" (click)="disablePortfolio()">
+        <button class="btn btn-outline-secondary" type="button" (click)="disablePortfolio()">
           <app-icon name="power" />
           Desligar carteira
         </button>
       }
       @if (p.status === 'DRAFT') {
         @if (dirty()) {
-          <button class="btn btn-outline-primary" type="button" (click)="discardChanges()">Descartar alterações</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="discardChanges()">Descartar alterações</button>
           <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
             <app-icon name="floppy" />
             Salvar rascunho
@@ -35,7 +31,7 @@
         }
       } @else {
         @if (p.status === 'PUBLISHED') {
-          <button class="btn btn-outline-primary" type="button" (click)="retire()">Aposentar</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="retire()">Aposentar</button>
         }
         <button class="btn btn-primary" type="button" (click)="newVersion()" [disabled]="hasDraft()" [ngbTooltip]="hasDraft() ? 'Já existe um rascunho desta política' : 'Copia os parâmetros para um novo rascunho'">
           <app-icon name="copy" />

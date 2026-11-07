@@ -291,7 +291,7 @@ const SUGGESTIONS: readonly string[] = ['Como uso esta tela?', 'Quais são as mi
     .chat__eyebrow {
       margin: 0 0 2px;
       font-size: var(--app-text-xs);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--bs-secondary-color);
@@ -359,7 +359,7 @@ const SUGGESTIONS: readonly string[] = ['Como uso esta tela?', 'Quais são as mi
       align-items: center;
     }
     .chat__card-title {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
     }
     .chat__card-sub,
     .chat__fields {
@@ -373,7 +373,7 @@ const SUGGESTIONS: readonly string[] = ['Como uso esta tela?', 'Quais são as mi
       margin: var(--app-space-1) 0 0;
     }
     .chat__fields dt {
-      font-weight: 500;
+      font-weight: var(--app-weight-medium);
     }
     .chat__fields dd {
       margin: 0;
@@ -420,7 +420,7 @@ const SUGGESTIONS: readonly string[] = ['Como uso esta tela?', 'Quais são as mi
     }
     .chat__ticket-title {
       font-size: var(--app-text-sm);
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       margin: 0 0 var(--app-space-1);
     }
     .chat__ticket-hint {
@@ -429,7 +429,7 @@ const SUGGESTIONS: readonly string[] = ['Como uso esta tela?', 'Quais são as mi
       margin-bottom: var(--app-space-2);
     }
     .chat__ticket-subject {
-      font-weight: 600;
+      font-weight: var(--app-weight-semibold);
       margin-bottom: var(--app-space-1);
     }
     .chat__ticket-body {

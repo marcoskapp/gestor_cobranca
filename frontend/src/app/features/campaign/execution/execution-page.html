@@ -7,7 +7,7 @@
 
 @if (current(); as c) {
   <app-page-header [title]="'Execução · ' + c.name" subtitle="Quem foi inscrito, o que cada etapa fez, por que pulou ou falhou e quais resultados vieram da campanha.">
-    <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="refresh()" [disabled]="dashboard.isLoading()">
+    <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="refresh()" [disabled]="dashboard.isLoading()">
       <app-icon name="arrow-clockwise" />
       Atualizar
     </button>
@@ -37,42 +37,21 @@
       Calculado em {{ p.computedAt | appDate }}. Resultados atribuídos da inscrição até {{ c.attributionWindowDays }} dias após o fim; cada acordo ou pagamento conta uma vez.
     </p>
 
-    <section class="ex-kpis" aria-label="Indicadores da campanha" data-tour="execution-kpis">
-      <div class="ex-kpi">
-        <span class="ex-kpi__label">Inscritos <app-info-hint indicator="campaign.execution.enrollments" label="Inscritos" /></span>
-        <span class="ex-kpi__value app-numeric">{{ count(p.enrollments) }}</span>
-        <span class="ex-kpi__hint">{{ count(p.enrollmentsByStatus['ACTIVE'] ?? 0) }} em andamento</span>
-      </div>
-      <div class="ex-kpi">
-        <span class="ex-kpi__label">Etapas executadas <app-info-hint indicator="campaign.execution.steps" label="Etapas executadas" /></span>
-        <span class="ex-kpi__value app-numeric">{{ count(p.steps.executed) }}</span>
-        <span class="ex-kpi__hint">{{ count(p.steps.skipped) }} puladas · {{ count(p.steps.failed) }} com falha</span>
-      </div>
-      <div class="ex-kpi" [class.ex-kpi--late]="failedEnrollments() > 0">
-        <span class="ex-kpi__label">Inscrições com falha <app-info-hint indicator="campaign.execution.failed" label="Inscrições com falha" /></span>
-        <span class="ex-kpi__value app-numeric">
-          @if (failedEnrollments() > 0) {
-            <app-icon name="exclamation-circle" />
-          }
-          {{ count(failedEnrollments()) }}
-        </span>
-        <span class="ex-kpi__hint">aguardando reprocesso</span>
-      </div>
-      <div class="ex-kpi">
-        <span class="ex-kpi__label">Respostas <app-info-hint indicator="campaign.execution.replies" label="Respostas" /></span>
-        <span class="ex-kpi__value app-numeric">{{ count(p.outcomes.repliedEnrollments) }}</span>
-        <span class="ex-kpi__hint">{{ share(p.outcomes.repliedEnrollments, p.enrollments) }}</span>
-      </div>
-      <div class="ex-kpi">
-        <span class="ex-kpi__label">Acordos atribuídos <app-info-hint indicator="campaign.execution.agreements" label="Acordos atribuídos" /></span>
-        <span class="ex-kpi__value app-numeric">{{ count(p.outcomes.agreements) }}</span>
-        <span class="ex-kpi__hint"><app-amount [value]="p.outcomes.agreementAmount" [compact]="true" /> em acordos</span>
-      </div>
-      <div class="ex-kpi">
-        <span class="ex-kpi__label">Recuperado <app-info-hint indicator="campaign.execution.recovered" label="Recuperado" /></span>
-        <span class="ex-kpi__value"><app-amount [value]="p.outcomes.recoveredAmount" [compact]="true" /></span>
-        <span class="ex-kpi__hint">{{ share(p.outcomes.payingEnrollments, p.enrollments) }} pagaram</span>
-      </div>
+    <section class="app-kpi-grid" aria-label="Indicadores da campanha" data-tour="execution-kpis">
+      <app-kpi-card label="Inscritos" info="campaign.execution.enrollments" [detail]="count(p.enrollmentsByStatus['ACTIVE'] ?? 0) + ' em andamento'">{{ count(p.enrollments) }}</app-kpi-card>
+      <app-kpi-card label="Etapas executadas" info="campaign.execution.steps" [detail]="count(p.steps.skipped) + ' puladas · ' + count(p.steps.failed) + ' com falha'">{{ count(p.steps.executed) }}</app-kpi-card>
+      <app-kpi-card label="Inscrições com falha" info="campaign.execution.failed" detail="aguardando reprocesso" [tone]="failedEnrollments() > 0 ? 'danger' : null">
+        @if (failedEnrollments() > 0) {
+          <app-icon name="exclamation-circle" />
+        }
+        {{ count(failedEnrollments()) }}
+      </app-kpi-card>
+      <app-kpi-card label="Respostas" info="campaign.execution.replies" [detail]="share(p.outcomes.repliedEnrollments, p.enrollments)">{{ count(p.outcomes.repliedEnrollments) }}</app-kpi-card>
+      <app-kpi-card label="Acordos atribuídos" info="campaign.execution.agreements">
+        {{ count(p.outcomes.agreements) }}
+        <span appKpiExtra class="app-kpi__detail"><app-amount [value]="p.outcomes.agreementAmount" [compact]="true" /> em acordos</span>
+      </app-kpi-card>
+      <app-kpi-card label="Recuperado" info="campaign.execution.recovered" [detail]="share(p.outcomes.payingEnrollments, p.enrollments) + ' pagaram'"><app-amount [value]="p.outcomes.recoveredAmount" [compact]="true" /></app-kpi-card>
     </section>
 
     <div class="ex-grid app-columns">

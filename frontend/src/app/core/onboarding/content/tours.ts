@@ -325,7 +325,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'debt.title-detail',
-    version: 2,
+    version: 3,
     title: 'Detalhe do título',
     summary: 'Saldo, razão, titularidade e ciclo de vida do título.',
     steps: [
@@ -343,7 +343,7 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'title-actions',
         title: 'Ciclo de vida',
-        body: 'Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.',
+        body: 'No menu "Mais ações": suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.',
       },
       {
         anchor: 'title-amount-adjust',
