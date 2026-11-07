@@ -37,6 +37,7 @@ docs/
 | [correcao-de-valor.md](negocio/correcao-de-valor.md) | Correção manual do valor do título: permissões, motivo e evidência, limite e aprovação por segunda pessoa (RB06), efeito em acordos, divergência com a carga do credor e histórico no título |
 | [contestacoes.md](negocio/contestacoes.md) | Contestações (F21): responsável e fila, prazos (interno, ao devedor, ao credor), canal formal com o credor (link seguro das evidências, lembretes, resposta pela tela ou API), resposta ao devedor como comunicação de serviço e ajuste sugerido no título |
 | [decisoes-autonomas.md](negocio/decisoes-autonomas.md) | Decisões de produto tomadas sem consulta, para revisão |
+| [revisao-produto-2026-11/](negocio/revisao-produto-2026-11/README.md) | Revisão de usabilidade, design e produto (06/11/2026): jornadas por perfil, ergonomia das telas, design visual, lacunas e IA, com a ordem priorizada das encomendas até a versão inicial |
 
 Regras de negócio que só existem no desenho técnico, por enquanto: remuneração variável dos negociadores ([tecnico/desenho/remuneracao-variavel.md](tecnico/desenho/remuneracao-variavel.md)) e negociação e alçadas ([tecnico/desenho/negociacao-e-alcadas.md](tecnico/desenho/negociacao-e-alcadas.md)).
 
