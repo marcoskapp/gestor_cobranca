@@ -37,13 +37,14 @@ import { TitleAmountHistory } from '../title-amount/title-amount-history';
 import { AmountAdjustmentView } from '../../data/debt.models';
 import { KpiCard } from '../../../../shared/components/kpi-card/kpi-card';
 import { MoreAction, MoreActions } from '../../../../shared/components/more-actions/more-actions';
+import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
 
 type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
 
 /** Detalhe do título: dados, saldo por componente, razão, titularidade e ações de ciclo de vida. */
 @Component({
   selector: 'app-title-detail',
-  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, TitleAmountHistory, OverdueBadge, Icon, NgbNavModule, KpiCard, MoreActions],
+  imports: [TabsMore, RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, TitleAmountHistory, OverdueBadge, Icon, NgbNavModule, KpiCard, MoreActions],
   templateUrl: './title-detail.html',
   styleUrl: '../../debt.scss',
 })

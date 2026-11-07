@@ -6,6 +6,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { ScopeNotice } from '../components/scope-notice';
 import { ExpectedRecoveryPanel } from './expected-recovery-panel';
 import { StabilityPanel } from './stability-panel';
+import { TabsMore } from '../../../shared/components/tabs-more/tabs-more';
 
 /**
  * Monitoramento do score em duas abas: estabilidade e calibração do campeão (exige todos os
@@ -14,7 +15,7 @@ import { StabilityPanel } from './stability-panel';
  */
 @Component({
   selector: 'app-monitoring-page',
-  imports: [NgbNavModule, PageHeader, ScopeNotice, ExpectedRecoveryPanel, StabilityPanel],
+  imports: [TabsMore, NgbNavModule, PageHeader, ScopeNotice, ExpectedRecoveryPanel, StabilityPanel],
   template: `
     <app-page-header title="Monitoramento do score" subtitle="Deriva da população, calibração, desempenho real das safras e recuperado × esperado." />
     <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" data-tour="scoring-monitoring-tabs">
@@ -34,6 +35,8 @@ import { StabilityPanel } from './stability-panel';
           <app-expected-recovery-panel />
         </ng-template>
       </li>
+      <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
+      <li [appTabsMore]="nav"></li>
     </ul>
     <div [ngbNavOutlet]="nav"></div>
   `,

@@ -22,6 +22,7 @@ import { DisputeConfigApi, DisputesApi } from '../data/collection.api';
 import { DisputeMailQuarantine } from './dispute-mail-quarantine';
 import { DEADLINE_SOURCE_LABELS, DISPUTE_OUTCOME_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DeadlineRuleView, DisputeSettingsRequest, DisputeTemplateView, DisputeType } from '../data/collection.models';
+import { TabsMore } from '../../../shared/components/tabs-more/tabs-more';
 
 /** Limites de `DisputeConfigController` (mesmos do servidor). */
 export const DISPUTE_CONFIG_LIMITS = {
@@ -41,7 +42,7 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
  */
 @Component({
   selector: 'app-dispute-config',
-  imports: [ReactiveFormsModule, NgbNavModule, EmptyState, EntityPicker, PageHeader, Skeleton, AppDatePipe, Icon, DisputeMailQuarantine, ...FORM_FIELD],
+  imports: [TabsMore, ReactiveFormsModule, NgbNavModule, EmptyState, EntityPicker, PageHeader, Skeleton, AppDatePipe, Icon, DisputeMailQuarantine, ...FORM_FIELD],
   template: `
     <app-page-header title="Configuração das contestações" subtitle="Prazos, distribuição entre os analistas e modelos de texto. Contestações já abertas mantêm os prazos calculados na abertura." />
 
@@ -270,6 +271,8 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
           <app-dispute-mail-quarantine />
         </ng-template>
       </li>
+      <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
+      <li [appTabsMore]="tabs"></li>
     </ul>
     <div [ngbNavOutlet]="tabs"></div>
   `,

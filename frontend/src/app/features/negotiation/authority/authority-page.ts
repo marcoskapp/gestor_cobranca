@@ -21,6 +21,7 @@ import { AuthorityApi } from '../data/negotiation.api';
 import { AUTHORITY_SOURCE_LABELS, percent } from '../data/negotiation.labels';
 import { AuthorityAssignmentView, EffectiveAuthorityView, ProfileView } from '../data/negotiation.models';
 import { AssignAuthorityData, AssignAuthorityDialog, ProfileForm } from './authority-dialogs';
+import { TabsMore } from '../../../shared/components/tabs-more/tabs-more';
 
 interface AssignmentFilter {
   user: string | null;
@@ -39,7 +40,7 @@ export function levelText(level: number): string {
  */
 @Component({
   selector: 'app-authority-page',
-  imports: [Icon, NgbNavModule, NgbTooltip, ReactiveFormsModule, Amount, CellDef, DataTable, EntityPicker, PageHeader],
+  imports: [TabsMore, Icon, NgbNavModule, NgbTooltip, ReactiveFormsModule, Amount, CellDef, DataTable, EntityPicker, PageHeader],
   template: `
     <app-page-header title="Alçadas de negociação" subtitle="Perfis de alçada e quem usa cada um. Humanos e o assistente de IA passam pela mesma validação.">
       <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="editProfile(null)">
@@ -151,6 +152,8 @@ export function levelText(level: number): string {
           </div>
         </ng-template>
       </li>
+      <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
+      <li [appTabsMore]="nav"></li>
     </ul>
     <div [ngbNavOutlet]="nav"></div>
   `,

@@ -3,6 +3,15 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 17,
+    date: '2026-11-07',
+    title: 'Abas que não cabem ficam em "Mais"',
+    items: [
+      { text: 'Quando as abas não cabem na largura (por exemplo, a ficha do devedor no painel da estação), as que sobram vão para o botão "Mais N ▾"; com uma delas aberta, o botão mostra o nome dela e quantas outras há.' },
+      { text: 'Canal com o credor das contestações organizado por pedido, como uma conversa: o e-mail enviado ao credor e, logo abaixo, os recebidos.' },
+    ],
+  },
+  {
     version: 16,
     date: '2026-11-07',
     title: 'Menu por tarefa e listas que voltam como estavam',

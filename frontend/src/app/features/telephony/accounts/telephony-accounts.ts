@@ -40,6 +40,7 @@ import {
   WebhookUrlsDialog,
   WebhookUrlsDialogData,
 } from './account-dialogs';
+import { TabsMore } from '../../../shared/components/tabs-more/tabs-more';
 
 type Tab = 'accounts' | 'routes' | 'comparison';
 
@@ -50,7 +51,7 @@ type Tab = 'accounts' | 'routes' | 'comparison';
  */
 @Component({
   selector: 'app-telephony-accounts',
-  imports: [NgbNavModule, NgbDropdownModule, Icon, CellDef, DataTable, PageHeader, StatusChip, AppDatePipe, DecimalPipe, PercentPipe],
+  imports: [TabsMore, NgbNavModule, NgbDropdownModule, Icon, CellDef, DataTable, PageHeader, StatusChip, AppDatePipe, DecimalPipe, PercentPipe],
   template: `
     <app-page-header title="Plataformas de telefonia" subtitle="Contas de cada plataforma, qual delas disca em cada credor, carteira ou campanha, e a comparação entre elas.">
       @if (canManage()) {
@@ -205,6 +206,8 @@ type Tab = 'accounts' | 'routes' | 'comparison';
           </app-data-table>
         </ng-template>
       </li>
+      <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
+      <li [appTabsMore]="nav"></li>
     </ul>
     <div [ngbNavOutlet]="nav"></div>
   `,

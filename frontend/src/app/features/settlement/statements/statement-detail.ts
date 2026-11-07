@@ -36,6 +36,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { TabsMore } from '../../../shared/components/tabs-more/tabs-more';
 
 /**
  * Demonstrativo do credor: totais (RB08) com a conferência do líquido, ciclo com ações e a
@@ -45,7 +46,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-statement-detail',
-  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip, InfoHint, KpiCard, MoreActions],
+  imports: [TabsMore, RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, AppDatePipe, EmptyState, PageHeader, ReceiptTable, Skeleton, StatusChip, InfoHint, KpiCard, MoreActions],
   templateUrl: './statement-detail.html',
   styleUrl: '../settlement.scss',
 })

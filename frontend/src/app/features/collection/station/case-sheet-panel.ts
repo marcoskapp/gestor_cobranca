@@ -129,6 +129,13 @@ export class CaseSheetPanel {
     SHEET_TABS.map((_, i) => i).filter((i) => !PRIMARY_TABS.includes(i) && (i !== CONVERSATIONS_TAB || this.canSeeConversations())),
   );
   protected readonly activeInMore = computed(() => this.moreTabs().includes(this.tab()));
+  /** Teclas do menu "Mais" que o `ngbNav` da faixa também escuta: não sobem (o foco iria para a primeira aba). */
+  protected keepMenuKeys(event: KeyboardEvent): void {
+    if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+      event.stopPropagation();
+    }
+  }
+
   /** Dica do botão "Mais": as abas que ele guarda (o rótulo mostra só a ativa ou a contagem). */
   protected readonly moreHint = computed(() => {
     const all = `Mais abas: ${this.moreTabs().map((i) => SHEET_TABS[i]).join(', ')}`;

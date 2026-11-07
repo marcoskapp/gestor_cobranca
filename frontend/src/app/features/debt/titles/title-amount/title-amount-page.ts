@@ -18,6 +18,7 @@ import { CreditorNames } from '../../../organization/data/organization.lookups';
 import { TitleAmountApi } from '../../data/debt.api';
 import { AMOUNT_REASON_LABELS } from '../../data/debt.labels';
 import { canConfirmThreshold } from './title-amount.rules';
+import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
 
 /**
  * Correções de valor de título: pedidos aguardando a aprovação de outra pessoa (a fila não mostra os próprios), cargas
@@ -26,7 +27,7 @@ import { canConfirmThreshold } from './title-amount.rules';
  */
 @Component({
   selector: 'app-title-amount-page',
-  imports: [ReactiveFormsModule, RouterLink, NgbNavModule, Amount, PageHeader, AppDatePipe, ...FORM_FIELD],
+  imports: [TabsMore, ReactiveFormsModule, RouterLink, NgbNavModule, Amount, PageHeader, AppDatePipe, ...FORM_FIELD],
   template: `
     <app-page-header title="Correções de valor" subtitle="Aprovação das correções manuais e divergências com a carga do credor." />
     <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-underline app-tabs" data-tour="title-amount-tabs">
@@ -120,6 +121,8 @@ import { canConfirmThreshold } from './title-amount.rules';
           </section>
         </ng-template>
       </li>
+      <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
+      <li [appTabsMore]="tabs"></li>
     </ul>
     <div [ngbNavOutlet]="tabs"></div>
   `,

@@ -15,6 +15,7 @@ import { CaseScoreApi } from '../data/scoring.api';
 import { LEGAL_BASIS_LABELS, MODEL_KIND_LABELS, REVIEW_ORIGIN_LABELS } from '../data/scoring.labels';
 import { CaseScoreView, ScoreHistoryEntry, ScoreReviewView } from '../data/scoring.models';
 import { contributionText, contributionWidths, percent, reviewChange } from '../data/scoring.rules';
+import { TabsMore } from '../../../shared/components/tabs-more/tabs-more';
 
 export interface CaseScoreDialogData {
   score: CaseScoreView;
@@ -27,7 +28,7 @@ export interface CaseScoreDialogData {
  */
 @Component({
   selector: 'app-case-score-dialog',
-  imports: [Icon, NgbNavModule, ...DIALOG_DIRECTIVES, AppDatePipe, EmptyState, Skeleton, ScoreBandChip],
+  imports: [TabsMore, Icon, NgbNavModule, ...DIALOG_DIRECTIVES, AppDatePipe, EmptyState, Skeleton, ScoreBandChip],
   template: `
     <div class="modal-header">
       <div>
@@ -134,6 +135,8 @@ export interface CaseScoreDialogData {
             }
           </ng-template>
         </li>
+        <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
+        <li [appTabsMore]="nav"></li>
       </ul>
       <div [ngbNavOutlet]="nav"></div>
       <div class="alert alert-secondary d-flex gap-2 align-items-start mt-3 mb-0" role="note">

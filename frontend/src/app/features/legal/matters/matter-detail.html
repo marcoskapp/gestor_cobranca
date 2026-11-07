@@ -464,6 +464,8 @@
         </div>
       </ng-template>
     </li>
+    <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
+    <li [appTabsMore]="nav"></li>
   </ul>
   <div [ngbNavOutlet]="nav"></div>
 }

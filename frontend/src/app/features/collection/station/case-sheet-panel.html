@@ -354,7 +354,7 @@
       </ng-template>
     </li>
   }
-  <li class="nav-item sp-more-item" ngbDropdown placement="bottom-end" display="dynamic">
+  <li class="nav-item sp-more-item" role="presentation" ngbDropdown placement="bottom-end" display="dynamic" (keydown)="keepMenuKeys($event)">
     <button
       type="button"
       class="nav-link sp-more"
@@ -370,7 +370,7 @@
     </button>
     <div ngbDropdownMenu class="shadow app-menu">
       @for (i of moreTabs(); track i) {
-        <button ngbDropdownItem type="button" [class.active]="tab() === i" [attr.aria-current]="tab() === i ? 'page' : null" (click)="tab.set(i)">
+        <button ngbDropdownItem type="button" [class.active]="tab() === i" [attr.aria-current]="tab() === i ? 'true' : null" (click)="tab.set(i)">
           <span>{{ moreLabel(i) }}</span>
           <kbd class="ms-auto sp-kbd" aria-hidden="true">Alt {{ i + 1 }}</kbd>
         </button>
