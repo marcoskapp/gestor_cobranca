@@ -22,7 +22,8 @@ export const CARD_FACTORS = 3;
 
 /**
  * Cartão do score de propensão na ficha do caso: pontos, faixa, chance de pagamento na janela,
- * os fatores que mais pesaram, recálculo sob demanda (`CASE_WORK`), explicação completa com
+ * os fatores que mais pesaram, recálculo sob demanda (`SCORING_MANAGE` com `CASE_VIEW`; sem score e sem
+ * essa permissão o cartão não aparece), explicação completa com
  * histórico e revisões, e a revisão humana (LGPD art. 20, `SCORING_MANAGE`). Não aparece para
  * quem não tem `SCORING_VIEW`. O score só ordena o atendimento — o aviso de finalidade é sempre
  * exibido.
@@ -31,7 +32,8 @@ export const CARD_FACTORS = 3;
   selector: 'app-case-score-card',
   imports: [Icon, InfoHint, AppDatePipe, ScoreBandChip],
   template: `
-    @if (canView()) {
+    <!-- quem não gerencia o score só vê o cartão quando há score (sem cartão vazio ocupando a ficha) -->
+    @if (canView() && (score() || canRecalculate() || resource.status() === 'error')) {
       <section class="cs" aria-labelledby="cs-title" data-tour="case-score" [attr.aria-busy]="resource.isLoading() || busy()">
         <div class="cs__head">
           <h3 class="cs__title" id="cs-title">
@@ -211,7 +213,10 @@ export class CaseScoreCard {
     'O score estima a chance de pagamento para priorizar o atendimento (ordem das filas e campanhas). Não define condições de negociação nem nega atendimento.';
 
   protected readonly canView = computed(() => this.auth.hasPermission(Permission.SCORING_VIEW));
-  protected readonly canRecalculate = computed(() => this.canView() && this.auth.hasPermission(Permission.CASE_WORK));
+  /** Recalcular sob demanda é de quem gerencia o score, como no servidor (o operador recebe o score da escoragem diária). */
+  protected readonly canRecalculate = computed(
+    () => this.canView() && this.auth.hasPermission(Permission.SCORING_MANAGE) && this.auth.hasPermission(Permission.CASE_VIEW),
+  );
   protected readonly canReview = computed(() => this.canView() && this.auth.hasPermission(Permission.SCORING_MANAGE));
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);

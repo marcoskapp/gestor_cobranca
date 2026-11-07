@@ -1,10 +1,10 @@
 import { LowerCasePipe } from '@angular/common';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
-import { catchError, finalize, of, startWith } from 'rxjs';
+import { Observable, catchError, finalize, of, startWith, tap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -24,6 +24,7 @@ import { DebtorLookup } from '../../debt/data/debt.lookups';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { AgreementsApi, ProposalsApi } from '../data/agreement.api';
 import { SubmitMode, submitMode } from '../data/agreement.rules';
+import { ProposalView } from '../data/agreement.models';
 import { AuthorityApi, SimulationApi } from '../data/negotiation.api';
 import {
   AUTHORITY_SOURCE_LABELS,
@@ -38,7 +39,7 @@ import {
   ratesText,
 } from '../data/negotiation.labels';
 import { ConcessionReason, DEBT_COMPONENTS, OfferView, PlanRequest, SimulationView, ValidationView } from '../data/negotiation.models';
-import { justificationProblem, offeredLevels, savingShare, sideBySide } from '../data/negotiation.rules';
+import { PlanMode, fieldsFromPlan, justificationProblem, offeredLevels, planFieldsProblem, planFromFields, savingShare, sideBySide } from '../data/negotiation.rules';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
 /**
@@ -50,7 +51,19 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  *
  * Query params: `credor`, `devedor`, `caso` (aberto a partir da estação de cobrança), `renegociar`
  * (id do acordo substituído) e `transferencia` (proposta do assistente transferida para humano).
+ *
+ * Com o caso informado, simula sozinho ao abrir. Cada oferta tem "Propor esta oferta" (valida por
+ * trás e abre a confirmação); o ajuste fino fica em "Ajustar estas condições", com os descontos por
+ * componente recolhidos em "avançado" e a forma de pagamento como "Entrada + N parcelas".
+ *
+ * Também roda dentro da estação de cobrança (`embedded`, painel lateral): sem cabeçalho de página,
+ * com o canal do atendimento (`canal`), e a proposta criada é entregue em `proposed` em vez de abrir
+ * a página da proposta (a estação segue com o aceite e a formalização sem sair do caso, decisão D7).
  */
+/** Canais aceitos pela simulação (o canal do atendimento só pré-preenche se for um deles). */
+const CHANNELS: readonly string[] = ['PHONE', 'WHATSAPP', 'EMAIL', 'SMS', 'IN_PERSON'];
+const CHANNEL_TEXT: Record<string, string> = { PHONE: 'Telefone', WHATSAPP: 'WhatsApp', EMAIL: 'E-mail', SMS: 'SMS', IN_PERSON: 'Presencial' };
+
 @Component({
   selector: 'app-simulator',
   imports: [
@@ -79,6 +92,12 @@ export class Simulator {
   readonly renegociar = input<string>();
   /** Sugestão do assistente que o humano está renegociando (`handoffProposalId`). */
   readonly transferencia = input<string>();
+  /** Dentro da estação de cobrança (painel lateral). */
+  readonly embedded = input(false);
+  /** Canal do atendimento em curso (pré-preenche a simulação e, por ela, o aceite). */
+  readonly canal = input<string>();
+  /** Proposta criada (só com `embedded`; fora dele, a tela abre a proposta). */
+  readonly proposed = output<ProposalView>();
 
   private readonly api = inject(SimulationApi);
   private readonly proposalsApi = inject(ProposalsApi);
@@ -112,7 +131,8 @@ export class Simulator {
     // datas ISO yyyy-MM-dd (datepicker do ng-bootstrap)
     referenceDate: this.fb.control<string | null>(null),
     channel: [''],
-    installments: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(360)]),
+    /** Parcelas pedidas pelo devedor, sem contar a entrada. */
+    parcels: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(360)]),
     downPayment: this.fb.control<number | null>(null),
     firstDueDate: this.fb.control<string | null>(null),
   });
@@ -129,10 +149,39 @@ export class Simulator {
     fine: this.fb.control(0),
     fees: this.fb.control(0),
     honorarium: this.fb.control(0),
-    installments: this.fb.control(1, [Validators.required, Validators.min(1), Validators.max(360)]),
+    /** À vista, parcelado sem entrada ou entrada + parcelas. */
+    mode: this.fb.control<PlanMode>('CASH'),
+    /** Parcelas sem contar a entrada. */
+    parcels: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(360)]),
     downPayment: this.fb.control<number | null>(null),
     firstDueDate: this.fb.control<string | null>(null),
   });
+  private readonly customValue = toSignal(this.custom.valueChanges.pipe(startWith(null)), { initialValue: null });
+  protected readonly customMode = computed(() => {
+    this.customValue();
+    return this.custom.controls.mode.value;
+  });
+  /** Forma de pagamento ajustada, como a oferta fala ("Entrada + 11 parcelas"). */
+  protected readonly customPlan = computed(() => {
+    this.customValue();
+    const plan = planFromFields(this.custom.getRawValue());
+    return plan ? planText(plan) : null;
+  });
+  protected readonly planProblem = computed(() => {
+    this.customValue();
+    return planFieldsProblem(this.custom.getRawValue(), this.result()?.limits.maxInstallments ?? null);
+  });
+  /** Descontos por componente ajustados, em uma linha (o detalhe fica em "avançado"). */
+  protected readonly customRates = computed(() => {
+    this.customValue();
+    const c = this.custom.getRawValue();
+    return ratesText({ principal: c.principal, correction: c.correction, interest: c.interest, fine: c.fine, fees: c.fees, honorarium: c.honorarium });
+  });
+  protected readonly planModes: readonly { value: PlanMode; label: string }[] = [
+    { value: 'CASH', label: 'À vista' },
+    { value: 'INSTALLMENTS', label: 'Parcelado sem entrada' },
+    { value: 'DOWN', label: 'Entrada + parcelas' },
+  ];
 
   private readonly contextValue = toSignal(this.context.valueChanges.pipe(startWith(null)), { initialValue: null });
   protected readonly creditorId = computed(() => {
@@ -192,17 +241,35 @@ export class Simulator {
     return Array.from({ length: Math.max(0, r.limits.maxLevel - r.grantedLevel) }, (_, i) => r.grantedLevel + i + 1);
   });
 
+  /** Contexto aberto; no painel da estação, recolhe numa linha depois de simular. */
+  protected readonly contextOpen = signal(true);
+  protected readonly titleCountText = computed(() => {
+    const n = this.selectedTitles().size;
+    return n ? `${n} título(s) marcado(s)` : 'todos os títulos em aberto';
+  });
+  protected readonly channelText = computed(() => {
+    const c = this.result()?.channel;
+    return c ? (CHANNEL_TEXT[c] ?? c) : null;
+  });
+
+  /** A simulação automática do caso roda uma vez (depois, o operador simula quando quiser). */
+  private autoSimulated = false;
+
   constructor() {
     // contexto vindo da estação de cobrança
     effect(() => {
       const credor = this.credor();
       const devedor = this.devedor();
+      const canal = this.canal();
       untracked(() => {
         if (credor) {
           this.context.controls.creditor.setValue([credor]);
         }
         if (devedor) {
           this.context.controls.debtor.setValue([devedor]);
+        }
+        if (canal && CHANNELS.includes(canal)) {
+          this.context.controls.channel.setValue(canal);
         }
       });
     });
@@ -215,6 +282,16 @@ export class Simulator {
         this.validation.set(null);
         this.selectedTitles.set(new Set());
         this.escalation.reset({ level: 0, reason: '', note: '' });
+      });
+    });
+    // aberto pelo caso (estação ou "Simular" da ficha): simula sem pedir outro clique
+    effect(() => {
+      const ready = !!this.caso() && !!this.creditorId() && !!this.debtorId();
+      untracked(() => {
+        if (ready && !this.autoSimulated) {
+          this.autoSimulated = true;
+          this.simulate(0);
+        }
       });
     });
     // condições alteradas depois da validação: é preciso validar de novo antes de propor
@@ -247,10 +324,13 @@ export class Simulator {
       return;
     }
     const v = this.context.getRawValue();
-    const plans: PlanRequest[] = v.installments
+    // parcelas pedidas sem contar a entrada: com entrada, são parcelas + 1 pagamentos
+    const down = v.downPayment ? Number(v.downPayment) : null;
+    const payments = v.parcels ? Number(v.parcels) + (down ? 1 : 0) : null;
+    const plans: PlanRequest[] = payments
       ? [
           { installments: 1, downPayment: null, firstDueDate: v.firstDueDate },
-          { installments: Number(v.installments), downPayment: v.downPayment ? Number(v.downPayment) : null, firstDueDate: v.firstDueDate },
+          { installments: payments, downPayment: down, firstDueDate: v.firstDueDate },
         ]
       : [];
     this.running.set(true);
@@ -269,6 +349,7 @@ export class Simulator {
       .pipe(finalize(() => this.running.set(false)))
       .subscribe((sim) => {
         this.simulation.set(sim);
+        this.contextOpen.set(false);
         this.viewLevel.set(sim.result.grantedLevel);
         this.escalation.controls.level.setValue(Math.min(sim.result.grantedLevel + 1, sim.result.limits.maxLevel));
         const best = sideBySide(sim.result, sim.result.grantedLevel);
@@ -287,24 +368,51 @@ export class Simulator {
   protected useOffer(offer: OfferView): void {
     this.custom.reset({
       ...offer.discountRates,
-      installments: offer.installments,
-      downPayment: offer.downPayment,
+      ...fieldsFromPlan(offer.installments, offer.downPayment),
       firstDueDate: offer.schedule[0]?.dueDate ?? null,
     });
     this.validation.set(null);
   }
 
-  protected validate(): void {
-    const r = this.result();
-    if (!r || this.custom.invalid || this.validating()) {
-      this.custom.markAllAsTouched();
+  /** "Ajustar estas condições": copia a oferta e leva ao ajuste, com o foco no primeiro campo. */
+  protected adjustOffer(offer: OfferView, target: HTMLElement): void {
+    this.useOffer(offer);
+    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    target.querySelector<HTMLElement>('select, input')?.focus({ preventScroll: true });
+  }
+
+  /**
+   * "Propor esta oferta": as condições da oferta (que veio do motor) são validadas por trás e a
+   * confirmação abre direto — "Propor" dentro da alçada ou "Pedir aprovação" acima dela.
+   */
+  protected proposeOffer(offer: OfferView): void {
+    if (this.validating() || this.proposing()) {
       return;
     }
+    this.useOffer(offer);
+    this.runValidation()?.subscribe((v) => {
+      if (submitMode(v.outcome)) {
+        this.propose();
+      }
+    });
+  }
+
+  protected validate(): void {
+    this.runValidation()?.subscribe();
+  }
+
+  private runValidation(): Observable<ValidationView> | null {
+    const r = this.result();
     const c = this.custom.getRawValue();
+    const plan = planFromFields(c);
+    if (!r || this.custom.invalid || !plan || this.validating()) {
+      this.custom.markAllAsTouched();
+      return null;
+    }
     const e = this.escalation.getRawValue();
     const level = this.viewLevel();
     this.validating.set(true);
-    this.api
+    return this.api
       .validate({
         creditorId: r.creditorId,
         debtorId: r.debtorId,
@@ -321,11 +429,13 @@ export class Simulator {
           fees: Number(c.fees) || 0,
           honorarium: Number(c.honorarium) || 0,
         },
-        plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: c.firstDueDate },
+        plan: { installments: plan.installments, downPayment: plan.downPayment, firstDueDate: c.firstDueDate },
         channel: r.channel,
       })
-      .pipe(finalize(() => this.validating.set(false)))
-      .subscribe((v) => this.validation.set(v));
+      .pipe(
+        finalize(() => this.validating.set(false)),
+        tap((v) => this.validation.set(v)),
+      );
   }
 
   /**
@@ -340,6 +450,10 @@ export class Simulator {
       return;
     }
     const c = this.custom.getRawValue();
+    const plan = planFromFields(c);
+    if (!plan) {
+      return;
+    }
     const o = v.offer;
     const approval = mode === 'request-approval';
     this.confirm
@@ -371,7 +485,7 @@ export class Simulator {
               fees: Number(c.fees) || 0,
               honorarium: Number(c.honorarium) || 0,
             },
-            plan: { installments: Number(c.installments), downPayment: c.downPayment ? Number(c.downPayment) : null, firstDueDate: c.firstDueDate },
+            plan: { installments: plan.installments, downPayment: plan.downPayment, firstDueDate: c.firstDueDate },
             replacedAgreementId: this.renegociar() || null,
             handoffProposalId: this.transferencia() || null,
             copilot: null,
@@ -380,7 +494,11 @@ export class Simulator {
           .pipe(finalize(() => this.proposing.set(false)))
           .subscribe((p) => {
             this.notifications.success(p.status === 'PENDING_APPROVAL' ? 'Proposta enviada para aprovação.' : 'Proposta registrada.');
-            void this.router.navigate(['/negociacao/propostas', p.id]);
+            if (this.embedded()) {
+              this.proposed.emit(p);
+            } else {
+              void this.router.navigate(['/negociacao/propostas', p.id]);
+            }
           });
       });
   }

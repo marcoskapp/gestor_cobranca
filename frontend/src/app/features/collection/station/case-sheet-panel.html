@@ -21,10 +21,13 @@
     } @else {
       <span class="app-status app-status--danger"><app-icon class="app-status__icon" name="slash-circle" />Inelegível</span>
     }
-    <a class="btn btn-link btn-sm" [routerLink]="['/devedores', d.id]" ngbTooltip="Abrir a ficha completa do devedor">
-      <app-icon name="box-arrow-up-right" />
-      Ficha do devedor
-    </a>
+    <!-- a ficha completa exige DEBTOR_VIEW: sem a permissão, o botão não aparece -->
+    @if (canViewDebtor()) {
+      <button type="button" class="btn btn-link btn-sm" (click)="debtorRequested.emit()" ngbTooltip="Ficha completa do devedor num painel ao lado (o atendimento continua)">
+        <app-icon name="person-vcard" />
+        Ficha do devedor
+      </button>
+    }
   </div>
 </header>
 
@@ -43,20 +46,20 @@
 
 <section class="sp-kpis" aria-label="Posição do caso">
   <div class="sp-kpi">
-    <span class="sp-kpi__label">Saldo em aberto</span>
+    <span class="sp-kpi__label">Em aberto</span>
     <span class="sp-kpi__value"><app-amount [value]="cs.openBalance" /></span>
   </div>
   <div class="sp-kpi">
-    <span class="sp-kpi__label">Saldo elegível</span>
+    <span class="sp-kpi__label">Elegível</span>
     <span class="sp-kpi__value"><app-amount [value]="cs.eligibleBalance" /></span>
   </div>
   <div class="sp-kpi">
     <span class="sp-kpi__label">Maior atraso</span>
     <span class="sp-kpi__value"><app-overdue-badge [days]="cs.daysOverdue" /></span>
   </div>
-  <div class="sp-kpi">
+  <div class="sp-kpi" [ngbTooltip]="cs.effectiveContactCount + ' contato(s) com a pessoa certa em ' + cs.interactionCount + ' interação(ões) registradas'">
     <span class="sp-kpi__label">Contatos efetivos</span>
-    <span class="sp-kpi__value app-numeric">{{ cs.effectiveContactCount }} / {{ cs.interactionCount }}</span>
+    <span class="sp-kpi__value app-numeric">{{ cs.effectiveContactCount }} <span class="sp-kpi__of">de {{ cs.interactionCount }}</span></span>
   </div>
 </section>
 
@@ -73,24 +76,36 @@
   </div>
 }
 
+<!-- negociação em curso: acordo recém-formalizado, proposta aguardando aprovação ou pronta para o aceite -->
+<app-case-deal-card
+  [caseId]="cs.id"
+  [creditorId]="cs.creditorId"
+  [debtorId]="cs.debtorId"
+  [agreementId]="agreementId()"
+  [revision]="dealRevision()"
+  (closeRequested)="closeRequested.emit($event)"
+  (changed)="changed.emit()"
+/>
+
 @if (review(); as r) {
   <app-payment-review-alert class="sp-alert" [pending]="r.pending" [rejected]="r.rejected" [compact]="true" [breakSuspension]="r.breakSuspension" />
 }
 
+<!-- abas mais usadas à vista; as demais em "Mais ▾" (atalhos Alt + 1…7 no tooltip) -->
 <ul ngbNav #nav="ngbNav" class="nav-tabs sp-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="case-tabs">
-  <li [ngbNavItem]="0">
-    <button ngbNavLink type="button">Títulos ({{ sheet().titles.length }})<kbd class="sp-kbd" aria-hidden="true">Alt 1</kbd></button>
+  <li [ngbNavItem]="0" [class.d-none]="!primaryTabs.includes(0)">
+    <button ngbNavLink type="button" ngbTooltip="Alt + 1">Títulos ({{ sheet().titles.length }})</button>
     <ng-template ngbNavContent>
-      <div class="table-responsive">
+      <div class="table-responsive sp-titles">
         <table class="table table-sm table-hover align-middle mb-0 sp-table" aria-label="Títulos da carteira">
           <thead>
             <tr>
               <th scope="col">Título</th>
               <th scope="col">Vencimento</th>
               <th scope="col">Atraso</th>
-              <th scope="col" class="text-end">Valor original</th>
+              <th scope="col" class="text-end sp-secondary">Valor original</th>
               <th scope="col" class="text-end">Saldo</th>
-              <th scope="col">Situação</th>
+              <th scope="col" class="sp-secondary">Situação</th>
               @if (canPix()) {
                 <th scope="col"><span class="visually-hidden">Pix</span></th>
               }
@@ -107,9 +122,9 @@
                 </td>
                 <td>{{ t.dueDate | appDate: 'date' }}</td>
                 <td><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></td>
-                <td class="text-end"><app-amount [value]="t.principalAmount" /></td>
-                <td class="text-end"><app-amount [value]="t.openBalance" /></td>
-                <td><app-status-chip domain="title" [status]="t.status" /></td>
+                <td class="text-end sp-secondary"><app-amount [value]="t.principalAmount" /></td>
+                <td class="text-end" [ngbTooltip]="'Valor original ' + amountText(t.principalAmount)"><app-amount [value]="t.openBalance" /></td>
+                <td class="sp-secondary"><app-status-chip domain="title" [status]="t.status" /></td>
                 @if (canPix()) {
                   <td class="text-end">
                     @if (pixableTitle(t)) {
@@ -130,7 +145,7 @@
   </li>
 
   <li [ngbNavItem]="1">
-    <button ngbNavLink type="button">Contatos ({{ d.contacts.length }})<kbd class="sp-kbd" aria-hidden="true">Alt 2</kbd></button>
+    <button ngbNavLink type="button" ngbTooltip="Alt + 2">Contatos ({{ d.contacts.length }})</button>
     <ng-template ngbNavContent>
       <ul class="sp-list">
         @for (ct of d.contacts; track ct.contactId) {
@@ -161,7 +176,7 @@
   </li>
 
   <li [ngbNavItem]="2">
-    <button ngbNavLink type="button">Histórico ({{ cs.interactionCount }})<kbd class="sp-kbd" aria-hidden="true">Alt 3</kbd></button>
+    <button ngbNavLink type="button" ngbTooltip="Alt + 3">Histórico ({{ cs.interactionCount }})</button>
     <ng-template ngbNavContent>
       <div [attr.aria-busy]="historyLoading()">
         <ol class="sp-timeline" aria-label="Interações, da mais recente para a mais antiga">
@@ -198,8 +213,8 @@
     </ng-template>
   </li>
 
-  <li [ngbNavItem]="3">
-    <button ngbNavLink type="button">Agenda e promessas ({{ sheet().openTasks.length }})<kbd class="sp-kbd" aria-hidden="true">Alt 4</kbd></button>
+  <li [ngbNavItem]="3" class="d-none">
+    <button ngbNavLink type="button" tabindex="-1">Agenda e promessas ({{ sheet().openTasks.length }})</button>
     <ng-template ngbNavContent>
       <h3 class="app-section-title">Agendamentos em aberto</h3>
       <ul class="sp-list">
@@ -260,8 +275,8 @@
     </ng-template>
   </li>
 
-  <li [ngbNavItem]="4">
-    <button ngbNavLink type="button">Contestações e restrições<kbd class="sp-kbd" aria-hidden="true">Alt 5</kbd></button>
+  <li [ngbNavItem]="4" class="d-none">
+    <button ngbNavLink type="button" tabindex="-1">Contestações e restrições</button>
     <ng-template ngbNavContent>
       <h3 class="app-section-title">Contestações em aberto</h3>
       <ul class="sp-list">
@@ -314,17 +329,24 @@
   </li>
 
   <li [ngbNavItem]="5">
-    <button ngbNavLink type="button">Negociação<kbd class="sp-kbd" aria-hidden="true">Alt 6</kbd></button>
+    <button ngbNavLink type="button" ngbTooltip="Alt + 6">Negociação</button>
     <ng-template ngbNavContent>
       <div data-tour="case-negotiation">
-        <app-case-negotiation [caseId]="cs.id" [creditorId]="cs.creditorId" [debtorId]="cs.debtorId" />
+        <app-case-negotiation
+          [caseId]="cs.id"
+          [creditorId]="cs.creditorId"
+          [debtorId]="cs.debtorId"
+          [inStation]="true"
+          [revision]="dealRevision()"
+          (simulateRequested)="simulateRequested.emit()"
+        />
       </div>
     </ng-template>
   </li>
 
   @if (canSeeConversations()) {
-    <li [ngbNavItem]="6">
-      <button ngbNavLink type="button">Conversas<kbd class="sp-kbd" aria-hidden="true">Alt 7</kbd></button>
+    <li [ngbNavItem]="6" class="d-none">
+      <button ngbNavLink type="button" tabindex="-1">Conversas</button>
       <ng-template ngbNavContent>
         <div data-tour="case-conversations">
           <app-case-conversations [caseId]="cs.id" [revision]="conversationsRevision()" />
@@ -332,5 +354,24 @@
       </ng-template>
     </li>
   }
+  <li class="nav-item" ngbDropdown placement="bottom-end" display="dynamic">
+    <button
+      type="button"
+      class="nav-link sp-more"
+      [class.active]="activeInMore()"
+      ngbDropdownToggle
+      [attr.aria-label]="activeInMore() ? 'Mais abas (aberta: ' + tabs[tab()] + ')' : 'Mais abas'"
+    >
+      {{ activeInMore() ? tabs[tab()] : 'Mais' }}
+    </button>
+    <div ngbDropdownMenu class="shadow app-menu">
+      @for (i of moreTabs(); track i) {
+        <button ngbDropdownItem type="button" [class.active]="tab() === i" [attr.aria-current]="tab() === i ? 'page' : null" (click)="tab.set(i)">
+          <span>{{ moreLabel(i) }}</span>
+          <kbd class="ms-auto sp-kbd" aria-hidden="true">Alt {{ i + 1 }}</kbd>
+        </button>
+      }
+    </div>
+  </li>
 </ul>
 <div [ngbNavOutlet]="nav" class="sp-tab"></div>

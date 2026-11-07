@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
-import { NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdownModule, NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -20,6 +20,8 @@ import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
 import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
+import { CaseDealCard } from '../../negotiation/case/case-deal-card';
+import { ProposalView } from '../../negotiation/data/agreement.models';
 import { CaseConversations } from '../../communication/station/case-conversations';
 import { CaseScoreCard } from '../../scoring/case/case-score-card';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
@@ -35,8 +37,23 @@ import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
 
 /** Abas da ficha na ordem dos atalhos `Alt + 1…7`. */
 export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação', 'Conversas'] as const;
+/** Valor de cada aba no parâmetro `?aba=` da URL (mesma ordem de `SHEET_TABS`). */
+export const SHEET_TAB_SLUGS = ['titulos', 'contatos', 'historico', 'agenda', 'contestacoes', 'negociacao', 'conversas'] as const;
 /** Índice da aba "Conversas" (oculta sem `INBOX_VIEW`). */
 export const CONVERSATIONS_TAB = 6;
+/** Índice da aba "Negociação" (acordo formalizado e propostas do caso). */
+export const NEGOTIATION_TAB = 5;
+/**
+ * Abas sempre à vista (as mais usadas no atendimento); as demais ficam em "Mais ▾", que mostra o
+ * nome da aba quando ela está ativa. Cabe na coluna central a 1366 px sem rolagem lateral.
+ */
+export const PRIMARY_TABS: readonly number[] = [0, 1, 2, NEGOTIATION_TAB];
+
+/** Índice da aba pelo valor da URL (desconhecido ou ausente = nulo). */
+export function tabFromSlug(slug: string | null | undefined): number | null {
+  const i = slug ? (SHEET_TAB_SLUGS as readonly string[]).indexOf(slug) : -1;
+  return i >= 0 ? i : null;
+}
 
 /**
  * Ficha do caso no centro da estação: devedor (documento e contatos mascarados, revelação
@@ -46,7 +63,24 @@ export const CONVERSATIONS_TAB = 6;
  */
 @Component({
   selector: 'app-case-sheet-panel',
-  imports: [RouterLink, NgbNavModule, NgbTooltip, Icon, Amount, DocumentDisplay, EmptyState, StatusChip, AppDatePipe, OverdueBadge, CaseNegotiation, CaseConversations, CaseScoreCard, PaymentReviewAlert],
+  imports: [
+    RouterLink,
+    NgbNavModule,
+    NgbDropdownModule,
+    NgbTooltip,
+    Icon,
+    Amount,
+    DocumentDisplay,
+    EmptyState,
+    StatusChip,
+    AppDatePipe,
+    OverdueBadge,
+    CaseNegotiation,
+    CaseConversations,
+    CaseScoreCard,
+    CaseDealCard,
+    PaymentReviewAlert,
+  ],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
 })
@@ -58,8 +92,18 @@ export class CaseSheetPanel {
   readonly tab = model(0);
   /** Muda quando a estação envia uma mensagem (a aba Conversas recarrega). */
   readonly conversationsRevision = input(0);
+  /** Acordo formalizado agora na estação (cartão "Acordo formalizado"). */
+  readonly agreementId = input<string | null>(null);
+  /** Muda quando a estação cria ou avança uma proposta (cartão e aba Negociação recarregam). */
+  readonly dealRevision = input(0);
   /** A ficha mudou (tarefa, promessa): a estação recarrega. */
   readonly changed = output<void>();
+  /** "Ficha do devedor": a estação abre o painel lateral. */
+  readonly debtorRequested = output<void>();
+  /** "Simular" da aba Negociação: a estação abre o simulador no painel lateral. */
+  readonly simulateRequested = output<void>();
+  /** "Fechar acordo" numa proposta pronta para o aceite. */
+  readonly closeRequested = output<ProposalView>();
 
   private readonly auth = inject(AuthService);
   private readonly debtorsApi = inject(DebtorsApi);
@@ -74,6 +118,12 @@ export class CaseSheetPanel {
   private readonly reviewApi = inject(PaymentReviewStatusApi);
 
   protected readonly tabs = SHEET_TABS;
+  protected readonly primaryTabs = PRIMARY_TABS;
+  /** Abas recolhidas em "Mais ▾" (Conversas só com `INBOX_VIEW`). */
+  protected readonly moreTabs = computed(() =>
+    SHEET_TABS.map((_, i) => i).filter((i) => !PRIMARY_TABS.includes(i) && (i !== CONVERSATIONS_TAB || this.canSeeConversations())),
+  );
+  protected readonly activeInMore = computed(() => this.moreTabs().includes(this.tab()));
   protected readonly channelLabels = CHANNEL_LABELS;
   protected readonly channelIcons = CHANNEL_ICONS;
   protected readonly contactTypes = CONTACT_TYPE_LABELS;
@@ -86,6 +136,7 @@ export class CaseSheetPanel {
   protected readonly formatLocal = formatLocalDateTime;
 
   protected readonly canReveal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
+  protected readonly canViewDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
   protected readonly canManageTasks = computed(() => this.auth.hasPermission(Permission.TASK_MANAGE));
   protected readonly canCancelPromise = computed(() => this.auth.hasPermission(Permission.INTERACTION_REGISTER));
   /** Aba "Conversas": só para quem vê a caixa de entrada. */
@@ -154,6 +205,15 @@ export class CaseSheetPanel {
       this.revealedDocument.set(null);
       this.revealedContacts.set(new Map());
     });
+  }
+
+  protected amountText(value: number): string {
+    return formatAmount(value);
+  }
+
+  /** Rótulo da aba no menu "Mais" (com a contagem, como nas abas à vista). */
+  protected moreLabel(i: number): string {
+    return i === 3 ? `${SHEET_TABS[3]} (${this.sheet().openTasks.length})` : SHEET_TABS[i];
   }
 
   protected channelText(channel: string): string {

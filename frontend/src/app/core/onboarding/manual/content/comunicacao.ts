@@ -28,7 +28,7 @@ export const MANUAL: ModuleManual = {
       title: 'Caixa de entrada',
       objective: 'Conversas com os devedores por dono e tempo de espera, para responder, assumir ou transferir.',
       purpose: [
-        'Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta.',
+        'Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta. Sem conversas suas aguardando, a caixa abre na Fila; a aba escolhida fica no endereço.',
         'Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar.',
         'Para iniciar um contato com um devedor, use "Mensagem" na estação de cobrança: a conversa nasce vinculada ao caso e com você, e continua aqui quando o devedor responder.',
       ],

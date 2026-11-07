@@ -15,17 +15,17 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
 .st-bar__title {
   margin: 0;
-  font-size: var(--app-text-xl);
+  font-size: var(--app-text-lg);
 }
 
 .st-bar__queue {
-  width: 240px;
+  width: 180px;
 }
 
 .st-bar__spacer {
@@ -50,13 +50,13 @@
 .st-zones {
   display: grid;
   flex: 1;
-  grid-template-columns: 240px minmax(0, 1fr) 340px;
+  grid-template-columns: 228px minmax(0, 1fr) 344px;
   gap: 12px;
   min-height: 0;
 }
 
 .st-zones--collapsed {
-  grid-template-columns: 48px minmax(0, 1fr) 340px;
+  grid-template-columns: 48px minmax(0, 1fr) 344px;
 }
 
 .st-zone {
@@ -171,14 +171,15 @@
 .st-actions .st-zone__body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
+// barra de ações numa linha (Ligar · Mensagem · Simular · Agendar · ⋯)
 .st-quick {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 // atalhos de teclado não se aplicam a telas de toque

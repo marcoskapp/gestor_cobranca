@@ -55,8 +55,18 @@
   }
 }
 
+.ip__submit {
+  position: sticky;
+  z-index: 1;
+  bottom: -12px; // encosta no rodapé da coluna (que tem 12 px de respiro)
+  margin: 0 -12px -12px;
+  padding: 8px 12px 10px;
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+}
+
 .ip__tip {
-  margin: -4px 0 0;
+  margin: 4px 0 0;
   font-size: var(--app-text-xs);
   text-align: center;
 }

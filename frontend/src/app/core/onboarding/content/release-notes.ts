@@ -3,6 +3,18 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 15,
+    date: '2026-11-07',
+    title: 'Atendimento e acordo sem sair do caso',
+    items: [
+      { text: 'Início com "Seu dia": próximo caso, retornos de hoje, promessas vencendo e o seu resultado; o supervisor vê as equipes e as filas.', route: '/' },
+      { text: 'A estação guarda o atendimento de cada caso: abrir a ficha, o simulador ou outra tela e voltar não zera o cronômetro nem o rascunho.', route: '/cobranca/fila' },
+      { text: 'Simulador e ficha do devedor num painel ao lado do caso; o acordo fecha ali: propor, aceite e formalização, Pix e o cartão "Acordo formalizado".', route: '/cobranca/fila' },
+      { text: 'Simulador simula sozinho a partir do caso, com "Propor esta oferta" em cada oferta e parcelas como "Entrada + N parcelas".', route: '/negociacao/simulador' },
+      { text: 'Caixa de entrada abre na Fila quando não há conversa sua aguardando.', route: '/conversas' },
+    ],
+  },
+  {
     version: 14,
     date: '2026-11-07',
     title: 'Telas mais legíveis e organizadas',

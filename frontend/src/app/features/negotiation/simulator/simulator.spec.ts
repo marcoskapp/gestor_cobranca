@@ -84,6 +84,9 @@ describe('Simulator', () => {
   const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
   const button = (f: ComponentFixture<unknown>, label: string) =>
     [...el(f).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes(label))!;
+  /** Botão de envio das condições validadas (não o "Propor esta oferta" dos cartões). */
+  const submitButton = (f: ComponentFixture<unknown>, label: string) =>
+    [...el(f).querySelectorAll<HTMLButtonElement>('.sim-propose button')].find((b) => b.textContent?.includes(label));
 
   async function simulate(fixture: ComponentFixture<Simulator>, view: SimulationView): Promise<void> {
     button(fixture, 'Simular').click();
@@ -166,7 +169,7 @@ describe('Simulator', () => {
   it('valida as condições ajustadas e mostra o resultado do NegotiationGuard', async () => {
     const fixture = await render();
     await simulate(fixture, { id: 'sim-1', createdAt: '', result: simulationResult() });
-    fixture.componentInstance['custom'].patchValue({ fine: 100, installments: 1 });
+    fixture.componentInstance['custom'].patchValue({ fine: 100, mode: 'CASH' });
     button(fixture, 'Validar condições').click();
     const req = http.expectOne('/api/v1/negotiation/validations');
     expect(req.request.body).toMatchObject({
@@ -199,7 +202,7 @@ describe('Simulator', () => {
     vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockReturnValue(of(''));
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     await simulate(fixture, { id: 'sim-1', createdAt: '', result: simulationResult({ channel: 'PHONE' }) });
-    fixture.componentInstance['custom'].patchValue({ fine: 100, installments: 1 });
+    fixture.componentInstance['custom'].patchValue({ fine: 100, mode: 'CASH' });
     button(fixture, 'Validar condições').click();
     http.expectOne('/api/v1/negotiation/validations').flush({
       outcome: 'REQUIRES_APPROVAL',
@@ -211,8 +214,8 @@ describe('Simulator', () => {
       excludedTitles: [],
     });
     fixture.detectChanges();
-    expect(button(fixture, 'Propor')).toBeUndefined();
-    button(fixture, 'Pedir aprovação').click();
+    expect(submitButton(fixture, 'Propor')).toBeUndefined();
+    submitButton(fixture, 'Pedir aprovação')!.click();
     const req = http.expectOne('/api/v1/negotiation/proposals');
     expect(req.request.body).toMatchObject({
       simulationId: 'sim-1',
@@ -233,9 +236,68 @@ describe('Simulator', () => {
     button(fixture, 'Validar condições').click();
     http.expectOne('/api/v1/negotiation/validations').flush({ outcome: 'WITHIN_AUTHORITY', policy: null, actor: null, limits: null, offer: offer(), violations: [], excludedTitles: [] });
     fixture.detectChanges();
-    expect(button(fixture, 'Propor')).toBeDefined();
+    expect(submitButton(fixture, 'Propor')).toBeDefined();
     fixture.componentInstance['custom'].patchValue({ fine: 50 });
     fixture.detectChanges();
-    expect(button(fixture, 'Propor')).toBeUndefined();
+    expect(submitButton(fixture, 'Propor')).toBeUndefined();
+  });
+
+  it('aberto pelo caso, simula sozinho com o canal do atendimento', async () => {
+    const fixture = TestBed.createComponent(Simulator);
+    fixture.componentRef.setInput('credor', 'c-1');
+    fixture.componentRef.setInput('devedor', 'd-1');
+    fixture.componentRef.setInput('caso', 'k-1');
+    fixture.componentRef.setInput('canal', 'WHATSAPP');
+    fixture.detectChanges();
+    await tick();
+    const req = http.expectOne('/api/v1/negotiation/simulations');
+    expect(req.request.body).toMatchObject({ creditorId: 'c-1', debtorId: 'd-1', requestedLevel: 0, channel: 'WHATSAPP' });
+    req.flush({ id: 'sim-1', createdAt: '', result: simulationResult({ channel: 'WHATSAPP' }) });
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await tick();
+      respondLookups();
+    }
+    await new Promise((r) => setTimeout(r, 350));
+    respondLookups();
+    fixture.detectChanges();
+    expect(el(fixture).querySelectorAll('.sim-offer').length).toBe(2);
+    // uma vez só: mexer no contexto depois não simula de novo sozinho
+    http.expectNone('/api/v1/negotiation/simulations');
+  });
+
+  it('"Propor esta oferta" valida por trás e abre direto a confirmação; dentro da estação entrega a proposta', async () => {
+    const fixture = await render();
+    fixture.componentRef.setInput('embedded', true);
+    const confirm = vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockReturnValue(of(''));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const proposed = vi.fn();
+    fixture.componentInstance.proposed.subscribe(proposed);
+    await simulate(fixture, { id: 'sim-1', createdAt: '', result: simulationResult({ channel: 'PHONE' }) });
+    expect(el(fixture).querySelector('app-page-header')).toBeNull();
+
+    const card = el(fixture).querySelectorAll('.sim-offer')[1] as HTMLElement;
+    [...card.querySelectorAll('button')].find((b) => b.textContent?.includes('Propor esta oferta'))!.click();
+    const validation = http.expectOne('/api/v1/negotiation/validations');
+    expect(validation.request.body).toMatchObject({ plan: { installments: 6 } });
+    validation.flush({ outcome: 'WITHIN_AUTHORITY', policy: null, actor: null, limits: null, offer: offer(), violations: [], excludedTitles: [] });
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: 'Propor' }));
+    const req = http.expectOne('/api/v1/negotiation/proposals');
+    expect(req.request.body).toMatchObject({ simulationId: 'sim-1', plan: { installments: 6 }, channel: 'PHONE' });
+    req.flush({ id: 'p-1', status: 'DRAFT' });
+    expect(proposed).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-1' }));
+    expect(navigate).not.toHaveBeenCalledWith(['/negociacao/propostas', 'p-1']);
+  });
+
+  it('forma de pagamento como na oferta: "Entrada + N parcelas" vira N + 1 pagamentos (e o limite conta a entrada)', async () => {
+    const fixture = await render();
+    await simulate(fixture, { id: 'sim-1', createdAt: '', result: simulationResult() });
+    fixture.componentInstance['custom'].patchValue({ mode: 'DOWN', parcels: 4, downPayment: 100 });
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('[data-tour="sim-validate"]')?.textContent).toContain('Entrada + 4 parcelas');
+    button(fixture, 'Validar condições').click();
+    const req = http.expectOne('/api/v1/negotiation/validations');
+    expect(req.request.body).toMatchObject({ plan: { installments: 5, downPayment: 100 } });
+    req.flush({ outcome: 'WITHIN_AUTHORITY', policy: null, actor: null, limits: null, offer: offer(), violations: [], excludedTitles: [] });
   });
 });

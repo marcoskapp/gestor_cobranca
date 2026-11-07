@@ -15,6 +15,8 @@ import { ChecklistItem, ChecklistProfile, ScreenGuide, TourDefinition } from './
 import { TourEngine } from './tour/tour-engine.service';
 
 export const WELCOME_TOUR = 'app.welcome';
+/** Tela inicial: único lugar do convite de boas-vindas. */
+export const HOME_SCREEN = 'app.home';
 
 /** Convite não intrusivo exibido no canto da tela. */
 export type OnboardingHint =
@@ -37,13 +39,16 @@ export interface ChecklistSummary {
 /**
  * Orquestra o onboarding a partir da navegação:
  *
- * - primeiro acesso → convite para o tour de boas-vindas;
+ * - tour de boas-vindas ainda não feito → convite no Início, dentro da página (nunca por cima do
+ *   conteúdo) e só quando o checklist "Primeiros passos" não o oferece ("Conhecer a navegação");
  * - tela ainda não navegada com tour → convite para um tour curto;
  * - tela com versão maior que a vista → destaque das novidades daquela tela;
  * - checklist de primeiros passos conforme o perfil e a central de novidades.
  *
- * Nada abre sozinho por cima do trabalho: convites são cartões dispensáveis e cada um aparece
- * no máximo uma vez. O usuário pode desligar as dicas automáticas a qualquer momento.
+ * Nada abre sozinho por cima do trabalho: o convite e as novidades de uma tela de trabalho viram um
+ * ponto no botão de ajuda e um destaque no menu de ajuda (`screenTip`). Cada convite aparece no
+ * máximo uma vez: o de boas-vindas conta como dispensado já na exibição (segue na ajuda e no
+ * checklist). O usuário pode desligar as dicas automáticas a qualquer momento.
  */
 @Injectable({ providedIn: 'root' })
 export class OnboardingService {
@@ -65,6 +70,16 @@ export class OnboardingService {
   private readonly offered = new Set<string>();
 
   readonly hint = this.currentHint.asReadonly();
+  /** Convite de boas-vindas (exibido dentro da página inicial). */
+  readonly welcomeInvite = computed(() => {
+    const hint = this.currentHint();
+    return hint?.kind === 'welcome' ? hint : null;
+  });
+  /** Tour novo ou novidades da tela atual: ponto no botão de ajuda e destaque no menu de ajuda. */
+  readonly screenTip = computed(() => {
+    const hint = this.currentHint();
+    return hint && hint.kind !== 'welcome' ? hint : null;
+  });
   readonly screen = computed(() => findScreen(this.url()));
   readonly hintsEnabled = computed(() => this.store.state().hintsEnabled);
 
@@ -211,8 +226,10 @@ export class OnboardingService {
     }
 
     const welcome = findTour(WELCOME_TOUR);
-    if (welcome && this.shouldOffer(welcome)) {
+    if (welcome && screen?.key === HOME_SCREEN && this.shouldOffer(welcome) && !this.checklistOffersWelcome()) {
       this.offer({ kind: 'welcome', tour: welcome });
+      // no máximo uma vez: a exibição conta como dispensa (o tour continua na ajuda e na busca rápida)
+      this.store.recordTour(welcome.id, welcome.version, 'DISMISSED');
       return;
     }
     if (!screen) {
@@ -232,6 +249,11 @@ export class OnboardingService {
         this.currentHint.set({ kind: 'changes', screen, items, tour: tour && this.shouldOffer(tour) ? tour : null });
       }
     }
+  }
+
+  /** O checklist visível já oferece o tour de boas-vindas ("Conhecer a navegação"): sem convite repetido. */
+  private checklistOffersWelcome(): boolean {
+    return this.checklistVisible() && !!this.checklist()?.entries.some((e) => e.item.tourId === WELCOME_TOUR && !e.done);
   }
 
   private shouldOffer(tour: TourDefinition): boolean {

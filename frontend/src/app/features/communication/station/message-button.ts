@@ -18,7 +18,7 @@ import { StartContact } from './start-conversation-dialog';
   imports: [NgbTooltip, Icon],
   template: `
     @if (canSend()) {
-      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="open()" ngbTooltip="Enviar mensagem ao devedor (Alt + W)" data-tour="message-button">
+      <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" [class.btn-sm]="compact()" [class.px-2]="compact()" type="button" (click)="open()" ngbTooltip="Enviar mensagem ao devedor (Alt + W)" data-tour="message-button">
         <app-icon name="chat" />
         Mensagem
       </button>
@@ -31,6 +31,8 @@ export class MessageButton {
   readonly creditorId = input.required<string>();
   readonly debtorName = input.required<string>();
   readonly contacts = input.required<readonly StartContact[]>();
+  /** Botão pequeno (barra de ações da estação). */
+  readonly compact = input(false);
   /** Mensagem enfileirada (a estação atualiza as conversas do caso). */
   readonly sent = output<MessageView>();
 

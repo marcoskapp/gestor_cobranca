@@ -10,7 +10,7 @@ import { IconName } from '../../../shared/components/icon/icon-names';
 import { AuthService } from '../../auth/auth.service';
 import { APP_NAME } from '../../config/page-title.strategy';
 import { KeyboardShortcuts, formatKeys } from '../../keyboard/keyboard-shortcuts.service';
-import { OnboardingHint } from '../../onboarding/hint/onboarding-hint';
+import { ScreenTip } from '../../onboarding/hint/screen-tip';
 import { OnboardingService } from '../../onboarding/onboarding.service';
 import { PendingWorkIndicator } from '../../pending-work/pending-work-indicator';
 import { SupportChatButton } from '../../support-chat/support-chat-button';
@@ -59,7 +59,7 @@ const DENSITIES: readonly Choice<DensityPreference>[] = [
     NgbTooltip,
     Icon,
     Breadcrumbs,
-    OnboardingHint,
+    ScreenTip,
     PendingWorkIndicator,
     SupportChatButton,
   ],

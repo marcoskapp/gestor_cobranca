@@ -5,59 +5,37 @@
   }
 </header>
 
-@if (mfaPending()) {
-  <div class="alert alert-warning d-flex align-items-start gap-2" role="status">
+@if (mfaNotice()) {
+  <div class="dashboard__mfa" role="status">
     <app-icon name="shield" />
-    <span>
-      Sua conta ainda não usa verificação em duas etapas.
-      <a routerLink="/conta/mfa">Ativar agora</a>
-    </span>
+    <span>Sua conta ainda não usa verificação em duas etapas. <a routerLink="/conta/mfa">Ativar agora</a></span>
+    <button type="button" class="btn-close dashboard__mfa-close" aria-label="Dispensar o aviso nesta sessão" (click)="dismissMfa()"></button>
   </div>
 }
 
-<app-pending-work-panel />
-
-@if (showKpis()) {
-  @defer (on idle) {
-    <app-home-kpis />
-  } @placeholder {
-    <p class="app-muted" role="status">Carregando indicadores…</p>
-  }
-}
-
-@if (showPositions()) {
-  @defer (on idle) {
-    <app-position-summary-card />
-  }
-}
+<!-- convite do tour de boas-vindas: dentro da página, só quando o checklist não o oferece -->
+<app-onboarding-hint />
 
 <div class="dashboard__layout" [class.dashboard__layout--with-aside]="onboarding.checklistVisible()">
-  <section class="dashboard__main" aria-labelledby="acesso-rapido">
-    @if (shortcuts().length > 0) {
-      <h2 class="app-section-title" id="acesso-rapido">Acesso rápido</h2>
-      <ul class="dashboard__grid" data-tour="shortcuts">
-        @for (item of shortcuts(); track item.route) {
-          <li>
-            <a class="dashboard__tile" [routerLink]="item.route">
-              <span class="dashboard__tile-icon" aria-hidden="true"><app-icon [name]="item.icon" /></span>
-              <span class="dashboard__tile-text">
-                <strong>{{ item.label }}</strong>
-                <span class="app-muted">{{ item.section }}</span>
-              </span>
-              <app-icon class="dashboard__tile-go" name="arrow-right" />
-            </a>
-          </li>
-        }
-      </ul>
-    } @else {
-      <h2 class="visually-hidden" id="acesso-rapido">Acesso rápido</h2>
-      <app-empty-state
-        icon="person-lock"
-        title="Nenhum módulo disponível para o seu perfil"
-        message="Em caso de dúvida, procure o administrador da assessoria."
-      />
+  <div class="dashboard__main">
+    <app-my-day-panel />
+
+    <app-pending-work-panel />
+
+    @if (showKpis()) {
+      @defer (on idle) {
+        <app-home-kpis />
+      } @placeholder {
+        <p class="app-muted" role="status">Carregando indicadores…</p>
+      }
     }
-  </section>
+
+    @if (showPositions()) {
+      @defer (on idle) {
+        <app-position-summary-card />
+      }
+    }
+  </div>
 
   @if (onboarding.checklistVisible()) {
     <aside class="dashboard__aside" aria-label="Primeiros passos">

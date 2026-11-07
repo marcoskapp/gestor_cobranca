@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "759cd01a428772b3",
+ "contentVersion": "e17c2f3b018c5db0",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -898,20 +898,21 @@
    "id": "app.home",
    "module": "geral",
    "title": "Início",
-   "objective": "Ponto de partida do dia: indicadores da operação, acesso rápido aos módulos do seu perfil e os primeiros passos.",
+   "objective": "Ponto de partida do dia: o seu trabalho de hoje, as suas pendências, os indicadores da operação e os primeiros passos.",
    "purpose": [
-    "Mostra um resumo da operação nos credores do seu escopo e atalhos para os módulos que o seu perfil usa.",
-    "Para quem está começando, o checklist \"Primeiros passos\" indica o que configurar ou conhecer primeiro."
+    "\"Seu dia\" mostra, para o negociador, o botão \"Próximo caso\" (Alt + N), os casos com você, os retornos de hoje e atrasados, as promessas que vencem hoje e o seu resultado do dia; para o supervisor, as equipes que ele supervisiona e as filas que elas atendem. Cada número leva à tela de trabalho.",
+    "Logo abaixo, \"Suas pendências\" (aprovações, conversas, prazos) e, para quem vê painéis, o resumo da operação nos credores do seu escopo.",
+    "Para quem está começando, o checklist \"Primeiros passos\" indica o que configurar ou conhecer primeiro. O aviso de verificação em duas etapas e o convite do tour só aparecem quando o checklist não os traz."
    ],
    "profiles": [
     "TODOS"
    ],
    "inputs": [
-    "Indicadores consolidados dos painéis, quando o seu perfil pode vê-los.",
-    "Seu perfil de acesso, que define os atalhos exibidos."
+    "Casos, retornos, promessas e interações do seu trabalho (e das suas equipes, para o supervisor).",
+    "Indicadores consolidados dos painéis, quando o seu perfil pode vê-los."
    ],
    "outputs": [
-    "Atalhos para as telas de trabalho e para os painéis completos."
+    "Atalho para o próximo caso e para as telas de trabalho e os painéis completos."
    ],
    "related": [
     {
@@ -1500,9 +1501,9 @@
    "title": "Estação de cobrança",
    "objective": "Seu posto de atendimento: pegue o próximo caso, veja a ficha, confira se pode contatar e registre o resultado, tudo pelo teclado.",
    "purpose": [
-    "Reúne em uma tela a fila de casos, a ficha do caso (títulos, contatos, histórico, agenda, contestações, negociação e conversas) e o registro da interação.",
-    "O \"Próximo caso\" entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro. Atalhos de teclado aparecem nos botões e na ajuda.",
-    "O contato sai da própria estação: \"Ligar\" (Alt + L) e \"Mensagem\" (Alt + W) por WhatsApp, SMS ou e-mail, com a decisão do porteiro por contato antes. As respostas chegam em Conversas e na aba Conversas do caso (Alt + 7)."
+    "Reúne em uma tela a fila de casos, a ficha do caso (títulos, contatos, histórico, agenda, contestações, negociação e conversas) e o registro da interação. O \"Próximo caso\" entrega o caso mais prioritário das suas filas; retornos vencidos com você vêm primeiro.",
+    "O contato sai da própria estação: \"Ligar\" (Alt + L) e \"Mensagem\" (Alt + W), com a decisão do porteiro antes. O atendimento fica guardado por caso: abrir a ficha do devedor, o simulador ou outra tela e voltar não zera o cronômetro, o rascunho nem a aba (abrir outro caso encerra a contagem do anterior; nada é gravado no navegador).",
+    "O acordo fecha sem sair do caso: \"Simular\" (Alt + S) abre o simulador ao lado, que já simula; \"Propor esta oferta\" cria a proposta; dentro da alçada, aceite (com o canal do atendimento) e formalização (digitando FORMALIZAR) saem num passo só, seguidos do Pix e do cartão \"Acordo formalizado\". Acima da alçada, o caso mostra a proposta aguardando aprovação."
    ],
    "profiles": [
     "OPERADOR",
@@ -1515,7 +1516,7 @@
    ],
    "outputs": [
     "Interações tabuladas, promessas e retornos no histórico do caso.",
-    "Simulações, propostas e Pix a partir da aba Negociação.",
+    "Simulações, propostas, aceites, acordos formalizados e Pix sem sair do caso.",
     "Ligações registradas no caso.",
     "Mensagens de contato ativo por WhatsApp, SMS ou e-mail, com a conversa vinculada ao caso."
    ],
@@ -2197,7 +2198,7 @@
    "title": "Caixa de entrada",
    "objective": "Conversas com os devedores por dono e tempo de espera, para responder, assumir ou transferir.",
    "purpose": [
-    "Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta.",
+    "Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta. Sem conversas suas aguardando, a caixa abre na Fila; a aba escolhida fica no endereço.",
     "Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar.",
     "Para iniciar um contato com um devedor, use \"Mensagem\" na estação de cobrança: a conversa nasce vinculada ao caso e com você, e continua aqui quando o devedor responder."
    ],
@@ -3123,8 +3124,9 @@
    "title": "Simulador de negociação",
    "objective": "Calcule a dívida atualizada, compare ofertas e valide condições dentro da sua alçada antes de propor.",
    "purpose": [
-    "Escolha credor e devedor; sem títulos marcados, entram todos os títulos em aberto no credor. Seu limite aparece antes de simular.",
-    "Validadas as condições, proponha. Acima da sua alçada, o botão vira \"Pedir aprovação\" e a proposta vai para a fila."
+    "Escolha credor e devedor; sem títulos marcados, entram todos os títulos em aberto no credor. Seu limite aparece antes de simular. Aberto pelo caso, simula sozinho.",
+    "Cada oferta tem \"Propor esta oferta\": as condições são validadas por trás e a confirmação abre direto. Acima da sua alçada, o botão vira \"Pedir aprovação\" e a proposta vai para a fila.",
+    "Para outra combinação, \"Ajustar estas condições\": a forma de pagamento é escolhida como na oferta (à vista, parcelado sem entrada ou entrada + N parcelas, sem contar a entrada nas parcelas) e os descontos por componente ficam em \"avançado\"."
    ],
    "profiles": [
     "OPERADOR",
@@ -7181,6 +7183,61 @@
    "use": "Comece pelos vencidos e pelos que vencem hoje; cada item leva à tela de ação já filtrada. Lista vazia significa que você está em dia.",
    "screens": [
     "app.pending-work",
+    "app.home"
+   ]
+  },
+  {
+   "id": "app.myday.cases",
+   "module": "geral",
+   "title": "Casos com você",
+   "what": "Casos de cobrança em andamento que estão atribuídos a você agora.",
+   "how": "Conta os casos não encerrados em que você é o responsável, nos credores que você atende. É a mesma lista \"Meus casos\" da estação.",
+   "use": "Use \"Próximo caso\" para receber o mais prioritário. Muitos casos parados com você atrasam a carteira: devolva à fila os que não vai trabalhar.",
+   "screens": [
+    "app.home"
+   ]
+  },
+  {
+   "id": "app.myday.callbacks",
+   "module": "geral",
+   "title": "Retornos de hoje",
+   "what": "Retornos e acompanhamentos que você combinou para o restante do dia, e os que já passaram do horário.",
+   "how": "Hoje: retornos pendentes com horário a partir de agora até o fim do dia. Atrasados: horário já passado ou retorno perdido nos últimos 30 dias (a mesma janela da agenda).",
+   "use": "Atrasados primeiro: o devedor esperava o contato no horário combinado. Abra a agenda para ligar ou reagendar.",
+   "screens": [
+    "app.home"
+   ]
+  },
+  {
+   "id": "app.myday.promises",
+   "module": "geral",
+   "title": "Promessas vencendo hoje",
+   "what": "Promessas de pagamento nos seus casos com data para hoje, e as já vencidas que ainda estão na tolerância.",
+   "how": "Promessas pendentes nos casos atribuídos a você. Vencida na tolerância: a data passou, mas o pagamento ainda cumpre a promessa durante a tolerância configurada pela assessoria; depois disso ela quebra.",
+   "use": "Lembre o devedor antes do fim do dia e ofereça o Pix. Promessa quebrada volta o caso para negociação.",
+   "screens": [
+    "app.home"
+   ]
+  },
+  {
+   "id": "app.myday.own-result",
+   "module": "geral",
+   "title": "Seu resultado hoje",
+   "what": "Seus contatos efetivos (com a pessoa certa) no dia, sobre o total de interações que você registrou, e as promessas obtidas.",
+   "how": "Conta as interações registradas por você desde o início do dia (fuso de Brasília). Contato efetivo é o da tabulação marcada como contato com a pessoa certa.",
+   "use": "Poucos contatos efetivos para muitas interações indicam telefones ruins ou horário errado: revise os contatos e a janela de ligação. O detalhe fica em \"Meu desempenho\".",
+   "screens": [
+    "app.home"
+   ]
+  },
+  {
+   "id": "app.myday.team",
+   "module": "geral",
+   "title": "Sua equipe hoje",
+   "what": "Resumo das equipes que você supervisiona: casos com os operadores, retornos atrasados, promessas do dia e as filas que elas atendem.",
+   "how": "Somente as equipes em que você é o supervisor e os credores que você atende. Nas filas, \"aguardando operador\" são os casos elegíveis ainda sem responsável; \"com próxima ação vencida\" são os que já passaram do horário previsto.",
+   "use": "Retornos atrasados e filas com ação vencida pedem redistribuição ou reforço. Ajuste em \"Filas e distribuição\".",
+   "screens": [
     "app.home"
    ]
   },

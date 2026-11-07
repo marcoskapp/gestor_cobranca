@@ -48,8 +48,10 @@ class CaseScoreController {
         return scores.history(caseId);
     }
 
+    // recálculo sob demanda é de quem gerencia o score (gestor, estratégia), com acesso ao caso; o operador
+    // recebe o score da escoragem diária e dos eventos (revisão de produto de 2026-11, T10; frente C, RC-04)
     @PostMapping("/recalculate")
-    @PreAuthorize("hasAuthority('SCORING_VIEW') and hasAuthority('CASE_WORK')")
+    @PreAuthorize("hasAuthority('SCORING_MANAGE') and hasAuthority('CASE_VIEW')")
     @Operation(summary = "Recalcula o score agora com o campeão vigente")
     CaseScoreView recalculate(@PathVariable UUID caseId) {
         return scores.recalculate(caseId);

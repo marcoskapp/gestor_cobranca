@@ -5,11 +5,14 @@ import { overrideScope, percent, planText, ratesText } from './negotiation.label
 import { PolicyOverride } from './negotiation.models';
 import {
   cloneTerms,
+  fieldsFromPlan,
   justificationProblem,
   offeredLevels,
   overriddenGroups,
   overriddenRules,
   overridesConflict,
+  planFieldsProblem,
+  planFromFields,
   savingShare,
   sideBySide,
   specificity,
@@ -159,5 +162,28 @@ describe('regras de tela do módulo negotiation', () => {
         'Competência repetida: 09/2026.',
       ]);
     });
+  });
+});
+
+describe('forma de pagamento sem ambiguidade com a entrada', () => {
+  it('converte "entrada + N parcelas" em N + 1 pagamentos e volta', () => {
+    expect(planFromFields({ mode: 'DOWN', parcels: 11, downPayment: 200 })).toEqual({ installments: 12, downPayment: 200 });
+    expect(fieldsFromPlan(12, 200)).toEqual({ mode: 'DOWN', parcels: 11, downPayment: 200 });
+    expect(planText({ installments: 12, downPayment: 200 })).toBe('Entrada + 11 parcelas');
+  });
+
+  it('à vista e parcelado sem entrada', () => {
+    expect(planFromFields({ mode: 'CASH', parcels: 5, downPayment: 10 })).toEqual({ installments: 1, downPayment: null });
+    expect(fieldsFromPlan(1, null).mode).toBe('CASH');
+    expect(planFromFields({ mode: 'INSTALLMENTS', parcels: 6, downPayment: null })).toEqual({ installments: 6, downPayment: null });
+    expect(fieldsFromPlan(6, null)).toEqual({ mode: 'INSTALLMENTS', parcels: 6, downPayment: null });
+  });
+
+  it('orienta campos incompletos e o limite de pagamentos contando a entrada', () => {
+    expect(planFromFields({ mode: 'DOWN', parcels: 3, downPayment: null })).toBeNull();
+    expect(planFieldsProblem({ mode: 'DOWN', parcels: 3, downPayment: null })).toContain('entrada');
+    expect(planFieldsProblem({ mode: 'INSTALLMENTS', parcels: 1, downPayment: null })).toContain('2 parcelas');
+    expect(planFieldsProblem({ mode: 'DOWN', parcels: 12, downPayment: 100 }, 12)).toBe('Entrada + 12 parcelas são 13 pagamentos; o limite é 12.');
+    expect(planFieldsProblem({ mode: 'DOWN', parcels: 11, downPayment: 100 }, 12)).toBeNull();
   });
 });

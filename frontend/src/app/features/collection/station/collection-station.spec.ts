@@ -2,7 +2,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
+import { NgbOffcanvas } from '@ng-bootstrap/ng-bootstrap';
+import { of } from 'rxjs';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { CloseAgreementDialog } from '../../negotiation/case/close-agreement-dialog';
+import { proposal } from '../../../../testing/negotiation-fixtures';
+import { AttendanceService } from './attendance.service';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { breakSuspensionInfo, reviewItem } from '../../../../testing/payment-review-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -178,6 +184,9 @@ describe('CollectionStation', () => {
     if (url === '/api/v1/payment/review-status/debtors/d-1') return req.flush(reviewStatus);
     if (url === '/api/v1/users/display-names') return req.flush([{ id: 'u-2', name: 'Carla Operadora' }]);
     if (url === '/api/v1/communication/conversations') return req.flush(page([]));
+    if (url === '/api/v1/negotiation/proposals') return req.flush(page([]));
+    if (url === '/api/v1/negotiation/agreements') return req.flush(page([]));
+    if (url === '/api/v1/negotiation/authority/me') return req.flush({ profile: { canFormalize: true } });
     throw new Error(`requisição inesperada: ${req.request.method} ${url}`);
   }
 
@@ -203,13 +212,18 @@ describe('CollectionStation', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[aria-label="Meus casos"]')?.textContent).toContain('Ana Paula Ribeiro');
     expect(el.querySelector('[aria-label="Ficha do caso"]')?.textContent).toContain('***.982.247-**');
-    const panel = el.querySelector('app-contact-window')?.textContent ?? '';
-    // decisão do servidor por canal: permitido, aguardar (com o próximo horário) e restrito
-    expect(panel).toContain('Posso contatar agora?');
-    expect(panel).toContain('Permitido');
-    expect(panel).toContain('Aguardar');
+    const window = el.querySelector('app-contact-window')!;
+    const panel = window.textContent ?? '';
+    // decisão do servidor por canal numa linha de chips; o detalhe só dos canais não liberados
+    expect(panel).toContain('Posso contatar?');
+    const chips = [...window.querySelectorAll('.cw__chip')].map((c) => c.getAttribute('aria-label'));
+    expect(chips).toEqual(['Telefone: Permitido', 'WhatsApp: Aguardar', 'SMS: Restrito', 'E-mail: Permitido']);
+    expect(window.querySelector('.cw__restricted')?.textContent).toContain('SMS');
     expect(panel).toContain('a partir de');
-    expect(panel).toContain('Restrito');
+    // registro de interação no topo da coluna de ações (antes, ficava abaixo da dobra)
+    const actions = el.querySelector('[aria-label="Ações do atendimento"]')!;
+    expect(actions.querySelector('app-interaction-panel')).not.toBeNull();
+    expect(actions.querySelector('.ip__submit')).not.toBeNull();
     // tabulação desativada não aparece no formulário
     expect(text(fixture)).toContain('Registrar interação');
   });
@@ -414,6 +428,129 @@ describe('CollectionStation', () => {
     expect(urls.some((u) => u.endsWith('/sheet'))).toBe(true);
     expect(urls.some((u) => u.endsWith('/contact-availability'))).toBe(false);
     expect((fixture.nativeElement as HTMLElement).querySelector('app-contact-window')).toBeNull();
+  });
+
+  it('atendimento preservado: sair da estação e voltar mantém o início, o rascunho e a aba do caso', async () => {
+    let fixture = await render('k-1');
+    const started = fixture.componentInstance['startedAt']();
+    expect(started).toBeInstanceOf(Date);
+    const panel = () =>
+      fixture.debugElement.query((d) => d.name === 'app-interaction-panel').componentInstance as { form: { patchValue(v: object): void; getRawValue(): { note: string; channel: string } } };
+    panel().form.patchValue({ channel: 'WHATSAPP', note: 'Pediu 2 dias para confirmar' });
+    press('3');
+    fixture.detectChanges();
+    fixture.destroy();
+
+    fixture = await render('k-1');
+    expect(fixture.componentInstance['startedAt']()).toBe(started);
+    expect(panel().form.getRawValue()).toMatchObject({ channel: 'WHATSAPP', note: 'Pediu 2 dias para confirmar' });
+    expect(fixture.componentInstance['tab']()).toBe(2);
+    // nada disso vai para o armazenamento do navegador (a observação pode ter dado pessoal)
+    expect(JSON.stringify({ ...localStorage })).not.toContain('Pediu 2 dias');
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain('Pediu 2 dias');
+    TestBed.inject(AttendanceService).clear();
+  });
+
+  it('aba na URL: ?aba= abre a aba e a troca de aba grava na URL', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const fixture = TestBed.createComponent(CollectionStation);
+    fixture.componentRef.setInput('caso', 'k-1');
+    fixture.componentRef.setInput('aba', 'negociacao');
+    for (let i = 0; i < 4; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      respond(sheet());
+    }
+    expect(fixture.componentInstance['tab']()).toBe(5);
+    press('2');
+    fixture.detectChanges();
+    expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { aba: 'contatos' }, queryParamsHandling: 'merge', replaceUrl: true }));
+    TestBed.inject(AttendanceService).clear();
+  });
+
+  it('abas que não cabem ficam em "Mais", que mostra o nome da aba ativa', async () => {
+    const fixture = await render('k-1');
+    const tabs = (fixture.nativeElement as HTMLElement).querySelector('[data-tour="case-tabs"]')!;
+    const visible = [...tabs.querySelectorAll(':scope > li:not(.d-none) > .nav-link')].map((b) => b.textContent?.trim());
+    expect(visible).toEqual(['Títulos (1)', 'Contatos (1)', 'Histórico (2)', 'Negociação', 'Mais']);
+    press('4');
+    fixture.detectChanges();
+    expect(tabs.querySelector('.sp-more')?.textContent?.trim()).toBe('Agenda e promessas');
+    TestBed.inject(AttendanceService).clear();
+  });
+
+  it('Simular abre o simulador no painel lateral, sem sair da estação', async () => {
+    const open = vi.spyOn(TestBed.inject(NgbOffcanvas), 'open').mockReturnValue({ result: new Promise(() => undefined), dismiss: vi.fn() } as never);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const fixture = await render('k-1');
+    press('s');
+    expect(open).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ position: 'end', panelClass: 'app-station-panel' }));
+    expect(navigate).not.toHaveBeenCalledWith(['/negociacao/simulador'], expect.anything());
+    fixture.destroy();
+    TestBed.inject(AttendanceService).clear();
+  });
+
+  it('"Ficha do devedor" só aparece com DEBTOR_VIEW', async () => {
+    const button = (f: ComponentFixture<unknown>) =>
+      [...(f.nativeElement as HTMLElement).querySelectorAll('.sp-head button')].find((b) => b.textContent?.includes('Ficha do devedor'));
+    let fixture = await render('k-1');
+    expect(button(fixture)).toBeUndefined();
+    fixture.destroy();
+    permissions.update((p) => [...p, 'DEBTOR_VIEW']);
+    fixture = await render('k-1');
+    expect(button(fixture)).toBeDefined();
+    TestBed.inject(AttendanceService).clear();
+  });
+
+  it('o simulador abre com o canal escolhido no registro, mesmo trocado depois de abrir o caso', async () => {
+    vi.spyOn(TestBed.inject(NgbOffcanvas), 'open').mockReturnValue({ result: new Promise(() => undefined), dismiss: vi.fn() } as never);
+    const fixture = await render('k-1');
+    const panel = fixture.debugElement.query((d) => d.name === 'app-interaction-panel').componentInstance as { form: { patchValue(v: object): void } };
+    expect(fixture.componentInstance['simulatorChannel']()).toBeUndefined();
+    panel.form.patchValue({ channel: 'WHATSAPP' });
+    press('s');
+    expect(fixture.componentInstance['simulatorChannel']()).toBe('WHATSAPP');
+    panel.form.patchValue({ channel: 'EMAIL' });
+    press('s');
+    expect(fixture.componentInstance['simulatorChannel']()).toBe('EMAIL');
+    fixture.destroy();
+    TestBed.inject(AttendanceService).clear();
+  });
+
+  it('alçada que chega depois da troca de caso não abre o diálogo sobre o outro caso', async () => {
+    permissions.update((p) => [...p, 'AGREEMENT_FORMALIZE']);
+    const dialogOpen = vi.spyOn(TestBed.inject(DialogService), 'open');
+    const fixture = await render('k-1');
+    fixture.componentInstance['closeAgreement'](proposal({ status: 'DRAFT', caseId: 'k-1' }));
+    const authority = http.expectOne((r) => r.url === '/api/v1/negotiation/authority/me');
+    // o operador abre outro caso antes da resposta
+    fixture.componentInstance['selectedId'].set('k-2');
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      respond(sheet({ collectionCase: caseView({ id: 'k-2' }) }));
+    }
+    authority.flush({ profile: { canFormalize: true } });
+    expect(dialogOpen).not.toHaveBeenCalled();
+    respond(sheet({ collectionCase: caseView({ id: 'k-2' }) }));
+    TestBed.inject(AttendanceService).clear();
+  });
+
+  it('proposta criada no painel dentro da alçada segue para o aceite com o canal do atendimento', async () => {
+    permissions.update((p) => [...p, 'AGREEMENT_FORMALIZE']);
+    const dialogOpen = vi.spyOn(TestBed.inject(DialogService), 'open').mockReturnValue({ afterClosed: () => of(undefined) } as never);
+    const fixture = await render('k-1');
+    const panel = fixture.debugElement.query((d) => d.name === 'app-interaction-panel').componentInstance as { form: { patchValue(v: object): void } };
+    panel.form.patchValue({ channel: 'WHATSAPP' });
+    fixture.componentInstance['onProposed'](proposal({ status: 'DRAFT', caseId: 'k-1' }));
+    respond(sheet());
+    expect(dialogOpen).toHaveBeenCalledWith(
+      CloseAgreementDialog,
+      expect.objectContaining({ data: expect.objectContaining({ channel: 'WHATSAPP', canFormalize: true }) }),
+    );
+    expect(fixture.componentInstance['tab']()).toBe(5);
+    respond(sheet());
+    TestBed.inject(AttendanceService).clear();
   });
 
   it('sugere a densidade compacta uma vez, sem impor', async () => {

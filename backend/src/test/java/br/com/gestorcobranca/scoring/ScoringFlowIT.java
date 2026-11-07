@@ -27,6 +27,13 @@ import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
+import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.shared.security.ActorAuthentication;
+import br.com.gestorcobranca.shared.security.CreditorScope;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -37,6 +44,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Fluxos do módulo scoring com PostgreSQL real: escoragem em lote (jobs com SKIP LOCKED),
@@ -54,10 +65,32 @@ class ScoringFlowIT extends ScoringTestSupport {
     ScoringOperations operations;
     @Autowired
     PerformanceQueries performance;
+    @Autowired
+    WebApplicationContext webApplicationContext;
 
     @BeforeEach
     void setUp() {
         provision("scor");
+    }
+
+    @Test
+    void onDemandRecalculationRequiresScoringManage() throws Exception {
+        enableScoring();
+        CaseView c = loadCase(creditorA, portfolioA, CPFS[0], "500.00", 10);
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
+        // operador (SCORING_VIEW + CASE_WORK, sem SCORING_MANAGE): recebe o score da escoragem, não recalcula
+        mvc.perform(post("/api/v1/scoring/cases/{id}/recalculate", c.id())
+                        .with(authentication(ActorAuthentication.of(roleActor(operatorX, DefaultRoles.OPERADOR)))))
+                .andExpect(status().isForbidden());
+        // gestor (SCORING_MANAGE com acesso ao caso) recalcula
+        mvc.perform(post("/api/v1/scoring/cases/{id}/recalculate", c.id())
+                        .with(authentication(ActorAuthentication.of(roleActor(manager, DefaultRoles.GESTOR)))))
+                .andExpect(status().isOk());
+    }
+
+    private Actor roleActor(UUID userId, String role) {
+        return new Actor(Actor.ActorType.USER, userId, tenant, Ids.newId(), role, DefaultRoles.forTenant().stream()
+                .filter(d -> d.code().equals(role)).findFirst().orElseThrow().permissions(), CreditorScope.ALL);
     }
 
     @Test

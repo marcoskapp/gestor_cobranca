@@ -168,6 +168,17 @@ padrão (14 tabulações) semeado no provisionamento (`TenantProvisioned`) e pel
 Registrar uma interação conclui, na mesma transação, os retornos em aberto do caso cujo horário já chegou (com a
 tolerância antes do horário) ou a tarefa indicada em `completesTaskId`.
 
+**Início, fim e duração.** `startedAt` e `endedAt` vêm do cliente (na estação, o cronômetro do atendimento); sem
+`startedAt`, vale o instante do registro. O servidor recusa início no futuro (`interaction.started_in_future`, folga de
+2 minutos), início com mais de 7 dias (`interaction.started_too_old`), fim antes do início (`interaction.period_invalid`)
+e fim no futuro (`interaction.ended_in_future`, mesma folga — sem ela, um relógio adiantado inflaria a duração).
+Essas regras ficam no `InteractionService` (dependem do relógio do servidor), não na entidade.
+`duration_seconds` é derivada de `endedAt − startedAt` e hoje só aparece no histórico do caso; **nenhum indicador a
+consome**: o TMA da produtividade e a remuneração variável usam o tempo de conversação das chamadas da telefonia
+(`CallCompleted.durationSeconds`/`talk_seconds`), e a view `analytics.src_interaction` não expõe a duração. A causa da
+duração subestimada (revisão de produto de 2026-11, J1) estava na estação, que recriava o início ao voltar de outra tela; ela
+passou a guardar o atendimento por caso (§8.2).
+
 ### 4.1 Ação automática da tabulação (decisões 776–780)
 
 O fato relatado no atendimento produz o efeito devido **no próprio registro**, sem depender de um segundo passo manual.
@@ -405,6 +416,37 @@ elegibilidade do caso (respeita o grafo collection → compliance).
 * `POST /compliance/contact-gate/evaluate` (devedor + credor informados) continua existindo para outros usos; a estação
   não o usa.
 
+### 8.2 Atendimento por caso na estação (frontend)
+
+`AttendanceService` (`features/collection/station`, `providedIn: 'root'`) guarda, por caso, o início da contagem, o
+rascunho do registro de interação e a aba ativa (também em `?aba=` na URL). Abrir a ficha do devedor ou o simulador —
+que abrem num painel lateral dentro da estação — ou sair para outra tela e voltar retoma o mesmo atendimento. Abrir outro
+caso encerra a contagem do anterior (o tempo em outro caso não conta) e guarda o rascunho dele; registrar a interação
+limpa o rascunho e reinicia a contagem; devolver à fila descarta. Atendimento parado há mais de 30 minutos (sem abrir,
+digitar, trocar de aba nem sair da estação; `ATTENDANCE_IDLE_MS`) recomeça a contagem ao voltar — o rascunho continua —
+para que pausa ou fim de turno não entrem na duração. O simulador recebe o canal do atendimento no momento em que o
+painel abre. Só em memória (no máximo 20 casos, limpos na troca de
+usuário): a observação pode conter dado pessoal e não vai para `localStorage`/`sessionStorage`; recarregar a página
+recomeça o atendimento. O acordo fecha sem sair do caso (`negociacao-e-alcadas.md` §10.13).
+
+### 8.3 "Seu dia" no início
+
+`GET /my-day` (`CASE_WORK` ou `CASE_ASSIGN`), `MyDayQueries`: só contagens, sem dado de devedor, no escopo de credores do
+ator (RLS + filtro por credor), em consultas indexadas (`JdbcMyDayStore`).
+
+* **Operador** (`CASE_WORK`): casos ativos com ele; retornos de hoje (pendentes a partir de agora) e atrasados (perdidos
+  nos últimos 30 dias ou com horário passado — a mesma janela da agenda e das pendências); promessas pendentes nos casos
+  dele que vencem hoje e as vencidas ainda na tolerância; interações, contatos efetivos e promessas registrados por ele
+  desde o início do dia (fuso de operação).
+* **Supervisor** (`CASE_ASSIGN`): equipes ativas em que ele é o supervisor (identity, `TeamUseCases`), com os casos ativos
+  dos membros, retornos atrasados, promessas que vencem hoje e as filas ativas atendidas por essas equipes (casos
+  elegíveis aguardando operador e os de próxima ação vencida). Sem equipe supervisionada, `team` vem nulo.
+* Retornos de hoje e atrasados usam a mesma regra SQL de "Minhas pendências" (`TaskDueSql`, pacote de persistência).
+  "Aguardando operador" numa fila conta os casos elegíveis sem operador, inclusive os de próxima ação futura (a coluna
+  "com próxima ação vencida" separa os que já passaram do horário).
+* Aprovações, conversas e prazos continuam em "Minhas pendências" (`pendencias.md`); o "Seu dia" não os repete. Leitura
+  de contagens: sem auditoria nem log de acesso a dado sensível; sem métrica nova.
+
 ## 9. Eventos de integração publicados
 
 | Evento | Quando | Campos relevantes |
@@ -473,6 +515,7 @@ descrições só no banco, criptografadas).
 | `/cases/{id}/suspend` · `/resume` · `/legal` · `/legal-return` · `/close` · `/refresh` | `POST` |
 | `/cases/{id}/assign` · `/release` · `/take-over` · `/assistant` | `POST` |
 | `/next-case` (200 caso / 204 vazio) · `/my-cases` | `POST` · `GET` |
+| `/my-day` | `GET` (`CASE_WORK` ou `CASE_ASSIGN`; §8.3) |
 | `/queues` · `/queues/{id}` · `/queues/{id}/summary` · `/queues/{id}/activate|deactivate` · `/queues/reroute` · `/queues/{id}/distribute` | CRUD + ações |
 | `/redistributions` | `POST` |
 | `/tabulations` · `/tabulations/{id}` · `/activate|deactivate` | CRUD + ações (com `followUp` e `disputeType`, §4.1) |

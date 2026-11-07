@@ -89,7 +89,18 @@
             </li>
           } @empty {
             <li class="list-group-item">
-              <app-empty-state icon="chat-square-dots" title="Nenhuma conversa aqui." message="Quando o devedor escrever ou a conversa for transferida, ela aparece nesta lista." [compact]="true" />
+              @if (tab() === 'mine' && queueWaiting() > 0) {
+                <app-empty-state
+                  icon="chat-square-dots"
+                  title="Nenhuma conversa com você."
+                  [message]="queueWaiting() + ' conversa(s) aguardando resposta na fila da equipe.'"
+                  [compact]="true"
+                >
+                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="selectTab('queue')">Ver a fila</button>
+                </app-empty-state>
+              } @else {
+                <app-empty-state icon="chat-square-dots" title="Nenhuma conversa aqui." message="Quando o devedor escrever ou a conversa for transferida, ela aparece nesta lista." [compact]="true" />
+              }
             </li>
           }
         </ul>

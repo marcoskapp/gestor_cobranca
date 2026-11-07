@@ -29,18 +29,20 @@
   margin: 8px 0 0;
 }
 
+// faixa única de 4 indicadores compactos (migram para o app-kpi-card compartilhado quando existir)
 .sp-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 8px;
-  margin: 12px 0 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 4px;
 }
 
 .sp-kpi {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 12px;
+  min-width: 0;
+  padding: 6px 10px;
   border-radius: var(--bs-border-radius);
   background: var(--bs-tertiary-bg);
 }
@@ -52,8 +54,17 @@
 }
 
 .sp-kpi__value {
+  overflow: hidden;
   font-size: var(--app-text-md);
   font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sp-kpi__of {
+  font-size: var(--app-text-xs);
+  font-weight: var(--bs-body-font-weight);
+  color: var(--bs-secondary-color);
 }
 
 .sp-kbd {
@@ -66,17 +77,31 @@
   padding-top: 12px;
 }
 
-// abas numa linha só, com rolagem horizontal quando a ficha estreita (atalhos Alt + 1…6)
+// abas numa linha só: as mais usadas à vista e as demais em "Mais ▾" (sem rolagem lateral escondida)
 .sp-tabs {
   flex-wrap: nowrap;
   margin-top: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
   white-space: nowrap;
   --bs-nav-link-padding-x: 0.75rem;
   --bs-nav-link-padding-y: 0.375rem;
   font-size: var(--app-text-sm);
+}
+
+.sp-more {
+  border: 0;
+  background: none;
+}
+
+// tabela de títulos: na ficha estreita (1366 px) ficam Título · Vencimento · Atraso · Saldo; o valor
+// original vai para o tooltip do saldo e a situação aparece de novo quando há espaço
+.sp-titles {
+  container-type: inline-size;
+}
+
+@container (max-width: 560px) {
+  .sp-secondary {
+    display: none;
+  }
 }
 
 .sp-table {
@@ -85,6 +110,13 @@
   th,
   td {
     white-space: nowrap;
+  }
+
+  // identificação do título quebra nos hífens: o saldo nunca é cortado
+  td:first-child,
+  td:first-child a {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   th {

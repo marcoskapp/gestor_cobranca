@@ -623,7 +623,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'collection.station',
-    version: 3,
+    version: 4,
     title: 'Estação de cobrança',
     summary: 'Fila, ficha do caso e registro do atendimento em uma só tela, pelo teclado.',
     steps: [
@@ -641,24 +641,24 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'case-tabs',
         title: 'Ficha do caso',
-        body: 'Títulos, contatos mascarados, histórico, agenda, contestações, negociação e conversas do caso. Alterne as abas com Alt + 1 a Alt + 7.',
+        body: 'Títulos, contatos, histórico e negociação à vista; agenda, contestações e conversas em "Mais". Alt + 1 a Alt + 7 alternam as abas.',
+      },
+      {
+        anchor: 'case-actions',
+        title: 'Ligar, mensagem e simular',
+        body: 'Simular abre o simulador ao lado, sem sair do caso: proponha, registre o aceite, formalize e gere o Pix ali mesmo.',
+        placement: 'start',
       },
       {
         anchor: 'contact-window',
         title: 'Posso contatar agora?',
-        body: 'Por canal, a decisão do sistema: permitido, aguardar (com o horário em que libera) ou restrito. Considera restrições, política, feriados e limites.',
+        body: 'Um chip por canal: permitido, aguardar ou restrito. Embaixo, o horário em que libera cada canal bloqueado.',
         placement: 'start',
       },
       {
         anchor: 'interaction-form',
         title: 'Registrar interação (Alt + R)',
-        body: 'A tabulação define o que é exigido: observação, promessa com valor e data ou retorno combinado. Ctrl + Enter registra.',
-        placement: 'start',
-      },
-      {
-        anchor: 'case-actions',
-        title: 'Ligar, mensagem, retorno e simulação',
-        body: 'Alt + L liga e Alt + W manda mensagem, com a decisão do porteiro antes. Alt + A agenda retorno; Alt + S simula.',
+        body: 'A tabulação define o que é exigido. O rascunho e o cronômetro continuam se você abrir outra tela e voltar. Ctrl + Enter registra.',
         placement: 'start',
       },
     ],
@@ -768,7 +768,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'negotiation.simulator',
-    version: 3,
+    version: 4,
     title: 'Simulador de negociação',
     summary: 'Dívida atualizada, ofertas lado a lado e validação das condições pela sua alçada.',
     steps: [
@@ -795,15 +795,14 @@ export const TOURS: readonly TourDefinition[] = [
         body: 'Total, desconto e juros do parcelamento de cada oferta. Comece no nível mais baixo; subir exige motivo registrado.',
       },
       {
-        anchor: 'sim-validate',
-        title: 'Validar condições',
-        body: 'Ajuste descontos e parcelas combinados e valide: dentro da alçada, requer aprovação ou rejeitado.',
-        placement: 'above',
+        anchor: 'sim-propose-offer',
+        title: 'Propor esta oferta',
+        body: 'A oferta veio do motor: um clique valida e abre a confirmação. Acima da alçada, o botão vira "Pedir aprovação".',
       },
       {
-        anchor: 'sim-propose',
-        title: 'Propor ou pedir aprovação',
-        body: 'Validadas as condições, proponha. Acima da sua alçada, o botão vira "Pedir aprovação" e a proposta vai para a fila.',
+        anchor: 'sim-validate',
+        title: 'Ajustar, validar e propor',
+        body: 'Outra combinação: forma de pagamento como "Entrada + N parcelas", descontos em "avançado". Valide e proponha, ou peça aprovação.',
         placement: 'above',
       },
     ],

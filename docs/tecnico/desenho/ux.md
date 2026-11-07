@@ -118,7 +118,7 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 | Definições | `core/onboarding/content/{tours,screens,release-notes,checklists}.ts` | Conteúdo declarativo e versionado |
 | `TourEngine` | `tour/tour-engine.service.ts` + `tour-popover.ts` | Balão não modal ancorado em `[data-tour~=…]`, destaque que não captura cliques, passos sem âncora visível omitidos, Esc/Pular = `DISMISSED`, Concluir = `COMPLETED`, navegação encerra sem desfecho |
 | `OnboardingService` | `onboarding.service.ts` | Decide convites por navegação; checklist; novidades |
-| Convite | `hint/onboarding-hint.ts` | Cartão no canto, `aria-live`, "Agora não", "Não mostrar dicas automáticas" |
+| Convites | `hint/onboarding-hint.ts` e `hint/screen-tip.ts` | Boas-vindas: faixa dentro da página inicial (`aria-live`, "Fazer o tour", "Agora não"). Tour novo ou novidades de uma tela de trabalho: ponto no botão de ajuda e destaque no topo do menu de ajuda — nada flutua sobre o conteúdo. "Não mostrar dicas automáticas" fica na ajuda |
 | Checklist | `getting-started/getting-started.ts` | "Primeiros passos" na tela inicial; reabrível pela ajuda |
 | Novidades | `whats-new/whats-new-dialog.ts` | Central por versão; selo "Novo" na ajuda |
 | Estado | `core/preferences/ui-state.store.ts` | Carga no login, alterações otimistas agrupadas (debounce 800 ms) em um PATCH, reenvio em falha, `flush()` antes do logout |
@@ -128,10 +128,10 @@ Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores
 ### 8.3 Regras dos convites
 
 1. Só após carregar o estado do servidor (`ready`) e com `hintsEnabled`.
-2. **Primeiro acesso** (nenhuma tela registrada): convite para `app.welcome`; as notas de versão anteriores são marcadas como lidas.
-3. **Tela não navegada** com `tourId`: convite para o tour da tela se ele não foi registrado na versão atual.
-4. **Tela com versão maior que a vista**: cartão "Novidades nesta tela" com os itens de `changes` posteriores à versão vista (e o tour, se houver versão nova).
-5. Cada convite aparece no máximo uma vez: a visita é registrada ao abrir a tela; "Agora não" registra `DISMISSED` na versão do tour.
+2. **Tour de boas-vindas** (`app.welcome`) ainda não registrado: convite **só na tela inicial**, dentro da página (nunca por cima do conteúdo), e só quando o checklist "Primeiros passos" visível não traz o item "Conhecer a navegação" (que já oferece o mesmo tour). No primeiro acesso, as notas de versão anteriores são marcadas como lidas.
+3. **Tela não navegada** com `tourId`: destaque "Tour rápido" no menu de ajuda (com ponto no botão) se o tour não foi registrado na versão atual.
+4. **Tela com versão maior que a vista**: "Novidades nesta tela" no topo do menu de ajuda, com os itens de `changes` posteriores à versão vista (e o tour, se houver versão nova).
+5. Cada convite aparece no máximo uma vez: a visita é registrada ao abrir a tela (o destaque some ao trocar de tela); o convite de boas-vindas registra `DISMISSED` já na exibição (revisão de produto de 2026-11, T8: o cartão aparecia em todas as telas até ser dispensado e cobria colunas); "Agora não" também registra `DISMISSED`.
 6. Nunca abre um tour sozinho; o usuário pode reabrir qualquer tour pela ajuda ou pela busca rápida.
 
 ### 8.4 Contrato para telas novas (ex.: estação de cobrança)
@@ -297,6 +297,10 @@ AUC mínima, limites de PSI) e limite da segunda aprovação do ajuste do demons
 - Densidade compacta como sugestão no primeiro acesso da estação (convite, nunca imposta).
 - Status do caso, do título e do acordo sempre com `app-status-chip` (novos domínios em `status.ts`).
 - Cronômetro de atendimento e "posso contatar agora?" (decisão do porteiro do compliance por canal, com o próximo horário permitido — a tela não calcula janelas; `collection.md` §8.1) visíveis, sem animação chamativa.
+- **Revisão de 2026-11 (onda 2, jornada do operador)**: a 1366×768 o registro de interação fica no topo da coluna direita com o botão fixo no rodapé da coluna; "Posso contatar agora?" vira uma linha de chips (o detalhe só para canais não liberados); ações numa barra compacta (Ligar · Mensagem · Simular · ⋯, com Agendar retorno, Ficha do devedor e Contestação no ⋯); abas mais usadas à vista e as demais em "Mais ▾"; indicadores do caso numa faixa de 4 (migram para o `app-kpi-card` compartilhado); tabela de títulos sem cortar o saldo. O atendimento (início, rascunho e aba) é guardado por caso (`collection.md` §8.2), a aba fica em `?aba=`, e simulador e ficha do devedor abrem num painel lateral (`.app-station-panel`), com o acordo fechado sem sair do caso (`negociacao-e-alcadas.md` §10.13).
+
+**Início ("Seu dia", decisão D8)**
+- Para operador e supervisor: "Próximo caso" (Alt + N) e as contagens do dia (`collection.md` §8.3), cada número levando à tela de trabalho; depois "Suas pendências", indicadores (quem vê painéis) e os primeiros passos. Sem "Acesso rápido" (o menu já leva a todas as telas). O aviso de MFA (uma linha, dispensável na sessão) e o convite do tour só aparecem quando o checklist não os traz.
 
 **Negociação**
 - Simulação lado a lado (à vista × parcelado) com `app-amount` e memória de cálculo sob demanda.

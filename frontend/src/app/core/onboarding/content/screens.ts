@@ -8,9 +8,18 @@ import { ScreenGuide } from '../onboarding.models';
 export const SCREENS: readonly ScreenGuide[] = [
   {
     key: 'app.home',
-    version: 2,
+    version: 3,
     path: '/',
-    changes: [{ version: 2, items: ['Indicadores da operação na página inicial, com atalho para os painéis.'] }],
+    changes: [
+      { version: 2, items: ['Indicadores da operação na página inicial, com atalho para os painéis.'] },
+      {
+        version: 3,
+        items: [
+          '"Seu dia": "Próximo caso" (Alt + N), casos com você, retornos de hoje, promessas vencendo e o seu resultado do dia; para o supervisor, as equipes e as filas.',
+          'Sem o "Acesso rápido" (o menu já leva a todas as telas) e sem avisos repetidos: o aviso de verificação em duas etapas e o convite do tour só aparecem quando os primeiros passos não os trazem.',
+        ],
+      },
+    ],
   },
   {
     key: 'analytics.operational',
@@ -176,7 +185,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 7,
+    version: 8,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -192,11 +201,20 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Aba Conversas (Alt + 7): conversas do caso, abertas e encerradas, com quem atende e atalho para a caixa de entrada.',
         ],
       },
+      {
+        version: 8,
+        items: [
+          'O atendimento fica guardado por caso: abrir a ficha do devedor, o simulador ou outra tela e voltar não zera o cronômetro nem o que você digitou, e a aba ativa fica no endereço.',
+          'Registro de interação no topo da coluna da direita, com o botão sempre à vista; "Posso contatar agora?" numa linha de chips (o detalhe só para os canais não liberados).',
+          'Simulador e ficha do devedor abrem num painel ao lado, sem sair do caso. O acordo fecha ali mesmo: "Propor esta oferta", aceite com o canal do atendimento e formalização com a confirmação digitada, Pix e o cartão "Acordo formalizado".',
+          'Abas que não cabem ficam em "Mais"; a tabela de títulos mostra sempre o saldo (o valor original fica no detalhe do saldo).',
+        ],
+      },
     ],
   },
   {
     key: 'collection.case',
-    version: 7,
+    version: 8,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -210,6 +228,15 @@ export const SCREENS: readonly ScreenGuide[] = [
         items: [
           'Mensagem (Alt + W): contato ativo por WhatsApp, SMS ou e-mail a partir do caso, com template aprovado e a decisão do porteiro por contato antes do envio.',
           'Aba Conversas (Alt + 7): conversas do caso, abertas e encerradas, com quem atende e atalho para a caixa de entrada.',
+        ],
+      },
+      {
+        version: 8,
+        items: [
+          'O atendimento fica guardado por caso: abrir a ficha do devedor, o simulador ou outra tela e voltar não zera o cronômetro nem o que você digitou, e a aba ativa fica no endereço.',
+          'Registro de interação no topo da coluna da direita, com o botão sempre à vista; "Posso contatar agora?" numa linha de chips (o detalhe só para os canais não liberados).',
+          'Simulador e ficha do devedor abrem num painel ao lado, sem sair do caso. O acordo fecha ali mesmo: "Propor esta oferta", aceite com o canal do atendimento e formalização com a confirmação digitada, Pix e o cartão "Acordo formalizado".',
+          'Abas que não cabem ficam em "Mais"; a tabela de títulos mostra sempre o saldo (o valor original fica no detalhe do saldo).',
         ],
       },
     ],
@@ -268,12 +295,19 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'negotiation.simulator',
-    version: 3,
+    version: 4,
     path: '/negociacao/simulador',
     tourId: 'negotiation.simulator',
     changes: [
       { version: 2, items: ['Condições validadas viram proposta: "Propor" dentro da alçada ou "Pedir aprovação" acima dela.', 'Renegociação de acordo a partir da ficha do acordo.'] },
       { version: 3, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela explica a dívida atualizada, as ofertas e a sua alçada.'] },
+      {
+        version: 4,
+        items: [
+          'Aberto pelo caso, simula sozinho. Cada oferta tem "Propor esta oferta": a validação roda por trás e a confirmação abre direto.',
+          'Forma de pagamento como na oferta ("Entrada + 11 parcelas"), sem contar a entrada no número de parcelas; descontos por componente em "avançado".',
+        ],
+      },
     ],
   },
   { key: 'negotiation.proposals', version: 1, path: '/negociacao/propostas', tourId: 'negotiation.proposals' },
@@ -451,7 +485,18 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Quebra precoce na mesma regra dos painéis: a taxa considera só os acordos formalizados há pelo menos a janela; os recentes aparecem à parte, em maturação.'] },
     ],
   },
-  { key: 'communication.inbox', version: 1, path: '/conversas', tourId: 'communication.inbox' },
+  {
+    key: 'communication.inbox',
+    version: 2,
+    path: '/conversas',
+    tourId: 'communication.inbox',
+    changes: [
+      {
+        version: 2,
+        items: ['Sem conversas suas aguardando, a caixa abre na Fila; a aba escolhida fica no endereço (voltar do caso reabre a mesma aba) e "Minhas" vazia aponta para a Fila.'],
+      },
+    ],
+  },
   { key: 'communication.templates', version: 1, path: '/conversas/templates', tourId: 'communication.templates' },
   { key: 'communication.channels', version: 1, path: '/conversas/canais' },
   { key: 'communication.conversation', version: 1, path: '/conversas/:id', tourId: 'communication.inbox' },

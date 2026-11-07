@@ -32,8 +32,9 @@ export const MANUAL: ModuleManual = {
       title: 'Simulador de negociação',
       objective: 'Calcule a dívida atualizada, compare ofertas e valide condições dentro da sua alçada antes de propor.',
       purpose: [
-        'Escolha credor e devedor; sem títulos marcados, entram todos os títulos em aberto no credor. Seu limite aparece antes de simular.',
-        'Validadas as condições, proponha. Acima da sua alçada, o botão vira "Pedir aprovação" e a proposta vai para a fila.',
+        'Escolha credor e devedor; sem títulos marcados, entram todos os títulos em aberto no credor. Seu limite aparece antes de simular. Aberto pelo caso, simula sozinho.',
+        'Cada oferta tem "Propor esta oferta": as condições são validadas por trás e a confirmação abre direto. Acima da sua alçada, o botão vira "Pedir aprovação" e a proposta vai para a fila.',
+        'Para outra combinação, "Ajustar estas condições": a forma de pagamento é escolhida como na oferta (à vista, parcelado sem entrada ou entrada + N parcelas, sem contar a entrada nas parcelas) e os descontos por componente ficam em "avançado".',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR'],
       inputs: ['Títulos em aberto do devedor no credor.', 'Política de cobrança vigente e o seu perfil de alçada.'],

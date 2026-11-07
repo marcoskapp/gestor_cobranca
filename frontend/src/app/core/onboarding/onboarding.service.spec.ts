@@ -83,18 +83,26 @@ describe('OnboardingService', () => {
     });
   }
 
+  /** Primeiro acesso sem o checklist à vista (dispensado): o convite de boas-vindas aparece no Início. */
+  function firstAccessWithoutChecklist(): void {
+    store.state.set({ ...DEFAULT_UI_STATE, checklistDismissed: true });
+  }
+
   it('aguarda o estado do servidor antes de decidir', async () => {
+    firstAccessWithoutChecklist();
     await visit('/');
     expect(service.hint()).toBeNull();
     store.ready.set(true);
     TestBed.tick();
-    expect(service.hint()?.kind).toBe('welcome');
+    expect(service.welcomeInvite()?.kind).toBe('welcome');
   });
 
   it('primeiro acesso: convida para o tour de boas-vindas e marca as novidades como lidas', async () => {
+    firstAccessWithoutChecklist();
     store.ready.set(true);
     await visit('/');
-    expect(service.hint()?.kind).toBe('welcome');
+    expect(service.welcomeInvite()?.kind).toBe('welcome');
+    expect(service.screenTip()).toBeNull();
     expect(store.state().screens[RELEASE_NOTES_SCREEN]?.version).toBe(LATEST_RELEASE);
     expect(service.unreadReleaseNotes()).toBe(false);
 
@@ -102,13 +110,38 @@ describe('OnboardingService', () => {
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ id: WELCOME_TOUR }));
   });
 
-  it('"agora não" registra o convite como dispensado e não volta a oferecer', async () => {
+  it('o convite de boas-vindas aparece no máximo uma vez: a exibição já conta como dispensa', async () => {
+    firstAccessWithoutChecklist();
     store.ready.set(true);
     await visit('/');
-    service.declineHint();
+    expect(service.welcomeInvite()).not.toBeNull();
     expect(store.state().tours[WELCOME_TOUR]?.outcome).toBe('DISMISSED');
     await visit('/admin/usuarios');
     expect(service.hint()?.kind).toBe('tour');
+    await visit('/');
+    expect(service.welcomeInvite()).toBeNull();
+  });
+
+  it('com o checklist à vista, o convite de boas-vindas não se repete (o item "Conhecer a navegação" já oferece)', async () => {
+    const previous = permissions();
+    permissions.set(['CASE_WORK']);
+    try {
+      store.ready.set(true);
+      await visit('/');
+      expect(service.checklist()?.entries.some((e) => e.item.id === 'app.welcome-tour')).toBe(true);
+      expect(service.welcomeInvite()).toBeNull();
+      expect(store.state().tours[WELCOME_TOUR]).toBeUndefined();
+    } finally {
+      permissions.set(previous);
+    }
+  });
+
+  it('fora do Início não há convite de boas-vindas: a tela de trabalho só ganha o destaque na ajuda', async () => {
+    firstAccessWithoutChecklist();
+    store.ready.set(true);
+    await visit('/admin/usuarios');
+    expect(service.welcomeInvite()).toBeNull();
+    expect(service.screenTip()?.kind).toBe('tour');
   });
 
   it('tela ainda não navegada com tour: oferece o tour curto uma única vez', async () => {
@@ -210,11 +243,11 @@ describe('OnboardingService', () => {
   });
 
   it('rever tours volta a oferecer convites já dispensados', async () => {
-    returning({});
+    returning({ checklistDismissed: true });
     store.ready.set(true);
     service.resetTours();
     expect(store.state().tours).toEqual({});
-    await visit('/organizacao/credores');
-    expect(service.hint()?.kind).toBe('welcome');
+    await visit('/');
+    expect(service.welcomeInvite()?.kind).toBe('welcome');
   });
 });

@@ -310,3 +310,27 @@ Porta pública adicional (23/10/2026, para a prestação de contas — [prestaca
 - **debt**: operação compensatória de reconhecimento de encargo (estorno após lançamento, §10.5).
 - **jurídico/produto**: modelo de termo versionado por credor (cláusulas, foro, identificação completa).
 - **frontend**: telas de proposta, fila de aprovação e acordo.
+
+### 10.13 Fechamento do acordo na estação de cobrança (D7 da revisão de produto de 2026-11)
+
+O operador fecha o acordo sem sair do caso, reaproveitando os mesmos casos de uso (`port/in`) e endpoints da página da
+proposta — nenhuma regra nova no frontend; o servidor revalida tudo (guard, alçada, escopo e situação) a cada comando:
+
+1. **Simular** abre o simulador num painel lateral (`NgbOffcanvas`) da estação, com credor, devedor, caso e o **canal do
+   atendimento** (o do registro de interação); com o caso informado, o simulador **simula sozinho**. A rota standalone
+   `/negociacao/simulador` continua igual (o "Voltar ao caso" leva à estação).
+2. **Propor esta oferta** em cada cartão de oferta válida: valida as condições da oferta (`POST /validations`) e abre a
+   confirmação já com "Propor" (dentro da alçada) ou "Pedir aprovação" (acima). O ajuste fino segue em "Ajustar estas
+   condições", com a forma de pagamento como na oferta (à vista, parcelado sem entrada, **entrada + N parcelas** — a tela
+   converte para `installments = N + 1`) e os descontos por componente em "avançado".
+3. Proposta `DRAFT`/`APPROVED` com `AGREEMENT_FORMALIZE`: o diálogo **Fechar o acordo** registra o aceite (canal
+   pré-preenchido com o do atendimento; senão, o da proposta) e, quando o perfil de alçada tem `canFormalize`, **formaliza
+   no mesmo passo**, exigindo digitar `FORMALIZAR` (irreversível). Sem `canFormalize`, só o aceite ("a formalização fica com
+   quem tem alçada"). Se a formalização falhar depois do aceite, o diálogo fica no passo de formalizar.
+4. Formalizado: **Gerar Pix da Nª parcela** (diálogo de Pix do payment) e o caso mostra o cartão **Acordo formalizado**
+   (Pix da próxima parcela, termo e link do acordo). Proposta `PENDING_APPROVAL`: o cartão mostra "Proposta aguardando
+   aprovação"; proposta pronta para o aceite: "Fechar acordo".
+
+Contagem de cliques do caso aberto até o Pix gerado (sandbox, 1366×768): antes cerca de 20 cliques e 4 trocas de tela
+(estação → simulador → proposta → acordo → caso); agora 7 cliques (Simular, Propor esta oferta, Propor, Registrar aceite e
+formalizar, Gerar Pix, gerar no diálogo de Pix, fechar), mais digitar `FORMALIZAR`, sem trocar de tela.
