@@ -1,4 +1,4 @@
-import { DOCUMENT, Component, DestroyRef, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { DOCUMENT, Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -43,6 +43,19 @@ export function inboxTabParam(value: string | null): InboxTab {
   return TABS.some((t) => t.id === value) ? (value as InboxTab) : 'mine';
 }
 
+/** A URL pediu uma aba válida (a escolha é do usuário e não muda sozinha). */
+export function hasInboxTabParam(value: string | null): boolean {
+  return TABS.some((t) => t.id === value);
+}
+
+/**
+ * Aba de abertura sem aba na URL: "Minhas" quando há conversas suas aguardando resposta; senão a
+ * "Fila", se ela tem conversas aguardando (a caixa abre onde há trabalho); senão "Minhas".
+ */
+export function openingTab(counts: Pick<InboxCounts, 'mine' | 'queue'> | null): InboxTab {
+  return counts && counts.mine === 0 && counts.queue > 0 ? 'queue' : 'mine';
+}
+
 export function inboxFilter(tab: InboxTab, channel: string, awaiting: boolean): InboxFilter {
   return { ...tabFilter(tab), channel: channel || null, awaitingReply: awaiting ? true : null, status: 'OPEN' };
 }
@@ -78,9 +91,15 @@ export class Inbox {
   protected readonly canManageChannels = computed(() => this.auth.hasPermission(Permission.CHANNEL_MANAGE));
   protected readonly canManageTemplates = computed(() => this.auth.hasPermission(Permission.TEMPLATE_MANAGE));
 
-  /** Aba e "aguardando resposta" iniciais pela URL (`?aba=queue&aguardando=true`, ex.: de "Minhas pendências"). */
+  /**
+   * Aba e "aguardando resposta" iniciais pela URL (`?aba=queue&aguardando=true`, ex.: de "Minhas
+   * pendências"). A aba escolhida volta para a URL (voltar do caso reabre a mesma aba); sem aba na
+   * URL, a caixa abre onde há conversas aguardando (`openingTab`).
+   */
   private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   protected readonly tab = signal<InboxTab>(inboxTabParam(this.params.get('aba')));
+  /** A aba já foi decidida (pela URL ou pelo usuário): a regra de abertura não troca mais. */
+  private tabChosen = hasInboxTabParam(this.params.get('aba'));
   protected readonly channel = signal('');
   protected readonly awaiting = signal(this.params.get('aguardando') === 'true');
   protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? null);
@@ -99,8 +118,20 @@ export class Inbox {
   protected readonly breached = computed(() => (this.counters.hasValue() ? (this.counters.value()?.breached ?? 0) : 0));
   /** Tempo real ativo (SSE); sem ele, só a atualização periódica. */
   protected readonly live = this.stream.live;
+  /** Conversas aguardando na fila da equipe (estado vazio de "Minhas" aponta para ela). */
+  protected readonly queueWaiting = computed(() => this.count('queue') ?? 0);
 
   constructor() {
+    // primeira contagem: sem aba na URL, abre onde há trabalho
+    effect(() => {
+      const counts = this.counters.hasValue() ? (this.counters.value() ?? null) : null;
+      untracked(() => {
+        if (counts && !this.tabChosen) {
+          this.tabChosen = true;
+          this.setTab(openingTab(counts));
+        }
+      });
+    });
     let ticks = 0;
     const timer = setInterval(() => {
       ticks++;
@@ -122,7 +153,14 @@ export class Inbox {
   }
 
   protected selectTab(tab: InboxTab): void {
+    this.tabChosen = true;
+    this.setTab(tab);
+  }
+
+  /** Troca a aba e grava na URL (`?aba=`), preservando a conversa aberta. */
+  private setTab(tab: InboxTab): void {
     this.tab.set(tab);
+    void this.router.navigate([], { queryParams: { aba: tab }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   /** Setas esquerda/direita movem entre as abas (padrão tablist). */
@@ -133,18 +171,18 @@ export class Inbox {
     }
     event.preventDefault();
     const next = (index + delta + TABS.length) % TABS.length;
-    this.tab.set(TABS[next].id);
+    this.selectTab(TABS[next].id);
     (this.document.getElementById(`inbox-tab-${TABS[next].id}`) as HTMLElement | null)?.focus();
   }
 
   protected open(c: ConversationView): void {
     this.selectedId.set(c.id);
-    void this.router.navigate(['/conversas', c.id], { replaceUrl: !!this.id() });
+    void this.router.navigate(['/conversas', c.id], { replaceUrl: !!this.id(), queryParamsHandling: 'preserve' });
   }
 
   protected back(): void {
     this.selectedId.set(null);
-    void this.router.navigate(['/conversas']);
+    void this.router.navigate(['/conversas'], { queryParamsHandling: 'preserve' });
   }
 
   protected refresh(): void {

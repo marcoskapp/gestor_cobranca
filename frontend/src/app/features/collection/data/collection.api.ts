@@ -6,6 +6,7 @@ import { toHttpParams } from '../../../core/http/http-params';
 import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
+  MyDayView,
   AgendaFilter,
   AssignRequest,
   AssignmentView,
@@ -103,6 +104,16 @@ export class CasesApi {
     return this.http.get<PageResponse<AssignmentView>>(`${BASE}/cases/${id}/assignments`, {
       params: toHttpParams({ page: page.page, size: page.size }),
     });
+  }
+}
+
+/** "Seu dia" do início: contagens do trabalho do operador e das equipes do supervisor. */
+@Injectable({ providedIn: 'root' })
+export class MyDayApi {
+  private readonly http = inject(HttpClient);
+
+  get(): Observable<MyDayView> {
+    return this.http.get<MyDayView>(`${BASE}/my-day`);
   }
 }
 

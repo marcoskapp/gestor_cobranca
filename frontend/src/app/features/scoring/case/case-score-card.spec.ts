@@ -38,8 +38,29 @@ describe('CaseScoreCard', () => {
     expect(open).toHaveBeenCalledWith(CaseScoreDialog, expect.objectContaining({ data: { score: expect.objectContaining({ score: 312 }) } }));
   });
 
-  it('sem score calculado (404) oferece o recálculo e mostra o novo score', async () => {
+  it('operador sem score calculado (404): o cartão não aparece e não oferece recálculo', async () => {
     const h = setup(CaseScoreCard, ['SCORING_VIEW', 'CASE_WORK'], 'u-1', providers);
+    const f = TestBed.createComponent(CaseScoreCard);
+    f.componentRef.setInput('caseId', 'k-1');
+    f.componentRef.setInput('debtorId', 'd-1');
+    f.detectChanges();
+    await new Promise((r) => setTimeout(r, 0));
+    h.http.expectOne('/api/v1/scoring/cases/k-1').flush({ code: 'not_found' }, { status: 404, statusText: 'Not Found' });
+    await new Promise((r) => setTimeout(r, 0));
+    f.detectChanges();
+    expect(text(f).trim()).toBe('');
+    expect(button(f, 'Recalcular')).toBeUndefined();
+  });
+
+  it('com score, o operador vê o cartão sem "Recalcular"', async () => {
+    const h = setup(CaseScoreCard, ['SCORING_VIEW', 'CASE_WORK'], 'u-1', providers);
+    const f = await render(CaseScoreCard, h.http, () => caseScore(), { caseId: 'k-1', debtorId: 'd-1' });
+    expect(text(f)).toContain('312');
+    expect(button(f, 'Recalcular')).toBeUndefined();
+  });
+
+  it('sem score calculado (404) quem gerencia o score recalcula e vê o novo score', async () => {
+    const h = setup(CaseScoreCard, ['SCORING_VIEW', 'SCORING_MANAGE', 'CASE_VIEW'], 'u-1', providers);
     const f = TestBed.createComponent(CaseScoreCard);
     f.componentRef.setInput('caseId', 'k-1');
     f.componentRef.setInput('debtorId', 'd-1');
@@ -57,7 +78,7 @@ describe('CaseScoreCard', () => {
   });
 
   it('recálculo sem base legal explica como habilitar', async () => {
-    const h = setup(CaseScoreCard, ['SCORING_VIEW', 'CASE_WORK'], 'u-1', providers);
+    const h = setup(CaseScoreCard, ['SCORING_VIEW', 'SCORING_MANAGE', 'CASE_VIEW'], 'u-1', providers);
     const f = await render(CaseScoreCard, h.http, () => caseScore(), { caseId: 'k-1', debtorId: 'd-1' });
     button(f, 'Recalcular')!.click();
     h.http

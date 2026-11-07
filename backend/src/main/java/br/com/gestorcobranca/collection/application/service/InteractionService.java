@@ -136,6 +136,9 @@ class InteractionService implements InteractionUseCases {
                 "Início da interação no futuro");
         Guard.require(!startedAt.isBefore(now.minus(MAX_BACKDATE)), "interaction.started_too_old",
                 "Interação com mais de 7 dias não pode ser registrada");
+        // o fim vem do cliente (cronômetro da estação): no futuro inflaria a duração registrada
+        Guard.require(cmd.endedAt() == null || !cmd.endedAt().isAfter(now.plus(CLOCK_SKEW)), "interaction.ended_in_future",
+                "Fim da interação no futuro");
         UUID operatorId = actor.isUser() ? actor.id() : null;
 
         Interaction interaction = interactions.save(new Interaction(c, channel, direction, tabulation, cmd.note(),

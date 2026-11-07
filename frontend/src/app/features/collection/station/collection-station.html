@@ -30,13 +30,12 @@
   <span class="st-bar__spacer"></span>
   <app-presence-bar />
   @if (selectedCase()) {
-    <span class="st-timer app-numeric" role="timer" aria-label="Tempo de atendimento" ngbTooltip="Tempo de atendimento deste caso">
+    <span class="st-timer app-numeric" role="timer" aria-label="Tempo de atendimento" ngbTooltip="Tempo de atendimento deste caso (continua ao abrir a ficha do devedor, o simulador ou outra tela)">
       <app-icon name="stopwatch" />{{ elapsed() }}
     </span>
   }
-  <a class="btn btn-link" routerLink="/cobranca/agenda">
+  <a class="btn btn-sm st-icon" routerLink="/cobranca/agenda" aria-label="Agenda de retornos" ngbTooltip="Agenda de retornos">
     <app-icon name="calendar-week" />
-    Agenda
   </a>
 </div>
 
@@ -139,57 +138,65 @@
           [portfolios]="portfolios"
           [(tab)]="tab"
           [conversationsRevision]="conversationsRevision()"
+          [agreementId]="closedAgreementId()"
+          [dealRevision]="dealRevision()"
           (changed)="refreshAll()"
+          (debtorRequested)="openDebtor()"
+          (simulateRequested)="simulate()"
+          (closeRequested)="closeAgreement($event)"
         />
       }
     </div>
   </section>
 
-  <!-- zona 3: ações -->
+  <!-- zona 3: ações (barra compacta, contato em chips e o registro no topo, com o botão fixo no rodapé) -->
   <aside class="st-zone st-actions" aria-label="Ações do atendimento">
     <div class="st-zone__body st-pad">
-      <!-- janela de contato (`CASE_WORK`): quem só consulta o caso não vê nem consulta -->
-      @if (canWork()) {
-        <app-contact-window [caseId]="selectedCase()?.id ?? null" />
-      }
-
       @if (current(); as s) {
         @let c = s.collectionCase;
-        <div class="st-quick" data-tour="case-actions">
+        <div class="st-quick" role="toolbar" aria-label="Ações do caso" data-tour="case-actions">
           @if (workable() && c.status !== 'CLOSED') {
-            <app-call-button [caseId]="c.id" [debtorName]="s.debtor.name" [contacts]="s.debtor.contacts" />
+            <app-call-button [caseId]="c.id" [debtorName]="s.debtor.name" [contacts]="s.debtor.contacts" [compact]="true" />
             <app-message-button
               [caseId]="c.id"
               [debtorId]="c.debtorId"
               [creditorId]="c.creditorId"
               [debtorName]="s.debtor.name"
               [contacts]="s.debtor.contacts"
+              [compact]="true"
               (sent)="messageSent()"
             />
           }
-          @if (canSchedule() && workable()) {
-            <button type="button" class="btn btn-outline-primary btn-sm" (click)="schedule()" ngbTooltip="Agendar retorno (Alt + A)">
-              <app-icon name="calendar-event" />
-              Agendar retorno
-            </button>
-          }
           @if (canSimulate()) {
-            <button type="button" class="btn btn-outline-primary btn-sm" (click)="simulate()" ngbTooltip="Simular negociação (Alt + S)">
+            <button type="button" class="btn btn-outline-primary btn-sm px-2 d-inline-flex align-items-center gap-1" (click)="simulate()" ngbTooltip="Simular negociação no painel ao lado (Alt + S)" data-tour="station-simulate">
               <app-icon name="calculator" />
               Simular
             </button>
           }
-          @if (canDispute() && workable() && c.status !== 'CLOSED') {
-            <button type="button" class="btn btn-outline-primary btn-sm" (click)="openDispute()">
-              <app-icon name="hammer" />
-              Contestação
-            </button>
-          }
-          <div ngbDropdown placement="bottom-end" class="d-inline-block">
+          <div ngbDropdown placement="bottom-end" class="d-inline-block ms-auto">
             <button type="button" class="btn btn-sm st-icon" ngbDropdownToggle aria-label="Mais ações do caso" ngbTooltip="Mais ações">
               <app-icon name="three-dots-vertical" />
             </button>
             <div ngbDropdownMenu class="shadow app-menu">
+              @if (canSchedule() && workable()) {
+                <button ngbDropdownItem type="button" (click)="schedule()">
+                  <app-icon name="calendar-event" />
+                  <span>Agendar retorno</span>
+                  <kbd class="ms-auto" aria-hidden="true">Alt A</kbd>
+                </button>
+              }
+              @if (canViewDebtor()) {
+                <button ngbDropdownItem type="button" (click)="openDebtor()">
+                  <app-icon name="person-vcard" />
+                  <span>Ficha do devedor</span>
+                </button>
+              }
+              @if (canDispute() && workable() && c.status !== 'CLOSED') {
+                <button ngbDropdownItem type="button" (click)="openDispute()">
+                  <app-icon name="hammer" />
+                  <span>Abrir contestação</span>
+                </button>
+              }
               @if (canWork() && !mine() && c.status !== 'CLOSED') {
                 <button ngbDropdownItem type="button" (click)="takeOver()">
                   <app-icon name="hand-index" />
@@ -223,7 +230,15 @@
             </div>
           </div>
         </div>
+      }
 
+      <!-- janela de contato (`CASE_WORK`): quem só consulta o caso não vê nem consulta -->
+      @if (canWork()) {
+        <app-contact-window [caseId]="selectedCase()?.id ?? null" [compact]="true" />
+      }
+
+      @if (current(); as s) {
+        @let c = s.collectionCase;
         @if (!workable() && c.status !== 'CLOSED') {
           <div class="alert alert-secondary d-flex gap-2 align-items-start mb-0" role="note">
             <app-icon name="lock" />
@@ -247,3 +262,36 @@
     </div>
   </aside>
 </div>
+
+
+<!-- painéis laterais da estação: o caso e o atendimento continuam por baixo -->
+<ng-template #simulatorPanel let-offcanvas>
+  <div class="offcanvas-header">
+    <h2 class="offcanvas-title h5" id="st-sim-title">Simular negociação · {{ current()?.debtor?.name }}</h2>
+    <button type="button" class="btn-close" aria-label="Fechar" (click)="offcanvas.dismiss()"></button>
+  </div>
+  <div class="offcanvas-body">
+    @if (selectedCase(); as c) {
+      <app-simulator
+        [embedded]="true"
+        [credor]="c.creditorId"
+        [devedor]="c.debtorId"
+        [caso]="c.id"
+        [canal]="simulatorChannel()"
+        (proposed)="onProposed($event)"
+      />
+    }
+  </div>
+</ng-template>
+
+<ng-template #debtorPanel let-offcanvas>
+  <div class="offcanvas-header">
+    <h2 class="offcanvas-title h5" id="st-debtor-title">Ficha do devedor</h2>
+    <button type="button" class="btn-close" aria-label="Fechar" (click)="offcanvas.dismiss()"></button>
+  </div>
+  <div class="offcanvas-body">
+    @if (current(); as s) {
+      <app-debtor-detail [id]="s.debtor.id" />
+    }
+  </div>
+</ng-template>

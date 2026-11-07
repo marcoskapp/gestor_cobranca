@@ -203,3 +203,65 @@ export function justificationProblem(level: number, reason: string | null, note:
 export function savingShare(offer: Pick<OfferView, 'discountTotal'>, totalAmount: number): number {
   return totalAmount > 0 ? Math.round((offer.discountTotal / totalAmount) * 10000) / 100 : 0;
 }
+
+/**
+ * Forma de pagamento como o operador fala com o devedor ("à vista", "N parcelas", "entrada + N
+ * parcelas"). A API conta pagamentos com a entrada (`installments`), o que levava a digitar 11 em vez
+ * de 12; a tela pede só o número de parcelas e converte.
+ */
+export type PlanMode = 'CASH' | 'INSTALLMENTS' | 'DOWN';
+
+export interface PlanFields {
+  mode: PlanMode;
+  /** Parcelas sem contar a entrada (ignorado à vista). */
+  parcels: number | null;
+  /** Valor da entrada (só em `DOWN`). */
+  downPayment: number | null;
+}
+
+/** Campos da tela a partir do plano da API (pagamentos incluem a entrada). */
+export function fieldsFromPlan(installments: number, downPayment: number | null): PlanFields {
+  if (installments <= 1) {
+    return { mode: 'CASH', parcels: null, downPayment: null };
+  }
+  return downPayment
+    ? { mode: 'DOWN', parcels: installments - 1, downPayment }
+    : { mode: 'INSTALLMENTS', parcels: installments, downPayment: null };
+}
+
+/** Plano da API (pagamentos com a entrada) a partir dos campos; nulo quando os campos não fecham um plano. */
+export function planFromFields(f: PlanFields): { installments: number; downPayment: number | null } | null {
+  if (f.mode === 'CASH') {
+    return { installments: 1, downPayment: null };
+  }
+  const parcels = Number(f.parcels);
+  if (!Number.isInteger(parcels) || parcels < 1) {
+    return null;
+  }
+  if (f.mode === 'INSTALLMENTS') {
+    return parcels < 2 ? null : { installments: parcels, downPayment: null };
+  }
+  const down = Number(f.downPayment);
+  return down > 0 ? { installments: parcels + 1, downPayment: down } : null;
+}
+
+/** Orientação dos campos da forma de pagamento (o servidor valida de novo os limites da política e da alçada). */
+export function planFieldsProblem(f: PlanFields, maxPayments: number | null = null): string | null {
+  if (f.mode === 'CASH') {
+    return null;
+  }
+  const parcels = Number(f.parcels);
+  if (!Number.isInteger(parcels) || parcels < (f.mode === 'INSTALLMENTS' ? 2 : 1)) {
+    return f.mode === 'INSTALLMENTS' ? 'Parcelado sem entrada: informe 2 parcelas ou mais.' : 'Informe o número de parcelas depois da entrada.';
+  }
+  if (f.mode === 'DOWN' && !(Number(f.downPayment) > 0)) {
+    return 'Informe o valor da entrada.';
+  }
+  const total = f.mode === 'DOWN' ? parcels + 1 : parcels;
+  if (maxPayments !== null && total > maxPayments) {
+    return f.mode === 'DOWN'
+      ? `Entrada + ${parcels} parcelas são ${total} pagamentos; o limite é ${maxPayments}.`
+      : `O limite é de ${maxPayments} parcelas.`;
+  }
+  return null;
+}

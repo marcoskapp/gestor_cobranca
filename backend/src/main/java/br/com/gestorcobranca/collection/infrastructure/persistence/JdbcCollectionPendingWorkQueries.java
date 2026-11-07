@@ -35,21 +35,14 @@ class JdbcCollectionPendingWorkQueries implements CollectionPendingWorkQueries {
         if (creditorScope != null && creditorScope.isEmpty()) {
             return PendingWorkCount.NONE;
         }
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("me", userId)
-                .addValue("now", Timestamp.from(now)).addValue("tomorrow", Timestamp.from(startOfTomorrow))
-                .addValue("since", Timestamp.from(missedSince));
-        StringBuilder sql = new StringBuilder("""
-                select count(*) as total,
-                       count(*) filter (where status = 'MISSED' or due_at < :now) as overdue,
-                       count(*) filter (where status = 'PENDING' and due_at >= :now) as due_today,
-                       min(due_at) as oldest_at, min(due_at) as next_due,
-                       case when count(*) = 1 then (array_agg(case_id))[1] end as single_id
-                  from collection.task
-                 where assignee_user_id = :me and status in ('PENDING', 'MISSED') and due_at < :tomorrow
-                   and (status = 'PENDING' or due_at >= :since)
-                """);
+        MapSqlParameterSource params = TaskDueSql.params(now, startOfTomorrow, missedSince).addValue("me", userId);
+        StringBuilder sql = new StringBuilder("select count(*) as total, count(*) filter (where " + TaskDueSql.OVERDUE
+                + ") as overdue, count(*) filter (where " + TaskDueSql.DUE_TODAY + ") as due_today, "
+                + "min(t.due_at) as oldest_at, min(t.due_at) as next_due, "
+                + "case when count(*) = 1 then (array_agg(t.case_id))[1] end as single_id"
+                + TaskDueSql.fromOpenUntilTomorrow("t.assignee_user_id = :me"));
         if (creditorScope != null) {
-            sql.append(" and creditor_id in (:scope)");
+            sql.append(" and t.creditor_id in (:scope)");
             params.addValue("scope", creditorScope);
         }
         return jdbc.queryForObject(sql.toString(), params, PendingWorkRows.COUNT);

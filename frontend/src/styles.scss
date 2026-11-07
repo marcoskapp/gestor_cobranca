@@ -470,6 +470,12 @@ body {
   --bs-offcanvas-width: min(480px, 100vw);
 }
 
+// simulador e ficha do devedor dentro da estação de cobrança (NgbOffcanvas): o caso continua por
+// baixo e o atendimento não é interrompido; largura total no celular
+.app-station-panel {
+  --bs-offcanvas-width: min(820px, 100vw);
+}
+
 // ------------------------------------------------------------ densidade compacta
 
 // Por último: as regras da densidade compacta usam `:where()` (sem especificidade extra) e só

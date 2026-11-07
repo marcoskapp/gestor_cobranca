@@ -43,7 +43,9 @@ describe('rotas da aplicação', () => {
     user.set(fakeUser());
     const harness = await RouterTestingHarness.create('/');
     expect(TestBed.inject(Router).url).toBe('/');
-    expect(harness.routeNativeElement?.textContent).toContain('Acesso rápido');
+    // sem o antigo "Acesso rápido" (cópia do menu): o início abre com as pendências do usuário
+    expect(harness.routeNativeElement?.textContent).toContain('Suas pendências');
+    expect(harness.routeNativeElement?.textContent).not.toContain('Acesso rápido');
     expect(document.querySelector('app-shell')).not.toBeNull();
   }, 20_000); // primeiro teste do arquivo: inclui o carregamento sob demanda do shell
 

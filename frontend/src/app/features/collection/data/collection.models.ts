@@ -834,3 +834,45 @@ export interface SettingsRequest {
   callbackToleranceMinutes: number;
   disputeResponseDays: number;
 }
+
+// --------------------------------------------------------------------- "Seu dia" (início)
+
+/** Trabalho do dia do operador (só contagens; nenhum dado de devedor). */
+export interface OperatorDay {
+  assignedCases: number;
+  /** Retornos pendentes ainda hoje (a partir de agora). */
+  callbacksToday: number;
+  /** Retornos perdidos (até 30 dias) ou com horário já passado. */
+  callbacksOverdue: number;
+  promisesDueToday: number;
+  /** Promessas vencidas ainda na tolerância antes da quebra. */
+  promisesAwaitingPayment: number;
+  interactionsToday: number;
+  effectiveContactsToday: number;
+  promisesRecordedToday: number;
+}
+
+export interface QueueDay {
+  queueId: string;
+  name: string;
+  waiting: number;
+  /** Aguardando com a próxima ação vencida. */
+  overdue: number;
+}
+
+/** Equipes supervisionadas pelo usuário. */
+export interface TeamDay {
+  teams: number;
+  members: number;
+  assignedCases: number;
+  callbacksOverdue: number;
+  promisesDueToday: number;
+  queues: QueueDay[];
+}
+
+/** `GET /collection/my-day` (`CASE_WORK` ou `CASE_ASSIGN`). */
+export interface MyDayView {
+  date: string;
+  operator: OperatorDay | null;
+  team: TeamDay | null;
+}

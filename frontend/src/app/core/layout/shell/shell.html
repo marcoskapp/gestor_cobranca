@@ -62,15 +62,17 @@
       ngbDropdownToggle
       class="btn app-topbar__btn position-relative"
       data-tour="help"
-      [attr.aria-label]="onboarding.unreadReleaseNotes() ? 'Ajuda (há novidades)' : 'Ajuda'"
+      [attr.aria-label]="onboarding.unreadReleaseNotes() || onboarding.screenTip() ? 'Ajuda (há novidades)' : 'Ajuda'"
       ngbTooltip="Ajuda"
     >
       <app-icon name="question-circle" />
-      @if (onboarding.unreadReleaseNotes()) {
+      <!-- novidades da versão ou tour/novidades da tela atual (no topo do menu, sem cobrir a tela) -->
+      @if (onboarding.unreadReleaseNotes() || onboarding.screenTip()) {
         <span class="app-topbar__dot position-absolute translate-middle p-1 bg-warning rounded-circle" aria-hidden="true"></span>
       }
     </button>
     <div ngbDropdownMenu class="shadow app-menu" role="menu" aria-label="Ajuda">
+      <app-screen-tip />
       <button ngbDropdownItem type="button" role="menuitem" [disabled]="!onboarding.hasScreenHelp()" (click)="onboarding.startScreenTour()">
         <app-icon name="signpost" /> Tour desta tela
       </button>
@@ -233,4 +235,3 @@
   </div>
 </ng-template>
 
-<app-onboarding-hint />

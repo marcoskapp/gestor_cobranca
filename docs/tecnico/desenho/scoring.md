@@ -116,7 +116,7 @@ andamento termina com o campeão fixado na execução.
 * **Snapshot**: em dias múltiplos de `snapshotIntervalDays` (padrão 7, `epochDay mod N = 0`, determinístico) a execução
   grava `scoring.feature_snapshot` (features, campeão, desafiante em sombra, saldo, responsável, `outcome_due_at`).
   Ao concluir, enfileira `scoring.monitoring`.
-* **Sob demanda**: `POST /cases/{id}/recalculate` (`SCORING_VIEW` + `CASE_WORK`); **por evento**: contato efetivo,
+* **Sob demanda**: `POST /cases/{id}/recalculate` (`SCORING_MANAGE` + `CASE_VIEW`: quem gerencia o score, com o caso no escopo; o operador não recalcula — revisão de produto de 2026-11, T10); **por evento**: contato efetivo,
   promessa, acordo, pagamento e estorno enfileiram `scoring.rescore_case` com atraso de 5 min e deduplicação por caso.
 * **Faixas** A–E pelos cortes da versão do modelo (padrão A ≥ 400 > B ≥ 250 > C ≥ 150 > D ≥ 75 > E; score = probabilidade
   × 1000).
@@ -200,7 +200,7 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
 | Recurso | Métodos | Permissão |
 | --- | --- | --- |
 | `/cases/{caseId}` · `/history` · `/reviews` | `GET` | `SCORING_VIEW` |
-| `/cases/{caseId}/recalculate` | `POST` | `SCORING_VIEW` + `CASE_WORK` |
+| `/cases/{caseId}/recalculate` | `POST` | `SCORING_MANAGE` + `CASE_VIEW` |
 | `/cases/{caseId}/reviews` | `POST` | `SCORING_MANAGE` |
 | `/models` · `/models/{id}` · `/decisions` · `/features` | `GET` | `SCORING_VIEW` |
 | `/models/training` (202) · `/models/scorecards` (201) · `/models/{id}/promote|reject` | `POST` | `SCORING_MANAGE` |

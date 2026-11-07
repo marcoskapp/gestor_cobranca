@@ -115,7 +115,7 @@
     hint="Guardada criptografada."
     [hintEnd]="value().note.length + ' / ' + noteMax"
   >
-    <textarea appInput formControlName="note" rows="3" [maxlength]="noteMax" [required]="!!tabulation()?.requiresNote"></textarea>
+    <textarea appInput formControlName="note" rows="2" [maxlength]="noteMax" [required]="!!tabulation()?.requiresNote"></textarea>
   </app-field>
 
   @if (openTasks().length) {
@@ -139,13 +139,16 @@
     </div>
   }
 
-  <button type="submit" class="btn btn-primary w-100" [disabled]="saving()">
-    @if (saving()) {
-      <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-    } @else {
-      <app-icon name="check2-circle" />
-    }
-    Registrar interação
-  </button>
-  <p class="ip__tip app-muted"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> registra sem sair do teclado.</p>
+  <!-- botão fixo no rodapé da coluna: sempre à vista, mesmo com promessa ou retorno abertos -->
+  <div class="ip__submit">
+    <button type="submit" class="btn btn-primary w-100" [disabled]="saving()">
+      @if (saving()) {
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+      } @else {
+        <app-icon name="check2-circle" />
+      }
+      Registrar interação
+    </button>
+    <p class="ip__tip app-muted"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> registra sem sair do teclado.</p>
+  </div>
 </form>

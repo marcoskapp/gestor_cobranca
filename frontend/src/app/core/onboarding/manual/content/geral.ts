@@ -37,14 +37,15 @@ export const MANUAL: ModuleManual = {
     {
       id: 'app.home',
       title: 'Início',
-      objective: 'Ponto de partida do dia: indicadores da operação, acesso rápido aos módulos do seu perfil e os primeiros passos.',
+      objective: 'Ponto de partida do dia: o seu trabalho de hoje, as suas pendências, os indicadores da operação e os primeiros passos.',
       purpose: [
-        'Mostra um resumo da operação nos credores do seu escopo e atalhos para os módulos que o seu perfil usa.',
-        'Para quem está começando, o checklist "Primeiros passos" indica o que configurar ou conhecer primeiro.',
+        '"Seu dia" mostra, para o negociador, o botão "Próximo caso" (Alt + N), os casos com você, os retornos de hoje e atrasados, as promessas que vencem hoje e o seu resultado do dia; para o supervisor, as equipes que ele supervisiona e as filas que elas atendem. Cada número leva à tela de trabalho.',
+        'Logo abaixo, "Suas pendências" (aprovações, conversas, prazos) e, para quem vê painéis, o resumo da operação nos credores do seu escopo.',
+        'Para quem está começando, o checklist "Primeiros passos" indica o que configurar ou conhecer primeiro. O aviso de verificação em duas etapas e o convite do tour só aparecem quando o checklist não os traz.',
       ],
       profiles: ['TODOS'],
-      inputs: ['Indicadores consolidados dos painéis, quando o seu perfil pode vê-los.', 'Seu perfil de acesso, que define os atalhos exibidos.'],
-      outputs: ['Atalhos para as telas de trabalho e para os painéis completos.'],
+      inputs: ['Casos, retornos, promessas e interações do seu trabalho (e das suas equipes, para o supervisor).', 'Indicadores consolidados dos painéis, quando o seu perfil pode vê-los.'],
+      outputs: ['Atalho para o próximo caso e para as telas de trabalho e os painéis completos.'],
       related: [
         { screen: 'analytics.operational', why: 'Indicadores completos, com filtros e exportação.' },
         { screen: 'collection.queue', why: 'Onde o negociador começa o atendimento.' },

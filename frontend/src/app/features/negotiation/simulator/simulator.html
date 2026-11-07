@@ -1,17 +1,19 @@
-<app-page-header title="Simulador de negociação" subtitle="Dívida atualizada pela política vigente do credor e ofertas até o limite da sua alçada. Toda simulação fica registrada.">
-  @if (canPropose()) {
-    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/negociacao/propostas">
-      <app-icon name="clipboard" />
-      Propostas
-    </a>
-  }
-  @if (caso()) {
-    <a class="btn btn-link d-inline-flex align-items-center gap-2" [routerLink]="['/cobranca/casos', caso()]">
-      <app-icon name="arrow-left" />
-      Voltar ao caso
-    </a>
-  }
-</app-page-header>
+@if (!embedded()) {
+  <app-page-header title="Simulador de negociação" subtitle="Dívida atualizada pela política vigente do credor e ofertas até o limite da sua alçada. Toda simulação fica registrada.">
+    @if (canPropose()) {
+      <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/negociacao/propostas">
+        <app-icon name="clipboard" />
+        Propostas
+      </a>
+    }
+    @if (caso()) {
+      <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/cobranca/fila" [queryParams]="{ caso: caso() }">
+        <app-icon name="arrow-left" />
+        Voltar ao caso
+      </a>
+    }
+  </app-page-header>
+}
 
 @if (renegociar()) {
   <div class="alert alert-info d-flex gap-2 align-items-start" role="note">
@@ -32,9 +34,21 @@
   </div>
 }
 
-<div class="sim-grid">
+<div class="sim-grid" [class.sim-grid--embedded]="embedded()">
   <div class="sim-side app-stack">
-    <form class="app-card" [formGroup]="context" (ngSubmit)="simulate(0)" novalidate aria-labelledby="sim-context" data-tour="sim-context">
+    @if (embedded() && result() && !contextOpen()) {
+      <!-- no painel da estação, depois de simular: o contexto vira uma linha e as ofertas sobem -->
+      <div class="app-card sim-context-line">
+        <span>
+          <strong>Dívida do caso</strong>
+          <span class="app-muted">
+            · {{ titleCountText() }} · data-base {{ result()!.referenceDate | appDate: 'date' }}{{ channelText() ? ' · ' + channelText() : '' }}
+          </span>
+        </span>
+        <button type="button" class="btn btn-link btn-sm" (click)="contextOpen.set(true)">Alterar</button>
+      </div>
+    }
+    <form class="app-card" [hidden]="embedded() && result() && !contextOpen()" [formGroup]="context" (ngSubmit)="simulate(0)" novalidate aria-labelledby="sim-context" data-tour="sim-context">
       <h2 class="app-card__title" id="sim-context">Dívida a negociar</h2>
       <app-entity-picker [control]="context.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       <app-entity-picker [control]="context.controls.debtor" [source]="debtorSource" label="Devedor" [single]="true" />
@@ -70,10 +84,10 @@
       <details class="sim-plan">
         <summary>Parcelamento pedido pelo devedor (opcional)</summary>
         <div class="sim-row">
-          <app-field label="Pagamentos" hint="Inclui a entrada">
-            <input appInput type="number" min="1" max="360" formControlName="installments" />
+          <app-field label="Parcelas" hint="Sem contar a entrada">
+            <input appInput type="number" min="1" max="360" formControlName="parcels" />
           </app-field>
-          <app-field label="Entrada">
+          <app-field label="Entrada (opcional)">
             <div class="input-group">
               <span class="input-group-text" aria-hidden="true">R$</span>
               <input appInput appMoney [min]="0.01" formControlName="downPayment" />
@@ -94,6 +108,7 @@
       </button>
     </form>
 
+    @if (!embedded()) {
     <section class="app-card" aria-labelledby="sim-authority" data-tour="sim-authority">
       <h2 class="app-card__title" id="sim-authority">Sua alçada <app-info-hint indicator="negotiation.authority.limits" label="Sua alçada" /></h2>
       @if (mine(); as a) {
@@ -124,6 +139,7 @@
         <p class="app-muted">O limite efetivo é sempre o menor entre a política do credor e o seu perfil de alçada.</p>
       }
     </section>
+    }
   </div>
 
   <div class="sim-main app-stack" [attr.aria-busy]="running()">
@@ -308,7 +324,15 @@
                       }
                     </ul>
                   }
-                  <button class="btn btn-outline-primary" type="button" (click)="useOffer(o)">Ajustar estas condições</button>
+                  <div class="sim-offer__actions">
+                    @if (o.valid && canPropose()) {
+                      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="proposeOffer(o)" [disabled]="validating() || proposing()" data-tour="sim-propose-offer">
+                        <app-icon [name]="o.withinAuthority ? 'send' : 'person-check'" />
+                        {{ o.withinAuthority ? 'Propor esta oferta' : 'Pedir aprovação' }}
+                      </button>
+                    }
+                    <button class="btn btn-link" type="button" (click)="adjustOffer(o, validateCard)">Ajustar estas condições</button>
+                  </div>
                 </article>
               }
             }
@@ -348,27 +372,31 @@
         }
       </section>
 
-      <section class="app-card" aria-labelledby="sim-validate" data-tour="sim-validate">
-        <h2 class="app-card__title" id="sim-validate">Validar condições</h2>
-        <p class="app-muted sim-small">Confira as condições combinadas com o devedor antes de enviar: o resultado é o mesmo que a proposta terá.</p>
+      <section #validateCard class="app-card" aria-labelledby="sim-validate" data-tour="sim-validate">
+        <h2 class="app-card__title" id="sim-validate">Ajustar e validar condições</h2>
+        <p class="app-muted sim-small">Para outra combinação com o devedor: ajuste e valide antes de propor. O resultado é o mesmo que a proposta terá.</p>
         <form [formGroup]="custom" (ngSubmit)="validate()" novalidate>
-          <div class="sim-discounts">
-            @for (c of components; track c) {
-              <app-field [label]="'Desc. ' + componentLabels[c] + ' (%)'">
-                <input appInput type="number" min="0" max="100" step="0.01" [formControlName]="c" />
+          <div class="sim-row">
+            <app-field label="Forma de pagamento">
+              <select appInput formControlName="mode">
+                @for (m of planModes; track m.value) {
+                  <option [ngValue]="m.value">{{ m.label }}</option>
+                }
+              </select>
+            </app-field>
+            @if (customMode() !== 'CASH') {
+              <app-field label="Parcelas" [hint]="customMode() === 'DOWN' ? 'Depois da entrada' : undefined">
+                <input appInput type="number" min="1" max="360" formControlName="parcels" required />
               </app-field>
             }
-          </div>
-          <div class="sim-row">
-            <app-field label="Pagamentos">
-              <input appInput type="number" min="1" max="360" formControlName="installments" required />
-            </app-field>
-            <app-field label="Entrada">
-              <div class="input-group">
-                <span class="input-group-text" aria-hidden="true">R$</span>
-                <input appInput appMoney [min]="0.01" formControlName="downPayment" />
-              </div>
-            </app-field>
+            @if (customMode() === 'DOWN') {
+              <app-field label="Entrada">
+                <div class="input-group">
+                  <span class="input-group-text" aria-hidden="true">R$</span>
+                  <input appInput appMoney [min]="0.01" formControlName="downPayment" required />
+                </div>
+              </app-field>
+            }
             <app-field label="1º vencimento">
               <div class="input-group">
                 <input appInput ngbDatepicker #validatePicker="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="firstDueDate" />
@@ -376,6 +404,21 @@
               </div>
             </app-field>
           </div>
+          @if (planProblem(); as problem) {
+            <p class="invalid-feedback d-block" role="alert">{{ problem }}</p>
+          } @else if (customMode() !== 'CASH' && customPlan(); as plan) {
+            <p class="sim-small"><strong>{{ plan }}</strong></p>
+          }
+          <details class="sim-advanced">
+            <summary>Desconto por componente (avançado) · <span class="app-muted">{{ customRates() }}</span></summary>
+            <div class="sim-discounts">
+              @for (c of components; track c) {
+                <app-field [label]="'Desc. ' + componentLabels[c] + ' (%)'">
+                  <input appInput type="number" min="0" max="100" step="0.01" [formControlName]="c" />
+                </app-field>
+              }
+            </div>
+          </details>
           <p class="sim-small">
             Nível {{ viewLevel() }} · limite da alçada: {{ percent(r.limits.maxDiscountShare) }} do desconto máximo, até {{ r.limits.maxInstallments }} pagamentos@if (r.limits.maxAgreementAmount) {<span>, acordo até <app-amount [value]="r.limits.maxAgreementAmount" /></span>}
           </p>

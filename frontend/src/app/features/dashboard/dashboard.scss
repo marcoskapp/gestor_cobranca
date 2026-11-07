@@ -1,5 +1,24 @@
 .dashboard__header {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+// aviso de MFA em uma linha, dispensável na sessão
+.dashboard__mfa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border: var(--bs-border-width) solid var(--bs-warning-border-subtle);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+  font-size: var(--app-text-sm);
+}
+
+.dashboard__mfa-close {
+  margin-left: auto;
+  font-size: 0.625rem;
 }
 
 .dashboard__layout {
@@ -8,82 +27,16 @@
   align-items: start;
 }
 
+.dashboard__main {
+  min-width: 0;
+}
+
 .dashboard__layout--with-aside {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
 }
 
 @media (max-width: 1099.98px) {
   .dashboard__layout--with-aside {
     grid-template-columns: 1fr;
-
-    .dashboard__aside {
-      order: -1;
-    }
   }
-}
-
-.dashboard__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-
-  li {
-    display: flex;
-  }
-}
-
-.dashboard__tile {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  gap: 12px;
-  min-height: 64px;
-  padding: 12px 14px;
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--app-radius-lg);
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  text-decoration: none;
-  transition:
-    border-color var(--app-motion-fast) ease,
-    box-shadow var(--app-motion-fast) ease;
-
-  &:hover {
-    border-color: var(--bs-primary-border-subtle);
-    box-shadow: var(--app-elevation-1);
-
-    .dashboard__tile-go {
-      opacity: 1;
-    }
-  }
-}
-
-.dashboard__tile-icon {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--bs-border-radius);
-  background: var(--bs-primary-bg-subtle);
-  color: var(--bs-primary-text-emphasis);
-  font-size: 1.125rem;
-}
-
-.dashboard__tile-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  font-size: 13px;
-}
-
-.dashboard__tile-go {
-  opacity: 0.4;
-  color: var(--bs-primary-text-emphasis);
-  transition: opacity var(--app-motion-fast) ease;
 }

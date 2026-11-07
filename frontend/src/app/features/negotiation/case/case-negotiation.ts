@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
@@ -12,7 +12,8 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementsApi, ProposalsApi } from '../data/agreement.api';
 import { AgreementView, InstallmentView, ProposalView } from '../data/agreement.models';
-import { OPEN_PROPOSAL_STATUSES, installmentBalance, scheduleSummary } from '../data/agreement.rules';
+import { OPEN_PROPOSAL_STATUSES, scheduleSummary } from '../data/agreement.rules';
+import { installmentPix } from './installment-pix';
 import { planText } from '../data/negotiation.labels';
 
 /**
@@ -25,11 +26,19 @@ import { planText } from '../data/negotiation.labels';
   template: `
     <div class="cn-actions">
       @if (canSimulate()) {
-        <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" routerLink="/negociacao/simulador" [queryParams]="{ credor: creditorId(), devedor: debtorId(), caso: caseId() }">
-          <app-icon name="calculator" />
-          Simular
-          <kbd class="cn-kbd" aria-hidden="true">Alt S</kbd>
-        </a>
+        @if (inStation()) {
+          <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2" (click)="simulateRequested.emit()">
+            <app-icon name="calculator" />
+            Simular
+            <kbd class="cn-kbd" aria-hidden="true">Alt S</kbd>
+          </button>
+        } @else {
+          <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" routerLink="/negociacao/simulador" [queryParams]="{ credor: creditorId(), devedor: debtorId(), caso: caseId() }">
+            <app-icon name="calculator" />
+            Simular
+            <kbd class="cn-kbd" aria-hidden="true">Alt S</kbd>
+          </a>
+        }
       }
     </div>
 
@@ -124,6 +133,11 @@ export class CaseNegotiation {
   readonly caseId = input.required<string>();
   readonly creditorId = input.required<string>();
   readonly debtorId = input.required<string>();
+  /** Dentro da estação: "Simular" abre o simulador no painel lateral (`simulateRequested`). */
+  readonly inStation = input(false);
+  /** Muda quando a estação cria ou avança uma proposta (recarrega). */
+  readonly revision = input(0);
+  readonly simulateRequested = output<void>();
 
   private readonly auth = inject(AuthService);
   private readonly proposalsApi = inject(ProposalsApi);
@@ -139,7 +153,7 @@ export class CaseNegotiation {
 
   /** Propostas do caso (filtro `caseId` da API); a tela mostra as ainda abertas. */
   protected readonly proposals = rxResource({
-    params: () => (this.canReadProposals() ? { creditorId: this.creditorId(), caseId: this.caseId() } : undefined),
+    params: () => (this.canReadProposals() ? { creditorId: this.creditorId(), caseId: this.caseId(), revision: this.revision() } : undefined),
     stream: ({ params }) =>
       this.proposalsApi.search({ creditorId: params.creditorId, debtorId: null, caseId: params.caseId, status: null, actorType: null }, { page: 0, size: 50 }).pipe(
         map((page) => page.content),
@@ -152,9 +166,9 @@ export class CaseNegotiation {
   );
 
   protected readonly agreements = rxResource({
-    params: () => (this.canReadAgreements() ? this.caseId() : undefined),
+    params: () => (this.canReadAgreements() ? { caseId: this.caseId(), revision: this.revision() } : undefined),
     stream: ({ params }) =>
-      this.agreementsApi.search({ creditorId: null, debtorId: null, caseId: params, status: null }, { page: 0, size: 50 }).pipe(
+      this.agreementsApi.search({ creditorId: null, debtorId: null, caseId: params.caseId, status: null }, { page: 0, size: 50 }).pipe(
         map((page) => page.content),
         catchError(() => of<AgreementView[]>([])),
       ),
@@ -175,16 +189,10 @@ export class CaseNegotiation {
 
   /** Pix da próxima parcela em aberto, com QR Code e copia e cola para enviar durante o atendimento. */
   protected pix(a: AgreementView, next: InstallmentView): void {
-    this.paymentLauncher
-      .instruction({
-        target: { kind: 'INSTALLMENT', creditorId: a.creditorId, agreementId: a.id, installmentId: next.id, installmentNumber: next.number, dueDate: next.dueDate, balance: installmentBalance(next) },
-        debtorId: this.debtorId(),
-        channel: a.channel,
-      })
-      .subscribe((created) => {
-        if (created?.status === 'PAID') {
-          this.agreements.reload();
-        }
-      });
+    installmentPix(this.paymentLauncher, a, next, this.debtorId()).subscribe((created) => {
+      if (created?.status === 'PAID') {
+        this.agreements.reload();
+      }
+    });
   }
 }

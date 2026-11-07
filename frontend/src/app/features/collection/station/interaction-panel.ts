@@ -1,5 +1,5 @@
 import { Component, ElementRef, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, startWith } from 'rxjs';
@@ -22,6 +22,7 @@ import {
   TabulationView,
 } from '../data/collection.models';
 import { addDays, followUpText, formatLocalDateTime, interactionProblems, toLocalDateTime, zonedNow } from '../data/collection.rules';
+import { AttendanceService, InteractionDraft } from './attendance.service';
 
 const NOTE_MAX = 2000;
 
@@ -55,6 +56,7 @@ export class InteractionPanel {
   readonly recorded = output<RecordResult>();
 
   private readonly api = inject(InteractionsApi);
+  private readonly attendance = inject(AttendanceService);
   private readonly notifications = inject(NotificationService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly tabulationSelect = viewChild<ElementRef<HTMLSelectElement>>('tabulationSelect');
@@ -145,10 +147,26 @@ export class InteractionPanel {
   }
 
   constructor() {
-    // Troca de caso: formulário limpo (nada de um devedor vaza para outro).
+    // Troca de caso: formulário limpo (nada de um devedor vaza para outro) e, se houver, o rascunho
+    // guardado do atendimento deste caso (sobrevive a abrir a ficha ou o simulador e voltar).
     effect(() => {
-      this.caseId();
-      untracked(() => this.reset());
+      const caseId = this.caseId();
+      untracked(() => {
+        const draft = this.attendance.draft(caseId);
+        this.restoring = true;
+        this.reset();
+        if (draft) {
+          this.form.patchValue(draft);
+        }
+        this.restoring = false;
+        this.save(caseId);
+      });
+    });
+    // Cada alteração guarda o rascunho do caso (só em memória).
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      if (!this.restoring) {
+        this.save(this.caseId());
+      }
     });
     // Tipo da contestação: o padrão da tabulação escolhida (o operador pode trocar).
     effect(() => {
@@ -163,6 +181,13 @@ export class InteractionPanel {
         this.form.controls.contactId.setValue(list[0]?.contactId ?? '', { emitEvent: false });
       }
     });
+  }
+
+  /** Rascunho sendo restaurado: as alterações do próprio restauro não são gravadas por cima. */
+  private restoring = false;
+
+  private save(caseId: string): void {
+    this.attendance.saveDraft(caseId, this.form.getRawValue() as InteractionDraft);
   }
 
   /** Atalho "registrar interação": leva o foco à tabulação. */

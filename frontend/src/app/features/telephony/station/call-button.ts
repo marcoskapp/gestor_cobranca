@@ -18,7 +18,7 @@ import { TelephonySession } from './telephony-session';
     @if (session.enabled()) {
       <!-- o tooltip fica no invólucro: botão desabilitado não recebe ponteiro nem foco -->
       <span class="d-inline-block" [ngbTooltip]="inCall() ? 'Você já está em uma chamada' : 'Ligar para o devedor (Alt + L)'">
-        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="open()" [disabled]="inCall()" data-tour="call-button">
+        <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" [class.btn-sm]="compact()" [class.px-2]="compact()" type="button" (click)="open()" [disabled]="inCall()" data-tour="call-button">
           <app-icon name="telephone" />
           Ligar
         </button>
@@ -30,6 +30,8 @@ export class CallButton {
   readonly caseId = input.required<string>();
   readonly debtorName = input.required<string>();
   readonly contacts = input.required<readonly SheetContact[]>();
+  /** Botão pequeno (barra de ações da estação). */
+  readonly compact = input(false);
 
   protected readonly session = inject(TelephonySession);
   private readonly launcher = inject(TelephonyLauncher);

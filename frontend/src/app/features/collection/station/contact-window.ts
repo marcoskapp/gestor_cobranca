@@ -10,6 +10,9 @@ import { CHANNEL_ICONS, CHANNEL_LABELS, eligibilityText } from '../data/collecti
 import { InteractionChannel } from '../data/collection.models';
 import { AvailabilityState, availabilityState, zonedNow } from '../data/collection.rules';
 
+/** Rótulo curto do canal nos chips da linha compacta. */
+const SHORT_LABELS: Partial<Record<InteractionChannel, string>> = { PHONE: 'Tel.', WHATSAPP: 'WA', SMS: 'SMS', EMAIL: 'E-mail' };
+
 /** Reconsulta periódica (a decisão muda com o horário, feriados e tentativas de outros canais). */
 const REFRESH_MS = 60_000;
 
@@ -42,6 +45,48 @@ const STATUS_ICON: Record<AvailabilityState['kind'], IconName> = {
   selector: 'app-contact-window',
   imports: [NgbTooltip, Icon],
   template: `
+    @if (compact()) {
+      <!-- uma linha de chips; o detalhe aparece só para os canais que não estão liberados agora -->
+      <section class="cw cw--compact" aria-labelledby="cw-title" data-tour="contact-window" aria-live="polite">
+        <div class="cw__line">
+          <h2 class="cw__title cw__title--inline" id="cw-title" [ngbTooltip]="'Posso contatar agora? ' + footnote">
+            <app-icon name="clock" /><span class="visually-hidden">Posso contatar?</span>
+          </h2>
+          @if (!caseId()) {
+            <span class="cw__note app-muted">Selecione um caso.</span>
+          } @else if (availability.error()) {
+            <span class="cw__note app-muted">Sem consulta agora (o sistema verifica a cada contato).</span>
+          } @else if (result(); as r) {
+            @if (!r.caseEligible) {
+              <span class="app-status app-status--danger" [ngbTooltip]="caseReasonsText()"><app-icon class="app-status__icon" name="pause-circle" />Suspenso</span>
+            }
+            @for (row of rows(); track row.channel) {
+              <span
+                class="app-status cw__chip"
+                [class]="statusClass[row.state.kind]"
+                [ngbTooltip]="labels[row.channel] + ': ' + row.state.label + (row.state.detail ? ' · ' + row.state.detail : '')"
+                [attr.aria-label]="labels[row.channel] + ': ' + row.state.label"
+                ><app-icon class="app-status__icon" [name]="statusIcon[row.state.kind]" />{{ short[row.channel] }}</span
+              >
+            }
+          } @else {
+            <span class="cw__note app-muted">Consultando…</span>
+          }
+          @if (caseId()) {
+            <button type="button" class="btn btn-sm cw__refresh ms-auto" (click)="refresh()" aria-label="Consultar de novo" ngbTooltip="Consultar de novo">
+              <app-icon name="arrow-clockwise" />
+            </button>
+          }
+        </div>
+        @if (restricted().length) {
+          <p class="cw__note cw__restricted">
+            @for (row of restricted(); track row.channel; let last = $last) {
+              <span [ngbTooltip]="labels[row.channel] + ': ' + row.state.text">{{ short[row.channel] }} {{ row.state.detail }}</span>{{ last ? '' : ' · ' }}
+            }
+          </p>
+        }
+      </section>
+    } @else {
     <section class="cw" aria-labelledby="cw-title" data-tour="contact-window" aria-live="polite">
       <h2 class="cw__title" id="cw-title">
         <app-icon name="clock" />
@@ -76,11 +121,12 @@ const STATUS_ICON: Record<AvailabilityState['kind'], IconName> = {
             </li>
           }
         </ul>
-        <p class="cw__note app-muted">Decisão do sistema (restrições, política, feriados e limites). Nada é registrado nesta consulta.</p>
+        <p class="cw__note app-muted">{{ footnote }}</p>
       } @else {
         <p class="cw__note app-muted">Consultando…</p>
       }
     </section>
+    }
   `,
   styles: `
     .cw {
@@ -129,6 +175,25 @@ const STATUS_ICON: Record<AvailabilityState['kind'], IconName> = {
       margin: 6px 0 0;
       font-size: var(--app-text-xs);
     }
+    .cw--compact {
+      padding: 6px 8px;
+    }
+    .cw__line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 6px;
+    }
+    .cw__title--inline {
+      margin: 0 2px 0 0;
+      font-size: var(--app-text-xs);
+    }
+    .cw__chip {
+      font-size: var(--app-text-xs);
+    }
+    .cw__restricted {
+      margin-top: 4px;
+    }
     .cw__refresh {
       --bs-btn-padding-x: 0.3125rem;
       --bs-btn-padding-y: 0.125rem;
@@ -139,10 +204,14 @@ const STATUS_ICON: Record<AvailabilityState['kind'], IconName> = {
 })
 export class ContactWindowPanel {
   readonly caseId = input<string | null>(null);
+  /** Uma linha de chips (estação a 1366 px); expande só os canais que não estão liberados agora. */
+  readonly compact = input(false);
 
   private readonly api = inject(CasesApi);
 
   protected readonly labels = CHANNEL_LABELS;
+  protected readonly short = SHORT_LABELS;
+  protected readonly footnote = 'Decisão do sistema (restrições, política, feriados e limites). Nada é registrado nesta consulta.';
   protected readonly icons = CHANNEL_ICONS;
   protected readonly statusClass = STATUS_CLASS;
   protected readonly statusIcon = STATUS_ICON;
@@ -164,6 +233,9 @@ export class ContactWindowPanel {
     const now = new Date(this.tick());
     return (r?.channels ?? []).map((c) => ({ channel: c.channel, state: availabilityState(c, r!.caseEligible, now) }));
   });
+
+  /** Canais que não estão liberados agora (o detalhe aparece embaixo da linha de chips). */
+  protected readonly restricted = computed(() => this.rows().filter((r) => r.state.kind !== 'allowed'));
 
   constructor() {
     const clock = setInterval(() => this.tick.set(Date.now()), 30_000);

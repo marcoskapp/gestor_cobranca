@@ -165,7 +165,7 @@ describe('conteúdo do onboarding', () => {
     expect(findTour('analytics.panels')).toBeUndefined();
     expect(RELEASE_NOTES.find((n) => n.version === 7)?.title).toContain('Painéis');
     expect(RELEASE_NOTES.find((n) => n.version === 12)?.title).toContain('número');
-    expect(findScreen('/')?.version).toBe(2);
+    expect(findScreen('/')?.version).toBe(3);
   });
 
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {
@@ -212,9 +212,9 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/assistente/politicas/p-1')?.tourId).toBe('assistant.policy');
     expect(findScreen('/assistente/turnos/t-1?revisao=r-1')?.tourId).toBe('assistant.turn');
     expect(findScreen('/assistente/qualidade')?.tourId).toBe('assistant.quality');
-    // estação ganhou o clique para ligar e a presença: novidades na tela e tour revisado
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(7);
-    expect(findTour('collection.station')?.version).toBe(3);
+    // estação: atendimento guardado por caso, painel lateral e acordo sem sair do caso (revisão de 2026-11)
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(8);
+    expect(findTour('collection.station')?.version).toBe(4);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
     // decisões do responsável às 856 e 873: aviso da segunda conferência para quem informa e nova tentativa do extrato
     expect(findScreen('/pagamentos')?.changes?.find((c) => c.version === 2)).toBeDefined();
