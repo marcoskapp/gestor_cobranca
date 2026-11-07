@@ -92,7 +92,7 @@
 }
 
 <!-- abas mais usadas à vista; as demais em "Mais ▾" (atalhos Alt + 1…7 no tooltip) -->
-<ul ngbNav #nav="ngbNav" class="nav-tabs sp-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="case-tabs">
+<ul ngbNav #nav="ngbNav" class="nav-underline app-tabs sp-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="case-tabs">
   <li [ngbNavItem]="0" [class.d-none]="!primaryTabs.includes(0)">
     <button ngbNavLink type="button" ngbTooltip="Alt + 1">Títulos ({{ sheet().titles.length }})</button>
     <ng-template ngbNavContent>
