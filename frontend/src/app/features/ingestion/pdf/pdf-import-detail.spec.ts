@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -89,7 +90,7 @@ describe('PdfImportDetail', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
-        { provide: AuthService, useValue: { hasPermission: (p: string) => permissions.includes(p) } },
+        { provide: AuthService, useValue: { user: signal(null), hasPermission: (p: string) => permissions.includes(p) } },
       ],
     });
     http = TestBed.inject(HttpTestingController);

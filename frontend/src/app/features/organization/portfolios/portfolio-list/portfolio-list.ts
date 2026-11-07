@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { debounceTime, map, startWith } from 'rxjs';
@@ -10,6 +10,8 @@ import { EntityPicker } from '../../../../shared/components/entity-picker/entity
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { pagedQuery } from '../../../../shared/data/paged-query';
+import { sameValue } from '../../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../../shared/data/url-state';
 import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { PORTFOLIO_TRANSITIONS, statusOptions } from '../../../../shared/status/status';
@@ -29,6 +31,10 @@ interface PortfolioFilter {
   q: string | null;
 }
 
+function toPortfolioFilter(v: { creditor: string[]; status: string; q: string }): PortfolioFilter {
+  return { creditorId: v.creditor[0] ?? null, status: v.status || null, q: v.q.trim() || null };
+}
+
 @Component({
   selector: 'app-portfolio-list',
   imports: [NgbTooltip, ...FORM_FIELD, Icon,
@@ -42,10 +48,7 @@ interface PortfolioFilter {
   ],
   templateUrl: './portfolio-list.html',
 })
-export class PortfolioList implements OnInit {
-  /** `?credor=` vindo da tela do credor. */
-  readonly credor = input<string>();
-
+export class PortfolioList {
   private readonly api = inject(PortfoliosApi);
   private readonly dialog = inject(DialogService);
   private readonly auth = inject(AuthService);
@@ -55,24 +58,29 @@ export class PortfolioList implements OnInit {
   protected readonly statuses = statusOptions('portfolio');
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>([]),
-    status: [''],
-    q: [''],
-  });
+  /** Filtros na URL (`?credor=&situacao=&busca=`): `credor` vem da tela do credor e tudo se preserva ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      status: [''],
+      q: [''],
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+      q: urlParam.text('busca'),
+    },
+  );
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(300),
-      map((): PortfolioFilter => {
-        const v = this.filters.getRawValue();
-        return { creditorId: v.creditor[0] ?? null, status: v.status || null, q: v.q.trim() || null };
-      }),
+      map(() => toPortfolioFilter(this.filters.getRawValue())),
     ),
-    { initialValue: { creditorId: null, status: null, q: null } as PortfolioFilter },
+    { initialValue: toPortfolioFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page));
+  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page), { url: true });
 
   private readonly creditorLabels = valueOr(
     rxResource({
@@ -92,13 +100,6 @@ export class PortfolioList implements OnInit {
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
-
-  ngOnInit(): void {
-    const initial = this.credor();
-    if (initial) {
-      this.filters.controls.creditor.setValue([initial]);
-    }
-  }
 
   protected creditorName(id: string): string {
     return this.creditorNames().get(id) ?? '…';

@@ -15,6 +15,7 @@ import { DocumentDisplay } from '../../../../shared/components/document-display/
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
+import { syncFormWithUrl, urlParam } from '../../../../shared/data/url-state';
 import { HasPermission } from '../../../../shared/directives/has-permission';
 import { PageRequest, PageResponse, emptyPage } from '../../../../shared/models/page';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
@@ -29,6 +30,8 @@ import { Icon } from '../../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
 
+const DOCUMENT_LIKE = /^[\d.\-/\s]+$/;
+
 /** Busca por nome (GET com filtros) ou por documento completo (POST, fora da URL). */
 export type DebtorQuery =
   | { mode: 'name'; q: string | null; creditorId: string | null; portfolioId: string | null }
@@ -41,7 +44,7 @@ export type DebtorQuery =
  */
 export function parseDebtorQuery(text: string, creditorId: string | null, portfolioId: string | null): DebtorQuery {
   const value = text.trim();
-  if (value && /^[\d.\-/\s]+$/.test(value)) {
+  if (value && DOCUMENT_LIKE.test(value)) {
     const digits = onlyDigits(value);
     return (digits.length === 11 || digits.length === 14) && isValidDocument(digits)
       ? { mode: 'document', document: digits }
@@ -83,7 +86,9 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
       [loading]="query.loading()"
       [failed]="query.failed()"
       [page]="searchMode() === 'name' ? query.tablePage() : null"
+      [sort]="query.sort()"
       (pageChange)="query.setPage($event)"
+      (sortChange)="query.setSort($event)"
       (retry)="query.reload()"
       [emptyMessage]="emptyMessage()"
       emptyIcon="person-bounding-box"
@@ -117,29 +122,33 @@ export class DebtorList {
   protected readonly personTypes = PERSON_TYPE_LABELS;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    q: [''],
-    creditor: this.fb.control<string[]>([]),
-    portfolio: this.fb.control<string[]>([]),
-  });
+  /** Filtros na URL (`?credor=&carteira=`). A busca (nome, documento) nunca vai para a URL: é dado pessoal (ux.md §16). */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      q: [''],
+      creditor: this.fb.control<string[]>([]),
+      portfolio: this.fb.control<string[]>([]),
+    }),
+    { creditor: urlParam.ids('credor'), portfolio: urlParam.ids('carteira') },
+  );
   protected readonly portfolioSource = inject(PortfolioLookup).source(() => this.filters.controls.creditor.value[0] ?? null);
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(300),
-      map((): DebtorQuery => {
-        const v = this.filters.getRawValue();
-        return parseDebtorQuery(v.q, v.creditor[0] ?? null, v.portfolio[0] ?? null);
-      }),
+      map(() => this.current()),
     ),
-    { initialValue: { mode: 'name', q: null, creditorId: null, portfolioId: null } as DebtorQuery, equal: sameValue },
+    { initialValue: this.current(), equal: sameValue },
   );
   protected readonly searchMode = computed(() => this.filter().mode);
   protected readonly searchHint = computed(() =>
     this.searchMode() === 'incomplete' ? 'Informe o CPF ou CNPJ completo e válido.' : this.searchMode() === 'document' ? 'Busca exata pelo documento.' : undefined,
   );
-  protected readonly query = pagedQuery(this.filter, (filter, page) => this.load(filter, page));
+  protected readonly query = pagedQuery(this.filter, (filter, page) => this.load(filter, page), {
+    url: true,
+    sortFields: { name: 'name', createdAt: 'createdAt' },
+  });
 
   protected readonly emptyMessage = computed(() =>
     this.searchMode() === 'incomplete'
@@ -154,13 +163,18 @@ export class DebtorList {
   );
 
   protected readonly columns: TableColumn[] = [
-    { key: 'name', header: 'Nome', mobile: 'title' },
+    { key: 'name', header: 'Nome', sortable: true, mobile: 'title' },
     { key: 'maskedDocument', header: 'CPF/CNPJ', mobile: 'meta' },
     { key: 'personType', header: 'Tipo', mobile: 'hidden' },
     { key: 'status', header: 'Situação', mobile: 'badge' },
-    { key: 'createdAt', header: 'Cadastrado em', mobile: 'meta' },
+    { key: 'createdAt', header: 'Cadastrado em', sortable: true, mobile: 'meta' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
+
+  private current(): DebtorQuery {
+    const v = this.filters.getRawValue();
+    return parseDebtorQuery(v.q, v.creditor[0] ?? null, v.portfolio[0] ?? null);
+  }
 
   protected create(): void {
     this.dialog

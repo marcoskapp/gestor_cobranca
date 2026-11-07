@@ -24,6 +24,7 @@ export function mergePatches(first: UiStatePatch, second: UiStatePatch): UiState
   merged.tours = second.resetTours ? second.tours : upsert(first.tours, second.tours, 'tourId');
   merged.screens = upsert(first.screens, second.screens, 'screenKey');
   merged.checklist = upsert(first.checklist, second.checklist, 'itemId');
+  merged.navigationSections = upsert(first.navigationSections, second.navigationSections, 'sectionKey');
   return clean(merged);
 }
 
@@ -34,6 +35,7 @@ export function applyPatch(state: UiState, patch: UiStatePatch, now: string = ne
     tours: patch.resetTours ? {} : { ...state.tours },
     screens: { ...state.screens },
     checklist: { ...state.checklist },
+    collapsedSections: [...(state.collapsedSections ?? [])],
   };
   if (patch.theme) next.theme = patch.theme;
   if (patch.density) next.density = patch.density;
@@ -61,6 +63,15 @@ export function applyPatch(state: UiState, patch: UiStatePatch, now: string = ne
       next.checklist[item.itemId] = now;
     }
   }
+  for (const section of patch.navigationSections ?? []) {
+    const collapsed = new Set(next.collapsedSections);
+    if (section.collapsed) {
+      collapsed.add(section.sectionKey);
+    } else {
+      collapsed.delete(section.sectionKey);
+    }
+    next.collapsedSections = [...collapsed].sort();
+  }
   return next;
 }
 
@@ -69,7 +80,7 @@ export function isEmptyPatch(patch: UiStatePatch): boolean {
 }
 
 function stripLists(patch: UiStatePatch): UiStatePatch {
-  const { tours: _t, screens: _s, checklist: _c, resetTours: _r, ...scalars } = patch;
+  const { tours: _t, screens: _s, checklist: _c, resetTours: _r, navigationSections: _n, ...scalars } = patch;
   return scalars;
 }
 

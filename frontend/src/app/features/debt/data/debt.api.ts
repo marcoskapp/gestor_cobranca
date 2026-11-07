@@ -46,7 +46,7 @@ export class DebtorsApi {
   /** Busca por trecho do nome (o filtro `q` não deve receber documento: use {@link lookup}). */
   search(filter: DebtorFilter, page: PageRequest): Observable<PageResponse<DebtorView>> {
     return this.http.get<PageResponse<DebtorView>>(this.base, {
-      params: toHttpParams({ ...filter, page: page.page, size: page.size }),
+      params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }),
     });
   }
 
@@ -194,7 +194,7 @@ export class TitlesApi {
 
   search(filter: TitleFilter, page: PageRequest): Observable<PageResponse<TitleView>> {
     return this.http.get<PageResponse<TitleView>>(this.base, {
-      params: toHttpParams({ ...filter, page: page.page, size: page.size }),
+      params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }),
     });
   }
 

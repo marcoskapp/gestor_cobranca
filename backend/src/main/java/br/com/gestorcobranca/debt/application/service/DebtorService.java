@@ -21,6 +21,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
@@ -45,6 +46,11 @@ import java.util.UUID;
 class DebtorService implements DebtorUseCases {
 
     private static final int MAX_INACTIVE_BATCH = 1_000;
+    /** Ordenação da consulta de devedores (colunas da lista): nome e cadastro. Nunca pelo documento (cifrado). */
+    static final SortableFields SEARCH_SORT = SortableFields.builder()
+            .field("name", "name")
+            .field("createdAt", "createdAt")
+            .build();
 
     private final DebtorRepository debtors;
     private final DebtorContactRepository contacts;
@@ -155,7 +161,7 @@ class DebtorService implements DebtorUseCases {
     public PageResponse<DebtorView> search(String text, UUID creditorId, UUID portfolioId, PageQuery page) {
         String documentHash = documentHashIfDocument(text);
         return PageResponse.of(debtors.search(visibility.allowedCreditors(), creditorId, portfolioId, text, documentHash,
-                page.toPageable(Sort.by("name", "id"))), DebtViews::debtor);
+                page.toPageable(SEARCH_SORT, Sort.by("name", "id"))), DebtViews::debtor);
     }
 
     /** Texto com 11 ou 14 dígitos válidos como CPF/CNPJ é buscado pelo blind index, não pelo nome. */

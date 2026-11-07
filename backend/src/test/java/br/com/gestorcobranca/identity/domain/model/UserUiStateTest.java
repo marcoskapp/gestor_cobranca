@@ -90,4 +90,22 @@ class UserUiStateTest {
         // telas já registradas continuam atualizáveis
         assertThat(state.markScreenSeen("screen-0", 2, T2)).isTrue();
     }
+
+    @Test
+    void collapsesAndExpandsMenuSectionsWithinLimits() {
+        assertThat(state.collapseSection("score-de-propensao", true)).isTrue();
+        assertThat(state.collapseSection("score-de-propensao", true)).isFalse();
+        assertThat(state.getCollapsedSections()).containsExactly("score-de-propensao");
+        assertThat(state.collapseSection("score-de-propensao", false)).isTrue();
+        // expandir o que não estava recolhido não grava nada
+        assertThat(state.collapseSection("cobranca", false)).isFalse();
+        assertThat(state.getCollapsedSections()).isEmpty();
+        assertThatThrownBy(() -> state.collapseSection("Score de propensão", true)).isInstanceOf(BusinessRuleException.class);
+
+        for (int i = 0; i < UserUiState.MAX_NAV_SECTIONS; i++) {
+            state.collapseSection("secao-" + i, true);
+        }
+        assertThatThrownBy(() -> state.collapseSection("mais-uma", true)).isInstanceOf(BusinessRuleException.class);
+        assertThat(state.collapseSection("secao-0", false)).isTrue();
+    }
 }

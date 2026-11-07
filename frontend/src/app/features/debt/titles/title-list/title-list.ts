@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
@@ -14,6 +14,7 @@ import { StatusChip } from '../../../../shared/components/status-chip/status-chi
 import { nameMap } from '../../../../shared/data/name-map';
 import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
+import { syncFormWithUrl, urlParam } from '../../../../shared/data/url-state';
 import { toDateStruct } from '../../../../shared/models/dates';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../../shared/status/status';
@@ -78,18 +79,28 @@ export class TitleList {
   protected readonly titleLabel = titleLabel;
   protected readonly canViewDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 
-  /** Filtros vindos de outras telas (`?credor=&carteira=&devedor=&situacao=&atraso=`), lidos antes da primeira consulta. */
-  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
+  /** Filtros na URL (`?credor=&carteira=&devedor=&situacao=&atraso=&venc-de=&venc-ate=`): vindos de outras telas e preservados ao voltar. */
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>(this.param('credor') ? [this.param('credor')] : []),
-    portfolio: this.fb.control<string[]>(this.param('carteira') ? [this.param('carteira')] : []),
-    debtorId: [this.param('devedor')],
-    status: [statusOptions('title').some((s) => s.value === this.param('situacao')) ? this.param('situacao') : ''],
-    bucket: [OVERDUE_BUCKETS.some((b) => b.value === this.param('atraso')) ? this.param('atraso') : ''],
-    dueFrom: this.fb.control<string | null>(null),
-    dueTo: this.fb.control<string | null>(null),
-  });
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      portfolio: this.fb.control<string[]>([]),
+      debtorId: [''],
+      status: [''],
+      bucket: [''],
+      dueFrom: this.fb.control<string | null>(null),
+      dueTo: this.fb.control<string | null>(null),
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      portfolio: urlParam.ids('carteira'),
+      debtorId: urlParam.id('devedor'),
+      status: urlParam.choice('situacao', statusOptions('title').map((s) => s.value)),
+      bucket: urlParam.choice('atraso', OVERDUE_BUCKETS.map((b) => b.value)),
+      dueFrom: urlParam.date('venc-de'),
+      dueTo: urlParam.date('venc-ate'),
+    },
+  );
   private readonly dueValues = toSignal(this.filters.valueChanges.pipe(startWith(null)), { initialValue: null });
   /** O intervalo não se inverte: "de" ≤ "até" (limites dos calendários). */
   protected readonly dueFromLimit = computed(() => {
@@ -110,7 +121,10 @@ export class TitleList {
     ),
     { initialValue: toTitleFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page));
+  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page), {
+    url: true,
+    sortFields: { dueDate: 'dueDate', overdue: 'daysOverdue', openBalance: 'openBalance' },
+  });
 
   protected readonly debtors = nameMap(inject(DebtorNames), () =>
     this.canViewDebtors() ? [...this.query.rows().map((t) => t.debtorId), this.filters.controls.debtorId.value] : [],
@@ -123,18 +137,14 @@ export class TitleList {
     { key: 'debtor', header: 'Devedor', mobile: 'meta' },
     { key: 'creditor', header: 'Credor', mobile: 'hidden' },
     { key: 'portfolio', header: 'Carteira', mobile: 'hidden' },
-    { key: 'dueDate', header: 'Vencimento', mobile: 'hidden' },
-    { key: 'overdue', header: 'Atraso', mobile: 'meta' },
-    { key: 'openBalance', header: 'Saldo em aberto', align: 'end', mobile: 'meta' },
+    { key: 'dueDate', header: 'Vencimento', sortable: true, mobile: 'hidden' },
+    { key: 'overdue', header: 'Atraso', sortable: true, mobile: 'meta' },
+    { key: 'openBalance', header: 'Saldo em aberto', align: 'end', sortable: true, mobile: 'meta' },
     { key: 'status', header: 'Situação', mobile: 'badge' },
   ];
 
   protected clearDebtor(): void {
     this.filters.controls.debtorId.setValue('');
-  }
-
-  private param(name: string): string {
-    return this.params.get(name) ?? '';
   }
 
   protected clear(): void {

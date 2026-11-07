@@ -138,7 +138,7 @@ describe('telas do faturamento da plataforma', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: AuthService, useValue: { hasPermission: (p: string) => permissions().includes(p), hasAnyPermission: (ps: readonly string[]) => ps.some((p) => permissions().includes(p)) } },
+        { provide: AuthService, useValue: { user: signal(null), hasPermission: (p: string) => permissions().includes(p), hasAnyPermission: (ps: readonly string[]) => ps.some((p) => permissions().includes(p)) } },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } },
         { provide: ConfirmService, useValue: { confirm: (data: ConfirmDialogData) => { confirmations.push(data); return of('conferência'); } } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ tenantId: 't-1' }), queryParamMap: convertToParamMap({ nome: 'Horizonte' }) } } },

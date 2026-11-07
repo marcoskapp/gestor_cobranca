@@ -29,7 +29,6 @@ import { OccurrenceType, OccurrenceView, ReferenceType } from '../data/incentive
 import { REASON_MAX, REASON_MIN } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
 import { personRangeFilter } from './person-range-filter';
-import { QualityTabs } from './quality-tabs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -138,7 +137,7 @@ export class OccurrenceDialog {
 /** Ocorrências de conduta (insumo do zerador de compliance), com dispensa por contestação procedente. */
 @Component({
   selector: 'app-incentive-occurrence-list',
-  imports: [ReactiveFormsModule, NgbInputDatepicker, ...FORM_FIELD, AppDatePipe, CellDef, DataTable, EntityPicker, Icon, PageHeader, QualityTabs, StatusChip],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, ...FORM_FIELD, AppDatePipe, CellDef, DataTable, EntityPicker, Icon, PageHeader, StatusChip],
   template: `
     <app-page-header title="Ocorrências de conduta" subtitle="Violações de compliance, reclamações e contestações procedentes atribuídas aos negociadores.">
       @if (canEvaluate()) {
@@ -148,7 +147,6 @@ export class OccurrenceDialog {
         </button>
       }
     </app-page-header>
-    <app-quality-tabs />
     <form class="app-filters" data-tour="filters" [formGroup]="range.form" role="search" aria-label="Filtrar ocorrências">
       @if (canPickPeople()) {
         <div class="app-filters__wide">
@@ -224,7 +222,7 @@ export class OccurrenceList {
     () => this.auth.hasPermission(Permission.USER_VIEW) && this.auth.hasAnyPermission([Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL, Permission.QUALITY_EVALUATE]),
   );
   protected readonly range = personRangeFilter(inject(FormBuilder));
-  protected readonly query = pagedQuery(this.range.filter, (f, page) => this.api.occurrences(f, page));
+  protected readonly query = pagedQuery(this.range.filter, (f, page) => this.api.occurrences(f, page), { url: true });
   protected readonly names = nameMap(inject(UserNames), () => this.query.rows().flatMap((o) => [o.userId, o.registeredBy, o.dismissedBy]), { batch: USER_NAMES_BATCH });
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);

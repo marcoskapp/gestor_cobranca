@@ -16,6 +16,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { PublicApiUsageApi } from '../data/public-api.api';
@@ -120,12 +121,16 @@ export class BillingPage {
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly previewForm = this.fb.group({ creditor: this.fb.control<string[]>([]) });
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), month: [''] });
+  /** Filtros dos extratos na URL (`?credor=&mes=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]), month: [''] }), {
+    creditor: urlParam.ids('credor'),
+    month: urlParam.text('mes'),
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(startWith(null), debounceTime(250), map(() => this.current())),
     { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.statements(f.creditorId, f.month, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.statements(f.creditorId, f.month, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => [
     ...this.query.rows().map((s) => s.creditorId),
     ...(this.preview() ? [this.preview()!.creditorId] : []),

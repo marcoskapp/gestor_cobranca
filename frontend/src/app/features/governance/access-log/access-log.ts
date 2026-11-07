@@ -8,6 +8,7 @@ import { DataTable, TableColumn } from '../../../shared/components/data-table/da
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { pagedQuery } from '../../../shared/data/paged-query';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { endOfDayInstant, fromLocalDate, startOfDayInstant } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AppValidators } from '../../../shared/validation/validators';
@@ -43,20 +44,33 @@ export class AccessLog {
   protected readonly eventTypes = Object.entries(ACCESS_EVENT_LABELS).map(([value, label]) => ({ value, label }));
 
   private readonly fb = inject(FormBuilder);
-  protected readonly filters = this.fb.group(
+  /**
+   * Filtros na URL (`?de=&ate=&usuario=&evento=&resultado=`), preservados ao voltar; ao abrir, os da URL já vêm
+   * aplicados. O IP fica fora da URL (dado pessoal).
+   */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group(
+      {
+        from: this.fb.control<string | null>(null),
+        to: this.fb.control<string | null>(null),
+        actor: this.fb.nonNullable.control<string[]>([]),
+        eventType: this.fb.nonNullable.control(''),
+        success: this.fb.nonNullable.control<'' | 'true' | 'false'>(''),
+        clientIp: this.fb.nonNullable.control(''),
+      },
+      { validators: AppValidators.dateRange('from', 'to') },
+    ),
     {
-      from: this.fb.control<string | null>(null),
-      to: this.fb.control<string | null>(null),
-      actor: this.fb.nonNullable.control<string[]>([]),
-      eventType: this.fb.nonNullable.control(''),
-      success: this.fb.nonNullable.control<'' | 'true' | 'false'>(''),
-      clientIp: this.fb.nonNullable.control(''),
+      from: urlParam.date('de'),
+      to: urlParam.date('ate'),
+      actor: urlParam.ids('usuario'),
+      eventType: urlParam.choice('evento', this.eventTypes.map((e) => e.value)),
+      success: urlParam.choice('resultado', ['true', 'false'] as const),
     },
-    { validators: AppValidators.dateRange('from', 'to') },
   );
 
-  private readonly filter = signal<AccessLogFilter>({});
-  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.accessLog(filter, page), 50);
+  private readonly filter = signal<AccessLogFilter>(this.filters.valid ? this.currentFilter() : {});
+  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.accessLog(filter, page), { initialSize: 50, url: true });
 
   protected readonly columns: TableColumn[] = [
     { key: 'occurredAt', header: 'Data/hora' },
@@ -85,15 +99,19 @@ export class AccessLog {
       this.filters.markAllAsTouched();
       return;
     }
+    this.filter.set(this.currentFilter());
+  }
+
+  private currentFilter(): AccessLogFilter {
     const v = this.filters.getRawValue();
-    this.filter.set({
+    return {
       from: startOfDayInstant(fromLocalDate(v.from)),
       to: endOfDayInstant(fromLocalDate(v.to)),
       actorId: v.actor[0] ?? null,
       eventType: v.eventType || null,
       success: v.success === '' ? null : v.success === 'true',
       clientIp: v.clientIp.trim() || null,
-    });
+    };
   }
 
   protected clear(): void {

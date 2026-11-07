@@ -22,7 +22,8 @@ public record PendingWorkItem(String type, String label, String hint, PendingWor
                               Map<String, String> queryParams) {
 
     private static final Pattern TYPE = Pattern.compile("[a-z]+(\\.[a-z_]+)+");
-    private static final Pattern PARAM = Pattern.compile("[a-z][a-zA-Z]{0,30}");
+    /** Nome do parâmetro da lista de destino: minúsculas com hífen entre palavras (`resposta-pendente`), até 31 caracteres. */
+    private static final Pattern PARAM = Pattern.compile("(?=.{1,31}$)[a-z][a-zA-Z]*(-[a-z][a-zA-Z]*)*");
     private static final Pattern VALUE = Pattern.compile("[A-Za-z0-9_,:-]{1,80}");
 
     public PendingWorkItem {

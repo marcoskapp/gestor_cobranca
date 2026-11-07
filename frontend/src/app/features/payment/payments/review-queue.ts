@@ -112,7 +112,7 @@ export class ReviewQueue {
   protected readonly origins = ORIGIN_LABELS;
   protected readonly downloading = signal<string | null>(null);
 
-  protected readonly query = pagedQuery(signal(null), (_, page) => this.api.reviewQueue(page));
+  protected readonly query = pagedQuery(signal(null), (_, page) => this.api.reviewQueue(page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId), { batch: 100 });
   protected readonly users = nameMap(inject(UserNames), () => this.query.rows().map((p) => p.informedBy), { batch: USER_NAMES_BATCH });

@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -15,6 +15,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { statusOptions } from '../../../shared/status/status';
 import { zonedNow } from '../../collection/data/collection.rules';
@@ -117,13 +118,20 @@ export class StatementList {
       this.auth.hasAnyPermission([Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL, Permission.COMMISSION_STATEMENT_MANAGE, Permission.COMMISSION_STATEMENT_APPROVE]),
   );
 
-  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    period: [this.params.get('periodo') ?? ''],
-    status: [this.params.get('situacao') ?? ''],
-    user: this.fb.control<string[]>(this.params.get('negociador') ? [this.params.get('negociador')!] : []),
-  });
+  /** Filtros na URL (`?periodo=&situacao=&negociador=`), vindos de outras telas e preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      period: [''],
+      status: [''],
+      user: this.fb.control<string[]>([]),
+    }),
+    {
+      period: urlParam.text('periodo'),
+      status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+      user: urlParam.ids('negociador'),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -132,7 +140,7 @@ export class StatementList {
     ),
     { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
 
   protected readonly columns: TableColumn[] = [
     { key: 'period', header: 'Período e negociador' },

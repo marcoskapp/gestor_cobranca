@@ -1,18 +1,20 @@
 import { Route, Routes } from '@angular/router';
-import { ANALYTICS_PANELS } from '../../features/analytics/analytics.panels';
-import { NAVIGATION } from './navigation';
+import { NAVIGATION, routePermissionsOf, routeRequiredPermissionsOf } from './navigation';
 import { SHELL_ROUTES } from './shell/shell.routes';
 
 /**
- * Menu, abas e rotas não podem divergir: um item do menu (ou aba dos Painéis) só aparece para quem passa no
- * `permissionGuard` da rota (senão o usuário vê a opção e cai em "Acesso negado"), e a rota não pode exigir menos que
- * o menu (a opção sumiria para quem tem acesso). A árvore real de rotas é resolvida, inclusive os módulos carregados sob demanda.
+ * Menu e rotas não podem divergir: um item do menu só aparece para quem passa no `permissionGuard` da rota (senão o
+ * usuário vê a opção e cai em "Acesso negado"), e a rota aceita exatamente as permissões da tarefa (menu) mais as de
+ * quem abre a tela por outro caminho (`openedFrom`, menu por tarefa — D6), que precisa ser um item do menu visível
+ * para essas permissões. A árvore real de rotas é resolvida, inclusive os módulos carregados sob demanda.
  */
 
 interface ResolvedRoute {
   path: string;
   /** Permissões exigidas em cada nível (do mais externo ao mais interno) que declara `data.permissions`. */
   levels: (readonly string[])[];
+  /** `data.allPermissions` da rota mais interna (todas obrigatórias). */
+  all: readonly string[];
 }
 
 async function childrenOf(route: Route): Promise<Routes> {
@@ -39,7 +41,7 @@ async function resolve(routes: Routes, prefix: string, levels: (readonly string[
       await resolve(children, path, here, out);
     }
     if (route.component || route.loadComponent) {
-      out.push({ path: '/' + path, levels: here });
+      out.push({ path: '/' + path, levels: here, all: (route.data?.['allPermissions'] as readonly string[] | undefined) ?? [] });
     }
   }
 }
@@ -52,25 +54,28 @@ describe('menu × rotas', () => {
     await resolve(SHELL_ROUTES, '', [], routes);
   });
 
-  // menu lateral e abas internas com permissões próprias (abas dos Painéis)
-  const items = [...NAVIGATION.flatMap((s) => s.items), ...ANALYTICS_PANELS];
+  const items = NAVIGATION.flatMap((s) => s.items);
 
-  it('todo item do menu e das abas tem rota', () => {
+  it('todo item do menu tem rota', () => {
     const missing = items.filter((i) => !routes.some((r) => r.path === i.route));
     expect(missing.map((i) => i.route)).toEqual([]);
   });
 
-  it('cada item do menu e das abas exige as mesmas permissões que a rota (nem mais, nem menos)', () => {
+  it('cada item do menu exige as mesmas permissões que a rota (nem mais, nem menos), contando quem abre por outra tela', () => {
     const divergent: string[] = [];
     for (const item of items) {
       const route = routes.find((r) => r.path === item.route);
       if (!route) {
         continue;
       }
-      const menu = [...item.permissions].sort();
+      const menu = [...routePermissionsOf(item)].sort();
       const innermost = [...(route.levels.at(-1) ?? [])].sort();
       if (menu.join(',') !== innermost.join(',')) {
         divergent.push(`${item.route}: menu [${menu}] ≠ rota [${innermost}]`);
+      }
+      const required = [...routeRequiredPermissionsOf(item)].sort();
+      if (required.join(',') !== [...route.all].sort().join(',')) {
+        divergent.push(`${item.route}: menu exige todas [${required}] ≠ rota allPermissions [${route.all}]`);
       }
       // níveis externos (rota pai com guarda) também precisam aceitar todas as permissões do item
       for (const outer of route.levels.slice(0, -1)) {
@@ -81,5 +86,25 @@ describe('menu × rotas', () => {
       }
     }
     expect(divergent).toEqual([]);
+  });
+
+  it('quem abre a tela por outro caminho chega por um item do menu que vê', () => {
+    const problems: string[] = [];
+    for (const item of items.filter((i) => i.openedFrom)) {
+      const via = items.find((i) => i.route === item.openedFrom!.via);
+      if (!via) {
+        problems.push(`${item.route}: via ${item.openedFrom!.via} não está no menu`);
+        continue;
+      }
+      const blocked = item.openedFrom!.permissions.filter((p) => via.permissions.length > 0 && !via.permissions.includes(p));
+      if (blocked.length) {
+        problems.push(`${item.route}: [${blocked}] não vê ${via.route}`);
+      }
+      const overlap = item.openedFrom!.permissions.filter((p) => item.permissions.includes(p));
+      if (overlap.length) {
+        problems.push(`${item.route}: [${overlap}] já está no menu`);
+      }
+    }
+    expect(problems).toEqual([]);
   });
 });

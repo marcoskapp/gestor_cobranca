@@ -126,7 +126,7 @@ const ORIGIN_LABELS: Record<string, string> = {
                 <tr>
                   <th scope="row">
                     @if (canOpenQueue && b.key === '-') {
-                      <a routerLink="/cobranca/contestacoes" [queryParams]="{ fila: 'supervisao' }">{{ b.label }}</a>
+                      <a routerLink="/cobranca/contestacoes" [queryParams]="{ responsavel: 'supervisao' }">{{ b.label }}</a>
                     } @else {
                       {{ b.label }}
                     }

@@ -17,6 +17,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { DialogService } from '../../../shared/dialog/dialog.service';
@@ -30,6 +31,10 @@ import { PURPOSE_LABELS } from '../data/campaign.labels';
 import { CampaignFilter, CampaignView } from '../data/campaign.models';
 import { suggestCode } from '../data/campaign.rules';
 import { CampaignSettingsFields, settingsForm, toSettings } from './settings-fields';
+
+function toCampaignFilter(v: { creditor: string[]; status: string }): CampaignFilter {
+  return { creditorId: v.creditor[0] ?? null, status: v.status || null };
+}
 
 /** Nova campanha por credor (carteira opcional) e segmento; a régua vem depois, na própria campanha. */
 @Component({
@@ -218,19 +223,20 @@ export class CampaignList {
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.CAMPAIGN_MANAGE));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] });
+  /** Filtros na URL (`?credor=&situacao=`), preservados ao voltar da campanha. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] }), {
+    creditor: urlParam.ids('credor'),
+    status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(250),
-      map((): CampaignFilter => {
-        const v = this.filters.getRawValue();
-        return { creditorId: v.creditor[0] ?? null, status: v.status || null };
-      }),
+      map(() => toCampaignFilter(this.filters.getRawValue())),
     ),
-    { initialValue: { creditorId: null, status: null } as CampaignFilter, equal: sameValue },
+    { initialValue: toCampaignFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((c) => c.creditorId));
   protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.query.rows().map((c) => c.portfolioId));
 

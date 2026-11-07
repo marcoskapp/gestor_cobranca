@@ -16,6 +16,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { sameValue } from '../../../shared/data/same-value';
 import { DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
@@ -175,19 +176,20 @@ export class PolicyList {
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.POLICY_MANAGE));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] });
+  /** Filtros na URL (`?credor=&situacao=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] }), {
+    creditor: urlParam.ids('credor'),
+    status: urlParam.choice('situacao', statusOptions('collectionPolicy').map((s) => s.value)),
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(250),
-      map((): PolicyFilter => {
-        const v = this.filters.getRawValue();
-        return { creditorId: v.creditor[0] ?? null, status: v.status || null };
-      }),
+      map(() => this.current()),
     ),
-    { initialValue: { creditorId: null, status: null } as PolicyFilter, equal: sameValue },
+    { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
 
   protected readonly columns: TableColumn[] = [
@@ -209,5 +211,10 @@ export class PolicyList {
           void this.router.navigate(['/negociacao/politicas', created.id]);
         }
       });
+  }
+
+  private current(): PolicyFilter {
+    const v = this.filters.getRawValue();
+    return { creditorId: v.creditor[0] ?? null, status: v.status || null };
   }
 }

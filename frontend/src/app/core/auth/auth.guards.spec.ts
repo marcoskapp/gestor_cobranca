@@ -21,6 +21,7 @@ describe('guards de rota', () => {
     isAuthenticated: () => user() !== null,
     hasAnyPermission: (required: readonly string[]) =>
       required.length === 0 || required.some((p) => (user()?.permissions ?? []).includes(p)),
+    hasPermission: (p: string) => (user()?.permissions ?? []).includes(p),
   };
 
   beforeEach(() => {
@@ -45,6 +46,12 @@ describe('guards de rota', () => {
                 component: Page,
                 canActivate: [permissionGuard],
                 data: { permissions: ['USER_VIEW'] },
+              },
+              {
+                path: 'score/modelos',
+                component: Page,
+                canActivate: [permissionGuard],
+                data: { permissions: ['SCORING_AREA_VIEW'], allPermissions: ['SCORING_VIEW'] },
               },
             ],
           },
@@ -80,6 +87,15 @@ describe('guards de rota', () => {
   it('permissionGuard libera com a permissão', async () => {
     user.set(fakeUser({ permissions: ['USER_VIEW'] }));
     expect(await navigate('/admin/usuarios')).toBe('/admin/usuarios');
+  });
+
+  it('permissionGuard exige também todas as de allPermissions (área + consulta dos dados)', async () => {
+    user.set(fakeUser({ permissions: ['SCORING_AREA_VIEW'] }));
+    expect(await navigate('/score/modelos')).toBe('/acesso-negado');
+    user.set(fakeUser({ permissions: ['SCORING_VIEW'] }));
+    expect(await navigate('/score/modelos')).toBe('/acesso-negado');
+    user.set(fakeUser({ permissions: ['SCORING_AREA_VIEW', 'SCORING_VIEW'] }));
+    expect(await navigate('/score/modelos')).toBe('/score/modelos');
   });
 
   it('guestGuard redireciona autenticado para o início', () => {

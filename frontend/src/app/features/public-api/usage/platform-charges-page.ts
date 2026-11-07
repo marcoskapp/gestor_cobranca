@@ -12,6 +12,7 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { PlatformPolicyVersions } from '../../platform/billing/components/platform-policy-versions';
 import { PlatformPositionPanel } from '../../platform/billing/components/platform-position-panel';
@@ -113,12 +114,13 @@ export class PlatformChargesPage {
   protected readonly position = rxResource({ stream: () => this.api.position() });
   protected readonly policy = rxResource({ stream: () => this.api.policy() });
 
-  protected readonly filters = this.fb.group({ month: [''] });
+  /** Mês na URL (`?mes=`), preservado ao voltar. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ month: [''] }), { month: urlParam.text('mes') });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(startWith(null), debounceTime(250), map(() => ({ month: this.filters.getRawValue().month || null }))),
-    { initialValue: { month: null as string | null }, equal: sameValue },
+    { initialValue: { month: this.filters.getRawValue().month || null }, equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.statements(f.month, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.statements(f.month, page), { url: true });
 
   protected readonly columns: TableColumn[] = [
     { key: 'period', header: 'Ciclo' },

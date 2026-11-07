@@ -102,9 +102,10 @@ class ImportBatchController {
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdFrom,
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdTo,
                                          @RequestParam(required = false) Integer page,
-                                         @RequestParam(required = false) Integer size) {
+                                         @RequestParam(required = false) Integer size,
+                                         @RequestParam(required = false) String sort) {
         return batches.search(new BatchSearch(creditorId, portfolioId, status, source, createdFrom, createdTo),
-                PageQuery.of(page, size));
+                PageQuery.of(page, size, sort));
     }
 
     @GetMapping("/{id}")

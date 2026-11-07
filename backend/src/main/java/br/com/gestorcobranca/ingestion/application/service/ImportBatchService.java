@@ -36,6 +36,7 @@ import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
@@ -61,6 +62,11 @@ import java.util.UUID;
 class ImportBatchService implements ImportBatchUseCases {
 
     static final String RESOURCE = BatchCreation.RESOURCE;
+    /** Ordenação da consulta de lotes (colunas da lista): recebimento e linhas lidas. */
+    static final SortableFields SEARCH_SORT = SortableFields.builder()
+            .field("createdAt", "createdAt")
+            .field("rowsRead", "rowsRead")
+            .build();
     private static final String IDEMPOTENCY_SCOPE = "ingestion.records";
 
     private final ImportBatchRepository batches;
@@ -255,7 +261,8 @@ class ImportBatchService implements ImportBatchUseCases {
                 parseEnum(ImportBatchStatus.class, f.status(), "import_batch.status_invalid"),
                 parseEnum(ImportSource.class, f.source(), "import_batch.source_invalid"), f.createdFrom(), f.createdTo());
         return PageResponse.of(batches.search(allowed, criteria,
-                page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt"))), b -> ImportViews.batch(b, json));
+                page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
+                b -> ImportViews.batch(b, json));
     }
 
     @Override

@@ -26,6 +26,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtorSheetQueries.DebtorS
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -48,6 +49,13 @@ class CaseService implements CaseUseCases {
     private static final int SHEET_INTERACTIONS = 10;
     private static final int SHEET_RESTRICTIONS = 50;
     private static final int MAX_ACTIVE_PAGE = 500;
+    /** Ordenação da consulta de casos (colunas da lista): saldo, atraso, próxima ação e abertura. */
+    static final SortableFields SEARCH_SORT = SortableFields.builder()
+            .field("openBalance", "openBalance")
+            .inverted("daysOverdue", "oldestDueDate")
+            .field("nextActionAt", "nextActionAt")
+            .field("openedAt", "openedAt")
+            .build();
 
     private final CollectionCaseRepository cases;
     private final CaseAccess access;
@@ -112,7 +120,7 @@ class CaseService implements CaseUseCases {
                 CollectionEnums.parseOptional(OwnerType.class, filter.ownerType(), "case.owner_type_invalid", "Dono"),
                 filter.eligible());
         LocalDate today = CollectionViews.today(clock);
-        return PageResponse.of(cases.search(criteria, page.toPageable(Sort.by(Sort.Direction.DESC, "openedAt")
+        return PageResponse.of(cases.search(criteria, page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "openedAt")
                 .and(Sort.by("id")))), c -> CollectionViews.caseView(c, today));
     }
 

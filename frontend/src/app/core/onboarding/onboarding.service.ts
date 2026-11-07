@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
-import { NAVIGATION } from '../layout/navigation';
+import { navigationFor } from '../layout/navigation';
 import { UiStateStore } from '../preferences/ui-state.store';
 import { CHECKLISTS } from './content/checklists';
 import { LATEST_RELEASE, RELEASE_NOTES_SCREEN } from './content/release-notes';
@@ -100,8 +100,9 @@ export class OnboardingService {
     }
     const state = this.store.state();
     const navRoutes = new Set(
-      NAVIGATION.flatMap((s) => s.items)
-        .filter((item) => this.auth.hasAnyPermission(item.permissions))
+      // itens do checklist só para telas que são tarefa do perfil (o mesmo menu do shell)
+      navigationFor((p) => this.auth.hasAnyPermission([p]))
+        .flatMap((s) => s.items)
         .map((item) => item.route),
     );
     const profile = CHECKLISTS.find((p) => this.auth.hasAnyPermission(p.permissions)) ?? CHECKLISTS[CHECKLISTS.length - 1];

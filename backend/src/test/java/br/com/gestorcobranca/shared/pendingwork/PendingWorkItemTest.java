@@ -57,5 +57,12 @@ class PendingWorkItemTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> PendingWorkItem.of("payment.review", "x", c).route("/a").param("nome", "Maria Silva")
                 .build()).isInstanceOf(IllegalArgumentException.class);
+        // parâmetros da lista com hífen (estado na URL, ux.md §16); hífen solto ou no fim não
+        assertThat(PendingWorkItem.of("payment.review", "x", c).route("/a").param("resposta-pendente", "1").build()
+                .queryParams()).containsEntry("resposta-pendente", "1");
+        for (String bad : new String[] {"-a", "a-", "a--b", "a_b", "x".repeat(32)}) {
+            assertThatThrownBy(() -> PendingWorkItem.of("payment.review", "x", c).route("/a").param(bad, "1").build())
+                    .as(bad).isInstanceOf(IllegalArgumentException.class);
+        }
     }
 }

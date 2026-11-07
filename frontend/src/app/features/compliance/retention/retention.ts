@@ -148,7 +148,8 @@ export class RetentionPage {
   protected readonly policyRows = valueOr(this.policies, []);
   protected readonly policyKey = (p: RetentionPolicyView) => p.category;
   private readonly runsFilter = signal(0);
-  protected readonly runs = pagedQuery(this.runsFilter, (_, page) => this.api.runs(page));
+  /** Página das execuções na URL (`?pagina=&tamanho=`), preservada ao voltar. */
+  protected readonly runs = pagedQuery(this.runsFilter, (_, page) => this.api.runs(page), { url: true });
 
   protected readonly policyColumns: TableColumn[] = [
     { key: 'category', header: 'Categoria' },

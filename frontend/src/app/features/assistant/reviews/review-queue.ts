@@ -13,6 +13,7 @@ import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
 import { valueOr } from '../../../shared/data/resource-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
@@ -112,16 +113,20 @@ export class AssistantReviewQueue {
   protected readonly verdicts = VERDICT_LABELS;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ status: ['PENDING'], creditor: this.fb.control<string[]>([]) });
+  /** Filtros na URL (`?situacao=&credor=`), preservados ao voltar do turno revisado. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ status: ['PENDING'], creditor: this.fb.control<string[]>([]) }), {
+    status: urlParam.choice('situacao', ['PENDING', 'REVIEWED']),
+    creditor: urlParam.ids('credor'),
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(150),
-      map((): QueueFilter => ({ status: this.filters.getRawValue().status, creditorId: this.filters.getRawValue().creditor[0] ?? null })),
+      map(() => this.current()),
     ),
-    { initialValue: { status: 'PENDING', creditorId: null } as QueueFilter, equal: sameValue },
+    { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.queue(f.status, f.creditorId, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.queue(f.status, f.creditorId, page), { url: true });
   private readonly policyList = rxResource({ stream: () => this.policiesApi.list().pipe(catchError(() => of([]))) });
   private readonly policies = valueOr(this.policyList, []);
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((r) => r.creditorId));
@@ -137,5 +142,10 @@ export class AssistantReviewQueue {
 
   protected blocked(r: ReviewView): boolean {
     return reviewBlocked(r, this.policies(), this.auth.user()?.id ?? null);
+  }
+
+  private current(): QueueFilter {
+    const v = this.filters.getRawValue();
+    return { status: v.status, creditorId: v.creditor[0] ?? null };
   }
 }

@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth/auth.service';
-import { NAVIGATION } from '../../layout/navigation';
+import { NAVIGATION, canOpen } from '../../layout/navigation';
 import { DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -71,7 +71,7 @@ export class WhatsNewDialog {
   protected readonly notes = RELEASE_NOTES;
   private readonly allowed = new Set(
     NAVIGATION.flatMap((s) => s.items)
-      .filter((i) => this.auth.hasAnyPermission(i.permissions))
+      .filter((i) => canOpen(i, (p) => this.auth.hasAnyPermission([p])))
       .map((i) => i.route),
   );
 

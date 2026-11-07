@@ -15,6 +15,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { CreditorLookup, CreditorNames, PortfolioLookup, PortfolioNames } from '../../organization/data/organization.lookups';
@@ -147,7 +148,9 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       [loading]="query.loading()"
       [failed]="query.failed()"
       [page]="query.tablePage()"
+      [sort]="query.sort()"
       (pageChange)="query.setPage($event)"
+      (sortChange)="query.setSort($event)"
       (retry)="query.reload()"
       emptyIcon="file-earmark-arrow-up"
       emptyMessage="Nenhum lote encontrado."
@@ -232,7 +235,16 @@ export class BatchList {
   protected readonly canExecute = computed(() => this.auth.hasPermission(Permission.IMPORT_EXECUTE));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), portfolio: this.fb.control<string[]>([]), status: [''], source: [''] });
+  /** Filtros na URL (`?credor=&carteira=&situacao=&origem=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({ creditor: this.fb.control<string[]>([]), portfolio: this.fb.control<string[]>([]), status: [''], source: [''] }),
+    {
+      creditor: urlParam.ids('credor'),
+      portfolio: urlParam.ids('carteira'),
+      status: urlParam.choice('situacao', statusOptions('importBatch').map((s) => s.value)),
+      source: urlParam.choice('origem', Object.keys(SOURCE_LABELS)),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -241,7 +253,10 @@ export class BatchList {
     ),
     { initialValue: toBatchFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), {
+    url: true,
+    sortFields: { created: 'createdAt', rows: 'rowsRead' },
+  });
   /** Conferências abertas ou aguardando aprovação (com o filtro de credor/carteira da tela). */
   protected readonly reviews = pagedQuery(this.filter, (f, page) =>
     this.reviewsApi.search({ status: ['OPEN', 'AWAITING_APPROVAL'], creditorId: f.creditorId, portfolioId: f.portfolioId }, page),
@@ -262,11 +277,11 @@ export class BatchList {
   protected readonly newParams = computed(() => (this.filter().portfolioId ? { carteira: this.filter().portfolioId } : {}));
 
   protected readonly columns: TableColumn[] = [
-    { key: 'created', header: 'Recebido em' },
+    { key: 'created', header: 'Recebido em', sortable: true },
     { key: 'file', header: 'Arquivo' },
     { key: 'portfolio', header: 'Carteira' },
     { key: 'status', header: 'Situação' },
-    { key: 'rows', header: 'Linhas', align: 'end' },
+    { key: 'rows', header: 'Linhas', align: 'end', sortable: true },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

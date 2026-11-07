@@ -3,7 +3,7 @@ import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@a
 import { WritableSignal, signal } from '@angular/core';
 import { AuthenticatedUser } from '../../../core/auth/auth.models';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { EMPTY } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -126,11 +126,12 @@ describe('MatterDetail', () => {
 
   async function render(tab?: string): Promise<ComponentFixture<MatterDetail>> {
     (TestBed.inject(AuthService).user as WritableSignal<AuthenticatedUser | null>).set(fakeUser({ id: 'u-1', roles }));
+    if (tab) {
+      // a aba vem da URL (`?aba=`), como no link do painel jurídico
+      await TestBed.inject(Router).navigateByUrl(`/?aba=${tab}`);
+    }
     const fixture = TestBed.createComponent(MatterDetail);
     fixture.componentRef.setInput('id', 'm-1');
-    if (tab) {
-      fixture.componentRef.setInput('aba', tab);
-    }
     for (let i = 0; i < 4; i++) {
       fixture.detectChanges();
       await tick();
@@ -183,7 +184,7 @@ describe('MatterDetail', () => {
     const fixture = await render('prazos');
     await tick();
     fixture.detectChanges();
-    expect(fixture.componentInstance['tab']()).toBe(5);
+    expect(fixture.componentInstance['tab'].value()).toBe('prazos');
     const card = el(fixture).querySelector('.md-deadline');
     expect(card?.classList).toContain('md-deadline--late');
     expect(card?.textContent).toContain('Prazo perdido');

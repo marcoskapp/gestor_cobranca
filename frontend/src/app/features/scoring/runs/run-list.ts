@@ -14,6 +14,7 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { pagedQuery } from '../../../shared/data/paged-query';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { emptyPage } from '../../../shared/models/page';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -107,16 +108,19 @@ export class RunList {
   protected readonly starting = signal(false);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ kind: [''] });
+  /** Tipo na URL (`?tipo=`), preservado ao voltar da execução. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ kind: [''] }), { kind: urlParam.choice('tipo', ['BATCH', 'TRAINING']) });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       map(() => (this.filters.getRawValue().kind || null) as RunKindFilter),
     ),
-    { initialValue: null as RunKindFilter },
+    { initialValue: (this.filters.getRawValue().kind || null) as RunKindFilter },
   );
-  protected readonly query = pagedQuery(this.filter, (kind, page) =>
-    this.allCreditors() ? this.api.list(kind, page) : of(emptyPage<RunView>(page.size)),
+  protected readonly query = pagedQuery(
+    this.filter,
+    (kind, page) => (this.allCreditors() ? this.api.list(kind, page) : of(emptyPage<RunView>(page.size))),
+    { url: true },
   );
 
   protected readonly columns: TableColumn[] = [

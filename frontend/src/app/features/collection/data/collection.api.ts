@@ -66,7 +66,7 @@ export class CasesApi {
 
   search(filter: CaseFilter, page: PageRequest): Observable<PageResponse<CaseView>> {
     return this.http.get<PageResponse<CaseView>>(`${BASE}/cases`, {
-      params: toHttpParams({ ...filter, page: page.page, size: page.size }),
+      params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }),
     });
   }
 

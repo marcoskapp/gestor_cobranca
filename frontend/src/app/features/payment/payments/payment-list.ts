@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -16,6 +16,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { endOfDayInstant, fromLocalDate, startOfDayInstant } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -114,7 +115,9 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
       [loading]="query.loading()"
       [failed]="query.failed()"
       [page]="query.tablePage()"
+      [sort]="query.sort()"
       (pageChange)="query.setPage($event)"
+      (sortChange)="query.setSort($event)"
       (retry)="query.reload()"
       emptyIcon="cash-stack"
       emptyMessage="Nenhum pagamento encontrado."
@@ -160,7 +163,6 @@ export class PaymentList {
   private readonly auth = inject(AuthService);
   private readonly launcher = inject(PaymentLauncher);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly debtorSource = inject(DebtorLookup);
   protected readonly statuses = statusOptions('payment');
@@ -171,18 +173,30 @@ export class PaymentList {
   protected readonly canSearchDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  private readonly params = this.route.snapshot.queryParamMap;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>(this.params.get('credor') ? [this.params.get('credor')!] : []),
-    debtor: this.fb.control<string[]>(this.params.get('devedor') ? [this.params.get('devedor')!] : []),
-    status: [this.params.get('situacao') ?? ''],
-    source: [''],
-    method: [''],
-    // datas ISO yyyy-MM-dd (datepicker do ng-bootstrap)
-    from: this.fb.control<string | null>(null),
-    to: this.fb.control<string | null>(null),
-    withBalance: [this.params.get('saldo') === '1'],
-  });
+  /** Filtros na URL (`?credor=&devedor=&situacao=&origem=&meio=&pago-de=&pago-ate=&saldo=1`): vindos de outras telas e preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      debtor: this.fb.control<string[]>([]),
+      status: [''],
+      source: [''],
+      method: [''],
+      // datas ISO yyyy-MM-dd (datepicker do ng-bootstrap)
+      from: this.fb.control<string | null>(null),
+      to: this.fb.control<string | null>(null),
+      withBalance: [false],
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      debtor: urlParam.ids('devedor'),
+      status: urlParam.choice('situacao', statusOptions('payment').map((s) => s.value)),
+      source: urlParam.choice('origem', Object.keys(SOURCE_LABELS)),
+      method: urlParam.choice('meio', Object.keys(METHOD_LABELS)),
+      from: urlParam.date('pago-de'),
+      to: urlParam.date('pago-ate'),
+      withBalance: urlParam.flag('saldo'),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -191,14 +205,17 @@ export class PaymentList {
     ),
     { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), {
+    url: true,
+    sortFields: { paidAt: 'paidAt', amount: 'amount' },
+  });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId), { batch: 100 });
 
   protected readonly columns: TableColumn[] = [
-    { key: 'paidAt', header: 'Pago em', mobile: 'meta' },
+    { key: 'paidAt', header: 'Pago em', sortable: true, mobile: 'meta' },
     { key: 'debtor', header: 'Devedor e credor', mobile: 'title' },
-    { key: 'amount', header: 'Valor', align: 'end', mobile: 'meta' },
+    { key: 'amount', header: 'Valor', align: 'end', sortable: true, mobile: 'meta' },
     { key: 'source', header: 'Meio e origem', mobile: 'meta' },
     { key: 'status', header: 'Situação', mobile: 'badge' },
     { key: 'actions', header: 'Ações', actions: true },

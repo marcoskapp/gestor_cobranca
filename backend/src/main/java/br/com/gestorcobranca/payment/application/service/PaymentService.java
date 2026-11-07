@@ -36,6 +36,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
@@ -67,6 +68,11 @@ import java.util.stream.Collectors;
 class PaymentService implements PaymentUseCases {
 
     private static final String RESOURCE = AllocationService.RESOURCE;
+    /** Ordenação da consulta de pagamentos (colunas da lista): data do pagamento e valor. */
+    static final SortableFields SEARCH_SORT = SortableFields.builder()
+            .field("paidAt", "paidAt")
+            .field("amount", "amount")
+            .build();
 
     private final PaymentRepository payments;
     private final PaymentAllocationRepository allocations;
@@ -160,7 +166,7 @@ class PaymentService implements PaymentUseCases {
                 "payment.method_invalid", "Meio de pagamento"));
         Page<Payment> result = payments.search(new PaymentRepository.Criteria(allowedCreditors(), f.creditorId(),
                 f.debtorId(), statuses, source, method, f.paidFrom(), f.paidTo(), Boolean.TRUE.equals(f.withBalance()),
-                null, f.agreementId()), page.toPageable(Sort.by(Sort.Direction.DESC, "paidAt").and(Sort.by("id"))));
+                null, f.agreementId()), page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "paidAt").and(Sort.by("id"))));
         return views(result);
     }
 

@@ -29,4 +29,13 @@ describe('buildBreadcrumbs', () => {
       { label: 'Minhas sessões' },
     ]);
   });
+
+  it('seção com o mesmo nome do item não se repete ("Pagamentos › Pagamentos")', () => {
+    expect(buildBreadcrumbs('/pagamentos/p-1', 'Pagamento')).toEqual([
+      { label: 'Início', route: '/' },
+      { label: 'Pagamentos', route: '/pagamentos' },
+      { label: 'Pagamento' },
+    ]);
+    expect(buildBreadcrumbs('/campanhas', 'Campanhas')).toEqual([{ label: 'Início', route: '/' }, { label: 'Campanhas' }]);
+  });
 });

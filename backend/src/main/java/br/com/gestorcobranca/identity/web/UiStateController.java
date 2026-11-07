@@ -2,6 +2,7 @@ package br.com.gestorcobranca.identity.web;
 
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.ChecklistUpdate;
+import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.NavSectionUpdate;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.ScreenUpdate;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.TourUpdate;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.UiStatePatch;
@@ -59,13 +60,16 @@ class UiStateController {
             Boolean resetTours,
             @Size(max = MAX_ITEMS_PER_REQUEST) List<@NotNull @Valid TourRequest> tours,
             @Size(max = MAX_ITEMS_PER_REQUEST) List<@NotNull @Valid ScreenRequest> screens,
-            @Size(max = MAX_ITEMS_PER_REQUEST) List<@NotNull @Valid ChecklistRequest> checklist) {
+            @Size(max = MAX_ITEMS_PER_REQUEST) List<@NotNull @Valid ChecklistRequest> checklist,
+            @Size(max = MAX_ITEMS_PER_REQUEST) List<@NotNull @Valid NavSectionRequest> navigationSections) {
 
         UiStatePatch toPatch() {
             return new UiStatePatch(theme, density, navigationCollapsed, hintsEnabled, checklistDismissed, resetTours,
                     tours == null ? null : tours.stream().map(t -> new TourUpdate(t.tourId(), t.version(), t.outcome())).toList(),
                     screens == null ? null : screens.stream().map(s -> new ScreenUpdate(s.screenKey(), s.version())).toList(),
-                    checklist == null ? null : checklist.stream().map(c -> new ChecklistUpdate(c.itemId(), c.done())).toList());
+                    checklist == null ? null : checklist.stream().map(c -> new ChecklistUpdate(c.itemId(), c.done())).toList(),
+                    navigationSections == null ? null : navigationSections.stream()
+                            .map(n -> new NavSectionUpdate(n.sectionKey(), n.collapsed())).toList());
         }
     }
 
@@ -76,6 +80,10 @@ class UiStateController {
 
     record ScreenRequest(@NotNull @Size(max = 64) @Pattern(regexp = KEY) String screenKey,
                          @NotNull @Min(1) @Max(9999) Integer version) {
+    }
+
+    record NavSectionRequest(@NotNull @Size(max = 64) @Pattern(regexp = KEY) String sectionKey,
+                             @NotNull Boolean collapsed) {
     }
 
     record ChecklistRequest(@NotNull @Size(max = 64) @Pattern(regexp = KEY) String itemId,

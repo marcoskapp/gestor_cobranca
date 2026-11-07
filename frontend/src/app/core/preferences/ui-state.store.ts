@@ -33,6 +33,11 @@ export function readCachedAppearance(): CachedAppearance | null {
   }
 }
 
+/** Campos que um servidor de versão anterior não devolve ficam com o padrão. */
+function withDefaults(server: UiState): UiState {
+  return { ...server, collapsedSections: server.collapsedSections ?? [] };
+}
+
 function writeCachedAppearance(appearance: CachedAppearance): void {
   try {
     globalThis.localStorage?.setItem(APPEARANCE_KEY, JSON.stringify(appearance));
@@ -106,6 +111,13 @@ export class UiStateStore {
     this.update({ checklist: [{ itemId, done }] });
   }
 
+  /** Recolhe ou expande uma seção do menu lateral. */
+  setSectionCollapsed(sectionKey: string, collapsed: boolean): void {
+    if (this.current().collapsedSections.includes(sectionKey) !== collapsed) {
+      this.update({ navigationSections: [{ sectionKey, collapsed }] });
+    }
+  }
+
   /** Envia imediatamente o que estiver pendente (ex.: antes do logout). */
   async flush(): Promise<void> {
     this.clearTimer();
@@ -124,7 +136,7 @@ export class UiStateStore {
           if (owner === this.userId) {
             this.retries = 0;
             // o que foi pedido depois do envio continua valendo sobre a resposta do servidor
-            this.current.set(this.pending ? applyPatch(server, this.pending) : server);
+            this.current.set(this.pending ? applyPatch(withDefaults(server), this.pending) : withDefaults(server));
             this.cacheAppearance();
           }
           resolve();
@@ -168,7 +180,7 @@ export class UiStateStore {
         if (id !== this.userId) {
           return;
         }
-        this.current.set(this.pending ? applyPatch(server, this.pending) : server);
+        this.current.set(this.pending ? applyPatch(withDefaults(server), this.pending) : withDefaults(server));
         this.cacheAppearance();
         this.loadStatus.set('ready');
       },

@@ -1,4 +1,5 @@
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
+import { injectUrlStateWriter } from '../../../shared/data/url-state';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbOffcanvas, NgbOffcanvasRef, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -114,6 +115,7 @@ export class CollectionStation {
   private readonly settingsApi = inject(CollectionSettingsApi);
   private readonly queueNames = inject(QueueNames);
   private readonly router = inject(Router);
+  private readonly urlState = injectUrlStateWriter();
   private readonly dialog = inject(DialogService);
   protected readonly density = inject(DensityService);
   private readonly confirm = inject(ConfirmService);
@@ -306,11 +308,8 @@ export class CollectionStation {
     }
     this.attendance.setTab(id, tab);
     if (SHEET_TAB_SLUGS[tab] !== (this.aba() ?? SHEET_TAB_SLUGS[0])) {
-      void this.router.navigate([], {
-        queryParams: { aba: tab === 0 ? null : SHEET_TAB_SLUGS[tab] },
-        queryParamsHandling: 'merge',
-        replaceUrl: true,
-      });
+      // gravação de estado de tela (shared/data/url-state): replaceUrl, não rola a tela nem cancela um clique
+      this.urlState.write({ aba: tab === 0 ? null : SHEET_TAB_SLUGS[tab] });
     }
   }
 

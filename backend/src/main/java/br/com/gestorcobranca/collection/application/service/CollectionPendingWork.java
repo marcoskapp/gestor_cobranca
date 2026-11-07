@@ -86,7 +86,7 @@ class CollectionPendingWork implements PendingWorkSource {
             PendingWorkCount supervision = queries.disputesForSupervision(scope, request.today());
             items.add(PendingWorkItem.of(DISPUTES, "Contestações sem responsável ou com prazo vencido", supervision)
                     .hint("Atribua um responsável ou redistribua as vencidas.")
-                    .route("/cobranca/contestacoes").param("fila", "supervisao")
+                    .route("/cobranca/contestacoes").param("responsavel", "supervisao")
                     .singleRoute(id -> "/cobranca/contestacoes/" + id)
                     .build());
         }
@@ -96,19 +96,19 @@ class CollectionPendingWork implements PendingWorkSource {
             PendingWorkItem.Builder notice = PendingWorkItem.of(DEBTOR_NOTICES,
                             "Contestações resolvidas sem resposta ao devedor", notices)
                     .hint("Envie ao devedor a resposta fundamentada do resultado.")
-                    .route("/cobranca/contestacoes").param("resposta", "pendente")
+                    .route("/cobranca/contestacoes").param("situacao", "RESOLVED").param("resposta-pendente", "1")
                     .singleRoute(id -> "/cobranca/contestacoes/" + id);
             PendingWorkCount adjustments = queries.adjustmentsPending(scope, owner);
             PendingWorkItem.Builder adjustment = PendingWorkItem.of(ADJUSTMENTS,
                             "Ajustes de título pendentes após contestação procedente", adjustments)
                     .hint("Faça o ajuste sugerido no título ou dispense com o motivo.")
-                    .route("/cobranca/contestacoes").param("ajuste", "pendente")
+                    .route("/cobranca/contestacoes").param("situacao", "RESOLVED").param("ajuste-pendente", "1")
                     .singleRoute(id -> "/cobranca/contestacoes/" + id);
             PendingWorkCount mailReplies = queries.mailRepliesPending(scope, owner);
             PendingWorkItem.Builder mail = PendingWorkItem.of(MAIL_REPLIES,
                             "Respostas do credor por e-mail a confirmar", mailReplies)
                     .hint("Leia o e-mail, confira os anexos e confirme a posição do credor (ou descarte com o motivo).")
-                    .route("/cobranca/contestacoes").param("email", "pendente")
+                    .route("/cobranca/contestacoes").param("email-pendente", "1")
                     .singleRoute(id -> "/cobranca/contestacoes/" + id);
             if (!manage) {
                 notice.param("responsavel", "me");

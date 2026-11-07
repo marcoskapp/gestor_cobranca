@@ -27,7 +27,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
   selector: 'app-productivity-panel',
   imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
   template: `
-    <app-panel-frame [title]="ownOnly() ? 'Meu desempenho' : 'Produtividade da equipe'"
+    <app-panel-frame [title]="ownOnly() ? 'Minha produtividade' : 'Produtividade da equipe'"
                      subtitle="Esforço, contato, tempo de atendimento e resultado por pessoa (negociadores humanos)."
                      report="productivity" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
       <app-analytics-filters panel-filters [filter]="state.filter()"
@@ -67,7 +67,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
                   <th scope="col" class="num">Casos trabalhados <app-info-hint indicator="analytics.productivity.worked-cases" label="Casos trabalhados" /></th>
                   <th scope="col" class="num">Tentativas <app-info-hint indicator="analytics.productivity.attempts" label="Tentativas" /></th>
                   <th scope="col" class="num">Contatos efetivos <app-info-hint indicator="analytics.productivity.effective-contacts" label="Contatos efetivos" /></th>
-                  <th scope="col" class="num">TMA <app-info-hint indicator="analytics.productivity.handling-time" label="Tempo médio de atendimento" /></th>
+                  <th scope="col" class="num"><abbr title="Tempo médio de atendimento">TMA</abbr> <app-info-hint indicator="analytics.productivity.handling-time" label="TMA (tempo médio de atendimento)" /></th>
                   <th scope="col" class="num">Horas logadas <app-info-hint indicator="analytics.productivity.logged-hours" label="Horas logadas" /></th>
                   <th scope="col" class="num">Acordos <app-info-hint indicator="analytics.productivity.agreements" label="Acordos" /></th>
                   <th scope="col" class="num">Acordos/hora <app-info-hint indicator="analytics.productivity.agreements-per-hour" label="Acordos por hora logada" /></th>

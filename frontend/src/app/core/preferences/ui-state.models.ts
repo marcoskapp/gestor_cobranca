@@ -25,6 +25,8 @@ export interface UiState {
   screens: Record<string, ScreenRecord>;
   /** Item concluído → instante da conclusão. */
   checklist: Record<string, string>;
+  /** Seções do menu lateral recolhidas (`NavSection.key`). */
+  collapsedSections: string[];
 }
 
 /** Alteração parcial: campos ausentes são mantidos; listas fazem "upsert" item a item. */
@@ -38,6 +40,7 @@ export interface UiStatePatch {
   tours?: { tourId: string; version: number; outcome: TourOutcome }[];
   screens?: { screenKey: string; version: number }[];
   checklist?: { itemId: string; done: boolean }[];
+  navigationSections?: { sectionKey: string; collapsed: boolean }[];
 }
 
 export const DEFAULT_UI_STATE: UiState = {
@@ -49,6 +52,7 @@ export const DEFAULT_UI_STATE: UiState = {
   tours: {},
   screens: {},
   checklist: {},
+  collapsedSections: [],
 };
 
 /** Identificadores aceitos pelo servidor (tour, tela, item de checklist). */

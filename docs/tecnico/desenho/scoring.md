@@ -177,8 +177,11 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
 
 ## 9. Segurança, escopo e auditoria
 
-* Permissões existentes do catálogo: `SCORING_VIEW` (operador, supervisor, gestor, auditor) e `SCORING_MANAGE` (gestor,
-  admin). Sem migration de identity.
+* Permissões do catálogo: `SCORING_VIEW` (operador, supervisor, gestor, auditor, estratégia — dados do score, inclusive o
+  cartão do caso) e `SCORING_MANAGE` (gestor, estratégia, admin). `SCORING_AREA_VIEW` (gestor, estratégia, auditor,
+  admin) abre a área do score no menu e nas rotas (menu por tarefa, decisão D6 da revisão de produto de 11/2026): o
+  operador e o supervisor veem o score no caso sem ver a área. As consultas do servidor continuam exigindo
+  `SCORING_VIEW`.
 * Score do caso: caso lido pelo `collection` com o escopo do ator (404 fora do escopo); recálculo/revisão exigem o credor
   no escopo (403). Modelos, execuções, monitoramento e parâmetros usam dados de todos os credores: exigem escopo completo
   (403 + `SCOPE_DENIED`). Recuperado × esperado: filtrado pelo escopo.
@@ -212,7 +215,7 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
 ## 12. Telas (`frontend/src/app/features/scoring`)
 
 Rotas em `/score` (`scoring.routes.ts`), carregadas sob demanda pelo shell; menu "Score de propensão". Toda tela exige
-`SCORING_VIEW` (guard e menu, espelho do `@PreAuthorize` das consultas); as ações de gestão aparecem só com
+`SCORING_AREA_VIEW` (guard e menu; os dados vêm com `SCORING_VIEW`, espelho do `@PreAuthorize`); as ações de gestão aparecem só com
 `SCORING_MANAGE`. Modelos, execuções, monitoramento de estabilidade, decisões e alteração de parâmetros exigem todos os
 credores: quem tem escopo restrito vê a explicação (`app-scoring-scope-notice`) e a tela não chama a API (evita 403).
 

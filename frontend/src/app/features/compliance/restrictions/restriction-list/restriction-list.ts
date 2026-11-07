@@ -13,6 +13,7 @@ import { StatusChip } from '../../../../shared/components/status-chip/status-chi
 import { nameMap } from '../../../../shared/data/name-map';
 import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
+import { UrlCodec, syncFormWithUrl, urlParam } from '../../../../shared/data/url-state';
 import { PageRequest, PageResponse, emptyPage } from '../../../../shared/models/page';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../../shared/status/status';
@@ -29,6 +30,18 @@ import { FORM_FIELD } from '../../../../shared/forms/field';
 
 /** Filtro da tela; `blocked` = o ator não vê todos os credores e não escolheu um devedor. */
 type ListFilter = RestrictionFilter & { blocked: boolean };
+
+/**
+ * Situação na URL: o padrão da tela (vigentes) não aparece e "Todas" vira `situacao=todas`, para não cair de volta
+ * no padrão ao voltar.
+ */
+function statusParam(allowed: readonly string[]): UrlCodec<string> {
+  return {
+    param: 'situacao',
+    parse: (raw) => (raw === 'todas' ? '' : allowed.includes(raw) ? raw : undefined),
+    format: (v) => v || 'todas',
+  };
+}
 
 @Component({
   selector: 'app-restriction-list',
@@ -51,13 +64,23 @@ export class RestrictionList {
   private readonly allCreditors = computed(() => this.auth.user()?.allCreditors ?? false);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    debtor: this.fb.control<string[]>([]),
-    creditor: this.fb.control<string[]>([]),
-    type: [''],
-    status: ['ACTIVE'],
-    channel: [''],
-  });
+  /** Filtros na URL (`?devedor=&credor=&tipo=&situacao=&canal=`; devedor pelo id), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      debtor: this.fb.control<string[]>([]),
+      creditor: this.fb.control<string[]>([]),
+      type: [''],
+      status: ['ACTIVE'],
+      channel: [''],
+    }),
+    {
+      debtor: urlParam.ids('devedor'),
+      creditor: urlParam.ids('credor'),
+      type: urlParam.choice('tipo', this.types.map((t) => t.value)),
+      status: statusParam(this.statuses.map((s) => s.value)),
+      channel: urlParam.choice('canal', this.channels.map((c) => c.value)),
+    },
+  );
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -68,7 +91,7 @@ export class RestrictionList {
     { initialValue: this.currentFilter(), equal: sameValue },
   );
   protected readonly blocked = computed(() => this.filter().blocked);
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page), { url: true });
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((r) => r.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((r) => r.creditorId));

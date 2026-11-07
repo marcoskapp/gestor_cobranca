@@ -30,6 +30,9 @@ export const Permission = {
   PORTFOLIO_MANAGE: 'PORTFOLIO_MANAGE',
   POLICY_VIEW: 'POLICY_VIEW',
   POLICY_MANAGE: 'POLICY_MANAGE',
+  // áreas de consulta (menu por tarefa, D6): abrem as telas; os dados seguem as permissões de consulta
+  ORGANIZATION_AREA_VIEW: 'ORGANIZATION_AREA_VIEW',
+  POLICY_AREA_VIEW: 'POLICY_AREA_VIEW',
 
   IMPORT_VIEW: 'IMPORT_VIEW',
   IMPORT_EXECUTE: 'IMPORT_EXECUTE',
@@ -102,6 +105,7 @@ export const Permission = {
 
   SCORING_VIEW: 'SCORING_VIEW',
   SCORING_MANAGE: 'SCORING_MANAGE',
+  SCORING_AREA_VIEW: 'SCORING_AREA_VIEW',
 
   ASSISTANT_USE: 'ASSISTANT_USE',
   ASSISTANT_MANAGE: 'ASSISTANT_MANAGE',
@@ -134,7 +138,7 @@ export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly str
     label: 'Administração da assessoria',
     prefixes: ['ORG_', 'USER_', 'ROLE_', 'TEAM_', 'ACCESS_LOG_', 'AUDIT_', 'INTEGRATION_'],
   },
-  { label: 'Credores e carteiras', prefixes: ['CREDITOR_', 'CONTRACT_', 'PORTFOLIO_', 'POLICY_'] },
+  { label: 'Credores e carteiras', prefixes: ['CREDITOR_', 'CONTRACT_', 'PORTFOLIO_', 'POLICY_', 'ORGANIZATION_'] },
   { label: 'Importação', prefixes: ['IMPORT_'] },
   { label: 'Devedores e dívidas', prefixes: ['DEBTOR_', 'DEBT_'] },
   {

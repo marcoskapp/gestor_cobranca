@@ -21,7 +21,7 @@ import { UiStateStore } from '../../preferences/ui-state.store';
 import { Breadcrumbs } from '../breadcrumbs/breadcrumbs';
 import { CommandPaletteService, PaletteCommand } from '../command-palette/command-palette.service';
 import { HelpService } from '../help/help.service';
-import { NAVIGATION, NavSection, activeNavRoute } from '../navigation';
+import { NavSection, activeNavRoute, navigationFor } from '../navigation';
 
 interface Choice<T> {
   value: T;
@@ -106,10 +106,7 @@ export class Shell {
   protected readonly sections = computed<NavSection[]>(() => {
     // recalcula quando o usuário (e suas permissões) muda
     this.user();
-    return NAVIGATION.map((section) => ({
-      ...section,
-      items: section.items.filter((item) => this.auth.hasAnyPermission(item.permissions)),
-    })).filter((section) => section.items.length > 0);
+    return navigationFor((permission) => this.auth.hasPermission(permission));
   });
 
   private readonly url = toSignal(
@@ -124,6 +121,21 @@ export class Shell {
   protected readonly activeRoute = computed(() =>
     activeNavRoute(this.url(), this.sections().flatMap((section) => section.items.map((item) => item.route))),
   );
+
+  /** Seções recolhidas (preferência do servidor); a seção do item atual fica sempre aberta. */
+  private readonly collapsedSections = computed(() => new Set(this.store.state().collapsedSections ?? []));
+  private readonly activeSection = computed(() => {
+    const route = this.activeRoute();
+    return this.sections().find((section) => section.items.some((item) => item.route === route))?.key ?? null;
+  });
+
+  protected isCollapsed(section: NavSection): boolean {
+    return section.label !== null && section.key !== this.activeSection() && this.collapsedSections().has(section.key);
+  }
+
+  protected toggleSection(section: NavSection): void {
+    this.store.setSectionCollapsed(section.key, !this.collapsedSections().has(section.key));
+  }
 
   protected readonly initials = computed(() => {
     const name = this.user()?.name ?? '';

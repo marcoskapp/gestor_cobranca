@@ -9,6 +9,7 @@ import { DataTable, TableColumn } from '../../../shared/components/data-table/da
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { pagedQuery } from '../../../shared/data/paged-query';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { endOfDayInstant, fromLocalDate, startOfDayInstant } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AppValidators } from '../../../shared/validation/validators';
@@ -49,21 +50,36 @@ export class AuditTrail {
   protected readonly entityTypes = Object.entries(AUDIT_ENTITY_LABELS).map(([value, label]) => ({ value, label }));
 
   private readonly fb = inject(FormBuilder);
-  protected readonly filters = this.fb.group(
+  /**
+   * Filtros na URL (`?de=&ate=&autor=&credor=&entidade=&entidade-id=&acao=`), preservados ao voltar; ao abrir, os da
+   * URL já vêm aplicados.
+   */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group(
+      {
+        from: this.fb.control<string | null>(null),
+        to: this.fb.control<string | null>(null),
+        actor: this.fb.nonNullable.control<string[]>([]),
+        creditor: this.fb.nonNullable.control<string[]>([]),
+        entityType: this.fb.nonNullable.control(''),
+        entityId: this.fb.nonNullable.control('', [Validators.pattern(UUID)]),
+        action: this.fb.nonNullable.control('', [Validators.maxLength(100)]),
+      },
+      { validators: AppValidators.dateRange('from', 'to') },
+    ),
     {
-      from: this.fb.control<string | null>(null),
-      to: this.fb.control<string | null>(null),
-      actor: this.fb.nonNullable.control<string[]>([]),
-      creditor: this.fb.nonNullable.control<string[]>([]),
-      entityType: this.fb.nonNullable.control(''),
-      entityId: this.fb.nonNullable.control('', [Validators.pattern(UUID)]),
-      action: this.fb.nonNullable.control('', [Validators.maxLength(100)]),
+      from: urlParam.date('de'),
+      to: urlParam.date('ate'),
+      actor: urlParam.ids('autor'),
+      creditor: urlParam.ids('credor'),
+      entityType: urlParam.choice('entidade', this.entityTypes.map((e) => e.value)),
+      entityId: urlParam.id('entidade-id'),
+      action: urlParam.text('acao'),
     },
-    { validators: AppValidators.dateRange('from', 'to') },
   );
 
-  private readonly filter = signal<AuditFilter>({});
-  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.audit(filter, page), 50);
+  private readonly filter = signal<AuditFilter>(this.filters.valid ? this.currentFilter() : {});
+  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.audit(filter, page), { initialSize: 50, url: true });
   protected readonly checking = signal(false);
   protected readonly integrity = signal<IntegrityReport | null>(null);
   protected readonly rowKey = (entry: AuditLogEntry): unknown => entry.seq;
@@ -92,8 +108,12 @@ export class AuditTrail {
       this.filters.markAllAsTouched();
       return;
     }
+    this.filter.set(this.currentFilter());
+  }
+
+  private currentFilter(): AuditFilter {
     const v = this.filters.getRawValue();
-    this.filter.set({
+    return {
       from: startOfDayInstant(fromLocalDate(v.from)),
       to: endOfDayInstant(fromLocalDate(v.to)),
       actorId: v.actor[0] ?? null,
@@ -101,7 +121,7 @@ export class AuditTrail {
       entityType: v.entityType || null,
       entityId: v.entityId.trim() || null,
       action: v.action.trim() || null,
-    });
+    };
   }
 
   protected clear(): void {

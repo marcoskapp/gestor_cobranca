@@ -44,6 +44,7 @@ import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -73,6 +74,11 @@ import java.util.UUID;
 class ProposalService implements ProposalUseCases {
 
     static final String RESOURCE = "negotiation_proposal";
+    /** Ordenação da consulta de propostas (colunas da lista): criação e total. */
+    static final SortableFields SEARCH_SORT = SortableFields.builder()
+            .field("createdAt", "createdAt")
+            .field("totalAmount", "totalAmount")
+            .build();
     /** Motivo e referência do pedido de transferência ({@code HandoffRequested}, contrato do communication). */
     static final String HANDOFF_REASON = "REQUIRES_APPROVAL";
     static final String RESOURCE_REFERENCE = "proposal";
@@ -329,7 +335,7 @@ class ProposalService implements ProposalUseCases {
                 DebtorSelfScope.debtorFilter(actor, filter.debtorId()), filter.caseId(), status,
                 actor.isAssistant() || filter.mine() ? actor.type().name() : filter.actorType(),
                 actor.isAssistant() || filter.mine() ? actor.id() : null,
-                page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
+                page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
                 p -> views.proposal(p, minimized(actor)));
     }
 

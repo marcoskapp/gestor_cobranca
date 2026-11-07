@@ -69,7 +69,7 @@ interface AgreementJpaRepository extends JpaRepository<Agreement, UUID>, Agreeme
 - Prefixo `ApiPaths.V1`; recursos no plural (`/agreements/{id}/installments`).
 - `@PreAuthorize("hasAuthority('PERMISSAO')")` em todo endpoint. Permissões novas: `shared.security.Permission` + `DefaultRoles`.
 - Request = record com Bean Validation (`@NotNull`, `@Size`, `@Pattern`), convertido em command. Resposta = View do caso de uso ou `PageResponse<View>` (`shared.paging`).
-- Paginação: `PageQuery.of(page, size)` (máx. 200).
+- Paginação: `PageQuery.of(page, size)` (máx. 200). Ordenação por coluna: `PageQuery.of(page, size, sort)` com `sort=campo,asc|desc` e lista branca por consulta (`SortableFields` no serviço: nome público → propriedade da entidade, desempate por `id`); campo fora da lista → 400 `request.invalid_sort`. Nunca ordene por coluna cifrada ou sem índice.
 - Webhooks: `ApiPaths.WEBHOOKS + "/<provedor>/{routingKey}"`, declarados como bean `PublicEndpoint`, com validação de assinatura/segredo antes de qualquer processamento; assinatura inválida → `AccessEventType.WEBHOOK_REJECTED`.
 - Erros: lance exceções de domínio; o `GlobalExceptionHandler` produz RFC 9457 com `code` e `requestId`.
 

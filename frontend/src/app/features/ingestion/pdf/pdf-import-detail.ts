@@ -1,4 +1,5 @@
 import { DecimalPipe } from '@angular/common';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
@@ -45,7 +46,7 @@ const POLL_MS = 3000;
     } @else if (resource.status() === 'error' && !current()) {
       <app-empty-state icon="file-earmark-pdf" tone="error" title="Não foi possível abrir a importação PDF." message="Ela pode não existir ou o credor estar fora do seu escopo.">
         <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-        <a class="btn btn-link" routerLink="/importacao">Voltar para importações</a>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/importacao')">Voltar para importações</a>
       </app-empty-state>
     }
     @if (current(); as v) {
@@ -365,6 +366,8 @@ const POLL_MS = 3000;
   `,
 })
 export class PdfImportDetail {
+  /** Volta para a lista com os filtros e a página de quando o usuário saiu dela. */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
   private readonly api = inject(PdfImportsApi);
   private readonly auth = inject(AuthService);

@@ -61,11 +61,12 @@ class CollectionCaseController {
                                   @RequestParam(required = false) String ownerType,
                                   @RequestParam(required = false) Boolean eligible,
                                   @RequestParam(required = false) Integer page,
-                                  @RequestParam(required = false) Integer size) {
+                                  @RequestParam(required = false) Integer size,
+                                  @RequestParam(required = false) String sort) {
         UUID assigneeId = assignee == null || assignee.isBlank() ? null
                 : "me".equalsIgnoreCase(assignee) ? currentActor.actorId() : parseId(assignee);
         return cases.search(new CaseFilter(creditorId, portfolioId, debtorId, status, queueId, assigneeId, ownerType,
-                eligible), PageQuery.of(page, size));
+                eligible), PageQuery.of(page, size, sort));
     }
 
     @GetMapping("/cases/{id}")

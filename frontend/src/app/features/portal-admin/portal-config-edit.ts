@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { recordLabel } from '../../core/layout/breadcrumbs/breadcrumbs';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -60,6 +61,8 @@ export class PortalConfigEdit {
     stream: ({ params }) => (params ? this.api.get(params) : of(undefined)),
   });
   protected readonly current = valueOr(this.config, undefined);
+  /** Nome do registro na trilha e no "Voltar para" de quem sair desta ficha. */
+  protected readonly crumb = recordLabel(() => this.current()?.displayName);
   protected readonly privacyHint = computed(() => {
     const version = this.current()?.privacyNoticeVersion;
     const base = 'Alterar o texto cria nova versão; os devedores confirmam de novo.';

@@ -1,7 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
 import { debounceTime, finalize, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -10,6 +9,7 @@ import { EntityPicker } from '../../../shared/components/entity-picker/entity-pi
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { isoDate } from '../../../shared/models/dates';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { ReceiptTable } from '../components/receipt-table';
@@ -84,15 +84,24 @@ export class ReceiptList {
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.COMMISSION_MANAGE));
   protected readonly rating = signal(false);
 
-  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>(this.params.get('credor') ? [this.params.get('credor')!] : []),
-    rating: [this.params.get('apuracao') ?? ''],
-    inStatement: [''],
-    from: this.fb.control<string | null>(null),
-    to: this.fb.control<string | null>(null),
-  });
+  /** Filtros na URL (`?credor=&apuracao=&prestado=&pago-de=&pago-ate=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      rating: [''],
+      inStatement: [''],
+      from: this.fb.control<string | null>(null),
+      to: this.fb.control<string | null>(null),
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      rating: urlParam.choice('apuracao', ['RATED', 'PENDING_RULES']),
+      inStatement: urlParam.choice('prestado', ['true', 'false']),
+      from: urlParam.date('pago-de'),
+      to: urlParam.date('pago-ate'),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -102,7 +111,7 @@ export class ReceiptList {
     { initialValue: this.current(), equal: sameValue },
   );
   protected readonly creditorId = computed(() => this.filter().creditorId);
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
 
   protected clear(): void {
     this.filters.reset({ creditor: [], rating: '', inStatement: '', from: null, to: null });

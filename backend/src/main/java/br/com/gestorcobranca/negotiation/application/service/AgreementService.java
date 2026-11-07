@@ -22,6 +22,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -51,6 +52,11 @@ import java.util.stream.Collectors;
 class AgreementService implements AgreementUseCases {
 
     static final String RESOURCE = "negotiation_agreement";
+    /** Ordenação da consulta de acordos (colunas da lista): formalização e total. */
+    static final SortableFields SEARCH_SORT = SortableFields.builder()
+            .field("formalizedAt", "formalizedAt")
+            .field("totalAmount", "totalAmount")
+            .build();
 
     private final AgreementRepository agreements;
     private final AgreementRecorder recorder;
@@ -107,7 +113,8 @@ class AgreementService implements AgreementUseCases {
                 : ProposalService.enumValue(AgreementStatus.class, filter.status(), "agreement.status_invalid");
         UUID debtorId = DebtorSelfScope.debtorFilter(currentActor.get(), filter.debtorId());
         return PageResponse.of(agreements.search(allowed, filter.creditorId(), debtorId, filter.caseId(), status,
-                page.toPageable(Sort.by(Sort.Direction.DESC, "formalizedAt").and(Sort.by("id")))), views::agreement);
+                page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "formalizedAt").and(Sort.by("id")))),
+                views::agreement);
     }
 
     @Override

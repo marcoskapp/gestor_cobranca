@@ -3,25 +3,48 @@ import { Permission } from '../auth/permission';
 
 export interface NavItem {
   label: string;
-  /** Ícone do Bootstrap Icons (`app-icon`). */
+  /** Ícone do Bootstrap Icons (`app-icon`): só contorno (sem `-fill`) e um por item (4-design.md §3.8). */
   icon: IconName;
   route: string;
-  /** Exibido se o usuário tiver ao menos uma das permissões (vazio = todos os autenticados). */
+  /**
+   * Quem tem a tarefa: exibido se o usuário tiver ao menos uma das permissões (vazio = todos os autenticados).
+   * Menu por tarefa (D6): ver um dado em outra tela não põe a área no menu.
+   */
   permissions: readonly string[];
+  /**
+   * Quem abre a tela, mas não pelo menu: as permissões entram na rota (`data.permissions`), e a tela é alcançada a
+   * partir de `via` (outro item do menu, visível para essas permissões). Ex.: o operador vê os próprios extratos a
+   * partir de "Meu desempenho".
+   */
+  openedFrom?: { permissions: readonly string[]; via: string };
+  /**
+   * Exigidas todas, além de uma de `permissions` (rota: `data.allPermissions`): a área de consulta só abre com a
+   * consulta dos dados (D6), para que o menu nunca leve a uma tela que o servidor recusaria.
+   */
+  alsoRequires?: readonly string[];
+  /** Nome do item para quem só tem `permission` entre as do item (ex.: "Meu desempenho" para o negociador). */
+  ownLabel?: { permission: string; label: string };
 }
 
 export interface NavSection {
+  /** Identificador estável da seção (estado recolhido nas preferências do servidor). */
+  key: string;
   label: string | null;
   items: readonly NavItem[];
 }
 
-/** Remuneração variável (módulo incentive): mesmas listas de `INCENTIVE_PERMISSIONS`. */
-const PERFORMANCE = [Permission.PERFORMANCE_VIEW_OWN, Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL];
-const COMMISSION_STATEMENTS = [...PERFORMANCE, Permission.COMMISSION_STATEMENT_MANAGE, Permission.COMMISSION_STATEMENT_APPROVE];
+const P = Permission;
+/** Desempenho dos negociadores (módulo incentive): o próprio, o da equipe ou o de todos. */
+const PERFORMANCE = [P.PERFORMANCE_VIEW_OWN, P.PERFORMANCE_VIEW_TEAM, P.PERFORMANCE_VIEW_ALL];
+/** Quem acompanha o desempenho de outras pessoas (o negociador abre o próprio a partir de "Meu desempenho"). */
+const OTHERS_PERFORMANCE = [P.PERFORMANCE_VIEW_TEAM, P.PERFORMANCE_VIEW_ALL];
+const COMMISSION_WORK = [P.COMMISSION_STATEMENT_MANAGE, P.COMMISSION_STATEMENT_APPROVE];
+const FROM_MY_PERFORMANCE = { permissions: [P.PERFORMANCE_VIEW_OWN], via: '/remuneracao/desempenho' };
 
-/** Menu principal. Cada rota repete as permissões em `data.permissions` (permissionGuard). */
+/** Menu principal. Cada rota repete as permissões (`permissions` + `openedFrom`) em `data.permissions` (permissionGuard). */
 export const NAVIGATION: readonly NavSection[] = [
   {
+    key: 'inicio',
     label: null,
     items: [
       { label: 'Início', icon: 'house', route: '/', permissions: [] },
@@ -29,260 +52,343 @@ export const NAVIGATION: readonly NavSection[] = [
     ],
   },
   {
+    key: 'paineis',
     label: 'Painéis',
     items: [
-      { label: 'Painel operacional', icon: 'grid-1x2', route: '/paineis', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW] },
-      { label: 'Recuperação', icon: 'cash-stack', route: '/paineis/recuperacao', permissions: [Permission.REPORT_VIEW] },
-      { label: 'Conversão', icon: 'funnel', route: '/paineis/conversao', permissions: [Permission.REPORT_VIEW] },
+      { label: 'Painel operacional', icon: 'grid-1x2', route: '/paineis', permissions: [P.DASHBOARD_VIEW, P.REPORT_VIEW] },
+      { label: 'Recuperação', icon: 'graph-up-arrow', route: '/paineis/recuperacao', permissions: [P.REPORT_VIEW] },
+      { label: 'Conversão', icon: 'funnel', route: '/paineis/conversao', permissions: [P.REPORT_VIEW] },
       {
         label: 'Produtividade',
-        icon: 'people-fill',
+        icon: 'speedometer2',
         route: '/paineis/produtividade',
-        permissions: [
-          Permission.PERFORMANCE_VIEW_OWN,
-          Permission.PERFORMANCE_VIEW_TEAM,
-          Permission.PERFORMANCE_VIEW_ALL,
-          Permission.COMMISSION_STATEMENT_MANAGE,
-          Permission.COMMISSION_STATEMENT_APPROVE,
-        ],
+        permissions: [...OTHERS_PERFORMANCE, ...COMMISSION_WORK],
+        openedFrom: FROM_MY_PERFORMANCE,
       },
-      { label: 'Contestações', icon: 'hammer', route: '/paineis/contestacoes', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW, Permission.DISPUTE_MANAGE] },
-      { label: 'Confiabilidade', icon: 'activity', route: '/paineis/confiabilidade', permissions: [Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW] },
+      {
+        label: 'Painel de contestações',
+        icon: 'flag',
+        route: '/paineis/contestacoes',
+        permissions: [P.DASHBOARD_VIEW, P.REPORT_VIEW, P.DISPUTE_MANAGE],
+      },
+      { label: 'Confiabilidade', icon: 'activity', route: '/paineis/confiabilidade', permissions: [P.DASHBOARD_VIEW, P.REPORT_VIEW] },
     ],
   },
   {
+    key: 'cobranca',
     label: 'Cobrança',
     items: [
-      { label: 'Estação de cobrança', icon: 'headset', route: '/cobranca/fila', permissions: [Permission.CASE_WORK] },
+      { label: 'Estação de cobrança', icon: 'headset', route: '/cobranca/fila', permissions: [P.CASE_WORK] },
+      { label: 'Agenda de retornos', icon: 'calendar-week', route: '/cobranca/agenda', permissions: [P.CASE_WORK, P.TASK_MANAGE] },
+      { label: 'Casos', icon: 'briefcase', route: '/cobranca/casos', permissions: [P.CASE_VIEW] },
+      { label: 'Devedores', icon: 'person', route: '/devedores', permissions: [P.DEBTOR_VIEW] },
+      { label: 'Títulos', icon: 'file-earmark-text', route: '/titulos', permissions: [P.DEBTOR_VIEW, P.CASE_VIEW] },
       {
-        label: 'Agenda de retornos',
-        icon: 'calendar-week',
-        route: '/cobranca/agenda',
-        permissions: [Permission.CASE_WORK, Permission.TASK_MANAGE],
+        label: 'Correções de valor',
+        icon: 'pencil-square',
+        route: '/titulos/correcoes-de-valor',
+        permissions: [P.TITLE_AMOUNT_ADJUST, P.TITLE_AMOUNT_APPROVE],
       },
-      { label: 'Casos', icon: 'briefcase', route: '/cobranca/casos', permissions: [Permission.CASE_VIEW] },
-      { label: 'Devedores', icon: 'person-bounding-box', route: '/devedores', permissions: [Permission.DEBTOR_VIEW] },
-      { label: 'Títulos', icon: 'file-earmark-text', route: '/titulos', permissions: [Permission.DEBTOR_VIEW, Permission.CASE_VIEW] },
-      { label: 'Correções de valor', icon: 'pencil-square', route: '/titulos/correcoes-de-valor', permissions: [Permission.TITLE_AMOUNT_ADJUST, Permission.TITLE_AMOUNT_APPROVE] },
     ],
   },
   {
+    key: 'comunicacao',
     label: 'Comunicação',
     items: [
-      { label: 'Caixa de entrada', icon: 'chat-left-text', route: '/conversas', permissions: [Permission.INBOX_VIEW] },
-      { label: 'Templates', icon: 'file-earmark-text', route: '/conversas/templates', permissions: [Permission.TEMPLATE_MANAGE] },
-      { label: 'Canais', icon: 'broadcast-pin', route: '/conversas/canais', permissions: [Permission.CHANNEL_MANAGE] },
+      { label: 'Caixa de entrada', icon: 'chat-left-text', route: '/conversas', permissions: [P.INBOX_VIEW] },
+      { label: 'Templates', icon: 'envelope', route: '/conversas/templates', permissions: [P.TEMPLATE_MANAGE] },
+      { label: 'Canais', icon: 'broadcast-pin', route: '/conversas/canais', permissions: [P.CHANNEL_MANAGE] },
     ],
   },
   {
-    label: 'Assistente de IA',
+    key: 'negociacao',
+    label: 'Negociação',
     items: [
-      { label: 'Políticas do assistente', icon: 'robot', route: '/assistente/politicas', permissions: [Permission.ASSISTANT_MANAGE, Permission.ASSISTANT_REVIEW] },
-      { label: 'Revisão de turnos', icon: 'chat-square-text', route: '/assistente/revisao', permissions: [Permission.ASSISTANT_REVIEW] },
-      { label: 'Qualidade do assistente', icon: 'graph-up', route: '/assistente/qualidade', permissions: [Permission.ASSISTANT_REVIEW] },
+      { label: 'Simulador', icon: 'calculator', route: '/negociacao/simulador', permissions: [P.NEGOTIATION_SIMULATE] },
+      {
+        label: 'Propostas',
+        icon: 'clipboard',
+        route: '/negociacao/propostas',
+        permissions: [P.AGREEMENT_VIEW, P.NEGOTIATION_PROPOSE, P.NEGOTIATION_APPROVE],
+      },
+      { label: 'Aprovações', icon: 'person-check', route: '/negociacao/aprovacoes', permissions: [P.NEGOTIATION_APPROVE] },
+      { label: 'Acordos', icon: 'patch-check', route: '/negociacao/acordos', permissions: [P.AGREEMENT_VIEW] },
+      { label: 'Políticas de cobrança', icon: 'shield-check', route: '/negociacao/politicas', permissions: [P.POLICY_AREA_VIEW], alsoRequires: [P.POLICY_VIEW] },
+      { label: 'Índices de correção', icon: 'graph-down-arrow', route: '/negociacao/indices', permissions: [P.POLICY_AREA_VIEW], alsoRequires: [P.POLICY_VIEW] },
+      { label: 'Alçadas', icon: 'shield-lock', route: '/negociacao/alcadas', permissions: [P.AUTHORITY_MANAGE] },
     ],
   },
   {
-    label: 'Telefonia',
+    key: 'gestao-da-cobranca',
+    label: 'Gestão da cobrança',
     items: [
-      { label: 'Campanhas de discagem', icon: 'telephone-forward', route: '/telefonia/campanhas', permissions: [Permission.TELEPHONY_SUPERVISE] },
-      { label: 'Chamadas e gravações', icon: 'telephone', route: '/telefonia/chamadas', permissions: [Permission.TELEPHONY_SUPERVISE] },
-      { label: 'Operadores e ramais', icon: 'headset', route: '/telefonia/operadores', permissions: [Permission.TELEPHONY_SUPERVISE] },
-      { label: 'Plataformas de telefonia', icon: 'plug', route: '/telefonia/plataformas', permissions: [Permission.TELEPHONY_MANAGE] },
+      { label: 'Filas e distribuição', icon: 'view-list', route: '/cobranca/filas', permissions: [P.QUEUE_MANAGE, P.CASE_ASSIGN] },
+      { label: 'Contestações', icon: 'patch-exclamation', route: '/cobranca/contestacoes', permissions: [P.DISPUTE_MANAGE, P.DISPUTE_WORK] },
+      { label: 'Tabulações', icon: 'tag', route: '/cobranca/tabulacoes', permissions: [P.TABULATION_MANAGE] },
+      { label: 'Parâmetros da operação', icon: 'sliders', route: '/cobranca/parametros', permissions: [P.QUEUE_MANAGE] },
     ],
   },
   {
+    key: 'portal-do-devedor',
+    label: 'Portal do devedor',
+    items: [
+      { label: 'Portal de autonegociação', icon: 'shop-window', route: '/autonegociacao', permissions: [P.PORTAL_MANAGE] },
+      { label: 'Pedidos do portal', icon: 'mailbox', route: '/autonegociacao/pedidos', permissions: [P.INBOX_VIEW] },
+    ],
+  },
+  {
+    key: 'pagamentos',
+    label: 'Pagamentos',
+    items: [
+      { label: 'Pagamentos', icon: 'cash-stack', route: '/pagamentos', permissions: [P.PAYMENT_VIEW] },
+      { label: 'Instruções de pagamento', icon: 'qr-code', route: '/pagamentos/instrucoes', permissions: [P.PAYMENT_VIEW] },
+      { label: 'Aprovação de pagamentos', icon: 'check2-circle', route: '/pagamentos/aprovacoes', permissions: [P.PAYMENT_REVIEW] },
+      { label: 'Sobras e realocação', icon: 'piggy-bank', route: '/pagamentos/sobras', permissions: [P.RECONCILIATION_MANAGE] },
+      { label: 'Conciliação', icon: 'bank', route: '/pagamentos/conciliacao', permissions: [P.RECONCILIATION_MANAGE] },
+      { label: 'Divergências', icon: 'arrow-left-right', route: '/pagamentos/divergencias', permissions: [P.RECONCILIATION_MANAGE] },
+      { label: 'Contas Pix', icon: 'wallet2', route: '/pagamentos/contas-pix', permissions: [P.INTEGRATION_MANAGE] },
+      {
+        label: 'Parâmetros de pagamentos',
+        icon: 'credit-card',
+        route: '/pagamentos/parametros',
+        permissions: [P.ORG_SETTINGS_MANAGE, P.PAYMENT_REVIEW, P.RECONCILIATION_MANAGE],
+      },
+    ],
+  },
+  {
+    key: 'remuneracao-variavel',
+    label: 'Remuneração variável',
+    items: [
+      {
+        label: 'Desempenho',
+        icon: 'bar-chart',
+        route: '/remuneracao/desempenho',
+        permissions: PERFORMANCE,
+        ownLabel: { permission: P.PERFORMANCE_VIEW_OWN, label: 'Meu desempenho' },
+      },
+      {
+        label: 'Extratos de comissão',
+        icon: 'file-earmark-check',
+        route: '/remuneracao/extratos',
+        permissions: [...OTHERS_PERFORMANCE, ...COMMISSION_WORK],
+        openedFrom: FROM_MY_PERFORMANCE,
+      },
+      {
+        label: 'Lançamentos de comissão',
+        icon: 'journal-text',
+        route: '/remuneracao/lancamentos',
+        permissions: [...OTHERS_PERFORMANCE, ...COMMISSION_WORK],
+        openedFrom: FROM_MY_PERFORMANCE,
+      },
+      { label: 'Planos de remuneração', icon: 'list-task', route: '/remuneracao/planos', permissions: [P.COMMISSION_PLAN_MANAGE] },
+      { label: 'Metas por período', icon: 'record-circle', route: '/remuneracao/metas', permissions: [P.COMMISSION_PLAN_MANAGE] },
+      { label: 'Períodos de apuração', icon: 'calendar-check', route: '/remuneracao/periodos', permissions: [P.COMMISSION_STATEMENT_MANAGE] },
+      { label: 'Exportação para a folha', icon: 'download', route: '/remuneracao/exportacao', permissions: [P.COMMISSION_STATEMENT_APPROVE] },
+    ],
+  },
+  {
+    key: 'qualidade',
+    label: 'Qualidade',
+    items: [
+      {
+        label: 'Monitoria de qualidade',
+        icon: 'clipboard-check',
+        route: '/remuneracao/qualidade/avaliacoes',
+        permissions: [...OTHERS_PERFORMANCE, P.QUALITY_EVALUATE],
+        openedFrom: FROM_MY_PERFORMANCE,
+      },
+      {
+        label: 'Ocorrências de conduta',
+        icon: 'exclamation-octagon',
+        route: '/remuneracao/qualidade/ocorrencias',
+        permissions: [...OTHERS_PERFORMANCE, P.QUALITY_EVALUATE],
+        openedFrom: FROM_MY_PERFORMANCE,
+      },
+      {
+        label: 'Formulários de monitoria',
+        icon: 'card-checklist',
+        route: '/remuneracao/qualidade/formularios',
+        permissions: [...OTHERS_PERFORMANCE, P.QUALITY_EVALUATE],
+      },
+    ],
+  },
+  {
+    key: 'campanhas',
     label: 'Campanhas',
     items: [
       {
         label: 'Campanhas',
         icon: 'megaphone',
         route: '/campanhas',
-        permissions: [Permission.CAMPAIGN_VIEW, Permission.CAMPAIGN_MANAGE, Permission.CAMPAIGN_EXECUTE],
+        permissions: [P.CAMPAIGN_VIEW, P.CAMPAIGN_MANAGE, P.CAMPAIGN_EXECUTE],
       },
       {
         label: 'Segmentos',
-        icon: 'funnel',
+        icon: 'tags',
         route: '/campanhas/segmentos',
-        permissions: [Permission.SEGMENT_MANAGE, Permission.CAMPAIGN_MANAGE, Permission.CAMPAIGN_VIEW],
+        permissions: [P.SEGMENT_MANAGE, P.CAMPAIGN_MANAGE, P.CAMPAIGN_VIEW],
       },
-      { label: 'Testes A/B', icon: 'eyedropper', route: '/campanhas/testes', permissions: [Permission.EXPERIMENT_MANAGE, Permission.CAMPAIGN_VIEW] },
+      { label: 'Testes A/B', icon: 'eyedropper', route: '/campanhas/testes', permissions: [P.EXPERIMENT_MANAGE, P.CAMPAIGN_VIEW] },
     ],
   },
   {
-    label: 'Gestão da cobrança',
-    items: [
-      { label: 'Filas e distribuição', icon: 'view-list', route: '/cobranca/filas', permissions: [Permission.QUEUE_MANAGE, Permission.CASE_ASSIGN] },
-      { label: 'Contestações', icon: 'hammer', route: '/cobranca/contestacoes', permissions: [Permission.DISPUTE_MANAGE, Permission.DISPUTE_WORK] },
-      { label: 'Tabulações', icon: 'tag', route: '/cobranca/tabulacoes', permissions: [Permission.TABULATION_MANAGE] },
-      { label: 'Parâmetros da operação', icon: 'sliders', route: '/cobranca/parametros', permissions: [Permission.QUEUE_MANAGE] },
-    ],
-  },
-  {
+    key: 'score-de-propensao',
     label: 'Score de propensão',
     items: [
-      { label: 'Modelos do score', icon: 'diagram-3', route: '/score/modelos', permissions: [Permission.SCORING_VIEW] },
-      { label: 'Execuções do score', icon: 'arrow-repeat', route: '/score/execucoes', permissions: [Permission.SCORING_VIEW] },
-      { label: 'Monitoramento do score', icon: 'activity', route: '/score/monitoramento', permissions: [Permission.SCORING_VIEW] },
-      { label: 'Decisões e variáveis', icon: 'card-checklist', route: '/score/transparencia', permissions: [Permission.SCORING_VIEW] },
-      { label: 'Parâmetros do score', icon: 'sliders', route: '/score/parametros', permissions: [Permission.SCORING_VIEW] },
+      { label: 'Modelos do score', icon: 'diagram-3', route: '/score/modelos', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
+      { label: 'Execuções do score', icon: 'arrow-repeat', route: '/score/execucoes', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
+      { label: 'Monitoramento do score', icon: 'bar-chart-steps', route: '/score/monitoramento', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
+      { label: 'Decisões e variáveis', icon: 'card-list', route: '/score/transparencia', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
+      { label: 'Parâmetros do score', icon: 'toggle-on', route: '/score/parametros', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
     ],
   },
   {
-    label: 'Negociação',
+    key: 'assistente-de-ia',
+    label: 'Assistente de IA',
     items: [
-      { label: 'Simulador', icon: 'calculator', route: '/negociacao/simulador', permissions: [Permission.NEGOTIATION_SIMULATE] },
-      {
-        label: 'Propostas',
-        icon: 'clipboard',
-        route: '/negociacao/propostas',
-        permissions: [Permission.AGREEMENT_VIEW, Permission.NEGOTIATION_PROPOSE, Permission.NEGOTIATION_APPROVE],
-      },
-      { label: 'Aprovações', icon: 'person-check', route: '/negociacao/aprovacoes', permissions: [Permission.NEGOTIATION_APPROVE] },
-      { label: 'Acordos', icon: 'person-hearts', route: '/negociacao/acordos', permissions: [Permission.AGREEMENT_VIEW] },
-      { label: 'Políticas de cobrança', icon: 'shield-check', route: '/negociacao/politicas', permissions: [Permission.POLICY_VIEW] },
-      { label: 'Índices de correção', icon: 'graph-up-arrow', route: '/negociacao/indices', permissions: [Permission.POLICY_VIEW] },
-      { label: 'Alçadas', icon: 'shield-check', route: '/negociacao/alcadas', permissions: [Permission.AUTHORITY_MANAGE] },
+      { label: 'Políticas do assistente', icon: 'robot', route: '/assistente/politicas', permissions: [P.ASSISTANT_MANAGE, P.ASSISTANT_REVIEW] },
+      { label: 'Revisão de turnos', icon: 'chat-square-text', route: '/assistente/revisao', permissions: [P.ASSISTANT_REVIEW] },
+      { label: 'Qualidade do assistente', icon: 'stars', route: '/assistente/qualidade', permissions: [P.ASSISTANT_REVIEW] },
     ],
   },
   {
-    label: 'Portal do devedor',
+    key: 'telefonia',
+    label: 'Telefonia',
     items: [
-      { label: 'Portal de autonegociação', icon: 'shop-window', route: '/autonegociacao', permissions: [Permission.PORTAL_MANAGE] },
-      { label: 'Pedidos do portal', icon: 'headset', route: '/autonegociacao/pedidos', permissions: [Permission.INBOX_VIEW] },
+      { label: 'Campanhas de discagem', icon: 'telephone-forward', route: '/telefonia/campanhas', permissions: [P.TELEPHONY_SUPERVISE] },
+      { label: 'Chamadas e gravações', icon: 'telephone', route: '/telefonia/chamadas', permissions: [P.TELEPHONY_SUPERVISE] },
+      { label: 'Operadores e ramais', icon: 'person-badge', route: '/telefonia/operadores', permissions: [P.TELEPHONY_SUPERVISE] },
+      { label: 'Plataformas de telefonia', icon: 'plug', route: '/telefonia/plataformas', permissions: [P.TELEPHONY_MANAGE] },
     ],
   },
   {
-    label: 'Pagamentos',
-    items: [
-      { label: 'Pagamentos', icon: 'cash-stack', route: '/pagamentos', permissions: [Permission.PAYMENT_VIEW] },
-      { label: 'Instruções de pagamento', icon: 'qr-code', route: '/pagamentos/instrucoes', permissions: [Permission.PAYMENT_VIEW] },
-      { label: 'Aprovação de pagamentos', icon: 'person-check', route: '/pagamentos/aprovacoes', permissions: [Permission.PAYMENT_REVIEW] },
-      { label: 'Sobras e realocação', icon: 'piggy-bank', route: '/pagamentos/sobras', permissions: [Permission.RECONCILIATION_MANAGE] },
-      { label: 'Conciliação', icon: 'bank', route: '/pagamentos/conciliacao', permissions: [Permission.RECONCILIATION_MANAGE] },
-      { label: 'Divergências', icon: 'list-check', route: '/pagamentos/divergencias', permissions: [Permission.RECONCILIATION_MANAGE] },
-      { label: 'Contas Pix', icon: 'wallet2', route: '/pagamentos/contas-pix', permissions: [Permission.INTEGRATION_MANAGE] },
-      {
-        label: 'Parâmetros de pagamentos',
-        icon: 'sliders',
-        route: '/pagamentos/parametros',
-        permissions: [Permission.ORG_SETTINGS_MANAGE, Permission.PAYMENT_REVIEW, Permission.RECONCILIATION_MANAGE],
-      },
-    ],
-  },
-  {
+    key: 'prestacao-de-contas',
     label: 'Prestação de contas',
     items: [
-      { label: 'Posição do credor', icon: 'graph-up', route: '/posicao-credor', permissions: [Permission.SETTLEMENT_VIEW, Permission.PUBLIC_API_USAGE_VIEW] },
-      { label: 'Demonstrativos', icon: 'file-earmark-ruled', route: '/prestacao-de-contas/demonstrativos', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_CLOSE, Permission.SETTLEMENT_APPROVE] },
-      { label: 'Repasses ao credor', icon: 'bank', route: '/prestacao-de-contas/repasses', permissions: [Permission.SETTLEMENT_VIEW, Permission.SETTLEMENT_TRANSFER] },
-      { label: 'Razão de comissão', icon: 'receipt', route: '/prestacao-de-contas/razao', permissions: [Permission.COMMISSION_VIEW, Permission.SETTLEMENT_VIEW] },
-      { label: 'Regras de comissão', icon: 'percent', route: '/prestacao-de-contas/regras', permissions: [Permission.COMMISSION_VIEW, Permission.COMMISSION_MANAGE] },
+      { label: 'Posição do credor', icon: 'graph-up', route: '/posicao-credor', permissions: [P.SETTLEMENT_VIEW, P.PUBLIC_API_USAGE_VIEW] },
+      {
+        label: 'Demonstrativos',
+        icon: 'file-earmark-ruled',
+        route: '/prestacao-de-contas/demonstrativos',
+        permissions: [P.SETTLEMENT_VIEW, P.SETTLEMENT_CLOSE, P.SETTLEMENT_APPROVE],
+      },
+      { label: 'Repasses ao credor', icon: 'send', route: '/prestacao-de-contas/repasses', permissions: [P.SETTLEMENT_VIEW, P.SETTLEMENT_TRANSFER] },
+      { label: 'Razão de comissão', icon: 'receipt', route: '/prestacao-de-contas/razao', permissions: [P.COMMISSION_VIEW, P.SETTLEMENT_VIEW] },
+      { label: 'Regras de comissão', icon: 'percent', route: '/prestacao-de-contas/regras', permissions: [P.COMMISSION_VIEW, P.COMMISSION_MANAGE] },
     ],
   },
   {
-    label: 'Remuneração variável',
-    items: [
-      { label: 'Desempenho', icon: 'speedometer2', route: '/remuneracao/desempenho', permissions: PERFORMANCE },
-      { label: 'Extratos de comissão', icon: 'receipt', route: '/remuneracao/extratos', permissions: COMMISSION_STATEMENTS },
-      { label: 'Lançamentos de comissão', icon: 'journal-text', route: '/remuneracao/lancamentos', permissions: COMMISSION_STATEMENTS },
-      { label: 'Planos de remuneração', icon: 'sliders', route: '/remuneracao/planos', permissions: [Permission.COMMISSION_PLAN_MANAGE] },
-      { label: 'Metas por período', icon: 'flag', route: '/remuneracao/metas', permissions: [Permission.COMMISSION_PLAN_MANAGE] },
-      { label: 'Períodos de apuração', icon: 'calendar-check', route: '/remuneracao/periodos', permissions: [Permission.COMMISSION_STATEMENT_MANAGE] },
-      { label: 'Exportação para a folha', icon: 'download', route: '/remuneracao/exportacao', permissions: [Permission.COMMISSION_STATEMENT_APPROVE] },
-      { label: 'Monitoria de qualidade', icon: 'clipboard-check', route: '/remuneracao/qualidade/avaliacoes', permissions: [...PERFORMANCE, Permission.QUALITY_EVALUATE] },
-      { label: 'Ocorrências de conduta', icon: 'shield-exclamation', route: '/remuneracao/qualidade/ocorrencias', permissions: [...PERFORMANCE, Permission.QUALITY_EVALUATE] },
-      { label: 'Formulários de monitoria', icon: 'card-checklist', route: '/remuneracao/qualidade/formularios', permissions: [...PERFORMANCE, Permission.QUALITY_EVALUATE] },
-    ],
-  },
-  {
+    key: 'juridico',
     label: 'Jurídico',
     items: [
-      { label: 'Painel jurídico', icon: 'bank2', route: '/juridico', permissions: [Permission.LEGAL_VIEW] },
-      { label: 'Casos jurídicos', icon: 'folder-symlink', route: '/juridico/casos', permissions: [Permission.LEGAL_VIEW] },
-      { label: 'Regras de elegibilidade', icon: 'list-check', route: '/juridico/regras', permissions: [Permission.LEGAL_AUTHORIZE] },
-      { label: 'Escritórios parceiros', icon: 'building', route: '/juridico/escritorios', permissions: [Permission.LEGAL_AUTHORIZE] },
-      { label: 'Parâmetros do jurídico', icon: 'sliders', route: '/juridico/parametros', permissions: [Permission.LEGAL_AUTHORIZE] },
+      { label: 'Painel jurídico', icon: 'bank2', route: '/juridico', permissions: [P.LEGAL_VIEW] },
+      { label: 'Casos jurídicos', icon: 'folder-symlink', route: '/juridico/casos', permissions: [P.LEGAL_VIEW] },
+      { label: 'Regras de elegibilidade', icon: 'list-check', route: '/juridico/regras', permissions: [P.LEGAL_AUTHORIZE] },
+      { label: 'Escritórios parceiros', icon: 'building', route: '/juridico/escritorios', permissions: [P.LEGAL_AUTHORIZE] },
+      { label: 'Parâmetros do jurídico', icon: 'hourglass-split', route: '/juridico/parametros', permissions: [P.LEGAL_AUTHORIZE] },
     ],
   },
   {
+    key: 'compliance',
     label: 'Compliance',
     items: [
-      {
-        label: 'Restrições de contato',
-        icon: 'telephone-x',
-        route: '/compliance/restricoes',
-        permissions: [Permission.CONTACT_RESTRICTION_MANAGE],
-      },
-      {
-        label: 'Política de contato',
-        icon: 'clock',
-        route: '/compliance/politica-de-contato',
-        permissions: [Permission.CONTACT_RESTRICTION_MANAGE],
-      },
-      { label: 'Feriados', icon: 'calendar-event', route: '/compliance/feriados', permissions: [Permission.CONTACT_RESTRICTION_MANAGE] },
+      { label: 'Restrições de contato', icon: 'telephone-x', route: '/compliance/restricoes', permissions: [P.CONTACT_RESTRICTION_MANAGE] },
+      { label: 'Política de contato', icon: 'clock', route: '/compliance/politica-de-contato', permissions: [P.CONTACT_RESTRICTION_MANAGE] },
+      { label: 'Feriados', icon: 'calendar-event', route: '/compliance/feriados', permissions: [P.CONTACT_RESTRICTION_MANAGE] },
       {
         label: 'Solicitações de titulares',
         icon: 'shield-exclamation',
         route: '/compliance/solicitacoes-titulares',
-        permissions: [Permission.DATA_SUBJECT_REQUEST_MANAGE],
+        permissions: [P.DATA_SUBJECT_REQUEST_MANAGE],
       },
-      {
-        label: 'Bases legais',
-        icon: 'hammer',
-        route: '/compliance/bases-legais',
-        permissions: [Permission.DATA_SUBJECT_REQUEST_MANAGE],
-      },
-      { label: 'Retenção de dados', icon: 'trash3', route: '/compliance/retencao', permissions: [Permission.RETENTION_MANAGE] },
+      { label: 'Bases legais', icon: 'shield', route: '/compliance/bases-legais', permissions: [P.DATA_SUBJECT_REQUEST_MANAGE] },
+      { label: 'Retenção de dados', icon: 'trash3', route: '/compliance/retencao', permissions: [P.RETENTION_MANAGE] },
     ],
   },
   {
+    key: 'organizacao',
     label: 'Organização',
     items: [
-      { label: 'Credores', icon: 'buildings', route: '/organizacao/credores', permissions: [Permission.CREDITOR_VIEW] },
-      { label: 'Carteiras', icon: 'folder2-open', route: '/organizacao/carteiras', permissions: [Permission.PORTFOLIO_VIEW] },
-      { label: 'Importação de carteiras', icon: 'file-earmark-arrow-up', route: '/importacao', permissions: [Permission.IMPORT_VIEW] },
-      {
-        label: 'Configurações',
-        icon: 'sliders',
-        route: '/organizacao/configuracoes',
-        permissions: [Permission.ORG_SETTINGS_MANAGE],
-      },
+      { label: 'Credores', icon: 'buildings', route: '/organizacao/credores', permissions: [P.ORGANIZATION_AREA_VIEW], alsoRequires: [P.CREDITOR_VIEW] },
+      { label: 'Carteiras', icon: 'folder2-open', route: '/organizacao/carteiras', permissions: [P.ORGANIZATION_AREA_VIEW], alsoRequires: [P.PORTFOLIO_VIEW] },
+      { label: 'Importação de carteiras', icon: 'file-earmark-arrow-up', route: '/importacao', permissions: [P.IMPORT_VIEW] },
+      { label: 'Configurações', icon: 'gear', route: '/organizacao/configuracoes', permissions: [P.ORG_SETTINGS_MANAGE] },
     ],
   },
   {
+    key: 'administracao',
     label: 'Administração',
     items: [
-      { label: 'Usuários', icon: 'people', route: '/admin/usuarios', permissions: [Permission.USER_VIEW] },
-      { label: 'Perfis', icon: 'person-vcard', route: '/admin/perfis', permissions: [Permission.ROLE_MANAGE] },
-      { label: 'Equipes', icon: 'people-fill', route: '/admin/equipes', permissions: [Permission.TEAM_MANAGE] },
-      { label: 'Unidades', icon: 'diagram-3', route: '/admin/unidades', permissions: [Permission.ORG_SETTINGS_MANAGE] },
+      { label: 'Usuários', icon: 'people', route: '/admin/usuarios', permissions: [P.USER_VIEW] },
+      { label: 'Perfis', icon: 'person-vcard', route: '/admin/perfis', permissions: [P.ROLE_MANAGE] },
+      { label: 'Equipes', icon: 'layout-three-columns', route: '/admin/equipes', permissions: [P.TEAM_MANAGE] },
+      { label: 'Unidades', icon: 'window-stack', route: '/admin/unidades', permissions: [P.ORG_SETTINGS_MANAGE] },
     ],
   },
   {
+    key: 'api-publica',
     label: 'API pública',
     items: [
-      { label: 'Tokens de integração', icon: 'key', route: '/integracoes/tokens', permissions: [Permission.PUBLIC_API_TOKEN_VIEW] },
-      { label: 'Consumo da API', icon: 'activity', route: '/integracoes/consumo', permissions: [Permission.PUBLIC_API_USAGE_VIEW] },
-      { label: 'Extratos da API', icon: 'receipt', route: '/integracoes/extratos', permissions: [Permission.PUBLIC_API_USAGE_VIEW] },
-      { label: 'Cobrança da plataforma', icon: 'wallet2', route: '/integracoes/cobranca-plataforma', permissions: [Permission.TENANT_BILLING_VIEW] },
+      { label: 'Tokens de integração', icon: 'key', route: '/integracoes/tokens', permissions: [P.PUBLIC_API_TOKEN_VIEW] },
+      { label: 'Consumo da API', icon: 'lightning-charge', route: '/integracoes/consumo', permissions: [P.PUBLIC_API_USAGE_VIEW] },
+      { label: 'Extratos da API', icon: 'table', route: '/integracoes/extratos', permissions: [P.PUBLIC_API_USAGE_VIEW] },
+      { label: 'Cobrança da plataforma', icon: 'coin', route: '/integracoes/cobranca-plataforma', permissions: [P.TENANT_BILLING_VIEW] },
     ],
   },
   {
+    key: 'governanca',
     label: 'Governança',
     items: [
-      { label: 'Log de acesso', icon: 'box-arrow-in-right', route: '/governanca/log-de-acesso', permissions: [Permission.ACCESS_LOG_VIEW] },
-      { label: 'Trilha de auditoria', icon: 'card-checklist', route: '/governanca/auditoria', permissions: [Permission.AUDIT_VIEW] },
+      { label: 'Log de acesso', icon: 'box-arrow-in-right', route: '/governanca/log-de-acesso', permissions: [P.ACCESS_LOG_VIEW] },
+      { label: 'Trilha de auditoria', icon: 'clock-history', route: '/governanca/auditoria', permissions: [P.AUDIT_VIEW] },
     ],
   },
   {
+    key: 'plataforma',
     label: 'Plataforma',
     items: [
-      { label: 'Assessorias', icon: 'building', route: '/plataforma/assessorias', permissions: [Permission.TENANT_MANAGE] },
-      { label: 'Faturamento da plataforma', icon: 'cash-coin', route: '/plataforma/faturamento', permissions: [Permission.PLATFORM_BILLING_VIEW] },
+      { label: 'Assessorias', icon: 'globe', route: '/plataforma/assessorias', permissions: [P.TENANT_MANAGE] },
+      { label: 'Faturamento da plataforma', icon: 'cash-coin', route: '/plataforma/faturamento', permissions: [P.PLATFORM_BILLING_VIEW] },
     ],
   },
 ];
+
+/** Permissões que abrem a tela do item (basta uma): as da tarefa (menu) e as de quem chega por outra tela. */
+export function routePermissionsOf(item: NavItem): readonly string[] {
+  return [...item.permissions, ...(item.openedFrom?.permissions ?? [])];
+}
+
+/**
+ * O usuário consegue abrir a tela do item (pelo menu ou por outra tela): uma das permissões da rota e todas as
+ * exigidas. Para links de novidades e do manual; o menu usa `navigationFor` (só a tarefa).
+ */
+export function canOpen(item: NavItem, has: (permission: string) => boolean): boolean {
+  const any = routePermissionsOf(item);
+  return (any.length === 0 || any.some(has)) && (item.alsoRequires ?? []).every(has);
+}
+
+/** Permissões exigidas todas pela rota do item (`data.allPermissions`). */
+export function routeRequiredPermissionsOf(item: NavItem): readonly string[] {
+  return item.alsoRequires ?? [];
+}
+
+/**
+ * Menu do usuário: só os itens da tarefa dele (nada exibido para depois negar) e só as seções com algum item; o
+ * nome pessoal ("Meu desempenho") para quem só tem a permissão própria.
+ */
+export function navigationFor(has: (permission: string) => boolean): NavSection[] {
+  return NAVIGATION.map((section) => ({
+    ...section,
+    items: section.items
+      .filter((item) => (item.permissions.length === 0 || item.permissions.some(has)) && (item.alsoRequires ?? []).every(has))
+      .map((item) => {
+        const own = item.ownLabel;
+        return own && has(own.permission) && !item.permissions.some((p) => p !== own.permission && has(p))
+          ? { ...item, label: own.label }
+          : item;
+      }),
+  })).filter((section) => section.items.length > 0);
+}
 
 /**
  * Rota do menu que corresponde ao endereço atual: a mais específica (maior prefixo por segmento).

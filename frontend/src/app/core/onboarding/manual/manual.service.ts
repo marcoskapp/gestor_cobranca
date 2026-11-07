@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthService } from '../../auth/auth.service';
-import { NAVIGATION } from '../../layout/navigation';
+import { NAVIGATION, canOpen } from '../../layout/navigation';
 import { SCREENS } from '../content/screens';
 import { GlossaryTerm, ManualModuleId, ModuleManual, RelatedScreen, ScreenManual } from './manual.models';
 import { OPEN_ROUTES, loadGlossary, loadModuleManual, loadScreenManual, moduleOfScreen } from './manual-index';
@@ -81,6 +81,6 @@ export class ManualService {
       return path;
     }
     const item = NAVIGATION.flatMap((s) => s.items).find((i) => i.route === path);
-    return item && this.auth.hasAnyPermission(item.permissions) ? path : null;
+    return item && canOpen(item, (p) => this.auth.hasAnyPermission([p])) ? path : null;
   }
 }

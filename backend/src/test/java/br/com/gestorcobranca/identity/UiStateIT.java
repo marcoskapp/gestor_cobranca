@@ -2,6 +2,7 @@ package br.com.gestorcobranca.identity;
 
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.ChecklistUpdate;
+import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.NavSectionUpdate;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.ScreenUpdate;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.TourUpdate;
 import br.com.gestorcobranca.identity.application.port.in.UiStateUseCases.UiStatePatch;
@@ -112,6 +113,14 @@ class UiStateIT extends IntegrationTest {
         assertThat(view.tours().get("shell.intro").version()).isEqualTo(1);
         assertThat(view.screens().get("admin.users").version()).isEqualTo(2);
         assertThat(view.checklist()).containsKey("admin.create-creditor");
+
+        // seções do menu recolhidas também acompanham o usuário
+        as(tenant, ana, () -> uiState.updateMyState(new UiStatePatch(null, null, null, null, null, null, null, null, null,
+                List.of(new NavSectionUpdate("score-de-propensao", true), new NavSectionUpdate("cobranca", true),
+                        new NavSectionUpdate("cobranca", false)))));
+        assertThat(as(tenant, ana, uiState::myState).collapsedSections()).containsExactly("score-de-propensao");
+        assertThat(as(tenant, bruno, uiState::myState).collapsedSections()).isEmpty();
+        assertThat(rowsVisibleIn(otherTenant, "user_ui_nav_section")).isZero();
 
         // uma versão antiga vinda de uma aba desatualizada não regride o estado
         UiStateView after = as(tenant, ana, () -> uiState.updateMyState(new UiStatePatch(null, null, null, null, null, null, null,

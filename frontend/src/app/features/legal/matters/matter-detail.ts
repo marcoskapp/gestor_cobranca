@@ -1,4 +1,5 @@
-import { Component, computed, effect, inject, input, linkedSignal } from '@angular/core';
+import { Component, computed, effect, inject, input } from '@angular/core';
+import { urlTab } from '../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of, switchMap } from 'rxjs';
@@ -93,7 +94,6 @@ const routeOptions = (only?: readonly string[]) => options(ROUTE_LABELS, only);
 })
 export class MatterDetail {
   readonly id = input.required<string>();
-  readonly aba = input<string>();
 
   private readonly mattersApi = inject(LegalMattersApi);
   private readonly proceedingsApi = inject(LegalProceedingsApi);
@@ -128,7 +128,8 @@ export class MatterDetail {
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.mattersApi.sheet(params) });
   protected readonly sheet = valueOr(this.resource, undefined);
   protected readonly matter = computed(() => this.sheet()?.matter ?? null);
-  protected readonly tab = linkedSignal(() => Math.max(0, MATTER_TABS.indexOf((this.aba() ?? 'resumo') as (typeof MATTER_TABS)[number])));
+  /** Aba ativa na URL (`?aba=`, também usada pelo painel jurídico): clicar grava, voltar reabre a mesma aba. */
+  protected readonly tab = urlTab(MATTER_TABS, 'resumo');
 
   /** Nome do credor exige `CREDITOR_VIEW` (o advogado parceiro não tem: a ficha mostra "Credor do caso"). */
   protected readonly canSeeCreditor = computed(() => this.auth.hasPermission(Permission.CREDITOR_VIEW));

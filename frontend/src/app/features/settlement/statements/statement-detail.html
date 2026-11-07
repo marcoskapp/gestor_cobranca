@@ -147,8 +147,8 @@
     <app-empty-state icon="calculator" title="Ainda não calculado." message="Calcule depois do fim do período para ver recebimentos, comissão e o líquido a repassar." />
   }
 
-  <ul ngbNav #tabs="ngbNav" class="nav-underline app-tabs sd-tabs">
-    <li [ngbNavItem]="0">
+  <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-underline app-tabs sd-tabs">
+    <li [ngbNavItem]="'recebimentos'">
       <button type="button" class="text-nowrap" ngbNavLink>Recebimentos ({{ s.totals?.receipts ?? 0 }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab">
@@ -156,7 +156,7 @@
         </div>
       </ng-template>
     </li>
-    <li [ngbNavItem]="1">
+    <li [ngbNavItem]="'custas'">
       <button type="button" class="text-nowrap" ngbNavLink>Custas reembolsáveis ({{ expenses().length }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-expenses">
@@ -210,7 +210,7 @@
         </div>
       </ng-template>
     </li>
-    <li [ngbNavItem]="2">
+    <li [ngbNavItem]="'ajustes'">
       <button type="button" class="text-nowrap" ngbNavLink>Ajustes ({{ adjustments().length }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-adjustments">
@@ -253,7 +253,7 @@
         </div>
       </ng-template>
     </li>
-    <li [ngbNavItem]="3">
+    <li [ngbNavItem]="'arquivos'">
       <button type="button" class="text-nowrap" ngbNavLink>Arquivos ({{ exportRows().length }})</button>
       <ng-template ngbNavContent>
         <div class="sd-tab" data-tour="statement-exports">
@@ -305,7 +305,7 @@
       </ng-template>
     </li>
     @if (s.approvedAt) {
-      <li [ngbNavItem]="4">
+      <li [ngbNavItem]="'repasses'">
         <button type="button" class="text-nowrap" ngbNavLink>Repasses ({{ transfers().length }})</button>
         <ng-template ngbNavContent>
           <div class="sd-tab">

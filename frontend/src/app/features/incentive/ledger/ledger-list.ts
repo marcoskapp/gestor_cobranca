@@ -6,6 +6,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { zonedNow } from '../../collection/data/collection.rules';
@@ -49,7 +50,11 @@ export class LedgerList {
       this.auth.hasAnyPermission([Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL, Permission.COMMISSION_STATEMENT_MANAGE, Permission.COMMISSION_STATEMENT_APPROVE]),
   );
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly form = this.fb.group({ period: [''], user: this.fb.control<string[]>([]) });
+  /** Filtros na URL (`?periodo=&negociador=`), preservados ao voltar; a paginação da tabela (componente) não vai. */
+  protected readonly form = syncFormWithUrl(this.fb.group({ period: [''], user: this.fb.control<string[]>([]) }), {
+    period: urlParam.text('periodo'),
+    user: urlParam.ids('negociador'),
+  });
   private readonly value = toSignal(this.form.valueChanges.pipe(startWith(null)), { initialValue: null });
   protected readonly period = computed(() => {
     this.value();

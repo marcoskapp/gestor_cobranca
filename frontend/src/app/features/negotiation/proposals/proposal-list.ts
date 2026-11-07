@@ -1,7 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -16,12 +16,13 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { zonedNow } from '../../collection/data/collection.rules';
-import { DebtorNames } from '../../debt/data/debt.lookups';
+import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { ProposalsApi } from '../data/agreement.api';
 import { ProposalFilter, ProposalView } from '../data/agreement.models';
@@ -31,11 +32,14 @@ import { planText } from '../data/negotiation.labels';
 /** Valor do filtro "Criada por" que restringe às propostas do próprio usuário (`mine=true` na API). */
 export const MINE = 'MINE';
 
-export function toProposalFilter(v: { creditor: string[]; status: string; actorType: string }): ProposalFilter {
+/** Valores do filtro "Criada por" aceitos na URL (`?autor=`). */
+export const ACTOR_FILTERS = ['USER', MINE, 'ASSISTANT'] as const;
+
+export function toProposalFilter(v: { creditor: string[]; debtor: string[]; status: string; actorType: string }): ProposalFilter {
   const mine = v.actorType === MINE;
   return {
     creditorId: v.creditor[0] ?? null,
-    debtorId: null,
+    debtorId: v.debtor[0] ?? null,
     status: v.status || null,
     actorType: mine ? null : v.actorType || null,
     ...(mine ? { mine: true } : {}),
@@ -85,6 +89,11 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
       </app-page-header>
 
       <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar propostas">
+        @if (canSearchDebtors()) {
+          <div class="app-filters__wide">
+            <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor (nome ou CPF/CNPJ)" [single]="true" />
+          </div>
+        }
         <div class="app-filters__wide">
           <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
         </div>
@@ -110,11 +119,13 @@ export function toProposalFilter(v: { creditor: string[]; status: string; actorT
     <app-data-table
       [caption]="queue() ? 'Propostas aguardando a sua aprovação' : 'Propostas'"
       [rows]="query.rows()"
-      [columns]="columns"
+      [columns]="columns()"
       [loading]="query.loading()"
       [failed]="query.failed()"
       [page]="query.tablePage()"
+      [sort]="query.sort()"
       (pageChange)="query.setPage($event)"
+      (sortChange)="query.setSort($event)"
       (retry)="query.reload()"
       [emptyIcon]="queue() ? 'task_alt' : 'assignment'"
       [emptyMessage]="queue() ? 'Nenhuma proposta aguardando a sua aprovação.' : 'Nenhuma proposta encontrada.'"
@@ -182,20 +193,33 @@ export class ProposalList {
   private readonly api = inject(ProposalsApi);
   private readonly auth = inject(AuthService);
   protected readonly creditorSource = inject(CreditorLookup);
+  protected readonly debtorSource = inject(DebtorLookup);
   protected readonly statuses = statusOptions('proposal');
   protected readonly canApprove = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_APPROVE));
   protected readonly canSimulate = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_SIMULATE));
+  protected readonly canSearchDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
   private readonly today = zonedNow().date;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** Filtro inicial pela URL (`?situacao=APPROVED&minhas=true`, ex.: vindo de "Minhas pendências"). */
-  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   protected readonly mine = MINE;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>([]),
-    status: [this.params.get('situacao') ?? ''],
-    actorType: [this.params.get('minhas') === 'true' ? MINE : ''],
-  });
+  /**
+   * Filtros na URL (`?credor=&devedor=&situacao=&autor=`), preservados ao voltar; "Minhas pendências" (servidor) gera
+   * `?situacao=APPROVED&autor=MINE`.
+   */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      debtor: this.fb.control<string[]>([]),
+      status: [''],
+      actorType: [''],
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      debtor: urlParam.ids('devedor'),
+      status: urlParam.choice('situacao', statusOptions('proposal').map((s) => s.value)),
+      actorType: urlParam.choice<string>('autor', ACTOR_FILTERS),
+    },
+  );
   private readonly formFilter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -205,21 +229,25 @@ export class ProposalList {
     { initialValue: toProposalFilter(this.filters.getRawValue()), equal: sameValue },
   );
   private readonly filter = computed(() => ({ queue: this.queue(), ...this.formFilter() }), { equal: sameValue });
-  protected readonly query = pagedQuery(this.filter, (f, page) => (f.queue ? this.api.approvalQueue(page) : this.api.search(f, page)));
+  protected readonly query = pagedQuery(this.filter, (f, page) => (f.queue ? this.api.approvalQueue(page) : this.api.search(f, page)), {
+    url: true,
+    sortFields: { createdAt: 'createdAt', total: 'totalAmount' },
+  });
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
   private readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => p.actor.type === 'USER').map((p) => p.actor.id), { batch: USER_NAMES_BATCH });
 
-  protected readonly columns: TableColumn[] = [
-    { key: 'createdAt', header: 'Criada em', mobile: 'title' },
+  /** Ordenação por coluna só na consulta de propostas (a fila de aprovação tem a ordem própria do servidor). */
+  protected readonly columns = computed((): TableColumn[] => [
+    { key: 'createdAt', header: 'Criada em', sortable: !this.queue(), mobile: 'title' },
     { key: 'debtor', header: 'Devedor', mobile: 'meta' },
-    { key: 'total', header: 'Total', align: 'end', mobile: 'meta' },
+    { key: 'total', header: 'Total', align: 'end', sortable: !this.queue(), mobile: 'meta' },
     { key: 'plan', header: 'Forma de pagamento', mobile: 'meta' },
     { key: 'actor', header: 'Negociador', mobile: 'hidden' },
     { key: 'status', header: 'Situação', mobile: 'badge' },
     { key: 'actions', header: 'Ações', actions: true },
-  ];
+  ]);
 
   protected plan(p: ProposalView): string {
     return planText({ installments: p.installments, downPayment: p.downPayment });

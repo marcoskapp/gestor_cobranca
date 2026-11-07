@@ -5,9 +5,12 @@ import { Permission } from '../../core/auth/permission';
 /** Permissões de cada tela (espelham o `@PreAuthorize` dos controllers do módulo negotiation). */
 export const NEGOTIATION_PERMISSIONS = {
   simulator: [Permission.NEGOTIATION_SIMULATE],
-  policies: [Permission.POLICY_VIEW],
-  indexes: [Permission.POLICY_VIEW],
+  // área de consulta (D6): o simulador e as propostas usam a política com POLICY_VIEW, sem abrir a área
+  policies: [Permission.POLICY_AREA_VIEW],
+  indexes: [Permission.POLICY_AREA_VIEW],
   authority: [Permission.AUTHORITY_MANAGE],
+  /** Exigidas junto com a área: a consulta dos dados (o servidor também exige). */
+  policyData: [Permission.POLICY_VIEW],
   proposals: [Permission.AGREEMENT_VIEW, Permission.NEGOTIATION_PROPOSE, Permission.NEGOTIATION_APPROVE],
   approvals: [Permission.NEGOTIATION_APPROVE],
   agreements: [Permission.AGREEMENT_VIEW],
@@ -62,21 +65,21 @@ export const NEGOTIATION_ROUTES: Routes = [
     path: 'politicas',
     title: 'Políticas de cobrança',
     canActivate: [permissionGuard],
-    data: { permissions: NEGOTIATION_PERMISSIONS.policies },
+    data: { permissions: NEGOTIATION_PERMISSIONS.policies, allPermissions: NEGOTIATION_PERMISSIONS.policyData },
     loadComponent: () => import('./policies/policy-list').then((m) => m.PolicyList),
   },
   {
     path: 'politicas/:id',
     title: 'Política de cobrança',
     canActivate: [permissionGuard],
-    data: { permissions: NEGOTIATION_PERMISSIONS.policies },
+    data: { permissions: NEGOTIATION_PERMISSIONS.policies, allPermissions: NEGOTIATION_PERMISSIONS.policyData },
     loadComponent: () => import('./policies/policy-detail').then((m) => m.PolicyDetail),
   },
   {
     path: 'indices',
     title: 'Índices de correção',
     canActivate: [permissionGuard],
-    data: { permissions: NEGOTIATION_PERMISSIONS.indexes },
+    data: { permissions: NEGOTIATION_PERMISSIONS.indexes, allPermissions: NEGOTIATION_PERMISSIONS.policyData },
     loadComponent: () => import('./indexes/index-list').then((m) => m.IndexList),
   },
   {

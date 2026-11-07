@@ -1,4 +1,5 @@
 import { DOCUMENT, Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
+import { injectUrlStateWriter } from '../../../shared/data/url-state';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -78,6 +79,7 @@ export class Inbox {
   private readonly stream = inject(InboxStream);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly urlState = injectUrlStateWriter();
   private readonly document = inject(DOCUMENT);
 
   protected readonly tabs = TABS;
@@ -160,7 +162,8 @@ export class Inbox {
   /** Troca a aba e grava na URL (`?aba=`), preservando a conversa aberta. */
   private setTab(tab: InboxTab): void {
     this.tab.set(tab);
-    void this.router.navigate([], { queryParams: { aba: tab }, queryParamsHandling: 'merge', replaceUrl: true });
+    // gravação de estado de tela (shared/data/url-state): replaceUrl, não rola a tela nem cancela um clique
+    this.urlState.write({ aba: tab });
   }
 
   /** Setas esquerda/direita movem entre as abas (padrão tablist). */

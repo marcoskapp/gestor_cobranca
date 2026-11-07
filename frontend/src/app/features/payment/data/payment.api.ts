@@ -74,7 +74,7 @@ export class PaymentsApi {
   private readonly base = `${BASE}/payments`;
 
   search(filter: PaymentFilter, page: PageRequest): Observable<PageResponse<PaymentView>> {
-    return this.http.get<PageResponse<PaymentView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size }) });
+    return this.http.get<PageResponse<PaymentView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }) });
   }
 
   get(id: string): Observable<PaymentView> {

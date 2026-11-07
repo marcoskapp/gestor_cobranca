@@ -39,7 +39,7 @@ export class ProposalsApi {
   }
 
   search(filter: ProposalFilter, page: PageRequest): Observable<PageResponse<ProposalView>> {
-    return this.http.get<PageResponse<ProposalView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size }) });
+    return this.http.get<PageResponse<ProposalView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }) });
   }
 
   approvalQueue(page: PageRequest): Observable<PageResponse<ProposalView>> {
@@ -95,7 +95,7 @@ export class AgreementsApi {
   private readonly base = `${BASE}/agreements`;
 
   search(filter: AgreementFilter, page: PageRequest): Observable<PageResponse<AgreementView>> {
-    return this.http.get<PageResponse<AgreementView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size }) });
+    return this.http.get<PageResponse<AgreementView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }) });
   }
 
   get(id: string): Observable<AgreementView> {

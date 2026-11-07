@@ -18,16 +18,16 @@ describe('filtros de destino pela URL', () => {
   });
 
   it('propostas: "somente as minhas" vira mine=true na API', () => {
-    expect(toProposalFilter({ creditor: [], status: 'APPROVED', actorType: MINE })).toEqual({
+    expect(toProposalFilter({ creditor: [], debtor: [], status: 'APPROVED', actorType: MINE })).toEqual({
       creditorId: null,
       debtorId: null,
       status: 'APPROVED',
       actorType: null,
       mine: true,
     });
-    expect(toProposalFilter({ creditor: ['c-1'], status: '', actorType: 'USER' })).toEqual({
+    expect(toProposalFilter({ creditor: ['c-1'], debtor: ['d-1'], status: '', actorType: 'USER' })).toEqual({
       creditorId: 'c-1',
-      debtorId: null,
+      debtorId: 'd-1',
       status: null,
       actorType: 'USER',
     });

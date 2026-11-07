@@ -464,7 +464,9 @@ describe('CollectionStation', () => {
     expect(fixture.componentInstance['tab']()).toBe(5);
     press('2');
     fixture.detectChanges();
-    expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { aba: 'contatos' }, queryParamsHandling: 'merge', replaceUrl: true }));
+    // gravação de estado de tela (shared/data/url-state): sai na tarefa seguinte, com replaceUrl
+    await new Promise((r) => setTimeout(r, 0));
+    expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { aba: 'contatos' }, queryParamsHandling: 'merge', replaceUrl: true, state: { urlState: true } }));
     TestBed.inject(AttendanceService).clear();
   });
 

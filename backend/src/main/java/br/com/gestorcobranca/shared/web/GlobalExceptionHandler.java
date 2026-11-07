@@ -78,6 +78,12 @@ public class GlobalExceptionHandler {
         return domainProblem(HttpStatus.PRECONDITION_FAILED, e);
     }
 
+    /** Ordenação fora da lista branca da consulta ou malformada: erro do pedido, não de regra (shared.paging). */
+    @ExceptionHandler(br.com.gestorcobranca.shared.paging.InvalidSortException.class)
+    ProblemDetail invalidSort(br.com.gestorcobranca.shared.paging.InvalidSortException e) {
+        return domainProblem(HttpStatus.BAD_REQUEST, e);
+    }
+
     @ExceptionHandler(DomainException.class)
     ProblemDetail domain(DomainException e) {
         return domainProblem(HttpStatus.UNPROCESSABLE_CONTENT, e);

@@ -20,7 +20,6 @@ import { QualityApi } from '../data/incentive.api';
 import { QualityForm } from '../data/incentive.models';
 import { parseDecimal } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
-import { QualityTabs } from './quality-tabs';
 
 /** Novo formulário de monitoria: critérios com código, peso e criticidade (falha crítica zera a nota). */
 @Component({
@@ -134,7 +133,7 @@ export class QualityFormDialog {
 /** Formulários de monitoria de qualidade (critérios ponderados), usados nas avaliações. */
 @Component({
   selector: 'app-incentive-form-list',
-  imports: [EmptyState, Icon, PageHeader, QualityTabs, Skeleton, StatusChip],
+  imports: [EmptyState, Icon, PageHeader, Skeleton, StatusChip],
   template: `
     <app-page-header title="Formulários de monitoria" subtitle="Critérios e pesos das avaliações de qualidade de atendimento (nota de 0 a 10).">
       @if (canEvaluate()) {
@@ -144,7 +143,6 @@ export class QualityFormDialog {
         </button>
       }
     </app-page-header>
-    <app-quality-tabs />
     @if (error()) {
       <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
     }

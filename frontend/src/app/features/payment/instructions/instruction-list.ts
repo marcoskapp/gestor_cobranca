@@ -16,6 +16,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
@@ -120,19 +121,24 @@ export class InstructionList {
   protected readonly canViewAgreements = computed(() => this.auth.hasPermission(Permission.AGREEMENT_VIEW));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), debtor: this.fb.control<string[]>([]), status: [''] });
+  /** Filtros na URL (`?credor=&devedor=&situacao=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({ creditor: this.fb.control<string[]>([]), debtor: this.fb.control<string[]>([]), status: [''] }),
+    {
+      creditor: urlParam.ids('credor'),
+      debtor: urlParam.ids('devedor'),
+      status: urlParam.choice('situacao', statusOptions('paymentInstruction').map((s) => s.value)),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(250),
-      map((): InstructionFilter => {
-        const v = this.filters.getRawValue();
-        return { creditorId: v.creditor[0] ?? null, debtorId: v.debtor[0] ?? null, agreementId: null, titleId: null, status: v.status || null };
-      }),
+      map(() => this.current()),
     ),
-    { initialValue: { creditorId: null, debtorId: null, agreementId: null, titleId: null, status: null } as InstructionFilter, equal: sameValue },
+    { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((i) => i.creditorId));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((i) => i.debtorId), { batch: 100 });
 
@@ -156,5 +162,10 @@ export class InstructionList {
         this.query.reload();
       }
     });
+  }
+
+  private current(): InstructionFilter {
+    const v = this.filters.getRawValue();
+    return { creditorId: v.creditor[0] ?? null, debtorId: v.debtor[0] ?? null, agreementId: null, titleId: null, status: v.status || null };
   }
 }

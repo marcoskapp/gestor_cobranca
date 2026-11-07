@@ -9,6 +9,8 @@ import { DataTable, TableColumn } from '../../../../shared/components/data-table
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { pagedQuery } from '../../../../shared/data/paged-query';
+import { sameValue } from '../../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../../shared/data/url-state';
 import { valueOr } from '../../../../shared/data/resource-value';
 import { HasPermission } from '../../../../shared/directives/has-permission';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
@@ -21,6 +23,10 @@ import { Icon } from '../../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
+
+function toUserFilter(v: { q: string; status: string; roleId: string }): UserFilter {
+  return { q: v.q.trim() || null, status: v.status || null, roleId: v.roleId || null };
+}
 
 @Component({
   selector: 'app-user-list',
@@ -44,24 +50,28 @@ export class UserList {
 
   protected readonly permission = Permission;
   protected readonly statuses = statusOptions('user');
-  protected readonly filters = inject(FormBuilder).nonNullable.group({
-    q: [''],
-    status: [''],
-    roleId: [''],
-  });
+  /** Situação e perfil na URL (`?situacao=&perfil=`); a busca fica fora dela porque aceita e-mail (dado pessoal). */
+  protected readonly filters = syncFormWithUrl(
+    inject(FormBuilder).nonNullable.group({
+      q: [''],
+      status: [''],
+      roleId: [''],
+    }),
+    {
+      status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+      roleId: urlParam.id('perfil'),
+    },
+  );
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       debounceTime(300),
-      map((): UserFilter => {
-        const v = this.filters.getRawValue();
-        return { q: v.q.trim() || null, status: v.status || null, roleId: v.roleId || null };
-      }),
+      map(() => toUserFilter(this.filters.getRawValue())),
     ),
-    { initialValue: {} as UserFilter },
+    { initialValue: toUserFilter(this.filters.getRawValue()), equal: sameValue },
   );
 
-  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page));
+  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page), { url: true });
 
   protected readonly roles = valueOr(rxResource({ stream: () => this.rolesApi.list() }), []);
   protected readonly roleNames = computed(() => new Map(this.roles().map((r) => [r.code, r.name])));

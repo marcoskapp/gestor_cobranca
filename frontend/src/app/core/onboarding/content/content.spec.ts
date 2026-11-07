@@ -13,7 +13,7 @@ import { SETTLEMENT_ROUTES } from '../../../features/settlement/settlement.route
 import { INCENTIVE_ROUTES } from '../../../features/incentive/incentive.routes';
 import { TELEPHONY_ROUTES } from '../../../features/telephony/telephony.routes';
 import { RELEASE_NOTES } from './release-notes';
-import { NAVIGATION } from '../../layout/navigation';
+import { NAVIGATION, routePermissionsOf } from '../../layout/navigation';
 import { CHECKLISTS } from './checklists';
 import { SCREENS, findScreen } from './screens';
 import { TOURS, findTour } from './tours';
@@ -78,7 +78,7 @@ describe('conteúdo do onboarding', () => {
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
     expect(items.length).toBe(64);
     for (const item of items) {
-      expect([...item.permissions].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
+      expect([...routePermissionsOf(item)].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
   });
 

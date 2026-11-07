@@ -55,8 +55,9 @@ class DebtorController {
                                     @RequestParam(required = false) UUID creditorId,
                                     @RequestParam(required = false) UUID portfolioId,
                                     @RequestParam(required = false) Integer page,
-                                    @RequestParam(required = false) Integer size) {
-        return debtors.search(q, creditorId, portfolioId, PageQuery.of(page, size));
+                                    @RequestParam(required = false) Integer size,
+                                    @RequestParam(required = false) String sort) {
+        return debtors.search(q, creditorId, portfolioId, PageQuery.of(page, size, sort));
     }
 
     @PostMapping("/lookup")

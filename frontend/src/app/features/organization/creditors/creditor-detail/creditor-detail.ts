@@ -1,4 +1,5 @@
 import { Component, Type, computed, inject, input } from '@angular/core';
+import { recordLabel } from '../../../../core/layout/breadcrumbs/breadcrumbs';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -62,6 +63,8 @@ export class CreditorDetail {
       ? [{ id: 'deactivate', label: 'Inativar credor', icon: 'pause-circle', danger: true, run: () => this.setActive(c, false) }]
       : [];
   });
+  /** Nome do registro na trilha e no "Voltar para" de quem sair desta ficha. */
+  protected readonly crumb = recordLabel(() => this.current()?.tradeName || this.current()?.legalName);
   protected readonly contracts = rxResource({
     params: () => this.id(),
     stream: ({ params }) => this.contractsApi.listByCreditor(params),

@@ -44,8 +44,10 @@ class AgreementController {
                                        @RequestParam(required = false) UUID caseId,
                                        @RequestParam(required = false) String status,
                                        @RequestParam(required = false) Integer page,
-                                       @RequestParam(required = false) Integer size) {
-        return agreements.search(new AgreementFilter(creditorId, debtorId, caseId, status), PageQuery.of(page, size));
+                                       @RequestParam(required = false) Integer size,
+                                       @RequestParam(required = false) String sort) {
+        return agreements.search(new AgreementFilter(creditorId, debtorId, caseId, status),
+                PageQuery.of(page, size, sort));
     }
 
     @GetMapping("/{id}")

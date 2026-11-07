@@ -90,7 +90,7 @@ export class StatementList {
   private readonly router = inject(Router);
   protected readonly size = sizeText;
 
-  protected readonly query = pagedQuery(signal(null), (_, page) => this.api.imports(page));
+  protected readonly query = pagedQuery(signal(null), (_, page) => this.api.imports(page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((s) => s.creditorId));
   protected readonly users = nameMap(inject(UserNames), () => this.query.rows().map((s) => s.requestedBy), { batch: USER_NAMES_BATCH });
 

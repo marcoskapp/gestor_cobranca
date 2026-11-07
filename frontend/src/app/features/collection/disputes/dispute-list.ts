@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -16,6 +16,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
@@ -26,7 +27,7 @@ import { DisputesApi } from '../data/collection.api';
 import { DISPUTE_ORIGIN_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DisputeFilter, DisputeView } from '../data/collection.models';
 import { daysBetween, zonedNow } from '../data/collection.rules';
-import { canWorkDispute, dueTone, formFromQuery, isPending, nearestDue, toDisputeFilter } from './dispute.rules';
+import { DISPUTE_FORM_DEFAULTS, DISPUTE_URL_CODECS, canWorkDispute, dueTone, isPending, nearestDue, toDisputeFilter } from './dispute.rules';
 
 export { toDisputeFilter } from './dispute.rules';
 
@@ -270,19 +271,23 @@ export class DisputeList {
   private readonly userId = computed(() => this.auth.user()?.id ?? null);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** Filtro inicial pela URL (ex.: vindo de "Minhas pendências"). */
-  private readonly initial = formFromQuery(inject(ActivatedRoute).snapshot.queryParamMap);
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>([]),
-    status: [this.initial.status ?? 'PENDING'],
-    type: [''],
-    assignee: [this.initial.assignee ?? ''],
-    due: [this.initial.overdue ? 'overdue' : ''],
-    awaiting: [false],
-    noticePending: [this.initial.noticePending ?? false],
-    adjustmentPending: [this.initial.adjustmentPending ?? false],
-    mailReplyPending: [this.initial.mailReplyPending ?? false],
-  });
+  /**
+   * Filtros na URL (`DISPUTE_URL_CODECS`), preservados ao voltar; "Minhas pendências" (servidor) já gera esses parâmetros.
+   */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>(DISPUTE_FORM_DEFAULTS.creditor),
+      status: [DISPUTE_FORM_DEFAULTS.status],
+      type: [DISPUTE_FORM_DEFAULTS.type],
+      assignee: [DISPUTE_FORM_DEFAULTS.assignee],
+      due: [DISPUTE_FORM_DEFAULTS.due],
+      awaiting: [DISPUTE_FORM_DEFAULTS.awaiting],
+      noticePending: [DISPUTE_FORM_DEFAULTS.noticePending],
+      adjustmentPending: [DISPUTE_FORM_DEFAULTS.adjustmentPending],
+      mailReplyPending: [DISPUTE_FORM_DEFAULTS.mailReplyPending],
+    }),
+    DISPUTE_URL_CODECS,
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -291,7 +296,7 @@ export class DisputeList {
     ),
     { initialValue: toDisputeFilter(this.filters.getRawValue(), this.today), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((d) => d.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((d) => d.creditorId));
 

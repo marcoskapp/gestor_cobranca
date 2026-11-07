@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { resetSharedPanelFilter } from '../data/url-filter';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Type, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -61,6 +62,7 @@ describe('painéis de analytics', () => {
   const query = new BehaviorSubject(convertToParamMap({ de: '2026-06-01', ate: '2026-06-30', agrupar: 'CREDITOR' }));
 
   beforeEach(() => {
+    resetSharedPanelFilter();
     query.next(convertToParamMap({ de: '2026-06-01', ate: '2026-06-30', agrupar: 'CREDITOR' }));
     TestBed.configureTestingModule({
       providers: [
@@ -135,19 +137,18 @@ describe('painéis de analytics', () => {
     expect([...el(fixture).querySelectorAll('button')].some((b) => b.textContent?.includes('Exportar'))).toBe(false);
   });
 
-  it('operador vê "Meu desempenho", sem filtro de pessoas, e o aviso de escopo', async () => {
+  it('operador vê "Minha produtividade", sem filtro de pessoas, e o aviso de escopo', async () => {
     permissions.set(['PERFORMANCE_VIEW_OWN']);
     query.next(convertToParamMap({ de: '2026-06-01', ate: '2026-06-30' }));
     const fixture = await render(ProductivityPanel, { '/api/v1/analytics/productivity': productivity(['u-1'], true) });
     const all = text(el(fixture));
-    expect(all).toContain('Meu desempenho');
+    expect(all).toContain('Minha produtividade');
     expect(all).toContain('somente você');
     expect(all).toContain('3 min 20 s');
     expect(all).not.toContain('Agrupar por');
     expect(el(fixture).querySelector('app-bar-chart')).toBeNull();
-    // painéis do menu interno filtrados por permissão
-    const tabs = [...el(fixture).querySelectorAll('nav[aria-label="Painéis"] .nav-link')].map((a) => a.textContent!.trim());
-    expect(tabs).toEqual(['Produtividade']);
+    // sem abas repetindo o menu (T10): a troca de painel é pelo menu lateral
+    expect(el(fixture).querySelector('nav[aria-label="Painéis"]')).toBeNull();
   });
 
   it('supervisor vê a equipe com gráfico e agrupamento', async () => {
@@ -200,6 +201,15 @@ describe('painéis de analytics', () => {
     expect(all).toContain('Fraude');
     const backlog = el(fixture).querySelector('[data-tour="analytics-disputes-backlog"]')!;
     expect(text(backlog)).toContain('Ana Analista');
-    expect(backlog.querySelector('a')?.getAttribute('href')).toBe('/cobranca/contestacoes?fila=supervisao');
+    expect(backlog.querySelector('a')?.getAttribute('href')).toBe('/cobranca/contestacoes?responsavel=supervisao');
+  });
+
+  it('painel aberto pelo menu (sem filtro na URL) herda o período do último painel', async () => {
+    query.next(convertToParamMap({ de: '2026-05-01', ate: '2026-05-31' }));
+    permissions.set(['REPORT_VIEW']);
+    TestBed.createComponent(RecoveryPanel);
+    query.next(convertToParamMap({}));
+    const fixture = TestBed.createComponent(RecoveryPanel);
+    expect((fixture.componentInstance as unknown as { state: { filter(): { from: string; to: string } } }).state.filter()).toMatchObject({ from: '2026-05-01', to: '2026-05-31' });
   });
 });
