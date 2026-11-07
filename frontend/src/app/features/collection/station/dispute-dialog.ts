@@ -64,7 +64,7 @@ const MAX_FILES = 20;
                   (change)="toggle(t.titleId, titleBox.checked)"
                 />
                 <label class="form-check-label" [for]="'dd-title-' + t.titleId">
-                  <span class="app-numeric">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</span>
+                  <span>{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</span>
                   · venc. {{ t.dueDate | appDate: 'date' }} · <app-amount [value]="t.openBalance" />
                 </label>
               </div>

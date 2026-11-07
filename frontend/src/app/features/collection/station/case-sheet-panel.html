@@ -115,7 +115,7 @@
             @for (t of sheet().titles; track t.titleId) {
               <tr>
                 <td>
-                  <a class="app-numeric" [routerLink]="['/titulos', t.titleId]">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</a>
+                  <a [routerLink]="['/titulos', t.titleId]">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</a>
                   @if (t.disputeBlocked) {
                     <span class="sp-flag"><app-icon name="hammer" />Contestação</span>
                   }

@@ -1,5 +1,6 @@
 :host {
   display: block;
+  container: sheet / inline-size;
 }
 
 .sp-head {
@@ -35,6 +36,13 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   margin: 10px 0 4px;
+}
+
+// ficha estreita (coluna central a 1366 px): 2 × 2, para o valor em reais nunca sair cortado
+@container sheet (max-width: 560px) {
+  .sp-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .sp-kpi {
