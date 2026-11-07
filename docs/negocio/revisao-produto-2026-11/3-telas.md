@@ -3,7 +3,7 @@
 **Data:** 06/11/2026 · **Ambiente:** sandbox `http://localhost:58080` (dados fictícios), assessoria `boreal`.
 **Perfis usados:** operador (Juliana), supervisor (André), financeiro (Tereza), analista (Priscila), jurídico (Vanessa) e qualidade (Simone).
 **Viewports:** 1366×768 (padrão das capturas) e 1440×900 (estação e início).
-**Capturas:** ficaram só na máquina local (não versionadas); cito apenas o nome do arquivo ( `boreal-<perfil>-<tela>.png`).
+**Capturas:** ficaram só na máquina local (não versionadas); cito apenas o nome do arquivo (`boreal-<perfil>-<tela>.png`).
 **Referência de contrato:** `docs/tecnico/desenho/ux.md` §1–§6, §8.3 e §10.
 
 Legenda: **[F]** é fato verificado (captura ou código). **[S]** é suposição ou inferência que precisa de validação com usuário ou dado de uso.
