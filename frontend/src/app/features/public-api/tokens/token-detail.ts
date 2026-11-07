@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { recordLabel } from '../../../core/layout/breadcrumbs/breadcrumbs';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { finalize, of } from 'rxjs';
@@ -170,6 +171,8 @@ export class TokenDetail {
   }
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
+  /** Nome do registro na trilha e no "Voltar para" de quem sair desta ficha. */
+  protected readonly crumb = recordLabel(() => (this.resource.hasValue() ? this.resource.value().name : null));
   protected readonly token = computed(() => (this.resource.hasValue() ? this.resource.value() : null));
   protected readonly creditors = nameMap(inject(CreditorNames), () => (this.token() ? [this.token()!.creditorId] : []));
   // "criado por"/"revogado por" exigem CASE_VIEW, POLICY_VIEW ou USER_VIEW (o perfil Integrações não tem: "Indisponível")

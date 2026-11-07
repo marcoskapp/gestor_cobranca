@@ -29,6 +29,35 @@ A lista exata de permissões de cada perfil está em `backend/src/main/java/br/c
 - **Ajustes do administrador são respeitados:** cada permissão padrão é acrescentada uma única vez. Se o administrador retirar uma permissão de um perfil de sistema, ela não volta. Perfis criados pela assessoria nunca são alterados. Nada é removido automaticamente.
 - **Rastreabilidade:** cada perfil criado e cada permissão acrescentada pela sincronização ficam na trilha de auditoria.
 
+## Áreas de consulta (menu por tarefa)
+
+O menu mostra a cada perfil o que é **tarefa** dele, não tudo o que ele pode ler (decisão D6 da revisão de produto de
+novembro/2026). Ver um dado dentro de outra tela não põe no menu a área que administra esse dado. Por isso, três
+permissões abrem as áreas de consulta, separadas das permissões que liberam os dados. A tela da área só abre com as duas (a de área e a de consulta):
+
+| Permissão | Abre | Dados (continuam exigidos pelo servidor) | Perfis padrão |
+| --- | --- | --- | --- |
+| `SCORING_AREA_VIEW` | Área do score: modelos, execuções, monitoramento, decisões e variáveis, parâmetros | `SCORING_VIEW` (o operador e o supervisor veem o score no caso) | Administrador, Gestor, Estratégia, Auditor |
+| `POLICY_AREA_VIEW` | Políticas de cobrança e índices de correção | `POLICY_VIEW` (o simulador e as propostas usam a política) | Administrador, Gestor, Supervisor, Financeiro, Auditor, Jurídico, Analista de carteiras, Estratégia, Compliance |
+| `ORGANIZATION_AREA_VIEW` | Credores e carteiras | `CREDITOR_VIEW`, `PORTFOLIO_VIEW` (nomes de credor e carteira nas listas) | Administrador, Gestor, Financeiro, Auditor, Jurídico, Analista de carteiras, Estratégia, Compliance, Integrações |
+
+- **Operador:** fica sem a área do score, políticas, índices, credores e carteiras no menu, e o próprio desempenho vira
+  um item só ("Meu desempenho"), de onde ele abre a produtividade, os extratos e lançamentos de comissão, a monitoria
+  e as ocorrências — telas que continuam acessíveis a ele, só fora do menu. O formulário de monitoria só abre para
+  quem avalia ou acompanha outras pessoas (o negociador vê o formulário dentro da avaliação).
+- **Supervisor:** consulta as políticas (aprova propostas acima da alçada do operador), mas não a área do score nem os
+  cadastros de credores e carteiras.
+- **Perfis de sistema** recebem as permissões novas pela sincronização. **Perfis criados pela assessoria** recebem, uma
+  vez, a permissão de área correspondente a cada permissão de consulta que já tinham (migration `V0209`): ninguém perde
+  acesso; o administrador retira a permissão nova onde a área não for tarefa.
+- O menu é dividido em seções que o usuário recolhe com um clique no título; o estado acompanha o usuário entre
+  dispositivos e a seção da tela atual fica sempre aberta.
+
+Itens de menu por perfil padrão (antes → depois): Operador 31 → 16; Supervisor 56 → 49; Monitoria e qualidade 27 → 25;
+os demais não mudaram (Administrador 93, Gestor 77, Financeiro 41, Auditor 49, Jurídico 19, Advogado parceiro 4,
+Analista de carteiras 15, Estratégia 33, Compliance 25, Integrações 11). O teste `navigation.spec.ts` confere essas
+contagens.
+
 ## API pública de integração
 
 | Permissão | O que libera | Perfis padrão |

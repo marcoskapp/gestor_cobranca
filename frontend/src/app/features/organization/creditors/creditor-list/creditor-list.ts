@@ -9,6 +9,8 @@ import { DataTable, TableColumn } from '../../../../shared/components/data-table
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { pagedQuery } from '../../../../shared/data/paged-query';
+import { sameValue } from '../../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../../shared/data/url-state';
 import { HasPermission } from '../../../../shared/directives/has-permission';
 import { DocumentPipe } from '../../../../shared/pipes/document.pipe';
 import { statusOptions } from '../../../../shared/status/status';
@@ -23,6 +25,10 @@ import { DialogService } from '../../../../shared/dialog/dialog.service';
 interface CreditorFilter {
   q: string | null;
   status: string | null;
+}
+
+function toCreditorFilter(v: { q: string; status: string }): CreditorFilter {
+  return { q: v.q.trim() || null, status: v.status || null };
 }
 
 @Component({
@@ -96,18 +102,18 @@ export class CreditorList {
 
   protected readonly permission = Permission;
   protected readonly statuses = statusOptions('creditor');
-  protected readonly filters = inject(FormBuilder).nonNullable.group({ q: [''], status: [''] });
+  /** Situação na URL (`?situacao=`); a busca fica fora dela porque aceita CPF/CNPJ do credor (dado pessoal). */
+  protected readonly filters = syncFormWithUrl(inject(FormBuilder).nonNullable.group({ q: [''], status: [''] }), {
+    status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       debounceTime(300),
-      map((): CreditorFilter => {
-        const v = this.filters.getRawValue();
-        return { q: v.q.trim() || null, status: v.status || null };
-      }),
+      map(() => toCreditorFilter(this.filters.getRawValue())),
     ),
-    { initialValue: { q: null, status: null } as CreditorFilter },
+    { initialValue: toCreditorFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page));
+  protected readonly query = pagedQuery(this.filter, (filter, page) => this.api.search(filter, page), { url: true });
 
   protected readonly columns: TableColumn[] = [
     { key: 'legalName', header: 'Credor' },

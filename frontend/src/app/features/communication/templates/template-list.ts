@@ -1,7 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, map, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -15,6 +14,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -177,14 +177,24 @@ export class TemplateList {
   protected readonly preview = signal<{ name: string; subject: string | null; body: string } | null>(null);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** Situação inicial pela URL (`?situacao=DRAFT`, ex.: vindo de "Minhas pendências"). */
-  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>([]),
-    code: [''],
-    channel: [''],
-    status: [this.params.get('situacao') ?? ''],
-  });
+  /**
+   * Filtros na URL (`?credor=&codigo=&canal=&situacao=`): `situacao=DRAFT` vem de "Minhas pendências" e tudo se
+   * preserva ao voltar.
+   */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      code: [''],
+      channel: [''],
+      status: [''],
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      code: urlParam.text('codigo'),
+      channel: urlParam.choice('canal', this.channelOptions.map((c) => c.value)),
+      status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -193,7 +203,7 @@ export class TemplateList {
     ),
     { initialValue: toTemplateFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((t) => t.creditorId));
 
   protected readonly columns: TableColumn[] = [

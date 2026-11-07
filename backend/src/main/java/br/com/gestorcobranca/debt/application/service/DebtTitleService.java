@@ -28,6 +28,7 @@ import br.com.gestorcobranca.shared.paging.ChangePage;
 import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,12 @@ import java.util.function.Function;
 class DebtTitleService implements DebtTitleUseCases {
 
     private static final int MAX_BATCH = 500;
+    /** Ordenação da consulta de títulos (colunas da lista): vencimento, atraso (inverso do vencimento) e saldo. */
+    static final SortableFields SEARCH_SORT = SortableFields.builder()
+            .field("dueDate", "dueDate")
+            .inverted("daysOverdue", "dueDate")
+            .field("openBalance", "openBalance")
+            .build();
 
     private final DebtTitleRepository titles;
     private final TitleLedgerEntryRepository ledger;
@@ -123,7 +130,7 @@ class DebtTitleService implements DebtTitleUseCases {
         }
         TitleSearchCriteria criteria = new TitleSearchCriteria(debtorVisibility.allowedCreditors(), filter.creditorId(),
                 filter.portfolioId(), filter.debtorId(), statuses, dueOnOrAfter, dueOnOrBefore);
-        return PageResponse.of(titles.search(criteria, page.toPageable(Sort.by("dueDate", "id"))),
+        return PageResponse.of(titles.search(criteria, page.toPageable(SEARCH_SORT, Sort.by("dueDate", "id"))),
                 t -> DebtViews.title(t, today));
     }
 

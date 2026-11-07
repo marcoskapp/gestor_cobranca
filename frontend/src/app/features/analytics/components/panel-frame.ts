@@ -1,13 +1,10 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
-import { IsActiveMatchOptions, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { ANALYTICS_PANELS } from '../analytics.panels';
-import { filterParams } from '../data/analytics.filters';
 import { AnalyticsApi } from '../data/analytics.api';
 import { AnalyticsFilter, ReportMeta, ReportName } from '../data/analytics.models';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -29,13 +26,14 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
 };
 
 /**
- * Moldura comum dos painéis: título, navegação entre painéis (preservando os filtros), carimbo
- * "dados até" com atualização manual, exportação (CSV/XLSX) e avisos de escopo e de filtros que não
- * se aplicam. O conteúdo (filtros e gráficos) é projetado.
+ * Moldura comum dos painéis: título, carimbo "dados até" com atualização manual, exportação (CSV/XLSX)
+ * e avisos de escopo e de filtros que não se aplicam. O conteúdo (filtros e gráficos) é projetado. A
+ * troca de painel é pelo menu (sem abas repetindo os itens do menu, T10); o período e os filtros
+ * escolhidos acompanham o usuário de um painel para outro (`urlFilter`).
  */
 @Component({
   selector: 'app-panel-frame',
-  imports: [Icon, RouterLink, RouterLinkActive, NgbDropdownModule, PageHeader, AppDatePipe],
+  imports: [Icon, NgbDropdownModule, PageHeader, AppDatePipe],
   template: `
     <app-page-header [title]="title()" [subtitle]="subtitle()">
       @if (report() && canExport()) {
@@ -53,25 +51,6 @@ const UNAVAILABLE_METRICS: Record<string, string> = {
       }
     </app-page-header>
 
-    <nav class="mb-3" aria-label="Painéis" data-tour="analytics-tabs">
-      <ul class="nav nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden">
-        @for (p of panels(); track p.route) {
-          <li class="nav-item flex-shrink-0">
-            <a
-              class="nav-link d-inline-flex align-items-center gap-2"
-              [routerLink]="p.route"
-              [queryParams]="queryParams()"
-              routerLinkActive="active"
-              [routerLinkActiveOptions]="activeOptions"
-              ariaCurrentWhenActive="page"
-            >
-              <app-icon [name]="p.icon" />
-              {{ p.label }}
-            </a>
-          </li>
-        }
-      </ul>
-    </nav>
 
     <ng-content select="[panel-filters]" />
 
@@ -136,16 +115,9 @@ export class PanelFrame {
   private readonly auth = inject(AuthService);
   private readonly api = inject(AnalyticsApi);
   private readonly notifications = inject(NotificationService);
-  /** Painel atual pelo caminho (os filtros na URL — período, agrupamento, canais — não mudam o painel). */
-  protected readonly activeOptions: IsActiveMatchOptions = { paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' };
   protected readonly exporting = signal(false);
   protected readonly refreshing = signal(false);
 
-  protected readonly panels = computed(() => {
-    this.auth.user();
-    return ANALYTICS_PANELS.filter((p) => this.auth.hasAnyPermission(p.permissions));
-  });
-  protected readonly queryParams = computed(() => filterParams({ ...this.filter(), groupBy: null }));
   protected readonly canExport = computed(() => this.auth.hasPermission(Permission.REPORT_EXPORT));
   protected readonly canRefresh = computed(() => this.auth.hasAnyPermission([Permission.DASHBOARD_VIEW, Permission.REPORT_VIEW]));
   protected readonly scopeText = computed(() =>

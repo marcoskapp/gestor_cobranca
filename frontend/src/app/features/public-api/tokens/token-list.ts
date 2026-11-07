@@ -15,6 +15,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -122,12 +123,16 @@ export class TokenList {
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.PUBLIC_API_TOKEN_MANAGE));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: this.fb.control<TokenState | ''>('') });
+  /** Filtros na URL (`?credor=&situacao=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({ creditor: this.fb.control<string[]>([]), status: this.fb.control<TokenState | ''>('') }),
+    { creditor: urlParam.ids('credor'), status: urlParam.choice<TokenState | ''>('situacao', this.states.map((s) => s[0])) },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(startWith(null), debounceTime(250), map(() => this.current())),
     { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((t) => t.creditorId));
 
   protected readonly columns: TableColumn[] = [

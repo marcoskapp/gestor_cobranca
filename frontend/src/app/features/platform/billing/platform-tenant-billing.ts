@@ -1,4 +1,5 @@
 import { Component, ElementRef, afterNextRender, computed, inject, signal } from '@angular/core';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -45,7 +46,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
     PlatformPositionPanel, PlatformStatementPanel, PlatformTokensPanel, PlatformTrafficPanel, RouterLink],
   template: `
     <app-page-header [title]="'Faturamento da plataforma — ' + tenantName()" subtitle="Consumo somado de todos os tokens da assessoria, de todos os credores, pela política da plataforma.">
-      <a class="btn btn-link" routerLink="/plataforma/faturamento"><app-icon name="arrow-left" /> Consolidado</a>
+      <a class="btn btn-link" [routerLink]="history.linkTo('/plataforma/faturamento')"><app-icon name="arrow-left" /> Consolidado</a>
     </app-page-header>
 
     @if (suspended()) {
@@ -178,6 +179,8 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
   `,
 })
 export class PlatformTenantBilling {
+  /** Volta para a lista com os filtros e a página de quando o usuário saiu dela. */
+  protected readonly history = inject(NavigationHistory);
   private readonly api = inject(PlatformBillingApi);
   private readonly tenantsApi = inject(PlatformTenantsApi);
   private readonly auth = inject(AuthService);

@@ -4,7 +4,7 @@ import { DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DialogTitle } from '../../../shared/dialog/dialog.directives';
 import { Icon } from '../../../shared/components/icon/icon';
 import { AuthService } from '../../auth/auth.service';
-import { NAVIGATION } from '../navigation';
+import { navigationFor } from '../navigation';
 import { CommandPaletteService, PaletteCommand, filterCommands } from './command-palette.service';
 
 const NAV_GROUP = 'Ir para';
@@ -157,9 +157,8 @@ export class CommandPalette {
 
   private readonly navigation = computed<PaletteCommand[]>(() => {
     this.auth.user();
-    return NAVIGATION.flatMap((section) =>
+    return navigationFor((permission) => this.auth.hasPermission(permission)).flatMap((section) =>
       section.items
-        .filter((item) => this.auth.hasAnyPermission(item.permissions))
         .map((item) => ({
           id: `nav:${item.route}`,
           label: item.label,

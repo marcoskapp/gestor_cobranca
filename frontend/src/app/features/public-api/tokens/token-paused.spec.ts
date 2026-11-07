@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -32,7 +33,7 @@ describe('token pausado pela plataforma (visão da assessoria)', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: AuthService, useValue: { hasPermission: (p: string) => permissions.includes(p), hasAnyPermission: () => false } },
+        { provide: AuthService, useValue: { user: signal(null), hasPermission: (p: string) => permissions.includes(p), hasAnyPermission: () => false } },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
       ],
     });

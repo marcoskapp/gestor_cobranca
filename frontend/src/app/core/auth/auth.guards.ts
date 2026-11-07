@@ -13,12 +13,15 @@ export const authGuard: CanActivateFn = (_route, state) => {
 };
 
 /**
- * Exige ao menos uma das permissões declaradas em `data.permissions` da rota. É apenas
+ * Exige ao menos uma das permissões declaradas em `data.permissions` da rota e todas as de
+ * `data.allPermissions` (ex.: área de consulta + consulta dos dados — menu por tarefa, D6). É apenas
  * conveniência de navegação: o servidor continua sendo a autoridade de autorização.
  */
 export const permissionGuard: CanActivateFn = (route) => {
   const required = (route.data['permissions'] as readonly string[] | undefined) ?? [];
-  if (inject(AuthService).hasAnyPermission(required)) {
+  const all = (route.data['allPermissions'] as readonly string[] | undefined) ?? [];
+  const auth = inject(AuthService);
+  if (auth.hasAnyPermission(required) && all.every((p) => auth.hasPermission(p))) {
     return true;
   }
   return inject(Router).createUrlTree(['/acesso-negado']);

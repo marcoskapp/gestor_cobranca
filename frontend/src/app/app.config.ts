@@ -22,6 +22,7 @@ import { PageTitleStrategy } from './core/config/page-title.strategy';
 import { isPortalPath } from './core/config/api';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { GlobalErrorHandler } from './core/http/global-error-handler';
+import { NavigationHistory } from './core/layout/breadcrumbs/navigation-history';
 import { ThemeService } from './core/preferences/theme.service';
 import { portalInterceptor } from './portal/data/portal.interceptor';
 
@@ -31,7 +32,8 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       withComponentInputBinding(),
-      withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+      // rolagem: NavigationHistory (o conteúdo rola em #conteudo e as listas carregam depois da navegação)
+      withInMemoryScrolling({ scrollPositionRestoration: 'disabled' }),
       withRouterConfig({ paramsInheritanceStrategy: 'always' }),
     ),
     // ordem: authInterceptor trata o 401 (renovação) antes de o errorInterceptor notificar
@@ -48,6 +50,10 @@ export const appConfig: ApplicationConfig = {
     // tema e densidade aplicados desde a primeira tela (o onboarding é carregado com o shell)
     provideAppInitializer(() => {
       inject(ThemeService);
+    }),
+    // caminho percorrido e rolagem por entrada do histórico desde a primeira navegação
+    provideAppInitializer(() => {
+      inject(NavigationHistory);
     }),
   ],
 };

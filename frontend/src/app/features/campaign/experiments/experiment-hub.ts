@@ -14,6 +14,7 @@ import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
 import { valueOr } from '../../../shared/data/resource-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
@@ -21,6 +22,10 @@ import { CreditorLookup, CreditorNames } from '../../organization/data/organizat
 import { CampaignsApi, ExperimentsApi } from '../data/campaign.api';
 import { METRIC_LABELS } from '../data/campaign.labels';
 import { CampaignFilter, ExperimentView } from '../data/campaign.models';
+
+function toExperimentCampaignFilter(v: { creditor: string[]; status: string }): CampaignFilter {
+  return { creditorId: v.creditor[0] ?? null, status: v.status || null };
+}
 
 /**
  * Testes A/B de todas as campanhas visíveis: o teste aberto (ou o último) de cada uma, com a
@@ -107,19 +112,20 @@ export class ExperimentHub {
   protected readonly metricLabels = METRIC_LABELS;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] });
+  /** Filtros na URL (`?credor=&situacao=`), preservados ao voltar da campanha. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] }), {
+    creditor: urlParam.ids('credor'),
+    status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(250),
-      map((): CampaignFilter => {
-        const v = this.filters.getRawValue();
-        return { creditorId: v.creditor[0] ?? null, status: v.status || null };
-      }),
+      map(() => toExperimentCampaignFilter(this.filters.getRawValue())),
     ),
-    { initialValue: { creditorId: null, status: null } as CampaignFilter, equal: sameValue },
+    { initialValue: toExperimentCampaignFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.campaigns.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.campaigns.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((c) => c.creditorId));
 
   /** Testes de cada campanha da página (uma consulta por campanha; falha isolada vira "sem teste"). */

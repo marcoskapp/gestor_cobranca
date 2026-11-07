@@ -17,6 +17,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { endOfDayInstant, fromLocalDate, startOfDayInstant } from '../../../shared/models/dates';
@@ -144,13 +145,23 @@ export class CallList {
   protected readonly canListen = computed(() => this.auth.hasPermission(Permission.CALL_RECORDING_LISTEN));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>([]),
-    result: [''],
-    direction: [''],
-    from: this.fb.control<string | null>(null),
-    to: this.fb.control<string | null>(null),
-  });
+  /** Filtros na URL (`?credor=&resultado=&direcao=&de=&ate=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      result: [''],
+      direction: [''],
+      from: this.fb.control<string | null>(null),
+      to: this.fb.control<string | null>(null),
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      result: urlParam.choice<string>('resultado', this.results.map((r) => r[0])),
+      direction: urlParam.choice('direcao', ['OUTBOUND', 'INBOUND']),
+      from: urlParam.date('de'),
+      to: urlParam.date('ate'),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -159,7 +170,7 @@ export class CallList {
     ),
     { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((c) => c.debtorId), { batch: 100 });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((c) => c.creditorId));
   protected readonly users = nameMap(inject(UserNames), () => this.query.rows().map((c) => c.operatorId), { batch: USER_NAMES_BATCH });

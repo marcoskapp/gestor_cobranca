@@ -87,7 +87,7 @@ class NegotiationPendingWork implements PendingWorkSource {
     private PendingWorkItem own(String type, String label, String hint, String status, Set<UUID> scope, Actor actor,
                                 LocalDate today) {
         return PendingWorkItem.of(type, label, queries.ownProposals(scope, actor.id(), status, today)).hint(hint)
-                .route("/negociacao/propostas").param("situacao", status).param("minhas", "true")
+                .route("/negociacao/propostas").param("situacao", status).param("autor", "MINE")
                 .singleRoute(id -> "/negociacao/propostas/" + id).build();
     }
 

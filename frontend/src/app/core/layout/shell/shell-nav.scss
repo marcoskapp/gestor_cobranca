@@ -41,6 +41,30 @@
   color: var(--bs-secondary-color);
 }
 
+// título da seção é o botão que recolhe e expande (estado salvo nas preferências do usuário)
+.app-sidenav__section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  border-radius: var(--bs-border-radius-sm);
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+
+  &:hover {
+    color: var(--bs-emphasis-color);
+  }
+}
+
+.app-sidenav__chevron {
+  font-size: 0.75rem;
+}
+
 .app-sidenav__divider {
   margin: 8px 14px;
 }

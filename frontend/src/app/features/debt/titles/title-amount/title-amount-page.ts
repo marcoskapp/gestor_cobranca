@@ -1,7 +1,8 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { urlTab } from '../../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -28,7 +29,7 @@ import { canConfirmThreshold } from './title-amount.rules';
   imports: [ReactiveFormsModule, RouterLink, NgbNavModule, Amount, PageHeader, AppDatePipe, ...FORM_FIELD],
   template: `
     <app-page-header title="Correções de valor" subtitle="Aprovação das correções manuais e divergências com a carga do credor." />
-    <ul ngbNav #tabs="ngbNav" [(activeId)]="tab" class="nav-tabs mb-3" data-tour="title-amount-tabs">
+    <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-tabs mb-3" data-tour="title-amount-tabs">
       @if (canApprove()) {
         <li ngbNavItem="aprovacoes">
           <button ngbNavLink type="button">Para aprovar ({{ pendingRows().length }})</button>
@@ -145,7 +146,8 @@ export class TitleAmountPage {
   protected readonly canAdjust = computed(() => this.auth.hasPermission(Permission.TITLE_AMOUNT_ADJUST));
   /** O limite vale para toda a assessoria: altera e confirma quem aprova e vê todos os credores (como no servidor). */
   protected readonly canManageLimit = computed(() => this.canApprove() && (this.auth.user()?.allCreditors ?? false));
-  protected tab = inject(ActivatedRoute).snapshot.queryParamMap.get('aba') ?? (this.canApprove() ? 'aprovacoes' : 'divergencias');
+  /** Aba ativa na URL (`?aba=`). */
+  protected readonly tab = urlTab(['aprovacoes', 'divergencias', 'limite'], this.canApprove() ? 'aprovacoes' : 'divergencias');
   protected readonly busy = signal(false);
 
   private readonly pending = rxResource({ params: () => (this.canApprove() ? true : undefined), stream: () => this.api.pending({ page: 0, size: 100 }) });

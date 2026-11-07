@@ -25,10 +25,23 @@ public interface UiStateUseCases {
      * @param navigationCollapsed menu lateral recolhido
      * @param hintsEnabled        oferecer tours e novidades automaticamente
      * @param checklistDismissed  checklist de primeiros passos oculto
+     * @param navigationSections  seções do menu lateral recolhidas ou expandidas
      */
     record UiStatePatch(String theme, String density, Boolean navigationCollapsed, Boolean hintsEnabled,
                         Boolean checklistDismissed, Boolean resetTours,
-                        List<TourUpdate> tours, List<ScreenUpdate> screens, List<ChecklistUpdate> checklist) {
+                        List<TourUpdate> tours, List<ScreenUpdate> screens, List<ChecklistUpdate> checklist,
+                        List<NavSectionUpdate> navigationSections) {
+
+        /** Sem alteração das seções do menu. */
+        public UiStatePatch(String theme, String density, Boolean navigationCollapsed, Boolean hintsEnabled,
+                            Boolean checklistDismissed, Boolean resetTours,
+                            List<TourUpdate> tours, List<ScreenUpdate> screens, List<ChecklistUpdate> checklist) {
+            this(theme, density, navigationCollapsed, hintsEnabled, checklistDismissed, resetTours, tours, screens,
+                    checklist, null);
+        }
+    }
+
+    record NavSectionUpdate(String sectionKey, boolean collapsed) {
     }
 
     /** @param outcome {@code COMPLETED} ou {@code DISMISSED} */
@@ -41,9 +54,11 @@ public interface UiStateUseCases {
     record ChecklistUpdate(String itemId, boolean done) {
     }
 
+    /** @param collapsedSections seções do menu lateral recolhidas, em ordem alfabética */
     record UiStateView(String theme, String density, boolean navigationCollapsed, boolean hintsEnabled,
                        boolean checklistDismissed, Map<String, TourView> tours,
-                       Map<String, ScreenView> screens, Map<String, Instant> checklist) {
+                       Map<String, ScreenView> screens, Map<String, Instant> checklist,
+                       List<String> collapsedSections) {
     }
 
     record TourView(int version, String outcome, Instant recordedAt) {

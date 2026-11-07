@@ -1,4 +1,6 @@
 import { Component, computed, effect, inject, input, viewChild } from '@angular/core';
+import { NavigationHistory } from '../../../../core/layout/breadcrumbs/navigation-history';
+import { urlTab } from '../../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, map, of } from 'rxjs';
@@ -44,6 +46,8 @@ type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
   styleUrl: '../../debt.scss',
 })
 export class TitleDetail {
+  /** Volta para a lista com os filtros e a página de quando o usuário saiu dela. */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
   /** `?acao=cancelar&motivo=…`: abre a confirmação do cancelamento com o motivo sugerido (atalho da contestação procedente). */
   readonly acao = input<string | undefined>();
@@ -59,6 +63,8 @@ export class TitleDetail {
   private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
+  /** Aba ativa na URL (`?aba=`): voltar para a ficha reabre a mesma aba. */
+  protected readonly tab = urlTab(['saldo', 'razao', 'prescricao', 'correcoes', 'titularidade'], 'saldo');
 
   protected readonly title = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.title, undefined);

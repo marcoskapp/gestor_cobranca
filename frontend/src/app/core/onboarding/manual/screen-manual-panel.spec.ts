@@ -87,7 +87,7 @@ describe('ManualService e painel "Sobre esta tela"', () => {
   });
 
   it('com permissão, a tela relacionada vira link e fecha o painel ao seguir', async () => {
-    permissions.set(['AGREEMENT_VIEW', 'POLICY_VIEW', 'CASE_WORK']);
+    permissions.set(['AGREEMENT_VIEW', 'POLICY_AREA_VIEW', 'CASE_WORK']);
     const el = await render();
     const links = [...el.querySelectorAll('.manual__related a')] as HTMLAnchorElement[];
     expect(links.map((a) => a.getAttribute('href'))).toEqual(['/negociacao/propostas', '/negociacao/politicas', '/cobranca/fila']);

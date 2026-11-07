@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 14,
+    date: '2026-11-07',
+    title: 'Menu por tarefa e listas que voltam como estavam',
+    items: [
+      { text: 'O menu mostra só o que é tarefa do seu perfil; as seções recolhem com um clique no título e ficam assim nos outros dispositivos.' },
+      { text: 'Filtros, página e ordenação das listas ficam no endereço: abra um registro, volte e a lista e a rolagem continuam onde estavam.', route: '/cobranca/casos' },
+      { text: '"Voltar para…" no alto das fichas leva de volta à tela de onde você veio.' },
+      { text: 'Casos, propostas e acordos filtram por devedor (nome ou CPF/CNPJ completo) e ordenam pelas colunas com seta.', route: '/negociacao/propostas' },
+    ],
+  },
+  {
     version: 13,
     date: '2026-11-05',
     title: 'Mensagem pela estação de cobrança',

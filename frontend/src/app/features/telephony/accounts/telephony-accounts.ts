@@ -1,4 +1,5 @@
 import { DecimalPipe, PercentPipe } from '@angular/common';
+import { urlTab } from '../../../shared/data/url-state';
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
@@ -53,7 +54,7 @@ type Tab = 'accounts' | 'routes' | 'comparison';
   template: `
     <app-page-header title="Plataformas de telefonia" subtitle="Contas de cada plataforma, qual delas disca em cada credor, carteira ou campanha, e a comparação entre elas.">
       @if (canManage()) {
-        @if (tab() === 'routes') {
+        @if (tab.value() === 'routes') {
           <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="editRoute(null)" [disabled]="!accountRows().length">
             <app-icon name="signpost-split" />
             Nova regra
@@ -67,7 +68,7 @@ type Tab = 'accounts' | 'routes' | 'comparison';
       }
     </app-page-header>
 
-    <ul ngbNav #nav="ngbNav" class="nav-tabs mb-3" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="telephony-accounts-tabs">
+    <ul ngbNav #nav="ngbNav" class="nav-tabs mb-3" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" data-tour="telephony-accounts-tabs">
       <li [ngbNavItem]="'accounts'">
         <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2"><app-icon name="plug" />Contas</button>
         <ng-template ngbNavContent>
@@ -221,7 +222,8 @@ export class TelephonyAccounts {
   protected readonly readinessLabels = READINESS_LABELS;
   protected readonly scopeLabels = ROUTE_SCOPE_LABELS;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.TELEPHONY_MANAGE));
-  protected readonly tab = signal<Tab>('accounts');
+  /** Aba ativa na URL (`?aba=`). */
+  protected readonly tab = urlTab<Tab>(['accounts', 'routes', 'comparison'], 'accounts');
   protected readonly testing = signal<string | null>(null);
 
   protected readonly accounts = rxResource({ stream: () => this.api.list() });
@@ -232,7 +234,7 @@ export class TelephonyAccounts {
   protected readonly routeRows = computed(() =>
     [...this.routeValues()].sort((a, b) => ROUTE_SCOPE_ORDER.indexOf(a.scopeType) - ROUTE_SCOPE_ORDER.indexOf(b.scopeType)),
   );
-  protected readonly comparison = rxResource({ params: () => this.tab() === 'comparison' || undefined, stream: () => this.api.comparison(null, null) });
+  protected readonly comparison = rxResource({ params: () => this.tab.value() === 'comparison' || undefined, stream: () => this.api.comparison(null, null) });
   protected readonly comparisonRows = valueOr(this.comparison, [] as AccountComparison[]);
   private readonly campaignList = rxResource({ stream: () => this.campaignsApi.list() });
   private readonly campaigns = valueOr(this.campaignList, []);

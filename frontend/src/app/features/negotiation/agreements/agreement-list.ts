@@ -17,10 +17,11 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
-import { DebtorNames } from '../../debt/data/debt.lookups';
+import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { AgreementReviewBadge, PaymentReviewStatusApi } from '../../payment/data/review-status';
 import { AgreementsApi } from '../data/agreement.api';
@@ -28,8 +29,8 @@ import { AGREEMENT_ORIGIN_LABELS } from '../data/agreement.labels';
 import { AgreementFilter, AgreementView } from '../data/agreement.models';
 import { scheduleSummary } from '../data/agreement.rules';
 
-export function toAgreementFilter(v: { creditor: string[]; status: string }): AgreementFilter {
-  return { creditorId: v.creditor[0] ?? null, debtorId: null, caseId: null, status: v.status || null };
+export function toAgreementFilter(v: { creditor: string[]; debtor: string[]; status: string }): AgreementFilter {
+  return { creditorId: v.creditor[0] ?? null, debtorId: v.debtor[0] ?? null, caseId: null, status: v.status || null };
 }
 
 /** Acordos formalizados com progresso do cronograma e situação (em pagamento, quitado, quebrado…). */
@@ -53,6 +54,11 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
     <app-page-header title="Acordos" subtitle="Acordos formalizados, parcelas pagas e em aberto. Quebra e quitação são atualizadas automaticamente." />
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar acordos">
+      @if (canSearchDebtors()) {
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor (nome ou CPF/CNPJ)" [single]="true" />
+        </div>
+      }
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
@@ -73,7 +79,9 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
       [loading]="query.loading()"
       [failed]="query.failed()"
       [page]="query.tablePage()"
+      [sort]="query.sort()"
       (pageChange)="query.setPage($event)"
+      (sortChange)="query.setSort($event)"
       (retry)="query.reload()"
       emptyIcon="person-hearts"
       emptyMessage="Nenhum acordo encontrado."
@@ -144,14 +152,25 @@ export function toAgreementFilter(v: { creditor: string[]; status: string }): Ag
 })
 export class AgreementList {
   private readonly api = inject(AgreementsApi);
+  private readonly auth = inject(AuthService);
   /** Janela dos recusados (`app.payment.review-status.rejected-window`), do servidor. */
   protected readonly rejectedWindow = manualPhrase('payment.rejectedReviewWindow');
   protected readonly creditorSource = inject(CreditorLookup);
+  protected readonly debtorSource = inject(DebtorLookup);
   protected readonly statuses = statusOptions('agreement');
   protected readonly origins = AGREEMENT_ORIGIN_LABELS;
+  protected readonly canSearchDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] });
+  /** Filtros na URL (`?credor=&devedor=&situacao=`), preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({ creditor: this.fb.control<string[]>([]), debtor: this.fb.control<string[]>([]), status: [''] }),
+    {
+      creditor: urlParam.ids('credor'),
+      debtor: urlParam.ids('devedor'),
+      status: urlParam.choice('situacao', statusOptions('agreement').map((s) => s.value)),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -160,11 +179,13 @@ export class AgreementList {
     ),
     { initialValue: toAgreementFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), {
+    url: true,
+    sortFields: { formalizedAt: 'formalizedAt', total: 'totalAmount' },
+  });
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((a) => a.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((a) => a.creditorId));
 
-  private readonly auth = inject(AuthService);
   private readonly reviewApi = inject(PaymentReviewStatusApi);
   /** Selo "pagamento em revisão/recusado": uma consulta por página (sem N+1). */
   private readonly rowIds = computed(() => this.query.rows().map((a) => a.id), {
@@ -184,9 +205,9 @@ export class AgreementList {
   }
 
   protected readonly columns: TableColumn[] = [
-    { key: 'formalizedAt', header: 'Formalizado em' },
+    { key: 'formalizedAt', header: 'Formalizado em', sortable: true },
     { key: 'debtor', header: 'Devedor' },
-    { key: 'total', header: 'Total', align: 'end' },
+    { key: 'total', header: 'Total', align: 'end', sortable: true },
     { key: 'progress', header: 'Parcelas' },
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },

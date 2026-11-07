@@ -14,10 +14,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.operational',
-    version: 2,
+    version: 3,
     path: '/paineis',
     tourId: 'analytics.operational',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
+      { version: 3, items: ['Os painéis saíram das abas e ficam só no menu, em Painéis; o período escolhido acompanha você de um painel para outro.'] },
+    ],
   },
   {
     key: 'analytics.recovery',
@@ -191,7 +194,13 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
     ],
   },
-  { key: 'collection.cases', version: 1, path: '/cobranca/casos', tourId: 'collection.cases' },
+  {
+    key: 'collection.cases',
+    version: 2,
+    path: '/cobranca/casos',
+    tourId: 'collection.cases',
+    changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Saldo, atraso e próxima ação.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
+  },
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   { key: 'collection.queues', version: 1, path: '/cobranca/filas', tourId: 'collection.queues' },
   {
@@ -253,10 +262,21 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela explica a dívida atualizada, as ofertas e a sua alçada.'] },
     ],
   },
-  { key: 'negotiation.proposals', version: 1, path: '/negociacao/propostas', tourId: 'negotiation.proposals' },
+  {
+    key: 'negotiation.proposals',
+    version: 2,
+    path: '/negociacao/propostas',
+    tourId: 'negotiation.proposals',
+    changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Criação e total.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
+  },
   { key: 'negotiation.proposal-detail', version: 1, path: '/negociacao/propostas/:id', tourId: 'negotiation.proposal-detail' },
   { key: 'negotiation.approvals', version: 1, path: '/negociacao/aprovacoes', tourId: 'negotiation.approvals' },
-  { key: 'negotiation.agreements', version: 1, path: '/negociacao/acordos' },
+  {
+    key: 'negotiation.agreements',
+    version: 2,
+    path: '/negociacao/acordos',
+    changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Formalização e total.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
+  },
   {
     key: 'negotiation.agreement-detail',
     version: 3,
@@ -355,10 +375,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },
   {
     key: 'incentive.performance',
-    version: 2,
+    version: 3,
     path: '/remuneracao/desempenho',
     tourId: 'incentive.performance',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
+      { version: 3, items: ['Para o negociador, "Meu desempenho" reúne os atalhos para a produtividade, os extratos e lançamentos de comissão, a monitoria e as ocorrências, que saíram do menu.'] },
+    ],
   },
   { key: 'incentive.statements', version: 1, path: '/remuneracao/extratos', tourId: 'incentive.statements' },
   { key: 'incentive.preview', version: 1, path: '/remuneracao/extratos/previa' },

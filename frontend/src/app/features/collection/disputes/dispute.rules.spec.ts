@@ -1,4 +1,18 @@
-import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, formFromQuery, nearestDue, protocolOf, suggestedAdjustment, toDisputeFilter, unresolvedPlaceholders } from './dispute.rules';
+import { convertToParamMap } from '@angular/router';
+import { readUrlValues, urlParamsOf } from '../../../shared/data/url-state';
+import {
+  DISPUTE_FORM_DEFAULTS,
+  DISPUTE_URL_CODECS,
+  adjustmentShortcut,
+  canWorkDispute,
+  disputeActions,
+  dueTone,
+  nearestDue,
+  protocolOf,
+  suggestedAdjustment,
+  toDisputeFilter,
+  unresolvedPlaceholders,
+} from './dispute.rules';
 
 describe('regras de tela das contestações', () => {
   const base = { internalDueDate: '2026-11-10', responseDueDate: '2026-11-15', overdue: false, status: 'OPEN' as const };
@@ -42,13 +56,20 @@ describe('regras de tela das contestações', () => {
     ).toEqual({ creditorId: null, status: null, overdue: null, type: 'FRAUD', unassigned: true, dueUntil: '2026-11-12', awaitingCreditor: true, adjustmentPending: true });
     expect(toDisputeFilter({ creditor: [], status: 'PENDING', assignee: 'supervision' }).supervision).toBe(true);
     expect(toDisputeFilter({ creditor: [], status: 'PENDING', assignee: 'me' }).assignee).toBe('me');
-    const q = (map: Record<string, string>) => ({ get: (k: string) => map[k] ?? null });
-    expect(formFromQuery(q({ responsavel: 'me' }))).toMatchObject({ assignee: 'me', status: 'PENDING' });
-    expect(formFromQuery(q({ fila: 'supervisao' })).assignee).toBe('supervision');
-    expect(formFromQuery(q({ resposta: 'pendente' }))).toMatchObject({ status: 'RESOLVED', noticePending: true });
-    expect(formFromQuery(q({ ajuste: 'pendente', vencidas: 'true' }))).toMatchObject({ adjustmentPending: true, overdue: true });
-    expect(formFromQuery(q({ email: 'pendente', responsavel: 'me' }))).toMatchObject({ mailReplyPending: true, status: 'PENDING', assignee: 'me' });
     expect(toDisputeFilter({ creditor: [], status: '', mailReplyPending: true }).mailReplyPending).toBe(true);
+  });
+
+  it('filtros na URL: padrão fora, "Todas" explícita, valores fora da lista caem no padrão', () => {
+    const params = (map: Record<string, string>) => convertToParamMap(map);
+    expect(urlParamsOf(DISPUTE_FORM_DEFAULTS, DISPUTE_URL_CODECS, DISPUTE_FORM_DEFAULTS)).toEqual(
+      Object.fromEntries(Object.values(DISPUTE_URL_CODECS).map((c) => [c!.param, null])),
+    );
+    const value = { ...DISPUTE_FORM_DEFAULTS, creditor: ['c-1'], status: '', assignee: 'supervision', due: 'week', noticePending: true };
+    const written = urlParamsOf(value, DISPUTE_URL_CODECS, DISPUTE_FORM_DEFAULTS);
+    expect(written).toMatchObject({ credor: 'c-1', situacao: 'todas', responsavel: 'supervisao', prazo: 'semana', 'resposta-pendente': '1' });
+    const present = Object.fromEntries(Object.entries(written).filter(([, v]) => v !== null)) as Record<string, string>;
+    expect(readUrlValues(params(present), DISPUTE_URL_CODECS, DISPUTE_FORM_DEFAULTS)).toEqual(value);
+    expect(readUrlValues(params({ situacao: 'XYZ', responsavel: 'outro', prazo: 'ontem' }), DISPUTE_URL_CODECS, DISPUTE_FORM_DEFAULTS)).toEqual(DISPUTE_FORM_DEFAULTS);
   });
 
   it('atalho do ajuste leva ao fluxo existente já preenchido', () => {

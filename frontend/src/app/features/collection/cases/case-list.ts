@@ -15,10 +15,11 @@ import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { valueOr } from '../../../shared/data/resource-value';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { statusOptions } from '../../../shared/status/status';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
-import { DebtorNames } from '../../debt/data/debt.lookups';
+import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorLookup, CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { CasesApi } from '../data/collection.api';
 import { OWNER_LABELS, eligibilityText } from '../data/collection.labels';
@@ -33,6 +34,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 
 interface CaseFormValue {
   creditor: string[];
+  debtor: string[];
   status: string;
   queueId: string;
   assignee: string;
@@ -45,6 +47,7 @@ interface CaseFormValue {
 export function toCaseFilter(v: CaseFormValue): CaseFilter {
   return {
     creditorId: v.creditor[0] ?? null,
+    debtorId: v.debtor[0] ?? null,
     status: v.status === 'ACTIVE' ? 'OPEN,IN_NEGOTIATION,PROMISE,AGREEMENT,DISPUTED,SUSPENDED,LEGAL' : v.status || null,
     queueId: v.queueId || null,
     assignee: v.assignee === 'me' ? 'me' : v.assignee === 'user' ? (v.user[0] ?? null) : null,
@@ -68,6 +71,11 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
     </app-page-header>
 
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar casos">
+      @if (canSearchDebtors()) {
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor (nome ou CPF/CNPJ)" [single]="true" />
+        </div>
+      }
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
@@ -126,7 +134,9 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
       [loading]="query.loading()"
       [failed]="query.failed()"
       [page]="query.tablePage()"
+      [sort]="query.sort()"
       (pageChange)="query.setPage($event)"
+      (sortChange)="query.setSort($event)"
       (retry)="query.reload()"
       emptyIcon="folder-x"
       emptyMessage="Nenhum caso encontrado."
@@ -169,6 +179,7 @@ export class CaseList {
   private readonly auth = inject(AuthService);
   private readonly dialog = inject(DialogService);
   protected readonly creditorSource = inject(CreditorLookup);
+  protected readonly debtorSource = inject(DebtorLookup);
   protected readonly users = inject(UserLookup);
   private readonly queueLookup = inject(QueueNames);
 
@@ -178,21 +189,35 @@ export class CaseList {
   protected readonly nextActionText = nextActionText;
   protected readonly canAssign = computed(() => this.auth.hasPermission(Permission.CASE_ASSIGN));
   protected readonly canPickUser = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
+  protected readonly canSearchDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
   protected readonly canQueues = computed(() => this.auth.hasAnyPermission([Permission.QUEUE_MANAGE, Permission.CASE_ASSIGN]));
 
   private readonly queueList = rxResource({ stream: () => this.queueLookup.all() });
   protected readonly queues = valueOr(this.queueList, []);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>([]),
-    status: ['ACTIVE'],
-    queueId: [''],
-    assignee: [''],
-    user: this.fb.control<string[]>([]),
-    ownerType: [''],
-    eligible: [''],
-  });
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      debtor: this.fb.control<string[]>([]),
+      status: ['ACTIVE'],
+      queueId: [''],
+      assignee: [''],
+      user: this.fb.control<string[]>([]),
+      ownerType: [''],
+      eligible: [''],
+    }),
+    {
+      creditor: urlParam.ids('credor'),
+      debtor: urlParam.ids('devedor'),
+      status: urlParam.text('situacao'),
+      queueId: urlParam.id('fila'),
+      assignee: urlParam.choice('responsavel', ['me', 'user']),
+      user: urlParam.ids('operador'),
+      ownerType: urlParam.text('atendimento'),
+      eligible: urlParam.choice('elegivel', ['true', 'false']),
+    },
+  );
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -202,7 +227,10 @@ export class CaseList {
     ),
     { initialValue: toCaseFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), {
+    url: true,
+    sortFields: { balance: 'openBalance', overdue: 'daysOverdue', next: 'nextActionAt' },
+  });
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((c) => c.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((c) => c.creditorId));
@@ -213,10 +241,10 @@ export class CaseList {
   protected readonly columns: TableColumn[] = [
     { key: 'debtor', header: 'Devedor' },
     { key: 'status', header: 'Situação' },
-    { key: 'balance', header: 'Saldo', align: 'end' },
-    { key: 'overdue', header: 'Atraso' },
+    { key: 'balance', header: 'Saldo', align: 'end', sortable: true },
+    { key: 'overdue', header: 'Atraso', sortable: true },
     { key: 'owner', header: 'Atendimento' },
-    { key: 'next', header: 'Próxima ação' },
+    { key: 'next', header: 'Próxima ação', sortable: true },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

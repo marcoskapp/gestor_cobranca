@@ -15,8 +15,10 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -39,6 +41,7 @@ public class UserUiState extends TenantScopedEntity {
     public static final int MAX_TOURS = 200;
     public static final int MAX_SCREENS = 500;
     public static final int MAX_CHECKLIST_ITEMS = 100;
+    public static final int MAX_NAV_SECTIONS = 50;
 
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
@@ -78,6 +81,12 @@ public class UserUiState extends TenantScopedEntity {
     @Column(name = "completed_at", nullable = false)
     private Map<String, Instant> checklist = new HashMap<>();
 
+    /** Seções do menu lateral recolhidas (identificador da seção definido pelo frontend). */
+    @ElementCollection
+    @CollectionTable(name = "user_ui_nav_section", schema = "identity", joinColumns = @JoinColumn(name = "ui_state_id"))
+    @Column(name = "section_key", nullable = false, length = KEY_MAX_LENGTH)
+    private Set<String> collapsedSections = new HashSet<>();
+
     protected UserUiState() {
     }
 
@@ -100,6 +109,25 @@ public class UserUiState extends TenantScopedEntity {
 
     public void collapseNavigation(boolean collapsed) {
         this.navigationCollapsed = collapsed;
+    }
+
+    /**
+     * Recolhe ou expande uma seção do menu lateral. Expandir uma seção não registrada não grava nada (o padrão é
+     * expandida).
+     *
+     * @return {@code true} se o registro mudou
+     */
+    public boolean collapseSection(String sectionKey, boolean collapsed) {
+        requireKey(sectionKey, "ui_state.nav_section_invalid", "Identificador de seção do menu inválido");
+        if (!collapsed) {
+            return collapsedSections.remove(sectionKey);
+        }
+        if (collapsedSections.contains(sectionKey)) {
+            return false;
+        }
+        Guard.require(collapsedSections.size() < MAX_NAV_SECTIONS, "ui_state.too_many_nav_sections",
+                "Limite de seções do menu recolhidas atingido");
+        return collapsedSections.add(sectionKey);
     }
 
     public void enableHints(boolean enabled) {
@@ -216,5 +244,9 @@ public class UserUiState extends TenantScopedEntity {
 
     public Map<String, Instant> getChecklist() {
         return Collections.unmodifiableMap(checklist);
+    }
+
+    public Set<String> getCollapsedSections() {
+        return Collections.unmodifiableSet(collapsedSections);
     }
 }

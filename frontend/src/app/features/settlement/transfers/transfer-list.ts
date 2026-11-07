@@ -17,6 +17,7 @@ import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
@@ -174,20 +175,21 @@ export class TransferList {
   protected readonly abs = Math.abs;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]) });
+  /** Credor na URL (`?credor=`), preservado ao voltar. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]) }), { creditor: urlParam.ids('credor') });
   private readonly creditorId = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(200),
       map(() => this.filters.getRawValue().creditor[0] ?? null),
     ),
-    { initialValue: null },
+    { initialValue: this.filters.getRawValue().creditor[0] ?? null },
   );
   private readonly round = signal(0);
   protected readonly balanceList = rxResource({ params: () => ({ c: this.creditorId(), r: this.round() }), stream: ({ params }) => this.api.balances(params.c) });
   private readonly balancesRaw = valueOr(this.balanceList, []);
   protected readonly balances = computed(() => this.balancesRaw().filter((b) => b.toTransfer > 0 || b.toReceive > 0));
-  protected readonly query = pagedQuery(computed(() => ({ c: this.creditorId(), r: this.round() })), (f, page) => this.api.search(f.c, page));
+  protected readonly query = pagedQuery(computed(() => ({ c: this.creditorId(), r: this.round() })), (f, page) => this.api.search(f.c, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => [...this.balances().map((b) => b.creditorId), ...this.query.rows().map((t) => t.creditorId)]);
   protected readonly users = nameMap(inject(UserNames), () => this.query.rows().map((t) => t.registeredBy), { batch: USER_NAMES_BATCH });
 

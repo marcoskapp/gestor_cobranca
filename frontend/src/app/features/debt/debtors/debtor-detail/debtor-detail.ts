@@ -1,4 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
+import { NavigationHistory } from '../../../../core/layout/breadcrumbs/navigation-history';
+import { urlTab } from '../../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -56,6 +58,8 @@ import { NgbTooltip, NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bo
   styleUrl: '../../debt.scss',
 })
 export class DebtorDetail {
+  /** Volta para a lista com os filtros e a página de quando o usuário saiu dela. */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly debtorsApi = inject(DebtorsApi);
@@ -67,6 +71,8 @@ export class DebtorDetail {
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
+  /** Aba ativa na URL (`?aba=`): voltar para a ficha reabre a mesma aba. */
+  protected readonly tab = urlTab(['titulos', 'contatos', 'contratos', 'garantias', 'razao', 'titularidade', 'restricoes'], 'titulos');
 
   protected readonly personTypes = PERSON_TYPE_LABELS;
   protected readonly contactTypes = CONTACT_TYPE_LABELS;

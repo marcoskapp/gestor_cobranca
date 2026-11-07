@@ -38,6 +38,7 @@ describe('rotas e menu do score', () => {
     expect(items.length).toBe(5);
     for (const item of items) {
       expect(routes.get(item.route), item.route).toEqual([...item.permissions]);
+      expect(item.permissions, item.route).toEqual(['SCORING_AREA_VIEW']);
     }
   });
 });

@@ -1,4 +1,5 @@
 import { Component, Type, computed, inject, input } from '@angular/core';
+import { recordLabel } from '../../../../core/layout/breadcrumbs/breadcrumbs';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
@@ -57,6 +58,8 @@ export class UserDetail {
 
   protected readonly user = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.user, undefined);
+  /** Nome do registro na trilha e no "Voltar para" de quem sair desta ficha. */
+  protected readonly crumb = recordLabel(() => this.current()?.name);
   protected readonly sessions = rxResource({
     params: () => (this.canManage() ? this.id() : undefined),
     stream: ({ params }) => this.api.sessions(params),

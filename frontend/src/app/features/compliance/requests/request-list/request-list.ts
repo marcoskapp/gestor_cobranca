@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
@@ -11,6 +11,7 @@ import { PageHeader } from '../../../../shared/components/page-header/page-heade
 import { StatusChip } from '../../../../shared/components/status-chip/status-chip';
 import { sameValue } from '../../../../shared/data/same-value';
 import { pagedQuery } from '../../../../shared/data/paged-query';
+import { UrlCodec, syncFormWithUrl, urlParam } from '../../../../shared/data/url-state';
 import { DocumentMask } from '../../../../shared/directives/document-mask';
 import { PageRequest, PageResponse, emptyPage } from '../../../../shared/models/page';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
@@ -47,6 +48,13 @@ export function toQueueFilter(v: { status: string; type: string; overdue: boolea
   };
 }
 
+/** `?vencidas=true` (formato que os links de "Minhas pendências" já usam). */
+const OVERDUE_PARAM: UrlCodec<boolean> = {
+  param: 'vencidas',
+  parse: (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined),
+  format: (v) => (v ? 'true' : 'false'),
+};
+
 /** Fila de solicitações de titulares com prazo legal e atraso em destaque. */
 @Component({
   selector: 'app-request-list',
@@ -67,9 +75,15 @@ export class RequestList {
   protected readonly allCreditors = computed(() => this.auth.user()?.allCreditors ?? false);
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** `?vencidas=true` abre só as vencidas (ex.: vindo de "Minhas pendências"). */
-  private readonly overdueOnly = inject(ActivatedRoute).snapshot.queryParamMap.get('vencidas') === 'true';
-  protected readonly filters = this.fb.group({ status: [''], type: [''], overdue: [this.overdueOnly], document: [''] });
+  /**
+   * Filtros na URL (`?situacao=&pedido=&vencidas=true`): `vencidas` vem de "Minhas pendências" e tudo se preserva ao
+   * voltar. O CPF/CNPJ do titular nunca vai para a URL (dado pessoal).
+   */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ status: [''], type: [''], overdue: [false], document: [''] }), {
+    status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
+    type: urlParam.choice('pedido', this.types.map((t) => t.value)),
+    overdue: OVERDUE_PARAM,
+  });
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -77,10 +91,10 @@ export class RequestList {
       debounceTime(300),
       map(() => toQueueFilter(this.filters.getRawValue())),
     ),
-    { initialValue: toQueueFilter({ status: '', type: '', overdue: this.overdueOnly, document: '' }), equal: sameValue },
+    { initialValue: toQueueFilter(this.filters.getRawValue()), equal: sameValue },
   );
   protected readonly incomplete = computed(() => this.filter().incomplete);
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page), { url: true });
 
   /** Indicadores da fila (totais do servidor; uma consulta de 1 item por indicador). */
   protected readonly counters = rxResource({

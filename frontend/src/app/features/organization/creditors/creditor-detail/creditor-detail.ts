@@ -1,4 +1,5 @@
 import { Component, Type, computed, inject, input } from '@angular/core';
+import { recordLabel } from '../../../../core/layout/breadcrumbs/breadcrumbs';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -53,6 +54,8 @@ export class CreditorDetail {
 
   protected readonly creditor = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.creditor, undefined);
+  /** Nome do registro na trilha e no "Voltar para" de quem sair desta ficha. */
+  protected readonly crumb = recordLabel(() => this.current()?.tradeName || this.current()?.legalName);
   protected readonly contracts = rxResource({
     params: () => this.id(),
     stream: ({ params }) => this.contractsApi.listByCreditor(params),

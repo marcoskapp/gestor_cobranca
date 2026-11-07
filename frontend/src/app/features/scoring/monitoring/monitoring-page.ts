@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
+import { urlTab } from '../../../shared/data/url-state';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Icon } from '../../../shared/components/icon/icon';
@@ -17,7 +18,7 @@ import { StabilityPanel } from './stability-panel';
   imports: [Icon, NgbNavModule, PageHeader, ScopeNotice, ExpectedRecoveryPanel, StabilityPanel],
   template: `
     <app-page-header title="Monitoramento do score" subtitle="Deriva da população, calibração, desempenho real das safras e recuperado × esperado." />
-    <ul ngbNav #nav="ngbNav" class="nav-tabs mb-3" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="scoring-monitoring-tabs">
+    <ul ngbNav #nav="ngbNav" class="nav-tabs mb-3" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" data-tour="scoring-monitoring-tabs">
       <li [ngbNavItem]="'stability'">
         <button ngbNavLink type="button" class="d-inline-flex align-items-center gap-2"><app-icon name="activity" />Estabilidade e calibração</button>
         <ng-template ngbNavContent>
@@ -41,5 +42,6 @@ import { StabilityPanel } from './stability-panel';
 export class MonitoringPage {
   private readonly auth = inject(AuthService);
   protected readonly allCreditors = computed(() => this.auth.user()?.allCreditors ?? false);
-  protected readonly tab = signal<'stability' | 'recovery'>(this.auth.user()?.allCreditors ? 'stability' : 'recovery');
+  /** Aba ativa na URL (`?aba=`). */
+  protected readonly tab = urlTab<'stability' | 'recovery'>(['stability', 'recovery'], this.auth.user()?.allCreditors ? 'stability' : 'recovery');
 }

@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -52,12 +53,12 @@ import { Icon } from '../../../shared/components/icon/icon';
     } @else if (resource.status() === 'error' && !current()) {
       <app-empty-state icon="card-checklist" tone="error" title="Não foi possível abrir a conferência." message="Ela pode não existir ou o credor estar fora do seu escopo.">
         <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-        <a class="btn btn-link" routerLink="/importacao">Voltar para importações</a>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/importacao')">Voltar para importações</a>
       </app-empty-state>
     }
     @if (current(); as r) {
       <app-page-header title="Conferência da importação" [subtitle]="(r.batch.fileName || 'Registros') + ' · ' + creditors.name(r.creditorId) + ' · ' + portfolios.name(r.portfolioId)">
-        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/importacao')"><app-icon name="arrow-left" /> Importações</a>
         @if (canExecute() && (r.status === 'OPEN' || r.status === 'AWAITING_APPROVAL')) {
           <button class="btn btn-outline-primary" type="button" (click)="cancel(r)"><app-icon name="x-circle" /> Cancelar conferência</button>
         }
@@ -248,6 +249,8 @@ import { Icon } from '../../../shared/components/icon/icon';
   `,
 })
 export class ReviewWizard {
+  /** Volta para a lista com os filtros e a página de quando o usuário saiu dela. */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly api = inject(ImportReviewsApi);

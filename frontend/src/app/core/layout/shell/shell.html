@@ -187,17 +187,35 @@
 <!-- menu lateral (o mesmo conteúdo no painel fixo e no painel do celular) -->
 <ng-template #navigation let-rail="rail">
   <nav aria-label="Menu principal">
-    @for (section of sections(); track section.label; let first = $first) {
+    @for (section of sections(); track section.key; let first = $first) {
+      @let collapsed = !rail && isCollapsed(section);
       @if (section.label) {
         @if (rail) {
           @if (!first) {
             <hr class="app-sidenav__divider" />
           }
         } @else {
-          <h2 class="app-sidenav__section" [id]="'menu-secao-' + $index">{{ section.label }}</h2>
+          <h2 class="app-sidenav__section" [id]="'menu-secao-' + section.key">
+            <button
+              type="button"
+              class="app-sidenav__section-toggle"
+              [attr.aria-expanded]="!collapsed"
+              [attr.aria-controls]="'menu-itens-' + section.key"
+              (click)="toggleSection(section)"
+            >
+              <span>{{ section.label }}</span>
+              <app-icon class="app-sidenav__chevron" [name]="collapsed ? 'chevron-right' : 'chevron-down'" />
+            </button>
+          </h2>
         }
       }
-      <ul class="nav nav-pills flex-column app-sidenav__list" [attr.aria-label]="rail ? (section.label ?? 'Início') : null">
+      <ul
+        class="nav nav-pills flex-column app-sidenav__list"
+        [id]="'menu-itens-' + section.key"
+        [hidden]="collapsed"
+        [attr.aria-label]="rail ? (section.label ?? 'Início') : null"
+        [attr.aria-labelledby]="!rail && section.label ? 'menu-secao-' + section.key : null"
+      >
         @for (item of section.items; track item.route) {
           <li class="nav-item">
             <a

@@ -3,15 +3,22 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder } from '@angular/forms';
 import { debounceTime, map, startWith } from 'rxjs';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { PersonRangeFilter } from '../data/incentive.models';
 
-/** Filtro de pessoa + intervalo (avaliações e ocorrências); o servidor assume os últimos 90 dias sem datas. */
+/**
+ * Filtro de pessoa + intervalo (avaliações e ocorrências); o servidor assume os últimos 90 dias sem datas. Fica na URL
+ * (`?negociador=&de=&ate=`), preservado ao voltar. Contexto de injeção (campo da página).
+ */
 export function personRangeFilter(fb: FormBuilder) {
-  const form = fb.nonNullable.group({
-    user: fb.nonNullable.control<string[]>([]),
-    from: fb.control<string | null>(null),
-    to: fb.control<string | null>(null),
-  });
+  const form = syncFormWithUrl(
+    fb.nonNullable.group({
+      user: fb.nonNullable.control<string[]>([]),
+      from: fb.control<string | null>(null),
+      to: fb.control<string | null>(null),
+    }),
+    { user: urlParam.ids('negociador'), from: urlParam.date('de'), to: urlParam.date('ate') },
+  );
   const current = (): PersonRangeFilter => {
     const v = form.getRawValue();
     return { userId: v.user[0] ?? null, from: v.from || null, to: v.to || null };

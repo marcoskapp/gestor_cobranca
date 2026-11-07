@@ -11,13 +11,13 @@
     message="Ele pode não existir ou estar fora dos credores do seu escopo."
   >
     <button class="btn btn-outline-primary" type="button" (click)="title.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/titulos">Voltar para títulos</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/titulos')">Voltar para títulos</a>
   </app-empty-state>
 }
 
 @if (current(); as t) {
   <app-page-header [title]="'Título ' + titleLabel(t)" [subtitle]="creditors.name(t.creditorId) + ' · ' + portfolios.name(t.portfolioId)">
-    <a class="btn btn-link" routerLink="/titulos">
+    <a class="btn btn-link" [routerLink]="history.linkTo('/titulos')">
       <app-icon name="arrow-left" />
       Títulos
     </a>
@@ -138,32 +138,32 @@
   </section>
 
   <section class="app-card" aria-label="Saldo, razão e titularidade">
-    <ul ngbNav #tabs="ngbNav" class="nav-tabs debt-tabs" data-tour="title-tabs">
-      <li ngbNavItem>
+    <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-tabs debt-tabs" data-tour="title-tabs">
+      <li [ngbNavItem]="'saldo'">
         <button ngbNavLink type="button">Saldo por componente</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-balance [titleId]="t.id" /></div>
         </ng-template>
       </li>
-      <li ngbNavItem>
+      <li [ngbNavItem]="'razao'">
         <button ngbNavLink type="button">Razão</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-ledger [titleId]="t.id" /></div>
         </ng-template>
       </li>
-      <li ngbNavItem>
+      <li [ngbNavItem]="'prescricao'">
         <button ngbNavLink type="button">Prescrição</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-prescription [titleId]="t.id" /></div>
         </ng-template>
       </li>
-      <li ngbNavItem>
+      <li [ngbNavItem]="'correcoes'">
         <button ngbNavLink type="button" data-tour="title-amount-tab">Correções de valor</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-amount-history [titleId]="t.id" (changed)="refresh()" /></div>
         </ng-template>
       </li>
-      <li ngbNavItem>
+      <li [ngbNavItem]="'titularidade'">
         <button ngbNavLink type="button">Titularidade</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-title-ownership [titleId]="t.id" /></div>

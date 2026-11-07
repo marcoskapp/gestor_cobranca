@@ -27,6 +27,9 @@ import { CHANNEL_LABELS, DELAY_BUCKET_LABELS, GROUP_BY_LABELS, PLAN_DELAY_BUCKET
 import { IndicatorRow, PerformanceGroupBy, PerformanceQuery } from '../data/incentive.models';
 import { fraction, monthEnd, monthOf, monthOptions, monthStart, score } from '../data/incentive.rules';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { Icon } from '../../../shared/components/icon/icon';
+import { IconName } from '../../../shared/components/icon/icon-names';
+import { RouterLink } from '@angular/router';
 
 export type PerformanceScope = 'OWN' | 'TEAM' | 'ALL';
 
@@ -54,9 +57,24 @@ export function monthRange(month: string, today: string): { from: string; to: st
  */
 @Component({
   selector: 'app-incentive-performance-panel',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, KpiCard, PageHeader, Skeleton, InfoHint],
+  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader, Skeleton, InfoHint],
   template: `
     <app-page-header [title]="title()" subtitle="Indicadores dos negociadores humanos a partir dos fatos de cobrança, negociação e pagamento, com as bases sempre visíveis." />
+    @if (scope() === 'OWN') {
+      <!-- o negociador chega aqui pelo menu ("Meu desempenho") e daqui ao resto do próprio desempenho (D6) -->
+      <nav class="mb-3" aria-label="Meu desempenho: outras telas" data-tour="my-performance-links">
+        <ul class="nav nav-pills gap-1">
+          @for (link of ownLinks; track link.route) {
+            <li class="nav-item">
+              <a class="nav-link d-inline-flex align-items-center gap-2" [routerLink]="link.route">
+                <app-icon [name]="link.icon" />
+                {{ link.label }}
+              </a>
+            </li>
+          }
+        </ul>
+      </nav>
+    }
     <form class="app-filters" data-tour="filters" [formGroup]="form" role="search" aria-label="Filtrar indicadores">
       <app-field label="Mês">
         <select appInput formControlName="month">
@@ -190,6 +208,14 @@ export class PerformancePanel {
   protected readonly canUsers = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
   protected readonly groups = computed(() => groupOptions(this.scope()));
   protected readonly title = computed(() => ({ OWN: 'Meu desempenho', TEAM: 'Desempenho da equipe', ALL: 'Desempenho dos negociadores' })[this.scope()]);
+  /** Telas do próprio desempenho que não ficam no menu do negociador (`NavItem.openedFrom`). */
+  protected readonly ownLinks: readonly { label: string; route: string; icon: IconName }[] = [
+    { label: 'Minha produtividade', route: '/paineis/produtividade', icon: 'speedometer2' },
+    { label: 'Extratos de comissão', route: '/remuneracao/extratos', icon: 'file-earmark-check' },
+    { label: 'Lançamentos de comissão', route: '/remuneracao/lancamentos', icon: 'journal-text' },
+    { label: 'Monitoria de qualidade', route: '/remuneracao/qualidade/avaliacoes', icon: 'clipboard-check' },
+    { label: 'Ocorrências de conduta', route: '/remuneracao/qualidade/ocorrencias', icon: 'exclamation-octagon' },
+  ];
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({

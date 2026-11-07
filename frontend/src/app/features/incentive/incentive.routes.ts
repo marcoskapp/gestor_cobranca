@@ -12,6 +12,8 @@ export const INCENTIVE_PERMISSIONS = {
   statements: [...PERFORMANCE, Permission.COMMISSION_STATEMENT_MANAGE, Permission.COMMISSION_STATEMENT_APPROVE],
   exports: [Permission.COMMISSION_STATEMENT_APPROVE],
   quality: [...PERFORMANCE, Permission.QUALITY_EVALUATE],
+  // formulários: de quem avalia ou acompanha outras pessoas (o negociador vê o formulário dentro da avaliação)
+  qualityForms: [Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL, Permission.QUALITY_EVALUATE],
   performance: PERFORMANCE,
   attribution: [...PERFORMANCE, Permission.AGREEMENT_VIEW],
 } as const;
@@ -115,7 +117,7 @@ export const INCENTIVE_ROUTES: Routes = [
     path: 'qualidade/formularios',
     title: 'Formulários de monitoria',
     canActivate: [permissionGuard],
-    data: { permissions: INCENTIVE_PERMISSIONS.quality },
+    data: { permissions: INCENTIVE_PERMISSIONS.qualityForms },
     loadComponent: () => import('./quality/form-list').then((m) => m.FormList),
   },
   {

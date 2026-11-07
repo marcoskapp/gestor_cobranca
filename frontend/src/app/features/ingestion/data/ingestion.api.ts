@@ -52,7 +52,7 @@ export class ImportBatchesApi {
   }
 
   search(filter: BatchFilter, page: PageRequest): Observable<PageResponse<ImportBatchView>> {
-    return this.http.get<PageResponse<ImportBatchView>>(`${BASE}/batches`, { params: toHttpParams({ ...filter, page: page.page, size: page.size }) });
+    return this.http.get<PageResponse<ImportBatchView>>(`${BASE}/batches`, { params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }) });
   }
 
   get(id: string): Observable<ImportBatchView> {

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, untracked } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -14,6 +14,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { NameSource, nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { DebtorNames } from '../../debt/data/debt.lookups';
@@ -152,9 +153,6 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
   `,
 })
 export class MatterList {
-  /** `?fase=` vindo do painel. */
-  readonly fase = input<string>();
-
   private readonly api = inject(LegalMattersApi);
   private readonly auth = inject(AuthService);
   protected readonly creditorSource = inject(CreditorLookup);
@@ -168,7 +166,15 @@ export class MatterList {
   protected readonly canSeeDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), stage: ['OPEN'], responsible: [''] });
+  /** Filtros na URL (`?credor=&fase=&responsavel=`): `fase` vem do painel e tudo se preserva ao voltar. */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({ creditor: this.fb.control<string[]>([]), stage: ['OPEN'], responsible: [''] }),
+    {
+      creditor: urlParam.ids('credor'),
+      stage: urlParam.choice('fase', ['OPEN', 'ALL', ...this.stages.map((s) => s.value)]),
+      responsible: urlParam.choice('responsavel', this.responsibles.map((r) => r.value)),
+    },
+  );
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
@@ -177,7 +183,7 @@ export class MatterList {
     ),
     { initialValue: toMatterFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   private readonly noNames: NameSource = { resolve: () => of([]) };
   protected readonly debtors = nameMap(this.auth.hasPermission(Permission.DEBTOR_VIEW) ? inject(DebtorNames) : this.noNames, () =>
     this.canSeeDebtor() ? this.query.rows().map((m) => m.debtorId) : [],
@@ -196,15 +202,6 @@ export class MatterList {
     { key: 'flags', header: 'Sinalizações' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
-
-  constructor() {
-    effect(() => {
-      const fase = this.fase();
-      if (fase) {
-        untracked(() => this.filters.patchValue({ stage: fase }));
-      }
-    });
-  }
 
   protected warn(flag: string): boolean {
     return WARNING_FLAGS.includes(flag);

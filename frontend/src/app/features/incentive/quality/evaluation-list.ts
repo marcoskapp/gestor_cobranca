@@ -29,7 +29,6 @@ import { EvaluationView, QualityForm, ReferenceType } from '../data/incentive.mo
 import { parseDecimal, score } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
 import { personRangeFilter } from './person-range-filter';
-import { QualityTabs } from './quality-tabs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const referenceTypes = Object.entries(REFERENCE_TYPE_LABELS) as [ReferenceType, string][];
@@ -198,7 +197,7 @@ export class EvaluationDialog {
 /** Monitorias de qualidade registradas (insumo do portão de monitoria do plano). */
 @Component({
   selector: 'app-incentive-evaluation-list',
-  imports: [ReactiveFormsModule, NgbInputDatepicker, ...FORM_FIELD, AppDatePipe, CellDef, DataTable, EntityPicker, Icon, PageHeader, QualityTabs],
+  imports: [ReactiveFormsModule, NgbInputDatepicker, ...FORM_FIELD, AppDatePipe, CellDef, DataTable, EntityPicker, Icon, PageHeader],
   template: `
     <app-page-header title="Monitoria de qualidade" subtitle="Avaliações de atendimento (0 a 10). A nota média do período pode suspender o variável pelo portão de monitoria do plano.">
       @if (canEvaluate()) {
@@ -208,7 +207,6 @@ export class EvaluationDialog {
         </button>
       }
     </app-page-header>
-    <app-quality-tabs />
     @if (canEvaluate() && formsLoaded() && !activeForms().length) {
       <div class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" /><span>Crie um formulário de monitoria ativo antes de registrar avaliações.</span></div>
     }
@@ -280,7 +278,7 @@ export class EvaluationList {
     () => this.auth.hasPermission(Permission.USER_VIEW) && this.auth.hasAnyPermission([Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL, Permission.QUALITY_EVALUATE]),
   );
   protected readonly range = personRangeFilter(inject(FormBuilder));
-  protected readonly query = pagedQuery(this.range.filter, (f, page) => this.api.evaluations(f, page));
+  protected readonly query = pagedQuery(this.range.filter, (f, page) => this.api.evaluations(f, page), { url: true });
   private readonly formList = rxResource({ stream: () => this.api.forms() });
   private readonly forms = valueOr(this.formList, []);
   protected readonly formsLoaded = computed(() => this.formList.hasValue());

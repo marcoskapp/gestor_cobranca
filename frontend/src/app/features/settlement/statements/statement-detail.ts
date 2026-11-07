@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { urlTab } from '../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { manualPhrase } from '../../../core/onboarding/manual/manual-parameters.service';
 import { RouterLink } from '@angular/router';
@@ -58,6 +59,8 @@ export class StatementDetail {
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
+  /** Aba ativa na URL (`?aba=`): voltar para a ficha reabre a mesma aba. */
+  protected readonly tab = urlTab(['recebimentos', 'custas', 'ajustes', 'arquivos', 'repasses'], 'recebimentos');
 
   protected readonly cycle = STATEMENT_CYCLE;
   protected readonly categories = ADJUSTMENT_CATEGORY_LABELS;

@@ -1,4 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { NavigationHistory } from '../../core/layout/breadcrumbs/navigation-history';
+import { recordLabel } from '../../core/layout/breadcrumbs/breadcrumbs';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -36,6 +38,8 @@ const DEFAULT_NOTICE =
   styleUrl: './portal-config-edit.scss',
 })
 export class PortalConfigEdit {
+  /** Volta para a lista com os filtros e a página de quando o usuário saiu dela. */
+  protected readonly history = inject(NavigationHistory);
   /** `novo` ou o id da configuração. */
   readonly id = input.required<string>();
 
@@ -52,6 +56,8 @@ export class PortalConfigEdit {
     stream: ({ params }) => (params ? this.api.get(params) : of(undefined)),
   });
   protected readonly current = valueOr(this.config, undefined);
+  /** Nome do registro na trilha e no "Voltar para" de quem sair desta ficha. */
+  protected readonly crumb = recordLabel(() => this.current()?.displayName);
   protected readonly privacyHint = computed(() => {
     const version = this.current()?.privacyNoticeVersion;
     const base = 'Alterar o texto cria nova versão; os devedores confirmam de novo.';

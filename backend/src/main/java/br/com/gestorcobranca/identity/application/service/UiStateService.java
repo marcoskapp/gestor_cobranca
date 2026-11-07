@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -103,6 +104,12 @@ class UiStateService implements UiStateUseCases {
                 state.markScreenSeen(screen.screenKey(), screen.version(), now);
             }
         }
+        if (patch.navigationSections() != null) {
+            for (NavSectionUpdate section : patch.navigationSections()) {
+                Guard.requireNonNull(section, "ui_state.nav_section_required", "Seção do menu não informada");
+                state.collapseSection(section.sectionKey(), section.collapsed());
+            }
+        }
         if (patch.checklist() != null) {
             for (ChecklistUpdate item : patch.checklist()) {
                 Guard.requireNonNull(item, "ui_state.checklist_item_required", "Item não informado");
@@ -133,7 +140,8 @@ class UiStateService implements UiStateUseCases {
     }
 
     private static UiStateView defaults() {
-        return new UiStateView(UiTheme.SYSTEM.name(), UiDensity.COMFORTABLE.name(), false, true, false, Map.of(), Map.of(), Map.of());
+        return new UiStateView(UiTheme.SYSTEM.name(), UiDensity.COMFORTABLE.name(), false, true, false, Map.of(), Map.of(), Map.of(),
+                List.of());
     }
 
     private static UiStateView toView(UserUiState state) {
@@ -147,6 +155,7 @@ class UiStateService implements UiStateUseCases {
             screens.put(e.getKey(), new ScreenView(e.getValue().getVersion(), e.getValue().getSeenAt()));
         }
         return new UiStateView(state.getTheme().name(), state.getDensity().name(), state.isNavigationCollapsed(),
-                state.isHintsEnabled(), state.isChecklistDismissed(), tours, screens, new TreeMap<>(state.getChecklist()));
+                state.isHintsEnabled(), state.isChecklistDismissed(), tours, screens, new TreeMap<>(state.getChecklist()),
+                state.getCollapsedSections().stream().sorted().toList());
     }
 }

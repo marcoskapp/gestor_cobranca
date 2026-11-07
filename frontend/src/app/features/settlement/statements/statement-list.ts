@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -14,6 +14,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
@@ -115,11 +116,11 @@ export class StatementList {
   protected readonly statuses = statusOptions('settlementStatement');
   protected readonly canClose = computed(() => this.auth.hasPermission(Permission.SETTLEMENT_CLOSE));
 
-  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({
-    creditor: this.fb.control<string[]>(this.params.get('credor') ? [this.params.get('credor')!] : []),
-    status: [this.params.get('situacao') ?? ''],
+  /** Filtros na URL (`?credor=&situacao=`): vindos de "Minhas pendências" e preservados ao voltar. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]), status: [''] }), {
+    creditor: urlParam.ids('credor'),
+    status: urlParam.choice('situacao', statusOptions('settlementStatement').map((s) => s.value)),
   });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -129,7 +130,7 @@ export class StatementList {
     ),
     { initialValue: { creditorId: this.filters.getRawValue().creditor[0] ?? null, status: this.filters.getRawValue().status || null }, equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((s) => s.creditorId));
 
   protected readonly columns: TableColumn[] = [

@@ -279,7 +279,7 @@ AUC mínima, limites de PSI) e limite da segunda aprovação do ajuste do demons
 
 ## 9. Estado de interface no servidor (módulo `identity`)
 
-- Tabelas: `identity.user_ui_state` (1 por usuário: `theme`, `density`, `navigation_collapsed`, `hints_enabled`, `checklist_dismissed`) e filhas `user_ui_tour` (versão, desfecho, instante), `user_ui_screen` (versão vista), `user_ui_checklist` (instante de conclusão). RLS habilitado e **forçado**; filhas protegidas pela linha pai (padrão V0200). `on delete cascade` a partir de `app_user`.
+- Tabelas: `identity.user_ui_state` (1 por usuário: `theme`, `density`, `navigation_collapsed`, `hints_enabled`, `checklist_dismissed`) e filhas `user_ui_tour` (versão, desfecho, instante), `user_ui_screen` (versão vista), `user_ui_checklist` (instante de conclusão), `user_ui_nav_section` (seções do menu recolhidas, `V0208`; até 50, chave = `NavSection.key`; o PATCH aceita `navigationSections: [{sectionKey, collapsed}]`). RLS habilitado e **forçado**; filhas protegidas pela linha pai (padrão V0200). `on delete cascade` a partir de `app_user`.
 - API (`UiStateController`, `ACTOR_USER`): `GET /api/v1/me/ui-state` devolve o estado ou os padrões sem gravar; `PATCH /api/v1/me/ui-state` aplica campos presentes e listas de *upsert* (máx. 50 itens por requisição). Não há id de usuário na URL: sempre o da sessão.
 - Domínio (`UserUiState`): identificadores `^[a-z0-9]+(?:[.-][a-z0-9]+)*$` (≤ 64), versões 1–9999, limites de 200 tours / 500 telas / 100 itens; versões nunca regridem (aba desatualizada não "desvê" uma tela).
 - Concorrência: `insert … on conflict do nothing` + `select … for update` serializa abas e dispositivos sem erro na criação.
@@ -640,3 +640,47 @@ Total ≈ 77 dias. Sugestão de frentes paralelas (sem arquivos em comum entre f
 | Final | limpeza do Material (depois de todas as frentes) | 1 d |
 
 `RestrictionActions` (compliance) é usado também pela ficha do devedor (debt) — ambos na frente A.
+
+## 16. Estado de navegação: listas, abas, trilha e retorno (revisão de produto 11/2026 — J2, J10, K8, T4, T5, T10)
+
+**Problema:** voltar de uma ficha perdia filtros, página, aba e rolagem; a trilha repetia níveis ("Pagamentos ›
+Pagamentos") e o "← Lista" voltava sem filtros; o menu era montado pela permissão de leitura, não pela tarefa.
+
+**Estado na URL** (`shared/data/url-state.ts`, `shared/data/paged-query.ts`)
+
+| Peça | Contrato |
+| --- | --- |
+| `syncFormWithUrl(form, codecs)` | Lê os parâmetros ao abrir (antes da consulta), grava cada mudança dos filtros com `replaceUrl` (filtrar não cria entrada no histórico) e acompanha link externo para a mesma tela. Valor igual ao padrão não vai para a URL; vazio diferente do padrão ("Todas" quando o padrão é "Ativos") fica como `param=` |
+| `urlParam.*` | `text`, `id`, `ids`, `choice`, `flag`, `date`, `int`. Valor inválido ou adulterado cai no padrão; o servidor continua validando |
+| `pagedQuery(..., { url: true, sortFields })` | `pagina` (1 em diante), `tamanho` e `ordem` (`-coluna` = decrescente) na URL da lista principal; `sortFields` mapeia a coluna da tabela para o campo da lista branca do servidor (`sort=campo,asc|desc`, `SortableFields`) |
+| `urlTab(abas, padrão)` | Aba ativa em `?aba=` (`[activeId]="tab.value()" (activeIdChange)="tab.set($event)"`) |
+| `UrlStateWriter` | Um por rota ativada: coalesce as gravações da tela (inclusive as dos efeitos do mesmo ciclo) numa navegação só, mantém na fila os parâmetros de uma gravação ainda em curso e descarta a gravação durante a navegação de um link ou do "voltar" e depois que a tela foi deixada |
+
+Nomes de parâmetro em português, curtos (`credor`, `devedor`, `situacao`, `pagina`, `ordem`, `aba`). **Nunca dado
+pessoal na URL** (ela fica em histórico, logs de proxy e é compartilhada): devedor vai pelo id escolhido no seletor (o
+CPF/CNPJ vai no corpo de `POST /debtors/lookup`). **Regra:** nenhuma busca por pessoa (devedor, usuário, titular) vai
+para a URL — nem nome, nem documento, e-mail, telefone ou IP; a busca da lista de devedores, de usuários, de credores
+(aceita CPF/CNPJ), de titulares e o IP do log de acesso ficam só no formulário (somem ao voltar). Na URL só ids e
+filtros de cadastro sem dado pessoal (situação, período, nome de carteira, código de template).
+
+**Rolagem e caminho percorrido** (`core/layout/breadcrumbs/navigation-history.ts`): o conteúdo rola em `#conteudo`, que o
+roteador não conhece (`scrollPositionRestoration: 'disabled'`). O `NavigationHistory` guarda a rolagem de cada entrada
+do histórico e, no "voltar", restaura quando a lista já tem altura (as listas carregam depois da navegação), desistindo se
+o usuário rolar ou após 4 s; gravação de estado (filtro, página, aba) não mexe na rolagem; tela nova começa no topo.
+Também guarda de onde o usuário veio e o último endereço de cada tela (só em memória, só URLs do app, até 200 de cada; esvaziado na troca de usuário). `pagedQuery` também acompanha um link externo para a mesma lista (página e ordem).
+
+**Trilha e retorno** (`breadcrumbs.ts`): seção some quando tem o nome do item; fichas mostram o nome do registro
+(`recordLabel(() => …)`); o link da lista na trilha volta com os filtros (e é o "voltar" do navegador quando a lista é a
+origem, com rolagem); "← Voltar para <origem>" aparece quando a origem é outra tela (ex.: da estação para a ficha do
+devedor). Botões "← Lista" das fichas usam `history.linkTo('/lista')`.
+
+**Menu por tarefa** (`core/layout/navigation.ts`, `docs/negocio/perfis-de-acesso.md`): `permissions` = quem tem a tarefa;
+`alsoRequires` = exigidas todas, além de uma da tarefa (área de consulta + consulta dos dados; rota: `data.allPermissions` no `permissionGuard`); `openedFrom` = quem abre a tela por outro caminho (a rota aceita as duas listas; `navigation-routes.spec.ts` confere e
+exige que o `via` seja um item que essas permissões veem); `ownLabel` dá o nome pessoal ("Meu desempenho"). Seções com
+`key` estável, recolhíveis (preferência no servidor, §9); a seção da tela atual fica aberta. Ícones só de contorno e um
+por item (`navigation.spec.ts`). Os painéis não têm mais abas repetindo o menu: o período escolhido acompanha o usuário
+de um painel para outro (`urlFilter`, em memória).
+
+**Para telas novas:** lista principal com `syncFormWithUrl` + `pagedQuery({ url: true })`; colunas ordenáveis só com lista
+branca no servidor; abas com `urlTab`; ficha com `recordLabel`; item de menu pela tarefa do perfil.
+

@@ -1,8 +1,10 @@
-import { Component, Injectable, computed, inject, signal } from '@angular/core';
+import { Component, EffectRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, TitleStrategy } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
+import { Icon } from '../../../shared/components/icon/icon';
 import { NAVIGATION } from '../navigation';
+import { NavigationHistory, pathOf } from './navigation-history';
 
 export interface Breadcrumb {
   label: string;
@@ -14,10 +16,12 @@ const EXTRA_AREAS: Record<string, string> = { conta: 'Minha conta', ajuda: 'Ajud
 
 /**
  * Permite a uma tela de detalhe trocar o último item da trilha pelo nome do registro
- * (ex.: "Credor" → "Banco Alfa S.A."). Limpo a cada navegação.
+ * (ex.: "Credor" → "Banco Alfa S.A."). Limpo a cada navegação. O mesmo nome identifica a tela no
+ * "← Voltar para <origem>" de quem sair dela.
  */
 @Injectable({ providedIn: 'root' })
 export class BreadcrumbService {
+  private readonly history = inject(NavigationHistory);
   private readonly label = signal<string | null>(null);
   readonly currentLabel = this.label.asReadonly();
 
@@ -29,10 +33,24 @@ export class BreadcrumbService {
 
   setCurrentLabel(label: string | null): void {
     this.label.set(label);
+    if (label) {
+      this.history.setCurrentLabel(label);
+    }
   }
 }
 
-/** Monta a trilha a partir do menu (seção → item) e do título da rota atual. */
+/**
+ * Nome do registro na trilha das fichas (contexto de injeção): `protected readonly crumb = recordLabel(() => this.current()?.name);`
+ */
+export function recordLabel(label: () => string | null | undefined): EffectRef {
+  const breadcrumbs = inject(BreadcrumbService);
+  return effect(() => breadcrumbs.setCurrentLabel(label() || null));
+}
+
+/**
+ * Monta a trilha a partir do menu (seção → item) e do título da rota atual. A seção some quando tem o mesmo nome do
+ * item ("Pagamentos › Pagamentos" vira "Pagamentos").
+ */
 export function buildBreadcrumbs(url: string, pageTitle: string | undefined): Breadcrumb[] {
   const path = url.split(/[?#]/)[0] || '/';
   if (path === '/') {
@@ -50,7 +68,7 @@ export function buildBreadcrumbs(url: string, pageTitle: string | undefined): Br
     }
   }
   if (best) {
-    if (best.section) {
+    if (best.section && best.section !== best.label) {
       crumbs.push({ label: best.section });
     }
     const isCurrent = path === best.route;
@@ -70,27 +88,58 @@ export function buildBreadcrumbs(url: string, pageTitle: string | undefined): Br
   return crumbs;
 }
 
+/**
+ * Trilha de navegação (menu → tela → registro) com o retorno à tela de origem: "← Voltar para <origem>" quando o
+ * usuário chegou de outra tela do app que não é a lista da trilha, e o link da lista volta com os filtros e a
+ * rolagem de quando ele saiu (é o "voltar" do navegador quando a lista é a origem).
+ */
 @Component({
   selector: 'app-breadcrumbs',
-  imports: [RouterLink],
+  imports: [RouterLink, Icon],
   template: `
-    @if (crumbs().length > 1) {
-      <nav aria-label="Trilha de navegação">
-        <ol class="breadcrumb app-crumbs">
-          @for (crumb of crumbs(); track $index; let last = $last) {
-            <li class="breadcrumb-item" [class.active]="last" [attr.aria-current]="last ? 'page' : null">
-              @if (crumb.route && !last) {
-                <a [routerLink]="crumb.route">{{ crumb.label }}</a>
-              } @else {
-                {{ crumb.label }}
-              }
-            </li>
-          }
-        </ol>
+    @if (crumbs().length > 1 || backTo()) {
+      <nav class="app-crumbs-bar" aria-label="Trilha de navegação">
+        @if (backTo(); as origin) {
+          <a class="app-crumbs__back" [routerLink]="history.linkTo(origin.url)" (click)="goBack($event)">
+            <app-icon name="arrow-left" />
+            Voltar para {{ origin.label }}
+          </a>
+        }
+        @if (crumbs().length > 1) {
+          <ol class="breadcrumb app-crumbs">
+            @for (crumb of crumbs(); track $index; let last = $last) {
+              <li class="breadcrumb-item" [class.active]="last" [attr.aria-current]="last ? 'page' : null">
+                @if (crumb.route && !last) {
+                  <a [routerLink]="history.linkTo(crumb.route)" (click)="crumbClick($event, crumb.route)">{{ crumb.label }}</a>
+                } @else {
+                  {{ crumb.label }}
+                }
+              </li>
+            }
+          </ol>
+        }
       </nav>
     }
   `,
   styles: `
+    .app-crumbs-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      column-gap: 16px;
+    }
+    .app-crumbs__back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: var(--bs-breadcrumb-margin-bottom, 1rem);
+      color: var(--bs-secondary-color);
+      text-decoration: none;
+      border-radius: var(--bs-border-radius-sm);
+    }
+    .app-crumbs__back:hover {
+      color: var(--bs-link-hover-color);
+    }
     .app-crumbs a {
       color: var(--bs-secondary-color);
       border-radius: var(--bs-border-radius-sm);
@@ -116,6 +165,7 @@ export class Breadcrumbs {
   private readonly router = inject(Router);
   private readonly titles = inject(TitleStrategy);
   private readonly override = inject(BreadcrumbService).currentLabel;
+  protected readonly history = inject(NavigationHistory);
 
   private readonly base = toSignal(
     this.router.events.pipe(
@@ -131,4 +181,33 @@ export class Breadcrumbs {
     const label = this.override();
     return label && crumbs.length > 1 ? [...crumbs.slice(0, -1), { label }] : crumbs;
   });
+
+  /** Origem fora da trilha (a lista da trilha já é o caminho de volta) e fora do início. */
+  protected readonly backTo = computed(() => {
+    const origin = this.history.origin();
+    if (!origin || origin.path === '/' || !origin.label) {
+      return null;
+    }
+    const inTrail = this.crumbs().some((c) => c.route && c.route !== '/' && pathOf(c.route) === origin.path);
+    return inTrail ? null : origin;
+  });
+
+  protected goBack(event: MouseEvent): void {
+    if (this.isPlainClick(event)) {
+      event.preventDefault();
+      this.history.back();
+    }
+  }
+
+  /** A lista da trilha é a origem: o "voltar" do navegador restaura filtros, página e rolagem. */
+  protected crumbClick(event: MouseEvent, route: string): void {
+    if (this.isPlainClick(event) && this.history.origin()?.path === pathOf(route)) {
+      event.preventDefault();
+      this.history.back();
+    }
+  }
+
+  private isPlainClick(event: MouseEvent): boolean {
+    return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+  }
 }

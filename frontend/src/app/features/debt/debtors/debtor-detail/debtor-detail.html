@@ -12,13 +12,13 @@
     message="O devedor pode não existir ou não ter títulos nos credores do seu escopo."
   >
     <button class="btn btn-outline-primary" type="button" (click)="debtor.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/devedores">Voltar para devedores</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/devedores')">Voltar para devedores</a>
   </app-empty-state>
 }
 
 @if (current(); as d) {
   <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
-    <a class="btn btn-link" routerLink="/devedores">
+    <a class="btn btn-link" [routerLink]="history.linkTo('/devedores')">
       <app-icon name="arrow-left" />
       Devedores
     </a>
@@ -108,8 +108,8 @@
   </section>
 
   <section class="app-card" aria-label="Títulos, contatos e histórico">
-    <ul ngbNav #tabs="ngbNav" class="nav-tabs debt-tabs" data-tour="debtor-tabs">
-      <li ngbNavItem>
+    <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-tabs debt-tabs" data-tour="debtor-tabs">
+      <li [ngbNavItem]="'titulos'">
         <button ngbNavLink type="button">Títulos ({{ titleRows().length }})</button>
         <ng-template ngbNavContent>
           <div class="debt-tab">
@@ -152,7 +152,7 @@
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li [ngbNavItem]="'contatos'">
         <button ngbNavLink type="button">Contatos ({{ contactRows().length }})</button>
         <ng-template ngbNavContent>
           <div class="debt-tab">
@@ -231,21 +231,21 @@
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li [ngbNavItem]="'contratos'">
         <button ngbNavLink type="button">Contratos de origem</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-origin-contracts [titles]="titleRows()" [loading]="titles.isLoading()" /></div>
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li [ngbNavItem]="'garantias'">
         <button ngbNavLink type="button">Garantias e coobrigações</button>
         <ng-template ngbNavContent>
           <div class="debt-tab"><app-debtor-guarantees [summary]="position()" [loading]="summary.isLoading()" /></div>
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li [ngbNavItem]="'razao'">
         <button ngbNavLink type="button">Razão</button>
         <ng-template ngbNavContent>
           <div class="debt-tab">
@@ -268,7 +268,7 @@
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li [ngbNavItem]="'titularidade'">
         <button ngbNavLink type="button">Titularidade</button>
         <ng-template ngbNavContent>
           <div class="debt-tab">
@@ -290,7 +290,7 @@
         </ng-template>
       </li>
 
-      <li ngbNavItem>
+      <li [ngbNavItem]="'restricoes'">
         <button ngbNavLink type="button">Restrições de contato</button>
         <ng-template ngbNavContent>
           <div class="debt-tab">

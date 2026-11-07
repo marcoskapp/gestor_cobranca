@@ -54,8 +54,8 @@
     }
   }
 
-  <ul ngbNav #nav="ngbNav" class="nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="matter-tabs">
-    <li [ngbNavItem]="0">
+  <ul ngbNav #nav="ngbNav" class="nav-tabs flex-nowrap overflow-x-auto overflow-y-hidden" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" data-tour="matter-tabs">
+    <li [ngbNavItem]="'resumo'">
       <button type="button" class="text-nowrap" ngbNavLink>Resumo</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
@@ -178,7 +178,7 @@
       </ng-template>
     </li>
 
-    <li [ngbNavItem]="1">
+    <li [ngbNavItem]="'viabilidade'">
       <button type="button" class="text-nowrap" ngbNavLink>Viabilidade</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
@@ -230,7 +230,7 @@
       </ng-template>
     </li>
 
-    <li [ngbNavItem]="2">
+    <li [ngbNavItem]="'autorizacao'">
       <button type="button" class="text-nowrap" ngbNavLink>Autorização</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
@@ -280,7 +280,7 @@
       </ng-template>
     </li>
 
-    <li [ngbNavItem]="3">
+    <li [ngbNavItem]="'medidas'">
       <button type="button" class="text-nowrap" ngbNavLink>Medidas ({{ s.measures.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
@@ -325,7 +325,7 @@
       </ng-template>
     </li>
 
-    <li [ngbNavItem]="4">
+    <li [ngbNavItem]="'processos'">
       <button type="button" class="text-nowrap" ngbNavLink>Processos ({{ s.lawsuits.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab" data-tour="matter-lawsuits">
@@ -344,7 +344,7 @@
       </ng-template>
     </li>
 
-    <li [ngbNavItem]="5">
+    <li [ngbNavItem]="'prazos'">
       <button type="button" class="text-nowrap" ngbNavLink>Prazos ({{ deadlines().length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab" data-tour="matter-deadlines">
@@ -385,7 +385,7 @@
       </ng-template>
     </li>
 
-    <li [ngbNavItem]="6">
+    <li [ngbNavItem]="'custas'">
       <button type="button" class="text-nowrap" ngbNavLink>Custas ({{ s.expenses.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab">
@@ -441,7 +441,7 @@
       </ng-template>
     </li>
 
-    <li [ngbNavItem]="7">
+    <li [ngbNavItem]="'documentos'">
       <button type="button" class="text-nowrap" ngbNavLink>Documentos ({{ s.documents.length }})</button>
       <ng-template ngbNavContent>
         <div class="md-tab">

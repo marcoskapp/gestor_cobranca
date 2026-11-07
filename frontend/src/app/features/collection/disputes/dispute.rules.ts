@@ -4,6 +4,9 @@
  */
 import { AdjustmentAction, DisputeFilter, DisputeOutcome, DisputeType, DisputeView } from '../data/collection.models';
 import { daysBetween } from '../data/collection.rules';
+import { DISPUTE_TYPE_LABELS } from '../data/collection.labels';
+import { UrlCodec, UrlCodecs, urlParam } from '../../../shared/data/url-state';
+import { statusOptions } from '../../../shared/status/status';
 
 export type DisputeAction = 'review' | 'resolve' | 'withdraw';
 
@@ -93,24 +96,51 @@ export function toDisputeFilter(v: Partial<DisputeListForm> & { creditor: string
   return filter;
 }
 
-/**
- * Filtro inicial a partir da URL ("Minhas pendências"): `responsavel=me`, `fila=supervisao`, `resposta=pendente`,
- * `ajuste=pendente`, `email=pendente`, `vencidas=true`.
- */
-export function formFromQuery(params: { get(name: string): string | null }): Partial<DisputeListForm> & { overdue: boolean } {
-  const notice = params.get('resposta') === 'pendente';
-  const adjustment = params.get('ajuste') === 'pendente';
-  const mail = params.get('email') === 'pendente';
-  const assignee = params.get('fila') === 'supervisao' ? 'supervision' : params.get('responsavel') === 'me' ? 'me' : '';
+export type DisputeListFormValue = Required<DisputeListForm>;
+
+/** Filtros padrão da fila (ficam fora da URL). */
+export const DISPUTE_FORM_DEFAULTS: DisputeListFormValue = {
+  creditor: [],
+  status: 'PENDING',
+  type: '',
+  assignee: '',
+  due: '',
+  awaiting: false,
+  noticePending: false,
+  adjustmentPending: false,
+  mailReplyPending: false,
+};
+
+/** Opção do formulário ↔ valor curto em português na URL. */
+function mappedParam(param: string, values: Record<string, string>): UrlCodec<string> {
   return {
-    status: notice || adjustment ? 'RESOLVED' : 'PENDING',
-    assignee,
-    noticePending: notice,
-    adjustmentPending: adjustment,
-    mailReplyPending: mail,
-    overdue: params.get('vencidas') === 'true',
+    param,
+    parse: (raw) => Object.entries(values).find(([, v]) => v === raw)?.[0],
+    format: (value) => values[value] ?? null,
   };
 }
+
+const ALL_STATUSES = 'todas';
+
+/**
+ * Filtros da fila na URL (`?credor=&situacao=&motivo=&responsavel=&prazo=&aguardando=1&resposta-pendente=1&
+ * ajuste-pendente=1&email-pendente=1`). A situação padrão é "Pendentes"; "Todas" vira `situacao=todas`.
+ */
+export const DISPUTE_URL_CODECS: UrlCodecs<DisputeListFormValue> = {
+  creditor: urlParam.ids('credor'),
+  status: {
+    param: 'situacao',
+    parse: (raw) => (raw === ALL_STATUSES ? '' : raw === 'PENDING' || statusOptions('dispute').some((s) => s.value === raw) ? raw : undefined),
+    format: (value) => value || ALL_STATUSES,
+  },
+  type: urlParam.choice('motivo', Object.keys(DISPUTE_TYPE_LABELS)),
+  assignee: mappedParam('responsavel', { me: 'me', none: 'nenhum', supervision: 'supervisao' }),
+  due: mappedParam('prazo', { overdue: 'vencido', week: 'semana' }),
+  awaiting: urlParam.flag('aguardando'),
+  noticePending: urlParam.flag('resposta-pendente'),
+  adjustmentPending: urlParam.flag('ajuste-pendente'),
+  mailReplyPending: urlParam.flag('email-pendente'),
+};
 
 /** Ajuste sugerido pelo tipo e pelo resultado (mesma regra do servidor); nulo quando o resultado não pede ajuste. */
 export function suggestedAdjustment(type: DisputeType, outcome: DisputeOutcome | '' | null): AdjustmentAction | null {

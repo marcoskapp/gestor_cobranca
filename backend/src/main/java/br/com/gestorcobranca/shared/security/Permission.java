@@ -41,6 +41,10 @@ public enum Permission {
     PORTFOLIO_MANAGE("Gerenciar carteiras"),
     POLICY_VIEW("Consultar políticas de cobrança e negociação"),
     POLICY_MANAGE("Gerenciar políticas de cobrança e negociação"),
+    // Áreas de consulta (menu por tarefa, decisão D6 da revisão de produto de 11/2026): abrem as telas da área; os
+    // dados continuam protegidos pelas permissões de consulta acima, que outras telas usam sem abrir a área
+    ORGANIZATION_AREA_VIEW("Abrir as telas de credores e carteiras (os nomes nas demais telas não dependem desta permissão)"),
+    POLICY_AREA_VIEW("Abrir as telas de políticas de cobrança e índices de correção (o simulador e as propostas não dependem desta permissão)"),
 
     // Ingestão
     IMPORT_VIEW("Consultar importações"),
@@ -134,6 +138,7 @@ public enum Permission {
     // Score
     SCORING_VIEW("Consultar score de propensão"),
     SCORING_MANAGE("Gerenciar modelos de score"),
+    SCORING_AREA_VIEW("Abrir a área do score: modelos, execuções, monitoramento, decisões e parâmetros (o score do caso não depende desta permissão)"),
 
     // IA
     ASSISTANT_USE("Usar assistente de IA"),

@@ -17,12 +17,17 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { SegmentsApi } from '../data/campaign.api';
 import { SegmentFilter, SegmentView } from '../data/campaign.models';
 import { criteriaSummary } from '../data/campaign.rules';
+
+function toSegmentFilter(v: { creditor: string[]; active: string }): SegmentFilter {
+  return { creditorId: v.creditor[0] ?? null, active: v.active === '' ? null : v.active === 'true' };
+}
 
 /** Segmentos salvos por credor (ou da assessoria), com resumo dos filtros. */
 @Component({
@@ -110,19 +115,20 @@ export class SegmentList {
   protected readonly canRebuild = computed(() => this.auth.hasAnyPermission([Permission.SEGMENT_MANAGE, Permission.CAMPAIGN_MANAGE]));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ creditor: this.fb.control<string[]>([]), active: [''] });
+  /** Filtros na URL (`?credor=&ativo=`), preservados ao voltar do segmento. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]), active: [''] }), {
+    creditor: urlParam.ids('credor'),
+    active: urlParam.choice('ativo', ['true', 'false']),
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(250),
-      map((): SegmentFilter => {
-        const v = this.filters.getRawValue();
-        return { creditorId: v.creditor[0] ?? null, active: v.active === '' ? null : v.active === 'true' };
-      }),
+      map(() => toSegmentFilter(this.filters.getRawValue())),
     ),
-    { initialValue: { creditorId: null, active: null } as SegmentFilter, equal: sameValue },
+    { initialValue: toSegmentFilter(this.filters.getRawValue()), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((s) => s.creditorId));
 
   protected readonly columns: TableColumn[] = [

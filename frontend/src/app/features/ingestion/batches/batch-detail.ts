@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -77,12 +78,12 @@ export function batchActions(
     } @else if (batch.status() === 'error' && !current()) {
       <app-empty-state icon="file-earmark-arrow-up" tone="error" title="Não foi possível abrir o lote." message="O lote pode não existir ou o credor estar fora do seu escopo.">
         <button class="btn btn-outline-primary" type="button" (click)="batch.reload()">Tentar novamente</button>
-        <a class="btn btn-link" routerLink="/importacao">Voltar para importações</a>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/importacao')">Voltar para importações</a>
       </app-empty-state>
     }
     @if (current(); as b) {
       <app-page-header [title]="b.fileName || 'Registros via API'" [subtitle]="creditors.name(b.creditorId) + ' · ' + portfolios.name(b.portfolioId) + ' · ' + modeLabels[b.mode]">
-        <a class="btn btn-link" routerLink="/importacao"><app-icon name="arrow-left" /> Importações</a>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/importacao')"><app-icon name="arrow-left" /> Importações</a>
         @if (b.issuesRecorded) {
           <button class="btn btn-outline-primary" type="button" (click)="report(b)" ngbTooltip="CSV com valores mascarados (exportação registrada)">
             <app-icon name="download" />
@@ -290,6 +291,8 @@ export function batchActions(
   `,
 })
 export class BatchDetail {
+  /** Volta para a lista com os filtros e a página de quando o usuário saiu dela. */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly api = inject(ImportBatchesApi);

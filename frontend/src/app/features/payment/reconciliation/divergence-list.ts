@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { debounceTime, map, startWith } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
@@ -13,6 +13,7 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
+import { UrlCodec, syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -23,6 +24,18 @@ import { ReconciliationApi } from '../data/payment.api';
 import { DIVERGENCE_TYPE_LABELS, RESOLUTION_LABELS } from '../data/payment.labels';
 import { DivergenceFilter, DivergenceType, DivergenceView } from '../data/payment.models';
 import { ResolveDialog, ResolveDialogData } from './resolve-dialog';
+
+const ALL_STATUSES = 'todas';
+
+/**
+ * Situação na URL (`?situacao=`): o padrão da tela é "Em aberto" (fora da URL), então "Todas" (valor vazio) precisa de
+ * um valor explícito (`situacao=todas`) para sobreviver ao voltar.
+ */
+export const divergenceStatusParam: UrlCodec<string> = {
+  param: 'situacao',
+  parse: (raw) => (raw === ALL_STATUSES || raw === '' ? '' : urlParam.choice('situacao', statusOptions('divergence').map((s) => s.value)).parse(raw)),
+  format: (value) => value || ALL_STATUSES,
+};
 
 /** Fila de divergências da conciliação por tipo, com resolução auditada (justificativa obrigatória). */
 @Component({
@@ -114,7 +127,6 @@ export class DivergenceList {
   private readonly api = inject(ReconciliationApi);
   private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
-  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
   protected readonly types = Object.entries(DIVERGENCE_TYPE_LABELS);
   protected readonly typeLabels = DIVERGENCE_TYPE_LABELS;
   protected readonly resolutions = RESOLUTION_LABELS;
@@ -122,19 +134,20 @@ export class DivergenceList {
   protected readonly asType = (t: string) => t as DivergenceType;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  protected readonly filters = this.fb.group({ type: [this.params.get('tipo') ?? ''], status: [this.params.get('situacao') ?? 'OPEN'] });
+  /** Filtros na URL (`?tipo=&situacao=`), preservados ao voltar e usados pelo link de "Minhas pendências". */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ type: [''], status: ['OPEN'] }), {
+    type: urlParam.choice('tipo', Object.keys(DIVERGENCE_TYPE_LABELS)),
+    status: divergenceStatusParam,
+  });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
       debounceTime(150),
-      map((): DivergenceFilter => {
-        const v = this.filters.getRawValue();
-        return { type: v.type || null, status: v.status || null };
-      }),
+      map(() => this.current()),
     ),
-    { initialValue: { type: this.params.get('tipo') || null, status: this.params.get('situacao') ?? 'OPEN' } as DivergenceFilter, equal: sameValue },
+    { initialValue: this.current(), equal: sameValue },
   );
-  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.divergences(f, page));
+  protected readonly query = pagedQuery(this.filter, (f, page) => this.api.divergences(f, page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((d) => d.creditorId));
   protected readonly users = nameMap(inject(UserNames), () => this.query.rows().map((d) => d.resolvedBy), { batch: USER_NAMES_BATCH });
 
@@ -157,5 +170,10 @@ export class DivergenceList {
           this.query.reload();
         }
       });
+  }
+
+  private current(): DivergenceFilter {
+    const v = this.filters.getRawValue();
+    return { type: v.type || null, status: v.status || null };
   }
 }

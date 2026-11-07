@@ -80,7 +80,7 @@ export class ReallocationList {
   private readonly notifications = inject(NotificationService);
   protected readonly methods = METHOD_LABELS;
 
-  protected readonly query = pagedQuery(signal(null), (_, page) => this.api.pendingReallocation(page));
+  protected readonly query = pagedQuery(signal(null), (_, page) => this.api.pendingReallocation(page), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId), { batch: 100 });
 

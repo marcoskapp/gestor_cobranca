@@ -8,7 +8,7 @@ import { TourDefinition } from '../onboarding.models';
 export const TOURS: readonly TourDefinition[] = [
   {
     id: 'analytics.operational',
-    version: 1,
+    version: 2,
     title: 'Painel operacional',
     summary: 'O que cada número da carteira mostra e como usá-lo para direcionar a equipe.',
     steps: [
@@ -17,7 +17,7 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'kpi-queue', title: 'Fila pendente', body: 'Casos elegíveis ainda sem negociador. Fila crescendo pede redistribuir a equipe ou acionar campanhas e o assistente.' },
       { anchor: 'analytics-chart', title: 'Onde está a carteira', body: 'Valor e vencido por credor, e a carteira por faixa de atraso, para decidir onde concentrar o esforço.' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
-      { anchor: 'analytics-tabs', title: 'Outros painéis', body: 'Recuperação, conversão, produtividade e confiabilidade. Os filtros acompanham você entre eles.' },
+      { anchor: 'nav', title: 'Outros painéis', body: 'Recuperação, conversão, produtividade e confiabilidade ficam no menu, em Painéis. O período escolhido acompanha você entre eles.' },
     ],
   },
   {

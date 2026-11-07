@@ -15,6 +15,8 @@ export const PAGE_SIZE_OPTIONS: readonly number[] = [20, 50, 100, 200];
 export interface PageRequest {
   page: number;
   size: number;
+  /** Ordenação aceita pelo servidor (`campo,asc|desc`), só nas consultas com lista branca de ordenação. */
+  sort?: string;
 }
 
 export function emptyPage<T>(size = DEFAULT_PAGE_SIZE): PageResponse<T> {

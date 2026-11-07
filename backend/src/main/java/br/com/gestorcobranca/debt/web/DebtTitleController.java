@@ -54,9 +54,10 @@ class DebtTitleController {
                                    @RequestParam(required = false) Integer minOverdueDays,
                                    @RequestParam(required = false) Integer maxOverdueDays,
                                    @RequestParam(required = false) Integer page,
-                                   @RequestParam(required = false) Integer size) {
+                                   @RequestParam(required = false) Integer size,
+                                   @RequestParam(required = false) String sort) {
         return titles.search(new TitleSearch(creditorId, portfolioId, debtorId, status, dueFrom, dueTo, minOverdueDays,
-                maxOverdueDays), PageQuery.of(page, size));
+                maxOverdueDays), PageQuery.of(page, size, sort));
     }
 
     @GetMapping("/debtors/{debtorId}/titles")
